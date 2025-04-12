@@ -33,8 +33,10 @@ export type Section = {
     day: string;
     isDiscussion: boolean;
     location: string;
-    start: Date;
-    end: Date;
+
+    // stored in minutes out of the day
+    start: number;
+    end: number;
   }[];
 
   totalSeats: number;
@@ -42,3 +44,5 @@ export type Section = {
   waitlistSeats: number;
   holdfiledSeats: number;
 };
+
+export type Defined<T> = T extends null | undefined ? never : T;

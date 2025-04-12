@@ -1,15 +1,21 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { MinusIcon, PlusIcon } from "lucide-react";
+import { Dispatch, Fragment, SetStateAction, useState } from "react";
+import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Course, Section } from "~/lib/types";
+import { Course, Defined, Section } from "~/lib/types";
 
 export function CourseList({
   courses,
   sections,
+  addedSections,
+  setAddedSections,
 }: {
   courses: Course[];
   sections: Section[];
+  addedSections: string[];
+  setAddedSections: Dispatch<SetStateAction<string[]>>;
 }) {
   const [search, setSearch] = useState("");
   const filtered = courses.filter((c) =>
@@ -18,11 +24,17 @@ export function CourseList({
 
   return (
     <div className="flex flex-col gap-2">
-      <Input value={search} onChange={(e) => setSearch(e.target.value)} />
+      <Input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-sm"
+      />
       {filtered.map((course, i) => (
         <CourseCard
           course={course}
           sections={sections.filter((s) => s.courseCode === course.code)}
+          addedSections={addedSections}
+          setAddedSections={setAddedSections}
           key={i}
         />
       ))}
@@ -33,12 +45,16 @@ export function CourseList({
 function CourseCard({
   course,
   sections,
+  addedSections,
+  setAddedSections,
 }: {
   course: Course;
   sections: Section[];
+  addedSections: string[];
+  setAddedSections: Dispatch<SetStateAction<string[]>>;
 }) {
   return (
-    <div className="border rounded-lg p-2 max-w-sm">
+    <div className="border rounded-lg p-2 w-sm">
       <p className="font-semibold leading-none pb-1">{course.code}</p>
       <p className="leading-none text-balance">{course.name}</p>
       <hr className="my-1" />
@@ -46,15 +62,52 @@ function CourseCard({
       {sections.map((s, i) => (
         <Fragment key={i}>
           <div className="leading-none">
-            {s.sectionCode} {s.professor}
-            {s.times &&
-              groupTimes(s.times).map((t, i) => (
-                <p key={i}>
-                  {t.day} {t.location} {formatTime(t.start)}–{formatTime(t.end)}{" "}
-                  {t.isDiscussion && "Dis"}
+            <div className="flex justify-between items-center">
+              <div>
+                <p>
+                  <span className="font-semibold">{s.sectionCode}</span> —{" "}
+                  {s.professor}
                 </p>
-              ))}
+                {s.times &&
+                  groupTimes(s.times).map((t, i) => (
+                    <p key={i}>
+                      {t.day} {t.location} {formatTime(t.start)}–
+                      {formatTime(t.end)} {t.isDiscussion && "Dis"}
+                    </p>
+                  ))}
+              </div>
+
+              {addedSections.includes(`${s.courseCode}-${s.sectionCode}`) ? (
+                <Button
+                  size="icon"
+                  className="w-8 h-8"
+                  onClick={() =>
+                    setAddedSections((prev) =>
+                      prev.filter(
+                        (str) => str !== `${s.courseCode}-${s.sectionCode}`
+                      )
+                    )
+                  }
+                >
+                  <MinusIcon size={16} />
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  className="w-8 h-8"
+                  onClick={() =>
+                    setAddedSections((prev) => [
+                      ...prev,
+                      `${s.courseCode}-${s.sectionCode}`,
+                    ])
+                  }
+                >
+                  <PlusIcon size={16} />
+                </Button>
+              )}
+            </div>
           </div>
+
           {i < sections.length - 1 && <hr className="my-2" />}
         </Fragment>
       ))}
@@ -62,7 +115,6 @@ function CourseCard({
   );
 }
 
-type Defined<T> = T extends null | undefined ? never : T;
 function groupTimes(
   times: Defined<Section["times"]>
 ): Defined<Section["times"]> {
@@ -87,7 +139,13 @@ function groupTimes(
   return output;
 }
 
-function formatTime(date: Date) {
+export function formatTime(dateNum: number) {
+  const hour = Math.floor(dateNum / 60);
+  const minute = dateNum % 60;
+
+  const date = new Date();
+  date.setHours(hour, minute, 0, 0);
+
   return date
     .toLocaleTimeString([], {
       hour: "numeric",
