@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { ReactNode } from "react";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
+// const inter = Inter({
+//   variable: "--font-inter",
+//   subsets: ["latin"],
+// });
 
 export const metadata: Metadata = {
   title: "Terpsicle",
@@ -16,7 +15,11 @@ export const metadata: Metadata = {
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased p-8`}>{children}</body>
+      <body className="antialiased p-8">
+        <h1 className="text-2xl font-semibold">Terpsicle</h1>
+        <hr className="my-4" />
+        {children}
+      </body>
     </html>
   );
 }
