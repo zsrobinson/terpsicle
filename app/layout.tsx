@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="antialiased p-8">
+      <body className="antialiased m-8">
         <h1 className="text-2xl font-semibold">Terpsicle</h1>
         <hr className="my-4" />
         {children}
