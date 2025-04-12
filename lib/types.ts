@@ -12,3 +12,11 @@ export type Course = {
   geneds?: string[][]; // List of "ors", list of len 1 = no "or"
   crosslist?: string[];
 };
+
+export type Requirement = {
+  name: string;
+  credits: number;
+  fulfilled: number;
+  courses: Course[];
+  status: "Complete" | "In Progress" | "Planned" | "Incomplete";
+};
