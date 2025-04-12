@@ -3,6 +3,7 @@
 import { Dispatch, Fragment, SetStateAction } from "react";
 import { Course, Section } from "~/lib/types";
 import { formatTime } from "./course-list";
+import { XIcon } from "lucide-react";
 
 export function Calendar({
   sections,
@@ -48,6 +49,7 @@ export function Calendar({
               start={CAL_START}
               end={CAL_END}
               sections={filteredSections}
+              setAddedSections={setAddedSections}
               key={day}
             />
           ))}
@@ -74,11 +76,13 @@ function CalendarDay({
   start,
   end,
   sections,
+  setAddedSections,
 }: {
   day: string;
   start: number;
   end: number;
   sections: Section[];
+  setAddedSections: Dispatch<SetStateAction<string[]>>;
 }) {
   const todaySections = sections
     .filter((sec) => sec.times && sec.times.some((t) => t.day === day))
@@ -89,7 +93,7 @@ function CalendarDay({
       {todaySections.map((sec, i) => (
         <div
           key={i}
-          className="bg-red-500/50 absolute"
+          className="bg-red-500/50 absolute w-full p-2 flex flex-col items-center rounded-lg"
           style={{
             height:
               ((sec.times![0].end - sec.times![0].start) / (end - start)) *
@@ -98,7 +102,24 @@ function CalendarDay({
             top: ((sec.times![0].start - start) / (end - start)) * 100 + "%",
           }}
         >
-          {sec.courseCode}-{sec.sectionCode} {formatTime(sec.times![0].start)}
+          <span className="leading-none font-semibold pb-1">
+            {sec.courseCode}
+          </span>{" "}
+          <span className="leading-none text-xs">
+            {formatTime(sec.times![0].start)}–{formatTime(sec.times![0].end)}
+          </span>
+          <span className="leading-none text-xs">{sec.times![0].location}</span>
+          <span className="leading-none text-xs">{sec.professor}</span>
+          <button
+            onClick={() =>
+              setAddedSections((prev) =>
+                prev.filter((s) => s !== `${sec.courseCode}-${sec.sectionCode}`)
+              )
+            }
+            className="absolute top-2 right-2"
+          >
+            <XIcon size={16} />
+          </button>
         </div>
       ))}
     </div>
