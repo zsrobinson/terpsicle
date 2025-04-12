@@ -9,6 +9,6 @@ export type Course = {
   semester?: Semester | "Transfer";
   professor?: string;
   section?: string;
-  geneds?: string[][];
+  geneds?: string[][]; // List of "ors", list of len 1 = no "or"
   crosslist?: string[];
 };
