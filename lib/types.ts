@@ -1,5 +1,9 @@
 // helper types for Course
-type Semester = string;
+export type Semester = {
+  id: string; // e.g. "202501" for Spring 2025
+  name: string; // e.g. "Spring 2025"
+  courses: Course[];
+};
 
 export type Course = {
   code: string;
@@ -7,9 +11,7 @@ export type Course = {
   credits: number;
 
   semester?: Semester | "Transfer";
-  professor?: string;
-  section?: string;
-  geneds?: string[][]; // List of "ors", list of len 1 = no "or"
+  geneds?: string[][];
   crosslist?: string[];
 };
 
@@ -19,4 +21,23 @@ export type Requirement = {
   fulfilled: number;
   courses: Course[];
   status: "Complete" | "In Progress" | "Planned" | "Incomplete";
+};
+export type Section = {
+  semester?: Semester;
+  professor?: string;
+  sectionCode: string;
+  courseCode: string;
+
+  times?: {
+    day: string;
+    isDiscussion: boolean;
+    location: string;
+    start: Date;
+    end: Date;
+  }[];
+
+  totalSeats: number;
+  openSeats: number;
+  waitlistSeats: number;
+  holdfiledSeats: number;
 };
