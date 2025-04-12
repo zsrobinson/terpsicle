@@ -45,37 +45,37 @@ const sampleSemesters: Semester[] = [
 ];
 
 const allSemesterOptions = [
-  { value: "202108", label: "Fall 2021" },
-  { value: "202112", label: "Winter 2021" },
-  { value: "202201", label: "Spring 2022" },
-  { value: "202205", label: "Summer 2022" },
-  { value: "202208", label: "Fall 2022" },
-  { value: "202212", label: "Winter 2022" },
-  { value: "202301", label: "Spring 2023" },
-  { value: "202305", label: "Summer 2023" },
-  { value: "202308", label: "Fall 2023" },
-  { value: "202312", label: "Winter 2023" },
-  { value: "202401", label: "Spring 2024" },
-  { value: "202405", label: "Summer 2024" },
-  { value: "202408", label: "Fall 2024" },
-  { value: "202412", label: "Winter 2024" },
-  { value: "202501", label: "Spring 2025" },
-  { value: "202505", label: "Summer 2025" },
-  { value: "202508", label: "Fall 2025" },
-  { value: "202512", label: "Winter 2025" },
-  { value: "202601", label: "Spring 2026" },
-  { value: "202605", label: "Summer 2026" },
-  { value: "202608", label: "Fall 2026" },
-  { value: "202612", label: "Winter 2026" },
-  { value: "202701", label: "Spring 2027" },
-  { value: "202705", label: "Summer 2027" },
-  { value: "202708", label: "Fall 2027" },
-  { value: "202712", label: "Winter 2027" },
-  { value: "202801", label: "Spring 2028" },
-  { value: "202805", label: "Summer 2028" },
-  { value: "202808", label: "Fall 2028" },
-  { value: "202812", label: "Winter 2028" },
-  { value: "202901", label: "Spring 2029" }
+  { value: "202108", label: "Fall 2021 🍂" },
+  { value: "202112", label: "Winter 2021 ❄️" },
+  { value: "202201", label: "Spring 2022 🌸" },
+  { value: "202205", label: "Summer 2022 ☀️" },
+  { value: "202208", label: "Fall 2022 🍂" },
+  { value: "202212", label: "Winter 2022 ❄️" },
+  { value: "202301", label: "Spring 2023 🌸" },
+  { value: "202305", label: "Summer 2023 ☀️" },
+  { value: "202308", label: "Fall 2023 🍂" },
+  { value: "202312", label: "Winter 2023 ❄️" },
+  { value: "202401", label: "Spring 2024 🌸" },
+  { value: "202405", label: "Summer 2024 ☀️" },
+  { value: "202408", label: "Fall 2024 🍂" },
+  { value: "202412", label: "Winter 2024 ❄️" },
+  { value: "202501", label: "Spring 2025 🌸" },
+  { value: "202505", label: "Summer 2025 ☀️" },
+  { value: "202508", label: "Fall 2025 🍂" },
+  { value: "202512", label: "Winter 2025 ❄️" },
+  { value: "202601", label: "Spring 2026 🌸" },
+  { value: "202605", label: "Summer 2026 ☀️" },
+  { value: "202608", label: "Fall 2026 🍂" },
+  { value: "202612", label: "Winter 2026 ❄️" },
+  { value: "202701", label: "Spring 2027 🌸" },
+  { value: "202705", label: "Summer 2027 ☀️" },
+  { value: "202708", label: "Fall 2027 🍂" },
+  { value: "202712", label: "Winter 2027 ❄️" },
+  { value: "202801", label: "Spring 2028 🌸" },
+  { value: "202805", label: "Summer 2028 ☀️" },
+  { value: "202808", label: "Fall 2028 🍂" },
+  { value: "202812", label: "Winter 2028 ❄️" },
+  { value: "202901", label: "Spring 2029 🌸" }
 ];
 
 function generateSemesters(start: string, end: string, existingSemesters: Semester[] = []): Semester[] {
@@ -159,7 +159,7 @@ export default function Page() {
       ? [
           {
             id: "transfer",
-            name: "Transfer Credits",
+            name: "Transfer Credits 🧾",
             courses: storedCourses["transfer"] || []
           },
           ...regularSemesters
@@ -209,21 +209,25 @@ export default function Page() {
   const handleAddCourse = () => {
     if (!selectedSemesterId) return;
 
-    // Update stored courses
+    const courseWithSemester: Course = {
+      ...newCourse,
+      semester: selectedSemesterId
+    };
+
     const updatedCourses = {
       ...storedCourses,
-      [selectedSemesterId]: [...(storedCourses[selectedSemesterId] || []), newCourse]
+      [selectedSemesterId]: [...(storedCourses[selectedSemesterId] || []), courseWithSemester]
     };
     setStoredCourses(updatedCourses);
-
     setShowAddCourse(false);
+    setSelectedSemesterId(null);
     setNewCourse({ code: "", name: "", credits: 0, geneds: [] });
   };
 
-  const handleRemoveCourse = (semesterId: string, courseCode: string) => {
+  const handleRemoveCourse = (semesterId: string, index: number) => {
     const updatedCourses = {
       ...storedCourses,
-      [semesterId]: storedCourses[semesterId]?.filter(course => course.code !== courseCode) || []
+      [semesterId]: storedCourses[semesterId]?.filter((_, i) => i !== index) || []
     };
     setStoredCourses(updatedCourses);
   };
@@ -367,14 +371,18 @@ export default function Page() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="code">Course Code</Label>
+              <Label htmlFor="code">Course Code/Placeholder</Label>
               <div className="relative">
-                <Input
-                  id="code"
-                  value={newCourse.code}
-                  onChange={(e) => handleCourseCodeChange(e.target.value)}
-                  placeholder="e.g. CMSC131"
-                />
+                <div className="relative">
+                  
+                  <Input
+                    id="code"
+                    value={newCourse.code}
+                    onChange={(e) => handleCourseCodeChange(e.target.value)}
+                    placeholder="e.g. CMSC131, DVCC, SCIS"
+                  />
+                  
+                </div>
                 {isLoading && (
                   <div className="absolute right-2 top-2">
                     <div

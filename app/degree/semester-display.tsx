@@ -70,7 +70,7 @@ function formatGenEds(geneds: string[][] | undefined) {
         <Badge 
           key={index}
           variant="outline"
-          className="text-xs font-normal border-red-200 text-red-700 bg-red-50"
+          className="text-xs font-normal border border-red-500  bg-red-900/30"
         >
           {group.join(" or ")}
         </Badge>
@@ -107,7 +107,7 @@ export function SemesterDisplay({
 }: { 
   semesters: Semester[];
   onAddCourse: (semesterId: string) => void;
-  onRemoveCourse: (semesterId: string, courseCode: string) => void;
+  onRemoveCourse: (semesterId: string, index: number) => void;
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
@@ -118,9 +118,9 @@ export function SemesterDisplay({
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-3">
-              {semester.courses.map((course) => (
+              {semester.courses.map((course, i) => (
                 <div 
-                  key={course.code} 
+                  key={i} 
                   className="flex flex-col gap-1 p-3 border rounded-lg"
                 >
                   <div className="flex justify-between items-start">
@@ -131,14 +131,14 @@ export function SemesterDisplay({
                           {course.credits} credits
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 mt-0.5">{course.name}</p>
+                      <p className="text-sm mt-0.5">{course.name}</p>
                       {formatAreas(course.code)}
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-gray-500 hover:text-red-600"
-                      onClick={() => onRemoveCourse(semester.id, course.code)}
+                      onClick={() => onRemoveCourse(semester.id, i)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
