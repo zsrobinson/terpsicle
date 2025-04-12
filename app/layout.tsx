@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 import "./globals.css";
-import { config } from '@fortawesome/fontawesome-svg-core';
-import '@fortawesome/fontawesome-svg-core/styles.css';
-import Header from '../components/Header';
+import { config } from "@fortawesome/fontawesome-svg-core";
+import "@fortawesome/fontawesome-svg-core/styles.css";
+import Header from "../components/Header";
+import { Providers } from "~/components/providers";
 
 config.autoAddCss = false;
 
@@ -14,18 +15,10 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link
-          href="https://fonts.googleapis.com/icon?family=Material+Icons"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="antialiased">
+    <html lang="en" className="scroll-smooth antialiased">
+      <body>
         <Header />
-        <main>
-          {children}
-        </main>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

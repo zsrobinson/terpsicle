@@ -23,7 +23,7 @@ export function CourseList({
   );
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-4 p-4 -m-4 overflow-y-scroll min-w-max pr-4">
       <Input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
