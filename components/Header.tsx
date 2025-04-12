@@ -27,7 +27,9 @@ export default function Header() {
             <Navlink href="/degree" pathname={pathname}>
               Degree
             </Navlink>
-
+            <Navlink href="/audit" pathname={pathname}>
+              Audit
+            </Navlink>
             <Navlink href="/schedule" pathname={pathname}>
               Schedule
             </Navlink>
