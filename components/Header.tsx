@@ -8,28 +8,38 @@ import { ReactNode } from "react";
 
 export default function Header() {
   const pathname = usePathname();
+  
   return (
-    <header className="bg-[#d7cdcc] px-8 py-4 shadow-sm border-b border-[#E03131]/20">
+    <header className="bg-[#1e1e1e] px-8 py-3">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <FontAwesomeIcon 
             icon={faGraduationCap}
             className="text-[#E03131] text-2xl"/>
           <Link href="/" prefetch>
-            <h1 className="text-2xl font-bold text-[#1B2B4B]">
+            <h1 className="text-2xl font-bold text-[#E03131]">
               Terpsicle
             </h1>
           </Link>
         </div>
         
-        <nav className="flex gap-6 items-center">
-          <Navlink href="/degree" pathname={pathname}>
-            <span className="text-lg font-medium text-[#6686c6]">Degree</span>
-          </Navlink>
-          <Navlink href="/schedule" pathname={pathname}>
-            <span className="text-lg font-medium text-[#6686c6]">Schedule</span>
-          </Navlink>
-        </nav>
+        <div className="flex items-center gap-6">
+          <nav className="flex gap-6 items-center">
+            <Navlink href="/degree" pathname={pathname}>
+              <span className="font-medium text-white">Degree</span>
+            </Navlink>
+            <Navlink href="/schedule" pathname={pathname}>
+              <span className="font-medium text-white">Schedule</span>
+            </Navlink>
+          </nav>
+          
+          <Link 
+            href="/schedule" 
+            className="bg-[#E03131] text-white px-4 py-2 rounded-full hover:bg-[#c92a2a] transition-colors duration-200 font-medium"
+          >
+            Enter App
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -46,7 +56,7 @@ export default function Header() {
     return (
       <Link
         href={href}
-        className={`px-3 py-1 rounded-md transition-transform duration-200 hover:scale-110 ${pathname.includes(href) ? "font-semibold border-b-2 border-[#6686c6]" : ""}`}
+        className={`transition-transform duration-200 hover:scale-110 ${pathname.includes(href) ? "font-semibold" : ""}`}
         prefetch
       >
         {children}

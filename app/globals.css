@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -42,8 +45,9 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 30, 30, 30;
+  --background-end-rgb: 30, 30, 30;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.141 0.005 285.823);
   --popover: oklch(1 0 0);
@@ -117,6 +121,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    color: rgb(var(--foreground-rgb));
+    background: rgb(var(--background-start-rgb));
   }
 }
 
@@ -137,4 +143,27 @@ It's getting stickyyyyy stickyyy stickyyy sticky
   to {
     transform: translateY(0);
   }
+}
+
+/* Add smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2a2a2a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
 }

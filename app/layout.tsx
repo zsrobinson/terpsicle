@@ -23,8 +23,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </head>
       <body className="antialiased">
         <Header />
-        <main className="px-0">
-        
+        <main>
           {children}
         </main>
       </body>
