@@ -2,6 +2,8 @@ import { Course } from "~/lib/types";
 import { Requirement } from "~/lib/types";
 import { GenEdBody } from "./tablerows";
 import { LowerLevelBody } from "./tablerows";
+import { UpperLevelGeneralBody } from "./tablerows";
+import { UpperLevelConcentrationBody } from "./tablerows";
 import {
   Card,
   CardContent,
@@ -35,7 +37,7 @@ export default async function Page() {
                 <TableHead className="w-[100px]">Gen Ed Code</TableHead>
                 <TableHead>Needed Credits</TableHead>
                 <TableHead>Fulfilled Credits</TableHead>
-                <TableHead>Courses</TableHead>
+                <TableHead>Course(s)</TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -47,7 +49,7 @@ export default async function Page() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Lower Level Requirements</CardTitle>
+          <CardTitle>Lower Level CS Requirements</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -56,12 +58,54 @@ export default async function Page() {
                 <TableHead className="w-[100px]">Class Code</TableHead>
                 <TableHead>Needed Credits</TableHead>
                 <TableHead>Fulfilled Credits</TableHead>
-                <TableHead>Courses</TableHead>
+                <TableHead>Course(s)</TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <LowerLevelBody />
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Upper Level CS Requirements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">Area</TableHead>
+                <TableHead>Needed Credits</TableHead>
+                <TableHead>Fulfilled Credits</TableHead>
+                <TableHead>Course(s)</TableHead>
+                <TableHead className="text-right">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <UpperLevelGeneralBody />
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Upper Level Concentration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">Area</TableHead>
+                <TableHead>Needed Credits</TableHead>
+                <TableHead>Fulfilled Credits</TableHead>
+                <TableHead>Course(s)</TableHead>
+                <TableHead className="text-right">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <UpperLevelConcentrationBody />
             </TableBody>
           </Table>
         </CardContent>

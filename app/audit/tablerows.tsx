@@ -307,7 +307,6 @@ export function LowerLevelBody() {
       }
     }
   }
-  console.log(courses);
   for (const course of courses) {
     // Ensure course has a semester
     if (!course.semester) {
@@ -380,27 +379,27 @@ export function LowerLevelBody() {
   );
 }
 
-export function UpperLevelGeneralBody() {
-  const upper_electives = [
-    "CMSC320",
-    "CMSC335",
-    "CMSC388",
-    "CMSC389",
-    "CMSC395",
-    "CMSC396",
-    "CMSC401",
-    "CMSC425",
-    "CMSC473",
-    "CMSC475",
-    "CMSC476",
-    "CMSC477",
-    "CMSC488A",
-    "CMSC498",
-    "CMSC498A",
-    "CMSC499A",
-  ];
+const upper_electives = [
+  "CMSC320",
+  "CMSC335",
+  "CMSC388",
+  "CMSC389",
+  "CMSC395",
+  "CMSC396",
+  "CMSC401",
+  "CMSC425",
+  "CMSC473",
+  "CMSC475",
+  "CMSC476",
+  "CMSC477",
+  "CMSC488A",
+  "CMSC498",
+  "CMSC498A",
+  "CMSC499A",
+];
 
-  const area1 = [
+const areas = [
+  [
     "CMSC411",
     "CMSC412",
     "CMSC414",
@@ -411,9 +410,8 @@ export function UpperLevelGeneralBody() {
     "CMSC498I",
     "CMSC498K",
     "CMSC498X",
-  ];
-
-  const area2 = [
+  ],
+  [
     "CMSC420",
     "CMSC421",
     "CMSC422",
@@ -430,28 +428,20 @@ export function UpperLevelGeneralBody() {
     "CMSC498V",
     "CMSC498Y",
     "CMSC498Z",
-  ];
-
-  const area3 = [
+  ],
+  [
     "CMSC430",
     "CMSC433",
     "CMSC434",
     "CMSC435",
     "CMSC436",
     "CMSC471", // Appears in Area 2 or Area 3
-  ];
+  ],
+  ["CMSC451", "CMSC452", "CMSC454", "CMSC456", "CMSC457", "CMSC474"],
+  ["CMSC460", "CMSC466"],
+];
 
-  const area4 = [
-    "CMSC451",
-    "CMSC452",
-    "CMSC454",
-    "CMSC456",
-    "CMSC457",
-    "CMSC474",
-  ];
-
-  const area5 = ["CMSC460", "CMSC466"];
-
+export function UpperLevelGeneralBody() {
   const general_track_reqs: { [key: string]: number } = {
     TotalUpperLevel: 15,
     "1stArea": 3, // Overlap
@@ -459,7 +449,230 @@ export function UpperLevelGeneralBody() {
     "3rdArea": 3, // Overlap
     Electives: 6,
   };
+  var areacounter = [0, 0, 0, 0, 0];
+  // prettier-ignore
+  var general_upper_reqs: Requirement[] = [
+    { name: "400 Level Area Courses", credits: 15, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "1st Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "2nd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "3rd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "Upper Level Electives", credits: 6, fulfilled: 0, courses: [], status: "Incomplete" }
+  ]
 
+  for (const course of courses) {
+    // Ensure course has a semester
+    if (!course.semester) {
+      continue;
+    }
+    for (var i = 0; i < 5; i++) {
+      if (areas[i].includes(course.code)) {
+        areacounter[0] += course.credits;
+      }
+    }
+  }
+  var area_satisfied = [false, false, false, false, false];
+  var num_areas_satisfied = 0;
+  for (const course of courses) {
+    // Ensure course has a semester
+    if (!course.semester) {
+      continue;
+    }
+    for (var i = 0; i < 5; i++) {
+      if (areas[i].includes(course.code)) {
+        // If we have too many classes, roll over to electives
+        if (areacounter[i] > 12) {
+          areacounter[i] -= course.credits;
+          general_upper_reqs[4].fulfilled += course.credits;
+          general_upper_reqs[4].courses.push(course);
+          if (
+            general_upper_reqs[4].fulfilled >= general_upper_reqs[4].credits &&
+            general_upper_reqs[4].fulfilled - course.credits <
+              general_upper_reqs[4].credits
+          ) {
+            if (
+              (course.semester || "") < CURTERM ||
+              (course.semester || "") == "Transfer"
+            ) {
+              general_upper_reqs[4].status = "Complete";
+            } else if ((course.semester || "") == CURTERM) {
+              general_upper_reqs[4].status = "In Progress";
+            } else {
+              general_upper_reqs[4].status = "Planned";
+            }
+          }
+        } else {
+          // Otherwise we chilling with some area class
+          // First see if this counts towards our three needed areas
+          if (!area_satisfied[i]) {
+            area_satisfied[i] = true;
+            num_areas_satisfied += 1;
+            if (num_areas_satisfied < 4) {
+              general_upper_reqs[num_areas_satisfied].fulfilled +=
+                course.credits;
+              general_upper_reqs[num_areas_satisfied].courses.push(course);
+              if (
+                (course.semester || "") < CURTERM ||
+                (course.semester || "") == "Transfer"
+              ) {
+                general_upper_reqs[num_areas_satisfied].status = "Complete";
+              } else if ((course.semester || "") == CURTERM) {
+                general_upper_reqs[num_areas_satisfied].status = "In Progress";
+              } else {
+                general_upper_reqs[num_areas_satisfied].status = "Planned";
+              }
+            }
+          }
+
+          areacounter[i] -= course.credits;
+          general_upper_reqs[0].fulfilled += course.credits;
+          general_upper_reqs[0].courses.push(course);
+        }
+      }
+    }
+    if (upper_electives.includes(course.code)) {
+      // See if class is in electives
+      general_upper_reqs[4].fulfilled += course.credits;
+      general_upper_reqs[4].courses.push(course);
+      if (
+        general_upper_reqs[4].fulfilled >= general_upper_reqs[4].credits &&
+        general_upper_reqs[4].fulfilled - course.credits <
+          general_upper_reqs[4].credits
+      ) {
+        if (
+          (course.semester || "") < CURTERM ||
+          (course.semester || "") == "Transfer"
+        ) {
+          general_upper_reqs[4].status = "Complete";
+        } else if ((course.semester || "") == CURTERM) {
+          general_upper_reqs[4].status = "In Progress";
+        } else {
+          general_upper_reqs[4].status = "Planned";
+        }
+      }
+    }
+  }
+  //// Requirements are done
+  //// Convert requirements into pretty table rows
+  return (
+    <>
+      {general_upper_reqs.map((req, idx) => {
+        const statusColor =
+          {
+            Incomplete: "bg-red-700",
+            Planned: "bg-purple-700",
+            "In Progress": "bg-blue-700",
+            Complete: "bg-green-700",
+          }[req.status] || "";
+
+        return (
+          <TableRow key={idx} className={statusColor}>
+            <TableCell className="font-medium">{req.name}</TableCell>
+            <TableCell>{req.credits}</TableCell>
+            <TableCell>{req.fulfilled}</TableCell>
+            <TableCell>
+              {req.courses
+                .map((c) => {
+                  if (c.code != "Transfer") {
+                    return c.code;
+                  } else {
+                    return c.name;
+                  }
+                })
+                .join(", ")}
+            </TableCell>
+            <TableCell className="text-right">{req.status}</TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
+}
+
+export function UpperLevelConcentrationBody() {
+  var concentration_requirements: Requirement[] = [];
+  courseloop: for (const course of courses) {
+    if (
+      course.code == "Transfer" ||
+      course.code[4] != "4" ||
+      course.code == "STAT400" ||
+      course.code.slice(0, 4) == "CMSC"
+    ) {
+      continue;
+    }
+    for (const req of concentration_requirements) {
+      if (course.code.slice(0, 4) == req.name) {
+        req.fulfilled += course.credits;
+        req.courses.push(course);
+        if (
+          req.fulfilled >= req.credits &&
+          req.fulfilled - course.credits < req.credits
+        ) {
+          if (
+            (course.semester || "") < CURTERM ||
+            (course.semester || "") == "Transfer"
+          ) {
+            req.status = "Complete";
+          } else if ((course.semester || "") == CURTERM) {
+            req.status = "In Progress";
+          } else {
+            req.status = "Planned";
+          }
+        }
+        continue courseloop;
+      }
+    }
+    concentration_requirements.push({
+      name: course.code.slice(0, 4),
+      credits: 12,
+      fulfilled: course.credits,
+      courses: [course],
+      status: "Incomplete",
+    });
+  }
+  for (const req of concentration_requirements) {
+    if (req.fulfilled >= req.credits) {
+      concentration_requirements = [req];
+      break;
+    }
+  }
+  //// Requirements are done
+  //// Convert requirements into pretty table rows
+  return (
+    <>
+      {concentration_requirements.map((req, idx) => {
+        const statusColor =
+          {
+            Incomplete: "bg-red-700",
+            Planned: "bg-purple-700",
+            "In Progress": "bg-blue-700",
+            Complete: "bg-green-700",
+          }[req.status] || "";
+
+        return (
+          <TableRow key={idx} className={statusColor}>
+            <TableCell className="font-medium">{req.name}</TableCell>
+            <TableCell>{req.credits}</TableCell>
+            <TableCell>{req.fulfilled}</TableCell>
+            <TableCell>
+              {req.courses
+                .map((c) => {
+                  if (c.code != "Transfer") {
+                    return c.code;
+                  } else {
+                    return c.name;
+                  }
+                })
+                .join(", ")}
+            </TableCell>
+            <TableCell className="text-right">{req.status}</TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
+}
+
+export function CyberUpperBody() {
   const cyber_courses: string[] = [
     "CMSC411",
     "CMSC412",
@@ -468,16 +681,117 @@ export function UpperLevelGeneralBody() {
     "CMSC433",
     "CMSC451",
   ];
-  const cyber_track_reqs: { [key: string]: number } = {
-    "1stArea": 3, // Overlap
-    "2ndArea": 3, // Overlap
-    "3rdArea": 3, // Overlap
-    UpperElectives: 3,
-    CMSC414: 3,
-    CMSC456: 3,
-    CyberCourses: 12,
-  };
+  // prettier-ignore
+  var cyber_track_reqs: Requirement[] = [
+    { name: "CMSC414", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC456", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "Cyber Courses", credits: 12, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "Upper Level Elective", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "1st Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "2nd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "3rd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
+  ];
 
+  var area_satisfied = [false, false, false, false, false];
+  var num_areas_satisfied = 0;
+  for (const course of courses) {
+    // Ensure course has a semester
+    if (!course.semester) {
+      continue;
+    }
+    if (course.code == "CMSC414") {
+      cyber_track_reqs[0].fulfilled += course.credits;
+      cyber_track_reqs[0].courses.push(course);
+      cyber_track_reqs[0].status = completionStatus(course);
+    } else if (course.code == "CMSC456") {
+      cyber_track_reqs[1].fulfilled += course.credits;
+      cyber_track_reqs[1].courses.push(course);
+      cyber_track_reqs[1].status = completionStatus(course);
+    } else if (cyber_courses.includes(course.code)) {
+      cyber_track_reqs[2].fulfilled += course.credits;
+      cyber_track_reqs[2].courses.push(course);
+      if (
+        cyber_track_reqs[2].fulfilled >= cyber_track_reqs[2].credits &&
+        cyber_track_reqs[2].fulfilled - course.credits <
+          cyber_track_reqs[2].credits
+      ) {
+        cyber_track_reqs[2].status = completionStatus(course);
+      }
+    } else if (
+      (course.code.slice(0, 5) == "CMSC3" ||
+        course.code.slice(0, 5) == "CMSC4") &&
+      course.code != "CMSC330" &&
+      course.code != "CMSC351"
+    ) {
+      cyber_track_reqs[3].fulfilled += course.credits;
+      cyber_track_reqs[3].courses.push(course);
+      if (
+        cyber_track_reqs[3].fulfilled >= cyber_track_reqs[2].credits &&
+        cyber_track_reqs[3].fulfilled - course.credits <
+          cyber_track_reqs[3].credits
+      ) {
+        cyber_track_reqs[3].status = completionStatus(course);
+      }
+    }
+    // Account for area requirements
+    for (var i = 0; i < 5; i++) {
+      if (areas[i].includes(course.code)) {
+        // Otherwise we chilling with some area class
+        // First see if this counts towards our three needed areas
+        if (!area_satisfied[i]) {
+          area_satisfied[i] = true;
+          num_areas_satisfied += 1;
+          if (num_areas_satisfied < 4) {
+            cyber_track_reqs[num_areas_satisfied + 3].fulfilled +=
+              course.credits;
+            cyber_track_reqs[num_areas_satisfied + 3].courses.push(course);
+            cyber_track_reqs[num_areas_satisfied + 3].status =
+              completionStatus(course);
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  //// Requirements are done
+  //// Convert requirements into pretty table rows
+  return (
+    <>
+      {cyber_track_reqs.map((req, idx) => {
+        const statusColor =
+          {
+            Incomplete: "bg-red-700",
+            Planned: "bg-purple-700",
+            "In Progress": "bg-blue-700",
+            Complete: "bg-green-700",
+          }[req.status] || "";
+
+        return (
+          <TableRow key={idx} className={statusColor}>
+            <TableCell className="font-medium">{req.name}</TableCell>
+            <TableCell>{req.credits}</TableCell>
+            <TableCell>{req.fulfilled}</TableCell>
+            <TableCell>
+              {req.courses
+                .map((c) => {
+                  if (c.code != "Transfer") {
+                    return c.code;
+                  } else {
+                    return c.name;
+                  }
+                })
+                .join(", ")}
+            </TableCell>
+            <TableCell className="text-right">{req.status}</TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
+}
+
+export function DataUpperBody() {
   const data_group1_courses: string[] = [
     "CMSC420",
     "CMSC421",
@@ -498,34 +812,340 @@ export function UpperLevelGeneralBody() {
     "CMSC434",
     "CMSC435",
   ];
-  const data_track_reqs: { [key: string]: number } = {
-    "1stArea": 3, // Overlap
-    "2ndArea": 3, // Overlap
-    "3rdArea": 3, // Overlap
-    CMSC422: 3,
-    CMSC424: 3,
-    DataGroup1: 3,
-    DataGroup2: 3,
-    DataGroup3: 3,
-  };
+  // prettier-ignore
+  var data_track_reqs: Requirement[] = [
+    { name: "CMSC320", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC422", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC424", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "Data Group 1 Courses", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "Data Group 2 Courses", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "Data Group 3 Courses", credits: 6, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "1st Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "2nd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "3rd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
+  ];
 
-  const quantum_track_reqs: { [key: string]: number } = {
-    "1stArea": 3, // Not area 4 // Overlap
-    "2ndArea": 3, // Not area 4 // Overlap
-    CMSC457: 3,
-    PHYS467: 3,
-    TotalUpperLevel: 12, // Not CMSC457
-  };
+  var area_satisfied = [false, false, false, false, false];
+  var num_areas_satisfied = 0;
+  for (const course of courses) {
+    // Ensure course has a semester
+    if (!course.semester) {
+      continue;
+    }
+    if (course.code == "CMSC320") {
+      data_track_reqs[0].fulfilled += course.credits;
+      data_track_reqs[0].courses.push(course);
+      data_track_reqs[0].status = completionStatus(course);
+    } else if (course.code == "CMSC422") {
+      data_track_reqs[1].fulfilled += course.credits;
+      data_track_reqs[1].courses.push(course);
+      data_track_reqs[1].status = completionStatus(course);
+    } else if (course.code == "CMSC424") {
+      data_track_reqs[2].fulfilled += course.credits;
+      data_track_reqs[2].courses.push(course);
+      data_track_reqs[2].status = completionStatus(course);
+    } else if (data_group1_courses.includes(course.code)) {
+      data_track_reqs[3].fulfilled += course.credits;
+      data_track_reqs[3].courses.push(course);
+      if (
+        data_track_reqs[3].fulfilled >= data_track_reqs[2].credits &&
+        data_track_reqs[3].fulfilled - course.credits <
+          data_track_reqs[3].credits
+      ) {
+        data_track_reqs[3].status = completionStatus(course);
+      }
+    } else if (data_group2_courses.includes(course.code)) {
+      data_track_reqs[4].fulfilled += course.credits;
+      data_track_reqs[4].courses.push(course);
+      if (
+        data_track_reqs[4].fulfilled >= data_track_reqs[2].credits &&
+        data_track_reqs[4].fulfilled - course.credits <
+          data_track_reqs[4].credits
+      ) {
+        data_track_reqs[4].status = completionStatus(course);
+      }
+    } else if (data_group3_courses.includes(course.code)) {
+      data_track_reqs[5].fulfilled += course.credits;
+      data_track_reqs[5].courses.push(course);
+      if (
+        data_track_reqs[5].fulfilled >= data_track_reqs[2].credits &&
+        data_track_reqs[5].fulfilled - course.credits <
+          data_track_reqs[5].credits
+      ) {
+        data_track_reqs[5].status = completionStatus(course);
+      }
+    }
+    // Account for area requirements
+    for (var i = 0; i < 5; i++) {
+      if (areas[i].includes(course.code)) {
+        // Otherwise we chilling with some area class
+        // First see if this counts towards our three needed areas
+        if (!area_satisfied[i]) {
+          area_satisfied[i] = true;
+          num_areas_satisfied += 1;
+          if (num_areas_satisfied < 4) {
+            data_track_reqs[num_areas_satisfied + 5].fulfilled +=
+              course.credits;
+            data_track_reqs[num_areas_satisfied + 5].courses.push(course);
+            data_track_reqs[num_areas_satisfied + 5].status =
+              completionStatus(course);
+          }
+        }
+        break;
+      }
+    }
+  }
+  //// Requirements are done
+  //// Convert requirements into pretty table rows
+  return (
+    <>
+      {data_track_reqs.map((req, idx) => {
+        const statusColor =
+          {
+            Incomplete: "bg-red-700",
+            Planned: "bg-purple-700",
+            "In Progress": "bg-blue-700",
+            Complete: "bg-green-700",
+          }[req.status] || "";
 
-  const ml_track_reqs: { [key: string]: number } = {
-    "1stArea": 3, // Overlap
-    "2ndArea": 3, // Overlap
-    "3rdArea": 3, // Overlap
-    CMSC320: 3,
-    CMSC421: 3,
-    CMSC422: 3,
-    UpperElectives: 6, // Not CMSC457
-  };
+        return (
+          <TableRow key={idx} className={statusColor}>
+            <TableCell className="font-medium">{req.name}</TableCell>
+            <TableCell>{req.credits}</TableCell>
+            <TableCell>{req.fulfilled}</TableCell>
+            <TableCell>
+              {req.courses
+                .map((c) => {
+                  if (c.code != "Transfer") {
+                    return c.code;
+                  } else {
+                    return c.name;
+                  }
+                })
+                .join(", ")}
+            </TableCell>
+            <TableCell className="text-right">{req.status}</TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
+}
+
+export function QuantumUpperBody() {
+  // prettier-ignore
+  var quantum_track_reqs:  Requirement[] = [
+        { name: "CMSC457", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+        { name: "PHYS467", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+        { name: "400 Level Area Courses", credits: 12, fulfilled: 0, courses: [], status: "Incomplete" },
+        { name: "1st Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+        { name: "2nd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
+    ];
+  var area_satisfied = [false, false, false, true, false];
+  var num_areas_satisfied = 0;
+  for (const course of courses) {
+    // Ensure course has a semester
+    if (!course.semester) {
+      continue;
+    }
+    if (course.code == "CMSC457") {
+      quantum_track_reqs[0].fulfilled += course.credits;
+      quantum_track_reqs[0].courses.push(course);
+      quantum_track_reqs[0].status = completionStatus(course);
+      continue;
+    } else if (course.code == "PHYS467") {
+      quantum_track_reqs[1].fulfilled += course.credits;
+      quantum_track_reqs[1].courses.push(course);
+      quantum_track_reqs[1].status = completionStatus(course);
+    }
+    // Account for area requirements
+    for (var i = 0; i < 5; i++) {
+      if (areas[i].includes(course.code)) {
+        // We chilling with some area class
+        quantum_track_reqs[2].fulfilled += course.credits;
+        quantum_track_reqs[2].courses.push(course);
+        if (
+          quantum_track_reqs[2].fulfilled >= quantum_track_reqs[2].credits &&
+          quantum_track_reqs[2].fulfilled - course.credits <
+            quantum_track_reqs[2].credits
+        ) {
+          quantum_track_reqs[2].status = completionStatus(course);
+        }
+        // See if this counts towards our three needed areas
+        if (!area_satisfied[i]) {
+          area_satisfied[i] = true;
+          num_areas_satisfied += 1;
+          if (num_areas_satisfied < 3) {
+            quantum_track_reqs[num_areas_satisfied + 2].fulfilled +=
+              course.credits;
+            quantum_track_reqs[num_areas_satisfied + 2].courses.push(course);
+            quantum_track_reqs[num_areas_satisfied + 2].status =
+              completionStatus(course);
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  //// Requirements are done
+  //// Convert requirements into pretty table rows
+  return (
+    <>
+      {quantum_track_reqs.map((req, idx) => {
+        const statusColor =
+          {
+            Incomplete: "bg-red-700",
+            Planned: "bg-purple-700",
+            "In Progress": "bg-blue-700",
+            Complete: "bg-green-700",
+          }[req.status] || "";
+
+        return (
+          <TableRow key={idx} className={statusColor}>
+            <TableCell className="font-medium">{req.name}</TableCell>
+            <TableCell>{req.credits}</TableCell>
+            <TableCell>{req.fulfilled}</TableCell>
+            <TableCell>
+              {req.courses
+                .map((c) => {
+                  if (c.code != "Transfer") {
+                    return c.code;
+                  } else {
+                    return c.name;
+                  }
+                })
+                .join(", ")}
+            </TableCell>
+            <TableCell className="text-right">{req.status}</TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
+}
+
+export function MLUpperBody() {
+  // prettier-ignore
+  var ml_track_reqs:  Requirement[] = [
+    { name: "CMSC320", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC421", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC422", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "Machine Learning Courses", credits: 6, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "Upper Level Electives", credits: 6, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "1st Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "2nd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "3rd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
+  ];
+  const ml_courses: string[] = [
+    "CMSC426",
+    "CMSC460",
+    "CMSC466",
+    "MATH401",
+    "CMSC470",
+    "CMSC472",
+    "CMSC473",
+    "CMSC474",
+    "CMSC476",
+  ];
+  var area_satisfied = [false, false, false, false, false];
+  var num_areas_satisfied = 0;
+  for (const course of courses) {
+    // Ensure course has a semester
+    if (!course.semester) {
+      continue;
+    }
+    if (course.code == "CMSC320") {
+      ml_track_reqs[0].fulfilled += course.credits;
+      ml_track_reqs[0].courses.push(course);
+      ml_track_reqs[0].status = completionStatus(course);
+      continue;
+    } else if (course.code == "CMSC421") {
+      ml_track_reqs[1].fulfilled += course.credits;
+      ml_track_reqs[1].courses.push(course);
+      ml_track_reqs[1].status = completionStatus(course);
+    } else if (course.code == "CMSC422") {
+      ml_track_reqs[2].fulfilled += course.credits;
+      ml_track_reqs[2].courses.push(course);
+      ml_track_reqs[2].status = completionStatus(course);
+    } else if (ml_courses.includes(course.code)) {
+      ml_track_reqs[3].fulfilled += course.credits;
+      ml_track_reqs[3].courses.push(course);
+      if (
+        ml_track_reqs[3].fulfilled >= ml_track_reqs[3].credits &&
+        ml_track_reqs[3].fulfilled - course.credits < ml_track_reqs[3].credits
+      ) {
+        ml_track_reqs[3].status = completionStatus(course);
+      }
+    } else if (
+      (course.code.slice(0, 5) == "CMSC3" ||
+        course.code.slice(0, 5) == "CMSC4") &&
+      course.code != "CMSC330" &&
+      course.code != "CMSC351"
+    ) {
+      ml_track_reqs[4].fulfilled += course.credits;
+      ml_track_reqs[4].courses.push(course);
+      if (
+        ml_track_reqs[4].fulfilled >= ml_track_reqs[4].credits &&
+        ml_track_reqs[4].fulfilled - course.credits < ml_track_reqs[4].credits
+      ) {
+        ml_track_reqs[4].status = completionStatus(course);
+      }
+    }
+    // Account for area requirements
+    for (var i = 0; i < 5; i++) {
+      if (areas[i].includes(course.code)) {
+        // See if this counts towards our three needed areas
+        if (!area_satisfied[i]) {
+          area_satisfied[i] = true;
+          num_areas_satisfied += 1;
+          if (num_areas_satisfied < 4) {
+            ml_track_reqs[num_areas_satisfied + 4].fulfilled += course.credits;
+            ml_track_reqs[num_areas_satisfied + 4].courses.push(course);
+            ml_track_reqs[num_areas_satisfied + 4].status =
+              completionStatus(course);
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  //// Requirements are done
+  //// Convert requirements into pretty table rows
+  return (
+    <>
+      {ml_track_reqs.map((req, idx) => {
+        const statusColor =
+          {
+            Incomplete: "bg-red-700",
+            Planned: "bg-purple-700",
+            "In Progress": "bg-blue-700",
+            Complete: "bg-green-700",
+          }[req.status] || "";
+
+        return (
+          <TableRow key={idx} className={statusColor}>
+            <TableCell className="font-medium">{req.name}</TableCell>
+            <TableCell>{req.credits}</TableCell>
+            <TableCell>{req.fulfilled}</TableCell>
+            <TableCell>
+              {req.courses
+                .map((c) => {
+                  if (c.code != "Transfer") {
+                    return c.code;
+                  } else {
+                    return c.name;
+                  }
+                })
+                .join(", ")}
+            </TableCell>
+            <TableCell className="text-right">{req.status}</TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
 }
 
 function sortCoursesBySemester(courses: Course[]): Course[] {
@@ -540,4 +1160,17 @@ function sortCoursesBySemester(courses: Course[]): Course[] {
     // Fallback to simple string comparison
     return semA.localeCompare(semB);
   });
+}
+
+function completionStatus(course: Course) {
+  if (
+    (course.semester || "") < CURTERM ||
+    (course.semester || "") == "Transfer"
+  ) {
+    return "Complete";
+  } else if ((course.semester || "") == CURTERM) {
+    return "In Progress";
+  } else {
+    return "Planned";
+  }
 }
