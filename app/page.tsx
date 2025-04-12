@@ -8,8 +8,22 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-[#1e1e1e] text-white">
       {/* Hero Section */}
-      <section className="pt-24 pb-16 md:pt-36 md:pb-24 flex items-center justify-center">
-        <div className="container mx-auto px-4 text-center">
+      <section className="pt-24 pb-16 md:pt-36 md:pb-24 flex items-center justify-center relative overflow-hidden">
+        {/* Background shell pattern */}
+        <div className="absolute inset-0 z-0 opacity-30">
+          <div className="relative w-full h-full overflow-hidden">
+            <Image 
+              src="/turtleShell.svg" 
+              alt="Turtle shell pattern" 
+              width={200}
+              height={200}
+              className="absolute -right-1/4 -top-[10%] w-[65%] h-auto max-w-none"
+              priority
+            />
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 text-center z-10 relative">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
             Refreshingly Simple <span className="text-[#E03131]">Planning</span>
           </h1>
@@ -33,9 +47,6 @@ export default function Page() {
           </div>
         </div>
       </section>
-
-
-
 
       <section className="py-20 bg-[#2a2a2a]">
         <div className="container mx-auto px-4">
