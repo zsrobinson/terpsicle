@@ -1,3 +1,4 @@
+import { Label } from "~/components/ui/label";
 import {
   Select,
   SelectTrigger,
@@ -9,7 +10,8 @@ import {
 export default function Page() {
   return (
     <main className="flex flex-col gap-4 items-start">
-      <div className="flex flex-col ">
+      <div className="flex gap-4">
+        <Label>Graduation</Label>
         <Select defaultValue="202701">
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select a Semester" />
@@ -24,6 +26,7 @@ export default function Page() {
           </SelectContent>
         </Select>
 
+        <Label>Track</Label>
         <Select defaultValue="general">
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select a Track" />
