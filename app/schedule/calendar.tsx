@@ -1,8 +1,12 @@
+"use client";
+
 import { Fragment } from "react";
 
 export function Calendar() {
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const times = ["10am", "11am", "12pm", "1pm", "2pm", "3pm"];
+
+  // const [courses, setCourses] = useLocalStorage<Course[]>("courses", []);
 
   return (
     <div className="flex flex-col gap-4 w-full">
