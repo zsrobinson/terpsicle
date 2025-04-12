@@ -1,8 +1,9 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { parse, stringify } from "superjson";
 
 // https://medium.com/@lean1190/uselocalstorage-hook-for-next-js-typed-and-ssr-friendly-4ddd178676df
 
-export default function useLocalStorage<T>(
+export function useLocalStorage<T>(
   key: string,
   initialValue: T
 ): [T, Dispatch<SetStateAction<T>>] {
@@ -12,14 +13,14 @@ export default function useLocalStorage<T>(
   useEffect(() => {
     if (isFirstLoad) {
       const item = window.localStorage.getItem(key);
-      if (item) setStoredValue(JSON.parse(item) as T);
+      if (item) setStoredValue(parse(item) as T);
       setIsFirstLoad(!isFirstLoad);
     }
   }, [key, isFirstLoad]);
 
   useEffect(() => {
     if (!isFirstLoad) {
-      window.localStorage.setItem(key, JSON.stringify(storedValue));
+      window.localStorage.setItem(key, stringify(storedValue));
     }
   }, [storedValue, key, isFirstLoad]);
 

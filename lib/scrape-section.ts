@@ -1,11 +1,11 @@
 import { JSDOM } from "jsdom";
-import { Section } from "./types";
-
+import { Defined, Section } from "./types";
 import { scrapeDepartment } from "~/lib/scrape-department";
 
 const TERM = "202508";
+const REVALIDATE = 600;
 
-function parseTime(timeStr: string) {
+function parseTime(timeStr: string): number {
   const match = timeStr.match(/(\d+):(\d+)(am|pm)/i);
   if (!match) throw new Error(`Invalid time format: ${timeStr}`);
   const [, hourStr, minuteStr, meridian] = match;
@@ -19,10 +19,7 @@ function parseTime(timeStr: string) {
     hour = 0;
   }
 
-  const date = new Date();
-  date.setHours(hour, minute, 0, 0);
-
-  return date;
+  return hour * 60 + minute;
 }
 
 export async function scrapeSections(dept: string) {
@@ -32,7 +29,7 @@ export async function scrapeSections(dept: string) {
   const courseConcat = courses.map((course) => course.code).join(",");
 
   const url = `https://app.testudo.umd.edu/soc/${TERM}/sections?courseIds=${courseConcat}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { next: { revalidate: REVALIDATE } });
   const text = await res.text();
   const doc = new JSDOM(text).window.document;
 
@@ -177,8 +174,8 @@ export async function scrapeSections(dept: string) {
                 times.push(dayTimes);
               }
               dayTimes[mappedDay].push({
-                start: startTime.getTime(),
-                end: endTime.getTime(),
+                start: startTime,
+                end: endTime,
               });
 
               // console.log(startTime, endTime);
@@ -190,13 +187,7 @@ export async function scrapeSections(dept: string) {
 
       // ...existing code...
 
-      const sectionTimes: {
-        day: string;
-        isDiscussion: boolean;
-        location: string;
-        start: Date;
-        end: Date;
-      }[] = [];
+      const sectionTimes: Defined<Section["times"]> = [];
 
       timeInfoContainer?.querySelectorAll("div.row").forEach((row) => {
         const dayTimeGroup = row.querySelector("div.section-day-time-group");
