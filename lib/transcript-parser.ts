@@ -4,7 +4,7 @@
 
 import { Course } from "./types";
 
-export function TranscriptParser(trans_string: string) {
+export async function TranscriptParser(trans_string: string) {
   const lines: string[] = trans_string.split("\n");
   const date_regex: RegExp = /^(Spring|Summer|Fall|Winter) [0-9]{4}/;
   const course_regex: RegExp = /^    /; // Courses always start with at least 4 spaces
@@ -162,7 +162,9 @@ export function TranscriptParser(trans_string: string) {
           credits = parseInt(line_entries[index_after_name - 2]);
         }
         const geneds = ParseGenEdList(gened_list);
-
+        if (course_code === "" && course_name === "") {
+          continue;
+        }
         courses.push({
           code: course_code,
           name: course_name,

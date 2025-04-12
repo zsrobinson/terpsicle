@@ -22,22 +22,22 @@ import React from "react";
 
 //// FOR TESTING REMOVE LATER
 import { TranscriptParser } from "~/lib/transcript-parser";
-const output = TranscriptParser(`Skip to Main Content
+const output = await TranscriptParser(`Skip to Main Content
 University of Maryland Home Page
 
 Unofficial TranscriptMain Menu Toggle Dropdown
 Testudo
 Simon AmbrozakUser Toggle Dropdown
-    Print this Document
+Print this Document
 
-        
-                                    UNIVERSITY OF MARYLAND
-                                        COLLEGE PARK
-                                    Office of the Registrar
-                                    College Park, MD 20742
-                                    UNOFFICIAL TRANSCRIPT
-                                FOR ADVISING PURPOSES ONLY 
-                                        As of:  04/11/25
+    
+                                UNIVERSITY OF MARYLAND
+                                    COLLEGE PARK
+                                Office of the Registrar
+                                College Park, MD 20742
+                                UNOFFICIAL TRANSCRIPT
+                            FOR ADVISING PURPOSES ONLY 
+                                    As of:  04/11/25
 Ambrozak, Simon
 E-Mail: sambroza@terpmail.umd.edu
 Major: Computer Science
@@ -149,7 +149,7 @@ Fall 2025      Course   Sec  Credits  Grd/ Drop   Add      Drop    Modified GenE
                 CMSC475  0101    3.00  REG  A    04/03/25           04/03/25
                 AAST351  0101    3.00  REG  A    04/03/25           04/03/25 DSSP, DVUP
 
-    
+
 Please send any questions or comments to registrar-help@umd.edu.
 Web Accessibility
 
@@ -157,15 +157,16 @@ Web Accessibility
 
 //////////////////////////
 
+//const trackjsonstr = localStorage.getItem("track") || `{"track": "General"}`;
+//const coursesjsonstr = localStorage.getItem("courses") || `{"courses": []}`;
+//const track: string = JSON.parse(trackjsonstr)["track"];
+//const courses: Course[] = sortCoursesBySemester(JSON.parse(coursesjsonstr)["courses"]);
+const track = "General";
+const courses: Course[] = sortCoursesBySemester(output); // TESTING LINE
+// const courses: Course[] = sortCoursesBySemester([]]);
+
 const CURTERM = "202501";
 export function GenEdBody() {
-  //const trackjsonstr = localStorage.getItem("track") || `{"track": "General"}`;
-  //const coursesjsonstr = localStorage.getItem("courses") || `{"courses": []}`;
-  //const track: string = JSON.parse(trackjsonstr)["track"];
-  //const courses: Course[] = sortCoursesBySemester(JSON.parse(coursesjsonstr)["courses"]);
-  const track = "General";
-  const courses: Course[] = sortCoursesBySemester(output); // TESTING LINE
-  // const courses: Course[] = sortCoursesBySemester([]]);
   // prettier-ignore
   var gened_reqs: Requirement[] = [
     { name: "FSAW", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
@@ -217,7 +218,6 @@ export function GenEdBody() {
         ) {
           // Failsafe to see if this class was already placed in an "or"
           if (requirement.name.includes("or")) {
-            console.log("Here1");
             const [req1, req2] = requirement.name.split(" or ").slice(0, 2);
             for (const requirementcheck of gened_reqs) {
               if (
@@ -284,7 +284,103 @@ export function GenEdBody() {
     </>
   );
 }
-export function MakeUpperLevelRows() {
+
+export function LowerLevelBody() {
+  // prettier-ignore
+  var lower_reqs: Requirement[] = [
+    { name: "MATH140", credits: 4, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "MATH141", credits: 4, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "STAT400", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "MATH240", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC131", credits: 4, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC132", credits: 4, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC216", credits: 4, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC250", credits: 4, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC330", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
+    { name: "CMSC351", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
+    ]
+  if (track === "General" || track === "Cyber") {
+    for (let req of lower_reqs) {
+      if (req.name === "MATH240") {
+        req.name = "MATH240 or MATH241";
+        break;
+      }
+    }
+  }
+  console.log(courses);
+  for (const course of courses) {
+    // Ensure course has a semester
+    if (!course.semester) {
+      continue;
+    }
+    for (const req of lower_reqs) {
+      var match = false;
+      if (req.name.includes(course.code)) {
+        match = true;
+      }
+      if (!match) {
+        for (const crosscoursecode of course.crosslist || []) {
+          if (req.name.includes(crosscoursecode)) {
+            match = true;
+          }
+        }
+      }
+      if (match && req.fulfilled < course.credits) {
+        req.courses.push(course);
+        req.fulfilled += course.credits;
+        if (req.fulfilled >= req.credits) {
+          if (
+            (course.semester || "") < CURTERM ||
+            (course.semester || "") == "Transfer"
+          ) {
+            req.status = "Complete";
+          } else if ((course.semester || "") == CURTERM) {
+            req.status = "In Progress";
+          } else {
+            req.status = "Planned";
+          }
+        }
+      }
+    }
+  }
+  //// Requirements are done
+  //// Convert requirements into pretty table rows
+  return (
+    <>
+      {lower_reqs.map((req, idx) => {
+        const statusColor =
+          {
+            Incomplete: "bg-red-700",
+            Planned: "bg-purple-700",
+            "In Progress": "bg-blue-700",
+            Complete: "bg-green-700",
+          }[req.status] || "";
+
+        return (
+          <TableRow key={idx} className={statusColor}>
+            <TableCell className="font-medium">{req.name}</TableCell>
+            <TableCell>{req.credits}</TableCell>
+            <TableCell>{req.fulfilled}</TableCell>
+            <TableCell>
+              {req.courses
+                .map((c) => {
+                  if (c.code != "Transfer") {
+                    return c.code;
+                  } else {
+                    return c.name;
+                  }
+                })
+                .join(", ")}
+            </TableCell>
+            <TableCell className="text-right">{req.status}</TableCell>
+          </TableRow>
+        );
+      })}
+    </>
+  );
+}
+
+export function UpperLevelGeneralBody() {
   const upper_electives = [
     "CMSC320",
     "CMSC335",
