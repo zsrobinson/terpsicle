@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* @custom-variant dark (&:is(.dark *)); */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -78,7 +77,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.141 0.005 285.823);
+    --background: oklch(0.85 0.12 20);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.21 0.006 285.885);
     --card-foreground: oklch(0.985 0 0);
@@ -118,5 +117,24 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* 
+It's getting stickyyyyy stickyyy stickyyy sticky
+*/
+.is-sticky {
+  backdrop-filter: blur(8px);
+  background-color: rgba(250, 182, 182, 0.95) !important;
+  animation: slideDown 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
