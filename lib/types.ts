@@ -1,5 +1,9 @@
 // helper types for Course
-type Semester = string;
+export type Semester = {
+  id: string; // e.g. "202501" for Spring 2025
+  name: string; // e.g. "Spring 2025"
+  courses: Course[];
+};
 
 export type Course = {
   code: string;
