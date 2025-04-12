@@ -1,20 +1,14 @@
 // helper types for Course
 type Semester = string;
-type CourseCodeLeaf = string;
-type CourseCodeNode = {
-  op: "and" | "or";
-  a: CourseCodeNode | CourseCodeLeaf;
-  b: CourseCodeNode | CourseCodeLeaf;
-};
 
 export type Course = {
-  code: CourseCodeLeaf;
+  code: string[];
   name: string;
   credits: number;
 
-  semester?: Semester | "Prior Learning";
+  semester?: Semester | "Transfer";
   professor?: string;
   section?: string;
-  geneds?: CourseCodeNode;
-  crosslist?: CourseCodeLeaf[];
+  geneds?: string[][];
+  crosslist?: string[];
 };
