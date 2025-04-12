@@ -2,7 +2,7 @@
 type Semester = string;
 
 export type Course = {
-  code: string[];
+  code: string;
   name: string;
   credits: number;
 
