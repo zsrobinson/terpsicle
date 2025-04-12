@@ -1,38 +1,37 @@
-'use client';
+"use client";
 
 import Link from "next/link";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGraduationCap } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faGraduationCap } from "@fortawesome/free-solid-svg-icons";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 
 export default function Header() {
   const pathname = usePathname();
-  
+
   return (
-    <header className="bg-[#1e1e1e] px-8 py-3">
+    <header className="px-8 py-3 bg-secondary">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center gap-2">
-          <FontAwesomeIcon 
+          <FontAwesomeIcon
             icon={faGraduationCap}
-            className="text-[#E03131] text-2xl"/>
+            className="text-primary text-2xl"
+          />
           <Link href="/" prefetch>
-            <h1 className="text-2xl font-bold text-[#E03131]">
-              Terpsicle
-            </h1>
+            <h1 className="text-2xl font-bold">Terpsicle</h1>
           </Link>
         </div>
-        
+
         <div className="flex items-center gap-6">
           <nav className="flex gap-6 items-center">
             <Navlink href="/degree" pathname={pathname}>
-              <span className="font-medium text-white">Degree</span>
+              Degree
             </Navlink>
+
             <Navlink href="/schedule" pathname={pathname}>
-              <span className="font-medium text-white">Schedule</span>
+              Schedule
             </Navlink>
           </nav>
-          
         </div>
       </div>
     </header>
@@ -50,12 +49,11 @@ export default function Header() {
     return (
       <Link
         href={href}
-        className={`transition-transform duration-200 hover:scale-110 ${pathname.includes(href) ? "font-semibold" : ""}`}
+        className={`font-medium ${pathname.includes(href) ? "underline" : ""}`}
         prefetch
       >
         {children}
       </Link>
     );
   }
-} 
-
+}
