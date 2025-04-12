@@ -191,5 +191,12 @@ function ParseGenEdList(gened_list: string[]) {
       gened_ors[i][j] = gened_ors[i][j].trim();
     }
   }
+  if (
+    gened_ors.length == 1 &&
+    gened_ors[0].length == 1 &&
+    gened_ors[0][0] == ""
+  ) {
+    return [[]];
+  }
   return gened_ors;
 }

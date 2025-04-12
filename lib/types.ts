@@ -10,7 +10,7 @@ export type Course = {
   name: string;
   credits: number;
 
-  semester?: Semester | "Transfer";
+  semester?: string;
   geneds?: string[][];
   crosslist?: string[];
 };
@@ -22,8 +22,9 @@ export type Requirement = {
   courses: Course[];
   status: "Complete" | "In Progress" | "Planned" | "Incomplete";
 };
+
 export type Section = {
-  semester?: Semester;
+  semester?: string;
   professor?: string;
   sectionCode: string;
   courseCode: string;
