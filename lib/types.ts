@@ -7,8 +7,24 @@ export type Course = {
   credits: number;
 
   semester?: Semester | "Transfer";
-  professor?: string;
-  section?: string;
-  geneds?: string[][]; // List of "ors", list of len 1 = no "or"
+  geneds?: string[][];
   crosslist?: string[];
+};
+
+
+export type Section = {
+  semester?: Semester;
+  professor?: string;
+  sectionCode: string;
+  courseCode: string;
+  
+  times?: {
+    [day: string]: {isDiscussion: boolean; location: string; start: Date; end: Date }[]; 
+  }[]
+
+  totalSeats: number;
+  openSeats: number;
+  waitlistSeats: number;
+  holdfiledSeats: number;
+
 };

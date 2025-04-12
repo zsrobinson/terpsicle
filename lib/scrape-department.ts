@@ -54,7 +54,7 @@ export async function scrapeDepartment(dept: string) {
       });
     }
 
-    console.log(courseName, genEds);
+    // console.log(courseName, genEds);
 
     courseList.push({
       code: courseID,
