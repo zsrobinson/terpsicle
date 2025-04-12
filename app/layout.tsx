@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 import "./globals.css";
+import { Navbar } from "~/components/navbar";
 
 // const inter = Inter({
 //   variable: "--font-inter",
@@ -16,7 +17,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="antialiased m-8">
-        <h1 className="text-2xl font-semibold">Terpsicle</h1>
+        <Navbar />
         <hr className="my-4" />
         {children}
       </body>
