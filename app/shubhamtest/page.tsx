@@ -1,4 +1,4 @@
-import { scrapeDepartment } from "~/lib/scrape-soc";
+import { scrapeDepartment } from "~/lib/scrape-department";
 
 export default function Page() {
     const output = scrapeDepartment("PLCY");
