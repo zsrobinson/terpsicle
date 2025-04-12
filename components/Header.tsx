@@ -33,12 +33,6 @@ export default function Header() {
             </Navlink>
           </nav>
           
-          <Link 
-            href="/schedule" 
-            className="bg-[#E03131] text-white px-4 py-2 rounded-full hover:bg-[#c92a2a] transition-colors duration-200 font-medium"
-          >
-            Enter App
-          </Link>
         </div>
       </div>
     </header>
