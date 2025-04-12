@@ -10,7 +10,7 @@ export default function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="px-8 py-3 bg-secondary">
+    <header className="px-8 py-2 bg-secondary">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center gap-2">
           <FontAwesomeIcon

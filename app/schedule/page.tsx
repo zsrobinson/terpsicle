@@ -40,7 +40,7 @@ export default function Page() {
   }
 
   return (
-    <main className="flex gap-4">
+    <main className="flex gap-4 p-4 max-h-[calc(100vh-48px)] overflow-y-hidden">
       <CourseList
         courses={coursesQuery.data}
         sections={sectionsQuery.data}

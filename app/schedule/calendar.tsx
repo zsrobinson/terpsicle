@@ -5,6 +5,17 @@ import { Course, Section } from "~/lib/types";
 import { formatTime } from "./course-list";
 import { XIcon } from "lucide-react";
 
+const COURSE_COLORS = [
+  "bg-red-500/30",
+  "bg-blue-500/30",
+  "bg-yellow-500/30",
+  "bg-green-500/30",
+  "bg-orange-500/30",
+  "bg-cyan-500/30",
+  "bg-fuchsia-500/30",
+  "bg-violet-500/30",
+] as const;
+
 export function Calendar({
   sections,
   addedSections,
@@ -30,9 +41,9 @@ export function Calendar({
   const CAL_END = (12 + 4) * 60;
 
   return (
-    <div className="flex flex-col w-full h-[700px]">
+    <div className="flex flex-col w-full min-h-full">
       {/* render day headers */}
-      <div className="flex justify-around ml-12 pb-2">
+      <div className="flex justify-around ml-12 pb-2 gap-2">
         {days.map((day) => (
           <div className="font-semibold text-center" key={day}>
             {day}
@@ -42,13 +53,14 @@ export function Calendar({
 
       <div className="h-full relative">
         {/* render class boxes */}
-        <div className="ml-12 flex justify-around h-full">
+        <div className="ml-12 flex justify-around h-full gap-2">
           {days.map((day) => (
             <CalendarDay
               day={day}
               start={CAL_START}
               end={CAL_END}
               sections={filteredSections}
+              addedSections={addedSections}
               setAddedSections={setAddedSections}
               key={day}
             />
@@ -76,12 +88,14 @@ function CalendarDay({
   start,
   end,
   sections,
+  addedSections,
   setAddedSections,
 }: {
   day: string;
   start: number;
   end: number;
   sections: Section[];
+  addedSections: string[];
   setAddedSections: Dispatch<SetStateAction<string[]>>;
 }) {
   const todaySections = sections
@@ -89,11 +103,17 @@ function CalendarDay({
     .map((sec) => ({ ...sec, times: sec.times?.filter((t) => t.day === day) }));
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full text-center">
       {todaySections.map((sec, i) => (
         <div
           key={i}
-          className="bg-red-500/50 absolute w-full p-2 flex flex-col items-center rounded-lg"
+          className={`absolute w-full p-2 flex flex-col items-center rounded-lg ${
+            COURSE_COLORS[
+              (addedSections.findIndex(
+                (str) => str === `${sec.courseCode}-${sec.sectionCode}`
+              ) ?? 0) % COURSE_COLORS.length
+            ]
+          }`}
           style={{
             height:
               ((sec.times![0].end - sec.times![0].start) / (end - start)) *
