@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { useLocalStorage } from "~/lib/use-local-storage";
 import { Course } from "~/lib/types";
 import { Requirement } from "~/lib/types";
 import React from "react";
@@ -148,7 +149,7 @@ Fall 2025      Course   Sec  Credits  Grd/ Drop   Add      Drop    Modified GenE
                 MATH401  0111    3.00  REG  D    04/03/25 04/03/25  04/03/25
                 CMSC475  0101    3.00  REG  A    04/03/25           04/03/25
                 AAST351  0101    3.00  REG  A    04/03/25           04/03/25 DSSP, DVUP
-
+    
 
 Please send any questions or comments to registrar-help@umd.edu.
 Web Accessibility
@@ -161,11 +162,31 @@ Web Accessibility
 //const coursesjsonstr = localStorage.getItem("courses") || `{"courses": []}`;
 //const track: string = JSON.parse(trackjsonstr)["track"];
 //const courses: Course[] = sortCoursesBySemester(JSON.parse(coursesjsonstr)["courses"]);
-const track = "General";
-const courses: Course[] = sortCoursesBySemester(output); // TESTING LINE
+//const track = "General";
+const [storedCourses] = useLocalStorage<{ [semesterId: string]: Course[] }>(
+  "semester-courses",
+  {}
+);
+const [track] = useLocalStorage<string>("track", "General");
+const allCourses: Course[] = Object.values(storedCourses).flat();
+const courses: Course[] = sortCoursesBySemester(allCourses);
 // const courses: Course[] = sortCoursesBySemester([]]);
 
 const CURTERM = "202501";
+
+export function Body() {
+  if (track == "General") {
+    return UpperLevelGeneralBody();
+  } else if (track == "Cyber") {
+    return CyberUpperBody();
+  } else if (track == "Quantum") {
+    return QuantumUpperBody();
+  } else if (track == "ML") {
+    return MLUpperBody();
+  } else if (track == "Data") {
+    return DataUpperBody();
+  }
+}
 export function GenEdBody() {
   // prettier-ignore
   var gened_reqs: Requirement[] = [

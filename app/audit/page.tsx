@@ -2,8 +2,8 @@ import { Course } from "~/lib/types";
 import { Requirement } from "~/lib/types";
 import { GenEdBody } from "./tablerows";
 import { LowerLevelBody } from "./tablerows";
-import { UpperLevelGeneralBody } from "./tablerows";
 import { UpperLevelConcentrationBody } from "./tablerows";
+import { Body } from "./tablerows";
 import {
   Card,
   CardContent,
@@ -70,7 +70,7 @@ export default async function Page() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Upper Level CS Requirements</CardTitle>
+          <CardTitle>Upper Level Track Requirements</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -84,7 +84,7 @@ export default async function Page() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <UpperLevelGeneralBody />
+              <Body />
             </TableBody>
           </Table>
         </CardContent>
