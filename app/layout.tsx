@@ -24,9 +24,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       </head>
       <body className="antialiased">
         <Header />
-        <main className="pt-12 px-8">
-          <Navbar />
-          <hr className="my-4" />
+        <main className="px-0">
+        
           {children}
         </main>
       </body>

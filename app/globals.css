@@ -125,7 +125,7 @@ It's getting stickyyyyy stickyyy stickyyy sticky
 */
 .is-sticky {
   backdrop-filter: blur(8px);
-  background-color: rgba(250, 182, 182, 0.95) !important;
+  background-color: rgba(97, 91, 91, 0.95) !important;
   animation: slideDown 0.2s ease-in-out;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }

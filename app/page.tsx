@@ -5,14 +5,14 @@ import { faFireFlameCurved, faGraduationCap, faHeart, faArrowRight, faCalendarAl
 
 export default function Page() {
   return (
-    <main className="min-h-screen bg-[#FFF0F0]">
+    <main className="min-h-screen bg-[#2f2f2f]">
       {/* Hero Section */}
       <section className="pt-24 pb-6 md:pt-36 md:pb-16 flex items-center justify-center">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-[#1B2B4B] mb-4">
-            Plan Your Academic Journey <span className="text-[#E03131]">Like a Terp</span>
+          <h1 className="text-4xl md:text-5xl font-bold text-[#f5ddd8] mb-4">
+            Refreshingly Simple <span className="text-[#E03131]">Planning</span>
           </h1>
-          <p className="text-lg md:text-xl text-[#4A5568] mb-6 max-w-3xl mx-auto">
+          <p className="text-lg md:text-xl text-[#e4ccc7] mb-6 max-w-3xl mx-auto">
             A smart 4-year planner designed specifically for UMD students to map out 
             their courses, track requirements, and graduate on time.
           </p>
@@ -25,7 +25,7 @@ export default function Page() {
             </Link>
             <a 
               href="#about"
-              className="border border-[#1B2B4B] text-[#1B2B4B] px-6 py-2 rounded-lg hover:bg-[#1B2B4B] hover:text-white transition-all duration-200 font-semibold inline-flex items-center"
+              className="border border-[#1B2B4B] text-[#6686c6] px-6 py-2 rounded-lg hover:bg-[#6686c6] hover:text-white transition-all duration-200 font-semibold inline-flex items-center"
             >
               Learn More
             </a>
@@ -55,8 +55,8 @@ export default function Page() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold mb-2 text-[#1B2B4B]">Course Tracking</h3>
-              <p className="text-[#4A5568] text-sm">Keep track of your required courses and electives with our intuitive tracking system.</p>
+              <h3 className="text-lg font-semibold mb-2 text-[#1B2B4B]">Schedule Making</h3>
+              <p className="text-[#4A5568] text-sm">Plan your schedule for next semester with our intuitive tracking system.</p>
             </div>
 
             {/*Da Feature 3 */}
