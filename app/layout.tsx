@@ -3,8 +3,8 @@ import { ReactNode } from "react";
 import "./globals.css";
 import { config } from '@fortawesome/fontawesome-svg-core';
 import '@fortawesome/fontawesome-svg-core/styles.css';
-import Header from './components/Header';
-import { Navbar } from './components/Navbar';
+import Header from '../components/Header';
+import { Navbar } from '../components/navbar';
 
 config.autoAddCss = false;
 
