@@ -1,3 +1,5 @@
+"use client";
+
 import {
   faCalendarAlt,
   faCheckCircle,
@@ -8,10 +10,19 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { ArrowRightIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 
 export default function Page() {
+  const [hasExistingData, setHasExistingData] = useState(false);
+
+  useEffect(() => {
+    const storedCourses = localStorage.getItem('semester-courses');
+    if (storedCourses && Object.keys(JSON.parse(storedCourses)).length > 0) {
+      setHasExistingData(true);
+    }
+  }, []);
+
   return (
     <main className="min-h-screen">
       {/* Hero Section */}
@@ -44,7 +55,7 @@ export default function Page() {
               size="lg"
               className="rounded-full text-lg flex gap-2 items-center group"
             >
-              <Link href="/transcript">
+              <Link href={hasExistingData ? "/degree" : "/transcript"}>
                 <span>Enter App</span>
                 <ArrowRightIcon className="group-hover:translate-x-2 duration-100 transition-transform" />
               </Link>
@@ -211,7 +222,7 @@ export default function Page() {
 
           <div className="text-center text-muted-foreground">
             <p>
-              © 2025 Terpsicle. Made at BITCAMP{" "}
+              2025 Terpsicle. Made at BITCAMP{" "}
               <FontAwesomeIcon
                 icon={faFireFlameCurved}
                 className="text-primary"
