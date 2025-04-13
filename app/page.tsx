@@ -216,7 +216,7 @@ function FeatureCard({
   children: ReactNode;
 }) {
   return (
-    <div className="p-6 rounded-xl bg-secondary/50 backdrop-blur-md transition-shadow border ">
+    <div className="p-6 rounded-xl bg-primary-foreground dark:bg-secondary/50 backdrop-blur-md transition-shadow border ">
       <div className="w-12 h-12 bg-secondary-foreground/10 rounded-full flex items-center justify-center mb-4">
         {icon}
       </div>
