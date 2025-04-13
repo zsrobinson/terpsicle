@@ -16,11 +16,11 @@ export async function TranscriptParser(trans_string: string) {
   };
   // Keep track of term
   // Start with transfer credits
-  var cur_term: string = "Transfer";
+  let cur_term: string = "Transfer";
 
-  var courses: Course[] = [];
+  const courses: Course[] = [];
 
-  var past_header: boolean = false;
+  let past_header: boolean = false;
   // Begin looping through file
   for (const line of lines) {
     if (/@/.test(line)) {
@@ -41,7 +41,7 @@ export async function TranscriptParser(trans_string: string) {
     // Check if there is a course
     if (course_regex.test(line)) {
       // We have a course
-      var line_entries = line.trim().split(/\s+/);
+      const line_entries = line.trim().split(/\s+/);
       if (cur_term == "Transfer") {
         ////////////////////////////////
         //// Parse transfer courses ////
@@ -53,8 +53,8 @@ export async function TranscriptParser(trans_string: string) {
         }
 
         // Find index with either Pass, No Credit, or the Grade
-        var index_after_name = 1;
-        for (var i = 0; i < line_entries.length; i++) {
+        let index_after_name = 1;
+        for (let i = 0; i < line_entries.length; i++) {
           if (/^(P|NC|[A-F])$/.test(line_entries[i])) {
             index_after_name = i;
             break;
@@ -77,11 +77,11 @@ export async function TranscriptParser(trans_string: string) {
           .split("SCR")[0]
           .trim();
 
-        var index_before_geneds = 0;
+        let index_before_geneds = 0;
         // Get cross-list if possible
-        var course_code = "";
-        var credits = 0;
-        for (var i = index_after_name; i < line_entries.length; i++) {
+        let course_code = "";
+        let credits = 0;
+        for (let i = index_after_name; i < line_entries.length; i++) {
           if (/^[A-Z]{4}[0-9]{3}$/.test(line_entries[i])) {
             course_code = line_entries[i];
             index_before_geneds = i;
@@ -90,7 +90,7 @@ export async function TranscriptParser(trans_string: string) {
           }
         }
         // Get credits
-        for (var i = index_after_name; i < line_entries.length; i++) {
+        for (let i = index_after_name; i < line_entries.length; i++) {
           if (/^[0-9]\.[0-9]{2}$/.test(line_entries[i])) {
             credits = parseInt(line_entries[i]);
             break;
@@ -99,9 +99,9 @@ export async function TranscriptParser(trans_string: string) {
 
         // If we found a cross-list, then geneds are everything after
         // If not, then geneds are after the GPA (4.00, etc.)
-        var course_code_list: string[] = [];
+        let course_code_list: string[] = [];
         if (course_code == "") {
-          for (var i = index_after_name; i < line_entries.length; i++) {
+          for (let i = index_after_name; i < line_entries.length; i++) {
             if (/[0-9]\.[0-9]{2}/.test(line_entries[i])) {
               index_before_geneds = i;
               break;
@@ -131,24 +131,24 @@ export async function TranscriptParser(trans_string: string) {
           continue;
         }
 
-        var index_after_name = 1;
-        for (var i = 2; i < line_entries.length; i++) {
+        let index_after_name = 1;
+        for (let i = 2; i < line_entries.length; i++) {
           if (/^[A-F](\+|-|)?W?$/.test(line_entries[i])) {
             index_after_name = i;
             break;
           }
         }
-        var course_name = "";
+        let course_name = "";
 
         const course_code = line_entries[0];
 
         // See if we are parsing current course or not
-        var course_is_curr = false;
+        let course_is_curr = false;
         if (/^[0-9]{4}$/.test(line_entries[1])) {
           course_is_curr = true;
         }
-        var gened_list = [];
-        var credits = 0;
+        let gened_list = [];
+        let credits = 0;
         if (!course_is_curr) {
           gened_list = line_entries.slice(index_after_name + 4);
           course_name = line_entries.slice(1, index_after_name).join(" ");
@@ -184,12 +184,12 @@ export async function TranscriptParser(trans_string: string) {
 function ParseGenEdList(gened_list: string[]) {
   const gened_string = gened_list.join(" ");
   const gened_ands = gened_string.split(",");
-  var gened_ors: string[][] = [];
-  for (var i = 0; i < gened_ands.length; i++) {
+  const gened_ors: string[][] = [];
+  for (let i = 0; i < gened_ands.length; i++) {
     gened_ors.push(gened_ands[i].split(" or "));
   }
-  for (var i = 0; i < gened_ors.length; i++) {
-    for (var j = 0; j < gened_ors[i].length; j++) {
+  for (let i = 0; i < gened_ors.length; i++) {
+    for (let j = 0; j < gened_ors[i].length; j++) {
       gened_ors[i][j] = gened_ors[i][j].trim();
     }
   }

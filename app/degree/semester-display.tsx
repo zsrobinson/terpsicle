@@ -97,7 +97,7 @@ function formatGenEds(geneds: string[][] | undefined) {
     (geneds.length === 1 && geneds[0].length === 0)
   )
     return null;
-  console.log(geneds);
+  // console.log(geneds);
   return (
     <div className="flex flex-wrap gap-1 items-center mt-1">
       {geneds.map((group, index) => (

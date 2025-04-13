@@ -132,7 +132,7 @@ Web Accessibility
 
 © 2015 University of Maryland`);
 export default function Page() {
-  console.log(output);
+  // console.log(output);
   return (
     <main className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">Terpsicle</h1>

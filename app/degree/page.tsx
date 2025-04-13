@@ -188,8 +188,8 @@ export default function Page() {
           ? `${gradYear}05`
           : `${gradYear}08`; // If started in fall, graduate in spring; if started in spring, graduate in winter; if started in summer, graduate in summer
 
-      console.log("Earliest Semester:", earliestSemester);
-      console.log("Graduation Semester:", gradSemester);
+      // console.log("Earliest Semester:", earliestSemester);
+      // console.log("Graduation Semester:", gradSemester);
 
       setStartSemester(earliestSemester);
       setEndSemester(gradSemester);

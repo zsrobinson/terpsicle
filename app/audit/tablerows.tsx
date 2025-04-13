@@ -59,7 +59,7 @@ export function GenEdBody() {
   const allCourses: Course[] = Object.values(storedCourses).flat();
   const courses: Course[] = sortCoursesBySemester(allCourses);
   // prettier-ignore
-  var gened_reqs: Requirement[] = [
+  const gened_reqs: Requirement[] = [
     { name: "FSAW", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "FSPW", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "FSOC", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
@@ -80,31 +80,31 @@ export function GenEdBody() {
     if (!course.semester) {
       continue;
     }
-    if (/DVCC/.test(course.geneds?.flat().join()!)) {
+    if (course.geneds?.flat().join() && /DVCC/.test(course.geneds.flat().join())) {
       course.credits = 3;
     }
-    if (/DSNL/.test(course.geneds?.flat().join()!)) {
+    if (course.geneds && /DSNL/.test(course.geneds.flat().join())) {
       course.credits = 4;
     }
     // Go through gened credits
     for (const geneds of course.geneds || []) {
       // Skip "ors" for now
-      var cur_gened = geneds[0];
+      const cur_gened = geneds[0];
       if (geneds.length != 1) {
         continue;
-        // Assign the "or" greedily
-        outerloop: for (const gened of geneds) {
-          for (const requirement of gened_reqs) {
-            if (
-              requirement.fulfilled < requirement.credits &&
-              requirement.name.includes(gened)
-            ) {
-              cur_gened = gened;
-              break outerloop;
-            }
-          }
-        }
-        var cur_gened = geneds[0];
+        // // Assign the "or" greedily
+        // outerloop: for (const gened of geneds) {
+        //   for (const requirement of gened_reqs) {
+        //     if (
+        //       requirement.fulfilled < requirement.credits &&
+        //       requirement.name.includes(gened)
+        //     ) {
+        //       cur_gened = gened;
+        //       break outerloop;
+        //     }
+        //   }
+        // }
+        // let cur_gened = geneds[0];
       }
       // "or"s are fixed now
       // Now we know what gened we're fulfilling, we can simply assign to the credit and update status and such
@@ -152,15 +152,15 @@ export function GenEdBody() {
     if (!course.semester) {
       continue;
     }
-    if (/DVCC/.test(course.geneds?.flat().join()!)) {
+    if (/DVCC/.test(course.geneds?.flat().join() || "")) {
       course.credits = 3;
     }
-    if (/DSNL/.test(course.geneds?.flat().join()!)) {
+    if (/DSNL/.test(course.geneds?.flat().join() || "")) {
       course.credits = 4;
     }
     // Go through gened credits
     for (const geneds of course.geneds || []) {
-      var cur_gened = geneds[0];
+      let cur_gened = geneds[0];
       // Use "ors" for now
       if (geneds.length == 1) {
         continue;
@@ -177,7 +177,7 @@ export function GenEdBody() {
           }
         }
 
-        var cur_gened = geneds[0];
+        cur_gened = geneds[0];
       }
       // "or"s are fixed now
       // Now we know what gened we're fulfilling, we can simply assign to the credit and update status and such
@@ -262,7 +262,7 @@ export function LowerLevelBody() {
   const allCourses: Course[] = Object.values(storedCourses).flat();
   const courses: Course[] = sortCoursesBySemester(allCourses);
   // prettier-ignore
-  var lower_reqs: Requirement[] = [
+  const lower_reqs: Requirement[] = [
     { name: "MATH140", credits: 4, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "MATH141", credits: 4, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "STAT400", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
@@ -275,7 +275,7 @@ export function LowerLevelBody() {
     { name: "CMSC351", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
     ]
   if (track === "General" || track === "Cyber") {
-    for (let req of lower_reqs) {
+    for (const req of lower_reqs) {
       if (req.name === "MATH240") {
         req.name = "MATH240 or MATH241";
         break;
@@ -288,7 +288,7 @@ export function LowerLevelBody() {
       continue;
     }
     for (const req of lower_reqs) {
-      var match = false;
+      let match = false;
       if (req.name.includes(trimCode(course.code))) {
         match = true;
       }
@@ -422,9 +422,9 @@ export function UpperLevelGeneralBody(courses: Course[]) {
     "3rdArea": 3, // Overlap
     Electives: 6,
   };
-  var areacounter = [0, 0, 0, 0, 0];
+  const areacounter = [0, 0, 0, 0, 0];
   // prettier-ignore
-  var general_upper_reqs: Requirement[] = [
+  const general_upper_reqs: Requirement[] = [
     { name: "400 Level Area Courses", credits: 15, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "1st Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "2nd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
@@ -437,20 +437,20 @@ export function UpperLevelGeneralBody(courses: Course[]) {
     if (!course.semester) {
       continue;
     }
-    for (var i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) {
       if (areas[i].includes(course.code)) {
         areacounter[0] += course.credits;
       }
     }
   }
-  var area_satisfied = [false, false, false, false, false];
-  var num_areas_satisfied = 0;
+  const area_satisfied = [false, false, false, false, false];
+  let num_areas_satisfied = 0;
   for (const course of courses) {
     // Ensure course has a semester
     if (!course.semester) {
       continue;
     }
-    for (var i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) {
       if (areas[i].includes(course.code)) {
         // If we have too many classes, roll over to electives
         if (areacounter[i] > 12) {
@@ -559,7 +559,7 @@ export function UpperLevelGeneralBody(courses: Course[]) {
 }
 
 export function UpperLevelConcentrationBody() {
-  var concentration_requirements: Requirement[] = [];
+  let concentration_requirements: Requirement[] = [];
   const [storedCourses] = useLocalStorage<{ [semesterId: string]: Course[] }>(
     "semester-courses",
     {}
@@ -656,7 +656,7 @@ export function CyberUpperBody(courses: Course[]) {
     "CMSC451",
   ];
   // prettier-ignore
-  var cyber_track_reqs: Requirement[] = [
+  const cyber_track_reqs: Requirement[] = [
     { name: "CMSC414", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "CMSC456", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "Cyber Courses", credits: 12, fulfilled: 0, courses: [], status: "Incomplete" },
@@ -666,8 +666,8 @@ export function CyberUpperBody(courses: Course[]) {
     { name: "3rd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
   ];
 
-  var area_satisfied = [false, false, false, false, false];
-  var num_areas_satisfied = 0;
+  const area_satisfied = [false, false, false, false, false];
+  let num_areas_satisfied = 0;
   for (const course of courses) {
     // Ensure course has a semester
     if (!course.semester) {
@@ -708,7 +708,7 @@ export function CyberUpperBody(courses: Course[]) {
       }
     }
     // Account for area requirements
-    for (var i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) {
       if (areas[i].includes(course.code)) {
         // Otherwise we chilling with some area class
         // First see if this counts towards our three needed areas
@@ -784,7 +784,7 @@ export function DataUpperBody(courses: Course[]) {
     "CMSC435",
   ];
   // prettier-ignore
-  var data_track_reqs: Requirement[] = [
+  const data_track_reqs: Requirement[] = [
     { name: "CMSC320", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "CMSC422", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "CMSC424", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
@@ -796,8 +796,8 @@ export function DataUpperBody(courses: Course[]) {
     { name: "3rd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
   ];
 
-  var area_satisfied = [false, false, false, false, false];
-  var num_areas_satisfied = 0;
+  const area_satisfied = [false, false, false, false, false];
+  let num_areas_satisfied = 0;
   for (const course of courses) {
     // Ensure course has a semester
     if (!course.semester) {
@@ -819,7 +819,7 @@ export function DataUpperBody(courses: Course[]) {
       data_track_reqs[3].fulfilled += course.credits;
       data_track_reqs[3].courses.push(course);
       if (
-        data_track_reqs[3].fulfilled >= data_track_reqs[3].credits &&
+        data_track_reqs[3].fulfilled >= data_track_reqs[2].credits &&
         data_track_reqs[3].fulfilled - course.credits <
           data_track_reqs[3].credits
       ) {
@@ -829,7 +829,7 @@ export function DataUpperBody(courses: Course[]) {
       data_track_reqs[4].fulfilled += course.credits;
       data_track_reqs[4].courses.push(course);
       if (
-        data_track_reqs[4].fulfilled >= data_track_reqs[4].credits &&
+        data_track_reqs[4].fulfilled >= data_track_reqs[2].credits &&
         data_track_reqs[4].fulfilled - course.credits <
           data_track_reqs[4].credits
       ) {
@@ -839,7 +839,7 @@ export function DataUpperBody(courses: Course[]) {
       data_track_reqs[5].fulfilled += course.credits;
       data_track_reqs[5].courses.push(course);
       if (
-        data_track_reqs[5].fulfilled >= data_track_reqs[5].credits &&
+        data_track_reqs[5].fulfilled >= data_track_reqs[2].credits &&
         data_track_reqs[5].fulfilled - course.credits <
           data_track_reqs[5].credits
       ) {
@@ -847,7 +847,7 @@ export function DataUpperBody(courses: Course[]) {
       }
     }
     // Account for area requirements
-    for (var i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) {
       if (areas[i].includes(course.code)) {
         // Otherwise we chilling with some area class
         // First see if this counts towards our three needed areas
@@ -902,15 +902,15 @@ export function DataUpperBody(courses: Course[]) {
 
 export function QuantumUpperBody(courses: Course[]) {
   // prettier-ignore
-  var quantum_track_reqs:  Requirement[] = [
+  const quantum_track_reqs:  Requirement[] = [
         { name: "CMSC457", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
         { name: "PHYS467", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
         { name: "400 Level Area Courses", credits: 12, fulfilled: 0, courses: [], status: "Incomplete" },
         { name: "1st Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
         { name: "2nd Area", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" }
     ];
-  var area_satisfied = [false, false, false, true, false];
-  var num_areas_satisfied = 0;
+  const area_satisfied = [false, false, false, true, false];
+  let num_areas_satisfied = 0;
   for (const course of courses) {
     // Ensure course has a semester
     if (!course.semester) {
@@ -927,7 +927,7 @@ export function QuantumUpperBody(courses: Course[]) {
       quantum_track_reqs[1].status = completionStatus(course);
     }
     // Account for area requirements
-    for (var i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) {
       if (areas[i].includes(course.code)) {
         // We chilling with some area class
         quantum_track_reqs[2].fulfilled += course.credits;
@@ -992,7 +992,7 @@ export function QuantumUpperBody(courses: Course[]) {
 
 export function MLUpperBody(courses: Course[]) {
   // prettier-ignore
-  var ml_track_reqs:  Requirement[] = [
+  const ml_track_reqs:  Requirement[] = [
     { name: "CMSC320", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "CMSC421", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "CMSC422", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
@@ -1013,8 +1013,8 @@ export function MLUpperBody(courses: Course[]) {
     "CMSC474",
     "CMSC476",
   ];
-  var area_satisfied = [false, false, false, false, false];
-  var num_areas_satisfied = 0;
+  const area_satisfied = [false, false, false, false, false];
+  let num_areas_satisfied = 0;
   for (const course of courses) {
     // Ensure course has a semester
     if (!course.semester) {
@@ -1058,7 +1058,7 @@ export function MLUpperBody(courses: Course[]) {
       }
     }
     // Account for area requirements
-    for (var i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) {
       if (areas[i].includes(course.code)) {
         // See if this counts towards our three needed areas
         if (!area_satisfied[i]) {
