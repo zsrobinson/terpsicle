@@ -367,6 +367,7 @@ const upper_electives = [
   "CMSC488A",
   "CMSC498",
   "CMSC498A",
+  "CMSC498G",
   "CMSC499A",
 ];
 
