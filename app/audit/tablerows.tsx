@@ -24,17 +24,11 @@ import React from "react";
 
 const CURTERM = "202501";
 
-export function handleTrackChange(value: string) {
-  localStorage.setItem("track", '{"track": {' + value + "}}");
-  console.log(localStorage.getItem("track"));
-}
-
-export function UpperLevelBody() {
+export function UpperLevelBody({ track }: { track: string }) {
   const [storedCourses] = useLocalStorage<{ [semesterId: string]: Course[] }>(
     "semester-courses",
     {}
   );
-  const [track] = useLocalStorage<string>("track", "General");
   const allCourses: Course[] = Object.values(storedCourses).flat();
   const courses: Course[] = sortCoursesBySemester(allCourses);
   if (track == "General") {
@@ -49,6 +43,7 @@ export function UpperLevelBody() {
     return DataUpperBody(courses);
   }
 }
+
 export function GenEdBody() {
   const [storedCourses] = useLocalStorage<{ [semesterId: string]: Course[] }>(
     "semester-courses",
