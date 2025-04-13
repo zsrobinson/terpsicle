@@ -128,6 +128,26 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Course[]>([]);
 
+  // Find earliest semester and set start/end semesters on initial load
+  useEffect(() => {
+    if (Object.keys(storedCourses).length > 0) {
+      const semesters = Object.keys(storedCourses).sort();
+      const earliestSemester = semesters[0];
+      
+      // Calculate graduation semester (4 years later)
+      const year = parseInt(earliestSemester.slice(0, 4));
+      const month = parseInt(earliestSemester.slice(-2));
+      const gradYear = year + 4;
+      const gradSemester = month === 8 ? `${gradYear}01` : month === 5 ? `${gradYear}05` : `${gradYear}08`; // If started in fall, graduate in spring; if started in spring, graduate in winter; if started in summer, graduate in summer
+      
+      console.log("Earliest Semester:", earliestSemester);
+      console.log("Graduation Semester:", gradSemester);
+      
+      setStartSemester(earliestSemester);
+      setEndSemester(gradSemester);
+    }
+  }, [storedCourses, setStartSemester, setEndSemester]);
+
   const semesterOptions = useMemo(() => {
     if (showAllSemesters) {
       return allSemesterOptions;
