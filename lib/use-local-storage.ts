@@ -1,5 +1,4 @@
-import { Dispatch, SetStateAction, useEffect, useState, useCallback } from "react";
-import { parse, stringify } from "superjson";
+import { Dispatch, SetStateAction, useCallback, useState } from "react";
 
 // https://medium.com/@lean1190/uselocalstorage-hook-for-next-js-typed-and-ssr-friendly-4ddd178676df
 
@@ -15,7 +14,7 @@ export function useLocalStorage<T>(
     }
     try {
       const item = window.localStorage.getItem(key);
-      return item ? (parse(item) as T) : initialValue;
+      return item ? (JSON.parse(item) as T) : initialValue;
     } catch (error) {
       console.warn(`Error reading localStorage key "${key}":`, error);
       return initialValue;
@@ -23,22 +22,26 @@ export function useLocalStorage<T>(
   });
 
   // Return a wrapped version of useState's setter function that persists the new value to localStorage
-  const setValue: Dispatch<SetStateAction<T>> = useCallback((value) => {
-    try {
-      // Allow value to be a function so we have same API as useState
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      
-      // Save state
-      setStoredValue(valueToStore);
-      
-      // Save to localStorage
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(key, stringify(valueToStore));
+  const setValue: Dispatch<SetStateAction<T>> = useCallback(
+    (value) => {
+      try {
+        // Allow value to be a function so we have same API as useState
+        const valueToStore =
+          value instanceof Function ? value(storedValue) : value;
+
+        // Save state
+        setStoredValue(valueToStore);
+
+        // Save to localStorage
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        }
+      } catch (error) {
+        console.warn(`Error setting localStorage key "${key}":`, error);
       }
-    } catch (error) {
-      console.warn(`Error setting localStorage key "${key}":`, error);
-    }
-  }, [key, storedValue]);
+    },
+    [key, storedValue]
+  );
 
   return [storedValue, setValue];
 }

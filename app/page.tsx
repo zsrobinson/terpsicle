@@ -1,18 +1,11 @@
 "use client";
 
-import {
-  faCalendarAlt,
-  faCheckCircle,
-  faFireFlameCurved,
-  faGraduationCap,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, CalendarIcon, CheckCircleIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { ReactNode, useState, useEffect } from "react";
-import { Button } from "~/components/ui/button";
+import { ReactNode, useEffect, useState } from "react";
 import { Footer } from "~/components/Footer";
+import { Button } from "~/components/ui/button";
 
 export default function Page() {
   const [hasExistingData, setHasExistingData] = useState(false);
@@ -176,7 +169,7 @@ export default function Page() {
             <div className="mb-12">
               <div className="flex items-center justify-center mb-4">
                 <div className="w-10 h-10 bg-secondary-foreground/10 rounded-full flex items-center justify-center mr-3">
-                  <FontAwesomeIcon icon={faCalendarAlt} />
+                  <CalendarIcon size={20} />
                 </div>
                 <h3 className="text-xl font-semibold">Course Scheduler</h3>
               </div>
@@ -192,7 +185,7 @@ export default function Page() {
             <div>
               <div className="flex items-center justify-center mb-4">
                 <div className="w-10 h-10 bg-secondary-foreground/10 rounded-full flex items-center justify-center mr-3">
-                  <FontAwesomeIcon icon={faCheckCircle} />
+                  <CheckCircleIcon size={20} />
                 </div>
                 <h3 className="text-xl font-semibold">Degree Audit</h3>
               </div>

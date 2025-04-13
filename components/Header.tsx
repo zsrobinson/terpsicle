@@ -1,22 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGraduationCap } from "@fortawesome/free-solid-svg-icons";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
+import { GraduationCapIcon } from "lucide-react";
 
 export default function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="px-8 py-2 bg-secondary">
+    <header className="px-8 py-2 bg-secondary border-b">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center gap-2">
-          <FontAwesomeIcon
-            icon={faGraduationCap}
-            className="text-primary text-2xl"
-          />
+          <GraduationCapIcon className="text-primary" size={32} />
           <Link href="/" prefetch>
             <h1 className="text-2xl font-bold">Terpsicle</h1>
           </Link>
@@ -52,9 +48,11 @@ export default function Header() {
       <Link
         href={href}
         className={`font-medium relative transition-colors
-        ${pathname.includes(href) 
-          ? "text-primary underline underline-offset-4" 
-          : "hover:text-primary group"}`}
+        ${
+          pathname.includes(href)
+            ? "text-primary underline underline-offset-4"
+            : "hover:text-primary group"
+        }`}
         prefetch
       >
         {children}
