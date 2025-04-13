@@ -49,8 +49,8 @@ export default function Page() {
               className="rounded-full text-lg flex gap-2 items-center group"
             >
               <Link href={hasExistingData ? "/degree" : "/transcript"}>
-                <span>Enter App</span>
-                <ArrowRightIcon className="group-hover:translate-x-2 duration-100 transition-transform" />
+                <span>Get Started</span>
+                <ArrowRightIcon className="group-hover:translate-x-2 duration-300 transition-transform" />
               </Link>
             </Button>
 

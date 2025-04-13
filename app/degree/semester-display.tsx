@@ -104,7 +104,7 @@ function formatGenEds(geneds: string[][] | undefined) {
         <Badge
           key={index}
           variant="outline"
-          className="text-xs font-normal border border-red-500  bg-red-900/30"
+          className="text-xs font-normal border border-red-500  bg-red-500/20 "
         >
           {group.join(" or ")}
         </Badge>
