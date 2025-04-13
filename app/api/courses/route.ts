@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { Course } from "~/lib/types";
 import { scrapeCourses } from "~/lib/scrape-courses";
-import { getCachedData, setCachedData } from "~/lib/cache";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -96,15 +95,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Check cache first
-    const cachedData = getCachedData(dept);
-    if (cachedData) {
-      return NextResponse.json([...cachedData, ...placeholders]);
-    }
-
-    // If not in cache, fetch and cache the data
     const courses = await scrapeCourses(dept);
-    setCachedData(dept, courses);
     return NextResponse.json([...courses, ...placeholders]);
   } catch (error) {
     console.error("Failed to fetch courses:", error);
