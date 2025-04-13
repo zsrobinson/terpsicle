@@ -11,7 +11,7 @@ export default function Page() {
     = useLocalStorage<(Section & {course: Course})[]>("added-sections", []);
 
   return (
-    <main className="flex gap-4 p-4 h-[calc(100vh-48px)] overflow-y-hidden">
+    <main className="flex gap-8 p-4 h-[calc(100vh-48px)] overflow-y-hidden">
       <CourseList
         addedSections={addedSections}
         setAddedSections={setAddedSections}

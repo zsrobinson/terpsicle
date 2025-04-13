@@ -71,15 +71,29 @@ export function CourseList({
             redirect(`/degree#${TERM}`);
           }}
         >
-          Add All to Plan
+          Commit to Plan
         </Button>
       </div>
 
-      {filteredCourses.length === 0 && (
-        <p className="text-xs italic text-muted-foreground text-center">
-          No results to display.
-        </p>
-      )}
+      {filteredCourses.length === 0 &&
+        addedSections
+          .map((sec) => sec.course)
+          .reduce<Course[]>(
+            (acc, val) =>
+              acc.some((c) => c.code === val.code) ? acc : [...acc, val],
+            []
+          )
+          .map((course, i) => (
+            <CourseCard
+              course={course}
+              sections={addedSections.filter(
+                (s) => s.courseCode === course.code
+              )}
+              addedSections={addedSections}
+              setAddedSections={setAddedSections}
+              key={i}
+            />
+          ))}
 
       {filteredCourses.map((course, i) => (
         <CourseCard
@@ -109,7 +123,12 @@ function CourseCard({
 }) {
   return (
     <div className="border rounded-lg p-2 w-sm">
-      <p className="font-semibold leading-none pb-1">{course.code}</p>
+      <span className="font-semibold leading-none pb-1 text-xl">
+        {course.code}
+      </span>
+      <span className="leading-none ml-1 text-muted-foreground text-sm italic">
+        {course.credits} Credits
+      </span>
       <p className="leading-none text-balance">{course.name}</p>
       <hr className="my-2" />
 
@@ -117,20 +136,21 @@ function CourseCard({
 
       {sections.map((s, i) => (
         <Fragment key={i}>
-          <div className="leading-none">
+          <div className="leading-tight">
             <div className="flex justify-between items-center">
               <div>
                 <p>
-                  <span className="font-semibold">{s.sectionCode}</span> —{" "}
+                  <span className="font-semibold">{s.sectionCode}</span>:{" "}
                   {s.professor}
                 </p>
                 {s.times &&
                   groupTimes(s.times).map((t, i) => (
                     <p key={i}>
-                      {t.day} {t.location} {formatTime(t.start)}–
-                      {formatTime(t.end)} {t.isDiscussion && "Dis"}
+                      {t.day} {formatTime(t.start)}–{formatTime(t.end)}{" "}
+                      {t.location} {t.isDiscussion && "Discussion"}
                     </p>
                   ))}
+                {s.openSeats}/{s.totalSeats} seats, {s.waitlistSeats} waitlist
               </div>
 
               {addedSections.some((sec) => sameSection(sec, s)) ? (
