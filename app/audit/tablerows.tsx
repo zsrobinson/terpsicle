@@ -73,6 +73,12 @@ export function GenEdBody() {
     if (!course.semester) {
       continue;
     }
+    if (/DVCC/.test(course.geneds?.flat().join()!)) {
+      course.credits = 3;
+    }
+    if (/DSNL/.test(course.geneds?.flat().join()!)) {
+      course.credits = 4;
+    }
     // Go through gened credits
     for (const geneds of course.geneds || []) {
       // Fix the gened "ors"
