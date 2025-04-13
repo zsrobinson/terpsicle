@@ -21,20 +21,6 @@ import { Course } from "~/lib/types";
 import { Requirement } from "~/lib/types";
 import React from "react";
 
-//const trackjsonstr = localStorage.getItem("track") || `{"track": "General"}`;
-//const coursesjsonstr = localStorage.getItem("courses") || `{"courses": []}`;
-//const track: string = JSON.parse(trackjsonstr)["track"];
-//const courses: Course[] = sortCoursesBySemester(JSON.parse(coursesjsonstr)["courses"]);
-//const track = "General";
-// const [storedCourses] = useLocalStorage<{ [semesterId: string]: Course[] }>(
-//   "semester-courses",
-//   {}
-// );
-// const [track] = useLocalStorage<string>("track", "General");
-// const allCourses: Course[] = Object.values(storedCourses).flat();
-// const courses: Course[] = sortCoursesBySemester(allCourses);
-// const courses: Course[] = sortCoursesBySemester([]]);
-
 const CURTERM = "202501";
 
 export function UpperLevelBody() {
