@@ -25,7 +25,7 @@ export default function Header() {
         <div className="flex items-center gap-6">
           <nav className="flex gap-6 items-center">
             <Navlink href="/degree" pathname={pathname}>
-              Degree
+              Yearly Planner
             </Navlink>
             <Navlink href="/audit" pathname={pathname}>
               Audit
