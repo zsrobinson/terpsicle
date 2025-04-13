@@ -4,9 +4,11 @@ import { scrapeCourses } from "~/lib/scrape-courses";
 
 const TERM = "202508";
 const REVALIDATE = 600;
+function parseTime(timeStr: string): number | null {
+  if (timeStr === "") return null;
 
-function parseTime(timeStr: string): number {
   const match = timeStr.match(/(\d+):(\d+)(am|pm)/i);
+  // console.log("Checking match for timeStr:", timeStr);
   if (!match) throw new Error(`Invalid time format: ${timeStr}`);
   const [, hourStr, minuteStr, meridian] = match;
 
@@ -29,6 +31,10 @@ export async function scrapeSections(dept: string) {
   const courseConcat = courses.map((course) => course.code).join(",");
 
   const url = `https://app.testudo.umd.edu/soc/${TERM}/sections?courseIds=${courseConcat}`;
+
+  console.log(url);
+
+  
   const res = await fetch(url, { next: { revalidate: REVALIDATE } });
   const text = await res.text();
   const doc = new JSDOM(text).window.document;
@@ -152,6 +158,12 @@ export async function scrapeSections(dept: string) {
             classTypeSpan?.textContent?.trim() === "Discussion"; */
 
           // console.log(startTimeText, endTimeText);
+
+          console.log(`Course Code: ${courseSection.id}, Section ID: ${sectionId}`);
+          
+          // console.log(startTimeText, endTimeText);
+
+
           const startTime = parseTime(startTimeText);
           const endTime = parseTime(endTimeText);
 
@@ -223,6 +235,7 @@ export async function scrapeSections(dept: string) {
           const isDiscussion =
             classTypeSpan?.textContent?.trim() === "Discussion";
 
+          
           const startTime = parseTime(startTimeText);
           const endTime = parseTime(endTimeText);
 
