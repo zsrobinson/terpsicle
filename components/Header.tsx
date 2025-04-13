@@ -9,7 +9,7 @@ export default function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="px-8 py-2 bg-secondary border-b">
+    <header className="px-8 py-2 bg-secondary dark:bg-card border-b">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center gap-2">
           <GraduationCapIcon className="text-primary" size={32} />

@@ -386,40 +386,44 @@ export default function Page() {
   return (
     <div className="flex flex-col min-h-screen">
       <main className="container mx-auto p-4 md:p-8 flex flex-col gap-4 items-start w-full flex-grow">
-        <div className="flex gap-4 items-center">
-          <Label>Starting Semester</Label>
-          <Select
-            value={startSemester}
-            onValueChange={(value) => handleSemesterChange("start", value)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select a Semester" />
-            </SelectTrigger>
-            <SelectContent className="max-h-60 overflow-y-auto">
-              {semesterOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex gap-4 items-center justify-between w-full">
+          <div className="flex gap-4">
+            <Label className="text-right max-w-min">Starting Semester</Label>
+            <Select
+              value={startSemester}
+              onValueChange={(value) => handleSemesterChange("start", value)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select a Semester" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60 overflow-y-auto">
+                {semesterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Label>Graduation Semester</Label>
-          <Select
-            value={endSemester}
-            onValueChange={(value) => handleSemesterChange("end", value)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select a Semester" />
-            </SelectTrigger>
-            <SelectContent className="max-h-60 overflow-y-auto">
-              {semesterOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-4">
+            <Label className="text-right max-w-min">Graduation Semester</Label>
+            <Select
+              value={endSemester}
+              onValueChange={(value) => handleSemesterChange("end", value)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select a Semester" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60 overflow-y-auto">
+                {semesterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex items-center space-x-2">
             <Switch

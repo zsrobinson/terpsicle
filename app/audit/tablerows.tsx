@@ -1,28 +1,17 @@
 "use client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
 import { Badge } from "~/components/ui/badge";
+import { TableCell, TableRow } from "~/components/ui/table";
+import { Course, Requirement } from "~/lib/types";
 import { useLocalStorage } from "~/lib/use-local-storage";
-import { Course } from "~/lib/types";
-import { Requirement } from "~/lib/types";
-import React from "react";
 
 const CURTERM = "202501";
+
+const STATUS_COLORS = {
+  Incomplete: "bg-red-700 text-white",
+  Planned: "bg-purple-700 text-white",
+  "In Progress": "bg-indigo-600 text-white",
+  Complete: "bg-green-700 text-white",
+} as const;
 
 function trimCode(str: string) {
   if (str.endsWith("H") || str.endsWith("S")) {
@@ -80,7 +69,10 @@ export function GenEdBody() {
     if (!course.semester) {
       continue;
     }
-    if (course.geneds?.flat().join() && /DVCC/.test(course.geneds.flat().join())) {
+    if (
+      course.geneds?.flat().join() &&
+      /DVCC/.test(course.geneds.flat().join())
+    ) {
       course.credits = 3;
     }
     if (course.geneds && /DSNL/.test(course.geneds.flat().join())) {
@@ -224,13 +216,7 @@ export function GenEdBody() {
   return (
     <>
       {gened_reqs.map((req, idx) => {
-        const statusColor =
-          {
-            Incomplete: "bg-red-700 text-white hover:bg-red-700",
-            Planned: "bg-purple-700 text-white hover:bg-purple-700",
-            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
-            Complete: "bg-green-700 text-white hover:bg-green-500",
-          }[req.status] || "";
+        const statusColor = STATUS_COLORS[req.status] || "";
 
         return (
           <TableRow key={idx}>
@@ -322,13 +308,7 @@ export function LowerLevelBody() {
   return (
     <>
       {lower_reqs.map((req, idx) => {
-        const statusColor =
-          {
-            Incomplete: "bg-red-700 text-white hover:bg-red-700",
-            Planned: "bg-purple-700 text-white hover:bg-purple-700",
-            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
-            Complete: "bg-green-700 text-white hover:bg-green-500",
-          }[req.status] || "";
+        const statusColor = STATUS_COLORS[req.status] || "";
 
         return (
           <TableRow key={idx}>
@@ -529,13 +509,7 @@ export function UpperLevelGeneralBody(courses: Course[]) {
   return (
     <>
       {general_upper_reqs.map((req, idx) => {
-        const statusColor =
-          {
-            Incomplete: "bg-red-700 text-white hover:bg-red-700",
-            Planned: "bg-purple-700 text-white hover:bg-purple-700",
-            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
-            Complete: "bg-green-700 text-white hover:bg-green-500",
-          }[req.status] || "";
+        const statusColor = STATUS_COLORS[req.status] || "";
 
         return (
           <TableRow key={idx}>
@@ -570,7 +544,7 @@ export function UpperLevelConcentrationBody() {
   courseloop: for (const course of courses) {
     if (
       course.code == "Transfer" ||
-      course.code[4] != "4" ||
+      (course.code[4] != "4" && course.code[4] != "3") ||
       course.code == "STAT400" ||
       course.code.slice(0, 4) == "CMSC"
     ) {
@@ -617,13 +591,7 @@ export function UpperLevelConcentrationBody() {
   return (
     <>
       {concentration_requirements.map((req, idx) => {
-        const statusColor =
-          {
-            Incomplete: "bg-red-700 text-white hover:bg-red-700",
-            Planned: "bg-purple-700 text-white hover:bg-purple-700",
-            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
-            Complete: "bg-green-700 text-white hover:bg-green-500",
-          }[req.status] || "";
+        const statusColor = STATUS_COLORS[req.status] || "";
 
         return (
           <TableRow key={idx}>
@@ -733,13 +701,7 @@ export function CyberUpperBody(courses: Course[]) {
   return (
     <>
       {cyber_track_reqs.map((req, idx) => {
-        const statusColor =
-          {
-            Incomplete: "bg-red-700 text-white hover:bg-red-700",
-            Planned: "bg-purple-700 text-white hover:bg-purple-700",
-            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
-            Complete: "bg-green-700 text-white hover:bg-green-500",
-          }[req.status] || "";
+        const statusColor = STATUS_COLORS[req.status] || "";
 
         return (
           <TableRow key={idx}>
@@ -871,13 +833,7 @@ export function DataUpperBody(courses: Course[]) {
   return (
     <>
       {data_track_reqs.map((req, idx) => {
-        const statusColor =
-          {
-            Incomplete: "bg-red-700 text-white hover:bg-red-700",
-            Planned: "bg-purple-700 text-white hover:bg-purple-700",
-            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
-            Complete: "bg-green-700 text-white hover:bg-green-500",
-          }[req.status] || "";
+        const statusColor = STATUS_COLORS[req.status] || "";
 
         return (
           <TableRow key={idx}>
@@ -961,13 +917,7 @@ export function QuantumUpperBody(courses: Course[]) {
   return (
     <>
       {quantum_track_reqs.map((req, idx) => {
-        const statusColor =
-          {
-            Incomplete: "bg-red-700 text-white hover:bg-red-700",
-            Planned: "bg-purple-700 text-white hover:bg-purple-700",
-            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
-            Complete: "bg-green-700 text-white hover:bg-green-500",
-          }[req.status] || "";
+        const statusColor = STATUS_COLORS[req.status] || "";
 
         return (
           <TableRow key={idx}>
@@ -1081,13 +1031,7 @@ export function MLUpperBody(courses: Course[]) {
   return (
     <>
       {ml_track_reqs.map((req, idx) => {
-        const statusColor =
-          {
-            Incomplete: "bg-red-700 text-white hover:bg-red-700",
-            Planned: "bg-purple-700 text-white hover:bg-purple-700",
-            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
-            Complete: "bg-green-700 text-white hover:bg-green-500",
-          }[req.status] || "";
+        const statusColor = STATUS_COLORS[req.status] || "";
 
         return (
           <TableRow key={idx}>
