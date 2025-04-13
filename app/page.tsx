@@ -18,7 +18,7 @@ export default function Page() {
   const [hasExistingData, setHasExistingData] = useState(false);
 
   useEffect(() => {
-    const storedCourses = localStorage.getItem('semester-courses');
+    const storedCourses = localStorage.getItem("semester-courses");
     if (storedCourses && Object.keys(JSON.parse(storedCourses)).length > 0) {
       setHasExistingData(true);
     }
@@ -43,11 +43,11 @@ export default function Page() {
 
         <div className="container mx-auto px-4 text-center z-10 relative">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Your CS Degree <span className="text-primary">Simplifed</span>
+            Your CS Degree <span className="text-primary">Simplified</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto">
-            A smart 4-year planner designed specifically for UMD CS students to map
-            out their courses, track requirements, and graduate on time.
+            A smart 4-year planner designed specifically for UMD CS students to
+            map out their courses, track requirements, and graduate on time.
           </p>
           <div className="flex gap-4 justify-center mb-12">
             <Button
@@ -96,7 +96,7 @@ export default function Page() {
               }
             >
               Easily map out your entire academic journey semester by semester
-              to ensure you&apos;re on track to graduate.
+              to ensure you’re on track to graduate.
             </FeatureCard>
 
             {/* Da Feature 2 */}
@@ -166,8 +166,8 @@ export default function Page() {
               </p>
 
               <p className="text-muted-foreground leading-relaxed text-lg">
-                A tool made by terps, for terps, because we&apos;re tired of
-                alt-tabbing every semester to figure out what courses we&apos;re
+                A tool made by Terps, for Terps, because we’re tired of
+                alt-tabbing every semester to figure out what courses we’re
                 taking for the next 2 years. Take the stress out of planning
                 your academic journey at UMD.
               </p>
@@ -184,8 +184,8 @@ export default function Page() {
               <p className="text-muted-foreground leading-relaxed text-center">
                 With our course scheduler, you can map out future semesters,
                 explore different class combinations, and see how everything
-                fits into your week. Think Venus and Coursice, but better
-                tailored to UMD curriculum.
+                fits into your week. Think Coursicle, but better tailored to UMD
+                curriculum.
               </p>
             </div>
 
@@ -200,7 +200,7 @@ export default function Page() {
               <p className="text-muted-foreground leading-relaxed text-center">
                 We also have our degree audit tool which breaks down what your
                 major actually needs and which core classes you should be
-                taking. Helping make sure you&apos;re on track to graduate.
+                taking. Helping make sure you’re on track to graduate.
               </p>
             </div>
           </div>
@@ -208,7 +208,7 @@ export default function Page() {
       </section>
 
       {/* feet */}
-      <Footer/>
+      <Footer />
     </main>
   );
 }
