@@ -150,16 +150,11 @@ export function GenEdBody() {
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
-            <TableCell>
-              {req.courses
-                .map((c) => {
-                  if (c.name != "") {
-                    return c.name;
-                  } else {
-                    return c.code;
-                  }
-                })
-                .join(", ")}
+            <TableCell className="whitespace-normal">
+              {req.courses.map((c, i) => {
+                const display = c.name !== "" ? c.name : c.code;
+                return <div key={i}>{display}</div>;
+              })}
             </TableCell>
             <TableCell className="text-right">
               <Badge className={statusColor}>{req.status}</Badge>
@@ -253,16 +248,11 @@ export function LowerLevelBody() {
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
-            <TableCell>
-              {req.courses
-                .map((c) => {
-                  if (c.code != "Transfer") {
-                    return c.code;
-                  } else {
-                    return c.name;
-                  }
-                })
-                .join(", ")}
+            <TableCell className="whitespace-normal">
+              {req.courses.map((c, i) => {
+                const display = c.name !== "" ? c.name : c.code;
+                return <div key={i}>{display}</div>;
+              })}
             </TableCell>
             <TableCell className="text-right">
               <Badge className={statusColor}>{req.status}</Badge>
@@ -464,16 +454,11 @@ export function UpperLevelGeneralBody(courses: Course[]) {
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
-            <TableCell>
-              {req.courses
-                .map((c) => {
-                  if (c.code != "Transfer") {
-                    return c.code;
-                  } else {
-                    return c.name;
-                  }
-                })
-                .join(", ")}
+            <TableCell className="whitespace-normal">
+              {req.courses.map((c, i) => {
+                const display = c.name !== "" ? c.name : c.code;
+                return <div key={i}>{display}</div>;
+              })}
             </TableCell>
             <TableCell className="text-right">
               <Badge className={statusColor}>{req.status}</Badge>
@@ -557,16 +542,11 @@ export function UpperLevelConcentrationBody() {
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
-            <TableCell>
-              {req.courses
-                .map((c) => {
-                  if (c.code != "Transfer") {
-                    return c.code;
-                  } else {
-                    return c.name;
-                  }
-                })
-                .join(", ")}
+            <TableCell className="whitespace-normal">
+              {req.courses.map((c, i) => {
+                const display = c.name !== "" ? c.name : c.code;
+                return <div key={i}>{display}</div>;
+              })}
             </TableCell>
             <TableCell className="text-right">
               <Badge className={statusColor}>{req.status}</Badge>
@@ -678,16 +658,11 @@ export function CyberUpperBody(courses: Course[]) {
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
-            <TableCell>
-              {req.courses
-                .map((c) => {
-                  if (c.code != "Transfer") {
-                    return c.code;
-                  } else {
-                    return c.name;
-                  }
-                })
-                .join(", ")}
+            <TableCell className="whitespace-normal">
+              {req.courses.map((c, i) => {
+                const display = c.name !== "" ? c.name : c.code;
+                return <div key={i}>{display}</div>;
+              })}
             </TableCell>
             <TableCell className="text-right">
               <Badge className={statusColor}>{req.status}</Badge>
@@ -821,16 +796,11 @@ export function DataUpperBody(courses: Course[]) {
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
-            <TableCell>
-              {req.courses
-                .map((c) => {
-                  if (c.code != "Transfer") {
-                    return c.code;
-                  } else {
-                    return c.name;
-                  }
-                })
-                .join(", ")}
+            <TableCell className="whitespace-normal">
+              {req.courses.map((c, i) => {
+                const display = c.name !== "" ? c.name : c.code;
+                return <div key={i}>{display}</div>;
+              })}
             </TableCell>
             <TableCell className="text-right">
               <Badge className={statusColor}>{req.status}</Badge>
@@ -916,16 +886,11 @@ export function QuantumUpperBody(courses: Course[]) {
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
-            <TableCell>
-              {req.courses
-                .map((c) => {
-                  if (c.code != "Transfer") {
-                    return c.code;
-                  } else {
-                    return c.name;
-                  }
-                })
-                .join(", ")}
+            <TableCell className="whitespace-normal">
+              {req.courses.map((c, i) => {
+                const display = c.name !== "" ? c.name : c.code;
+                return <div key={i}>{display}</div>;
+              })}
             </TableCell>
             <TableCell className="text-right">
               <Badge className={statusColor}>{req.status}</Badge>
@@ -1041,16 +1006,11 @@ export function MLUpperBody(courses: Course[]) {
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
-            <TableCell>
-              {req.courses
-                .map((c) => {
-                  if (c.code != "Transfer") {
-                    return c.code;
-                  } else {
-                    return c.name;
-                  }
-                })
-                .join(", ")}
+            <TableCell className="whitespace-normal">
+              {req.courses.map((c, i) => {
+                const display = c.name !== "" ? c.name : c.code;
+                return <div key={i}>{display}</div>;
+              })}
             </TableCell>
             <TableCell className="text-right">
               <Badge className={statusColor}>{req.status}</Badge>

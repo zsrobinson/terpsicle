@@ -6,7 +6,7 @@ import { Course } from "./types";
 
 export function TranscriptParser(trans_string: string) {
   const lines: string[] = trans_string.split("\n");
-  const date_regex: RegExp = /^(Spring|Summer|Fall|Winter) [0-9]{4}/;
+  const date_regex: RegExp = /^(Spring|Summer|Fall|Winter) (I |II )?[0-9]{4}/;
   const course_regex: RegExp = /^    /; // Courses always start with at least 4 spaces
   const seasonMap: { [key: string]: string } = {
     Spring: "01",
