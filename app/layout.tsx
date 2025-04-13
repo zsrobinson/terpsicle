@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
-import "./globals.css";
-import { config } from "@fortawesome/fontawesome-svg-core";
-import "@fortawesome/fontawesome-svg-core/styles.css";
-import Header from "../components/Header";
 import { Providers } from "~/components/providers";
-
-config.autoAddCss = false;
+import Header from "../components/Header";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Terpsicle",
@@ -15,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="scroll-smooth antialiased">
+    <html lang="en" className="scroll-smooth antialiased scheme-light-dark">
       <body>
         <Header />
         <Providers>{children}</Providers>

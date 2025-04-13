@@ -66,7 +66,7 @@ export default function Page() {
         </div>
       </section>
 
-      <section className="py-20 bg-secondary">
+      <section className="py-20 bg-secondary dark:bg-card">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-8">
             {/* Le Feature 1 */}
