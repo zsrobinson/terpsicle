@@ -3,7 +3,7 @@ import { Requirement } from "~/lib/types";
 import { GenEdBody } from "./tablerows";
 import { LowerLevelBody } from "./tablerows";
 import { UpperLevelConcentrationBody } from "./tablerows";
-import { Body } from "./tablerows";
+import { UpperLevelBody } from "./tablerows";
 import {
   Card,
   CardContent,
@@ -84,7 +84,7 @@ export default async function Page() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <Body />
+              <UpperLevelBody />
             </TableBody>
           </Table>
         </CardContent>
