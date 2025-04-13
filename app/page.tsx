@@ -12,6 +12,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ReactNode, useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
+import { Footer } from "~/components/Footer";
 
 export default function Page() {
   const [hasExistingData, setHasExistingData] = useState(false);
@@ -207,29 +208,7 @@ export default function Page() {
       </section>
 
       {/* feet */}
-      <footer className="bg-secondary py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center">
-            <div className="flex items-center gap-2 mb-3">
-              <FontAwesomeIcon
-                icon={faGraduationCap}
-                className="text-primary text-2xl"
-              />
-              <span className="text-xl font-semibold">Terpsicle</span>
-            </div>
-          </div>
-
-          <div className="text-center text-muted-foreground">
-            <p>
-              2025 Terpsicle. Made at BITCAMP{" "}
-              <FontAwesomeIcon
-                icon={faFireFlameCurved}
-                className="text-primary"
-              />
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer/>
     </main>
   );
 }

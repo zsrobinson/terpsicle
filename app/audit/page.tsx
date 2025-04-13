@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { Footer } from "~/components/Footer";
 import {
   Table,
   TableBody,
@@ -130,6 +131,7 @@ export default async function Page() {
           </div>
         </div>
       </div>
+      <Footer/>
     </main>
   );
 }

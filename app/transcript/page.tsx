@@ -16,10 +16,10 @@ export default function TranscriptPage() {
   const [activeTab, setActiveTab] = useState<string>("paste");
   const router = useRouter();
   
-  // Create a localStorage key to store courses by semester
-  const [, setStoredCoursesBySemester] = useLocalStorage<{[semesterId: string]: Course[]}>('semester-courses', {});
+  // Create a localStorage key to store parsed courses
+  const [, setStoredCourses] = useLocalStorage<Course[]>("parsed-courses", []);
 
-  const handleParseTranscript = () => {
+  const handleParseTranscript = async () => {
     if (!transcriptText.trim()) {
       setError("Please paste your transcript text");
       return;
@@ -54,52 +54,31 @@ export default function TranscriptPage() {
         ];
         
         console.log("Debug mode activated, using sample courses");
-        storeParsedCourses(debugCourses);
+        setParsedCourses(debugCourses);
+        setStoredCourses(debugCourses);
+        setActiveTab("results");
         setIsLoading(false);
         return;
       }
       
-      const courses = TranscriptParser(transcriptText);
+      const courses = await TranscriptParser(transcriptText);
       console.log("Parsing complete. Courses found:", courses.length);
       
+      setParsedCourses(courses);
+      
+      // Save to localStorage
+      setStoredCourses(courses);
+      
+      // Switch to results tab if we successfully parsed courses
       if (courses.length > 0) {
-        storeParsedCourses(courses);
-      } else {
-        setError("No courses found in the transcript. Please check your input.");
-        setIsLoading(false);
+        setActiveTab("results");
       }
     } catch (err) {
       console.error("Error parsing transcript:", err);
       setError(`Failed to parse transcript: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
       setIsLoading(false);
     }
-  };
-
-  // Store courses both in state and localStorage, properly organized by semester
-  const storeParsedCourses = (courses: Course[]) => {
-    setParsedCourses(courses);
-    
-    // Group courses by semester
-    const coursesBySemester: {[semesterId: string]: Course[]} = {};
-    
-    courses.forEach(course => {
-      const semesterId = course.semester || "Transfer";
-      
-      if (!coursesBySemester[semesterId]) {
-        coursesBySemester[semesterId] = [];
-      }
-      
-      coursesBySemester[semesterId].push(course);
-    });
-    
-    console.log("Storing courses by semester:", coursesBySemester);
-    
-    // Store in localStorage
-    setStoredCoursesBySemester(coursesBySemester);
-    
-    // Switch to results tab
-    setActiveTab("results");
-    setIsLoading(false);
   };
 
   const handleDebugMode = () => {
