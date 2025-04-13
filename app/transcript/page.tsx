@@ -95,7 +95,7 @@ export default function TranscriptPage() {
         
         <div className="mb-6 text-center text-muted-foreground">
           <p>
-            Paste your UMD unofficial transcript below to automatically import your courses.
+            Paste your <a href="https://app.testudo.umd.edu/#/main/uotrans?null" target="_blank" rel="noopener noreferrer" className="underline text-white">UMD unofficial transcript</a> below to automatically import your courses.
             This helps us personalize your degree planning experience.
           </p>
         </div>
