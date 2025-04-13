@@ -27,15 +27,14 @@ export default function Page() {
     <main className="min-h-screen">
       {/* Hero Section */}
       <section className="pt-24 pb-16 md:pt-36 md:pb-24 flex items-center justify-center relative overflow-hidden">
-        {/* Background shell pattern */}
-        <div className="absolute inset-0 z-0 opacity-30">
-          <div className="relative w-full h-full overflow-hidden">
+        {/* Background mosaic pattern */}
+        <div className="absolute inset-0 z-0 opacity-10">
+          <div className="relative w-full h-full">
             <Image
-              src="/turtleShell.svg"
-              alt="Turtle shell pattern"
-              width={200}
-              height={200}
-              className="absolute -right-1/4 -top-[10%] w-[65%] h-auto max-w-none"
+              src="/mosaic3.svg"
+              alt="Mosaic pattern"
+              fill
+              className="object-cover"
               priority
             />
           </div>
@@ -43,10 +42,10 @@ export default function Page() {
 
         <div className="container mx-auto px-4 text-center z-10 relative">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Refreshingly Simple <span className="text-primary">Planning</span>
+            Your CS Degree <span className="text-primary">Simplifed</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto">
-            A smart 4-year planner designed specifically for UMD students to map
+            A smart 4-year planner designed specifically for UMD CS students to map
             out their courses, track requirements, and graduate on time.
           </p>
           <div className="flex gap-4 justify-center mb-12">
