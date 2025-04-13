@@ -116,7 +116,7 @@ export default function Page() {
   const [startSemester, setStartSemester] = useLocalStorage<string>("start-semester", "202501");
   const [endSemester, setEndSemester] = useLocalStorage<string>("end-semester", "202501");
   const [storedCourses, setStoredCourses] = useLocalStorage<{[semesterId: string]: Course[]}>('semester-courses', {});
-  const [showTransfer, setShowTransfer] = useLocalStorage<boolean>("show-transfer", false);
+  const [showTransfer, setShowTransfer] = useLocalStorage<boolean>("show-transfer", true);
   const [showAllSemesters, setShowAllSemesters] = useLocalStorage<boolean>("show-all-semesters", false);
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -126,6 +126,61 @@ export default function Page() {
   const [newCourse, setNewCourse] = useState<Course>({ code: "", name: "", credits: 0, geneds: [] });
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Course[]>([]);
+  
+  // Import parsed transcript courses if available
+  useEffect(() => {
+    const importTranscriptCourses = () => {
+      try {
+        // Retrieve parsed courses from localStorage
+        const parsedCoursesStr = localStorage.getItem("parsed-courses");
+        if (!parsedCoursesStr) return;
+        
+        const parsedCourses = JSON.parse(parsedCoursesStr) as Course[];
+        if (!parsedCourses || !Array.isArray(parsedCourses) || parsedCourses.length === 0) return;
+        
+        // Group courses by semester
+        const coursesBySemester: {[semesterId: string]: Course[]} = {};
+        
+        parsedCourses.forEach(course => {
+          // For transfer courses with no semester info or with 'Transfer' as semester
+          if (!course.semester || course.semester === "Transfer") {
+            const transferCourses = coursesBySemester["transfer"] || [];
+            coursesBySemester["transfer"] = [...transferCourses, course];
+            return;
+          }
+          
+          // For regular semester courses
+          const semesterId = course.semester;
+          const semesterCourses = coursesBySemester[semesterId] || [];
+          coursesBySemester[semesterId] = [...semesterCourses, course];
+        });
+        
+        // Merge with existing courses
+        const updatedCourses = {...storedCourses};
+        
+        Object.entries(coursesBySemester).forEach(([semesterId, courses]) => {
+          // Only add if the semester doesn't already have courses
+          if (!updatedCourses[semesterId] || updatedCourses[semesterId].length === 0) {
+            updatedCourses[semesterId] = courses;
+          }
+        });
+        
+        setStoredCourses(updatedCourses);
+        
+        // If we have transfer courses, make sure to show them
+        if (coursesBySemester["transfer"]?.length > 0) {
+          setShowTransfer(true);
+        }
+        
+        // Clear the parsed courses to avoid importing them again
+        localStorage.removeItem("parsed-courses");
+      } catch (error) {
+        console.error("Failed to import transcript courses:", error);
+      }
+    };
+    
+    importTranscriptCourses();
+  }, []);
 
   const semesterOptions = useMemo(() => {
     if (showAllSemesters) {

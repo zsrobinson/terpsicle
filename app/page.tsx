@@ -44,7 +44,7 @@ export default function Page() {
               size="lg"
               className="rounded-full text-lg flex gap-2 items-center group"
             >
-              <Link href="/schedule">
+              <Link href="/transcript">
                 <span>Enter App</span>
                 <ArrowRightIcon className="group-hover:translate-x-2 duration-100 transition-transform" />
               </Link>
@@ -85,7 +85,7 @@ export default function Page() {
               }
             >
               Easily map out your entire academic journey semester by semester
-              to ensure you’re on track to graduate.
+              to ensure you're on track to graduate.
             </FeatureCard>
 
             {/* Da Feature 2 */}
@@ -155,8 +155,8 @@ export default function Page() {
               </p>
 
               <p className="text-muted-foreground leading-relaxed text-lg">
-                A tool made by terps, for terps, because we’re tired of
-                alt-tabbing every semester to figure out what courses we’re
+                A tool made by terps, for terps, because we're tired of
+                alt-tabbing every semester to figure out what courses we're
                 taking for the next 2 years. Take the stress out of planning
                 your academic journey at UMD.
               </p>
@@ -189,7 +189,7 @@ export default function Page() {
               <p className="text-muted-foreground leading-relaxed text-center">
                 We also have our degree audit tool which breaks down what your
                 major actually needs and which core classes you should be
-                taking. Helping make sure you’re on track to graduate.
+                taking. Helping make sure you're on track to graduate.
               </p>
             </div>
           </div>
