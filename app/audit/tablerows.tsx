@@ -74,7 +74,6 @@ export function GenEdBody() {
     { name: "DVUP or DVCC", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
   ];
 
-
   // Go through courses from first -> last taken
   for (const course of courses) {
     // Ensure course has a semester
@@ -89,9 +88,10 @@ export function GenEdBody() {
     }
     // Go through gened credits
     for (const geneds of course.geneds || []) {
-      // Fix the gened "ors"
+      // Skip "ors" for now
       var cur_gened = geneds[0];
       if (geneds.length != 1) {
+        continue;
         // Assign the "or" greedily
         outerloop: for (const gened of geneds) {
           for (const requirement of gened_reqs) {
@@ -104,6 +104,79 @@ export function GenEdBody() {
             }
           }
         }
+        var cur_gened = geneds[0];
+      }
+      // "or"s are fixed now
+      // Now we know what gened we're fulfilling, we can simply assign to the credit and update status and such
+      reqloop: for (const requirement of gened_reqs) {
+        // Make sure gened credit reqs aren't already filled
+        if (
+          requirement.fulfilled < requirement.credits &&
+          requirement.name.includes(cur_gened)
+        ) {
+          // Failsafe to see if this class was already placed in an "or"
+          if (requirement.name.includes("or")) {
+            const [req1, req2] = requirement.name.split(" or ").slice(0, 2);
+            for (const requirementcheck of gened_reqs) {
+              if (
+                (requirementcheck.name == req1 ||
+                  requirementcheck.name == req2) &&
+                requirementcheck.courses.includes(course)
+              ) {
+                break reqloop;
+              }
+            }
+          }
+          requirement.courses.push(course);
+          requirement.fulfilled += course.credits;
+          if (requirement.fulfilled >= requirement.credits) {
+            if (
+              (course.semester || "") < CURTERM ||
+              (course.semester || "") == "Transfer"
+            ) {
+              requirement.status = "Complete";
+            } else if ((course.semester || "") == CURTERM) {
+              requirement.status = "In Progress";
+            } else {
+              requirement.status = "Planned";
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Go through courses from first -> last taken AGAIN ONLY LOOKING FOR ORS
+  for (const course of courses) {
+    // Ensure course has a semester
+    if (!course.semester) {
+      continue;
+    }
+    if (/DVCC/.test(course.geneds?.flat().join()!)) {
+      course.credits = 3;
+    }
+    if (/DSNL/.test(course.geneds?.flat().join()!)) {
+      course.credits = 4;
+    }
+    // Go through gened credits
+    for (const geneds of course.geneds || []) {
+      var cur_gened = geneds[0];
+      // Use "ors" for now
+      if (geneds.length == 1) {
+        continue;
+      }
+      // Assign the "or" greedily
+      outerloop: for (const gened of geneds) {
+        for (const requirement of gened_reqs) {
+          if (
+            requirement.fulfilled < requirement.credits &&
+            requirement.name.includes(gened)
+          ) {
+            cur_gened = gened;
+            break outerloop;
+          }
+        }
+
         var cur_gened = geneds[0];
       }
       // "or"s are fixed now
