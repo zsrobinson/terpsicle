@@ -24,6 +24,13 @@ import React from "react";
 
 const CURTERM = "202501";
 
+function trimCode(str: string) {
+  if (str.endsWith("H") || str.endsWith("S")) {
+    return str.slice(0, -1);
+  }
+  return str;
+}
+
 export function UpperLevelBody({ track }: { track: string }) {
   const [storedCourses] = useLocalStorage<{ [semesterId: string]: Course[] }>(
     "semester-courses",
@@ -66,6 +73,7 @@ export function GenEdBody() {
     { name: "DVUP", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
     { name: "DVUP or DVCC", credits: 3, fulfilled: 0, courses: [], status: "Incomplete" },
   ];
+
 
   // Go through courses from first -> last taken
   for (const course of courses) {
@@ -202,7 +210,7 @@ export function LowerLevelBody() {
     }
     for (const req of lower_reqs) {
       var match = false;
-      if (req.name.includes(course.code)) {
+      if (req.name.includes(trimCode(course.code))) {
         match = true;
       }
       if (!match) {
