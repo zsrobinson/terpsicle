@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { Badge } from "~/components/ui/badge";
 import { useLocalStorage } from "~/lib/use-local-storage";
 import { Course } from "~/lib/types";
 import { Requirement } from "~/lib/types";
@@ -145,7 +146,7 @@ export function GenEdBody() {
           }[req.status] || "";
 
         return (
-          <TableRow key={idx} className={statusColor}>
+          <TableRow key={idx}>
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
@@ -160,7 +161,9 @@ export function GenEdBody() {
                 })
                 .join(", ")}
             </TableCell>
-            <TableCell className="text-right">{req.status}</TableCell>
+            <TableCell className="text-right">
+              <Badge className={statusColor}>{req.status}</Badge>
+            </TableCell>
           </TableRow>
         );
       })}
@@ -246,7 +249,7 @@ export function LowerLevelBody() {
           }[req.status] || "";
 
         return (
-          <TableRow key={idx} className={statusColor}>
+          <TableRow key={idx}>
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
@@ -261,7 +264,9 @@ export function LowerLevelBody() {
                 })
                 .join(", ")}
             </TableCell>
-            <TableCell className="text-right">{req.status}</TableCell>
+            <TableCell className="text-right">
+              <Badge className={statusColor}>{req.status}</Badge>
+            </TableCell>
           </TableRow>
         );
       })}
@@ -455,7 +460,7 @@ export function UpperLevelGeneralBody(courses: Course[]) {
           }[req.status] || "";
 
         return (
-          <TableRow key={idx} className={statusColor}>
+          <TableRow key={idx}>
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
@@ -470,7 +475,9 @@ export function UpperLevelGeneralBody(courses: Course[]) {
                 })
                 .join(", ")}
             </TableCell>
-            <TableCell className="text-right">{req.status}</TableCell>
+            <TableCell className="text-right">
+              <Badge className={statusColor}>{req.status}</Badge>
+            </TableCell>
           </TableRow>
         );
       })}
@@ -546,7 +553,7 @@ export function UpperLevelConcentrationBody() {
           }[req.status] || "";
 
         return (
-          <TableRow key={idx} className={statusColor}>
+          <TableRow key={idx}>
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
@@ -561,7 +568,9 @@ export function UpperLevelConcentrationBody() {
                 })
                 .join(", ")}
             </TableCell>
-            <TableCell className="text-right">{req.status}</TableCell>
+            <TableCell className="text-right">
+              <Badge className={statusColor}>{req.status}</Badge>
+            </TableCell>
           </TableRow>
         );
       })}
@@ -665,7 +674,7 @@ export function CyberUpperBody(courses: Course[]) {
           }[req.status] || "";
 
         return (
-          <TableRow key={idx} className={statusColor}>
+          <TableRow key={idx}>
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
@@ -680,7 +689,9 @@ export function CyberUpperBody(courses: Course[]) {
                 })
                 .join(", ")}
             </TableCell>
-            <TableCell className="text-right">{req.status}</TableCell>
+            <TableCell className="text-right">
+              <Badge className={statusColor}>{req.status}</Badge>
+            </TableCell>
           </TableRow>
         );
       })}
@@ -806,7 +817,7 @@ export function DataUpperBody(courses: Course[]) {
           }[req.status] || "";
 
         return (
-          <TableRow key={idx} className={statusColor}>
+          <TableRow key={idx}>
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
@@ -821,7 +832,9 @@ export function DataUpperBody(courses: Course[]) {
                 })
                 .join(", ")}
             </TableCell>
-            <TableCell className="text-right">{req.status}</TableCell>
+            <TableCell className="text-right">
+              <Badge className={statusColor}>{req.status}</Badge>
+            </TableCell>
           </TableRow>
         );
       })}
@@ -899,7 +912,7 @@ export function QuantumUpperBody(courses: Course[]) {
           }[req.status] || "";
 
         return (
-          <TableRow key={idx} className={statusColor}>
+          <TableRow key={idx}>
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
@@ -914,7 +927,9 @@ export function QuantumUpperBody(courses: Course[]) {
                 })
                 .join(", ")}
             </TableCell>
-            <TableCell className="text-right">{req.status}</TableCell>
+            <TableCell className="text-right">
+              <Badge className={statusColor}>{req.status}</Badge>
+            </TableCell>
           </TableRow>
         );
       })}
@@ -1015,14 +1030,14 @@ export function MLUpperBody(courses: Course[]) {
       {ml_track_reqs.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "bg-red-700",
-            Planned: "bg-purple-700",
-            "In Progress": "bg-blue-700",
-            Complete: "bg-green-700",
+            Incomplete: "red-700",
+            Planned: "purple-700",
+            "In Progress": "indigo-600",
+            Complete: "green-500",
           }[req.status] || "";
 
         return (
-          <TableRow key={idx} className={statusColor}>
+          <TableRow key={idx}>
             <TableCell className="font-medium">{req.name}</TableCell>
             <TableCell>{req.credits}</TableCell>
             <TableCell>{req.fulfilled}</TableCell>
@@ -1037,7 +1052,9 @@ export function MLUpperBody(courses: Course[]) {
                 })
                 .join(", ")}
             </TableCell>
-            <TableCell className="text-right">{req.status}</TableCell>
+            <TableCell className="text-right">
+              <Badge className={statusColor}>{req.status}</Badge>
+            </TableCell>
           </TableRow>
         );
       })}
