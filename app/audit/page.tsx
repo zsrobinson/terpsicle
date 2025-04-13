@@ -22,13 +22,6 @@ import {
   UpperLevelBody,
   UpperLevelConcentrationBody,
 } from "./tablerows";
-import dynamic from 'next/dynamic';
-
-// Use the simplified pie charts instead of MUI version
-const SimplePieCharts = dynamic(() => import('./SimplePieCharts'), {
-  ssr: false,
-  loading: () => <div className="h-[300px] flex items-center justify-center">Loading charts...</div>
-});
 
 export default function Page() {
   const [track, setTrack] = useLocalStorage<string>("track", "General");
@@ -53,18 +46,6 @@ export default function Page() {
             <SelectItem value="ML">Machine Learning Track</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Pie Charts Section */}
-      <div className="px-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Progress Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SimplePieCharts />
-          </CardContent>
-        </Card>
       </div>
 
       {/* Wrapper with horizontal padding */}
