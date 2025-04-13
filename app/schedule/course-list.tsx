@@ -49,9 +49,18 @@ export function CourseList({
     <div className="flex flex-col gap-4 p-4 -m-4 overflow-y-scroll min-w-max pr-4">
       <Input
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) =>
+          setSearch(e.target.value.toUpperCase().replace(" ", ""))
+        }
         className="w-sm"
+        placeholder="Search (eg. MATH, CMSC4)"
       />
+
+      {filteredCourses.length === 0 && (
+        <p className="text-xs italic text-muted-foreground text-center">
+          No results to display.
+        </p>
+      )}
 
       {filteredCourses.map((course, i) => (
         <CourseCard

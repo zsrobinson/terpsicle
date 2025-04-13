@@ -1,9 +1,9 @@
 "use client";
 
-import { Dispatch, Fragment, SetStateAction } from "react";
-import { Course, Section } from "~/lib/types";
-import { formatTime, sameSection } from "./course-list";
 import { XIcon } from "lucide-react";
+import { Dispatch, Fragment, SetStateAction } from "react";
+import { Section } from "~/lib/types";
+import { formatTime, sameSection } from "./course-list";
 
 const COURSE_COLORS = [
   "bg-red-500/30",
