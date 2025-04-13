@@ -25,8 +25,20 @@ export function Calendar({
 }) {
   const days = ["M", "Tu", "W", "Th", "F"];
 
-  const CAL_START = 8 * 60;
-  const CAL_END = (12 + 4) * 60;
+  const DEFAULT_START = 9 * 60; // 8am
+  const DEFAULT_END = (12 + 3) * 60; // 4pm
+
+  // prettier-ignore
+  const start = Math.floor(addedSections.reduce(
+    (acc, val) => val.times
+      ? Math.min(acc, val.times.reduce((acc, val) => Math.min(acc, val.start), DEFAULT_START))
+      : acc, DEFAULT_START) / 60) * 60; // ensures multiple of 60, breaks otherwise
+
+  // prettier-ignore
+  const end = Math.ceil(addedSections.reduce(
+    (acc, val) => val.times
+      ? Math.max(acc, val.times.reduce((acc, val) => Math.max(acc, val.end), DEFAULT_END))
+      : acc, DEFAULT_END) / 60) * 60; // ensures multiple of 60, breaks otherwise
 
   return (
     <div className="flex flex-col w-full min-h-full">
@@ -45,8 +57,8 @@ export function Calendar({
           {days.map((day) => (
             <CalendarDay
               day={day}
-              start={CAL_START}
-              end={CAL_END}
+              start={start}
+              end={end}
               addedSections={addedSections}
               setAddedSections={setAddedSections}
               key={day}
@@ -56,10 +68,10 @@ export function Calendar({
 
         {/* render grid lines */}
         <div className="flex flex-col w-full absolute top-0 -z-10 h-full">
-          {new Array((CAL_END - CAL_START) / 60).fill(0).map((_, i) => (
+          {new Array((end - start) / 60).fill(0).map((_, i) => (
             <Fragment key={i}>
               <div className="w-full h-full border-t text-xs text-muted-foreground">
-                {formatTime(CAL_START + 60 * i).replace(":00", "")}
+                {formatTime(start + 60 * i).replace(":00", "")}
               </div>
               <div className="w-full h-full border-t text-xs text-muted-foreground border-dotted"></div>
             </Fragment>
