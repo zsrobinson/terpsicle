@@ -83,7 +83,7 @@ export default function TranscriptPage() {
     const coursesBySemester: {[semesterId: string]: Course[]} = {};
     
     courses.forEach(course => {
-      const semesterId = course.semester || "transfer";
+      const semesterId = course.semester || "Transfer";
       
       if (!coursesBySemester[semesterId]) {
         coursesBySemester[semesterId] = [];

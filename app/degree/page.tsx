@@ -159,9 +159,9 @@ export default function Page() {
     const allSemesters = showTransfer 
       ? [
           {
-            id: "transfer",
+            id: "Transfer",
             name: "Transfer Credits 🧾",
-            courses: storedCourses["transfer"] || []
+            courses: storedCourses["Transfer"] || []
           },
           ...regularSemesters
         ]
@@ -345,7 +345,6 @@ export default function Page() {
         <Button 
           variant="destructive" 
           className="bg-[#e21833]"
-          
           onClick={() => setShowClearConfirmation(true)}
         >
           Clear Data
