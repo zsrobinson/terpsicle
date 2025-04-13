@@ -4,6 +4,7 @@ import { GenEdBody } from "./tablerows";
 import { LowerLevelBody } from "./tablerows";
 import { UpperLevelConcentrationBody } from "./tablerows";
 import { UpperLevelBody } from "./tablerows";
+import { handleTrackChange } from "./tablerows";
 import {
   Card,
   CardContent,
@@ -21,13 +22,35 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "~/components/ui/select";
 
 export default async function Page() {
+  const handleChange = (value: string) => {
+    handleTrackChange(value); // calls your external function
+  };
   return (
     <main className="flex flex-col gap-4">
-      <h2 className="text-2xl font-semibold mt-4 ml-8 text-left">
-        Degree Audit
-      </h2>
+      <div className="flex items-center gap-4 mt-4 px-8">
+        <h2 className="text-2xl font-semibold text-left">Degree Audit</h2>
+        <Select onValueChange={handleTrackChange}>
+          <SelectTrigger className="w-[250px]">
+            <SelectValue placeholder="Select track" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="General">General Track</SelectItem>
+            <SelectItem value="Cyber">Cybersecurity Track</SelectItem>
+            <SelectItem value="Quantum">Quantum Information Track</SelectItem>
+            <SelectItem value="Data">Data Science Track</SelectItem>
+            <SelectItem value="ML">Machine Learning Track</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Wrapper with horizontal padding */}
       <div className="px-4 md:px-6">

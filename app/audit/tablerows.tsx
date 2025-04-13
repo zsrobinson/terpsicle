@@ -24,6 +24,11 @@ import React from "react";
 
 const CURTERM = "202501";
 
+export function handleTrackChange(value: string) {
+  localStorage.setItem("track", '{"track": {' + value + "}}");
+  console.log(localStorage.getItem("track"));
+}
+
 export function UpperLevelBody() {
   const [storedCourses] = useLocalStorage<{ [semesterId: string]: Course[] }>(
     "semester-courses",
@@ -139,10 +144,10 @@ export function GenEdBody() {
       {gened_reqs.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "bg-red-700",
-            Planned: "bg-purple-700",
-            "In Progress": "bg-blue-700",
-            Complete: "bg-green-700",
+            Incomplete: "bg-red-700 text-white hover:bg-red-700",
+            Planned: "bg-purple-700 text-white hover:bg-purple-700",
+            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
+            Complete: "bg-green-700 text-white hover:bg-green-500",
           }[req.status] || "";
 
         return (
@@ -237,10 +242,10 @@ export function LowerLevelBody() {
       {lower_reqs.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "bg-red-700",
-            Planned: "bg-purple-700",
-            "In Progress": "bg-blue-700",
-            Complete: "bg-green-700",
+            Incomplete: "bg-red-700 text-white hover:bg-red-700",
+            Planned: "bg-purple-700 text-white hover:bg-purple-700",
+            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
+            Complete: "bg-green-700 text-white hover:bg-green-500",
           }[req.status] || "";
 
         return (
@@ -443,10 +448,10 @@ export function UpperLevelGeneralBody(courses: Course[]) {
       {general_upper_reqs.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "bg-red-700",
-            Planned: "bg-purple-700",
-            "In Progress": "bg-blue-700",
-            Complete: "bg-green-700",
+            Incomplete: "bg-red-700 text-white hover:bg-red-700",
+            Planned: "bg-purple-700 text-white hover:bg-purple-700",
+            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
+            Complete: "bg-green-700 text-white hover:bg-green-500",
           }[req.status] || "";
 
         return (
@@ -531,10 +536,10 @@ export function UpperLevelConcentrationBody() {
       {concentration_requirements.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "bg-red-700",
-            Planned: "bg-purple-700",
-            "In Progress": "bg-blue-700",
-            Complete: "bg-green-700",
+            Incomplete: "bg-red-700 text-white hover:bg-red-700",
+            Planned: "bg-purple-700 text-white hover:bg-purple-700",
+            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
+            Complete: "bg-green-700 text-white hover:bg-green-500",
           }[req.status] || "";
 
         return (
@@ -647,10 +652,10 @@ export function CyberUpperBody(courses: Course[]) {
       {cyber_track_reqs.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "bg-red-700",
-            Planned: "bg-purple-700",
-            "In Progress": "bg-blue-700",
-            Complete: "bg-green-700",
+            Incomplete: "bg-red-700 text-white hover:bg-red-700",
+            Planned: "bg-purple-700 text-white hover:bg-purple-700",
+            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
+            Complete: "bg-green-700 text-white hover:bg-green-500",
           }[req.status] || "";
 
         return (
@@ -785,10 +790,10 @@ export function DataUpperBody(courses: Course[]) {
       {data_track_reqs.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "bg-red-700",
-            Planned: "bg-purple-700",
-            "In Progress": "bg-blue-700",
-            Complete: "bg-green-700",
+            Incomplete: "bg-red-700 text-white hover:bg-red-700",
+            Planned: "bg-purple-700 text-white hover:bg-purple-700",
+            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
+            Complete: "bg-green-700 text-white hover:bg-green-500",
           }[req.status] || "";
 
         return (
@@ -875,10 +880,10 @@ export function QuantumUpperBody(courses: Course[]) {
       {quantum_track_reqs.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "bg-red-700",
-            Planned: "bg-purple-700",
-            "In Progress": "bg-blue-700",
-            Complete: "bg-green-700",
+            Incomplete: "bg-red-700 text-white hover:bg-red-700",
+            Planned: "bg-purple-700 text-white hover:bg-purple-700",
+            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
+            Complete: "bg-green-700 text-white hover:bg-green-500",
           }[req.status] || "";
 
         return (
@@ -995,10 +1000,10 @@ export function MLUpperBody(courses: Course[]) {
       {ml_track_reqs.map((req, idx) => {
         const statusColor =
           {
-            Incomplete: "red-700",
-            Planned: "purple-700",
-            "In Progress": "indigo-600",
-            Complete: "green-500",
+            Incomplete: "bg-red-700 text-white hover:bg-red-700",
+            Planned: "bg-purple-700 text-white hover:bg-purple-700",
+            "In Progress": "bg-indigo-600 text-white hover:bg-indigo-600",
+            Complete: "bg-green-700 text-white hover:bg-green-500",
           }[req.status] || "";
 
         return (
