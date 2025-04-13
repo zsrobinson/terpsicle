@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { MinusIcon, PlusIcon } from "lucide-react";
 import { Dispatch, Fragment, SetStateAction, useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -7,20 +8,42 @@ import { Input } from "~/components/ui/input";
 import { Course, Defined, Section } from "~/lib/types";
 
 export function CourseList({
-  courses,
-  sections,
   addedSections,
   setAddedSections,
 }: {
-  courses: Course[];
-  sections: Section[];
-  addedSections: string[];
-  setAddedSections: Dispatch<SetStateAction<string[]>>;
+  addedSections: Section[];
+  setAddedSections: Dispatch<SetStateAction<Section[]>>;
 }) {
   const [search, setSearch] = useState("");
-  const filtered = courses.filter((c) =>
-    c.code.toLowerCase().includes(search.toLowerCase())
+  const dept = search.slice(0, 4).toUpperCase();
+
+  const coursesQuery = useQuery({
+    queryKey: ["courses", dept],
+    queryFn: async () => {
+      if (dept.length < 4) return [] as Course[];
+      const res = await fetch(`/api/courses?dept=${dept}`);
+      const json = (await res.json()) as Course[];
+      return json;
+    },
+    initialData: [],
+  });
+
+  const sectionsQuery = useQuery({
+    queryKey: ["sections", dept],
+    queryFn: async () => {
+      if (dept.length < 4) return [] as Section[];
+      const res = await fetch(`/api/sections?dept=${dept}`);
+      const json = (await res.json()) as Section[];
+      return json;
+    },
+    initialData: [],
+  });
+
+  const filteredCourses = coursesQuery.data.filter((c) =>
+    c.code.toLowerCase().startsWith(search.toLowerCase())
   );
+
+  console.log(sectionsQuery.status, sectionsQuery.data);
 
   return (
     <div className="flex flex-col gap-4 p-4 -m-4 overflow-y-scroll min-w-max pr-4">
@@ -29,10 +52,13 @@ export function CourseList({
         onChange={(e) => setSearch(e.target.value)}
         className="w-sm"
       />
-      {filtered.map((course, i) => (
+
+      {filteredCourses.map((course, i) => (
         <CourseCard
           course={course}
-          sections={sections.filter((s) => s.courseCode === course.code)}
+          sections={sectionsQuery.data.filter(
+            (s) => s.courseCode === course.code
+          )}
           addedSections={addedSections}
           setAddedSections={setAddedSections}
           key={i}
@@ -50,14 +76,16 @@ function CourseCard({
 }: {
   course: Course;
   sections: Section[];
-  addedSections: string[];
-  setAddedSections: Dispatch<SetStateAction<string[]>>;
+  addedSections: Section[];
+  setAddedSections: Dispatch<SetStateAction<Section[]>>;
 }) {
   return (
     <div className="border rounded-lg p-2 w-sm">
       <p className="font-semibold leading-none pb-1">{course.code}</p>
       <p className="leading-none text-balance">{course.name}</p>
-      <hr className="my-1" />
+      <hr className="my-2" />
+
+      {sections.length === 0 && <span>Loading sections</span>}
 
       {sections.map((s, i) => (
         <Fragment key={i}>
@@ -77,15 +105,13 @@ function CourseCard({
                   ))}
               </div>
 
-              {addedSections.includes(`${s.courseCode}-${s.sectionCode}`) ? (
+              {addedSections.some((sec) => sameSection(sec, s)) ? (
                 <Button
                   size="icon"
                   className="w-8 h-8"
                   onClick={() =>
                     setAddedSections((prev) =>
-                      prev.filter(
-                        (str) => str !== `${s.courseCode}-${s.sectionCode}`
-                      )
+                      prev.filter((sec) => !sameSection(sec, s))
                     )
                   }
                 >
@@ -95,12 +121,8 @@ function CourseCard({
                 <Button
                   size="icon"
                   className="w-8 h-8"
-                  onClick={() =>
-                    setAddedSections((prev) => [
-                      ...prev,
-                      `${s.courseCode}-${s.sectionCode}`,
-                    ])
-                  }
+                  variant="secondary"
+                  onClick={() => setAddedSections((prev) => [...prev, s])}
                 >
                   <PlusIcon size={16} />
                 </Button>
@@ -154,4 +176,8 @@ export function formatTime(dateNum: number) {
     })
     .replace(" PM", "pm")
     .replace(" AM", "am");
+}
+
+export function sameSection(a: Section, b: Section) {
+  return a.courseCode === b.courseCode && a.sectionCode === b.sectionCode;
 }

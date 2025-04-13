@@ -1,6 +1,6 @@
 import { JSDOM } from "jsdom";
 import { Defined, Section } from "./types";
-import { scrapeDepartment } from "~/lib/scrape-department";
+import { scrapeCourses } from "~/lib/scrape-courses";
 
 const TERM = "202508";
 const REVALIDATE = 600;
@@ -24,7 +24,7 @@ function parseTime(timeStr: string): number {
 
 export async function scrapeSections(dept: string) {
   // console.log("Scraping sections for department:", dept);
-  const courses = await scrapeDepartment(dept);
+  const courses = await scrapeCourses(dept);
 
   const courseConcat = courses.map((course) => course.code).join(",");
 

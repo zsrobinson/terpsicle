@@ -4,7 +4,8 @@ import { Course } from "./types";
 const TERM = "202508";
 const REVALIDATE = 600;
 
-export async function scrapeDepartment(dept: string) {
+export async function scrapeCourses(dept: string) {
+  console.log("scraping", dept);
   const url = `https://app.testudo.umd.edu/soc/${TERM}/${dept}`;
   const res = await fetch(url, { next: { revalidate: REVALIDATE } });
   const text = await res.text();

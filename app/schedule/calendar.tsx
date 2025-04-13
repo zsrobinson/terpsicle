@@ -2,7 +2,7 @@
 
 import { Dispatch, Fragment, SetStateAction } from "react";
 import { Course, Section } from "~/lib/types";
-import { formatTime } from "./course-list";
+import { formatTime, sameSection } from "./course-list";
 import { XIcon } from "lucide-react";
 
 const COURSE_COLORS = [
@@ -17,25 +17,13 @@ const COURSE_COLORS = [
 ] as const;
 
 export function Calendar({
-  sections,
   addedSections,
   setAddedSections,
 }: {
-  courses: Course[];
-  sections: Section[];
-  addedSections: string[];
-  setAddedSections: Dispatch<SetStateAction<string[]>>;
+  addedSections: Section[];
+  setAddedSections: Dispatch<SetStateAction<Section[]>>;
 }) {
   const days = ["M", "Tu", "W", "Th", "F"];
-
-  // const [courses, setCourses] = useLocalStorage<Course[]>("courses", []);
-
-  const filteredSections = sections.filter((s) =>
-    addedSections.find(
-      (as) =>
-        as.split("-")[0] === s.courseCode && as.split("-")[1] === s.sectionCode
-    )
-  );
 
   const CAL_START = 8 * 60;
   const CAL_END = (12 + 4) * 60;
@@ -59,7 +47,6 @@ export function Calendar({
               day={day}
               start={CAL_START}
               end={CAL_END}
-              sections={filteredSections}
               addedSections={addedSections}
               setAddedSections={setAddedSections}
               key={day}
@@ -87,18 +74,16 @@ function CalendarDay({
   day,
   start,
   end,
-  sections,
   addedSections,
   setAddedSections,
 }: {
   day: string;
   start: number;
   end: number;
-  sections: Section[];
-  addedSections: string[];
-  setAddedSections: Dispatch<SetStateAction<string[]>>;
+  addedSections: Section[];
+  setAddedSections: Dispatch<SetStateAction<Section[]>>;
 }) {
-  const todaySections = sections
+  const todaySections = addedSections
     .filter((sec) => sec.times && sec.times.some((t) => t.day === day))
     .map((sec) => ({ ...sec, times: sec.times?.filter((t) => t.day === day) }));
 
@@ -109,9 +94,8 @@ function CalendarDay({
           key={i}
           className={`absolute w-full p-2 flex flex-col items-center rounded-lg ${
             COURSE_COLORS[
-              (addedSections.findIndex(
-                (str) => str === `${sec.courseCode}-${sec.sectionCode}`
-              ) ?? 0) % COURSE_COLORS.length
+              (addedSections.findIndex((s) => sameSection(s, sec)) ?? 0) %
+                COURSE_COLORS.length
             ]
           }`}
           style={{
@@ -133,7 +117,7 @@ function CalendarDay({
           <button
             onClick={() =>
               setAddedSections((prev) =>
-                prev.filter((s) => s !== `${sec.courseCode}-${sec.sectionCode}`)
+                prev.filter((s) => !sameSection(s, sec))
               )
             }
             className="absolute top-2 right-2"

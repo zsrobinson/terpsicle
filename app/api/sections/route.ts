@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { scrapeSections } from "~/lib/scrape-section";
-import { serialize } from "superjson";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -15,7 +14,7 @@ export async function GET(request: Request) {
 
   try {
     const courses = await scrapeSections(dept);
-    return NextResponse.json(serialize(courses)); // MUST DESERIALIZE WITH SUPERJSON
+    return NextResponse.json(courses);
   } catch (error) {
     console.error("Failed to fetch courses:", error);
     return NextResponse.json(
