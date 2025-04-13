@@ -2,7 +2,7 @@
 
 import { XIcon } from "lucide-react";
 import { Dispatch, Fragment, SetStateAction } from "react";
-import { Section } from "~/lib/types";
+import { Course, Section } from "~/lib/types";
 import { formatTime, sameSection } from "./course-list";
 
 const COURSE_COLORS = [
@@ -20,8 +20,8 @@ export function Calendar({
   addedSections,
   setAddedSections,
 }: {
-  addedSections: Section[];
-  setAddedSections: Dispatch<SetStateAction<Section[]>>;
+  addedSections: (Section & { course: Course })[];
+  setAddedSections: Dispatch<SetStateAction<(Section & { course: Course })[]>>;
 }) {
   const days = ["M", "Tu", "W", "Th", "F"];
 
@@ -80,8 +80,8 @@ function CalendarDay({
   day: string;
   start: number;
   end: number;
-  addedSections: Section[];
-  setAddedSections: Dispatch<SetStateAction<Section[]>>;
+  addedSections: (Section & { course: Course })[];
+  setAddedSections: Dispatch<SetStateAction<(Section & { course: Course })[]>>;
 }) {
   const todaySections = addedSections
     .filter((sec) => sec.times && sec.times.some((t) => t.day === day))

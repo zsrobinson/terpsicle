@@ -146,7 +146,11 @@ export function SemesterDisplay({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
       {semesters.map((semester) => (
-        <Card key={semester.id} id={semester.id} className="hover:shadow-md transition-shadow">
+        <Card
+          key={semester.id}
+          id={semester.id}
+          className="hover:shadow-md transition-shadow"
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">{semester.name}</CardTitle>
           </CardHeader>

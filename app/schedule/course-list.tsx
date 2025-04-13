@@ -2,17 +2,21 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { MinusIcon, PlusIcon } from "lucide-react";
+import { redirect } from "next/navigation";
 import { Dispatch, Fragment, SetStateAction, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Course, Defined, Section } from "~/lib/types";
+import { useLocalStorage } from "~/lib/use-local-storage";
+
+const TERM = "202508";
 
 export function CourseList({
   addedSections,
   setAddedSections,
 }: {
-  addedSections: Section[];
-  setAddedSections: Dispatch<SetStateAction<Section[]>>;
+  addedSections: (Section & { course: Course })[];
+  setAddedSections: Dispatch<SetStateAction<(Section & { course: Course })[]>>;
 }) {
   const [search, setSearch] = useState("");
   const dept = search.slice(0, 4).toUpperCase();
@@ -43,18 +47,33 @@ export function CourseList({
     c.code.toLowerCase().startsWith(search.toLowerCase())
   );
 
-  console.log(sectionsQuery.status, sectionsQuery.data);
+  const [, setStoredCourses] = useLocalStorage<{
+    [semesterId: string]: Course[];
+  }>("semester-courses", {});
 
   return (
     <div className="flex flex-col gap-4 p-4 -m-4 overflow-y-scroll min-w-max pr-4">
-      <Input
-        value={search}
-        onChange={(e) =>
-          setSearch(e.target.value.toUpperCase().replace(" ", ""))
-        }
-        className="w-sm"
-        placeholder="Search (eg. MATH, CMSC4)"
-      />
+      <div className="w-sm flex gap-4">
+        <Input
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value.toUpperCase().replace(" ", ""))
+          }
+          placeholder="Search (eg. MATH, CMSC4)"
+        />
+
+        <Button
+          onClick={() => {
+            setStoredCourses((prev) => ({
+              ...prev,
+              [TERM]: addedSections.map((section) => section.course),
+            }));
+            redirect(`/degree#${TERM}`);
+          }}
+        >
+          Add All to Plan
+        </Button>
+      </div>
 
       {filteredCourses.length === 0 && (
         <p className="text-xs italic text-muted-foreground text-center">
@@ -86,7 +105,7 @@ function CourseCard({
   course: Course;
   sections: Section[];
   addedSections: Section[];
-  setAddedSections: Dispatch<SetStateAction<Section[]>>;
+  setAddedSections: Dispatch<SetStateAction<(Section & { course: Course })[]>>;
 }) {
   return (
     <div className="border rounded-lg p-2 w-sm">
@@ -131,7 +150,9 @@ function CourseCard({
                   size="icon"
                   className="w-8 h-8"
                   variant="secondary"
-                  onClick={() => setAddedSections((prev) => [...prev, s])}
+                  onClick={() =>
+                    setAddedSections((prev) => [...prev, { ...s, course }])
+                  }
                 >
                   <PlusIcon size={16} />
                 </Button>

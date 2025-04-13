@@ -11,12 +11,27 @@ import {
 import { SemesterDisplay } from "./semester-display";
 import { Semester, Course } from "~/lib/types";
 import { useState, useEffect, useMemo } from "react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "~/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "~/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Switch } from "~/components/ui/switch";
-import { useLocalStorage} from "~/lib/use-local-storage";
+import { useLocalStorage } from "~/lib/use-local-storage";
 import { Footer } from "~/components/Footer";
 
 // Sample data - in a real app, this would come from your backend or state management
@@ -24,8 +39,7 @@ const sampleSemesters: Semester[] = [
   {
     id: "202501",
     name: "Spring 2025",
-    courses: [
-    ],
+    courses: [],
   },
   {
     id: "202508",
@@ -76,37 +90,41 @@ const allSemesterOptions = [
   { value: "202805", label: "Summer 2028 ☀️" },
   { value: "202808", label: "Fall 2028 🍂" },
   { value: "202812", label: "Winter 2028 ❄️" },
-  { value: "202901", label: "Spring 2029 🌸" }
+  { value: "202901", label: "Spring 2029 🌸" },
 ];
 
-function generateSemesters(start: string, end: string, existingSemesters: Semester[] = []): Semester[] {
-  const startIndex = allSemesterOptions.findIndex(opt => opt.value === start);
-  const endIndex = allSemesterOptions.findIndex(opt => opt.value === end);
-  
+function generateSemesters(
+  start: string,
+  end: string,
+  existingSemesters: Semester[] = []
+): Semester[] {
+  const startIndex = allSemesterOptions.findIndex((opt) => opt.value === start);
+  const endIndex = allSemesterOptions.findIndex((opt) => opt.value === end);
+
   if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
-    return existingSemesters;  // Return existing semesters if range is invalid
+    return existingSemesters; // Return existing semesters if range is invalid
   }
 
   // Get all semester IDs in the selected range
   const rangeIds = allSemesterOptions
     .slice(startIndex, endIndex + 1)
-    .map(opt => opt.value);
+    .map((opt) => opt.value);
 
   // Keep existing semesters that are in range and their courses
-  const preservedSemesters = existingSemesters.filter(sem => 
+  const preservedSemesters = existingSemesters.filter((sem) =>
     rangeIds.includes(sem.id)
   );
 
   // Add any missing semesters from the range
-  const newSemesters = rangeIds.map(id => {
-    const existing = preservedSemesters.find(sem => sem.id === id);
+  const newSemesters = rangeIds.map((id) => {
+    const existing = preservedSemesters.find((sem) => sem.id === id);
     if (existing) return existing;
 
-    const option = allSemesterOptions.find(opt => opt.value === id)!;
+    const option = allSemesterOptions.find((opt) => opt.value === id)!;
     return {
       id: option.value,
       name: option.label,
-      courses: []
+      courses: [],
     };
   });
 
@@ -114,18 +132,42 @@ function generateSemesters(start: string, end: string, existingSemesters: Semest
 }
 
 export default function Page() {
-  const [startSemester, setStartSemester] = useLocalStorage<string>("start-semester", "202501");
-  const [endSemester, setEndSemester] = useLocalStorage<string>("end-semester", "202501");
-  const [storedCourses, setStoredCourses] = useLocalStorage<{[semesterId: string]: Course[]}>('semester-courses', {});
-  const [showTransfer, setShowTransfer] = useLocalStorage<boolean>("show-transfer", false);
-  const [showAllSemesters, setShowAllSemesters] = useLocalStorage<boolean>("show-all-semesters", false);
+  const [startSemester, setStartSemester] = useLocalStorage<string>(
+    "start-semester",
+    "202501"
+  );
+  const [endSemester, setEndSemester] = useLocalStorage<string>(
+    "end-semester",
+    "202501"
+  );
+  const [storedCourses, setStoredCourses] = useLocalStorage<{
+    [semesterId: string]: Course[];
+  }>("semester-courses", {});
+  const [showTransfer, setShowTransfer] = useLocalStorage<boolean>(
+    "show-transfer",
+    false
+  );
+  const [showAllSemesters, setShowAllSemesters] = useLocalStorage<boolean>(
+    "show-all-semesters",
+    false
+  );
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showClearConfirmation, setShowClearConfirmation] = useState(false);
-  const [pendingChange, setPendingChange] = useState<{type: "start" | "end", value: string} | null>(null);
+  const [pendingChange, setPendingChange] = useState<{
+    type: "start" | "end";
+    value: string;
+  } | null>(null);
   const [showAddCourse, setShowAddCourse] = useState(false);
-  const [selectedSemesterId, setSelectedSemesterId] = useState<string | null>(null);
-  const [newCourse, setNewCourse] = useState<Course>({ code: "", name: "", credits: 0, geneds: [] });
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string | null>(
+    null
+  );
+  const [newCourse, setNewCourse] = useState<Course>({
+    code: "",
+    name: "",
+    credits: 0,
+    geneds: [],
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Course[]>([]);
 
@@ -134,26 +176,44 @@ export default function Page() {
     if (Object.keys(storedCourses).length > 0) {
       const semesters = Object.keys(storedCourses).sort();
       const earliestSemester = semesters[0];
-      
+
       // Calculate graduation semester (4 years later)
       const year = parseInt(earliestSemester.slice(0, 4));
       const month = parseInt(earliestSemester.slice(-2));
       const gradYear = year + 4;
-      const gradSemester = month === 8 ? `${gradYear}01` : month === 5 ? `${gradYear}05` : `${gradYear}08`; // If started in fall, graduate in spring; if started in spring, graduate in winter; if started in summer, graduate in summer
-      
+      const gradSemester =
+        month === 8
+          ? `${gradYear}01`
+          : month === 5
+          ? `${gradYear}05`
+          : `${gradYear}08`; // If started in fall, graduate in spring; if started in spring, graduate in winter; if started in summer, graduate in summer
+
       console.log("Earliest Semester:", earliestSemester);
       console.log("Graduation Semester:", gradSemester);
-      
+
       setStartSemester(earliestSemester);
       setEndSemester(gradSemester);
     }
   }, [storedCourses, setStartSemester, setEndSemester]);
 
+  // manual override for fragment not working
+  useEffect(() => {
+    setTimeout(() => {
+      const fragment = window.location.hash.slice(1); // Get the fragment identifier from the URL
+      if (fragment) {
+        const element = document.getElementById(fragment); // Find the element with the matching ID
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" }); // Scroll the element into view
+        }
+      }
+    }, 100); // Wait for 100ms before executing
+  }, []);
+
   const semesterOptions = useMemo(() => {
     if (showAllSemesters) {
       return allSemesterOptions;
     }
-    return allSemesterOptions.filter(opt => {
+    return allSemesterOptions.filter((opt) => {
       const month = parseInt(opt.value.slice(-2));
       return month === 1 || month === 8; // Only spring (01) and fall (08)
     });
@@ -161,9 +221,13 @@ export default function Page() {
 
   // Generate base semesters and merge with stored courses
   useEffect(() => {
-    const startIndex = semesterOptions.findIndex(opt => opt.value === startSemester);
-    const endIndex = semesterOptions.findIndex(opt => opt.value === endSemester);
-    
+    const startIndex = semesterOptions.findIndex(
+      (opt) => opt.value === startSemester
+    );
+    const endIndex = semesterOptions.findIndex(
+      (opt) => opt.value === endSemester
+    );
+
     if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
       setSemesters([]);
       return;
@@ -171,37 +235,49 @@ export default function Page() {
 
     const regularSemesters = semesterOptions
       .slice(startIndex, endIndex + 1)
-      .map(opt => ({
+      .map((opt) => ({
         id: opt.value,
         name: opt.label,
-        courses: storedCourses[opt.value] || []
+        courses: storedCourses[opt.value] || [],
       }));
 
-    const allSemesters = showTransfer 
+    const allSemesters = showTransfer
       ? [
           {
             id: "Transfer",
             name: "Transfer Credits 🧾",
-            courses: storedCourses["Transfer"] || []
+            courses: storedCourses["Transfer"] || [],
           },
-          ...regularSemesters
+          ...regularSemesters,
         ]
       : regularSemesters;
 
     setSemesters(allSemesters);
-  }, [startSemester, endSemester, storedCourses, showTransfer, semesterOptions]);
+  }, [
+    startSemester,
+    endSemester,
+    storedCourses,
+    showTransfer,
+    semesterOptions,
+  ]);
 
   const handleSemesterChange = (type: "start" | "end", value: string) => {
     const futureStartSem = type === "start" ? value : startSemester;
     const futureEndSem = type === "end" ? value : endSemester;
-    
+
     // Check if any semesters with courses would be removed
-    const startIdx = semesterOptions.findIndex(opt => opt.value === futureStartSem);
-    const endIdx = semesterOptions.findIndex(opt => opt.value === futureEndSem);
-    const futureRange = semesterOptions.slice(startIdx, endIdx + 1).map(opt => opt.value);
-    
-    const wouldRemoveCourses = Object.entries(storedCourses).some(([semId, courses]) => 
-      courses.length > 0 && !futureRange.includes(semId)
+    const startIdx = semesterOptions.findIndex(
+      (opt) => opt.value === futureStartSem
+    );
+    const endIdx = semesterOptions.findIndex(
+      (opt) => opt.value === futureEndSem
+    );
+    const futureRange = semesterOptions
+      .slice(startIdx, endIdx + 1)
+      .map((opt) => opt.value);
+
+    const wouldRemoveCourses = Object.entries(storedCourses).some(
+      ([semId, courses]) => courses.length > 0 && !futureRange.includes(semId)
     );
 
     if (wouldRemoveCourses) {
@@ -238,12 +314,15 @@ export default function Page() {
 
     const courseWithSemester: Course = {
       ...newCourse,
-      semester: selectedSemesterId
+      semester: selectedSemesterId,
     };
 
     const updatedCourses = {
       ...storedCourses,
-      [selectedSemesterId]: [...(storedCourses[selectedSemesterId] || []), courseWithSemester]
+      [selectedSemesterId]: [
+        ...(storedCourses[selectedSemesterId] || []),
+        courseWithSemester,
+      ],
     };
     setStoredCourses(updatedCourses);
     setShowAddCourse(false);
@@ -254,31 +333,31 @@ export default function Page() {
   const handleRemoveCourse = (semesterId: string, index: number) => {
     const updatedCourses = {
       ...storedCourses,
-      [semesterId]: storedCourses[semesterId]?.filter((_, i) => i !== index) || []
+      [semesterId]:
+        storedCourses[semesterId]?.filter((_, i) => i !== index) || [],
     };
     setStoredCourses(updatedCourses);
   };
 
   const handleCourseCodeChange = async (value: string) => {
-    setNewCourse(prev => ({ ...prev, code: value }));
+    setNewCourse((prev) => ({ ...prev, code: value }));
 
     // Check if we have a valid department code or partial course code
     const match = value.match(/^([A-Za-z]{4})(\d{0,3})$/);
     if (match) {
       const dept = match[1].toUpperCase(); // Extract department code (e.g., CMSC)
-      
 
       const partialCode = match[2]; // Extract partial course number (e.g., 4, 41, etc.)
       setIsLoading(true);
       try {
         const response = await fetch(`/api/courses?dept=${dept}`);
         if (!response.ok) {
-          throw new Error('Failed to fetch courses');
+          throw new Error("Failed to fetch courses");
         }
         const courses: Course[] = await response.json();
 
         // Filter courses based on the partial code
-        const filteredCourses = courses.filter(course =>
+        const filteredCourses = courses.filter((course) =>
           course.code.startsWith(dept + partialCode)
         );
 
@@ -299,7 +378,7 @@ export default function Page() {
       code: course.code,
       name: course.name,
       credits: course.credits,
-      geneds: course.geneds || []
+      geneds: course.geneds || [],
     });
     setSuggestions([]);
   };
@@ -309,8 +388,8 @@ export default function Page() {
       <main className="container mx-auto p-4 md:p-8 flex flex-col gap-4 items-start w-full flex-grow">
         <div className="flex gap-4 items-center">
           <Label>Starting Semester</Label>
-          <Select 
-            value={startSemester} 
+          <Select
+            value={startSemester}
             onValueChange={(value) => handleSemesterChange("start", value)}
           >
             <SelectTrigger className="w-[180px]">
@@ -318,10 +397,7 @@ export default function Page() {
             </SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto">
               {semesterOptions.map((option) => (
-                <SelectItem 
-                  key={option.value} 
-                  value={option.value}
-                >
+                <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
               ))}
@@ -329,8 +405,8 @@ export default function Page() {
           </Select>
 
           <Label>Graduation Semester</Label>
-          <Select 
-            value={endSemester} 
+          <Select
+            value={endSemester}
             onValueChange={(value) => handleSemesterChange("end", value)}
           >
             <SelectTrigger className="w-[180px]">
@@ -338,10 +414,7 @@ export default function Page() {
             </SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto">
               {semesterOptions.map((option) => (
-                <SelectItem 
-                  key={option.value} 
-                  value={option.value}
-                >
+                <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
               ))}
@@ -363,11 +436,13 @@ export default function Page() {
               checked={showAllSemesters}
               onCheckedChange={setShowAllSemesters}
             />
-            <Label htmlFor="show-all-semesters">Show Winter/Summer Semesters</Label>
+            <Label htmlFor="show-all-semesters">
+              Show Winter/Summer Semesters
+            </Label>
           </div>
 
-          <Button 
-            variant="destructive" 
+          <Button
+            variant="destructive"
             className="bg-[#e21833]"
             onClick={() => setShowClearConfirmation(true)}
           >
@@ -377,8 +452,8 @@ export default function Page() {
 
         <div className="w-full mt-8">
           <h2 className="text-2xl font-semibold mb-4">Your Schedule</h2>
-          <SemesterDisplay 
-            semesters={semesters} 
+          <SemesterDisplay
+            semesters={semesters}
             onAddCourse={(semesterId) => {
               setSelectedSemesterId(semesterId);
               setShowAddCourse(true);
@@ -392,27 +467,36 @@ export default function Page() {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Semester Change</AlertDialogTitle>
               <AlertDialogDescription>
-                Changing the semester range will remove some semesters that contain courses. Are you sure you want to proceed?
+                Changing the semester range will remove some semesters that
+                contain courses. Are you sure you want to proceed?
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => handleConfirmation(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleConfirmation(true)}>Continue</AlertDialogAction>
+              <AlertDialogCancel onClick={() => handleConfirmation(false)}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={() => handleConfirmation(true)}>
+                Continue
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog open={showClearConfirmation} onOpenChange={setShowClearConfirmation}>
+        <AlertDialog
+          open={showClearConfirmation}
+          onOpenChange={setShowClearConfirmation}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete all your course data and settings. This action cannot be undone.
+                This will permanently delete all your course data and settings.
+                This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction 
+              <AlertDialogAction
                 onClick={handleClearData}
                 className="bg-red-500 hover:bg-red-600"
               >
@@ -432,21 +516,19 @@ export default function Page() {
                 <Label htmlFor="code">Course Code/Placeholder</Label>
                 <div className="relative">
                   <div className="relative">
-                    
                     <Input
                       id="code"
                       value={newCourse.code}
                       onChange={(e) => handleCourseCodeChange(e.target.value)}
                       placeholder="e.g. CMSC131, DVCC, SCIS"
                     />
-                    
                   </div>
                   {isLoading && (
                     <div className="absolute right-2 top-2">
                       <div
-className="animate-spin rounded-full h-4 w-4 border-b-2"
-style={{ borderBottomColor: '#e03131' }}
-></div>
+                        className="animate-spin rounded-full h-4 w-4 border-b-2"
+                        style={{ borderBottomColor: "#e03131" }}
+                      ></div>
                     </div>
                   )}
                   {suggestions.length > 0 && (
@@ -458,9 +540,15 @@ style={{ borderBottomColor: '#e03131' }}
                             className="px-4 py-2 cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSuggestionClick(course)}
                           >
-                            <div className="font-medium text-black font-bold">{course.code}</div>
-                            <div className="text-sm text-gray-600">{course.name}</div>
-                            <div className="text-xs text-gray-500">{course.credits} credits</div>
+                            <div className="font-medium text-black font-bold">
+                              {course.code}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {course.name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {course.credits} credits
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -473,7 +561,9 @@ style={{ borderBottomColor: '#e03131' }}
                 <Input
                   id="name"
                   value={newCourse.name}
-                  onChange={(e) => setNewCourse(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) =>
+                    setNewCourse((prev) => ({ ...prev, name: e.target.value }))
+                  }
                   placeholder="e.g. Introduction to Computer Science"
                 />
               </div>
@@ -483,13 +573,20 @@ style={{ borderBottomColor: '#e03131' }}
                   id="credits"
                   type="number"
                   value={newCourse.credits}
-                  onChange={(e) => setNewCourse(prev => ({ ...prev, credits: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) =>
+                    setNewCourse((prev) => ({
+                      ...prev,
+                      credits: parseInt(e.target.value) || 0,
+                    }))
+                  }
                   placeholder="e.g. 3"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddCourse(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setShowAddCourse(false)}>
+                Cancel
+              </Button>
               <Button onClick={handleAddCourse}>Add Course</Button>
             </DialogFooter>
           </DialogContent>
