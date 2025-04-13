@@ -4,8 +4,8 @@ import { scrapeCourses } from "~/lib/scrape-courses";
 
 const TERM = "202508";
 const REVALIDATE = 600;
-function parseTime(timeStr: string): number | null {
-  if (timeStr === "") return null;
+function parseTime(timeStr: string): number {
+  if (timeStr === "") return 0;
 
   const match = timeStr.match(/(\d+):(\d+)(am|pm)/i);
   // console.log("Checking match for timeStr:", timeStr);
@@ -185,6 +185,8 @@ export async function scrapeSections(dept: string) {
               if (!times.includes(dayTimes)) {
                 times.push(dayTimes);
               }
+
+              
               dayTimes[mappedDay].push({
                 start: startTime,
                 end: endTime,

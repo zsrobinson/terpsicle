@@ -77,6 +77,7 @@ const courseAreaMapping: CourseAreaMapping = {
   CMSC498: ["Elective"],
   CMSC498A: ["Elective"],
   CMSC499A: ["Elective"],
+  CMSC498G: ["Elective"],
 };
 
 // Color mapping for different areas
