@@ -17,6 +17,7 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Switch } from "~/components/ui/switch";
 import { useLocalStorage} from "~/lib/use-local-storage";
+import { Footer } from "~/components/Footer";
 
 // Sample data - in a real app, this would come from your backend or state management
 const sampleSemesters: Semester[] = [
@@ -302,194 +303,197 @@ export default function Page() {
   };
 
   return (
-    <main className="container mx-auto p-4 md:p-8 flex flex-col gap-4 items-start w-full">
-      <div className="flex gap-4 items-center">
-        <Label>Starting Semester</Label>
-        <Select 
-          value={startSemester} 
-          onValueChange={(value) => handleSemesterChange("start", value)}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select a Semester" />
-          </SelectTrigger>
-          <SelectContent className="max-h-60 overflow-y-auto">
-            {semesterOptions.map((option) => (
-              <SelectItem 
-                key={option.value} 
-                value={option.value}
-              >
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="flex flex-col min-h-screen">
+      <main className="container mx-auto p-4 md:p-8 flex flex-col gap-4 items-start w-full flex-grow">
+        <div className="flex gap-4 items-center">
+          <Label>Starting Semester</Label>
+          <Select 
+            value={startSemester} 
+            onValueChange={(value) => handleSemesterChange("start", value)}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select a Semester" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60 overflow-y-auto">
+              {semesterOptions.map((option) => (
+                <SelectItem 
+                  key={option.value} 
+                  value={option.value}
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Label>Graduation Semester</Label>
-        <Select 
-          value={endSemester} 
-          onValueChange={(value) => handleSemesterChange("end", value)}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select a Semester" />
-          </SelectTrigger>
-          <SelectContent className="max-h-60 overflow-y-auto">
-            {semesterOptions.map((option) => (
-              <SelectItem 
-                key={option.value} 
-                value={option.value}
-              >
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Label>Graduation Semester</Label>
+          <Select 
+            value={endSemester} 
+            onValueChange={(value) => handleSemesterChange("end", value)}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select a Semester" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60 overflow-y-auto">
+              {semesterOptions.map((option) => (
+                <SelectItem 
+                  key={option.value} 
+                  value={option.value}
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="show-transfer"
-            checked={showTransfer}
-            onCheckedChange={setShowTransfer}
-          />
-          <Label htmlFor="show-transfer">Show Transfer Credits</Label>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="show-transfer"
+              checked={showTransfer}
+              onCheckedChange={setShowTransfer}
+            />
+            <Label htmlFor="show-transfer">Show Transfer Credits</Label>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="show-all-semesters"
+              checked={showAllSemesters}
+              onCheckedChange={setShowAllSemesters}
+            />
+            <Label htmlFor="show-all-semesters">Show Winter/Summer Semesters</Label>
+          </div>
+
+          <Button 
+            variant="destructive" 
+            className="bg-[#e21833]"
+            onClick={() => setShowClearConfirmation(true)}
+          >
+            Clear Data
+          </Button>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="show-all-semesters"
-            checked={showAllSemesters}
-            onCheckedChange={setShowAllSemesters}
+        <div className="w-full mt-8">
+          <h2 className="text-2xl font-semibold mb-4">Your Schedule</h2>
+          <SemesterDisplay 
+            semesters={semesters} 
+            onAddCourse={(semesterId) => {
+              setSelectedSemesterId(semesterId);
+              setShowAddCourse(true);
+            }}
+            onRemoveCourse={handleRemoveCourse}
           />
-          <Label htmlFor="show-all-semesters">Show Winter/Summer Semesters</Label>
         </div>
 
-        <Button 
-          variant="destructive" 
-          className="bg-[#e21833]"
-          onClick={() => setShowClearConfirmation(true)}
-        >
-          Clear Data
-        </Button>
-      </div>
+        <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Semester Change</AlertDialogTitle>
+              <AlertDialogDescription>
+                Changing the semester range will remove some semesters that contain courses. Are you sure you want to proceed?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => handleConfirmation(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => handleConfirmation(true)}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <div className="w-full mt-8">
-        <h2 className="text-2xl font-semibold mb-4">Your Schedule</h2>
-        <SemesterDisplay 
-          semesters={semesters} 
-          onAddCourse={(semesterId) => {
-            setSelectedSemesterId(semesterId);
-            setShowAddCourse(true);
-          }}
-          onRemoveCourse={handleRemoveCourse}
-        />
-      </div>
+        <AlertDialog open={showClearConfirmation} onOpenChange={setShowClearConfirmation}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete all your course data and settings. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleClearData}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                Clear All Data
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Semester Change</AlertDialogTitle>
-            <AlertDialogDescription>
-              Changing the semester range will remove some semesters that contain courses. Are you sure you want to proceed?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => handleConfirmation(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleConfirmation(true)}>Continue</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={showClearConfirmation} onOpenChange={setShowClearConfirmation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete all your course data and settings. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleClearData}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              Clear All Data
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={showAddCourse} onOpenChange={setShowAddCourse}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Course</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="code">Course Code/Placeholder</Label>
-              <div className="relative">
+        <Dialog open={showAddCourse} onOpenChange={setShowAddCourse}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Course</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="code">Course Code/Placeholder</Label>
                 <div className="relative">
-                  
-                  <Input
-                    id="code"
-                    value={newCourse.code}
-                    onChange={(e) => handleCourseCodeChange(e.target.value)}
-                    placeholder="e.g. CMSC131, DVCC, SCIS"
-                  />
-                  
-                </div>
-                {isLoading && (
-                  <div className="absolute right-2 top-2">
-                    <div
-  className="animate-spin rounded-full h-4 w-4 border-b-2"
-  style={{ borderBottomColor: '#e03131' }}
+                  <div className="relative">
+                    
+                    <Input
+                      id="code"
+                      value={newCourse.code}
+                      onChange={(e) => handleCourseCodeChange(e.target.value)}
+                      placeholder="e.g. CMSC131, DVCC, SCIS"
+                    />
+                    
+                  </div>
+                  {isLoading && (
+                    <div className="absolute right-2 top-2">
+                      <div
+className="animate-spin rounded-full h-4 w-4 border-b-2"
+style={{ borderBottomColor: '#e03131' }}
 ></div>
-                  </div>
-                )}
-                {suggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg">
-                    <div className="max-h-60 overflow-y-auto">
-                      {suggestions.map((course) => (
-                        <div
-                          key={course.code}
-                          className="px-4 py-2 cursor-pointer hover:bg-gray-50"
-                          onClick={() => handleSuggestionClick(course)}
-                        >
-                          <div className="font-medium text-black font-bold">{course.code}</div>
-                          <div className="text-sm text-gray-600">{course.name}</div>
-                          <div className="text-xs text-gray-500">{course.credits} credits</div>
-                        </div>
-                      ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                  {suggestions.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg">
+                      <div className="max-h-60 overflow-y-auto">
+                        {suggestions.map((course) => (
+                          <div
+                            key={course.code}
+                            className="px-4 py-2 cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSuggestionClick(course)}
+                          >
+                            <div className="font-medium text-black font-bold">{course.code}</div>
+                            <div className="text-sm text-gray-600">{course.name}</div>
+                            <div className="text-xs text-gray-500">{course.credits} credits</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="name">Course Name</Label>
+                <Input
+                  id="name"
+                  value={newCourse.name}
+                  onChange={(e) => setNewCourse(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g. Introduction to Computer Science"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="credits">Credits</Label>
+                <Input
+                  id="credits"
+                  type="number"
+                  value={newCourse.credits}
+                  onChange={(e) => setNewCourse(prev => ({ ...prev, credits: parseInt(e.target.value) || 0 }))}
+                  placeholder="e.g. 3"
+                />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="name">Course Name</Label>
-              <Input
-                id="name"
-                value={newCourse.name}
-                onChange={(e) => setNewCourse(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g. Introduction to Computer Science"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="credits">Credits</Label>
-              <Input
-                id="credits"
-                type="number"
-                value={newCourse.credits}
-                onChange={(e) => setNewCourse(prev => ({ ...prev, credits: parseInt(e.target.value) || 0 }))}
-                placeholder="e.g. 3"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddCourse(false)}>Cancel</Button>
-            <Button onClick={handleAddCourse}>Add Course</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </main>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddCourse(false)}>Cancel</Button>
+              <Button onClick={handleAddCourse}>Add Course</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </main>
+      <Footer />
+    </div>
   );
 }
