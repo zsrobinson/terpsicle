@@ -819,7 +819,7 @@ export function DataUpperBody(courses: Course[]) {
       data_track_reqs[3].fulfilled += course.credits;
       data_track_reqs[3].courses.push(course);
       if (
-        data_track_reqs[3].fulfilled >= data_track_reqs[2].credits &&
+        data_track_reqs[3].fulfilled >= data_track_reqs[3].credits &&
         data_track_reqs[3].fulfilled - course.credits <
           data_track_reqs[3].credits
       ) {
@@ -829,7 +829,7 @@ export function DataUpperBody(courses: Course[]) {
       data_track_reqs[4].fulfilled += course.credits;
       data_track_reqs[4].courses.push(course);
       if (
-        data_track_reqs[4].fulfilled >= data_track_reqs[2].credits &&
+        data_track_reqs[4].fulfilled >= data_track_reqs[4].credits &&
         data_track_reqs[4].fulfilled - course.credits <
           data_track_reqs[4].credits
       ) {
@@ -839,7 +839,7 @@ export function DataUpperBody(courses: Course[]) {
       data_track_reqs[5].fulfilled += course.credits;
       data_track_reqs[5].courses.push(course);
       if (
-        data_track_reqs[5].fulfilled >= data_track_reqs[2].credits &&
+        data_track_reqs[5].fulfilled >= data_track_reqs[5].credits &&
         data_track_reqs[5].fulfilled - course.credits <
           data_track_reqs[5].credits
       ) {
