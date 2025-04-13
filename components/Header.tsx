@@ -51,10 +51,16 @@ export default function Header() {
     return (
       <Link
         href={href}
-        className={`font-medium ${pathname.includes(href) ? "underline" : ""}`}
+        className={`font-medium relative transition-colors
+        ${pathname.includes(href) 
+          ? "text-primary underline underline-offset-4" 
+          : "hover:text-primary group"}`}
         prefetch
       >
         {children}
+        {!pathname.includes(href) && (
+          <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+        )}
       </Link>
     );
   }
