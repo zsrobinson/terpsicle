@@ -263,9 +263,11 @@ export default function Page() {
     setNewCourse(prev => ({ ...prev, code: value }));
 
     // Check if we have a valid department code or partial course code
-    const match = value.match(/^([A-Z]{4})(\d{0,3})$/);
+    const match = value.match(/^([A-Za-z]{4})(\d{0,3})$/);
     if (match) {
-      const dept = match[1]; // Extract department code (e.g., CMSC)
+      const dept = match[1].toUpperCase(); // Extract department code (e.g., CMSC)
+      
+
       const partialCode = match[2]; // Extract partial course number (e.g., 4, 41, etc.)
       setIsLoading(true);
       try {
