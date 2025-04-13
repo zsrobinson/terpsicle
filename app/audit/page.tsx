@@ -1,45 +1,40 @@
-import { Course } from "~/lib/types";
-import { Requirement } from "~/lib/types";
-import { GenEdBody } from "./tablerows";
-import { LowerLevelBody } from "./tablerows";
-import { UpperLevelConcentrationBody } from "./tablerows";
-import { UpperLevelBody } from "./tablerows";
-import { handleTrackChange } from "./tablerows";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+"use client";
 import { Footer } from "~/components/Footer";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import {
   Table,
   TableBody,
-  TableCaption,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { useLocalStorage } from "~/lib/use-local-storage";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "~/components/ui/select";
+  GenEdBody,
+  LowerLevelBody,
+  UpperLevelBody,
+  UpperLevelConcentrationBody,
+} from "./tablerows";
 
-export default async function Page() {
+export default function Page() {
+  const [track, setTrack] = useLocalStorage<string>("track", "General");
+  console.log(track);
   const handleChange = (value: string) => {
-    handleTrackChange(value); // calls your external function
+    setTrack(value);
   };
+
   return (
     <main className="flex flex-col gap-4">
       <div className="flex items-center gap-4 mt-4 px-8">
         <h2 className="text-2xl font-semibold text-left">Degree Audit</h2>
-        <Select onValueChange={handleTrackChange}>
+        <Select value={track} onValueChange={handleChange}>
           <SelectTrigger className="w-[250px]">
             <SelectValue placeholder="Select track" />
           </SelectTrigger>
@@ -122,7 +117,7 @@ export default async function Page() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <UpperLevelBody />
+                    <UpperLevelBody track={track} />
                   </TableBody>
                 </Table>
               </CardContent>
@@ -154,7 +149,7 @@ export default async function Page() {
           </div>
         </div>
       </div>
-      <Footer/>
+      <Footer />
     </main>
   );
 }
