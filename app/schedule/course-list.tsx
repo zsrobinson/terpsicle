@@ -1,55 +1,37 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { MinusIcon, PlusIcon } from "lucide-react";
-import { redirect } from "next/navigation";
+import {
+  LoaderCircleIcon,
+  MinusIcon,
+  PlusIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { Dispatch, Fragment, SetStateAction, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Course, Defined, Section } from "~/lib/types";
-import { useLocalStorage } from "~/lib/use-local-storage";
-
-const TERM = "202508";
+import { fetchCourses, fetchSections } from "./fetch";
+import { AddedSection, IOCourse } from "./types";
 
 export function CourseList({
   addedSections,
   setAddedSections,
 }: {
-  addedSections: (Section & { course: Course })[];
-  setAddedSections: Dispatch<SetStateAction<(Section & { course: Course })[]>>;
+  addedSections: AddedSection[];
+  setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState("CMSC");
   const dept = search.slice(0, 4).toUpperCase();
 
   const coursesQuery = useQuery({
     queryKey: ["courses", dept],
-    queryFn: async () => {
-      if (dept.length < 4) return [] as Course[];
-      const res = await fetch(`/api/courses?dept=${dept}`);
-      const json = (await res.json()) as Course[];
-      return json;
-    },
-    initialData: [],
-  });
-
-  const sectionsQuery = useQuery({
-    queryKey: ["sections", dept],
-    queryFn: async () => {
-      if (dept.length < 4) return [] as Section[];
-      const res = await fetch(`/api/sections?dept=${dept}`);
-      const json = (await res.json()) as Section[];
-      return json;
-    },
+    queryFn: () => fetchCourses({ dept_id: dept }),
     initialData: [],
   });
 
   const filteredCourses = coursesQuery.data.filter((c) =>
-    c.code.toLowerCase().startsWith(search.toLowerCase())
+    c.course_id.toLowerCase().startsWith(search.toLowerCase())
   );
-
-  const [, setStoredCourses] = useLocalStorage<{
-    [semesterId: string]: Course[];
-  }>("semester-courses", {});
 
   return (
     <div className="flex flex-col gap-4 p-4 -m-4 overflow-y-scroll min-w-max pr-4">
@@ -61,46 +43,11 @@ export function CourseList({
           }
           placeholder="Search (eg. MATH, CMSC4)"
         />
-
-        <Button
-          onClick={() => {
-            setStoredCourses((prev) => ({
-              ...prev,
-              [TERM]: addedSections.map((section) => section.course),
-            }));
-            redirect(`/degree#${TERM}`);
-          }}
-        >
-          Commit to Plan
-        </Button>
       </div>
-
-      {filteredCourses.length === 0 &&
-        addedSections
-          .map((sec) => sec.course)
-          .reduce<Course[]>(
-            (acc, val) =>
-              acc.some((c) => c.code === val.code) ? acc : [...acc, val],
-            []
-          )
-          .map((course, i) => (
-            <CourseCard
-              course={course}
-              sections={addedSections.filter(
-                (s) => s.courseCode === course.code
-              )}
-              addedSections={addedSections}
-              setAddedSections={setAddedSections}
-              key={i}
-            />
-          ))}
 
       {filteredCourses.map((course, i) => (
         <CourseCard
           course={course}
-          sections={sectionsQuery.data.filter(
-            (s) => s.courseCode === course.code
-          )}
           addedSections={addedSections}
           setAddedSections={setAddedSections}
           key={i}
@@ -112,54 +59,73 @@ export function CourseList({
 
 function CourseCard({
   course,
-  sections,
   addedSections,
   setAddedSections,
 }: {
-  course: Course;
-  sections: Section[];
-  addedSections: Section[];
-  setAddedSections: Dispatch<SetStateAction<(Section & { course: Course })[]>>;
+  course: IOCourse;
+  addedSections: AddedSection[];
+  setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
+  const sectionQuery = useQuery({
+    queryKey: ["section", course.course_id],
+    queryFn: () => fetchSections({ course_id: course.course_id }),
+  });
+
   return (
     <div className="border rounded-lg p-2 w-sm">
       <span className="font-semibold leading-none pb-1 text-xl">
-        {course.code}
+        {course.course_id}
       </span>
       <span className="leading-none ml-1 text-muted-foreground text-sm italic">
-        {course.credits} Credits
+        {course.credits} Credit{course.credits !== 1 && "s"}
       </span>
       <p className="leading-none text-balance">{course.name}</p>
       <hr className="my-2" />
 
-      {sections.length === 0 && <span>Loading sections</span>}
+      {sectionQuery.isLoading && (
+        <span className="text-muted-foreground flex items-center gap-2 justify-center">
+          <LoaderCircleIcon className="animate-spin" size={20} /> Loading
+          Sections
+        </span>
+      )}
 
-      {sections.map((s, i) => (
+      {sectionQuery.isError && (
+        <span className="text-destructive flex items-center gap-2 justify-center">
+          <TriangleAlertIcon size={20} /> Error Loading Sections
+        </span>
+      )}
+
+      {sectionQuery.data?.map((sec, i) => (
         <Fragment key={i}>
           <div className="leading-tight">
             <div className="flex justify-between items-center">
               <div>
                 <p>
-                  <span className="font-semibold">{s.sectionCode}</span>:{" "}
-                  {s.professor}
+                  <span className="font-semibold">{sec.number}</span>:{" "}
+                  {sec.instructors[0] ?? "Instructor TBA"}
                 </p>
-                {s.times &&
-                  groupTimes(s.times).map((t, i) => (
+                {sec.meetings.map((time, i) =>
+                  time.start_time === undefined ||
+                  time.end_time === undefined ? (
+                    <p key={i}>ONLINE ASYNC</p>
+                  ) : (
                     <p key={i}>
-                      {t.day} {formatTime(t.start)}–{formatTime(t.end)}{" "}
-                      {t.location} {t.isDiscussion && "Discussion"}
+                      {time.days} {formatTime(time.start_time)}–
+                      {formatTime(time.end_time)} {time.building} {time.room}{" "}
+                      {time.classtype}
                     </p>
-                  ))}
-                {s.openSeats}/{s.totalSeats} seats, {s.waitlistSeats} waitlist
+                  )
+                )}
+                {sec.open_seats}/{sec.seats} seats, {sec.waitlist} waitlist
               </div>
 
-              {addedSections.some((sec) => sameSection(sec, s)) ? (
+              {addedSections.some((str) => str === sec.section_id) ? (
                 <Button
                   size="icon"
                   className="w-8 h-8"
                   onClick={() =>
                     setAddedSections((prev) =>
-                      prev.filter((sec) => !sameSection(sec, s))
+                      prev.filter((str) => str !== sec.section_id)
                     )
                   }
                 >
@@ -171,7 +137,7 @@ function CourseCard({
                   className="w-8 h-8"
                   variant="secondary"
                   onClick={() =>
-                    setAddedSections((prev) => [...prev, { ...s, course }])
+                    setAddedSections((prev) => [...prev, sec.section_id])
                   }
                 >
                   <PlusIcon size={16} />
@@ -180,35 +146,11 @@ function CourseCard({
             </div>
           </div>
 
-          {i < sections.length - 1 && <hr className="my-2" />}
+          {i < sectionQuery.data.length - 1 && <hr className="my-2" />}
         </Fragment>
       ))}
     </div>
   );
-}
-
-function groupTimes(
-  times: Defined<Section["times"]>
-): Defined<Section["times"]> {
-  const output: Defined<Section["times"]> = [];
-
-  for (const time of times) {
-    const index = output.findIndex(
-      (t) =>
-        t.isDiscussion == time.isDiscussion &&
-        t.location == time.location &&
-        formatTime(t.start) == formatTime(time.start) &&
-        formatTime(t.end) == formatTime(time.end)
-    );
-
-    if (index >= 0) {
-      output[index].day += time.day;
-    } else {
-      output.push({ ...time });
-    }
-  }
-
-  return output;
 }
 
 export function formatTime(dateNum: number) {
@@ -226,8 +168,4 @@ export function formatTime(dateNum: number) {
     })
     .replace(" PM", "pm")
     .replace(" AM", "am");
-}
-
-export function sameSection(a: Section, b: Section) {
-  return a.courseCode === b.courseCode && a.sectionCode === b.sectionCode;
 }
