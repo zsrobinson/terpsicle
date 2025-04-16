@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   LoaderCircleIcon,
   MinusIcon,
@@ -24,11 +24,26 @@ export function CourseList({
   const [search, setSearch] = useState("");
   const dept = search.length >= 4 ? search.slice(0, 4).toUpperCase() : "";
 
-  const coursesQuery = useQuery({
+  const coursesQuery = useInfiniteQuery({
     queryKey: ["courses", dept],
-    queryFn: () => fetchCourses({ dept_id: dept }),
+    queryFn: ({ pageParam }) =>
+      fetchCourses({ dept_id: dept, page: pageParam }),
     enabled: dept != "",
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages, lastPageParam) => {
+      console.log("getting next", lastPageParam, allPages.flat().length);
+      if (lastPage.length === 0) return undefined;
+      return lastPageParam + 1;
+    },
   });
+
+  const [ref, inView] = useInView({ rootMargin: "256px" });
+
+  useEffect(() => {
+    if (inView && coursesQuery.hasNextPage) {
+      coursesQuery.fetchNextPage();
+    }
+  }, [inView, coursesQuery]);
 
   return (
     <div className="flex flex-col gap-4 p-4 -m-4 overflow-y-scroll min-w-max pr-4">
@@ -55,7 +70,7 @@ export function CourseList({
         </span>
       )}
 
-      {coursesQuery.data?.length === 0 && dept !== "" && (
+      {coursesQuery.data?.pages.flat().length === 0 && dept !== "" && (
         <span className="text-muted-foreground flex items-center gap-2 justify-center text-sm">
           No Courses
         </span>
@@ -67,18 +82,23 @@ export function CourseList({
         </span>
       )}
 
-      {coursesQuery.data
-        ?.filter((c) =>
-          c.course_id.toLowerCase().startsWith(search.toLowerCase())
-        )
-        .map((course, i) => (
-          <CourseCard
-            course={course}
-            addedSections={addedSections}
-            setAddedSections={setAddedSections}
-            key={i}
-          />
-        ))}
+      <div className="flex flex-col gap-4" ref={ref}>
+        {coursesQuery.data?.pages
+          .flat()
+          .filter((c) =>
+            c.course_id.toLowerCase().startsWith(search.toLowerCase())
+          )
+          .map((course, i) => (
+            <CourseCard
+              course={course}
+              addedSections={addedSections}
+              setAddedSections={setAddedSections}
+              key={i}
+            />
+          ))}
+      </div>
+
+      <div className="w-full h-4" ref={ref} />
     </div>
   );
 }
@@ -92,17 +112,12 @@ function CourseCard({
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
-  const [ref, inView] = useInView({ rootMargin: "512px" });
-  const [hasBeenInView, setHasBeenInView] = useState(false);
-
-  useEffect(() => {
-    if (inView) setHasBeenInView(true);
-  }, [inView]);
+  const [ref, inView] = useInView({ rootMargin: "512px", triggerOnce: true });
 
   const sectionQuery = useQuery({
     queryKey: ["section", course.course_id],
     queryFn: () => fetchSections({ course_id: course.course_id }),
-    enabled: hasBeenInView,
+    enabled: inView,
   });
 
   return (
