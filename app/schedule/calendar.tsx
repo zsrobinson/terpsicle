@@ -19,9 +19,11 @@ const COURSE_COLORS = [
 ] as const;
 
 export function Calendar({
+  setSearch,
   addedSections,
   setAddedSections,
 }: {
+  setSearch: Dispatch<SetStateAction<string>>;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
@@ -79,6 +81,7 @@ export function Calendar({
               start={start}
               end={end}
               sectionsData={sectionsData}
+              setSearch={setSearch}
               addedSections={addedSections}
               setAddedSections={setAddedSections}
               key={day}
@@ -107,6 +110,7 @@ function CalendarDay({
   start,
   end,
   sectionsData,
+  setSearch,
   addedSections,
   setAddedSections,
 }: {
@@ -114,6 +118,7 @@ function CalendarDay({
   start: number;
   end: number;
   sectionsData: IOSection[];
+  setSearch: Dispatch<SetStateAction<string>>;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
@@ -153,7 +158,12 @@ function CalendarDay({
               ((sec.meeting.start_time! - start) / (end - start)) * 100 + "%",
           }}
         >
-          <span className="leading-none font-semibold pb-1">{sec.course}</span>{" "}
+          <button
+            className="leading-none font-semibold pb-1 cursor-pointer"
+            onClick={() => setSearch(sec.course)}
+          >
+            {sec.course}
+          </button>
           <span className="leading-none text-xs">
             {formatTime(sec.meeting.start_time!)}–
             {formatTime(sec.meeting.end_time!)}
@@ -163,7 +173,7 @@ function CalendarDay({
           </span>
           <span className="leading-none text-xs">{sec.instructors[0]}</span>
           <button
-            className="absolute right-2 top-2 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+            className="absolute right-2 top-2 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground cursor-pointer"
             onClick={() => {
               setAddedSections((prev) =>
                 prev.filter((str) => str !== sec.section_id)

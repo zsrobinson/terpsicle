@@ -7,21 +7,21 @@ import {
   PlusIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { Dispatch, Fragment, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, Fragment, SetStateAction, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { fetchCourses, fetchSections } from "./fetch";
 import { AddedSection, IOCourse } from "./types";
 
 export function CourseList({
+  search,
   addedSections,
   setAddedSections,
 }: {
+  search: string;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
-  const [search, setSearch] = useState("");
   const dept = search.length >= 4 ? search.slice(0, 4).toUpperCase() : "";
 
   const coursesQuery = useInfiniteQuery({
@@ -46,17 +46,7 @@ export function CourseList({
   }, [inView, coursesQuery]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 -m-4 overflow-y-scroll min-w-max pr-4">
-      <div className="w-sm flex gap-4">
-        <Input
-          value={search}
-          onChange={(e) =>
-            setSearch(e.target.value.toUpperCase().replace(" ", ""))
-          }
-          placeholder="Search (eg. MATH, CMSC4)"
-        />
-      </div>
-
+    <div className="flex flex-col gap-4 overflow-y-scroll pr-4 w-sm">
       {coursesQuery.isLoading && (
         <span className="text-muted-foreground flex items-center gap-2 justify-center text-sm">
           <LoaderCircleIcon className="animate-spin" size={16} /> Loading
@@ -121,7 +111,7 @@ function CourseCard({
   });
 
   return (
-    <div className="border rounded-lg p-2 w-sm" ref={ref}>
+    <div className="border rounded-lg p-2 max-w-sm" ref={ref}>
       <span className="font-semibold leading-none pb-1 text-xl">
         {course.course_id}
       </span>
