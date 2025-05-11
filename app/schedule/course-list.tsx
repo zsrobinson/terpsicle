@@ -201,7 +201,9 @@ function CourseCard({
             </div>
           </div>
 
-          {i < sectionQuery.data.length - 1 && <hr className="my-2" />}
+          {i < sectionQuery.data.length - 1 && (
+            <hr className="my-2 border-dotted" />
+          )}
         </Fragment>
       ))}
     </div>

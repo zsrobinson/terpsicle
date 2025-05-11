@@ -137,12 +137,39 @@ function CalendarDay({
         sec.meeting.end_time !== undefined
     );
 
+  type OverlapThing = (typeof todaySections)[0] & {
+    oIndex: number;
+    oTotal: number;
+  };
+
+  const overlapThings = todaySections.reduce((acc: OverlapThing[], x) => {
+    const overlap = acc.filter((sec) => {
+      const { start_time: sec_start, end_time: sec_end } = sec.meeting;
+      const { start_time: x_start, end_time: x_end } = x.meeting;
+
+      if (!sec_start || !sec_end || !x_start || !x_end) return false; // ignore if there's not real times
+      if (x_start >= sec_start && x_start < sec_end) return true; // option 1: x_start within sec_start...sec_end
+      if (x_end > sec_start && x_end <= sec_end) return true; // option 2: x_end within sec_start...sec_end
+      if (x_start < sec_start && x_end > sec_end) return true; // option 3: x_start before sec_start and x_end after sec_end
+      return false; // otherwise not overlapping
+    });
+
+    const updatedAcc = acc.map((sec) => {
+      const find = overlap.find((o) => o.section_id === sec.section_id);
+      if (find) find.oTotal++;
+      return find ?? sec;
+    });
+
+    const maxTotal = overlap.reduce((acc, x) => Math.max(acc, x.oTotal), 1);
+    return [...updatedAcc, { ...x, oIndex: maxTotal, oTotal: maxTotal }];
+  }, []);
+
   return (
     <div className="relative w-full h-full text-center">
-      {todaySections.map((sec, i) => (
+      {overlapThings.map((sec, i) => (
         <div
           key={sec.section_id + i}
-          className={`absolute w-full p-2 flex flex-col items-center rounded-lg ${
+          className={`absolute w-full p-2 flex flex-col items-center rounded-lg overflow-clip ${
             COURSE_COLORS[
               (addedSections.findIndex((str) => str === sec.section_id) ?? 0) %
                 COURSE_COLORS.length
@@ -156,13 +183,15 @@ function CalendarDay({
               "%",
             top:
               ((sec.meeting.start_time! - start) / (end - start)) * 100 + "%",
+            width: (1 / sec.oTotal) * 100 + "%",
+            left: ((sec.oIndex - 1) / sec.oTotal) * 100 + "%",
           }}
         >
           <button
-            className="leading-none font-semibold pb-1 cursor-pointer"
+            className="leading-none font-semibold pb-1 cursor-pointer mx-4"
             onClick={() => setSearch(sec.course)}
           >
-            {sec.course}
+            {sec.course.slice(0, 4) + "\u200B" + sec.course.slice(4)}
           </button>
           <span className="leading-none text-xs">
             {formatTime(sec.meeting.start_time!)}–
@@ -172,6 +201,7 @@ function CalendarDay({
             {sec.meeting.building} {sec.meeting.room}
           </span>
           <span className="leading-none text-xs">{sec.instructors[0]}</span>
+
           <button
             className="absolute right-2 top-2 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground cursor-pointer"
             onClick={() => {
