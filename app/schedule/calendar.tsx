@@ -122,6 +122,7 @@ function CalendarDay({
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
+  // filter down the sections into just today's
   const todaySections = sectionsData
     .flatMap((section) =>
       section.meetings.map((meeting) => ({
@@ -137,11 +138,13 @@ function CalendarDay({
         sec.meeting.end_time !== undefined
     );
 
+  // helper type for the block below, ts can't infer it
   type OverlapThing = (typeof todaySections)[0] & {
     oIndex: number;
     oTotal: number;
   };
 
+  // compute the info needed to render overlapping classes properly
   const overlapThings = todaySections.reduce((acc: OverlapThing[], x) => {
     const overlap = acc.filter((sec) => {
       const { start_time: sec_start, end_time: sec_end } = sec.meeting;
