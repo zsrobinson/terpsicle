@@ -160,6 +160,8 @@ export default function Page() {
                   <Tooltip text="Save Changes">
                     <Button
                       variant="outline"
+                      size="icon"
+                      key="save-changes-button"
                       onClick={() => {
                         const newSch = { term: term!, name: scheduleNameInput };
                         setEditingSchedule(false);
@@ -195,6 +197,8 @@ export default function Page() {
 
                   <Tooltip text="Delete Schedule">
                     <Button
+                      key="delete-schedule-button"
+                      size="icon"
                       variant="destructive"
                       onClick={() => {
                         // prettier-ignore
@@ -247,7 +251,9 @@ export default function Page() {
 
                   <Tooltip text="Edit Schedule">
                     <Button
+                      size="icon"
                       variant="outline"
+                      key="edit-schedule-button"
                       onClick={() => {
                         setEditingSchedule(true);
                         setScheduleNameInput(currentSchedule.name ?? "");
@@ -259,7 +265,9 @@ export default function Page() {
 
                   <Tooltip text="New Schedule">
                     <Button
+                      size="icon"
                       variant="outline"
+                      key="new-schedule-button"
                       onClick={() => {
                         let num =
                           schedules.filter((s) => s.term === term).length + 1;
@@ -283,7 +291,9 @@ export default function Page() {
 
                   <Tooltip text="Copy Schedule">
                     <Button
+                      size="icon"
                       variant="outline"
+                      key="copy-schedule-button"
                       onClick={() => {
                         let num =
                           schedules.filter((s) => s.term === term).length + 1;
