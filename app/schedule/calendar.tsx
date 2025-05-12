@@ -29,9 +29,6 @@ export function Calendar({
 }) {
   const days = ["M", "Tu", "W", "Th", "F"];
 
-  const DEFAULT_START = 9 * 60; // 8am
-  const DEFAULT_END = (12 + 3) * 60; // 4pm
-
   const sectionsQuery = useQueries({
     queries: addedSections
       .map((section_id) => section_id.split("-")[0])
@@ -51,18 +48,20 @@ export function Calendar({
   const start = Math.floor(sectionsData.reduce(
     (acc, val) => Math.min(acc, 
       val.meetings.filter(met => met.start_time !== undefined && met.end_time !== undefined)
-      .reduce((acc, val) => Math.min(acc, val.start_time!), DEFAULT_START)),
-      DEFAULT_START) / 60) * 60; // ensures multiple of 60, breaks otherwise
+      .reduce((acc, val) => Math.min(acc, val.start_time!), Infinity)),
+      Infinity) / 60) * 60; // ensures multiple of 60, breaks otherwise
 
   // prettier-ignore
   const end = Math.ceil(sectionsData.reduce(
     (acc, val) => Math.max(acc, 
       val.meetings.filter(met => met.start_time !== undefined && met.end_time !== undefined)
-      .reduce((acc, val) => Math.max(acc, val.end_time!), DEFAULT_END)),
-      DEFAULT_END) / 60) * 60; // ensures multiple of 60, breaks otherwise
+      .reduce((acc, val) => Math.max(acc, val.end_time!), -Infinity)),
+      -Infinity) / 60) * 60; // ensures multiple of 60, breaks otherwise
+
+  const [padStart, padEnd] = padCalendarRange(start, end);
 
   return (
-    <div className="flex flex-col w-full min-h-full">
+    <div className="flex flex-col w-full h-full">
       {/* render day headers */}
       <div className="flex justify-around ml-12 pb-2 gap-2">
         {days.map((day) => (
@@ -78,8 +77,8 @@ export function Calendar({
           {days.map((day) => (
             <CalendarDay
               day={day}
-              start={start}
-              end={end}
+              start={padStart}
+              end={padEnd}
               sectionsData={sectionsData}
               setSearch={setSearch}
               addedSections={addedSections}
@@ -91,15 +90,30 @@ export function Calendar({
 
         {/* render grid lines */}
         <div className="flex flex-col w-full absolute top-0 -z-10 h-full">
-          {new Array((end - start) / 60).fill(0).map((_, i) => (
+          {new Array((padEnd - padStart) / 60).fill(0).map((_, i) => (
             <Fragment key={i}>
-              <div className="w-full h-full border-t text-xs text-muted-foreground">
-                {formatTime(start + 60 * i).replace(":00", "")}
+              <div className="w-full border-t text-xs text-muted-foreground flex-1">
+                {formatTime(padStart + 60 * i).replace(":00", "")}
               </div>
-              <div className="w-full h-full border-t text-xs text-muted-foreground border-dotted"></div>
+              <div className="w-full border-t text-xs text-muted-foreground border-dotted flex-1"></div>
             </Fragment>
           ))}
         </div>
+
+        {/* {addedSections.length === 0 && (
+          <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 text-muted-foreground flex flex-col items-center">
+            <div className="relative pb-4">
+              <TelescopeIcon className="text-muted-foreground" size={96} />
+              <div className="z-10 bg-background/80 w-full h-full absolute top-0 left-0 " />
+            </div>
+            <p className="text-muted-foreground font-semibold">
+              There&apos;s nothing here!
+            </p>
+            <p className="text-muted-foreground text-sm">
+              Add some courses to get started.
+            </p>
+          </div>
+        )} */}
       </div>
     </div>
   );
@@ -158,7 +172,11 @@ function CalendarDay({
     });
 
     const updatedAcc = acc.map((sec) => {
-      const find = overlap.find((o) => o.section_id === sec.section_id);
+      const find = overlap.find(
+        (o) =>
+          o.section_id === sec.section_id &&
+          JSON.stringify(o.meeting) === JSON.stringify(sec.meeting) // not great
+      );
       if (find) find.oTotal++;
       return find ?? sec;
     });
@@ -166,6 +184,8 @@ function CalendarDay({
     const maxTotal = overlap.reduce((acc, x) => Math.max(acc, x.oTotal), 1);
     return [...updatedAcc, { ...x, oIndex: maxTotal, oTotal: maxTotal }];
   }, []);
+
+  console.log(day, todaySections, overlapThings);
 
   return (
     <div className="relative w-full h-full text-center">
@@ -220,4 +240,15 @@ function CalendarDay({
       ))}
     </div>
   );
+}
+
+// makes sure that there's always at least 6 hours shown
+function padCalendarRange(start: number, end: number) {
+  if (start === Infinity || end === -Infinity) return [10 * 60, (12 + 4) * 60];
+  if (end - start === 60) return [start - 2 * 60, end + 3 * 60];
+  if (end - start === 2 * 60) return [start - 2 * 60, end + 2 * 60];
+  if (end - start === 3 * 60) return [start - 60, end + 2 * 60];
+  if (end - start === 4 * 60) return [start - 60, end + 60];
+  if (end - start === 5 * 60) return [start, end + 60];
+  return [start, end];
 }
