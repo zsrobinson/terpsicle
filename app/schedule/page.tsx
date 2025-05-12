@@ -23,7 +23,7 @@ import { Term } from "~/lib/types";
 import { useLocalStorage } from "~/lib/use-local-storage";
 import { Calendar } from "./calendar";
 import { CourseList } from "./course-list";
-import { AddedSection, Schedule } from "./types";
+import { AddedSection, Schedule } from "./io-types";
 
 export default function Page() {
   // prettier-ignore

@@ -1,5 +1,5 @@
 import { JSDOM } from "jsdom";
-import { courseSchema, sectionSchema } from "./types";
+import { courseSchema, sectionSchema } from "./io-types";
 
 const API = "https://api.umd.io/v1";
 const SOC = "https://app.testudo.umd.edu";

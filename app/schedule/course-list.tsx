@@ -2,6 +2,7 @@
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
+  ExternalLinkIcon,
   LoaderCircleIcon,
   MinusIcon,
   PlusIcon,
@@ -10,8 +11,18 @@ import {
 import { Dispatch, Fragment, SetStateAction, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { Button } from "~/components/ui/button";
-import { fetchCourses, fetchSections } from "./fetch";
-import { AddedSection, IOCourse, Schedule } from "./types";
+import { fetchCourses, fetchSections } from "./io-fetch";
+import { AddedSection, IOCourse, Schedule } from "./io-types";
+import { fetchProfessor } from "./pt-fetch";
+
+const RATING_COLORS = [
+  "text-muted-foreground bg-secondary",
+  "text-white bg-red-600/70",
+  "text-white bg-amber-600/70",
+  "text-white bg-lime-600/70",
+  "text-white bg-green-700/70",
+  "text-white bg-emerald-800/70",
+];
 
 export function CourseList({
   term,
@@ -122,13 +133,26 @@ function CourseCard({
 
   return (
     <div className="border rounded-lg p-2 max-w-sm" ref={ref}>
-      <span className="font-semibold leading-none pb-1 text-xl">
-        {course.course_id}
-      </span>
-      <span className="leading-none ml-1.5 text-muted-foreground text-sm italic">
-        {course.credits} Credit{course.credits !== 1 && "s"}
-      </span>
-      <p className="leading-tight text-balance">{course.name}</p>
+      <div className="flex justify-between">
+        <div>
+          <span className="font-semibold leading-none pb-1 text-xl">
+            {course.course_id}
+          </span>
+          <span className="leading-none ml-1.5 text-muted-foreground text-sm italic">
+            {course.credits} Credit{course.credits !== 1 && "s"}
+          </span>
+        </div>
+
+        <a
+          href={`https://app.testudo.umd.edu/soc/search?courseId=${course.course_id}&termId=${term}&courseStartCompare=&courseStartHour=&courseStartMin=&courseStartAM=`}
+          target="_blank"
+          className="ml-1.5 inline-flex items-center gap-1 text-sm text-muted-foreground"
+        >
+          Testudo <ExternalLinkIcon className="inline opacity-80" size={16} />
+        </a>
+      </div>
+
+      <p className="leading-tight">{course.name}</p>
       <hr className="my-2" />
 
       {sectionQuery.isLoading && (
@@ -155,10 +179,18 @@ function CourseCard({
           <div className="leading-tight">
             <div className="flex justify-between items-center">
               <div>
-                <p>
-                  <span className="font-semibold">{sec.number}:</span>{" "}
-                  {sec.instructors[0] ?? "Instructor TBA"}
-                </p>
+                <div className="flex gap-1 items-start">
+                  <span className="font-semibold">{sec.number}:</span>
+                  <div className="flex flex-col gap-0.5">
+                    {sec.instructors.length === 0 ? (
+                      <p>Instructor TBA</p>
+                    ) : (
+                      sec.instructors.map((name) => (
+                        <ProfessorInfo key={name} name={name} />
+                      ))
+                    )}
+                  </div>
+                </div>
                 {sec.meetings.map((time, i) =>
                   time.start_time === undefined ||
                   time.end_time === undefined ? (
@@ -240,6 +272,35 @@ function CourseCard({
         </Fragment>
       ))}
     </div>
+  );
+}
+
+function ProfessorInfo({ name }: { name: string }) {
+  const professorQuery = useQuery({
+    queryKey: ["professor", name],
+    queryFn: () => fetchProfessor({ name }),
+    retry: false,
+  });
+
+  return (
+    <p>
+      {name}
+      <a
+        href={
+          professorQuery.data?.slug
+            ? `https://planetterp.com/professor/${professorQuery.data?.slug}`
+            : `https://planetterp.com`
+        }
+        target="_blank"
+        className={`ml-2 px-1.5 py-0.5 font-semibold text-sm leading-none rounded-sm ${
+          RATING_COLORS[Math.floor(professorQuery.data?.average_rating ?? 0)]
+        }`}
+      >
+        {professorQuery.data?.average_rating.toFixed(2)}
+        {professorQuery.isLoading && "..."}
+        {professorQuery.isError && "n/a"}
+      </a>
+    </p>
   );
 }
 

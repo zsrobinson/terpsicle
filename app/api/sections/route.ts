@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { scrapeSections } from "~/app/schedule/fetch";
+import { scrapeSections } from "~/app/schedule/io-fetch";
 import { JSDOM } from "jsdom";
 
 export async function GET(request: Request) {
