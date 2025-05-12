@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckIcon,
+  CopyIcon,
   Edit3Icon,
   PlusIcon,
   SendIcon,
@@ -76,7 +77,7 @@ export default function Page() {
       for (const term of termsQuery.data) {
         if (!prev.find((sch) => sch.term === term.value)) {
           console.log("doing it for ", term.value);
-          toAdd.push({ term: term.value, name: "Default Schedule" });
+          toAdd.push({ term: term.value, name: "Schedule 1" });
         }
       }
       return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
@@ -244,19 +245,60 @@ export default function Page() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      const num = schedules.filter(
-                        (s) => s.term === term
-                      ).length;
-                      const sch = {
-                        term: term!,
-                        name: "Schedule " + (num + 1),
-                      };
+                      let num =
+                        schedules.filter((s) => s.term === term).length + 1;
+
+                      // make sure there's no funny business
+                      while (
+                        schedules.find((s) => s.name === "Schedule " + num)
+                      ) {
+                        num++;
+                      }
+
+                      const sch = { term: term!, name: "Schedule " + num };
                       setSchedules((prev) => [...prev, sch]);
                       setCurrentSchedule(sch);
                     }}
                     disabled={!term}
                   >
                     <PlusIcon />
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      let num =
+                        schedules.filter((s) => s.term === term).length + 1;
+
+                      // make sure there's no funny business
+                      while (
+                        schedules.find((s) => s.name === "Schedule " + num)
+                      ) {
+                        num++;
+                      }
+
+                      const sch = { term: term!, name: "Schedule " + num };
+
+                      setAddedSections((prev) => [
+                        ...prev,
+                        ...prev
+                          .filter(
+                            (section) =>
+                              section.scheduleName === currentSchedule.name &&
+                              section.term === currentSchedule.term
+                          )
+                          .map((section) => ({
+                            ...section,
+                            scheduleName: sch.name,
+                          })),
+                      ]);
+
+                      setSchedules((prev) => [...prev, sch]);
+                      setCurrentSchedule(sch);
+                    }}
+                    disabled={!term}
+                  >
+                    <CopyIcon />
                   </Button>
 
                   <p className="text-muted-foreground text-sm pl-2">
