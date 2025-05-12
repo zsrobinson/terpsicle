@@ -26,6 +26,7 @@ import { Calendar } from "./calendar";
 import { CourseList } from "./course-list";
 import { AddedSection, Schedule } from "./io-types";
 import { redirect } from "next/navigation";
+import { Tooltip } from "~/components/ui/better-tooltip";
 
 export default function Page() {
   // prettier-ignore
@@ -144,67 +145,72 @@ export default function Page() {
                 <>
                   <Input
                     value={scheduleNameInput}
+                    placeholder={currentSchedule.name}
                     onChange={(e) => setScheduleNameInput(e.target.value)}
                     className="w-[180px]"
                   />
 
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const newSch = { term: term!, name: scheduleNameInput };
-                      setEditingSchedule(false);
-                      setCurrentSchedule(newSch);
-                      setSchedules((prev) =>
-                        prev.map((sch) => {
-                          return sch.name === currentSchedule.name &&
-                            sch.term === currentSchedule.term
-                            ? newSch
-                            : sch;
-                        })
-                      );
-                      setAddedSections((prev) =>
-                        prev.map((sec) =>
-                          sec.scheduleName === currentSchedule.name
-                            ? { ...sec, scheduleName: scheduleNameInput }
-                            : sec
-                        )
-                      );
-                    }}
-                    disabled={
-                      schedules.find(
-                        (sch) =>
-                          sch.term === term! &&
-                          sch.name === scheduleNameInput &&
-                          sch.name !== currentSchedule.name
-                      ) !== undefined || scheduleNameInput === ""
-                    }
-                  >
-                    <CheckIcon />
-                  </Button>
+                  <Tooltip text="Save Changes">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const newSch = { term: term!, name: scheduleNameInput };
+                        setEditingSchedule(false);
+                        setCurrentSchedule(newSch);
+                        setSchedules((prev) =>
+                          prev.map((sch) => {
+                            return sch.name === currentSchedule.name &&
+                              sch.term === currentSchedule.term
+                              ? newSch
+                              : sch;
+                          })
+                        );
+                        setAddedSections((prev) =>
+                          prev.map((sec) =>
+                            sec.scheduleName === currentSchedule.name
+                              ? { ...sec, scheduleName: scheduleNameInput }
+                              : sec
+                          )
+                        );
+                      }}
+                      disabled={
+                        schedules.find(
+                          (sch) =>
+                            sch.term === term! &&
+                            sch.name === scheduleNameInput &&
+                            sch.name !== currentSchedule.name
+                        ) !== undefined || scheduleNameInput === ""
+                      }
+                    >
+                      <CheckIcon />
+                    </Button>
+                  </Tooltip>
 
-                  <Button
-                    variant="destructive"
-                    onClick={() => {
-                      // prettier-ignore
-                      setSchedules((prev) => prev.filter((sch) => !(
+                  <Tooltip text="Delete Schedule">
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        // prettier-ignore
+                        setSchedules((prev) => prev.filter((sch) => !(
                         sch.name === currentSchedule.name &&
                         sch.term === currentSchedule.term)
                       ));
 
-                      // prettier-ignore
-                      setAddedSections((prev) => prev.filter(
+                        // prettier-ignore
+                        setAddedSections((prev) => prev.filter(
                         (sec) => !(sec.scheduleName === currentSchedule.name 
                         && sec.term === currentSchedule.term)
                       ));
 
-                      setEditingSchedule(false);
-                      setCurrentSchedule(
-                        schedules.filter((sch) => sch.term === term).at(0)
-                      );
-                    }}
-                  >
-                    <TrashIcon />
-                  </Button>
+                        setEditingSchedule(false);
+                        setCurrentSchedule(
+                          schedules.filter((sch) => sch.term === term).at(0)
+                        );
+                      }}
+                    >
+                      <TrashIcon />
+                    </Button>
+                  </Tooltip>
                 </>
               ) : (
                 <>
@@ -232,74 +238,80 @@ export default function Page() {
                     </SelectContent>
                   </Select>
 
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setEditingSchedule(true);
-                      setScheduleNameInput(currentSchedule.name ?? "");
-                    }}
-                  >
-                    <Edit3Icon />
-                  </Button>
+                  <Tooltip text="Edit Schedule">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingSchedule(true);
+                        setScheduleNameInput(currentSchedule.name ?? "");
+                      }}
+                    >
+                      <Edit3Icon />
+                    </Button>
+                  </Tooltip>
 
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      let num =
-                        schedules.filter((s) => s.term === term).length + 1;
+                  <Tooltip text="New Schedule">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        let num =
+                          schedules.filter((s) => s.term === term).length + 1;
 
-                      // make sure there's no funny business
-                      while (
-                        schedules.find((s) => s.name === "Schedule " + num)
-                      ) {
-                        num++;
-                      }
+                        // make sure there's no funny business
+                        while (
+                          schedules.find((s) => s.name === "Schedule " + num)
+                        ) {
+                          num++;
+                        }
 
-                      const sch = { term: term!, name: "Schedule " + num };
-                      setSchedules((prev) => [...prev, sch]);
-                      setCurrentSchedule(sch);
-                    }}
-                    disabled={!term}
-                  >
-                    <PlusIcon />
-                  </Button>
+                        const sch = { term: term!, name: "Schedule " + num };
+                        setSchedules((prev) => [...prev, sch]);
+                        setCurrentSchedule(sch);
+                      }}
+                      disabled={!term}
+                    >
+                      <PlusIcon />
+                    </Button>
+                  </Tooltip>
 
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      let num =
-                        schedules.filter((s) => s.term === term).length + 1;
+                  <Tooltip text="Copy Schedule">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        let num =
+                          schedules.filter((s) => s.term === term).length + 1;
 
-                      // make sure there's no funny business
-                      while (
-                        schedules.find((s) => s.name === "Schedule " + num)
-                      ) {
-                        num++;
-                      }
+                        // make sure there's no funny business
+                        while (
+                          schedules.find((s) => s.name === "Schedule " + num)
+                        ) {
+                          num++;
+                        }
 
-                      const sch = { term: term!, name: "Schedule " + num };
+                        const sch = { term: term!, name: "Schedule " + num };
 
-                      setAddedSections((prev) => [
-                        ...prev,
-                        ...prev
-                          .filter(
-                            (section) =>
-                              section.scheduleName === currentSchedule.name &&
-                              section.term === currentSchedule.term
-                          )
-                          .map((section) => ({
-                            ...section,
-                            scheduleName: sch.name,
-                          })),
-                      ]);
+                        setAddedSections((prev) => [
+                          ...prev,
+                          ...prev
+                            .filter(
+                              (section) =>
+                                section.scheduleName === currentSchedule.name &&
+                                section.term === currentSchedule.term
+                            )
+                            .map((section) => ({
+                              ...section,
+                              scheduleName: sch.name,
+                            })),
+                        ]);
 
-                      setSchedules((prev) => [...prev, sch]);
-                      setCurrentSchedule(sch);
-                    }}
-                    disabled={!term}
-                  >
-                    <CopyIcon />
-                  </Button>
+                        setSchedules((prev) => [...prev, sch]);
+                        setCurrentSchedule(sch);
+                      }}
+                      disabled={!term}
+                    >
+                      <CopyIcon />
+                    </Button>
+                  </Tooltip>
 
                   <p className="text-muted-foreground text-sm pl-2">
                     {`Total Credits: ${addedSections
