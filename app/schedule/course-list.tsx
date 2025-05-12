@@ -42,7 +42,7 @@ export function CourseList({
   const coursesQuery = useInfiniteQuery({
     queryKey: ["courses", dept, term],
     queryFn: ({ pageParam }) =>
-      fetchCourses({ dept_id: dept, page: pageParam, semester: term + "|eq" }),
+      fetchCourses({ dept_id: dept, page: pageParam, semester: term }),
     enabled: dept != "",
     initialPageParam: 1,
     getNextPageParam: (lastPage, _, lastPageParam) => {
@@ -127,7 +127,7 @@ function CourseCard({
   const sectionQuery = useQuery({
     queryKey: ["section", course.course_id, term],
     queryFn: () =>
-      fetchSections({ course_id: course.course_id, semester: term + "|eq" }),
+      fetchSections({ course_id: course.course_id, semester: term }),
     enabled: inView,
   });
 

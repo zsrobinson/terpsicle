@@ -33,7 +33,8 @@ export async function fetchSections(options: {
   semester?: string;
 }) {
   const params = new URLSearchParams(parseOptions(options));
-  const res = await fetch(`${API}/courses/sections?${params}`);
+  // const res = await fetch(`${API}/courses/sections?${params}`); // use for just the umd.io api
+  const res = await fetch(`/api/sections?${params}`); // use for scraping on the backend
   const json: unknown = await res.json();
   const parsed = sectionSchema.array().parse(json);
   return parsed;

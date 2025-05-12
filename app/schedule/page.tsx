@@ -332,7 +332,8 @@ export default function Page() {
 
                   <div>
                     <p className="text-muted-foreground text-sm pl-2 leading-tight">
-                      {`Total Credits: ${addedSections
+                      <span className="font-semibold">Total Credits: </span>
+                      {addedSections
                         .filter(
                           (section) =>
                             section.term === term &&
@@ -342,12 +343,12 @@ export default function Page() {
                           (acc, section) =>
                             acc + (Number(section.cachedCourse.credits) || 0),
                           0
-                        )}`}
+                        )}
                     </p>
 
                     {onlineAsyncSections.length > 0 && (
                       <p className="text-muted-foreground text-sm pl-2 leading-tight">
-                        Online Async:{" "}
+                        <span className="font-semibold">Online Async: </span>
                         {onlineAsyncSections.map((sec, i) => (
                           <button
                             key={i}
