@@ -11,15 +11,17 @@ import { Dispatch, Fragment, SetStateAction, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { Button } from "~/components/ui/button";
 import { fetchCourses, fetchSections } from "./fetch";
-import { AddedSection, IOCourse } from "./types";
+import { AddedSection, IOCourse, Schedule } from "./types";
 
 export function CourseList({
   term,
+  currentSchedule,
   search,
   addedSections,
   setAddedSections,
 }: {
-  term: string | undefined;
+  term: string;
+  currentSchedule: Schedule;
   search: string;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
@@ -82,6 +84,7 @@ export function CourseList({
           .map((course, i) => (
             <CourseCard
               term={term}
+              currentSchedule={currentSchedule}
               course={course}
               addedSections={addedSections}
               setAddedSections={setAddedSections}
@@ -97,11 +100,13 @@ export function CourseList({
 
 function CourseCard({
   term,
+  currentSchedule,
   course,
   addedSections,
   setAddedSections,
 }: {
-  term: string | undefined;
+  term: string;
+  currentSchedule: Schedule;
   course: IOCourse;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
@@ -181,13 +186,25 @@ function CourseCard({
                 </p>
               </div>
 
-              {addedSections.some((str) => str === sec.section_id) ? (
+              {addedSections.some(
+                (addedSec) =>
+                  addedSec.id === sec.section_id &&
+                  addedSec.term === sec.semester &&
+                  addedSec.scheduleName === currentSchedule.name
+              ) ? (
                 <Button
                   size="icon"
                   className="w-8 h-8"
                   onClick={() =>
                     setAddedSections((prev) =>
-                      prev.filter((str) => str !== sec.section_id)
+                      prev.filter(
+                        (addedSec) =>
+                          !(
+                            addedSec.id === sec.section_id &&
+                            addedSec.term === sec.semester &&
+                            addedSec.scheduleName === currentSchedule.name
+                          )
+                      )
                     )
                   }
                 >
@@ -199,7 +216,16 @@ function CourseCard({
                   className="w-8 h-8"
                   variant="secondary"
                   onClick={() =>
-                    setAddedSections((prev) => [...prev, sec.section_id])
+                    setAddedSections((prev) => [
+                      ...prev,
+                      {
+                        id: sec.section_id,
+                        term,
+                        scheduleName: currentSchedule.name,
+                        cachedCourse: course,
+                        cachedSection: sec,
+                      },
+                    ])
                   }
                 >
                   <PlusIcon size={16} />

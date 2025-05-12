@@ -1,11 +1,9 @@
 "use client";
 
-import { useQueries } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
 import { Dispatch, Fragment, SetStateAction } from "react";
 import { formatTime } from "./course-list";
-import { fetchSections } from "./fetch";
-import { AddedSection, IOSection } from "./types";
+import { AddedSection, Schedule } from "./types";
 
 const COURSE_COLORS = [
   "bg-red-500/30",
@@ -20,41 +18,34 @@ const COURSE_COLORS = [
 
 export function Calendar({
   setSearch,
+  currentSchedule,
   addedSections,
   setAddedSections,
 }: {
   setSearch: Dispatch<SetStateAction<string>>;
+  currentSchedule: Schedule;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
   const days = ["M", "Tu", "W", "Th", "F"];
 
-  const sectionsQuery = useQueries({
-    queries: addedSections
-      .map((section_id) => section_id.split("-")[0])
-      .reduce<string[]>((acc, x) => (acc.includes(x) ? acc : [...acc, x]), [])
-      .map((course_id) => ({
-        queryKey: ["section", course_id],
-        queryFn: () => fetchSections({ course_id }),
-        initialData: [],
-      })),
-  });
-
-  const sectionsData = sectionsQuery
-    .flatMap((query) => query.data)
-    .filter((sec) => addedSections.includes(sec.section_id));
+  const scheduleSections = addedSections.filter(
+    (sec) =>
+      sec.scheduleName === currentSchedule.name &&
+      sec.term === currentSchedule.term
+  );
 
   // prettier-ignore
-  const start = Math.floor(sectionsData.reduce(
+  const start = Math.floor(scheduleSections.reduce(
     (acc, val) => Math.min(acc, 
-      val.meetings.filter(met => met.start_time !== undefined && met.end_time !== undefined)
+      val.cachedSection.meetings.filter(met => met.start_time !== undefined && met.end_time !== undefined)
       .reduce((acc, val) => Math.min(acc, val.start_time!), Infinity)),
       Infinity) / 60) * 60; // ensures multiple of 60, breaks otherwise
 
   // prettier-ignore
-  const end = Math.ceil(sectionsData.reduce(
+  const end = Math.ceil(scheduleSections.reduce(
     (acc, val) => Math.max(acc, 
-      val.meetings.filter(met => met.start_time !== undefined && met.end_time !== undefined)
+      val.cachedSection.meetings.filter(met => met.start_time !== undefined && met.end_time !== undefined)
       .reduce((acc, val) => Math.max(acc, val.end_time!), -Infinity)),
       -Infinity) / 60) * 60; // ensures multiple of 60, breaks otherwise
 
@@ -79,9 +70,9 @@ export function Calendar({
               day={day}
               start={padStart}
               end={padEnd}
-              sectionsData={sectionsData}
               setSearch={setSearch}
-              addedSections={addedSections}
+              currentSchedule={currentSchedule}
+              addedSections={scheduleSections}
               setAddedSections={setAddedSections}
               key={day}
             />
@@ -123,24 +114,24 @@ function CalendarDay({
   day,
   start,
   end,
-  sectionsData,
   setSearch,
+  currentSchedule,
   addedSections,
   setAddedSections,
 }: {
   day: string;
   start: number;
   end: number;
-  sectionsData: IOSection[];
   setSearch: Dispatch<SetStateAction<string>>;
+  currentSchedule: Schedule;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
   // filter down the sections into just today's
-  const todaySections = sectionsData
-    .flatMap((section) =>
-      section.meetings.map((meeting) => ({
-        ...section,
+  const todaySections = addedSections
+    .flatMap((addedSection) =>
+      addedSection.cachedSection.meetings.map((meeting) => ({
+        ...addedSection.cachedSection,
         meetings: undefined,
         meeting,
       }))
@@ -192,7 +183,9 @@ function CalendarDay({
           key={sec.section_id + i}
           className={`absolute w-full p-2 flex flex-col items-center rounded-lg overflow-clip ${
             COURSE_COLORS[
-              (addedSections.findIndex((str) => str === sec.section_id) ?? 0) %
+              (addedSections
+                .map((addedSec) => addedSec.id)
+                .findIndex((addedSec) => addedSec === sec.section_id) ?? 0) %
                 COURSE_COLORS.length
             ]
           }`}
@@ -227,7 +220,14 @@ function CalendarDay({
             className="absolute right-2 top-2 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground cursor-pointer"
             onClick={() => {
               setAddedSections((prev) =>
-                prev.filter((str) => str !== sec.section_id)
+                prev.filter(
+                  (addedSec) =>
+                    !(
+                      addedSec.id === sec.section_id &&
+                      addedSec.term === currentSchedule.term &&
+                      addedSec.scheduleName === currentSchedule.name
+                    )
+                )
               );
             }}
           >

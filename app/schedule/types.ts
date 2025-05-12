@@ -48,8 +48,14 @@ export type IOCourse = z.infer<typeof courseSchema>;
 export type IOSection = z.infer<typeof sectionSchema>;
 export type IOMeeting = z.infer<typeof meetingSchema>;
 
-/** course code and section, comma separated */
-export type AddedSection = string;
+export type Schedule = { term: string; name: string };
+export type AddedSection = {
+  id: string;
+  term: string;
+  scheduleName: string;
+  cachedCourse: IOCourse;
+  cachedSection: IOSection;
+};
 
 /** converts 10:00am or 12:30pm into the number of minutes in the day */
 function parseTime(str: string): number | undefined {

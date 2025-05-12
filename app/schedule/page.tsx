@@ -1,7 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Edit3Icon, SendIcon, SlashIcon } from "lucide-react";
+import {
+  CheckIcon,
+  Edit3Icon,
+  PlusIcon,
+  SendIcon,
+  SlashIcon,
+  TrashIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -16,7 +23,7 @@ import { Term } from "~/lib/types";
 import { useLocalStorage } from "~/lib/use-local-storage";
 import { Calendar } from "./calendar";
 import { CourseList } from "./course-list";
-import { AddedSection } from "./types";
+import { AddedSection, Schedule } from "./types";
 
 export default function Page() {
   // prettier-ignore
@@ -30,6 +37,15 @@ export default function Page() {
     "term",
     undefined
   );
+  const [currentSchedule, setCurrentSchedule] = useLocalStorage<
+    Schedule | undefined
+  >("current-schedule", undefined);
+  const [schedules, setSchedules] = useLocalStorage<Schedule[]>(
+    "schedule-names",
+    []
+  );
+  const [editingSchedule, setEditingSchedule] = useState(false);
+  const [scheduleNameInput, setScheduleNameInput] = useState("");
 
   const termsQuery = useQuery({
     queryKey: ["terms"],
@@ -49,8 +65,29 @@ export default function Page() {
         .filter(({ name }) => name.includes("Fall") || name.includes("Spring"))
         .at(-1) ?? undefined;
     if (latestLongSemester) setTerm(latestLongSemester.value);
+  }, [setTerm, term, termsQuery.data]);
+
+  // if there's no schedules for a term, make a default one
+  useEffect(() => {
+    if (!termsQuery.data) return;
+    setSchedules((prev) => {
+      const toAdd: Schedule[] = [];
+      for (const term of termsQuery.data) {
+        if (!prev.find((sch) => sch.term === term.value)) {
+          console.log("doing it for ", term.value);
+          toAdd.push({ term: term.value, name: "Default Schedule" });
+        }
+      }
+      return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+    });
+  }, [setSchedules, termsQuery.data]);
+
+  // when term changes, set schedule to the first one
+  useEffect(() => {
+    if (!term) return;
+    setCurrentSchedule(schedules.filter((sch) => sch.term === term).at(0));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [termsQuery.data]);
+  }, [term]);
 
   return (
     <main className="flex gap-4 p-4 h-[calc(100vh-48px)] overflow-y-hidden divide-x">
@@ -67,12 +104,15 @@ export default function Page() {
           />
         </div>
 
-        <CourseList
-          term={term}
-          search={search}
-          addedSections={addedSections}
-          setAddedSections={setAddedSections}
-        />
+        {term && currentSchedule && (
+          <CourseList
+            term={term}
+            currentSchedule={currentSchedule}
+            search={search}
+            addedSections={addedSections}
+            setAddedSections={setAddedSections}
+          />
+        )}
       </div>
 
       <div className="w-full h-full flex flex-col gap-4">
@@ -97,18 +137,128 @@ export default function Page() {
 
             <SlashIcon className="text-border -rotate-12" />
 
-            <Select defaultValue="default">
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select a schedule" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">Default Schedule</SelectItem>
-              </SelectContent>
-            </Select>
+            {currentSchedule &&
+              (editingSchedule ? (
+                <>
+                  <Input
+                    value={scheduleNameInput}
+                    onChange={(e) => setScheduleNameInput(e.target.value)}
+                    className="w-[180px]"
+                  />
 
-            <Button variant="outline">
-              <Edit3Icon />
-            </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const newSch = { term: term!, name: scheduleNameInput };
+                      setEditingSchedule(false);
+                      setCurrentSchedule(newSch);
+                      setSchedules((prev) =>
+                        prev.map((sch) => {
+                          return sch.name === currentSchedule.name &&
+                            sch.term === currentSchedule.term
+                            ? newSch
+                            : sch;
+                        })
+                      );
+                      setAddedSections((prev) =>
+                        prev.map((sec) =>
+                          sec.scheduleName === currentSchedule.name
+                            ? { ...sec, scheduleName: scheduleNameInput }
+                            : sec
+                        )
+                      );
+                    }}
+                    disabled={
+                      schedules.find(
+                        (sch) =>
+                          sch.term === term! &&
+                          sch.name === scheduleNameInput &&
+                          sch.name !== currentSchedule.name
+                      ) !== undefined || scheduleNameInput === ""
+                    }
+                  >
+                    <CheckIcon />
+                  </Button>
+
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      // prettier-ignore
+                      setSchedules((prev) => prev.filter((sch) => !(
+                        sch.name === currentSchedule.name &&
+                        sch.term === currentSchedule.term)
+                      ));
+
+                      // prettier-ignore
+                      setAddedSections((prev) => prev.filter(
+                        (sec) => !(sec.scheduleName === currentSchedule.name 
+                        && sec.term === currentSchedule.term)
+                      ));
+
+                      setEditingSchedule(false);
+                      setCurrentSchedule(
+                        schedules.filter((sch) => sch.term === term).at(0)
+                      );
+                    }}
+                  >
+                    <TrashIcon />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Select
+                    value={currentSchedule.name}
+                    onValueChange={(value) =>
+                      setCurrentSchedule(
+                        schedules.find(
+                          (sch) => sch.term === term && sch.name === value
+                        )
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Select a schedule" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schedules
+                        .filter((sch) => sch.term === term)
+                        .map((sch) => (
+                          <SelectItem value={sch.name} key={sch.name}>
+                            {sch.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingSchedule(true);
+                      setScheduleNameInput(currentSchedule.name ?? "");
+                    }}
+                  >
+                    <Edit3Icon />
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const num = schedules.filter(
+                        (s) => s.term === term
+                      ).length;
+                      const sch = {
+                        term: term!,
+                        name: "Schedule " + (num + 1),
+                      };
+                      setSchedules((prev) => [...prev, sch]);
+                      setCurrentSchedule(sch);
+                    }}
+                    disabled={!term}
+                  >
+                    <PlusIcon />
+                  </Button>
+                </>
+              ))}
           </div>
 
           <Button variant="outline">
@@ -116,11 +266,14 @@ export default function Page() {
           </Button>
         </div>
 
-        <Calendar
-          setSearch={setSearch}
-          addedSections={addedSections}
-          setAddedSections={setAddedSections}
-        />
+        {currentSchedule && (
+          <Calendar
+            setSearch={setSearch}
+            currentSchedule={currentSchedule}
+            addedSections={addedSections}
+            setAddedSections={setAddedSections}
+          />
+        )}
       </div>
     </main>
   );
