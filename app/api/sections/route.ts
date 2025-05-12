@@ -4,11 +4,12 @@ import { JSDOM } from "jsdom";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const dept = searchParams.get("dept");
+  const course_id = searchParams.get("course_id");
+  const semester = searchParams.get("semester");
 
-  if (!dept) {
+  if (!course_id || !semester) {
     return NextResponse.json(
-      { error: "Department code is required" },
+      { error: "Course ID and Semester are required" },
       { status: 400 }
     );
   }
@@ -17,7 +18,10 @@ export async function GET(request: Request) {
 
   try {
     const dom = JSDOM;
-    const courses = await scrapeSections({ course_id: dept }, dom);
+    const courses = await scrapeSections(
+      { course_id: course_id, semester: semester },
+      dom
+    );
     return NextResponse.json(courses);
   } catch (error) {
     console.error("Failed to fetch courses:", error);

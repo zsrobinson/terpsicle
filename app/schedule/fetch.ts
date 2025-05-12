@@ -3,7 +3,6 @@ import { courseSchema, sectionSchema } from "./types";
 
 const API = "https://api.umd.io/v1";
 const SOC = "https://app.testudo.umd.edu";
-const TERM = "202508";
 
 /** @see https://beta.umd.io/#operation/getCourses */
 export async function fetchCourses(options: {
@@ -33,9 +32,8 @@ export async function fetchSections(options: {
   waitlist?: string;
   semester?: string;
 }) {
-  // const params = new URLSearchParams(parseOptions(options));
-  // const res = await fetch(`${API}/courses/sections?${params}`);
-  const res = await fetch(`/api/sections?dept=${options.course_id}`);
+  const params = new URLSearchParams(parseOptions(options));
+  const res = await fetch(`${API}/courses/sections?${params}`);
   const json: unknown = await res.json();
   const parsed = sectionSchema.array().parse(json);
   return parsed;
@@ -43,12 +41,11 @@ export async function fetchSections(options: {
 
 /** expects one course_id */
 export async function scrapeSections(
-  options: { course_id: string },
+  options: { course_id: string; semester: string },
   dom: typeof JSDOM
 ) {
-  console.log(`${SOC}/soc/${TERM}/sections?courseIds=${options.course_id}`);
   const res = await fetch(
-    `${SOC}/soc/${TERM}/sections?courseIds=${options.course_id}`
+    `${SOC}/soc/${options.semester}/sections?courseIds=${options.course_id}`
   );
   const text = await res.text();
   const doc = new dom(text).window.document;
@@ -81,7 +78,7 @@ export async function scrapeSections(
     return {
       course: options.course_id,
       section_id: options.course_id + "-" + number,
-      semester: TERM,
+      semester: options.semester,
       number,
       seats,
       meetings,

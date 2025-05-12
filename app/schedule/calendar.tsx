@@ -185,8 +185,6 @@ function CalendarDay({
     return [...updatedAcc, { ...x, oIndex: maxTotal, oTotal: maxTotal }];
   }, []);
 
-  console.log(day, todaySections, overlapThings);
-
   return (
     <div className="relative w-full h-full text-center">
       {overlapThings.map((sec, i) => (

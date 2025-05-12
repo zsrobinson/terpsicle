@@ -14,10 +14,12 @@ import { fetchCourses, fetchSections } from "./fetch";
 import { AddedSection, IOCourse } from "./types";
 
 export function CourseList({
+  term,
   search,
   addedSections,
   setAddedSections,
 }: {
+  term: string | undefined;
   search: string;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
@@ -25,13 +27,12 @@ export function CourseList({
   const dept = search.length >= 4 ? search.slice(0, 4).toUpperCase() : "";
 
   const coursesQuery = useInfiniteQuery({
-    queryKey: ["courses", dept],
+    queryKey: ["courses", dept, term],
     queryFn: ({ pageParam }) =>
-      fetchCourses({ dept_id: dept, page: pageParam }),
+      fetchCourses({ dept_id: dept, page: pageParam, semester: term + "|eq" }),
     enabled: dept != "",
     initialPageParam: 1,
-    getNextPageParam: (lastPage, allPages, lastPageParam) => {
-      console.log("getting next", lastPageParam, allPages.flat().length);
+    getNextPageParam: (lastPage, _, lastPageParam) => {
       if (lastPage.length === 0) return undefined;
       return lastPageParam + 1;
     },
@@ -80,6 +81,7 @@ export function CourseList({
           )
           .map((course, i) => (
             <CourseCard
+              term={term}
               course={course}
               addedSections={addedSections}
               setAddedSections={setAddedSections}
@@ -94,10 +96,12 @@ export function CourseList({
 }
 
 function CourseCard({
+  term,
   course,
   addedSections,
   setAddedSections,
 }: {
+  term: string | undefined;
   course: IOCourse;
   addedSections: AddedSection[];
   setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
@@ -105,8 +109,9 @@ function CourseCard({
   const [ref, inView] = useInView({ rootMargin: "512px", triggerOnce: true });
 
   const sectionQuery = useQuery({
-    queryKey: ["section", course.course_id],
-    queryFn: () => fetchSections({ course_id: course.course_id }),
+    queryKey: ["section", course.course_id, term],
+    queryFn: () =>
+      fetchSections({ course_id: course.course_id, semester: term + "|eq" }),
     enabled: inView,
   });
 
@@ -170,7 +175,9 @@ function CourseCard({
                   )
                 )}
                 <p className="text-muted-foreground text-sm leading-tight">
-                  {sec.open_seats}/{sec.seats} seats, {sec.waitlist} waitlist
+                  {sec.seats} total,{" "}
+                  <span className="font-semibold">{sec.open_seats} open</span>,{" "}
+                  {sec.waitlist} waitlist
                 </p>
               </div>
 
