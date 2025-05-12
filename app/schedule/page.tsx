@@ -19,19 +19,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { Term } from "~/lib/types";
+import { Course, Term } from "~/lib/types";
 import { useLocalStorage } from "~/lib/use-local-storage";
 import { Calendar } from "./calendar";
 import { CourseList } from "./course-list";
 import { AddedSection, Schedule } from "./io-types";
+import { redirect } from "next/navigation";
 
 export default function Page() {
   // prettier-ignore
   const [addedSections, setAddedSections] 
     = useLocalStorage<(AddedSection)[]>("added-sections", []);
-  // const [, setStoredCourses] = useLocalStorage<{
-  //   [semesterId: string]: Course[];
-  // }>("semester-courses", {});
+  const [, setStoredCourses] = useLocalStorage<{
+    [semesterId: string]: Course[];
+  }>("semester-courses", {});
   const [search, setSearch] = useState("");
   const [term, setTerm] = useLocalStorage<string | undefined>(
     "term",
@@ -257,11 +258,55 @@ export default function Page() {
                   >
                     <PlusIcon />
                   </Button>
+
+                  <p className="text-muted-foreground text-sm pl-2">
+                    {`Total Credits: ${addedSections
+                      .filter(
+                        (section) =>
+                          section.term === term &&
+                          section.scheduleName === currentSchedule.name
+                      )
+                      .reduce(
+                        (acc, section) =>
+                          acc + (Number(section.cachedCourse.credits) || 0),
+                        0
+                      )}`}
+                  </p>
                 </>
               ))}
           </div>
 
-          <Button variant="outline">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setStoredCourses((prev) => {
+                if (!term || !currentSchedule) return prev;
+                // Convert each AddedSection to Course.
+                const coursesForTerm: Course[] = addedSections
+                  .filter(
+                    (section) =>
+                      section.term === currentSchedule.term &&
+                      section.scheduleName === currentSchedule.name
+                  )
+                  .map((section) => ({
+                    code: section.cachedCourse.course_id,
+                    name: section.cachedCourse.name,
+                    credits: section.cachedCourse.credits,
+                    semester: currentSchedule.term,
+                    // WARNING: this does not correctly account for "or" gen-eds, but umd.io doesn't seem to parse them properly
+                    geneds: section.cachedCourse.gen_ed
+                      .flat()
+                      .map((str) => [str]),
+                  }));
+                return {
+                  ...prev,
+                  [term]: coursesForTerm,
+                };
+              });
+              redirect(`/degree#${term}`);
+            }}
+            disabled={!term || !currentSchedule}
+          >
             Add to Plan <SendIcon />
           </Button>
         </div>
