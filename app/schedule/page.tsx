@@ -92,6 +92,13 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term]);
 
+  const onlineAsyncSections = addedSections.filter(
+    (section) =>
+      section.term === term &&
+      section.scheduleName === currentSchedule?.name &&
+      section.cachedSection.meetings.some((m) => !m.start_time || !m.end_time)
+  );
+
   return (
     <main className="flex gap-4 p-4 h-[calc(100vh-48px)] overflow-y-hidden divide-x">
       <div className="flex flex-col w-sm gap-4">
@@ -313,19 +320,39 @@ export default function Page() {
                     </Button>
                   </Tooltip>
 
-                  <p className="text-muted-foreground text-sm pl-2">
-                    {`Total Credits: ${addedSections
-                      .filter(
-                        (section) =>
-                          section.term === term &&
-                          section.scheduleName === currentSchedule.name
-                      )
-                      .reduce(
-                        (acc, section) =>
-                          acc + (Number(section.cachedCourse.credits) || 0),
-                        0
-                      )}`}
-                  </p>
+                  <div>
+                    <p className="text-muted-foreground text-sm pl-2 leading-tight">
+                      {`Total Credits: ${addedSections
+                        .filter(
+                          (section) =>
+                            section.term === term &&
+                            section.scheduleName === currentSchedule.name
+                        )
+                        .reduce(
+                          (acc, section) =>
+                            acc + (Number(section.cachedCourse.credits) || 0),
+                          0
+                        )}`}
+                    </p>
+
+                    {onlineAsyncSections.length > 0 && (
+                      <p className="text-muted-foreground text-sm pl-2 leading-tight">
+                        Online Async:{" "}
+                        {onlineAsyncSections.map((sec, i) => (
+                          <button
+                            key={i}
+                            className="leading-none cursor-pointer whitespace-pre"
+                            onClick={() =>
+                              setSearch(sec.cachedCourse.course_id)
+                            }
+                          >
+                            {sec.cachedCourse.course_id}
+                            {i < onlineAsyncSections.length - 1 && ", "}
+                          </button>
+                        ))}
+                      </p>
+                    )}
+                  </div>
                 </>
               ))}
           </div>
