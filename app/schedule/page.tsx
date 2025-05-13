@@ -10,7 +10,7 @@ import {
   SlashIcon,
   TrashIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
@@ -111,6 +111,7 @@ export default function Page() {
             disabled={term === undefined}
             placeholder="Search (eg. MATH, CMSC4)"
             className="z-20"
+            autoFocus
           />
         </div>
 
@@ -149,12 +150,13 @@ export default function Page() {
 
             {currentSchedule &&
               (editingSchedule ? (
-                <>
+                <form className="flex gap-2">
                   <Input
                     value={scheduleNameInput}
                     placeholder={currentSchedule.name}
                     onChange={(e) => setScheduleNameInput(e.target.value)}
                     className="w-[180px]"
+                    autoFocus
                   />
 
                   <Tooltip text="Save Changes">
@@ -162,6 +164,7 @@ export default function Page() {
                       variant="outline"
                       size="icon"
                       key="save-changes-button"
+                      type="submit"
                       onClick={() => {
                         const newSch = { term: term!, name: scheduleNameInput };
                         setEditingSchedule(false);
@@ -201,30 +204,39 @@ export default function Page() {
                       size="icon"
                       variant="destructive"
                       onClick={() => {
-                        // prettier-ignore
-                        setSchedules((prev) => prev.filter((sch) => !(
-                        sch.name === currentSchedule.name &&
-                        sch.term === currentSchedule.term)
-                      ));
+                        // remove the schedule itself from our list
+                        setSchedules((prev) => {
+                          // prettier-ignore
+                          const new_schedules = prev.filter(
+                            (sch) => !(sch.name === currentSchedule.name &&
+                              sch.term === currentSchedule.term));
 
+                          // set the current schedule to be the new first one
+                          // prettier-ignore
+                          setCurrentSchedule(new_schedules
+                            .filter((sch) => sch.term === term)
+                            .at(0));
+
+                          return new_schedules;
+                        });
+
+                        // remove the sections associated with the schedule
                         // prettier-ignore
                         setAddedSections((prev) => prev.filter(
-                        (sec) => !(sec.scheduleName === currentSchedule.name 
-                        && sec.term === currentSchedule.term)
-                      ));
+                          (sec) => !(sec.scheduleName === currentSchedule.name 
+                          && sec.term === currentSchedule.term)
+                        ));
 
+                        // return back to normal state
                         setEditingSchedule(false);
-                        setCurrentSchedule(
-                          schedules.filter((sch) => sch.term === term).at(0)
-                        );
                       }}
                     >
                       <TrashIcon />
                     </Button>
                   </Tooltip>
-                </>
+                </form>
               ) : (
-                <>
+                <div className="flex gap-2">
                   <Select
                     value={currentSchedule.name}
                     onValueChange={(value) =>
@@ -364,7 +376,7 @@ export default function Page() {
                       </p>
                     )}
                   </div>
-                </>
+                </div>
               ))}
           </div>
 
