@@ -99,10 +99,6 @@ export default function Page() {
       section.cachedSection.meetings.some((m) => !m.start_time || !m.end_time)
   );
 
-  if (schedules.length > 4) {
-    throw new Error("too many schedules");
-  }
-
   return (
     <main className="flex gap-4 p-4 h-[calc(100vh-48px)] overflow-y-hidden divide-x">
       <div className="flex flex-col w-sm gap-4">
