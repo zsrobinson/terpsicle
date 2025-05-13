@@ -45,4 +45,9 @@ export type Section = {
   holdfiledSeats: number;
 };
 
+export type Term = {
+  value: string; // numeric representation
+  name: string; // actual name of term
+};
+
 export type Defined<T> = T extends null | undefined ? never : T;

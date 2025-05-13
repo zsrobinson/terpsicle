@@ -1,165 +1,248 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { MinusIcon, PlusIcon } from "lucide-react";
-import { redirect } from "next/navigation";
-import { Dispatch, Fragment, SetStateAction, useState } from "react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  ExternalLinkIcon,
+  LoaderCircleIcon,
+  MinusIcon,
+  PlusIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+import { Dispatch, Fragment, SetStateAction, useEffect } from "react";
+import { useInView } from "react-intersection-observer";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Course, Defined, Section } from "~/lib/types";
-import { useLocalStorage } from "~/lib/use-local-storage";
+import { fetchCourses, fetchSections } from "./io-fetch";
+import { AddedSection, IOCourse, Schedule } from "./io-types";
+import { fetchProfessor } from "./pt-fetch";
 
-const TERM = "202508";
+const RATING_COLORS = [
+  "text-muted-foreground bg-secondary",
+  "text-white bg-red-600/70",
+  "text-white bg-amber-600/70",
+  "text-white bg-lime-600/70",
+  "text-white bg-green-700/70",
+  "text-white bg-emerald-800/70",
+];
 
 export function CourseList({
+  term,
+  currentSchedule,
+  search,
   addedSections,
   setAddedSections,
 }: {
-  addedSections: (Section & { course: Course })[];
-  setAddedSections: Dispatch<SetStateAction<(Section & { course: Course })[]>>;
+  term: string;
+  currentSchedule: Schedule;
+  search: string;
+  addedSections: AddedSection[];
+  setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
-  const [search, setSearch] = useState("");
-  const dept = search.slice(0, 4).toUpperCase();
+  const dept = search.length >= 4 ? search.slice(0, 4).toUpperCase() : "";
 
-  const coursesQuery = useQuery({
-    queryKey: ["courses", dept],
-    queryFn: async () => {
-      if (dept.length < 4) return [] as Course[];
-      const res = await fetch(`/api/courses?dept=${dept}`);
-      const json = (await res.json()) as Course[];
-      return json;
+  const coursesQuery = useInfiniteQuery({
+    queryKey: ["courses", dept, term],
+    queryFn: ({ pageParam }) =>
+      fetchCourses({ dept_id: dept, page: pageParam, semester: term }),
+    enabled: dept != "",
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, _, lastPageParam) => {
+      if (lastPage.length === 0) return undefined;
+      return lastPageParam + 1;
     },
-    initialData: [],
   });
 
-  const sectionsQuery = useQuery({
-    queryKey: ["sections", dept],
-    queryFn: async () => {
-      if (dept.length < 4) return [] as Section[];
-      const res = await fetch(`/api/sections?dept=${dept}`);
-      const json = (await res.json()) as Section[];
-      return json;
-    },
-    initialData: [],
-  });
+  const [ref, inView] = useInView({ rootMargin: "256px" });
 
-  const filteredCourses = coursesQuery.data.filter((c) =>
-    c.code.toLowerCase().startsWith(search.toLowerCase())
-  );
-
-  const [, setStoredCourses] = useLocalStorage<{
-    [semesterId: string]: Course[];
-  }>("semester-courses", {});
+  useEffect(() => {
+    if (inView && coursesQuery.hasNextPage) {
+      coursesQuery.fetchNextPage();
+    }
+  }, [inView, coursesQuery]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 -m-4 overflow-y-scroll min-w-max pr-4">
-      <div className="w-sm flex gap-4">
-        <Input
-          value={search}
-          onChange={(e) =>
-            setSearch(e.target.value.toUpperCase().replace(" ", ""))
-          }
-          placeholder="Search (eg. MATH, CMSC4)"
-        />
+    <div className="flex flex-col gap-4 overflow-y-scroll pr-4 w-sm">
+      {coursesQuery.isLoading && (
+        <span className="text-muted-foreground flex items-center gap-2 justify-center text-sm">
+          <LoaderCircleIcon className="animate-spin" size={16} /> Loading
+          Courses
+        </span>
+      )}
 
-        <Button
-          onClick={() => {
-            setStoredCourses((prev) => ({
-              ...prev,
-              [TERM]: addedSections.map((section) => section.course),
-            }));
-            redirect(`/degree#${TERM}`);
-          }}
-        >
-          Commit to Plan
-        </Button>
-      </div>
+      {coursesQuery.isError && (
+        <span className="text-destructive flex items-center gap-2 justify-center text-sm">
+          <TriangleAlertIcon size={16} /> Error Loading Courses
+        </span>
+      )}
 
-      {filteredCourses.length === 0 &&
-        addedSections
-          .map((sec) => sec.course)
-          .reduce<Course[]>(
-            (acc, val) =>
-              acc.some((c) => c.code === val.code) ? acc : [...acc, val],
-            []
+      {coursesQuery.data?.pages.flat().length === 0 && dept !== "" && (
+        <span className="text-muted-foreground flex items-center gap-2 justify-center text-sm">
+          No Courses
+        </span>
+      )}
+
+      {dept === "" && (
+        <span className="text-muted-foreground flex items-center gap-2 justify-center text-sm">
+          Search to View Courses
+        </span>
+      )}
+
+      <div className="flex flex-col gap-4" ref={ref}>
+        {coursesQuery.data?.pages
+          .flat()
+          .filter((c) =>
+            c.course_id.toLowerCase().startsWith(search.toLowerCase())
           )
           .map((course, i) => (
             <CourseCard
+              term={term}
+              currentSchedule={currentSchedule}
               course={course}
-              sections={addedSections.filter(
-                (s) => s.courseCode === course.code
-              )}
               addedSections={addedSections}
               setAddedSections={setAddedSections}
               key={i}
             />
           ))}
+      </div>
 
-      {filteredCourses.map((course, i) => (
-        <CourseCard
-          course={course}
-          sections={sectionsQuery.data.filter(
-            (s) => s.courseCode === course.code
-          )}
-          addedSections={addedSections}
-          setAddedSections={setAddedSections}
-          key={i}
-        />
-      ))}
+      <div className="w-full h-4" ref={ref} />
     </div>
   );
 }
 
 function CourseCard({
+  term,
+  currentSchedule,
   course,
-  sections,
   addedSections,
   setAddedSections,
 }: {
-  course: Course;
-  sections: Section[];
-  addedSections: Section[];
-  setAddedSections: Dispatch<SetStateAction<(Section & { course: Course })[]>>;
+  term: string;
+  currentSchedule: Schedule;
+  course: IOCourse;
+  addedSections: AddedSection[];
+  setAddedSections: Dispatch<SetStateAction<AddedSection[]>>;
 }) {
+  const [ref, inView] = useInView({ rootMargin: "512px", triggerOnce: true });
+
+  const sectionQuery = useQuery({
+    queryKey: ["section", course.course_id, term],
+    queryFn: () =>
+      fetchSections({ course_id: course.course_id, semester: term }),
+    enabled: inView,
+  });
+
   return (
-    <div className="border rounded-lg p-2 w-sm">
-      <span className="font-semibold leading-none pb-1 text-xl">
-        {course.code}
-      </span>
-      <span className="leading-none ml-1 text-muted-foreground text-sm italic">
-        {course.credits} Credits
-      </span>
-      <p className="leading-none text-balance">{course.name}</p>
+    <div className="border rounded-lg p-2 max-w-sm" ref={ref}>
+      <div className="flex justify-between">
+        <div>
+          <span className="font-semibold leading-none pb-1 text-xl">
+            {course.course_id}
+          </span>
+          <span className="leading-none ml-1.5 text-muted-foreground text-sm italic">
+            {course.credits} Credit{course.credits !== 1 && "s"}
+          </span>
+        </div>
+
+        <a
+          href={`https://app.testudo.umd.edu/soc/search?courseId=${course.course_id}&termId=${term}&courseStartCompare=&courseStartHour=&courseStartMin=&courseStartAM=`}
+          target="_blank"
+          className="ml-1.5 inline-flex items-center gap-1 text-sm text-muted-foreground"
+        >
+          Testudo <ExternalLinkIcon className="inline opacity-80" size={16} />
+        </a>
+      </div>
+
+      <p className="leading-tight font-semibold">{course.name}</p>
+      {course.gen_ed.length > 0 && (
+        <p className="leading-tight text-muted-foreground text-sm">
+          <span className="font-semibold">Gen-Eds:</span>{" "}
+          {course.gen_ed.map((arr) => arr.join(", ")).join(" or ")}
+        </p>
+      )}
       <hr className="my-2" />
 
-      {sections.length === 0 && <span>Loading sections</span>}
+      {sectionQuery.isLoading && (
+        <span className="text-muted-foreground flex items-center gap-2 justify-center text-sm">
+          <LoaderCircleIcon className="animate-spin" size={16} /> Loading
+          Sections
+        </span>
+      )}
 
-      {sections.map((s, i) => (
+      {sectionQuery.isError && (
+        <span className="text-destructive flex items-center gap-2 justify-center text-sm">
+          <TriangleAlertIcon size={16} /> Error Loading Sections
+        </span>
+      )}
+
+      {sectionQuery.data?.length === 0 && (
+        <span className="text-muted-foreground flex items-center gap-2 justify-center text-sm">
+          No Sections
+        </span>
+      )}
+
+      {sectionQuery.data?.map((sec, i) => (
         <Fragment key={i}>
           <div className="leading-tight">
             <div className="flex justify-between items-center">
               <div>
-                <p>
-                  <span className="font-semibold">{s.sectionCode}</span>:{" "}
-                  {s.professor}
-                </p>
-                {s.times &&
-                  groupTimes(s.times).map((t, i) => (
-                    <p key={i}>
-                      {t.day} {formatTime(t.start)}–{formatTime(t.end)}{" "}
-                      {t.location} {t.isDiscussion && "Discussion"}
+                <div className="flex gap-1 items-start">
+                  <span className="font-semibold">{sec.number}:</span>
+                  <div className="flex flex-col gap-0.5">
+                    {sec.instructors.length === 0 ? (
+                      <p>Instructor TBA</p>
+                    ) : (
+                      sec.instructors.map((name) => (
+                        <ProfessorInfo key={name} name={name} />
+                      ))
+                    )}
+                  </div>
+                </div>
+                {sec.meetings.map((time, i) =>
+                  time.start_time === undefined ||
+                  time.end_time === undefined ? (
+                    <p
+                      className="text-muted-foreground text-sm leading-tight"
+                      key={i}
+                    >
+                      ONLINE ASYNC
                     </p>
-                  ))}
-                {s.openSeats}/{s.totalSeats} seats, {s.waitlistSeats} waitlist
+                  ) : (
+                    <p
+                      className="text-muted-foreground text-sm leading-tight"
+                      key={i}
+                    >
+                      {time.days} {formatTime(time.start_time)}–
+                      {formatTime(time.end_time)} {time.building} {time.room}{" "}
+                      {time.classtype}
+                    </p>
+                  )
+                )}
+                <p className="text-muted-foreground text-sm leading-tight">
+                  {sec.seats} total,{" "}
+                  <span className="font-semibold">{sec.open_seats} open</span>,{" "}
+                  {sec.waitlist} waitlist
+                </p>
               </div>
 
-              {addedSections.some((sec) => sameSection(sec, s)) ? (
+              {addedSections.some(
+                (addedSec) =>
+                  addedSec.id === sec.section_id &&
+                  addedSec.term === sec.semester &&
+                  addedSec.scheduleName === currentSchedule.name
+              ) ? (
                 <Button
                   size="icon"
                   className="w-8 h-8"
                   onClick={() =>
                     setAddedSections((prev) =>
-                      prev.filter((sec) => !sameSection(sec, s))
+                      prev.filter(
+                        (addedSec) =>
+                          !(
+                            addedSec.id === sec.section_id &&
+                            addedSec.term === sec.semester &&
+                            addedSec.scheduleName === currentSchedule.name
+                          )
+                      )
                     )
                   }
                 >
@@ -171,7 +254,16 @@ function CourseCard({
                   className="w-8 h-8"
                   variant="secondary"
                   onClick={() =>
-                    setAddedSections((prev) => [...prev, { ...s, course }])
+                    setAddedSections((prev) => [
+                      ...prev,
+                      {
+                        id: sec.section_id,
+                        term,
+                        scheduleName: currentSchedule.name,
+                        cachedCourse: course,
+                        cachedSection: sec,
+                      },
+                    ])
                   }
                 >
                   <PlusIcon size={16} />
@@ -180,35 +272,42 @@ function CourseCard({
             </div>
           </div>
 
-          {i < sections.length - 1 && <hr className="my-2" />}
+          {i < sectionQuery.data.length - 1 && (
+            <hr className="my-2 border-dotted" />
+          )}
         </Fragment>
       ))}
     </div>
   );
 }
 
-function groupTimes(
-  times: Defined<Section["times"]>
-): Defined<Section["times"]> {
-  const output: Defined<Section["times"]> = [];
+function ProfessorInfo({ name }: { name: string }) {
+  const professorQuery = useQuery({
+    queryKey: ["professor", name],
+    queryFn: () => fetchProfessor({ name }),
+    retry: false,
+  });
 
-  for (const time of times) {
-    const index = output.findIndex(
-      (t) =>
-        t.isDiscussion == time.isDiscussion &&
-        t.location == time.location &&
-        formatTime(t.start) == formatTime(time.start) &&
-        formatTime(t.end) == formatTime(time.end)
-    );
-
-    if (index >= 0) {
-      output[index].day += time.day;
-    } else {
-      output.push({ ...time });
-    }
-  }
-
-  return output;
+  return (
+    <p>
+      {name}
+      <a
+        href={
+          professorQuery.data?.slug
+            ? `https://planetterp.com/professor/${professorQuery.data?.slug}`
+            : `https://planetterp.com`
+        }
+        target="_blank"
+        className={`ml-2 px-1.5 py-0.5 font-semibold text-sm leading-none rounded-sm ${
+          RATING_COLORS[Math.floor(professorQuery.data?.average_rating ?? 0)]
+        }`}
+      >
+        {professorQuery.data?.average_rating.toFixed(2)}
+        {professorQuery.isLoading && "..."}
+        {professorQuery.isError && "n/a"}
+      </a>
+    </p>
+  );
 }
 
 export function formatTime(dateNum: number) {
@@ -226,8 +325,4 @@ export function formatTime(dateNum: number) {
     })
     .replace(" PM", "pm")
     .replace(" AM", "am");
-}
-
-export function sameSection(a: Section, b: Section) {
-  return a.courseCode === b.courseCode && a.sectionCode === b.sectionCode;
 }
