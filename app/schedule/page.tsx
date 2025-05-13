@@ -236,7 +236,7 @@ export default function Page() {
                   </Tooltip>
                 </form>
               ) : (
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <Select
                     value={currentSchedule.name}
                     onValueChange={(value) =>

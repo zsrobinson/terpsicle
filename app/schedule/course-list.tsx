@@ -152,7 +152,13 @@ function CourseCard({
         </a>
       </div>
 
-      <p className="leading-tight">{course.name}</p>
+      <p className="leading-tight font-semibold">{course.name}</p>
+      {course.gen_ed.length > 0 && (
+        <p className="leading-tight text-muted-foreground text-sm">
+          <span className="font-semibold">Gen-Eds:</span>{" "}
+          {course.gen_ed.map((arr) => arr.join(", ")).join(" or ")}
+        </p>
+      )}
       <hr className="my-2" />
 
       {sectionQuery.isLoading && (
