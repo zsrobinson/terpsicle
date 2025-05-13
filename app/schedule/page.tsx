@@ -10,7 +10,9 @@ import {
   SlashIcon,
   TrashIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { redirect } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Tooltip } from "~/components/ui/better-tooltip";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
@@ -25,8 +27,6 @@ import { useLocalStorage } from "~/lib/use-local-storage";
 import { Calendar } from "./calendar";
 import { CourseList } from "./course-list";
 import { AddedSection, Schedule } from "./io-types";
-import { redirect } from "next/navigation";
-import { Tooltip } from "~/components/ui/better-tooltip";
 
 export default function Page() {
   // prettier-ignore
@@ -98,6 +98,10 @@ export default function Page() {
       section.scheduleName === currentSchedule?.name &&
       section.cachedSection.meetings.some((m) => !m.start_time || !m.end_time)
   );
+
+  if (schedules.length > 4) {
+    throw new Error("too many schedules");
+  }
 
   return (
     <main className="flex gap-4 p-4 h-[calc(100vh-48px)] overflow-y-hidden divide-x">
