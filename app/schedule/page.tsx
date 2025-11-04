@@ -23,10 +23,11 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Course, Term } from "~/lib/types";
+import { AddedSection, Schedule } from "~/lib/types-io";
 import { useLocalStorage } from "~/lib/use-local-storage";
 import { Calendar } from "./calendar";
 import { CourseList } from "./course-list";
-import { AddedSection, Schedule } from "./io-types";
+import { getTermsFromSOC } from "~/lib/from-soc";
 
 export default function Page() {
   // prettier-ignore
@@ -52,11 +53,7 @@ export default function Page() {
 
   const termsQuery = useQuery({
     queryKey: ["terms"],
-    queryFn: async () => {
-      const res = await fetch("/api/terms");
-      const json = (await res.json()) as Term[];
-      return json;
-    },
+    queryFn: getTermsFromSOC,
   });
 
   // if there's no term, set it to the latest fall/spring semester
@@ -112,6 +109,7 @@ export default function Page() {
             placeholder="Search (eg. MATH, CMSC4)"
             className="z-20"
             autoFocus
+            suppressHydrationWarning
           />
         </div>
 
@@ -230,6 +228,10 @@ export default function Page() {
                         // return back to normal state
                         setEditingSchedule(false);
                       }}
+                      disabled={
+                        // don't delete the last schedule for a term
+                        schedules.filter((s) => s.term === term!).length <= 1
+                      }
                     >
                       <TrashIcon />
                     </Button>

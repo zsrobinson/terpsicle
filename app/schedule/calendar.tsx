@@ -2,8 +2,8 @@
 
 import { XIcon } from "lucide-react";
 import { Dispatch, Fragment, SetStateAction } from "react";
+import { AddedSection, Schedule } from "~/lib/types-io";
 import { formatTime } from "./course-list";
-import { AddedSection, Schedule } from "./io-types";
 
 const COURSE_COLORS = [
   "bg-red-500/30",

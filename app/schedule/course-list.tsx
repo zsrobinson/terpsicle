@@ -11,9 +11,9 @@ import {
 import { Dispatch, Fragment, SetStateAction, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { Button } from "~/components/ui/button";
-import { fetchCourses, fetchSections } from "./io-fetch";
-import { AddedSection, IOCourse, Schedule } from "./io-types";
-import { fetchProfessor } from "./pt-fetch";
+import { getCoursesFromIO, getSectionsFromIO } from "~/lib/from-io";
+import { AddedSection, IOCourse, Schedule } from "~/lib/types-io";
+import { getProfessorFromPT } from "~/lib/from-pt";
 
 const RATING_COLORS = [
   "text-muted-foreground bg-secondary",
@@ -42,7 +42,7 @@ export function CourseList({
   const coursesQuery = useInfiniteQuery({
     queryKey: ["courses", dept, term],
     queryFn: ({ pageParam }) =>
-      fetchCourses({ dept_id: dept, page: pageParam, semester: term }),
+      getCoursesFromIO({ dept_id: dept, page: pageParam, semester: term }),
     enabled: dept != "",
     initialPageParam: 1,
     getNextPageParam: (lastPage, _, lastPageParam) => {
@@ -127,7 +127,7 @@ function CourseCard({
   const sectionQuery = useQuery({
     queryKey: ["section", course.course_id, term],
     queryFn: () =>
-      fetchSections({ course_id: course.course_id, semester: term }),
+      getSectionsFromIO({ course_id: course.course_id, semester: term }),
     enabled: inView,
   });
 
@@ -284,7 +284,7 @@ function CourseCard({
 function ProfessorInfo({ name }: { name: string }) {
   const professorQuery = useQuery({
     queryKey: ["professor", name],
-    queryFn: () => fetchProfessor({ name }),
+    queryFn: () => getProfessorFromPT({ name }),
     retry: false,
   });
 
