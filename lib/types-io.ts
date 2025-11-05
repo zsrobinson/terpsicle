@@ -58,7 +58,7 @@ export type AddedSection = {
 };
 
 /** converts 10:00am or 12:30pm into the number of minutes in the day */
-function parseTime(str: string): number | undefined {
+export function parseTime(str: string): number | undefined {
   if (!str) return undefined;
 
   const match = str.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);

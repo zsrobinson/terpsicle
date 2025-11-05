@@ -1,7 +1,7 @@
 "use server";
 
 import { JSDOM } from "jsdom";
-import { IOSection } from "~/lib/types-io";
+import { IOSection, parseTime } from "~/lib/types-io";
 import { Term } from "./types";
 
 const SOC = "https://app.testudo.umd.edu";
@@ -51,7 +51,14 @@ export async function getSectionsFromSOC(options: {
         mel.querySelector(".class-start-time")?.innerHTML ?? "";
       const end_time = mel.querySelector(".class-end-time")?.innerHTML ?? "";
 
-      return { days, room, building, classtype, start_time, end_time };
+      return {
+        days,
+        room,
+        building,
+        classtype,
+        start_time: parseTime(start_time),
+        end_time: parseTime(end_time),
+      };
     });
 
     return {

@@ -11,7 +11,7 @@ import {
 import { Dispatch, Fragment, SetStateAction, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { Button } from "~/components/ui/button";
-import { getCoursesFromIO, getSectionsFromIO } from "~/lib/from-io";
+import { getDeptCoursesFromIO, getSectionsFromIO } from "~/lib/from-io";
 import { AddedSection, IOCourse, Schedule } from "~/lib/types-io";
 import { getProfessorFromPT } from "~/lib/from-pt";
 
@@ -42,7 +42,7 @@ export function CourseList({
   const coursesQuery = useInfiniteQuery({
     queryKey: ["courses", dept, term],
     queryFn: ({ pageParam }) =>
-      getCoursesFromIO({ dept_id: dept, page: pageParam, semester: term }),
+      getDeptCoursesFromIO({ dept_id: dept, page: pageParam, semester: term }),
     enabled: dept != "",
     initialPageParam: 1,
     getNextPageParam: (lastPage, _, lastPageParam) => {
