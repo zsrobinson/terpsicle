@@ -35,7 +35,7 @@ import {
   NewBlockPopover,
   snapMinute,
 } from "./new-block";
-import { GhostHint, PreviewHint, UntimedStrip } from "./strips";
+import { GhostHint, PreviewHint, SearchHint, UntimedStrip } from "./strips";
 import { type CalendarView, useCalendarModel } from "./use-calendar-model";
 
 // The week calendar (SPEC §3.3): the plan's classes and blocks, the open
@@ -47,6 +47,12 @@ const WEEKDAYS: readonly Day[] = ["M", "Tu", "W", "Th", "F"];
 export function Calendar() {
   const view = useCalendarModel();
   const { model, current } = view;
+  // On the Search tab, hovering a result shows its sections: the hint's row
+  // is there before the first hover, so no hover ever moves the grid, and
+  // the day names stay in view (UX-REVIEW §4.2).
+  const searching = useUi(
+    (s) => s.tab === "search" && s.sidebarOpen && s.stack.length === 0,
+  );
   useGhostKeys(view);
   useClearStalePreview(model);
 
@@ -62,24 +68,25 @@ export function Calendar() {
       days={model.days}
       startMinute={model.startMinute}
       endMinute={model.endMinute}
-      top={<UntimedStrip sections={model.untimed} onOpen={openCourse} />}
-      // Hovering search results and previewing generated plans come and go
-      // with the pointer: their hints lay over the day names instead of
-      // pushing the grid down each time (UX-REVIEW §4.2).
-      overlay={
-        view.previewing ? (
-          <PreviewHint
-            label={view.previewing.label}
-            planName={current.plan.name}
-          />
-        ) : model.ghost && ghostColor ? (
-          <GhostHint
-            ghost={model.ghost}
-            interactive={view.ghostsFromOpenCourse}
-            readOnly={current.readOnly}
-            color={ghostColor}
-          />
-        ) : null
+      top={
+        <>
+          {view.previewing ? (
+            <PreviewHint
+              label={view.previewing.label}
+              planName={current.plan.name}
+            />
+          ) : model.ghost && ghostColor ? (
+            <GhostHint
+              ghost={model.ghost}
+              interactive={view.ghostsFromOpenCourse}
+              readOnly={current.readOnly}
+              color={ghostColor}
+            />
+          ) : searching ? (
+            <SearchHint />
+          ) : null}
+          <UntimedStrip sections={model.untimed} onOpen={openCourse} />
+        </>
       }
     >
       {(layout) => (

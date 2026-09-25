@@ -695,8 +695,8 @@ const SectionRow = memo(function SectionRow({
     >
       <Button
         variant="outline"
-        size="sm"
-        className="h-6 w-14 px-0 text-sm"
+        size="row"
+        className="w-14 px-0"
         onClick={() => switchSection(course.code, section.code, "list")}
       >
         {inPlan ? "Switch" : "Add"}
@@ -721,13 +721,16 @@ const SectionRow = memo(function SectionRow({
         : { "data-section": section.code })}
       aria-current={current ? "true" : undefined}
       density={compact ? "compact" : "regular"}
+      // Tighter columns than other lists: at 360px the times and the room
+      // ("TuTh 10–10:50am MTH 0103") fit whole, which is what rows compare by.
+      className="gap-2"
       state={previewed ? "previewed" : current ? "current" : undefined}
       onPointerEnter={() => setPreview(current ? null : key)}
       onPointerLeave={() => {
         if (useUi.getState().previewSection === key) setPreview(null);
       }}
       lead={
-        <span className="block w-10 ident font-semibold text-base">
+        <span className="block w-9 ident font-semibold text-base">
           {section.code}
         </span>
       }

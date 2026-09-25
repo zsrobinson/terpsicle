@@ -91,7 +91,7 @@ function Path({
       className="flex min-w-0 flex-col rounded-lg border border-hairline bg-raised p-3"
     >
       <h4 className="font-semibold text-base">{title}</h4>
-      <ol className="mt-2.5 mb-3 flex flex-col gap-2">
+      <ol className="mt-3 mb-3 flex flex-col gap-2">
         {steps.map((step, i) => (
           <li key={step} className="flex gap-2 text-sm">
             <span

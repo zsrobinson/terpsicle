@@ -17,6 +17,8 @@ const buttonVariants = cva(
       size: {
         default: "h-8 px-3",
         sm: "h-7 px-2.5",
+        // The one size for actions inside list rows ("Switch", "Stop watching").
+        row: "h-6 px-2 text-sm",
         icon: "size-8",
         "icon-sm": "size-7",
       },

@@ -141,7 +141,7 @@ export function NewBlockPopover({
               </WithTooltip>
             ))}
           </div>
-          <div className="mt-2.5 flex justify-end gap-1">
+          <div className="mt-3 flex justify-end gap-1">
             <WithTooltip label="Don't add a block" shortcut="Esc">
               <Button type="button" variant="ghost" size="sm" onClick={onDone}>
                 Cancel

@@ -245,7 +245,10 @@ export function ListRow({
       {...(rest as ComponentProps<"div"> & ComponentProps<"li">)}
       data-state={state}
       className={cn(
-        "flex items-center gap-3 border-hairline border-b px-4 transition-colors last:border-b-0",
+        // No hairline under the list's last row. A row wrapped in its own
+        // <li> (for a context menu) is always its li's last child, so there
+        // it's the li that decides.
+        "flex items-center gap-3 border-hairline border-b px-4 transition-colors last:border-b-0 [li:not(:last-child)>&]:border-b",
         density === "compact" ? "min-h-7 py-1" : "py-2",
         state === "previewed"
           ? "bg-hover"

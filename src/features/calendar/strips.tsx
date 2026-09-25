@@ -6,8 +6,27 @@ import type { GhostSummary, UntimedSection } from "./layout";
 import { dotStyle, tintStyle } from "./tint";
 
 // One-line strips above the grid. Nothing ever goes below it (SPEC §2).
-// The ghost and preview hints lay over the day names (`WeekFrame` overlay),
-// so they never push the grid down as the pointer moves.
+// Each hint appears with a context (course details open, a plan previewed,
+// the Search tab) and keeps one height, HINT_CLASS, so what the pointer
+// does inside that context never moves the grid.
+
+const HINT_CLASS =
+  "@container flex h-9 shrink-0 items-center gap-2 border-hairline border-b bg-panel px-3 text-sm";
+
+/** The Search tab before any hover: where the sections will show, and how. */
+export function SearchHint() {
+  return (
+    <div className={HINT_CLASS}>
+      <span
+        aria-hidden="true"
+        className="size-2 shrink-0 rounded-full border border-hairline-strong"
+      />
+      <span className="truncate text-muted">
+        Hover a result to see its sections here.
+      </span>
+    </div>
+  );
+}
 
 /**
  * While a course's sections show as ghosts: what's happening and the keys,
@@ -32,7 +51,7 @@ export function GhostHint({
   const choosing =
     interactive && !readOnly && others > 0 && ghost.sectionCount > 1;
   return (
-    <div className="@container flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
+    <div className={HINT_CLASS}>
       {interactive && !readOnly ? (
         <CourseColorPicker courseCode={ghost.courseCode} color={color} />
       ) : (
@@ -101,7 +120,7 @@ export function PreviewHint({
   planName: string;
 }) {
   return (
-    <div className="@container flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
+    <div className={HINT_CLASS}>
       <span className="truncate">
         <span className="font-medium">Previewing {label}.</span>{" "}
         <span className="text-muted">

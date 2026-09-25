@@ -82,7 +82,7 @@ test.describe("desktop", () => {
       await expect(page.getByText(/^Showing /)).toBeVisible();
       expect(await block.boundingBox()).toEqual(before);
     }
-    // The day names are under the hint, and come back when it goes.
+    // Leaving the results keeps the hint's row; the day names never hide.
     await page.mouse.move(0, 0);
     await expect(page.getByText(/^Showing /)).toHaveCount(0);
     expect(await block.boundingBox()).toEqual(before);

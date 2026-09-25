@@ -103,9 +103,8 @@ function AlertRow({
           <span className="flex-1 text-sm">Stop these emails?</span>
           <WithTooltip label="Keep watching" shortcut="Esc">
             <Button
-              size="sm"
+              size="row"
               variant="ghost"
-              className="h-6 px-2 text-sm"
               disabled={state.kind === "stopping"}
               onClick={() => setState({ kind: "idle" })}
             >
@@ -114,9 +113,8 @@ function AlertRow({
           </WithTooltip>
           <WithTooltip label={`No more emails about ${label}`}>
             <Button
-              size="sm"
+              size="row"
               variant="outline"
-              className="h-6 px-2 text-sm"
               disabled={state.kind === "stopping"}
               onClick={() => void stop()}
             >

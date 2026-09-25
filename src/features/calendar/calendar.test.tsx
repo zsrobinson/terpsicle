@@ -139,6 +139,29 @@ describe("calendar", () => {
     expect(calendar.querySelector("[data-ghost]")).not.toBeNull();
   });
 
+  it("on the Search tab, the hint's row is there before a hover, and the day names stay", async () => {
+    await renderDemo();
+    act(() => useUi.getState().openTab("search"));
+    const idle = screen.getByText("Hover a result to see its sections here.");
+    const row = idle.parentElement;
+    expect(row).toHaveClass("h-9");
+    act(() => useUi.getState().setHoverCourse("CMSC330"));
+    // Same height, new words: nothing under it moves.
+    expect(
+      screen.getByText(/Showing every section of/).parentElement,
+    ).toHaveClass("h-9");
+    expect(screen.getByText("Mon")).toBeVisible();
+    act(() => useUi.getState().setHoverCourse(null));
+    expect(
+      screen.getByText("Hover a result to see its sections here."),
+    ).toBeVisible();
+    // Other tabs have no hint at all.
+    act(() => useUi.getState().openTab("courses"));
+    expect(
+      screen.queryByText("Hover a result to see its sections here."),
+    ).toBeNull();
+  });
+
   it("a hovered search result shows its sections without making them clickable", async () => {
     const { calendar } = await renderDemo();
     act(() => useUi.getState().setHoverCourse("CMSC330"));
