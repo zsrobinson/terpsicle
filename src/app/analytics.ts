@@ -64,6 +64,7 @@ export interface AnalyticsEvents {
     truncated: boolean;
     /** Started from a suggested relaxation. */
     relaxed: boolean;
+  };
   generate_result_previewed: { rank: number };
   generate_plans_saved: { count: number };
   generate_relaxation_applied: { constraint: Relaxable };

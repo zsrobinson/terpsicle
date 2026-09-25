@@ -21,7 +21,6 @@ import {
   type GenerateInput,
   type Generator,
 } from "~/worker/generator";
-import { planetTerpDepts } from "./planetterp";
 
 // One Generate run at a time: load what the request needs, run the search in
 // the worker, keep the result. Results aren't persisted (the drafts are);
@@ -98,13 +97,18 @@ async function gatherInput(request: GenerateRequest): Promise<GenerateInput> {
   const codes = draftCourseCodes(request.items);
   const depts = [...new Set(codes.map(deptOf))];
   const catalog = useCatalog.getState();
-  const reader = catalog.reader;
-  const [, , ratings] = await Promise.all([
+  // PlanetTerp files are extras: a department that fails to load is unrated,
+  // which ranking treats as neutral.
+  await Promise.all([
     catalog.ensureDepts(request.termId, depts),
     request.mustHaves.enoughTravelTime ? catalog.ensureCampus() : null,
-    reader ? planetTerpDepts(reader, depts) : [],
+    ...depts.map((d) => catalog.ensureInstructors(d)),
   ]);
-  const { byTerm, campus } = useCatalog.getState();
+  const { byTerm, campus, instructors } = useCatalog.getState();
+  const ratings = depts.flatMap((d) => {
+    const file = instructors[d];
+    return file ? [file] : [];
+  });
   const term = byTerm[request.termId];
   if (!term || term.manifestState === "error")
     throw new Error(
