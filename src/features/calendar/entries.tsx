@@ -275,7 +275,9 @@ export function Ghost({
       </WithTooltip>
       <PopoverContent className="w-64 p-1" side="right">
         <div className="px-2 pt-1 pb-1.5 text-[11px] text-muted">
-          Same times · pick a section
+          {entry.sameTimes
+            ? "Same times · pick a section"
+            : "Pick a section · the list shows each one's times"}
         </div>
         {entry.sectionCodes.map((sectionCode) => {
           const key = sectionKey(parsed.courseCode, sectionCode);

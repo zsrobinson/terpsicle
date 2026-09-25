@@ -8,6 +8,7 @@ import {
   groupSectionsByTime,
   placedSections,
   type TimeGroup,
+  timeGroupLabel,
 } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
 import { type FitContext, fitLabel } from "~/core/fit";
@@ -81,6 +82,11 @@ export interface GhostEntry extends Timed {
   sectionCodes: readonly SectionCode[];
   /** "0101" or "0101–0106 · 6 sections". */
   label: string;
+  /**
+   * Every section in it meets at the same times all week. False for ghosts
+   * merged only because the day got too crowded to read.
+   */
+  sameTimes: boolean;
   /** The first section's instructors, "" for TBA. */
   instructors: string;
   meetingKind: MeetingKind;
@@ -208,6 +214,7 @@ function ghostEntries(input: CalendarInput): {
         sectionKey: key,
         sectionCodes: group.sections.map((s) => s.code),
         label: group.label,
+        sameTimes: true,
         instructors: rep.instructors.join(", "),
         meetingKind: rep.meetings[item.source.meetingIndex]?.kind ?? "lecture",
         full,
@@ -227,6 +234,103 @@ function ghostEntries(input: CalendarInput): {
       placedCode,
     },
   };
+}
+
+/**
+ * Past this many side-by-side ghosts, labels shrink to "03…" and stop
+ * reading, so a crowded stretch of a day merges.
+ */
+export const MAX_GHOST_LANES = 3;
+
+/** Several ghosts drawn as one, picked from a popover like a time-identical group. */
+function mergeGhosts(
+  ghosts: readonly GhostEntry[],
+  start: Minutes,
+  end: Minutes,
+): GhostEntry {
+  // Callers pass at least two ghosts.
+  const first = ghosts[0] as GhostEntry;
+  const codes = [...new Set(ghosts.flatMap((g) => g.sectionCodes))].sort();
+  const previewed = ghosts.find((g) => g.previewed);
+  return {
+    ...first,
+    key: `merged:${first.day}:${start}:${ghosts.map((g) => g.key).join("|")}`,
+    start,
+    end,
+    // Hovering previews a section inside, so the box stays put under the pointer.
+    sectionKey: (previewed ?? first).sectionKey,
+    sectionCodes: codes,
+    label: timeGroupLabel(codes),
+    sameTimes: false,
+    instructors: [...new Set(ghosts.map((g) => g.instructors))].join(", "),
+    meetingKind: ghosts.every((g) => g.meetingKind === first.meetingKind)
+      ? first.meetingKind
+      : "lecture",
+    full: ghosts.every((g) => g.full),
+    overlaps: ghosts.every((g) => g.overlaps),
+    previewed: previewed !== undefined,
+  };
+}
+
+/**
+ * One day's ghosts in lanes, merging where more than `maxLanes` would sit
+ * side by side: first the ghosts that meet at the same time that day (their
+ * other meetings differ), then, if that's not enough, the whole crowded
+ * stretch into one ghost.
+ */
+export function packGhosts(
+  ghosts: readonly GhostEntry[],
+  maxLanes: number = MAX_GHOST_LANES,
+): Lane<GhostEntry>[] {
+  const packed = packIntoLanes(ghosts);
+  if (packed.every((g) => g.lanes <= maxLanes)) return packed;
+
+  const out: GhostEntry[] = [];
+  for (const cluster of clusters(packed)) {
+    if ((cluster[0]?.lanes ?? 0) <= maxLanes) {
+      out.push(...cluster);
+      continue;
+    }
+    const byTime = new Map<string, GhostEntry[]>();
+    for (const g of cluster) {
+      const at = `${g.start}-${g.end}`;
+      byTime.set(at, [...(byTime.get(at) ?? []), g]);
+    }
+    const sameTime = [...byTime.values()].map((list) =>
+      list.length === 1 && list[0]
+        ? list[0]
+        : mergeGhosts(list, list[0]?.start ?? 0, list[0]?.end ?? 0),
+    );
+    const repacked = packIntoLanes(sameTime);
+    if (repacked.every((g) => g.lanes <= maxLanes)) out.push(...sameTime);
+    else
+      out.push(
+        mergeGhosts(
+          cluster,
+          Math.min(...cluster.map((g) => g.start)),
+          Math.max(...cluster.map((g) => g.end)),
+        ),
+      );
+  }
+  return packIntoLanes(out);
+}
+
+/** Packed items split back into their overlap clusters. */
+function clusters<T>(packed: readonly Lane<T & Timed>[]): Lane<T & Timed>[][] {
+  const sorted = [...packed].sort((a, b) => a.start - b.start);
+  const groups: Lane<T & Timed>[][] = [];
+  let end = Number.NEGATIVE_INFINITY;
+  for (const item of sorted) {
+    const current = groups.at(-1);
+    if (current && item.start < end) {
+      current.push(item);
+      end = Math.max(end, item.end);
+    } else {
+      groups.push([item]);
+      end = item.end;
+    }
+  }
+  return groups;
 }
 
 /** Everything the calendar draws for one plan state. */
@@ -288,7 +392,7 @@ export function buildCalendarModel(input: CalendarInput): CalendarModel {
       ...classes.filter((c) => c.day === day),
       ...blocks.filter((b) => b.day === day),
     ]),
-    ghosts: packIntoLanes(ghosts.filter((g) => g.day === day)),
+    ghosts: packGhosts(ghosts.filter((g) => g.day === day)),
     pills: input.connections
       .filter((c) => c.day === day)
       .map((connection) => ({
