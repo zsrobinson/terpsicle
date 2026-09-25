@@ -63,15 +63,38 @@ Read through the hooks in `~/state/hooks`, never a plan picked by hand, so the s
 | `useActiveTerm()` | `{ term, termId, terms }`: the term on screen (the shared plan's while one is open). |
 | `useTermPlans(termId)`, `useActivePlanId(termId)` | The person's plan tabs and the open one. |
 | `useCreditsLabel()` | "16 credits", or a range. |
-| `usePlanProblems()`, `useProblemCounts()` | Problems for the plan on screen (core computes them). |
+| `usePlanProblems()`, `useProblemCounts()` | Problems for the plan on screen (core's `planProblems`); empty until the term's catalog has loaded. |
+| `useTermCatalog(termId)` | `{ index, complete, seats, changes, manifest }`: the term's core `CatalogIndex` and published files. |
+| `usePlacedSections()` | The plan's sections as core `SectionRef`s, in plan order. |
+| `useFitContext()` | Core's `FitContext` for the plan on screen, built once per plan state and shared (fit labels, "Fits my plan"). |
+| `usePlanConnections()` | Core `Connection`s between back-to-back classes (travel pills, Travel tab). |
+| `useTravel()` | `{ travel, campus }`: travel settings and the campus map (routes load once the plan has a placed section). |
 
 Stores (Zustand) for everything else:
 
 - `useWorkspace` (`~/state/workspace-store`): plans, blocks, course colors, travel settings and the open plan per term. Change the workspace only through `commit(label, recipe, { toast? })` or `dispatch(action, label)`; both keep undo history, and `label` ("Removed CMSC351 from Plan A") becomes the Undo toast. Use `{ toast: false }` for quiet edits (renames). `setTravel` saves settings without history.
-- `useUi` (`~/state/ui-store`): `drill(entry)`, `replaceDrill(entry)`, `back()`, `backTo(depth)`, `openTab(tab)`, `requestFocus(tab)`, `toggleGroup(key)`, the drawer's snap.
-- `useCatalog` (`~/state/catalog-store`): terms, and per term the manifest, seats and loaded courses. `ensureDepts(termId, depts)` loads departments through the data source (`~/state/data-source`).
+- `useUi` (`~/state/ui-store`): `drill(entry)`, `replaceDrill(entry)`, `back()`, `backTo(depth)`, `openTab(tab)`, `requestFocus(tab)`, `toggleGroup(key)`, the drawer's snap, and the calendar fields below.
+- `useCatalog` (`~/state/catalog-store`): terms; per term the manifest, seats, changes and a core `CatalogIndex`; the campus map. `ensureTerm(termId)` loads every department (the shell does this for the term on screen), `ensureDepts(termId, depts)` a few, `ensureCampus()` the buildings and routes files.
 
-User actions that should be counted (creating plans, switching terms, undo) go through `actions.ts`, which records the analytics event (`docs/ANALYTICS.md`). Generate saves its results with `createPlanFrom(termId, courses, { source: "generate", name })`.
+User actions that should be counted go through `actions.ts`, which records the analytics event (`docs/ANALYTICS.md`):
+- plans: `createEmptyPlan`, `copyPlan`, `renamePlan`, `deletePlan`, `openPlan`, and `createPlanFrom(termId, courses, { source: "generate", name })` for Generate;
+- sections: `switchSection(courseCode, sectionCode, via)` puts a course in a section (switches, places a saved course, or adds a new one), undoable, with `via` = `"list"` from course details;
+- `setCourseColor(courseCode, color)` and `addBlock({ label, days, start, end }, via)` (`via` = `"form"` from the Blocks tab);
+- `openTab`, `switchTerm`, `setTheme`, `undo`, `redo`.
+
+## The calendar's store fields
+
+Features talk to the calendar through three `useUi` fields. None is persisted.
+
+| Field | Set by | The calendar |
+|---|---|---|
+| `hoverCourse` (`setHoverCourse(code \| null)`) | Search, on a result's pointer enter/leave | Shows that course's sections as ghosts, not clickable ("Open it to pick one."). |
+| `previewSection` (`setPreviewSection(key \| null)`) | Course details, on a section row's pointer enter/leave; the calendar itself for ghost hover and `↑`/`↓` | Draws that section of the open course solid. `↵` switches to it. Cleared when the open course changes. |
+| `previewPlan` (`setPreviewPlan({ plan, label } \| null)`) | Generate, while a result is previewed | Draws that plan instead of the open one, read-only, outlining sections that differ, under "Previewing <label>." |
+
+Ghosts for the course open in the sidebar come from the drill stack itself (`selectOpenCourse`): opening course details anywhere shows them, and `Esc` hides them. `selectGhostCourse` is the course whose ghosts are drawn (a hover wins).
+
+For the color dot, use `CourseColorPicker` from `~/features/courses/color-picker` (`courseCode`, `color`, `readOnly`); for dots and tints elsewhere, `dotStyle(color)` and `tintStyle(color)` from `~/features/calendar/tint`. Render core `Message`s with `MessageText` (`~/app/message-text`).
 
 ## Keyboard
 
@@ -83,10 +106,12 @@ User actions that should be counted (creating plans, switching terms, undo) go t
 | `1`–`7` | Rail tabs | shell |
 | `Esc` | Back one drill level; in a field, leave the field | sidebar |
 | `⌘Z` / `Ctrl+Z`, `⇧⌘Z` / `Ctrl+Y` | Undo, redo | shell |
-| `↑` `↓` `↵` | Reserved: preview and switch sections on the calendar | calendar (M3 part 2) |
+| `↑` `↓` `↵` | Preview the open course's sections on the calendar, and switch to the preview | calendar |
 
 Every interactive element gets a tooltip through `WithTooltip` (`~/ui/tooltip`), with its shortcut if it has one.
 
 ## The calendar
 
-`calendar/week-frame.tsx` draws the frame: day headers, the hour gutter and lines, and an hour height that fills the space (never under 36px per hour; then it scrolls). Pass `days`, `startMinute`, `endMinute`, and render contents through `children(layout)`, positioning with `layout.yOf(minute)` and `layout.hourHeight`. `calendar-region.tsx` is where the plan's calendar goes (M3 part 2).
+`calendar/week-frame.tsx` draws the frame: day headers, the hour gutter and lines, and an hour height that fills the space (never under 36px per hour; then it scrolls). Pass `days`, `startMinute`, `endMinute`, and render contents through `children(layout)`, positioning with `layout.yOf(minute)` and `layout.hourHeight`. `calendar-region.tsx` puts `src/features/calendar` in it: the model is built by the pure `buildCalendarModel` in `layout.ts` (tested and benchmarked there), and drawn by `calendar.tsx`.
+
+In `pnpm dev:mock`, `/?demo=1` loads the fixtures' demo plans (a returning student's Plan A and B, blocks and colors) for e2e and screenshots. Real first visits stay empty, and production builds drop the switch.

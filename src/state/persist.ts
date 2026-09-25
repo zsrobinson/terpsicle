@@ -42,7 +42,7 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
   useWorkspace.setState({
     plans: validRows("plans", PlanSchema, plans),
     blocks: validRows("blocks", BlockSchema, blocks),
-    courseColors: Object.fromEntries(
+    colors: Object.fromEntries(
       validRows("courseColors", CourseColorPrefSchema, colors).map((c) => [
         c.courseCode,
         c.color,
@@ -146,18 +146,16 @@ export function startPersisting(
         }),
       );
     }
-    if (w.courseColors !== p.courseColors) {
-      const rows = (colors: Workspace["courseColors"]) =>
+    if (w.colors !== p.colors) {
+      const rows = (colors: Workspace["colors"]) =>
         Object.entries(colors).flatMap(([courseCode, color]) =>
           color ? [{ courseCode, color }] : [],
         );
-      const before = rows(p.courseColors);
-      const after = rows(w.courseColors);
-      const put = after.filter(
-        (row) => p.courseColors[row.courseCode] !== row.color,
-      );
+      const before = rows(p.colors);
+      const after = rows(w.colors);
+      const put = after.filter((row) => p.colors[row.courseCode] !== row.color);
       const remove = before
-        .filter((row) => w.courseColors[row.courseCode] === undefined)
+        .filter((row) => w.colors[row.courseCode] === undefined)
         .map((row) => row.courseCode);
       enqueue(() =>
         db.transaction("rw", db.courseColors, async () => {

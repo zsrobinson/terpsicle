@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { deptOf, useCatalog } from "~/state/catalog-store";
+import { useCatalog } from "~/state/catalog-store";
 import { useActiveTerm, useCurrentPlan } from "~/state/hooks";
 import { saveSharedCopy, useShare } from "~/state/share-store";
 import { useUi } from "~/state/ui-store";
@@ -39,7 +39,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
 
   useShellShortcuts();
   useDefaultPlan(Boolean(sharedParam));
-  useCurrentPlanCatalog();
+  useTermData();
   const shared = useSharedLink(sharedParam, onClearShared, mobile);
 
   const topBar = (
@@ -123,22 +123,25 @@ function useDefaultPlan(linkInUrl: boolean) {
   }, [hydrated, termId, sharing, ensurePlan]);
 }
 
-/** Loads the departments the plan on screen uses. */
-function useCurrentPlanCatalog() {
-  const current = useCurrentPlan();
-  const ensureDepts = useCatalog((s) => s.ensureDepts);
-  // A shared link can name its term before the data source is ready.
+/**
+ * Loads the catalog of the term on screen (search, fit and problems need all
+ * of it), and the campus map once the plan has somewhere to walk between.
+ */
+function useTermData() {
+  const termId = useActiveTerm().termId;
   const reader = useCatalog((s) => s.reader);
-  const termId = current?.termId;
-  const depts = current
-    ? [...new Set(current.plan.courses.map((c) => deptOf(c.courseCode)))]
-        .sort()
-        .join(",")
-    : "";
+  const ensureTerm = useCatalog((s) => s.ensureTerm);
+  const ensureCampus = useCatalog((s) => s.ensureCampus);
+  const placed = useCurrentPlan()?.plan.courses.some(
+    (c) => c.sectionCode !== null,
+  );
   useEffect(() => {
-    if (termId && reader)
-      void ensureDepts(termId, depts ? depts.split(",") : []);
-  }, [termId, depts, ensureDepts, reader]);
+    // A shared link can name its term before the data source is ready.
+    if (termId && reader) void ensureTerm(termId);
+  }, [termId, reader, ensureTerm]);
+  useEffect(() => {
+    if (placed && reader) void ensureCampus();
+  }, [placed, reader, ensureCampus]);
 }
 
 /** Opens `?plan=` read-only in place of the plan tabs, and handles the pill. */
@@ -160,24 +163,22 @@ function useSharedLink(
       close();
       return;
     }
-    let cancelled = false;
-    void open(param).then((result) => {
-      if (cancelled) return;
-      track("shared_link_opened", {
-        outcome: result.ok ? "ok" : result.reason,
-      });
-      if (!result.ok) {
-        toast.error(result.message);
-        onClear?.();
-      }
+    const result = open(param);
+    track("shared_link_opened", {
+      outcome: result.ok
+        ? "ok"
+        : result.error.kind === "malformed"
+          ? "invalid"
+          : "newer-version",
     });
-    return () => {
-      cancelled = true;
-    };
+    if (!result.ok) {
+      toast.error(result.error.message);
+      onClear?.();
+    }
   }, [param, open, close, onClear]);
 
   const save = async () => {
-    if (shared?.status !== "ready" || saving || !catalogReady) return;
+    if (!shared || saving || !catalogReady) return;
     setSaving(true);
     try {
       const copy = await saveSharedCopy(shared.payload);
@@ -185,6 +186,7 @@ function useSharedLink(
       track("shared_plan_saved", { droppedSections: copy.dropped.length });
       if (copy.dropped.length > 0) {
         const list = copy.dropped.map((k) => k.replace("-", " ")).join(", ");
+        // "CMSC320 0301 isn't offered anymore, so it wasn't copied."
         toast(
           `${list} ${copy.dropped.length === 1 ? "isn't" : "aren't"} offered anymore, so ${copy.dropped.length === 1 ? "it wasn't" : "they weren't"} copied.`,
         );
@@ -197,7 +199,7 @@ function useSharedLink(
 
   const plans = shared ? (
     <SharedPill
-      saving={saving || shared.status !== "ready" || !catalogReady}
+      saving={saving || !catalogReady}
       onSave={() => void save()}
       onClose={() => {
         close();

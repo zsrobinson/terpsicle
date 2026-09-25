@@ -90,7 +90,7 @@ export function workspaceOf(s: Workspace): Workspace {
   return {
     plans: s.plans,
     blocks: s.blocks,
-    courseColors: s.courseColors,
+    colors: s.colors,
     activePlanByTerm: s.activePlanByTerm,
   };
 }
@@ -154,7 +154,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => ({
     const next = reduceWorkspace(workspaceOf(get()), {
       type: "plan/activate",
       termId,
-      id,
+      planId: id,
     });
     set({ activePlanByTerm: next.activePlanByTerm });
   },

@@ -7,27 +7,18 @@ import {
   useState,
 } from "react";
 import type { Day } from "~/core/schema";
+import { DAY_SHORT_NAMES } from "~/core/time";
 
 // The week grid's frame: day headers, an hour gutter and hour lines that
 // stretch to fill the height (SPEC §2). Hour height comes from the space
 // available, with a readable minimum; below that the grid scrolls. Nothing
-// sits below the grid. Calendar contents (blocks, ghosts, travel pills) are
-// M3 part 2 and render through `children`, positioned with `layout`.
+// sits below the grid. Calendar contents (src/features/calendar) render
+// through `children`, positioned with `layout`.
 
 /** SPEC §2: the grid scrolls only when an hour would get shorter than this. */
 export const MIN_HOUR_HEIGHT = 36;
 export const GUTTER_WIDTH = 48;
 export const DAY_HEADER_HEIGHT = 34;
-
-export const DAY_LABELS: Readonly<Record<Day, string>> = {
-  M: "Mon",
-  Tu: "Tue",
-  W: "Wed",
-  Th: "Thu",
-  F: "Fri",
-  Sa: "Sat",
-  Su: "Sun",
-};
 
 export interface CalendarLayout {
   days: readonly Day[];
@@ -133,7 +124,7 @@ export function WeekFrame({
               key={day}
               className="flex items-center px-2 text-[12px] text-muted"
             >
-              {DAY_LABELS[day]}
+              {DAY_SHORT_NAMES[day]}
             </div>
           ))}
         </div>

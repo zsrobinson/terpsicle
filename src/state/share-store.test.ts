@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { encodeShare } from "~/core/share";
 import {
   archivedFixtureTermId,
   aSharePayload,
@@ -6,7 +7,6 @@ import {
   mockSection,
 } from "~/fixtures";
 import { plansInTerm } from "./plan-ops";
-import { encodeSharePayload } from "./share-codec";
 import { saveSharedCopy, useShare } from "./share-store";
 import { loadStores } from "./testing";
 import { useUi } from "./ui-store";
@@ -20,13 +20,11 @@ describe("shared links", () => {
   beforeEach(loadStores);
 
   it("opens a shared plan without touching the person's data", async () => {
-    const param = await encodeSharePayload(
-      aSharePayload({ termId: TERM, sections: [KEY] }),
-    );
+    const param = encodeShare(aSharePayload({ termId: TERM, sections: [KEY] }));
     const before = useWorkspace.getState();
-    const result = await useShare.getState().open(param);
+    const result = useShare.getState().open(param);
     expect(result.ok).toBe(true);
-    expect(useShare.getState().shared).toMatchObject({ status: "ready" });
+    expect(useShare.getState().shared).toMatchObject({ param });
     expect(useWorkspace.getState().plans).toBe(before.plans);
     expect(useUi.getState().lastTermId).toBeNull();
   });
@@ -38,7 +36,7 @@ describe("shared links", () => {
       sections: [KEY, CANCELLED_SECTION_KEY],
       saved: ["CMSC330"],
     });
-    await useShare.getState().open(await encodeSharePayload(payload));
+    useShare.getState().open(encodeShare(payload));
     const copy = await saveSharedCopy(payload);
 
     expect(copy.dropped).toEqual([CANCELLED_SECTION_KEY]);

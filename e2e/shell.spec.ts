@@ -1,5 +1,5 @@
-import { deflateRawSync } from "node:zlib";
 import { expect, type Page, test } from "@playwright/test";
+import { encodeShare } from "../src/core/share/share";
 
 // The M3 shell on `pnpm dev:mock`: first visit, plan tabs with undo, the
 // collapsible sidebar, the shared-link pill and the phone drawer.
@@ -89,22 +89,22 @@ test.describe("desktop", () => {
     await expect(planTabs(page)).toHaveText([
       "Plan A",
       "Mornings off",
-      "Mornings off copy",
+      "Copy of Mornings off",
     ]);
 
     await page
-      .getByRole("button", { name: "Mornings off copy options" })
+      .getByRole("button", { name: "Copy of Mornings off options" })
       .click();
     await page.getByRole("menuitem", { name: "Delete" }).click();
     await expect(planTabs(page)).toHaveText(["Plan A", "Mornings off"]);
     // No confirmation dialog, just a way back.
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
-    await expect(page.getByText("Deleted Mornings off copy")).toBeVisible();
+    await expect(page.getByText("Deleted Copy of Mornings off")).toBeVisible();
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(planTabs(page)).toHaveText([
       "Plan A",
       "Mornings off",
-      "Mornings off copy",
+      "Copy of Mornings off",
     ]);
 
     // Keyboard undo, then everything survives a reload.
@@ -141,12 +141,12 @@ test.describe("desktop", () => {
     page,
   }) => {
     const payload = {
-      v: 1,
+      v: 1 as const,
       termId: "202605",
       name: "Alex's summer",
       sections: ["CMSC131-0101"],
     };
-    const param = deflateRawSync(JSON.stringify(payload)).toString("base64url");
+    const param = encodeShare(payload);
     await open(page, `/?plan=${param}`);
 
     await expect(page.getByText("Shared plan")).toBeVisible();
@@ -163,9 +163,11 @@ test.describe("desktop", () => {
   });
 
   test("✕ on a shared link goes back to your own plans", async ({ page }) => {
-    const param = deflateRawSync(
-      JSON.stringify({ v: 1, termId: "202701", sections: ["CMSC351-0101"] }),
-    ).toString("base64url");
+    const param = encodeShare({
+      v: 1,
+      termId: "202701",
+      sections: ["CMSC351-0101"],
+    });
     await open(page, `/?plan=${param}`);
     await page.getByRole("button", { name: "Close shared plan" }).click();
     await expect(page).toHaveURL((url) => !url.searchParams.has("plan"));

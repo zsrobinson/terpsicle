@@ -1,8 +1,11 @@
 import { create } from "zustand";
 import {
   CollapsedGroupKeySchema,
+  type CourseCode,
   DEFAULT_UI_PREFS,
+  type Plan,
   type RailTab,
+  type SectionKey,
   type TermId,
   type Theme,
   type UiPrefs,
@@ -33,6 +36,23 @@ export interface UiState {
   focusRequest: FocusRequest | null;
   /** Mobile bottom drawer position (not persisted). */
   drawerSnap: DrawerSnap;
+  /**
+   * A course whose sections the calendar shows as ghosts while the pointer
+   * rests on it outside course details, e.g. a search result (SPEC §3.5).
+   * Set on hover, clear on leave. Not persisted.
+   */
+  hoverCourse: CourseCode | null;
+  /**
+   * A section drawn solid on the calendar as a preview (SPEC §3.3): a
+   * hovered ghost, a hovered section row in course details, or ↑/↓.
+   * Not persisted.
+   */
+  previewSection: SectionKey | null;
+  /**
+   * A whole plan shown on the calendar in place of the open one, read-only:
+   * a generated result being previewed (SPEC §3.9). Not persisted.
+   */
+  previewPlan: PlanPreview | null;
 
   /**
    * A click on a rail tab (SPEC §2): another tab opens it; the open tab
@@ -55,6 +75,16 @@ export interface UiState {
   toggleGroup: (key: string) => void;
   requestFocus: (tab: RailTab) => void;
   setDrawerSnap: (snap: DrawerSnap) => void;
+  setHoverCourse: (courseCode: CourseCode | null) => void;
+  setPreviewSection: (key: SectionKey | null) => void;
+  setPreviewPlan: (preview: PlanPreview | null) => void;
+}
+
+/** What the calendar needs to preview a plan that isn't saved. */
+export interface PlanPreview {
+  plan: Plan;
+  /** "Previewing <label>." in the strip above the grid: "result 3". */
+  label: string;
 }
 
 /** What a rail click did, for analytics. */
@@ -71,6 +101,9 @@ export const INITIAL_UI_STATE = {
   collapsedGroups: DEFAULT_UI_PREFS.collapsedGroups,
   focusRequest: null,
   drawerSnap: "peek",
+  hoverCourse: null,
+  previewSection: null,
+  previewPlan: null,
 } satisfies Partial<UiState>;
 
 export const useUi = create<UiState>()((set, get) => ({
@@ -131,7 +164,28 @@ export const useUi = create<UiState>()((set, get) => ({
   },
   requestFocus: (tab) => set({ focusRequest: { tab, seq: ++focusSeq } }),
   setDrawerSnap: (drawerSnap) => set({ drawerSnap }),
+  setHoverCourse: (hoverCourse) => {
+    if (get().hoverCourse !== hoverCourse) set({ hoverCourse });
+  },
+  setPreviewSection: (previewSection) => {
+    if (get().previewSection !== previewSection) set({ previewSection });
+  },
+  setPreviewPlan: (previewPlan) => set({ previewPlan }),
 }));
+
+/** The course opened in the sidebar (the innermost course drill-in), if any. */
+export function selectOpenCourse(s: UiState): CourseCode | null {
+  const top = s.stack.at(-1);
+  return top?.kind === "course" ? top.courseCode : null;
+}
+
+/**
+ * The course whose sections the calendar shows as ghosts: a hovered search
+ * result first, else the course open in the sidebar.
+ */
+export function selectGhostCourse(s: UiState): CourseCode | null {
+  return s.hoverCourse ?? selectOpenCourse(s);
+}
 
 /** The persisted part of the UI state, minus the per-term active plans. */
 export function uiPrefsOf(

@@ -44,7 +44,7 @@ describe("workspace store", () => {
     useWorkspace.getState().dispatch(
       {
         type: "plan/delete",
-        id: "planBBBB",
+        planId: "planBBBB",
         replacementId: "unusedID",
         now: NOW,
       },
@@ -91,7 +91,7 @@ describe("workspace store", () => {
     useWorkspace
       .getState()
       .dispatch(
-        { type: "plan/rename", id: "planAAAA", name: "Mine", now: NOW },
+        { type: "plan/rename", planId: "planAAAA", name: "Mine", now: NOW },
         "Renamed Plan A",
         { toast: false },
       );

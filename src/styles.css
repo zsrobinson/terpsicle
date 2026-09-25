@@ -133,89 +133,90 @@
 /*
  * Course tints, one set per COURSE_COLORS id (src/core/schema/local.ts):
  * soft fill, border, text and the list dot. Same hues as the prototype.
+ * Names match `courseColorTokens()` in ~/core/color.
  */
 :root {
   --course-blue-bg: oklch(0.955 0.032 250);
-  --course-blue-bd: oklch(0.78 0.09 250);
+  --course-blue-border: oklch(0.78 0.09 250);
   --course-blue-fg: oklch(0.36 0.1 250);
   --course-blue-dot: oklch(0.62 0.15 250);
   --course-green-bg: oklch(0.955 0.032 155);
-  --course-green-bd: oklch(0.78 0.09 155);
+  --course-green-border: oklch(0.78 0.09 155);
   --course-green-fg: oklch(0.36 0.1 155);
   --course-green-dot: oklch(0.62 0.15 155);
   --course-amber-bg: oklch(0.955 0.032 70);
-  --course-amber-bd: oklch(0.78 0.09 70);
+  --course-amber-border: oklch(0.78 0.09 70);
   --course-amber-fg: oklch(0.36 0.1 70);
   --course-amber-dot: oklch(0.62 0.15 70);
   --course-violet-bg: oklch(0.955 0.032 305);
-  --course-violet-bd: oklch(0.78 0.09 305);
+  --course-violet-border: oklch(0.78 0.09 305);
   --course-violet-fg: oklch(0.36 0.1 305);
   --course-violet-dot: oklch(0.62 0.15 305);
   --course-cyan-bg: oklch(0.955 0.032 200);
-  --course-cyan-bd: oklch(0.78 0.09 200);
+  --course-cyan-border: oklch(0.78 0.09 200);
   --course-cyan-fg: oklch(0.36 0.1 200);
   --course-cyan-dot: oklch(0.62 0.15 200);
   --course-pink-bg: oklch(0.955 0.032 345);
-  --course-pink-bd: oklch(0.78 0.09 345);
+  --course-pink-border: oklch(0.78 0.09 345);
   --course-pink-fg: oklch(0.36 0.1 345);
   --course-pink-dot: oklch(0.62 0.15 345);
   --course-lime-bg: oklch(0.955 0.032 110);
-  --course-lime-bd: oklch(0.78 0.09 110);
+  --course-lime-border: oklch(0.78 0.09 110);
   --course-lime-fg: oklch(0.36 0.1 110);
   --course-lime-dot: oklch(0.62 0.15 110);
   --course-indigo-bg: oklch(0.955 0.032 280);
-  --course-indigo-bd: oklch(0.78 0.09 280);
+  --course-indigo-border: oklch(0.78 0.09 280);
   --course-indigo-fg: oklch(0.36 0.1 280);
   --course-indigo-dot: oklch(0.62 0.15 280);
   --course-orange-bg: oklch(0.955 0.032 45);
-  --course-orange-bd: oklch(0.78 0.09 45);
+  --course-orange-border: oklch(0.78 0.09 45);
   --course-orange-fg: oklch(0.36 0.1 45);
   --course-orange-dot: oklch(0.62 0.15 45);
   --course-teal-bg: oklch(0.955 0.032 180);
-  --course-teal-bd: oklch(0.78 0.09 180);
+  --course-teal-border: oklch(0.78 0.09 180);
   --course-teal-fg: oklch(0.36 0.1 180);
   --course-teal-dot: oklch(0.62 0.15 180);
 }
 
 .dark {
   --course-blue-bg: oklch(0.29 0.05 250);
-  --course-blue-bd: oklch(0.46 0.09 250);
+  --course-blue-border: oklch(0.46 0.09 250);
   --course-blue-fg: oklch(0.9 0.07 250);
   --course-blue-dot: oklch(0.72 0.14 250);
   --course-green-bg: oklch(0.29 0.05 155);
-  --course-green-bd: oklch(0.46 0.09 155);
+  --course-green-border: oklch(0.46 0.09 155);
   --course-green-fg: oklch(0.9 0.07 155);
   --course-green-dot: oklch(0.72 0.14 155);
   --course-amber-bg: oklch(0.29 0.05 70);
-  --course-amber-bd: oklch(0.46 0.09 70);
+  --course-amber-border: oklch(0.46 0.09 70);
   --course-amber-fg: oklch(0.9 0.07 70);
   --course-amber-dot: oklch(0.72 0.14 70);
   --course-violet-bg: oklch(0.29 0.05 305);
-  --course-violet-bd: oklch(0.46 0.09 305);
+  --course-violet-border: oklch(0.46 0.09 305);
   --course-violet-fg: oklch(0.9 0.07 305);
   --course-violet-dot: oklch(0.72 0.14 305);
   --course-cyan-bg: oklch(0.29 0.05 200);
-  --course-cyan-bd: oklch(0.46 0.09 200);
+  --course-cyan-border: oklch(0.46 0.09 200);
   --course-cyan-fg: oklch(0.9 0.07 200);
   --course-cyan-dot: oklch(0.72 0.14 200);
   --course-pink-bg: oklch(0.29 0.05 345);
-  --course-pink-bd: oklch(0.46 0.09 345);
+  --course-pink-border: oklch(0.46 0.09 345);
   --course-pink-fg: oklch(0.9 0.07 345);
   --course-pink-dot: oklch(0.72 0.14 345);
   --course-lime-bg: oklch(0.29 0.05 110);
-  --course-lime-bd: oklch(0.46 0.09 110);
+  --course-lime-border: oklch(0.46 0.09 110);
   --course-lime-fg: oklch(0.9 0.07 110);
   --course-lime-dot: oklch(0.72 0.14 110);
   --course-indigo-bg: oklch(0.29 0.05 280);
-  --course-indigo-bd: oklch(0.46 0.09 280);
+  --course-indigo-border: oklch(0.46 0.09 280);
   --course-indigo-fg: oklch(0.9 0.07 280);
   --course-indigo-dot: oklch(0.72 0.14 280);
   --course-orange-bg: oklch(0.29 0.05 45);
-  --course-orange-bd: oklch(0.46 0.09 45);
+  --course-orange-border: oklch(0.46 0.09 45);
   --course-orange-fg: oklch(0.9 0.07 45);
   --course-orange-dot: oklch(0.72 0.14 45);
   --course-teal-bg: oklch(0.29 0.05 180);
-  --course-teal-bd: oklch(0.46 0.09 180);
+  --course-teal-border: oklch(0.46 0.09 180);
   --course-teal-fg: oklch(0.9 0.07 180);
   --course-teal-dot: oklch(0.72 0.14 180);
 }
@@ -255,6 +256,15 @@
 @utility scroll-thin {
   scrollbar-width: thin;
   scrollbar-color: var(--hairline-strong) transparent;
+}
+
+/* Blocks on the calendar: neutral diagonal hatching (the prototype's "stripes"). */
+@utility stripes {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--grid) 0 6px,
+    transparent 6px 12px
+  );
 }
 
 /* Reduced motion must beat any component animation, hence !important. */

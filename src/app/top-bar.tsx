@@ -24,13 +24,24 @@ export function TopBar({
   compact?: boolean;
 }) {
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-hairline border-b px-3">
+    // Phones drop the slashes and tighten gaps so the open plan's name fits.
+    <header
+      className={cn(
+        "flex h-12 shrink-0 items-center border-hairline border-b",
+        compact ? "gap-1 px-2" : "gap-2 px-3",
+      )}
+    >
       <Logo compact={compact} />
-      <Slash className={compact ? "ml-0" : "ml-2"} />
+      {compact ? null : <Slash className="ml-2" />}
       {term}
-      <Slash />
+      {compact ? null : <Slash />}
       <div className="flex min-w-0 flex-1 items-center">{plans}</div>
-      <div className="flex shrink-0 items-center gap-3">
+      <div
+        className={cn(
+          "flex shrink-0 items-center",
+          compact ? "gap-1" : "gap-3",
+        )}
+      >
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
         {end}

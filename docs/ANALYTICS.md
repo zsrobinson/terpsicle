@@ -21,6 +21,11 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `undo_used` | `via`: `shortcut` · `toast` | Whether undo is doing the job confirmation dialogs would have. |
   | `shared_link_opened` | `outcome`: `ok` · `invalid` · `newer-version` | How many shared links arrive, and how many are broken. |
   | `shared_plan_saved` | `droppedSections` | How often a shared plan becomes the viewer's own, and how often sections have gone missing since it was shared. |
+  | `section_switched` | `via`: `ghost` · `list` · `keyboard` | Whether people pick sections on the calendar (ghosts), in course details, or with ↑/↓/↵: the case for "see every option". |
+  | `block_created` | `via`: `drag` · `form` | Whether drag-to-block is discovered, or blocks only come from the Blocks tab. |
+  | `course_color_changed` | | Whether anyone recolors courses (a "just for fun" feature worth keeping only if used). |
+
+  Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere.
 
 - **Session recordings**, when enabled in the PostHog project. They're recorded with every input masked (`maskAllInputs`) and the text of any element marked `data-private` masked.
 - **Server events** from cron jobs and the `/api` endpoints, via `captureServerEvent()` in `src/server/analytics.ts` (declared in `ServerEvents`). They use one fixed id (`terpsicle-worker`) and never describe a person:

@@ -57,7 +57,7 @@ describe("plan tabs", () => {
     await user.click(
       await screen.findByRole("menuitem", { name: /Copy of Plan B/ }),
     );
-    expect(tabNames()).toEqual(["Plan A", "Plan B", "Plan B copy"]);
+    expect(tabNames()).toEqual(["Plan A", "Plan B", "Copy of Plan B"]);
 
     await user.click(screen.getByRole("button", { name: "New plan" }));
     await user.click(
@@ -105,7 +105,7 @@ describe("plan tabs", () => {
         name: "Duplicate",
       }),
     );
-    expect(tabNames()).toEqual(["Plan A", "Plan A copy"]);
+    expect(tabNames()).toEqual(["Plan A", "Copy of Plan A"]);
 
     await user.click(
       within(await openPlanMenu(user)).getByRole("menuitem", {
@@ -114,11 +114,11 @@ describe("plan tabs", () => {
     );
     expect(tabNames()).toEqual(["Plan A"]);
     expect(screen.queryByRole("dialog")).toBeNull();
-    const toast = await screen.findByText("Deleted Plan A copy");
+    const toast = await screen.findByText("Deleted Copy of Plan A");
     expect(toast).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Undo" }));
-    expect(tabNames()).toEqual(["Plan A", "Plan A copy"]);
+    expect(tabNames()).toEqual(["Plan A", "Copy of Plan A"]);
     expect(track).toHaveBeenCalledWith("undo_used", { via: "toast" });
   });
 
@@ -132,7 +132,7 @@ describe("plan tabs", () => {
     await user.keyboard("{Control>}z{/Control}");
     expect(tabNames()).toEqual(["Plan A"]);
     await user.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
-    expect(tabNames()).toEqual(["Plan A", "Plan A copy"]);
+    expect(tabNames()).toEqual(["Plan A", "Copy of Plan A"]);
   });
 });
 
