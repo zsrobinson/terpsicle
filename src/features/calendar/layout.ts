@@ -2,7 +2,6 @@
 // which side-by-side lane. Pure, so it's memoized and benchmarked on its own.
 // Domain answers come from core (week items, hour range, days, ghost groups
 // and cap, fit, seats, connections); what's here is presentation layout.
-// `packLanes` is a candidate to move into ~/core/time.
 import {
   type CatalogIndex,
   capGhosts,
@@ -35,8 +34,14 @@ import {
   calendarDays,
   calendarHourRange,
   hasSetTimes,
+  type Lane,
+  packLanes as packIntoLanes,
   sectionWeekItems,
 } from "~/core/time";
+
+export type { Lane } from "~/core/time";
+/** @deprecated moved to ~/core/time */
+export const packLanes = packIntoLanes;
 
 interface Timed {
   day: Day;
@@ -87,13 +92,6 @@ export interface GhostEntry extends Timed {
   previewed: boolean;
   color: CourseColor;
 }
-
-export type Lane<T> = T & {
-  /** 0-based column within its overlap cluster. */
-  lane: number;
-  /** Columns in its overlap cluster. */
-  lanes: number;
-};
 
 export interface Pill {
   key: string;
@@ -151,43 +149,6 @@ export interface CalendarInput {
   seats: SeatsMap | null;
   /** A section of the ghost course to draw solid. */
   preview: SectionKey | null;
-}
-
-/**
- * Side-by-side lanes for overlapping items (SPEC §3.3): items that overlap,
- * directly or through a chain, form a cluster, and each takes the first lane
- * free at its start. Every item in a cluster shares the cluster's lane count.
- */
-export function packLanes<T extends { start: number; end: number }>(
-  items: readonly T[],
-): Lane<T>[] {
-  const sorted = [...items].sort((a, b) => a.start - b.start || b.end - a.end);
-  const out: Lane<T>[] = [];
-  let cluster: Lane<T>[] = [];
-  let laneEnds: number[] = [];
-  let clusterEnd = Number.NEGATIVE_INFINITY;
-  const flush = () => {
-    for (const item of cluster) item.lanes = laneEnds.length;
-    cluster = [];
-    laneEnds = [];
-  };
-  for (const item of sorted) {
-    if (item.start >= clusterEnd) {
-      flush();
-      clusterEnd = Number.NEGATIVE_INFINITY;
-    }
-    let lane = laneEnds.findIndex((end) => end <= item.start);
-    if (lane === -1) {
-      lane = laneEnds.length;
-      laneEnds.push(item.end);
-    } else laneEnds[lane] = item.end;
-    const placed = { ...item, lane, lanes: 1 };
-    cluster.push(placed);
-    out.push(placed);
-    clusterEnd = Math.max(clusterEnd, item.end);
-  }
-  flush();
-  return out;
 }
 
 function colorOf(
@@ -323,11 +284,11 @@ export function buildCalendarModel(input: CalendarInput): CalendarModel {
 
   const columns: DayColumn[] = days.map((day) => ({
     day,
-    entries: packLanes<ClassEntry | BlockEntry>([
+    entries: packIntoLanes<ClassEntry | BlockEntry>([
       ...classes.filter((c) => c.day === day),
       ...blocks.filter((b) => b.day === day),
     ]),
-    ghosts: packLanes(ghosts.filter((g) => g.day === day)),
+    ghosts: packIntoLanes(ghosts.filter((g) => g.day === day)),
     pills: input.connections
       .filter((c) => c.day === day)
       .map((connection) => ({

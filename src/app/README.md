@@ -64,7 +64,7 @@ Read through the hooks in `~/state/hooks`, never a plan picked by hand, so the s
 | `useActiveTerm()` | `{ term, termId, terms }`: the term on screen (the shared plan's while one is open). |
 | `useTermPlans(termId)`, `useActivePlanId(termId)` | The person's plan tabs and the open one. |
 | `useCreditsLabel()` | "16 credits", or a range. |
-| `usePlanProblems()`, `useProblemCounts()` | Problems for the plan on screen (core's `planProblems`); empty until the term's catalog has loaded. |
+| `usePlanProblemsState()`, `usePlanProblems()`, `useProblemCounts()` | Problems for the plan on screen (core's `planProblems`), as soon as the plan's own departments have loaded. `usePlanProblemsState()` also says `checking` while they load: show a neutral state then, never "No problems". |
 | `useTermCatalog(termId)` | `{ index, complete, seats, changes, manifest }`: the term's core `CatalogIndex` and published files. |
 | `usePlacedSections()` | The plan's sections as core `SectionRef`s, in plan order. |
 | `useFitContext()` | Core's `FitContext` for the plan on screen, built once per plan state and shared (fit labels, "Fits my plan"). |

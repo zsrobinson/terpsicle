@@ -10,6 +10,7 @@ import {
   type Connection,
   type CourseCode,
   type Day,
+  type DeptCode,
   type Message,
   type Plan,
   PROBLEM_SEVERITY,
@@ -52,6 +53,11 @@ export type ProblemsInput = {
   readonly seats: SeatsMap | null;
   /** The changes file's entries, newest first; only adds when a change happened. */
   readonly changes?: readonly CatalogChange[];
+  /**
+   * Departments not loaded yet (`pendingPlanDepts`): their sections are
+   * unknown, so they're never reported as cancelled.
+   */
+  readonly pendingDepts?: ReadonlySet<DeptCode>;
 };
 
 /** A problem before fixes are attached, plus what the fix search needs. */
@@ -369,7 +375,12 @@ export function detectProblems(input: ProblemsInput): Detected[] {
   const { plan, index } = input;
   const placed = placedSections(plan, index);
   const byKey = new Map(placed.map((r) => [r.key, r]));
-  const diffs = diffPlanAgainstCatalog(plan, index, input.changes);
+  const diffs = diffPlanAgainstCatalog(
+    plan,
+    index,
+    input.changes,
+    input.pendingDepts,
+  );
 
   const catalogProblems: Detected[] = diffs.map((d) => {
     const subjects: [Subject] = [sectionSubject(d.key)];
