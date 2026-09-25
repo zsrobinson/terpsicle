@@ -29,6 +29,7 @@ export function SeatMeter({
   seats,
   sectionKey,
   meter = true,
+  stacked = false,
   className,
 }: {
   /** The seats file's map, or null before it loads. */
@@ -36,12 +37,18 @@ export function SeatMeter({
   sectionKey: SectionKey;
   /** False shows the words alone (tight rows). */
   meter?: boolean;
+  /** Words over the meter, right-aligned: a list row's trail column. */
+  stacked?: boolean;
   className?: string;
 }) {
   const status = seatStatus(seatCounts(seats, sectionKey));
   return (
     <span
-      className={cn("inline-flex shrink-0 items-center gap-2", className)}
+      className={cn(
+        "inline-flex shrink-0",
+        stacked ? "flex-col-reverse items-end gap-1" : "items-center gap-2",
+        className,
+      )}
       data-seat-level={status.level}
     >
       {meter && status.filled !== null ? (
@@ -55,7 +62,7 @@ export function SeatMeter({
           />
         </span>
       ) : null}
-      <span className={cn("tnum text-[11.5px]", WORDS[status.level])}>
+      <span className={cn("tnum text-sm", WORDS[status.level])}>
         {status.words}
       </span>
     </span>

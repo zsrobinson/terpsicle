@@ -3,10 +3,11 @@ import type { Course, CourseCode } from "~/core/schema";
 import { WithTooltip } from "~/ui/tooltip";
 import { genEdGroupWords, genEdLabel } from "./words";
 
-// About (SPEC §3.4): the catalog's words, as text. Prerequisites and
-// restrictions are shown, not enforced.
+// "More about this course", opened in place under the header facts: the
+// catalog's words, as text. Prerequisites and the like are already above,
+// so this is the rest. Shown, never enforced.
 
-export function AboutTab({
+export function AboutMore({
   course,
   onOpenCourse,
 }: {
@@ -14,14 +15,8 @@ export function AboutTab({
   onOpenCourse: (code: CourseCode) => void;
 }) {
   const rows: { label: string; value: ReactNode }[] = [];
-  const text = (label: string, value: string | null) => {
-    if (value) rows.push({ label, value });
-  };
-  text("Prerequisite", course.prerequisite);
-  text("Corequisite", course.corequisite);
-  text("Restriction", course.restriction);
-  text("Permission", course.permission);
-  for (const note of course.otherNotes) text(note.label, note.text);
+  for (const note of course.otherNotes)
+    rows.push({ label: note.label, value: note.text });
   if (course.genEds.length > 0)
     rows.push({
       label: "Gen-eds",
@@ -29,9 +24,7 @@ export function AboutTab({
         <ul className="space-y-0.5">
           {course.genEds.map((group) => (
             <li key={genEdGroupWords(group)}>
-              <span className="font-mono text-[12px]">
-                {genEdGroupWords(group)}
-              </span>
+              <span className="ident">{genEdGroupWords(group)}</span>
               <span className="text-muted">
                 {" "}
                 · {group.map((o) => genEdLabel(o.code)).join(" or ")}
@@ -51,7 +44,7 @@ export function AboutTab({
               <button
                 type="button"
                 onClick={() => onOpenCourse(code)}
-                className="font-mono text-[12px] underline underline-offset-2 hover:text-muted"
+                className="ident underline underline-offset-2 hover:text-muted"
               >
                 {code}
               </button>
@@ -61,25 +54,19 @@ export function AboutTab({
       ),
     });
   if (course.gradingMethods.length > 0)
-    text("Grading", course.gradingMethods.join(", "));
+    rows.push({ label: "Grading", value: course.gradingMethods.join(", ") });
 
   return (
-    <div className="text-[12.5px] leading-relaxed">
-      {course.description ? (
-        <p className="text-muted">{course.description}</p>
-      ) : (
-        <p className="text-muted">
-          Testudo has no description for this course.
-        </p>
-      )}
+    <div className="text-sm leading-5">
+      <p className="text-muted">
+        {course.description ?? "Testudo has no description for this course."}
+      </p>
       {rows.length > 0 ? (
-        <dl className="mt-3 space-y-2">
+        <dl className="mt-2 space-y-1.5">
           {rows.map((r) => (
             <div key={r.label}>
-              <dt className="font-medium text-[11.5px] text-muted">
-                {r.label}
-              </dt>
-              <dd>{r.value}</dd>
+              <dt className="font-medium">{r.label}</dt>
+              <dd className="text-muted">{r.value}</dd>
             </div>
           ))}
         </dl>

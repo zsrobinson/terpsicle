@@ -102,27 +102,27 @@ export function SeatBell({
         align="end"
         aria-label={`Seat alert for ${label}`}
       >
-        <div className="font-medium text-[12.5px]">
+        <div className="font-medium text-base">
           {full || alert.kind === "watching" ? (
             <>
-              Tell me when <span className="font-mono">{label}</span> has a seat
+              Tell me when <span className="ident">{label}</span> has a seat
             </>
           ) : (
             <>
-              Tell me if <span className="font-mono">{label}</span> fills and a
-              seat opens again
+              Tell me if <span className="ident">{label}</span> fills and a seat
+              opens again
             </>
           )}
         </div>
         {alert.kind === "watching" ? (
-          <p className="mt-1 text-[12px] text-muted">
+          <p className="mt-1 text-sm text-muted">
             You're watching this
             {alert.alert.email ? ` as ${alert.alert.email}` : ""}. Stop from
             Export or from any alert email.
           </p>
         ) : alert.kind === "pending" && !message ? (
           <div className="mt-1 flex items-start gap-2">
-            <p className="flex-1 text-[12px] text-muted">
+            <p className="flex-1 text-sm text-muted">
               Check your email: click the link there to start watching.
             </p>
             {alert.alert.email ? (
@@ -132,7 +132,7 @@ export function SeatBell({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 px-1.5 text-[11.5px]"
+                  className="h-6 px-1.5 text-sm"
                   disabled={busy}
                   onClick={() => void submit(alert.alert.email ?? "")}
                 >
@@ -145,7 +145,7 @@ export function SeatBell({
           <p
             role="status"
             className={cn(
-              "mt-1 text-[12px]",
+              "mt-1 text-sm",
               message.ok ? "text-ok" : "text-error",
             )}
           >
@@ -168,7 +168,7 @@ export function SeatBell({
               placeholder="you@terpmail.umd.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-8 min-w-0 flex-1 rounded-md border border-hairline bg-bg px-2 text-[12.5px] placeholder:text-faint focus:border-hairline-strong"
+              className="h-8 min-w-0 flex-1 rounded-md border border-hairline bg-bg px-2 text-base placeholder:text-faint focus:border-hairline-strong"
             />
             <WithTooltip label="Send the confirmation link">
               <Button type="submit" size="sm" disabled={busy}>
@@ -178,7 +178,7 @@ export function SeatBell({
           </form>
         )}
         {alert.kind === "none" && !message ? (
-          <p className="mt-2 text-[11px] text-muted">
+          <p className="mt-2 text-xs text-muted">
             No account or password. We'll send one confirmation link, then only
             seat alerts.
           </p>

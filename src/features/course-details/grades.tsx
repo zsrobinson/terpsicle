@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import {
   type GradeBar,
@@ -13,12 +14,21 @@ import type {
   InstructorSlug,
   PlanetTerpDept,
 } from "~/core/schema";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
+import { courseInstructors, instructorFor } from "./planetterp";
 
-// Grades (SPEC §3.4): the sentence first ("64% got an A or B · average GPA
-// 2.93"), then PlanetTerp-style bars: A, B, C, D, F, W and Other, each letter
-// split into +, plain and −. Words before charts (DESIGN §5).
+// Grades (SPEC §3.4), the last section of course details: the sentence
+// first ("64% got an A or B · average GPA 2.93"), then PlanetTerp-style
+// bars: A, B, C, D, F, W and Other, each letter split into +, plain and −.
+// Words before charts (DESIGN §5).
 
 const BAR_HEIGHT = 112;
 
@@ -29,7 +39,8 @@ const SHADE: Record<GradeSegment["modifier"], string> = {
   "−": "bg-fg/30",
 };
 
-export function GradesTab({
+/** The course's grades: the sentence, then bars, for everyone or one instructor. */
+export function Grades({
   course,
   planetTerp,
   loading,
@@ -50,18 +61,29 @@ export function GradesTab({
     );
   if (!grades?.all)
     return (
-      <p className="text-[12.5px] text-muted">
+      <p className="text-sm text-muted">
         PlanetTerp has no grades for {course.code} yet.
       </p>
     );
 
-  const instructors = Object.entries(grades.byInstructor)
+  // This term's instructors first: they're the ones you can pick. Everyone
+  // else PlanetTerp remembers goes in "Past instructors".
+  const teaching = new Set(
+    courseInstructors(course).flatMap((name) => {
+      const pt = instructorFor(planetTerp, name);
+      return pt ? [pt.slug] : [];
+    }),
+  );
+  const people = Object.entries(grades.byInstructor)
     .map(([slug, record]) => ({
       slug,
       name: planetTerp?.instructors[slug]?.name ?? slug,
       record,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const current = people.filter((p) => teaching.has(p.slug));
+  const past = people.filter((p) => !teaching.has(p.slug));
+  const pastPicked = past.find((p) => p.slug === who);
   const record: GradeRecord =
     who === "all" ? grades.all : (grades.byInstructor[who] ?? grades.all);
   const summary = gradeSummary(record.counts);
@@ -69,9 +91,9 @@ export function GradesTab({
 
   return (
     <div>
-      {instructors.length > 1 ? (
+      {people.length > 1 ? (
         <div
-          className="scroll-thin -mx-1 mb-3 flex gap-1 overflow-x-auto px-1 pb-0.5"
+          className="-mx-1 mb-3 flex flex-wrap gap-1 px-1"
           role="radiogroup"
           aria-label="Whose grades"
         >
@@ -80,24 +102,56 @@ export function GradesTab({
             on={who === "all"}
             onPick={() => setWho("all")}
           />
-          {instructors.map((i) => (
+          {current.map((p) => (
             <WhoChip
-              key={i.slug}
-              label={i.name}
-              on={who === i.slug}
-              onPick={() => setWho(i.slug)}
+              key={p.slug}
+              label={p.name}
+              on={who === p.slug}
+              onPick={() => setWho(p.slug)}
             />
           ))}
+          {past.length > 0 ? (
+            <DropdownMenu>
+              <WithTooltip label="Instructors who taught it before this term">
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex h-7 shrink-0 items-center gap-1 rounded-md px-2.5 text-sm transition-colors",
+                      pastPicked
+                        ? "bg-hover font-medium"
+                        : "text-muted hover:text-fg data-[state=open]:text-fg",
+                    )}
+                  >
+                    {pastPicked ? pastPicked.name : "Past instructors"}
+                    <ChevronDown size={12} aria-hidden="true" />
+                  </button>
+                </DropdownMenuTrigger>
+              </WithTooltip>
+              <DropdownMenuContent className="max-h-72" align="start">
+                <DropdownMenuRadioGroup
+                  value={pastPicked?.slug ?? ""}
+                  onValueChange={(slug) => setWho(slug)}
+                >
+                  {past.map((p) => (
+                    <DropdownMenuRadioItem key={p.slug} value={p.slug}>
+                      {p.name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       ) : null}
       {sentence ? (
-        <p className="tnum text-[12.5px]">
+        <p className="tnum text-base">
           <span className="font-semibold">{sentence.split(" · ")[0]}</span>
           <span className="text-muted"> · {sentence.split(" · ")[1]}</span>
         </p>
       ) : null}
       <Bars bars={gradeBars(record.counts)} />
-      <p className="mt-2 text-[11px] text-faint">
+      <p className="mt-2 text-xs text-faint">
         {summary.students.toLocaleString()} students over {record.semesters}{" "}
         semester{record.semesters === 1 ? "" : "s"}, from PlanetTerp.
       </p>
@@ -123,7 +177,7 @@ function WhoChip({
         aria-checked={on}
         onClick={onPick}
         className={cn(
-          "h-7 shrink-0 rounded-md px-2.5 text-[12px] transition-colors",
+          "h-7 shrink-0 rounded-md px-2.5 text-sm transition-colors",
           on ? "bg-hover font-medium" : "text-muted hover:text-fg",
         )}
       >
@@ -149,7 +203,7 @@ export function Bars({ bars }: { bars: readonly GradeBar[] }) {
     >
       {bars.map((bar) => (
         <div key={bar.letter} className="flex flex-col items-center gap-1">
-          <span className="tnum text-[11px] text-muted">{pct(bar.share)}</span>
+          <span className="tnum text-xs text-muted">{pct(bar.share)}</span>
           <div
             className="flex w-full flex-col justify-end overflow-hidden rounded-sm bg-hover"
             style={{ height: BAR_HEIGHT }}
@@ -176,9 +230,7 @@ export function Bars({ bars }: { bars: readonly GradeBar[] }) {
               ) : null,
             )}
           </div>
-          <span className="font-medium font-mono text-[11.5px]">
-            {bar.letter}
-          </span>
+          <span className="font-medium ident text-sm">{bar.letter}</span>
         </div>
       ))}
     </div>

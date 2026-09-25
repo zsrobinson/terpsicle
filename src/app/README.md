@@ -128,6 +128,8 @@ Each is behind a small hook, so where the work happens can change without touchi
 | `useReviewSummary(slug, course)` (`~/features/course-details/use-review-summary`) | The LLM summary: `loading`, `shown` or `hidden` (every "unavailable" and every failure hides it; "busy" is asked once more after 4 s). One request per instructor per visit. |
 | `SeatBell` (`~/features/course-details/seat-bell`) | The bell for a low or full section, over `useSeatAlert`/`subscribeSeatAlert`. |
 
+Course details is one page (UX review §3.4, option A): header facts, then sections shaped by `sectionCountSize` (one / few / many, `~/core/catalog`), with `factorMeetings` saying a group's shared lecture once, then one course-wide Grades section. A drill's `tab` means "take me there": `grades` scrolls to Grades, `about` opens "More about this course", `instructors` opens the first instructor's Reviews.
+
 ## Travel and the route map
 
 `src/features/travel` owns the Travel tab and the `connection` drill (connection details). Open a connection with `useUi.getState().drill({ kind: "connection", connectionId })`; settings change through `setPace`, `setAccessible` and `setExtraMinutes` in `~/features/travel/actions` (each records `travel_settings_changed`).

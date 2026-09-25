@@ -22,7 +22,7 @@ const BUILD_STEPS = [
 
 const GENERATE_STEPS = [
   "List the courses you need",
-  "Set your must-haves (days off, start time, …)",
+  "Set must-haves (days off, start time)",
   "Pick from ranked plans",
   "Export for registration",
 ] as const;
@@ -34,10 +34,10 @@ export function FirstVisit({ termName }: { termName: string | undefined }) {
       className="px-3 pt-3 pb-4"
       data-testid="first-visit"
     >
-      <h3 id="first-visit-title" className="px-1 font-semibold text-[14px]">
+      <h3 id="first-visit-title" className="px-1 font-semibold text-xl">
         Build your {termName ?? "term"} schedule
       </h3>
-      <p className="mt-0.5 px-1 text-[12px] text-muted">
+      <p className="mt-0.5 px-1 text-muted text-sm">
         Pick a way to start. You can switch anytime.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -47,7 +47,7 @@ export function FirstVisit({ termName }: { termName: string | undefined }) {
           action={
             <WithTooltip label="Open Search" shortcut="/">
               <Button
-                className="w-full text-[12px]"
+                className="w-full text-sm"
                 onClick={() => chooseFirstVisitPath("build")}
               >
                 <Search aria-hidden="true" className="size-3.5" />
@@ -62,7 +62,7 @@ export function FirstVisit({ termName }: { termName: string | undefined }) {
           action={
             <WithTooltip label="Open Generate" shortcut="6">
               <Button
-                className="w-full text-[12px]"
+                className="w-full text-sm"
                 onClick={() => chooseFirstVisitPath("generate")}
               >
                 <Layers aria-hidden="true" className="size-3.5" />
@@ -90,14 +90,14 @@ function Path({
       aria-label={title}
       className="flex min-w-0 flex-col rounded-lg border border-hairline bg-raised p-3"
     >
-      <h4 className="font-semibold text-[12.5px]">{title}</h4>
+      <h4 className="font-semibold text-base">{title}</h4>
       <ol className="mt-2.5 mb-3 flex flex-col gap-2">
         {steps.map((step, i) => (
-          <li key={step} className="flex gap-2 text-[12px] leading-snug">
+          <li key={step} className="flex gap-2 text-sm">
             <span
               aria-hidden="true"
               className={cn(
-                "tnum mt-px flex size-4 shrink-0 items-center justify-center rounded-full bg-hover font-semibold text-[10px] text-muted",
+                "tnum mt-px flex size-4 shrink-0 items-center justify-center rounded-full bg-hover font-medium text-2xs text-muted",
               )}
             >
               {i + 1}

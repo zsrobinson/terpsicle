@@ -1,25 +1,12 @@
-import { cn } from "cn";
-import { Bookmark, BookmarkCheck, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { track } from "~/app/analytics";
-import { PanelBody } from "~/app/panel";
+import { PanelBody, SectionHeader } from "~/app/panel";
 import type { DrillViewProps } from "~/app/registry";
+import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
-import { countFittingSections, sectionFits } from "~/core/fit";
 import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
-import { dotStyle } from "~/features/calendar/tint";
-import {
-  openCourse,
-  removeCourse,
-  saveCourseForLater,
-} from "~/features/courses/actions";
-import { CourseColorPicker } from "~/features/courses/color-picker";
 import { deptOf } from "~/state/catalog-store";
-import {
-  type SeatsFreshnessState,
-  useInstructors,
-  useSeatsFreshness,
-} from "~/state/data-hooks";
+import { useInstructors } from "~/state/data-hooks";
 import {
   type CurrentPlan,
   useActiveTerm,
@@ -27,29 +14,18 @@ import {
   useFitContext,
   useTermCatalog,
 } from "~/state/hooks";
-import { useUi } from "~/state/ui-store";
-import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
-import { WithTooltip } from "~/ui/tooltip";
-import { AboutTab } from "./about-tab";
-import { addToPlan, saveNewCourseForLater } from "./actions";
-import { GradesTab } from "./grades-tab";
-import { InstructorsTab } from "./instructors-tab";
-import { PrototypeDetails, prototypeVariant } from "./prototype";
-import { RowModeToggle, SectionGroups } from "./section-list";
+import { Grades } from "./grades";
+import { DetailsHeader } from "./header";
+import { hasReviews } from "./reviews";
+import { Sections } from "./sections";
 
-// Course details (SPEC §3.4): what the course is, every section grouped by
-// instructor with how it fits, then Instructors, Grades and About. Opened the
-// one way (`openCourse`), from anywhere.
-
-/** Past this many sections, rows start compact (ENGL101 has 92). */
-export const COMPACT_FROM = 20;
-
-const TABS: readonly { id: CourseDetailsTab; label: string }[] = [
-  { id: "instructors", label: "Instructors" },
-  { id: "grades", label: "Grades" },
-  { id: "about", label: "About" },
-];
+// Course details (SPEC §3.4; UX review §3.4, the owner's option A): one page,
+// no tabs. The title, then the facts that could rule the course out, then
+// sections grouped by instructor (rating, GPA and "Reviews" in each group's
+// header, where the choice is made), then one course-wide Grades section,
+// a click away from the sticky Sections bar. Opened the one way
+// (`openCourse`), from anywhere.
 
 export function CourseDetails({ entry }: DrillViewProps<"course">) {
   const { termId, term } = useActiveTerm();
@@ -61,34 +37,20 @@ export function CourseDetails({ entry }: DrillViewProps<"course">) {
     return <DetailsSkeleton />;
   if (!course)
     return (
-      <PanelBody className="px-4 py-4 text-[12.5px]">
+      <PanelBody className="px-4 py-4 text-base">
         <p>
-          <span className="font-mono font-semibold">{entry.courseCode}</span>{" "}
-          isn't offered in {term?.name ?? "this term"}.
+          <span className="ident font-semibold">{entry.courseCode}</span> isn't
+          offered in {term?.name ?? "this term"}.
         </p>
       </PanelBody>
     );
-  // Design prototype (docs/UX-REVIEW.md §4): `?cd=a|b|c` in mock mode only.
-  const variant = prototypeVariant();
-  if (variant)
-    return (
-      <PrototypeDetails
-        variant={variant}
-        course={course}
-        termId={termId}
-        current={current}
-      />
-    );
   return (
     <Details
+      key={course.code}
       course={course}
       termId={termId}
       current={current}
-      tab={entry.tab ?? "instructors"}
-      onTab={(tab) => {
-        track("course_details_tab", { tab });
-        useUi.getState().replaceDrill({ ...entry, tab });
-      }}
+      jumpTo={entry.tab ?? null}
     />
   );
 }
@@ -97,279 +59,112 @@ function Details({
   course,
   termId,
   current,
-  tab,
-  onTab,
+  jumpTo,
 }: {
   course: Course;
   termId: TermId;
   current: CurrentPlan | null;
-  tab: CourseDetailsTab;
-  onTab: (tab: CourseDetailsTab) => void;
+  /**
+   * A remembered or linked drill's `tab`, which now means "take me there":
+   * grades scrolls to Grades, about opens "More about this course", and
+   * instructors opens the first instructor's reviews.
+   */
+  jumpTo: CourseDetailsTab | null;
 }) {
   const catalog = useTermCatalog(termId);
   const fit = useFitContext();
   const planetTerp = useInstructors(deptOf(course.code));
-  const [compact, setCompact] = useState(course.sections.length > COMPACT_FROM);
   const seats = catalog?.seats?.seats ?? null;
   const entry = current?.plan.courses.find((c) => c.courseCode === course.code);
   const readOnly = current?.readOnly ?? true;
   const color =
     current?.colors[course.code] ?? defaultCourseColor(course.code, []);
-  const fitting = fit ? countFittingSections(fit, course) : null;
   const ptLoading =
     planetTerp.state === "loading" || planetTerp.state === "idle";
+  const gradesRef = useRef<HTMLElement>(null);
+  const [aboutOpen, setAboutOpen] = useState(jumpTo === "about");
+  const [openReviews, setOpenReviews] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  // Stable, so 92 memoized rows don't all re-render when one thing changes.
+  const jumpToGrades = useCallback(() => {
+    track("course_details_tab", { tab: "grades" });
+    gradesRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  }, []);
+  const toggleReviews = useCallback((name: string) => {
+    setOpenReviews((open) => {
+      const next = new Set(open);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+
+  // Honor a deep link once, when the data it points at is there.
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (jumped.current || !jumpTo) return;
+    if (jumpTo === "grades") {
+      jumped.current = true;
+      gradesRef.current?.scrollIntoView?.({ block: "start" });
+    } else if (jumpTo === "instructors" && !ptLoading) {
+      jumped.current = true;
+      const first = groupSectionsByInstructor(course)
+        .flatMap((g) => g.instructors)
+        .find((name) => hasReviews(planetTerp.data, name));
+      if (first) setOpenReviews(new Set([first]));
+    }
+  }, [jumpTo, ptLoading, course, planetTerp.data]);
 
   return (
     <PanelBody>
-      <header className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-2">
-          {entry && !readOnly ? (
-            <CourseColorPicker courseCode={course.code} color={color} />
-          ) : (
-            <span
-              aria-hidden="true"
-              className="size-2 shrink-0 rounded-full"
-              style={dotStyle(color)}
-            />
-          )}
-          <span className="font-mono font-semibold text-[13px]">
-            {course.code}
-          </span>
-          <span className="tnum text-[11.5px] text-muted">
-            {creditWords(course)}
-          </span>
-          {[...new Set(course.genEds.flatMap((g) => g.map((o) => o.code)))].map(
-            (code) => (
-              <span
-                key={code}
-                className="rounded border border-hairline px-1 font-mono text-[10px] text-muted"
-              >
-                {code}
-              </span>
-            ),
-          )}
-        </div>
-        <h2 className="mt-1 text-balance font-semibold text-[15px] leading-snug">
-          {course.title}
-        </h2>
-        {readOnly || !current ? null : (
-          <Actions course={course} current={current} />
-        )}
-      </header>
-
-      {course.sections.length === 0 ? (
-        // Theses, research and internships: Testudo lists them without sections.
-        <p className="border-hairline border-y px-4 py-3 text-[12.5px] text-muted">
-          Testudo lists no sections of {course.code} this term. The department
-          can tell you how to register for it.
-        </p>
-      ) : (
-        <>
-          <div className="flex items-center justify-between gap-2 px-4 pt-1 pb-1.5">
-            <span className="font-medium text-[11px] text-muted">
-              Sections
-              {fitting !== null ? (
-                <>
-                  {" · "}
-                  <span className={fitting > 0 ? "text-ok" : undefined}>
-                    {fitting} fit
-                  </span>
-                </>
-              ) : null}
-            </span>
-            <span className="flex items-center gap-2">
-              <SeatsFreshness termId={termId} />
-              <RowModeToggle compact={compact} onChange={setCompact} />
-            </span>
-          </div>
-          <SectionGroups
-            course={course}
-            termId={termId}
-            placedCode={entry?.sectionCode ?? null}
-            inPlan={Boolean(entry)}
-            readOnly={readOnly}
-            fit={fit}
-            seats={seats}
-            planetTerp={planetTerp.data}
-            compact={compact}
-          />
-        </>
-      )}
-
-      <div
-        role="tablist"
-        aria-label="More about this course"
-        className="mt-3 flex gap-1 px-4"
-        // Arrows, Home and End move between tabs (the ARIA tabs pattern);
-        // Tab moves on to the open panel.
-        onKeyDown={(event) => {
-          const i = TABS.findIndex((t) => t.id === tab);
-          const next =
-            event.key === "ArrowRight"
-              ? TABS[(i + 1) % TABS.length]
-              : event.key === "ArrowLeft"
-                ? TABS[(i - 1 + TABS.length) % TABS.length]
-                : event.key === "Home"
-                  ? TABS[0]
-                  : event.key === "End"
-                    ? TABS.at(-1)
-                    : undefined;
-          if (!next) return;
-          event.preventDefault();
-          onTab(next.id);
-          event.currentTarget
-            .querySelector<HTMLElement>(`#course-tab-button-${next.id}`)
-            ?.focus();
+      <DetailsHeader
+        course={course}
+        current={current}
+        color={color}
+        inPlan={Boolean(entry)}
+        readOnly={readOnly}
+        aboutOpen={aboutOpen}
+        onAbout={(open) => {
+          if (open) track("course_details_tab", { tab: "about" });
+          setAboutOpen(open);
         }}
+      />
+      <Sections
+        course={course}
+        termId={termId}
+        placedCode={entry?.sectionCode ?? null}
+        inPlan={Boolean(entry)}
+        readOnly={readOnly}
+        fit={fit}
+        seats={seats}
+        planetTerp={planetTerp.data}
+        ptLoading={ptLoading}
+        openReviews={openReviews}
+        onToggleReviews={toggleReviews}
+        onJumpToGrades={jumpToGrades}
+      />
+      <section
+        ref={gradesRef}
+        aria-label="Grades"
+        className="mt-6 scroll-mt-0 pb-6"
+        data-testid="grades"
       >
-        {TABS.map((t) => (
-          <WithTooltip key={t.id} label={`${t.label} for ${course.code}`}>
-            <button
-              type="button"
-              role="tab"
-              id={`course-tab-button-${t.id}`}
-              aria-selected={tab === t.id}
-              aria-controls={tab === t.id ? `course-tab-${t.id}` : undefined}
-              tabIndex={tab === t.id ? 0 : -1}
-              onClick={() => onTab(t.id)}
-              className={cn(
-                "h-7 rounded-md px-2.5 text-[12px] transition-colors",
-                tab === t.id
-                  ? "bg-hover font-medium"
-                  : "text-muted hover:text-fg",
-              )}
-            >
-              {t.label}
-            </button>
-          </WithTooltip>
-        ))}
-      </div>
-      <div
-        role="tabpanel"
-        id={`course-tab-${tab}`}
-        aria-labelledby={`course-tab-button-${tab}`}
-        className="px-4 pt-2 pb-6"
-      >
-        {tab === "instructors" ? (
-          <InstructorsTab
-            course={course}
-            planetTerp={planetTerp.data}
-            loading={ptLoading}
-            active
-          />
-        ) : tab === "grades" ? (
-          <GradesTab
+        <SectionHeader
+          sticky
+          title="Grades"
+          count="every past semester, from PlanetTerp"
+        />
+        <div className="px-4 pt-3">
+          <Grades
             course={course}
             planetTerp={planetTerp.data}
             loading={ptLoading}
           />
-        ) : (
-          <AboutTab course={course} onOpenCourse={openCourse} />
-        )}
-      </div>
+        </div>
+      </section>
     </PanelBody>
-  );
-}
-
-export function creditWords(course: Course): string {
-  const { min, max } = course.credits;
-  if (min === max) return `${min} credit${min === 1 ? "" : "s"}`;
-  return `${min}–${max} credits`;
-}
-
-export function Actions({
-  course,
-  current,
-}: {
-  course: Course;
-  current: CurrentPlan;
-}) {
-  const fit = useFitContext();
-  const entry = current.plan.courses.find((c) => c.courseCode === course.code);
-  const name = current.plan.name;
-  if (!entry) {
-    const first =
-      (fit && course.sections.find((s) => sectionFits(fit, course, s))) ??
-      course.sections[0];
-    return (
-      <div className="mt-3 flex flex-wrap gap-2">
-        {first ? (
-          <WithTooltip
-            label={`Adds section ${first.code}${fit && sectionFits(fit, course, first) ? ", the first that fits" : ""}; switch on the calendar`}
-          >
-            <Button size="sm" onClick={() => addToPlan(course, first.code)}>
-              <Plus aria-hidden="true" />
-              Add to {name}
-            </Button>
-          </WithTooltip>
-        ) : null}
-        <WithTooltip label="Keep it in Courses without picking a section">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => saveNewCourseForLater(course.code)}
-          >
-            <Bookmark aria-hidden="true" />
-            Save for later
-          </Button>
-        </WithTooltip>
-      </div>
-    );
-  }
-  return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      <WithTooltip label="You can undo this" shortcut="⌘Z">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => removeCourse(course.code, "details")}
-        >
-          <Trash2 aria-hidden="true" />
-          Remove from {name}
-        </Button>
-      </WithTooltip>
-      {entry.sectionCode ? (
-        <WithTooltip label="Take it off the calendar and keep it in Courses">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => saveCourseForLater(course.code, "details")}
-          >
-            <Bookmark aria-hidden="true" />
-            Save for later
-          </Button>
-        </WithTooltip>
-      ) : (
-        <span className="flex items-center gap-1 text-[12px] text-muted">
-          <BookmarkCheck size={13} aria-hidden="true" />
-          Saved for later: pick a section below
-        </span>
-      )}
-    </div>
-  );
-}
-
-const FRESHNESS_TIP: Record<SeatsFreshnessState, string> = {
-  loading: "",
-  live: "Seat counts come from Testudo every few minutes",
-  offline: "You're offline: these are the last seat counts saved here",
-  archived: "Past terms keep the seat counts they had at the end",
-  unknown: "Testudo hasn't given seat counts for this term yet",
-};
-
-/** "Seats as of 2 min ago", from Testudo's own time when it gave one. */
-export function SeatsFreshness({ termId }: { termId: TermId }) {
-  const fresh = useSeatsFreshness(termId);
-  if (!fresh.text) return null;
-  return (
-    <WithTooltip label={FRESHNESS_TIP[fresh.state]}>
-      <span className="flex items-center gap-1.5 text-[11px] text-faint">
-        {fresh.state === "live" ? (
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-ok" />
-        ) : null}
-        {fresh.text}
-      </span>
-    </WithTooltip>
   );
 }
 
