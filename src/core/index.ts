@@ -3,6 +3,7 @@
 export * from "./catalog";
 export * from "./color";
 export * from "./fit";
+export * from "./generate";
 export * from "./grades";
 export * from "./ics";
 export * from "./plans";
