@@ -7,6 +7,7 @@ import {
   createInProcessGenerator,
   createWorkerGenerator,
   GenerateCancelled,
+  GeneratorUnavailable,
 } from "./generator";
 
 const input: GenerateInput = {
@@ -93,5 +94,30 @@ describe("worker generator", () => {
     const next = await generator.run(request, input, () => {}).result;
     expect(next.results.length).toBeGreaterThan(0);
     expect(workers.spawned).toHaveLength(2);
+  });
+
+  it("fails the run, instead of hanging, when the worker can't start", async () => {
+    workers = fakeWorkers();
+    // A worker whose script 404s (a deploy since the page loaded): nothing
+    // ever answers, and the Worker fires "error".
+    let terminated = false;
+    const broken = Object.assign(new EventTarget(), {
+      postMessage() {},
+      terminate() {
+        terminated = true;
+      },
+    }) as unknown as Worker;
+    let spawns = 0;
+    const generator = createWorkerGenerator(() =>
+      spawns++ === 0 ? broken : workers.spawn(),
+    );
+    const job = generator.run(request, input, () => {});
+    broken.dispatchEvent(new Event("error"));
+    await expect(job.result).rejects.toBeInstanceOf(GeneratorUnavailable);
+    await expect(job.result).rejects.toThrow(/^Couldn't/);
+    expect(terminated).toBe(true);
+    // The next run starts over with a fresh worker.
+    const next = await generator.run(request, input, () => {}).result;
+    expect(next.results.length).toBeGreaterThan(0);
   });
 });

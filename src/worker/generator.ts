@@ -34,6 +34,19 @@ export interface Generator {
   ): GenerateJob;
 }
 
+/**
+ * The worker's script didn't load or threw at the top level. The usual cause
+ * is a deploy since the page loaded: the old hashed script is gone.
+ */
+export class GeneratorUnavailable extends Error {
+  constructor() {
+    super(
+      "Couldn't start generating. Reload the page to get the latest version.",
+    );
+    this.name = "GeneratorUnavailable";
+  }
+}
+
 /** Runs each request in the module worker, one at a time. */
 export function createWorkerGenerator(
   spawn: () => Worker = () =>
@@ -55,18 +68,27 @@ export function createWorkerGenerator(
       const stopped = new Promise<never>((_, r) => {
         reject = r;
       });
+      const drop = () => {
+        if (worker !== mine) return;
+        mine.terminate();
+        worker = null;
+        remote = null;
+      };
+      // Comlink never settles a call to a worker that failed to start, so
+      // without this the run would spin forever.
+      const onError = () => {
+        drop();
+        reject(new GeneratorUnavailable());
+      };
+      mine.addEventListener("error", onError);
       const result = Promise.race([
         remote.generate(request, input, proxy(onProgress)),
         stopped,
-      ]);
+      ]).finally(() => mine.removeEventListener("error", onError));
       return {
         result,
         cancel() {
-          if (worker === mine) {
-            worker.terminate();
-            worker = null;
-            remote = null;
-          }
+          drop();
           reject(new GenerateCancelled());
         },
       };
