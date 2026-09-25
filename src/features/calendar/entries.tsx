@@ -10,8 +10,7 @@ import {
   type TravelSettings,
 } from "~/core/schema";
 import { type SeatsMap, seatCounts, seatStatus } from "~/core/seats";
-import type { Lane } from "~/core/time";
-import { formatTimeRange } from "~/core/time";
+import { formatDateSpan, formatTimeRange, type Lane } from "~/core/time";
 import { formatFeet, travelMath, verdictMessage } from "~/core/travel";
 import { useUi } from "~/state/ui-store";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
@@ -70,14 +69,25 @@ export function ClassBlock({
   // Secondary lines are softer, except when dimmed: muted text is already
   // as light as AA contrast allows.
   const soft = dimmed ? undefined : "opacity-80";
+  const action = selected
+    ? `Your current section, ${entry.sectionCode}`
+    : open
+      ? `Close ${entry.courseCode}`
+      : `See ${entry.courseCode}'s sections`;
+  // Summer sessions (and some fall and spring sections) meet for part of the
+  // term; two can share a weekday and time without overlapping.
+  const dates = entry.dates ? formatDateSpan(entry.dates) : null;
   return (
     <WithTooltip
       label={
-        selected
-          ? `Your current section, ${entry.sectionCode}`
-          : open
-            ? `Close ${entry.courseCode}`
-            : `See ${entry.courseCode}'s sections`
+        dates ? (
+          <span className="flex flex-col">
+            <span>{action}</span>
+            <span className="tnum opacity-70">Meets {dates}</span>
+          </span>
+        ) : (
+          action
+        )
       }
     >
       <button
@@ -351,12 +361,15 @@ const PILL_TONE = {
 export function TravelPill({
   pill,
   top,
+  x = 0.5,
   travel,
   selected,
   onOpen,
 }: {
   pill: Pill;
   top: number;
+  /** Across the column, 0.5 centered (`spreadPills`). */
+  x?: number;
   travel: TravelSettings;
   selected: boolean;
   onOpen: (connection: Connection) => void;
@@ -387,8 +400,8 @@ export function TravelPill({
         aria-label={pillLabel(c)}
         // The button is a 24px-tall target (WCAG 2.5.8); the pill drawn
         // inside it stays 19px so it doesn't crowd the classes around it.
-        className="-translate-x-1/2 -translate-y-1/2 absolute left-1/2 z-20 flex h-6 items-center rounded-full"
-        style={{ top }}
+        className="-translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-6 items-center rounded-full"
+        style={{ top, left: `${x * 100}%` }}
       >
         <span
           className={cn(

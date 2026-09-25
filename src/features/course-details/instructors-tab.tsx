@@ -62,7 +62,7 @@ export function InstructorsTab({
   );
 }
 
-function InstructorCard({
+export function InstructorCard({
   name,
   course,
   planetTerp,

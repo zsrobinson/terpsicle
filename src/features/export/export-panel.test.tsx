@@ -1,6 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
 import { decodeShare, SHARE_PARAM } from "~/core/share";
 import { renderPlanTab } from "~/features/courses/testing";
@@ -52,6 +53,16 @@ describe("Export tab", () => {
       0,
     );
     expect(within(list).getAllByText(/^Backup:/).length).toBeGreaterThan(0);
+  });
+
+  it("says a one-section course has no other section, not that no backup fits", async () => {
+    await renderPlanTab([panels], "export");
+    act(() => {
+      switchSection("CMSC425", "0101", "list");
+    });
+    const row = await screen.findByTestId("checklist-CMSC425-0101");
+    await waitFor(() => expect(row).toHaveTextContent("The only section"));
+    expect(row).not.toHaveTextContent("No backup fits");
   });
 
   it("remembers checked rows per plan", async () => {

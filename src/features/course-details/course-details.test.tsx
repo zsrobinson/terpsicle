@@ -60,6 +60,22 @@ describe("Course details", () => {
     forgetReviewSummaries();
   });
 
+  it("says so plainly when Testudo lists no sections", async () => {
+    // ANTH358A: an independent-study course with no sections listed.
+    await renderPlanTab([searchPanels, panels], "search");
+    act(() => openCourse("ANTH358A"));
+    expect(
+      await screen.findByText(/Testudo lists no sections of ANTH358A/),
+    ).toBeVisible();
+    expect(screen.queryByTestId("sections")).toBeNull();
+    expect(screen.queryByText(/fit$/)).toBeNull();
+    // Nothing on the calendar to pick from, and no keys that do nothing.
+    expect(
+      screen.getByText(/has no sections listed this term/),
+    ).toHaveTextContent("ANTH358A has no sections listed this term.");
+    expect(screen.queryByText("preview")).toBeNull();
+  });
+
   it("heads with the code, credits and title, and says how many sections fit", async () => {
     await renderDetails();
     expect(screen.getByRole("heading", { name: "Algorithms" })).toBeVisible();

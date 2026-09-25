@@ -40,6 +40,9 @@ export default defineConfig({
           name: "ingest",
           environment: "node",
           include: ["src/ingest/**/*.test.ts"],
+          // Timing budgets run once, in "perf", with its timeout and the CPU
+          // to themselves; here they'd run again under the 5 s default.
+          exclude: ["**/*.perf.test.ts"],
         },
       },
       {

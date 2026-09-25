@@ -204,6 +204,8 @@ export function createNameMatcher(
     aliases?: ReadonlyMap<string, string>;
     /** Every Testudo name being joined: a candidate who is exactly someone else there is that person. */
     testudoNames?: Iterable<string>;
+    /** Duplicate slug → the same person's main slug, from aliases.json. */
+    sameAs?: ReadonlyMap<string, string>;
   } = {},
 ): NameMatcher {
   const bySlug = new Map<string, Indexed>();
@@ -327,22 +329,37 @@ export function createNameMatcher(
     return { slug: best.p.slug, rule: best.rule };
   };
 
+  // One person under two PlanetTerp slugs: everything goes to the one with
+  // the reviews, so ratings, grades and the instructor list agree.
+  const sameAs = options.sameAs ?? new Map<string, string>();
+  const canonical = (slug: string): string => {
+    const to = sameAs.get(slug);
+    return to && bySlug.has(to) ? to : slug;
+  };
+  const found = (match: NameMatch | null): NameMatch | null =>
+    match ? { ...match, slug: canonical(match.slug) } : null;
+
+  const matchRaw = (
+    testudoName: string,
+    courses: ReadonlySet<string>,
+  ): NameMatch | null => {
+    const slug = exact(testudoName, courses);
+    if (slug) return { slug, rule: "exact" };
+    const alias = aliases.get(instructorNameKey(testudoName));
+    if (alias && bySlug.has(alias)) return { slug: alias, rule: "alias" };
+    const tokens = nameTokens(testudoName);
+    if (tokens.length === 0) return null;
+    const normalized = pickAmong(byCompact.get(tokens.join("")) ?? [], courses);
+    if (normalized) return { slug: normalized, rule: "normalized" };
+    return fuzzy(tokens, courses);
+  };
+
   return {
-    exact,
-    match(testudoName, courses) {
-      const slug = exact(testudoName, courses);
-      if (slug) return { slug, rule: "exact" };
-      const alias = aliases.get(instructorNameKey(testudoName));
-      if (alias && bySlug.has(alias)) return { slug: alias, rule: "alias" };
-      const tokens = nameTokens(testudoName);
-      if (tokens.length === 0) return null;
-      const normalized = pickAmong(
-        byCompact.get(tokens.join("")) ?? [],
-        courses,
-      );
-      if (normalized) return { slug: normalized, rule: "normalized" };
-      return fuzzy(tokens, courses);
+    exact: (name, courses) => {
+      const slug = exact(name, courses);
+      return slug ? canonical(slug) : null;
     },
+    match: (testudoName, courses) => found(matchRaw(testudoName, courses)),
   };
 }
 

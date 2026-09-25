@@ -1,7 +1,12 @@
 import { cn } from "cn";
 import type { ReactNode } from "react";
 import type { Day, MustHaves } from "~/core/schema";
-import { DAY_LONG_NAMES, formatTime, sortDays } from "~/core/time";
+import {
+  DAY_LONG_NAMES,
+  DAY_SHORT_NAMES,
+  formatTime,
+  sortDays,
+} from "~/core/time";
 import {
   Select,
   SelectContent,
@@ -17,13 +22,6 @@ import { WithTooltip } from "~/ui/tooltip";
 const START_OPTIONS = [8, 9, 10, 11, 12, 13].map((h) => h * 60);
 const END_OPTIONS = [14, 15, 16, 17, 18, 19, 20, 21].map((h) => h * 60);
 const WEEKDAYS: readonly Day[] = ["M", "Tu", "W", "Th", "F"];
-const DAY_SHORT: Partial<Record<Day, string>> = {
-  M: "Mo",
-  Tu: "Tu",
-  W: "We",
-  Th: "Th",
-  F: "Fr",
-};
 
 const selectClass =
   "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-[12px] focus:border-fg/40";
@@ -172,7 +170,7 @@ export function MustHaveFields({
                       : "border-hairline-strong text-muted hover:bg-hover",
                   )}
                 >
-                  {DAY_SHORT[day] ?? day}
+                  {DAY_SHORT_NAMES[day]}
                 </button>
               </WithTooltip>
             );

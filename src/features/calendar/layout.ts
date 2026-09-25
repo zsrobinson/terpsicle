@@ -19,6 +19,7 @@ import type {
   Course,
   CourseCode,
   CourseColor,
+  DateSpan,
   Day,
   Delivery,
   LocalId,
@@ -59,6 +60,8 @@ export interface ClassEntry extends Timed {
   building: BuildingCode | null;
   room: string | null;
   online: boolean;
+  /** The section's own dates (every summer section), null for the whole term. */
+  dates: DateSpan | null;
   color: CourseColor;
 }
 
@@ -102,29 +105,6 @@ export interface Pill {
   /** Where to center it: halfway through the gap. */
   at: Minutes;
   connection: Connection;
-  /**
-   * Stacked under the other pills leaving at the same time (from
-   * overlapping classes), so none hides another: `slot` of `slots`.
-   */
-  slot: number;
-  slots: number;
-}
-
-function pillsFor(connections: readonly Connection[], day: Day): Pill[] {
-  const byStart = new Map<Minutes, Connection[]>();
-  for (const c of connections)
-    byStart.set(c.from.time, [...(byStart.get(c.from.time) ?? []), c]);
-  return connections.map((connection) => {
-    const group = byStart.get(connection.from.time) ?? [connection];
-    return {
-      key: connection.id,
-      day,
-      at: (connection.from.time + connection.to.time) / 2,
-      connection,
-      slot: group.indexOf(connection),
-      slots: group.length,
-    };
-  });
 }
 
 export interface UntimedSection {
@@ -132,6 +112,11 @@ export interface UntimedSection {
   courseCode: CourseCode;
   sectionCode: SectionCode;
   delivery: Delivery;
+  /**
+   * Why it has no time: Testudo lists no meetings (ask the department, as
+   * course details says), it's online, or its times aren't set yet.
+   */
+  reason: "contact-department" | "online" | "times-tba";
   color: CourseColor;
 }
 
@@ -151,6 +136,8 @@ export interface GhostSummary {
   overflow: number;
   /** The course's section in the plan, if it's placed. */
   placedCode: SectionCode | null;
+  /** Every section the course has, placed or not. */
+  sectionCount: number;
 }
 
 export interface CalendarModel {
@@ -281,6 +268,7 @@ function ghostEntries(input: CalendarInput): {
       groups: shown,
       overflow: overflow.length,
       placedCode,
+      sectionCount: course.sections.length,
     },
   };
 }
@@ -296,6 +284,22 @@ function meetingTimeKey(item: WeekItem): string {
  * reading, so a crowded stretch of a day merges.
  */
 export const MAX_GHOST_LANES = 3;
+
+/** The narrowest a ghost can be and still show a section code ("0111"). */
+export const MIN_GHOST_WIDTH = 36;
+
+/**
+ * How many ghosts fit side by side in a day column this wide: three on
+ * desktop, fewer on a phone, where three read as "01…". Zero width means
+ * not measured yet (or a test DOM): keep the default.
+ */
+export function ghostLanesFor(colWidth: number): number {
+  if (colWidth <= 0) return MAX_GHOST_LANES;
+  return Math.max(
+    1,
+    Math.min(MAX_GHOST_LANES, Math.floor(colWidth / MIN_GHOST_WIDTH)),
+  );
+}
 
 /** Several ghosts drawn as one, picked from a popover like a time-identical group. */
 function mergeGhosts(
@@ -402,6 +406,13 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
         courseCode: course.code,
         sectionCode: section.code,
         delivery: section.delivery,
+        reason:
+          section.meetings.length === 0
+            ? "contact-department"
+            : section.delivery === "online-async" ||
+                section.delivery === "online-sync"
+              ? "online"
+              : "times-tba",
         color,
       });
       continue;
@@ -421,6 +432,7 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
         building: item.source.building,
         room: item.source.room,
         online: meeting?.online ?? false,
+        dates: item.dates,
         color,
       });
     }
@@ -449,10 +461,14 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
       ...blocks.filter((b) => b.day === day),
     ]),
     ghosts: packGhosts(ghosts.filter((g) => g.day === day)),
-    pills: pillsFor(
-      input.connections.filter((c) => c.day === day),
-      day,
-    ),
+    pills: input.connections
+      .filter((c) => c.day === day)
+      .map((connection) => ({
+        key: connection.id,
+        day,
+        at: (connection.from.time + connection.to.time) / 2,
+        connection,
+      })),
   }));
 
   return {
@@ -495,4 +511,49 @@ export function stepPreview(
   const i = current ? order.indexOf(current) : -1;
   if (i === -1) return order[step === 1 ? 0 : order.length - 1] ?? null;
   return order[(i + step + order.length) % order.length] ?? null;
+}
+
+/**
+ * Pills closer than this, in px, would cover each other: a pill's target is
+ * 24px tall (WCAG 2.5.8), around the 19px pill drawn.
+ */
+export const PILL_CLEARANCE = 24;
+/** About the widest pill ("18 min" with its icon), in px. */
+export const PILL_WIDTH = 56;
+
+/**
+ * Where each of a day's pills goes, from their natural tops in px: `x`
+ * across the column (0.5 centered) and the `top` to draw at. A class that
+ * leads into two overlapping classes (or two into one) gives two pills at
+ * the same spot, and the one drawn last would hide the other, even when
+ * that one says "Not enough time". Pills that close sit side by side when
+ * the column fits them, and stack otherwise (a phone's narrow days).
+ */
+export function spreadPills(
+  tops: readonly number[],
+  colWidth: number,
+): { x: number; top: number }[] {
+  const order = tops
+    .map((top, i) => ({ top, i }))
+    .sort((a, b) => a.top - b.top || a.i - b.i);
+  const out = tops.map((top) => ({ x: 0.5, top }));
+  let cluster: typeof order = [];
+  const flush = () => {
+    const n = cluster.length;
+    const sideBySide = colWidth <= 0 || colWidth >= n * PILL_WIDTH;
+    const first = cluster[0]?.top ?? 0;
+    cluster.forEach(({ i, top }, k) => {
+      out[i] = sideBySide
+        ? { x: (k + 0.5) / n, top }
+        : { x: 0.5, top: first + (k - (n - 1) / 2) * PILL_CLEARANCE };
+    });
+    cluster = [];
+  };
+  for (const item of order) {
+    const last = cluster.at(-1);
+    if (last && item.top - last.top >= PILL_CLEARANCE) flush();
+    cluster.push(item);
+  }
+  flush();
+  return out;
 }

@@ -235,6 +235,16 @@ describe("Generate", () => {
     ).toBeEnabled();
   });
 
+  it("names days off the way the Blocks form does (Mon, Tue, …)", async () => {
+    await renderGenerate();
+    expect(
+      screen.getByRole("button", { name: "Monday off" }),
+    ).toHaveTextContent(/^Mon$/);
+    expect(
+      screen.getByRole("button", { name: "Friday off" }),
+    ).toHaveTextContent(/^Fri$/);
+  });
+
   it("sets must-have times and the ranking with the app's selects", async () => {
     const { user } = await renderGenerate();
     await user.click(screen.getByRole("combobox", { name: "Start after" }));

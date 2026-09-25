@@ -1,5 +1,5 @@
 import type { Connection } from "~/core/schema";
-import { DAY_LONG_NAMES, spokenTimeRange } from "~/core/time";
+import { DAY_LONG_NAMES, formatShortDate, spokenTimeRange } from "~/core/time";
 import { VERDICT_WORDS } from "~/core/travel";
 import type { BlockEntry, ClassEntry, GhostEntry } from "./layout";
 
@@ -19,7 +19,11 @@ export function classLabel(entry: ClassEntry): string {
   const place = entry.online
     ? "online"
     : [entry.building, entry.room].filter(Boolean).join(" ");
-  return `${entry.courseCode} ${entry.sectionCode}${kind}, ${when(entry)}${place ? `, ${place}` : ""}`;
+  // Summer sessions (and some sections) meet for part of the term.
+  const dates = entry.dates
+    ? `, meets ${formatShortDate(entry.dates.start)} to ${formatShortDate(entry.dates.end)}`
+    : "";
+  return `${entry.courseCode} ${entry.sectionCode}${kind}, ${when(entry)}${place ? `, ${place}` : ""}${dates}`;
 }
 
 export function blockLabel(entry: BlockEntry): string {

@@ -17,6 +17,7 @@ const lecture: ClassEntry = {
   room: "1115",
   online: false,
   color: "violet",
+  dates: null,
 };
 
 const ghost: GhostEntry = {
@@ -45,6 +46,15 @@ describe("calendar labels", () => {
     expect(
       classLabel({ ...lecture, meetingKind: "discussion", online: true }),
     ).toBe("CMSC351 0301 discussion, Monday 11am to 11:50am, online");
+    // Summer sessions say which part of the term they meet in.
+    expect(
+      classLabel({
+        ...lecture,
+        dates: { start: "2026-06-01", end: "2026-07-10" },
+      }),
+    ).toBe(
+      "CMSC351 0301, Monday 11am to 11:50am, CSI 1115, meets Jun 1 to Jul 10",
+    );
   });
 
   it("names a block with its day and time", () => {

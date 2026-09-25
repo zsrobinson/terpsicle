@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { switchSection } from "~/app/actions";
 import { renderShell } from "~/app/test-utils";
 import { plansInTerm } from "~/core/plans";
 import {
@@ -119,6 +120,24 @@ describe("calendar", () => {
     expect(calendar.querySelector("[data-ghost]")).not.toBeNull();
     act(() => useUi.getState().setHoverCourse(null));
     expect(screen.queryByText(/Showing every section of/)).toBeNull();
+  });
+
+  it("a course with one section says so, instead of offering a choice", async () => {
+    await renderDemo();
+    act(() => useUi.getState().setHoverCourse("CMSC425"));
+    expect(screen.getByText(/only section/)).toHaveTextContent(
+      "Showing CMSC425's only section. Open it to add it.",
+    );
+    act(() => {
+      useUi.getState().setHoverCourse(null);
+      switchSection("CMSC425", "0101", "list");
+      useUi.getState().drill({ kind: "course", courseCode: "CMSC425" });
+    });
+    expect(screen.getByText(/no other sections/)).toHaveTextContent(
+      "CMSC425 has no other sections.",
+    );
+    // No ↑/↓ keys that would do nothing.
+    expect(screen.queryByText("preview")).toBeNull();
   });
 
   it("the course's dot changes its color, everywhere, with undo", async () => {

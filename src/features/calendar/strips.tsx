@@ -23,6 +23,10 @@ export function GhostHint({
   readOnly: boolean;
   color: CourseColor;
 }) {
+  // A course with nothing to pick from (one section, already placed, or none
+  // listed) gets no "click one to switch" and no keys that do nothing.
+  const others = ghost.sectionCount - (ghost.placedCode ? 1 : 0);
+  const choosing = interactive && !readOnly && others > 0;
   return (
     <div className="flex h-[35px] shrink-0 items-center gap-2 border-hairline border-b bg-panel px-3 text-[12px]">
       {interactive && !readOnly ? (
@@ -35,13 +39,38 @@ export function GhostHint({
         />
       )}
       <span className="truncate">
-        Showing every section of{" "}
-        <span className="font-mono font-semibold">{ghost.courseCode}</span>.{" "}
-        {interactive
-          ? readOnly
-            ? "Save a copy to change sections."
-            : "Click one to switch."
-          : "Open it to pick one."}
+        {ghost.sectionCount === 0 ? (
+          <>
+            <span className="font-mono font-semibold">{ghost.courseCode}</span>{" "}
+            has no sections listed this term.
+          </>
+        ) : others === 0 ? (
+          <>
+            <span className="font-mono font-semibold">{ghost.courseCode}</span>{" "}
+            has no other sections.
+          </>
+        ) : ghost.sectionCount === 1 ? (
+          <>
+            Showing{" "}
+            <span className="font-mono font-semibold">{ghost.courseCode}</span>
+            's only section.{" "}
+            {interactive
+              ? readOnly
+                ? "Save a copy to add it."
+                : "Click it to add it."
+              : "Open it to add it."}
+          </>
+        ) : (
+          <>
+            Showing every section of{" "}
+            <span className="font-mono font-semibold">{ghost.courseCode}</span>.{" "}
+            {interactive
+              ? readOnly
+                ? "Save a copy to change sections."
+                : "Click one to switch."
+              : "Open it to pick one."}
+          </>
+        )}
         {ghost.overflow > 0 ? (
           <span className="text-muted">
             {" "}
@@ -49,7 +78,7 @@ export function GhostHint({
           </span>
         ) : null}
       </span>
-      {interactive && !readOnly ? (
+      {choosing ? (
         <span className="ml-auto hidden shrink-0 items-center gap-1 text-muted sm:flex">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> preview <Kbd>↵</Kbd> switch <Kbd>esc</Kbd> done
@@ -79,6 +108,13 @@ export function PreviewHint({
   );
 }
 
+/** Matches course details' "Contact the department for times". */
+const UNTIMED_WORDS: Record<UntimedSection["reason"], string> = {
+  "contact-department": "contact the department",
+  online: "online",
+  "times-tba": "times TBA",
+};
+
 /** "No set time: ENGL393 0312 · online" (SPEC §3.3). */
 export function UntimedStrip({
   sections,
@@ -104,9 +140,7 @@ export function UntimedStrip({
           >
             {s.courseCode} {s.sectionCode} ·{" "}
             <span className="font-sans font-normal">
-              {s.delivery === "online-async" || s.delivery === "online-sync"
-                ? "online"
-                : "times TBA"}
+              {UNTIMED_WORDS[s.reason]}
             </span>
           </button>
         </WithTooltip>
