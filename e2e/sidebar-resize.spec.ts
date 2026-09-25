@@ -102,9 +102,9 @@ test.describe("desktop", () => {
     const hint = page.getByText(/^Showing every section of ENGL101/);
     await expect(hint).toBeVisible();
     // Not truncated: the whole sentence fits the strip.
-    expect(
-      await hint.evaluate((el) => el.scrollWidth <= el.clientWidth),
-    ).toBe(true);
+    expect(await hint.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+      true,
+    );
 
     await handle(page).focus();
     await page.keyboard.press("ArrowRight");
