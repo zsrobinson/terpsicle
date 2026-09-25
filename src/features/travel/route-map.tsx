@@ -10,9 +10,9 @@ import { track } from "~/app/analytics";
 import { clientConfig } from "~/app/config";
 import { type Connection, TILES_KEY } from "~/core/schema";
 import { useCatalog } from "~/state/catalog-store";
+import { useRouteGeometry } from "~/state/data-hooks";
 import { Skeleton } from "~/ui/skeleton";
 import { RouteDrawing } from "./route-drawing";
-import { useRouteGeometry } from "./use-geo";
 
 // The map of the actual route (SPEC §3.7): the path UMD's routing network
 // found, on campus tiles. Never a straight line: without geometry the map is
@@ -37,7 +37,11 @@ function tilesUrl(): string {
 export function RouteMap({ connection }: { connection: Connection }) {
   const { from, to, mode } = connection;
   const kind = useCatalog((s) => s.reader?.kind ?? null);
-  const geometry = useRouteGeometry(from.building, to.building, mode);
+  const { geometry, state } = useRouteGeometry(
+    from.building,
+    to.building,
+    mode,
+  );
   const [webgl, setWebgl] = useState(true);
   const live = kind === "live" && webgl;
 
@@ -46,13 +50,13 @@ export function RouteMap({ connection }: { connection: Connection }) {
     if (kind === "live") void loadLiveMap();
   }, [kind]);
 
-  const settled = geometry.status !== "loading";
-  const hasGeometry = geometry.status === "ready";
+  const settled = state === "ready" || state === "error";
+  const hasGeometry = geometry !== null;
   useEffect(() => {
     if (settled) track("route_map_shown", { mode, hasGeometry });
   }, [settled, hasGeometry, mode]);
 
-  if (geometry.status === "missing")
+  if (settled && !geometry)
     return (
       <p className="text-[11.5px] text-faint" data-testid="route-map-missing">
         Map unavailable for this route
@@ -61,13 +65,13 @@ export function RouteMap({ connection }: { connection: Connection }) {
 
   return (
     <div className="relative aspect-[8/5] w-full overflow-hidden rounded-lg border border-hairline bg-panel">
-      {geometry.status === "loading" ? (
+      {!geometry ? (
         <Skeleton className="absolute inset-0 rounded-none" />
       ) : live ? (
         <IfMapFails
           fallback={
             <RouteDrawing
-              route={geometry.route}
+              route={geometry}
               from={from.building}
               to={to.building}
             />
@@ -77,7 +81,7 @@ export function RouteMap({ connection }: { connection: Connection }) {
             fallback={<Skeleton className="absolute inset-0 rounded-none" />}
           >
             <LiveRouteMap
-              route={geometry.route}
+              route={geometry}
               from={from.building}
               to={to.building}
               tilesUrl={tilesUrl()}
@@ -86,11 +90,7 @@ export function RouteMap({ connection }: { connection: Connection }) {
           </Suspense>
         </IfMapFails>
       ) : (
-        <RouteDrawing
-          route={geometry.route}
-          from={from.building}
-          to={to.building}
-        />
+        <RouteDrawing route={geometry} from={from.building} to={to.building} />
       )}
     </div>
   );

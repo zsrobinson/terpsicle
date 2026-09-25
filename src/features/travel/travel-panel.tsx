@@ -4,7 +4,7 @@ import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
 import { type Connection, parseSectionKey } from "~/core/schema";
 import { DAY_LONG_NAMES } from "~/core/time";
 import { connectionsByDay, verdictMessage } from "~/core/travel";
-import { useCatalog } from "~/state/catalog-store";
+import { useCampus } from "~/state/data-hooks";
 import {
   useCurrentPlan,
   usePlanConnections,
@@ -44,7 +44,7 @@ export function TravelPanel() {
 function Connections({ connections }: { connections: readonly Connection[] }) {
   const current = useCurrentPlan();
   const catalog = useTermCatalog(current?.termId ?? null);
-  const campusState = useCatalog((s) => s.campusState);
+  const campusState = useCampus().state;
   const openId = useUi((s) => {
     const top = s.stack.at(-1);
     return top?.kind === "connection" ? top.connectionId : null;

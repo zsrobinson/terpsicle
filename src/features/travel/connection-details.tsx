@@ -16,7 +16,7 @@ import {
 } from "~/core/schema";
 import { formatTime } from "~/core/time";
 import { travelMath, VERDICT_WORDS, verdictMessage } from "~/core/travel";
-import { useCatalog } from "~/state/catalog-store";
+import { useCampus } from "~/state/data-hooks";
 import {
   useCurrentPlan,
   usePlanConnections,
@@ -27,7 +27,7 @@ import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { FixList } from "./fix-list";
 import { RouteMap } from "./route-map";
-import { useBuildings } from "./use-geo";
+import { useBuildings } from "./use-buildings";
 import { VERDICT_TEXT, VerdictDot } from "./verdict";
 import {
   connectionDays,
@@ -69,7 +69,7 @@ function Details({
   all: readonly Connection[];
 }) {
   const { travel } = useTravel();
-  const campusState = useCatalog((s) => s.campusState);
+  const campusState = useCampus().state;
   const buildings = useBuildings();
   const routesLoading = campusState === "idle" || campusState === "loading";
   const from = parseSectionKey(c.from.sectionKey)?.courseCode ?? "";

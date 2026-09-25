@@ -14,6 +14,12 @@ export default defineConfig({
   use: {
     ...base.use,
     baseURL: url,
+    // WebGL for the route map (MapLibre): headless Chromium has no GPU, and
+    // its software fallback is opt-in.
+    launchOptions: {
+      ...base.use?.launchOptions,
+      args: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
+    },
     // Sandboxes that reach the internet only through a proxy.
     ...(process.env.HTTPS_PROXY
       ? { proxy: { server: process.env.HTTPS_PROXY } }
