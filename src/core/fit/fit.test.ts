@@ -27,6 +27,7 @@ import {
   fitLabel,
   sectionFits,
   sectionMask,
+  sectionSparseMask,
 } from "./fit";
 
 /** A plan course placed in one of `course`'s sections, snapshotted as it is now. */
@@ -270,8 +271,21 @@ describe("counts and the search filter", () => {
     expect(courseFitsPlan(ctx, clash)).toBe(false);
   });
 
-  it("memoizes a section's mask", () => {
+  it("memoizes a section's masks", () => {
     const s = section("0401");
-    expect(sectionMask("CMSC351", s)).toBe(sectionMask("CMSC351", s));
+    expect(sectionMask(cmsc351, s)).toBe(sectionMask(cmsc351, s));
+    expect(sectionSparseMask(cmsc351, s)).toBe(sectionSparseMask(cmsc351, s));
+    // A section that isn't in the course's list still gets a mask.
+    const copy = { ...s };
+    expect(sectionSparseMask(cmsc351, copy)).toEqual(
+      sectionSparseMask(cmsc351, s),
+    );
+  });
+
+  it("memoizes answers per plan state", () => {
+    const ctx = buildFitContext(input([cmsc330, cmsc351]));
+    expect(courseFitsPlan(ctx, cmsc351)).toBe(true);
+    expect(ctx.memo.courseFits.get(cmsc351)).toBe(true);
+    expect(courseFitsPlan(ctx, cmsc351)).toBe(true);
   });
 });

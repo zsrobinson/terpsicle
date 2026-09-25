@@ -70,6 +70,34 @@ export function unionMasks(masks: Iterable<WeekMask>): WeekMask {
   return out;
 }
 
+/**
+ * Only the non-empty words of a mask. A section touches a handful of words
+ * (MWF 10–10:50am is six), so checking it against a plan's dense mask is a
+ * few ANDs instead of 63. Build with `toSparse`.
+ */
+export type SparseMask = Int32Array;
+
+/** `[wordIndex, bits, wordIndex, bits, …]` for the mask's non-empty words. */
+export function toSparse(mask: WeekMask): SparseMask {
+  const pairs: number[] = [];
+  for (let i = 0; i < WORDS; i++) {
+    const word = mask[i] ?? 0;
+    if (word !== 0) pairs.push(i, word | 0);
+  }
+  return Int32Array.from(pairs);
+}
+
+export function sparseIntersects(sparse: SparseMask, dense: WeekMask): boolean {
+  // The hottest loop in "Fits my plan". Indexes are in bounds by construction
+  // (k < length, word indexes < WORDS), so the reads are asserted rather than
+  // defaulted: `?? 0` on typed arrays measured 4x slower here.
+  for (let k = 0; k < sparse.length; k += 2) {
+    const word = dense[sparse[k] as number] as number;
+    if (((sparse[k + 1] as number) & word) !== 0) return true;
+  }
+  return false;
+}
+
 export function isMaskEmpty(mask: WeekMask): boolean {
   for (let i = 0; i < WORDS; i++) if ((mask[i] ?? 0) !== 0) return false;
   return true;

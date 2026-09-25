@@ -18,6 +18,7 @@ import {
 import {
   decodeRoutes,
   encodeRoutes,
+  longestRoute,
   RoutesFormatError,
   routeDistance,
 } from "./routes-binary";
@@ -107,6 +108,13 @@ describe("routes binary", () => {
         },
       ),
     );
+  });
+
+  it("knows its longest walk per mode, skipping unknown and no-route cells", () => {
+    const table = routesTable();
+    expect(longestRoute(table, "standard")).toBe(2640);
+    expect(longestRoute(table, "standard")).toBe(2640);
+    expect(longestRoute(table, "accessible")).toBe(1500);
   });
 
   it("decodes from a subarray at an unaligned offset", () => {

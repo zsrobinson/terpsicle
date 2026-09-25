@@ -171,3 +171,29 @@ export function encodeRoutes(input: RoutesEncodeInput): Uint8Array {
   });
   return out;
 }
+
+const longestCache = new WeakMap<RouteTable, Map<TravelMode, number>>();
+
+/**
+ * The longest known walk in the table for a mode, in feet (0 when none).
+ * Fit uses it to skip travel checks between classes too far apart in time
+ * for any walk to matter. Memoized per table.
+ */
+export function longestRoute(table: RouteTable, mode: TravelMode): number {
+  let byMode = longestCache.get(table);
+  if (!byMode) {
+    byMode = new Map();
+    longestCache.set(table, byMode);
+  }
+  const hit = byMode.get(mode);
+  if (hit !== undefined) return hit;
+  const n = table.buildings.length;
+  const base = table.dataOffset + 2 * TRAVEL_MODES.indexOf(mode) * n * n;
+  let longest = 0;
+  for (let k = 0; k < n * n; k++) {
+    const feet = table.view.getUint16(base + 2 * k, true);
+    if (feet <= ROUTES_MAX_FEET && feet > longest) longest = feet;
+  }
+  byMode.set(mode, longest);
+  return longest;
+}

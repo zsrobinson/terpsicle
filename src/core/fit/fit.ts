@@ -17,7 +17,9 @@ import {
 } from "../schema";
 import { dayIndex } from "../time/format";
 import {
-  masksIntersect,
+  type SparseMask,
+  sparseIntersects,
+  toSparse,
   unionMasks,
   type WeekMask,
   weekMaskOf,
@@ -36,12 +38,19 @@ import {
   isStop,
   type Stop,
 } from "../travel/connections";
+import { longestRoute } from "../travel/routes-binary";
+import { travelMode, walkMinutes } from "../travel/walk";
 
 // "Does this section fit my plan?" (SPEC §3.4, §3.5). The search filter asks
-// this for every section of thousands of courses, so the plan side is
-// precomputed once into busy bitmasks and per-day stops, and each section's
-// own mask is memoized. Exact checks (dates, odd minutes, travel) run only
-// when the masks can't rule a clash out.
+// this for every section of thousands of courses, so:
+// - the plan side is precomputed once per context into busy bitmasks and
+//   per-day stops, and each section's own mask is memoized;
+// - exact checks (dates, odd minutes) run only when the masks can't rule a
+//   clash out;
+// - travel is checked only against plan classes closer in time than the
+//   longest walk on campus could take;
+// - each section's answer is memoized in the context, so later keystrokes
+//   re-filter for free until the plan changes.
 
 export type FitInput = {
   readonly plan: Plan;
@@ -58,29 +67,81 @@ type Busy = {
   readonly stopsByDay: ReadonlyMap<Day, readonly Stop[]>;
 };
 
+/** Build one per plan state with `buildFitContext`; don't reuse it after the plan changes. */
 export type FitContext = {
   readonly inPlan: ReadonlySet<SectionKey>;
   readonly placed: readonly SectionRef[];
   readonly blocks: readonly Block[];
   readonly travel: TravelSettings;
   readonly campus: CampusMap;
-  /** Busy time of everything except one course (the one being fitted); "" = everything. */
+  /** Longest possible walk in minutes; null without routes (travel never rules anything out). */
+  readonly maxWalk: number | null;
+  /** Busy time of everything except one course (the one being fitted). */
   readonly busyExcept: (courseCode: CourseCode) => Busy;
+  /** Internal: answers already computed for this plan state. */
+  readonly memo: {
+    readonly sectionFits: Map<Section, boolean>;
+    readonly courseFits: Map<Course, boolean>;
+  };
 };
 
-const maskBySection = new WeakMap<Section, WeekMask>();
+/** Everything fit needs about one section, computed once per section object. */
+type SectionShape = {
+  /** Timed meetings per day, in week order (day, then start). */
+  readonly items: readonly MeetingItem[];
+  readonly mask: WeekMask;
+  readonly sparse: SparseMask;
+};
 
-/** A section's busy mask, memoized per section object. Shared with the generator. */
-export function sectionMask(
-  courseCode: CourseCode,
-  section: Section,
-): WeekMask {
-  let mask = maskBySection.get(section);
-  if (!mask) {
-    mask = weekMaskOf(sectionWeekItems(courseCode, section));
-    maskBySection.set(section, mask);
+const shapesByCourse = new WeakMap<Course, readonly SectionShape[]>();
+
+function shapeFor(courseCode: CourseCode, section: Section): SectionShape {
+  const items = [...sectionWeekItems(courseCode, section)].sort(
+    (a, b) => dayIndex(a.day) - dayIndex(b.day) || a.start - b.start,
+  );
+  const mask = weekMaskOf(items);
+  return { items, mask, sparse: toSparse(mask) };
+}
+
+/**
+ * Shapes for every section of a course, aligned with `course.sections`.
+ * Cached per course object (catalog objects are never mutated): one lookup
+ * per course keeps the search filter's per-section cost to a few ANDs.
+ */
+function courseShapes(course: Course): readonly SectionShape[] {
+  let shapes = shapesByCourse.get(course);
+  if (!shapes) {
+    shapes = course.sections.map((s) => shapeFor(course.code, s));
+    shapesByCourse.set(course, shapes);
   }
-  return mask;
+  return shapes;
+}
+
+/**
+ * Computes every course's section masks ahead of time (about 0.2 s for a
+ * full term). Call it in the worker right after a catalog loads, so the first
+ * "Fits my plan" keystroke doesn't pay for it.
+ */
+export function prepareFit(courses: Iterable<Course>): void {
+  for (const course of courses) courseShapes(course);
+}
+
+function shapeOf(course: Course, section: Section): SectionShape {
+  const i = course.sections.indexOf(section);
+  return courseShapes(course)[i] ?? shapeFor(course.code, section);
+}
+
+/** A section's busy mask, memoized. Shared with the generator. */
+export function sectionMask(course: Course, section: Section): WeekMask {
+  return shapeOf(course, section).mask;
+}
+
+/** `sectionMask` as a sparse mask, memoized. */
+export function sectionSparseMask(
+  course: Course,
+  section: Section,
+): SparseMask {
+  return shapeOf(course, section).sparse;
 }
 
 function groupByDay<T extends { day: Day }>(items: Iterable<T>): Map<Day, T[]> {
@@ -94,6 +155,7 @@ function groupByDay<T extends { day: Day }>(items: Iterable<T>): Map<Day, T[]> {
 }
 
 export function buildFitContext(input: FitInput): FitContext {
+  const { campus, travel } = input;
   const placed = placedSections(input.plan, input.index);
   const inPlan = new Set<SectionKey>();
   for (const c of input.plan.courses)
@@ -116,12 +178,10 @@ export function buildFitContext(input: FitInput): FitContext {
     const busy: Busy = {
       mask: unionMasks([
         blockMask,
-        ...others.map((r) => sectionMask(r.course.code, r.section)),
+        ...others.map((r) => sectionMask(r.course, r.section)),
       ]),
       itemsByDay: groupByDay<WeekItem>([...meetingItems, ...blockItems]),
-      stopsByDay: groupByDay(
-        meetingItems.filter((i) => isStop(i, input.campus)),
-      ),
+      stopsByDay: groupByDay(meetingItems.filter((i) => isStop(i, campus))),
     };
     cache.set(key, busy);
     return busy;
@@ -131,15 +191,19 @@ export function buildFitContext(input: FitInput): FitContext {
     inPlan,
     placed,
     blocks: input.blocks,
-    travel: input.travel,
-    campus: input.campus,
+    travel,
+    campus,
+    maxWalk: campus.routes
+      ? walkMinutes(longestRoute(campus.routes, travelMode(travel)), travel)
+      : null,
     busyExcept,
+    memo: { sectionFits: new Map(), courseFits: new Map() },
   };
 }
 
-function byWeekTime(a: WeekItem, b: WeekItem): number {
-  return dayIndex(a.day) - dayIndex(b.day) || a.start - b.start;
-}
+// Shared answers, so the search filter allocates nothing in the common case.
+const FITS: FitLabel = Object.freeze({ kind: "fits" });
+const NO_SET_TIMES: FitLabel = Object.freeze({ kind: "no-set-times" });
 
 function firstOverlap(
   items: readonly MeetingItem[],
@@ -153,38 +217,40 @@ function firstOverlap(
   return null;
 }
 
+function isShort(from: Stop, to: Stop, ctx: FitContext): boolean {
+  return (
+    buildConnection(from, to, ctx.travel, ctx.campus)?.verdict ===
+    "insufficient"
+  );
+}
+
 function firstShortConnection(
   items: readonly MeetingItem[],
   busy: Busy,
   ctx: FitContext,
+  maxWalk: number,
 ): FitLabel | null {
   for (const x of items) {
     if (!isStop(x, ctx.campus)) continue;
-    const planStops = busy.stopsByDay.get(x.day) ?? [];
-    if (planStops.length === 0) continue;
-    const dayStops = [
-      ...planStops,
-      ...items.filter((i) => i.day === x.day && isStop(i, ctx.campus)),
-    ];
+    const planStops = busy.stopsByDay.get(x.day);
+    if (!planStops) continue;
+    let dayStops: Stop[] | null = null;
     for (const c of planStops) {
-      if (!isConsecutive(c, x, dayStops)) continue;
-      const conn = buildConnection(c, x, ctx.travel, ctx.campus);
-      if (conn?.verdict === "insufficient")
-        return {
-          kind: "not-enough-time",
-          direction: "after",
-          courseCode: c.source.courseCode,
-        };
-    }
-    for (const e of planStops) {
-      if (!isConsecutive(x, e, dayStops)) continue;
-      const conn = buildConnection(x, e, ctx.travel, ctx.campus);
-      if (conn?.verdict === "insufficient")
-        return {
-          kind: "not-enough-time",
-          direction: "before",
-          courseCode: e.source.courseCode,
-        };
+      // A walk can only be too long when the gap is shorter than the longest walk.
+      const gapAfter = x.start - c.end;
+      const gapBefore = c.start - x.end;
+      const nearAfter = gapAfter >= 0 && gapAfter < maxWalk;
+      const nearBefore = gapBefore >= 0 && gapBefore < maxWalk;
+      if (!nearAfter && !nearBefore) continue;
+      dayStops ??= [
+        ...planStops,
+        ...items.filter((i) => i.day === x.day && isStop(i, ctx.campus)),
+      ];
+      const courseCode = c.source.courseCode;
+      if (nearAfter && isConsecutive(c, x, dayStops) && isShort(c, x, ctx))
+        return { kind: "not-enough-time", direction: "after", courseCode };
+      if (nearBefore && isConsecutive(x, c, dayStops) && isShort(x, c, ctx))
+        return { kind: "not-enough-time", direction: "before", courseCode };
     }
   }
   return null;
@@ -199,12 +265,22 @@ export function evaluateFit(
   course: Course,
   section: Section,
 ): FitLabel {
-  const items = sectionWeekItems(course.code, section);
-  if (items.length === 0) return { kind: "no-set-times" };
-  const busy = ctx.busyExcept(course.code);
-  const ordered = [...items].sort(byWeekTime);
-  if (masksIntersect(sectionMask(course.code, section), busy.mask)) {
-    const other = firstOverlap(ordered, busy);
+  return evaluateShape(
+    ctx,
+    shapeOf(course, section),
+    ctx.busyExcept(course.code),
+  );
+}
+
+function evaluateShape(
+  ctx: FitContext,
+  shape: SectionShape,
+  busy: Busy,
+): FitLabel {
+  const { items, sparse } = shape;
+  if (items.length === 0) return NO_SET_TIMES;
+  if (sparseIntersects(sparse, busy.mask)) {
+    const other = firstOverlap(items, busy);
     if (other) {
       const s = other.source;
       return {
@@ -216,11 +292,11 @@ export function evaluateFit(
       };
     }
   }
-  if (ctx.campus.routes) {
-    const short = firstShortConnection(ordered, busy, ctx);
+  if (ctx.maxWalk !== null) {
+    const short = firstShortConnection(items, busy, ctx, ctx.maxWalk);
     if (short) return short;
   }
-  return { kind: "fits" };
+  return FITS;
 }
 
 /**
@@ -243,7 +319,15 @@ export function sectionFits(
   course: Course,
   section: Section,
 ): boolean {
-  const label = evaluateFit(ctx, course, section);
+  let fits = ctx.memo.sectionFits.get(section);
+  if (fits === undefined) {
+    fits = isFitting(evaluateFit(ctx, course, section));
+    ctx.memo.sectionFits.set(section, fits);
+  }
+  return fits;
+}
+
+function isFitting(label: FitLabel): boolean {
   return label.kind === "fits" || label.kind === "no-set-times";
 }
 
@@ -256,5 +340,13 @@ export function countFittingSections(ctx: FitContext, course: Course): number {
 
 /** The search filter "Fits my plan": any section fits. */
 export function courseFitsPlan(ctx: FitContext, course: Course): boolean {
-  return course.sections.some((s) => sectionFits(ctx, course, s));
+  let fits = ctx.memo.courseFits.get(course);
+  if (fits === undefined) {
+    const busy = ctx.busyExcept(course.code);
+    fits = courseShapes(course).some((shape) =>
+      isFitting(evaluateShape(ctx, shape, busy)),
+    );
+    ctx.memo.courseFits.set(course, fits);
+  }
+  return fits;
 }

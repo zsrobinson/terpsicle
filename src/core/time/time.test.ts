@@ -5,8 +5,10 @@ import { DAYS, type Day } from "../schema";
 import { calendarDays, calendarHourRange } from "./calendar";
 import {
   compareDays,
+  formatDateSpan,
   formatDays,
   formatDuration,
+  formatShortDate,
   formatTime,
   formatTimeRange,
   parseTime,
@@ -18,6 +20,8 @@ import {
   isMaskEmpty,
   markBusy,
   masksIntersect,
+  sparseIntersects,
+  toSparse,
   unionMasks,
   weekMaskOf,
 } from "./slots";
@@ -88,6 +92,15 @@ describe("days", () => {
     expect(
       [..."Th Tu M".split(" ")].sort((a, b) => compareDays(a as Day, b as Day)),
     ).toEqual(["M", "Tu", "Th"]);
+  });
+});
+
+describe("dates", () => {
+  it("formats short dates and spans", () => {
+    expect(formatShortDate("2027-03-22")).toBe("Mar 22");
+    expect(formatDateSpan({ start: "2027-01-27", end: "2027-05-11" })).toBe(
+      "Jan 27–May 11",
+    );
   });
 });
 
@@ -240,6 +253,26 @@ describe("week masks", () => {
         expect(masksIntersect(weekMaskOf([x]), weekMaskOf([y]))).toBe(real);
       }),
     );
+  });
+
+  it("answers the same through a sparse mask (property)", () => {
+    const items = fc.array(item, { maxLength: 6 });
+    fc.assert(
+      fc.property(items, items, (xs, ys) => {
+        const toItems = (list: typeof xs) =>
+          list.map((a) => ({
+            day: a.day,
+            start: a.start,
+            end: Math.min(1440, a.start + a.len),
+          }));
+        const a = weekMaskOf(toItems(xs));
+        const b = weekMaskOf(toItems(ys));
+        expect(sparseIntersects(toSparse(a), b)).toBe(masksIntersect(a, b));
+      }),
+    );
+    expect(
+      toSparse(weekMaskOf([{ day: "M", start: 600, end: 650 }])),
+    ).toHaveLength(4); // 10:00–10:50 straddles two 32-slot words: two pairs
   });
 
   it("covers a whole day and unions", () => {

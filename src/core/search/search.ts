@@ -109,6 +109,9 @@ function codesWithPrefix(codes: readonly string[], prefix: string): string[] {
   return out;
 }
 
+/** Shorter queries only match codes. */
+export const MIN_TEXT_QUERY = 2;
+
 const CODE_PREFIX = /^[A-Z]{1,4}$|^[A-Z]{4}\d{1,3}[A-Z]?$/;
 const NUMBER_PREFIX = /^\d{1,3}[A-Z]?$/;
 
@@ -116,7 +119,7 @@ const NUMBER_PREFIX = /^\d{1,3}[A-Z]?$/;
  * Course codes best match first:
  * 1. the exact code, then other codes the query is a prefix of, in code order;
  * 2. codes whose number starts with the query ("351"), in code order;
- * 3. everything else MiniSearch finds, by relevance.
+ * 3. everything else MiniSearch finds, by relevance (from two characters on).
  */
 export function searchCourses(
   search: CourseSearch,
@@ -140,6 +143,8 @@ export function searchCourses(
   if (NUMBER_PREFIX.test(compact))
     for (const code of search.codes)
       if (code.slice(4).startsWith(compact)) take(code);
+  // One character matches a prefix of nearly every word; only codes are useful.
+  if (compact.length < MIN_TEXT_QUERY) return out;
   for (const hit of search.mini.search(query)) take(hit.id as CourseCode);
   return out;
 }
