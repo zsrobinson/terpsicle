@@ -95,6 +95,13 @@ export function SearchPanel() {
     <div className="flex min-h-0 flex-1 flex-col">
       {/* The box is the header here (as in the prototype); screen readers still get a title. */}
       <h2 className="sr-only">Search</h2>
+      <ResultCount
+        count={
+          results.status === "ready" && courses.length > 0
+            ? courses.length
+            : null
+        }
+      />
       <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-3 pt-3 pb-2.5">
         <div className="flex h-9 items-center gap-2 rounded-lg border border-hairline bg-raised px-2.5 focus-within:border-hairline-strong has-[input:focus-visible]:focus-outline">
           <SearchIcon size={14} className="shrink-0 text-muted" aria-hidden />
@@ -190,6 +197,26 @@ export function SearchPanel() {
 }
 
 const NO_COURSES: readonly Course[] = [];
+
+/**
+ * "12 courses", said politely once typing settles, for screen readers (no
+ * results has its own message). Always mounted, so the live region exists
+ * before its text changes.
+ */
+function ResultCount({ count }: { count: number | null }) {
+  const [said, setSaid] = useState("");
+  useEffect(() => {
+    const text =
+      count === null ? "" : `${count} ${count === 1 ? "course" : "courses"}`;
+    const timer = setTimeout(() => setSaid(text), 600);
+    return () => clearTimeout(timer);
+  }, [count]);
+  return (
+    <p className="sr-only" aria-live="polite" aria-atomic="true">
+      {said}
+    </p>
+  );
+}
 
 /** `search_performed` once typing settles; the query's length only. */
 function useSearchAnalytics(
