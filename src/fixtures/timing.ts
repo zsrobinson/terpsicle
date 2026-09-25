@@ -7,9 +7,8 @@ export function median(values: readonly number[]): number {
 }
 
 type CpuUsage = { user: number; system: number };
-const nodeProcess = (
-  globalThis as { process?: { cpuUsage?: () => CpuUsage } }
-).process;
+const nodeProcess = (globalThis as { process?: { cpuUsage?: () => CpuUsage } })
+  .process;
 
 /**
  * Milliseconds of CPU this process has used, where Node can say (the perf
