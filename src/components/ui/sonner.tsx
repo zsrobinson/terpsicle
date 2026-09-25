@@ -12,9 +12,9 @@ function Toaster(props: ToasterProps) {
       toastOptions={{
         classNames: {
           toast:
-            "font-sans! bg-raised! text-fg! border-hairline! shadow-pop! text-[12.5px]! rounded-lg! gap-3! py-2! pr-2! pl-3! items-center!",
+            "font-sans! bg-raised! text-fg! border-hairline! shadow-pop! text-base! rounded-lg! gap-3! py-2! pr-2! pl-3! items-center!",
           title: "font-normal! leading-snug!",
-          description: "text-muted! text-[12px]!",
+          description: "text-muted! text-sm!",
           actionButton: "bg-accent! text-accent-fg!",
         },
       }}

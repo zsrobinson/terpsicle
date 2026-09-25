@@ -125,7 +125,7 @@ function PlanTab({
           onClick={onOpen}
           onDoubleClick={() => onRename("double-click")}
           className={cn(
-            "h-8 max-w-[160px] truncate rounded-md pl-2.5 text-[12.5px] outline-offset-[-2px]",
+            "h-8 max-w-[160px] truncate rounded-md pl-2.5 text-base outline-offset-[-2px]",
             active ? "pr-1 font-medium" : "pr-2.5 text-muted hover:text-fg",
           )}
         >
@@ -210,7 +210,7 @@ function RenameInput({
             finish(null);
           }
         }}
-        className="h-8 w-32 rounded-md border border-hairline-strong bg-raised px-2 text-[12.5px] outline-none focus-visible:outline-none"
+        className="h-8 w-32 rounded-md border border-hairline-strong bg-raised px-2 text-base outline-none focus-visible:outline-none"
       />
     </WithTooltip>
   );
@@ -233,7 +233,7 @@ function OverflowMenu({
           <button
             type="button"
             aria-label={`${plans.length} more ${plans.length === 1 ? "plan" : "plans"}`}
-            className="tnum flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[12.5px] text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
+            className="tnum flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
             {compact ? `+${plans.length}` : `${plans.length} more`}
             <ChevronDown size={12} aria-hidden="true" />

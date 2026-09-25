@@ -40,7 +40,7 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          "z-50 flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-xs text-bg",
+          "z-50 flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
           "fade-in-0 zoom-in-95 animate-in duration-100 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
           className,
         )}

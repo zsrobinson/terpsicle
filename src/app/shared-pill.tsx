@@ -16,7 +16,7 @@ export function SharedPill({
   saving?: boolean;
 }) {
   return (
-    <div className="flex h-7 min-w-0 shrink-0 items-center gap-1.5 rounded-full bg-shared-soft pr-1 pl-2.5 text-[12.5px] text-shared">
+    <div className="flex h-7 min-w-0 shrink-0 items-center gap-1.5 rounded-full bg-shared-soft pr-1 pl-2.5 text-base text-shared">
       <Share2 size={13} aria-hidden="true" className="shrink-0" />
       <span className="truncate font-medium">Shared plan</span>
       <span aria-hidden="true" className="opacity-50">

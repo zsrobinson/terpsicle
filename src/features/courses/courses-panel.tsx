@@ -10,6 +10,7 @@ import {
 import { type ReactElement, useMemo } from "react";
 import { messageToText } from "~/app/message-text";
 import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
+import { planLabel } from "~/app/plan-label";
 import type { CatalogIndex } from "~/core/catalog";
 import type {
   CourseCode,
@@ -79,7 +80,7 @@ export function CoursesPanel() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PanelHeader
-        title={plan.name}
+        title={planLabel(current)}
         sub={credits ? `${count} · ${credits}` : count}
       />
       <PanelBody>

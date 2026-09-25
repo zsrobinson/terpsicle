@@ -2,6 +2,8 @@ import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { MessageText } from "~/app/message-text";
 import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
+import { planLabel } from "~/app/plan-label";
+import { countBySeverity, problemCountWords } from "~/core/problems";
 import {
   type Problem,
   parseSectionKey,
@@ -37,10 +39,11 @@ export function ProblemsPanel() {
       <PanelHeader
         title="Problems"
         sub={
+          // The top bar's words exactly: "2 problems · 1 note".
           problems.length > 0
-            ? "Everything in this plan that needs a look"
+            ? problemCountWords(countBySeverity(problems))
             : current
-              ? current.plan.name
+              ? planLabel(current)
               : undefined
         }
       />
