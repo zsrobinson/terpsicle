@@ -1,20 +1,39 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect } from "react";
+import { z } from "zod";
 import { initAnalytics, track } from "~/app/analytics";
-import { AppShell } from "~/app/app-shell";
+import { App } from "~/app/app";
 import { clientConfig } from "~/app/config";
+
+// `?plan=` carries a shared plan (DATA.md §8). The router may parse a
+// numeric-looking value as a number, so accept both and keep the text.
+const searchSchema = z.object({
+  plan: z
+    .union([z.string(), z.number()])
+    .transform(String)
+    .optional()
+    .catch(undefined),
+});
 
 export const Route = createFileRoute("/")({
   // Everything lives in the browser (IndexedDB, web worker); the Worker only
   // serves the shell (BUILD.md §4).
   ssr: false,
+  validateSearch: searchSchema,
   component: IndexPage,
 });
 
 function IndexPage() {
+  const { plan } = Route.useSearch();
+  const navigate = useNavigate({ from: "/" });
+  const clearShared = useCallback(() => {
+    void navigate({ search: {}, replace: true });
+  }, [navigate]);
+
   useEffect(() => {
     void initAnalytics();
     track("app_loaded", { dataSource: clientConfig.dataSource });
   }, []);
-  return <AppShell />;
+
+  return <App sharedParam={plan} onClearShared={clearShared} />;
 }

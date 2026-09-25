@@ -1,11 +1,24 @@
 // Anonymous product analytics (PostHog). What we track and why:
 // docs/ANALYTICS.md. Add every new event to `AnalyticsEvents` first.
 import type { PostHog } from "posthog-js";
+import type { RailTab, TermStatus, Theme } from "~/core/schema";
 import { type ClientConfig, clientConfig, type DataSource } from "./config";
 
-/** Every client event and its properties, in one place. */
+type NoProperties = Record<string, never>;
+
+/** Every client event and its properties, in one place. Why each exists: docs/ANALYTICS.md. */
 export interface AnalyticsEvents {
   app_loaded: { dataSource: DataSource };
+  plan_created: { source: "empty" | "copy" | "generate" | "shared" };
+  plan_deleted: NoProperties;
+  plan_renamed: { via: "menu" | "double-click" };
+  tab_opened: { tab: RailTab; via: "click" | "shortcut" };
+  sidebar_collapsed: NoProperties;
+  term_switched: { status: TermStatus };
+  theme_changed: { theme: Theme };
+  undo_used: { via: "shortcut" | "toast" };
+  shared_link_opened: { outcome: "ok" | "invalid" | "newer-version" };
+  shared_plan_saved: { droppedSections: number };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

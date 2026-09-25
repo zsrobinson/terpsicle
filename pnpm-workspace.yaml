@@ -4,8 +4,13 @@
 # Workers runtime; core-js only prints a donation banner.
 allowBuilds:
   "@biomejs/biome": true
+  core-js: false
   esbuild: true
   lightningcss: true
   sharp: true
   workerd: true
-  core-js: false
+# vaul never passes `modal` to Radix Dialog, so even `modal={false}` hides the
+# rest of the page from screen readers and traps focus in the drawer. The
+# phone drawer is always open next to the calendar, so it must not be modal.
+patchedDependencies:
+  vaul@1.1.2: patches/vaul@1.1.2.patch

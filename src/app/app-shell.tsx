@@ -1,152 +1,213 @@
-import { cn } from "cn";
-import { useCallback, useEffect, useState } from "react";
-import { WithTooltip } from "~/ui/tooltip";
-import { CalendarSkeleton } from "./calendar-skeleton";
-import { Logo } from "./logo";
-import { TABS, type Tab, type TabId } from "./tabs";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { deptOf, useCatalog } from "~/state/catalog-store";
+import { useActiveTerm, useCurrentPlan } from "~/state/hooks";
+import { saveSharedCopy, useShare } from "~/state/share-store";
+import { useUi } from "~/state/ui-store";
+import { useWorkspace } from "~/state/workspace-store";
+import { Skeleton } from "~/ui/skeleton";
+import { openTab, redo, undo } from "./actions";
+import { track } from "./analytics";
+import { CalendarRegion } from "./calendar/calendar-region";
+import { MobileDrawer, PEEK_HEIGHT } from "./mobile-drawer";
+import { PlanTabs } from "./plan-tabs";
+import { Rail } from "./rail";
+import { SharedPill } from "./shared-pill";
+import { useShortcut } from "./shortcuts";
+import { SidebarContent } from "./sidebar";
+import { TABS } from "./tabs";
+import { TermSwitcher } from "./term-switcher";
+import { ThemeToggle } from "./theme-toggle";
+import { TopBar } from "./top-bar";
+import { UndoToasts } from "./undo-toasts";
+import { useIsMobile } from "./use-media-query";
 
-// M0 placeholder for the layout in SPEC.md §2: top bar, labeled rail, one
-// sidebar panel, and a calendar that fills the rest. M3 replaces the insides.
+// The layout in SPEC §2: top bar; rail, one sidebar panel and a calendar that
+// fills the rest. On phones, the same pieces with the sidebar in a bottom
+// drawer. State lives in src/state; this file wires it to the screen.
 
-export function AppShell() {
-  const [active, setActive] = useState<TabId>("courses");
-  const [collapsed, setCollapsed] = useState(false);
+export interface AppShellProps {
+  /** `?plan=` from the URL: a shared plan to show read-only. */
+  sharedParam?: string | undefined;
+  /** Drops `?plan=` from the URL (Save a copy, ✕, or a bad link). */
+  onClearShared?: () => void;
+}
 
-  // Clicking the active tab again collapses the sidebar (SPEC.md §2).
-  const select = (id: TabId) => {
-    if (id === active && !collapsed) setCollapsed(true);
-    else {
-      setActive(id);
-      setCollapsed(false);
-    }
-  };
+export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
+  const mobile = useIsMobile();
+  const sidebarOpen = useUi((s) => s.sidebarOpen);
 
-  const open = useCallback((id: TabId) => {
-    setActive(id);
-    setCollapsed(false);
-  }, []);
-  useTabShortcuts(open);
+  useShellShortcuts();
+  useDefaultPlan(Boolean(sharedParam));
+  useCurrentPlanCatalog();
+  const shared = useSharedLink(sharedParam, onClearShared, mobile);
 
-  const tab = TABS.find((t) => t.id === active) ?? TABS[0];
+  const topBar = (
+    <TopBar
+      compact={mobile}
+      term={<TermSwitcher />}
+      plans={shared.plans}
+      end={mobile ? <ThemeToggle side="bottom" /> : null}
+    />
+  );
+
+  if (mobile) {
+    return (
+      <div className="flex h-dvh flex-col bg-bg text-fg">
+        {topBar}
+        <main className="min-h-0 flex-1" style={{ paddingBottom: PEEK_HEIGHT }}>
+          <CalendarRegion />
+        </main>
+        <MobileDrawer />
+        <UndoToasts />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
-      <TopBar />
+      {topBar}
       <div className="flex min-h-0 flex-1">
-        <nav
-          aria-label="Sidebar tabs"
-          className="hidden w-[60px] shrink-0 flex-col items-center gap-0.5 border-hairline border-r bg-panel py-2 md:flex"
+        <Rail />
+        <aside
+          aria-label="Sidebar"
+          hidden={!sidebarOpen}
+          className="flex w-[360px] shrink-0 flex-col border-hairline border-r"
         >
-          {TABS.map((t) => (
-            <RailButton
-              key={t.id}
-              tab={t}
-              selected={t.id === active && !collapsed}
-              onSelect={select}
-            />
-          ))}
-        </nav>
-        {!collapsed && tab ? <Sidebar title={tab.label} /> : null}
+          <SidebarContent />
+        </aside>
         <main className="min-w-0 flex-1">
-          <CalendarSkeleton />
+          <CalendarRegion />
         </main>
       </div>
-      <nav
-        aria-label="Tabs"
-        className="flex shrink-0 justify-around border-hairline border-t bg-panel px-1 py-1 md:hidden"
-      >
-        {TABS.map((t) => (
-          <RailButton
-            key={t.id}
-            tab={t}
-            selected={t.id === active}
-            onSelect={open}
-            compact
-          />
-        ))}
-      </nav>
+      <UndoToasts />
     </div>
   );
 }
 
-function TopBar() {
-  return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-hairline border-b px-3">
-      <Logo />
-      <span className="text-faint">/</span>
-      <Placeholder className="h-4 w-24" />
-      <span className="hidden text-faint sm:inline">/</span>
-      <Placeholder className="hidden h-4 w-16 sm:block" />
-    </header>
-  );
-}
-
-function RailButton({
-  tab,
-  selected,
-  onSelect,
-  compact = false,
-}: {
-  tab: Tab;
-  selected: boolean;
-  onSelect: (id: TabId) => void;
-  compact?: boolean;
-}) {
-  const Icon = tab.icon;
-  return (
-    <WithTooltip label={tab.label} shortcut={tab.shortcut} side="right">
-      <button
-        type="button"
-        aria-pressed={selected}
-        onClick={() => onSelect(tab.id)}
-        className={cn(
-          "flex flex-col items-center gap-1 rounded-lg py-2 text-muted transition-colors hover:bg-hover hover:text-fg",
-          compact ? "min-w-0 flex-1 py-1.5" : "w-[52px]",
-          selected && "bg-raised text-fg shadow-sm ring-1 ring-hairline",
-        )}
-      >
-        <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
-        <span className="font-medium text-[10px]">{tab.label}</span>
-      </button>
-    </WithTooltip>
-  );
-}
-
-function Sidebar({ title }: { title: string }) {
-  return (
-    <aside className="hidden w-[360px] shrink-0 flex-col border-hairline border-r md:flex">
-      <div className="flex min-h-12 items-center border-hairline border-b px-4">
-        <h2 className="font-semibold text-[13px]">{title}</h2>
-      </div>
-      <div className="flex flex-col gap-3 p-4" aria-hidden="true">
-        <Placeholder className="h-4 w-3/4" />
-        <Placeholder className="h-4 w-1/2" />
-        <Placeholder className="h-4 w-2/3" />
-      </div>
-    </aside>
-  );
-}
-
-function Placeholder({ className }: { className?: string }) {
-  return <div className={cn("rounded bg-hover", className)} />;
-}
-
-/** `1`–`7` open the matching tab, unless the person is typing. */
-function useTabShortcuts(open: (id: TabId) => void) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable ||
-          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
-      )
-        return;
+/** `/` search, `1`–`7` tabs, ⌘Z undo, ⇧⌘Z redo. Esc lives with the sidebar. */
+function useShellShortcuts() {
+  useShortcut({ key: "/" }, () => {
+    openTab("search", "shortcut");
+    useUi.getState().requestFocus("search");
+    return true;
+  });
+  useShortcut(
+    TABS.map((t) => ({ key: t.shortcut })),
+    (event) => {
       const tab = TABS.find((t) => t.shortcut === event.key);
-      if (tab) open(tab.id);
+      if (!tab) return false;
+      openTab(tab.id, "shortcut");
+      return true;
+    },
+  );
+  useShortcut({ key: "z", mod: true, shift: false }, () => undo("shortcut"));
+  useShortcut(
+    [
+      { key: "z", mod: true, shift: true },
+      { key: "y", mod: true, shift: false },
+    ],
+    () => redo(),
+  );
+}
+
+/** First visit (or a new term): make sure there's a plan to show. */
+function useDefaultPlan(linkInUrl: boolean) {
+  const { termId } = useActiveTerm();
+  const hydrated = useWorkspace((s) => s.hydrated);
+  const sharing = useShare((s) => s.shared !== null) || linkInUrl;
+  const ensurePlan = useWorkspace((s) => s.ensurePlan);
+  useEffect(() => {
+    // A shared link changes nothing until "Save a copy" (SPEC §3.11).
+    if (hydrated && termId && !sharing) ensurePlan(termId);
+  }, [hydrated, termId, sharing, ensurePlan]);
+}
+
+/** Loads the departments the plan on screen uses. */
+function useCurrentPlanCatalog() {
+  const current = useCurrentPlan();
+  const ensureDepts = useCatalog((s) => s.ensureDepts);
+  // A shared link can name its term before the data source is ready.
+  const reader = useCatalog((s) => s.reader);
+  const termId = current?.termId;
+  const depts = current
+    ? [...new Set(current.plan.courses.map((c) => deptOf(c.courseCode)))]
+        .sort()
+        .join(",")
+    : "";
+  useEffect(() => {
+    if (termId && reader)
+      void ensureDepts(termId, depts ? depts.split(",") : []);
+  }, [termId, depts, ensureDepts, reader]);
+}
+
+/** Opens `?plan=` read-only in place of the plan tabs, and handles the pill. */
+function useSharedLink(
+  param: string | undefined,
+  onClear: (() => void) | undefined,
+  mobile: boolean,
+) {
+  const shared = useShare((s) => s.shared);
+  const open = useShare((s) => s.open);
+  const close = useShare((s) => s.close);
+  const { termId } = useActiveTerm();
+  const [saving, setSaving] = useState(false);
+  // Saving takes fresh snapshots from the catalog, so it waits for it.
+  const catalogReady = useCatalog((s) => s.termsState === "ready");
+
+  useEffect(() => {
+    if (!param) {
+      close();
+      return;
+    }
+    let cancelled = false;
+    void open(param).then((result) => {
+      if (cancelled) return;
+      track("shared_link_opened", {
+        outcome: result.ok ? "ok" : result.reason,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        onClear?.();
+      }
+    });
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  }, [param, open, close, onClear]);
+
+  const save = async () => {
+    if (shared?.status !== "ready" || saving || !catalogReady) return;
+    setSaving(true);
+    try {
+      const copy = await saveSharedCopy(shared.payload);
+      track("plan_created", { source: "shared" });
+      track("shared_plan_saved", { droppedSections: copy.dropped.length });
+      if (copy.dropped.length > 0) {
+        const list = copy.dropped.map((k) => k.replace("-", " ")).join(", ");
+        toast(
+          `${list} ${copy.dropped.length === 1 ? "isn't" : "aren't"} offered anymore, so ${copy.dropped.length === 1 ? "it wasn't" : "they weren't"} copied.`,
+        );
+      }
+      onClear?.();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const plans = shared ? (
+    <SharedPill
+      saving={saving || shared.status !== "ready" || !catalogReady}
+      onSave={() => void save()}
+      onClose={() => {
+        close();
+        onClear?.();
+      }}
+    />
+  ) : termId ? (
+    <PlanTabs termId={termId} maxVisible={mobile ? 1 : 5} />
+  ) : (
+    <Skeleton className="h-4 w-16" />
+  );
+  return { plans };
 }
