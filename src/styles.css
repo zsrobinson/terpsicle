@@ -82,16 +82,21 @@
   --hairline: #e6e6ea;
   --hairline-strong: #d4d4da;
   --fg: #18181b;
-  --muted: #6b6b76;
-  --faint: #a1a1aa;
+  /*
+   * WCAG AA: muted, faint and the semantic colors are text, so each clears
+   * 4.5:1 on bg, panel, raised, hover and its own soft fill. Faint stays a
+   * step lighter than muted, and muted a step lighter than fg.
+   */
+  --muted: #5f5f69;
+  --faint: #6a6a75;
   --accent: #18181b;
   --accent-fg: #ffffff;
   --accent-soft: color-mix(in oklab, #18181b 7%, transparent);
-  --ok: #16a34a;
+  --ok: #117d39;
   --ok-soft: rgb(22 163 74 / 0.1);
-  --warn: #c2750a;
+  --warn: #9b5e08;
   --warn-soft: rgb(217 119 6 / 0.12);
-  --error: #dc2626;
+  --error: #c81e1e;
   --error-soft: rgb(220 38 38 / 0.1);
   /* The shared-link pill: the owner asked for the prototype's light red there. */
   --shared: #c0132c;
@@ -111,8 +116,8 @@
   --hairline: #25252b;
   --hairline-strong: #34343c;
   --fg: #ededef;
-  --muted: #8b8b95;
-  --faint: #5c5c66;
+  --muted: #9a9aa4;
+  --faint: #85858f;
   --accent: #ededef;
   --accent-fg: #0a0a0c;
   --accent-soft: color-mix(in oklab, #ededef 9%, transparent);
