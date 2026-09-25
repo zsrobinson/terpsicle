@@ -382,6 +382,21 @@ describe("seat alerts, end to end", () => {
     expect(await api.alerts.status({ items: [] }, client(off.testEnv))).toEqual(
       { status: "unavailable" },
     );
+    // ...answered before rate limiting, so it never counts against anyone.
+    const counted = async () =>
+      (
+        await off.testEnv.DB.prepare(
+          "SELECT COALESCE(SUM(count), 0) AS n FROM counters WHERE name LIKE 'alerts/status:%'",
+        ).first<{ n: number }>()
+      )?.n;
+    const before = await counted();
+    const statuses = await Promise.all(
+      Array.from({ length: 125 }, () =>
+        api.alerts.status({ items: [] }, client(off.testEnv)),
+      ),
+    );
+    expect(statuses.every((s) => s.status === "unavailable")).toBe(true);
+    expect(await counted()).toBe(before);
     const preview = makeEnv({ EMAIL: undefined });
     expect(await api.alerts.subscribe(input, client(preview.testEnv))).toEqual({
       status: "unavailable",

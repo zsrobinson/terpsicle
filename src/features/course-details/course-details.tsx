@@ -1,13 +1,12 @@
 import { cn } from "cn";
 import { Bookmark, BookmarkCheck, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { track } from "~/app/analytics";
 import { PanelBody } from "~/app/panel";
 import type { DrillViewProps } from "~/app/registry";
 import { defaultCourseColor } from "~/core/color";
 import { countFittingSections, sectionFits } from "~/core/fit";
-import type { Course, CourseDetailsTab } from "~/core/schema";
-import { formatRelative } from "~/core/time";
+import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
 import { dotStyle } from "~/features/calendar/tint";
 import {
   openCourse,
@@ -16,6 +15,11 @@ import {
 } from "~/features/courses/actions";
 import { CourseColorPicker } from "~/features/courses/color-picker";
 import { deptOf } from "~/state/catalog-store";
+import {
+  type SeatsFreshnessState,
+  useInstructors,
+  useSeatsFreshness,
+} from "~/state/data-hooks";
 import {
   type CurrentPlan,
   useActiveTerm,
@@ -32,7 +36,6 @@ import { addToPlan, saveNewCourseForLater } from "./actions";
 import { GradesTab } from "./grades-tab";
 import { InstructorsTab } from "./instructors-tab";
 import { RowModeToggle, SectionGroups } from "./section-list";
-import { usePlanetTerpDept } from "./use-planetterp";
 
 // Course details (SPEC §3.4): what the course is, every section grouped by
 // instructor with how it fits, then Instructors, Grades and About. Opened the
@@ -86,14 +89,14 @@ function Details({
   onTab,
 }: {
   course: Course;
-  termId: string;
+  termId: TermId;
   current: CurrentPlan | null;
   tab: CourseDetailsTab;
   onTab: (tab: CourseDetailsTab) => void;
 }) {
   const catalog = useTermCatalog(termId);
   const fit = useFitContext();
-  const planetTerp = usePlanetTerpDept(deptOf(course.code));
+  const planetTerp = useInstructors(deptOf(course.code));
   const [compact, setCompact] = useState(course.sections.length > COMPACT_FROM);
   const seats = catalog?.seats?.seats ?? null;
   const entry = current?.plan.courses.find((c) => c.courseCode === course.code);
@@ -101,7 +104,8 @@ function Details({
   const color =
     current?.colors[course.code] ?? defaultCourseColor(course.code, []);
   const fitting = fit ? countFittingSections(fit, course) : null;
-  const ptLoading = planetTerp.state === "loading";
+  const ptLoading =
+    planetTerp.state === "loading" || planetTerp.state === "idle";
 
   return (
     <PanelBody>
@@ -295,30 +299,28 @@ function Actions({
   );
 }
 
+const FRESHNESS_TIP: Record<SeatsFreshnessState, string> = {
+  loading: "",
+  live: "Seat counts come from Testudo every few minutes",
+  offline: "You're offline: these are the last seat counts saved here",
+  archived: "Past terms keep the seat counts they had at the end",
+  unknown: "Testudo hasn't given seat counts for this term yet",
+};
+
 /** "Seats as of 2 min ago", from Testudo's own time when it gave one. */
-function SeatsFreshness({ termId }: { termId: string }) {
-  const catalog = useTermCatalog(termId);
-  const now = useNow(30_000);
-  const at =
-    catalog?.seats?.asOf ?? catalog?.manifest?.seats?.fetchedAt ?? null;
-  if (!at) return null;
+function SeatsFreshness({ termId }: { termId: TermId }) {
+  const fresh = useSeatsFreshness(termId);
+  if (!fresh.text) return null;
   return (
-    <WithTooltip label="Seat counts come from Testudo every few minutes">
+    <WithTooltip label={FRESHNESS_TIP[fresh.state]}>
       <span className="flex items-center gap-1.5 text-[11px] text-faint">
-        <span aria-hidden="true" className="size-1.5 rounded-full bg-ok" />
-        Seats as of {formatRelative(at, now)}
+        {fresh.state === "live" ? (
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-ok" />
+        ) : null}
+        {fresh.text}
       </span>
     </WithTooltip>
   );
-}
-
-function useNow(everyMs: number): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), everyMs);
-    return () => clearInterval(timer);
-  }, [everyMs]);
-  return now;
 }
 
 function DetailsSkeleton() {

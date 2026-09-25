@@ -124,11 +124,9 @@ Each is behind a small hook, so where the work happens can change without touchi
 |---|---|
 | `useCourseResults(termId, query, filters)` (`~/features/search/use-course-search`) | `idle`, `loading` or `ready` with courses. Runs core search on the main thread over an index built once per catalog (`courseSearchFor`); moving it into the web worker changes this file only. `findCourses` is the pure part. |
 | `useTermSearch(termId)`, `useSearchStore` (`~/features/search/search-store`) | The query and filters, remembered per term for the session. |
-| `usePlanetTerpDept(dept)`, `instructorFor(data, name)` (`~/features/course-details/use-planetterp`) | A department's PlanetTerp file through the data seam, and the Testudo-name join. The swap point for M6's `useInstructors(dept)`. |
+| `instructorFor(data, name)` (`~/features/course-details/planetterp`) | The PlanetTerp instructor for a Testudo name, from `useInstructors(dept)`'s file. |
 | `useReviewSummary(slug, course)` (`~/features/course-details/use-review-summary`) | The LLM summary: `loading`, `shown` or `hidden` (every "unavailable" and every failure hides it; "busy" is asked once more after 4 s). One request per instructor per visit. |
 | `SeatBell` (`~/features/course-details/seat-bell`) | The bell for a low or full section, over `useSeatAlert`/`subscribeSeatAlert`. |
-
-Course details reads "Seats as of …" from the loaded seats file; M6's `useSeatsFreshness(termId)` can replace `SeatsFreshness` in `course-details.tsx`.
 
 ## The calendar's store fields
 

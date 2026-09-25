@@ -10,7 +10,6 @@ import { useSeatAlerts } from "~/state/seat-alerts";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { panels } from "./panels";
-import { usePlanetTerpStore } from "./use-planetterp";
 import { forgetReviewSummaries } from "./use-review-summary";
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
@@ -58,7 +57,6 @@ describe("Course details", () => {
       reason: "failed",
     });
     vi.mocked(api.alerts.subscribe).mockReset();
-    usePlanetTerpStore.setState({ manifest: null, depts: {} });
     forgetReviewSummaries();
   });
 

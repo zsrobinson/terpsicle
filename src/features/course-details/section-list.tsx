@@ -29,8 +29,8 @@ import { SeatMeter } from "~/features/courses/seat-meter";
 import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
+import { instructorFor } from "./planetterp";
 import { SeatBell } from "./seat-bell";
-import { instructorFor } from "./use-planetterp";
 import {
   compactMeetingWords,
   deliveryWords,

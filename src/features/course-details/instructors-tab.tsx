@@ -9,7 +9,7 @@ import {
 import { type Course, type PlanetTerpDept, planetTerpUrl } from "~/core/schema";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { instructorFor } from "./use-planetterp";
+import { instructorFor } from "./planetterp";
 import { useReviewSummary } from "./use-review-summary";
 
 // Instructors (SPEC §3.4): a card for each, with rating, reviews, average GPA
