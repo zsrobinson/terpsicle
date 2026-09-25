@@ -165,7 +165,7 @@ export function LiveRouteMap({
       {loaded ? null : <Skeleton className="absolute inset-0 rounded-none" />}
       {createPortal(<EndLabel code={from} />, labels.start)}
       {createPortal(<EndLabel code={to} />, labels.end)}
-      <div className="absolute right-0 bottom-0 rounded-tl-md bg-raised/85 px-1.5 py-px text-[9.5px] text-muted leading-4 [&_a:hover]:text-fg [&_a]:underline-offset-2 [&_a:hover]:underline">
+      <div className="absolute right-0 bottom-0 rounded-tl-md bg-raised/85 px-1.5 py-px text-2xs text-muted [&_a:hover]:text-fg [&_a]:underline-offset-2 [&_a:hover]:underline">
         <WithTooltip label="Map tiles by Protomaps">
           <a href="https://protomaps.com" target="_blank" rel="noreferrer">
             Protomaps
@@ -191,7 +191,7 @@ const FIT_PADDING = { top: 44, bottom: 30, left: 30, right: 30 };
 
 function EndLabel({ code }: { code: string }) {
   return (
-    <span className="pointer-events-none block rounded-[5px] border border-hairline-strong bg-raised px-1.5 font-medium font-mono text-[11px] text-fg leading-[17px] shadow-xs">
+    <span className="ident pointer-events-none block rounded-md border border-hairline-strong bg-raised px-1.5 py-px font-medium text-fg text-xs shadow-xs">
       {code}
     </span>
   );

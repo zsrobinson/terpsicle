@@ -7,6 +7,7 @@ import { useCatalog } from "~/state/catalog-store";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { panels } from "./panels";
+import { useTravelSettingsOpen } from "./settings-store";
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 
@@ -21,40 +22,72 @@ async function renderTravel(options?: { demo?: boolean }) {
 
 const connections = () => screen.getByRole("region", { name: "Connections" });
 const calendar = () => screen.getByRole("region", { name: "Week calendar" });
+const openSettings = (user: { click: (e: Element) => Promise<void> }) =>
+  user.click(screen.getByRole("button", { name: /^Typical pace ·|pace ·/ }));
 
 describe("Travel tab", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.mocked(track).mockClear();
+    useTravelSettingsOpen.setState({ open: false });
   });
 
-  it("lists connections by day with walk, gap and verdict", async () => {
+  it("lists connections first, the same walk on several days as one row", async () => {
     await renderTravel();
     const list = connections();
-    const monday = await within(list).findByRole("heading", { name: "Monday" });
-    expect(monday).toBeInTheDocument();
-    const tight = within(list).getAllByRole("button", {
-      name: /^STAT400 to CMSC351: Tight: 8 min to get there, 10 min between classes/,
+    const back = await within(list).findByRole("region", {
+      name: "Back to back",
     });
-    expect(tight).toHaveLength(3);
-    expect(tight[0]).toHaveTextContent("ESJ → CSI · 8 min walk · 10 min gap");
-    expect(tight[0]).toHaveTextContent("Tight");
+    const tight = within(back).getAllByRole("button", {
+      name: /^STAT400 to CMSC351, Mon, Wed and Fri: Tight: 8 min to get there, 10 min between classes/,
+    });
+    expect(tight).toHaveLength(1);
+    expect(tight[0]).toHaveTextContent(
+      "Mon, Wed, Fri · ESJ → CSI · 8 min walk · 10 min gap",
+    );
+    // The tight one comes first, with its status on the right.
+    const rows = within(back).getAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent(/^STAT400 → CMSC351\s*Tight\s*Mon/);
+    // The settings are one line until opened.
+    expect(
+      screen.getByRole("button", {
+        name: /Typical pace · no extra time · standard routes/,
+      }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("switch", { name: /Accessible routes/ }),
+    ).toBeNull();
+  });
+
+  it("keeps longer breaks, under their own heading", async () => {
+    await renderTravel();
+    const apart = await within(connections()).findByRole("region", {
+      name: "Longer breaks",
+    });
+    // CMSC330 (IRB) ends at 10:45, ECON200 (VMH) starts at 2pm.
+    expect(
+      within(apart).getByRole("button", {
+        name: /^CMSC330 to ECON200, Tue and Thu: Plenty of time/,
+      }),
+    ).toHaveTextContent("3 hr 15 min gap");
+    expect(apart).toHaveTextContent("Over 30 min · not on the calendar");
   });
 
   it("updates verdicts, here and on the calendar, when a setting changes", async () => {
     const { user } = await renderTravel();
     await within(connections()).findAllByRole("button", {
-      name: /^STAT400 to CMSC351: Tight/,
+      name: /^STAT400 to CMSC351, .*: Tight/,
     });
+    await openSettings(user);
 
     // +5 min per trip: 13 min in a 10-minute gap.
     await user.click(screen.getByRole("button", { name: "+5 min" }));
     expect(useWorkspace.getState().travel.extraMinutes).toBe(5);
     expect(
-      within(connections()).getAllByRole("button", {
-        name: /^STAT400 to CMSC351: Not enough time: 13 min to get there/,
+      within(connections()).getByRole("button", {
+        name: /^STAT400 to CMSC351, .*: Not enough time: 13 min to get there/,
       }),
-    ).toHaveLength(3);
+    ).toBeInTheDocument();
     expect(
       calendar().querySelector('[data-verdict="insufficient"]'),
     ).toHaveTextContent("13 min");
@@ -62,15 +95,18 @@ describe("Travel tab", () => {
       setting: "extraMinutes",
       value: 5,
     });
+    expect(
+      screen.getByRole("button", { name: /Typical pace · \+5 min a trip/ }),
+    ).toBeInTheDocument();
 
     // Faster and no extra: 7 min is plenty.
     await user.click(screen.getByRole("button", { name: "No extra time" }));
     await user.click(screen.getByRole("button", { name: "Faster, 3.5 mph" }));
     expect(
-      within(connections()).getAllByRole("button", {
-        name: /^STAT400 to CMSC351: Plenty of time: 7 min to get there/,
+      within(connections()).getByRole("button", {
+        name: /^STAT400 to CMSC351, .*: Plenty of time: 7 min to get there/,
       }),
-    ).toHaveLength(3);
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Faster, 3.5 mph" }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -82,6 +118,7 @@ describe("Travel tab", () => {
 
   it("switches to accessible routes", async () => {
     const { user } = await renderTravel();
+    await openSettings(user);
     const toggle = screen.getByRole("switch", { name: /Accessible routes/ });
     expect(toggle).toHaveAttribute("aria-checked", "false");
     await user.click(toggle);
@@ -99,15 +136,18 @@ describe("Travel tab", () => {
     await within(connections()).findAllByRole("button", {
       name: /^STAT400 to CMSC351/,
     });
+    await openSettings(user);
     expect(
       screen.getByText(/Estimates use campus paths at your pace\./),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "How?" }));
     expect(
-      screen.getByText(
-        "ESJ → CSI: 1,999 ft at 3.0 mph = 7.6 min, rounded up to 8 min",
-      ),
-    ).toBeInTheDocument();
+      screen.getByText(": 1,999 ft at 3.0 mph = 7.6 min, rounded up to 8 min", {
+        exact: false,
+      }),
+    ).toHaveTextContent(
+      "ESJ → CSI: 1,999 ft at 3.0 mph = 7.6 min, rounded up to 8 min",
+    );
     expect(track).toHaveBeenCalledWith("travel_how_opened", {});
   });
 

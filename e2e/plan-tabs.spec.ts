@@ -103,6 +103,8 @@ test("fix a problem with one click", async ({ page }) => {
 test("add a block from the Blocks form", async ({ page }) => {
   await openDemo(page);
   await openTab(page, "Blocks");
+  // The demo has a block, so the form waits behind "Add a block".
+  await page.getByRole("button", { name: "Add a block" }).click();
   const form = page.getByRole("form", { name: "Add block" });
   await form.getByRole("button", { name: "Lunch" }).click();
   await form.getByRole("combobox", { name: "Starts" }).click();

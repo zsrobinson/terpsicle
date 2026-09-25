@@ -1,37 +1,20 @@
-import { cn } from "cn";
+import { TONE_TEXT, type Tone } from "~/app/emphasis";
 import type { ConnectionVerdict } from "~/core/schema";
 
-// The one place a verdict's color is decided (SPEC §3.3): neutral when
+// The one place a verdict's tone is decided (SPEC §3.3): neutral when
 // there's enough time, amber when tight, red when there isn't enough. Route
-// data that's missing is neutral too, never a warning.
+// data that's missing is neutral too, never a warning. The color goes on the
+// verdict's words only (docs/UX-REVIEW.md §2.5).
 
-export const VERDICT_TEXT = {
-  ok: "text-muted",
-  tight: "text-warn",
-  insufficient: "text-error",
-  unknown: "text-faint",
-  "no-route": "text-faint",
-} as const satisfies Record<ConnectionVerdict, string>;
+export const VERDICT_TONE = {
+  ok: "muted",
+  tight: "warn",
+  insufficient: "error",
+  unknown: "muted",
+  "no-route": "muted",
+} as const satisfies Record<ConnectionVerdict, Tone>;
 
-const DOT = {
-  ok: "bg-hairline-strong",
-  tight: "bg-warn",
-  insufficient: "bg-error",
-  unknown: "border border-hairline-strong",
-  "no-route": "border border-hairline-strong",
-} as const satisfies Record<ConnectionVerdict, string>;
-
-export function VerdictDot({
-  verdict,
-  className,
-}: {
-  verdict: ConnectionVerdict;
-  className?: string;
-}) {
-  return (
-    <span
-      aria-hidden
-      className={cn("size-2 shrink-0 rounded-full", DOT[verdict], className)}
-    />
-  );
+/** Class names for a verdict's words. */
+export function verdictText(verdict: ConnectionVerdict): string {
+  return TONE_TEXT[VERDICT_TONE[verdict]];
 }

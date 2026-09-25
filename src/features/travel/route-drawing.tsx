@@ -102,7 +102,7 @@ function Endpoint({
         x={left + width / 2}
         y={top + 12.5}
         textAnchor="middle"
-        className="fill-fg font-medium font-mono"
+        className="ident fill-fg font-medium"
         fontSize={11}
       >
         {label}
