@@ -1,0 +1,565 @@
+// Biome: lint + format. Conventions from CLAUDE.md:
+// - named exports only (`noDefaultExport`; routes, src/server.ts, tool configs
+//   and e2e specs are exempt);
+// - a non-null `!` needs a reason:
+//   `// biome-ignore lint/style/noNonNullAssertion: <why it's safe>`;
+// - kebab-case file names.
+//
+// `overrides` enforce the import boundaries in BUILD.md §3 per folder, for
+// package and `~/` alias imports. scripts/check-imports.ts covers the rest:
+// relative imports must stay inside their top-level folder (so every
+// cross-folder import is an alias checked here), and src/core never reads the
+// clock. Later overrides win, which is how test files get `~/fixtures`.
+// Interpretation: the data layer (src/state, src/worker) may load fixtures for
+// mock mode; components may not.
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!reference",
+      "!src/routeTree.gen.ts",
+      "!worker-configuration.d.ts",
+      "!docs/review-answers.json",
+      "!assets"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noDefaultExport": "error",
+        "noNonNullAssertion": "error",
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": ["kebab-case"],
+            "requireAscii": true
+          }
+        }
+      },
+      "suspicious": {
+        "noExplicitAny": "error"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/server.ts", "src/routes/**", "*.config.ts", "e2e/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/routes/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/core/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "@tanstack/**",
+                      "radix-ui",
+                      "lucide-react",
+                      "sonner",
+                      "vaul",
+                      "cn",
+                      "class-variance-authority",
+                      "posthog-js",
+                      "cloudflare:*",
+                      "node:*"
+                    ],
+                    "message": "src/core is pure domain logic: no UI, runtime or platform imports (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": [
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/app/**",
+                      "~/features/**",
+                      "~/state/**",
+                      "~/ui",
+                      "~/ui/**",
+                      "~/server/**",
+                      "~/jobs/**",
+                      "~/worker/**"
+                    ],
+                    "message": "src/core must not import other src folders (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/fixtures", "~/fixtures/**"],
+                    "message": "src/core must not import other src folders (BUILD.md \u00a73). Tests may use ~/fixtures."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/ingest/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "@tanstack/**",
+                      "radix-ui",
+                      "lucide-react",
+                      "sonner",
+                      "vaul",
+                      "cn",
+                      "class-variance-authority",
+                      "posthog-js",
+                      "cloudflare:*"
+                    ],
+                    "message": "src/ingest is platform-agnostic: no UI or cloudflare:* imports; take fetch and a BlobStore (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": [
+                      "~/app/**",
+                      "~/features/**",
+                      "~/state/**",
+                      "~/ui",
+                      "~/ui/**",
+                      "~/server/**",
+                      "~/jobs/**",
+                      "~/worker/**"
+                    ],
+                    "message": "src/ingest may import only ~/core (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/fixtures", "~/fixtures/**"],
+                    "message": "src/ingest may import only ~/core (BUILD.md \u00a73). Tests may use ~/fixtures."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/jobs/**", "src/server/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "@tanstack/**",
+                      "radix-ui",
+                      "lucide-react",
+                      "sonner",
+                      "vaul",
+                      "cn",
+                      "class-variance-authority",
+                      "posthog-js"
+                    ],
+                    "message": "Worker code (jobs, server) must not import UI libraries (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": [
+                      "~/app/**",
+                      "~/features/**",
+                      "~/state/**",
+                      "~/ui",
+                      "~/ui/**",
+                      "~/worker/**"
+                    ],
+                    "message": "Worker code (jobs, server) must not import UI code (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/fixtures", "~/fixtures/**"],
+                    "message": "Worker code must not import fixtures outside tests."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/fixtures/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "@tanstack/**",
+                      "radix-ui",
+                      "lucide-react",
+                      "sonner",
+                      "vaul",
+                      "cn",
+                      "class-variance-authority",
+                      "posthog-js",
+                      "cloudflare:*"
+                    ],
+                    "message": "src/fixtures may import only ~/core (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": [
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/app/**",
+                      "~/features/**",
+                      "~/state/**",
+                      "~/ui",
+                      "~/ui/**",
+                      "~/server/**",
+                      "~/jobs/**",
+                      "~/worker/**"
+                    ],
+                    "message": "src/fixtures may import only ~/core (BUILD.md \u00a73)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/state/**", "src/worker/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/jobs/**",
+                      "~/server/**",
+                      "!~/server/fns/**"
+                    ],
+                    "message": "UI code must not import ingest, jobs or server code; only typed server functions in ~/server/fns (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["cloudflare:*"],
+                    "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/app/**",
+        "src/features/**",
+        "src/components/**",
+        "src/routes/**",
+        "src/router.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/jobs/**",
+                      "~/server/**",
+                      "!~/server/fns/**"
+                    ],
+                    "message": "UI code must not import ingest, jobs or server code; only typed server functions in ~/server/fns (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["cloudflare:*"],
+                    "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/fixtures", "~/fixtures/**"],
+                    "message": "Only the data layer (src/state, src/worker) and tests load fixtures; components get data from state."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/core/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "@tanstack/**",
+                      "radix-ui",
+                      "lucide-react",
+                      "sonner",
+                      "vaul",
+                      "cn",
+                      "class-variance-authority",
+                      "posthog-js",
+                      "cloudflare:*",
+                      "node:*"
+                    ],
+                    "message": "src/core is pure domain logic: no UI, runtime or platform imports (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": [
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/app/**",
+                      "~/features/**",
+                      "~/state/**",
+                      "~/ui",
+                      "~/ui/**",
+                      "~/server/**",
+                      "~/jobs/**",
+                      "~/worker/**"
+                    ],
+                    "message": "src/core must not import other src folders (BUILD.md \u00a73)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/ingest/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "@tanstack/**",
+                      "radix-ui",
+                      "lucide-react",
+                      "sonner",
+                      "vaul",
+                      "cn",
+                      "class-variance-authority",
+                      "posthog-js",
+                      "cloudflare:*"
+                    ],
+                    "message": "src/ingest is platform-agnostic: no UI or cloudflare:* imports; take fetch and a BlobStore (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": [
+                      "~/app/**",
+                      "~/features/**",
+                      "~/state/**",
+                      "~/ui",
+                      "~/ui/**",
+                      "~/server/**",
+                      "~/jobs/**",
+                      "~/worker/**"
+                    ],
+                    "message": "src/ingest may import only ~/core (BUILD.md \u00a73)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/jobs/**/*.test.ts", "src/server/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "@tanstack/**",
+                      "radix-ui",
+                      "lucide-react",
+                      "sonner",
+                      "vaul",
+                      "cn",
+                      "class-variance-authority",
+                      "posthog-js"
+                    ],
+                    "message": "Worker code (jobs, server) must not import UI libraries (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": [
+                      "~/app/**",
+                      "~/features/**",
+                      "~/state/**",
+                      "~/ui",
+                      "~/ui/**",
+                      "~/worker/**"
+                    ],
+                    "message": "Worker code (jobs, server) must not import UI code (BUILD.md \u00a73)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/app/**/*.test.{ts,tsx}",
+        "src/features/**/*.test.{ts,tsx}",
+        "src/components/**/*.test.{ts,tsx}"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/jobs/**",
+                      "~/server/**",
+                      "!~/server/fns/**"
+                    ],
+                    "message": "UI code must not import ingest, jobs or server code; only typed server functions in ~/server/fns (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["cloudflare:*"],
+                    "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/core/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "fetch": "src/core is pure: take data as arguments, fetch in ingest or the app.",
+                  "window": "src/core must not touch the DOM.",
+                  "document": "src/core must not touch the DOM.",
+                  "navigator": "src/core must not touch the DOM.",
+                  "localStorage": "src/core is pure: persistence lives in src/state.",
+                  "sessionStorage": "src/core is pure: persistence lives in src/state.",
+                  "indexedDB": "src/core is pure: persistence lives in src/state.",
+                  "caches": "src/core is pure: no Cache API.",
+                  "XMLHttpRequest": "src/core is pure: take data as arguments."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+// The one deployable: SPA assets, /data/* from R2, the PostHog proxy, server
+// functions and every cron job. See docs/BUILD.md §2.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "terpsicle",
+  "main": "src/server.ts",
+  // Newest date the pinned workerd supports; bump it together with wrangler.
+  "compatibility_date": "2026-09-23",
+  // TanStack Start's request handler uses AsyncLocalStorage from node:async_hooks.
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "upload_source_maps": true,
+
+  // The Cloudflare Vite plugin fills in the assets directory at build time.
+  // Asset files are served before the Worker runs, so /data/* and /ingest/*
+  // (never files in the build output) always reach the Worker.
+  "assets": { "binding": "ASSETS" },
+
+  // Production lives on the custom domains only; www 301s to the apex in
+  // src/server.ts.
+  "workers_dev": false,
+  // PR previews (`wrangler preview`) get noindexed workers.dev URLs.
+  "preview_urls": true,
+  "routes": [
+    { "pattern": "terpsicle.com", "custom_domain": true },
+    { "pattern": "www.terpsicle.com", "custom_domain": true }
+  ],
+
+  "r2_buckets": [{ "binding": "DATA", "bucket_name": "terpsicle-data" }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "terpsicle",
+      "database_id": "7348fc06-5c8e-44d3-b357-4f53cc30094e",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    // Public PostHog project token (the same one the client ships). Server
+    // telemetry is off wherever it's unset: tests, local dev, previews.
+    "POSTHOG_TOKEN": "phc_nfEKbERy5wWGQWFzGbSArYPtRQnJrsYuDYzTLJmxFLd6"
+  },
+  "ai": { "binding": "AI" },
+  // Cloudflare Email Service; terpsicle.com is onboarded for sending.
+  "send_email": [{ "name": "EMAIL" }],
+
+  // Keep in sync with CRON_JOBS in src/jobs/index.ts (a worker test checks it).
+  "triggers": {
+    "crons": [
+      "*/5 * * * *", // seats
+      "0 */6 * * *", // catalog
+      "17 5 * * *", // planetterp
+      "23 6 * * 1", // calendar + buildings
+      "41 * * * *" // routes
+    ]
+  },
+
+  // PR previews (`wrangler preview`). Crons never run on previews. They read
+  // the production data bucket, which is only ever written by crons, and get
+  // their own D1 database so preview code can't touch real subscriptions.
+  // No send_email binding: previews must never email real people.
+  "previews": {
+    "r2_buckets": [{ "binding": "DATA", "bucket_name": "terpsicle-data" }],
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "terpsicle-preview",
+        "database_id": "b1a4458a-e0ae-4ce5-b410-46bc2130db8c",
+        "migrations_dir": "migrations"
+      }
+    ],
+    "ai": { "binding": "AI" }
+  }
+}

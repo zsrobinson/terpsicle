@@ -1,0 +1,1 @@
+Mock data for `pnpm dev:mock`, unit tests and e2e: a deterministic mock term (60+ courses, two or more terms) and builders (`aCourse`, `aSection`, `aPlan`, …) for one-off variants. Requirements are in `docs/BUILD.md` §5; fixtures may import only `~/core`.
