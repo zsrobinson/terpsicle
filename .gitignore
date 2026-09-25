@@ -9,3 +9,6 @@ coverage
 playwright-report
 test-results
 .DS_Store
+
+# Local ingest output (pnpm tsx scripts/ingest.ts … --target fs)
+.data

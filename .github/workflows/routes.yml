@@ -1,0 +1,39 @@
+name: Routes
+
+# Walking distances and route geometry from UMD's routing network → R2.
+# Not a Worker cron: a Worker can't fetch UMD's routing token (maps.umd.edu
+# sends an incomplete TLS chain; Cloudflare answers 526). The owner approved
+# this exception to "Actions only for CI and deploy" (BUILD.md §2).
+on:
+  schedule:
+    # Weekly, after Monday's buildings job (23 6 * * 1) has joined new codes.
+    - cron: "37 8 * * 1"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Solve every pair again, not just new or changed ones
+        type: boolean
+        default: false
+
+concurrency:
+  group: routes
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  routes:
+    name: Build routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      # The script adds scripts/certs/umd-intermediates.pem to Node's CAs itself.
+      - name: Build and upload routes
+        run: pnpm tsx scripts/build-routes.ts --target r2 ${{ inputs.force && '--force' || '' }}

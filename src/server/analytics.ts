@@ -6,7 +6,15 @@ const DISTINCT_ID = "terpsicle-worker";
 
 /** Every server event name, in one place. Add new ones here. */
 export interface ServerEvents {
-  cron_job_finished: { job: string; durationMs: number };
+  cron_job_finished: {
+    job: string;
+    durationMs: number;
+    /** What the job did: departments written, sections, changes, … */
+    counts?: Record<string, number>;
+    /** Errors it recovered from (a department that kept its old chunk). */
+    errorCount?: number;
+    firstError?: string;
+  };
   cron_job_failed: { job: string; durationMs: number; error: string };
   // Review summaries. Never the review text or anything about the requester.
   summary_generated: {

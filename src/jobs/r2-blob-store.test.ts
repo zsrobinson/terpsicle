@@ -23,4 +23,23 @@ describe("createR2BlobStore", () => {
     await store.delete("blob-test/a.json");
     expect(await store.get("blob-test/a.json")).toBeNull();
   });
+
+  it("writes conditionally on etags", async () => {
+    const store = createR2BlobStore(env.DATA);
+    expect(await store.putIfMatch("cond/m.json", "1", null)).toBe(true);
+    expect(await store.putIfMatch("cond/m.json", "x", null)).toBe(false);
+
+    const first = await store.getVersioned("cond/m.json");
+    await store.put("cond/m.json", "2");
+    expect(await store.putIfMatch("cond/m.json", "3", first?.etag ?? "")).toBe(
+      false,
+    );
+    const second = await store.getVersioned("cond/m.json");
+    expect(await store.putIfMatch("cond/m.json", "3", second?.etag ?? "")).toBe(
+      true,
+    );
+    expect(
+      new TextDecoder().decode((await store.get("cond/m.json")) ?? undefined),
+    ).toBe("3");
+  });
 });

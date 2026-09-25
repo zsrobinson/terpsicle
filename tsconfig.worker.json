@@ -16,5 +16,8 @@
     "src/ingest",
     "src/core",
     "src/fixtures"
-  ]
+  ],
+  // Ingest tests run in Node (the `ingest` Vitest project) and read saved
+  // pages with node:fs; the node program checks them.
+  "exclude": ["src/ingest/**/*.test.ts"]
 }

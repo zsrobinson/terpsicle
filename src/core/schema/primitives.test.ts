@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CourseCodeSchema,
   DaysSchema,
+  InstructorSlugSchema,
   parseSectionKey,
   SectionKeySchema,
   sectionKey,
@@ -58,5 +59,28 @@ describe("primitives", () => {
     expect(DaysSchema.safeParse(["Tu", "Th", "Sa"]).success).toBe(true);
     expect(DaysSchema.safeParse(["W", "M"]).success).toBe(false);
     expect(DaysSchema.safeParse(["M", "M"]).success).toBe(false);
+  });
+
+  it("accepts PlanetTerp's real slugs but nothing that breaks a key or URL", () => {
+    for (const ok of [
+      "kruskal",
+      "o'malley_sharon",
+      "shankar_a.u.",
+      "o\u2019brien",
+      "grant_matr\u00e3\u00a9",
+    ])
+      expect(InstructorSlugSchema.safeParse(ok).success).toBe(true);
+    for (const bad of [
+      "",
+      "../x",
+      "a/b",
+      "a b",
+      ".hidden",
+      "-x",
+      "a?b",
+      "a#b",
+      "a%2F",
+    ])
+      expect(InstructorSlugSchema.safeParse(bad).success).toBe(false);
   });
 });

@@ -55,8 +55,9 @@
       "*/5 * * * *", // seats
       "0 */6 * * *", // catalog
       "17 5 * * *", // planetterp
-      "23 6 * * 1", // calendar + buildings
-      "41 * * * *" // routes
+      "23 6 * * 1" // calendar + buildings
+      // Routes run from GitHub Actions (.github/workflows/routes.yml): a
+      // Worker can't fetch UMD's routing token (maps.umd.edu answers 526).
     ]
   },
 

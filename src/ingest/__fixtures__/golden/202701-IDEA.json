@@ -1,0 +1,248 @@
+{
+ "schemaVersion": 1,
+ "termId": "202701",
+ "dept": "IDEA",
+ "courses": [
+  {
+   "code": "IDEA201",
+   "title": "Innovation Tools & Mindsets",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "P-F",
+    "Aud"
+   ],
+   "permission": null,
+   "description": "Challenges assumptions around what is needed to innovate and who innovators are. Through hands-on activities and reflection, you'll be invited to step out of your comfort zone, think and work in new ways, and gain confidence in your creative abilities. Hybrid section (0101): meets in-person six times during the semester, along with asynchronous online work for the remaining weeks. In-person section (0102): meets in-person on campus every week. Asynchronous sections (0103 and 0104): are completely online, with asynchronous work and no scheduled class meetings.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [
+    {
+     "label": "Credit only granted for",
+     "text": "IDEA201 or IDEA258A."
+    },
+    {
+     "label": "Formerly",
+     "text": "IDEA258A."
+    }
+   ],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Mira Azarm"
+     ],
+     "delivery": "blended",
+     "meetings": [
+      {
+       "timed": false,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": true
+      },
+      {
+       "timed": false,
+       "kind": "discussion",
+       "building": "ESJ",
+       "room": "2101",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "0102",
+     "instructors": [
+      "Christina Hnatov"
+     ],
+     "delivery": "blended",
+     "meetings": [
+      {
+       "timed": false,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": true
+      },
+      {
+       "timed": false,
+       "kind": "discussion",
+       "building": "ESJ",
+       "room": "2101",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "0103",
+     "instructors": [
+      "Brooke Smith"
+     ],
+     "delivery": "online-async",
+     "meetings": [
+      {
+       "timed": false,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": true
+      }
+     ],
+     "notes": "This section is delivered fully online. All coursework and assignments are completed asynchronously with no scheduled class meetings.",
+     "restriction": null
+    },
+    {
+     "code": "0104",
+     "instructors": [
+      "Brooke Smith"
+     ],
+     "delivery": "online-async",
+     "meetings": [
+      {
+       "timed": false,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": true
+      }
+     ],
+     "notes": "This section is delivered fully online. All coursework and assignments are completed asynchronously with no scheduled class meetings.",
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "IDEA311",
+   "title": "Design Your Purpose",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "P-F",
+    "Aud"
+   ],
+   "permission": null,
+   "description": "What do you want to do once you graduate? What about with your life? These are the big questions we begin to tackle in this course. Use design methods and mindsets to explore your personal and professional development goals and explore potential career paths. Using empathy, brainstorming, and prototyping techniques, you'll imagine potential futures for yourself and test them to see if they are a good fit for you.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [
+    {
+     "label": "Credit only granted for",
+     "text": "IDEA311 or IDEA379A."
+    },
+    {
+     "label": "Formerly",
+     "text": "IDEA379A."
+    }
+   ],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Brooke Smith"
+     ],
+     "delivery": "online-async",
+     "meetings": [
+      {
+       "timed": false,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": true
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "0102",
+     "instructors": [
+      "Brooke Smith"
+     ],
+     "delivery": "online-async",
+     "meetings": [
+      {
+       "timed": false,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": true
+      }
+     ],
+     "notes": "Restriction: Must be in the College Park Scholars Program; or permissio of College Park Scholars.",
+     "restriction": "Must be in the College Park Scholars Program; or permissio of College Park Scholars."
+    }
+   ]
+  },
+  {
+   "code": "IDEA498",
+   "title": "Independent Study: Experiments in Design and Innovation",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "P-F",
+    "Aud"
+   ],
+   "permission": "Perm Req",
+   "description": "Students will work on a self-selected challenge and/or real-world project using design tools and methods, with an emphasis on employing a human-centered, creative problem-solving approach. This course requires a high degree of self-direction in all aspects of the project work, including defining specific milestones and deliverables. There will be regular coaching from an Academy for Innovation and Entrepreneurship team member. Previous design experience required.",
+   "prerequisite": "Previous design experience required; and must have Permission of Academy for Innovation & Entrepreneurship. Repeatable to 6 credits.",
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [
+    {
+     "label": "Additional information",
+     "text": "For more information on design see https://innovation.umd.edu/about-us/what-design."
+    }
+   ],
+   "crossListings": [],
+   "contactDepartment": true,
+   "sections": []
+  },
+  {
+   "code": "IDEA698",
+   "title": "Independent Study: Experiments in Design and Innovation",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "Aud"
+   ],
+   "permission": "Perm Req",
+   "description": "Graduate students will work on a self-selected challenge and/or real-world project using design tools and methods, with an emphasis on employing a human-centered, creative problem-solving approach. This course requires a high degree of self-direction in all aspects of the project work, including defining specific milestones and deliverables. There will be regular coaching from an Academy for Innovation and Entrepreneurship team member. This course may be taken as a component of the Academy for Innovation & Entrepreneurship's Innovation Fellowship program.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must have permission of Academy for Innovation & Entrepreneurship. Repeatable to 6 credits.",
+   "otherNotes": [
+    {
+     "label": "Additional information",
+     "text": "For more information on design see https://innovation.umd.edu/about-us/what-design."
+    }
+   ],
+   "crossListings": [],
+   "contactDepartment": true,
+   "sections": []
+  }
+ ]
+}
