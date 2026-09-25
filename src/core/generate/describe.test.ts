@@ -16,7 +16,6 @@ import {
   differencesFrom,
   freeWeekdays,
   hasChoices,
-  requestColors,
 } from "./describe";
 import { generatePlans } from "./generate";
 import { mergeSameWeek } from "./merge";
@@ -169,16 +168,6 @@ describe("merging results with the same week", () => {
     );
     expect(merged.map((r) => r.id)).toEqual(["ENGL101-0302", "ENGL101-9012"]);
     expect(merged[0]?.equivalents.count).toBe(2);
-  });
-});
-
-describe("requestColors", () => {
-  it("keeps known colors and spreads new courses across the palette", () => {
-    const colors = requestColors(["CMSC131", "MATH141", "ENGL101"], {
-      CMSC131: "violet",
-    });
-    expect(colors.CMSC131).toBe("violet");
-    expect(new Set(Object.values(colors)).size).toBe(3);
   });
 });
 

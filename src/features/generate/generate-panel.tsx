@@ -6,12 +6,8 @@ import {
   PanelLabel,
   useFocusRequest,
 } from "~/app/panel";
-import {
-  draftCourseCodes,
-  relaxDraft,
-  requestColors,
-  requestItems,
-} from "~/core/generate";
+import { resolveCourseColors } from "~/core/color";
+import { draftCourseCodes, relaxDraft, requestItems } from "~/core/generate";
 import type { GenerateDraft, Relaxation } from "~/core/schema";
 import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { useActiveTerm, useCurrentPlan, useTermCatalog } from "~/state/hooks";
@@ -90,7 +86,9 @@ export function GeneratePanel() {
   };
 
   const colors = useMemo(
-    () => requestColors(draftCourseCodes(draft.items), current?.colors ?? {}),
+    // One color per course across every row, as saving would pick them.
+    () =>
+      resolveCourseColors(draftCourseCodes(draft.items), current?.colors ?? {}),
     [draft.items, current?.colors],
   );
   const termName = term?.name ?? "this term";
