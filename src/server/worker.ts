@@ -5,6 +5,23 @@ import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
 
 const WWW_HOST = `www.${APEX_HOST}`;
+/** Vite's hashed build output (dist/client/assets). */
+export const ASSETS_PREFIX = "/assets/";
+
+/**
+ * The HTML names this deploy's hashed scripts, so browsers and caches must
+ * check for a new copy every time (`no-cache` still allows a 304, and keeps
+ * the back/forward cache, which `no-store` would turn off). Stale HTML from
+ * an older deploy points at scripts that are gone: a blank page.
+ */
+function withHtmlRevalidation(response: Response): Response {
+  const type = response.headers.get("Content-Type") ?? "";
+  if (!type.startsWith("text/html") || response.headers.has("Cache-Control"))
+    return response;
+  const out = new Response(response.body, response);
+  out.headers.set("Cache-Control", "no-cache");
+  return out;
+}
 
 /** The TanStack Start request handler (or a stand-in in tests). */
 export interface AppHandler {
@@ -40,7 +57,18 @@ export function createWorker(app: AppHandler) {
       ) {
         return proxyPostHog(request);
       }
-      return app.fetch(request);
+      if (url.pathname.startsWith(ASSETS_PREFIX)) {
+        // Built files are served before the Worker runs, so one that reaches
+        // here doesn't exist in this version: a tab or HTML from an older
+        // deploy asking for its old hashed file. Answer a plain 404 that no
+        // cache keeps (the name may exist a moment later, mid-deploy), not
+        // the app's HTML, which a browser would reject as a script anyway.
+        return new Response("Not found", {
+          status: 404,
+          headers: { "Cache-Control": "no-store" },
+        });
+      }
+      return withHtmlRevalidation(await app.fetch(request));
     },
 
     async scheduled(

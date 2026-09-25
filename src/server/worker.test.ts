@@ -25,6 +25,25 @@ describe("fetch", () => {
     expect(await response.text()).toBe("app shell");
   });
 
+  it("tells browsers to revalidate the app's HTML every time", async () => {
+    app.fetch.mockResolvedValueOnce(
+      new Response("<!doctype html>", {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }),
+    );
+    const response = await get("https://terpsicle.com/");
+    expect(response.headers.get("Cache-Control")).toBe("no-cache");
+    expect(await response.text()).toBe("<!doctype html>");
+  });
+
+  it("answers a missing hashed file with an uncached 404, not the app", async () => {
+    app.fetch.mockClear();
+    const response = await get("https://terpsicle.com/assets/index-OLD.js");
+    expect(response.status).toBe(404);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(app.fetch).not.toHaveBeenCalled();
+  });
+
   it("301s www to the apex, keeping path and query", async () => {
     const response = await get("https://www.terpsicle.com/x?plan=abc");
     expect(response.status).toBe(301);
