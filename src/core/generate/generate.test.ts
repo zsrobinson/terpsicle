@@ -322,6 +322,53 @@ describe("generatePlans", () => {
   });
 });
 
+describe("pick-N groups", () => {
+  it("keeps plans for every course of a pick-1 group, even ones the best plans skip", () => {
+    // Ten ways to take MATH140 back to back with PSYC100; SOCY100 only ever
+    // adds a gap, so the best 3 all pick PSYC100.
+    const math = course(
+      "MATH140",
+      Array.from({ length: 10 }, (_, i): [string, Day[], number] => [
+        `0${i + 1}01`.slice(-4),
+        ["M", "W", "F"],
+        480 + i * 60,
+      ]),
+    );
+    const psyc = course(
+      "PSYC100",
+      Array.from({ length: 10 }, (_, i): [string, Day[], number] => [
+        `0${i + 1}01`.slice(-4),
+        ["M", "W", "F"],
+        530 + i * 60,
+      ]),
+    );
+    const socy = course("SOCY100", [["0101", ["M", "W", "F"], 1080]]);
+    const req = request({
+      items: [
+        required("MATH140"),
+        {
+          kind: "pick",
+          id: "dshs",
+          count: 1,
+          courses: [{ courseCode: "PSYC100" }, { courseCode: "SOCY100" }],
+        },
+      ],
+      limits: { maxResults: 3, maxSteps: 100_000 },
+    });
+    const { results } = generatePlans(req, data([math, psyc, socy]));
+    const picks = results.map((r) =>
+      r.sections.some((k) => k.startsWith("SOCY100")) ? "SOCY100" : "PSYC100",
+    );
+    expect(picks.slice(0, 3)).toEqual(["PSYC100", "PSYC100", "PSYC100"]);
+    expect(picks).toContain("SOCY100");
+    const socyPlan = results.find((r) => r.sections.includes("SOCY100-0101"));
+    expect(socyPlan?.skipped).toEqual(["PSYC100"]);
+    // Still best first.
+    const scores = results.map((r) => r.score);
+    expect(scores).toEqual([...scores].sort((x, y) => y - x));
+  });
+});
+
 describe("when nothing fits", () => {
   const a = course("CMSC351", [
     ["0101", ["M", "W", "F"], 540],

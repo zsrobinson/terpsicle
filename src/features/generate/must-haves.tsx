@@ -2,6 +2,13 @@ import { cn } from "cn";
 import type { ReactNode } from "react";
 import type { Day, MustHaves } from "~/core/schema";
 import { DAY_LONG_NAMES, formatTime, sortDays } from "~/core/time";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/ui/select";
 import { WithTooltip } from "~/ui/tooltip";
 
 // Hard limits every generated plan meets (SPEC §3.9). Defaults: enough time
@@ -20,6 +27,44 @@ const DAY_SHORT: Partial<Record<Day, string>> = {
 
 const selectClass =
   "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-[12px] outline-none focus:border-fg/40";
+
+/** Radix values can't be empty, so "Any time" gets its own. */
+const ANY = "any";
+
+function TimeSelect({
+  label,
+  tip,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  tip: string;
+  value: number | null;
+  options: readonly number[];
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <Select
+      value={value === null ? ANY : String(value)}
+      onValueChange={(v) => onChange(v === ANY ? null : Number(v))}
+    >
+      <WithTooltip label={tip}>
+        <SelectTrigger aria-label={label} className="tnum flex-1">
+          <SelectValue />
+        </SelectTrigger>
+      </WithTooltip>
+      <SelectContent>
+        <SelectItem value={ANY}>Any time</SelectItem>
+        {options.map((m) => (
+          <SelectItem key={m} value={String(m)} className="tnum">
+            {formatTime(m)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -85,48 +130,22 @@ export function MustHaveFields({
   return (
     <div className="flex flex-col gap-2 px-4">
       <Row label="Start after">
-        <WithTooltip label="No class starts before this">
-          <select
-            aria-label="Start after"
-            className={selectClass}
-            value={mustHaves.earliestStart ?? ""}
-            onChange={(e) =>
-              set({
-                earliestStart:
-                  e.target.value === "" ? null : Number(e.target.value),
-              })
-            }
-          >
-            <option value="">Any time</option>
-            {START_OPTIONS.map((m) => (
-              <option key={m} value={m}>
-                {formatTime(m)}
-              </option>
-            ))}
-          </select>
-        </WithTooltip>
+        <TimeSelect
+          label="Start after"
+          tip="No class starts before this"
+          value={mustHaves.earliestStart}
+          options={START_OPTIONS}
+          onChange={(earliestStart) => set({ earliestStart })}
+        />
       </Row>
       <Row label="Done by">
-        <WithTooltip label="No class ends after this">
-          <select
-            aria-label="Done by"
-            className={selectClass}
-            value={mustHaves.latestEnd ?? ""}
-            onChange={(e) =>
-              set({
-                latestEnd:
-                  e.target.value === "" ? null : Number(e.target.value),
-              })
-            }
-          >
-            <option value="">Any time</option>
-            {END_OPTIONS.map((m) => (
-              <option key={m} value={m}>
-                {formatTime(m)}
-              </option>
-            ))}
-          </select>
-        </WithTooltip>
+        <TimeSelect
+          label="Done by"
+          tip="No class ends after this"
+          value={mustHaves.latestEnd}
+          options={END_OPTIONS}
+          onChange={(latestEnd) => set({ latestEnd })}
+        />
       </Row>
       <Row label="Days off">
         <div className="flex flex-1 gap-1">

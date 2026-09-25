@@ -97,7 +97,8 @@ test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
     .click();
   await addCourse(page, "CMSC351");
   await addCourse(page, "CMSC330");
-  await page.getByLabel("Start after").selectOption({ label: "1pm" });
+  await page.getByRole("combobox", { name: "Start after" }).click();
+  await page.getByRole("option", { name: "1pm" }).click();
   await page.getByRole("button", { name: "Generate plans" }).click();
 
   const nothing = page.getByTestId("nothing-fits");
@@ -111,7 +112,9 @@ test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
   await expect(relax).toBeVisible();
   await relax.click();
 
-  await expect(page.getByLabel("Start after")).toHaveValue("");
+  await expect(page.getByRole("combobox", { name: "Start after" })).toHaveText(
+    "Any time",
+  );
   await expect(
     page.getByRole("list", { name: "Generated plans" }).getByRole("listitem"),
   ).not.toHaveCount(0);

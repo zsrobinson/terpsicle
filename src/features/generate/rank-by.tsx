@@ -1,5 +1,13 @@
 import { RANK_FACTOR_LABELS, RANK_FACTORS } from "~/core/generate";
 import type { RankBy, RankFactor, RankWeights } from "~/core/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "~/ui/select";
 import { WithTooltip } from "~/ui/tooltip";
 
 // How results are ordered (SPEC §3.9): one factor, or Custom weights across
@@ -29,29 +37,32 @@ export function RankBySelect({
   onChange: (next: RankBy) => void;
 }) {
   return (
-    <WithTooltip label="How to order the plans">
-      <select
-        aria-label="Rank by"
-        value={rankBy.preset}
-        onChange={(e) => {
-          const preset = e.target.value;
-          if (preset === "custom")
-            onChange({ preset: "custom", weights: weightsFrom(rankBy) });
-          else {
-            const factor = RANK_FACTORS.find((f) => f === preset);
-            if (factor) onChange({ preset: factor });
-          }
-        }}
-        className="h-6 rounded-md border border-hairline-strong bg-bg px-1 font-normal text-[11.5px] text-fg outline-none"
-      >
+    <Select
+      value={rankBy.preset}
+      onValueChange={(preset) => {
+        if (preset === "custom")
+          onChange({ preset: "custom", weights: weightsFrom(rankBy) });
+        else {
+          const factor = RANK_FACTORS.find((f) => f === preset);
+          if (factor) onChange({ preset: factor });
+        }
+      }}
+    >
+      <WithTooltip label="How to order the plans">
+        <SelectTrigger aria-label="Rank by" size="sm">
+          <SelectValue />
+        </SelectTrigger>
+      </WithTooltip>
+      <SelectContent align="end">
         {RANK_FACTORS.map((f) => (
-          <option key={f} value={f}>
+          <SelectItem key={f} value={f}>
             {RANK_FACTOR_LABELS[f]}
-          </option>
+          </SelectItem>
         ))}
-        <option value="custom">Custom</option>
-      </select>
-    </WithTooltip>
+        <SelectSeparator />
+        <SelectItem value="custom">Custom</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 

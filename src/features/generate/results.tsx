@@ -1,7 +1,15 @@
+import { cn } from "cn";
 import { useMemo, useState } from "react";
 import { PanelLabel } from "~/app/panel";
 import type { CatalogIndex } from "~/core/catalog";
-import { changesFrom } from "~/core/generate";
+import {
+  changesFrom,
+  chosenCourses,
+  differencesFrom,
+  freeWeekdays,
+  hasChoices,
+  type SectionDifference,
+} from "~/core/generate";
 import type {
   CourseCode,
   CourseColor,
@@ -15,21 +23,34 @@ import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import {
-  changesLine,
-  daysLine,
+  differenceLabel,
   equivalentsTip,
+  freeDaysLabel,
   optionLabel,
-  qualityLine,
+  seatsLabel,
+  spanLabel,
 } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
 import { useGenerateRun } from "./run-store";
 import { coursesOf, saveResults } from "./save";
 
-// The ranked list (SPEC §3.9, prototype screenshot 08): a mini week, plain
-// stats and changes from the open plan per result. Click one to preview it;
-// tick several to save them at once.
+// The ranked list (SPEC §3.9, prototype screenshot 08). Neighbors often look
+// alike, so each row leads with what sets it apart: free days and hours, the
+// pick-N and optional courses it includes, and the sections where it differs
+// from Option 1. Stats sit in aligned columns underneath, like a Linear list.
 
 const PAGE = 50;
+/** Sections named per row before "+2 more". */
+const DIFFS_SHOWN = 1;
+const NONE = "none";
+
+type Row = {
+  result: GeneratedPlan;
+  rank: number;
+  chosen: CourseCode[];
+  /** The filter this row falls under: its chosen courses, or NONE. */
+  choiceKey: string;
+};
 
 export function Results({
   request,
@@ -45,11 +66,51 @@ export function Results({
   plan: Plan | null;
 }) {
   const [shown, setShown] = useState(PAGE);
+  const [filter, setFilter] = useState<string | null>(null);
   const selected = useGenerateRun((s) => s.selected);
   const toggle = useGenerateRun((s) => s.toggleSelected);
   const { results } = result;
-  const more = results.length - shown;
-  const capped = result.truncated || result.totalFound > results.length;
+  const top = results[0];
+
+  const rows = useMemo(
+    (): Row[] =>
+      results.map((r, i) => {
+        const chosen = chosenCourses(r, request.items);
+        return {
+          result: r,
+          rank: i + 1,
+          chosen,
+          choiceKey: chosen.length ? chosen.join(" + ") : NONE,
+        };
+      }),
+    [results, request.items],
+  );
+  // "Includes" filters: one per combination of pick-N and optional courses
+  // the results take, when there's more than one.
+  const choices = useMemo(() => {
+    if (!hasChoices(request.items)) return [];
+    const counts = new Map<string, number>();
+    for (const row of rows)
+      counts.set(row.choiceKey, (counts.get(row.choiceKey) ?? 0) + 1);
+    return counts.size > 1 ? [...counts] : [];
+  }, [rows, request.items]);
+  // Courses the person offered as choices that no plan could fit, so their
+  // absence from the filters isn't a mystery.
+  const unfit = useMemo(() => {
+    const placed = new Set(
+      results.flatMap((r) => r.sections.map((k) => k.split("-")[0])),
+    );
+    return request.items.flatMap((item) =>
+      item.kind === "pick"
+        ? item.courses
+            .map((c) => c.courseCode)
+            .filter((code) => !placed.has(code))
+        : [],
+    );
+  }, [results, request.items]);
+  const visible =
+    filter === null ? rows : rows.filter((r) => r.choiceKey === filter);
+  const more = visible.length - shown;
 
   const save = () => {
     const picked = results.filter((r) => selected.includes(r.id));
@@ -61,9 +122,9 @@ export function Results({
     <>
       <PanelLabel
         right={
-          capped ? (
+          result.capped || result.truncated ? (
             <WithTooltip
-              label={`Checked ${result.steps.toLocaleString()} combinations. Add must-haves to narrow it down.`}
+              label={`${result.totalFound.toLocaleString()} combinations fit${result.truncated ? " before the search stopped" : ""}. Add must-haves to narrow them down.`}
             >
               <span className="tnum cursor-default">
                 Showing the best {results.length}
@@ -76,18 +137,57 @@ export function Results({
           {results.length === 1 ? "1 plan" : `${results.length} plans`}
         </span>
       </PanelLabel>
+      {choices.length > 0 ? (
+        <div
+          role="toolbar"
+          aria-label="Filter by included courses"
+          className="flex flex-wrap items-center gap-1 px-4 pb-2"
+        >
+          <span className="mr-0.5 text-[11px] text-faint">Includes</span>
+          <FilterChip
+            label="All"
+            count={rows.length}
+            active={filter === null}
+            tip="Show every plan"
+            onClick={() => setFilter(null)}
+          />
+          {choices.map(([key, count]) => (
+            <FilterChip
+              key={key}
+              label={key === NONE ? "None" : key}
+              mono={key !== NONE}
+              count={count}
+              active={filter === key}
+              tip={
+                key === NONE
+                  ? "Only plans without the optional courses"
+                  : `Only plans with ${key}`
+              }
+              onClick={() => setFilter(filter === key ? null : key)}
+            />
+          ))}
+        </div>
+      ) : null}
+      {unfit.length > 0 ? (
+        <p className="px-4 pb-2 text-[11.5px] text-muted">
+          No plan fits <span className="font-mono">{unfit.join(", ")}</span>{" "}
+          with the rest of your courses.
+        </p>
+      ) : null}
       <ul aria-label="Generated plans" className="border-hairline border-t">
-        {results.slice(0, shown).map((r, i) => (
+        {visible.slice(0, shown).map((row, i, all) => (
           <ResultRow
-            key={r.id}
-            rank={i + 1}
-            result={r}
+            key={row.result.id}
+            row={row}
+            top={top}
+            prev={all[i - 1]?.result}
+            showChoices={hasChoices(request.items)}
             request={request}
             index={index}
             colors={colors}
             plan={plan}
-            selected={selected.includes(r.id)}
-            onToggle={() => toggle(r.id)}
+            selected={selected.includes(row.result.id)}
+            onToggle={() => toggle(row.result.id)}
           />
         ))}
       </ul>
@@ -106,7 +206,7 @@ export function Results({
         </div>
       ) : null}
       {selected.length > 0 ? (
-        <div className="sticky bottom-0 flex items-center gap-2 border-hairline border-t bg-panel px-4 py-2">
+        <div className="sticky bottom-0 z-10 flex items-center gap-2 border-hairline border-t bg-bg px-4 py-2">
           <WithTooltip label="Each becomes a new plan tab. You can undo.">
             <Button size="sm" className="text-[12.5px]" onClick={save}>
               Save{" "}
@@ -129,9 +229,59 @@ export function Results({
   );
 }
 
+/** Differences the row above doesn't share first, so neighbors read apart. */
+function byNeighbor(
+  diffs: SectionDifference[],
+  prev: GeneratedPlan | undefined,
+): SectionDifference[] {
+  if (!prev) return diffs;
+  const shared = (d: SectionDifference) =>
+    prev.sections.includes(`${d.courseCode}-${d.sectionCode}`) ? 1 : 0;
+  return [...diffs].sort((a, b) => shared(a) - shared(b));
+}
+
+function FilterChip({
+  label,
+  count,
+  active,
+  mono,
+  tip,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  mono?: boolean;
+  tip: string;
+  onClick: () => void;
+}) {
+  return (
+    <WithTooltip label={tip}>
+      <button
+        type="button"
+        aria-pressed={active}
+        onClick={onClick}
+        className={cn(
+          "flex h-6 items-center gap-1.5 rounded-md border px-2 text-[11.5px]",
+          active
+            ? "border-transparent bg-accent text-accent-fg"
+            : "border-hairline-strong text-muted hover:bg-hover hover:text-fg",
+        )}
+      >
+        <span className={cn(mono && "font-mono")}>{label}</span>
+        <span className={cn("tnum", active ? "opacity-70" : "text-faint")}>
+          {count}
+        </span>
+      </button>
+    </WithTooltip>
+  );
+}
+
 function ResultRow({
-  rank,
-  result,
+  row,
+  top,
+  prev,
+  showChoices,
   request,
   index,
   colors,
@@ -139,8 +289,11 @@ function ResultRow({
   selected,
   onToggle,
 }: {
-  rank: number;
-  result: GeneratedPlan;
+  row: Row;
+  top: GeneratedPlan | undefined;
+  /** The row above, whose differences come last: they don't tell the two apart. */
+  prev: GeneratedPlan | undefined;
+  showChoices: boolean;
   request: GenerateRequest;
   index: CatalogIndex;
   colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
@@ -148,6 +301,7 @@ function ResultRow({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const { result, rank, chosen } = row;
   const label = optionLabel(rank);
   const changes = useMemo(
     () => (plan ? changesFrom(plan, coursesOf(result, request)) : []),
@@ -160,14 +314,19 @@ function ResultRow({
         m.set(`${c.courseCode}-${c.to}`, "changed");
     return m;
   }, [changes]);
-  const skippedOptional = result.skipped.filter((code) =>
-    request.items.some(
-      (item) => item.kind === "course" && item.courseCode === code,
-    ),
-  );
+  const free = freeWeekdays(result, index);
+  const diffs =
+    top && rank > 1
+      ? byNeighbor(differencesFrom(result, top, index), prev)
+      : [];
+  const seats = seatsLabel(result.stats);
+  const summary = `${freeDaysLabel(free, result.stats)} · ${spanLabel(result.stats)}`;
 
   return (
-    <li className="flex items-start gap-2.5 border-hairline border-b py-2.5 pr-4 pl-3 hover:bg-hover">
+    <li
+      data-testid="generated-plan"
+      className="flex items-start gap-2.5 border-hairline border-b py-2 pr-4 pl-3 hover:bg-hover"
+    >
       <WithTooltip label="Tick several to save them at once" side="right">
         <input
           type="checkbox"
@@ -180,7 +339,7 @@ function ResultRow({
       <WithTooltip label="Preview on the calendar and see details" side="right">
         <button
           type="button"
-          aria-label={`${label}: ${daysLine(result.stats)}`}
+          aria-label={`${label}: ${summary}`}
           onClick={() =>
             useUi
               .getState()
@@ -199,30 +358,72 @@ function ResultRow({
           <div className="tnum min-w-0 flex-1 text-[11.5px] leading-[1.45]">
             <div className="flex items-baseline gap-1.5">
               <span className="truncate font-medium text-[12px]">
-                {daysLine(result.stats)}
+                {summary}
               </span>
-              {result.equivalents.count > 1 ? (
-                <span
-                  title={equivalentsTip(result.equivalents)}
-                  className="ml-auto shrink-0 rounded-sm bg-accent-soft px-1 font-mono text-[10.5px] text-muted"
-                >
-                  ×{result.equivalents.count} equivalent
-                </span>
-              ) : null}
-            </div>
-            <div className="truncate text-muted">
-              {qualityLine(result.stats)}
-            </div>
-            <div className="truncate">
-              {plan ? changesLine(changes, plan.name) : null}
-              {skippedOptional.length > 0 ? (
-                <span className="text-muted">
-                  {plan ? " · " : ""}leaves out{" "}
-                  <span className="font-mono">
-                    {skippedOptional.join(", ")}
+              <span className="ml-auto flex shrink-0 items-baseline gap-1.5">
+                {result.equivalents.count > 1 ? (
+                  <span
+                    title={equivalentsTip(result.equivalents)}
+                    className="rounded-sm bg-accent-soft px-1 font-mono text-[10.5px] text-muted"
+                  >
+                    ×{result.equivalents.count}
                   </span>
+                ) : null}
+                <span className="text-[10.5px] text-faint">{rank}</span>
+              </span>
+            </div>
+            {showChoices ? (
+              <div className="truncate">
+                {chosen.length ? (
+                  <>
+                    <span className="text-muted">with </span>
+                    <span className="font-mono text-[11px]">
+                      {chosen.join(" + ")}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-muted">No optional courses</span>
+                )}
+              </div>
+            ) : null}
+            <div className="truncate font-mono text-[11px] text-muted">
+              {rank === 1 ? (
+                <span className="font-sans text-[11.5px]">Best match</span>
+              ) : diffs.length > 0 ? (
+                <>
+                  {diffs.slice(0, DIFFS_SHOWN).map(differenceLabel).join(", ")}
+                  {diffs.length > DIFFS_SHOWN ? (
+                    <span className="text-faint">
+                      {" "}
+                      +{diffs.length - DIFFS_SHOWN}
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                <span className="font-sans text-[11.5px]">
+                  Otherwise as Option 1
                 </span>
-              ) : null}
+              )}
+            </div>
+            <div className="grid grid-cols-[2.25rem_3.5rem_1fr] gap-x-1.5 text-[11px] text-muted">
+              <span>
+                {result.stats.avgRating !== null
+                  ? `★ ${result.stats.avgRating.toFixed(1)}`
+                  : "★ –"}
+              </span>
+              <span>
+                {result.stats.avgGpa !== null
+                  ? `${result.stats.avgGpa.toFixed(2)} GPA`
+                  : "– GPA"}
+              </span>
+              <span
+                className={cn(
+                  "truncate",
+                  result.stats.fewestOpenSeats === 0 && "text-warn",
+                )}
+              >
+                {seats ?? `${result.stats.credits} credits`}
+              </span>
             </div>
           </div>
         </button>

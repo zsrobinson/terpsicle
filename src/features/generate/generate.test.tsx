@@ -235,6 +235,62 @@ describe("Generate", () => {
     ).toBeEnabled();
   });
 
+  it("sets must-have times and the ranking with the app's selects", async () => {
+    const { user } = await renderGenerate();
+    await user.click(screen.getByRole("combobox", { name: "Start after" }));
+    await user.click(await screen.findByRole("option", { name: "10am" }));
+    expect(draft()?.mustHaves.earliestStart).toBe(600);
+    await user.click(screen.getByRole("combobox", { name: "Rank by" }));
+    await user.click(await screen.findByRole("option", { name: "Custom" }));
+    expect(draft()?.rankBy).toEqual({
+      preset: "custom",
+      weights: {
+        compact: 1,
+        "fewer-days": 0,
+        "later-starts": 0,
+        "best-rated": 0,
+        "higher-gpa": 0,
+        "safest-seats": 0,
+      },
+    });
+    expect(screen.getByRole("group", { name: "Custom weights" })).toBeVisible();
+  });
+
+  it("says what sets each plan apart, and filters by the courses it includes", async () => {
+    const { user } = await renderGenerate();
+    act(() =>
+      useGenerateDrafts.getState().setDraft(fixtureTermId, {
+        ...EMPTY_DRAFT,
+        items: [
+          { kind: "course", courseCode: "CMSC351", required: true },
+          {
+            kind: "pick",
+            id: "hum",
+            count: 1,
+            courses: [{ courseCode: "MUSC130" }, { courseCode: "PHIL140" }],
+          },
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    const list = await screen.findByRole("list", { name: "Generated plans" });
+    const rows = within(list).getAllByTestId("generated-plan");
+    expect(rows[0]).toHaveTextContent("Best match");
+    // Later rows name the sections that differ from Option 1.
+    expect(rows[1]).toHaveTextContent(/(CMSC351|MUSC130|PHIL140) \d{4}/);
+
+    const filters = screen.getByRole("toolbar", {
+      name: "Filter by included courses",
+    });
+    await user.click(within(filters).getByRole("button", { name: /^PHIL140/ }));
+    for (const row of within(list).getAllByTestId("generated-plan"))
+      expect(row).toHaveTextContent("PHIL140");
+    await user.click(within(filters).getByRole("button", { name: /^All/ }));
+    expect(within(list).getAllByTestId("generated-plan")).toHaveLength(
+      rows.length,
+    );
+  });
+
   it("focuses the course field when asked to start generating", async () => {
     await renderGenerate();
     const { startGenerate } = await import("~/app/actions");

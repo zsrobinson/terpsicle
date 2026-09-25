@@ -17,6 +17,7 @@ import {
   type QualityMap,
   type SectionGroup,
 } from "./candidates";
+import { mergeSameWeek } from "./merge";
 import { nearMisses } from "./near-miss";
 import { planStats } from "./score";
 import { orderVars, type SolveProgress, type SolveVar, solve } from "./solve";
@@ -262,6 +263,61 @@ function run(
   return { built, outcome };
 }
 
+/** Plans kept per "pick 1" course the best results left out. */
+const PER_MISSING_PICK = 20;
+
+/**
+ * The best plans for each course of a "pick 1 of these" group that none of
+ * the kept results picked. The top 200 can all take the same course when it
+ * fits best, and the person still wants to compare the others: that's why
+ * they listed them.
+ */
+function missingPicks(
+  request: GenerateRequest,
+  data: GenerateData,
+  found: readonly GeneratedPlan[],
+  options: GenerateOptions,
+): { plans: GeneratedPlan[]; steps: number } {
+  const placed = new Set(found.flatMap((p) => p.sections.map(courseOf)));
+  const plans: GeneratedPlan[] = [];
+  let steps = 0;
+  request.items.forEach((item, i) => {
+    if (item.kind !== "pick" || item.count !== 1) return;
+    for (const course of item.courses) {
+      if (placed.has(course.courseCode) || options.shouldCancel?.()) continue;
+      // The same request with the group's other courses given no sections,
+      // so each result still lists them as left out.
+      const only: GenerateRequest = {
+        ...request,
+        items: request.items.map((other, j) =>
+          j !== i || other.kind !== "pick"
+            ? other
+            : {
+                ...other,
+                courses: other.courses.map((c) =>
+                  c.courseCode === course.courseCode
+                    ? c
+                    : { ...c, sections: [] },
+                ),
+              },
+        ),
+      };
+      const { built, outcome } = run(only, data, {
+        maxResults: PER_MISSING_PICK,
+        maxSteps: Math.max(1, Math.floor(request.limits.maxSteps / 5)),
+      });
+      steps += outcome.steps;
+      for (const s of outcome.solutions)
+        plans.push(
+          toPlan(built.vars, s.choices, built.order, s.score, s.breakdown),
+        );
+    }
+  });
+  return { plans, steps };
+}
+
+const courseOf = (key: string): CourseCode => key.split("-")[0] ?? key;
+
 /** Runs the generator: ranked plans, or relaxations and near-misses when nothing fits. */
 export function generatePlans(
   request: GenerateRequest,
@@ -269,18 +325,27 @@ export function generatePlans(
   options: GenerateOptions = {},
 ): GenerateResult {
   const { built, outcome } = run(request, data, request.limits, options);
-  const results = outcome.solutions.map((s) =>
+  const found = outcome.solutions.map((s) =>
     toPlan(built.vars, s.choices, built.order, s.score, s.breakdown),
   );
-  if (results.length > 0 || outcome.cancelled)
+  if (found.length > 0 || outcome.cancelled) {
+    const extra = outcome.cancelled
+      ? { plans: [], steps: 0 }
+      : missingPicks(request, data, found, options);
+    const seen = new Set(found.map((p) => p.id));
+    const all = [...found, ...extra.plans.filter((p) => !seen.has(p.id))];
+    // Stable, so equal scores keep the search's order.
+    all.sort((a, b) => b.score - a.score);
     return {
-      results,
+      results: mergeSameWeek(all, data.index),
       totalFound: outcome.found,
       truncated: outcome.truncated,
-      steps: outcome.steps,
+      capped: outcome.found > outcome.solutions.length,
+      steps: outcome.steps + extra.steps,
       relaxations: [],
       nearMisses: [],
     };
+  }
 
   // Nothing fits. A smaller budget for each what-if keeps this quick.
   const whatIfSteps = Math.max(1, Math.floor(request.limits.maxSteps / 5));
@@ -313,9 +378,10 @@ export function generatePlans(
     maxSteps: Math.max(1, Math.floor(request.limits.maxSteps / 5)),
   });
   return {
-    results,
+    results: [],
     totalFound: 0,
     truncated: outcome.truncated,
+    capped: false,
     steps: outcome.steps,
     relaxations,
     nearMisses: misses,

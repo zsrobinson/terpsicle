@@ -6,7 +6,8 @@ import {
   PanelLabel,
   useFocusRequest,
 } from "~/app/panel";
-import { relaxDraft, requestItems } from "~/core/generate";
+import { resolveCourseColors } from "~/core/color";
+import { draftCourseCodes, relaxDraft, requestItems } from "~/core/generate";
 import type { GenerateDraft, Relaxation } from "~/core/schema";
 import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { useActiveTerm, useCurrentPlan, useTermCatalog } from "~/state/hooks";
@@ -84,7 +85,12 @@ export function GeneratePanel() {
     void runGenerate(termId, next, { relaxed: true });
   };
 
-  const colors = current?.colors ?? {};
+  const colors = useMemo(
+    // One color per course across every row, as saving would pick them.
+    () =>
+      resolveCourseColors(draftCourseCodes(draft.items), current?.colors ?? {}),
+    [draft.items, current?.colors],
+  );
   const termName = term?.name ?? "this term";
 
   return (
@@ -134,7 +140,7 @@ export function GeneratePanel() {
                 onChange={(rankBy) => update((d) => ({ ...d, rankBy }))}
               />
             ) : null}
-            <div className="flex items-center gap-2 px-4 pt-4">
+            <div className="sticky top-0 z-10 mt-2 flex items-center gap-2 border-hairline border-b bg-bg px-4 py-2">
               {busy ? (
                 <>
                   <WithTooltip label="Stop searching">
@@ -186,7 +192,7 @@ export function GeneratePanel() {
                 These plans are for your earlier choices.
               </p>
             ) : null}
-            <div ref={resultsRef} className="scroll-mt-2" />
+            <div ref={resultsRef} className="scroll-mt-14" />
             {done && catalog ? (
               done.result.results.length > 0 ? (
                 <Results
