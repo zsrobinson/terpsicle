@@ -2,199 +2,267 @@
 
 **How** we build what `SPEC.md` describes. It's written for the orchestrating agent and its subagents, and for any human who picks this up later.
 
+## 0. Read first, in this order
+
+1. `CLAUDE.md`: conventions.
+2. `docs/SPEC.md`: what to build. It wins every disagreement.
+3. `docs/DESIGN.md`: why, in the owner's words, and the taste rules to apply when the spec is silent.
+4. `reference/prototype/`: the clickable reference. Open `built/final.html` and look at `screenshots/`, then read its `README.md` for the known gaps against the spec. Match its look, density, spacing and copy. **Don't copy its architecture:** it's prototype code.
+5. `docs/RESEARCH.md`: data sources (endpoints, selectors, gotchas), generator techniques, platform limits.
+6. `docs/review-answers.json`: the raw final-review answers, if a decision needs its original wording.
+7. `docs/PLAN.md`: early planning history. Background only.
+
+Every subagent brief links the sections of these documents that apply to its task.
+
 ---
 
 ## 1. Ground rules
 
-- **`main` is trunk.** CI runs against it and it's what gets deployed. v1 lives in a separate archived repo, [`terpsicle-bitcamp`](https://github.com/zsrobinson/terpsicle-bitcamp).
-- Work happens on short-lived branches named `<milestone>/<slug>` (e.g. `m1/fit`), each opened as a PR into `main`.
-- **The orchestrator merges** a PR into `main` (squash) once CI is green and a review pass finds nothing blocking. No one else pushes to `main` directly, except the orchestrator for trivial doc fixes.
-- **Pure logic lives in `packages/core`** and is exhaustively tested. UI components stay thin: they read state, call core functions, and render.
-- **Mock data is first-class.** The app runs fully offline against `@terpsicle/fixtures` (`pnpm dev:mock`). Every UI feature is built and tested against fixtures before real data is wired in.
-- **Only proven Cloudflare products:** Workers (with static assets and Cron Triggers), R2, and D1. No Queues, Workflows, Durable Objects, Vectorize or AI-product betas.
-- **The spec is the tiebreaker.** If something in the spec is ambiguous, pick the option most consistent with its principles (§1), write the choice in the PR description, and move on. Don't stop to ask.
+- **`main` is trunk.** CI runs against it and every merge deploys it to terpsicle.com.
+- Work happens on short-lived branches named `<milestone>/<slug>` (e.g. `m1/fit`), each opened as a PR into `main`. **The orchestrator squash-merges** once CI is green and a review pass finds nothing blocking.
+- **Pure logic lives in `src/core`** and is exhaustively tested. UI stays thin: read state, call core, render.
+- **Mock data is first-class.** The app runs fully offline against `src/fixtures` (`pnpm dev:mock`). Every UI feature is built and tested against fixtures before real data is wired in.
+- **Cloudflare: proven products only.** Workers (static assets, Cron Triggers), R2, D1. No Queues, Workflows, Durable Objects, Vectorize, or beta products. We're on **Workers Paid**.
+- **GitHub Actions only runs CI and deploys.** All data jobs are Worker cron triggers.
+- **The spec is the tiebreaker.** If something is ambiguous, pick the option most consistent with `SPEC.md` §1 and `DESIGN.md` §5, write the choice in the PR, and keep going. Don't stop to ask the owner.
 
 ---
 
 ## 2. Architecture
 
 ```
-GitHub Actions (cron)                      Cloudflare
-┌───────────────────────────┐   wrangler   ┌───────────────────────────────────────────────┐
-│ packages/ingest            │ ───────────► │ R2 bucket  terpsicle-data                      │
-│  scrape SOC  (every 5 min) │   r2 put     │   catalog/<term>/manifest.json   (60s cache)   │
-│  scrape catalog (6h)       │              │   catalog/<term>/<DEPT>.<hash>.json (immutable)│
-│  PlanetTerp (daily)        │              │   catalog/<term>/seats.<hash>.json             │
-│  routes + buildings (weekly│              │   catalog/<term>/changes.json  (seat diffs)    │
-│   / manual)                │              │   geo/buildings.json, geo/routes.<hash>.bin    │
-│  academic calendar (weekly)│              │   geo/tiles.pmtiles  · summaries/<slug>.json   │
-└───────────────────────────┘              │                                               │
-                                           │ Worker  terpsicle  (TanStack Start)            │
-                                           │   static assets (the SPA)                      │
-                                           │   /data/*  → R2, with Cache API + ETags        │
-                                           │   server fns: reviewSummary, alerts subscribe/ │
-                                           │               confirm/unsubscribe              │
-                                           │   cron (5 min): changes.json → D1 → email      │
-                                           │ D1  terpsicle  (seat alert subscriptions only) │
-                                           └───────────────────────────────────────────────┘
+Cloudflare Worker "terpsicle"  (one deployable: src/server.ts)
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ fetch                                                                                │
+│   static assets (the SPA, built by Vite)                                             │
+│   /data/*         → R2 objects, Cache API + ETags (manifest 60s, hashed files immutable)│
+│   server fns      reviewSummary · alerts.subscribe/confirm/unsubscribe  (createServerFn)│
+│ scheduled (Cron Triggers)                                                             │
+│   (every job reads terms.json and loops over active terms; nothing names a term)      │
+│   */5 * * * *     seats: sections for every dept → seats.<hash>.json + changes.json   │
+│                   → seat-alert emails (D1 lookup)                                     │
+│   0 */6 * * *     catalog: SOC term list → terms.json; per term: depts + courses +     │
+│                   sections → per-dept chunks + manifest; archive terms Testudo dropped │
+│   17 5 * * *      PlanetTerp: ratings, reviews metadata, grades                        │
+│   23 6 * * 1      academic calendar; buildings join                                   │
+│   41 * * * *      routes: fill in missing building-pair routes, N pairs per run (resumable)│
+│ bindings: R2 DATA (terpsicle-data) · D1 DB (terpsicle) · AI (Workers AI) · secrets     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 Browser
-  React app (TanStack Start/Router, shadcn) ─ Zustand stores ─ Dexie (IndexedDB: plans, settings, catalog cache)
+  React (TanStack Start/Router, shadcn) · Zustand stores · Dexie (plans, settings, catalog cache)
   Web Worker (Comlink): catalog index, search, fit, generator
 ```
 
-- **The catalog is static data.** The scraper publishes per-department files named by content hash, plus a small `manifest.json` that lists each department's current hash.
-  - Clients diff the manifest against their IndexedDB cache and fetch only departments that changed.
-  - `seats.<hash>.json` is separate and polled every 60 s while the tab is visible.
-  - A `schemaVersion` bump in the manifest forces a full refetch.
-- **Plans remember what they were built from.** Each saved plan stores a snapshot of its sections' meetings. When the catalog changes, core's `diffPlanAgainstCatalog` produces "moved / cancelled" problems.
-- **Share links:** `/?plan=<base64url(deflate(json))>`, versioned, with the codec in core. No server involved.
-- **Server functions** are TanStack Start `createServerFn`, validated with zod. There are few of them: this is a mostly static app.
+- **Crons stay within their limits** (`RESEARCH.md` §3):
+  - Jobs under an hour apart get 30 s CPU, hourly-or-slower get 15 min, and memory is 128 MB.
+  - Crawls fetch at concurrency ≤ 4 and parse **per department with a streaming parser** (htmlparser2), writing as they go. They never hold a whole term in memory.
+  - Waiting on network doesn't count as CPU time.
+  - Long jobs (routes) are **resumable**: they keep progress in R2 and do a bounded chunk per run.
+- **Ingest code is platform-agnostic.** It takes a `fetch` and a `BlobStore` interface, so the same code runs in the Worker (R2 binding), in Node scripts (local filesystem or R2), and in tests (in-memory).
+- **Routes may need to run from a script.** If Workers can't reach `maps.umd.edu` (incomplete TLS chain, `RESEARCH.md` §1), run the routes job from `scripts/build-routes.ts` locally or in a manual GitHub workflow, and upload to R2. The data format doesn't change.
+- **Terms are data, not config** (`SPEC.md` §3.0).
+  - `catalog/terms.json` comes from Testudo's term dropdown on every catalog run.
+  - Jobs iterate the active terms, and the client builds the term switcher and picks the default from it.
+  - There must be no term ids anywhere in source outside fixtures and tests. A lint check (grep for `20[0-9]{2}0[158]|20[0-9]{2}12` in `src/` excluding `fixtures`/tests) enforces this.
+  - A new term appearing, or an old one disappearing, needs no code change or deploy.
+- **The catalog is static data.**
+  - Content-hashed per-department files, plus a small `manifest.json` listing each department's hash.
+  - Clients diff the manifest against IndexedDB and fetch only the departments that changed.
+  - Seats are a separate file, polled every 60 s while the tab is visible.
+  - A `schemaVersion` bump forces a full refetch.
+- **Plans store a snapshot** of their sections' meetings. `core/catalog/diffPlanAgainstCatalog` turns catalog changes into "moved / cancelled" problems.
+- **Share links:** `/?plan=<base64url(deflate(json))>`, versioned, with the codec in core.
+- **Travel data:** `geo/routes.<hash>.bin` holds distances (feet) per building pair, standard and accessible. Geometries live in `geo/route/<from>-<to>-<mode>.json` and are fetched only when a connection's map is opened. Tiles are a College Park PMTiles extract, `geo/tiles.pmtiles`.
 
 ---
 
 ## 3. Repository layout
 
+One package at the root: one `package.json`, one `tsconfig.json`, one Biome config, one Vitest config with projects. There's no monorepo: nothing is published separately. Import boundaries are enforced by lint rules instead.
+
 ```
 .
-├── CLAUDE.md                  conventions for agents (read first)
-├── docs/                      SPEC.md, BUILD.md, PLAN.md (history)
-├── apps/web/                  TanStack Start app, deployed as the Worker
-│   ├── src/routes/            file routes (index, share)
-│   ├── src/app/               shell: top bar, rail, sidebar, drawer, calendar
-│   ├── src/features/<name>/   one folder per sidebar tab / feature (components + hooks)
-│   ├── src/components/ui/     shadcn components (generated, lightly edited)
-│   ├── src/state/             Zustand stores + Dexie persistence
-│   ├── src/worker/            Comlink worker entry (catalog, search, generator)
-│   ├── src/server/            server fns, cron handler, D1 access, email
-│   ├── e2e/                   Playwright specs (run against fixtures)
-│   └── wrangler.jsonc
-├── packages/core/             pure TypeScript, no DOM, no I/O
-│   └── src/  schema/ time/ travel/ fit/ problems/ plans/ generate/ search/ share/ ics/ catalog/
-├── packages/ingest/           Node scripts: sources → normalized catalog → R2
-│   └── src/  soc/ planetterp/ buildings/ routes/ calendar/ publish/   (+ __fixtures__/)
-└── packages/fixtures/         deterministic mock catalog, plans, travel matrix, builders
+├── CLAUDE.md
+├── docs/                       SPEC, DESIGN, BUILD, RESEARCH, STATUS, review-answers.json, PLAN (history)
+├── reference/                  prototype + v1 snippets: read-only, excluded from build/lint/tests
+├── src/
+│   ├── server.ts               Worker entry: { fetch, scheduled }
+│   ├── routes/                 TanStack file routes (index; share handled via search params)
+│   ├── app/                    shell: top bar, rail, sidebar + drill-in, mobile drawer, calendar
+│   ├── features/<name>/        courses, search, course-details, problems, travel, blocks, generate, export, share
+│   ├── components/ui/          shadcn components
+│   ├── state/                  Zustand stores, Dexie persistence, undo
+│   ├── worker/                 Comlink web worker (catalog index, search, generator)
+│   ├── core/                   PURE domain logic: schema, time, travel, fit, problems, plans, generate, search, share, ics, catalog
+│   ├── ingest/                 sources → normalized catalog (soc, planetterp, buildings, routes, calendar, publish); platform-agnostic
+│   ├── jobs/                   cron handlers wiring ingest to R2/D1 (Worker-only)
+│   ├── server/                 server fns, D1 access, email, LLM summaries (Worker-only)
+│   └── fixtures/               deterministic mock term + builders (aCourse, aSection, aPlan, …)
+├── scripts/                    Node CLIs: run ingest locally, build routes, record parser fixtures, seed R2
+├── e2e/                        Playwright specs (against dev:mock)
+├── wrangler.jsonc
+├── vite.config.ts · vitest.config.ts · biome.json · tsconfig.json
+└── .github/workflows/          ci.yml (PRs), deploy.yml (push to main)
 ```
+
+**Import boundaries** (Biome `noRestrictedImports` overrides per folder, checked in CI):
+
+| Folder | May import | Must not import |
+|---|---|---|
+| `src/core` | zod, small pure libraries | react, DOM, `cloudflare:*`, fetch, or any other `src/*` folder |
+| `src/ingest` | `core`, parsing libraries | react, `cloudflare:*`, `app`/`features`/`state` |
+| `src/jobs`, `src/server` | `core`, `ingest`, `cloudflare:workers` | react, `app`/`features`/`state` |
+| `src/app`, `src/features`, `src/state`, `src/worker` | `core`, `components/ui`, React stack | `ingest`, `jobs`, `server` (except typed server-fn imports), `cloudflare:*` |
+| `src/fixtures` | `core` | everything else |
+
+Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtures`, `~/ui` (→ `components/ui`).
 
 ---
 
-## 4. Stack and conventions
+## 4. Stack
 
 | Area | Choice |
 |---|---|
-| Language | TypeScript `strict`, ESM everywhere, Node 22 |
-| Package manager | pnpm workspaces |
-| App | TanStack Start (React 19) with `@cloudflare/vite-plugin`, deployed as one Worker. The app route is client-rendered (`ssr: false`) to keep Worker CPU tiny. |
-| UI | Tailwind 4, shadcn/ui (Radix), lucide icons, Geist + Geist Mono, `vaul` for the mobile drawer, `sonner` for toasts |
-| State | Zustand (UI and app state), Dexie (persistence). Undo is a snapshot stack in the plans store. |
-| Validation | zod 4, shared by ingest, core and server |
+| Language/runtime | TypeScript `strict` (plus `noUncheckedIndexedAccess`), ESM, Node 22 for scripts |
+| Package manager | pnpm |
+| App | TanStack Start (React 19) with `@cloudflare/vite-plugin`, custom server entry. The app route is client-rendered (`ssr: false`); the Worker mostly serves assets and data. |
+| UI | Tailwind 4, shadcn/ui (Radix), lucide, Geist + Geist Mono, `vaul` (mobile drawer), `sonner` (toasts) |
+| State | Zustand, Dexie; undo is a snapshot stack in the plans store (pure reducer in `core/plans`) |
+| Validation | zod 4 at every boundary |
+| Parsing | htmlparser2 (streaming, runs in Workers and Node) |
 | Search | MiniSearch in the worker, with a custom scorer for course codes |
-| Worker thread | Comlink |
-| Map | MapLibre GL + Protomaps PMTiles (a College Park extract) served from R2; route lines from the precomputed geometry |
+| Map | MapLibre GL + PMTiles; route lines from UMD GIS geometry |
+| Email | Resend over plain `fetch` (only if `RESEND_API_KEY` is set) |
+| LLM | **Workers AI** through the `AI` binding (`env.AI.run(...)`); no external keys. Pick a current instruction-tuned text model from the Workers AI catalog, and cap daily generations in code. Tests mock the binding. |
 | Lint/format | Biome |
-| Tests | Vitest (+ `@testing-library/react`, `happy-dom`), `fast-check` for property tests, Playwright (Chromium) for e2e |
-| Deploy | `wrangler deploy` from GitHub Actions on push to `main`, to the custom domain `terpsicle.com` (and `www` redirecting to it) |
-
-Code conventions are in `CLAUDE.md`. The short version: small pure functions in core, named exports, no default exports except routes, and no `any`. Comments explain *why*, never *what*. File names are `kebab-case`, components `PascalCase`.
+| Tests | Vitest projects: `core` (node), `ingest` (node), `ui` (happy-dom + Testing Library), `worker` (`@cloudflare/vitest-pool-workers`, real R2/D1 bindings via Miniflare). `fast-check` for properties. Playwright for e2e. |
+| CI/deploy | GitHub Actions: `ci.yml` on PRs (typecheck, lint, all Vitest projects, Playwright, build); `deploy.yml` on push to `main` (`wrangler deploy`) |
 
 ---
 
-## 5. Testing strategy
+## 5. Testing
 
-| Layer | What | Where / tool | Bar |
-|---|---|---|---|
-| Core logic | every function: fit, legs, problems, plan reducer and undo, generator, search scoring, share codec, ics, catalog diff | Vitest, `packages/core/**/*.test.ts` | ≥ 90% lines; each bug fix gets a regression test |
-| Invariants | generator results never overlap and always respect must-haves; the share codec round-trips; undo(apply(x)) = x | fast-check | runs in CI |
-| Parsers | SOC HTML → normalized JSON, PlanetTerp, provost calendar | Vitest golden tests on saved real pages in `__fixtures__/` | any parser change updates the goldens deliberately |
-| Components | calendar layout, section rows, filters, drawer | Vitest + Testing Library against fixtures | critical states covered |
-| Flows | first visit → search → add → switch section via ghost → problem fix → export codes; generate → save 2 plans; share link → save copy; drag a block; travel settings change pills; undo | Playwright against `pnpm dev:mock` | all green in CI |
-| Server | server fns and cron with a local D1 and a mocked email sender | Vitest + `wrangler`'s local runtime (Miniflare) | seat alerts are e2e-tested before launch |
-| Performance | generator (7 courses × 20 sections) < 200 ms; search keystroke < 16 ms; first load < 1.5 MB compressed | Vitest bench + a Playwright trace in CI | regressions fail CI |
+| Layer | What | Bar |
+|---|---|---|
+| Core | fit, legs, problems, plan reducer and undo, generator, search scoring, share codec, ics, catalog diff, time utils | ≥ 90% lines; each bug fix gets a regression test |
+| Properties (fast-check) | generator results never overlap and always respect must-haves; the share codec round-trips; undo(apply(x)) = x; manifest diff is minimal | in CI |
+| Parsers | SOC, PlanetTerp and provost calendar against **saved real pages** in `src/ingest/__fixtures__/` (`scripts/record-fixtures.ts` refreshes them) | goldens change only deliberately |
+| Jobs and server (workers pool) | cron handlers against in-memory fetch mocks, writing to a local R2; seat-alert subscribe, dedupe, confirm, unsubscribe-with-confirmation, emails via a mock sender | seat alerts are e2e-tested before the feature flag turns on |
+| Components | calendar layout (overlaps, ghost grouping and cap, Saturday column, async strip), section rows, filter chips, drawer | critical states covered |
+| e2e (Playwright on `dev:mock`) | first visit → search → hover ghosts → open course → switch via ghost → fix a problem → export codes; generate → save 2 plans; share link → save a copy; drag a block; travel pace change updates pills; undo; mobile drawer at 390px | all green in CI |
+| Performance | generator (7 courses × 20 sections) < 200 ms; search keystroke < 16 ms; first load < 1.5 MB compressed; each cron within its CPU limit on a recorded full term | regressions fail CI |
 
-`packages/fixtures` provides builders (`aCourse()`, `aSection()`, `aPlan()`) and a realistic mock term: 60+ courses including CMSC131-style many-section courses, async sections, Saturday meetings, full, low and restricted sections, and TBA instructors.
+**Fixtures** (`src/fixtures`) cover a realistic mock term of 60+ courses. Take shapes from `reference/prototype/src/data.ts`, expanded to include:
+- **two or more terms** (one active, one archived) so term switching and archiving are tested;
+- a many-section course like CMSC131;
+- a course with over 12 sections;
+- async sections, Saturday meetings, full, low and restricted sections, and TBA instructors;
+- time-identical sections;
+- PlanetTerp-style grades with +/−/W.
+
+Builders make one-off variants trivial.
 
 ---
 
 ## 6. Milestones
 
-Each milestone ends with everything green and deployed (once credentials exist). The acceptance criteria are what the orchestrator checks before calling a milestone done.
+Each milestone ends green and deployed. The orchestrator checks the acceptance criteria before moving on.
 
 **M0: Foundations**
-- For reference, in the [`terpsicle-bitcamp`](https://github.com/zsrobinson/terpsicle-bitcamp) repo: v1's Testudo selectors are on `main` (`lib/scrape-*.ts`), and the UMD GIS routing calls are on `dev` (`lib/gis.ts`). v1's brand icons are in `assets/brand/` here.
-- Set up the pnpm monorepo, TypeScript, Biome, Vitest and Playwright.
-- CI workflow (typecheck, lint, test, e2e, build).
-- `packages/fixtures`.
-- Scaffold TanStack Start on the Cloudflare vite plugin and deploy a hello-world to `terpsicle.com` as a Worker custom domain. Don't touch `bitcamp.terpsicle.com` or any other existing DNS record.
-- Accepted when: `pnpm check` passes, CI is green on a PR into `main`, and https://terpsicle.com serves the shell.
+- Root package: pnpm, TypeScript, Biome with boundary rules, Vitest projects, Playwright.
+- CI and deploy workflows.
+- `src/fixtures` skeleton.
+- TanStack Start + `@cloudflare/vite-plugin` with the custom `src/server.ts`.
+- `wrangler.jsonc` with the R2, D1 and cron bindings.
+- Create the Cloudflare resources.
+- Deploy to **terpsicle.com** (Worker custom domain, plus `www` → apex). Don't touch `bitcamp.terpsicle.com` or any other DNS record.
+- Accepted when `pnpm check` passes, CI is green on a PR, and https://terpsicle.com serves the shell.
 
-**M1: Core domain** (pure; can start once the schema lands)
+**M1: Core domain** (pure)
 - Schema, time, travel legs, fit, problems.
 - Plan reducer with undo.
 - Share codec, ics, catalog diff, search scoring.
-- Generator: bitmask conflicts, merging time-identical sections, fewest-options-first search, top-K, relaxation hints, near-misses.
-- Accepted when the testing bar in §5 is met and the benchmarks pass.
+- Generator (the recipe in `RESEARCH.md` §2): relaxations, near-misses, "pick N of these", equivalents merged.
 
-**M2: Ingest**
-- SOC adapter with golden tests, and delivery inference (in person, blended, online sync, online async).
-- PlanetTerp: ratings, reviews and grades with +/−/W.
+**M2: Ingest and jobs**
+- SOC adapter with golden tests and delivery inference.
+- PlanetTerp (+/−/W grades).
 - Buildings join.
-- Routes builder: distances and route geometries, standard and accessible, cached per pair.
-- Academic calendar parser.
-- Publisher: content-hashed chunks, manifest, seats, changes.
-- GitHub Actions workflows.
-- Accepted when a real Spring 2027 catalog is published to R2 and validates against the schema.
+- Routes: distances plus geometries, standard and accessible, resumable.
+- Academic calendar.
+- Publisher: chunks, manifest, seats, changes.
+- Cron handlers.
+- Accepted when the real Spring 2027 catalog is in R2, validates, and refreshes on schedule.
 
-**M3: App shell and calendar** (against fixtures)
-- Top bar with plans (tabs, menu, rename, `+` menu), labeled rail with collapse-on-reclick, sidebar drill-in with breadcrumb, mobile bottom drawer, theme.
-- Tooltip layer with shortcuts.
-- Calendar: layout, overlaps, tints, Saturday column, async strip, dashed section ghosts (grouped when time-identical, capped), hover and keyboard preview, travel pills, drag to create a block.
-- Undo toast. Persistence and remembered state.
+**M3: Shell and calendar** (fixtures)
+- Top bar with plans (tabs, menu, rename, `+` → Empty / Copy / Generate…).
+- Labeled rail; clicking the active tab collapses the sidebar.
+- Drill-in with breadcrumb; mobile bottom drawer; themes; tooltip layer with shortcuts; undo toast; persistence.
+- Calendar:
+  - fills the viewport height (hour height derived from the available space, with a readable minimum), with nothing below the grid;
+  - layout and side-by-side overlaps (no red outline);
+  - tints and the per-course color picker;
+  - Saturday column and async strip;
+  - dashed ghosts (merged when time-identical, capped at ~12);
+  - hover and keyboard preview;
+  - travel pills;
+  - drag to add a block.
 
-**M4: Sidebar features** (against fixtures)
-- Courses: color picker, saved for later, first-visit guide.
-- Search: filter chips and hover ghosts.
-- Course details: instructor groups, fit words and count, seat meter, instructor cards, PlanetTerp-style grade bars.
+**M4: Sidebar features** (fixtures)
+- Courses: first-visit screen with two equal paths (build it yourself / generate plans), saved for later.
+- Search: one-line filter chips, hover ghosts.
+- Course details: collapsible instructor groups in section order, "N fit", fit words, seat meter and freshness, instructor cards, PlanetTerp-style grade bars.
 - Problems.
-- Travel: settings, "How?", connections, connection details with the route map.
+- Travel: settings, "How?", connections, connection details with the **real route map**.
 - Blocks.
-- Export: checklist, codes, share link, .ics.
-- Shared-link view.
+- Export: checklist with backups, codes, share link, .ics.
+- Shared-link pill view.
 
 **M5: Generate**
-- Generate tab and the `+` entry point.
-- Required/optional/"pick N", must-haves, ranking and custom weights.
-- Results with thumbnails and equivalent-merging; preview and drill-in; save one or many as plans.
-- Relaxations and near-misses.
+- Its own tab, plus the `+` and first-visit entry points.
+- Required/optional/pick N, must-haves, ranking and custom weights.
+- Results with thumbnails and merged equivalents; preview and drill-in; save one or many as plans.
+- Relaxations and near-misses. No sparkles icon.
 
 **M6: Live data**
-- Worker `/data/*` from R2 with caching.
-- Client manifest diffing, IndexedDB cache, seat polling and freshness label.
+- `/data/*` from R2 with caching.
+- Manifest diffing and the IndexedDB cache.
+- Seat polling and the freshness label.
 - Catalog-change problems.
-- Term switcher.
-- Accepted when switching from fixtures to live data is a config flag and the e2e tests pass against a recorded live snapshot.
+- Term switcher from `terms.json` (active and past terms, default = newest fall/spring), plans per term, archived terms read-only for seats.
+- Live data vs. fixtures is one config flag.
 
 **M7: Backend features**
-- On-demand review summaries: a server fn that generates on the first request, stores in R2, coalesces concurrent requests and respects a spend cap; hidden when no key.
-- Seat alerts: D1 schema, subscribe/confirm/unsubscribe (with confirmation), dedupe, a cron that diffs changes and emails. Behind a flag until e2e-tested.
+- On-demand review summaries with Workers AI: generated on the first open, stored in R2, concurrent first requests coalesced, a daily generation cap, hidden on failure, the sparkles icon.
+- Seat alerts: D1, subscribe/confirm/unsubscribe with confirmation, dedupe, cron emails. Flagged until tested end to end.
 
 **M8: Polish and launch**
-- Accessibility pass (keyboard, focus, contrast, screen reader labels on the calendar).
-- Empty, loading and error states everywhere.
+- Accessibility pass.
+- Empty, loading and error states.
 - Performance budgets.
-- Copy pass against the spec's microcopy rules.
-- Final e2e run and a production deploy.
+- Copy pass against `SPEC.md` §3.13.
+- A visual comparison against `reference/prototype/screenshots`.
+- Final e2e and a production deploy.
 
-**Parallel streams after M0:** core (M1), ingest (M2) and the shell (M3) run at the same time, and meet at the schema in `packages/core/src/schema`. M4 splits into one subagent per tab. M5 depends on M1's generator. M6 and M7 need M2.
+**Parallelism after M0:** M1, M2 and M3 run concurrently and meet at `src/core/schema`. M4 splits into one subagent per feature. M5 needs M1. M6 and M7 need M2.
 
 ---
 
 ## 7. How the orchestrator runs
 
-1. Keep `docs/STATUS.md` on `main`: milestone checklist, what's in flight, decisions made, known issues.
-2. For each task, write a brief: goal, spec sections, files it owns, acceptance tests, and what not to touch. Spawn a subagent in an isolated worktree on a `<milestone>/…` branch.
-3. When a subagent returns, run `pnpm check`, read the diff, and run a code-review pass. Fix or bounce back, open or update the PR into `main`, and merge when green.
-4. Contract changes (schema, store shapes) are made by the orchestrator first, then fanned out.
-5. After each merge to `main`, CI deploys. Smoke-check the deployed URL.
-6. Never skip or disable a failing test to get to green.
+1. Keep `docs/STATUS.md` on `main` current: milestones, in flight, decisions made, known issues.
+2. For each task, write a brief:
+   - the goal;
+   - links to the relevant SPEC, DESIGN and reference files and screenshots;
+   - the files it owns;
+   - its acceptance tests;
+   - what not to touch.
+
+   Then spawn a subagent in an isolated worktree on a `<milestone>/…` branch.
+3. When a subagent returns, run `pnpm check` and e2e, read the diff, and do a code-review pass. For UI work, also take a Playwright screenshot and compare it with the reference. Fix or bounce back, open or update the PR, and squash-merge when green.
+4. The orchestrator changes shared contracts (schema, store shapes, public core APIs) first, then fans the work out.
+5. After each merge, CI deploys. Smoke-check terpsicle.com.
+6. Never skip, disable or weaken a failing test to get to green.
 
 ---
 
@@ -202,13 +270,15 @@ Each milestone ends with everything green and deployed (once credentials exist).
 
 | Name | Where | Used for |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | Claude Code environment variables **and** GitHub Actions secrets | wrangler deploy, R2 writes, D1 |
+| `CLOUDFLARE_API_TOKEN` | Claude Code environment variables **and** GitHub Actions secrets | wrangler: deploy, R2, D1, custom domain |
 | `CLOUDFLARE_ACCOUNT_ID` | same two places | wrangler |
-| `ANTHROPIC_API_KEY` | environment variable → set as a Worker secret by the orchestrator | review summaries (optional; the feature hides without it) |
-| `RESEND_API_KEY` + a sending domain | environment variable → Worker secret | seat-alert emails (optional until M7) |
+| `RESEND_API_KEY` | environment variable → Worker secret | seat-alert email (optional until M7); the orchestrator adds Resend's DNS records for terpsicle.com |
 
-Cloudflare resources the orchestrator creates with wrangler: Worker `terpsicle` (custom domains `terpsicle.com`, `www.terpsicle.com`), R2 bucket `terpsicle-data`, D1 database `terpsicle`, one Cron Trigger.
+Cloudflare resources the orchestrator creates:
+- Worker `terpsicle`, with custom domains `terpsicle.com` and `www.terpsicle.com`;
+- R2 bucket `terpsicle-data`;
+- D1 database `terpsicle`;
+- the cron triggers in §2;
+- the `AI` binding (Workers AI) for review summaries.
 
-GitHub: scheduled workflows only run on the default branch (`main`).
-
-Domain: `terpsicle.com` is on Cloudflare. The Worker serves the apex and `www` (redirecting to the apex) as custom domains. `bitcamp.terpsicle.com` keeps serving v1 and must not be modified.
+`bitcamp.terpsicle.com` keeps serving v1 and must not be modified.

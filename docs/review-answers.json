@@ -1,0 +1,318 @@
+{
+  "source": "Final design review artifact, answered 2026-09-25",
+  "supersededBy": "docs/SPEC.md reflects these, including the notes that override a pick (e.g. finals dropped, searchResults resolved by searchHover).",
+  "answers": [
+    {
+      "id": "accent",
+      "question": "Primary accent color",
+      "picked": "Black / white",
+      "pickedValue": "black",
+      "recommended": "Black / white",
+      "note": null
+    },
+    {
+      "id": "alerts",
+      "question": "Seat alerts without an account",
+      "picked": "Email link",
+      "pickedValue": "email",
+      "recommended": "Email link",
+      "note": "i'm not sure if this needs to be a day one feature, but hey if it works and we can test that it does and that people can come to rely on it, hey that's fine. consider that we might need to check if someone's already signed up for this alert, etc. and undoing the alert should require confirmation."
+    },
+    {
+      "id": "blockContent",
+      "question": "What each class block shows",
+      "picked": "Code, time, room",
+      "pickedValue": "standard",
+      "recommended": "Code, time, room",
+      "note": null
+    },
+    {
+      "id": "blockCreate",
+      "question": "Adding a block of time",
+      "picked": "Both",
+      "pickedValue": "both",
+      "recommended": "Both",
+      "note": "both for sure. we don't need location, etc. the user can worry about that and i don't want to be prefilling all these things etc. it's fine as is. i just think the blocks would be nice mostly as a thing to see extra stuff you'd have and to restrict the searching."
+    },
+    {
+      "id": "collapsible",
+      "question": "Can you hide the sidebar?",
+      "picked": "Collapsible",
+      "pickedValue": "true",
+      "recommended": "Collapsible",
+      "note": "even simplier then an extra collapse button at the bottom, just allow the user to click the same icon again to hide it. ie. search is selected, clicking search again means everything's collapsed."
+    },
+    {
+      "id": "colors",
+      "question": "Course colors",
+      "picked": "Soft tints",
+      "pickedValue": "pastel",
+      "recommended": "Soft tints",
+      "note": "should also allow for the user to change the color of the course just for fun, maybe just as simple as clicking on the color circle icon in the courses views and it having a little tooltip to select from a good amount of predefined colors."
+    },
+    {
+      "id": "compare",
+      "question": "Comparing two plans",
+      "picked": "No compare",
+      "pickedValue": "none",
+      "recommended": "Overlay on the calendar",
+      "note": "note this as a future feature, but i don't feel like it's necessary rn and the UX is a bit tricky."
+    },
+    {
+      "id": "density",
+      "question": "Density",
+      "picked": "Compact",
+      "pickedValue": "compact",
+      "recommended": "Comfortable",
+      "note": "lots of info here, dense is better."
+    },
+    {
+      "id": "drillHeader",
+      "question": "Header when you drill into a course",
+      "picked": "Breadcrumb",
+      "pickedValue": "breadcrumb",
+      "recommended": "Back + next/previous course",
+      "note": null
+    },
+    {
+      "id": "explain",
+      "question": "How much we explain the estimates",
+      "picked": "One line + “How?”",
+      "pickedValue": "disclosure",
+      "recommended": "One line + “How?”",
+      "note": null
+    },
+    {
+      "id": "filters",
+      "question": "Search filters",
+      "picked": "Gen-eds + two toggles",
+      "pickedValue": "inline",
+      "recommended": "Gen-eds + two toggles",
+      "note": "kind of none of the above. i like the UX of something that has one line under the search bar with a chip/dropdown thing for the different things you could filter by. for example, \"gen-eds\" \"credits\" \"fits my plan\" etc. once it's set it changes color to show it's actively applying."
+    },
+    {
+      "id": "finals",
+      "question": "Where final exams show up",
+      "picked": "Only in Problems and course details",
+      "pickedValue": "about",
+      "recommended": "A Finals view on the calendar",
+      "note": "let's actually do neither. final exams can be rescheduled if you have overlapping ones, and the university takes care in making sure that they usually don't overlap. and that's one extra data source to worry about, and final exam times aren't even usually released until a few weeks into a semester. let's not do that."
+    },
+    {
+      "id": "firstRun",
+      "question": "Your very first visit",
+      "picked": "Short guide + search button",
+      "pickedValue": "guide",
+      "recommended": "Short guide + search button",
+      "note": "oh shit i actually really fuck with this numbered overview of how the app works as a good introduction. good thinking. i like this more than my previous thought about the blank thing with \"start from scratch\" or \"generate\". but maybe adding in a callout to the generate thing as an alternate thing, or idk. just consider that too."
+    },
+    {
+      "id": "firstTab",
+      "question": "Name of the first sidebar tab",
+      "picked": "Courses",
+      "pickedValue": "Courses",
+      "recommended": "Courses",
+      "note": null
+    },
+    {
+      "id": "fitMode",
+      "question": "Sections that don't fit",
+      "picked": "Label only",
+      "pickedValue": "words",
+      "recommended": "Fitting first",
+      "note": "label only for now is fine, again with allowing some dynamism, maybe someone prefers to see something overlapping so then they go and pick something else for the one it overlaps with, etc. it's not a great deal. maybe a little note next to the sections label like \"0 fit\" or \"2 fit\", idk."
+    },
+    {
+      "id": "freshness",
+      "question": "Showing how fresh seat counts are",
+      "picked": "Only above section lists",
+      "pickedValue": "details",
+      "recommended": "Only above section lists",
+      "note": null
+    },
+    {
+      "id": "generate",
+      "question": "Automatic schedule suggestions",
+      "picked": "A Generate tab",
+      "pickedValue": "tab",
+      "recommended": "A Generate tab",
+      "note": "i think generating things would be a good feature to have from the start. but think about the user stories more... i think generating them would mostly be separate from being inside of any specific plan. maybe it could be another option when you select the plus button for a new plan? it could allow you to add multiple plans. and on a fresh session (i don't want a marketing page or anything; just throw people in), it could just show two options to start from scratch or to generate. make this feature as excellent as the rest of this schedule builder, please. and i'm not sure i wanna use the sparkles anywhere for this since it's just using algorithms and whatnot. sparkles for actual LLM stuff only please."
+    },
+    {
+      "id": "ghosts",
+      "question": "How other sections appear when you open a course",
+      "picked": "Dashed outlines",
+      "pickedValue": "dashed",
+      "recommended": "Dashed outlines",
+      "note": "i'm partial to dashed outlines; though some courses have a *ton* of sections and i'm a bit worried about how this will display. i really like the idea behind the dashed outlines though, and it's a good visual to see all the options in front of you."
+    },
+    {
+      "id": "grades",
+      "question": "Grade distribution",
+      "picked": "Sentence + five bars",
+      "pickedValue": "bars",
+      "recommended": "Sentence + per-instructor lines",
+      "note": "i like the bars. consider that we use +/- grades too. planet terp does combined bars for those with different segments for A-, A, and A+ within the same A bar. i like that. they also have A, B, C, D, F, W, and other. W means withdrawl, btw, but people know that."
+    },
+    {
+      "id": "instructors",
+      "question": "Instructor information",
+      "picked": "Cards in an Instructors tab",
+      "pickedValue": "cards",
+      "recommended": "Comparison table",
+      "note": "i think i prefer this cards thing, actually. there's usually not more than a handful of professors for the class, so it's useful to see all that extra information right at thet top, i feel."
+    },
+    {
+      "id": "legViz",
+      "question": "Connection details",
+      "picked": "A small map of the walk",
+      "pickedValue": "map",
+      "recommended": "Two bars: time you have vs time you need",
+      "note": "YES to the map omg that'd look so cool. i'd prefer only doing this if we're able to display the actual route between the things that the user would really take, not a straight line because that makes it seem like our calculation is a straight line. and i think the GIS thing takes into account routing because we have the accessible path option. also: please call it the accessible option, or accessible whatever, and not \"step-free\"."
+    },
+    {
+      "id": "mobile",
+      "question": "What the phone version opens to",
+      "picked": "Tiny week grid",
+      "pickedValue": "week",
+      "recommended": "Today",
+      "note": "i don't want us to have to worry about a specific mobile implementation for every new feature we add, but i do think supporting mobile would be a good thing. i've seen other apps built with shadcn have their sidebar turn into a sort of drawer thing from the bottom that's able to be at halfway or expand up, etc. i think this would be the best thing to do for now, and it sort of just requires working on the shell of the sidebar and things like that."
+    },
+    {
+      "id": "newPlan",
+      "question": "What does “+ new plan” create?",
+      "picked": "Ask: empty or copy",
+      "pickedValue": "ask",
+      "recommended": "Ask: empty or copy",
+      "note": null
+    },
+    {
+      "id": "overlap",
+      "question": "How overlapping classes look",
+      "picked": "Side by side, outlined red",
+      "pickedValue": "columns",
+      "recommended": "Side by side, outlined red",
+      "note": "no red outline necessary. yes it's a problem but i feel like it's a pretty common thing for users to have different options displayed like that, so we shouldn't necessarily yell at them for it always. for instance, say i have two socy 4xx classes at the same time i'm deciding between now. it's kind of mute which one i pick when it comes to the mechanics of my schedule. i just want to see that i could do both and not be yelled at. sure, it's a problem to be highlighted, but it's sort of well understood."
+    },
+    {
+      "id": "pills",
+      "question": "Travel time on the calendar",
+      "picked": "Every connection",
+      "pickedValue": "all",
+      "recommended": "Only tight or short ones",
+      "note": null
+    },
+    {
+      "id": "planNav",
+      "question": "Where do plans live?",
+      "picked": "Tabs in the top bar",
+      "pickedValue": "tabs",
+      "recommended": "Tabs in the top bar",
+      "note": null
+    },
+    {
+      "id": "problemGroup",
+      "question": "Ordering problems",
+      "picked": "Most serious first",
+      "pickedValue": "severity",
+      "recommended": "Most serious first",
+      "note": null
+    },
+    {
+      "id": "problems",
+      "question": "Where problems live",
+      "picked": "Problems tab + count in top bar",
+      "pickedValue": "tab",
+      "recommended": "Tab + banner in the course list",
+      "note": "don't yell at the user with that extra box. again, problems might show up when the user is still figuring out their schedule. that's okay."
+    },
+    {
+      "id": "quick",
+      "question": "Quick calls",
+      "picked": [
+        "Show a Saturday column only when a plan has a Saturday class",
+        "Show full sections (labeled Full) rather than hiding them",
+        "Show restricted sections, with the restriction spelled out",
+        "Remember the open tab and course between visits",
+        "Keep a course's color the same in every plan",
+        "Use Undo instead of “are you sure?” dialogs everywhere",
+        "Show sections with instructor TBA"
+      ],
+      "pickedValue": "saturday,fullShown,restricted,remember,stableColors,undo,tba",
+      "recommended": "saturday,fullShown,restricted,creditWarn,remember,stableColors,undo,tba,exportPng",
+      "note": "on the saturday point, usually this is actually a thing more often for async classes, which can have that same treatment. the registration limit is dependent on your major, so that's not necessary. people just screenshot things rather than save with image, that's not necessary."
+    },
+    {
+      "id": "rail",
+      "question": "How the sidebar tabs look",
+      "picked": "Icon + label rail",
+      "pickedValue": "labeled",
+      "recommended": "Icon + label rail",
+      "note": "i definitely prefer this but it kind of reminds me of slack, which isn't good. for some reason apps that have this icon and rail thing with the grounded thing around it alaways seem to suck. maybe ours won't. i think this is *fine* for now. the text labels are very necessary i think, since most users are coming in blind."
+    },
+    {
+      "id": "regHelper",
+      "question": "Help on registration day",
+      "picked": "Registration checklist",
+      "pickedValue": "checklist",
+      "recommended": "Registration checklist",
+      "note": null
+    },
+    {
+      "id": "searchHover",
+      "question": "Hovering a search result",
+      "picked": "Ghost its sections",
+      "pickedValue": "on",
+      "recommended": "Ghost its sections",
+      "note": "this might actually be better than what i had mentioned before about allowing collapsible things for the distinction between two sorts of classes. ignore that, don't show sections in the main thing. but this hovering is awesome. and fills the need for comparing across upper levels."
+    },
+    {
+      "id": "searchResults",
+      "question": "Search results",
+      "picked": "Courses that expand to sections",
+      "pickedValue": "expand",
+      "recommended": "Courses; click to open",
+      "note": "i think maybe this should be a toggle in our search sections. you might be A) comparing sections within a course, like for a course with many sections or B) comparing sections across courses, like for upper levels with one section each and you're deciding between them."
+    },
+    {
+      "id": "seats",
+      "question": "Seats",
+      "picked": "Words + a small fill bar",
+      "pickedValue": "meter",
+      "recommended": "Words",
+      "note": null
+    },
+    {
+      "id": "sectionLayout",
+      "question": "How a course's sections are listed",
+      "picked": "Grouped by instructor",
+      "pickedValue": "byInstructor",
+      "recommended": "Grouped by instructor",
+      "note": "this is a great idea. let's allow the user to collapse these instructor groups, too. i'd want to mostly preserve the number order of the sections though when we group. this is almost always the case with how they do the codes, though. just means not doing some extra sort on the instructor name or something like that."
+    },
+    {
+      "id": "shared",
+      "question": "Opening a friend's shared link",
+      "picked": "View it, then choose",
+      "pickedValue": "readonly",
+      "recommended": "View it, then choose",
+      "note": "we're not doing overlays, so just a save a copy button. and we won't have names for this so can't say \"Alex's plan\" really. but i like this UI. what if we actually have it replace the list of our own plans at the top? of course with an X to go back and save a copy. i kind of like the current copy, icon, even the light red you're using here, maybe just put that up there in a little rounded sort of thing. just a thought."
+    },
+    {
+      "id": "timeRange",
+      "question": "Hours shown",
+      "picked": "Fit to your classes",
+      "pickedValue": "fit",
+      "recommended": "Fit to your classes",
+      "note": null
+    },
+    {
+      "id": "travelSettings",
+      "question": "Where travel settings live",
+      "picked": "In the Travel tab",
+      "pickedValue": "tab",
+      "recommended": "In the Travel tab",
+      "note": null
+    }
+  ]
+}

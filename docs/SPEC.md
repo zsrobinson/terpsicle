@@ -46,12 +46,27 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
   - `+` opens: **Empty plan**, **Copy of <current>**, **Generate plans…**.
 - **Rail:** icons with text labels: Courses, Search, Problems, Travel, Blocks, Generate, Export. Clicking the active tab again **collapses the sidebar** (click any tab to reopen). There is no separate collapse button.
 - **Sidebar:** one panel at a time. Opening details (a course, a connection, a generated plan) **drills in** over the current tab, with a **breadcrumb** header ("Search › CMSC351"). `Esc` or the breadcrumb goes back to exactly where you were.
-- **Calendar:** always visible on desktop.
+- **Calendar:** always visible on desktop, and it **stretches to fill the screen**. Hour height is computed from the available height, so the plan's hours fit without scrolling; it only scrolls when the window is too short for a readable minimum (~36px per hour). Nothing sits below the grid (no tips or footers).
 - **Mobile:** the same shell. The sidebar becomes a **bottom drawer** with snap points (peek / half / full), and the rail becomes the drawer's tab strip. The calendar stays a week grid. There are no bespoke mobile screens, so new features only need to work in the sidebar.
 
 ---
 
 ## 3. Features
+
+### 3.0 Terms (fully automatic)
+Nobody should have to touch the app when a new semester appears.
+- **The Schedule of Classes is the source of truth for which terms exist.** Every catalog run reads the term dropdown on `app.testudo.umd.edu/soc/` and publishes `terms.json` (id, name, status).
+- Every term listed there is crawled: fall, spring, summer and winter.
+- **New terms appear in the term switcher automatically** as soon as Testudo lists them.
+- **Old terms** that drop off Testudo stay in R2 as *archived*: still viewable, and plans for them still open, but seats stop updating. The switcher shows them under "Past terms".
+- **Default term:** the newest fall or spring term Testudo lists, which is the one people are registering for. A person's last-used term is remembered.
+- Plans belong to a term. Switching terms shows that term's plans, and switching never mixes sections across terms.
+- **Anything per-term is looked up, never hard-coded:**
+  - dates and breaks for .ics come from the provost calendar, matched by term;
+  - seat-poll and crawl schedules apply to all active terms;
+  - if a term's calendar dates aren't published yet, .ics export for that term says so plainly.
+- Buildings and routes grow on their own: new building codes seen in any term are joined to the map data, and their routes are computed on the next routes run.
+
 
 ### 3.1 Plans
 - Many named plans per term, stored locally (IndexedDB).
@@ -63,9 +78,10 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
 - The courses in the current plan. Each row shows the dot in the course color, code, section, title, instructor and meeting days, the seats meter, and a warning icon if the course has a problem.
 - **Saved for later:** courses you're considering but haven't placed.
 - **Course color:** clicking a course's color dot opens a small palette of preset colors. The color is per course and the same in every plan.
-- **First visit:** "Build your Spring 2027 schedule", a numbered 4-step guide (find courses → pick sections on the calendar → fix anything flagged → export for registration).
-  - Primary action: **Search for a course**.
-  - Secondary action: **Or generate plans from a list of courses**.
+- **First visit:** "Build your <term> schedule" with **two equally weighted paths** side by side (same size and style; neither is secondary):
+  - **Build it yourself:** 1 find your courses → 2 pick sections on the calendar → 3 fix anything flagged → 4 export for registration. Button: **Search for a course**.
+  - **Generate plans:** 1 list the courses you need → 2 set your must-haves (days off, start time, …) → 3 pick from ranked plans → 4 export. Button: **Generate plans**.
+  - The same two paths appear whenever a plan is empty.
   - There's no marketing page; people land straight in the app.
 
 ### 3.3 Calendar
@@ -84,7 +100,7 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
 - **Travel pills** between every back-to-back pair of classes in different buildings: "6 min" with a route icon.
   - Neutral when fine, amber when tight (needs ≥ 75% of the gap), red when there isn't enough time.
   - Hover for the numbers; click to open connection details.
-- **Drag to block time:** drag on an empty part of the grid; a small popup asks for a label, with presets (Lunch, Work, Gym, Club).
+- **Drag to block time:** drag on an empty part of the grid; a small popup asks for a label, with presets (Lunch, Work, Gym, Club). This is discoverable through a hover tooltip on empty grid space and the Blocks tab, never through text under the calendar.
 
 ### 3.4 Course details (drill-in)
 - **Header:** code, credits, gen-eds, title; Remove from plan / Save for later.
@@ -204,11 +220,11 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
 
 | Data | Source | Notes |
 |---|---|---|
-| Terms, departments, courses, sections, seats, meetings, delivery, notes | Testudo Schedule of Classes (scraped) | Seat counts refresh every 5 min. |
+| Terms, departments, courses, sections, seats, meetings, delivery, notes | Testudo Schedule of Classes (scraped) | The term list comes from Testudo too (§3.0). Seat counts refresh every 5 min for active terms. |
 | Instructor ratings, reviews, grade distributions (+/−, W) | PlanetTerp API | We're OK using it; cache politely and link back. |
 | Building codes → numbers → coordinates | Testudo building popup + UMD ArcGIS BuildingAllSearch | Checked-in `buildings.json`. |
-| Walking distances **and route geometries** (standard + accessible) | UMD GIS DynamicRouting (`gis.umd.edu`), precomputed per building pair | Built in CI, stored in R2. OSRM/OSM is the fallback for distances only. |
+| Walking distances **and route geometries** (standard + accessible) | UMD GIS DynamicRouting (`gis.umd.edu`), precomputed per building pair | Built by a resumable cron job (or a script if Workers can't reach UMD's token server), stored in R2. OSRM/OSM is the fallback for distances only. |
 | Term dates, breaks, holidays | `provost.umd.edu/calendar.md` | For .ics. |
-| Review summaries | Anthropic API, generated **on demand** on the first open of an instructor, then cached | Hidden if unavailable. |
+| Review summaries | **Workers AI** (the Worker's `AI` binding, no external API key), generated **on demand** on the first open of an instructor, then cached in R2 | Regenerated only when new reviews arrive; hidden if generation fails. |
 
 No Jupiterp data. No final exam data.
