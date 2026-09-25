@@ -3,8 +3,9 @@ import { ArrowRight } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { openTab } from "~/app/actions";
 import { track } from "~/app/analytics";
+import { TEXT } from "~/app/emphasis";
 import { MessageText } from "~/app/message-text";
-import { PanelBody } from "~/app/panel";
+import { PanelBody, SectionHeader } from "~/app/panel";
 import type { DrillViewProps } from "~/app/registry";
 import { connectionFixes } from "~/core/problems";
 import {
@@ -27,8 +28,9 @@ import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { FixList } from "./fix-list";
 import { RouteMap } from "./route-map";
+import { useTravelSettingsOpen } from "./settings-store";
 import { useBuildings } from "./use-buildings";
-import { VERDICT_TEXT, VerdictDot } from "./verdict";
+import { verdictText } from "./verdict";
 import {
   connectionDays,
   daysInWords,
@@ -50,7 +52,7 @@ export function ConnectionDetails({ entry }: DrillViewProps<"connection">) {
 
   if (!connection)
     return (
-      <PanelBody className="px-4 py-4 text-[12.5px] text-muted">
+      <PanelBody className="px-4 py-4 text-muted text-sm">
         {catalog?.complete ? (
           "This connection isn't in the plan anymore. It changed when the plan did."
         ) : (
@@ -87,77 +89,79 @@ function Details({
   const nameOf = (code: BuildingCode) => buildings.get(code)?.name ?? code;
 
   return (
-    <PanelBody className="px-4 pt-3 pb-6">
-      <div className="text-[11px] text-muted">Every {daysInWords(days)}</div>
-      <h2 className="mt-0.5 flex items-center gap-2 font-semibold text-[15px]">
-        <span className="font-mono">{from}</span>
-        <ArrowRight size={14} className="text-muted" aria-label="to" />
-        <span className="font-mono">{to}</span>
-      </h2>
+    <PanelBody className="pb-6">
+      <div className="px-4 pt-3">
+        <div className="text-muted text-xs">Every {daysInWords(days)}</div>
+        <h2 className="mt-0.5 flex items-center gap-2 font-semibold text-lg">
+          <span className="ident">{from}</span>
+          <ArrowRight size={14} className="text-muted" aria-label="to" />
+          <span className="ident">{to}</span>
+        </h2>
 
-      {routesLoading ? (
-        <Skeleton className="mt-3 h-[58px] rounded-lg" />
-      ) : (
-        <div
-          className="mt-3 rounded-lg border border-hairline bg-panel px-3 py-2.5"
-          data-testid="verdict"
-          data-verdict={c.verdict}
-        >
+        {routesLoading ? (
+          <Skeleton className="mt-3 h-14 rounded-lg" />
+        ) : (
+          // A card: the verdict is one standalone thing (docs/UX-REVIEW.md §2.6).
           <div
-            className={cn(
-              "flex items-center gap-2 font-medium text-[12.5px]",
-              VERDICT_TEXT[c.verdict],
-              c.verdict === "ok" && "text-fg",
-            )}
+            className="mt-3 rounded-lg border border-hairline bg-panel px-3 py-2"
+            data-testid="verdict"
+            data-verdict={c.verdict}
           >
-            <VerdictDot verdict={c.verdict} />
-            {VERDICT_WORDS[c.verdict]}
+            <div
+              className={cn(
+                "font-medium text-base",
+                c.verdict === "ok" ? TEXT.primary : verdictText(c.verdict),
+              )}
+            >
+              {VERDICT_WORDS[c.verdict]}
+            </div>
+            <p className="tnum mt-0.5 text-sm">
+              <MessageText message={verdictBody(c)} />
+            </p>
           </div>
-          <p className="tnum mt-1 text-[12.5px] leading-snug">
-            <MessageText message={verdictBody(c)} />
-          </p>
-        </div>
-      )}
+        )}
 
-      {c.distanceFeet !== null ? (
-        <div className="mt-3">
-          <RouteMap connection={c} />
-        </div>
-      ) : null}
-
-      <dl className="tnum mt-3 grid grid-cols-[76px_1fr] gap-x-2 gap-y-2 text-[12.5px]">
-        <Row term="Leave">
-          <Place end={c.from} name={nameOf(c.from.building)} verb="at" />
-        </Row>
-        <Row term="Arrive by">
-          <Place end={c.to} name={nameOf(c.to.building)} verb="by" />
-        </Row>
         {c.distanceFeet !== null ? (
-          <Row term="Distance">
-            {exactFeet(c.distanceFeet)}{" "}
-            <span className="text-muted">
-              · {MODE_WORDS[c.mode].toLowerCase()}
-            </span>
-          </Row>
+          <div className="mt-3">
+            <RouteMap connection={c} />
+          </div>
         ) : null}
-        {math ? (
-          <Row term="Estimate">
-            <span className="font-mono text-[11.5px]">
-              {estimateLine(math)}
-            </span>
-          </Row>
-        ) : null}
-      </dl>
 
-      <WithTooltip label="Open the Travel tab">
-        <button
-          type="button"
-          onClick={() => openTab("travel", "click")}
-          className="mt-3 text-[12px] text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
-        >
-          Change your pace or use accessible routes
-        </button>
-      </WithTooltip>
+        <dl className="tnum mt-3 grid grid-cols-[5rem_1fr] items-baseline gap-x-2 gap-y-2 text-base">
+          <Row term="Leave">
+            <Place end={c.from} name={nameOf(c.from.building)} verb="at" />
+          </Row>
+          <Row term="Arrive by">
+            <Place end={c.to} name={nameOf(c.to.building)} verb="by" />
+          </Row>
+          {c.distanceFeet !== null ? (
+            <Row term="Distance">
+              {exactFeet(c.distanceFeet)}{" "}
+              <span className="text-muted">
+                · {MODE_WORDS[c.mode].toLowerCase()}
+              </span>
+            </Row>
+          ) : null}
+          {math ? (
+            <Row term="Estimate">
+              <span className="text-sm">{estimateLine(math)}</span>
+            </Row>
+          ) : null}
+        </dl>
+
+        <WithTooltip label="Open Travel's settings">
+          <button
+            type="button"
+            onClick={() => {
+              useTravelSettingsOpen.getState().setOpen(true);
+              openTab("travel", "click");
+            }}
+            className="mt-3 text-muted text-sm underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+          >
+            Change your pace or use accessible routes
+          </button>
+        </WithTooltip>
+      </div>
 
       {!routesLoading &&
       (c.verdict === "tight" || c.verdict === "insufficient") ? (
@@ -187,7 +191,7 @@ function verdictBody(c: Connection): Message {
 function Row({ term, children }: { term: string; children: ReactNode }) {
   return (
     <>
-      <dt className="text-muted">{term}</dt>
+      <dt className="text-muted text-sm">{term}</dt>
       <dd className="min-w-0">{children}</dd>
     </>
   );
@@ -205,8 +209,8 @@ function Place({
   return (
     <>
       <span className="block">{name}</span>
-      <span className="block text-[11.5px] text-muted">
-        <span className="font-mono">
+      <span className="block text-muted text-sm">
+        <span className="ident">
           {end.building}
           {end.room ? ` ${end.room}` : ""}
         </span>{" "}
@@ -246,12 +250,15 @@ function Fixes({ connection }: { connection: Connection }) {
     [ready, current, catalog, travel, campus, connection],
   );
   return (
-    <section aria-label="Sections that fix this" className="mt-5">
-      <h3 className="mb-1.5 font-medium text-[11px] text-muted">
-        Sections that fix this
-      </h3>
+    <section aria-label="Sections that fix this" className="mt-6">
+      <SectionHeader
+        title="Sections that fix this"
+        count={fixes === null ? undefined : fixes.length}
+      />
       {fixes === null ? (
-        <Skeleton className="h-[52px] rounded-lg" />
+        <div className="px-4 py-2">
+          <Skeleton className="h-9" />
+        </div>
       ) : (
         <FixList
           fixes={fixes}
