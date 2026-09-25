@@ -4,12 +4,13 @@ import { track } from "~/app/analytics";
 import { openCourse } from "~/features/courses/actions";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { panels as searchPanels } from "~/features/search/panels";
-import { aReviewSummary } from "~/fixtures";
+import { aProblem, aReviewSummary } from "~/fixtures";
 import { api } from "~/server/fns/api";
 import { useSeatAlerts } from "~/state/seat-alerts";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { panels } from "./panels";
+import { problemsAbout } from "./sections";
 import { forgetReviewSummaries } from "./use-review-summary";
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
@@ -25,9 +26,16 @@ vi.mock("~/server/fns/api", async (importOriginal) => {
   };
 });
 
-async function renderDetails(courseCode = "CMSC351") {
+async function renderDetails(
+  courseCode = "CMSC351",
+  tab?: "instructors" | "grades" | "about",
+) {
   const view = await renderPlanTab([searchPanels, panels], "search");
-  act(() => openCourse(courseCode));
+  act(() =>
+    tab
+      ? useUi.getState().drill({ kind: "course", courseCode, tab })
+      : openCourse(courseCode),
+  );
   await screen.findByTestId("sections");
   return view;
 }
@@ -37,14 +45,20 @@ const row = (code: string) => {
   if (!found) throw new Error(`No row for section ${code}`);
   return found;
 };
+const rowCodes = () =>
+  [...screen.getByTestId("sections").querySelectorAll("[data-section]")].map(
+    (r) => r.getAttribute("data-section"),
+  );
+const sectionsBar = () =>
+  within(screen.getByTestId("sections")).getByText("Sections").parentElement;
 
-const findCard = (name: string) =>
+const findReviews = (name: string) =>
   waitFor(() => {
-    const card = document.querySelector<HTMLElement>(
+    const block = document.querySelector<HTMLElement>(
       `[data-instructor="${name}"]`,
     );
-    if (!card) throw new Error(`No card for ${name}`);
-    return card;
+    if (!block) throw new Error(`No reviews for ${name}`);
+    return block;
   });
 
 describe("Course details", () => {
@@ -76,98 +90,233 @@ describe("Course details", () => {
     expect(screen.queryByText("preview")).toBeNull();
   });
 
-  it("heads with the code, credits and title, and says how many sections fit", async () => {
-    await renderDetails();
-    expect(screen.getByRole("heading", { name: "Algorithms" })).toBeVisible();
-    expect(screen.getByText("3 credits")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Remove from Plan A" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/^Sections/)).toHaveTextContent("Sections · 1 fit");
-    expect(screen.getByText(/^Seats as of/)).toBeInTheDocument();
-  });
-
-  it("groups sections by instructor, in section order", async () => {
-    await renderDetails();
-    const sections = screen.getByTestId("sections");
-    const headers = within(sections).getAllByRole("button", {
-      expanded: true,
+  describe("header", () => {
+    it("heads with the code, credits and title, then the prerequisite, before any section", async () => {
+      await renderDetails();
+      expect(screen.getByRole("heading", { name: "Algorithms" })).toBeVisible();
+      expect(screen.getByText("3 credits")).toBeInTheDocument();
+      const prereq = screen.getByText("Prerequisite").parentElement;
+      expect(prereq).toHaveTextContent(
+        "Prerequisite Minimum grade of C- in CMSC250 and CMSC216.",
+      );
+      expect(
+        (prereq as HTMLElement).compareDocumentPosition(
+          screen.getByTestId("sections"),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "Remove from Plan A" }),
+      ).toBeInTheDocument();
     });
-    expect(headers.map((h) => h.textContent)).toEqual([
-      expect.stringMatching(/^Jada Abernathy.*2 sections$/),
-      expect.stringMatching(/^Keiko Ashdown.*avg GPA 3\.26.*2 sections$/),
-    ]);
-    expect(
-      [...sections.querySelectorAll("[data-section]")].map((r) =>
-        r.getAttribute("data-section"),
-      ),
-    ).toEqual(["0101", "0201", "0301", "0401"]);
+
+    it("clamps the description, and opens the rest of About in place", async () => {
+      const { user } = await renderDetails();
+      expect(screen.queryByTestId("about-course")).toBeNull();
+      await user.click(
+        screen.getByRole("button", { name: "More about this course" }),
+      );
+      const about = screen.getByTestId("about-course");
+      expect(about).toHaveTextContent("A systematic study");
+      expect(about).toHaveTextContent("Grading");
+      expect(track).toHaveBeenCalledWith("course_details_tab", {
+        tab: "about",
+      });
+      await user.click(
+        screen.getByRole("button", { name: "Less about this course" }),
+      );
+      expect(screen.queryByTestId("about-course")).toBeNull();
+    });
+
+    it("has no tabs", async () => {
+      await renderDetails();
+      const sidebar = screen.getByRole("complementary", { name: "Sidebar" });
+      expect(within(sidebar).queryByRole("tab")).toBeNull();
+      expect(within(sidebar).queryByRole("tablist")).toBeNull();
+    });
   });
 
-  it("collapses a group, and remembers it", async () => {
-    const { user } = await renderDetails();
-    const header = screen.getByRole("button", { name: /^Jada Abernathy/ });
-    await user.click(header);
-    expect(header).toHaveAttribute("aria-expanded", "false");
-    expect(document.querySelector('[data-section="0101"]')).toBeNull();
-    expect(row("0301")).toBeInTheDocument();
-    expect(useUi.getState().collapsedGroups).toHaveLength(1);
+  describe("a few sections", () => {
+    it("says how many fit in the sticky Sections bar, and groups by instructor in section order", async () => {
+      await renderDetails();
+      expect(sectionsBar()).toHaveTextContent("Sections1 of 4 fit");
+      expect(screen.queryByRole("button", { name: "Only fits" })).toBeNull();
+      expect(screen.getByText(/^Seats as of/)).toBeInTheDocument();
+      const headers = within(screen.getByTestId("sections")).getAllByRole(
+        "button",
+        { expanded: true, name: /^(Jada|Keiko)/ },
+      );
+      expect(headers.map((h) => h.textContent)).toEqual([
+        expect.stringMatching(/^Jada Abernathy4\.6\(88\)$/),
+        expect.stringMatching(/^Keiko Ashdown3\.1\(142\) · GPA 3\.26$/),
+      ]);
+      expect(rowCodes()).toEqual(["0101", "0201", "0301", "0401"]);
+    });
 
-    await user.click(header);
-    expect(header).toHaveAttribute("aria-expanded", "true");
-    expect(row("0101")).toBeInTheDocument();
-    expect(useUi.getState().collapsedGroups).toHaveLength(0);
+    it("collapses a group, and remembers it", async () => {
+      const { user } = await renderDetails();
+      const header = screen.getByRole("button", { name: /^Jada Abernathy/ });
+      await user.click(header);
+      expect(header).toHaveAttribute("aria-expanded", "false");
+      expect(document.querySelector('[data-section="0101"]')).toBeNull();
+      expect(row("0301")).toBeInTheDocument();
+      expect(useUi.getState().collapsedGroups).toHaveLength(1);
+
+      await user.click(header);
+      expect(header).toHaveAttribute("aria-expanded", "true");
+      expect(row("0101")).toBeInTheDocument();
+      expect(useUi.getState().collapsedGroups).toHaveLength(0);
+    });
+
+    it("labels each section's fit in words; the current one just says Current", async () => {
+      await renderDetails();
+      expect(row("0101")).toHaveTextContent("Overlaps STAT400");
+      expect(row("0101")).toHaveTextContent("Full");
+      expect(row("0201")).toHaveTextContent("Overlaps Work");
+      expect(row("0301")).toHaveTextContent("Current");
+      expect(row("0301")).not.toHaveTextContent("In your plan");
+      expect(row("0301")).toHaveAttribute("aria-current", "true");
+      expect(row("0401")).toHaveTextContent("Overlaps CMSC330");
+    });
+
+    it("says a shared lecture once, and each row shows its own discussion", async () => {
+      await renderDetails("CMSC330");
+      const sections = screen.getByTestId("sections");
+      expect(
+        within(sections)
+          .getAllByText(/^All meet/)
+          .map((l) => l.textContent),
+      ).toEqual([
+        "All meet TuTh 9:30–10:45am IRB 0324",
+        "All meet TuTh 2–3:15pm CSI 1115",
+        "All meet TuTh 3:30–4:45pm IRB 0324",
+      ]);
+      expect(row("0101")).toHaveTextContent("F 9–9:50am CSI 1122");
+      expect(row("0101")).not.toHaveTextContent("TuTh");
+      expect(row("0101")).not.toHaveTextContent("discussion");
+      // 14 sections: enough to offer "Only fits".
+      expect(
+        screen.getByRole("button", { name: "Only fits" }),
+      ).toBeInTheDocument();
+    });
+
+    it("hovering a row previews it on the calendar", async () => {
+      const { user } = await renderDetails();
+      await user.hover(row("0401"));
+      expect(useUi.getState().previewSection).toBe("CMSC351-0401");
+      await user.unhover(row("0401"));
+      expect(useUi.getState().previewSection).toBeNull();
+    });
+
+    it("switches to a section from the list", async () => {
+      const { user } = await renderDetails();
+      await user.click(
+        within(row("0401")).getByRole("button", { name: "Switch" }),
+      );
+      expect(
+        openPlanNow()?.courses.find((c) => c.courseCode === "CMSC351")
+          ?.sectionCode,
+      ).toBe("0401");
+      await waitFor(() => expect(row("0401")).toHaveTextContent("Current"));
+    });
   });
 
-  it("labels each section's fit in words, and marks the current one", async () => {
-    await renderDetails();
-    expect(row("0101")).toHaveTextContent("Overlaps STAT400");
-    expect(row("0101")).toHaveTextContent("Full · 14 waitlisted");
-    expect(row("0201")).toHaveTextContent("Overlaps Work");
-    expect(row("0301")).toHaveTextContent("In your plan");
-    expect(row("0301")).toHaveTextContent("Current");
-    expect(row("0301")).toHaveAttribute("aria-current", "true");
-    expect(row("0401")).toHaveTextContent("Overlaps CMSC330");
+  describe("one section", () => {
+    it("reads as the class: meets, taught by, fit and seats, with no list", async () => {
+      await renderDetails("CMSC401");
+      const one = screen.getByTestId("sections");
+      expect(one).toHaveTextContent("One section0101");
+      expect(one).toHaveTextContent("MeetsTuTh 12:30–1:45pm ESJ 1309");
+      expect(one).toHaveTextContent("Taught byXavier Beaumont");
+      expect(one).toHaveTextContent("FitFits");
+      expect(one).toHaveTextContent("29 of 33 open");
+      expect(within(one).queryByRole("button", { name: "Add" })).toBeNull();
+      expect(
+        within(one).queryByRole("button", { name: "Only fits" }),
+      ).toBeNull();
+    });
+
+    it("says it's in your plan in words once added", async () => {
+      const { user } = await renderDetails("CMSC401");
+      await user.click(screen.getByRole("button", { name: "Add to Plan A" }));
+      expect(track).toHaveBeenCalledWith("course_added", { via: "details" });
+      await waitFor(() =>
+        expect(screen.getByTestId("sections")).toHaveTextContent(
+          "FitIn your plan, with no problems",
+        ),
+      );
+    });
+
+    it("finds the problems that are about a section", () => {
+      const tight = aProblem({
+        id: "travel:x",
+        subjects: [
+          {
+            kind: "connection",
+            connectionId: "Tu:CMSC330-0101#0>CMSC401-0101#0",
+          },
+        ],
+      });
+      const other = aProblem({
+        id: "other",
+        subjects: [{ kind: "course", courseCode: "STAT400" }],
+      });
+      expect(problemsAbout([tight, other], "CMSC401", "CMSC401-0101")).toEqual([
+        tight,
+      ]);
+    });
   });
 
-  it("hovering a row previews it on the calendar", async () => {
-    const { user } = await renderDetails();
-    await user.hover(row("0401"));
-    expect(useUi.getState().previewSection).toBe("CMSC351-0401");
-    await user.unhover(row("0401"));
-    expect(useUi.getState().previewSection).toBeNull();
+  describe("many sections", () => {
+    it("groups one instructor's many sections by time, one line each", async () => {
+      await renderDetails("ENGL101");
+      expect(sectionsBar()).toHaveTextContent(/\d+ of 92 fit/);
+      expect(
+        screen.getByText(
+          "Testudo hasn't named instructors for these sections yet.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /^MWF 9–9:50am/ }),
+      ).toHaveAttribute("aria-expanded", "true");
+      // The header says when; rows say where.
+      expect(row("0101")).toHaveTextContent(/^0101TWS \d+/);
+      expect(row("0101")).toHaveTextContent("Fits");
+      expect(screen.queryByTestId("your-section")).toBeNull();
+    });
+
+    it("pins your section at the top", async () => {
+      const { user } = await renderDetails("ENGL101");
+      await user.click(screen.getByRole("button", { name: "Add to Plan A" }));
+      const pinned = await screen.findByTestId("your-section");
+      expect(
+        pinned
+          .querySelector("[data-pinned-section]")
+          ?.getAttribute("data-pinned-section"),
+      ).toBe("0002");
+      expect(pinned).toHaveTextContent("Current");
+      expect(pinned).toHaveTextContent("MWF 8–8:50am");
+    });
+
+    it("Only fits hides what doesn't fit", async () => {
+      const { user } = await renderDetails("ENGL101");
+      const before = rowCodes().length;
+      await user.click(screen.getByRole("button", { name: "Only fits" }));
+      expect(screen.getByRole("button", { name: "Only fits" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(rowCodes().length).toBeLessThan(before);
+      expect(rowCodes()).toContain("0101");
+      expect(document.querySelector('[data-section="0202"]')).toBeNull();
+    });
   });
 
-  it("switches to a section from the list", async () => {
-    const { user } = await renderDetails();
-    await user.click(
-      within(row("0401")).getByRole("button", { name: "Switch" }),
-    );
-    expect(
-      openPlanNow()?.courses.find((c) => c.courseCode === "CMSC351")
-        ?.sectionCode,
-    ).toBe("0401");
-    await waitFor(() => expect(row("0401")).toHaveTextContent("Current"));
-  });
-
-  it("adds a course that isn't in the plan, at its first fitting section", async () => {
-    const { user } = await renderDetails("ENGL101");
-    await user.click(screen.getByRole("button", { name: "Add to Plan A" }));
-    const added = openPlanNow()?.courses.find(
-      (c) => c.courseCode === "ENGL101",
-    );
-    expect(added?.sectionCode).toBe("0002");
-    expect(track).toHaveBeenCalledWith("course_added", { via: "details" });
-  });
-
-  it("keeps long section lists compact, with a way back to full rows", async () => {
-    const { user } = await renderDetails("ENGL101");
-    const toggle = screen.getByRole("button", { name: "Compact rows" });
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(row("0101")).toHaveTextContent("MWF 9am");
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(row("0101")).toHaveTextContent("MWF 9am–9:50am");
+  it("Only fits keeps the plan's own section, even when it doesn't fit", async () => {
+    const { user } = await renderDetails("CMSC330");
+    await user.click(screen.getByRole("button", { name: "Only fits" }));
+    // 0 of 14 fit: the plan's 0103 is all that's left, in its group.
+    expect(rowCodes()).toEqual(["0103"]);
+    expect(screen.queryByText(/fits your plan\.$/)).toBeNull();
   });
 
   describe("seat-alert bell", () => {
@@ -235,20 +384,25 @@ describe("Course details", () => {
     });
   });
 
-  describe("tabs", () => {
-    it("Instructors shows ratings and the review summary with its themes", async () => {
+  describe("reviews", () => {
+    it("open under the instructor's header, asked for only then, without repeating the rating", async () => {
       vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
         status: "ok",
         summary: aReviewSummary({ slug, basedOnReviewCount: 88 }),
       }));
-      await renderDetails();
-      const keiko = await findCard("Keiko Ashdown");
-      expect(document.querySelectorAll("[data-instructor]")).toHaveLength(2);
-      expect(keiko).toHaveTextContent("3.1");
-      expect(keiko).toHaveTextContent("In CMSC351: average GPA 3.26");
+      const { user } = await renderDetails();
+      expect(api.reviewSummary).not.toHaveBeenCalled();
+      const header = screen
+        .getByRole("button", { name: /^Keiko Ashdown/ })
+        .closest("div.sticky") as HTMLElement;
+      await user.click(within(header).getByRole("button", { name: "Reviews" }));
+      const keiko = await findReviews("Keiko Ashdown");
       await waitFor(() =>
         expect(keiko).toHaveTextContent("Clear, well-paced lectures"),
       );
+      expect(api.reviewSummary).toHaveBeenCalledTimes(1);
+      expect(keiko).not.toHaveTextContent("3.1");
+      expect(keiko).not.toHaveTextContent("GPA");
       expect(within(keiko).getByText("clear lectures")).toBeInTheDocument();
       expect(
         within(keiko).getByRole("link", { name: "read them" }),
@@ -256,41 +410,39 @@ describe("Course details", () => {
       expect(track).toHaveBeenCalledWith("review_summary_viewed", {
         state: "shown",
       });
-    });
-
-    it("hides the summary when it's unavailable", async () => {
-      await renderDetails();
-      const keiko = await findCard("Keiko Ashdown");
-      await waitFor(() =>
-        expect(keiko).toHaveTextContent("142 reviews on PlanetTerp"),
-      );
-      expect(keiko).not.toHaveTextContent("Summary of");
-      expect(track).toHaveBeenCalledWith("review_summary_viewed", {
-        state: "unavailable",
+      expect(track).toHaveBeenCalledWith("course_details_tab", {
+        tab: "instructors",
       });
     });
 
-    it("Grades shows a sentence and bars", async () => {
-      const { user } = await renderDetails();
-      await user.click(screen.getByRole("tab", { name: "Grades" }));
-      expect(await screen.findByTestId("grade-bars")).toBeInTheDocument();
-      expect(screen.getByRole("tabpanel")).toHaveTextContent(/got an A or B/);
-      expect(document.querySelectorAll("[data-grade]").length).toBeGreaterThan(
-        6,
+    it("fall back to the review count when there's no summary", async () => {
+      await renderDetails("CMSC351", "instructors");
+      // A deep link to "instructors" opens the first instructor's reviews.
+      const jada = await findReviews("Jada Abernathy");
+      await waitFor(() =>
+        expect(jada).toHaveTextContent("88 reviews on PlanetTerp"),
       );
+      expect(jada).not.toHaveTextContent("Summary of");
+    });
+  });
+
+  describe("grades", () => {
+    it("come last, one click from the Sections bar", async () => {
+      const scrolled = vi.fn();
+      Element.prototype.scrollIntoView = scrolled;
+      const { user } = await renderDetails();
+      const grades = screen.getByTestId("grades");
+      expect(
+        screen.getByTestId("sections").compareDocumentPosition(grades) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(await within(grades).findByTestId("grade-bars")).toBeVisible();
+      expect(grades).toHaveTextContent(/got an A or B/);
+      await user.click(screen.getByRole("button", { name: "Grades ↓" }));
+      expect(scrolled).toHaveBeenCalled();
       expect(track).toHaveBeenCalledWith("course_details_tab", {
         tab: "grades",
       });
-      expect(useUi.getState().stack.at(-1)).toMatchObject({ tab: "grades" });
-    });
-
-    it("About lists the description, prerequisites and restrictions", async () => {
-      const { user } = await renderDetails();
-      await user.click(screen.getByRole("tab", { name: "About" }));
-      const panel = screen.getByRole("tabpanel");
-      expect(panel).toHaveTextContent("A systematic study");
-      expect(panel).toHaveTextContent("Prerequisite");
-      expect(panel).toHaveTextContent("Minimum grade of C- in CMSC250");
     });
   });
 
