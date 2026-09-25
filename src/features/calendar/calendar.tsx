@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import {
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -8,8 +9,14 @@ import {
   useState,
 } from "react";
 import { switchSection } from "~/app/actions";
-import { type CalendarLayout, WeekFrame } from "~/app/calendar/week-frame";
+import {
+  type CalendarLayout,
+  DAY_HEADER_HEIGHT,
+  WeekFrame,
+} from "~/app/calendar/week-frame";
+import { PEEK_HEIGHT, snapHeights } from "~/app/mobile-drawer";
 import { useShortcut } from "~/app/shortcuts";
+import { useIsMobile } from "~/app/use-media-query";
 import type { Connection, CourseCode, Day } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
@@ -20,9 +27,10 @@ import { BusyBlock, ClassBlock, Ghost, laneStyle, TravelPill } from "./entries";
 import {
   type CalendarModel,
   ghostLanesFor,
+  ghostScrollDelta,
   MAX_GHOST_LANES,
   type Pill,
-  packGhosts,
+  packDay,
   pillsWhileComparing,
   previewOrder,
   spreadPills,
@@ -55,6 +63,7 @@ export function Calendar() {
   );
   useGhostKeys(view);
   useClearStalePreview(model);
+  const bottomInset = useDrawerInset();
 
   if (!model || !current)
     return (
@@ -68,6 +77,7 @@ export function Calendar() {
       days={model.days}
       startMinute={model.startMinute}
       endMinute={model.endMinute}
+      bottomInset={bottomInset}
       top={
         <>
           {view.previewing ? (
@@ -100,6 +110,77 @@ export function Calendar() {
       )}
     </WeekFrame>
   );
+}
+
+/**
+ * On a phone, how much of the calendar the drawer covers beyond its peek
+ * (the calendar's own bottom padding). The grid gets that much room below
+ * it, so anything under the drawer at half can scroll into view.
+ */
+function useDrawerInset(): number {
+  const mobile = useIsMobile();
+  const snap = useUi((s) => s.drawerSnap);
+  if (!mobile || snap !== "half" || typeof window === "undefined") return 0;
+  return Math.max(0, snapHeights(window.innerHeight).half - PEEK_HEIGHT);
+}
+
+/** The part of the screen where the calendar can be seen, under its day names. */
+function visibleBand(
+  scroller: HTMLElement,
+  drawerCover: number,
+): { top: number; bottom: number } {
+  const box = scroller.getBoundingClientRect();
+  return {
+    top: box.top + DAY_HEADER_HEIGHT,
+    bottom: Math.min(box.bottom, window.innerHeight - drawerCover),
+  };
+}
+
+/**
+ * When a course's sections start showing (opened, or hovered in search) and
+ * none of them is in view, scroll the calendar to the first one: smoothly,
+ * and only if needed. On a phone the drawer at half covers the calendar's
+ * lower part, where a 12:30 class sits.
+ */
+function useScrollToGhosts(
+  grid: RefObject<HTMLDivElement | null>,
+  model: CalendarModel,
+  layout: CalendarLayout,
+) {
+  const mobile = useIsMobile();
+  const snap = useUi((s) => s.drawerSnap);
+  const ghostCourse = model.ghost?.courseCode ?? null;
+  const latest = useRef({ model, layout });
+  latest.current = { model, layout };
+  useEffect(() => {
+    if (!ghostCourse) return;
+    const frame = requestAnimationFrame(() => {
+      const el = grid.current;
+      const scroller = el?.closest<HTMLElement>("[data-calendar-scroll]");
+      if (!el || !scroller) return;
+      const { model, layout } = latest.current;
+      const top = el.getBoundingClientRect().top;
+      const cover =
+        mobile && typeof window !== "undefined"
+          ? snapHeights(window.innerHeight)[snap]
+          : 0;
+      const delta = ghostScrollDelta(
+        model.columns.flatMap((c) =>
+          c.ghostItems.map((g) => ({
+            top: top + layout.yOf(g.start),
+            bottom: top + layout.yOf(g.end),
+          })),
+        ),
+        visibleBand(scroller, cover),
+      );
+      if (delta === 0) return;
+      const still = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      scroller.scrollBy({ top: delta, behavior: still ? "auto" : "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ghostCourse, grid, mobile, snap]);
 }
 
 /** Clicking a course anywhere opens its details; clicking it again closes them. */
@@ -243,6 +324,7 @@ function Grid({
     return () => observer.disconnect();
   }, []);
   useEffect(() => () => clearTimeout(hintTimer.current), []);
+  useScrollToGhosts(ref, model, layout);
 
   const n = model.columns.length;
   const colWidth = n > 0 ? width / n : 0;
@@ -255,9 +337,14 @@ function Grid({
         ? model.columns
         : model.columns.map((column) => ({
             ...column,
-            ghosts: packGhosts(column.ghostItems, maxGhostLanes, column.own),
+            ...packDay(
+              column.entryItems,
+              column.ghostItems,
+              maxGhostLanes,
+              model.ghost?.courseCode ?? null,
+            ),
           })),
-    [model.columns, maxGhostLanes],
+    [model.columns, model.ghost, maxGhostLanes],
   );
   const ghostCourse = model.ghost?.courseCode ?? null;
   const bounds = { start: model.startMinute, end: model.endMinute };

@@ -40,6 +40,7 @@ import {
   formatTimeRange,
   hasSetTimes,
   type Lane,
+  type MeetingItem,
   packLanes,
   sectionWeekItems,
   type WeekItem,
@@ -140,13 +141,12 @@ export interface UntimedSection {
 
 export interface DayColumn {
   day: Day;
+  /** In lanes with the ghosts while they show (`packDay`), for a desktop-width column. */
   entries: Lane<ClassEntry | BlockEntry>[];
-  /** Packed for a desktop-width column (`packGhosts`). */
   ghosts: Lane<GhostEntry>[];
-  /** The same ghosts unpacked, for packing again in a narrower column. */
+  /** Both unpacked, for packing again in a narrower column. */
+  entryItems: (ClassEntry | BlockEntry)[];
   ghostItems: GhostEntry[];
-  /** The ghost course's own classes that day: ghosts sit beside them. */
-  own: Timed[];
   /** Only between back-to-back classes (`shouldShowPill`), and never over ghosts. */
   pills: Pill[];
 }
@@ -239,15 +239,16 @@ function ghostEntries(input: CalendarInput): {
   // 0211–0222 all meet MWF 10am). A ghost of that shared meeting would sit on
   // top of the person's own class and hide it, and says nothing new, so it's
   // left out; each ghost still shows where it differs. A previewed section is
-  // always drawn in full.
+  // drawn in full, except a meeting that is the placed one (same time and
+  // room: the shared lecture), which the placed class already shows.
   const placedSection = placedCode
     ? course.sections.find((s) => s.code === placedCode)
     : undefined;
-  const placedTimes = new Set(
-    placedSection
-      ? sectionWeekItems(course.code, placedSection).map(meetingTimeKey)
-      : [],
-  );
+  const placedItems = placedSection
+    ? sectionWeekItems(course.code, placedSection)
+    : [];
+  const placedTimes = new Set(placedItems.map(meetingTimeKey));
+  const placedMeetings = new Set(placedItems.map(meetingPlaceKey));
   const previewCode = input.preview
     ? (parseSectionKey(input.preview)?.sectionCode ?? null)
     : null;
@@ -275,7 +276,11 @@ function ghostEntries(input: CalendarInput): {
           : fitNow.with.label
         : null;
     for (const item of sectionWeekItems(course.code, rep)) {
-      if (group !== previewGroup && placedTimes.has(meetingTimeKey(item)))
+      if (
+        group === previewGroup
+          ? placedMeetings.has(meetingPlaceKey(item))
+          : placedTimes.has(meetingTimeKey(item))
+      )
         continue;
       entries.push({
         kind: "ghost",
@@ -321,6 +326,11 @@ function meetingTimes(section: Section): string {
         : [],
     )
     .join(" · ");
+}
+
+/** When, on which dates and where a meeting happens: the same meeting. */
+function meetingPlaceKey(item: MeetingItem): string {
+  return `${meetingTimeKey(item)}@${item.source.building ?? ""} ${item.source.room ?? ""}`;
 }
 
 /** When and on which dates a meeting happens, ignoring where. */
@@ -410,65 +420,91 @@ function mergeSameTime(ghosts: readonly GhostEntry[]): GhostEntry[] {
   );
 }
 
-type Slot = Timed & { ghost: GhostEntry | null };
+type DayEntry = ClassEntry | BlockEntry;
+
+type Slot = Timed & {
+  ghost: GhostEntry | null;
+  entry: DayEntry | null;
+  /** A class of the ghost course itself: its lane comes first. */
+  own: boolean;
+};
 
 /**
- * Ghosts and the ghost course's own classes in lanes, with the own class
- * in each cluster's first lane. Its block is drawn full width under the
- * ghosts, so its label, at the left, stays readable beside them.
+ * The day's classes, blocks and ghosts in one set of lanes, so a dimmed
+ * class sits beside the ghosts it overlaps instead of under them (SPEC §3.3:
+ * other classes dim, they don't vanish). In each cluster the lanes are
+ * reordered: the ghost course's own class first, then the plan's other
+ * classes and blocks, then ghosts. Each is drawn in its lane, so every
+ * label stays readable.
  */
-function packWithOwn(
+function packSlots(
   ghosts: readonly GhostEntry[],
-  own: readonly Timed[],
+  entries: readonly DayEntry[],
+  ownCourse: CourseCode | null,
 ): Lane<Slot>[] {
   const packed = packLanes<Slot>([
+    ...entries.map((entry) => ({
+      day: entry.day,
+      start: entry.start,
+      end: entry.end,
+      ghost: null,
+      entry,
+      own: entry.kind === "class" && entry.courseCode === ownCourse,
+    })),
     ...ghosts.map((ghost) => ({
       day: ghost.day,
       start: ghost.start,
       end: ghost.end,
       ghost,
-    })),
-    ...own.map((o) => ({
-      day: o.day,
-      start: o.start,
-      end: o.end,
-      ghost: null,
+      entry: null,
+      own: false,
     })),
   ]);
   for (const cluster of clusters(packed)) {
-    const mine = cluster.find((slot) => slot.ghost === null);
-    if (!mine || mine.lane === 0) continue;
-    const swap = mine.lane;
-    for (const slot of cluster)
-      if (slot.lane === swap) slot.lane = 0;
-      else if (slot.lane === 0) slot.lane = swap;
+    const lanes = cluster[0]?.lanes ?? 0;
+    if (lanes < 2) continue;
+    const rank = (lane: number) =>
+      cluster.some((s) => s.lane === lane && s.own)
+        ? 0
+        : cluster.some((s) => s.lane === lane && s.entry)
+          ? 1
+          : 2;
+    const order = Array.from({ length: lanes }, (_, i) => i).sort(
+      (a, b) => rank(a) - rank(b) || a - b,
+    );
+    const to = new Map(order.map((lane, i) => [lane, i]));
+    for (const slot of cluster) slot.lane = to.get(slot.lane) ?? slot.lane;
   }
   return packed;
 }
 
-/** Ghost lanes in a cluster, not counting the one kept for the course's own class. */
+/** Lanes in a cluster that hold a ghost. */
 function ghostLanes(cluster: readonly Lane<Slot>[]): number {
-  const lanes = cluster[0]?.lanes ?? 0;
-  return cluster.some((slot) => slot.ghost === null) ? lanes - 1 : lanes;
+  return new Set(cluster.flatMap((s) => (s.ghost ? [s.lane] : []))).size;
 }
 
 /**
- * One day's ghosts in lanes. Ghosts at the same time always merge. Where
- * more than `maxLanes` would still sit side by side, the crowded stretch
- * merges into one ghost. `own` (the course's section in the plan) keeps a
- * lane to itself, so no ghost hides it. A preview merged into a stretch
- * comes back as an `overlay` entry at its own time, in the merged ghost's
- * lane, so it's always visible.
+ * One day in lanes: the plan's classes and blocks, and the ghost course's
+ * sections. Ghosts at the same time always merge. Where more than
+ * `maxLanes` ghosts would still sit side by side, the crowded stretch
+ * merges into one ghost. The ghost course's own class keeps the first lane,
+ * and the plan's other classes sit beside the ghosts, dimmed but readable.
+ * A preview merged into a stretch comes back as an `overlay` entry at its
+ * own time, in the merged ghost's lane, so it's always visible. With no
+ * ghosts, the entries pack as they always have.
  */
-export function packGhosts(
+export function packDay(
+  entries: readonly DayEntry[],
   ghosts: readonly GhostEntry[],
   maxLanes: number = MAX_GHOST_LANES,
-  own: readonly Timed[] = [],
-): Lane<GhostEntry>[] {
-  const sameTime = mergeSameTime(ghosts.filter((g) => !g.overlay));
+  ownCourse: CourseCode | null = null,
+): { entries: Lane<DayEntry>[]; ghosts: Lane<GhostEntry>[] } {
+  const real = ghosts.filter((g) => !g.overlay);
+  if (real.length === 0) return { entries: packLanes(entries), ghosts: [] };
+  const sameTime = mergeSameTime(real);
   const out: GhostEntry[] = [];
   const previews = new Map<string, GhostEntry>();
-  for (const cluster of clusters(packWithOwn(sameTime, own))) {
+  for (const cluster of clusters(packSlots(sameTime, entries, ownCourse))) {
     const inCluster = cluster.flatMap((slot) =>
       slot.ghost ? [slot.ghost] : [],
     );
@@ -485,10 +521,11 @@ export function packGhosts(
     if (previewed) previews.set(merged.key, previewed);
     out.push(merged);
   }
-  const packed = packWithOwn(out, own).flatMap((slot) =>
+  const packed = packSlots(out, entries, ownCourse);
+  const placedGhosts = packed.flatMap((slot) =>
     slot.ghost ? [{ ...slot.ghost, lane: slot.lane, lanes: slot.lanes }] : [],
   );
-  const overlays = packed.flatMap((g) => {
+  const overlays = placedGhosts.flatMap((g) => {
     const previewed = previews.get(g.key);
     return previewed
       ? [
@@ -502,7 +539,12 @@ export function packGhosts(
         ]
       : [];
   });
-  return [...packed, ...overlays];
+  return {
+    entries: packed.flatMap((slot) =>
+      slot.entry ? [{ ...slot.entry, lane: slot.lane, lanes: slot.lanes }] : [],
+    ),
+    ghosts: [...placedGhosts, ...overlays],
+  };
 }
 
 /** About one character of the ghosts' 10px mono, and a ghost's padding and border, in px. */
@@ -676,12 +718,6 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
 
   const everything: Timed[] = [...classes, ...blocks, ...ghosts];
   const ghostsOn = (day: Day) => ghosts.filter((g) => g.day === day);
-  const ownOn = (day: Day): Timed[] =>
-    summary
-      ? classes.filter(
-          (c) => c.day === day && c.courseCode === summary.courseCode,
-        )
-      : [];
   // Pills sit on ghost labels, and while comparing sections the travel of
   // the current ones is beside the point (UX-REVIEW §4.3).
   const pills = summary
@@ -694,16 +730,20 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
 
   const columns: DayColumn[] = days.map((day) => {
     const ghostItems = ghostsOn(day);
-    const own = ownOn(day);
+    const entryItems = [
+      ...classes.filter((c) => c.day === day),
+      ...blocks.filter((b) => b.day === day),
+    ];
     return {
       day,
-      entries: packLanes<ClassEntry | BlockEntry>([
-        ...classes.filter((c) => c.day === day),
-        ...blocks.filter((b) => b.day === day),
-      ]),
-      ghosts: packGhosts(ghostItems, MAX_GHOST_LANES, own),
+      ...packDay(
+        entryItems,
+        ghostItems,
+        MAX_GHOST_LANES,
+        summary?.courseCode ?? null,
+      ),
+      entryItems,
       ghostItems,
-      own,
       pills: pills
         .filter((c) => c.day === day)
         .map((connection) => ({
@@ -818,4 +858,31 @@ export function spreadPills(
   }
   flush();
   return out;
+}
+
+/** A vertical span on screen, in px. */
+export interface Span {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * How far to scroll the calendar so a ghost shows: 0 when any ghost is
+ * already in the visible band (only if needed), otherwise enough to bring
+ * the first one just under its top. A phone's drawer at half covers the
+ * lower part of the calendar, so a course at 12:30 can open with every
+ * ghost out of sight.
+ */
+export function ghostScrollDelta(
+  ghosts: readonly Span[],
+  view: Span,
+  margin = 8,
+): number {
+  if (ghosts.length === 0 || view.bottom <= view.top) return 0;
+  const inView = ghosts.some(
+    (g) => g.bottom > view.top + margin && g.top < view.bottom - margin,
+  );
+  if (inView) return 0;
+  const first = Math.min(...ghosts.map((g) => g.top));
+  return first - view.top - margin;
 }

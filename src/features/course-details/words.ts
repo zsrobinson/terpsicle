@@ -173,3 +173,16 @@ export function genEdGroupWords(group: GenEdGroup): string {
 export function genEdLabel(code: string): string {
   return GEN_ED_LABELS[code] ?? code;
 }
+
+/**
+ * Testudo's permission flag in plain words (SPEC §3.13), read after the
+ * "Permission" label. "Perm Req" is the only flag in the catalog today;
+ * anything new shows as Testudo wrote it.
+ */
+const PERMISSION_WORDS: Record<string, string> = {
+  "perm req": "Required from the department",
+};
+
+export function permissionWords(permission: string): string {
+  return PERMISSION_WORDS[permission.trim().toLowerCase()] ?? permission;
+}

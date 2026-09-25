@@ -14,6 +14,7 @@ import {
   fitWords,
   genEdGroupWords,
   meetingWords,
+  permissionWords,
   restMeetingWords,
   sectionMeetingWords,
   shortFitWords,
@@ -183,5 +184,13 @@ describe("genEdGroupWords", () => {
         { code: "DSNS" },
       ]),
     ).toBe("DSNL (if taken with GEOL110) or DSNS");
+  });
+});
+
+describe("permissionWords", () => {
+  it("puts Testudo's Perm Req in plain words", () => {
+    expect(permissionWords("Perm Req")).toBe("Required from the department");
+    // A flag Testudo adds later shows as written.
+    expect(permissionWords("Dept Consent")).toBe("Dept Consent");
   });
 });
