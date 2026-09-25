@@ -6,6 +6,8 @@ import type { GhostSummary, UntimedSection } from "./layout";
 import { dotStyle, tintStyle } from "./tint";
 
 // One-line strips above the grid. Nothing ever goes below it (SPEC §2).
+// The ghost and preview hints lay over the day names (`WeekFrame` overlay),
+// so they never push the grid down as the pointer moves.
 
 /**
  * While a course's sections show as ghosts: what's happening and the keys,
@@ -28,7 +30,7 @@ export function GhostHint({
   const others = ghost.sectionCount - (ghost.placedCode ? 1 : 0);
   const choosing = interactive && !readOnly && others > 0;
   return (
-    <div className="flex h-[35px] shrink-0 items-center gap-2 border-hairline border-b bg-panel px-3 text-[12px]">
+    <div className="flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
       {interactive && !readOnly ? (
         <CourseColorPicker courseCode={ghost.courseCode} color={color} />
       ) : (
@@ -97,7 +99,7 @@ export function PreviewHint({
   planName: string;
 }) {
   return (
-    <div className="flex h-[35px] shrink-0 items-center gap-2 border-hairline border-b bg-panel px-3 text-[12px]">
+    <div className="flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
       <span className="truncate">
         <span className="font-medium">Previewing {label}.</span>{" "}
         <span className="text-muted">
@@ -125,7 +127,7 @@ export function UntimedStrip({
 }) {
   if (sections.length === 0) return null;
   return (
-    <div className="flex min-h-[31px] shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-hairline border-b px-3 py-1 text-[11.5px] text-muted">
+    <div className="flex min-h-[31px] shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-hairline border-b px-3 py-1 text-muted text-sm">
       <span>No set time:</span>
       {sections.map((s) => (
         <WithTooltip

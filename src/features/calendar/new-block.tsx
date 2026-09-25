@@ -117,9 +117,7 @@ export function NewBlockPopover({
             save(label);
           }}
         >
-          <div className="tnum text-[11.5px] text-muted">
-            {draftLabel(draft)}
-          </div>
+          <div className="tnum text-muted text-sm">{draftLabel(draft)}</div>
           {/* No tooltip: the field is focused on open, and a focus tooltip
               would cover the time above it. The placeholder says it. */}
           <input
@@ -128,7 +126,7 @@ export function NewBlockPopover({
             maxLength={40}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="What's this time for?"
-            className="mt-1.5 h-8 w-full rounded-md border border-hairline bg-bg px-2 text-[12.5px] outline-none placeholder:text-faint focus:border-hairline-strong"
+            className="mt-1.5 h-8 w-full rounded-md border border-hairline bg-bg px-2 text-base outline-none placeholder:text-faint focus:border-hairline-strong"
           />
           <div className="mt-2 flex flex-wrap gap-1">
             {BLOCK_PRESETS.map((preset) => (
@@ -136,7 +134,7 @@ export function NewBlockPopover({
                 <button
                   type="button"
                   onClick={() => save(preset)}
-                  className="h-6 rounded-md border border-hairline px-1.5 text-[11.5px] text-muted transition-colors hover:bg-hover hover:text-fg"
+                  className="h-6 rounded-md border border-hairline px-1.5 text-muted text-sm transition-colors hover:bg-hover hover:text-fg"
                 >
                   {preset}
                 </button>

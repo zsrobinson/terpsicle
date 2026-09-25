@@ -33,6 +33,10 @@ export function useCalendarModel(): CalendarView {
   const openCourse = useUi(selectOpenCourse);
   const preview = useUi((s) => s.previewSection);
   const planPreview = useUi((s) => s.previewPlan);
+  const selectedConnection = useUi((s) => {
+    const top = s.stack.at(-1);
+    return top?.kind === "connection" ? top.connectionId : null;
+  });
 
   const ghostCourse =
     (ghostCode ? catalog?.index.courses.get(ghostCode) : undefined) ?? null;
@@ -66,6 +70,7 @@ export function useCalendarModel(): CalendarView {
             fit,
             seats,
             preview,
+            selectedConnection,
           })
         : null,
     [
@@ -78,6 +83,7 @@ export function useCalendarModel(): CalendarView {
       seats,
       preview,
       planPreview,
+      selectedConnection,
     ],
   );
   const previewing = useMemo(() => {
