@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import type { CatalogIndex } from "~/core/catalog";
-import { defaultCourseColor } from "~/core/color";
+import { resolveCourseColors } from "~/core/color";
 import {
   type CourseCode,
   type CourseColor,
@@ -35,11 +35,18 @@ export function MiniWeek({
   marks?: ReadonlyMap<SectionKey, MiniWeekMark>;
   className?: string;
 }) {
+  // Courses without a stored color still come out distinct within the plan.
+  const resolved = resolveCourseColors(
+    sections.flatMap((key) => {
+      const code = index.sections.get(key)?.course.code;
+      return code ? [code] : [];
+    }),
+    colors,
+  );
   const items = sections.flatMap((key) => {
     const ref = index.sections.get(key);
     if (!ref) return [];
-    const color =
-      colors[ref.course.code] ?? defaultCourseColor(ref.course.code, []);
+    const color = resolved[ref.course.code] ?? "blue";
     return sectionWeekItems(ref.course.code, ref.section).map((item) => ({
       ...item,
       key,

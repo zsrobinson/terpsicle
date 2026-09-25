@@ -7,6 +7,7 @@ import {
   placedSections,
   type SectionRef,
 } from "~/core/catalog";
+import { resolveCourseColors } from "~/core/color";
 import { buildFitContext, type FitContext } from "~/core/fit";
 import { creditsLabel, planCredits } from "~/core/plans";
 import { countBySeverity, planProblems } from "~/core/problems";
@@ -101,6 +102,24 @@ export type CurrentPlan = {
 
 const EPOCH = new Date(0).toISOString();
 
+/**
+ * The stored colors plus one for every course in the plan that has none (a
+ * shared link without colors, a plan made by Generate), distinct within the
+ * plan.
+ */
+function planColors(
+  plan: Plan,
+  stored: Readonly<Partial<Record<CourseCode, CourseColor>>>,
+): Readonly<Partial<Record<CourseCode, CourseColor>>> {
+  return {
+    ...stored,
+    ...resolveCourseColors(
+      plan.courses.map((c) => c.courseCode),
+      stored,
+    ),
+  };
+}
+
 export function useCurrentPlan(): CurrentPlan | null {
   const { termId } = useActiveTerm();
   const shared = useShare((s) => s.shared);
@@ -116,24 +135,25 @@ export function useCurrentPlan(): CurrentPlan | null {
     if (!termId) return null;
     if (shared) {
       const { payload } = shared;
+      // Sections the catalog doesn't have (yet, or any more) get an empty
+      // snapshot, so Problems reports them as cancelled (DATA §8).
+      const plan = sharedViewPlan(
+        payload,
+        index ?? buildCatalogIndex(termId, []),
+        "shared-plan",
+        EPOCH,
+      );
       return {
         source: "shared",
         readOnly: true,
         termId,
-        // Sections the catalog doesn't have (yet, or any more) get an empty
-        // snapshot, so Problems reports them as cancelled (DATA §8).
-        plan: sharedViewPlan(
-          payload,
-          index ?? buildCatalogIndex(termId, []),
-          "shared-plan",
-          EPOCH,
-        ),
+        plan,
         blocks: (payload.blocks ?? []).map((b, i) => ({
           ...b,
           id: `shared-block-${i}`,
           termId,
         })),
-        colors: { ...colors, ...payload.colors },
+        colors: planColors(plan, { ...colors, ...payload.colors }),
       };
     }
     const plan = plans.find((p) => p.id === activeId);
@@ -144,7 +164,7 @@ export function useCurrentPlan(): CurrentPlan | null {
       termId,
       plan,
       blocks: blocks.filter((b) => b.termId === termId),
-      colors,
+      colors: planColors(plan, colors),
     };
   }, [termId, shared, plans, blocks, colors, activeId, index]);
 }

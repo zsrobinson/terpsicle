@@ -128,6 +128,12 @@ Each is behind a small hook, so where the work happens can change without touchi
 | `useReviewSummary(slug, course)` (`~/features/course-details/use-review-summary`) | The LLM summary: `loading`, `shown` or `hidden` (every "unavailable" and every failure hides it; "busy" is asked once more after 4 s). One request per instructor per visit. |
 | `SeatBell` (`~/features/course-details/seat-bell`) | The bell for a low or full section, over `useSeatAlert`/`subscribeSeatAlert`. |
 
+## Travel and the route map
+
+`src/features/travel` owns the Travel tab and the `connection` drill (connection details). Open a connection with `useUi.getState().drill({ kind: "connection", connectionId })`; settings change through `setPace`, `setAccessible` and `setExtraMinutes` in `~/features/travel/actions` (each records `travel_settings_changed`).
+
+The route map draws UMD's path for the pair and mode (`geo/route/<from>-<to>-<mode>.json`), never a straight line; with no geometry it's hidden, with one quiet line. Live data draws it with MapLibre GL on `geo/tiles.pmtiles` (HTTP range reads through `/data`), in its own lazily loaded chunk, restyled from the theme tokens (`map-style.ts`). Mock mode has no tiles, so it draws the same path as an SVG on a plain themed background; so does a browser without WebGL.
+
 ## The calendar's store fields
 
 Features talk to the calendar through three `useUi` fields. None is persisted.

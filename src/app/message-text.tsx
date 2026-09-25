@@ -3,8 +3,10 @@ import type { Message } from "~/core/schema";
 import { DAY_LONG_NAMES, formatDuration, formatTime } from "~/core/time";
 
 /**
- * Core's structured words (`Message`), rendered: codes, times and durations
- * in Geist Mono, everything else as text (core/README.md).
+ * Core's structured words (`Message`), rendered: course and section codes in
+ * Geist Mono; times and durations in the sentence's own font with tabular
+ * figures, since mid-sentence mono numbers read as code and space out
+ * ("18  min"); everything else as text (core/README.md).
  */
 export function MessageText({ message }: { message: Message }) {
   return (
@@ -43,7 +45,14 @@ export function messageToText(message: Message): string {
 }
 
 function renderPart(part: Message[number]) {
-  if (part.kind === "text" || part.kind === "block" || part.kind === "day")
-    return messageToText([part]);
-  return <span className="font-mono">{messageToText([part])}</span>;
+  switch (part.kind) {
+    case "course":
+    case "section":
+      return <span className="font-mono">{messageToText([part])}</span>;
+    case "time":
+    case "duration":
+      return <span className="tnum">{messageToText([part])}</span>;
+    default:
+      return messageToText([part]);
+  }
 }

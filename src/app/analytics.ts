@@ -2,6 +2,9 @@
 // docs/ANALYTICS.md. Add every new event to `AnalyticsEvents` first.
 import type { PostHog } from "posthog-js";
 import type {
+  ConnectionVerdict,
+  ExtraMinutes,
+  Pace,
   ProblemFix,
   ProblemKind,
   RailTab,
@@ -10,6 +13,7 @@ import type {
   TermId,
   TermStatus,
   Theme,
+  TravelMode,
 } from "~/core/schema";
 import { type ClientConfig, clientConfig, type DataSource } from "./config";
 
@@ -78,6 +82,13 @@ export interface AnalyticsEvents {
   course_details_tab: { tab: "instructors" | "grades" | "about" };
   course_added: { via: "details" | "ghost" };
   review_summary_viewed: { state: "shown" | "unavailable" };
+  travel_settings_changed:
+    | { setting: "pace"; value: Pace }
+    | { setting: "accessible"; value: boolean }
+    | { setting: "extraMinutes"; value: ExtraMinutes };
+  travel_how_opened: NoProperties;
+  connection_opened: { verdict: ConnectionVerdict };
+  route_map_shown: { mode: TravelMode; hasGeometry: boolean };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

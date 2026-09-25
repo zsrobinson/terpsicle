@@ -9,7 +9,6 @@ import {
 import { switchSection } from "~/app/actions";
 import { type CalendarLayout, WeekFrame } from "~/app/calendar/week-frame";
 import { useShortcut } from "~/app/shortcuts";
-import { defaultCourseColor } from "~/core/color";
 import type { Connection, CourseCode, Day } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
@@ -52,10 +51,7 @@ export function Calendar() {
       <WeekFrame days={WEEKDAYS} startMinute={8 * 60} endMinute={17 * 60} />
     );
 
-  const ghostColor = model.ghost
-    ? (current.colors[model.ghost.courseCode] ??
-      defaultCourseColor(model.ghost.courseCode, []))
-    : null;
+  const ghostColor = model.ghost?.color ?? null;
 
   return (
     <WeekFrame

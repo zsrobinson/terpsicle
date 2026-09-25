@@ -41,6 +41,10 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `generate_result_previewed` | `rank` | Whether people look past the first few results (is the ranking right?). |
   | `generate_plans_saved` | `count` | Whether Generate produces plans people keep, and whether saving several at once is used. |
   | `generate_relaxation_applied` | `constraint` | Which suggested relaxations people take when nothing fits. |
+  | `travel_settings_changed` | `setting`: `pace` · `accessible` · `extraMinutes`, and its new `value` | Which travel settings people change, and whether Accessible routes gets used. |
+  | `travel_how_opened` | | Whether people want to see how estimates are made ("How?"). |
+  | `connection_opened` | `verdict` | How often people look into a connection, and which kinds (tight, not enough time, fine). Counted once its verdict is known, from any way in: a pill, the Travel list, Problems. |
+  | `route_map_shown` | `mode`, `hasGeometry` | How often a connection has a route to draw, per mode: missing geometry hides the map. |
 
   | `search_performed` | `queryLength`, `results`, `filtered` | Whether search finds things (how often zero results), and how long queries are. Debounced; the text itself is never sent. |
   | `search_filter_changed` | `filter` | Which filter chips earn their place on the line. |

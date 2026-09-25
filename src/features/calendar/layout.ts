@@ -10,7 +10,7 @@ import {
   type TimeGroup,
   timeGroupLabel,
 } from "~/core/catalog";
-import { defaultCourseColor } from "~/core/color";
+import { defaultCourseColor, resolveCourseColors } from "~/core/color";
 import { type FitContext, fitLabel } from "~/core/fit";
 import type {
   Block,
@@ -162,6 +162,20 @@ function colorOf(
   colors: CalendarInput["colors"],
 ): CourseColor {
   return colors[code] ?? defaultCourseColor(code, []);
+}
+
+/**
+ * Every course on screen gets a color, distinct within the plan even when
+ * none is stored (a shared link, a generated plan): the plan's courses in
+ * order, then the ghost course.
+ */
+function withResolvedColors(input: CalendarInput): CalendarInput {
+  const codes = input.plan.courses.map((c) => c.courseCode);
+  if (input.ghostCourse) codes.push(input.ghostCourse.code);
+  return {
+    ...input,
+    colors: { ...input.colors, ...resolveCourseColors(codes, input.colors) },
+  };
 }
 
 function ghostEntries(input: CalendarInput): {
@@ -334,7 +348,8 @@ function clusters<T>(packed: readonly Lane<T & Timed>[]): Lane<T & Timed>[][] {
 }
 
 /** Everything the calendar draws for one plan state. */
-export function buildCalendarModel(input: CalendarInput): CalendarModel {
+export function buildCalendarModel(given: CalendarInput): CalendarModel {
+  const input = withResolvedColors(given);
   const classes: ClassEntry[] = [];
   const untimed: UntimedSection[] = [];
   for (const ref of placedSections(input.plan, input.index)) {
