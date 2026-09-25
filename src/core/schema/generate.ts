@@ -233,6 +233,8 @@ export const GenerateResultSchema = z.object({
   totalFound: z.number().int().min(0),
   /** Stopped at the step or result budget, so better plans may exist. */
   truncated: z.boolean(),
+  /** More plans fit than `limits.maxResults` keeps: "Showing the best 200". */
+  capped: z.boolean(),
   steps: z.number().int().min(0),
   /** Filled when results are empty (and may be when few), most unlocks first. */
   relaxations: z.array(RelaxationSchema),

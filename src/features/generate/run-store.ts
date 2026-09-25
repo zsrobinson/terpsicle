@@ -149,12 +149,16 @@ export async function runGenerate(
     const input = await gatherInput(request);
     if (!isCurrent()) return;
     generator ??= defaultGenerator();
-    const job = generator.run(request, input, ({ steps, found }) =>
-      set({ status: { kind: "running", steps, found } }),
-    );
+    // Progress comes over its own Comlink port, so the last report can land
+    // after the result does. Once the result is in, progress is stale.
+    let finished = false;
+    const job = generator.run(request, input, ({ steps, found }) => {
+      if (!finished) set({ status: { kind: "running", steps, found } });
+    });
     current = { seq: mine, cancel: job.cancel };
     set({ status: { kind: "running", steps: 0, found: 0 } });
     const result = await job.result;
+    finished = true;
     if (!isCurrent()) return;
     const durationMs = Math.round(performance.now() - started);
     set({ status: { kind: "done", request, result, durationMs } });

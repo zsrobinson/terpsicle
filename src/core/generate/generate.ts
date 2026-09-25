@@ -17,6 +17,7 @@ import {
   type QualityMap,
   type SectionGroup,
 } from "./candidates";
+import { mergeSameWeek } from "./merge";
 import { nearMisses } from "./near-miss";
 import { planStats } from "./score";
 import { orderVars, type SolveProgress, type SolveVar, solve } from "./solve";
@@ -269,14 +270,18 @@ export function generatePlans(
   options: GenerateOptions = {},
 ): GenerateResult {
   const { built, outcome } = run(request, data, request.limits, options);
-  const results = outcome.solutions.map((s) =>
-    toPlan(built.vars, s.choices, built.order, s.score, s.breakdown),
+  const results = mergeSameWeek(
+    outcome.solutions.map((s) =>
+      toPlan(built.vars, s.choices, built.order, s.score, s.breakdown),
+    ),
+    data.index,
   );
   if (results.length > 0 || outcome.cancelled)
     return {
       results,
       totalFound: outcome.found,
       truncated: outcome.truncated,
+      capped: outcome.found > outcome.solutions.length,
       steps: outcome.steps,
       relaxations: [],
       nearMisses: [],
@@ -316,6 +321,7 @@ export function generatePlans(
     results,
     totalFound: 0,
     truncated: outcome.truncated,
+    capped: false,
     steps: outcome.steps,
     relaxations,
     nearMisses: misses,

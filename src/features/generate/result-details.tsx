@@ -16,7 +16,7 @@ import {
 import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { optionLabel, qualityLine } from "./labels";
+import { optionLabel, statsLine } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
 import { useGenerateRun } from "./run-store";
 import { coursesOf, saveResults } from "./save";
@@ -159,8 +159,7 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
         {s.firstClass !== null && s.lastClass !== null
           ? `${formatTime(s.firstClass)} to ${formatTime(s.lastClass)} · `
           : ""}
-        {qualityLine(s)}
-        {s.avgGpa !== null ? ` · ${s.avgGpa.toFixed(2)} average GPA` : ""}
+        {statsLine(s)}
       </p>
 
       <div className="mt-4 font-medium text-[11px] text-muted">
@@ -208,7 +207,8 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
                 <span className="font-mono">{c.sectionCodes.join(", ")}</span>
                 <span className="text-muted">
                   {" "}
-                  meet at the same times. Switch any time in course details.
+                  meet at the same times (rooms may differ). Switch any time in
+                  course details.
                 </span>
               </li>
             ))}

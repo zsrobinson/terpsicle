@@ -114,6 +114,7 @@ describe("generator I/O", () => {
       ],
       totalFound: 1,
       truncated: false,
+      capped: false,
       steps: 42,
       relaxations: [
         {

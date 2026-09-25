@@ -134,7 +134,7 @@ export function GeneratePanel() {
                 onChange={(rankBy) => update((d) => ({ ...d, rankBy }))}
               />
             ) : null}
-            <div className="flex items-center gap-2 px-4 pt-4">
+            <div className="sticky top-0 z-10 mt-2 flex items-center gap-2 bg-bg px-4 py-2">
               {busy ? (
                 <>
                   <WithTooltip label="Stop searching">
@@ -186,7 +186,7 @@ export function GeneratePanel() {
                 These plans are for your earlier choices.
               </p>
             ) : null}
-            <div ref={resultsRef} className="scroll-mt-2" />
+            <div ref={resultsRef} className="scroll-mt-14" />
             {done && catalog ? (
               done.result.results.length > 0 ? (
                 <Results
