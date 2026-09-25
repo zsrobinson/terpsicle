@@ -43,7 +43,10 @@ function TooltipContent({
         collisionPadding={collisionPadding}
         className={cn(
           "z-50 flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
-          "fade-in-0 zoom-in-95 animate-in duration-100 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+          // No exit animation: a closing tooltip stays mounted until it ends,
+          // and while mounted its layer takes the next Esc, so Esc after
+          // tabbing away from a control (say, to go back) would do nothing.
+          "fade-in-0 zoom-in-95 animate-in duration-100",
           className,
         )}
         {...props}
