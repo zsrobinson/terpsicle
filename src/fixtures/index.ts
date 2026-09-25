@@ -1,6 +1,57 @@
-// The deterministic mock term and its builders (`aCourse`, `aSection`,
-// `aPlan`, …) land in M1, once src/core/schema defines the types. See
-// README.md here and BUILD.md §5 for what the mock term must cover.
-
-/** Term id of the mock term. Term ids only ever appear in fixtures and tests. */
-export const fixtureTermId = "202701";
+// Mock data for `pnpm dev:mock`, unit tests and e2e. See README.md.
+export * from "./builders";
+export {
+  CANCELLED_SECTION_KEY,
+  MOVED_SECTION_KEY,
+  mockCatalog,
+  mockCourse,
+  mockCourses,
+  mockDepartmentNames,
+  mockSection,
+  removedSections,
+} from "./mock/catalog";
+export {
+  cancelledSectionBefore,
+  mockChanges,
+  movedSectionBefore,
+} from "./mock/changes";
+export {
+  buildMockDataFiles,
+  type MockDataFiles,
+  mockDataSource,
+} from "./mock/data-source";
+export {
+  ESTIMATE_ACCESSIBLE_RATIO,
+  ESTIMATE_DETOUR,
+  encodeMockRoutes,
+  mockBuildingsFile,
+  mockDistanceFeet,
+  mockRouteGeometries,
+  mockRoutesIndex,
+  NO_ACCESSIBLE_ROUTE,
+} from "./mock/geo";
+export {
+  MOCK_GRADES_THROUGH,
+  mockInstructorSlugs,
+  mockInstructors,
+  mockPlanetTerpDepts,
+  mockReviewSummaries,
+} from "./mock/planetterp";
+export {
+  demoArchivedPlan,
+  demoBlocks,
+  demoCourseColors,
+  demoPlan,
+  demoPlanB,
+  demoPlans,
+} from "./mock/plans";
+export {
+  MOCK_SEATS_AS_OF,
+  MOCK_SEATS_FETCHED_AT,
+  mockArchivedSeats,
+  mockSeats,
+  PINNED_SEATS,
+  UNKNOWN_SEATS,
+} from "./mock/seats";
+export { mockCalendars, mockTermsFile } from "./mock/terms";
+export { hashString, randomInt, seededRandom } from "./random";
