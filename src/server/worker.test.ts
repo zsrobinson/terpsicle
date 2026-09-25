@@ -36,6 +36,14 @@ describe("fetch", () => {
     expect(await response.text()).toBe("<!doctype html>");
   });
 
+  it("serves the service worker, checked on every visit", async () => {
+    const response = await get("https://terpsicle.com/sw.js");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("text/javascript");
+    expect(response.headers.get("Cache-Control")).toBe("no-cache");
+    expect(await response.text()).toContain("installServiceWorker");
+  });
+
   it("answers a missing hashed file with an uncached 404, not the app", async () => {
     app.fetch.mockClear();
     const response = await get("https://terpsicle.com/assets/index-OLD.js");

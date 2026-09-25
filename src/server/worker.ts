@@ -3,10 +3,13 @@ import { APEX_HOST } from "./apex";
 import { API_PREFIX, handleApi } from "./api/router";
 import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
+import { SERVICE_WORKER_JS } from "./service-worker";
 
 const WWW_HOST = `www.${APEX_HOST}`;
 /** Vite's hashed build output (dist/client/assets). */
 export const ASSETS_PREFIX = "/assets/";
+/** The service worker's URL; its scope is the whole site. */
+export const SERVICE_WORKER_PATH = "/sw.js";
 
 /**
  * The HTML names this deploy's hashed scripts, so browsers and caches must
@@ -56,6 +59,16 @@ export function createWorker(app: AppHandler) {
         url.pathname.startsWith(`${POSTHOG_PROXY_PREFIX}/`)
       ) {
         return proxyPostHog(request);
+      }
+      if (url.pathname === SERVICE_WORKER_PATH) {
+        // Browsers check this on every navigation; no-cache keeps a new
+        // version (or a retiring one) reaching them on the next visit.
+        return new Response(SERVICE_WORKER_JS, {
+          headers: {
+            "Content-Type": "text/javascript; charset=utf-8",
+            "Cache-Control": "no-cache",
+          },
+        });
       }
       if (url.pathname.startsWith(ASSETS_PREFIX)) {
         // Built files are served before the Worker runs, so one that reaches
