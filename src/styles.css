@@ -1,0 +1,168 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+/*
+ * Design tokens. Components use only these (`bg-panel`, `text-muted`,
+ * `border-hairline`, …), never raw colors, so both themes work everywhere.
+ * Values follow reference/prototype/src/styles.css with the black/white
+ * accent the review chose (SPEC.md §3.13). UMD red is `logo` and nothing else.
+ *
+ * shadcn/ui: the compatibility names below (background, primary, card,
+ * popover, border, input, ring, destructive, muted-foreground) make generated
+ * components render correctly. Two shadcn names collide with ours and mean
+ * something different here, so restyle them when adding a component:
+ *   bg-accent / bg-muted (subtle hover fills) → bg-hover
+ *   text-accent-foreground                    → text-fg
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans:
+    "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-hover: var(--hover);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-error: var(--error);
+  --color-error-soft: var(--error-soft);
+  --color-logo: var(--logo);
+  --color-logo-fg: var(--logo-fg);
+  --color-grid: var(--grid);
+
+  /* shadcn/ui compatibility */
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--raised);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--raised);
+  --color-popover-foreground: var(--fg);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-fg);
+  --color-secondary: var(--hover);
+  --color-secondary-foreground: var(--fg);
+  --color-muted-foreground: var(--muted);
+  --color-destructive: var(--error);
+  --color-border: var(--hairline);
+  --color-input: var(--hairline-strong);
+  --color-ring: var(--faint);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --shadow-pop: var(--shadow);
+}
+
+:root {
+  color-scheme: light;
+  --bg: #fcfcfd;
+  --panel: #f7f7f9;
+  --raised: #ffffff;
+  --hover: #efeff2;
+  --hairline: #e6e6ea;
+  --hairline-strong: #d4d4da;
+  --fg: #18181b;
+  --muted: #6b6b76;
+  --faint: #a1a1aa;
+  --accent: #18181b;
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in oklab, #18181b 7%, transparent);
+  --ok: #16a34a;
+  --ok-soft: rgb(22 163 74 / 0.1);
+  --warn: #c2750a;
+  --warn-soft: rgb(217 119 6 / 0.12);
+  --error: #dc2626;
+  --error-soft: rgb(220 38 38 / 0.1);
+  --logo: #e21833;
+  --logo-fg: #ffffff;
+  --grid: rgb(24 24 27 / 0.05);
+  --shadow: 0 8px 30px rgb(24 24 27 / 0.12), 0 0 0 1px rgb(24 24 27 / 0.06);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0a0a0c;
+  --panel: #111114;
+  --raised: #17171b;
+  --hover: #1d1d22;
+  --hairline: #25252b;
+  --hairline-strong: #34343c;
+  --fg: #ededef;
+  --muted: #8b8b95;
+  --faint: #5c5c66;
+  --accent: #ededef;
+  --accent-fg: #0a0a0c;
+  --accent-soft: color-mix(in oklab, #ededef 9%, transparent);
+  --ok: #3ecf7a;
+  --ok-soft: rgb(62 207 122 / 0.14);
+  --warn: #f5a524;
+  --warn-soft: rgb(245 165 36 / 0.14);
+  --error: #ff5c5c;
+  --error-soft: rgb(255 92 92 / 0.15);
+  --logo: #e21833;
+  --logo-fg: #ffffff;
+  --grid: rgb(255 255 255 / 0.045);
+  --shadow: 0 8px 30px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--hairline);
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    /* SPEC.md §3.13: compact, 13px base. */
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+    outline-offset: 1px;
+  }
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion must beat any component animation, hence !important. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    /* biome-ignore lint/complexity/noImportantStyles: see above */
+    animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: see above */
+    transition: none !important;
+  }
+}

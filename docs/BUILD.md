@@ -78,7 +78,7 @@ Browser
 
 ## 3. Repository layout
 
-One package at the root: one `package.json`, one `tsconfig.json`, one Biome config, one Vitest config with projects. There's no monorepo: nothing is published separately. Import boundaries are enforced by lint rules instead.
+One package at the root: one `package.json`, one Biome config, one Vitest config with projects, and one TypeScript setup (`tsconfig.base.json` plus app, worker and node programs, because browser and Workers globals conflict; `pnpm typecheck` checks all three). There's no monorepo: nothing is published separately. Import boundaries are enforced by lint rules instead.
 
 ```
 .
@@ -101,7 +101,9 @@ One package at the root: one `package.json`, one `tsconfig.json`, one Biome conf
 ├── scripts/                    Node CLIs: run ingest locally, build routes, record parser fixtures, seed R2
 ├── e2e/                        Playwright specs (against dev:mock)
 ├── wrangler.jsonc
-├── vite.config.ts · vitest.config.ts · biome.json · tsconfig.json
+├── env/                        Vite client env files (.env, .env.mock, .env.development)
+├── migrations/                 D1 migrations
+├── vite.config.ts · vitest.config.ts · playwright.config.ts · biome.jsonc · tsconfig*.json
 └── .github/workflows/          ci.yml (PRs), deploy.yml (push to main)
 ```
 
@@ -132,10 +134,11 @@ Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtu
 | Parsing | htmlparser2 (streaming, runs in Workers and Node) |
 | Search | MiniSearch in the worker, with a custom scorer for course codes |
 | Map | MapLibre GL + PMTiles; route lines from UMD GIS geometry |
-| Email | Resend over plain `fetch` (only if `RESEND_API_KEY` is set) |
+| Email | Cloudflare Email Service through the Worker's `send_email` binding (`env.EMAIL.send(...)`); terpsicle.com is onboarded for sending, no API key. Previews have no email binding. |
+| Analytics | PostHog (`posthog-js`), anonymous only, proxied through `/ingest/*` on our own domain; typed events in `src/app/analytics.ts`, server events in `src/server/analytics.ts`. See `docs/ANALYTICS.md`. |
 | LLM | **Workers AI** through the `AI` binding (`env.AI.run(...)`); no external keys. Pick a current instruction-tuned text model from the Workers AI catalog, and cap daily generations in code. Tests mock the binding. |
 | Lint/format | Biome |
-| Tests | Vitest projects: `core` (node), `ingest` (node), `ui` (happy-dom + Testing Library), `worker` (`@cloudflare/vitest-pool-workers`, real R2/D1 bindings via Miniflare). `fast-check` for properties. Playwright for e2e. |
+| Tests | Vitest projects: `core` (node), `ingest` (node), `ui` (happy-dom + Testing Library), `worker` (`@cloudflare/vitest-plugin`, formerly vitest-pool-workers, with real R2/D1 bindings via Miniflare), plus `scripts` for the repo's lint scripts. `fast-check` for properties. Playwright for e2e. |
 | CI/deploy | GitHub Actions: `ci.yml` on PRs (typecheck, lint, all Vitest projects, Playwright, build); `deploy.yml` on push to `main` (`wrangler deploy`) |
 
 ---
@@ -272,13 +275,16 @@ Each milestone ends green and deployed. The orchestrator checks the acceptance c
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | Claude Code environment variables **and** GitHub Actions secrets | wrangler: deploy, R2, D1, custom domain |
 | `CLOUDFLARE_ACCOUNT_ID` | same two places | wrangler |
-| `RESEND_API_KEY` | environment variable → Worker secret | seat-alert email (optional until M7); the orchestrator adds Resend's DNS records for terpsicle.com |
 
-Cloudflare resources the orchestrator creates:
-- Worker `terpsicle`, with custom domains `terpsicle.com` and `www.terpsicle.com`;
-- R2 bucket `terpsicle-data`;
-- D1 database `terpsicle`;
+No other secrets: seat-alert email goes through Cloudflare Email Service (the `EMAIL` `send_email` binding; terpsicle.com is onboarded for sending), and the PostHog project token is public (`env/.env` for the client, `vars.POSTHOG_TOKEN` in `wrangler.jsonc` for the Worker).
+
+Cloudflare resources (all in place since M0, declared in `wrangler.jsonc`):
+- Worker `terpsicle`, with custom domains `terpsicle.com` and `www.terpsicle.com` (www 301s to the apex in `src/server.ts`), no production `workers.dev` route;
+- PR previews (`wrangler preview --name pr-<n>`, from `ci.yml`) on `pr-<n>-terpsicle.zsrobinson.workers.dev`, deleted when the PR closes;
+- R2 bucket `terpsicle-data` (production and previews);
+- D1 database `terpsicle` (production) and `terpsicle-preview` (previews);
 - the cron triggers in §2;
-- the `AI` binding (Workers AI) for review summaries.
+- the `AI` binding (Workers AI) for review summaries;
+- the `EMAIL` binding (Cloudflare Email Service) for seat alerts.
 
 `bitcamp.terpsicle.com` keeps serving v1 and must not be modified.

@@ -1,0 +1,22 @@
+{
+  // Browser: the SPA and everything it imports.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsc/app.tsbuildinfo",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/app",
+    "src/features",
+    "src/state",
+    "src/components",
+    "src/routes",
+    "src/worker",
+    "src/core",
+    "src/fixtures",
+    "src/router.tsx",
+    "src/routeTree.gen.ts"
+  ]
+}

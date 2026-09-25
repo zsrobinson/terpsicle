@@ -1,0 +1,20 @@
+{
+  // Node: configs, pipeline scripts, e2e specs, and ingest (it runs in Node
+  // scripts as well as the Worker).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsc/node.tsbuildinfo",
+    // DOM for Playwright's page.evaluate callbacks.
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"]
+  },
+  "include": [
+    "*.config.ts",
+    "scripts",
+    "e2e",
+    "src/ingest",
+    "src/core",
+    "src/fixtures"
+  ]
+}

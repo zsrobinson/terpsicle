@@ -1,0 +1,12 @@
+{
+  // Three programs, because browser and Workers globals conflict (both define
+  // `caches`, `Cache`, `fetch` differently): code only sees the globals of the
+  // runtime it runs in. `pnpm typecheck` checks all three; editors pick the
+  // right one per file. Shared options live in tsconfig.base.json.
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.worker.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

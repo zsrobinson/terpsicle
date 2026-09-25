@@ -2,7 +2,8 @@ node_modules
 dist
 .output
 .wrangler
-.dev.vars
+.tanstack
+.dev.vars*
 *.local
 coverage
 playwright-report

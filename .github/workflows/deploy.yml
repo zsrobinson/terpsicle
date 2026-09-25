@@ -1,0 +1,55 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Deploys run in order; never cancel one halfway through migrations.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to terpsicle.com
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://terpsicle.com
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      - name: Typecheck, lint, unit tests
+        run: pnpm check
+
+      - name: Build
+        run: pnpm build
+
+      # Production only. The previews database (terpsicle-preview) is on
+      # 0001_init; see docs/STATUS.md known issues before adding migrations.
+      - name: Apply D1 migrations
+        run: pnpm exec wrangler d1 migrations apply terpsicle --remote
+
+      - name: Deploy Worker
+        run: pnpm exec wrangler deploy
+
+      - name: Smoke-check terpsicle.com
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS -o /dev/null https://terpsicle.com/; then
+              echo "terpsicle.com answers 200"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::https://terpsicle.com/ didn't answer 200 after deploy"
+          exit 1

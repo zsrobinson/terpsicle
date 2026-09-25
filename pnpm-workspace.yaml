@@ -1,0 +1,11 @@
+# Single package; this file only carries pnpm settings.
+# pnpm blocks dependency build scripts unless they're listed here. The allowed
+# ones are native binaries for the linter, bundler, CSS engine and the local
+# Workers runtime; core-js only prints a donation banner.
+allowBuilds:
+  "@biomejs/biome": true
+  esbuild: true
+  lightningcss: true
+  sharp: true
+  workerd: true
+  core-js: false

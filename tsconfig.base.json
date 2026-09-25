@@ -1,0 +1,40 @@
+{
+  // Shared by the three programs in tsconfig.json. Only `lib`, `types` and
+  // `include` differ between them.
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedSideEffectImports": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+
+    "paths": {
+      "~/core": ["./src/core/index.ts"],
+      "~/core/*": ["./src/core/*"],
+      "~/ingest/*": ["./src/ingest/*"],
+      "~/app/*": ["./src/app/*"],
+      "~/features/*": ["./src/features/*"],
+      "~/state/*": ["./src/state/*"],
+      "~/fixtures": ["./src/fixtures/index.ts"],
+      "~/fixtures/*": ["./src/fixtures/*"],
+      "~/ui": ["./src/components/ui"],
+      "~/ui/*": ["./src/components/ui/*"],
+      "~/server/*": ["./src/server/*"],
+      "~/jobs/*": ["./src/jobs/*"],
+      "~/worker/*": ["./src/worker/*"]
+    }
+  }
+}

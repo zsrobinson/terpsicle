@@ -1,0 +1,20 @@
+{
+  // Cloudflare Worker: the entry, crons, server code. Runtime types and the
+  // Env bindings come from worker-configuration.d.ts (`pnpm cf-typegen`).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsc/worker.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": ["vite/client", "@cloudflare/vitest-plugin/types"]
+  },
+  "include": [
+    "worker-configuration.d.ts",
+    "src/server.ts",
+    "src/server",
+    "src/jobs",
+    "src/ingest",
+    "src/core",
+    "src/fixtures"
+  ]
+}
