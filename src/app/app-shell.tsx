@@ -12,6 +12,7 @@ import { CalendarRegion } from "./calendar/calendar-region";
 import { MobileDrawer, PEEK_HEIGHT } from "./mobile-drawer";
 import { PlanTabs } from "./plan-tabs";
 import { Rail } from "./rail";
+import { FeatureEffects } from "./registry";
 import { SharedPill } from "./shared-pill";
 import { useShortcut } from "./shortcuts";
 import { SidebarContent } from "./sidebar";
@@ -60,6 +61,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
         </main>
         <MobileDrawer />
         <UndoToasts />
+        <FeatureEffects />
       </div>
     );
   }
@@ -81,6 +83,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
         </main>
       </div>
       <UndoToasts />
+      <FeatureEffects />
     </div>
   );
 }

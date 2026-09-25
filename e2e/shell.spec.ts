@@ -44,9 +44,10 @@ test.describe("desktop", () => {
     await expect(
       page.getByRole("button", { name: /Spring 2027/ }),
     ).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Courses" })).toBeVisible();
-    await expect(page.getByTestId("panel-skeleton")).toBeVisible();
-    await expect(page.getByText("0 credits")).toBeVisible();
+    // The Courses tab is headed by the plan it lists.
+    await expect(page.getByRole("heading", { name: "Plan A" })).toBeVisible();
+    await expect(page.getByTestId("first-visit")).toBeVisible();
+    await expect(page.getByText("0 credits", { exact: true })).toBeVisible();
     await expect(
       page
         .getByRole("navigation", { name: "Sidebar tabs" })

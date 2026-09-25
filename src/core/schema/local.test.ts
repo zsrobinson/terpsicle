@@ -140,6 +140,14 @@ describe("local state", () => {
         manageToken: null,
       }).success,
     ).toBe(true);
+    // Confirmed here but asked for in another browser: no address.
+    expect(
+      LocalSeatAlertSchema.safeParse({ ...alert, email: null }).success,
+    ).toBe(true);
+    expect(
+      LocalSeatAlertSchema.safeParse({ ...alert, email: "not an email" })
+        .success,
+    ).toBe(false);
   });
 });
 

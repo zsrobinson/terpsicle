@@ -186,8 +186,12 @@ export type SettingsRow = z.infer<typeof SettingsRowSchema>;
 export const LocalSeatAlertSchema = z.object({
   termId: TermIdSchema,
   sectionKey: SectionKeySchema,
-  /** The person's own address, kept to show "Watching as …" and prefill the next bell. */
-  email: EmailSchema,
+  /**
+   * The person's own address, kept to show "Watching as …" and prefill the
+   * next bell. Null when the watch was confirmed in this browser but asked for
+   * in another: the confirm page learns the section and token, not the address.
+   */
+  email: EmailSchema.nullable(),
   status: SubscriptionStatusSchema,
   /** From confirming in this browser (the alerts inbox); null while pending or when confirmed elsewhere. */
   subscriptionId: SubscriptionIdSchema.nullable(),

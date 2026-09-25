@@ -10,6 +10,7 @@ import {
   type Persistence,
   startPersisting,
 } from "~/state/persist";
+import { startSeatAlerts, startSeatAlertsInMemory } from "~/state/seat-alerts";
 import { useUi } from "~/state/ui-store";
 import { AppShell, type AppShellProps } from "./app-shell";
 import { type ClientConfig, clientConfig } from "./config";
@@ -26,6 +27,13 @@ function useBootstrap(config: ClientConfig) {
     let cancelled = false;
     let persistence: Persistence | undefined;
     const db = new TerpsicleDb();
+    // Apart from plans: a broken alerts table mustn't block the schedule.
+    startSeatAlerts(db).catch((error: unknown) => {
+      // Closed by our own cleanup (a remount): the next mount has it.
+      if (cancelled) return;
+      console.error(error);
+      startSeatAlertsInMemory();
+    });
 
     void (async () => {
       try {
