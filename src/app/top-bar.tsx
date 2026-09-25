@@ -1,6 +1,7 @@
 import { cn } from "cn";
-import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import { problemCountWords } from "~/core/problems";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCreditsLabel,
@@ -10,6 +11,7 @@ import {
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
+import { TONE_FILL } from "./emphasis";
 import { Logo } from "./logo";
 import { tabById } from "./tabs";
 
@@ -76,7 +78,7 @@ function OfflineNote({ compact }: { compact: boolean }) {
   );
   if (!offline) return null;
   return (
-    <span role="status" className="text-[12px] text-faint">
+    <span role="status" className="text-faint text-sm">
       {compact ? "Offline" : "Offline · showing saved data"}
     </span>
   );
@@ -87,7 +89,7 @@ function Credits() {
   if (!label) return null;
   const [number, ...rest] = label.split(" ");
   return (
-    <span className="tnum text-[12.5px] text-muted">
+    <span className="tnum text-base text-muted">
       <span className="font-medium text-fg">{number}</span> {rest.join(" ")}
     </span>
   );
@@ -128,9 +130,11 @@ function ProblemsButton({ compact }: { compact: boolean }) {
       ? CircleAlert
       : tone === "warning"
         ? TriangleAlert
-        : CircleCheck;
-  const words =
-    n === 0 ? "No problems" : `${n} ${n === 1 ? "problem" : "problems"}`;
+        : counts.info > 0
+          ? Info
+          : CircleCheck;
+  // The same words as the Problems tab: "2 problems · 1 note".
+  const words = problemCountWords(counts);
   return (
     <WithTooltip
       label={n === 0 ? "Open Problems" : "See what needs attention"}
@@ -141,9 +145,9 @@ function ProblemsButton({ compact }: { compact: boolean }) {
         onClick={() => openTab("problems", "click")}
         aria-label={words}
         className={cn(
-          "flex h-7 items-center gap-1.5 rounded-md px-2 text-[12.5px] transition-colors",
-          tone === "error" && "bg-error-soft text-error",
-          tone === "warning" && "bg-warn-soft text-warn",
+          "flex h-7 items-center gap-1.5 rounded-md px-2 text-base transition-colors",
+          tone === "error" && TONE_FILL.error,
+          tone === "warning" && TONE_FILL.warn,
           tone === "none" && "text-muted hover:bg-hover hover:text-fg",
         )}
       >

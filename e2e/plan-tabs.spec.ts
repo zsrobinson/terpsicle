@@ -168,7 +168,9 @@ test.describe("export", () => {
     expect(new URL(link).searchParams.has("plan")).toBe(true);
 
     await page.goto(link);
-    await expect(page.getByText("Shared plan")).toBeVisible();
+    await expect(
+      page.getByRole("banner").getByText("Shared plan"),
+    ).toBeVisible();
     await expect(page.getByRole("tablist", { name: "Plans" })).toHaveCount(0);
     await expect(
       calendar(page)

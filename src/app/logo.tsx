@@ -38,7 +38,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       {compact ? null : (
         <span
           aria-hidden="true"
-          className="font-semibold text-[13.5px] tracking-tight"
+          className="font-semibold text-base tracking-tight"
         >
           terpsicle
         </span>

@@ -67,7 +67,7 @@ function ToastAction({
       <button
         type="button"
         onClick={onClick}
-        className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-hairline bg-raised px-2.5 font-medium text-[12.5px] text-fg transition-colors hover:bg-hover"
+        className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-hairline bg-raised px-2.5 font-medium text-base text-fg transition-colors hover:bg-hover"
       >
         {icon}
         {label}
