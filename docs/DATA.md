@@ -10,16 +10,17 @@ Naming: every schema is `FooSchema` with `type Foo = z.infer<typeof FooSchema>`.
 
 | Thing | Format | Schema / helper |
 |---|---|---|
-| Term id | `YYYYMM`, month code `01` spring · `05` summer · `08` fall · `12` winter. Winter's id carries the previous calendar year. Never literal in `src/` outside fixtures/tests (lint greps for it). | `TermIdSchema`, `SEASON_BY_MONTH_CODE` |
+| Term id | `YYYYMM`, month code `01` spring · `05` summer · `08` fall · `12` winter. Winter `YYYY12` is labeled for the following year (`202612` is "Winter 2027"; `Term.year` = 2027). Never literal in `src/` outside fixtures/tests (lint greps for it). | `TermIdSchema`, `SEASON_BY_MONTH_CODE` |
 | Day | `M Tu W Th F Sa Su` (Testudo's tokens). Sets are unique and in week order, so equal sets are equal arrays. | `DaySchema`, `DAYS`, `DaysSchema` |
 | Clock time | Integer minutes since America/New_York midnight (9:30am = 570). | `MinutesSchema` |
 | Instant | UTC ISO string from `toISOString()`. | `IsoDateTimeSchema` |
 | Date | `YYYY-MM-DD`, America/New_York. | `IsoDateSchema` |
 | Department | 4 capitals: `CMSC`. | `DeptCodeSchema` |
-| Course code | dept + 3 digits + 0–2 suffix letters: `CMSC351`, `CMSC389N`. Department = `code.slice(0, 4)`. | `CourseCodeSchema` |
-| Section code | 3–6 capitals/digits: `0101`, `FC01`. | `SectionCodeSchema` |
+| Course code | dept + 3 digits + an optional suffix letter: `CMSC351`, `CMSC250H` (every id in the recon pages fits). Department = `code.slice(0, 4)`. | `CourseCodeSchema` |
+| Section code | exactly 4 capitals/digits: `0101`, `FC01`, `ESG1`, `PLA2` (every id in the recon pages fits). | `SectionCodeSchema` |
 | **Section key** | `<course>-<section>`: `CMSC351-0101`. The one id for a section within a term (seats map, plans, share links, alerts, problems). Split on the first `-`. | `sectionKey()`, `parseSectionKey()`, `SectionKeySchema` |
-| Building code | Testudo's: `IRB`, `STAMP` (2–6 capitals/digits). | `BuildingCodeSchema` |
+| Building code | Testudo's: `IRB`, `BLD4`, `4MLK` (2–6 capitals/digits). `TBA` is never a code (ingest makes it `null`). | `BuildingCodeSchema` |
+| Building number | UMD's zero-padded string: `039`, `432`. Never an int. | `BuildingSchema.number` |
 | Gen-ed code | 4 capitals, validated by shape so a new category never breaks ingest. Labels for known ones in `GEN_ED_LABELS`. | `GenEdCodeSchema` |
 | Content hash | First 16 hex chars of SHA-256 of the file's exact bytes. | `ContentHashSchema` |
 | Instructor slug | PlanetTerp's slug (`kruskal`). | `InstructorSlugSchema` |
@@ -96,33 +97,37 @@ The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys
 
 ### 3.2 Normalization rules (ingest's output)
 - **Course text:** the `approved-course-text` blocks become `prerequisite`, `corequisite` and `restriction` when labeled so. Other labeled blocks go to `otherNotes` (`{label, text}`: "Credit only granted for", "Formerly", "Additional information", "Recommended"). The unlabeled paragraph is `description`. All text is whitespace-normalized, and empty text is `null`.
-- **Gen-eds:** `genEds` is a list of groups that all apply. Within a group the course counts for exactly one code (the student chooses). So Testudo's "DSHS or DSSP, DVUP" becomes `[["DSHS","DSSP"],["DVUP"]]`. A filter for code X matches any course with X in any group.
-- **Cross-listings:** `crossListings` holds the codes from "Cross-listed with" and "Also offered as".
+- **Gen-eds:** `genEds` is a list of groups that all apply (`,` in Testudo). Within a group the course counts for exactly one option (` or `; the student chooses). An option is `{code, condition?}`, where `condition` is Testudo's parenthetical without parentheses. So "DSNL (if taken with GEOL110) or DSNS, SCIS" becomes `[[{code:"DSNL",condition:"if taken with GEOL110"},{code:"DSNS"}],[{code:"SCIS"}]]`. A filter for code X matches any course with X in any option; the UI shows the condition next to the tag.
+- **Cross-listings:** `crossListings` holds the codes from "Cross-listed with", "Jointly offered with" (colon optional) and "Also offered as".
+- **Credits:** `{min, max}`; `max > min` for variable credits ("3 - 6").
+- **Individual instruction:** a course with "Contact department for information to register for this course." has `contactDepartment: true` and no sections (Testudo lists none).
 - **Sections:** sorted by `code` (section-number order) and unique within a course.
   - `instructors` is empty for "Instructor: TBA".
   - `notes` is the free text; `restriction` is the "Restricted to…"/"Reserved for…" sentences from it, or `null`.
-  - `cancelled: true` only when Testudo still lists the section but marks it cancelled.
+  - `dates` is set when Testudo lists non-standard dates (`.section-start-date`/`.section-end-date`): every summer section and a few hundred per fall or spring term. .ics uses them instead of the term's dates, and two sections whose spans don't intersect never overlap.
+  - There's no cancelled flag. Testudo has no marker; a cancelled section just disappears (§3.3).
 - **Meetings:** one per Testudo row, in row order.
-  - Rows with days and times are `timed: true`. `days` are never empty and `end > start`.
-  - Rows without set times ("TBA", or ELMS async) are `timed: false`.
-  - A room of `ONLINE` gives `online: true, building: null, room: null`.
+  - Rows with days and times are `timed: true`. `days` are never empty (`Sa` and `Su` occur) and `end > start`. No meeting crosses midnight.
+  - Rows without set times are `timed: false`: ELMS async ("Class time/details on ELMS", room `ONLINE`), and days `TBA` (which keeps its building and room).
+  - A room of `ONLINE` gives `online: true, building: null, room: null`. A building of `TBA` gives `building: null, room: null, online: false` (location to be announced).
+  - Off-campus codes (`BLD4`, `DC`, …) are kept as `building`; they never form a connection (§4.4).
+  - A section whose only row is "Contact department or instructor for details." has `meetings: []`; treat it like no set times.
   - `kind` is `discussion`/`lab` from `class-type`, `lecture` when blank, `other` for anything else.
 - **Delivery** (`RESEARCH.md` §1), from the `delivery-*` class:
   - `f2f`;
   - `blended`;
   - `online-sync` when an online section has timed meetings;
   - `online-async` when it has none.
-- **Seats:** from the sections endpoint, as `[open, total, waitlist, holdfile]` (non-negative; ingest clamps negatives to 0, and holdfile is 0 when absent). Sections with no counts at all (about 9%) are left out of the map, and the UI says "Seats unknown". `asOf` is Testudo's "Open Seats as of MM/DD/YYYY at h:mm AM", read as America/New_York and stored in UTC. The freshness label uses `asOf`, or the manifest's `seats.fetchedAt` when `asOf` is null.
+- **Seats:** from the sections endpoint, as `[open, total, waitlist, holdfile]` (non-negative; ingest clamps negatives to 0). Waitlist and holdfile are each `null` when Testudo doesn't show that count, independently: read each `.seats-info-label` and take the next `.waitlist-count`, never by position (ARCH271 shows only a holdfile). Sections with no counts at all (about 9%) are left out of the map, and the UI says "Seats unknown". `asOf` is Testudo's "Open Seats as of MM/DD/YYYY at h:mm AM", read as America/New_York and stored in UTC. The freshness label uses `asOf`, or the manifest's `seats.fetchedAt` when `asOf` is null.
 - Seats are **not** in department chunks. If they were, every 5-minute seats change would re-hash every department and defeat manifest diffing.
 
 ### 3.3 Changes
 The seats job compares each run's sections with the previous run's (kept in `_jobs/`) and appends:
 - `added`: `after`;
-- `changed`: `before` and `after`. `SectionSnapshot` covers instructors, delivery and meetings; a seats-only change is never a change;
-- `cancelled`: `before`. Testudo marks it cancelled;
-- `removed`: `before`. It vanished without a marker; Problems treats it the same as cancelled.
+- `changed`: `before` and `after`. `SectionSnapshot` covers instructors, delivery, meetings and dates; a seats-only change is never a change;
+- `cancelled`: `before`. The section vanished. Testudo has no cancelled marker, so this diff is the only source of "cancelled".
 
-The file keeps a rolling 30-day window, newest first. Plans don't depend on it for correctness: `core/catalog` diffs each placed course's snapshot against the current catalog, and a missing section means cancelled. `changes` only adds *when* the change happened and whether it was cancelled or removed.
+The file keeps a rolling 30-day window, newest first. Plans don't depend on it for correctness: `core/catalog` diffs each placed course's snapshot against the current catalog, and a missing section means cancelled. `changes` only adds *when* the change happened.
 
 ---
 
@@ -133,6 +138,10 @@ The file keeps a rolling 30-day window, newest first. Plans don't depend on it f
   - `instructors`: slug → `Instructor`, covering everyone teaching a section of that department in any active term plus everyone in its grade data;
   - `names`: `instructorNameKey(testudoName)` → slug. The join is done once, in ingest;
   - `courses`: course code → `{all, byInstructor}` grade records.
+
+  Everything is keyed by **slug**, never by name: PlanetTerp names collide (two "Douglas Hamilton"s). When two slugs share a Testudo name, ingest picks the one whose `courses` includes the course.
+- PlanetTerp grade rows carry section numbers that aren't always zero-padded (`"501"`); we only store per-course and per-instructor sums, so sections never reach our files.
+- **Reviews** (`ReviewSchema`) are only the review-summary fn's input: `{course, text, rating, expectedGrade, created}`. They have no id, so (slug, `created`) identifies one; `expectedGrade` is free text ("A-", "P", "95", "") and is never parsed.
 
   An instructor who teaches in two departments appears in both files.
 - **`GradeCounts`** is a 15-tuple in `GRADE_KEYS` order (`A+ A A- B+ B B- C+ C C- D+ D D- F W Other`).
@@ -157,10 +166,10 @@ Little-endian throughout.
 | 16+L | `P` | zero padding, `P = (4 − (16+L) mod 4) mod 4` |
 | `D = 16+L+P` | `2·M·N·N` | `M` matrices of `N×N` uint16, row-major |
 
-- Cell `(m, i, j)` sits at byte `D + 2·(m·N·N + i·N + j)`. It holds walking feet from `buildings[i]` to `buildings[j]` in `modes[m]`, rounded to the nearest foot and clamped to `ROUTES_MAX_FEET` (65534).
-- `ROUTES_UNKNOWN` (65535) means no route yet. The diagonal is 0.
+- Cell `(m, i, j)` sits at byte `D + 2·(m·N·N + i·N + j)`. It holds walking feet from `buildings[i]` to `buildings[j]` in `modes[m]`, rounded to the nearest foot and clamped to `ROUTES_MAX_FEET` (65533).
+- Two sentinels: `ROUTES_UNKNOWN` (65535) means not computed yet; `ROUTES_NO_ROUTE` (65534) means UMD's network found no route (common in accessible mode: IPT, PBR and GVC have none). The diagonal is 0.
 - The file length is exactly `D + 2·M·N·N`; decoders reject anything else.
-- Matrices are directed. The job may fill `(j,i)` from the `(i,j)` solve.
+- Matrices are directed, but every pair measured in recon was symmetric, so the job solves unordered pairs and fills both cells.
 - Distances come from UMD GIS; an OSRM fallback fills a cell only when GIS fails, and never produces geometry. Size is about 160 KB at N = 200. Encoder and decoder live in `core/travel` (M1).
 
 ### 4.3 Route geometry
@@ -170,7 +179,7 @@ Little-endian throughout.
 - If the file is missing (404), hide the map. Never draw a straight line.
 
 ### 4.4 Buildings
-`BuildingsFile` holds every Testudo building code seen in any term that joined, via the SOC popup's building number, to UMD's ArcGIS layer. `lat`/`lng` is a point inside the footprint. Codes that don't join are left out; their connections get the `unknown` verdict.
+`BuildingsFile` holds every Testudo building code seen in any term that joined, via the SOC popup's building number (a zero-padded string), to UMD's ArcGIS layer. `lat`/`lng` is a point inside the footprint. `offCampus` lists known off-campus codes (Shady Grove `BLD2`/`BLD3`/`BLD4`/`BSE4`, `DC`, `BA`): meetings there never form a connection. Any other code that doesn't join is unknown, and its connections get the `unknown` verdict.
 
 ### 4.5 Academic calendar
 `calendar/<term>.json` is either `published` or `not-published`.
@@ -197,7 +206,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 - **Plans:**
   - `courses` is the Courses-tab order, with at most one entry per course.
   - `sectionCode: null` means saved for later, per plan.
-  - A placed course stores `snapshot` (instructors, delivery, meetings) taken when it was placed, or switched, or when a "changed" problem's "Keep new times" fix is applied. `core/catalog` compares it with the live catalog.
+  - A placed course stores `snapshot` (instructors, delivery, meetings, dates) taken when it was placed, or switched, or when a "changed" problem's "Keep new times" fix is applied. `core/catalog` compares it with the live catalog.
   - `order` sorts plan tabs within a term.
 - **Blocks are per term, not per plan.**
   - Blocks describe the person's week (work, practice, lunch), not a choice between schedules. The generator runs outside any plan (SPEC §3.9), and "Respect my blocks" needs one unambiguous set; so do "Fits my plan" and Problems across tabs.
@@ -228,12 +237,13 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 
 - `feetPerMinute = mph × 88`, with `PACE_MPH`: slower 2.5, typical 3.0, faster 3.5.
 - `walkMinutes = ceil(distanceFeet / feetPerMinute) + extraMinutes`, with extra minutes 0, 2 or 5.
-- Connections are consecutive timed, in-person meetings on one day in different buildings. Blocks and online meetings never take part. The distance comes from the `accessible` matrix when `TravelSettings.accessible` is on, otherwise from `standard`.
+- Connections are consecutive timed, in-person meetings on one day in different buildings, among sections whose `dates` spans intersect. Blocks, online meetings, meetings with no building (TBA) and off-campus meetings never take part. The distance comes from the `accessible` matrix when `TravelSettings.accessible` is on, otherwise from `standard`.
 - **Verdicts:**
   - `insufficient` when `walkMinutes > gapMinutes`;
   - `tight` when `walkMinutes ≥ TIGHT_SHARE × gapMinutes`, where `TIGHT_SHARE` = 0.75;
   - `ok` otherwise;
-  - `unknown` when either building has no distance. Its pill is neutral, with "No route data yet".
+  - `unknown` when the cell is `ROUTES_UNKNOWN` or a building isn't in the file. Its pill is neutral, with "No route data yet";
+  - `no-route` when the cell is `ROUTES_NO_ROUTE`. Neutral, with "UMD's map has no accessible route for this connection" (or "no route" in standard mode).
 - The "How?" explanation shows exactly this formula for one real connection.
 
 ---
@@ -366,6 +376,5 @@ These aren't stored, but several workers build against them:
 
 1. **Low-section alerts.** The rule above emails only when a full section reopens (0 → >0). Should watching a *low* (not full) section also email when it gets close to full? The spec only says "when a seat opens".
 2. **List-Unsubscribe.** Mail clients' one-click unsubscribe (RFC 8058 `List-Unsubscribe-Post`) skips our confirmation step. The proposal is to send `List-Unsubscribe` with the confirming page URL only, with no `-Post` header.
-3. **Winter term year.** `Term.year` is the year in Testudo's label. Confirm with the M2 fixtures how Testudo labels the `12` term.
-4. **Section code shape.** Allowed as 3–6 capitals or digits, and course suffixes as 0–2 letters. M2's saved pages should confirm there are no other shapes.
-5. **Per-IP abuse limits** on `alerts.subscribe`. D1 counts by email only; a Workers rate-limiting binding may not count as a "proven product".
+3. **Route geometry packaging.** RESEARCH §5.0 suggests one polyline-encoded geometry file per mode (about 470 KB for all pairs) instead of one JSON file per pair. The per-pair schema stands until M2 decides; switching is a `geo` schema bump.
+4. **Per-IP abuse limits** on `alerts.subscribe`. D1 counts by email only; a Workers rate-limiting binding may not count as a "proven product".

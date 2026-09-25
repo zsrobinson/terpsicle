@@ -65,16 +65,16 @@ export const DeptCodeSchema = z
   .regex(/^[A-Z]{4}$/, "Expected a department like CMSC");
 export type DeptCode = z.infer<typeof DeptCodeSchema>;
 
-/** Course code: dept + three digits + optional suffix letters: "CMSC351", "CMSC389N". */
+/** Course code: dept + three digits + an optional suffix letter: "CMSC351", "CMSC389N" (every id in the recon pages fits). */
 export const CourseCodeSchema = z
   .string()
-  .regex(/^[A-Z]{4}\d{3}[A-Z]{0,2}$/, "Expected a course code like CMSC351");
+  .regex(/^[A-Z]{4}\d{3}[A-Z]?$/, "Expected a course code like CMSC351");
 export type CourseCode = z.infer<typeof CourseCodeSchema>;
 
-/** Section code within a course: usually four digits ("0101"), sometimes alphanumeric ("FC01"). */
+/** Section code within a course: four characters, usually digits ("0101"), sometimes letters too ("FC01", "ESG1", "PLA2"). */
 export const SectionCodeSchema = z
   .string()
-  .regex(/^[A-Z0-9]{3,6}$/, "Expected a section code like 0101");
+  .regex(/^[A-Z0-9]{4}$/, "Expected a section code like 0101");
 export type SectionCode = z.infer<typeof SectionCodeSchema>;
 
 /**
@@ -84,7 +84,7 @@ export type SectionCode = z.infer<typeof SectionCodeSchema>;
 export const SectionKeySchema = z
   .string()
   .regex(
-    /^[A-Z]{4}\d{3}[A-Z]{0,2}-[A-Z0-9]{3,6}$/,
+    /^[A-Z]{4}\d{3}[A-Z]?-[A-Z0-9]{4}$/,
     "Expected a section key like CMSC351-0101",
   );
 export type SectionKey = z.infer<typeof SectionKeySchema>;

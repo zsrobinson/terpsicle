@@ -53,6 +53,11 @@ export const ConnectionVerdictSchema = z.enum([
   "insufficient",
   /** No distance for this building pair yet (routes still filling in). Shown neutral. */
   "unknown",
+  /**
+   * UMD's network has no route for this pair in this mode (mostly accessible
+   * mode): "UMD's map has no accessible route for this connection". Neutral.
+   */
+  "no-route",
 ]);
 export type ConnectionVerdict = z.infer<typeof ConnectionVerdictSchema>;
 
@@ -78,9 +83,9 @@ export const ConnectionSchema = z.object({
   from: ConnectionEndSchema,
   to: ConnectionEndSchema,
   gapMinutes: z.number().int().min(0),
-  /** null when verdict is "unknown". */
+  /** null when verdict is "unknown" or "no-route". */
   distanceFeet: z.number().int().min(0).nullable(),
-  /** ceil(distanceFeet / (mph × 88)) + extraMinutes; null when verdict is "unknown". */
+  /** ceil(distanceFeet / (mph × 88)) + extraMinutes; null when verdict is "unknown" or "no-route". */
   walkMinutes: z.number().int().min(0).nullable(),
   verdict: ConnectionVerdictSchema,
   mode: TravelModeSchema,

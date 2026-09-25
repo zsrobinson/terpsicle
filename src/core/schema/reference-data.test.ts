@@ -39,8 +39,16 @@ describe("geo", () => {
           lng: -76.9365,
         },
       ],
+      offCampus: [
+        { code: "BLD4", name: "Universities at Shady Grove, Building IV" },
+      ],
     };
     expect(BuildingsFileSchema.safeParse(buildings).success).toBe(true);
+    const unpadded = buildings.buildings.map((b) => ({ ...b, number: "39" }));
+    expect(
+      BuildingsFileSchema.safeParse({ ...buildings, buildings: unpadded })
+        .success,
+    ).toBe(false);
     expect(
       RoutesIndexSchema.safeParse({
         buildings: ["CSI", "IRB"],

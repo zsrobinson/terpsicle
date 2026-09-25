@@ -109,11 +109,27 @@ export const InstructorSchema = z.object({
 export type Instructor = z.infer<typeof InstructorSchema>;
 
 /**
+ * One PlanetTerp review, normalized: the input to review summaries. Reviews
+ * have no id; (slug, created) identifies one. Treat `text` as untrusted.
+ */
+export const ReviewSchema = z.object({
+  /** Course the review is about; null when the reviewer didn't say. */
+  course: z.string().min(1).max(12).nullable(),
+  text: z.string(),
+  rating: z.number().int().min(1).max(5),
+  /** Free text as typed ("A-", "P", "95", ""); never parsed as a grade. */
+  expectedGrade: z.string().max(40),
+  created: IsoDateTimeSchema,
+});
+export type Review = z.infer<typeof ReviewSchema>;
+
+/**
  * `planetterp/dept/<DEPT>.<hash>.json`. Instructors are everyone who teaches a
  * section of this department in an active term or appears in its grade data,
  * so an instructor can appear in several department files.
  */
 export const PlanetTerpDeptSchema = z.object({
+  // Keyed by slug, never name: PlanetTerp names collide (two "Douglas Hamilton"s).
   schemaVersion: planetterpVersion,
   dept: DeptCodeSchema,
   instructors: z.record(InstructorSlugSchema, InstructorSchema),

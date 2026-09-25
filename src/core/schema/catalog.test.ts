@@ -100,7 +100,7 @@ const engl393: Course = {
   code: "ENGL393",
   title: "Technical Writing",
   credits: { min: 3, max: 3 },
-  genEds: [["FSPW"]],
+  genEds: [[{ code: "FSPW" }]],
   gradingMethods: ["Reg"],
   permission: null,
   description: null,
@@ -142,9 +142,9 @@ const engl393: Course = {
           online: true,
         },
       ],
+      dates: { start: "2027-03-01", end: "2027-05-10" },
       notes: null,
       restriction: null,
-      cancelled: true,
     },
   ],
 };
@@ -161,16 +161,47 @@ describe("catalog wire schemas", () => {
     expect(CourseSchema.parse(engl393)).toEqual(engl393);
   });
 
-  it("models gen-ed alternatives as groups", () => {
+  it("models gen-ed alternatives as groups, with conditions", () => {
     const course = {
       ...engl393,
-      code: "PHIL140",
-      genEds: [["DSHS", "DSSP"], ["DVUP"]],
+      code: "GEOL100",
+      genEds: [
+        [
+          { code: "DSNL", condition: "if taken with GEOL110" },
+          { code: "DSNS" },
+        ],
+        [{ code: "SCIS" }],
+      ],
     };
     expect(CourseSchema.safeParse(course).success).toBe(true);
     expect(CourseSchema.safeParse({ ...course, genEds: [[]] }).success).toBe(
       false,
     );
+    expect(
+      CourseSchema.safeParse({ ...course, genEds: [["DSNS"]] }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a contact-department course with no sections", () => {
+    const course = {
+      ...engl393,
+      code: "IDEA499",
+      credits: { min: 1, max: 6 },
+      contactDepartment: true,
+      sections: [],
+    };
+    expect(CourseSchema.safeParse(course).success).toBe(true);
+  });
+
+  it("rejects a section whose dates run backwards", () => {
+    const [section] = engl393.sections;
+    const bad = {
+      ...section,
+      dates: { start: "2027-05-10", end: "2027-03-01" },
+    };
+    expect(
+      CourseSchema.safeParse({ ...engl393, sections: [bad] }).success,
+    ).toBe(false);
   });
 
   it("strips unknown keys so newer data doesn't break older clients", () => {
@@ -275,7 +306,11 @@ describe("catalog wire schemas", () => {
       schemaVersion: 1,
       termId: TERM,
       asOf: null,
-      seats: { "CMSC351-0101": [0, 120, 14, 0], "ENGL393-FC01": [7, 19, 0, 2] },
+      seats: {
+        "CMSC351-0101": [0, 120, 14, null],
+        "ENGL393-FC01": [7, 19, null, 2],
+        "ENGL393-0312": [9, 19, null, null],
+      },
     };
     expect(SeatsFileSchema.parse(seats)).toEqual(seats);
     expect(
@@ -334,8 +369,8 @@ describe("catalog wire schemas", () => {
   });
 
   it("converts seat tuples both ways", () => {
-    const counts = seatCountsFromTuple([3, 90, 0, 1]);
-    expect(counts).toEqual({ open: 3, total: 90, waitlist: 0, holdfile: 1 });
-    expect(seatTupleFromCounts(counts)).toEqual([3, 90, 0, 1]);
+    const counts = seatCountsFromTuple([3, 90, null, 1]);
+    expect(counts).toEqual({ open: 3, total: 90, waitlist: null, holdfile: 1 });
+    expect(seatTupleFromCounts(counts)).toEqual([3, 90, null, 1]);
   });
 });
