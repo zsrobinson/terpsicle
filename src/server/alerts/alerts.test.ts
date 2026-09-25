@@ -8,7 +8,12 @@ import {
   SubscriptionIdSchema,
   TokenSchema,
 } from "~/core/schema";
-import { buildMockDataFiles, fixtureTermId, mockSeats } from "~/fixtures";
+import {
+  archivedFixtureTermId,
+  buildMockDataFiles,
+  fixtureTermId,
+  mockSeats,
+} from "~/fixtures";
 import { type ApiEnv, handleApi } from "../api/router";
 import { api } from "../fns/api";
 import { notifySeatChanges } from "./notify";
@@ -433,5 +438,163 @@ describe("seat alerts, end to end", () => {
       "https://terpsicle.com/alerts/confirm?token=",
     );
     expect(sent[0]?.text).not.toContain("evil.example");
+  });
+});
+
+describe("seat alerts, abuse and safety", () => {
+  const today = () => new Date(clock).toISOString().slice(0, 10);
+  let ipSeq = 0;
+  const freshIp = () => `198.18.0.${++ipSeq}`;
+  const subscribeAs = (testEnv: ApiEnv, email: string, sectionKey: string) =>
+    api.alerts.subscribe(
+      { email, termId: fixtureTermId, sectionKey },
+      client(testEnv, freshIp()),
+    );
+
+  it("caps signup emails per address per day, without changing the answer", async () => {
+    const { testEnv, sent } = makeEnv();
+    const sections = [
+      "CMSC132-0101",
+      "CMSC132-0102",
+      "CMSC132-0103",
+      "CMSC132-0201",
+      "CMSC132-0105",
+      "CMSC132-0106",
+    ];
+    const answers = [];
+    for (const s of sections)
+      answers.push(await subscribeAs(testEnv, "busy@umd.edu", s));
+    expect(answers.every((a) => a.status === "check-email")).toBe(true);
+    expect(sent.filter((m) => m.to === "busy@umd.edu")).toHaveLength(5);
+  });
+
+  it("stops signup emails at the global daily backstop", async () => {
+    const { testEnv, sent } = makeEnv();
+    await env.DB.prepare(
+      `INSERT INTO counters (name, window_start, count) VALUES ('signup-emails', ?1, 300)
+       ON CONFLICT (name, window_start) DO UPDATE SET count = 300`,
+    )
+      .bind(`${today()}T00:00:00.000Z`)
+      .run();
+    expect(
+      await subscribeAs(testEnv, "global@umd.edu", "CMSC216-0101"),
+    ).toEqual({ status: "check-email" });
+    expect(sent).toHaveLength(0);
+    await env.DB.prepare(
+      "DELETE FROM counters WHERE name = 'signup-emails'",
+    ).run();
+  });
+
+  it("keeps confirm and manage tokens apart, and status tied to its subscription", async () => {
+    const { testEnv, sent } = makeEnv();
+    const opts = client(testEnv, freshIp());
+    await api.alerts.subscribe(
+      {
+        email: "tokens@umd.edu",
+        termId: fixtureTermId,
+        sectionKey: "CMSC216-0102",
+      },
+      opts,
+    );
+    const confirmToken = tokenFrom(sent[0], "/alerts/confirm");
+    // A confirm token can't look up or stop a watch.
+    expect(await api.alerts.lookup({ token: confirmToken }, opts)).toEqual({
+      status: "invalid-token",
+    });
+    expect(await api.alerts.unsubscribe({ token: confirmToken }, opts)).toEqual(
+      {
+        status: "invalid-token",
+      },
+    );
+    const confirmed = await api.alerts.confirm({ token: confirmToken }, opts);
+    if (confirmed.status !== "confirmed") throw new Error(confirmed.status);
+    // A manage token can't confirm, or unlock another subscription's status.
+    expect(
+      await api.alerts.confirm({ token: confirmed.manageToken }, opts),
+    ).toEqual({ status: "invalid-token" });
+    const stranger = "A".repeat(22);
+    expect(
+      await api.alerts.status(
+        {
+          items: [
+            { subscriptionId: stranger, manageToken: confirmed.manageToken },
+          ],
+        },
+        opts,
+      ),
+    ).toEqual({
+      status: "ok",
+      items: [{ subscriptionId: stranger, status: "unknown" }],
+    });
+  });
+
+  it("marks trial emails with a subject prefix when one is set", async () => {
+    const { testEnv, sent } = makeEnv({ EMAIL_SUBJECT_PREFIX: "[Test] " });
+    await subscribeAs(testEnv, "trial@umd.edu", "CMSC216-0103");
+    expect(sent[0]?.subject).toBe(
+      "[Test] Confirm your seat alert for CMSC216 0103",
+    );
+  });
+
+  it("refuses archived terms", async () => {
+    const { testEnv, sent } = makeEnv();
+    const archived = await api.alerts.subscribe(
+      {
+        email: "old@umd.edu",
+        termId: archivedFixtureTermId,
+        sectionKey: "CMSC131-0101",
+      },
+      client(testEnv, freshIp()),
+    );
+    expect(archived).toEqual({ status: "unknown-section" });
+    expect(sent).toHaveLength(0);
+  });
+
+  it("never emails unconfirmed watchers, and caps alerts per address per day", async () => {
+    const { testEnv, sent } = makeEnv();
+    const opts = client(testEnv, freshIp());
+    // Pending only: never alerted.
+    await api.alerts.subscribe(
+      {
+        email: "pending@umd.edu",
+        termId: fixtureTermId,
+        sectionKey: "STAT400-0301",
+      },
+      opts,
+    );
+    // Confirmed, but already at today's 20 alerts.
+    await api.alerts.subscribe(
+      {
+        email: "capped@umd.edu",
+        termId: fixtureTermId,
+        sectionKey: "STAT400-0301",
+      },
+      opts,
+    );
+    const confirmEmail = sent.find((m) => m.to === "capped@umd.edu");
+    const confirmed = await api.alerts.confirm(
+      { token: tokenFrom(confirmEmail, "/alerts/confirm") },
+      opts,
+    );
+    expect(confirmed.status).toBe("confirmed");
+    for (let i = 0; i < 20; i++) {
+      await env.DB.prepare(
+        `INSERT INTO email_sends (email, kind, dedupe_key, status, sent_at)
+         VALUES ('capped@umd.edu', 'seat-open', ?1, 'sent', ?2)`,
+      )
+        .bind(`cap-test-${i}`, new Date(clock).toISOString())
+        .run();
+    }
+    const before = sent.length;
+    const after = {
+      ...mockSeats,
+      asOf: new Date(clock).toISOString(),
+      seats: { ...mockSeats.seats, "STAT400-0301": [4, 60, 0, null] },
+    } satisfies SeatsFile;
+    const result = await notifySeatChanges(testEnv, mockSeats, after, {
+      now: new Date(clock),
+    });
+    expect(result.sent).toBe(0);
+    expect(sent).toHaveLength(before);
   });
 });

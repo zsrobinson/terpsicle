@@ -19,11 +19,17 @@ export function SeatBell({
   termId,
   sectionKey,
   compact = false,
+  full = true,
 }: {
   termId: TermId;
   sectionKey: SectionKey;
   /** Smaller, so compact rows keep one height with or without a bell. */
   compact?: boolean;
+  /**
+   * Full now. Alerts go out when a full section gets a seat back, so a low
+   * section's bell says it'll email if the section fills and then reopens.
+   */
+  full?: boolean;
 }) {
   const alert = useSeatAlert(termId, sectionKey);
   const lastEmail = useLastSeatAlertEmail();
@@ -41,7 +47,9 @@ export function SeatBell({
       ? `Watching ${label}: we'll email you when a seat opens`
       : alert.kind === "pending"
         ? "Check your email to confirm"
-        : "Get an email when a seat opens";
+        : full
+          ? "Get an email when a seat opens"
+          : "Get an email if it fills and a seat opens again";
   const Icon =
     alert.kind === "watching"
       ? BellRing
@@ -49,13 +57,9 @@ export function SeatBell({
         ? BellDot
         : Bell;
 
-  const submit = async () => {
+  const submit = async (address = email || lastEmail || "") => {
     setBusy(true);
-    const outcome = await subscribeSeatAlert(
-      email || lastEmail || "",
-      termId,
-      sectionKey,
-    );
+    const outcome = await subscribeSeatAlert(address, termId, sectionKey);
     setBusy(false);
     setMessage({
       text: subscribeMessage(outcome),
@@ -94,7 +98,16 @@ export function SeatBell({
       </WithTooltip>
       <PopoverContent className="w-72" side="bottom" align="end">
         <div className="font-medium text-[12.5px]">
-          Tell me when <span className="font-mono">{label}</span> has a seat
+          {full || alert.kind === "watching" ? (
+            <>
+              Tell me when <span className="font-mono">{label}</span> has a seat
+            </>
+          ) : (
+            <>
+              Tell me if <span className="font-mono">{label}</span> fills and a
+              seat opens again
+            </>
+          )}
         </div>
         {alert.kind === "watching" ? (
           <p className="mt-1 text-[12px] text-muted">
@@ -103,9 +116,26 @@ export function SeatBell({
             Export or from any alert email.
           </p>
         ) : alert.kind === "pending" && !message ? (
-          <p className="mt-1 text-[12px] text-muted">
-            Check your email: click the link there to start watching.
-          </p>
+          <div className="mt-1 flex items-start gap-2">
+            <p className="flex-1 text-[12px] text-muted">
+              Check your email: click the link there to start watching.
+            </p>
+            {alert.alert.email ? (
+              <WithTooltip
+                label={`Send the link to ${alert.alert.email} again`}
+              >
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-1.5 text-[11.5px]"
+                  disabled={busy}
+                  onClick={() => void submit(alert.alert.email ?? "")}
+                >
+                  Send again
+                </Button>
+              </WithTooltip>
+            ) : null}
+          </div>
         ) : message ? (
           <p
             role="status"

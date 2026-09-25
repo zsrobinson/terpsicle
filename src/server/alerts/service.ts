@@ -17,6 +17,7 @@ import {
   type UnsubscribeResult,
 } from "~/core/schema";
 import { captureServerEvent } from "../analytics";
+import { hit } from "../counters";
 import { randomToken, sha256Hex } from "../crypto";
 import { catalogReader, type WatchedSection } from "./catalog";
 import {
@@ -45,6 +46,8 @@ export interface AlertsEnv {
   /** Absent on previews: they must never email anyone. */
   EMAIL?: SendEmail;
   SEAT_ALERTS_ENABLED?: string;
+  /** Prepended to every alert subject, e.g. "[Test] " for a trial run. Unset in production. */
+  EMAIL_SUBJECT_PREFIX?: string;
   POSTHOG_TOKEN?: string;
 }
 
@@ -62,6 +65,12 @@ export const ALERT_LIMITS = {
   signupEmailsPerAddressPerDay: 5,
   /** Minimum gap between signup emails for one subscription. */
   signupEmailGapMs: 10 * 60_000,
+  /**
+   * Signup emails across everyone per UTC day: a backstop for abuse spread
+   * over many networks and addresses, to protect terpsicle.com's sending
+   * reputation. Far above real use.
+   */
+  signupEmailsPerDay: 300,
   /** Seat-open emails per address per day. */
   alertsPerAddressPerDay: 20,
   /** Minimum gap between seat-open emails for one subscription. */
@@ -179,7 +188,12 @@ export async function subscribe(
     last !== null &&
     ctx.now.getTime() - Date.parse(last) < ALERT_LIMITS.signupEmailGapMs;
   let outcome: "confirm-sent" | "already-watching" | "not-sent" = "not-sent";
-  if (sentToday < ALERT_LIMITS.signupEmailsPerAddressPerDay && !tooSoon) {
+  if (
+    sentToday < ALERT_LIMITS.signupEmailsPerAddressPerDay &&
+    !tooSoon &&
+    (await hit(env.DB, "signup-emails", { seconds: 86_400 }, ctx.now)) <=
+      ALERT_LIMITS.signupEmailsPerDay
+  ) {
     const ref = sectionRef(found);
     const issued = await issueToken(
       env.DB,

@@ -39,9 +39,10 @@
     // Public PostHog project token (the same one the client ships). Server
     // telemetry is off wherever it's unset: tests, local dev, previews.
     "POSTHOG_TOKEN": "phc_nfEKbERy5wWGQWFzGbSArYPtRQnJrsYuDYzTLJmxFLd6",
-    // Seat alerts ship only after the end-to-end tests pass (SPEC.md §3.12).
-    // "true" turns on /api/alerts/* and the seats cron's alert emails.
-    "SEAT_ALERTS_ENABLED": "false",
+    // On since the end-to-end tests passed (SPEC.md §3.12, STATUS.md).
+    // "false" turns off /api/alerts/* and the seats cron's alert emails
+    // (the app hides the bell); subscriptions stay in D1.
+    "SEAT_ALERTS_ENABLED": "true",
     // Review summaries generated per UTC day, at most (Workers AI cost).
     "SUMMARIES_DAILY_CAP": "200"
   },

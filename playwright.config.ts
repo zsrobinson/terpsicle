@@ -5,6 +5,8 @@ import { chromium, defineConfig, devices } from "@playwright/test";
 // E2E_PORT lets checkouts side by side run e2e at once: locally an existing
 // server on the port is reused, which would test the other checkout's code.
 const PORT = Number(process.env.E2E_PORT ?? 3100);
+/** The seat-alert e2e's local API (e2e/alerts-harness). */
+const ALERTS_PORT = PORT + 1;
 const isCI = Boolean(process.env.CI);
 
 // CI installs the browser this Playwright version expects. Local agent
@@ -51,11 +53,21 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    // Fixtures only: e2e never touches the network.
-    command: `pnpm dev:mock --port ${PORT} --strictPort`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: !isCI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // Fixtures only: e2e never touches the network.
+      command: `pnpm dev:mock --port ${PORT} --strictPort`,
+      url: `http://localhost:${PORT}`,
+      reuseExistingServer: !isCI,
+      timeout: 120_000,
+    },
+    {
+      // The real /api router and seat-alert code over local D1 and R2, with a
+      // capturing EMAIL binding (e2e/seat-alerts.spec.ts).
+      command: `pnpm tsx scripts/e2e-alerts-harness.ts ${ALERTS_PORT}`,
+      url: `http://localhost:${ALERTS_PORT}/__test/emails`,
+      reuseExistingServer: !isCI,
+      timeout: 120_000,
+    },
+  ],
 });

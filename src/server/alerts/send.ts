@@ -15,7 +15,7 @@ export interface SendArgs {
 
 /** True when the email was handed to Email Service; false for a duplicate or a failure. */
 export async function sendAlertEmail(
-  env: { DB: D1Database; EMAIL: SendEmail },
+  env: { DB: D1Database; EMAIL: SendEmail; EMAIL_SUBJECT_PREFIX?: string },
   args: SendArgs,
 ): Promise<boolean> {
   const id = await claimSend(env.DB, {
@@ -30,7 +30,7 @@ export async function sendAlertEmail(
     const result = await env.EMAIL.send({
       to: args.to,
       from: ALERTS_FROM,
-      subject: args.email.subject,
+      subject: `${env.EMAIL_SUBJECT_PREFIX ?? ""}${args.email.subject}`,
       text: args.email.text,
       html: args.email.html,
       headers: args.email.headers,
