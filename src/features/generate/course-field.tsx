@@ -109,7 +109,7 @@ export function CourseField({
               setQuery("");
             }
           }}
-          className="h-7 w-full rounded-md border border-hairline-strong bg-bg px-2 text-base outline-none placeholder:text-faint focus:border-fg/40"
+          className="h-7 w-full rounded-md border border-hairline-strong bg-bg px-2 text-base placeholder:text-faint focus:border-fg/40"
         />
       </WithTooltip>
       {showList ? (

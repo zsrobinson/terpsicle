@@ -39,7 +39,10 @@ export function TopBar({
         compact ? "gap-1 px-2" : "gap-2 px-3",
       )}
     >
-      <Logo compact={compact} />
+      {/* The page's one h1: panels and the calendar sit under it as h2s. */}
+      <h1 className="flex shrink-0">
+        <Logo compact={compact} />
+      </h1>
       {compact ? null : <Slash className="ml-2" />}
       {term}
       {compact ? null : <Slash />}

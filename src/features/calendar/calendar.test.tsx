@@ -50,11 +50,13 @@ describe("calendar", () => {
   it("draws the plan's classes with code, time and room, and blocks", async () => {
     const { calendar } = await renderDemo();
     const cmsc351 = within(calendar).getAllByRole("button", {
-      name: /^CMSC351 0301, 11am–11:50am, CSI 1115$/,
+      name: /^CMSC351 0301, \w+day 11am to 11:50am, CSI 1115$/,
     });
     expect(cmsc351).toHaveLength(3);
     expect(
-      within(calendar).getByRole("button", { name: /^Work, 1pm–4pm$/ }),
+      within(calendar).getByRole("button", {
+        name: /^Work, \w+day 1pm to 4pm$/,
+      }),
     ).toBeInTheDocument();
     // Discussions and labs are labeled.
     expect(
@@ -73,7 +75,7 @@ describe("calendar", () => {
     );
     const pill = calendar.querySelector('[data-verdict="tight"]');
     expect(pill).toHaveTextContent("8 min");
-    expect(pill).toHaveAccessibleName(/^Tight: 8 min to get there/);
+    expect(pill).toHaveAccessibleName(/^8 minute walk, tight\. ESJ to CSI/);
   });
 
   it("draws a previewed plan's own travel pills", async () => {

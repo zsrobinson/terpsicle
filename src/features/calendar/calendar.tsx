@@ -13,6 +13,7 @@ import { useShortcut } from "~/app/shortcuts";
 import type { Connection, CourseCode, Day } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
+import { DAY_LONG_NAMES } from "~/core/time";
 import { useTravel } from "~/state/hooks";
 import { selectOpenCourse, useUi } from "~/state/ui-store";
 import { BusyBlock, ClassBlock, Ghost, laneStyle, TravelPill } from "./entries";
@@ -22,6 +23,7 @@ import {
   MAX_GHOST_LANES,
   type Pill,
   packGhosts,
+  pillsWhileComparing,
   previewOrder,
   spreadPills,
   stepPreview,
@@ -351,8 +353,12 @@ function Grid({
       }}
     >
       {columns.map((column) => (
+        // Screen readers hear which day they're in as they move through.
+        // biome-ignore lint/a11y/useSemanticElements: a day isn't a form, so not a <fieldset>
         <div
           key={column.day}
+          role="group"
+          aria-label={DAY_LONG_NAMES[column.day]}
           data-empty=""
           data-day={column.day}
           className="relative h-full min-w-0 flex-1"
@@ -398,22 +404,24 @@ function Grid({
               style={laneStyle(ghost, layout.yOf)}
             />
           ))}
-          {placePills(column.pills, layout, colWidth).map(
-            ({ pill, top, x }) => (
-              <TravelPill
-                key={pill.key}
-                pill={pill}
-                top={top}
-                x={x}
-                travel={travel}
-                selected={
-                  stackTop?.kind === "connection" &&
-                  stackTop.connectionId === pill.connection.id
-                }
-                onOpen={openConnection}
-              />
-            ),
-          )}
+          {placePills(
+            pillsWhileComparing(column.pills, ghostCourse),
+            layout,
+            colWidth,
+          ).map(({ pill, top, x }) => (
+            <TravelPill
+              key={pill.key}
+              pill={pill}
+              top={top}
+              x={x}
+              travel={travel}
+              selected={
+                stackTop?.kind === "connection" &&
+                stackTop.connectionId === pill.connection.id
+              }
+              onOpen={openConnection}
+            />
+          ))}
           {draft?.days.includes(column.day) ? (
             <DraftOutline style={draftBox(draft.start, draft.end)} />
           ) : null}

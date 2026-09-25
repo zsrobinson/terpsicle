@@ -31,6 +31,20 @@ export function ghostStyle(color: CourseColor): CSSProperties {
   };
 }
 
+/**
+ * A class dimmed while another course's sections show: a faded fill and
+ * border with muted text. Fading the whole block with opacity would take
+ * its words below AA contrast, and it's still a button.
+ */
+export function dimmedStyle(color: CourseColor): CSSProperties {
+  const t = courseColorTokens(color);
+  return {
+    backgroundColor: `color-mix(in oklab, ${cssVar(t.bg)} 40%, var(--bg))`,
+    borderColor: `color-mix(in oklab, ${cssVar(t.border)} 35%, var(--bg))`,
+    color: "var(--muted)",
+  };
+}
+
 /** The course dot (lists, the hint strip, the color picker). */
 export function dotStyle(color: CourseColor): CSSProperties {
   return { backgroundColor: cssVar(courseColorTokens(color).dot) };

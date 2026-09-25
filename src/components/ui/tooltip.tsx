@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
-import type * as React from "react";
+import * as React from "react";
 import { Kbd } from "./kbd";
 
 // shadcn/ui tooltip, restyled to our tokens: inverted fg/bg chip, quick fade.
@@ -31,6 +31,7 @@ function TooltipTrigger(
 function TooltipContent({
   className,
   sideOffset = 6,
+  collisionPadding = 8,
   children,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
@@ -39,9 +40,13 @@ function TooltipContent({
       <TooltipPrimitive.Content
         data-slot="tooltip-content"
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
         className={cn(
           "z-50 flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
-          "fade-in-0 zoom-in-95 animate-in duration-100 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+          // No exit animation: a closing tooltip stays mounted until it ends,
+          // and while mounted its layer takes the next Esc, so Esc after
+          // tabbing away from a control (say, to go back) would do nothing.
+          "fade-in-0 zoom-in-95 animate-in duration-100",
           className,
         )}
         {...props}
@@ -50,6 +55,17 @@ function TooltipContent({
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   );
+}
+
+let quietUntil = 0;
+
+/**
+ * Keeps tooltips shut for a moment. Menus and popovers call it as they close:
+ * they hand focus back to their trigger, and a tooltip opening on that focus
+ * would cover what the person was looking at.
+ */
+function quietTooltips(ms = 400): void {
+  quietUntil = performance.now() + ms;
 }
 
 /**
@@ -67,8 +83,15 @@ function WithTooltip({
   side?: React.ComponentProps<typeof TooltipPrimitive.Content>["side"];
   children: React.ReactElement;
 }) {
+  const [open, setOpen] = React.useState(false);
   return (
-    <Tooltip>
+    <Tooltip
+      open={open}
+      onOpenChange={(next) => {
+        if (next && performance.now() < quietUntil) return;
+        setOpen(next);
+      }}
+    >
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side={side}>
         {label}
@@ -79,6 +102,7 @@ function WithTooltip({
 }
 
 export {
+  quietTooltips,
   Tooltip,
   TooltipContent,
   TooltipProvider,

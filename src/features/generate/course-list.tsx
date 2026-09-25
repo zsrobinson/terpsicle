@@ -251,7 +251,7 @@ function CourseChip({
           aria-label={`Remove ${courseCode}`}
           onClick={onRemove}
           className={cn(
-            "flex h-7 w-5 items-center justify-center rounded-r-md border border-l-0 text-faint hover:text-fg",
+            "flex h-7 w-6 items-center justify-center rounded-r-md border border-l-0 text-faint hover:text-fg",
             required === false
               ? "border-hairline-strong border-dashed"
               : "border-hairline-strong bg-hover",

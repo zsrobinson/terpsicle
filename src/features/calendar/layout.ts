@@ -720,10 +720,31 @@ export function stepPreview(
   return order[(i + step + order.length) % order.length] ?? null;
 }
 
-/** Pills closer than this, in px, would cover each other. */
-export const PILL_CLEARANCE = 20;
+/**
+ * Pills closer than this, in px, would cover each other: a pill's target is
+ * 24px tall (WCAG 2.5.8), around the 19px pill drawn.
+ */
+export const PILL_CLEARANCE = 24;
 /** About the widest pill ("18 min" with its icon), in px. */
 export const PILL_WIDTH = 56;
+
+/**
+ * The pills to draw while a course's sections show as ghosts: only those
+ * touching that course. The rest join two dimmed classes, and would sit on
+ * top of the sections being compared, covering part of each one's target.
+ */
+export function pillsWhileComparing(
+  pills: readonly Pill[],
+  ghostCourse: CourseCode | null,
+): readonly Pill[] {
+  if (!ghostCourse) return pills;
+  const touches = (key: string) => key.startsWith(`${ghostCourse}-`);
+  return pills.filter(
+    (p) =>
+      touches(p.connection.from.sectionKey) ||
+      touches(p.connection.to.sectionKey),
+  );
+}
 
 /**
  * Where each of a day's pills goes, from their natural tops in px: `x`

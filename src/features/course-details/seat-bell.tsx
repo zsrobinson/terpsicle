@@ -96,7 +96,12 @@ export function SeatBell({
           </button>
         </PopoverTrigger>
       </WithTooltip>
-      <PopoverContent className="w-72" side="bottom" align="end">
+      <PopoverContent
+        className="w-72"
+        side="bottom"
+        align="end"
+        aria-label={`Seat alert for ${label}`}
+      >
         <div className="font-medium text-base">
           {full || alert.kind === "watching" ? (
             <>
@@ -163,7 +168,7 @@ export function SeatBell({
               placeholder="you@terpmail.umd.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-8 min-w-0 flex-1 rounded-md border border-hairline bg-bg px-2 text-base outline-none placeholder:text-faint focus:border-hairline-strong"
+              className="h-8 min-w-0 flex-1 rounded-md border border-hairline bg-bg px-2 text-base placeholder:text-faint focus:border-hairline-strong"
             />
             <WithTooltip label="Send the confirmation link">
               <Button type="submit" size="sm" disabled={busy}>

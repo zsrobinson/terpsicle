@@ -2,11 +2,12 @@ import { cn } from "cn";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Drawer } from "vaul";
 import type { RailTab } from "~/core/schema";
+import { useCurrentPlan } from "~/state/hooks";
 import { type DrawerSnap, useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
 import { ProblemBadge } from "./rail";
-import { SidebarContent } from "./sidebar";
+import { SIDEBAR_PANEL_ID, SidebarContent } from "./sidebar";
 import { TABS, type Tab } from "./tabs";
 
 // Phones (SPEC §2): the same sidebar, in a bottom drawer that rests at peek,
@@ -60,6 +61,36 @@ export function MobileDrawer() {
     last.current = { tab, depth };
     if (changed && useUi.getState().drawerSnap === "peek") setSnap("half");
   }, [tab, depth, setSnap]);
+
+  // An empty plan's calendar has nothing on it, and the Courses tab has the
+  // first-visit guide: open far enough to show it, once, on arrival. Half
+  // when it fits there (most phones), full on short screens.
+  const empty = useCurrentPlan()?.plan.courses.length === 0;
+  const greeted = useRef(false);
+  useEffect(() => {
+    if (!empty || greeted.current) return;
+    greeted.current = true;
+    const ui = useUi.getState();
+    if (ui.tab !== "courses" || ui.stack.length > 0 || ui.drawerSnap !== "peek")
+      return;
+    setSnap("half");
+    // Measure once the half-height panel has laid out.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const body = document.querySelector(
+          `#${SIDEBAR_PANEL_ID} > [data-layer][data-active] [data-panel-body]`,
+        );
+        if (!body) return;
+        // Every way in (the guide's buttons) on screen; padding may overflow.
+        // Both move with the drawer's slide, so compare them to each other.
+        const bottom = body.getBoundingClientRect().bottom;
+        const cut = [...body.querySelectorAll("button")].some(
+          (b) => b.getBoundingClientRect().bottom > bottom + 1,
+        );
+        if (cut) setSnap("full");
+      }),
+    );
+  }, [empty, setSnap]);
 
   return (
     <Drawer.Root
@@ -122,7 +153,7 @@ function Grabber({
         type="button"
         aria-label={next === "peek" ? "Lower the panel" : "Raise the panel"}
         onClick={() => onSnap(next)}
-        className="mx-auto flex h-5 w-16 shrink-0 items-center justify-center rounded-full"
+        className="mx-auto flex h-6 w-16 shrink-0 items-center justify-center rounded-full"
       >
         <span className="h-1 w-8 rounded-full bg-hairline-strong" />
       </button>

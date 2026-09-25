@@ -31,7 +31,7 @@ async function open(page: Page, path = "/") {
 }
 
 const planTabs = (page: Page) =>
-  page.getByRole("tablist", { name: "Plans" }).getByRole("tab");
+  page.getByRole("navigation", { name: "Plans" }).getByRole("listitem");
 
 test.describe("desktop", () => {
   test.skip(({ isMobile }) => isMobile, "desktop layout");
@@ -159,7 +159,9 @@ test.describe("desktop", () => {
       page.getByRole("heading", { name: "Shared plan" }),
     ).toBeVisible();
     await expect(page.getByText("Summer 2026")).toBeVisible();
-    await expect(page.getByRole("tablist", { name: "Plans" })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Plans" })).toHaveCount(
+      0,
+    );
 
     await page.getByRole("button", { name: "Save a copy" }).click();
     await expect(page).toHaveURL((url) => !url.searchParams.has("plan"));
@@ -199,7 +201,16 @@ test.describe("phone", () => {
     await expect(
       page.getByRole("region", { name: "Week calendar" }),
     ).toBeVisible();
-    await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
+    // A first visit's plan is empty: the drawer opens to half, far enough to
+    // show the first-visit guide's two ways in.
+    await expect(drawer(page)).toHaveAttribute("data-snap", "half");
+    await expect(page.getByTestId("first-visit")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Search for a course" }),
+    ).toBeInViewport();
+    await expect(
+      page.getByRole("button", { name: "Generate plans" }),
+    ).toBeInViewport();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );

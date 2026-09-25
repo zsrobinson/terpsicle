@@ -41,9 +41,14 @@ export function TermSwitcher() {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
+            aria-label={term.name}
             className="flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
-            {term.name}
+            {/* The smallest phones get "Spring ’27", so the open plan's name fits. */}
+            <span className="max-[380px]:hidden">{term.name}</span>
+            <span aria-hidden="true" className="hidden max-[380px]:inline">
+              {shortTermName(term.name)}
+            </span>
             <ChevronDown size={12} aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
@@ -66,6 +71,11 @@ export function TermSwitcher() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/** "Spring 2027" → "Spring ’27". */
+export function shortTermName(name: string): string {
+  return name.replace(/ \d{2}(\d{2})$/, " ’$1");
 }
 
 function TermItem({ term }: { term: Term }) {

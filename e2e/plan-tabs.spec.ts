@@ -117,7 +117,7 @@ test("add a block from the Blocks form", async ({ page }) => {
   ).toBeVisible();
   await expect(
     calendar(page)
-      .getByRole("button", { name: /^Lunch, 12pm–1pm/ })
+      .getByRole("button", { name: /^Lunch, \w+day 12pm to 1pm/ })
       .first(),
   ).toBeVisible();
 });
@@ -173,7 +173,9 @@ test.describe("export", () => {
     await expect(
       page.getByRole("banner").getByText("Shared plan"),
     ).toBeVisible();
-    await expect(page.getByRole("tablist", { name: "Plans" })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Plans" })).toHaveCount(
+      0,
+    );
     await expect(
       calendar(page)
         .getByRole("button", { name: /^CMSC351 0301/ })

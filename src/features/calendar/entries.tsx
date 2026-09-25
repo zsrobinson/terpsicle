@@ -15,6 +15,7 @@ import { formatFeet, travelMath, verdictMessage } from "~/core/travel";
 import { useUi } from "~/state/ui-store";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
+import { blockLabel, classLabel, ghostName, pillLabel } from "./labels";
 import {
   type BlockEntry,
   type ClassEntry,
@@ -22,7 +23,7 @@ import {
   ghostLabel,
   type Pill,
 } from "./layout";
-import { ghostStyle, tintStyle } from "./tint";
+import { dimmedStyle, ghostStyle, tintStyle } from "./tint";
 
 // What sits in a day column: classes, blocks, ghosts and travel pills.
 
@@ -79,6 +80,9 @@ export function ClassBlock({
   const place = entry.online
     ? "Online"
     : [entry.building, entry.room].filter(Boolean).join(" ");
+  // Secondary lines are softer, except when dimmed: muted text is already
+  // as light as AA contrast allows.
+  const soft = dimmed ? undefined : "opacity-80";
   const action = selected
     ? `Your current section, ${entry.sectionCode}`
     : open
@@ -108,14 +112,16 @@ export function ClassBlock({
         type="button"
         onClick={onOpen}
         data-course={entry.courseCode}
-        aria-label={`${entry.courseCode} ${entry.sectionCode}${kind ? ` ${kind}` : ""}, ${formatTimeRange(entry.start, entry.end)}${place ? `, ${place}` : ""}${dates ? `, ${dates}` : ""}`}
+        aria-label={classLabel(entry)}
         className={cn(
-          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border py-1 text-left transition-opacity duration-150",
+          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border py-1 text-left transition-colors duration-150",
           stacked && width !== null && width < 40 ? "px-0.5" : "px-1.5",
-          dimmed && "opacity-35",
           (selected || changed) && "ring-2 ring-fg/70",
         )}
-        style={{ ...style, ...tintStyle(entry.color) }}
+        style={{
+          ...style,
+          ...(dimmed ? dimmedStyle(entry.color) : tintStyle(entry.color)),
+        }}
       >
         <div className="flex items-baseline gap-1 text-2xs">
           {/* The code wins the space; "discussion" gives way on narrow days. */}
@@ -135,18 +141,18 @@ export function ClassBlock({
             )}
           </span>
           {kind ? (
-            <span className="min-w-0 truncate font-normal opacity-70">
+            <span className={cn("min-w-0 truncate font-normal", soft)}>
               {kind}
             </span>
           ) : null}
         </div>
         {height > 30 + extra ? (
-          <div className="tnum truncate text-2xs opacity-75">
+          <div className={cn("tnum truncate text-2xs", soft)}>
             {formatTimeRange(entry.start, entry.end)}
           </div>
         ) : null}
         {height > 46 + extra && place ? (
-          <div className="truncate text-2xs opacity-75">{place}</div>
+          <div className={cn("truncate text-2xs", soft)}>{place}</div>
         ) : null}
       </button>
     </WithTooltip>
@@ -169,16 +175,19 @@ export function BusyBlock({
       <button
         type="button"
         onClick={() => openTab("blocks", "click")}
-        aria-label={`${entry.label}, ${formatTimeRange(entry.start, entry.end)}`}
+        aria-label={blockLabel(entry)}
         className={cn(
-          "stripes absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border border-hairline bg-panel px-1.5 py-1 text-left text-muted transition-opacity duration-150",
-          dimmed && "opacity-35",
+          "stripes absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border bg-panel px-1.5 py-1 text-left transition-colors duration-150",
+          // Dimmed with color, not opacity, so its words stay readable.
+          dimmed
+            ? "border-hairline/60 text-faint"
+            : "border-hairline text-muted",
         )}
         style={style}
       >
         <div className="truncate font-semibold text-2xs">{entry.label}</div>
         {height > 30 ? (
-          <div className="tnum truncate text-2xs opacity-80">
+          <div className="tnum truncate text-2xs">
             {formatTimeRange(entry.start, entry.end)}
           </div>
         ) : null}
@@ -306,7 +315,7 @@ export function Ghost({
         <button
           type="button"
           data-ghost={shown}
-          aria-label={`Switch to ${shown}: ${ghostWords(entry)}`}
+          aria-label={ghostName(entry, parsed.courseCode)}
           className={className}
           style={boxStyle}
           onClick={() =>
@@ -326,7 +335,7 @@ export function Ghost({
           <button
             type="button"
             data-ghost={shown}
-            aria-label={`${entry.label}: pick a section`}
+            aria-label={ghostName(entry, parsed.courseCode)}
             className={className}
             style={boxStyle}
             {...hover}
@@ -442,16 +451,22 @@ export function TravelPill({
         type="button"
         onClick={() => onOpen(c)}
         data-verdict={c.verdict}
-        aria-label={`${words} From ${c.from.building} to ${c.to.building}.`}
-        className={cn(
-          "tnum -translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-5 items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-2xs shadow-xs",
-          PILL_TONE[c.verdict],
-          selected && "ring-2 ring-fg/70",
-        )}
+        aria-label={pillLabel(c)}
+        // The button is a 24px-tall target (WCAG 2.5.8); the pill drawn
+        // inside it stays 20px so it doesn't crowd the classes around it.
+        className="-translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-6 items-center rounded-full"
         style={{ top, left: `${x * 100}%` }}
       >
-        <Route size={10} aria-hidden="true" />
-        {known ? `${c.walkMinutes} min` : null}
+        <span
+          className={cn(
+            "tnum flex h-5 items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-2xs shadow-xs",
+            PILL_TONE[c.verdict],
+            selected && "ring-2 ring-fg/70",
+          )}
+        >
+          <Route size={10} aria-hidden="true" />
+          {known ? `${c.walkMinutes} min` : null}
+        </span>
       </button>
     </WithTooltip>
   );

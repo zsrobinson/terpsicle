@@ -75,7 +75,9 @@ test("drag on empty time to block it, and label it", async ({ page }) => {
 
   await expect(page.getByText('Added "Office hours"')).toBeVisible();
   await expect(
-    calendar(page).getByRole("button", { name: /^Office hours, 8am–/ }),
+    calendar(page).getByRole("button", {
+      name: /^Office hours, Wednesday 8am to /,
+    }),
   ).toBeVisible();
 });
 

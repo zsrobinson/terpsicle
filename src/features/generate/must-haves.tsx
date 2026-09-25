@@ -24,7 +24,7 @@ const END_OPTIONS = [14, 15, 16, 17, 18, 19, 20, 21].map((h) => h * 60);
 const WEEKDAYS: readonly Day[] = ["M", "Tu", "W", "Th", "F"];
 
 const selectClass =
-  "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-sm outline-none focus:border-fg/40";
+  "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-sm focus:border-fg/40";
 
 /** Radix values can't be empty, so "Any time" gets its own. */
 const ANY = "any";

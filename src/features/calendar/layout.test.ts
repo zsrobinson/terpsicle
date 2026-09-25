@@ -29,7 +29,9 @@ import {
   ghostGroupLabel,
   ghostLabel,
   ghostLanesFor,
+  PILL_CLEARANCE,
   packGhosts,
+  pillsWhileComparing,
   previewOrder,
   spreadPills,
   stepPreview,
@@ -854,6 +856,34 @@ describe("spreadPills", () => {
   it("stacks them instead in a phone's narrow column", () => {
     const spots = spreadPills([120, 120], 68);
     expect(xs(spots)).toEqual([0.5, 0.5]);
-    expect(tops(spots)).toEqual([110, 130]);
+    expect(tops(spots)).toEqual([
+      120 - PILL_CLEARANCE / 2,
+      120 + PILL_CLEARANCE / 2,
+    ]);
+  });
+});
+
+describe("pillsWhileComparing", () => {
+  // aConnection: STAT400-0101 → CMSC351-0301.
+  const pill = (connection = aConnection()) => ({
+    key: connection.id,
+    day: connection.day,
+    at: 655,
+    connection,
+  });
+  const other = pill(
+    aConnection({
+      from: { ...aConnection().from, sectionKey: "ENGL393-0101" },
+      to: { ...aConnection().to, sectionKey: "ECON200-0101" },
+    }),
+  );
+
+  it("keeps every pill when no course's sections show", () => {
+    expect(pillsWhileComparing([pill(), other], null)).toHaveLength(2);
+  });
+
+  it("keeps only pills touching the course being compared", () => {
+    expect(pillsWhileComparing([pill(), other], "CMSC351")).toEqual([pill()]);
+    expect(pillsWhileComparing([pill(), other], "MATH140")).toEqual([]);
   });
 });
