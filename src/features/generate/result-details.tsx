@@ -141,7 +141,7 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
 
   return (
     <PanelBody className="px-4 pt-4 pb-6">
-      <h3 className="font-semibold text-[15px]">{optionLabel(found.rank)}</h3>
+      <h2 className="font-semibold text-[15px]">{optionLabel(found.rank)}</h2>
       <p className="tnum mt-1 text-[12.5px] text-muted">
         {problems.length === 1 ? "1 problem" : `${problems.length} problems`}{" "}
         (vs {before} in {current.plan.name}) · {s.daysOnCampus}{" "}

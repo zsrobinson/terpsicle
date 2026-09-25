@@ -121,7 +121,7 @@ function Grabber({
         type="button"
         aria-label={next === "peek" ? "Lower the panel" : "Raise the panel"}
         onClick={() => onSnap(next)}
-        className="mx-auto flex h-5 w-16 shrink-0 items-center justify-center rounded-full"
+        className="mx-auto flex h-6 w-16 shrink-0 items-center justify-center rounded-full"
       >
         <span className="h-1 w-8 rounded-full bg-hairline-strong" />
       </button>

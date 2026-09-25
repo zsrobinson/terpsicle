@@ -45,7 +45,7 @@ export function CourseColorPicker({
             type="button"
             aria-label={`${courseCode} color: ${COURSE_COLOR_LABELS[color]}`}
             className={cn(
-              "-m-1 flex size-5 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-hover data-[state=open]:bg-hover",
+              "-m-1.5 flex size-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-hover data-[state=open]:bg-hover",
               className,
             )}
           >

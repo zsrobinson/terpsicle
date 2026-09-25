@@ -6,10 +6,20 @@ import type * as React from "react";
 // shadcn/ui dropdown menu, restyled to our tokens and density: a raised card
 // with a hairline, 12.5px items, a quick pop-in (reference prototype `Menu`).
 
-function DropdownMenu(
-  props: React.ComponentProps<typeof DropdownMenuPrimitive.Root>,
-) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
+function DropdownMenu({
+  modal = false,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+  // Not modal: a modal menu aria-hides the rest of the page while leaving it
+  // focusable (and hides the <main> landmark with it). Focus still moves into
+  // the menu, arrows and Esc work, and closing returns focus to the trigger.
+  return (
+    <DropdownMenuPrimitive.Root
+      data-slot="dropdown-menu"
+      modal={modal}
+      {...props}
+    />
+  );
 }
 
 function DropdownMenuTrigger(
@@ -27,6 +37,7 @@ function DropdownMenuContent({
   className,
   sideOffset = 6,
   align = "start",
+  collisionPadding = 8,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
@@ -35,6 +46,8 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         align={align}
+        // Keeps menus off the screen's edge on phones.
+        collisionPadding={collisionPadding}
         className={cn(
           "z-50 min-w-[180px] overflow-y-auto overflow-x-hidden rounded-lg border border-hairline bg-raised p-1 text-fg shadow-pop",
           "max-h-(--radix-dropdown-menu-content-available-height) origin-(--radix-dropdown-menu-content-transform-origin)",
