@@ -187,8 +187,8 @@ function DrawerTab({ tab, selected }: { tab: Tab; selected: boolean }) {
           "relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg py-1.5 transition-colors",
           // The rail's selected look: a soft fill, no ring or shadow.
           selected
-            ? "bg-accent-soft text-fg"
-            : "text-muted hover:bg-hover hover:text-fg",
+            ? "bg-fg/10 text-fg"
+            : "text-muted hover:bg-hover/50 hover:text-fg",
         )}
       >
         <Icon size={17} strokeWidth={1.75} aria-hidden="true" />

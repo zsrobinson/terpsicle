@@ -186,7 +186,7 @@ function Breadcrumb({
       aria-label="Breadcrumb"
       className="flex h-12 shrink-0 items-center border-hairline border-b px-2"
     >
-      <ol className="flex min-w-0 items-center gap-1 px-1 text-[12.5px]">
+      <ol className="flex min-w-0 items-center gap-1 px-1 text-base">
         {levels.map((level, i) => {
           const last = i === levels.length - 1;
           return (

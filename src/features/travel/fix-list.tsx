@@ -64,7 +64,8 @@ export function FixList({
                 >
                   <Button
                     variant="outline"
-                    className="h-6 w-14 px-0 text-sm"
+                    size="row"
+                    className="w-14 px-0"
                     onClick={() => applyConnectionFix(fix.key)}
                     aria-label={`Switch ${fix.courseCode} to ${fix.section.code}`}
                   >

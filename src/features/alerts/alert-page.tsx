@@ -16,7 +16,7 @@ export function AlertPage({
       <div className="w-full max-w-[380px]">
         <a
           href="/"
-          className="mb-5 inline-flex rounded-md"
+          className="mb-6 inline-flex rounded-md"
           aria-label="Terpsicle home"
         >
           <Logo />
@@ -24,7 +24,7 @@ export function AlertPage({
         <section
           aria-live="polite"
           aria-busy={busy}
-          className="rounded-lg border border-hairline bg-raised p-5 shadow-pop"
+          className="rounded-lg border border-hairline bg-raised p-6 shadow-pop"
         >
           <h1 className="mb-1.5 font-semibold text-lg tracking-tight">
             {title}

@@ -96,6 +96,29 @@ describe("ListRow", () => {
     expect(onPointerEnter).toHaveBeenCalled();
   });
 
+  it("keeps its hairline when each row sits in its own list item", () => {
+    render(
+      <ul>
+        <li>
+          <ListRow data-testid="first">CMSC351</ListRow>
+        </li>
+        <li>
+          <ListRow data-testid="last">CMSC330</ListRow>
+        </li>
+      </ul>,
+    );
+    // Only a later sibling li restores the line; the list's last row has none.
+    expect(screen.getByTestId("first")).toHaveClass(
+      "[li:not(:last-child)>&]:border-b",
+    );
+    expect(screen.getByTestId("first").matches("li:not(:last-child) > *")).toBe(
+      true,
+    );
+    expect(screen.getByTestId("last").matches("li:not(:last-child) > *")).toBe(
+      false,
+    );
+  });
+
   it("is one tight line when compact", () => {
     render(<ListRow density="compact">0002</ListRow>);
     expect(screen.getByText("0002").parentElement).toHaveClass("py-1");

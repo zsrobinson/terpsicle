@@ -41,11 +41,6 @@ export interface WeekFrameProps {
   minHourHeight?: number;
   /** Strips above the grid that stay while the plan does ("No set time"). */
   top?: ReactNode;
-  /**
-   * A strip laid over the day names, for hints that come and go with the
-   * pointer (the ghost hint, a plan preview): the grid never moves for it.
-   */
-  overlay?: ReactNode;
   /** Positioned over the hour grid, right of the gutter. */
   children?: (layout: CalendarLayout) => ReactNode;
   className?: string;
@@ -73,7 +68,6 @@ export function WeekFrame({
   endMinute,
   minHourHeight = MIN_HOUR_HEIGHT,
   top,
-  overlay,
   children,
   className,
 }: WeekFrameProps) {
@@ -117,14 +111,6 @@ export function WeekFrame({
     >
       {top}
       <div className="relative flex min-h-0 flex-1 flex-col">
-        {overlay ? (
-          <div
-            className="absolute inset-x-0 top-0 z-30"
-            style={{ height: DAY_HEADER_HEIGHT }}
-          >
-            {overlay}
-          </div>
-        ) : null}
         <div
           ref={scrollRef}
           className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"

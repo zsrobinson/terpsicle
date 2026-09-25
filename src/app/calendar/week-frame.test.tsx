@@ -55,28 +55,4 @@ describe("WeekFrame", () => {
     expect(screen.getByText("5pm")).toBeInTheDocument();
     expect(screen.queryByText("6pm")).toBeNull();
   });
-
-  it("lays an overlay over the day names, out of the grid's flow", () => {
-    const frame = (overlay?: string) => (
-      <WeekFrame
-        days={["M", "Tu"]}
-        startMinute={8 * 60}
-        endMinute={17 * 60}
-        overlay={overlay ? <div>{overlay}</div> : undefined}
-      />
-    );
-    const { rerender } = render(frame());
-    const header = screen.getByText("Mon").parentElement;
-    const scroller = header?.parentElement;
-    rerender(frame("Showing every section of CMSC351."));
-    const layer = screen.getByText(
-      "Showing every section of CMSC351.",
-    ).parentElement;
-    // Positioned over the grid, not a sibling pushing it down: the day
-    // header and its scroll area are the same elements as before.
-    expect(layer).toHaveClass("absolute", "top-0");
-    expect(screen.getByText("Mon").parentElement).toBe(header);
-    expect(header?.parentElement).toBe(scroller);
-    expect(layer?.contains(header ?? null)).toBe(false);
-  });
 });
