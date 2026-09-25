@@ -305,10 +305,11 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 
 ### 7.1 Seat alerts (`SPEC.md` §3.12)
 
-**Flag.** Everything is behind `SEAT_ALERTS_ENABLED` (a `wrangler.jsonc` var, `"false"` until the end-to-end tests have passed and the owner flips it):
-- while it's off, or where there's no `EMAIL` binding (previews never have one), `alerts/subscribe` answers `{status: "unavailable"}`;
+**Flag.** Everything is behind `SEAT_ALERTS_ENABLED` (a `wrangler.jsonc` var, `"true"` since the end-to-end tests passed; `"false"` is the off switch):
+- while it's off, or where there's no `EMAIL` binding (previews never have one), `alerts/subscribe` and `alerts/status` answer `{status: "unavailable"}` (the app then hides the bell);
 - the other alert endpoints answer `503 unavailable`;
 - `notifySeatChanges` does nothing.
+- `EMAIL_SUBJECT_PREFIX` (a var, unset in production) is prepended to every alert subject, e.g. `[Test] ` for a trial run.
 
 **Tokens and ids:**
 - Tokens are 32 random bytes in base64url (43 characters). Only their hex SHA-256 is stored, in `alert_tokens`.
@@ -320,6 +321,7 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
    - new, pending or unsubscribed: a confirmation link, `/alerts/confirm?token=…`. It expires after 48 h and works once;
    - already watching: "You're already watching CMSC351 0101", with a stop link. This is how the spec's "You're already watching this" reaches the person without leaking it to anyone else.
    - The app shows "You're already watching this" itself when its own local list has the watch.
+   - The app keeps a pending request for 48 h (the link's life), with a "Send again" button; after that the bell offers a fresh start.
 2. **Confirm.** The page at `/alerts/confirm` calls `alerts/confirm`:
    - `confirmed` makes the watch `active` and returns a **manage token**. Holding the emailed token proves the address, so the browser that followed the link keeps it;
    - the page leaves `{termId, sectionKey, subscriptionId, manageToken, status}` in `localStorage["terpsicle:alerts-inbox"]` (`src/features/alerts/inbox.ts`). The state layer moves it into Dexie `seatAlerts` and clears the inbox;
@@ -346,6 +348,7 @@ API-triggered emails link to the requesting origin only when it's ours (terpsicl
 
 **Limits:**
 - at most 5 signup emails (confirmation or "already watching") per address per 24 h, and at most one per subscription per 10 min. Hitting either limit skips the email but keeps the answer `check-email`, so limits can't reveal anything;
+- at most 300 signup emails in total per UTC day (`signup-emails` counter), a backstop against abuse spread over many networks and addresses. Past it, the answer is still `check-email`;
 - at most 20 alerts per address per 24 h, and a 30-min cooldown per subscription;
 - the per-IP limits in the table above.
 

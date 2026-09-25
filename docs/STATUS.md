@@ -13,7 +13,7 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 | M4: Sidebar features | In progress | Courses, Problems, Blocks, Export done (#10). Search + course details, Travel + route map in flight. |
 | M5: Generate | In progress | Core generator, Web Worker, Generate tab. |
 | M6: Live data | In review | `m6/live-data`: IndexedDB cache with manifest diffing, seat polling and freshness, offline and error states, data hooks, `catalog_loaded` analytics, `/data` Range and 304s, a Playwright check of each PR preview on real data. |
-| M7: Backend features | Server done (#6) | Review summaries and seat alerts server side. UI in M4 search/details; seat alerts behind `SEAT_ALERTS_ENABLED` until e2e-tested. |
+| M7: Backend features | Server done (#6); seat alerts on (`m7/alerts-launch`) | Review summaries and seat alerts server side. UI in M4 search/details. Seat alerts end to end, tested, and `SEAT_ALERTS_ENABLED` on. |
 | M8: Polish and launch | Not started | |
 
 ## In flight
@@ -31,6 +31,11 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 - **Seat alerts** send only when a full section reopens, with cooldown and daily caps; subscribe answers identically for every address (no leak of who watches what).
 - **Blocks are per term; course colors are global per course code; saved-for-later is per plan.**
 
+- **Seat alerts are on** (`SEAT_ALERTS_ENABLED: "true"`, 2026-09-25) after two checks passed:
+  - an automated end-to-end test, `e2e/seat-alerts.spec.ts`: the real router and alert code in a local harness Worker (`e2e/alerts-harness`, real migrations, a capturing `EMAIL`) behind the mock app. It covers bell → email → confirm page → Watching in the app and Export → reopen → alert email → stop page → Export updates;
+  - a real run through Email Service on real Fall 2026 data (CMSC216 0101, full), to the owner only, subjects prefixed `[Test]`: the confirmation (`<EZWAtMkzK06BaupbdFttCeNuYFVMK0yDsOhv@terpsicle.com>`) and the alert (`<ivfH6Anc0UVjvmuIErXWh9KkVRwjbgtomPXy@terpsicle.com>`) were both accepted. It ran the real code locally over a local D1 (confirmed with a known token written by `wrangler d1 execute`), so nothing was deployed and no production rows were written. The test rows were deleted.
+
+  "false" turns them off again without losing subscriptions. An alert fires only when a full section reopens, so on a section with a few seats left the bell says "Get an email if it fills and a seat opens again".
 - **Seat-alert email uses Cloudflare Email Service** (the `send_email` binding `EMAIL`), not Resend. The owner granted it and terpsicle.com is onboarded for sending, so there's no API key or extra DNS work. Previews get no email binding.
 - **PostHog analytics, anonymous, through a first-party `/ingest` proxy.** Only terpsicle.com with live data reports. Details: `docs/ANALYTICS.md`.
 - **PR previews use `wrangler preview`** (Workers Previews), not `wrangler versions upload --preview-alias`: Cloudflare now recommends Previews for branches and PRs, since aliased version URLs share production bindings. Previews are on `pr-<n>-terpsicle.zsrobinson.workers.dev` and read production R2 but use their own D1 database (`terpsicle-preview`). Crons never run on previews.

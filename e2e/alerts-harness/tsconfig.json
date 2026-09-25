@@ -1,0 +1,6 @@
+{
+  // Lets wrangler's bundler resolve the ~/ aliases for worker.ts. The
+  // typecheck happens in tsconfig.worker.json, which includes this folder.
+  "extends": "../../tsconfig.base.json",
+  "include": ["worker.ts"]
+}

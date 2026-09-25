@@ -22,14 +22,23 @@ export type SeatAlertState =
   | { kind: "pending"; alert: LocalSeatAlert }
   | { kind: "watching"; alert: LocalSeatAlert };
 
+/** Confirmation links work for 48 hours (DATA.md §7.1). */
+export const CONFIRM_LINK_MS = 48 * 3_600_000;
+
 export function seatAlertState(
   alert: LocalSeatAlert | undefined,
   availability: ReturnType<typeof useSeatAlerts.getState>["availability"],
+  now: Date = new Date(),
 ): SeatAlertState {
   if (availability === "unavailable") return { kind: "unavailable" };
   if (!alert) return { kind: "none" };
   if (alert.status === "active") return { kind: "watching", alert };
-  if (alert.status === "pending") return { kind: "pending", alert };
+  // A request whose link has expired offers the bell again.
+  if (
+    alert.status === "pending" &&
+    now.getTime() - Date.parse(alert.updatedAt) < CONFIRM_LINK_MS
+  )
+    return { kind: "pending", alert };
   return { kind: "none" };
 }
 
@@ -71,7 +80,7 @@ export function useSeatAlertList(termId?: TermId): readonly LocalSeatAlert[] {
       alerts
         .filter(
           (a) =>
-            a.status !== "unsubscribed" &&
+            seatAlertState(a, "available").kind !== "none" &&
             (termId === undefined || a.termId === termId),
         )
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),

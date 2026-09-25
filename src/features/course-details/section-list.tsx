@@ -25,6 +25,7 @@ import {
   seatStatus,
 } from "~/core/seats";
 import { formatDateSpan } from "~/core/time";
+import { useSeatAlert } from "~/features/alerts/seat-alerts";
 import { SeatMeter } from "~/features/courses/seat-meter";
 import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
@@ -184,7 +185,14 @@ const SectionRow = memo(function SectionRow({
   const label = fit ? fitLabel(fit, course, section) : null;
   const delivery = deliveryWords(section.delivery);
   const counts = seatCounts(seats, key);
-  const watchable = !readOnly && canWatchSeats(counts);
+  const alert = useSeatAlert(termId, key);
+  // A watched section keeps its bell after seats open up, so "Watching"
+  // stays visible where it was set.
+  const watchable =
+    !readOnly &&
+    (canWatchSeats(counts) ||
+      alert.kind === "watching" ||
+      alert.kind === "pending");
 
   // ↑/↓ on the calendar move the preview; keep its row in view.
   useEffect(() => {
@@ -313,7 +321,12 @@ const SectionRow = memo(function SectionRow({
         </div>
       )}
       {watchable ? (
-        <SeatBell termId={termId} sectionKey={key} compact={compact} />
+        <SeatBell
+          termId={termId}
+          sectionKey={key}
+          compact={compact}
+          full={counts?.open === 0}
+        />
       ) : null}
       {action}
     </div>
