@@ -1,12 +1,23 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { chromium, defineConfig, devices } from "@playwright/test";
+import {
+  alertsHarnessPort,
+  CHECKOUT_MARKER_PATH,
+  checkoutId,
+  e2ePort,
+} from "./scripts/e2e-checkout";
 
-// E2E_PORT lets checkouts side by side run e2e at once: locally an existing
-// server on the port is reused, which would test the other checkout's code.
-const PORT = Number(process.env.E2E_PORT ?? 3100);
+// Each checkout gets its own pair of ports (E2E_PORT overrides them), and
+// Playwright waits on a marker URL that only this checkout's servers answer
+// with 200. Locally a running server on those ports is reused only if it's
+// ours; another checkout's makes the run fail at startup instead of silently
+// testing its code. README.md, "End-to-end tests".
+const ROOT = import.meta.dirname;
+const PORT = e2ePort(ROOT);
 /** The seat-alert e2e's local API (e2e/alerts-harness). */
-const ALERTS_PORT = PORT + 1;
+const ALERTS_PORT = alertsHarnessPort(ROOT);
+const MARKER = `${CHECKOUT_MARKER_PATH}/${checkoutId(ROOT)}`;
 const isCI = Boolean(process.env.CI);
 
 // CI installs the browser this Playwright version expects. Local agent
@@ -55,9 +66,10 @@ export default defineConfig({
   ],
   webServer: [
     {
-      // Fixtures only: e2e never touches the network.
+      // Fixtures only: e2e never touches the network. `dev:mock` applies the
+      // local D1 migrations first.
       command: `pnpm dev:mock --port ${PORT} --strictPort`,
-      url: `http://localhost:${PORT}`,
+      url: `http://localhost:${PORT}${MARKER}`,
       reuseExistingServer: !isCI,
       timeout: 120_000,
     },
@@ -65,7 +77,7 @@ export default defineConfig({
       // The real /api router and seat-alert code over local D1 and R2, with a
       // capturing EMAIL binding (e2e/seat-alerts.spec.ts).
       command: `pnpm tsx scripts/e2e-alerts-harness.ts ${ALERTS_PORT}`,
-      url: `http://localhost:${ALERTS_PORT}/__test/emails`,
+      url: `http://localhost:${ALERTS_PORT}${MARKER}`,
       reuseExistingServer: !isCI,
       timeout: 120_000,
     },

@@ -4,6 +4,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import path from "node:path";
+import { checkoutId } from "./e2e-checkout";
 import { isMain, ROOT } from "./lib/source-files";
 
 const CONFIG = "e2e/alerts-harness/wrangler.jsonc";
@@ -42,6 +43,9 @@ if (isMain(import.meta.url)) {
       port,
       "--persist-to",
       STATE,
+      // For the marker Playwright waits on (scripts/e2e-checkout.ts).
+      "--var",
+      `CHECKOUT_ID:${checkoutId(ROOT)}`,
     ],
     { cwd: ROOT, stdio: "inherit" },
   );

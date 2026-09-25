@@ -9,6 +9,8 @@ import { type ApiEnv, handleApi } from "~/server/api/router";
 interface HarnessEnv {
   DB: D1Database;
   DATA: R2Bucket;
+  /** This checkout's id (scripts/e2e-checkout.ts), set by the launcher. */
+  CHECKOUT_ID?: string;
 }
 
 type Sent = {
@@ -43,6 +45,14 @@ function apiEnv(env: HarnessEnv): ApiEnv {
 export default {
   async fetch(request: Request, env: HarnessEnv, ctx: ExecutionContext) {
     const url = new URL(request.url);
+    // Playwright reuses a running harness only if it's this checkout's.
+    if (url.pathname.startsWith("/__checkout/"))
+      return new Response(null, {
+        status:
+          env.CHECKOUT_ID && url.pathname === `/__checkout/${env.CHECKOUT_ID}`
+            ? 200
+            : 404,
+      });
     if (url.pathname === "/__test/seed") {
       for (const [key, bytes] of await buildMockDataFiles())
         if (key.startsWith("catalog/")) await env.DATA.put(key, bytes);
