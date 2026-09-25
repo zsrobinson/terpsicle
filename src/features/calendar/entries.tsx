@@ -361,8 +361,6 @@ export function TravelPill({
   const math = travelMath(c, travel);
   const words = messageToText(verdictMessage(c));
   const known = c.walkMinutes !== null;
-  // Side by side with pills leaving at the same time, centered in its slot.
-  const left = `${((pill.slot + 0.5) / pill.slots) * 100}%`;
   return (
     <WithTooltip
       label={
@@ -385,8 +383,8 @@ export function TravelPill({
         aria-label={pillLabel(c)}
         // The button is a 24px-tall target (WCAG 2.5.8); the pill drawn
         // inside it stays 19px so it doesn't crowd the classes around it.
-        className="-translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-6 items-center rounded-full"
-        style={{ top, left }}
+        className="-translate-x-1/2 -translate-y-1/2 absolute left-1/2 z-20 flex h-6 items-center rounded-full"
+        style={{ top }}
       >
         <span
           className={cn(

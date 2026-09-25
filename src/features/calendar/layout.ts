@@ -103,7 +103,7 @@ export interface Pill {
   at: Minutes;
   connection: Connection;
   /**
-   * Side by side with the other pills leaving at the same time (from
+   * Stacked under the other pills leaving at the same time (from
    * overlapping classes), so none hides another: `slot` of `slots`.
    */
   slot: number;

@@ -368,7 +368,8 @@ function Grid({
             <TravelPill
               key={pill.key}
               pill={pill}
-              top={pillTop(pill, layout)}
+              // Pills leaving at the same time stack, one target apart.
+              top={pillTop(pill, layout) + pill.slot * 24}
               travel={travel}
               selected={
                 stackTop?.kind === "connection" &&

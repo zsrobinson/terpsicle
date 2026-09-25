@@ -443,7 +443,7 @@ describe("buildCalendarModel", () => {
     expect(model.columns.find((c) => c.day === "Tu")?.pills).toEqual([]);
   });
 
-  it("sets pills leaving at the same time side by side, so none hides another", () => {
+  it("stacks pills leaving at the same time, so none hides another", () => {
     const first = aConnection({ id: "a" });
     const second = aConnection({ id: "b" });
     const later = aConnection({
