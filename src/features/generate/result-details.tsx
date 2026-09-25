@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { track } from "~/app/analytics";
 import { MessageText } from "~/app/message-text";
 import { PanelBody } from "~/app/panel";
@@ -18,12 +18,13 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { optionLabel, statsLine } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
+import { PanelFooter, SectionHeader } from "./panel-parts";
 import { useGenerateRun } from "./run-store";
 import { coursesOf, saveResults } from "./save";
 
 // One generated plan, drilled into (SPEC §3.9, prototype screenshot 09): the
-// calendar previews it while this is open; here are its problems, what
-// changes from the open plan, and Save as new plan.
+// calendar previews it while this is open; here is what changes from the
+// open plan and its problems, with Save as new plan in the footer.
 
 declare module "~/state/drill" {
   interface DrillViews {
@@ -50,19 +51,103 @@ export function resultCrumb(resultId: string): string {
   return i >= 0 ? optionLabel(i + 1) : "Plan";
 }
 
-function changeText(c: PlanChange) {
+/** The section side of a change row: "0101 → 0312", "added 0201". */
+function ChangeText({ change: c }: { change: PlanChange }) {
   switch (c.kind) {
     case "added":
-      return { from: "added: ", to: c.to };
+      return (
+        <>
+          <span className="text-muted">added </span>
+          <span className="font-mono">{c.to}</span>
+        </>
+      );
     case "switched":
-      return { from: `${c.from} → `, to: c.to };
+      return (
+        <span className="font-mono">
+          <span className="text-muted">{c.from} → </span>
+          {c.to}
+        </span>
+      );
     case "placed":
-      return { from: "placed: ", to: c.to };
+      return (
+        <>
+          <span className="text-muted">placed </span>
+          <span className="font-mono">{c.to}</span>
+        </>
+      );
     case "unplaced":
-      return { from: `${c.from} → `, to: "saved for later" };
+      return (
+        <span className="text-muted">
+          <span className="font-mono">{c.from}</span> → saved for later
+        </span>
+      );
     case "dropped":
-      return { from: "", to: "not in this plan" };
+      return <span className="text-muted">not in this plan</span>;
   }
+}
+
+/** A hairline row: the course code, then what's said about it. */
+function CourseRow({
+  code,
+  title,
+  children,
+}: {
+  code: string;
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 border-hairline border-b px-4 py-2 text-base">
+      <span className="font-mono font-semibold">{code}</span>
+      <span className="min-w-0 truncate" title={title}>
+        {children}
+      </span>
+    </li>
+  );
+}
+
+/**
+ * "ENGL393: 28 other sections meet at the same times · Show", opening the
+ * section numbers in place (UX-REVIEW §4.8): a wall of codes up front
+ * buried the rest of the details.
+ */
+function SameTimesRow({
+  courseCode,
+  others,
+}: {
+  courseCode: string;
+  others: readonly string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const n = others.length;
+  return (
+    <li className="border-hairline border-b px-4 py-2 text-base">
+      <span className="font-mono font-semibold">{courseCode}</span>
+      <span className="text-muted">
+        : {n === 1 ? "1 other section meets" : `${n} other sections meet`} at
+        the same times ·{" "}
+      </span>
+      <WithTooltip
+        label={open ? "Hide the section numbers" : "Show the section numbers"}
+      >
+        <Button
+          variant="link"
+          size="sm"
+          className="h-auto p-0 text-base"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          {open ? "Hide" : "Show"}
+        </Button>
+      </WithTooltip>
+      {open ? (
+        <p className="mt-1 text-muted text-sm">
+          <span className="font-mono text-fg">{others.join(", ")}</span>. Rooms
+          may differ. Switch any time in course details.
+        </p>
+      ) : null}
+    </li>
+  );
 }
 
 export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
@@ -123,7 +208,7 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
 
   if (!found || !catalog || !current)
     return (
-      <PanelBody className="px-4 py-3 text-[12.5px] text-muted">
+      <PanelBody className="px-4 py-3 text-base text-muted">
         This plan isn't in the latest results. Go back to see them.
       </PanelBody>
     );
@@ -137,109 +222,102 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
     catalog.index.sections
       .get(`${courseCode}-${sectionCode}`)
       ?.section.instructors.join(", ");
+  const chosen = new Set<string>(result.sections);
   const s = result.stats;
 
   return (
-    <PanelBody className="px-4 pt-4 pb-6">
-      <h3 className="font-semibold text-[15px]">{optionLabel(found.rank)}</h3>
-      <p className="tnum mt-1 text-[12.5px] text-muted">
-        {problems.length === 1 ? "1 problem" : `${problems.length} problems`}{" "}
-        (vs {before} in {current.plan.name}) · {s.daysOnCampus}{" "}
-        {s.daysOnCampus === 1 ? "day" : "days"} on campus
-      </p>
-      <div className="mt-3 h-[88px]">
-        <MiniWeek
-          sections={result.sections}
-          index={catalog.index}
-          colors={current.colors}
-          marks={marks}
-        />
-      </div>
-      <p className="tnum mt-2 text-[11.5px] text-muted">
-        {s.firstClass !== null && s.lastClass !== null
-          ? `${formatTime(s.firstClass)} to ${formatTime(s.lastClass)} · `
-          : ""}
-        {statsLine(s)}
-      </p>
+    <>
+      <PanelBody className="pb-6">
+        <div className="px-4 pt-4">
+          <h3 className="font-semibold text-lg">{optionLabel(found.rank)}</h3>
+          <p className="tnum mt-1 text-base text-muted">
+            {problems.length === 1
+              ? "1 problem"
+              : `${problems.length} problems`}{" "}
+            (vs {before} in {current.plan.name}) · {s.daysOnCampus}{" "}
+            {s.daysOnCampus === 1 ? "day" : "days"} on campus
+          </p>
+          <div className="mt-3 h-[88px]">
+            <MiniWeek
+              sections={result.sections}
+              index={catalog.index}
+              colors={current.colors}
+              marks={marks}
+            />
+          </div>
+          <p className="tnum mt-2 text-muted text-sm">
+            {s.firstClass !== null && s.lastClass !== null
+              ? `${formatTime(s.firstClass)} to ${formatTime(s.lastClass)} · `
+              : ""}
+            {statsLine(s)}
+          </p>
+        </div>
 
-      <div className="mt-4 font-medium text-[11px] text-muted">
-        Changes from {current.plan.name}
-      </div>
-      <ul className="mt-1.5 divide-y divide-hairline rounded-lg border border-hairline text-[12.5px]">
-        {changes.length > 0 ? (
-          changes.map((c) => {
-            const t = changeText(c);
-            const who =
-              c.kind === "added" || c.kind === "switched" || c.kind === "placed"
-                ? instructorsOf(c.courseCode, c.to)
-                : undefined;
-            return (
-              <li key={c.courseCode} className="px-3 py-2">
-                <span className="font-mono font-semibold">{c.courseCode}</span>{" "}
-                <span className="text-muted">{t.from}</span>
-                <span
-                  className={
-                    c.kind === "dropped" || c.kind === "unplaced"
-                      ? "text-muted"
-                      : "font-mono"
-                  }
+        <SectionHeader title={`Changes from ${current.plan.name}`} />
+        <ul
+          aria-label={`Changes from ${current.plan.name}`}
+          className="border-hairline border-t"
+        >
+          {changes.length > 0 ? (
+            changes.map((c) => {
+              const who =
+                c.kind === "added" ||
+                c.kind === "switched" ||
+                c.kind === "placed"
+                  ? instructorsOf(c.courseCode, c.to)
+                  : undefined;
+              return (
+                <CourseRow
+                  key={c.courseCode}
+                  code={c.courseCode}
+                  title={who || undefined}
                 >
-                  {t.to}
-                </span>
-                {who ? <span className="text-muted"> · {who}</span> : null}
-              </li>
-            );
-          })
-        ) : (
-          <li className="px-3 py-2 text-muted">No changes.</li>
-        )}
-      </ul>
+                  <ChangeText change={c} />
+                  {who ? <span className="text-muted"> · {who}</span> : null}
+                </CourseRow>
+              );
+            })
+          ) : (
+            <li className="border-hairline border-b px-4 py-2 text-base text-muted">
+              No changes.
+            </li>
+          )}
+          {result.equivalents.byCourse.map((c) => (
+            <SameTimesRow
+              key={c.courseCode}
+              courseCode={c.courseCode}
+              others={c.sectionCodes.filter(
+                (code) => !chosen.has(`${c.courseCode}-${code}`),
+              )}
+            />
+          ))}
+        </ul>
 
-      {result.equivalents.byCourse.length > 0 ? (
-        <>
-          <div className="mt-4 font-medium text-[11px] text-muted">
-            Same times, other sections
-          </div>
-          <ul className="mt-1.5 flex flex-col gap-1 text-[12.5px]">
-            {result.equivalents.byCourse.map((c) => (
-              <li key={c.courseCode}>
-                <span className="font-mono font-semibold">{c.courseCode}</span>{" "}
-                <span className="font-mono">{c.sectionCodes.join(", ")}</span>
-                <span className="text-muted">
-                  {" "}
-                  meet at the same times (rooms may differ). Switch any time in
-                  course details.
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-
-      {problems.length > 0 ? (
-        <>
-          <div className="mt-4 font-medium text-[11px] text-muted">
-            Problems
-          </div>
-          <ul className="mt-1.5 flex flex-col gap-1.5 text-[12.5px]">
-            {problems.map((p) => (
-              <li key={p.id}>
-                <div>
-                  <MessageText message={p.title} />
-                </div>
-                <div className="text-[11.5px] text-muted">
-                  <MessageText message={p.detail} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-
-      <div className="mt-4 flex gap-2">
+        {problems.length > 0 ? (
+          <>
+            <SectionHeader title="Problems" count={problems.length} />
+            <ul aria-label="Problems" className="border-hairline border-t">
+              {problems.map((p) => (
+                <li
+                  key={p.id}
+                  className="border-hairline border-b px-4 py-2 text-base"
+                >
+                  <div>
+                    <MessageText message={p.title} />
+                  </div>
+                  <div className="text-muted text-sm">
+                    <MessageText message={p.detail} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </PanelBody>
+      <PanelFooter>
         <WithTooltip label="Adds it as a new plan tab and opens it. You can undo.">
           <Button
-            className="text-[12.5px]"
+            className="flex-1"
             onClick={() => {
               saveResults([result], request);
               useUi.getState().setPreviewPlan(null);
@@ -249,7 +327,7 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
             Save as new plan
           </Button>
         </WithTooltip>
-      </div>
-    </PanelBody>
+      </PanelFooter>
+    </>
   );
 }

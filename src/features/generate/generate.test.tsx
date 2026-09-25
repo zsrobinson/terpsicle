@@ -221,18 +221,76 @@ describe("Generate", () => {
     );
   });
 
-  it("says when the plans shown are for earlier choices", async () => {
+  it("keeps what was asked above the results, and edits it in the form", async () => {
     const { user } = await renderGenerate();
     await addCourse(user, "CMSC351");
     await user.click(screen.getByRole("button", { name: "Generate plans" }));
     await screen.findByRole("list", { name: "Generated plans" });
-    await user.click(screen.getByRole("button", { name: "Friday off" }));
+    // The form gives way to a one-line summary of it.
+    expect(screen.getByText("1 course · compact days")).toBeVisible();
     expect(
-      screen.getByText("These plans are for your earlier choices."),
-    ).toBeVisible();
+      screen.queryByRole("combobox", { name: "Add a course" }),
+    ).not.toBeInTheDocument();
+
+    // Unchanged, the form leads back to the same plans.
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: /^See \d+ plans?$/ }));
+    await screen.findByRole("list", { name: "Generated plans" });
+
+    // Changed, it offers a new run, and the earlier plans stay reachable.
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Friday off" }));
     expect(
       screen.getByRole("button", { name: "Generate again" }),
     ).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "See earlier plans" }));
+    expect(screen.getByText("1 course · compact days")).toBeVisible();
+  });
+
+  it("counts the plans, and says they're the best few only when capped", async () => {
+    const { user } = await renderGenerate();
+    act(() => setCourses("CMSC351", "CMSC330"));
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    await screen.findByRole("list", { name: "Generated plans" });
+    const { status } = useGenerateRun.getState();
+    if (status.kind !== "done") throw new Error("the run should be done");
+    expect(status.result.capped).toBe(false);
+    const n = status.result.results.length;
+    expect(screen.getByText(n === 1 ? "1 plan" : `${n} plans`)).toBeVisible();
+    expect(screen.queryByText(/^Showing the best/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    act(() => setCourses("ENGL101", "CMSC132"));
+    await user.click(screen.getByRole("button", { name: "Generate again" }));
+    const best = await screen.findByText(/^Best of [\d,]+\+? combinations$/);
+    const again = useGenerateRun.getState().status;
+    if (again.kind !== "done") throw new Error("the run should be done");
+    expect(again.result.capped).toBe(true);
+    expect(best).toHaveTextContent(again.result.totalFound.toLocaleString());
+    expect(
+      screen.getByText(`${again.result.results.length} plans`),
+    ).toBeVisible();
+  });
+
+  it("lists other sections at the same times only when asked", async () => {
+    const { user } = await renderGenerate();
+    act(() => setCourses("ENGL101"));
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    const list = await screen.findByRole("list", { name: "Generated plans" });
+    await user.click(within(list).getAllByRole("button")[0] as HTMLElement);
+    const changes = screen.getByRole("list", { name: "Changes from Plan A" });
+    const row = within(changes).getByText(
+      /other sections? meets? at the same times/,
+    ).parentElement as HTMLElement;
+    expect(row).toHaveTextContent(/^ENGL101: \d+ other sections? meets? at/);
+    const show = within(row).getByRole("button", { name: "Show" });
+    expect(show).toHaveAttribute("aria-expanded", "false");
+    await user.click(show);
+    expect(within(row).getByText(/Rooms may differ/)).toBeVisible();
+    expect(within(row).getByRole("button", { name: "Hide" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
   });
 
   it("names days off the way the Blocks form does (Mon, Tue, …)", async () => {

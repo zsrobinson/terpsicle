@@ -1,6 +1,12 @@
 import type { SectionDifference } from "~/core/generate/describe";
-import type { Day, Equivalents, PlanStats } from "~/core/schema";
-import { DAY_SHORT_NAMES, formatTime } from "~/core/time";
+import { RANK_FACTOR_LABELS } from "~/core/generate/score";
+import type {
+  Day,
+  Equivalents,
+  GenerateRequest,
+  PlanStats,
+} from "~/core/schema";
+import { DAY_SHORT_NAMES, formatTime, sortDays } from "~/core/time";
 
 // Plain-words summaries of a generated plan (SPEC §3.13).
 
@@ -62,4 +68,54 @@ export function equivalentsTip(equivalents: Equivalents): string {
     (c) => `${c.courseCode} ${c.sectionCodes.join(", ")}`,
   );
   return `${equivalents.count} ways to get this same week: ${lines.join("; ")}`;
+}
+
+/** "3 courses", "3 courses (1 optional) + 1 of 3" */
+function coursesPart(items: GenerateRequest["items"]): string {
+  const courses = items.filter((i) => i.kind === "course");
+  const optional = courses.filter((i) => i.kind === "course" && !i.required);
+  const parts: string[] = [];
+  if (courses.length > 0)
+    parts.push(
+      plural(courses.length, "course") +
+        (optional.length > 0 ? ` (${optional.length} optional)` : ""),
+    );
+  for (const item of items)
+    if (item.kind === "pick")
+      parts.push(`${item.count} of ${item.courses.length}`);
+  return parts.join(" + ");
+}
+
+/**
+ * What was asked, in one line above the results so the form's context
+ * isn't lost (UX-REVIEW §4.8): "4 courses · Fri off · from 10am ·
+ * compact days". Defaults (walking time checked, blocks respected) go
+ * unsaid; turning them off is said.
+ */
+export function requestSummary(request: GenerateRequest): string {
+  const m = request.mustHaves;
+  const parts = [coursesPart(request.items)];
+  if (m.daysOff.length > 0)
+    parts.push(
+      `${sortDays(m.daysOff)
+        .map((d) => DAY_SHORT_NAMES[d])
+        .join(", ")} off`,
+    );
+  if (m.earliestStart !== null)
+    parts.push(`from ${formatTime(m.earliestStart)}`);
+  if (m.latestEnd !== null) parts.push(`done by ${formatTime(m.latestEnd)}`);
+  const { min, max } = m.credits;
+  if (min !== null && max !== null) parts.push(`${min}–${max} credits`);
+  else if (min !== null) parts.push(`${min}+ credits`);
+  else if (max !== null) parts.push(`up to ${max} credits`);
+  if (m.openSeatsOnly) parts.push("open seats only");
+  if (!m.enoughTravelTime) parts.push("any walking time");
+  if (!m.respectBlocks && request.blocks.length > 0)
+    parts.push("ignoring blocks");
+  parts.push(
+    request.rankBy.preset === "custom"
+      ? "custom ranking"
+      : RANK_FACTOR_LABELS[request.rankBy.preset].toLowerCase(),
+  );
+  return parts.filter(Boolean).join(" · ");
 }
