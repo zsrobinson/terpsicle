@@ -14,7 +14,12 @@ import {
   type SectionCountSize,
   sectionCountSize,
 } from "~/core/catalog";
-import { countFittingSections, type FitContext, fitLabel } from "~/core/fit";
+import {
+  countFittingSections,
+  type FitContext,
+  fitLabel,
+  sectionFits,
+} from "~/core/fit";
 import {
   type Course,
   type FitLabel,
@@ -313,7 +318,9 @@ function SectionList({
   const n = course.sections.length;
   const many = size === "many";
   const fitting = fit ? countFittingSections(fit, course) : null;
-  const fits = (s: Section) => !fit || fitLabel(fit, course, s).kind === "fits";
+  // Core's rule, so the bar, the groups and "Only fits" agree: a section
+  // with no set times fits (ARHU338's sections all "Contact the department").
+  const fits = (s: Section) => !fit || sectionFits(fit, course, s);
   const visible = (s: Section) => !onlyFits || s.code === placedCode || fits(s);
   const placed = course.sections.find((s) => s.code === placedCode);
 
@@ -416,10 +423,7 @@ function SectionList({
       ) : null}
       {shown.map((g) => {
         const closed = collapsed.includes(g.key);
-        const inGroup = fit
-          ? g.sections.filter((s) => fitLabel(fit, course, s).kind === "fits")
-              .length
-          : null;
+        const inGroup = fit ? g.sections.filter(fits).length : null;
         const reviewsOpen =
           g.instructor !== null && props.openReviews.has(g.instructor);
         return (
