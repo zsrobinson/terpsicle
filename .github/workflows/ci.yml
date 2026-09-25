@@ -1,13 +1,21 @@
 name: CI
 
+# Once per commit: a PR's commits run as `pull_request` (which also gets the
+# preview deploy), and main's as `push`. Branch pushes without a PR aren't
+# checked; open a PR (a draft is fine) or run it by hand (workflow_dispatch).
+# Listening to every branch push as well ran each PR commit twice. Deploy
+# (deploy.yml) runs check and build on main but not the bundle budget or
+# e2e, so main keeps its own run here.
 on:
   pull_request:
   push:
-    branches-ignore: [main]
+    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # A new commit on a PR supersedes the last; every main commit gets a result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
