@@ -117,7 +117,8 @@ function useDrillFocus(containerRef: RefObject<HTMLDivElement | null>) {
           openers.current.length = s.stack.length + 1;
           // A rail tab or shortcut from outside keeps focus where it is.
           pending.current = inside || !somewhere ? "back" : null;
-        } else if (s.stack.at(-1) !== prev.stack.at(-1) && inside) {
+        } else if (inside && !sameView(s.stack.at(-1), prev.stack.at(-1))) {
+          // Replaced by a different view; a sub-tab change keeps focus.
           pending.current = "into";
         }
       }),
@@ -146,6 +147,11 @@ function useDrillFocus(containerRef: RefObject<HTMLDivElement | null>) {
     }
     active?.focus({ preventScroll: true });
   }, [stack, containerRef]);
+}
+
+function sameView(a: DrillEntry | undefined, b: DrillEntry | undefined) {
+  if (!a || !b) return a === b;
+  return drillIdentity(a) === drillIdentity(b);
 }
 
 /** The part of an entry that decides whether it's the same view (not its sub-tab). */

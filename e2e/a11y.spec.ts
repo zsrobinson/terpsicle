@@ -244,3 +244,25 @@ for (const scheme of ["light", "dark"] as const) {
     });
   });
 }
+
+test.describe("reduced motion", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("menus and the drawer don't animate", async ({ page, isMobile }) => {
+    await open(page);
+    await page.getByRole("button", { name: "New plan" }).click();
+    const menu = page.getByRole("menu");
+    await expect(menu).toBeVisible();
+    expect(
+      await menu.evaluate((el) => getComputedStyle(el).animationName),
+    ).toBe("none");
+    await page.keyboard.press("Escape");
+    if (isMobile) {
+      const drawer = page.locator("[data-vaul-drawer]");
+      await page.getByRole("button", { name: "Raise the panel" }).tap();
+      expect(
+        await drawer.evaluate((el) => getComputedStyle(el).transitionDuration),
+      ).toMatch(/^0s(, 0s)*$/);
+    }
+  });
+});

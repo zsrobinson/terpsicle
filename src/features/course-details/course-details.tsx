@@ -178,14 +178,37 @@ function Details({
         role="tablist"
         aria-label="More about this course"
         className="mt-3 flex gap-1 px-4"
+        // Arrows, Home and End move between tabs (the ARIA tabs pattern);
+        // Tab moves on to the open panel.
+        onKeyDown={(event) => {
+          const i = TABS.findIndex((t) => t.id === tab);
+          const next =
+            event.key === "ArrowRight"
+              ? TABS[(i + 1) % TABS.length]
+              : event.key === "ArrowLeft"
+                ? TABS[(i - 1 + TABS.length) % TABS.length]
+                : event.key === "Home"
+                  ? TABS[0]
+                  : event.key === "End"
+                    ? TABS.at(-1)
+                    : undefined;
+          if (!next) return;
+          event.preventDefault();
+          onTab(next.id);
+          event.currentTarget
+            .querySelector<HTMLElement>(`#course-tab-button-${next.id}`)
+            ?.focus();
+        }}
       >
         {TABS.map((t) => (
           <WithTooltip key={t.id} label={`${t.label} for ${course.code}`}>
             <button
               type="button"
               role="tab"
+              id={`course-tab-button-${t.id}`}
               aria-selected={tab === t.id}
-              aria-controls={`course-tab-${t.id}`}
+              aria-controls={tab === t.id ? `course-tab-${t.id}` : undefined}
+              tabIndex={tab === t.id ? 0 : -1}
               onClick={() => onTab(t.id)}
               className={cn(
                 "h-7 rounded-md px-2.5 text-[12px] transition-colors",
@@ -199,7 +222,12 @@ function Details({
           </WithTooltip>
         ))}
       </div>
-      <div role="tabpanel" id={`course-tab-${tab}`} className="px-4 pt-2 pb-6">
+      <div
+        role="tabpanel"
+        id={`course-tab-${tab}`}
+        aria-labelledby={`course-tab-button-${tab}`}
+        className="px-4 pt-2 pb-6"
+      >
         {tab === "instructors" ? (
           <InstructorsTab
             course={course}

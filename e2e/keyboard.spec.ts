@@ -183,3 +183,22 @@ test("every focused control shows a ring", async ({ page }) => {
     expect(outline.width).not.toBe("0px");
   }
 });
+
+test("course details' tabs follow the arrow keys", async ({ page }) => {
+  await page.keyboard.press("/");
+  const box = page.getByRole("combobox", { name: "Search courses" });
+  await box.fill("cmsc 351");
+  await expect(page.locator('[data-course-result="CMSC351"]')).toBeVisible();
+  await box.press("Enter");
+  const instructors = page.getByRole("tab", { name: "Instructors" });
+  await instructors.focus();
+  await page.keyboard.press("ArrowRight");
+  const grades = page.getByRole("tab", { name: "Grades" });
+  await expect(grades).toBeFocused();
+  await expect(grades).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toContainText("got an A or B");
+  await page.keyboard.press("End");
+  await expect(page.getByRole("tab", { name: "About" })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(instructors).toBeFocused();
+});
