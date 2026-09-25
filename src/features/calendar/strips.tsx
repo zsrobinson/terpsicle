@@ -30,7 +30,7 @@ export function GhostHint({
   const others = ghost.sectionCount - (ghost.placedCode ? 1 : 0);
   const choosing = interactive && !readOnly && others > 0;
   return (
-    <div className="flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
+    <div className="@container flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
       {interactive && !readOnly ? (
         <CourseColorPicker courseCode={ghost.courseCode} color={color} />
       ) : (
@@ -81,7 +81,7 @@ export function GhostHint({
         ) : null}
       </span>
       {choosing ? (
-        <span className="ml-auto hidden shrink-0 items-center gap-1 text-muted sm:flex">
+        <span className="ml-auto hidden shrink-0 items-center gap-1 text-muted @2xl:flex">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> preview <Kbd>↵</Kbd> switch <Kbd>esc</Kbd> done
         </span>
@@ -99,7 +99,7 @@ export function PreviewHint({
   planName: string;
 }) {
   return (
-    <div className="flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
+    <div className="@container flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
       <span className="truncate">
         <span className="font-medium">Previewing {label}.</span>{" "}
         <span className="text-muted">

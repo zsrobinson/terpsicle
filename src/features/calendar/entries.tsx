@@ -42,6 +42,11 @@ export function laneStyle(
 
 const KIND_WORDS = { discussion: "discussion", lab: "lab" } as const;
 
+/** The width in px a course code needs on one line (10px mono, padding and border). */
+function fitsCode(code: string): number {
+  return code.length * 6.1 + 14;
+}
+
 export function ClassBlock({
   entry,
   height,
@@ -51,9 +56,12 @@ export function ClassBlock({
   onOpen,
   open,
   style,
+  width = null,
 }: {
   entry: Lane<ClassEntry>;
   height: number;
+  /** Its width in px, so a narrow lane can stack the code; null before it's measured. */
+  width?: number | null;
   /** Another course's sections are showing. */
   dimmed: boolean;
   /** This course's sections are showing: it's the current one. */
@@ -79,6 +87,10 @@ export function ClassBlock({
   // Summer sessions (and some fall and spring sections) meet for part of the
   // term; two can share a weekday and time without overlapping.
   const dates = entry.dates ? formatDateSpan(entry.dates) : null;
+  // Two classes side by side on a narrow day (a wide sidebar, a phone):
+  // "CMSC" over "330" reads where "CMSC3" wouldn't.
+  const stacked = width !== null && width < fitsCode(entry.courseCode);
+  const extra = stacked ? 13 : 0;
   return (
     <WithTooltip
       label={
@@ -98,7 +110,8 @@ export function ClassBlock({
         data-course={entry.courseCode}
         aria-label={`${entry.courseCode} ${entry.sectionCode}${kind ? ` ${kind}` : ""}, ${formatTimeRange(entry.start, entry.end)}${place ? `, ${place}` : ""}${dates ? `, ${dates}` : ""}`}
         className={cn(
-          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border px-1.5 py-1 text-left transition-opacity duration-150",
+          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border py-1 text-left transition-opacity duration-150",
+          stacked && width !== null && width < 40 ? "px-0.5" : "px-1.5",
           dimmed && "opacity-35",
           (selected || changed) && "ring-2 ring-fg/70",
         )}
@@ -106,8 +119,20 @@ export function ClassBlock({
       >
         <div className="flex items-baseline gap-1 text-2xs">
           {/* The code wins the space; "discussion" gives way on narrow days. */}
-          <span className="shrink-0 font-mono font-semibold">
-            {entry.courseCode}
+          <span
+            className={cn(
+              "shrink-0 font-mono font-semibold",
+              stacked && "flex flex-col",
+            )}
+          >
+            {stacked ? (
+              <>
+                <span>{entry.courseCode.slice(0, 4)}</span>
+                <span>{entry.courseCode.slice(4)}</span>
+              </>
+            ) : (
+              entry.courseCode
+            )}
           </span>
           {kind ? (
             <span className="min-w-0 truncate font-normal opacity-70">
@@ -115,12 +140,12 @@ export function ClassBlock({
             </span>
           ) : null}
         </div>
-        {height > 30 ? (
+        {height > 30 + extra ? (
           <div className="tnum truncate text-2xs opacity-75">
             {formatTimeRange(entry.start, entry.end)}
           </div>
         ) : null}
-        {height > 46 && place ? (
+        {height > 46 + extra && place ? (
           <div className="truncate text-2xs opacity-75">{place}</div>
         ) : null}
       </button>

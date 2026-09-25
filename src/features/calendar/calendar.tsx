@@ -376,6 +376,7 @@ function Grid({
                 open={openCode === entry.courseCode}
                 onOpen={() => openCourse(entry.courseCode)}
                 style={style}
+                width={colWidth > 0 ? colWidth / entry.lanes - 4 : null}
               />
             );
           })}

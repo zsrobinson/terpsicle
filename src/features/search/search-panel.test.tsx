@@ -51,7 +51,7 @@ describe("Search tab", () => {
   it("starts with example queries, and one runs a search", async () => {
     const { user } = await renderSearch();
     expect(
-      screen.getByText("Search by course code, title or instructor."),
+      screen.getByText(/^Search by course code, title or instructor/),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "cmsc 351" }));
     expect(results()[0]).toBe("CMSC351");
@@ -64,7 +64,26 @@ describe("Search tab", () => {
     expect(row).toHaveTextContent("3 cr");
     expect(row).toHaveTextContent("Algorithms");
     expect(row).toHaveTextContent("In plan");
-    expect(row).toHaveTextContent(/4 sections · 1 fits your plan/);
+    expect(row).toHaveTextContent(/4 sections · 1 fit(?!s)/);
+  });
+
+  it("shows a one-section course's meeting time and fit, not a count", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc425");
+    const row = await screen.findByRole("option", { name: /^CMSC425/ });
+    expect(row).toHaveTextContent(
+      /TuTh 2pm–3:15pm · (Fits|Overlaps|Not enough time)/,
+    );
+    expect(row).not.toHaveTextContent(/1 section/);
+  });
+
+  it("always says how many courses match", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc");
+    expect(
+      screen.getByText(new RegExp(`^${matchCount()} courses$`)),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
   });
 
   it("hovering a result shows its sections; leaving hides them", async () => {
@@ -151,7 +170,7 @@ describe("Search tab", () => {
     expect(openSeats).toHaveAttribute("aria-pressed", "true");
     expect(matchCount()).toBeLessThanOrEqual(narrowed);
     expect(
-      screen.getByText(new RegExp(`^${matchCount()} courses? match$`)),
+      screen.getByText(new RegExp(`^${matchCount()} courses?$`)),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
@@ -163,11 +182,10 @@ describe("Search tab", () => {
     const { user, box } = await renderSearch();
     await user.type(box, "cmsc");
     await user.click(screen.getByRole("button", { name: "Fits my plan" }));
+    // "4 sections · 2 fit", or a one-section course's "… · Fits".
     for (const row of screen.getAllByRole("option"))
-      expect(row).toHaveTextContent(/fits? your plan/);
+      expect(row).toHaveTextContent(/ · ([1-9]\d* fit|Fits)/);
     expect(screen.getAllByRole("option").length).toBeGreaterThan(0);
-    for (const row of screen.getAllByRole("option"))
-      expect(row).not.toHaveTextContent("none fit your plan");
   });
 
   it("a gen-ed filter alone browses every course that counts", async () => {
