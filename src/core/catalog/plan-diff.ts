@@ -1,6 +1,7 @@
 import {
   type CatalogChange,
   type CourseCode,
+  type DeptCode,
   type IsoDateTime,
   type Meeting,
   type Plan,
@@ -84,6 +85,30 @@ export function snapshotChanges(
   return parts;
 }
 
+/** A course's department: always the code's first four letters (DATA.md §1). */
+export function courseDept(code: CourseCode): DeptCode {
+  return code.slice(0, 4);
+}
+
+/**
+ * The plan's departments the catalog can't speak for yet: listed in the
+ * manifest but not loaded. Their sections are unknown, not cancelled. A
+ * department the manifest no longer lists isn't pending: its sections are
+ * gone.
+ */
+export function pendingPlanDepts(
+  plan: Pick<Plan, "courses">,
+  listed: ReadonlySet<DeptCode>,
+  isLoaded: (dept: DeptCode) => boolean,
+): Set<DeptCode> {
+  const pending = new Set<DeptCode>();
+  for (const pc of plan.courses) {
+    const dept = courseDept(pc.courseCode);
+    if (listed.has(dept) && !isLoaded(dept)) pending.add(dept);
+  }
+  return pending;
+}
+
 /** The newest change for each section key (the file is newest first). */
 function latestChanges(
   changes: readonly CatalogChange[],
@@ -95,12 +120,14 @@ function latestChanges(
 
 /**
  * Every placed section that was cancelled or changed since the plan took its
- * snapshot, in plan order. A section missing from the catalog is cancelled.
+ * snapshot, in plan order. A section missing from the catalog is cancelled,
+ * unless its department is `pending` (not loaded yet).
  */
 export function diffPlanAgainstCatalog(
   plan: Plan,
   index: CatalogIndex,
   changes: readonly CatalogChange[] = [],
+  pending: ReadonlySet<DeptCode> = new Set(),
 ): PlanSectionDiff[] {
   const latest = latestChanges(changes);
   const out: PlanSectionDiff[] = [];
@@ -117,7 +144,8 @@ export function diffPlanAgainstCatalog(
     };
     const ref = index.sections.get(key);
     if (!ref) {
-      out.push({ kind: "cancelled", ...base });
+      if (!pending.has(courseDept(pc.courseCode)))
+        out.push({ kind: "cancelled", ...base });
       continue;
     }
     const after = snapshotOf(ref.section);

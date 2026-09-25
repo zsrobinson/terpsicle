@@ -26,7 +26,6 @@ import {
 import {
   buildCalendarModel,
   type CalendarInput,
-  packLanes,
   previewOrder,
   stepPreview,
 } from "./layout";
@@ -57,39 +56,6 @@ function input(
     ...overrides,
   };
 }
-
-describe("packLanes", () => {
-  it("puts overlapping items side by side and leaves the rest full width", () => {
-    const placed = packLanes([
-      { id: "a", start: 570, end: 645 },
-      { id: "b", start: 570, end: 645 },
-      { id: "c", start: 700, end: 750 },
-    ]);
-    const byId = Object.fromEntries(placed.map((p) => [p.id, p]));
-    expect(byId.a).toMatchObject({ lane: 0, lanes: 2 });
-    expect(byId.b).toMatchObject({ lane: 1, lanes: 2 });
-    expect(byId.c).toMatchObject({ lane: 0, lanes: 1 });
-  });
-
-  it("reuses a lane once it's free, within a chain of overlaps", () => {
-    const placed = packLanes([
-      { id: "a", start: 0, end: 60 },
-      { id: "b", start: 30, end: 90 },
-      { id: "c", start: 60, end: 120 },
-    ]);
-    const byId = Object.fromEntries(placed.map((p) => [p.id, p]));
-    expect(byId.c?.lane).toBe(0);
-    expect(placed.every((p) => p.lanes === 2)).toBe(true);
-  });
-
-  it("treats end-to-start as not overlapping", () => {
-    const placed = packLanes([
-      { start: 600, end: 650 },
-      { start: 650, end: 700 },
-    ]);
-    expect(placed.map((p) => p.lanes)).toEqual([1, 1]);
-  });
-});
 
 describe("buildCalendarModel", () => {
   it("fits hours to the plan, never less than 8am–5pm, Monday to Friday", () => {

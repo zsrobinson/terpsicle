@@ -26,7 +26,12 @@ import {
   cachedCatalogOf,
   diffManifest,
 } from "./manifest-diff";
-import { diffPlanAgainstCatalog, snapshotChanges } from "./plan-diff";
+import {
+  courseDept,
+  diffPlanAgainstCatalog,
+  pendingPlanDepts,
+  snapshotChanges,
+} from "./plan-diff";
 import {
   capGhosts,
   collapsedGroupKey,
@@ -172,6 +177,50 @@ describe("diffPlanAgainstCatalog", () => {
       ["CMSC351-0101", "cancelled", null],
       ["CMSC351-0201", "cancelled", "2026-09-21T10:00:00.000Z"],
     ]);
+  });
+
+  it("never calls a section cancelled while its department is still loading", () => {
+    const empty = buildCatalogIndex(TERM, []);
+    expect(diffPlanAgainstCatalog(plan, empty, [], new Set(["CMSC"]))).toEqual(
+      [],
+    );
+    // Another department pending doesn't excuse this one.
+    expect(
+      diffPlanAgainstCatalog(plan, empty, [], new Set(["MATH"])).map(
+        (d) => d.kind,
+      ),
+    ).toEqual(["cancelled", "cancelled"]);
+  });
+});
+
+describe("pendingPlanDepts", () => {
+  const plan = aPlan({
+    termId: TERM,
+    courses: [
+      aPlanCourse({ courseCode: "CMSC351" }),
+      aPlanCourse({ courseCode: "MATH141" }),
+      aSavedCourse("ENGL101"),
+      aPlanCourse({ courseCode: "GONE100" }),
+    ],
+  });
+
+  it("lists the plan's departments the manifest has but that haven't loaded", () => {
+    const listed = new Set(["CMSC", "MATH", "ENGL"]);
+    expect([...pendingPlanDepts(plan, listed, (d) => d === "MATH")]).toEqual([
+      "CMSC",
+      "ENGL",
+    ]);
+    expect(pendingPlanDepts(plan, listed, () => true).size).toBe(0);
+  });
+
+  it("doesn't wait for a department the manifest dropped", () => {
+    expect([...pendingPlanDepts(plan, new Set(["CMSC"]), () => false)]).toEqual(
+      ["CMSC"],
+    );
+  });
+
+  it("takes a course's department from its code", () => {
+    expect(courseDept("CMSC351")).toBe("CMSC");
   });
 
   it("reports changed dates", () => {

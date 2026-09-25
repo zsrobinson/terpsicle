@@ -9,7 +9,7 @@ import {
   type Severity,
   type Subject,
 } from "~/core/schema";
-import { useCurrentPlan, usePlanProblems, useTermCatalog } from "~/state/hooks";
+import { useCurrentPlan, usePlanProblemsState } from "~/state/hooks";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
@@ -29,9 +29,7 @@ const GROUP_LABEL: Record<Severity, string> = {
 
 export function ProblemsPanel() {
   const current = useCurrentPlan();
-  const catalog = useTermCatalog(current?.termId ?? null);
-  const problems = usePlanProblems();
-  const checking = !current || !catalog?.complete;
+  const { problems, checking } = usePlanProblemsState();
   const hasPlaced = current?.plan.courses.some((c) => c.sectionCode !== null);
 
   return (
@@ -47,7 +45,7 @@ export function ProblemsPanel() {
         }
       />
       <PanelBody>
-        {checking && hasPlaced !== false ? (
+        {(checking || !current) && hasPlaced !== false ? (
           <Checking />
         ) : problems.length === 0 ? (
           <p className="flex items-center gap-2 px-4 py-6 text-[12.5px] text-muted">

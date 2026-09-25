@@ -2,10 +2,13 @@ import { useMemo } from "react";
 import {
   buildCatalogIndex,
   type CatalogIndex,
+  pendingPlanDepts,
+  pickTerm,
   placedSections,
   type SectionRef,
 } from "~/core/catalog";
 import { buildFitContext, type FitContext } from "~/core/fit";
+import { creditsLabel, planCredits } from "~/core/plans";
 import { countBySeverity, planProblems } from "~/core/problems";
 import type {
   Block,
@@ -13,6 +16,8 @@ import type {
   Connection,
   CourseCode,
   CourseColor,
+  DeptCode,
+  Manifest,
   Plan,
   Problem,
   SeatsFile,
@@ -22,11 +27,9 @@ import type {
 } from "~/core/schema";
 import { sharedViewPlan } from "~/core/share";
 import { type CampusMap, planConnections } from "~/core/travel";
-import { creditsLabel, planCredits } from "./catalog-helpers";
 import { type TermCatalog, useCatalog } from "./catalog-store";
 import { activePlanId, plansInTerm } from "./plan-ops";
 import { useShare } from "./share-store";
-import { pickTerm } from "./terms";
 import { useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";
 
@@ -201,6 +204,7 @@ const problemsFor = lastResult(
     campus: CampusMap,
     seats: SeatsFile | null,
     changes: ChangesFile | null,
+    pendingDepts: ReadonlySet<DeptCode>,
   ): readonly Problem[] =>
     planProblems({
       plan,
@@ -210,7 +214,17 @@ const problemsFor = lastResult(
       campus,
       seats: seats?.seats ?? null,
       changes: changes?.changes ?? [],
+      pendingDepts,
     }),
+);
+const listedDepts = lastResult(
+  (manifest: Manifest): ReadonlySet<DeptCode> =>
+    new Set(manifest.departments.map((d) => d.code)),
+);
+/** One Set per distinct list, so the problems cache holds across renders. */
+const deptSet = lastResult(
+  (joined: string): ReadonlySet<DeptCode> =>
+    new Set(joined ? joined.split(",") : []),
 );
 
 /** The current plan's placed sections as they are in the catalog, in plan order. */
@@ -266,25 +280,74 @@ export function useCreditsLabel(): string | null {
 
 const NO_PROBLEMS: readonly Problem[] = [];
 
+export interface PlanProblemsState {
+  /** Most serious first (SPEC §3.6). */
+  problems: readonly Problem[];
+  /**
+   * The plan's own departments are still loading, so `problems` is empty
+   * for now: show a neutral state, never "No problems".
+   */
+  checking: boolean;
+}
+
+const NOTHING_TO_CHECK: PlanProblemsState = {
+  problems: NO_PROBLEMS,
+  checking: false,
+};
+const CHECKING: PlanProblemsState = { problems: NO_PROBLEMS, checking: true };
+
 /**
- * The current plan's problems, most serious first (SPEC §3.6). Empty until
- * the term's catalog has loaded: a missing section would otherwise read as
- * cancelled.
+ * The current plan's problems, as soon as the plan's own departments have
+ * loaded (the shell loads them first), not the whole term. A section missing
+ * from a loaded department is cancelled; one in a department that failed to
+ * load is left out rather than called cancelled.
  */
-export function usePlanProblems(): readonly Problem[] {
+export function usePlanProblemsState(): PlanProblemsState {
   const current = useCurrentPlan();
   const catalog = useTermCatalog(current?.termId ?? null);
   const { travel, campus } = useTravel();
-  if (!current || !catalog?.complete) return NO_PROBLEMS;
-  return problemsFor(
-    current.plan,
-    catalog.index,
-    current.blocks,
-    travel,
-    campus,
-    catalog.seats,
-    catalog.changes,
+  // Memoized on the result's inputs, so consumers get a stable object.
+  const inputs = (() => {
+    if (!current) return null;
+    if (current.plan.courses.length === 0) return deptSet("");
+    if (!catalog?.manifest) return "checking" as const;
+    const depts = catalog.depts;
+    const pending = pendingPlanDepts(
+      current.plan,
+      listedDepts(catalog.manifest),
+      (dept) => depts[dept] === "ready",
+    );
+    if ([...pending].some((dept) => depts[dept] !== "error"))
+      return "checking" as const;
+    return deptSet([...pending].sort().join(","));
+  })();
+  const problems =
+    inputs && typeof inputs !== "string" && current && catalog
+      ? problemsFor(
+          current.plan,
+          catalog.index,
+          current.blocks,
+          travel,
+          campus,
+          catalog.seats,
+          catalog.changes,
+          inputs,
+        )
+      : NO_PROBLEMS;
+  return useMemo(
+    () =>
+      inputs === "checking"
+        ? CHECKING
+        : problems === NO_PROBLEMS
+          ? NOTHING_TO_CHECK
+          : { problems, checking: false },
+    [inputs, problems],
   );
+}
+
+/** The current plan's problems; empty while its departments load (`usePlanProblemsState`). */
+export function usePlanProblems(): readonly Problem[] {
+  return usePlanProblemsState().problems;
 }
 
 export interface ProblemCounts {

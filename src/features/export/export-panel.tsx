@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CalendarDays, Copy, Link2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
+import { useAcademicCalendar } from "~/state/data-hooks";
 import {
   useActiveTerm,
   useCurrentPlan,
@@ -10,7 +11,6 @@ import {
   useTermCatalog,
 } from "~/state/hooks";
 import { WithTooltip } from "~/ui/tooltip";
-import { useAcademicCalendar } from "./academic-calendar";
 import { copySectionCodes, copyShareLink, downloadIcs } from "./actions";
 import { RegistrationChecklist } from "./registration-checklist";
 import { SeatAlertsList } from "./seat-alerts-list";
@@ -23,6 +23,7 @@ export function ExportPanel() {
   const catalog = useTermCatalog(current?.termId ?? null);
   const sections = usePlacedSections();
   const fit = useFitContext();
+  // Cached and offline-safe; no file for the term reads as "not published".
   const calendar = useAcademicCalendar(current?.termId ?? null);
 
   if (!current) return <PanelHeader title="Export" />;
@@ -30,8 +31,9 @@ export function ExportPanel() {
   const placed = plan.courses.filter((c) => c.sectionCode !== null).length;
   const termName = term?.name ?? "This term";
   const empty = placed === 0;
+  const calendarReady = calendar.state === "ready";
   const notPublished =
-    calendar.kind === "ready" &&
+    calendarReady &&
     (calendar.calendar === null || calendar.calendar.status !== "published");
 
   return (
@@ -64,16 +66,16 @@ export function ExportPanel() {
             hint={
               notPublished
                 ? `${termName}'s dates aren't published yet. Check back once the provost posts the academic calendar.`
-                : calendar.kind === "error"
+                : calendar.state === "error"
                   ? "Couldn't load the term's dates. Check your connection and reopen this tab."
                   : empty
                     ? "Add a course first"
                     : "Weekly classes from the first day, with breaks and holidays skipped"
             }
             tooltip="Download a file for Google Calendar, Apple Calendar or Outlook"
-            disabled={empty || calendar.kind !== "ready" || notPublished}
+            disabled={empty || !calendarReady || notPublished}
             onClick={() => {
-              if (calendar.kind !== "ready") return;
+              if (!calendarReady) return;
               downloadIcs({
                 termId,
                 termName,

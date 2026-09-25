@@ -2,6 +2,7 @@ import { DAYS, type Day, type Minutes } from "../schema";
 
 // Calendar grid extent (SPEC §3.3): hours fit the plan, never less than
 // 8am–5pm; Saturday and Sunday columns appear only when something meets then.
+// Overlapping items sit side by side in lanes (`packLanes`).
 
 export const MIN_CALENDAR_START: Minutes = 8 * 60;
 export const MIN_CALENDAR_END: Minutes = 17 * 60;
@@ -45,4 +46,49 @@ export function calendarDays(items: Iterable<{ day: Day }>): Day[] {
       (d === "Sa" && saturday) ||
       (d === "Su" && sunday),
   );
+}
+
+/** An item placed in a side-by-side lane of its overlap cluster. */
+export type Lane<T> = T & {
+  /** 0-based column within its overlap cluster. */
+  lane: number;
+  /** Columns in its overlap cluster. */
+  lanes: number;
+};
+
+/**
+ * Side-by-side lanes for overlapping items (SPEC §3.3): items that overlap,
+ * directly or through a chain, form a cluster, and each takes the first lane
+ * free at its start. Every item in a cluster shares the cluster's lane count.
+ */
+export function packLanes<T extends { start: number; end: number }>(
+  items: readonly T[],
+): Lane<T>[] {
+  const sorted = [...items].sort((a, b) => a.start - b.start || b.end - a.end);
+  const out: Lane<T>[] = [];
+  let cluster: Lane<T>[] = [];
+  let laneEnds: number[] = [];
+  let clusterEnd = Number.NEGATIVE_INFINITY;
+  const flush = () => {
+    for (const item of cluster) item.lanes = laneEnds.length;
+    cluster = [];
+    laneEnds = [];
+  };
+  for (const item of sorted) {
+    if (item.start >= clusterEnd) {
+      flush();
+      clusterEnd = Number.NEGATIVE_INFINITY;
+    }
+    let lane = laneEnds.findIndex((end) => end <= item.start);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(item.end);
+    } else laneEnds[lane] = item.end;
+    const placed = { ...item, lane, lanes: 1 };
+    cluster.push(placed);
+    out.push(placed);
+    clusterEnd = Math.max(clusterEnd, item.end);
+  }
+  flush();
+  return out;
 }

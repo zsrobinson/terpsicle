@@ -392,6 +392,15 @@ describe("catalog changes", () => {
     );
   });
 
+  it("doesn't call a section cancelled while its department is loading", () => {
+    expect(
+      planProblems({
+        ...input([], plan),
+        pendingDepts: new Set(["CMSC"]),
+      }),
+    ).toEqual([]);
+  });
+
   it("describes changed dates", () => {
     const after = aCourse({
       code: "CMSC351",

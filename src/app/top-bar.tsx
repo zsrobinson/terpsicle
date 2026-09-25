@@ -2,7 +2,12 @@ import { cn } from "cn";
 import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCatalog } from "~/state/catalog-store";
-import { useCreditsLabel, useProblemCounts } from "~/state/hooks";
+import {
+  useCreditsLabel,
+  usePlanProblemsState,
+  useProblemCounts,
+} from "~/state/hooks";
+import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
 import { Logo } from "./logo";
@@ -90,10 +95,31 @@ function Credits() {
 
 /**
  * Calm by default (DESIGN §5): red only when there's an error, amber for
- * warnings alone, and quiet when there's nothing to fix.
+ * warnings alone, and quiet when there's nothing to fix. While the plan's
+ * departments load, a neutral placeholder: "No problems" would be a guess.
  */
 function ProblemsButton({ compact }: { compact: boolean }) {
+  const { checking } = usePlanProblemsState();
   const counts = useProblemCounts();
+  if (checking)
+    return (
+      <WithTooltip
+        label="Open Problems"
+        shortcut={tabById("problems").shortcut}
+      >
+        <button
+          type="button"
+          onClick={() => openTab("problems", "click")}
+          aria-label="Checking for problems"
+          className="flex h-7 items-center rounded-md px-2 hover:bg-hover"
+        >
+          <Skeleton
+            data-testid="problems-checking"
+            className={compact ? "h-3.5 w-3.5 rounded-full" : "h-3 w-[74px]"}
+          />
+        </button>
+      </WithTooltip>
+    );
   const n = counts.error + counts.warning;
   const tone =
     counts.error > 0 ? "error" : counts.warning > 0 ? "warning" : "none";

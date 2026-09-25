@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Term } from "~/core/schema";
 import { aTerm } from "~/fixtures";
+import type { Term } from "../schema";
 import { pickTerm } from "./terms";
 
 const term = (id: string, season: Term["season"], status: Term["status"]) =>
