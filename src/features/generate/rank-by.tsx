@@ -81,7 +81,7 @@ export function CustomWeights({
     >
       {RANK_FACTORS.map((f) => (
         <WithTooltip key={f} label={FACTOR_TIPS[f]} side="right">
-          <label className="flex items-center gap-2 text-[12px]">
+          <label className="flex items-center gap-2 text-sm">
             <span className="w-36 shrink-0 truncate text-muted">
               {RANK_FACTOR_LABELS[f]}
             </span>
@@ -100,7 +100,7 @@ export function CustomWeights({
               }
               className="h-4 min-w-0 flex-1 accent-accent"
             />
-            <span className="tnum w-7 text-right font-mono text-[11px] text-muted">
+            <span className="tnum w-7 text-right font-mono text-xs text-muted">
               {Math.round(weights[f] * 100)}
             </span>
           </label>

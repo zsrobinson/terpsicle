@@ -134,7 +134,7 @@ export function CourseList({
         ) : null,
       )}
       {items.length > 0 ? (
-        <p className="text-[11px] text-faint">
+        <p className="text-xs text-faint">
           Solid is required, dashed is optional. Click a course to switch.
         </p>
       ) : null}
@@ -146,7 +146,7 @@ export function CourseList({
             <Button
               variant="outline"
               size="sm"
-              className="text-[12px]"
+              className="text-sm"
               onClick={() =>
                 setItems((xs) => [
                   ...xs,
@@ -169,7 +169,7 @@ export function CourseList({
           <Button
             variant="outline"
             size="sm"
-            className="text-[12px]"
+            className="text-sm"
             onClick={() =>
               setItems((xs) => [
                 ...xs,
@@ -211,7 +211,7 @@ function CourseChip({
     </>
   );
   const chipClass = cn(
-    "flex h-7 items-center gap-1.5 rounded-l-md border border-r-0 pr-1 pl-2 font-mono text-[11.5px]",
+    "flex h-7 items-center gap-1.5 rounded-l-md border border-r-0 pr-1 pl-2 font-mono text-sm",
     required === false
       ? "border-hairline-strong border-dashed text-muted"
       : "border-hairline-strong bg-hover font-semibold",
@@ -289,7 +289,7 @@ function PickGroup({
       aria-label={`Pick ${count} of these`}
       className="flex flex-col gap-1.5 rounded-md border border-hairline p-2"
     >
-      <div className="flex items-center gap-1 text-[12px]">
+      <div className="flex items-center gap-1 text-sm">
         <span className="text-muted">Pick</span>
         <WithTooltip label="One fewer">
           <Button
