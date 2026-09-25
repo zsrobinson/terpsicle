@@ -176,6 +176,14 @@ function PlacedRow({
 
   const row = (
     <div className="group relative border-hairline border-b transition-colors hover:bg-hover has-[button[data-state=open]]:bg-hover">
+      {/* First in the DOM, as on screen, so Tab reaches the dot before the row. */}
+      <div className="absolute top-[13px] left-[11px] z-[1]">
+        <CourseColorPicker
+          courseCode={courseCode}
+          color={color}
+          readOnly={readOnly}
+        />
+      </div>
       <WithTooltip
         label={
           problemText
@@ -213,13 +221,6 @@ function PlacedRow({
           </span>
         </button>
       </WithTooltip>
-      <div className="absolute top-[13px] left-[11px]">
-        <CourseColorPicker
-          courseCode={courseCode}
-          color={color}
-          readOnly={readOnly}
-        />
-      </div>
       {readOnly ? null : (
         <RowMenu
           courseCode={courseCode}

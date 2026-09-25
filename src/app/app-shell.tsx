@@ -18,6 +18,7 @@ import { FeatureEffects } from "./registry";
 import { SharedPill } from "./shared-pill";
 import { useShortcut } from "./shortcuts";
 import { SidebarContent } from "./sidebar";
+import { CALENDAR_MAIN_ID, SkipLinks } from "./skip-links";
 import { TABS } from "./tabs";
 import { TermSwitcher } from "./term-switcher";
 import { ThemeToggle } from "./theme-toggle";
@@ -63,8 +64,14 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
   if (mobile) {
     return (
       <div className="flex h-dvh flex-col bg-bg text-fg">
+        <SkipLinks />
         {topBar}
-        <main className="min-h-0 flex-1" style={{ paddingBottom: PEEK_HEIGHT }}>
+        <main
+          id={CALENDAR_MAIN_ID}
+          tabIndex={-1}
+          className="min-h-0 flex-1 outline-none"
+          style={{ paddingBottom: PEEK_HEIGHT }}
+        >
           {calendar}
         </main>
         <MobileDrawer />
@@ -76,6 +83,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
 
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
+      <SkipLinks />
       {topBar}
       <div className="flex min-h-0 flex-1">
         <Rail />
@@ -86,7 +94,13 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
         >
           <SidebarContent />
         </aside>
-        <main className="min-w-0 flex-1">{calendar}</main>
+        <main
+          id={CALENDAR_MAIN_ID}
+          tabIndex={-1}
+          className="min-w-0 flex-1 outline-none"
+        >
+          {calendar}
+        </main>
       </div>
       <UndoToasts />
       <FeatureEffects />

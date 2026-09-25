@@ -1,6 +1,13 @@
 import { cn } from "cn";
 import { ChevronRight } from "lucide-react";
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import {
+  Fragment,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { RailTab } from "~/core/schema";
 import type { DrillEntry } from "~/state/drill";
 import { useUi } from "~/state/ui-store";
@@ -45,15 +52,21 @@ export function SidebarContent() {
   });
 
   const shownTabs = visited.includes(tab) ? visited : [...visited, tab];
+  const containerRef = useRef<HTMLDivElement>(null);
+  useDrillFocus(containerRef);
 
   return (
-    <div id={SIDEBAR_PANEL_ID} className="relative min-h-0 flex-1">
+    <div
+      ref={containerRef}
+      id={SIDEBAR_PANEL_ID}
+      className="relative min-h-0 flex-1"
+    >
       {shownTabs.map((t) => (
         <Layer key={t} active={t === tab && stack.length === 0}>
           <TabPanel tab={t} registry={registry} />
         </Layer>
       ))}
-      {stack.map((_entry, depth) => (
+      {stack.map((entry, depth) => (
         <Layer
           // The path to this level: a view keeps its state while the levels
           // under it stay the same.
@@ -63,6 +76,7 @@ export function SidebarContent() {
             .join("/")}
           active={depth === stack.length - 1}
           animate
+          label={crumbFor(registry, entry)}
         >
           <DrillLayer
             tab={tab}
@@ -76,6 +90,64 @@ export function SidebarContent() {
   );
 }
 
+/**
+ * Keyboard focus follows drill-ins: opening one moves focus into it, and going
+ * back (Esc, the breadcrumb) returns focus to whatever opened it, such as the
+ * search result, section row or calendar block. Opening with nothing focused
+ * (a restored or deep-linked drill-in) leaves focus alone.
+ */
+function useDrillFocus(containerRef: RefObject<HTMLDivElement | null>) {
+  // What had focus when each level opened, by depth.
+  const openers = useRef<(Element | null)[]>([]);
+  const pending = useRef<"into" | "back" | null>(null);
+  const stack = useUi((s) => s.stack);
+
+  useEffect(
+    () =>
+      // Store changes are synchronous, so focus is still on the control
+      // that opened (or closed) the level.
+      useUi.subscribe((s, prev) => {
+        const focused = document.activeElement;
+        const somewhere = focused !== null && focused !== document.body;
+        const inside = containerRef.current?.contains(focused) ?? false;
+        if (s.stack.length > prev.stack.length) {
+          openers.current[s.stack.length - 1] = somewhere ? focused : null;
+          pending.current = somewhere ? "into" : null;
+        } else if (s.stack.length < prev.stack.length) {
+          openers.current.length = s.stack.length + 1;
+          // A rail tab or shortcut from outside keeps focus where it is.
+          pending.current = inside || !somewhere ? "back" : null;
+        } else if (s.stack.at(-1) !== prev.stack.at(-1) && inside) {
+          pending.current = "into";
+        }
+      }),
+    [containerRef],
+  );
+
+  useEffect(() => {
+    const move = pending.current;
+    pending.current = null;
+    const container = containerRef.current;
+    if (!move || !container) return;
+    const active = container.querySelector<HTMLElement>(
+      ":scope > [data-layer][data-active]",
+    );
+    if (move === "back") {
+      const opener = openers.current[stack.length];
+      openers.current.length = stack.length;
+      if (
+        opener instanceof HTMLElement &&
+        opener.isConnected &&
+        !opener.closest("[inert]")
+      ) {
+        opener.focus({ preventScroll: false });
+        return;
+      }
+    }
+    active?.focus({ preventScroll: true });
+  }, [stack, containerRef]);
+}
+
 /** The part of an entry that decides whether it's the same view (not its sub-tab). */
 function drillIdentity(entry: DrillEntry): string {
   const { tab: _tab, ...rest } = entry as DrillEntry & { tab?: unknown };
@@ -85,17 +157,26 @@ function drillIdentity(entry: DrillEntry): string {
 function Layer({
   active,
   animate = false,
+  label,
   children,
 }: {
   active: boolean;
   animate?: boolean;
+  /** A drill-in's name ("CMSC351"), announced when focus moves into it. */
+  label?: string;
   children: ReactNode;
 }) {
   return (
     <section
+      data-layer=""
+      data-active={active ? "" : undefined}
+      aria-label={label}
+      // Focus lands here when a drill-in opens (useDrillFocus); Tab then
+      // moves on to its first control.
+      tabIndex={-1}
       // Hidden layers keep their layout (and so their scroll position).
       className={cn(
-        "absolute inset-0 flex flex-col bg-bg",
+        "absolute inset-0 flex flex-col bg-bg outline-none",
         !active && "invisible",
         animate &&
           "fade-in-0 slide-in-from-left-2 animate-in duration-150 ease-out",
