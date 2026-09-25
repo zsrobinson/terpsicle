@@ -142,7 +142,10 @@ function keystrokes(text: string): string[] {
 
 describe("search performance", () => {
   const { courses, seats } = syntheticCatalog();
+  // Built once per catalog load, on the main thread (src/worker/README.md).
+  const indexStart = performance.now();
   const search = createCourseSearch(courses);
+  const indexMs = performance.now() - indexStart;
   // What the worker does once per catalog load.
   const prepareStart = performance.now();
   prepareFit(courses);
@@ -175,6 +178,7 @@ describe("search performance", () => {
 
   it("has a realistic catalog", () => {
     console.info(`prepareFit once per catalog: ${prepareMs.toFixed(0)} ms`);
+    console.info(`search index once per catalog: ${indexMs.toFixed(0)} ms`);
     expect(courses.length).toBe(4500);
     expect(courses.reduce((n, c) => n + c.sections.length, 0)).toBeGreaterThan(
       25_000,

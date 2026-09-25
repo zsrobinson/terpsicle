@@ -10,6 +10,7 @@ import {
 } from "~/core/schema";
 import { type TerpsicleDb, validRows } from "./db";
 import { restorableTarget } from "./drill";
+import { useGenerateDrafts } from "./generate-drafts";
 import type { Workspace } from "./plan-ops";
 import { uiPrefsOf, useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";
@@ -38,6 +39,7 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
     (DEFAULT_UI_PREFS satisfies UiPrefs);
   const travel =
     rows.find((r) => r.key === "travel")?.value ?? DEFAULT_TRAVEL_SETTINGS;
+  const drafts = rows.find((r) => r.key === "generate")?.value ?? {};
 
   useWorkspace.setState({
     plans: validRows("plans", PlanSchema, plans),
@@ -54,6 +56,7 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
     past: [],
     future: [],
   });
+  useGenerateDrafts.setState({ drafts });
   useUi.setState({
     tab: ui.tab,
     sidebarOpen: ui.sidebarOpen,
@@ -171,11 +174,17 @@ export function startPersisting(
     if (w.activePlanByTerm !== p.activePlanByTerm) writeUiIfChanged();
   });
   const stopUi = useUi.subscribe(writeUiIfChanged);
+  const stopDrafts = useGenerateDrafts.subscribe((next, prev) => {
+    if (next.drafts === prev.drafts) return;
+    const drafts = next.drafts;
+    enqueue(() => db.settings.put({ key: "generate", value: drafts }));
+  });
 
   return {
     stop: () => {
       stopWorkspace();
       stopUi();
+      stopDrafts();
     },
     flushed: () => queue.then(() => undefined),
   };
