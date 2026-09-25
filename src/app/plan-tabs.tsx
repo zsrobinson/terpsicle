@@ -235,7 +235,11 @@ function OverflowMenu({
             className="tnum flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[12.5px] text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
             {compact ? `+${plans.length}` : `${plans.length} more`}
-            <ChevronDown size={12} aria-hidden="true" />
+            <ChevronDown
+              size={12}
+              aria-hidden="true"
+              className="max-[380px]:hidden"
+            />
           </button>
         </DropdownMenuTrigger>
       </WithTooltip>
@@ -265,7 +269,7 @@ function NewPlanMenu({
           <button
             type="button"
             aria-label="New plan"
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
+            className="flex size-8 shrink-0 items-center max-[380px]:size-7 justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
             <Plus size={15} aria-hidden="true" />
           </button>

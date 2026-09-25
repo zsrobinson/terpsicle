@@ -7,7 +7,7 @@ import { type DrawerSnap, useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
 import { ProblemBadge } from "./rail";
-import { SidebarContent } from "./sidebar";
+import { SIDEBAR_PANEL_ID, SidebarContent } from "./sidebar";
 import { TABS, type Tab } from "./tabs";
 
 // Phones (SPEC §2): the same sidebar, in a bottom drawer that rests at peek,
@@ -62,19 +62,26 @@ export function MobileDrawer() {
   }, [tab, depth, setSnap]);
 
   // An empty plan's calendar has nothing on it, and the Courses tab has the
-  // first-visit guide: open far enough to show it, once, on arrival.
+  // first-visit guide: open far enough to show it, once, on arrival. Half
+  // when it fits there (most phones), full on short screens.
   const empty = useCurrentPlan()?.plan.courses.length === 0;
   const greeted = useRef(false);
   useEffect(() => {
     if (!empty || greeted.current) return;
     greeted.current = true;
     const ui = useUi.getState();
-    if (
-      ui.tab === "courses" &&
-      ui.stack.length === 0 &&
-      ui.drawerSnap === "peek"
-    )
-      setSnap("half");
+    if (ui.tab !== "courses" || ui.stack.length > 0 || ui.drawerSnap !== "peek")
+      return;
+    setSnap("half");
+    // Measure once the half-height panel has laid out.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const body = document.querySelector(
+          `#${SIDEBAR_PANEL_ID} > [data-layer][data-active] [data-panel-body]`,
+        );
+        if (body && body.scrollHeight > body.clientHeight + 1) setSnap("full");
+      }),
+    );
   }, [empty, setSnap]);
 
   return (

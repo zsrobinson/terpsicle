@@ -53,6 +53,8 @@ export function PanelBody({
 }) {
   return (
     <div
+      // The phone drawer measures this to pick a height that shows it.
+      data-panel-body=""
       className={cn("scroll-thin min-h-0 flex-1 overflow-y-auto", className)}
     >
       {children}

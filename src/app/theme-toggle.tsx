@@ -33,7 +33,7 @@ export function ThemeToggle({ side }: { side: "right" | "bottom" }) {
           <button
             type="button"
             aria-label="Theme"
-            className="flex size-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
+            className="flex size-8 items-center max-[380px]:size-7 justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
             <Icon size={15} strokeWidth={1.75} aria-hidden="true" />
           </button>
