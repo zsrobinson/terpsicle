@@ -43,6 +43,7 @@ export function MobileDrawer() {
   const depth = useUi((s) => s.stack.length);
   const viewport = useViewportHeight();
   const heights = snapHeights(viewport);
+  useCalendarStaysVisible(depth);
   const points = [
     `${heights.peek}px`,
     `${heights.half}px`,
@@ -141,6 +142,25 @@ function tapTab(tab: RailTab): void {
   if (useUi.getState().drawerSnap === "peek") ui.setDrawerSnap("half");
 }
 
+/**
+ * Course details and a generated plan are read on the calendar: every
+ * section as a ghost, or the plan previewed (docs/UX-REVIEW.md §3.6). Opening
+ * one while the drawer is full lowers it to half, so the calendar shows.
+ */
+const READ_ON_THE_CALENDAR = new Set(["course", "generated-plan"]);
+
+function useCalendarStaysVisible(depth: number) {
+  const last = useRef(depth);
+  useEffect(() => {
+    const deeper = depth > last.current;
+    last.current = depth;
+    const ui = useUi.getState();
+    const top = ui.stack.at(-1);
+    if (deeper && top && READ_ON_THE_CALENDAR.has(top.kind))
+      if (ui.drawerSnap === "full") ui.setDrawerSnap("half");
+  }, [depth]);
+}
+
 function DrawerTabs() {
   const current = useUi((s) => s.tab);
   return (
@@ -165,13 +185,14 @@ function DrawerTab({ tab, selected }: { tab: Tab; selected: boolean }) {
         onClick={() => tapTab(tab.id)}
         className={cn(
           "relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg py-1.5 transition-colors",
+          // The rail's selected look: a soft fill, no ring or shadow.
           selected
-            ? "bg-raised text-fg shadow-xs ring-1 ring-hairline"
+            ? "bg-accent-soft text-fg"
             : "text-muted hover:bg-hover hover:text-fg",
         )}
       >
         <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
-        <span className="max-w-full truncate font-medium text-[10px] leading-none">
+        <span className="max-w-full truncate font-medium text-2xs leading-none">
           {tab.label}
         </span>
         {tab.id === "problems" ? <ProblemBadge className="right-1" /> : null}
