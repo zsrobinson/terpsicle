@@ -138,7 +138,7 @@ function PlanTab({
               <button
                 type="button"
                 aria-label={`${plan.name} options`}
-                className="mr-1 flex size-6 items-center justify-center rounded text-muted transition-colors hover:bg-raised hover:text-fg data-[state=open]:bg-raised data-[state=open]:text-fg"
+                className="mr-1 flex size-6 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-raised hover:text-fg data-[state=open]:bg-raised data-[state=open]:text-fg"
               >
                 <ChevronDown size={13} aria-hidden="true" />
               </button>
