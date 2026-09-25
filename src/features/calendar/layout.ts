@@ -36,6 +36,7 @@ import {
   calendarDays,
   calendarHourRange,
   formatDays,
+  formatTime,
   formatTimeRange,
   hasSetTimes,
   type Lane,
@@ -97,6 +98,11 @@ export interface GhostEntry extends Timed {
   full: boolean;
   /** It overlaps a class or block in the plan. */
   overlaps: boolean;
+  /**
+   * What it overlaps ("ENGL101", "Lunch"), since the ghost is drawn over it
+   * and hides its label. Null when it overlaps several things.
+   */
+  overlapsWith: string | null;
   /** Drawn solid: it's being previewed. */
   previewed: boolean;
   /** Which of its sections is previewed, so the label can name it. */
@@ -260,9 +266,14 @@ function ghostEntries(input: CalendarInput): {
             seatCounts(input.seats, sectionKey(course.code, s.code)),
           ) === "full",
       );
-    const overlaps =
-      input.fit !== null &&
-      fitLabel(input.fit, course, rep).kind === "overlaps";
+    const fitNow = input.fit ? fitLabel(input.fit, course, rep) : null;
+    const overlaps = fitNow?.kind === "overlaps";
+    const overlapsWith =
+      fitNow?.kind === "overlaps"
+        ? fitNow.with.kind === "course"
+          ? fitNow.with.courseCode
+          : fitNow.with.label
+        : null;
     for (const item of sectionWeekItems(course.code, rep)) {
       if (group !== previewGroup && placedTimes.has(meetingTimeKey(item)))
         continue;
@@ -280,6 +291,7 @@ function ghostEntries(input: CalendarInput): {
         meetingKind: rep.meetings[item.source.meetingIndex]?.kind ?? "lecture",
         full,
         overlaps,
+        overlapsWith,
         previewed: group === previewGroup,
         previewCode: group === previewGroup ? previewCode : null,
         when,
@@ -369,6 +381,9 @@ function mergeGhosts(
       : "lecture",
     full: ghosts.every((g) => g.full),
     overlaps: ghosts.every((g) => g.overlaps),
+    overlapsWith: ghosts.every((g) => g.overlapsWith === first.overlapsWith)
+      ? first.overlapsWith
+      : null,
     previewed: exact && previewed !== undefined,
     previewCode: exact ? (previewed?.previewCode ?? null) : null,
     when: Object.assign({}, ...ghosts.map((g) => g.when)),
@@ -559,6 +574,28 @@ export function ghostLabel(
     return { text: range, count: times, instructor: false };
   if (fits(range)) return { text: range, count: null, instructor: false };
   return { text: first, count: times, instructor: false };
+}
+
+/** About one character of the calendar's 10px text, in px (digits and "am" run widest). */
+const CLOCK_CHAR = 6;
+
+/**
+ * A class or block's time line for its width: the range when it fits, else
+ * its start ("9:30am"), else nothing. "9:…" says nothing, and the block's
+ * height and the hour lines already show the end.
+ */
+export function clockLabel(
+  start: number,
+  end: number,
+  width: number | null,
+  pad: number,
+): string | null {
+  const fits = (text: string) =>
+    width === null || text.length * CLOCK_CHAR + pad <= width;
+  const range = formatTimeRange(start, end);
+  if (fits(range)) return range;
+  const first = formatTime(start);
+  return fits(first) ? first : null;
 }
 
 /** Packed items split back into their overlap clusters. */

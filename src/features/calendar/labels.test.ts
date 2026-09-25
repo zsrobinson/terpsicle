@@ -34,6 +34,7 @@ const ghost: GhostEntry = {
   meetingKind: "lecture",
   full: false,
   overlaps: true,
+  overlapsWith: "MATH140",
   previewed: false,
   previewCode: null,
   when: {},
@@ -74,7 +75,7 @@ describe("calendar labels", () => {
 
   it("names a ghost as another section to switch to", () => {
     expect(ghostName(ghost, "CMSC351")).toBe(
-      "Switch to 0201, another section of CMSC351: Wednesday 2pm to 2:50pm, Jada Abernathy, overlaps another class",
+      "Switch to 0201, another section of CMSC351: Wednesday 2pm to 2:50pm, Jada Abernathy, overlaps MATH140",
     );
     expect(
       ghostName(

@@ -26,6 +26,7 @@ import {
 import {
   buildCalendarModel,
   type CalendarInput,
+  clockLabel,
   ghostGroupLabel,
   ghostLabel,
   ghostLanesFor,
@@ -348,8 +349,17 @@ describe("buildCalendarModel", () => {
     });
     const ghosts = model.columns.find((c) => c.day === "M")?.ghosts ?? [];
     const by = Object.fromEntries(ghosts.map((g) => [g.sectionCodes[0], g]));
-    expect(by["0201"]).toMatchObject({ overlaps: true, full: false });
-    expect(by["0301"]).toMatchObject({ overlaps: false, full: true });
+    // Drawn over MATH240, so it names it: the ghost hides MATH240's label.
+    expect(by["0201"]).toMatchObject({
+      overlaps: true,
+      overlapsWith: "MATH240",
+      full: false,
+    });
+    expect(by["0301"]).toMatchObject({
+      overlaps: false,
+      overlapsWith: null,
+      full: true,
+    });
   });
 
   describe("crowded ghosts", () => {
@@ -885,5 +895,22 @@ describe("pillsWhileComparing", () => {
   it("keeps only pills touching the course being compared", () => {
     expect(pillsWhileComparing([pill(), other], "CMSC351")).toEqual([pill()]);
     expect(pillsWhileComparing([pill(), other], "MATH140")).toEqual([]);
+  });
+});
+
+describe("clockLabel", () => {
+  const nineThirty = 9 * 60 + 30;
+  const quarterTo = 10 * 60 + 45;
+
+  it("shows the whole range when it fits", () => {
+    expect(clockLabel(nineThirty, quarterTo, 180, 14)).toBe("9:30am–10:45am");
+    expect(clockLabel(nineThirty, quarterTo, null, 14)).toBe("9:30am–10:45am");
+  });
+
+  it("gives up the end before truncating, in a phone's narrow lanes", () => {
+    // A 390px phone: 64px per day, or about 30px for two side by side.
+    expect(clockLabel(nineThirty, quarterTo, 64, 14)).toBe("9:30am");
+    expect(clockLabel(12 * 60, 12 * 60 + 50, 30, 6)).toBe("12pm");
+    expect(clockLabel(nineThirty, quarterTo, 30, 6)).toBeNull();
   });
 });

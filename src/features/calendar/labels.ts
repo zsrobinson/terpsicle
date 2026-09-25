@@ -34,7 +34,8 @@ export function blockLabel(entry: BlockEntry): string {
 export function ghostName(entry: GhostEntry, courseCode: string): string {
   const facts = [entry.instructors || "instructor TBA"];
   if (entry.full) facts.push("full");
-  if (entry.overlaps) facts.push("overlaps another class");
+  if (entry.overlaps)
+    facts.push(`overlaps ${entry.overlapsWith ?? "another class"}`);
   const code = entry.previewCode ?? entry.sectionCodes[0] ?? "";
   if (entry.sectionCodes.length > 1)
     return `${entry.sectionCodes.length} sections of ${courseCode} to choose from, ${when(entry)}: pick one`;

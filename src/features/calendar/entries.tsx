@@ -10,7 +10,7 @@ import {
   type TravelSettings,
 } from "~/core/schema";
 import { type SeatsMap, seatCounts, seatStatus } from "~/core/seats";
-import { formatDateSpan, formatTimeRange, type Lane } from "~/core/time";
+import { formatDateSpan, type Lane } from "~/core/time";
 import { formatFeet, travelMath, verdictMessage } from "~/core/travel";
 import { useUi } from "~/state/ui-store";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
@@ -19,6 +19,7 @@ import { blockLabel, classLabel, ghostName, pillLabel } from "./labels";
 import {
   type BlockEntry,
   type ClassEntry,
+  clockLabel,
   type GhostEntry,
   ghostLabel,
   type Pill,
@@ -94,7 +95,11 @@ export function ClassBlock({
   // Two classes side by side on a narrow day (a wide sidebar, a phone):
   // "CMSC" over "330" reads where "CMSC3" wouldn't.
   const stacked = width !== null && width < fitsCode(entry.courseCode);
+  const tight = stacked && width !== null && width < 40;
   const extra = stacked ? 13 : 0;
+  // A lane that stacks the code has no room for a place worth reading.
+  const clock = clockLabel(entry.start, entry.end, width, tight ? 6 : 14);
+  const where = stacked ? null : place;
   return (
     <WithTooltip
       label={
@@ -115,7 +120,7 @@ export function ClassBlock({
         aria-label={classLabel(entry)}
         className={cn(
           "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border py-1 text-left transition-colors duration-150",
-          stacked && width !== null && width < 40 ? "px-0.5" : "px-1.5",
+          tight ? "px-0.5" : "px-1.5",
           (selected || changed) && "ring-2 ring-fg/70",
         )}
         style={{
@@ -146,13 +151,11 @@ export function ClassBlock({
             </span>
           ) : null}
         </div>
-        {height > 30 + extra ? (
-          <div className={cn("tnum truncate text-2xs", soft)}>
-            {formatTimeRange(entry.start, entry.end)}
-          </div>
+        {height > 30 + extra && clock ? (
+          <div className={cn("tnum truncate text-2xs", soft)}>{clock}</div>
         ) : null}
-        {height > 46 + extra && place ? (
-          <div className={cn("truncate text-2xs", soft)}>{place}</div>
+        {height > 46 + extra && where ? (
+          <div className={cn("truncate text-2xs", soft)}>{where}</div>
         ) : null}
       </button>
     </WithTooltip>
@@ -164,12 +167,16 @@ export function BusyBlock({
   height,
   dimmed,
   style,
+  width = null,
 }: {
   entry: Lane<BlockEntry>;
   height: number;
   dimmed: boolean;
   style: CSSProperties;
+  /** Its width in px, for what the time line can fit; null before it's measured. */
+  width?: number | null;
 }) {
+  const clock = clockLabel(entry.start, entry.end, width, 14);
   return (
     <WithTooltip label="Edit in Blocks" shortcut="5">
       <button
@@ -186,10 +193,8 @@ export function BusyBlock({
         style={style}
       >
         <div className="truncate font-semibold text-2xs">{entry.label}</div>
-        {height > 30 ? (
-          <div className="tnum truncate text-2xs">
-            {formatTimeRange(entry.start, entry.end)}
-          </div>
+        {height > 30 && clock ? (
+          <div className="tnum truncate text-2xs">{clock}</div>
         ) : null}
       </button>
     </WithTooltip>
@@ -199,7 +204,8 @@ export function BusyBlock({
 function ghostWords(entry: GhostEntry): string {
   const words = [entry.instructors || "Instructor TBA"];
   if (entry.full) words.push("full");
-  if (entry.overlaps) words.push("overlaps another class");
+  if (entry.overlaps)
+    words.push(`overlaps ${entry.overlapsWith ?? "another class"}`);
   return words.join(" · ");
 }
 
@@ -228,6 +234,12 @@ export function Ghost({
   const merged = entry.sectionCodes.length > 1;
   const label = ghostLabel(entry, width);
   const narrow = width !== null && width < 44;
+  // Name what it overlaps where there's room: the ghost covers its label.
+  const overlapWords =
+    entry.overlapsWith &&
+    (width === null || (entry.overlapsWith.length + 9) * 6.1 + 16 <= width)
+      ? `Overlaps ${entry.overlapsWith}`
+      : "Overlaps";
   const body = (
     <>
       <div className="ident flex items-baseline gap-1 font-semibold text-2xs">
@@ -248,7 +260,7 @@ export function Ghost({
       ) : null}
       {height > 44 && (entry.full || entry.overlaps) ? (
         <div className="truncate font-medium text-2xs">
-          {entry.full ? "Full" : "Overlaps"}
+          {entry.full ? "Full" : overlapWords}
         </div>
       ) : null}
     </>

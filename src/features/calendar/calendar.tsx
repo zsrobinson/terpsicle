@@ -374,6 +374,7 @@ function Grid({
                   height={height}
                   dimmed={ghostCourse !== null}
                   style={style}
+                  width={colWidth > 0 ? colWidth / entry.lanes - 4 : null}
                 />
               );
             return (
