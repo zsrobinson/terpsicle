@@ -94,7 +94,7 @@ jobs:
         with:
           script: |
             const marker = "<!-- terpsicle-preview -->";
-            const body = `${marker}\n**Preview:** ${process.env.URL}\n\nBuilt from ${context.sha.slice(0, 7)}. Crons don't run on previews; /data reads production R2.`;
+            const body = `${marker}\n**Preview:** ${process.env.URL}\n\nBuilt from ${context.payload.pull_request.head.sha.slice(0, 7)}. Crons don't run on previews; /data reads production R2.`;
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
