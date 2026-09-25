@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import { useCatalog } from "~/state/catalog-store";
 import { useCreditsLabel, useProblemCounts } from "~/state/hooks";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
@@ -42,6 +43,7 @@ export function TopBar({
           compact ? "gap-1" : "gap-3",
         )}
       >
+        <OfflineNote compact={compact} />
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
         {end}
@@ -54,6 +56,23 @@ function Slash({ className }: { className?: string }) {
   return (
     <span aria-hidden="true" className={cn("text-faint", className)}>
       /
+    </span>
+  );
+}
+
+/**
+ * The only sign of being offline with saved data (SPEC §3.13, DESIGN §5):
+ * quiet words, no banner. With nothing saved, the calendar's place shows
+ * the error and a retry instead (catalog-error.tsx).
+ */
+function OfflineNote({ compact }: { compact: boolean }) {
+  const offline = useCatalog(
+    (s) => s.network === "offline" && s.terms !== null,
+  );
+  if (!offline) return null;
+  return (
+    <span role="status" className="text-[12px] text-faint">
+      {compact ? "Offline" : "Offline · showing saved data"}
     </span>
   );
 }

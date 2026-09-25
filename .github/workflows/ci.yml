@@ -52,7 +52,7 @@ jobs:
     # Secrets aren't available to forks.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write
@@ -94,6 +94,15 @@ jobs:
           done
           echo "::error::Preview at $URL didn't answer 200"
           exit 1
+
+      # The preview reads production R2: real courses must load and cache.
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Real data on the preview (Playwright)
+        env:
+          LIVE_URL: ${{ steps.preview.outputs.url }}
+        run: pnpm test:e2e:live
 
       - name: Comment the preview URL
         uses: actions/github-script@v9

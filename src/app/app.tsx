@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { useCatalog } from "~/state/catalog-store";
+import { createDexieCache } from "~/state/data-cache";
 import { createDataReader, createDataSource } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
 import { demoRequested, loadDemoState } from "~/state/demo";
@@ -12,6 +13,7 @@ import {
 } from "~/state/persist";
 import { startSeatAlerts, startSeatAlertsInMemory } from "~/state/seat-alerts";
 import { useUi } from "~/state/ui-store";
+import { trackCatalogEvent } from "./actions";
 import { AppShell, type AppShellProps } from "./app-shell";
 import { type ClientConfig, clientConfig } from "./config";
 import { applyThemePreference } from "./theme";
@@ -64,10 +66,14 @@ function useBootstrap(config: ClientConfig) {
       const source = await createDataSource(config);
       if (cancelled) return;
       const catalog = useCatalog.getState();
-      catalog.setReader(createDataReader(source));
+      // The same cached path in mock and live mode; the namespace keeps the
+      // two apart when both run on localhost.
+      catalog.setReader(createDataReader(source), {
+        cache: createDexieCache(db, source.kind === "mock" ? "mock:" : ""),
+        onEvent: trackCatalogEvent,
+      });
+      // A failure shows in place of the calendar, with a retry (catalog-error.tsx).
       await catalog.loadTerms();
-      const error = useCatalog.getState().termsError;
-      if (error && !cancelled) toast.error(error, { id: "terms" });
     })();
 
     return () => {
