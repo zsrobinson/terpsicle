@@ -189,6 +189,33 @@ for (const scheme of ["light", "dark"] as const) {
       await page.keyboard.press("Escape");
     });
 
+    test("travel settings and connection details", async ({
+      page,
+      isMobile,
+    }) => {
+      await open(page);
+      await openTab(page, isMobile, "Travel");
+      const sidebar = isMobile
+        ? page.locator("[data-vaul-drawer]")
+        : page.getByRole("complementary", { name: "Sidebar" });
+      await sidebar
+        .getByRole("button", { name: /^CMSC330 to ECON200/ })
+        .first()
+        .click();
+      await expect(page.getByTestId("route-drawing")).toBeVisible();
+      await scan(page, `connection details (${scheme})`);
+
+      await sidebar
+        .getByRole("button", {
+          name: "Change your pace or use accessible routes",
+        })
+        .click();
+      await expect(
+        sidebar.getByRole("switch", { name: /Accessible routes/ }),
+      ).toBeVisible();
+      await scan(page, `travel settings (${scheme})`);
+    });
+
     test("generate results and details", async ({ page, isMobile }) => {
       test.slow();
       await open(page);
