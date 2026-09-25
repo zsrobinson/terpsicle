@@ -150,15 +150,23 @@ export const StatusInputSchema = z.strictObject({
 });
 export type StatusInput = z.infer<typeof StatusInputSchema>;
 
-export const StatusResultSchema = z.object({
-  /** Same order as the input. "unknown": no watch matches that id and token. */
-  items: z.array(
-    z.object({
-      subscriptionId: SubscriptionIdSchema,
-      status: z.union([SubscriptionStatusSchema, z.literal("unknown")]),
-    }),
-  ),
-});
+/**
+ * The app asks on every load, so "seat alerts are off" is an answer here, not
+ * an error: a 503 would log a console error on every visit while the flag is off.
+ */
+export const StatusResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("ok"),
+    /** Same order as the input. "unknown": no watch matches that id and token. */
+    items: z.array(
+      z.object({
+        subscriptionId: SubscriptionIdSchema,
+        status: z.union([SubscriptionStatusSchema, z.literal("unknown")]),
+      }),
+    ),
+  }),
+  z.object({ status: z.literal("unavailable") }),
+]);
 export type StatusResult = z.infer<typeof StatusResultSchema>;
 
 // ---------- POST /api/review-summary ----------

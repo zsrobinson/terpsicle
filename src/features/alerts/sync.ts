@@ -97,6 +97,10 @@ export async function refreshSeatAlerts(
       // Offline or rate-limited: keep what we know and try on the next load.
       return;
     }
+    if (result.status === "unavailable") {
+      store.setAvailability("unavailable");
+      return;
+    }
     store.setAvailability("available");
     const updated: LocalSeatAlert[] = [];
     for (const [i, item] of result.items.entries()) {

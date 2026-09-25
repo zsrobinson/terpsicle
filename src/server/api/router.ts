@@ -81,7 +81,7 @@ const ROUTES = {
   "alerts/status": route({
     input: StatusInputSchema,
     perIpPerHour: 120,
-    alerts: true,
+    alerts: false, // Answers "unavailable" in its own result when off.
     handle: (env, input) => status(env, input),
   }),
 } as const;
