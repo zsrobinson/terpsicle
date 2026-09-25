@@ -84,7 +84,7 @@ function PartLink({
         onClick={onClick}
         className={cn(
           "relative z-10 rounded-sm underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-fg hover:decoration-fg",
-          mono && "font-mono",
+          mono && "ident",
         )}
       >
         {children}
