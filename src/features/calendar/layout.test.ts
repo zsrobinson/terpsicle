@@ -95,6 +95,26 @@ describe("buildCalendarModel", () => {
     expect(buildCalendarModel(input([late])).endMinute).toBe(21 * 60);
   });
 
+  it("keeps a section's own dates on its blocks, for the tooltip", () => {
+    const summer = aCourse({
+      sections: [
+        aSection({ dates: { start: "2026-06-01", end: "2026-07-24" } }),
+      ],
+    });
+    const blocks = buildCalendarModel(
+      input([summer, aCourse({ code: "ENGL101" })]),
+    )
+      .columns.flatMap((c) => c.entries)
+      .filter((e) => e.kind === "class");
+    expect(
+      blocks.filter((b) => b.courseCode === "CMSC351").map((b) => b.dates),
+    ).toContainEqual({ start: "2026-06-01", end: "2026-07-24" });
+    // The whole term: nothing to say.
+    expect(
+      blocks.filter((b) => b.courseCode === "ENGL101").map((b) => b.dates),
+    ).toEqual([null, null, null]);
+  });
+
   it("adds Saturday only when something meets then", () => {
     const saturday = aCourse({
       sections: [aSection({ meetings: [aTimedMeeting({ days: ["Sa"] })] })],

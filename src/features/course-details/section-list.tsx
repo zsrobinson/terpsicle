@@ -249,6 +249,7 @@ const SectionRow = memo(function SectionRow({
       {compact ? (
         <WithTooltip
           label={[
+            section.dates ? formatDateSpan(section.dates) : null,
             sectionMeetingWords(section),
             label ? fitWords(label) : null,
             seatStatus(counts).words,

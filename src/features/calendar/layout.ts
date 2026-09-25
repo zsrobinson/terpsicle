@@ -19,6 +19,7 @@ import type {
   Course,
   CourseCode,
   CourseColor,
+  DateSpan,
   Day,
   Delivery,
   LocalId,
@@ -59,6 +60,8 @@ export interface ClassEntry extends Timed {
   building: BuildingCode | null;
   room: string | null;
   online: boolean;
+  /** The section's own dates (every summer section), null for the whole term. */
+  dates: DateSpan | null;
   color: CourseColor;
 }
 
@@ -429,6 +432,7 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
         building: item.source.building,
         room: item.source.room,
         online: meeting?.online ?? false,
+        dates: item.dates,
         color,
       });
     }
