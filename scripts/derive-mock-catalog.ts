@@ -21,6 +21,7 @@ import {
   type MeetingKind,
   type Section,
 } from "../src/core/schema";
+import { restrictionOf } from "../src/ingest/soc/normalize";
 import { isMain, ROOT } from "./lib/source-files";
 
 const SOC = path.join(ROOT, "src/ingest/__fixtures__/soc");
@@ -338,18 +339,6 @@ function deliveryOf(section: Element, meetings: Meeting[]): Delivery {
   return "f2f";
 }
 
-// Sentences that limit who may register; Testudo words them several ways.
-const RESTRICTION =
-  /\b(restrict\w*|reserved|must be in|not eligible|only open to|limited to)\b/i;
-
-function restrictionOf(notes: string): string | null {
-  const sentences = notes
-    .split(/(?<=\.)\s+/)
-    .filter((s) => RESTRICTION.test(s))
-    .map((s) => s.replace(/^Restriction:\s*/, ""));
-  return nullable(sentences.join(" "));
-}
-
 type RawSection = { section: Section; realInstructors: string[] };
 
 function parseSections(html: string): Map<string, RawSection[]> {
@@ -373,7 +362,7 @@ function parseSections(html: string): Map<string, RawSection[]> {
           .filter(Boolean)
           .join(" "),
       );
-      const restriction = notes ? restrictionOf(notes) : null;
+      const restriction = restrictionOf(notes);
       const start = text(el, ".section-start-date");
       const end = text(el, ".section-end-date");
       list.push({

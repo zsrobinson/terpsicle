@@ -1,4 +1,4 @@
-import { runPlanetTerp } from "~/ingest/planetterp";
+import { runPlanetTerp } from "~/ingest/planetterp/planetterp";
 import { type Job, jobHttp, jobLog, runJob } from "./job";
 import { createR2BlobStore } from "./r2-blob-store";
 
@@ -14,7 +14,8 @@ export const runPlanetTerpJob: Job = async (context) => {
     const {
       errors,
       latestReviewAt: _,
-      ...counts
+      matchedBy,
+      ...totals
     } = await runPlanetTerp({
       http: jobHttp(context),
       store: createR2BlobStore(context.env.DATA),
@@ -22,6 +23,9 @@ export const runPlanetTerpJob: Job = async (context) => {
       log: jobLog,
       gradeRequests: NIGHTLY_GRADE_REQUESTS,
     });
+    const counts: Record<string, number> = { ...totals };
+    for (const [rule, n] of Object.entries(matchedBy))
+      counts[`matchedBy.${rule}`] = n;
     return { counts, errors };
   });
 };

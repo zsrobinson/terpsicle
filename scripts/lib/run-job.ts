@@ -3,7 +3,7 @@ import { runBuildings } from "~/ingest/buildings";
 import { runCalendar } from "~/ingest/calendar";
 import { runCatalog } from "~/ingest/catalog";
 import { createHttpClient } from "~/ingest/http";
-import { runPlanetTerp } from "~/ingest/planetterp";
+import { runPlanetTerp } from "~/ingest/planetterp/planetterp";
 import { consoleLogger } from "~/ingest/publish";
 import { runRoutes } from "~/ingest/routes/build";
 import { runSeats } from "~/ingest/seats";

@@ -5,7 +5,7 @@ import { buildCourseGrades, summarizeGrades } from "./planetterp";
 const read = (path: string) =>
   JSON.parse(
     readFileSync(
-      new URL(`./__fixtures__/planetterp/${path}`, import.meta.url),
+      new URL(`../__fixtures__/planetterp/${path}`, import.meta.url),
       "utf8",
     ),
   );

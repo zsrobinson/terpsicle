@@ -20,8 +20,8 @@ import {
   TermIdSchema,
   TermsFileSchema,
 } from "~/core/schema";
-import type { BlobStore } from "./blob-store";
-import { type HttpClient, HttpError, mapLimit } from "./http";
+import type { BlobStore } from "../blob-store";
+import { type HttpClient, HttpError, mapLimit } from "../http";
 import {
   type Logger,
   readJson,
@@ -29,8 +29,10 @@ import {
   updatePointer,
   writeHashed,
   writeJson,
-} from "./publish";
-import { activeTermIds } from "./soc/terms";
+} from "../publish";
+import { activeTermIds } from "../soc/terms";
+import aliasFile from "./aliases.json";
+import { createNameMatcher, MATCH_RULES, type MatchRule } from "./names";
 
 // The PlanetTerp job (daily; RESEARCH.md §5.5): every professor with review
 // metadata (147 list pages), grade distributions for catalog courses on a
@@ -66,6 +68,20 @@ const GradeRowApiSchema = z.object({
   ...Object.fromEntries(GRADE_KEYS.map((k) => [k, count])),
 });
 type GradeRowApi = z.infer<typeof GradeRowApiSchema> & Record<string, unknown>;
+
+/** Hand-checked Testudo names PlanetTerp lists under another name (aliases.json). */
+const ALIASES = new Map(
+  z
+    .array(
+      z.object({
+        testudo: z.string().min(1),
+        slug: z.string().min(1),
+        why: z.string().min(1),
+      }),
+    )
+    .parse(aliasFile)
+    .map((a) => [instructorNameKey(a.testudo), a.slug]),
+);
 
 // ---------- job state ----------
 
@@ -103,6 +119,8 @@ export interface PlanetTerpResult {
   coursesWithGrades: number;
   testudoNames: number;
   unmatchedNames: number;
+  /** Testudo names matched by each rule. */
+  matchedBy: Record<MatchRule, number>;
   latestReviewAt: string | null;
   errors: string[];
 }
@@ -125,7 +143,6 @@ export async function runPlanetTerp(
 
   const professors = await fetchProfessors(http);
   const bySlug = new Map<string, Instructor & { courses: Set<string> }>();
-  const byName = new Map<string, string[]>();
   let reviews = 0;
   let latestReviewAt: string | null = null;
   for (const p of professors) {
@@ -152,31 +169,21 @@ export async function runPlanetTerp(
       latestReviewAt: latest,
       courses: new Set(p.courses),
     });
-    const key = instructorNameKey(p.name);
-    byName.set(key, [...(byName.get(key) ?? []), p.slug]);
   }
 
-  // Testudo names → slugs. Shared names pick the slug that taught one of the
-  // same courses, then a professor over a TA, then the one with more reviews.
-  const pick = (name: string, courses: ReadonlySet<string>): string | null => {
-    const slugs = byName.get(instructorNameKey(name)) ?? [];
-    if (slugs.length <= 1) return slugs[0] ?? null;
-    const ranked = slugs
-      .map((slug) => {
-        // biome-ignore lint/style/noNonNullAssertion: every slug in byName came from bySlug.
-        const p = bySlug.get(slug)!;
-        const overlap = [...courses].some((c) => p.courses.has(c)) ? 1 : 0;
-        return {
-          slug,
-          score: [overlap, p.type === "professor" ? 1 : 0, p.reviewCount],
-        };
-      })
-      .sort((a, b) => compareScores(b.score, a.score));
-    return ranked[0]?.slug ?? null;
-  };
+  // Testudo names → slugs (names.ts has the rules).
+  const matcher = createNameMatcher([...bySlug.values()], {
+    aliases: ALIASES,
+    testudoNames: catalog.coursesByName.keys(),
+  });
   const slugForTestudo = new Map<string, string | null>();
+  const matchedBy = Object.fromEntries(
+    MATCH_RULES.map((r) => [r, 0]),
+  ) as Record<MatchRule, number>;
   for (const [name, courses] of catalog.coursesByName) {
-    slugForTestudo.set(name, pick(name, courses));
+    const match = matcher.match(name, courses);
+    slugForTestudo.set(name, match?.slug ?? null);
+    if (match) matchedBy[match.rule]++;
   }
   const unmatched = [...slugForTestudo]
     .filter(([, s]) => s === null)
@@ -214,7 +221,7 @@ export async function runPlanetTerp(
   await writeJson(store, GRADES_KEY, grades);
 
   const gradeSlug = (professor: string, course: string): string | null =>
-    pick(professor, new Set([course]));
+    matcher.exact(professor, new Set([course]));
 
   // One file per catalog department.
   const previous = await readJsonOrNull(
@@ -305,6 +312,7 @@ export async function runPlanetTerp(
     at: now.toISOString(),
     count: unmatched.length,
     names: unmatched,
+    matchedBy,
   });
 
   return {
@@ -316,17 +324,10 @@ export async function runPlanetTerp(
     coursesWithGrades,
     testudoNames: slugForTestudo.size,
     unmatchedNames: unmatched.length,
+    matchedBy,
     latestReviewAt,
     errors,
   };
-}
-
-function compareScores(a: readonly number[], b: readonly number[]): number {
-  for (let i = 0; i < a.length; i++) {
-    const d = (a[i] ?? 0) - (b[i] ?? 0);
-    if (d !== 0) return d;
-  }
-  return 0;
 }
 
 function sortRecord<T>(record: Record<string, T>): Record<string, T> {
