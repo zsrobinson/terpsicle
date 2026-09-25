@@ -79,7 +79,14 @@ export function MobileDrawer() {
         const body = document.querySelector(
           `#${SIDEBAR_PANEL_ID} > [data-layer][data-active] [data-panel-body]`,
         );
-        if (body && body.scrollHeight > body.clientHeight + 1) setSnap("full");
+        if (!body) return;
+        // Every way in (the guide's buttons) on screen; padding may overflow.
+        // Both move with the drawer's slide, so compare them to each other.
+        const bottom = body.getBoundingClientRect().bottom;
+        const cut = [...body.querySelectorAll("button")].some(
+          (b) => b.getBoundingClientRect().bottom > bottom + 1,
+        );
+        if (cut) setSnap("full");
       }),
     );
   }, [empty, setSnap]);
