@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_MUST_HAVES, GenItemSchema } from "../schema";
-import { activeMustHaves, draftCourseCodes, requestItems } from "./draft";
+import {
+  activeMustHaves,
+  draftCourseCodes,
+  relaxDraft,
+  requestItems,
+} from "./draft";
 
 describe("requestItems", () => {
   it("turns half-built pick groups into valid items", () => {
@@ -82,5 +87,35 @@ describe("activeMustHaves", () => {
       "respect-blocks",
       "credits",
     ]);
+  });
+});
+
+describe("relaxDraft", () => {
+  it("applies a relaxation to the form, leaving pick groups alone", () => {
+    const pick = { kind: "pick" as const, id: "g", count: 1, courses: [] };
+    const draft = {
+      items: [
+        {
+          kind: "course" as const,
+          courseCode: "CMSC351",
+          required: true,
+          sections: ["0101"],
+        },
+        pick,
+      ],
+      mustHaves: { ...DEFAULT_MUST_HAVES, earliestStart: 600 },
+      rankBy: { preset: "compact" as const },
+    };
+    expect(
+      relaxDraft(draft, {
+        mustHaves: { earliestStart: null },
+        makeOptional: "CMSC351",
+        allowAllSections: "CMSC351",
+      }),
+    ).toEqual({
+      ...draft,
+      items: [{ kind: "course", courseCode: "CMSC351", required: false }, pick],
+      mustHaves: DEFAULT_MUST_HAVES,
+    });
   });
 });

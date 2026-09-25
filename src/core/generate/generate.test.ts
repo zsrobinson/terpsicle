@@ -343,9 +343,32 @@ describe("when nothing fits", () => {
       mustHaves: { ...DEFAULT_MUST_HAVES, earliestStart: 600 },
     });
     const r2 = generatePlans(both, data([a, b]));
-    expect(r2.relaxations.map((r) => [r.label, r.unlockCount])).toEqual([
-      ["Allow classes before 10am", 1],
-      ["Make CMSC330 optional", 1],
+    expect(
+      r2.relaxations.map((r) => [r.label, r.unlockCount, r.atLeast]),
+    ).toEqual([
+      ["Allow classes before 10am", 1, false],
+      ["Make CMSC330 optional", 1, false],
+    ]);
+    // A what-if that runs out of budget says "at least".
+    const many = (code: string, day: Day) =>
+      course(
+        code,
+        Array.from({ length: 10 }, (_, i): [string, Day[], number] => [
+          `0${i + 1}01`.slice(-4),
+          [day],
+          480 + i * 60,
+        ]),
+      );
+    const cut = generatePlans(
+      request({
+        items: [required("MATH140"), required("MATH141")],
+        mustHaves: { ...DEFAULT_MUST_HAVES, earliestStart: 1200 },
+        limits: { maxResults: 10, maxSteps: 60 },
+      }),
+      data([many("MATH140", "M"), many("MATH141", "Tu")]),
+    );
+    expect(cut.relaxations).toEqual([
+      expect.objectContaining({ constraint: "earliest-start", atLeast: true }),
     ]);
     const fixed = applyRelaxation(both, r2.relaxations[0]?.patch ?? {});
     expect(generatePlans(fixed, data([a, b])).totalFound).toBe(1);

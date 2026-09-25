@@ -1,10 +1,13 @@
 import type {
   CourseCode,
+  GenerateDraft,
   GenerateDraftItem,
   GenItem,
   MustHaves,
   Relaxable,
+  Relaxation,
 } from "../schema";
+import { relaxCourseItem } from "./generate";
 
 // The Generate form's items as the generator's: the form lets a "pick N"
 // group be half-built while the person fills it in.
@@ -51,4 +54,18 @@ export function activeMustHaves(
   if (mustHaves.credits.min !== null || mustHaves.credits.max !== null)
     out.push("credits");
   return out;
+}
+
+/** The form with a suggested relaxation applied, as clicking it does. */
+export function relaxDraft(
+  draft: GenerateDraft,
+  patch: Relaxation["patch"],
+): GenerateDraft {
+  return {
+    ...draft,
+    mustHaves: { ...draft.mustHaves, ...(patch.mustHaves ?? {}) },
+    items: draft.items.map((item) =>
+      item.kind === "course" ? relaxCourseItem(item, patch) : item,
+    ),
+  };
 }

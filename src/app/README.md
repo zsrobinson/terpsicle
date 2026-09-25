@@ -98,6 +98,7 @@ User actions that should be counted go through `actions.ts`, which records the a
 - sections: `switchSection(courseCode, sectionCode, via)` puts a course in a section (switches, places a saved course, or adds a new one), undoable, with `via` = `"list"` from course details;
 - `setCourseColor(courseCode, color)` and `addBlock({ label, days, start, end }, via)` (`via` = `"form"` from the Blocks tab);
 - `openTab`, `switchTerm`, `setTheme`, `undo`, `redo`.
+- `startGenerate()` opens the Generate tab with its course field focused: the first-visit guide's **Generate plans** button calls it (`+` → Generate plans… does too).
 
 ## Courses, problems and seat alerts
 

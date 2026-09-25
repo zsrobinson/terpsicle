@@ -5,6 +5,8 @@ import type {
   ProblemFix,
   ProblemKind,
   RailTab,
+  RankBy,
+  Relaxable,
   TermId,
   TermStatus,
   Theme,
@@ -51,6 +53,20 @@ export interface AnalyticsEvents {
     termId: TermId | null;
     reason: "missing" | "network" | "invalid" | "newer-data";
   };
+  generate_run: {
+    courses: number;
+    /** The must-haves that narrowed the search, by name. */
+    mustHaves: Relaxable[];
+    rankBy: RankBy["preset"];
+    results: number;
+    durationMs: number;
+    /** Stopped at the step budget ("Showing the best 200"). */
+    truncated: boolean;
+    /** Started from a suggested relaxation. */
+    relaxed: boolean;
+  generate_result_previewed: { rank: number };
+  generate_plans_saved: { count: number };
+  generate_relaxation_applied: { constraint: Relaxable };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

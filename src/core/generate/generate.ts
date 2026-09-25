@@ -5,6 +5,7 @@ import {
   type GeneratedPlan,
   type GenerateRequest,
   type GenerateResult,
+  type GenItem,
   type Relaxation,
   sectionKey,
 } from "../schema";
@@ -145,9 +146,9 @@ const DAY_PLURALS: Record<Day, string> = {
 /** Every constraint that could be loosened, as a patch and its label. */
 export function relaxationOptions(
   request: GenerateRequest,
-): Omit<Relaxation, "unlockCount">[] {
+): Omit<Relaxation, "unlockCount" | "atLeast">[] {
   const m = request.mustHaves;
-  const out: Omit<Relaxation, "unlockCount">[] = [];
+  const out: Omit<Relaxation, "unlockCount" | "atLeast">[] = [];
   if (m.earliestStart !== null)
     out.push({
       constraint: "earliest-start",
@@ -218,18 +219,25 @@ export function applyRelaxation(
   return {
     ...request,
     mustHaves: { ...request.mustHaves, ...(patch.mustHaves ?? {}) },
-    items: request.items.map((item) => {
-      if (item.kind !== "course") return item;
-      let next = item;
-      if (item.courseCode === patch.makeOptional)
-        next = { ...next, required: false };
-      if (item.courseCode === patch.allowAllSections) {
-        const { sections: _all, ...rest } = next;
-        next = rest;
-      }
-      return next;
-    }),
+    items: request.items.map((item) =>
+      item.kind === "course" ? relaxCourseItem(item, patch) : item,
+    ),
   };
+}
+
+/** A requested course with a relaxation's course patch applied. */
+export function relaxCourseItem(
+  item: Extract<GenItem, { kind: "course" }>,
+  patch: Relaxation["patch"],
+): Extract<GenItem, { kind: "course" }> {
+  let next = item;
+  if (item.courseCode === patch.makeOptional)
+    next = { ...next, required: false };
+  if (item.courseCode === patch.allowAllSections) {
+    const { sections: _all, ...rest } = next;
+    next = rest;
+  }
+  return next;
 }
 
 function run(
@@ -285,7 +293,11 @@ export function generatePlans(
       maxSteps: whatIfSteps,
     });
     if (what.found > 0)
-      relaxations.push({ ...option, unlockCount: what.found });
+      relaxations.push({
+        ...option,
+        unlockCount: what.found,
+        atLeast: what.truncated,
+      });
   }
   relaxations.sort((a, b) => b.unlockCount - a.unlockCount);
 

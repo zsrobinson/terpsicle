@@ -214,7 +214,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 | `plans` | `id`, `termId` | `PlanSchema` |
 | `blocks` | `id`, `termId` | `BlockSchema` |
 | `courseColors` | `courseCode` | `CourseColorPrefSchema` |
-| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `travel` → `TravelSettings`) |
+| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`; results are never stored) |
 | `seatAlerts` | `[termId+sectionKey]`, `termId` | `LocalSeatAlertSchema` |
 | `manifests` | `key` (the R2 key) | `CachedManifestSchema` |
 | `files` | `key` (the R2 key), `family`, `termId` | `CachedFileSchema` |

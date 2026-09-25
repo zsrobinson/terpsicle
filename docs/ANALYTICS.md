@@ -37,6 +37,10 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `deep_link_opened` | `outcome`: `ok` · `unknown-term` | How often seat-alert emails bring people back, and whether their terms still exist. |
   | `catalog_loaded` | `termId`, `fromCache`, `deptsFetched`, `ms` (until every department is in) | Whether the IndexedDB cache and manifest diffing keep repeat visits fast (BUILD §5), and how long a first visit waits for the whole catalog. |
   | `catalog_load_failed` | `termId` (null when the terms list failed), `reason`: `missing` · `network` · `invalid` · `newer-data` | Visits that saw the "couldn't load" state instead of a calendar, and which failure caused it. |
+  | `generate_run` | `courses`, `mustHaves` (names of the ones set), `rankBy`, `results`, `durationMs`, `truncated`, `relaxed` | How big Generate requests get, which must-haves people set, how often nothing fits, and whether runs stay fast on real devices. |
+  | `generate_result_previewed` | `rank` | Whether people look past the first few results (is the ranking right?). |
+  | `generate_plans_saved` | `count` | Whether Generate produces plans people keep, and whether saving several at once is used. |
+  | `generate_relaxation_applied` | `constraint` | Which suggested relaxations people take when nothing fits. |
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere.
 

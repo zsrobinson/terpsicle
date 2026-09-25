@@ -3,6 +3,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import type { Plan, TermId } from "~/core/schema";
 import { useActivePlanId, useTermPlans } from "~/state/hooks";
+import { useUi } from "~/state/ui-store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -257,6 +258,7 @@ function NewPlanMenu({
   termId: TermId;
   current: Plan | undefined;
 }) {
+  const generating = useRef(false);
   return (
     <DropdownMenu>
       <WithTooltip label="New plan">
@@ -270,7 +272,18 @@ function NewPlanMenu({
           </button>
         </DropdownMenuTrigger>
       </WithTooltip>
-      <DropdownMenuContent className="w-[220px]">
+      <DropdownMenuContent
+        className="w-[220px]"
+        onCloseAutoFocus={(event) => {
+          // Generate's course field takes focus instead of the + button,
+          // once the menu has let go of it.
+          if (generating.current) {
+            event.preventDefault();
+            useUi.getState().requestFocus("generate");
+          }
+          generating.current = false;
+        }}
+      >
         <DropdownMenuItem onSelect={() => createEmptyPlan(termId)}>
           <DropdownMenuItemText label="Empty plan" hint="No courses yet" />
         </DropdownMenuItem>
@@ -282,7 +295,12 @@ function NewPlanMenu({
             />
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem onSelect={openGenerate}>
+        <DropdownMenuItem
+          onSelect={() => {
+            generating.current = true;
+            openGenerate();
+          }}
+        >
           <DropdownMenuItemText
             label="Generate plans…"
             hint="From a list of courses"

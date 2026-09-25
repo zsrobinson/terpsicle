@@ -196,6 +196,8 @@ export const RelaxationSchema = z.object({
   constraint: RelaxableSchema,
   label: z.string().min(1),
   unlockCount: z.number().int().min(1),
+  /** The what-if search hit its budget: at least `unlockCount` plans ("38+ plans"). */
+  atLeast: z.boolean(),
   patch: z.object({
     mustHaves: MustHavesSchema.partial().optional(),
     /** Make this required course optional. */
