@@ -6,23 +6,23 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 
 | Milestone | State | Notes |
 |---|---|---|
-| M0: Foundations | Done (#3) | Package, lint and boundaries, Vitest projects, Playwright, CI + PR previews, deploy, Worker entry. |
-| M1: Core domain | Done (#1, #4, #7) | Schema + DATA.md, fixtures and mock catalog, all pure domain logic. Generator is part of M5. |
-| M2: Ingest and jobs | Done (#2, #8) | Real data for every listed term in R2; crons refresh catalog (6 h), seats (5 min), PlanetTerp (daily), calendar + buildings (weekly); routes weekly via Actions. Matching improvements in flight. |
+| M0: Foundations | Done (#3, #21, #26) | Package, lint and boundaries, Vitest projects, Playwright, CI (one run per PR) + PR previews, deploy, Worker entry, bundle and data budgets in CI, per-checkout e2e ports. |
+| M1: Core domain | Done (#1, #4, #7) | Schema + DATA.md, fixtures and mock catalog, all pure domain logic. |
+| M2: Ingest and jobs | Done (#2, #8, #13) | Real data for every listed term in R2; crons refresh catalog (6 h), seats (5 min), PlanetTerp (daily), calendar + buildings (weekly); routes weekly via Actions. PlanetTerp name matching at 91%. |
 | M3: Shell and calendar | Done (#5, #9) | |
-| M4: Sidebar features | In progress | Courses, Problems, Blocks, Export done (#10). Search + course details, Travel + route map in flight. |
-| M5: Generate | In progress | Core generator, Web Worker, Generate tab. |
-| M6: Live data | In review | `m6/live-data`: IndexedDB cache with manifest diffing, seat polling and freshness, offline and error states, data hooks, `catalog_loaded` analytics, `/data` Range and 304s, a Playwright check of each PR preview on real data. |
-| M7: Backend features | Server done (#6); seat alerts on (`m7/alerts-launch`) | Review summaries and seat alerts server side. UI in M4 search/details. Seat alerts end to end, tested, and `SEAT_ALERTS_ENABLED` on. |
-| M8: Polish and launch | Not started | |
+| M4: Sidebar features | Done (#10, #15, #17) | Courses, Problems, Blocks, Export, Search, course details, Travel with the real route map. |
+| M5: Generate | Done (#14, #18) | |
+| M6: Live data | Done (#12) | IndexedDB cache, manifest diffing, seat polling, offline, `/data` Range. |
+| M7: Backend features | Done (#6, #20) | Review summaries (Workers AI) and seat alerts, on in production. |
+| M8: Polish and launch | Done, final QA in flight | Polish (#16), QA rounds 1–2 (#19, #22), accessibility and mobile (#25, axe in e2e), UX redesign WP0–WP7 (#23, #24, #27–#33). QA round 3 (post-redesign regression) in flight. |
+
+## UX redesign (owner request, 2026-09-25)
+
+`docs/UX-PRINCIPLES.md` (research) and `docs/UX-REVIEW.md` (audit, plan, before/after). Owner decisions: course details is one page with no tabs (1A); many-section courses group by meeting time (2A); the sidebar is draggable, 320–480px. The design system is enforced by `src/app/design-tokens.test.ts` (type scale, 4px spacing, no raw colors). Rule added to DESIGN.md §5: design for 1, a few and many sections.
 
 ## In flight
 
-- `m4/search-details`: Search tab and course details (M4A).
-- `m4/travel`: Travel tab, connection details, route map (M4C).
-- `m5/generate`: generator, worker, Generate tab.
-- `m6/live-data`: live data layer.
-- `m2/instructor-matching`: better PlanetTerp name matching.
+- `m8/qa-3`: post-redesign regression on production.
 
 ## Decisions
 
