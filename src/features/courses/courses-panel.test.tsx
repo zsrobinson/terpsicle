@@ -1,6 +1,9 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { renderShell } from "~/app/test-utils";
+import { encodeShare } from "~/core/share";
+import { aSharePayload } from "~/fixtures";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { panels } from "./panels";
@@ -94,6 +97,16 @@ describe("Courses tab", () => {
     expect(track).toHaveBeenCalledWith("course_saved_for_later", {
       via: "menu",
     });
+  });
+
+  it("offers no saved-for-later hint in a shared plan, which can't save", async () => {
+    await renderShell({
+      panels: [panels],
+      sharedParam: encodeShare(aSharePayload({ sections: ["CMSC351-0101"] })),
+    });
+    expect(await screen.findByTestId("course-row-CMSC351")).toBeInTheDocument();
+    expect(screen.queryByText("Saved for later")).toBeNull();
+    expect(screen.queryByText(/Save one from its details/)).toBeNull();
   });
 
   describe("first visit", () => {
