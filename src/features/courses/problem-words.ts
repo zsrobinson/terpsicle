@@ -1,11 +1,13 @@
+import type { Tone } from "~/app/emphasis";
 import type {
   CourseCode,
   Message,
   MessagePart,
   Problem,
+  Severity,
   Subject,
 } from "~/core/schema";
-import { parseSectionKey } from "~/core/schema";
+import { parseSectionKey, SEVERITY_ORDER } from "~/core/schema";
 
 // A problem in a few words, from one course's point of view, for its row in
 // the Courses tab: "Tight connection to ECON200", "Overlaps Lunch". The row
@@ -77,4 +79,23 @@ export function problemWords(
     case "instructor-tba":
       return null;
   }
+}
+
+/**
+ * A problem's words take its severity's color, as the top bar and Problems
+ * do: "Not enough time after ENGL393" is an error, so red, not amber.
+ */
+export function severityTone(severity: Severity): Tone {
+  return severity === "error"
+    ? "error"
+    : severity === "warning"
+      ? "warn"
+      : "muted";
+}
+
+/** The most severe of a row's problems, for the line that holds their words. */
+export function mostSevere(problems: readonly Problem[]): Severity | null {
+  return (
+    SEVERITY_ORDER.find((s) => problems.some((p) => p.severity === s)) ?? null
+  );
 }

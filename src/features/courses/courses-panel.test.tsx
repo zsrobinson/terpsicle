@@ -48,6 +48,17 @@ describe("Courses tab", () => {
     ).toBeInTheDocument();
   });
 
+  it("colors a row's problem words by severity: not enough time is an error", async () => {
+    await renderPlanTab([panels], "courses");
+    // Five extra minutes turn STAT400 → CMSC351's tight 8-minute walk in a
+    // 10-minute gap into not enough time, which the top bar counts as an error.
+    act(() => useWorkspace.getState().setTravel({ extraMinutes: 5 }));
+    const row = await screen.findByTestId("course-row-CMSC351");
+    const words = await within(row).findByText(/^Not enough time after/);
+    expect(words).toHaveClass("text-error");
+    expect(words).not.toHaveClass("text-warn");
+  });
+
   it("lists saved-for-later courses; clicking one opens its details", async () => {
     const { user } = await renderPlanTab([panels], "courses");
     const saved = await screen.findByRole("list", { name: "Saved for later" });

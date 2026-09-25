@@ -7,6 +7,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Fragment, type ReactElement, useMemo } from "react";
+import { TONE_TEXT } from "~/app/emphasis";
 import { MessageText, messageToText } from "~/app/message-text";
 import {
   EmptyState,
@@ -51,7 +52,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { openCourse, removeCourse, saveCourseForLater } from "./actions";
 import { CourseColorPicker } from "./color-picker";
 import { FirstVisit } from "./first-visit";
-import { problemWords } from "./problem-words";
+import { mostSevere, problemWords, severityTone } from "./problem-words";
 import { SeatMeter } from "./seat-meter";
 import { sectionLine } from "./section-words";
 
@@ -188,8 +189,11 @@ function PlacedRow({
   // problems are the seat words' job, so a flagged row can have no words.
   const said = (problems ?? []).flatMap((p) => {
     const words = problemWords(p, courseCode);
-    return words ? [words] : [];
+    return words ? [{ words, severity: p.severity }] : [];
   });
+  // Each phrase in its own severity's color; the line (separators, the
+  // ellipsis when it truncates) in the most severe one's.
+  const worst = mostSevere(problems ?? []);
 
   const row = (
     <ListRow
@@ -241,12 +245,19 @@ function PlacedRow({
             {sectionLine(section)}
           </span>
           {said.length > 0 ? (
-            <span className="block truncate text-sm text-warn">
-              {said.map((words, i) => (
+            <span
+              className={cn(
+                "block truncate text-sm",
+                worst && TONE_TEXT[severityTone(worst)],
+              )}
+            >
+              {said.map(({ words, severity }, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: problems keep their order
                 <Fragment key={i}>
                   {i > 0 ? " · " : null}
-                  <MessageText message={words} />
+                  <span className={TONE_TEXT[severityTone(severity)]}>
+                    <MessageText message={words} />
+                  </span>
                 </Fragment>
               ))}
             </span>

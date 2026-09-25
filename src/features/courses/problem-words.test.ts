@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { messageToText } from "~/app/message-text";
 import type { Problem } from "~/core/schema";
 import { aProblem } from "~/fixtures";
-import { problemWords } from "./problem-words";
+import { mostSevere, problemWords, severityTone } from "./problem-words";
 
 const words = (problem: Problem, courseCode: string) => {
   const message = problemWords(problem, courseCode);
@@ -73,5 +73,29 @@ describe("problemWords", () => {
       "instructor-tba",
     ] as const)
       expect(problemWords(aProblem({ kind }), "CMSC351")).toBeNull();
+  });
+});
+
+describe("problem word colors", () => {
+  it("colors words by severity, as the top bar does", () => {
+    // Production had "Not enough time after ENGL393" in amber while the top
+    // bar counted it as an error.
+    const short = aProblem({ kind: "not-enough-time" });
+    expect(severityTone(short.severity)).toBe("error");
+    expect(severityTone(aProblem({ kind: "tight-connection" }).severity)).toBe(
+      "warn",
+    );
+    expect(severityTone(aProblem({ kind: "overlap" }).severity)).toBe("warn");
+    expect(severityTone(aProblem({ kind: "cancelled" }).severity)).toBe(
+      "error",
+    );
+  });
+
+  it("gives a row with several problems its most severe one's color", () => {
+    const overlap = aProblem({ kind: "overlap" });
+    const short = aProblem({ kind: "not-enough-time" });
+    expect(mostSevere([overlap, short])).toBe("error");
+    expect(mostSevere([overlap])).toBe("warning");
+    expect(mostSevere([])).toBeNull();
   });
 });
