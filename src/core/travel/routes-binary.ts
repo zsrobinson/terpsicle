@@ -4,6 +4,7 @@ import {
   ROUTES_HEADER_BYTES,
   ROUTES_MAGIC,
   ROUTES_MAX_FEET,
+  ROUTES_NO_ROUTE,
   ROUTES_UNKNOWN,
   RoutesIndexSchema,
   TRAVEL_MODES,
@@ -95,15 +96,19 @@ export function decodeRoutes(bytes: ArrayBuffer | Uint8Array): RouteTable {
 }
 
 /**
- * Walking feet from one building to another; 0 for the same building, null
- * when either building is unknown or the pair has no route yet.
+ * Walking feet from one building to another, or why there's no number:
+ * `"no-route"` when UMD's network can't route the pair in this mode, null
+ * when it isn't computed yet or a building isn't in the file. The same
+ * building is 0 feet.
  */
+export type RouteDistance = number | "no-route" | null;
+
 export function routeDistance(
   table: RouteTable,
   from: BuildingCode,
   to: BuildingCode,
   mode: TravelMode,
-): number | null {
+): RouteDistance {
   if (from === to) return 0;
   const i = table.buildingIndex.get(from);
   const j = table.buildingIndex.get(to);
@@ -114,17 +119,18 @@ export function routeDistance(
     table.dataOffset + 2 * (m * n * n + i * n + j),
     true,
   );
-  return feet === ROUTES_UNKNOWN ? null : feet;
+  if (feet === ROUTES_UNKNOWN) return null;
+  return feet === ROUTES_NO_ROUTE ? "no-route" : feet;
 }
 
 export type RoutesEncodeInput = {
   readonly buildings: readonly BuildingCode[];
-  /** Feet from `from` to `to`, or null when there's no route yet. Rounded and clamped on write. */
+  /** Feet from `from` to `to` (rounded and clamped on write), "no-route", or null when not computed yet. */
   readonly distance: (
     mode: TravelMode,
     from: BuildingCode,
     to: BuildingCode,
-  ) => number | null;
+  ) => RouteDistance;
 };
 
 /** Builds the binary. Buildings are sorted and deduplicated; the diagonal is 0. */
@@ -153,9 +159,11 @@ export function encodeRoutes(input: RoutesEncodeInput): Uint8Array {
         if (i !== j) {
           const feet = input.distance(mode, from, to);
           cell =
-            feet === null || !Number.isFinite(feet)
-              ? ROUTES_UNKNOWN
-              : Math.min(ROUTES_MAX_FEET, Math.max(0, Math.round(feet)));
+            feet === "no-route"
+              ? ROUTES_NO_ROUTE
+              : feet === null || !Number.isFinite(feet)
+                ? ROUTES_UNKNOWN
+                : Math.min(ROUTES_MAX_FEET, Math.max(0, Math.round(feet)));
         }
         view.setUint16(dataOffset + 2 * (m * n * n + i * n + j), cell, true);
       });

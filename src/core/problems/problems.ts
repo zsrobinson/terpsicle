@@ -98,7 +98,7 @@ function attachFixes(
           const current = placedCode(courseCode);
           const course = input.index.courses.get(courseCode);
           for (const alt of course?.sections ?? []) {
-            if (alt.code === current || alt.cancelled) continue;
+            if (alt.code === current) continue;
             const c = tryCandidate(courseCode, alt);
             if (!c || c.signatures.has(signature)) continue;
             if (best === null || c.signatures.size < best.signatures.size)

@@ -5,7 +5,6 @@ import type {
   Section,
   SectionCode,
 } from "../schema";
-import { sectionDateRange } from "../time/week";
 
 // How course details and the calendar group a course's sections (SPEC §3.3–3.4).
 
@@ -29,7 +28,7 @@ export function timeSignature(section: Section): string {
   for (const m of section.meetings)
     if (m.timed) parts.push(`${m.days.join("")}@${m.start}-${m.end}`);
   if (parts.length === 0) return "";
-  const dates = sectionDateRange(section);
+  const dates = section.dates;
   if (dates) parts.push(`${dates.start}~${dates.end}`);
   return parts.sort().join(",");
 }
@@ -42,9 +41,9 @@ export function timeGroupLabel(codes: readonly SectionCode[]): string {
 
 /**
  * Sections with identical meeting times merged into one group, in section
- * order of each group's first section. Sections with no set times and
- * cancelled ones are left out (they have no ghost), as are `exclude`d codes
- * (the placed section, drawn solid).
+ * order of each group's first section. Sections with no set times are left
+ * out (they have no ghost), as are `exclude`d codes (the placed section,
+ * drawn solid).
  */
 export function groupSectionsByTime(
   course: Course,
@@ -52,7 +51,7 @@ export function groupSectionsByTime(
 ): TimeGroup[] {
   const groups = new Map<string, Section[]>();
   for (const section of course.sections) {
-    if (section.cancelled || exclude.includes(section.code)) continue;
+    if (exclude.includes(section.code)) continue;
     const sig = timeSignature(section);
     if (sig === "") continue;
     const list = groups.get(sig);

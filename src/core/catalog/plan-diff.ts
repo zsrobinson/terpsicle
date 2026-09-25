@@ -12,10 +12,11 @@ import {
 import { type CatalogIndex, snapshotOf } from "./catalog-index";
 
 // Turns catalog updates into "cancelled" and "changed" problems (DATA §3.3):
-// each placed course's snapshot against the live catalog. The changes file
-// only adds when it happened and whether Testudo cancelled or dropped it.
+// each placed course's snapshot against the live catalog. Testudo cancels a
+// section by no longer listing it, so a missing section is cancelled; the
+// changes file only adds when it happened.
 
-export type SnapshotPart = "meetings" | "instructors" | "delivery";
+export type SnapshotPart = "meetings" | "dates" | "instructors" | "delivery";
 
 export type PlanSectionDiff =
   | {
@@ -23,8 +24,6 @@ export type PlanSectionDiff =
       readonly key: SectionKey;
       readonly courseCode: CourseCode;
       readonly sectionCode: SectionCode;
-      /** "cancelled": Testudo marks it so; "removed": it vanished. Both read as cancelled. */
-      readonly via: "cancelled" | "removed";
       readonly before: SectionSnapshot;
       /** From the changes file; null when it doesn't cover it. */
       readonly at: IsoDateTime | null;
@@ -74,6 +73,11 @@ export function snapshotChanges(
   const parts: SnapshotPart[] = [];
   if (!sameList(before.meetings, after.meetings, sameMeeting))
     parts.push("meetings");
+  if (
+    before.dates?.start !== after.dates?.start ||
+    before.dates?.end !== after.dates?.end
+  )
+    parts.push("dates");
   if (!sameList(before.instructors, after.instructors, (x, y) => x === y))
     parts.push("instructors");
   if (before.delivery !== after.delivery) parts.push("delivery");
@@ -112,16 +116,8 @@ export function diffPlanAgainstCatalog(
       at: change?.at ?? null,
     };
     const ref = index.sections.get(key);
-    if (!ref || ref.section.cancelled) {
-      out.push({
-        kind: "cancelled",
-        ...base,
-        via: ref
-          ? "cancelled"
-          : change?.kind === "cancelled"
-            ? "cancelled"
-            : "removed",
-      });
+    if (!ref) {
+      out.push({ kind: "cancelled", ...base });
       continue;
     }
     const after = snapshotOf(ref.section);

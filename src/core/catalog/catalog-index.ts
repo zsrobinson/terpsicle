@@ -65,15 +65,15 @@ export function sectionRef(course: Course, section: Section): SectionRef {
 
 /**
  * The plan's placed sections as they are in the catalog now, in plan order.
- * Sections missing from the catalog or cancelled are left out: they don't
- * meet, so they can't overlap or need a walk. Problems reports them instead.
+ * Sections missing from the catalog (cancelled: Testudo just stops listing
+ * them) are left out, since they don't meet. Problems reports them instead.
  */
 export function placedSections(plan: Plan, index: CatalogIndex): SectionRef[] {
   const out: SectionRef[] = [];
   for (const c of plan.courses) {
     if (c.sectionCode === null) continue;
     const ref = index.sections.get(sectionKey(c.courseCode, c.sectionCode));
-    if (ref && !ref.section.cancelled) out.push(ref);
+    if (ref) out.push(ref);
   }
   return out;
 }
@@ -84,5 +84,6 @@ export function snapshotOf(section: Section): SectionSnapshot {
     instructors: [...section.instructors],
     delivery: section.delivery,
     meetings: section.meetings.map((m) => ({ ...m })),
+    ...(section.dates ? { dates: { ...section.dates } } : {}),
   };
 }

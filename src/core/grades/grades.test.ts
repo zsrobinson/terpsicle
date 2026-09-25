@@ -16,7 +16,19 @@ describe("grade summary", () => {
   it("averages GPA over A+ to F only, like PlanetTerp", () => {
     const s = gradeSummary(counts);
     const graded = 100;
-    const points = 5 * 4 + 20 * 4 + 10 * 3.7 + 8 * 3.3 + 12 * 3 + 9 * 2.7 + 6 * 2.3 + 10 * 2 + 4 * 1.7 + 2 * 1.3 + 3 * 1 + 1 * 0.7;
+    const points =
+      5 * 4 +
+      20 * 4 +
+      10 * 3.7 +
+      8 * 3.3 +
+      12 * 3 +
+      9 * 2.7 +
+      6 * 2.3 +
+      10 * 2 +
+      4 * 1.7 +
+      2 * 1.3 +
+      3 * 1 +
+      1 * 0.7;
     expect(s.students).toBe(110);
     expect(s.graded).toBe(graded);
     expect(s.averageGpa).toBeCloseTo(points / graded, 10);
@@ -24,7 +36,9 @@ describe("grade summary", () => {
   });
 
   it("reads as a sentence", () => {
-    expect(gradeSentence(gradeSummary(counts))).toBe("64% got an A or B · average GPA 2.71");
+    expect(gradeSentence(gradeSummary(counts))).toBe(
+      "64% got an A or B · average GPA 2.71",
+    );
     expect(formatGpa(3)).toBe("3.00");
     expect(formatShare(0.645)).toBe("65%");
   });
@@ -32,7 +46,12 @@ describe("grade summary", () => {
   it("has nothing to say without letter grades", () => {
     const onlyW: GradeCounts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1];
     const s = gradeSummary(onlyW);
-    expect(s).toEqual({ students: 5, graded: 0, averageGpa: null, aOrBShare: null });
+    expect(s).toEqual({
+      students: 5,
+      graded: 0,
+      averageGpa: null,
+      aOrBShare: null,
+    });
     expect(gradeSentence(s)).toBeNull();
   });
 });
@@ -67,8 +86,14 @@ describe("grade bars", () => {
 
 describe("ratings", () => {
   it("formats rating and review count", () => {
-    expect(formatRating(4.234, 38)).toEqual({ rating: "4.2", reviews: "38 reviews" });
+    expect(formatRating(4.234, 38)).toEqual({
+      rating: "4.2",
+      reviews: "38 reviews",
+    });
     expect(formatRating(5, 1)).toEqual({ rating: "5.0", reviews: "1 review" });
-    expect(formatRating(null, 0)).toEqual({ rating: null, reviews: "No reviews" });
+    expect(formatRating(null, 0)).toEqual({
+      rating: null,
+      reviews: "No reviews",
+    });
   });
 });

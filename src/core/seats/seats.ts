@@ -57,8 +57,7 @@ export function seatStatus(counts: SeatCounts | null): SeatStatus {
       : 1;
   let words: string;
   if (level === "full")
-    words =
-      counts.waitlist > 0 ? `Full · ${counts.waitlist} waitlisted` : "Full";
+    words = counts.waitlist ? `Full · ${counts.waitlist} waitlisted` : "Full";
   else if (level === "low") words = `${counts.open} left`;
   else words = `${counts.open} of ${counts.total} open`;
   return { level, words, filled };

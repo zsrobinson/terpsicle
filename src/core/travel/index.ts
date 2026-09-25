@@ -1,3 +1,4 @@
+export * from "./campus";
 export * from "./connections";
 export * from "./explain";
 export * from "./routes-binary";

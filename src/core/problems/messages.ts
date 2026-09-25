@@ -1,5 +1,7 @@
+import type { SnapshotPart } from "../catalog/plan-diff";
 import type {
   CourseCode,
+  DateSpan,
   Day,
   Delivery,
   Meeting,
@@ -8,6 +10,7 @@ import type {
   SectionKey,
   SectionSnapshot,
 } from "../schema";
+import { formatDateSpan } from "../time/format";
 
 // Small builders for the structured text in problems (DATA §9).
 
@@ -81,6 +84,10 @@ export function meetingsParts(meetings: readonly Meeting[]): Message {
   return joinParts(meetings.map(meetingParts), "; ");
 }
 
+function datesText(span: DateSpan | undefined): string {
+  return span ? formatDateSpan(span) : "the whole term";
+}
+
 function instructorsText(names: readonly string[]): string {
   return names.length ? names.join(", ") : "TBA";
 }
@@ -89,7 +96,7 @@ function instructorsText(names: readonly string[]): string {
 export function snapshotChangeParts(
   before: SectionSnapshot,
   after: SectionSnapshot,
-  parts: readonly ("meetings" | "instructors" | "delivery")[],
+  parts: readonly SnapshotPart[],
 ): Message {
   const sentences: Message[] = [];
   if (parts.includes("meetings"))
@@ -99,6 +106,12 @@ export function snapshotChangeParts(
       text("; was "),
       ...meetingsParts(before.meetings),
       text("."),
+    ]);
+  if (parts.includes("dates"))
+    sentences.push([
+      text(
+        `Now meets ${datesText(after.dates)}; was ${datesText(before.dates)}.`,
+      ),
     ]);
   if (parts.includes("instructors"))
     sentences.push([

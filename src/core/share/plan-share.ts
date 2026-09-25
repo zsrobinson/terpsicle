@@ -101,8 +101,8 @@ export function sharedViewPlan(
 
 /**
  * "Save a copy": the courses with fresh snapshots from the current catalog.
- * Sections and saved courses the catalog no longer has (or that are
- * cancelled) are dropped and named, for the toast.
+ * Sections and saved courses the catalog no longer has (cancelled) are
+ * dropped and named, for the toast.
  */
 export function coursesFromShare(
   payload: SharePayload,
@@ -112,7 +112,7 @@ export function coursesFromShare(
   const dropped: string[] = [];
   for (const key of payload.sections) {
     const ref = index.sections.get(key);
-    if (!ref || ref.section.cancelled) {
+    if (!ref) {
       dropped.push(key);
       continue;
     }

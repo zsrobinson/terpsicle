@@ -29,13 +29,13 @@ import {
   sectionWeekItems,
   type WeekItem,
 } from "../time/week";
+import type { CampusMap } from "../travel/campus";
 import {
   buildConnection,
   isConsecutive,
   isStop,
   type Stop,
 } from "../travel/connections";
-import type { RouteTable } from "../travel/routes-binary";
 
 // "Does this section fit my plan?" (SPEC §3.4, §3.5). The search filter asks
 // this for every section of thousands of courses, so the plan side is
@@ -48,8 +48,8 @@ export type FitInput = {
   readonly index: CatalogIndex;
   readonly blocks: readonly Block[];
   readonly travel: TravelSettings;
-  /** null until the routes file loads; travel then never rules a section out. */
-  readonly routes: RouteTable | null;
+  /** Until the routes file loads, travel never rules a section out. */
+  readonly campus: CampusMap;
 };
 
 type Busy = {
@@ -63,7 +63,7 @@ export type FitContext = {
   readonly placed: readonly SectionRef[];
   readonly blocks: readonly Block[];
   readonly travel: TravelSettings;
-  readonly routes: RouteTable | null;
+  readonly campus: CampusMap;
   /** Busy time of everything except one course (the one being fitted); "" = everything. */
   readonly busyExcept: (courseCode: CourseCode) => Busy;
 };
@@ -119,7 +119,9 @@ export function buildFitContext(input: FitInput): FitContext {
         ...others.map((r) => sectionMask(r.course.code, r.section)),
       ]),
       itemsByDay: groupByDay<WeekItem>([...meetingItems, ...blockItems]),
-      stopsByDay: groupByDay(meetingItems.filter(isStop)),
+      stopsByDay: groupByDay(
+        meetingItems.filter((i) => isStop(i, input.campus)),
+      ),
     };
     cache.set(key, busy);
     return busy;
@@ -130,7 +132,7 @@ export function buildFitContext(input: FitInput): FitContext {
     placed,
     blocks: input.blocks,
     travel: input.travel,
-    routes: input.routes,
+    campus: input.campus,
     busyExcept,
   };
 }
@@ -157,16 +159,16 @@ function firstShortConnection(
   ctx: FitContext,
 ): FitLabel | null {
   for (const x of items) {
-    if (!isStop(x)) continue;
+    if (!isStop(x, ctx.campus)) continue;
     const planStops = busy.stopsByDay.get(x.day) ?? [];
     if (planStops.length === 0) continue;
     const dayStops = [
       ...planStops,
-      ...items.filter((i) => i.day === x.day && isStop(i)),
+      ...items.filter((i) => i.day === x.day && isStop(i, ctx.campus)),
     ];
     for (const c of planStops) {
       if (!isConsecutive(c, x, dayStops)) continue;
-      const conn = buildConnection(c, x, ctx.travel, ctx.routes);
+      const conn = buildConnection(c, x, ctx.travel, ctx.campus);
       if (conn?.verdict === "insufficient")
         return {
           kind: "not-enough-time",
@@ -176,7 +178,7 @@ function firstShortConnection(
     }
     for (const e of planStops) {
       if (!isConsecutive(x, e, dayStops)) continue;
-      const conn = buildConnection(x, e, ctx.travel, ctx.routes);
+      const conn = buildConnection(x, e, ctx.travel, ctx.campus);
       if (conn?.verdict === "insufficient")
         return {
           kind: "not-enough-time",
@@ -214,7 +216,7 @@ export function evaluateFit(
       };
     }
   }
-  if (ctx.routes) {
+  if (ctx.campus.routes) {
     const short = firstShortConnection(ordered, busy, ctx);
     if (short) return short;
   }
@@ -241,7 +243,6 @@ export function sectionFits(
   course: Course,
   section: Section,
 ): boolean {
-  if (section.cancelled) return false;
   const label = evaluateFit(ctx, course, section);
   return label.kind === "fits" || label.kind === "no-set-times";
 }

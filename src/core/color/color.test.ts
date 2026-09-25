@@ -1,7 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { COURSE_COLORS, type CourseColor } from "../schema";
-import { COURSE_COLOR_LABELS, courseColorTokens, defaultCourseColor } from "./color";
+import {
+  COURSE_COLOR_LABELS,
+  courseColorTokens,
+  defaultCourseColor,
+} from "./color";
 
 describe("course colors", () => {
   it("labels every palette color", () => {
@@ -18,8 +22,14 @@ describe("course colors", () => {
   });
 
   it("is stable per course code", () => {
-    expect(defaultCourseColor("CMSC351", [])).toBe(defaultCourseColor("CMSC351", []));
-    const firsts = new Set(["CMSC131", "CMSC132", "CMSC216", "CMSC250", "CMSC330", "CMSC351"].map((c) => defaultCourseColor(c, [])));
+    expect(defaultCourseColor("CMSC351", [])).toBe(
+      defaultCourseColor("CMSC351", []),
+    );
+    const firsts = new Set(
+      ["CMSC131", "CMSC132", "CMSC216", "CMSC250", "CMSC330", "CMSC351"].map(
+        (c) => defaultCourseColor(c, []),
+      ),
+    );
     expect(firsts.size).toBeGreaterThan(2);
   });
 

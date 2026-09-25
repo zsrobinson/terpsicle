@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { aBlock, aCourse, aMeeting, aSection } from "~/fixtures";
 import { DAYS, type Day } from "../schema";
-import { aBlock, aCourse, aMeeting, aSection } from "../test-support/builders";
 import { calendarDays, calendarHourRange } from "./calendar";
 import {
   compareDays,
@@ -23,7 +23,7 @@ import {
 } from "./slots";
 import {
   blockWeekItems,
-  dateRangesIntersect,
+  dateSpansIntersect,
   hasSetTimes,
   itemsOverlap,
   sectionWeekItems,
@@ -85,11 +85,9 @@ describe("days", () => {
 
   it("sorts and dedupes", () => {
     expect(sortDays(["Su", "M", "M", "Sa"])).toEqual(["M", "Sa", "Su"]);
-    expect([..."Th Tu M".split(" ")].sort((a, b) => compareDays(a as Day, b as Day))).toEqual([
-      "M",
-      "Tu",
-      "Th",
-    ]);
+    expect(
+      [..."Th Tu M".split(" ")].sort((a, b) => compareDays(a as Day, b as Day)),
+    ).toEqual(["M", "Tu", "Th"]);
   });
 });
 
@@ -115,7 +113,9 @@ describe("formatRelative", () => {
   ])("%s → %s", (then, words) => expect(formatRelative(then, now)).toBe(words));
 
   it("accepts dates and epoch numbers, and is empty for garbage", () => {
-    expect(formatRelative(new Date(now), Date.parse(now) + 120_000)).toBe("2 min ago");
+    expect(formatRelative(new Date(now), Date.parse(now) + 120_000)).toBe(
+      "2 min ago",
+    );
     expect(formatRelative("not a date", now)).toBe("");
   });
 });
@@ -125,12 +125,26 @@ describe("week items", () => {
     const section = aSection({
       meetings: [
         aMeeting({ days: ["Tu", "Th"], start: 660, end: 735 }),
-        { timed: false, kind: "other", building: null, room: null, online: true },
-        aMeeting({ days: ["F"], kind: "discussion", building: null, room: null, online: false }),
+        {
+          timed: false,
+          kind: "other",
+          building: null,
+          room: null,
+          online: true,
+        },
+        aMeeting({
+          days: ["F"],
+          kind: "discussion",
+          building: null,
+          room: null,
+          online: false,
+        }),
       ],
     });
     const items = sectionWeekItems("CMSC351", section);
-    expect(items.map((i) => [i.day, i.source.meetingIndex, i.source.inPerson])).toEqual([
+    expect(
+      items.map((i) => [i.day, i.source.meetingIndex, i.source.inPerson]),
+    ).toEqual([
       ["Tu", 0, true],
       ["Th", 0, true],
       ["F", 2, false],
@@ -141,7 +155,10 @@ describe("week items", () => {
   });
 
   it("marks online meetings as not in person", () => {
-    const [item] = sectionWeekItems("CMSC351", aSection({ meetings: [aMeeting({ online: true, building: null })] }));
+    const [item] = sectionWeekItems(
+      "CMSC351",
+      aSection({ meetings: [aMeeting({ online: true, building: null })] }),
+    );
     expect(item?.source.inPerson).toBe(false);
   });
 
@@ -152,18 +169,24 @@ describe("week items", () => {
   });
 
   it("treats touching times as not overlapping", () => {
-    expect(timesOverlap({ start: 600, end: 650 }, { start: 650, end: 700 })).toBe(false);
-    expect(timesOverlap({ start: 600, end: 651 }, { start: 650, end: 700 })).toBe(true);
+    expect(
+      timesOverlap({ start: 600, end: 650 }, { start: 650, end: 700 }),
+    ).toBe(false);
+    expect(
+      timesOverlap({ start: 600, end: 651 }, { start: 650, end: 700 }),
+    ).toBe(true);
   });
 
   it("never overlaps sections whose dates don't intersect", () => {
     const first = { start: "2027-01-25", end: "2027-03-12" };
     const second = { start: "2027-03-22", end: "2027-05-10" };
-    expect(dateRangesIntersect(first, second)).toBe(false);
-    expect(dateRangesIntersect(first, null)).toBe(true);
-    expect(dateRangesIntersect(first, { start: "2027-03-12", end: "2027-04-01" })).toBe(true);
-    const a = sectionWeekItems("CMSC351", aSection({ dates: first } as never))[0];
-    const b = sectionWeekItems("CMSC330", aSection({ dates: second } as never))[0];
+    expect(dateSpansIntersect(first, second)).toBe(false);
+    expect(dateSpansIntersect(first, null)).toBe(true);
+    expect(
+      dateSpansIntersect(first, { start: "2027-03-12", end: "2027-04-01" }),
+    ).toBe(true);
+    const a = sectionWeekItems("CMSC351", aSection({ dates: first }))[0];
+    const b = sectionWeekItems("CMSC330", aSection({ dates: second }))[0];
     const c = sectionWeekItems("CMSC330", aSection())[0];
     if (!a || !b || !c) throw new Error("expected items");
     expect(itemsOverlap(a, b)).toBe(false);
@@ -181,10 +204,19 @@ describe("week masks", () => {
   it("never misses a real overlap (masks are a superset)", () => {
     fc.assert(
       fc.property(item, item, (a, b) => {
-        const x = { day: a.day, start: a.start, end: Math.min(1440, a.start + a.len) };
-        const y = { day: b.day, start: b.start, end: Math.min(1440, b.start + b.len) };
+        const x = {
+          day: a.day,
+          start: a.start,
+          end: Math.min(1440, a.start + a.len),
+        };
+        const y = {
+          day: b.day,
+          start: b.start,
+          end: Math.min(1440, b.start + b.len),
+        };
         const real = x.day === y.day && timesOverlap(x, y);
-        if (real) expect(masksIntersect(weekMaskOf([x]), weekMaskOf([y]))).toBe(true);
+        if (real)
+          expect(masksIntersect(weekMaskOf([x]), weekMaskOf([y]))).toBe(true);
       }),
     );
   });
@@ -213,10 +245,19 @@ describe("week masks", () => {
   it("covers a whole day and unions", () => {
     const full = emptyWeekMask();
     markBusy(full, "Su", 0, 1440);
-    expect(masksIntersect(full, weekMaskOf([{ day: "Su", start: 1435, end: 1440 }]))).toBe(true);
-    expect(masksIntersect(full, weekMaskOf([{ day: "Sa", start: 0, end: 1440 }]))).toBe(false);
-    const u = unionMasks([weekMaskOf([{ day: "M", start: 600, end: 650 }]), full]);
-    expect(masksIntersect(u, weekMaskOf([{ day: "M", start: 640, end: 700 }]))).toBe(true);
+    expect(
+      masksIntersect(full, weekMaskOf([{ day: "Su", start: 1435, end: 1440 }])),
+    ).toBe(true);
+    expect(
+      masksIntersect(full, weekMaskOf([{ day: "Sa", start: 0, end: 1440 }])),
+    ).toBe(false);
+    const u = unionMasks([
+      weekMaskOf([{ day: "M", start: 600, end: 650 }]),
+      full,
+    ]);
+    expect(
+      masksIntersect(u, weekMaskOf([{ day: "M", start: 640, end: 700 }])),
+    ).toBe(true);
     expect(isMaskEmpty(emptyWeekMask())).toBe(true);
     expect(isMaskEmpty(u)).toBe(false);
   });
@@ -225,11 +266,19 @@ describe("week masks", () => {
 describe("calendar extent", () => {
   it("is at least 8am–5pm", () => {
     expect(calendarHourRange([])).toEqual({ start: 480, end: 1020 });
-    expect(calendarHourRange([{ start: 600, end: 650 }])).toEqual({ start: 480, end: 1020 });
+    expect(calendarHourRange([{ start: 600, end: 650 }])).toEqual({
+      start: 480,
+      end: 1020,
+    });
   });
 
   it("grows to whole hours around the plan", () => {
-    expect(calendarHourRange([{ start: 450, end: 500 }, { start: 1110, end: 1185 }])).toEqual({
+    expect(
+      calendarHourRange([
+        { start: 450, end: 500 },
+        { start: 1110, end: 1185 },
+      ]),
+    ).toEqual({
       start: 420,
       end: 1200,
     });
@@ -238,9 +287,19 @@ describe("calendar extent", () => {
 
   it("adds Saturday and Sunday only when needed", () => {
     const course = aCourse();
-    const items = sectionWeekItems(course.code, aSection({ meetings: [aMeeting({ days: ["Tu", "Sa"] })] }));
+    const items = sectionWeekItems(
+      course.code,
+      aSection({ meetings: [aMeeting({ days: ["Tu", "Sa"] })] }),
+    );
     expect(calendarDays([])).toEqual(["M", "Tu", "W", "Th", "F"]);
     expect(calendarDays(items)).toEqual(["M", "Tu", "W", "Th", "F", "Sa"]);
-    expect(calendarDays([{ day: "Su" }])).toEqual(["M", "Tu", "W", "Th", "F", "Su"]);
+    expect(calendarDays([{ day: "Su" }])).toEqual([
+      "M",
+      "Tu",
+      "W",
+      "Th",
+      "F",
+      "Su",
+    ]);
   });
 });

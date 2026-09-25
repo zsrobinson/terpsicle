@@ -9,7 +9,6 @@ import type {
   TermId,
   TimedMeeting,
 } from "../schema";
-import { sectionDateRange } from "../time/week";
 import { eachDate, easternToUtc, weekdayOf } from "./dates";
 
 // "Add to your calendar" (SPEC §3.10, RESEARCH §2): one weekly event per timed
@@ -177,7 +176,7 @@ function eventLines(
   meeting: TimedMeeting,
   meetingIndex: number,
 ): string[] | null {
-  const own = sectionDateRange(ref.section);
+  const own = ref.section.dates;
   const start =
     own && own.start > calendar.classesStart
       ? own.start

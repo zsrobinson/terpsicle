@@ -2,8 +2,8 @@ import type {
   Block,
   BuildingCode,
   CourseCode,
+  DateSpan,
   Day,
-  IsoDate,
   LocalId,
   Minutes,
   Section,
@@ -14,23 +14,10 @@ import { sectionKey } from "../schema";
 // A plan's week flattened into one item per (meeting or block, day): the unit
 // that overlap checks, travel legs, fit and the calendar all work on.
 
-/** Inclusive America/New_York dates a section meets between. */
-export type DateRange = { readonly start: IsoDate; readonly end: IsoDate };
-
-/**
- * A section's own date range, for sections that don't run the whole term
- * (half-semester, late start). null means the whole term.
- */
-export function sectionDateRange(section: Section): DateRange | null {
-  // `dates` is optional in the schema; older catalogs don't have it.
-  const dates = (section as { dates?: DateRange | null }).dates;
-  return dates ?? null;
-}
-
-/** Two date ranges share a day. null is the whole term, so it meets everything. */
-export function dateRangesIntersect(
-  a: DateRange | null,
-  b: DateRange | null,
+/** Two date spans share a day. null is the whole term, so it meets everything. */
+export function dateSpansIntersect(
+  a: DateSpan | null,
+  b: DateSpan | null,
 ): boolean {
   if (a === null || b === null) return true;
   return a.start <= b.end && b.start <= a.end;
@@ -57,7 +44,8 @@ export type WeekItem = {
   readonly day: Day;
   readonly start: Minutes;
   readonly end: Minutes;
-  readonly dates: DateRange | null;
+  /** The section's own dates; null for the whole term. */
+  readonly dates: DateSpan | null;
   readonly source: MeetingSource | BlockSource;
 };
 
@@ -78,7 +66,7 @@ export function sectionWeekItems(
   const cached = itemsBySection.get(section);
   if (cached) return cached;
   const key = sectionKey(courseCode, section.code);
-  const dates = sectionDateRange(section);
+  const dates = section.dates ?? null;
   const items: MeetingItem[] = [];
   section.meetings.forEach((m, meetingIndex) => {
     if (!m.timed) return;
@@ -131,6 +119,6 @@ export function itemsOverlap(a: WeekItem, b: WeekItem): boolean {
   return (
     a.day === b.day &&
     timesOverlap(a, b) &&
-    dateRangesIntersect(a.dates, b.dates)
+    dateSpansIntersect(a.dates, b.dates)
   );
 }

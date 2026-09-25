@@ -28,8 +28,8 @@ import {
   sectionWeekItems,
   type WeekItem,
 } from "../time/week";
+import type { CampusMap } from "../travel/campus";
 import { planConnections } from "../travel/connections";
-import type { RouteTable } from "../travel/routes-binary";
 import {
   course,
   daysAndTime,
@@ -47,9 +47,10 @@ export type ProblemsInput = {
   readonly index: CatalogIndex;
   readonly blocks: readonly Block[];
   readonly travel: TravelSettings;
-  readonly routes: RouteTable | null;
+  /** Routes and off-campus codes; connection problems wait for the routes file. */
+  readonly campus: CampusMap;
   readonly seats: SeatsMap | null;
-  /** The changes file's entries, newest first; only adds dates and cancelled vs removed. */
+  /** The changes file's entries, newest first; only adds when a change happened. */
   readonly changes?: readonly CatalogChange[];
 };
 
@@ -292,9 +293,11 @@ function sectionProblems(ref: SectionRef, seats: SeatsMap | null): Detected[] {
         [section(key), text(" is full")],
         [
           text(
-            counts.waitlist > 0
-              ? `${counts.waitlist} waitlisted.`
-              : "Nobody is on the waitlist yet.",
+            counts.waitlist === null
+              ? "Testudo doesn't show a waitlist for it."
+              : counts.waitlist > 0
+                ? `${counts.waitlist} waitlisted.`
+                : "Nobody is on the waitlist yet.",
           ),
         ],
         code,
@@ -375,13 +378,7 @@ export function detectProblems(input: ProblemsInput): Detected[] {
         "cancelled",
         subjects,
         [section(d.key), text(" was cancelled")],
-        [
-          text(
-            d.via === "removed"
-              ? "It's no longer in the Schedule of Classes."
-              : "The Schedule of Classes lists it as cancelled.",
-          ),
-        ],
+        [text("It's no longer in the Schedule of Classes.")],
         d.courseCode,
         [d.courseCode],
       );
@@ -397,13 +394,16 @@ export function detectProblems(input: ProblemsInput): Detected[] {
       presetFix: {
         kind: "accept-change",
         sectionKey: d.key,
-        label: d.parts.includes("meetings") ? "Keep new times" : "Keep changes",
+        label:
+          d.parts.includes("meetings") || d.parts.includes("dates")
+            ? "Keep new times"
+            : "Keep changes",
       },
     };
   });
 
   const travel = connectionProblems(
-    planConnections(placed, input.travel, input.routes),
+    planConnections(placed, input.travel, input.campus),
     byKey,
   );
   const perSection = placed.flatMap((r) => sectionProblems(r, input.seats));

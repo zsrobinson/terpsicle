@@ -16,6 +16,7 @@ export const VERDICT_WORDS = {
   tight: "Tight",
   insufficient: "Not enough time",
   unknown: "No route data yet",
+  "no-route": "No route on UMD's map",
 } as const satisfies Record<ConnectionVerdict, string>;
 
 /**
@@ -24,6 +25,16 @@ export const VERDICT_WORDS = {
  */
 export function verdictMessage(connection: Connection): Message {
   const { verdict, walkMinutes: walk, gapMinutes: gap } = connection;
+  if (verdict === "no-route")
+    return [
+      {
+        kind: "text",
+        text:
+          connection.mode === "accessible"
+            ? "UMD's map has no accessible route for this connection."
+            : "UMD's map has no route for this connection.",
+      },
+    ];
   if (verdict === "unknown" || walk === null)
     return [{ kind: "text", text: `${VERDICT_WORDS.unknown}.` }];
   const parts: Message = [

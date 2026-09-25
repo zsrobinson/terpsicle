@@ -109,8 +109,8 @@ function codesWithPrefix(codes: readonly string[], prefix: string): string[] {
   return out;
 }
 
-const CODE_PREFIX = /^[A-Z]{1,4}$|^[A-Z]{4}\d{1,3}[A-Z]{0,2}$/;
-const NUMBER_PREFIX = /^\d{1,3}[A-Z]{0,2}$/;
+const CODE_PREFIX = /^[A-Z]{1,4}$|^[A-Z]{4}\d{1,3}[A-Z]?$/;
+const NUMBER_PREFIX = /^\d{1,3}[A-Z]?$/;
 
 /**
  * Course codes best match first:

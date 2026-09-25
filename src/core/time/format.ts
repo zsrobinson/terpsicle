@@ -1,4 +1,10 @@
-import { DAYS, type Day, type Minutes } from "../schema";
+import {
+  DAYS,
+  type DateSpan,
+  type Day,
+  type IsoDate,
+  type Minutes,
+} from "../schema";
 
 // Clock and day formatting in the prototype's style: "9:30am", "11am–12:15pm", "MWF".
 
@@ -87,4 +93,30 @@ export function parseTime(text: string): Minutes | null {
     return null;
   }
   return h * 60 + m;
+}
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** "Mar 22" */
+export function formatShortDate(date: IsoDate): string {
+  const [, m, d] = date.split("-").map(Number);
+  return `${MONTHS[(m ?? 1) - 1] ?? ""} ${d ?? ""}`;
+}
+
+/** "Mar 22–May 10" */
+export function formatDateSpan(span: DateSpan): string {
+  return `${formatShortDate(span.start)}–${formatShortDate(span.end)}`;
 }

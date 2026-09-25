@@ -58,7 +58,7 @@ export function coversGenEds(
     const code = wanted[i];
     if (code === undefined) return true;
     for (let g = 0; g < groups.length; g++) {
-      if (used[g] || !groups[g]?.includes(code)) continue;
+      if (used[g] || !groups[g]?.some((o) => o.code === code)) continue;
       used[g] = true;
       if (assign(i + 1)) return true;
       used[g] = false;
@@ -88,9 +88,7 @@ export function courseLevel(code: CourseCode): number {
 
 export function hasOpenSeats(course: Course, seats: SeatsMap | null): boolean {
   return course.sections.some(
-    (s) =>
-      !s.cancelled &&
-      (seatCounts(seats, sectionKey(course.code, s.code))?.open ?? 0) > 0,
+    (s) => (seatCounts(seats, sectionKey(course.code, s.code))?.open ?? 0) > 0,
   );
 }
 
@@ -118,7 +116,6 @@ export function courseFilter(
 }
 
 export type SectionSummary = {
-  /** Sections that aren't cancelled. */
   readonly sections: number;
   /** How many fit the plan; null when there's no plan to fit against. */
   readonly fit: number | null;
@@ -129,7 +126,7 @@ export function sectionSummary(
   fit: FitContext | null,
 ): SectionSummary {
   return {
-    sections: course.sections.filter((s) => !s.cancelled).length,
+    sections: course.sections.length,
     fit: fit ? countFittingSections(fit, course) : null,
   };
 }

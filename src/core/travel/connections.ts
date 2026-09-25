@@ -3,32 +3,32 @@ import {
   type Connection,
   connectionId,
   DAYS,
+  type DateSpan,
   type Day,
   type TravelSettings,
 } from "../schema";
 import {
-  type DateRange,
-  dateRangesIntersect,
+  dateSpansIntersect,
   type MeetingItem,
   sectionWeekItems,
 } from "../time/week";
-import { type RouteTable, routeDistance } from "./routes-binary";
+import type { CampusMap } from "./campus";
+import { routeDistance } from "./routes-binary";
 import { connectionVerdict, travelMode, walkMinutes } from "./walk";
 
 // Connections (SPEC §3.7, DATA §6): consecutive timed, in-person meetings on
-// one day in different buildings. Blocks and online meetings never take part.
+// one day in different buildings. Blocks, online meetings and off-campus
+// meetings never take part.
 
-/** A meeting that takes part in travel: timed, in person, with a building. */
+/** A meeting that takes part in travel: timed, in person, in a campus building. */
 export type Stop = MeetingItem;
 
-export function isStop(item: MeetingItem): boolean {
-  return item.source.inPerson;
+export function isStop(item: MeetingItem, campus: CampusMap): boolean {
+  const { inPerson, building } = item.source;
+  return inPerson && building !== null && !campus.offCampus.has(building);
 }
 
-function intersection(
-  a: DateRange | null,
-  b: DateRange | null,
-): DateRange | null {
+function intersection(a: DateSpan | null, b: DateSpan | null): DateSpan | null {
   if (a === null) return b;
   if (b === null) return a;
   return {
@@ -55,14 +55,14 @@ export function isConsecutive(
 ): boolean {
   if (c === b || c.day !== b.day) return false;
   if (!(c.start < b.start && c.end <= b.start)) return false;
-  if (!dateRangesIntersect(c.dates, b.dates)) return false;
+  if (!dateSpansIntersect(c.dates, b.dates)) return false;
   const window = intersection(c.dates, b.dates);
   for (const d of stopsThatDay) {
     if (d === b || d === c || d.day !== b.day) continue;
     if (
       d.start < b.start &&
       endsNearer(d, c) &&
-      dateRangesIntersect(d.dates, window)
+      dateSpansIntersect(d.dates, window)
     )
       return false;
   }
@@ -90,7 +90,7 @@ export function buildConnection(
   from: Stop,
   to: Stop,
   settings: TravelSettings,
-  routes: RouteTable | null,
+  campus: CampusMap,
 ): Connection | null {
   const a = from.source;
   const b = to.source;
@@ -98,9 +98,10 @@ export function buildConnection(
     return null;
   const mode = travelMode(settings);
   const gapMinutes = to.start - from.end;
-  const distanceFeet = routes
-    ? routeDistance(routes, a.building, b.building, mode)
+  const distance = campus.routes
+    ? routeDistance(campus.routes, a.building, b.building, mode)
     : null;
+  const distanceFeet = typeof distance === "number" ? distance : null;
   const walk =
     distanceFeet === null ? null : walkMinutes(distanceFeet, settings);
   return {
@@ -123,7 +124,10 @@ export function buildConnection(
     gapMinutes,
     distanceFeet,
     walkMinutes: walk,
-    verdict: connectionVerdict(walk, gapMinutes),
+    verdict:
+      distance === "no-route"
+        ? "no-route"
+        : connectionVerdict(walk, gapMinutes),
     mode,
   };
 }
@@ -131,11 +135,12 @@ export function buildConnection(
 /** Every stop of these sections, grouped by day. */
 export function stopsByDay(
   sections: readonly Pick<SectionRef, "course" | "section">[],
+  campus: CampusMap,
 ): Map<Day, Stop[]> {
   const byDay = new Map<Day, Stop[]>();
   for (const { course, section } of sections) {
     for (const item of sectionWeekItems(course.code, section)) {
-      if (!isStop(item)) continue;
+      if (!isStop(item, campus)) continue;
       const list = byDay.get(item.day);
       if (list) list.push(item);
       else byDay.set(item.day, [item]);
@@ -151,15 +156,15 @@ export function stopsByDay(
 export function planConnections(
   sections: readonly Pick<SectionRef, "course" | "section">[],
   settings: TravelSettings,
-  routes: RouteTable | null,
+  campus: CampusMap,
 ): Connection[] {
-  const byDay = stopsByDay(sections);
+  const byDay = stopsByDay(sections, campus);
   const out: Connection[] = [];
   for (const day of DAYS) {
     const stops = byDay.get(day);
     if (!stops) continue;
     for (const [from, to] of consecutivePairs(stops)) {
-      const c = buildConnection(from, to, settings, routes);
+      const c = buildConnection(from, to, settings, campus);
       if (c) out.push(c);
     }
   }
