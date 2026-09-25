@@ -31,7 +31,7 @@ async function open(page: Page, path = "/") {
 }
 
 const planTabs = (page: Page) =>
-  page.getByRole("tablist", { name: "Plans" }).getByRole("tab");
+  page.getByRole("navigation", { name: "Plans" }).getByRole("listitem");
 
 test.describe("desktop", () => {
   test.skip(({ isMobile }) => isMobile, "desktop layout");
@@ -152,7 +152,9 @@ test.describe("desktop", () => {
 
     await expect(page.getByText("Shared plan")).toBeVisible();
     await expect(page.getByText("Summer 2026")).toBeVisible();
-    await expect(page.getByRole("tablist", { name: "Plans" })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Plans" })).toHaveCount(
+      0,
+    );
 
     await page.getByRole("button", { name: "Save a copy" }).click();
     await expect(page).toHaveURL((url) => !url.searchParams.has("plan"));

@@ -26,7 +26,7 @@ test.afterEach(() => {
 const calendar = (page: Page) =>
   page.getByRole("region", { name: "Week calendar" });
 const planTabs = (page: Page) =>
-  page.getByRole("tablist", { name: "Plans" }).getByRole("tab");
+  page.getByRole("navigation", { name: "Plans" }).getByRole("listitem");
 const courseField = (page: Page) =>
   page.getByRole("combobox", { name: "Add a course" });
 
@@ -83,10 +83,9 @@ test("generate from four courses, preview one, and save two as plans", async ({
     "Plan C",
     "Plan D",
   ]);
-  await expect(planTabs(page).filter({ hasText: "Plan C" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(
+    planTabs(page).getByRole("button", { name: "Plan C", exact: true }),
+  ).toHaveAttribute("aria-current", "true");
   await expect(page.getByText("Saved 2 plans")).toBeVisible();
 });
 

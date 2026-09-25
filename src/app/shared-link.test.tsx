@@ -24,7 +24,7 @@ describe("shared link view", () => {
     const onClearShared = vi.fn();
     await renderShell({ sharedParam: await sharedLink(), onClearShared });
     expect(await screen.findByText("Shared plan")).toBeVisible();
-    expect(screen.queryByRole("tablist", { name: "Plans" })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Plans" })).toBeNull();
     // The link's term shows, but the person's last term isn't changed.
     expect(await screen.findByText("Summer 2026")).toBeVisible();
     // Credits count the shared plan's courses.
@@ -65,7 +65,7 @@ describe("shared link view", () => {
     );
     expect(onClearShared).toHaveBeenCalled();
     setProps({ onClearShared });
-    expect(await screen.findByRole("tab", { name: "Plan A" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Plan A" })).toBeVisible();
   });
 
   it("a broken link says so and returns to your plans", async () => {

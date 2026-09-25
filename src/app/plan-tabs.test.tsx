@@ -8,22 +8,22 @@ import { renderShell } from "./test-utils";
 
 vi.mock("./analytics", () => ({ track: vi.fn() }));
 
-const tablist = () => screen.getByRole("tablist", { name: "Plans" });
+const planNav = () => screen.getByRole("navigation", { name: "Plans" });
 const tabNames = () =>
-  within(tablist())
-    .getAllByRole("tab")
+  within(planNav())
+    .getAllByRole("listitem")
     .map((t) => t.textContent);
 
 async function setup() {
   const view = await renderShell();
-  await screen.findByRole("tab", { name: "Plan A" });
+  await screen.findByRole("button", { name: "Plan A" });
   return view;
 }
 
 async function openPlanMenu(user: Awaited<ReturnType<typeof setup>>["user"]) {
-  const selected = within(tablist())
-    .getAllByRole("tab")
-    .find((t) => t.getAttribute("aria-selected") === "true");
+  const selected = within(planNav())
+    .getAllByRole("button")
+    .find((t) => t.getAttribute("aria-current") === "true");
   await user.click(
     screen.getByRole("button", { name: `${selected?.textContent} options` }),
   );
@@ -38,8 +38,8 @@ describe("plan tabs", () => {
   it("starts a first visit with one empty plan", async () => {
     await setup();
     expect(tabNames()).toEqual(["Plan A"]);
-    expect(screen.getByRole("tab", { name: "Plan A" })).toHaveAttribute(
-      "aria-selected",
+    expect(screen.getByRole("button", { name: "Plan A" })).toHaveAttribute(
+      "aria-current",
       "true",
     );
   });
@@ -78,7 +78,7 @@ describe("plan tabs", () => {
     expect(tabNames()).toEqual(["Chill week"]);
     expect(track).toHaveBeenCalledWith("plan_renamed", { via: "menu" });
 
-    await user.dblClick(screen.getByRole("tab", { name: "Chill week" }));
+    await user.dblClick(screen.getByRole("button", { name: "Chill week" }));
     await user.type(
       screen.getByRole("textbox", { name: "Plan name" }),
       "zzz{Escape}",
@@ -88,7 +88,7 @@ describe("plan tabs", () => {
 
   it("double-click renames in place", async () => {
     const { user } = await setup();
-    await user.dblClick(screen.getByRole("tab", { name: "Plan A" }));
+    await user.dblClick(screen.getByRole("button", { name: "Plan A" }));
     expect(screen.getByRole("textbox", { name: "Plan name" })).toHaveFocus();
     // The old name is selected, so typing replaces it.
     await user.keyboard("Mornings off{Enter}");

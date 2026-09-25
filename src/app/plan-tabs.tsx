@@ -57,22 +57,22 @@ export function PlanTabs({
   const active = plans.find((p) => p.id === activeId);
 
   return (
-    <div className="flex min-w-0 items-center gap-0.5">
-      <div
-        role="tablist"
-        aria-label="Plans"
-        className="flex min-w-0 items-center gap-0.5"
-      >
+    // A list of buttons, not an ARIA tablist: the open plan's ▾ menu button
+    // sits beside its tab, and a tablist may hold nothing but tabs. The open
+    // plan is `aria-current`.
+    <nav aria-label="Plans" className="flex min-w-0 items-center gap-0.5">
+      <ul className="flex min-w-0 items-center gap-0.5">
         {visible.map((plan) =>
           editing?.id === plan.id ? (
-            <RenameInput
-              key={plan.id}
-              plan={plan}
-              onDone={(name) => {
-                if (name !== null) renamePlan(plan.id, name, editing.via);
-                setEditing(null);
-              }}
-            />
+            <li key={plan.id} className="flex">
+              <RenameInput
+                plan={plan}
+                onDone={(name) => {
+                  if (name !== null) renamePlan(plan.id, name, editing.via);
+                  setEditing(null);
+                }}
+              />
+            </li>
           ) : (
             <PlanTab
               key={plan.id}
@@ -83,7 +83,7 @@ export function PlanTabs({
             />
           ),
         )}
-      </div>
+      </ul>
       {overflow.length > 0 ? (
         <OverflowMenu
           plans={overflow}
@@ -92,7 +92,7 @@ export function PlanTabs({
         />
       ) : null}
       <NewPlanMenu termId={termId} current={active} />
-    </div>
+    </nav>
   );
 }
 
@@ -109,7 +109,7 @@ function PlanTab({
 }) {
   const renaming = useRef(false);
   return (
-    <div
+    <li
       className={cn(
         "flex h-8 min-w-0 shrink items-center rounded-md transition-colors",
         active ? "bg-hover" : "hover:bg-hover/60",
@@ -120,8 +120,7 @@ function PlanTab({
       >
         <button
           type="button"
-          role="tab"
-          aria-selected={active}
+          aria-current={active ? "true" : undefined}
           onClick={onOpen}
           onDoubleClick={() => onRename("double-click")}
           className={cn(
@@ -172,7 +171,7 @@ function PlanTab({
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-    </div>
+    </li>
   );
 }
 
