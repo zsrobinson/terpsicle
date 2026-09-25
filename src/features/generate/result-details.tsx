@@ -3,7 +3,7 @@ import { track } from "~/app/analytics";
 import { MessageText } from "~/app/message-text";
 import { PanelBody } from "~/app/panel";
 import type { DrillViewProps } from "~/app/registry";
-import { changesFrom, type PlanChange } from "~/core/generate";
+import { changesFrom, type PlanChange } from "~/core/generate/result-plan";
 import { planProblems } from "~/core/problems";
 import type { Plan, SectionKey } from "~/core/schema";
 import { formatTime } from "~/core/time";

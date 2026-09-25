@@ -1,4 +1,4 @@
-import type { SectionDifference } from "~/core/generate";
+import type { SectionDifference } from "~/core/generate/describe";
 import type { Day, Equivalents, PlanStats } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTime } from "~/core/time";
 

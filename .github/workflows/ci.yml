@@ -27,6 +27,11 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # BUILD §5: the eager bundle for / has a budget, and MapLibre, the
+      # generator and the fixtures must stay lazy.
+      - name: Bundle budget
+        run: pnpm check:bundle
+
       - name: Route tree is committed and current
         run: git diff --exit-code -- src/routeTree.gen.ts || (echo "::error::src/routeTree.gen.ts is stale. Run pnpm build (or pnpm dev) and commit it." && exit 1)
 

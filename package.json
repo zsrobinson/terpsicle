@@ -12,6 +12,7 @@
     "dev:mock": "pnpm db:local && vite dev --mode mock --port 3000",
     "db:local": "wrangler d1 migrations apply terpsicle --local",
     "build": "vite build",
+    "check:bundle": "tsx scripts/check-bundle.ts",
     "preview": "vite preview",
     "check": "pnpm typecheck && pnpm lint && pnpm test:coverage && vitest run --project \"!core\"",
     "typecheck": "tsc -b",

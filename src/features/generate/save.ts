@@ -1,6 +1,6 @@
 import { createPlanFrom } from "~/app/actions";
 import { track } from "~/app/analytics";
-import { resultCourses } from "~/core/generate";
+import { resultCourses } from "~/core/generate/result-plan";
 import type {
   GeneratedPlan,
   GenerateRequest,

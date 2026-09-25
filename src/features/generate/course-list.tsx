@@ -3,7 +3,7 @@ import { Minus, Plus, X } from "lucide-react";
 import { type Ref, useMemo } from "react";
 import type { CatalogIndex } from "~/core/catalog";
 import { defaultCourseColor, resolveCourseColors } from "~/core/color";
-import { draftCourseCodes } from "~/core/generate";
+import { draftCourseCodes } from "~/core/generate/draft";
 import type {
   CourseCode,
   CourseColor,

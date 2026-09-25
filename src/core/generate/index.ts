@@ -1,3 +1,6 @@
+// The generator's public API. The worker and tests import this barrel; UI
+// code imports the module it needs (~/core/generate/draft, …) so the search
+// itself stays out of the page's eager bundle (scripts/check-bundle.ts).
 export {
   candidateGroups,
   equivalenceKey,

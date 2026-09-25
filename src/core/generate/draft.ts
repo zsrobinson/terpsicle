@@ -7,7 +7,6 @@ import type {
   Relaxable,
   Relaxation,
 } from "../schema";
-import { relaxCourseItem } from "./generate";
 
 // The Generate form's items as the generator's: the form lets a "pick N"
 // group be half-built while the person fills it in.
@@ -68,4 +67,19 @@ export function relaxDraft(
       item.kind === "course" ? relaxCourseItem(item, patch) : item,
     ),
   };
+}
+
+/** A requested course with a relaxation's course patch applied. */
+export function relaxCourseItem(
+  item: Extract<GenItem, { kind: "course" }>,
+  patch: Relaxation["patch"],
+): Extract<GenItem, { kind: "course" }> {
+  let next = item;
+  if (item.courseCode === patch.makeOptional)
+    next = { ...next, required: false };
+  if (item.courseCode === patch.allowAllSections) {
+    const { sections: _all, ...rest } = next;
+    next = rest;
+  }
+  return next;
 }
