@@ -1,10 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { INITIAL_UI_STATE, useUi } from "~/state/ui-store";
 import { TooltipProvider } from "~/ui/tooltip";
 import { SidebarResizeHandle, sidebarWidthForKey } from "./sidebar-resize";
-import { SIDEBAR_WIDTH_STORAGE_KEY } from "./sidebar-width";
+import {
+  COMPACT_SIDEBAR_QUERY,
+  SIDEBAR_WIDTH_STORAGE_KEY,
+  shownSidebarWidth,
+} from "./sidebar-width";
 
 // The sidebar's draggable edge (owner decision 3): 320–480px, by pointer or
 // keyboard, saved once per drag, and mirrored for the next first paint.
@@ -89,5 +93,47 @@ describe("SidebarResizeHandle", () => {
     await userEvent.setup().dblClick(handle);
     expect(useUi.getState().sidebarWidth).toBe(360);
     expect(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)).toBeNull();
+  });
+
+  describe("on a tablet", () => {
+    beforeEach(() => {
+      vi.spyOn(window, "matchMedia").mockImplementation(
+        (query) =>
+          ({
+            matches: query === COMPACT_SIDEBAR_QUERY,
+            media: query,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+          }) as unknown as MediaQueryList,
+      );
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it("draws the default at the minimum, so the calendar keeps its room", async () => {
+      // An 820px iPad: 360px left the calendar about 400px.
+      const handle = renderHandle();
+      expect(cssWidth()).toBe("320px");
+      expect(handle).toHaveAttribute("aria-valuenow", "320");
+      // Nothing saved: a desktop visit still gets 360.
+      expect(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)).toBeNull();
+      // Keys step from what's on screen.
+      handle.focus();
+      await userEvent.setup().keyboard("{ArrowRight}");
+      expect(useUi.getState().sidebarWidth).toBe(336);
+    });
+
+    it("keeps a width the user chose", () => {
+      useUi.getState().setSidebarWidth(400);
+      renderHandle();
+      expect(cssWidth()).toBe("400px");
+    });
+  });
+});
+
+describe("shownSidebarWidth", () => {
+  it("swaps only the default, only when compact", () => {
+    expect(shownSidebarWidth(360, true)).toBe(320);
+    expect(shownSidebarWidth(360, false)).toBe(360);
+    expect(shownSidebarWidth(400, true)).toBe(400);
   });
 });

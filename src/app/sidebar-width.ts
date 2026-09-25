@@ -8,14 +8,29 @@ import { SIDEBAR_WIDTH } from "~/core/schema";
 
 export const SIDEBAR_WIDTH_STORAGE_KEY = "terpsicle:sidebar-width";
 
+/**
+ * Below 1024px (a tablet) the default 360px leaves the calendar about 400px,
+ * so an untouched sidebar takes the minimum there. A width the user chose
+ * wins everywhere. styles.css has the same breakpoint for the first paint.
+ */
+export const COMPACT_SIDEBAR_QUERY = "(max-width: 1023px)";
+
+/** The width to draw: the saved one, unless it's the default on a tablet. */
+export function shownSidebarWidth(saved: number, compact: boolean): number {
+  return compact && saved === SIDEBAR_WIDTH.default ? SIDEBAR_WIDTH.min : saved;
+}
+
 /** Sets the width the layout uses, without saving it (every frame of a drag). */
 export function setSidebarWidthVar(px: number): void {
   document.documentElement.style.setProperty("--sidebar-width", `${px}px`);
 }
 
-/** Sets the width and mirrors it for the next visit's first paint. */
-export function applySidebarWidth(px: number): void {
-  setSidebarWidthVar(px);
+/**
+ * Sets the width and mirrors the saved one for the next visit's first paint.
+ * `shown` differs from `px` only for the default on a tablet.
+ */
+export function applySidebarWidth(px: number, shown = px): void {
+  setSidebarWidthVar(shown);
   try {
     if (px === SIDEBAR_WIDTH.default)
       window.localStorage.removeItem(SIDEBAR_WIDTH_STORAGE_KEY);

@@ -94,8 +94,10 @@ export function GhostHint({
               : "Open it to pick one."}
           </>
         )}
+        {/* Gives way first on a narrow calendar (a tablet with the sidebar
+            open): the list beside it has every section anyway. */}
         {ghost.overflow > 0 ? (
-          <span className="text-muted">
+          <span className="hidden text-muted @xl:inline">
             {" "}
             {ghost.overflow} more with other times are in the list.
           </span>

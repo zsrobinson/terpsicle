@@ -84,6 +84,35 @@ test.describe("desktop", () => {
     await expect(sidebar(page)).toBeHidden();
     await expect(handle(page)).toBeHidden();
   });
+
+  test("on a tablet, the default is the minimum, a chosen width stays, and the hint fits", async ({
+    page,
+  }) => {
+    // An 820px iPad: at 360px the calendar was about 400px, and the hint
+    // strip cut off mid-sentence.
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await open(page);
+    expect(await widthOf(page)).toBe(320);
+
+    await page.keyboard.press("/");
+    await page
+      .getByRole("combobox", { name: "Search courses" })
+      .fill("engl 101");
+    await page.locator('[data-course-result="ENGL101"]').click();
+    const hint = page.getByText(/^Showing every section of ENGL101/);
+    await expect(hint).toBeVisible();
+    // Not truncated: the whole sentence fits the strip.
+    expect(
+      await hint.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+
+    await handle(page).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(() => widthOf(page)).toBe(336);
+    await page.reload();
+    await expect(sidebar(page)).toBeVisible();
+    expect(await widthOf(page)).toBe(336);
+  });
 });
 
 test("phones have the drawer, not a resize handle", async ({
