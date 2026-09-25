@@ -37,9 +37,14 @@ These follow directly from `DESIGN.md`, `SPEC.md` or the principles, so there's 
 
 ### 1.2 Owner decisions
 
-Only three, each with screenshots from the prototype on this branch (mock data; `pnpm dev:mock`, then `/?demo=1&cd=a|b|c`). Images are in `docs/ux-review/`.
+**Decided by owner, 2026-09-25:**
+1. **Course details: A, one page.**
+2. **Many sections with no instructor grouping: group by meeting time.**
+3. **Sidebar width: draggable**, 320–480px ("draggable would be sick"). WP0 adds the `--sidebar-width` variable and the `w-sidebar` utility; WP6 builds the handle and remembers the width.
 
-**Decision 1: course details structure** (§3.3). The owner's complaint. *Recommend A.*
+The options as presented follow. There were only three, each with screenshots from the prototype on this branch (mock data; `pnpm dev:mock`, then `/?demo=1&cd=a|b|c`). Images are in `docs/ux-review/`.
+
+**Decision 1: course details structure** (§3.3). The owner's complaint. *Recommend A.* **Decided: A.**
 
 | Now | A · One page (recommended) | B · Tabs at the top | C · Everything in place |
 |---|---|---|---|
@@ -49,7 +54,7 @@ Only three, each with screenshots from the prototype on this branch (mock data; 
 - **B · Tabs at the top.** The smallest change: Sections / Instructors / Grades / About as tabs under the header, with Sections the default. It fixes "tabs at the bottom" but still hides instructor info and prerequisites behind a tab while you choose.
 - **C · Everything in place.** Like A, but the course-wide grade sentence joins the facts under the title, and grade bars move inside each instructor's "Reviews" disclosure (per-instructor grades). No sections below the list at all.
 
-**Decision 2: many sections with no instructor grouping** (ENGL101: 92 sections, all "Instructor TBA") (§3.5). *Recommend grouping by time.*
+**Decision 2: many sections with no instructor grouping** (ENGL101: 92 sections, all "Instructor TBA") (§3.5). *Recommend grouping by time.* **Decided: group by time.**
 
 | Flat, one line per section | Grouped by meeting time (recommended) |
 |---|---|
@@ -57,7 +62,7 @@ Only three, each with screenshots from the prototype on this branch (mock data; 
 
 Grouping by time mirrors the calendar's merged ghosts ("0101–0105 · 5 sections" is one group), turns 92 rows into about 17 collapsible groups, and each row then shows only the room. Flat is simpler and fine with "Only fits" on.
 
-**Decision 3: sidebar width** (§3.6). *Recommend 400px at ≥1280px wide, 360px below.*
+**Decision 3: sidebar width** (§3.6). *Recommend 400px at ≥1280px wide, 360px below.* **Decided: draggable, 320–480px.**
 
 | 360px (now) | 440px |
 |---|---|
@@ -105,7 +110,7 @@ A 4px base, using these steps only: `1` (4), `1.5` (6, inside chips only), `2` (
 │  │ GroupHeader (36px, bg-panel, sticky under bar)  ││  "▾ Grace Kowalczyk ★4.2 (61) · GPA 3.10   0 of 5 fit  Reviews"
 │  │ ListRow …                                       ││
 │  └─────────────────────────────────────────────────┘│
-│  SectionHeader "label" (quiet, for forms)           │  "Must have" 12/500 muted, pt-4 pb-1.5
+│  SectionHeader "label" (quiet, for forms)           │  "Must have" 11/500 muted, pt-4 pb-1.5
 ├─────────────────────────────────────────────────────┤
 │ PanelFooter (optional, sticky bottom)               │  the panel's one primary action
 └─────────────────────────────────────────────────────┘
@@ -145,6 +150,21 @@ export function EmptyState(props: { children: ReactNode; action?: ReactNode }): 
 export function PanelFooter(props: { children: ReactNode }): JSX.Element;
 // sticky bottom-0 border-t bg-bg px-4 py-2; the only filled button in the panel lives here.
 ```
+
+**As built in WP0** (use these; they differ from the sketch above only where noted):
+- `~/app/panel`: `PanelHeader`, `PanelBody`, `SectionHeader`, `PanelLabel` (now `SectionHeader variant="label"`, 11/500 muted), `GroupHeader`, `ListRow`, `EmptyState`, `PanelFooter` and `MetaSep` (a faint " · ").
+  - `ListRow` is flex, not grid: give `lead` a fixed width per list (`w-10` for section codes) so rows align.
+  - `action` is always a `w-14` column. Rest props (`data-*`, pointer handlers, `aria-*`) go to the row, and `as="li"` inside a `ul`.
+- `~/app/emphasis`:
+  - `TEXT.primary|secondary|tertiary` (`text-fg`/`text-muted`/`text-faint`);
+  - `TONE_TEXT[ok|warn|error|plain|muted]` for status words;
+  - `TONE_FILL[ok|warn|error]` for soft status fills.
+- `~/app/plan-label`: `planLabel(current)` gives "Shared plan" in a shared view, and the plan's name otherwise.
+- `~/core/problems`: `problemCountWords(counts)` gives "2 problems · 1 note". Both the top bar and the Problems tab use it.
+- **CSS (`src/styles.css`):**
+  - the type utilities `text-2xs|xs|sm|base|lg|xl` (§2.1);
+  - `ident` (mono with tabular figures, for codes) and `tnum`;
+  - `w-sidebar`, which reads `--sidebar-width` (clamped 320–480px).
 
 ### 2.4 The list-row pattern
 
@@ -421,12 +441,12 @@ Every package owns its files exclusively. Everything but WP1's structure and WP6
 | WP | Scope | Owns (exclusive) | Depends on | Blocked by owner? |
 |---|---|---|---|---|
 | **WP0 · System** | §2: type tokens in `@theme`; `SectionHeader`, `GroupHeader`, `ListRow`, `EmptyState` and `PanelFooter`, with tests; `PanelLabel` becomes an alias; the type-scale sweep of `src/app/**` and `src/components/ui/**`. The rail active state (§4.1). | `src/styles.css`, `src/app/panel.tsx` (+ test), `src/app/rail.tsx`, `src/app/logo.tsx`, `src/app/top-bar.tsx`, `src/app/shared-pill.tsx`, `src/components/ui/**` | — | No. Small; merge first (same day). |
-| **WP1 · Course details** | §3 in full. Delete `prototype.tsx` and the `?cd=` hook. Move shared-meeting factoring and `lectureKey` to `src/core/catalog/section-groups.ts`, with tests at 1, few and many sections. Grades chips this term's instructors first. Compact words. | `src/features/course-details/**`, `src/core/catalog/section-groups.ts` (+ test), `e2e/search.spec.ts` (details assertions) | WP0 | **Yes: Decisions 1 and 2.** Start now on the decided parts: header facts, row factoring (core), the single-section block, compact words, dropping the row-mode toggle. |
+| **WP1 · Course details** | §3 in full. Delete `prototype.tsx` and the `?cd=` hook. Move shared-meeting factoring and `lectureKey` to `src/core/catalog/section-groups.ts`, with tests at 1, few and many sections. Grades chips this term's instructors first. Compact words. | `src/features/course-details/**`, `src/core/catalog/section-groups.ts` (+ test), `e2e/search.spec.ts` (details assertions) | WP0 | No (decided 2026-09-25: A, grouped by time). |
 | **WP2 · Search and calendar** | §4.2, §4.3: overlay hint strip, result rows by section count, result count, dept-prefix ranking, pill visibility, hiding pills under ghosts, ghost label truncation, calendar text on `2xs`. | `src/features/search/**`, `src/features/calendar/**`, `src/app/calendar/**`, `src/core/search/**`, `src/core/travel/` (new `pill.ts` + test only) | WP0 | No |
 | **WP3 · Plan panels** | §4.4, §4.5, §4.9, §4.10: Courses rows and problem words, first-visit sizes, Problems counts and headers, Export rows, shared-view subs. | `src/features/courses/**`, `src/features/problems/**`, `src/features/export/**`, `src/features/alerts/**` | WP0 | No |
 | **WP4 · Travel and Blocks** | §4.6, §4.7: connections first, the settings summary, merged connections, rows, the Estimate in sans; Blocks list-first, the shared Select and toggles. | `src/features/travel/**` (except `src/core/travel/pill.ts`), `src/features/blocks/**` | WP0 | No |
 | **WP5 · Generate** | §4.8 | `src/features/generate/**` | WP0 | No |
-| **WP6 · Shell width and mobile** | Decision 3; §4.11: drawer strip height, drill snaps at half. | `src/app/app-shell.tsx`, `src/app/sidebar.tsx`, `src/app/mobile-drawer.tsx`, `src/app/use-media-query.ts` | WP0 | **Yes: Decision 3** (the mobile half of this package can start now). |
+| **WP6 · Shell width and mobile** | Decision 3 (a drag handle on the sidebar's right edge that sets `--sidebar-width` on `:root`, clamped 320–480px and remembered per browser; `w-sidebar` already reads it); §4.11: drawer strip height, drill snaps at half. | `src/app/app-shell.tsx`, `src/app/sidebar.tsx`, `src/app/mobile-drawer.tsx`, `src/app/use-media-query.ts` | WP0 | No (decided 2026-09-25). |
 | **WP7 · Close-out** | `src/app/design-tokens.test.ts` (no `text-[Npx]`, no `rounded-lg border` on list containers), screenshots after, and a `DESIGN.md` §5 note for the type scale. | New test file, `docs/` | WP0–WP6 | — |
 
 **Order:**

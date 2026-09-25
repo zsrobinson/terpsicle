@@ -26,7 +26,7 @@ export function TermSwitcher() {
 
   if (!terms || !term) return <Skeleton className="h-4 w-20" />;
   if (sharing)
-    return <span className="px-1.5 text-[12.5px] text-muted">{term.name}</span>;
+    return <span className="px-1.5 text-base text-muted">{term.name}</span>;
 
   const active = terms.filter((t) => t.status === "active");
   const past = terms.filter((t) => t.status === "archived");
@@ -42,7 +42,7 @@ export function TermSwitcher() {
           <button
             type="button"
             aria-label={term.name}
-            className="flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-[12.5px] text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
+            className="flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
             {/* The smallest phones get "Spring ’27", so the open plan's name fits. */}
             <span className="max-[380px]:hidden">{term.name}</span>
@@ -83,7 +83,7 @@ function TermItem({ term }: { term: Term }) {
     <DropdownMenuRadioItem value={term.id}>
       <span className="flex-1">{term.name}</span>
       {term.status === "archived" ? (
-        <span className="text-[11px] text-faint">Seats frozen</span>
+        <span className="text-xs text-faint">Seats frozen</span>
       ) : null}
     </DropdownMenuRadioItem>
   );

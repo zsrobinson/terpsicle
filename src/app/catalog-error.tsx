@@ -42,7 +42,7 @@ export function CatalogError({ message }: { message: string }) {
       role="alert"
       className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center"
     >
-      <p className="max-w-[360px] text-[13px] text-fg">{message}</p>
+      <p className="max-w-[360px] text-base text-fg">{message}</p>
       {stale ? (
         <WithTooltip label="Reload the page to get the latest Terpsicle">
           <Button

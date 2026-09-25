@@ -73,6 +73,37 @@
   --shadow-pop: var(--shadow);
 }
 
+/*
+ * The type scale (docs/UX-REVIEW.md §2.1): six steps, replacing per-component
+ * `text-[12.5px]` values. These override Tailwind's default xs…xl, so
+ * `text-sm` here is 12px, not 14px. Weights: 400 body, 500 labels and names,
+ * 600 titles and codes (`font-medium`, `font-semibold`); nothing bolder.
+ *
+ *   text-2xs   10/13  calendar blocks, rail labels, badges only
+ *   text-xs    11/14  meta: counts, freshness, footnotes, chips
+ *   text-sm    12/16  secondary lines in rows, labels, row buttons
+ *   text-base  13/18  primary text, codes, body, panel titles, buttons
+ *   text-lg    15/20  the drill-in title
+ *   text-xl    18/24  the first-visit headline only
+ *
+ * Spacing uses Tailwind's 4px steps, and only 1, 1.5 (inside chips), 2, 3, 4
+ * and 6. Panels are px-4; rows py-2 (regular) or py-1 (compact); columns gap-3.
+ */
+@theme {
+  --text-2xs: 10px;
+  --text-2xs--line-height: 13px;
+  --text-xs: 11px;
+  --text-xs--line-height: 14px;
+  --text-sm: 12px;
+  --text-sm--line-height: 16px;
+  --text-base: 13px;
+  --text-base--line-height: 18px;
+  --text-lg: 15px;
+  --text-lg--line-height: 20px;
+  --text-xl: 18px;
+  --text-xl--line-height: 24px;
+}
+
 :root {
   color-scheme: light;
   --bg: #fcfcfd;
@@ -262,6 +293,32 @@
 }
 
 @utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Mono vs sans (docs/UX-REVIEW.md §2.7): `ident` is for identifiers (course,
+ * section, building and gen-ed codes) and the calendar's block text. Times,
+ * counts, seats and GPAs are `tnum` sans. Never set a sentence in `ident`.
+ */
+/*
+ * The desktop sidebar's width. The owner chose a draggable sidebar, 320–480px
+ * (docs/UX-REVIEW.md §1.2, decision 3). The resize handle sets
+ * `--sidebar-width` on the document root; everything else reads it through
+ * `w-sidebar`. The calendar takes whatever is left (it's `flex-1`).
+ */
+:root {
+  --sidebar-width: 360px;
+  --sidebar-min: 320px;
+  --sidebar-max: 480px;
+}
+
+@utility w-sidebar {
+  width: clamp(var(--sidebar-min), var(--sidebar-width), var(--sidebar-max));
+}
+
+@utility ident {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 

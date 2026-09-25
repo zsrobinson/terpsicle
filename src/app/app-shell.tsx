@@ -90,7 +90,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
         <aside
           aria-label="Sidebar"
           hidden={!sidebarOpen}
-          className="flex w-[360px] shrink-0 flex-col border-hairline border-r"
+          className="flex w-sidebar shrink-0 flex-col border-hairline border-r"
         >
           <SidebarContent />
         </aside>

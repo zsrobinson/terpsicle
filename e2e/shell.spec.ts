@@ -150,7 +150,14 @@ test.describe("desktop", () => {
     const param = encodeShare(payload);
     await open(page, `/?plan=${param}`);
 
-    await expect(page.getByText("Shared plan")).toBeVisible();
+    // The pill in the top bar, and the panel names it the same way (not the
+    // sharer's name for it, which could read as one of your plans).
+    await expect(
+      page.getByRole("banner").getByText("Shared plan"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Shared plan" }),
+    ).toBeVisible();
     await expect(page.getByText("Summer 2026")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Plans" })).toHaveCount(
       0,

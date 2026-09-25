@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CalendarDays, Copy, Link2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
+import { planLabel } from "~/app/plan-label";
 import { useAcademicCalendar } from "~/state/data-hooks";
 import {
   useActiveTerm,
@@ -38,7 +39,7 @@ export function ExportPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PanelHeader title="Export" sub={plan.name} />
+      <PanelHeader title="Export" sub={planLabel(current)} />
       <PanelBody className="pb-4">
         <div className="p-2">
           <ActionRow

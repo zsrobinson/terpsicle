@@ -8,8 +8,8 @@ import { TABS, type Tab } from "./tabs";
 import { ThemeToggle } from "./theme-toggle";
 
 // The labeled rail (SPEC §2). Clicking the open tab collapses the sidebar;
-// any tab reopens it. The active state is the prototype's quiet raised chip,
-// kept deliberately light so the rail doesn't read like a chat app.
+// any tab reopens it. The active state is a flat fill with no ring or shadow,
+// kept deliberately light so the rail doesn't read like a chat app (DESIGN §5).
 
 export function Rail() {
   const tab = useUi((s) => s.tab);
@@ -71,13 +71,13 @@ function RailButton({
         className={cn(
           "relative flex w-[54px] flex-col items-center gap-1 rounded-lg py-2 transition-colors",
           selected
-            ? "bg-raised text-fg shadow-xs ring-1 ring-hairline"
+            ? "bg-hover text-fg"
             : "text-muted hover:bg-hover hover:text-fg",
           current && !open && "text-fg",
         )}
       >
         <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
-        <span className="font-medium text-[10px]">{tab.label}</span>
+        <span className="font-medium text-2xs">{tab.label}</span>
         {tab.id === "problems" ? <ProblemBadge /> : null}
       </button>
     </WithTooltip>
@@ -94,7 +94,7 @@ export function ProblemBadge({ className }: { className?: string }) {
     <span
       aria-hidden="true"
       className={cn(
-        "tnum absolute top-1 right-1.5 min-w-[15px] rounded-full px-1 text-center font-mono text-[9px] text-bg leading-[15px]",
+        "tnum absolute top-1 right-1.5 min-w-[15px] rounded-full px-1 text-center font-mono text-2xs text-bg leading-[15px]",
         counts.error > 0 ? "bg-error" : "bg-warn",
         className,
       )}

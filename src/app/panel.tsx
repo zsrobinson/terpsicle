@@ -1,11 +1,22 @@
 import { cn } from "cn";
-import { type ReactNode, useEffect, useRef } from "react";
+import { ChevronDown } from "lucide-react";
+import { type ComponentProps, type ReactNode, useEffect, useRef } from "react";
 import type { RailTab } from "~/core/schema";
 import { useUi } from "~/state/ui-store";
 import { Skeleton } from "~/ui/skeleton";
+import { WithTooltip } from "~/ui/tooltip";
 
-// Building blocks for sidebar panels, so every feature's panel has the same
-// header and scroll behavior as the reference prototype.
+// The anatomy every sidebar panel shares (docs/UX-REVIEW.md §2.3):
+//
+//   PanelHeader (48px, or the breadcrumb in a drill-in), outside the scroll
+//   PanelBody: the one scroll area
+//     SectionHeader "bar": sticky at top-0, "Sections  3 of 14 fit  …"
+//       GroupHeader: sticky under the bar, collapsible ("▾ Grace Kowalczyk …")
+//         ListRow …
+//     SectionHeader "label": a quiet heading for forms ("Must have")
+//   PanelFooter (optional): sticky at the bottom, the panel's primary action
+//
+// At most two sticky levels inside a PanelBody: a bar, then a group header.
 
 /**
  * Focuses an element when the shell asks this tab to (e.g. `/` focuses the
@@ -33,10 +44,8 @@ export function PanelHeader({
   return (
     <div className="flex min-h-12 shrink-0 items-center gap-2 border-hairline border-b px-4 py-2">
       <div className="min-w-0 flex-1">
-        <h2 className="truncate font-semibold text-[13px]">{title}</h2>
-        {sub ? (
-          <div className="truncate text-[11.5px] text-muted">{sub}</div>
-        ) : null}
+        <h2 className="truncate font-semibold text-base">{title}</h2>
+        {sub ? <div className="truncate text-muted text-sm">{sub}</div> : null}
       </div>
       {right}
     </div>
@@ -62,7 +71,70 @@ export function PanelBody({
   );
 }
 
-/** A small section label inside a panel ("Saved for later"). */
+/**
+ * A section's heading inside a panel.
+ * - `bar` (default): a 36px band with hairlines above and below, for lists;
+ *   `sticky` pins it to the top of the PanelBody.
+ * - `label`: a quiet heading with no lines, for forms and short groups.
+ */
+export function SectionHeader({
+  title,
+  count,
+  right,
+  variant = "bar",
+  sticky = false,
+  className,
+}: {
+  title: ReactNode;
+  /** "3 of 14 fit", "12": muted and tabular. */
+  count?: ReactNode;
+  /** Filters, jump links, a freshness note. */
+  right?: ReactNode;
+  variant?: "bar" | "label";
+  /** Bar only. */
+  sticky?: boolean;
+  className?: string;
+}) {
+  if (variant === "label")
+    return (
+      <div
+        className={cn(
+          "flex items-baseline justify-between gap-2 px-4 pt-4 pb-1.5 font-medium text-muted text-xs",
+          className,
+        )}
+      >
+        <span>
+          {title}
+          {count !== undefined ? (
+            <span className="tnum ml-1.5 font-normal">{count}</span>
+          ) : null}
+        </span>
+        {right}
+      </div>
+    );
+  return (
+    <div
+      className={cn(
+        "flex h-9 shrink-0 items-center gap-2 whitespace-nowrap border-hairline border-y bg-bg px-4 text-sm",
+        sticky && "sticky top-0 z-20",
+        className,
+      )}
+    >
+      <h3 className="font-medium">{title}</h3>
+      {count !== undefined ? (
+        <span className="tnum text-muted">{count}</span>
+      ) : null}
+      {right ? (
+        <div className="ml-auto flex min-w-0 items-center gap-3">{right}</div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * A small section label ("Saved for later"): `SectionHeader variant="label"`.
+ * Kept so panels migrate on their own schedule.
+ */
 export function PanelLabel({
   children,
   right,
@@ -70,11 +142,179 @@ export function PanelLabel({
   children: ReactNode;
   right?: ReactNode;
 }) {
+  return <SectionHeader variant="label" title={children} right={right} />;
+}
+
+/**
+ * The header of a collapsible group of rows (an instructor's sections). The
+ * left part toggles; `right` holds its own controls (never inside the
+ * toggle). `sticky` pins it under a sticky SectionHeader bar.
+ */
+export function GroupHeader({
+  open,
+  onToggle,
+  toggleLabel,
+  title,
+  meta,
+  right,
+  sticky = false,
+  className,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  /** The toggle's tooltip: "Hide Grace Kowalczyk's sections". */
+  toggleLabel: string;
+  title: ReactNode;
+  /** Muted facts after the title: "★ 4.2 (61) · GPA 3.10". */
+  meta?: ReactNode;
+  right?: ReactNode;
+  sticky?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="flex items-baseline justify-between px-4 pt-4 pb-1.5 font-medium text-[11px] text-muted">
-      <span>{children}</span>
-      {right}
+    <div
+      className={cn(
+        "flex h-9 items-center gap-2 border-hairline border-b bg-panel px-4 text-sm",
+        sticky && "sticky top-9 z-10",
+        className,
+      )}
+    >
+      <WithTooltip label={toggleLabel}>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={onToggle}
+          className="-ml-1 flex h-full min-w-0 flex-1 items-center gap-1.5 text-left"
+        >
+          <ChevronDown
+            size={13}
+            aria-hidden="true"
+            className={cn(
+              "shrink-0 text-muted transition-transform duration-150",
+              !open && "-rotate-90",
+            )}
+          />
+          <span className="truncate font-medium">{title}</span>
+          {meta ? (
+            <span className="tnum shrink-0 text-muted">{meta}</span>
+          ) : null}
+        </button>
+      </WithTooltip>
+      {right ? (
+        <div className="flex shrink-0 items-center gap-2 text-muted text-xs">
+          {right}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * One row of any list (docs/UX-REVIEW.md §2.4), in four columns:
+ * - `lead`: identity (a code, a dot, a checkbox), fixed width per list;
+ * - `children`: what it is, a primary line then at most two secondary lines;
+ * - `trail`: a status or value, right-aligned and tabular;
+ * - `action`: one small button or a word, fixed width (`w-14`).
+ * Hairlines between rows, never boxes around them. The rest of the props go
+ * to the row element (pointer handlers, `data-*`, `aria-*`).
+ */
+export function ListRow({
+  lead,
+  children,
+  trail,
+  action,
+  density = "regular",
+  state,
+  as: Row = "div",
+  className,
+  ...rest
+}: Omit<ComponentProps<"div">, "children"> & {
+  lead?: ReactNode;
+  children: ReactNode;
+  trail?: ReactNode;
+  action?: ReactNode;
+  /** `compact`: one line, 28px; for long lists. */
+  density?: "regular" | "compact";
+  /** `current` is the plan's own item; `previewed` is what the calendar shows. */
+  state?: "current" | "previewed";
+  /** `li` inside a `ul`. */
+  as?: "div" | "li";
+}) {
+  return (
+    <Row
+      {...(rest as ComponentProps<"div"> & ComponentProps<"li">)}
+      data-state={state}
+      className={cn(
+        "flex items-center gap-3 border-hairline border-b px-4 transition-colors last:border-b-0",
+        density === "compact" ? "min-h-7 py-1" : "py-2",
+        state === "previewed"
+          ? "bg-hover"
+          : state === "current"
+            ? "bg-accent-soft"
+            : undefined,
+        className,
+      )}
+    >
+      {lead !== undefined ? <div className="shrink-0">{lead}</div> : null}
+      <div className="min-w-0 flex-1">{children}</div>
+      {trail !== undefined ? (
+        <div className="tnum shrink-0 text-right text-sm">{trail}</div>
+      ) : null}
+      {action !== undefined ? (
+        <div className="flex w-14 shrink-0 justify-center">{action}</div>
+      ) : null}
+    </Row>
+  );
+}
+
+/** What a list says when it's empty: a line or two, and maybe one action. No illustrations. */
+export function EmptyState({
+  children,
+  action,
+  className,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("px-4 py-3 text-muted text-sm", className)}>
+      <div>{children}</div>
+      {action ? <div className="mt-2">{action}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * The bottom of a panel, pinned while its body scrolls: the one place for
+ * the panel's primary action ("Generate plans", "Save as new plan"). Put it
+ * after the PanelBody, not inside it.
+ */
+export function PanelFooter({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center gap-2 border-hairline border-t bg-bg px-4 py-2",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** " · " between facts on one line, in a tertiary color. */
+export function MetaSep() {
+  return (
+    <span aria-hidden="true" className="text-faint">
+      {" · "}
+    </span>
   );
 }
 
