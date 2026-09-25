@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Drawer } from "vaul";
 import type { RailTab } from "~/core/schema";
+import { useCurrentPlan } from "~/state/hooks";
 import { type DrawerSnap, useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
@@ -59,6 +60,22 @@ export function MobileDrawer() {
     last.current = { tab, depth };
     if (changed && useUi.getState().drawerSnap === "peek") setSnap("half");
   }, [tab, depth, setSnap]);
+
+  // An empty plan's calendar has nothing on it, and the Courses tab has the
+  // first-visit guide: open far enough to show it, once, on arrival.
+  const empty = useCurrentPlan()?.plan.courses.length === 0;
+  const greeted = useRef(false);
+  useEffect(() => {
+    if (!empty || greeted.current) return;
+    greeted.current = true;
+    const ui = useUi.getState();
+    if (
+      ui.tab === "courses" &&
+      ui.stack.length === 0 &&
+      ui.drawerSnap === "peek"
+    )
+      setSnap("half");
+  }, [empty, setSnap]);
 
   return (
     <Drawer.Root

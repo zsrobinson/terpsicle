@@ -194,7 +194,16 @@ test.describe("phone", () => {
     await expect(
       page.getByRole("region", { name: "Week calendar" }),
     ).toBeVisible();
-    await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
+    // A first visit's plan is empty: the drawer opens to half, far enough to
+    // show the first-visit guide's two ways in.
+    await expect(drawer(page)).toHaveAttribute("data-snap", "half");
+    await expect(page.getByTestId("first-visit")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Search for a course" }),
+    ).toBeInViewport();
+    await expect(
+      page.getByRole("button", { name: "Generate plans" }),
+    ).toBeInViewport();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );
