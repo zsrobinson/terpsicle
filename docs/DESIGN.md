@@ -135,6 +135,7 @@ Use these when the spec is silent:
 - **Don't yell.** Problems are information, not alarms. No banners, no red outlines on choices a person is still weighing, no confirmation dialogs (use undo). The one exception is unsubscribing from seat alerts.
 - **People arrive cold, a few times a semester.** Text labels on navigation, a numbered first-visit guide, tooltips everywhere, and shortcuts as a bonus rather than a requirement.
 - **Dense and precise, like Linear or Vercel.** Compact type, hairline borders, a black/white accent, and Geist. Motion is quick and quiet. A left rail with a boxed active state risks looking "like Slack", so keep it restrained.
+- **Design for 1, a few, and many sections.** Upper-level courses often have one section; intro courses have dozens. Every section-bearing surface (course details, search results, calendar ghosts, generate results) must be great at both extremes. In the owner's words: "my socy4xx classes all are just one section, but the intro CS and math courses have like a billion sections. our UI should be great in both scenarios."
 - **Don't prefill or over-model.** Blocks are just labeled time. Don't add fields people didn't ask for.
 - **Honest numbers.** Show the math behind estimates. Never draw something that implies a simpler calculation than the one we did (a straight route line, for example).
 - **Sparkles icon only for LLM output.** Generation is algorithms and gets no sparkles.

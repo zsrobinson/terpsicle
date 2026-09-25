@@ -35,6 +35,7 @@ import { AboutTab } from "./about-tab";
 import { addToPlan, saveNewCourseForLater } from "./actions";
 import { GradesTab } from "./grades-tab";
 import { InstructorsTab } from "./instructors-tab";
+import { PrototypeDetails, prototypeVariant } from "./prototype";
 import { RowModeToggle, SectionGroups } from "./section-list";
 
 // Course details (SPEC §3.4): what the course is, every section grouped by
@@ -66,6 +67,17 @@ export function CourseDetails({ entry }: DrillViewProps<"course">) {
           isn't offered in {term?.name ?? "this term"}.
         </p>
       </PanelBody>
+    );
+  // Design prototype (docs/UX-REVIEW.md §4): `?cd=a|b|c` in mock mode only.
+  const variant = prototypeVariant();
+  if (variant)
+    return (
+      <PrototypeDetails
+        variant={variant}
+        course={course}
+        termId={termId}
+        current={current}
+      />
     );
   return (
     <Details
@@ -221,13 +233,13 @@ function Details({
   );
 }
 
-function creditWords(course: Course): string {
+export function creditWords(course: Course): string {
   const { min, max } = course.credits;
   if (min === max) return `${min} credit${min === 1 ? "" : "s"}`;
   return `${min}–${max} credits`;
 }
 
-function Actions({
+export function Actions({
   course,
   current,
 }: {
@@ -308,7 +320,7 @@ const FRESHNESS_TIP: Record<SeatsFreshnessState, string> = {
 };
 
 /** "Seats as of 2 min ago", from Testudo's own time when it gave one. */
-function SeatsFreshness({ termId }: { termId: TermId }) {
+export function SeatsFreshness({ termId }: { termId: TermId }) {
   const fresh = useSeatsFreshness(termId);
   if (!fresh.text) return null;
   return (

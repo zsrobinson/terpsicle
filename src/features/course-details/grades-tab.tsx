@@ -138,7 +138,7 @@ function pct(share: number): string {
   return p > 0 && p < 1 ? "<1%" : `${Math.round(p)}%`;
 }
 
-function Bars({ bars }: { bars: readonly GradeBar[] }) {
+export function Bars({ bars }: { bars: readonly GradeBar[] }) {
   const tallest = Math.max(...bars.map((b) => b.share), 0.0001);
   return (
     <div
