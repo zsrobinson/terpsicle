@@ -67,7 +67,8 @@ export function BlockForm({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (problem) return;
-    if (onSubmit(fields) && !onCancel) setLabel("");
+    // A new block clears for the next one; an edited one closes.
+    if (onSubmit(fields) && initial === NEW_BLOCK) setLabel("");
   };
 
   return (
@@ -90,10 +91,10 @@ export function BlockForm({
               aria-pressed={label === preset}
               onClick={() => setLabel(preset)}
               className={cn(
-                "h-6 rounded-md border px-2 text-[11.5px] transition-colors",
+                "h-6 rounded-md border px-1.5 text-xs transition-colors",
                 label === preset
-                  ? "border-hairline-strong bg-hover text-fg"
-                  : "border-hairline text-muted hover:text-fg",
+                  ? "border-fg bg-fg text-bg hover:bg-fg/85"
+                  : "border-hairline text-muted hover:bg-hover hover:text-fg",
               )}
             >
               {preset}
@@ -111,7 +112,7 @@ export function BlockForm({
           maxLength={40}
           autoComplete="off"
           data-private
-          className="h-8 w-full rounded-md border border-hairline bg-bg px-2 text-[12.5px] placeholder:text-faint focus:border-hairline-strong"
+          className="h-7 w-full rounded-md border border-hairline-strong bg-bg px-2 text-base placeholder:text-faint focus:border-fg/40"
         />
       </WithTooltip>
       <fieldset className="flex gap-1" aria-label="Days">
@@ -133,10 +134,10 @@ export function BlockForm({
                   setDays(on ? days.filter((d) => d !== day) : [...days, day])
                 }
                 className={cn(
-                  "h-7 flex-1 rounded-md border text-[11.5px] transition-colors",
+                  "h-7 flex-1 rounded-md border text-sm transition-colors",
                   on
-                    ? "border-hairline-strong bg-hover font-medium text-fg"
-                    : "border-hairline text-muted hover:text-fg",
+                    ? "border-transparent bg-accent text-accent-fg"
+                    : "border-hairline-strong text-muted hover:bg-hover",
                 )}
               >
                 {DAY_SHORT_NAMES[day]}
@@ -145,7 +146,7 @@ export function BlockForm({
           );
         })}
       </fieldset>
-      <div className="flex items-center gap-2 text-[12px]">
+      <div className="flex items-center gap-2 text-sm">
         <TimeSelect label="Starts" value={start} onChange={setStart} />
         <span className="text-muted">to</span>
         <TimeSelect label="Ends" value={end} onChange={setEnd} />
@@ -157,7 +158,7 @@ export function BlockForm({
             <Button
               type="submit"
               disabled={problem !== null}
-              className="w-full text-[12.5px]"
+              className="w-full"
             >
               {submitLabel}
             </Button>
@@ -165,19 +166,14 @@ export function BlockForm({
         </WithTooltip>
         {onCancel ? (
           <WithTooltip label="Keep it as it was" shortcut="Esc">
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-[12.5px]"
-              onClick={onCancel}
-            >
+            <Button type="button" variant="ghost" onClick={onCancel}>
               Cancel
             </Button>
           </WithTooltip>
         ) : null}
       </div>
       {problem && label.trim() !== "" ? (
-        <p className="text-[11.5px] text-muted">{problem}</p>
+        <p className="text-muted text-sm">{problem}</p>
       ) : null}
     </form>
   );
@@ -199,10 +195,7 @@ function TimeSelect({
   return (
     <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
       <WithTooltip label={label}>
-        <SelectTrigger
-          aria-label={label}
-          className="tnum h-8 flex-1 text-[12.5px]"
-        >
+        <SelectTrigger aria-label={label} className="tnum flex-1">
           <SelectValue />
         </SelectTrigger>
       </WithTooltip>

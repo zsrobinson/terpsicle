@@ -34,7 +34,7 @@ export function HowEstimate({
   };
 
   return (
-    <div className="px-4 pt-3 text-[12px] text-muted">
+    <div className="px-4 pt-3 text-muted text-sm">
       <p>
         Estimates use campus paths at your pace.{" "}
         <WithTooltip label={open ? "Hide the math" : "See the math"}>
@@ -61,9 +61,11 @@ export function HowEstimate({
             {mph * FEET_PER_MINUTE_PER_MPH} ft a minute) and round up.
           </p>
           {example && math ? (
-            <p className="tnum font-mono text-[11.5px] text-fg">
-              {example.from.building} → {example.to.building}:{" "}
-              {estimateLine(math)}
+            <p className="tnum text-fg">
+              <span className="ident">
+                {example.from.building} → {example.to.building}
+              </span>
+              : {estimateLine(math)}
             </p>
           ) : null}
           <p>

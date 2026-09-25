@@ -58,7 +58,7 @@ export function RouteMap({ connection }: { connection: Connection }) {
 
   if (settled && !geometry)
     return (
-      <p className="text-[11.5px] text-faint" data-testid="route-map-missing">
+      <p className="text-faint text-sm" data-testid="route-map-missing">
         Map unavailable for this route
       </p>
     );

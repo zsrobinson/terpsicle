@@ -31,6 +31,17 @@ const mondayPill = (page: Page) =>
 
 test("pace changes the pills; a pill opens its details", async ({ page }) => {
   await page.getByRole("button", { name: "Travel", exact: true }).click();
+  // Connections first; the settings are one line that opens in place.
+  await expect(
+    sidebar(page).getByRole("button", {
+      name: /^STAT400 to CMSC351, Mon, Wed and Fri: Tight/,
+    }),
+  ).toBeVisible();
+  await sidebar(page)
+    .getByRole("button", {
+      name: /Typical pace · no extra time · standard routes/,
+    })
+    .click();
   await expect(mondayPill(page)).toHaveText("8 min");
   await expect(mondayPill(page)).toHaveAttribute("data-verdict", "tight");
 

@@ -39,7 +39,7 @@ const EXTRAS: readonly { minutes: ExtraMinutes; label: string; tip: string }[] =
 export function TravelSettingsForm({ travel }: { travel: TravelSettings }) {
   const id = useId();
   return (
-    <div className="flex flex-col gap-3 px-4 pt-3">
+    <div className="flex flex-col gap-3 px-4 pt-2">
       <Field label="Your pace" labelId={`${id}-pace`}>
         <fieldset
           aria-labelledby={`${id}-pace`}
@@ -65,8 +65,8 @@ export function TravelSettingsForm({ travel }: { travel: TravelSettings }) {
                       : "text-muted hover:text-fg",
                   )}
                 >
-                  <span className="text-[12.5px] leading-5">{label}</span>
-                  <span className="tnum text-[10.5px] text-muted leading-4">
+                  <span className="text-base">{label}</span>
+                  <span className="tnum text-muted text-xs">
                     {mph.toFixed(1)} mph
                   </span>
                 </button>
@@ -88,14 +88,14 @@ export function TravelSettingsForm({ travel }: { travel: TravelSettings }) {
           role="switch"
           aria-checked={travel.accessible}
           onClick={() => setAccessible(!travel.accessible)}
-          className="flex items-start gap-3 rounded-lg border border-hairline px-3 py-2.5 text-left transition-colors hover:border-hairline-strong"
+          className="-mx-2 flex items-start gap-3 rounded-md px-2 py-1 text-left transition-colors hover:bg-hover"
         >
           <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5 font-medium text-[12.5px]">
+            <span className="flex items-center gap-1.5 font-medium text-base">
               <Accessibility size={13} aria-hidden />
               Accessible routes
             </span>
-            <span className="mt-0.5 block text-[11.5px] text-muted leading-snug">
+            <span className="mt-0.5 block text-muted text-sm">
               Ramps, elevators and accessible entrances, from UMD's campus map.
             </span>
           </span>
@@ -118,7 +118,7 @@ export function TravelSettingsForm({ travel }: { travel: TravelSettings }) {
                   aria-label={minutes === 0 ? "No extra time" : label}
                   onClick={() => setExtraMinutes(minutes)}
                   className={cn(
-                    "tnum h-7 rounded-md text-[12px] transition-colors",
+                    "tnum h-7 rounded-md text-sm transition-colors",
                     on
                       ? "bg-raised text-fg shadow-xs ring-1 ring-hairline"
                       : "text-muted hover:text-fg",
@@ -146,7 +146,7 @@ function Field({
 }) {
   return (
     <div>
-      <div id={labelId} className="mb-1.5 font-medium text-[11px] text-muted">
+      <div id={labelId} className="mb-1.5 font-medium text-muted text-xs">
         {label}
       </div>
       {children}
