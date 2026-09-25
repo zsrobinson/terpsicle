@@ -477,3 +477,34 @@ export function stepPreview(
   if (i === -1) return order[step === 1 ? 0 : order.length - 1] ?? null;
   return order[(i + step + order.length) % order.length] ?? null;
 }
+
+/** Pills closer than this, in px, would cover each other. */
+export const PILL_CLEARANCE = 20;
+
+/**
+ * Where each of a day's pills sits across its column, as a fraction (0.5 is
+ * centered), from their tops in px. A class that leads into two overlapping
+ * classes (or two into one) gives two pills at the same spot, and the one
+ * drawn last would hide the other, even when that one says "Not enough
+ * time"; pills that close share the width side by side instead.
+ */
+export function pillColumns(tops: readonly number[]): number[] {
+  const order = tops
+    .map((top, i) => ({ top, i }))
+    .sort((a, b) => a.top - b.top || a.i - b.i);
+  const out = tops.map(() => 0.5);
+  let cluster: typeof order = [];
+  const flush = () => {
+    cluster.forEach(({ i }, k) => {
+      out[i] = (k + 0.5) / cluster.length;
+    });
+    cluster = [];
+  };
+  for (const item of order) {
+    const last = cluster.at(-1);
+    if (last && item.top - last.top >= PILL_CLEARANCE) flush();
+    cluster.push(item);
+  }
+  flush();
+  return out;
+}

@@ -338,12 +338,15 @@ const PILL_TONE = {
 export function TravelPill({
   pill,
   top,
+  x = 0.5,
   travel,
   selected,
   onOpen,
 }: {
   pill: Pill;
   top: number;
+  /** Across the column, 0.5 centered (`pillColumns`). */
+  x?: number;
   travel: TravelSettings;
   selected: boolean;
   onOpen: (connection: Connection) => void;
@@ -373,11 +376,11 @@ export function TravelPill({
         data-verdict={c.verdict}
         aria-label={`${words} From ${c.from.building} to ${c.to.building}.`}
         className={cn(
-          "tnum -translate-x-1/2 -translate-y-1/2 absolute left-1/2 z-20 flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-[10.5px] shadow-xs",
+          "tnum -translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-[10.5px] shadow-xs",
           PILL_TONE[c.verdict],
           selected && "ring-2 ring-fg/70",
         )}
-        style={{ top }}
+        style={{ top, left: `${x * 100}%` }}
       >
         <Route size={10} aria-hidden="true" />
         {known ? `${c.walkMinutes} min` : null}

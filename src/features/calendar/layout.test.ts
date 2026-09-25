@@ -25,6 +25,7 @@ import {
 } from "~/fixtures";
 import {
   buildCalendarModel,
+  pillColumns,
   type CalendarInput,
   previewOrder,
   stepPreview,
@@ -519,5 +520,18 @@ describe("performance", () => {
     // A frame is 16 ms; layout gets a small slice of it.
     expect(perRun).toBeLessThan(4);
     expect(run(null).ghost?.groups.length).toBeGreaterThan(0);
+  });
+});
+
+describe("pillColumns", () => {
+  it("centers pills that are apart", () => {
+    expect(pillColumns([100, 200, 300])).toEqual([0.5, 0.5, 0.5]);
+  });
+
+  it("puts pills at the same spot side by side, so none hides another", () => {
+    // A class leading into two overlapping classes: two pills at one spot.
+    expect(pillColumns([300, 120, 120])).toEqual([0.5, 0.25, 0.75]);
+    // Close but not equal still collides.
+    expect(pillColumns([120, 130, 140])).toEqual([1 / 6, 0.5, 5 / 6]);
   });
 });

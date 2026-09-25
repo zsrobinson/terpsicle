@@ -18,6 +18,7 @@ import { BusyBlock, ClassBlock, Ghost, laneStyle, TravelPill } from "./entries";
 import {
   type CalendarModel,
   type Pill,
+  pillColumns,
   previewOrder,
   stepPreview,
 } from "./layout";
@@ -172,6 +173,16 @@ function useClearStalePreview(model: CalendarModel | null) {
 function pillTop(pill: Pill, layout: CalendarLayout): number {
   const from = layout.yOf(pill.connection.from.time);
   return Math.min(layout.yOf(pill.at), from + 14);
+}
+
+function placePills(pills: readonly Pill[], layout: CalendarLayout) {
+  const tops = pills.map((pill) => pillTop(pill, layout));
+  const xs = pillColumns(tops);
+  return pills.map((pill, i) => ({
+    pill,
+    top: tops[i] ?? 0,
+    x: xs[i] ?? 0.5,
+  }));
 }
 
 interface DragState {
@@ -359,11 +370,12 @@ function Grid({
               style={laneStyle(ghost, layout.yOf)}
             />
           ))}
-          {column.pills.map((pill) => (
+          {placePills(column.pills, layout).map(({ pill, top, x }) => (
             <TravelPill
               key={pill.key}
               pill={pill}
-              top={pillTop(pill, layout)}
+              top={top}
+              x={x}
               travel={travel}
               selected={
                 stackTop?.kind === "connection" &&
