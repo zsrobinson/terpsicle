@@ -38,18 +38,28 @@ export type RunStatus =
     }
   | { kind: "error"; message: string };
 
+/**
+ * What the tab shows: the form, or the latest results under a one-line
+ * summary of what was asked (UX-REVIEW §4.8). A finished run shows its
+ * results; "Edit" goes back to the form.
+ */
+export type GenerateView = "form" | "results";
+
 export interface GenerateRunState {
   termId: TermId | null;
   status: RunStatus;
+  view: GenerateView;
   /** Result ids ticked for "Save N plans". */
   selected: readonly string[];
   toggleSelected: (resultId: string) => void;
   clearSelected: () => void;
+  setView: (view: GenerateView) => void;
 }
 
 export const INITIAL_RUN_STATE = {
   termId: null,
   status: { kind: "idle" },
+  view: "form",
   selected: [],
 } satisfies Partial<GenerateRunState>;
 
@@ -64,6 +74,7 @@ export const useGenerateRun = create<GenerateRunState>()((set, get) => ({
     });
   },
   clearSelected: () => set({ selected: [] }),
+  setView: (view) => set({ view }),
 }));
 
 let generator: Generator | null = null;
@@ -160,7 +171,10 @@ export async function runGenerate(
     finished = true;
     if (!isCurrent()) return;
     const durationMs = Math.round(performance.now() - started);
-    set({ status: { kind: "done", request, result, durationMs } });
+    set({
+      status: { kind: "done", request, result, durationMs },
+      view: "results",
+    });
     track("generate_run", {
       courses: input.courses.length,
       mustHaves: activeMustHaves(request.mustHaves, request.blocks.length > 0),

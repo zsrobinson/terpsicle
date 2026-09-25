@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { useMemo, useState } from "react";
-import { PanelLabel } from "~/app/panel";
+import { ListRow, SectionHeader } from "~/app/panel";
 import type { CatalogIndex } from "~/core/catalog";
 import {
   chosenCourses,
@@ -24,15 +24,17 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   differenceLabel,
+  differenceWhen,
   equivalentsTip,
   freeDaysLabel,
   optionLabel,
   seatsLabel,
+  seatsShortLabel,
   spanLabel,
 } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
 import { useGenerateRun } from "./run-store";
-import { coursesOf, saveResults } from "./save";
+import { coursesOf } from "./save";
 
 // The ranked list (SPEC §3.9, prototype screenshot 08). Neighbors often look
 // alike, so each row leads with what sets it apart: free days and hours, the
@@ -112,38 +114,33 @@ export function Results({
     filter === null ? rows : rows.filter((r) => r.choiceKey === filter);
   const more = visible.length - shown;
 
-  const save = () => {
-    const picked = results.filter((r) => selected.includes(r.id));
-    saveResults(picked, request);
-    useGenerateRun.getState().clearSelected();
-  };
-
   return (
     <>
-      <PanelLabel
+      <SectionHeader
+        sticky
+        title={results.length === 1 ? "1 plan" : `${results.length} plans`}
         right={
+          // Only when there were more: the kept best are merged by week, so
+          // the count above can be under the cap and "best 200" would jar.
           result.capped || result.truncated ? (
             <WithTooltip
-              label={`${result.totalFound.toLocaleString()} combinations fit${result.truncated ? " before the search stopped" : ""}. Add must-haves to narrow them down.`}
+              label={`These are the best ${request.limits.maxResults} of ${result.totalFound.toLocaleString()} combinations${result.truncated ? " found before the search stopped" : ""}, with the same weeks merged. Add must-haves to narrow them down.`}
             >
-              <span className="tnum cursor-default">
-                Showing the best {results.length}
+              <span className="tnum cursor-default text-muted text-xs">
+                Best of {result.totalFound.toLocaleString()}
+                {result.truncated ? "+" : ""} combinations
               </span>
             </WithTooltip>
           ) : null
         }
-      >
-        <span className="tnum">
-          {results.length === 1 ? "1 plan" : `${results.length} plans`}
-        </span>
-      </PanelLabel>
+      />
       {choices.length > 0 ? (
         <div
           role="toolbar"
           aria-label="Filter by included courses"
-          className="flex flex-wrap items-center gap-1 px-4 pb-2"
+          className="flex flex-wrap items-center gap-1 px-4 pt-2 pb-2"
         >
-          <span className="mr-0.5 text-[11px] text-faint">Includes</span>
+          <span className="mr-0.5 text-xs text-faint">Includes</span>
           <FilterChip
             label="All"
             count={rows.length}
@@ -169,12 +166,19 @@ export function Results({
         </div>
       ) : null}
       {unfit.length > 0 ? (
-        <p className="px-4 pb-2 text-[11.5px] text-muted">
-          No plan fits <span className="font-mono">{unfit.join(", ")}</span>{" "}
-          with the rest of your courses.
+        <p className="px-4 pt-2 pb-2 text-muted text-sm">
+          No plan fits <span className="ident">{unfit.join(", ")}</span> with
+          the rest of your courses.
         </p>
       ) : null}
-      <ul aria-label="Generated plans" className="border-hairline border-t">
+      <ul
+        aria-label="Generated plans"
+        className={cn(
+          // The bar's own hairline closes it when nothing sits between.
+          (choices.length > 0 || unfit.length > 0) &&
+            "border-hairline border-t",
+        )}
+      >
         {visible.slice(0, shown).map((row, i, all) => (
           <ResultRow
             key={row.result.id}
@@ -197,30 +201,10 @@ export function Results({
             <Button
               variant="ghost"
               size="sm"
-              className="w-full text-[12px]"
+              className="w-full text-sm"
               onClick={() => setShown((n) => n + PAGE)}
             >
               Show {Math.min(more, PAGE)} more
-            </Button>
-          </WithTooltip>
-        </div>
-      ) : null}
-      {selected.length > 0 ? (
-        <div className="sticky bottom-0 z-10 flex items-center gap-2 border-hairline border-t bg-bg px-4 py-2">
-          <WithTooltip label="Each becomes a new plan tab. You can undo.">
-            <Button size="sm" className="text-[12.5px]" onClick={save}>
-              Save{" "}
-              {selected.length === 1 ? "1 plan" : `${selected.length} plans`}
-            </Button>
-          </WithTooltip>
-          <WithTooltip label="Untick every plan">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-[12px]"
-              onClick={() => useGenerateRun.getState().clearSelected()}
-            >
-              Clear
             </Button>
           </WithTooltip>
         </div>
@@ -262,13 +246,13 @@ function FilterChip({
         aria-pressed={active}
         onClick={onClick}
         className={cn(
-          "flex h-6 items-center gap-1.5 rounded-md border px-2 text-[11.5px]",
+          "flex h-6 items-center gap-1.5 rounded-md border px-2 text-sm",
           active
             ? "border-transparent bg-accent text-accent-fg"
             : "border-hairline-strong text-muted hover:bg-hover hover:text-fg",
         )}
       >
-        <span className={cn(mono && "font-mono")}>{label}</span>
+        <span className={cn(mono && "ident")}>{label}</span>
         <span className={cn("tnum", active ? "opacity-70" : "text-faint")}>
           {count}
         </span>
@@ -319,23 +303,39 @@ function ResultRow({
     top && rank > 1
       ? byNeighbor(differencesFrom(result, top, index), prev)
       : [];
-  const seats = seatsLabel(result.stats);
+  const seats = seatsShortLabel(result.stats);
   const summary = `${freeDaysLabel(free, result.stats)} · ${spanLabel(result.stats)}`;
 
   return (
-    <li
+    <ListRow
+      as="li"
       data-testid="generated-plan"
-      className="flex items-start gap-2.5 border-hairline border-b py-2 pr-4 pl-3 hover:bg-hover"
+      className="hover:bg-hover"
+      lead={
+        <WithTooltip label="Tick several to save them at once" side="right">
+          <input
+            type="checkbox"
+            aria-label={`Select ${label}`}
+            checked={selected}
+            onChange={onToggle}
+            className="block size-3.5 accent-accent"
+          />
+        </WithTooltip>
+      }
+      trail={
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-faint text-xs">{rank}</span>
+          {result.equivalents.count > 1 ? (
+            <span
+              title={equivalentsTip(result.equivalents)}
+              className="rounded-sm bg-accent-soft px-1 text-2xs text-muted"
+            >
+              ×{result.equivalents.count}
+            </span>
+          ) : null}
+        </div>
+      }
     >
-      <WithTooltip label="Tick several to save them at once" side="right">
-        <input
-          type="checkbox"
-          aria-label={`Select ${label}`}
-          checked={selected}
-          onChange={onToggle}
-          className="mt-5 size-3.5 shrink-0 accent-accent"
-        />
-      </WithTooltip>
       <WithTooltip label="Preview on the calendar and see details" side="right">
         <button
           type="button"
@@ -345,9 +345,9 @@ function ResultRow({
               .getState()
               .drill({ kind: "generated-plan", resultId: result.id })
           }
-          className="flex min-w-0 flex-1 gap-3 text-left"
+          className="grid w-full min-w-0 grid-cols-[76px_minmax(0,1fr)] gap-x-3 text-left"
         >
-          <div className="h-14 w-[76px] shrink-0">
+          <div className="h-14">
             <MiniWeek
               sections={result.sections}
               index={index}
@@ -355,43 +355,37 @@ function ResultRow({
               marks={marks}
             />
           </div>
-          <div className="tnum min-w-0 flex-1 text-[11.5px] leading-[1.45]">
-            <div className="flex items-baseline gap-1.5">
-              <span className="truncate font-medium text-[12px]">
-                {summary}
-              </span>
-              <span className="ml-auto flex shrink-0 items-baseline gap-1.5">
-                {result.equivalents.count > 1 ? (
-                  <span
-                    title={equivalentsTip(result.equivalents)}
-                    className="rounded-sm bg-accent-soft px-1 font-mono text-[10.5px] text-muted"
-                  >
-                    ×{result.equivalents.count}
-                  </span>
-                ) : null}
-                <span className="text-[10.5px] text-faint">{rank}</span>
-              </span>
-            </div>
+          <div className="tnum min-w-0 text-sm">
+            <div className="truncate font-medium text-base">{summary}</div>
             {showChoices ? (
-              <div className="truncate">
+              <div className="truncate text-muted">
                 {chosen.length ? (
                   <>
-                    <span className="text-muted">with </span>
-                    <span className="font-mono text-[11px]">
-                      {chosen.join(" + ")}
-                    </span>
+                    with{" "}
+                    <span className="ident text-fg">{chosen.join(" + ")}</span>
                   </>
                 ) : (
-                  <span className="text-muted">No optional courses</span>
+                  "No optional courses"
                 )}
               </div>
             ) : null}
-            <div className="truncate font-mono text-[11px] text-muted">
+            <div
+              className="truncate text-muted"
+              title={diffs.map(differenceLabel).join(", ") || undefined}
+            >
               {rank === 1 ? (
-                <span className="font-sans text-[11.5px]">Best match</span>
+                "Best match"
               ) : diffs.length > 0 ? (
                 <>
-                  {diffs.slice(0, DIFFS_SHOWN).map(differenceLabel).join(", ")}
+                  {diffs.slice(0, DIFFS_SHOWN).map((d, i) => (
+                    <span key={`${d.courseCode}-${d.sectionCode}`}>
+                      {i > 0 ? ", " : null}
+                      <span className="ident">
+                        {d.courseCode} {d.sectionCode}
+                      </span>{" "}
+                      {differenceWhen(d)}
+                    </span>
+                  ))}
                   {diffs.length > DIFFS_SHOWN ? (
                     <span className="text-faint">
                       {" "}
@@ -400,12 +394,10 @@ function ResultRow({
                   ) : null}
                 </>
               ) : (
-                <span className="font-sans text-[11.5px]">
-                  Otherwise as Option 1
-                </span>
+                "Otherwise as Option 1"
               )}
             </div>
-            <div className="grid grid-cols-[2.25rem_3.5rem_1fr] gap-x-1.5 text-[11px] text-muted">
+            <div className="grid grid-cols-[2rem_3.25rem_minmax(0,1fr)] gap-x-2 text-muted text-xs">
               <span>
                 {result.stats.avgRating !== null
                   ? `★ ${result.stats.avgRating.toFixed(1)}`
@@ -417,6 +409,7 @@ function ResultRow({
                   : "– GPA"}
               </span>
               <span
+                title={seatsLabel(result.stats) ?? undefined}
                 className={cn(
                   "truncate",
                   result.stats.fewestOpenSeats === 0 && "text-warn",
@@ -428,6 +421,6 @@ function ResultRow({
           </div>
         </button>
       </WithTooltip>
-    </li>
+    </ListRow>
   );
 }

@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { loadRecoveryScript } from "~/app/load-recovery";
+import { sidebarWidthInitScript } from "~/app/sidebar-width";
 import { themeInitScript } from "~/app/theme";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
@@ -39,6 +40,8 @@ function RootDocument({ children }: { children: ReactNode }) {
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; it must run before paint */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; the sidebar's width must be set before paint */}
+        <script dangerouslySetInnerHTML={{ __html: sidebarWidthInitScript }} />
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; it must listen before the app's scripts load */}
         <script dangerouslySetInnerHTML={{ __html: loadRecoveryScript }} />
         <HeadContent />

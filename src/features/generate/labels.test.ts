@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { PlanStats } from "~/core/schema";
+import { DEFAULT_MUST_HAVES, type PlanStats } from "~/core/schema";
+import { aBlock, aGenerateRequest } from "~/fixtures";
 import {
   differenceLabel,
   freeDaysLabel,
+  requestSummary,
   seatsLabel,
+  seatsShortLabel,
   spanLabel,
 } from "./labels";
 
@@ -27,6 +30,11 @@ describe("result labels", () => {
       "Fewest seats: 3 open",
     );
     expect(seatsLabel(stats())).toBeNull();
+    expect(seatsShortLabel(stats({ fewestOpenSeats: 0 }))).toBe("Seats: full");
+    expect(seatsShortLabel(stats({ fewestOpenSeats: 3 }))).toBe(
+      "Seats: 3 open",
+    );
+    expect(seatsShortLabel(stats())).toBeNull();
   });
 
   it("names free days, else the days on campus, and the span", () => {
@@ -49,5 +57,48 @@ describe("result labels", () => {
     expect(
       differenceLabel({ ...d, days: "", onlineDays: "", start: null }),
     ).toBe("ENGL101 9009 online");
+  });
+});
+
+describe("requestSummary", () => {
+  it("says what was asked in one line, leaving defaults unsaid", () => {
+    expect(requestSummary(aGenerateRequest())).toBe(
+      "2 courses + 1 of 2 · compact days",
+    );
+    expect(
+      requestSummary(
+        aGenerateRequest({
+          items: [
+            { kind: "course", courseCode: "CMSC351", required: true },
+            { kind: "course", courseCode: "CMSC330", required: false },
+          ],
+          mustHaves: {
+            ...DEFAULT_MUST_HAVES,
+            daysOff: ["F", "M"],
+            earliestStart: 600,
+            latestEnd: 900,
+            credits: { min: 12, max: 16 },
+            openSeatsOnly: true,
+            enoughTravelTime: false,
+            respectBlocks: false,
+          },
+          blocks: [aBlock()],
+          rankBy: { preset: "fewer-days" },
+        }),
+      ),
+    ).toBe(
+      "2 courses (1 optional) · Mon, Fri off · from 10am · done by 3pm · 12–16 credits · open seats only · any walking time · ignoring blocks · fewer days on campus",
+    );
+  });
+
+  it("says a one-sided credit range plainly", () => {
+    const withCredits = (min: number | null, max: number | null) =>
+      requestSummary(
+        aGenerateRequest({
+          mustHaves: { ...DEFAULT_MUST_HAVES, credits: { min, max } },
+        }),
+      );
+    expect(withCredits(12, null)).toContain("12+ credits");
+    expect(withCredits(null, 15)).toContain("up to 15 credits");
   });
 });

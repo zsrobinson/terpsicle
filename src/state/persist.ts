@@ -64,6 +64,7 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
     theme: ui.theme,
     lastTermId: ui.lastTermId,
     collapsedGroups: ui.collapsedGroups,
+    sidebarWidth: ui.sidebarWidth,
   });
 }
 

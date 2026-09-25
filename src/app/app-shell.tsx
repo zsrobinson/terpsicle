@@ -18,7 +18,12 @@ import { FeatureEffects } from "./registry";
 import { SharedPill } from "./shared-pill";
 import { useShortcut } from "./shortcuts";
 import { SidebarContent } from "./sidebar";
+import { SidebarResizeHandle } from "./sidebar-resize";
 import { CALENDAR_MAIN_ID, SkipLinks } from "./skip-links";
+
+/** The desktop sidebar's element, which its resize handle controls. */
+const SIDEBAR_ID = "sidebar";
+
 import { TABS } from "./tabs";
 import { TermSwitcher } from "./term-switcher";
 import { ThemeToggle } from "./theme-toggle";
@@ -88,11 +93,13 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
       <div className="flex min-h-0 flex-1">
         <Rail />
         <aside
+          id={SIDEBAR_ID}
           aria-label="Sidebar"
           hidden={!sidebarOpen}
-          className="flex w-sidebar shrink-0 flex-col border-hairline border-r"
+          className="relative flex w-sidebar shrink-0 flex-col border-hairline border-r"
         >
           <SidebarContent />
+          <SidebarResizeHandle controls={SIDEBAR_ID} />
         </aside>
         <main
           id={CALENDAR_MAIN_ID}

@@ -8,8 +8,9 @@ import { TABS, type Tab } from "./tabs";
 import { ThemeToggle } from "./theme-toggle";
 
 // The labeled rail (SPEC §2). Clicking the open tab collapses the sidebar;
-// any tab reopens it. The active state is a flat fill with no ring or shadow,
-// kept deliberately light so the rail doesn't read like a chat app (DESIGN §5).
+// any tab reopens it. The active state is a soft fill and a thin edge bar, no
+// ring or shadow, kept light so the rail doesn't read like a chat app
+// (DESIGN §5).
 
 export function Rail() {
   const tab = useUi((s) => s.tab);
@@ -70,8 +71,10 @@ function RailButton({
         onClick={() => clickRailTab(tab.id)}
         className={cn(
           "relative flex w-[54px] flex-col items-center gap-1 rounded-lg py-2 transition-colors",
+          // Selected: a soft fill a step deeper than hover, and a 2px bar at
+          // the rail's edge, so hovering another tab never looks selected.
           selected
-            ? "bg-hover text-fg"
+            ? "bg-accent-soft text-fg before:-left-1 before:absolute before:inset-y-3 before:w-0.5 before:rounded-full before:bg-fg"
             : "text-muted hover:bg-hover hover:text-fg",
           current && !open && "text-fg",
         )}

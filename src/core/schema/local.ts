@@ -148,6 +148,21 @@ export const CollapsedGroupKeySchema = z
   .string()
   .regex(/^[A-Z]{4}\d{3}[A-Z]?\|/);
 
+/**
+ * The desktop sidebar's width, in px (docs/UX-REVIEW.md §1.2, decision 3):
+ * dragged between `min` and `max`, and back to `default` on double-click.
+ */
+export const SIDEBAR_WIDTH = { min: 320, max: 480, default: 360 } as const;
+
+/** A width the sidebar can take: whole pixels, within the limits. */
+export function clampSidebarWidth(px: number): number {
+  if (!Number.isFinite(px)) return SIDEBAR_WIDTH.default;
+  return Math.min(
+    SIDEBAR_WIDTH.max,
+    Math.max(SIDEBAR_WIDTH.min, Math.round(px)),
+  );
+}
+
 export const UiPrefsSchema = z.object({
   tab: RailTabSchema,
   /** Clicking the active rail tab collapses the sidebar. */
@@ -159,6 +174,17 @@ export const UiPrefsSchema = z.object({
   /** Which plan tab was open in each term. */
   activePlanByTerm: z.record(TermIdSchema, LocalIdSchema),
   collapsedGroups: z.array(CollapsedGroupKeySchema),
+  /**
+   * Missing in prefs saved before the sidebar could be resized, and out of
+   * range if the limits ever change: either way the default, rather than an
+   * invalid row that would throw away the rest of the prefs.
+   */
+  sidebarWidth: z
+    .number()
+    .int()
+    .min(SIDEBAR_WIDTH.min)
+    .max(SIDEBAR_WIDTH.max)
+    .catch(SIDEBAR_WIDTH.default),
 });
 export type UiPrefs = z.infer<typeof UiPrefsSchema>;
 
@@ -170,6 +196,7 @@ export const DEFAULT_UI_PREFS: UiPrefs = {
   lastTermId: null,
   activePlanByTerm: {},
   collapsedGroups: [],
+  sidebarWidth: SIDEBAR_WIDTH.default,
 };
 
 // The `settings` table's rows live in settings.ts: one of them (Generate's

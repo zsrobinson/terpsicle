@@ -100,6 +100,10 @@ test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
   await page.getByRole("option", { name: "1pm" }).click();
   await page.getByRole("button", { name: "Generate plans" }).click();
 
+  // The form gives way to a one-line summary of what was asked.
+  await expect(
+    page.getByText("2 courses · from 1pm · compact days"),
+  ).toBeVisible();
   const nothing = page.getByTestId("nothing-fits");
   await expect(nothing).toContainText("Nothing fits all of that.");
   await expect(
@@ -111,10 +115,13 @@ test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
   await expect(relax).toBeVisible();
   await relax.click();
 
-  await expect(page.getByRole("combobox", { name: "Start after" })).toHaveText(
-    "Any time",
-  );
   await expect(
     page.getByRole("list", { name: "Generated plans" }).getByRole("listitem"),
   ).not.toHaveCount(0);
+  await expect(page.getByText("2 courses · compact days")).toBeVisible();
+  // The loosened must-have is in the form too.
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("combobox", { name: "Start after" })).toHaveText(
+    "Any time",
+  );
 });

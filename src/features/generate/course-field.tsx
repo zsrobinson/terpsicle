@@ -109,7 +109,7 @@ export function CourseField({
               setQuery("");
             }
           }}
-          className="h-7 w-full rounded-md border border-hairline-strong bg-bg px-2 text-[12.5px] placeholder:text-faint focus:border-fg/40"
+          className="h-7 w-full rounded-md border border-hairline-strong bg-bg px-2 text-base placeholder:text-faint focus:border-fg/40"
         />
       </WithTooltip>
       {showList ? (
@@ -131,13 +131,11 @@ export function CourseField({
               onClick={() => add(course.code)}
               onKeyDown={() => {}}
               className={cn(
-                "flex cursor-default items-baseline gap-2 px-2 py-1 text-[12px]",
+                "flex cursor-default items-baseline gap-2 px-2 py-1 text-sm",
                 i === active && "bg-hover",
               )}
             >
-              <span className="font-mono font-semibold text-[11.5px]">
-                {course.code}
-              </span>
+              <span className="ident font-semibold text-sm">{course.code}</span>
               <span className="truncate text-muted">{course.title}</span>
             </div>
           ))}
