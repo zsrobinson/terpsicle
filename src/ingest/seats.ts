@@ -13,6 +13,7 @@ import {
   ManifestSchema,
   manifestKey,
   SCHEMA_VERSIONS,
+  type SeatsFile,
   SeatsFileSchema,
   type SeatTuple,
   type Section,
@@ -81,6 +82,15 @@ export interface SeatsOptions {
   terms?: readonly string[];
   /** Ignore the stamp check (scripts). */
   force?: boolean;
+  /**
+   * Called after a term's new seats file is published (its counts changed),
+   * with the previous file. The Worker sends seat alerts from here; a
+   * failure is recorded, never fatal.
+   */
+  onSeatsPublished?: (
+    before: SeatsFile | null,
+    after: SeatsFile,
+  ) => Promise<void>;
 }
 
 export interface SeatsTermResult {
@@ -357,6 +367,19 @@ async function refreshTerm(
       },
     } satisfies Manifest;
   });
+
+  if (seatsWrite.written && options.onSeatsPublished) {
+    try {
+      await options.onSeatsPublished(
+        previousSeats,
+        SeatsFileSchema.parse(seatsFile),
+      );
+    } catch (error) {
+      errors.push(
+        `${termId} seat alerts: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
 
   await writeJson(store, baselineKey(termId), {
     createdAt: baseline?.createdAt ?? at,
