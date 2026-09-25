@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useCatalog } from "~/state/catalog-store";
 import { createDataReader, createDataSource } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
+import { demoRequested, loadDemoState } from "~/state/demo";
 import {
   hydrate,
   hydrateEmpty,
@@ -37,6 +38,7 @@ function useBootstrap(config: ClientConfig) {
             { id: "storage-write" },
           );
         });
+        if (demoRequested(window.location.search)) await loadDemoState();
       } catch (error) {
         // Closed by our own cleanup (a remount): not a storage problem.
         if (cancelled) return;

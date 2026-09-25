@@ -19,6 +19,9 @@ export interface AnalyticsEvents {
   undo_used: { via: "shortcut" | "toast" };
   shared_link_opened: { outcome: "ok" | "invalid" | "newer-version" };
   shared_plan_saved: { droppedSections: number };
+  section_switched: { via: "ghost" | "list" | "keyboard" };
+  block_created: { via: "drag" | "form" };
+  course_color_changed: NoProperties;
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

@@ -1,17 +1,28 @@
 import { useMemo } from "react";
 import {
-  type Block,
-  type CourseCode,
-  type CourseColor,
-  type Plan,
-  type PlanCourse,
-  type Problem,
-  parseSectionKey,
-  type SharePayload,
-  type Term,
-  type TermId,
+  buildCatalogIndex,
+  type CatalogIndex,
+  placedSections,
+  type SectionRef,
+} from "~/core/catalog";
+import { buildFitContext, type FitContext } from "~/core/fit";
+import { countBySeverity, planProblems } from "~/core/problems";
+import type {
+  Block,
+  ChangesFile,
+  Connection,
+  CourseCode,
+  CourseColor,
+  Plan,
+  Problem,
+  SeatsFile,
+  Term,
+  TermId,
+  TravelSettings,
 } from "~/core/schema";
-import { creditsLabel, planCredits, snapshotOf } from "./catalog-helpers";
+import { sharedViewPlan } from "~/core/share";
+import { type CampusMap, planConnections } from "~/core/travel";
+import { creditsLabel, planCredits } from "./catalog-helpers";
 import { type TermCatalog, useCatalog } from "./catalog-store";
 import { activePlanId, plansInTerm } from "./plan-ops";
 import { useShare } from "./share-store";
@@ -30,12 +41,19 @@ export interface ActiveTerm {
   terms: readonly Term[] | null;
 }
 
+/** The term on screen, outside React (actions). Same rule as `useActiveTerm`. */
+export function readActiveTermId(): TermId | null {
+  const { terms } = useCatalog.getState();
+  const shared = useShare.getState().shared;
+  if (shared) return shared.payload.termId;
+  if (!terms) return null;
+  return pickTerm(terms, useUi.getState().lastTermId)?.id ?? null;
+}
+
 export function useActiveTerm(): ActiveTerm {
   const terms = useCatalog((s) => s.terms);
   const lastTermId = useUi((s) => s.lastTermId);
-  const sharedTermId = useShare((s) =>
-    s.shared?.status === "ready" ? s.shared.payload.termId : null,
-  );
+  const sharedTermId = useShare((s) => s.shared?.payload.termId ?? null);
   return useMemo(() => {
     if (!terms) return { term: undefined, termId: sharedTermId, terms };
     const term = sharedTermId
@@ -64,45 +82,49 @@ export function useActivePlanId(termId: TermId | null): string | undefined {
  * the shared-link view works everywhere for free. When `readOnly`, offer no
  * edits: the plan isn't the person's.
  */
-export type CurrentPlan =
-  | {
-      source: "own";
-      readOnly: false;
-      termId: TermId;
-      plan: Plan;
-      /** The term's blocks (blocks are per term, not per plan). */
-      blocks: readonly Block[];
-      colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
-    }
-  | {
-      source: "shared";
-      readOnly: true;
-      termId: TermId;
-      plan: Plan;
-      /** The sharer's blocks, shown only in this view. */
-      blocks: readonly Block[];
-      /** The sharer's colors, falling back to the person's own. */
-      colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
-    };
+export type CurrentPlan = {
+  source: "own" | "shared";
+  readOnly: boolean;
+  termId: TermId;
+  plan: Plan;
+  /**
+   * The term's blocks (blocks are per term, not per plan); in the shared
+   * view, the sharer's blocks, shown only there.
+   */
+  blocks: readonly Block[];
+  /** Colors by course; in the shared view, the sharer's first. */
+  colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
+};
+
+const EPOCH = new Date(0).toISOString();
 
 export function useCurrentPlan(): CurrentPlan | null {
   const { termId } = useActiveTerm();
   const shared = useShare((s) => s.shared);
   const plans = useWorkspace((s) => s.plans);
   const blocks = useWorkspace((s) => s.blocks);
-  const colors = useWorkspace((s) => s.courseColors);
+  const colors = useWorkspace((s) => s.colors);
   const activeId = useActivePlanId(termId);
-  const catalog = useCatalog((s) => (termId ? s.byTerm[termId] : undefined));
+  const index = useCatalog((s) =>
+    termId ? s.byTerm[termId]?.index : undefined,
+  );
 
   return useMemo((): CurrentPlan | null => {
     if (!termId) return null;
-    if (shared?.status === "ready") {
+    if (shared) {
       const { payload } = shared;
       return {
         source: "shared",
         readOnly: true,
         termId,
-        plan: sharedPlanView(payload, catalog),
+        // Sections the catalog doesn't have (yet, or any more) get an empty
+        // snapshot, so Problems reports them as cancelled (DATA §8).
+        plan: sharedViewPlan(
+          payload,
+          index ?? buildCatalogIndex(termId, []),
+          "shared-plan",
+          EPOCH,
+        ),
         blocks: (payload.blocks ?? []).map((b, i) => ({
           ...b,
           id: `shared-block-${i}`,
@@ -111,7 +133,6 @@ export function useCurrentPlan(): CurrentPlan | null {
         colors: { ...colors, ...payload.colors },
       };
     }
-    if (shared) return null;
     const plan = plans.find((p) => p.id === activeId);
     if (!plan) return null;
     return {
@@ -122,66 +143,148 @@ export function useCurrentPlan(): CurrentPlan | null {
       blocks: blocks.filter((b) => b.termId === termId),
       colors,
     };
-  }, [termId, shared, plans, blocks, colors, activeId, catalog]);
+  }, [termId, shared, plans, blocks, colors, activeId, index]);
+}
+
+/** The loaded catalog of a term: its index, seats, changes, and whether it's complete. */
+export function useTermCatalog(termId: TermId | null): TermCatalog | undefined {
+  return useCatalog((s) => (termId ? s.byTerm[termId] : undefined));
 }
 
 /**
- * The shared payload as a plan. Sections the catalog doesn't have (yet, or
- * any more) get an empty snapshot, so core's catalog diff reports them as
- * cancelled, as DATA.md §8 asks.
+ * One cached result per input set, shared by every component: core asks for
+ * contexts built once per plan state, not once per render (core/README.md).
  */
-export function sharedPlanView(
-  payload: SharePayload,
-  catalog: TermCatalog | undefined,
-): Plan {
-  const courses: PlanCourse[] = payload.sections.flatMap((key) => {
-    const parsed = parseSectionKey(key);
-    if (!parsed) return [];
-    const section = catalog?.courses[parsed.courseCode]?.sections.find(
-      (s) => s.code === parsed.sectionCode,
-    );
-    return [
-      {
-        ...parsed,
-        snapshot: section
-          ? snapshotOf(section)
-          : { instructors: [], delivery: "f2f", meetings: [] },
-      },
-    ];
-  });
-  for (const courseCode of payload.saved ?? [])
-    courses.push({ courseCode, sectionCode: null, snapshot: null });
-  const epoch = new Date(0).toISOString();
-  return {
-    id: "shared-plan",
-    termId: payload.termId,
-    name: payload.name ?? "Shared plan",
-    order: 0,
-    createdAt: epoch,
-    updatedAt: epoch,
-    courses,
+function lastResult<A extends readonly unknown[], R>(
+  compute: (...args: A) => R,
+): (...args: A) => R {
+  let lastArgs: A | null = null;
+  let last: R;
+  return (...args: A) => {
+    if (
+      lastArgs?.length === args.length &&
+      lastArgs.every((a, i) => a === args[i])
+    )
+      return last;
+    last = compute(...args);
+    lastArgs = args;
+    return last;
   };
+}
+
+const placedFor = lastResult(
+  (plan: Plan, index: CatalogIndex): readonly SectionRef[] =>
+    placedSections(plan, index),
+);
+const fitFor = lastResult(
+  (
+    plan: Plan,
+    index: CatalogIndex,
+    blocks: readonly Block[],
+    travel: TravelSettings,
+    campus: CampusMap,
+  ): FitContext => buildFitContext({ plan, index, blocks, travel, campus }),
+);
+const connectionsFor = lastResult(
+  (
+    sections: readonly SectionRef[],
+    travel: TravelSettings,
+    campus: CampusMap,
+  ): readonly Connection[] => planConnections(sections, travel, campus),
+);
+const problemsFor = lastResult(
+  (
+    plan: Plan,
+    index: CatalogIndex,
+    blocks: readonly Block[],
+    travel: TravelSettings,
+    campus: CampusMap,
+    seats: SeatsFile | null,
+    changes: ChangesFile | null,
+  ): readonly Problem[] =>
+    planProblems({
+      plan,
+      index,
+      blocks,
+      travel,
+      campus,
+      seats: seats?.seats ?? null,
+      changes: changes?.changes ?? [],
+    }),
+);
+
+/** The current plan's placed sections as they are in the catalog, in plan order. */
+export function usePlacedSections(): readonly SectionRef[] {
+  const current = useCurrentPlan();
+  const catalog = useTermCatalog(current?.termId ?? null);
+  if (!current || !catalog) return NO_SECTIONS;
+  return placedFor(current.plan, catalog.index);
+}
+const NO_SECTIONS: readonly SectionRef[] = [];
+
+/** Travel settings and the campus map, for anything computing travel. */
+export function useTravel(): { travel: TravelSettings; campus: CampusMap } {
+  const travel = useWorkspace((s) => s.travel);
+  const campus = useCatalog((s) => s.campus);
+  return useMemo(() => ({ travel, campus }), [travel, campus]);
+}
+
+/**
+ * Core's fit context for the plan on screen (fit labels, "Fits my plan",
+ * ghosts), built once per plan state and shared. Null until the plan's
+ * departments have loaded.
+ */
+export function useFitContext(): FitContext | null {
+  const current = useCurrentPlan();
+  const catalog = useTermCatalog(current?.termId ?? null);
+  const { travel, campus } = useTravel();
+  if (!current || !catalog) return null;
+  return fitFor(current.plan, catalog.index, current.blocks, travel, campus);
+}
+
+/** Connections between the plan's back-to-back classes (travel pills, Travel tab). */
+export function usePlanConnections(): readonly Connection[] {
+  const sections = usePlacedSections();
+  const { travel, campus } = useTravel();
+  return connectionsFor(sections, travel, campus);
 }
 
 /** "16 credits" for the plan on screen, or null before it exists. */
 export function useCreditsLabel(): string | null {
   const current = useCurrentPlan();
-  const courses = useCatalog((s) =>
-    current ? s.byTerm[current.termId]?.courses : undefined,
-  );
+  const catalog = useTermCatalog(current?.termId ?? null);
   return useMemo(
     () =>
-      current ? creditsLabel(planCredits(current.plan, courses ?? {})) : null,
-    [current, courses],
+      current && catalog
+        ? creditsLabel(planCredits(current.plan, catalog.index))
+        : current
+          ? creditsLabel({ min: 0, max: 0 })
+          : null,
+    [current, catalog],
   );
 }
 
-// TODO(core): compute with ~/core/problems once M1 core lands.
 const NO_PROBLEMS: readonly Problem[] = [];
 
-/** The current plan's problems, most serious first (SPEC §3.6). */
+/**
+ * The current plan's problems, most serious first (SPEC §3.6). Empty until
+ * the term's catalog has loaded: a missing section would otherwise read as
+ * cancelled.
+ */
 export function usePlanProblems(): readonly Problem[] {
-  return NO_PROBLEMS;
+  const current = useCurrentPlan();
+  const catalog = useTermCatalog(current?.termId ?? null);
+  const { travel, campus } = useTravel();
+  if (!current || !catalog?.complete) return NO_PROBLEMS;
+  return problemsFor(
+    current.plan,
+    catalog.index,
+    current.blocks,
+    travel,
+    campus,
+    catalog.seats,
+    catalog.changes,
+  );
 }
 
 export interface ProblemCounts {
@@ -192,9 +295,5 @@ export interface ProblemCounts {
 
 export function useProblemCounts(): ProblemCounts {
   const problems = usePlanProblems();
-  return useMemo(() => {
-    const counts: ProblemCounts = { error: 0, warning: 0, info: 0 };
-    for (const p of problems) counts[p.severity] += 1;
-    return counts;
-  }, [problems]);
+  return useMemo(() => countBySeverity(problems), [problems]);
 }

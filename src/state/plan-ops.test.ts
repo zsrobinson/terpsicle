@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { archivedFixtureTermId, fixtureTermId } from "~/fixtures";
 import {
   activePlanId,
   EMPTY_WORKSPACE,
-  nextPlanName,
   plansInTerm,
   reduceWorkspace,
-  uniquePlanName,
   type Workspace,
   type WorkspaceAction,
 } from "./plan-ops";
 
-const SPRING = "202701";
-const FALL = "202608";
+// Core's reducer has its own tests; these cover what the workspace adds:
+// the open plan per term, and never leaving a term without a plan.
+
+const SPRING = fixtureTermId;
+const SUMMER = archivedFixtureTermId;
 const NOW = "2026-09-25T12:00:00.000Z";
 
 function apply(w: Workspace, ...actions: WorkspaceAction[]): Workspace {
@@ -25,121 +27,58 @@ const create = (id: string, termId = SPRING): WorkspaceAction => ({
   now: NOW,
 });
 
-describe("plan names", () => {
-  it("counts up from Plan A, skipping names in use", () => {
-    expect(nextPlanName([])).toBe("Plan A");
-    expect(nextPlanName([{ name: "Plan A" }, { name: "Plan C" }])).toBe(
-      "Plan B",
-    );
-  });
-
-  it("numbers past Z", () => {
-    const taken = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((l) => ({
-      name: `Plan ${l}`,
-    }));
-    expect(nextPlanName(taken)).toBe("Plan 27");
-  });
-
-  it("keeps copies unique and within 60 characters", () => {
-    expect(uniquePlanName("Plan A copy", [{ name: "Plan A copy" }])).toBe(
-      "Plan A copy 2",
-    );
-    const long = "x".repeat(70);
-    expect(uniquePlanName(long, [])).toHaveLength(60);
-    expect(uniquePlanName(long, [{ name: "x".repeat(60) }])).toBe(
-      `${"x".repeat(58)} 2`,
-    );
-  });
-});
-
 describe("reduceWorkspace", () => {
   it("creates plans per term and opens the new one", () => {
     const w = apply(
       EMPTY_WORKSPACE,
       create("planAAAA"),
       create("planBBBB"),
-      create("fallAAAA", FALL),
+      create("summerAA", SUMMER),
     );
     expect(plansInTerm(w.plans, SPRING).map((p) => p.name)).toEqual([
       "Plan A",
       "Plan B",
     ]);
-    expect(plansInTerm(w.plans, FALL).map((p) => p.name)).toEqual(["Plan A"]);
     expect(activePlanId(w, SPRING)).toBe("planBBBB");
-    expect(activePlanId(w, FALL)).toBe("fallAAAA");
+    expect(activePlanId(w, SUMMER)).toBe("summerAA");
   });
 
-  it("renames, trimming, and ignores empty names", () => {
-    let w = apply(EMPTY_WORKSPACE, create("planAAAA"));
-    w = reduceWorkspace(w, {
-      type: "plan/rename",
-      id: "planAAAA",
-      name: "  Chill week ",
-      now: NOW,
-    });
-    expect(w.plans[0]?.name).toBe("Chill week");
-    const same = reduceWorkspace(w, {
-      type: "plan/rename",
-      id: "planAAAA",
-      name: "   ",
-      now: NOW,
-    });
-    expect(same).toBe(w);
-  });
-
-  it("duplicates right after the source tab, with its courses", () => {
-    let w = apply(EMPTY_WORKSPACE, create("planAAAA"), create("planBBBB"));
-    w = {
-      ...w,
-      plans: w.plans.map((p) =>
-        p.id === "planAAAA"
-          ? {
-              ...p,
-              courses: [
-                { courseCode: "CMSC351", sectionCode: null, snapshot: null },
-              ],
-            }
-          : p,
-      ),
-    };
-    w = reduceWorkspace(w, {
+  it("opens a duplicate, which sits right after its source", () => {
+    const w = apply(EMPTY_WORKSPACE, create("planAAAA"), create("planBBBB"), {
       type: "plan/duplicate",
-      id: "planAAAA",
-      newId: "copyAAAA",
+      planId: "planAAAA",
+      id: "copyAAAA",
       now: NOW,
     });
-    const tabs = plansInTerm(w.plans, SPRING);
-    expect(tabs.map((p) => p.name)).toEqual([
+    expect(plansInTerm(w.plans, SPRING).map((p) => p.name)).toEqual([
       "Plan A",
-      "Plan A copy",
+      "Copy of Plan A",
       "Plan B",
     ]);
-    expect(tabs[1]?.courses).toEqual(tabs[0]?.courses);
     expect(activePlanId(w, SPRING)).toBe("copyAAAA");
   });
 
   it("deleting the open plan opens its left neighbor", () => {
-    let w = apply(
+    const w = apply(
       EMPTY_WORKSPACE,
       create("planAAAA"),
       create("planBBBB"),
       create("planCCCC"),
+      {
+        type: "plan/delete",
+        planId: "planCCCC",
+        replacementId: "unusedID",
+        now: NOW,
+      },
     );
-    w = reduceWorkspace(w, {
-      type: "plan/delete",
-      id: "planCCCC",
-      replacementId: "unusedID",
-      now: NOW,
-    });
     expect(activePlanId(w, SPRING)).toBe("planBBBB");
     expect(w.plans.map((p) => p.id)).toEqual(["planAAAA", "planBBBB"]);
   });
 
   it("deleting a term's last plan leaves a fresh empty one", () => {
-    let w = apply(EMPTY_WORKSPACE, create("planAAAA"));
-    w = reduceWorkspace(w, {
+    const w = apply(EMPTY_WORKSPACE, create("planAAAA"), {
       type: "plan/delete",
-      id: "planAAAA",
+      planId: "planAAAA",
       replacementId: "freshAAA",
       now: NOW,
     });
@@ -159,22 +98,28 @@ describe("reduceWorkspace", () => {
     ).toBe("planAAAA");
   });
 
-  it("ignores unknown ids and plans from another term", () => {
+  it("returns the same workspace for changes that change nothing", () => {
     const w = apply(EMPTY_WORKSPACE, create("planAAAA"));
-    expect(
-      reduceWorkspace(w, {
-        type: "plan/activate",
-        termId: FALL,
-        id: "planAAAA",
-      }),
-    ).toBe(w);
-    expect(
-      reduceWorkspace(w, {
+    for (const action of [
+      { type: "plan/activate", termId: SUMMER, planId: "planAAAA" },
+      {
         type: "plan/delete",
-        id: "missing1",
+        planId: "missing1",
         replacementId: "unusedID",
         now: NOW,
-      }),
-    ).toBe(w);
+      },
+      { type: "plan/rename", planId: "planAAAA", name: "  ", now: NOW },
+    ] satisfies WorkspaceAction[])
+      expect(reduceWorkspace(w, action)).toBe(w);
+  });
+
+  it("keeps the open plans through core actions", () => {
+    const w = apply(EMPTY_WORKSPACE, create("planAAAA"), {
+      type: "color/set",
+      courseCode: "CMSC351",
+      color: "teal",
+    });
+    expect(w.colors).toEqual({ CMSC351: "teal" });
+    expect(activePlanId(w, SPRING)).toBe("planAAAA");
   });
 });

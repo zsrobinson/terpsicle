@@ -1,8 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { encodeShare } from "~/core/share";
 import { archivedFixtureTermId, aSharePayload, mockCourse } from "~/fixtures";
 import { plansInTerm } from "~/state/plan-ops";
-import { encodeSharePayload } from "~/state/share-codec";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { track } from "./analytics";
@@ -14,7 +14,7 @@ vi.mock("./analytics", () => ({ track: vi.fn() }));
 const TERM = archivedFixtureTermId;
 
 async function sharedLink() {
-  return encodeSharePayload(
+  return encodeShare(
     aSharePayload({ termId: TERM, sections: ["CMSC131-0101"] }),
   );
 }

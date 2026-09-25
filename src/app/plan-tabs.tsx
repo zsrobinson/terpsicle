@@ -84,7 +84,11 @@ export function PlanTabs({
         )}
       </div>
       {overflow.length > 0 ? (
-        <OverflowMenu plans={overflow} onOpen={(id) => openPlan(termId, id)} />
+        <OverflowMenu
+          plans={overflow}
+          compact={maxVisible <= 1}
+          onOpen={(id) => openPlan(termId, id)}
+        />
       ) : null}
       <NewPlanMenu termId={termId} current={active} />
     </div>
@@ -106,7 +110,7 @@ function PlanTab({
   return (
     <div
       className={cn(
-        "flex h-8 min-w-0 shrink-0 items-center rounded-md transition-colors",
+        "flex h-8 min-w-0 shrink items-center rounded-md transition-colors",
         active ? "bg-hover" : "hover:bg-hover/60",
       )}
     >
@@ -213,9 +217,12 @@ function RenameInput({
 
 function OverflowMenu({
   plans,
+  compact,
   onOpen,
 }: {
   plans: readonly Plan[];
+  /** Phones: "+2" instead of "2 more", so the top bar fits. */
+  compact: boolean;
   onOpen: (id: string) => void;
 }) {
   return (
@@ -224,9 +231,10 @@ function OverflowMenu({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[12.5px] text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
+            aria-label={`${plans.length} more ${plans.length === 1 ? "plan" : "plans"}`}
+            className="tnum flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[12.5px] text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
-            {plans.length} more
+            {compact ? `+${plans.length}` : `${plans.length} more`}
             <ChevronDown size={12} aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>

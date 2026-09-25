@@ -86,7 +86,7 @@ describe("persistence", () => {
     w.commit("Added a block", (s) => ({
       ...s,
       blocks: [aBlock({ termId: SPRING })],
-      courseColors: { CMSC351: "violet" },
+      colors: { CMSC351: "violet" },
     }));
     w.setTravel({ pace: "faster", accessible: true });
     w.activatePlan(SPRING, "planAAAA");
@@ -100,14 +100,14 @@ describe("persistence", () => {
     const before = {
       plans: useWorkspace.getState().plans,
       blocks: useWorkspace.getState().blocks,
-      colors: useWorkspace.getState().courseColors,
+      colors: useWorkspace.getState().colors,
     };
     await reload();
 
     const after = useWorkspace.getState();
     expect(after.plans).toEqual(before.plans);
     expect(after.blocks).toEqual(before.blocks);
-    expect(after.courseColors).toEqual(before.colors);
+    expect(after.colors).toEqual(before.colors);
     expect(after.travel).toEqual({
       pace: "faster",
       accessible: true,
@@ -137,7 +137,7 @@ describe("persistence", () => {
     w.dispatch(
       {
         type: "plan/delete",
-        id: "planBBBB",
+        planId: "planBBBB",
         replacementId: "unusedID",
         now: NOW,
       },

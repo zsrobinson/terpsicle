@@ -1,12 +1,22 @@
-import type {
-  LocalId,
-  PlanCourse,
-  RailTab,
-  Term,
-  TermId,
-  Theme,
+import { snapshotOf } from "~/core/catalog";
+import {
+  type Block,
+  type CourseCode,
+  type CourseColor,
+  type LocalId,
+  type PlanCourse,
+  type RailTab,
+  type SectionCode,
+  sectionKey,
+  type Term,
+  type TermId,
+  type Theme,
 } from "~/core/schema";
+import { useCatalog } from "~/state/catalog-store";
+import { readActiveTermId } from "~/state/hooks";
 import { newLocalId, nowIso } from "~/state/ids";
+import { activePlanId } from "~/state/plan-ops";
+import { useShare } from "~/state/share-store";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { track } from "./analytics";
@@ -52,8 +62,8 @@ export function copyPlan(planId: LocalId): void {
   useWorkspace.getState().dispatch(
     {
       type: "plan/duplicate",
-      id: planId,
-      newId: newLocalId(),
+      planId,
+      id: newLocalId(),
       now: nowIso(),
     },
     `Copied ${source.name}`,
@@ -71,7 +81,7 @@ export function renamePlan(
   useWorkspace
     .getState()
     .dispatch(
-      { type: "plan/rename", id: planId, name, now: nowIso() },
+      { type: "plan/rename", planId, name, now: nowIso() },
       `Renamed ${before.name}`,
       { toast: false },
     );
@@ -85,7 +95,7 @@ export function deletePlan(planId: LocalId): void {
   useWorkspace.getState().dispatch(
     {
       type: "plan/delete",
-      id: planId,
+      planId,
       replacementId: newLocalId(),
       now: nowIso(),
     },
@@ -138,4 +148,87 @@ export function undo(via: "shortcut" | "toast"): boolean {
 
 export function redo(): boolean {
   return useWorkspace.getState().redo();
+}
+
+/** The person's open plan, when there is one they can edit (not a shared view). */
+function editablePlan() {
+  if (useShare.getState().shared) return null;
+  const termId = readActiveTermId();
+  if (!termId) return null;
+  const w = useWorkspace.getState();
+  const id = activePlanId(w, termId);
+  const plan = w.plans.find((p) => p.id === id);
+  return plan ? { plan, termId } : null;
+}
+
+/**
+ * Puts a course in a section: switches a placed course, places a saved one,
+ * or adds a new one (SPEC §3.3–3.4). Returns false when nothing changed.
+ */
+export function switchSection(
+  courseCode: CourseCode,
+  sectionCode: SectionCode,
+  via: "ghost" | "list" | "keyboard",
+): boolean {
+  const target = editablePlan();
+  if (!target) return false;
+  const { plan, termId } = target;
+  const ref = useCatalog
+    .getState()
+    .byTerm[termId]?.index.sections.get(sectionKey(courseCode, sectionCode));
+  if (!ref) return false;
+  const existing = plan.courses.find((c) => c.courseCode === courseCode);
+  if (existing?.sectionCode === sectionCode) return false;
+  const section = { code: sectionCode, snapshot: snapshotOf(ref.section) };
+  const now = nowIso();
+  const w = useWorkspace.getState();
+  if (existing)
+    w.dispatch(
+      { type: "course/switch", planId: plan.id, courseCode, section, now },
+      existing.sectionCode
+        ? `Switched ${courseCode} to ${sectionCode}`
+        : `Placed ${courseCode} ${sectionCode} in ${plan.name}`,
+    );
+  else
+    w.dispatch(
+      { type: "course/add", planId: plan.id, courseCode, section, now },
+      `Added ${courseCode} ${sectionCode} to ${plan.name}`,
+    );
+  track("section_switched", { via });
+  return true;
+}
+
+/** Course colors are global: the same in every plan and term (SPEC §3.2). */
+export function setCourseColor(
+  courseCode: CourseCode,
+  color: CourseColor,
+): void {
+  const before = useWorkspace.getState().colors;
+  useWorkspace
+    .getState()
+    .dispatch(
+      { type: "color/set", courseCode, color },
+      `Changed ${courseCode}'s color`,
+    );
+  if (useWorkspace.getState().colors !== before)
+    track("course_color_changed", {});
+}
+
+/** A labeled block of busy time in the term on screen (SPEC §3.8). */
+export function addBlock(
+  block: Pick<Block, "label" | "days" | "start" | "end">,
+  via: "drag" | "form",
+): LocalId | null {
+  if (useShare.getState().shared) return null;
+  const termId = readActiveTermId();
+  if (!termId) return null;
+  const id = newLocalId();
+  useWorkspace
+    .getState()
+    .dispatch(
+      { type: "block/add", block: { ...block, id, termId } },
+      `Added "${block.label}"`,
+    );
+  track("block_created", { via });
+  return id;
 }
