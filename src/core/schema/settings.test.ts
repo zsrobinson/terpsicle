@@ -11,7 +11,32 @@ describe("generate drafts", () => {
       value: {
         [TERM]: {
           items: [{ kind: "course", courseCode: "CMSC351", required: true }],
-          mustHaves: { ...DEFAULT_MUST_HAVES, earliestStart: 600, daysOff: ["F"] },
+          mustHaves: {
+            ...DEFAULT_MUST_HAVES,
+            earliestStart: 600,
+            daysOff: ["F"],
+          },
+          rankBy: { preset: "compact" },
+        },
+      },
+    };
+    expect(SettingsRowSchema.parse(row)).toEqual(row);
+  });
+
+  it("keeps a pick group that's still being filled in", () => {
+    const row = {
+      key: "generate",
+      value: {
+        [TERM]: {
+          items: [
+            {
+              kind: "pick",
+              id: "g1",
+              count: 2,
+              courses: [{ courseCode: "MUSC130" }],
+            },
+          ],
+          mustHaves: DEFAULT_MUST_HAVES,
           rankBy: { preset: "compact" },
         },
       },
