@@ -69,18 +69,34 @@ const GradeRowApiSchema = z.object({
 });
 type GradeRowApi = z.infer<typeof GradeRowApiSchema> & Record<string, unknown>;
 
-/** Hand-checked Testudo names PlanetTerp lists under another name (aliases.json). */
+/**
+ * Hand-checked entries (aliases.json): Testudo names PlanetTerp lists under
+ * another name, and people PlanetTerp lists under two slugs.
+ */
+export const AliasFileSchema = z.array(
+  z.union([
+    z.object({
+      testudo: z.string().min(1),
+      slug: z.string().min(1),
+      why: z.string().min(1),
+    }),
+    z.object({
+      duplicateSlug: z.string().min(1),
+      slug: z.string().min(1),
+      why: z.string().min(1),
+    }),
+  ]),
+);
+const ALIAS_ENTRIES = AliasFileSchema.parse(aliasFile);
 const ALIASES = new Map(
-  z
-    .array(
-      z.object({
-        testudo: z.string().min(1),
-        slug: z.string().min(1),
-        why: z.string().min(1),
-      }),
-    )
-    .parse(aliasFile)
-    .map((a) => [instructorNameKey(a.testudo), a.slug]),
+  ALIAS_ENTRIES.flatMap((a) =>
+    "testudo" in a ? [[instructorNameKey(a.testudo), a.slug] as const] : [],
+  ),
+);
+const SAME_AS = new Map(
+  ALIAS_ENTRIES.flatMap((a) =>
+    "duplicateSlug" in a ? [[a.duplicateSlug, a.slug] as const] : [],
+  ),
 );
 
 // ---------- job state ----------
@@ -174,6 +190,7 @@ export async function runPlanetTerp(
   // Testudo names → slugs (names.ts has the rules).
   const matcher = createNameMatcher([...bySlug.values()], {
     aliases: ALIASES,
+    sameAs: SAME_AS,
     testudoNames: catalog.coursesByName.keys(),
   });
   const slugForTestudo = new Map<string, string | null>();

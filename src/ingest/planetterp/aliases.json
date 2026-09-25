@@ -38,5 +38,10 @@
     "testudo": "Tori Sacks",
     "slug": "shay_tori",
     "why": "Formerly Tori Shay (the Smith School directory page for Tori Sacks links the Tori Shay profile); shares BMGT383, BMGT398O, EDCP498T and UNIV362."
+  },
+  {
+    "duplicateSlug": "bakalian_clifford",
+    "slug": "bakalian",
+    "why": "PlanetTerp lists Clifford Bakalian (no reviews) and Cliff Bakalian (175 reviews) separately; every course of the first (CMSC250, CMSC330, CMSC389E, CMSC398M, HDCC106, HDCC208P) is also the second's, and CMSC330's grades were split between the two."
   }
 ]
