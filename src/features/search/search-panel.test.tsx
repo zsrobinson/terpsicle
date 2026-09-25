@@ -77,6 +77,24 @@ describe("Search tab", () => {
     expect(useUi.getState().hoverCourse).toBeNull();
   });
 
+  it("drops a hovered result's ghosts when typing takes the result away", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc");
+    const row = await screen.findByRole("option", { name: /^CMSC351/ });
+    // The pointer rests on the row while the person keeps typing: the row
+    // goes away without a pointerleave.
+    await user.hover(row);
+    expect(useUi.getState().hoverCourse).toBe("CMSC351");
+    await user.type(box, "330", { skipClick: true });
+    await waitFor(() => expect(results()).not.toContain("CMSC351"));
+    expect(useUi.getState().hoverCourse).toBeNull();
+  });
+
+  it("doesn't spell-check course codes", async () => {
+    const { box } = await renderSearch();
+    expect(box).toHaveAttribute("spellcheck", "false");
+  });
+
   it("↓ moves through results with ghosts, and ↵ opens one", async () => {
     const { user, box } = await renderSearch();
     await user.type(box, "cmsc");
