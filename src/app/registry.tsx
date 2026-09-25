@@ -36,11 +36,17 @@ export interface PanelRegistration {
   tabs?: Partial<Record<RailTab, ComponentType>>;
   /** Views that drill in over any tab. */
   drills?: DrillViews;
+  /**
+   * Components the shell mounts once, rendering nothing, for app-wide work a
+   * feature owns: following a deep link, syncing seat alerts on startup.
+   */
+  effects?: readonly ComponentType[];
 }
 
 export interface PanelRegistry {
   tabs: Partial<Record<RailTab, ComponentType>>;
   drills: DrillViews;
+  effects: readonly ComponentType[];
 }
 
 /** Types a feature's registration. */
@@ -54,8 +60,9 @@ export function definePanels(
 export function createPanelRegistry(
   registrations: readonly PanelRegistration[],
 ): PanelRegistry {
-  const registry: PanelRegistry = { tabs: {}, drills: {} };
+  const registry: PanelRegistry = { tabs: {}, drills: {}, effects: [] };
   for (const r of registrations) {
+    registry.effects = [...registry.effects, ...(r.effects ?? [])];
     for (const [tab, component] of Object.entries(r.tabs ?? {})) {
       if (tab in registry.tabs) console.warn(`Two panels for the ${tab} tab`);
       Object.assign(registry.tabs, { [tab]: component });
@@ -105,4 +112,17 @@ export function PanelRegistryProvider({
 
 export function usePanelRegistry(): PanelRegistry {
   return useContext(RegistryContext);
+}
+
+/** Mounts every feature's effects (see `PanelRegistration.effects`). */
+export function FeatureEffects() {
+  const { effects } = usePanelRegistry();
+  return (
+    <>
+      {effects.map((Effect, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: the list is fixed at build time
+        <Effect key={i} />
+      ))}
+    </>
+  );
 }

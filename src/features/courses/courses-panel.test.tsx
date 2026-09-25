@@ -1,0 +1,167 @@
+import { act, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { track } from "~/app/analytics";
+import { useUi } from "~/state/ui-store";
+import { useWorkspace } from "~/state/workspace-store";
+import { panels } from "./panels";
+import { openPlanNow, renderPlanTab } from "./testing";
+
+vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+
+describe("Courses tab", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(track).mockClear();
+  });
+
+  it("lists the plan's courses with section, title, instructor, days and seats", async () => {
+    await renderPlanTab([panels], "courses");
+    expect(
+      await screen.findByRole("heading", { name: "Plan A" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("5 courses · 16 credits")).toBeInTheDocument();
+    const row = await screen.findByTestId("course-row-CMSC351");
+    expect(row).toHaveTextContent("CMSC351");
+    expect(row).toHaveTextContent("0301");
+    expect(row).toHaveTextContent("Algorithms");
+    expect(row).toHaveTextContent("3 left");
+    expect(row).toHaveTextContent(/· MWF$/);
+    // CMSC351 is low on seats and tight after STAT400: flagged, calmly.
+    expect(await within(row).findByLabelText("2 problems")).toBeInTheDocument();
+    // Color dot opens the palette.
+    expect(
+      screen.getByRole("button", { name: "CMSC351 color: Violet" }),
+    ).toBeInTheDocument();
+  });
+
+  it("lists saved-for-later courses; clicking one opens its details", async () => {
+    const { user } = await renderPlanTab([panels], "courses");
+    const saved = await screen.findByRole("list", { name: "Saved for later" });
+    const musc = within(saved).getByRole("button", { name: /^MUSC130/ });
+    expect(musc).toHaveTextContent("Survey of Western Music Literature");
+    await user.click(musc);
+    expect(useUi.getState().stack.at(-1)).toEqual({
+      kind: "course",
+      courseCode: "MUSC130",
+    });
+  });
+
+  it("clicking a course opens its details", async () => {
+    const { user } = await renderPlanTab([panels], "courses");
+    await user.click(await screen.findByTestId("course-row-ECON200"));
+    expect(useUi.getState().stack.at(-1)).toEqual({
+      kind: "course",
+      courseCode: "ECON200",
+    });
+  });
+
+  it("removes a course from its menu, and undo brings it back", async () => {
+    const { user } = await renderPlanTab([panels], "courses");
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for ENGL393" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Remove from plan" }),
+    );
+    expect(openPlanNow()?.courses.some((c) => c.courseCode === "ENGL393")).toBe(
+      false,
+    );
+    expect(
+      await screen.findByText("Removed ENGL393 from Plan A"),
+    ).toBeVisible();
+    expect(track).toHaveBeenCalledWith("course_removed", { via: "menu" });
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("course-row-ENGL393")).toBeInTheDocument(),
+    );
+  });
+
+  it("saves a placed course for later", async () => {
+    const { user } = await renderPlanTab([panels], "courses");
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for STAT400" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Save for later" }),
+    );
+    const entry = openPlanNow()?.courses.find(
+      (c) => c.courseCode === "STAT400",
+    );
+    expect(entry?.sectionCode).toBeNull();
+    const saved = screen.getByRole("list", { name: "Saved for later" });
+    expect(within(saved).getByText("STAT400")).toBeInTheDocument();
+    expect(track).toHaveBeenCalledWith("course_saved_for_later", {
+      via: "menu",
+    });
+  });
+
+  describe("first visit", () => {
+    it("shows two equal paths, and each opens its tab", async () => {
+      const { user } = await renderPlanTab([panels], "courses", {
+        demo: false,
+      });
+      const guide = await screen.findByTestId("first-visit");
+      expect(
+        within(guide).getByRole("heading", {
+          name: "Build your Spring 2027 schedule",
+        }),
+      ).toBeInTheDocument();
+      const build = within(guide).getByRole("group", {
+        name: "Build it yourself",
+      });
+      const generate = within(guide).getByRole("group", {
+        name: "Generate plans",
+      });
+      // Equally weighted: the same card, four steps and a primary button each.
+      expect(build.className).toBe(generate.className);
+      expect(within(build).getAllByRole("listitem")).toHaveLength(4);
+      expect(within(generate).getAllByRole("listitem")).toHaveLength(4);
+      const searchButton = within(build).getByRole("button", {
+        name: "Search for a course",
+      });
+      const generateButton = within(generate).getByRole("button", {
+        name: "Generate plans",
+      });
+      expect(searchButton.className).toBe(generateButton.className);
+
+      await user.click(searchButton);
+      expect(useUi.getState().tab).toBe("search");
+      expect(useUi.getState().focusRequest?.tab).toBe("search");
+      expect(track).toHaveBeenCalledWith("first_visit_path_chosen", {
+        path: "build",
+      });
+
+      act(() => useUi.getState().openTab("courses"));
+      await user.click(generateButton);
+      expect(useUi.getState().tab).toBe("generate");
+      expect(track).toHaveBeenCalledWith("first_visit_path_chosen", {
+        path: "generate",
+      });
+    });
+
+    it("comes back whenever the plan has nothing placed", async () => {
+      await renderPlanTab([panels], "courses");
+      await screen.findByTestId("course-row-CMSC351");
+      expect(screen.queryByTestId("first-visit")).toBeNull();
+      act(() => {
+        const plan = openPlanNow();
+        if (!plan) throw new Error("no plan");
+        useWorkspace.setState({
+          plans: useWorkspace
+            .getState()
+            .plans.map((p) =>
+              p.id === plan.id
+                ? { ...p, courses: p.courses.filter((c) => !c.sectionCode) }
+                : p,
+            ),
+        });
+      });
+      expect(await screen.findByTestId("first-visit")).toBeInTheDocument();
+      // Saved courses stay listed under the guide.
+      expect(
+        screen.getByRole("list", { name: "Saved for later" }),
+      ).toBeInTheDocument();
+    });
+  });
+});

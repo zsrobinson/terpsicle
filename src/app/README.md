@@ -41,6 +41,7 @@ export const panels = definePanels({
   ```
 
   Only `course` and `connection` are restored on the next visit (`UiPrefs.drill`). Other kinds last for the session.
+- **Effects:** `effects: [Component]` mounts components that render nothing, once, for app-wide work a feature owns (the `?term=&course=` deep link in `courses`, the seat-alert sync in `alerts`). `FeatureEffects` in the shell renders them.
 
 ## Build a panel
 
@@ -81,6 +82,22 @@ User actions that should be counted go through `actions.ts`, which records the a
 - sections: `switchSection(courseCode, sectionCode, via)` puts a course in a section (switches, places a saved course, or adds a new one), undoable, with `via` = `"list"` from course details;
 - `setCourseColor(courseCode, color)` and `addBlock({ label, days, start, end }, via)` (`via` = `"form"` from the Blocks tab);
 - `openTab`, `switchTerm`, `setTheme`, `undo`, `redo`.
+
+## Courses, problems and seat alerts
+
+Open a course the one way: `openCourse(code)` from `~/features/courses/actions` (a `course` drill). The same file has `removeCourse(code, via)` and `saveCourseForLater(code, via)` (`via` = `"details"` from course details), each one undoable commit with its toast and event, and `editablePlan()` (the open plan, or null in a shared view). `~/features/problems/actions` has `applyFix(problem, fix)` and `openSubject(subject)`; `LinkedMessage` (`~/features/problems/linked-message`) renders a core `Message` with its courses and blocks as links.
+
+Seat alerts (`~/features/alerts/seat-alerts`, backed by the `useSeatAlerts` store in `~/state/seat-alerts` and Dexie `seatAlerts`):
+
+| Export | For |
+|---|---|
+| `useSeatAlert(termId, sectionKey)` | The bell's state: `unavailable` (hide the bell), `none`, `pending` (show "Check your email"), `watching`. |
+| `subscribeSeatAlert(email, termId, sectionKey)` | Watch: returns an outcome (never throws) and writes a pending row. `subscribeMessage(outcome)` words it, including "You're already watching this." from the local list. |
+| `useLastSeatAlertEmail()` | The address used last in this browser, to prefill the field. |
+| `useSeatAlertsAvailable()` | False once the server says seat alerts are off. |
+| `useSeatAlertList(termId?)`, `stopSeatAlert(termId, sectionKey)` | Export's list and its Stop watching (after the inline confirmation). |
+
+`SeatMeter` (`~/features/courses/seat-meter`) draws seats as a meter plus words for any section key.
 
 ## The calendar's store fields
 

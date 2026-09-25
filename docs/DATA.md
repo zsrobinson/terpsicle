@@ -232,6 +232,9 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 - **UI prefs:** open tab, sidebar open, drill target (course with its details tab, or a connection; generated results aren't restorable), theme, last term, active plan per term, and collapsed instructor groups (`<course>|<instructor name>`).
 - **Not persisted:** the undo stack, hover/preview state, search text, and generator results.
 - **Seat alerts (local mirror):** the person's own email is kept so the UI can say "Watching as…" and prefill the next bell. `subscriptionId` and `manageToken` arrive when this browser follows the confirmation link (the confirm page leaves them in the alerts inbox, §7.1); until then the entry is `pending` with both null.
+  - `email` is null when the watch was confirmed in this browser but asked for in another: the confirm page learns the section and token, never the address.
+  - On startup the app (`src/features/alerts/sync.ts`) moves inbox entries into the table and clears the inbox, then refreshes every row that has a manage token with `alerts/status`. Rows the server reports `unsubscribed` or `unknown` are dropped. That call, sent even with no rows, also tells the app whether seat alerts are on: `unavailable` hides every seat-alert control.
+  - The Export tab lists the rows. **Stop watching** asks first (the one confirmation in the app, SPEC §3.12), then calls `alerts/unsubscribe` with the row's manage token. A row with no token (confirmed on another device) points to the stop link in any alert email.
 
 ### 5.1 Client catalog flow
 1. Fetch `catalog/terms.json` (ETag revalidation). Pick the term.

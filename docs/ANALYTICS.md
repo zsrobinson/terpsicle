@@ -24,6 +24,17 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `section_switched` | `via`: `ghost` · `list` · `keyboard` | Whether people pick sections on the calendar (ghosts), in course details, or with ↑/↓/↵: the case for "see every option". |
   | `block_created` | `via`: `drag` · `form` | Whether drag-to-block is discovered, or blocks only come from the Blocks tab. |
   | `course_color_changed` | | Whether anyone recolors courses (a "just for fun" feature worth keeping only if used). |
+  | `first_visit_path_chosen` | `path`: `build` · `generate` | Which of the two equal first-visit paths people take (SPEC §3.2; DESIGN §4b calls them "equally valid"). |
+  | `course_removed` | `via`: `menu` · `details` | How much people prune, and whether the Courses row menu is found. |
+  | `course_saved_for_later` | `via`: `menu` · `details` | Whether "Saved for later" earns its place. |
+  | `problem_opened` | `kind` | Which problems people look into. |
+  | `problem_fix_applied` | `kind` (`switch` · `accept-change`), `problem` | Whether one-click fixes get used, and for which problems. |
+  | `export_codes_copied` | `count` | How many plans reach registration. |
+  | `share_link_copied` | | Whether sharing is used. |
+  | `ics_downloaded` | `events` | Whether calendar export is worth keeping. |
+  | `registration_item_checked` | | Whether the checklist is used on registration day. |
+  | `seat_alert_requested` / `seat_alert_stopped` | | Seat-alert demand from the app's side (the server counts confirmations and sends). Never the address. |
+  | `deep_link_opened` | `outcome`: `ok` · `unknown-term` | How often seat-alert emails bring people back, and whether their terms still exist. |
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere.
 
