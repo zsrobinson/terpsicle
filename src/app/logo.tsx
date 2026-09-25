@@ -1,8 +1,14 @@
 /** The mark and wordmark. UMD red appears here and nowhere else. */
-export function Logo() {
+export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2">
-      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+    <div className="flex shrink-0 items-center gap-2">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 18 18"
+        role="img"
+        aria-label="Terpsicle"
+      >
         <rect
           x="1"
           y="1"
@@ -29,9 +35,14 @@ export function Logo() {
           opacity=".7"
         />
       </svg>
-      <span className="font-semibold text-[13.5px] tracking-tight">
-        terpsicle
-      </span>
+      {compact ? null : (
+        <span
+          aria-hidden="true"
+          className="font-semibold text-[13.5px] tracking-tight"
+        >
+          terpsicle
+        </span>
+      )}
     </div>
   );
 }

@@ -1,0 +1,101 @@
+import { cn } from "cn";
+import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
+import { useCreditsLabel, useProblemCounts } from "~/state/hooks";
+import { WithTooltip } from "~/ui/tooltip";
+import { openTab } from "./actions";
+import { Logo } from "./logo";
+import { tabById } from "./tabs";
+
+// The top bar (SPEC §2): logo / term / plans on the left, credits and the
+// problem count on the right. The middle (tabs or the shared pill) comes
+// from the shell.
+
+export function TopBar({
+  term,
+  plans,
+  end,
+  compact = false,
+}: {
+  term: ReactNode;
+  plans: ReactNode;
+  /** Extra controls at the far right (the theme toggle on phones). */
+  end?: ReactNode;
+  compact?: boolean;
+}) {
+  return (
+    <header className="flex h-12 shrink-0 items-center gap-2 border-hairline border-b px-3">
+      <Logo compact={compact} />
+      <Slash className={compact ? "ml-0" : "ml-2"} />
+      {term}
+      <Slash />
+      <div className="flex min-w-0 flex-1 items-center">{plans}</div>
+      <div className="flex shrink-0 items-center gap-3">
+        {compact ? null : <Credits />}
+        <ProblemsButton compact={compact} />
+        {end}
+      </div>
+    </header>
+  );
+}
+
+function Slash({ className }: { className?: string }) {
+  return (
+    <span aria-hidden="true" className={cn("text-faint", className)}>
+      /
+    </span>
+  );
+}
+
+function Credits() {
+  const label = useCreditsLabel();
+  if (!label) return null;
+  const [number, ...rest] = label.split(" ");
+  return (
+    <span className="tnum text-[12.5px] text-muted">
+      <span className="font-medium text-fg">{number}</span> {rest.join(" ")}
+    </span>
+  );
+}
+
+/**
+ * Calm by default (DESIGN §5): red only when there's an error, amber for
+ * warnings alone, and quiet when there's nothing to fix.
+ */
+function ProblemsButton({ compact }: { compact: boolean }) {
+  const counts = useProblemCounts();
+  const n = counts.error + counts.warning;
+  const tone =
+    counts.error > 0 ? "error" : counts.warning > 0 ? "warning" : "none";
+  const Icon =
+    tone === "error"
+      ? CircleAlert
+      : tone === "warning"
+        ? TriangleAlert
+        : CircleCheck;
+  const words =
+    n === 0 ? "No problems" : `${n} ${n === 1 ? "problem" : "problems"}`;
+  return (
+    <WithTooltip
+      label={n === 0 ? "Open Problems" : "See what needs attention"}
+      shortcut={tabById("problems").shortcut}
+    >
+      <button
+        type="button"
+        onClick={() => openTab("problems", "click")}
+        aria-label={words}
+        className={cn(
+          "flex h-7 items-center gap-1.5 rounded-md px-2 text-[12.5px] transition-colors",
+          tone === "error" && "bg-error-soft text-error",
+          tone === "warning" && "bg-warn-soft text-warn",
+          tone === "none" && "text-muted hover:bg-hover hover:text-fg",
+        )}
+      >
+        <Icon size={14} aria-hidden="true" />
+        <span className={cn("tnum", compact && n === 0 && "sr-only")}>
+          {compact && n > 0 ? n : words}
+        </span>
+      </button>
+    </WithTooltip>
+  );
+}
