@@ -9,6 +9,7 @@ import {
   endsAfterStart,
   GenEdCodeSchema,
   InstructorNameSchema,
+  IsoDateSchema,
   IsoDateTimeSchema,
   MinutesSchema,
   SeasonSchema,
@@ -33,7 +34,7 @@ export const TermSchema = z.object({
   /** Testudo's label, verbatim: "Spring 2027". */
   name: z.string().min(1).max(40),
   season: SeasonSchema,
-  /** The year in `name` (for winter, the year the session is held in). */
+  /** The year in `name`. Winter `YYYY12` is named for the following year ("Winter 2027"). */
   year: z.number().int().min(2000).max(2200),
   /** active: in Testudo's dropdown on the last run. archived: dropped off; still viewable, seats frozen. */
   status: TermStatusSchema,
@@ -70,7 +71,7 @@ export type Delivery = z.infer<typeof DeliverySchema>;
 
 const meetingPlace = {
   kind: MeetingKindSchema,
-  /** null when online or when Testudo lists no building. */
+  /** null when online, or when Testudo says TBA or lists no building. Off-campus codes (BLD4, DC) are kept. */
   building: BuildingCodeSchema.nullable(),
   room: z.string().min(1).max(16).nullable(),
   /** Room was ONLINE (or the row was the ELMS row). Online meetings never take part in travel. */
@@ -89,7 +90,10 @@ export const TimedMeetingSchema = z
   .refine(endsAfterStart, ENDS_AFTER_START);
 export type TimedMeeting = z.infer<typeof TimedMeetingSchema>;
 
-/** A meeting with no set time: async online ("Class time/details on ELMS") or TBA. */
+/**
+ * A meeting row with no set time: async online ("Class time/details on ELMS",
+ * room ONLINE), or days "TBA" (which can still have a building and room).
+ */
 export const UntimedMeetingSchema = z.object({
   timed: z.literal(false),
   ...meetingPlace,
@@ -102,19 +106,40 @@ export const MeetingSchema = z.discriminatedUnion("timed", [
 ]);
 export type Meeting = z.infer<typeof MeetingSchema>;
 
+/** Inclusive America/New_York dates. */
+export const DateSpanSchema = z
+  .object({ start: IsoDateSchema, end: IsoDateSchema })
+  .refine((d) => d.end >= d.start, {
+    message: "end before start",
+    path: ["end"],
+  });
+export type DateSpan = z.infer<typeof DateSpanSchema>;
+
+/**
+ * There's no cancelled flag: Testudo just stops listing a cancelled section,
+ * so "cancelled" exists only in `ChangesFile` and in plan-snapshot diffs.
+ */
 export const SectionSchema = z.object({
   code: SectionCodeSchema,
   /** In Testudo's order. Empty means "Instructor: TBA". */
   instructors: z.array(InstructorNameSchema),
   delivery: DeliverySchema,
-  /** In Testudo's row order. Empty only when Testudo lists no rows at all. */
+  /**
+   * In Testudo's row order. Empty when the only row is "Contact department
+   * or instructor for details." (treat like no set times).
+   */
   meetings: z.array(MeetingSchema),
+  /**
+   * The section's own start and end dates, when Testudo lists non-standard
+   * dates (every summer section, a few hundred per fall or spring term).
+   * Absent means the term's calendar dates. Used by .ics, and two sections
+   * whose spans don't intersect never overlap.
+   */
+  dates: DateSpanSchema.optional(),
   /** Testudo's free-text section notes, whitespace-normalized; null when none. */
   notes: z.string().min(1).nullable(),
   /** The restriction sentence(s) from `notes` ("Restricted to …", "Reserved for …"); null when unrestricted. */
   restriction: z.string().min(1).nullable(),
-  /** Present and true only when Testudo marks the section cancelled but still lists it. */
-  cancelled: z.literal(true).optional(),
 });
 export type Section = z.infer<typeof SectionSchema>;
 
@@ -129,12 +154,21 @@ export const CreditsSchema = z
   });
 export type Credits = z.infer<typeof CreditsSchema>;
 
+/** One gen-ed code, possibly conditional: DSNL "(if taken with GEOL110)". */
+export const GenEdOptionSchema = z.object({
+  code: GenEdCodeSchema,
+  /** Testudo's parenthetical without the parentheses: "if taken with GEOL110". */
+  condition: z.string().min(1).max(120).optional(),
+});
+export type GenEdOption = z.infer<typeof GenEdOptionSchema>;
+
 /**
- * One requirement group: the course counts for exactly one of these codes
- * (the student chooses). A course's `genEds` is a list of groups that all apply.
- * Testudo "DSHS or DSSP, DVUP" → [["DSHS","DSSP"],["DVUP"]].
+ * One requirement group: the course counts for exactly one of these options
+ * (the student chooses). A course's `genEds` is a list of groups that all
+ * apply. Testudo "DSNL (if taken with GEOL110) or DSNS, SCIS" →
+ * [[{code:"DSNL",condition:"if taken with GEOL110"},{code:"DSNS"}],[{code:"SCIS"}]].
  */
-export const GenEdGroupSchema = z.array(GenEdCodeSchema).min(1);
+export const GenEdGroupSchema = z.array(GenEdOptionSchema).min(1);
 export type GenEdGroup = z.infer<typeof GenEdGroupSchema>;
 
 /** A labeled block of course text we don't model further ("Credit only granted for", "Formerly", …). */
@@ -173,7 +207,12 @@ export const CourseSchema = z.object({
   otherNotes: z.array(CourseNoteSchema),
   /** Other codes for the same course ("Cross-listed with", "Also offered as"). */
   crossListings: z.array(CourseCodeSchema),
-  /** Section-number order (ascending `code`), unique. */
+  /**
+   * Present when Testudo says "Contact department for information to register
+   * for this course." (individual instruction). Such courses have no sections.
+   */
+  contactDepartment: z.literal(true).optional(),
+  /** Section-number order (ascending `code`), unique. Empty for "contact department" courses. */
   sections: z.array(SectionSchema).refine(uniqueSortedCodes, {
     message: "Sections must be unique and sorted by code",
   }),
@@ -197,15 +236,24 @@ export type DeptChunk = z.infer<typeof DeptChunkSchema>;
 
 const count = z.number().int().min(0);
 
-/** `[open, total, waitlist, holdfile]`. holdfile is 0 when Testudo shows none. */
-export const SeatTupleSchema = z.tuple([count, count, count, count]);
+/**
+ * `[open, total, waitlist, holdfile]`. Waitlist and holdfile are each null
+ * when Testudo doesn't show that count (a section can show a holdfile and no
+ * waitlist).
+ */
+export const SeatTupleSchema = z.tuple([
+  count,
+  count,
+  count.nullable(),
+  count.nullable(),
+]);
 export type SeatTuple = z.infer<typeof SeatTupleSchema>;
 
 export const SeatCountsSchema = z.object({
   open: count,
   total: count,
-  waitlist: count,
-  holdfile: count,
+  waitlist: count.nullable(),
+  holdfile: count.nullable(),
 });
 export type SeatCounts = z.infer<typeof SeatCountsSchema>;
 
@@ -243,6 +291,7 @@ export const SectionSnapshotSchema = z.object({
   instructors: z.array(InstructorNameSchema),
   delivery: DeliverySchema,
   meetings: z.array(MeetingSchema),
+  dates: DateSpanSchema.optional(),
 });
 export type SectionSnapshot = z.infer<typeof SectionSnapshotSchema>;
 
@@ -260,15 +309,9 @@ export const CatalogChangeSchema = z.discriminatedUnion("kind", [
     before: SectionSnapshotSchema,
     after: SectionSnapshotSchema,
   }),
-  /** Testudo marks it cancelled (it may still be listed). */
+  /** It vanished from Testudo, which is how Testudo cancels a section (there's no marker). */
   z.object({
     kind: z.literal("cancelled"),
-    ...changeBase,
-    before: SectionSnapshotSchema,
-  }),
-  /** It vanished from Testudo without a cancelled marker. Treated as cancelled in Problems. */
-  z.object({
-    kind: z.literal("removed"),
     ...changeBase,
     before: SectionSnapshotSchema,
   }),

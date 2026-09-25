@@ -147,7 +147,7 @@ export type Theme = z.infer<typeof ThemeSchema>;
 /** Collapsed instructor group in course details: `${courseCode}|${instructorName}` ("" name = TBA). */
 export const CollapsedGroupKeySchema = z
   .string()
-  .regex(/^[A-Z]{4}\d{3}[A-Z]{0,2}\|/);
+  .regex(/^[A-Z]{4}\d{3}[A-Z]?\|/);
 
 export const UiPrefsSchema = z.object({
   tab: RailTabSchema,

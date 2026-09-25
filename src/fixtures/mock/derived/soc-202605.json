@@ -1,0 +1,876 @@
+{
+  "termId": "202605",
+  "departments": [
+    {
+      "code": "CMSC",
+      "name": "CMSC",
+      "courses": [
+        {
+          "code": "CMSC125",
+          "title": "Introduction to Computing",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [
+            [
+              {
+                "code": "DSSP"
+              }
+            ]
+          ],
+          "gradingMethods": ["Reg", "P-F", "Aud"],
+          "permission": null,
+          "description": "Introduces you to the computing field as a whole. You will gain skills used across the spectrum of computing majors and learn about the great variety of routes into the various areas of study and employment in technological fields.",
+          "prerequisite": "Must have completed or be concurrently enrolled in MATH115 or higher.",
+          "corequisite": null,
+          "restriction": "Must not be in the Computer Science program; and must not have completed any courses from CMSC131-499; and must not have completed BMGT302, IMDM127 or INST126.",
+          "otherNotes": [
+            {
+              "label": "Credit only granted for",
+              "text": "IMDM127 or CMSC125."
+            }
+          ],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "YS41",
+              "instructors": ["Farid Kincaid"],
+              "delivery": "f2f",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 570,
+                  "end": 720,
+                  "kind": "lecture",
+                  "building": "JMZ",
+                  "room": "0103",
+                  "online": false
+                }
+              ],
+              "dates": {
+                "start": "2026-07-13",
+                "end": "2026-07-31"
+              },
+              "notes": "Restricted to students in Terp Young Scholars.",
+              "restriction": "Restricted to students in Terp Young Scholars."
+            }
+          ]
+        },
+        {
+          "code": "CMSC131",
+          "title": "Object-Oriented Programming I",
+          "credits": {
+            "min": 4,
+            "max": 4
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": null,
+          "description": "Introduction to programming and computer science. Emphasizes understanding and implementation of applications using object-oriented techniques. Develops skills such as program design and testing as well as implementation of programs using a graphical IDE. Programming done in Java.",
+          "prerequisite": null,
+          "corequisite": "MATH140.",
+          "restriction": null,
+          "otherNotes": [
+            {
+              "label": "Credit only granted for",
+              "text": "CMSC131, CMSC133 or CMSC141."
+            }
+          ],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "0101",
+              "instructors": ["Jonah Hollis"],
+              "delivery": "blended",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["Tu", "W"],
+                  "start": 780,
+                  "end": 860,
+                  "kind": "lecture",
+                  "building": "CSI",
+                  "room": "2117",
+                  "online": false
+                },
+                {
+                  "timed": true,
+                  "days": ["M", "Th", "F"],
+                  "start": 780,
+                  "end": 860,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-08-07"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC132",
+          "title": "Object-Oriented Programming II",
+          "credits": {
+            "min": 4,
+            "max": 4
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": null,
+          "description": "Introduction to use of computers to solve problems using software engineering principles. Design, build, test, and debug medium -size software systems and learn to use relevant tools. Use object-oriented methods to create effective and efficient problem solutions. Use and implement application programming interfaces (APIs). Programming done in Java.",
+          "prerequisite": "Minimum grade of C- in CMSC131 or CMSC133; or must have earned a score of 5 on the A Java AP exam; or must have earned a satisfactory score on the departmental placement exam; and minimum grade of C- in MATH140.",
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [
+            {
+              "label": "Credit only granted for",
+              "text": "CMSC132 or CMSC142."
+            }
+          ],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Wren Lindgren"],
+              "delivery": "online-sync",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 1080,
+                  "end": 1160,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-08-07"
+              },
+              "notes": "This course will be entirely online, but exams will be held in-person. Exams are scheduled for Wednesday, July 1, Wednesday, July 22, and Friday, August 7 at 6pm. You must attend in-person on these dates, so please plan accordingly.",
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC216",
+          "title": "Introduction to Computer Systems",
+          "credits": {
+            "min": 4,
+            "max": 4
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "Introduction to the interaction between user programs and the operating system/hardware. Major topics include C programming, introductory systems programming, and assembly language. Other concepts covered include UNIX, machine data representation, thread management, optimization, and virtual memory. Programming is done in the Linux Environment.",
+          "prerequisite": "Minimum grade of C- in CMSC132; and minimum grade of C- in MATH141.",
+          "corequisite": null,
+          "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in Engineering: Computer program; or must be in the Computer Science Minor program; and Permission of CMSC - Computer Science department.",
+          "otherNotes": [],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "0101",
+              "instructors": ["Dario Fairbanks"],
+              "delivery": "f2f",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 570,
+                  "end": 650,
+                  "kind": "lecture",
+                  "building": "CSI",
+                  "room": "1115",
+                  "online": false
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-08-07"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC250",
+          "title": "Discrete Structures",
+          "credits": {
+            "min": 4,
+            "max": 4
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "Fundamental mathematical concepts related to computer science, including finite and infinite sets, relations, functions, and propositional logic. Introduction to other techniques, modeling and solving problems in computer science. Introduction to permutations, combinations, graphs, and trees with selected applications.",
+          "prerequisite": "Minimum grade of C- in CMSC131; and minimum grade of C- in MATH141.",
+          "corequisite": null,
+          "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in Engineering: Computer program; or must be in the Computer Science Minor program; and Permissions of CMSC - Computer Science department.",
+          "otherNotes": [],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "0101",
+              "instructors": ["Omar Ellery"],
+              "delivery": "f2f",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 660,
+                  "end": 740,
+                  "kind": "lecture",
+                  "building": "CHE",
+                  "room": "2110",
+                  "online": false
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-08-07"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC320",
+          "title": "Introduction to Data Science",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "An introduction to the data science pipeline, i.e., the end-to-end process of going from unstructured, messy data to knowledge and actionable insights. Provides a broad overview of several topics including statistical data analysis, basic data mining and machine learning algorithms, large-scale data management, cloud computing, and information visualization.",
+          "prerequisite": "Minimum grade of C- in CMSC216 and CMSC250.",
+          "corequisite": null,
+          "restriction": "Permission of CMNS-Computer Science department.",
+          "otherNotes": [
+            {
+              "label": "Credit only granted for",
+              "text": "CMSC320, DATA320 or STAT426."
+            }
+          ],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Felix Oyelaran"],
+              "delivery": "online-sync",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 690,
+                  "end": 770,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-10"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC330",
+          "title": "Organization of Programming Languages",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "A study of programming languages, including their syntax, semantics, and implementation. Several different models of languages are discussed, including dynamic, scripting (e.g., Ruby, Python) functional (e.g., OCaml, Haskell, Scheme), and memory safe systems programming (e.g., Rust). Explores language features such as formal syntax, scoping and binding of variables, higher-order programming, typing, and type polymorphism. Introduces finite automata, context free grammar, parsing, lambda calculus, and basics of security attacks and software security.",
+          "prerequisite": "Minimum grade of C- in CMSC250 and CMSC216.",
+          "corequisite": null,
+          "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in the Computer Science Minor program; or must be in Engineering: Computer program; and Permission of CMSC - Computer Science department.",
+          "otherNotes": [],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "0101",
+              "instructors": ["Nils Zielinski"],
+              "delivery": "f2f",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 570,
+                  "end": 650,
+                  "kind": "lecture",
+                  "building": "CSI",
+                  "room": "2117",
+                  "online": false
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-24"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC335",
+          "title": "Web Application Development with JavaScript",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "Provides an introduction to modern ways of developing Web Applications/Services using JavaScript for both front-end and back-end. The course covers topics on fundamental JavaScript language constructs, server-side JavaScript, back-end data persistence, and client-side JavaScript to build Web Applications that interact with Web services and back-end databases.",
+          "prerequisite": "Minimum grade of C- in CMSC216 and CMSC250.",
+          "corequisite": null,
+          "restriction": "Permission of CMNS-Computer Science Department.",
+          "otherNotes": [
+            {
+              "label": "Credit only granted for",
+              "text": "CMSC389N or CMSC335."
+            },
+            {
+              "label": "Formerly",
+              "text": "CMSC389N."
+            }
+          ],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Farid Kincaid"],
+              "delivery": "online-async",
+              "meetings": [
+                {
+                  "timed": false,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-24"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC351",
+          "title": "Algorithms",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "A systematic study of the complexity of some elementary algorithms related to sorting, graphs and trees, and combinatorics. Algorithms are analyzed using mathematical techniques to solve recurrences and summations.",
+          "prerequisite": "Minimum grade of C- in CMSC250 and CMSC216.",
+          "corequisite": null,
+          "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in Engineering: Computer program; or must be in the Computer Science Minor program; and Permission from the CMSC - Computer Science department.",
+          "otherNotes": [],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB21",
+              "instructors": ["Hana Thornbury"],
+              "delivery": "online-async",
+              "meetings": [
+                {
+                  "timed": false,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-07-13",
+                "end": "2026-08-21"
+              },
+              "notes": "This course will be entirely online, but exams will be held in-person. Exams are scheduled for July 24, August 7, and August 21 at 11:00- 12:20 pm. You must attend in-person on these dates, so please plan accordingly.",
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC420",
+          "title": "Advanced Data Structures",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg", "P-F"],
+          "permission": "Perm Req",
+          "description": "Description, properties, and storage allocation functions of data structures including balanced binary trees, B-Trees, hash tables, skiplists, tries, KD-Trees and Quadtrees. Algorithms for manipulating structures. Applications from areas such as String Processing, Computer Graphics, Information Retrieval, Computer Networks, Computer Vision, and Operating Systems.",
+          "prerequisite": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [
+            {
+              "label": "Note",
+              "text": "This course will be entirely online, but exams will be held in-person. Exams are scheduled approximately once per week, for a total of five in-person exams."
+            }
+          ],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Jada Jansen"],
+              "delivery": "online-async",
+              "meetings": [
+                {
+                  "timed": false,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-10"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC421",
+          "title": "Introduction to Artificial Intelligence",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "Introduces a range of ideas and methods in AI, varying semester to semester but chosen largely from: automated heuristic search, planning, games, knowledge representation, logical and statistical inference, learning, natural language processing, vision, robotics, cognitive modeling, and intelligent agents. Programming projects will help students obtain a hands-on feel for various topics.",
+          "prerequisite": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [
+            {
+              "label": "Note",
+              "text": "This course will be entirely online, but exams will be held in-person. The mid-term will be held on Friday, June 27 from 12:30-1:45pm and the final will be held on Friday, July 25 from 12:30-1:45pm. Please plan accordingly."
+            }
+          ],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Malik Castellano"],
+              "delivery": "online-async",
+              "meetings": [
+                {
+                  "timed": false,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-24"
+              },
+              "notes": "This course will be entirely online, but exams will be held in-person. The mid-term will be held on Friday, June 26 from 9:30-10:45am and the final will be held on Friday, July 24 from 9:30-10:45am. Please plan accordingly.",
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC422",
+          "title": "Introduction to Machine Learning",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "Machine Learning studies representations and algorithms that allow machines to improve their performance on a task from experience. This is a broad overview of existing methods for machine learning and an introduction to adaptive systems in general. Emphasis is given to practical aspects of machine learning and data mining.",
+          "prerequisite": "Minimum grade of C- in CMSC320, CMSC330, and CMSC351; and 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290); and permission of CMNS-Computer Science department.",
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [
+            {
+              "label": "Note",
+              "text": "This course will be entirely online, but exams will be held in-person. The mid-term will be held on Friday, June 27 from 9:30-10:45am and the final will be held on Friday, July 25 from 9:30-10:45am. Please plan accordingly."
+            }
+          ],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Malik Castellano"],
+              "delivery": "online-async",
+              "meetings": [
+                {
+                  "timed": false,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-24"
+              },
+              "notes": "This course will be entirely online, but exams will be held in-person. The mid-term will be held on Friday, June 26 from 9:30-10:45am and the final will be held on Friday, July 24 from 9:30-10:45am. Please plan accordingly.",
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC426",
+          "title": "Computer Vision",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "An introduction to basic concepts and techniques in computervision. This includes low-level operations such as image filtering and edge detection, 3D reconstruction of scenes using stereo and structure from motion, and object detection, recognition and classification.",
+          "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351 and 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290); or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program; or permission of the instructor.",
+          "corequisite": null,
+          "restriction": "Permission of CMNS-Computer Science department.",
+          "otherNotes": [],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Dario Castellano"],
+              "delivery": "online-async",
+              "meetings": [
+                {
+                  "timed": false,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-24"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC430",
+          "title": "Introduction to Compilers",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "Topics include lexical analysis, parsing, intermediate representations, program analysis, optimization, and code generation.",
+          "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Rosa Greaves"],
+              "delivery": "online-sync",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 600,
+                  "end": 675,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-10"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC433",
+          "title": "Programming Language Technologies and Paradigms",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg", "P-F"],
+          "permission": "Perm Req",
+          "description": "Programming language technologies (e.g., object-oriented programming), their implementations and use in software design and implementation.",
+          "prerequisite": "Minimum grade of C- in CMSC330; or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+          "corequisite": null,
+          "restriction": "Permission of CMNS-Computer Science department.",
+          "otherNotes": [],
+          "crossListings": [],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Grace Kowalczyk"],
+              "delivery": "online-sync",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 540,
+                  "end": 610,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-27"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC456",
+          "title": "Cryptography",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg", "P-F", "Aud"],
+          "permission": "Perm Req",
+          "description": "The theory, application, and implementation of mathematical techniques used to secure modern communications. Topics include symmetric and public-key encryption, message integrity, hash functions, block-cipher design and analysis, number theory, and digital signatures.",
+          "prerequisite": "Permission of CMNS-Mathematics department.",
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [
+            {
+              "label": "Credit only granted for",
+              "text": "MATH456, CMSC456 or ENEE456."
+            }
+          ],
+          "crossListings": ["ENEE456", "MATH456"],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Malik Fairbanks"],
+              "delivery": "online-sync",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 570,
+                  "end": 650,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-10"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC460",
+          "title": "Computational Methods",
+          "credits": {
+            "min": 3,
+            "max": 3
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": "Basic computational methods for interpolation, least squares, approximation, numerical quadrature, numerical solution of polynomial and transcendental equations, systems of linear equations and initial value problems for ordinary differential equations. Emphasis on methods and their computational properties rather than their analytic aspects. Intended primarily for students in the physical and engineering sciences.",
+          "prerequisite": "1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290, MATH243); and 1 course with a minimum grade of C- from (MATH241, MATH340); and 1 course with a minimum grade of C- from (CMSC106, CMSC131); and 1 course with a minimum grade of C- from (MATH246, MATH341, ENEE290, MATH243).",
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [
+            {
+              "label": "Credit only granted for",
+              "text": "AMSC460, AMSC466, CMSC460, or CMSC466."
+            },
+            {
+              "label": "Note",
+              "text": "Credit granted for only AMSC460 or CMSC460."
+            }
+          ],
+          "crossListings": ["AMSC460"],
+          "sections": [
+            {
+              "code": "WB11",
+              "instructors": ["Lena Calloway"],
+              "delivery": "online-sync",
+              "meetings": [
+                {
+                  "timed": true,
+                  "days": ["M", "Tu", "W", "Th", "F"],
+                  "start": 660,
+                  "end": 750,
+                  "kind": "lecture",
+                  "building": null,
+                  "room": null,
+                  "online": true
+                }
+              ],
+              "dates": {
+                "start": "2026-06-01",
+                "end": "2026-07-10"
+              },
+              "notes": null,
+              "restriction": null
+            }
+          ]
+        },
+        {
+          "code": "CMSC798",
+          "title": "Master's Non-Thesis Research",
+          "credits": {
+            "min": 1,
+            "max": 6
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg", "Aud"],
+          "permission": "Perm Req",
+          "description": null,
+          "prerequisite": null,
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [],
+          "crossListings": [],
+          "contactDepartment": true,
+          "sections": []
+        },
+        {
+          "code": "CMSC799",
+          "title": "Master's Thesis Research",
+          "credits": {
+            "min": 1,
+            "max": 6
+          },
+          "genEds": [],
+          "gradingMethods": ["S-F"],
+          "permission": "Perm Req",
+          "description": null,
+          "prerequisite": null,
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [],
+          "crossListings": [],
+          "contactDepartment": true,
+          "sections": []
+        },
+        {
+          "code": "CMSC898",
+          "title": "Pre-Candidacy Research",
+          "credits": {
+            "min": 1,
+            "max": 8
+          },
+          "genEds": [],
+          "gradingMethods": ["Reg"],
+          "permission": "Perm Req",
+          "description": null,
+          "prerequisite": null,
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [],
+          "crossListings": [],
+          "contactDepartment": true,
+          "sections": []
+        },
+        {
+          "code": "CMSC899",
+          "title": "Doctoral Dissertation Research",
+          "credits": {
+            "min": 1,
+            "max": 8
+          },
+          "genEds": [],
+          "gradingMethods": ["S-F"],
+          "permission": null,
+          "description": null,
+          "prerequisite": null,
+          "corequisite": null,
+          "restriction": null,
+          "otherNotes": [],
+          "crossListings": [],
+          "contactDepartment": true,
+          "sections": []
+        }
+      ]
+    }
+  ],
+  "seats": {
+    "CMSC125-YS41": [0, 25, 0, null],
+    "CMSC131-0101": [59, 70, 0, null],
+    "CMSC132-WB11": [42, 85, 0, null],
+    "CMSC216-0101": [13, 85, 0, null],
+    "CMSC250-0101": [64, 80, 0, null],
+    "CMSC320-WB11": [56, 100, 0, null],
+    "CMSC330-0101": [64, 95, 0, null],
+    "CMSC335-WB11": [50, 85, 0, null],
+    "CMSC351-WB21": [17, 100, 0, null],
+    "CMSC420-WB11": [34, 50, 0, null],
+    "CMSC421-WB11": [56, 85, 0, null],
+    "CMSC422-WB11": [65, 85, 0, null],
+    "CMSC426-WB11": [1, 44, 0, null],
+    "CMSC430-WB11": [31, 80, 0, null],
+    "CMSC433-WB11": [53, 80, 0, null],
+    "CMSC456-WB11": [13, 30, 0, null],
+    "CMSC460-WB11": [11, 40, 0, null]
+  }
+}

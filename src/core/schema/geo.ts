@@ -24,8 +24,13 @@ const longitude = z.number().min(-180).max(180);
 
 export const BuildingSchema = z.object({
   code: BuildingCodeSchema,
-  /** UMD building number from Testudo's building popup ("432"); the join key to UMD map data. */
-  number: z.string().regex(/^[0-9A-Z]{1,6}$/),
+  /**
+   * UMD building number from Testudo's building popup: a zero-padded string
+   * ("039", "432"), the join key to UMD map data. Never parse it as an int.
+   */
+  number: z
+    .string()
+    .regex(/^\d{3}$/, "Expected a zero-padded building number like 039"),
   /** UMD's long name: "Brendan Iribe Center for Computer Science and Engineering". */
   name: z.string().min(1).max(200),
   /** A point inside the footprint, WGS84. */
@@ -34,11 +39,25 @@ export const BuildingSchema = z.object({
 });
 export type Building = z.infer<typeof BuildingSchema>;
 
+/** A Testudo code for a place off the College Park campus (Shady Grove, DC, Baltimore). */
+export const OffCampusSchema = z.object({
+  code: BuildingCodeSchema,
+  /** "Universities at Shady Grove, Building IV". */
+  name: z.string().min(1).max(200),
+});
+export type OffCampus = z.infer<typeof OffCampusSchema>;
+
 /** `geo/buildings.<hash>.json`: every building code seen in any term that joined to map data. */
 export const BuildingsFileSchema = z.object({
   schemaVersion: geoVersion,
   /** Sorted by code, unique. */
   buildings: z.array(BuildingSchema),
+  /**
+   * Known off-campus codes, sorted by code. Meetings there never form a
+   * connection (no travel pill). Codes in neither list are unknown: their
+   * connections get the `unknown` verdict.
+   */
+  offCampus: z.array(OffCampusSchema),
 });
 export type BuildingsFile = z.infer<typeof BuildingsFileSchema>;
 
@@ -48,10 +67,15 @@ export type BuildingsFile = z.infer<typeof BuildingsFileSchema>;
 export const ROUTES_MAGIC = "TRPR";
 /** Fixed header length in bytes, before the JSON index. */
 export const ROUTES_HEADER_BYTES = 16;
-/** Distance cell meaning "no route known for this pair". */
+/** Distance cell meaning "not computed yet" (a new building, or the job hasn't reached it). */
 export const ROUTES_UNKNOWN = 0xffff;
+/**
+ * Distance cell meaning "UMD's network has no route": the solver answered "No
+ * solution found". Common in accessible mode (IPT, PBR and GVC have none).
+ */
+export const ROUTES_NO_ROUTE = 0xfffe;
 /** Largest storable distance, in feet (~12.4 miles). */
-export const ROUTES_MAX_FEET = 0xfffe;
+export const ROUTES_MAX_FEET = 0xfffd;
 
 /**
  * The UTF-8 JSON index embedded after the fixed header. Row/column `i` of every
