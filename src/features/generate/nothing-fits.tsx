@@ -11,7 +11,7 @@ import type {
 } from "~/core/schema";
 import { WithTooltip } from "~/ui/tooltip";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
-import { SectionHeader } from "./panel-parts";
+import { ListRow, SectionHeader } from "./panel-parts";
 
 // When nothing fits (SPEC §3.9): what loosening each must-have would unlock,
 // and the closest plans with what stops them marked. Information, not an
@@ -34,7 +34,7 @@ export function NothingFits({
   const { relaxations, nearMisses } = result;
   return (
     <div data-testid="nothing-fits">
-      <SectionHeader title="No plans" />
+      <SectionHeader variant="label" title="No plans" />
       <p className="px-4 text-base">
         Nothing fits all of that.{" "}
         {relaxations.length > 0 ? (
@@ -75,8 +75,8 @@ export function NothingFits({
       ) : null}
       {nearMisses.length > 0 ? (
         <>
-          <SectionHeader title="Closest plans" />
-          <ul aria-label="Closest plans" className="border-hairline border-t">
+          <SectionHeader className="mt-4" title="Closest plans" />
+          <ul aria-label="Closest plans">
             {nearMisses.map((miss) => (
               <NearMissRow
                 key={miss.sections.join(",")}
@@ -108,19 +108,21 @@ function NearMissRow({
   const more = miss.conflicts.length - shown.length;
   const all = miss.conflicts.map((c) => messageToText(c.message)).join("\n");
   return (
-    <li
-      className="grid grid-cols-[76px_minmax(0,1fr)] gap-x-3 border-hairline border-b px-4 py-2"
+    <ListRow
+      as="li"
       title={`${miss.sections.map((k) => k.replace("-", " ")).join(", ")}\n${all}`}
+      lead={
+        <div className="h-14 w-[76px]">
+          <MiniWeek
+            sections={miss.sections}
+            index={index}
+            colors={colors}
+            marks={marks}
+          />
+        </div>
+      }
     >
-      <div className="h-14">
-        <MiniWeek
-          sections={miss.sections}
-          index={index}
-          colors={colors}
-          marks={marks}
-        />
-      </div>
-      <ul className="min-w-0 self-center text-sm">
+      <ul className="text-sm">
         {shown.map((c, i) => (
           <li
             key={`${c.kind}:${c.sectionKeys.join(",")}:${c.day ?? ""}`}
@@ -136,6 +138,6 @@ function NearMissRow({
           </li>
         ))}
       </ul>
-    </li>
+    </ListRow>
   );
 }

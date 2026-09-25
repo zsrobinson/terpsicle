@@ -160,7 +160,7 @@ export function GeneratePanel() {
           </>
         ) : (
           <>
-            <SectionHeader title="Courses" />
+            <SectionHeader variant="label" title="Courses" />
             <CourseList
               items={draft.items}
               update={update}
@@ -171,13 +171,14 @@ export function GeneratePanel() {
               plan={current?.plan ?? null}
               inputRef={inputRef}
             />
-            <SectionHeader title="Must have" />
+            <SectionHeader variant="label" title="Must have" />
             <MustHaveFields
               mustHaves={draft.mustHaves}
               blockCount={blockCount}
               onChange={(mustHaves) => update((d) => ({ ...d, mustHaves }))}
             />
             <SectionHeader
+              variant="label"
               title="Rank by"
               right={
                 <RankBySelect

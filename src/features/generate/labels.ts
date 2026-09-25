@@ -36,6 +36,17 @@ export function seatsLabel(stats: PlanStats): string | null {
     : `Fewest seats: ${stats.fewestOpenSeats} open`;
 }
 
+/**
+ * The same, short enough for a result row's stats column beside the mini
+ * week: "Seats: full". The row's tooltip carries the long form.
+ */
+export function seatsShortLabel(stats: PlanStats): string | null {
+  if (stats.fewestOpenSeats === null) return null;
+  return stats.fewestOpenSeats === 0
+    ? "Seats: full"
+    : `Seats: ${stats.fewestOpenSeats} open`;
+}
+
 /** "16 credits · ★ 4.1 average · 3.21 average GPA · Fewest seats: 3 open" */
 export function statsLine(stats: PlanStats): string {
   const parts = [plural(stats.credits, "credit")];

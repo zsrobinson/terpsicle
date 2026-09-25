@@ -27,10 +27,11 @@ import {
   freeDaysLabel,
   optionLabel,
   seatsLabel,
+  seatsShortLabel,
   spanLabel,
 } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
-import { SectionHeader } from "./panel-parts";
+import { ListRow, SectionHeader } from "./panel-parts";
 import { useGenerateRun } from "./run-store";
 import { coursesOf } from "./save";
 
@@ -115,6 +116,7 @@ export function Results({
   return (
     <>
       <SectionHeader
+        sticky
         title={results.length === 1 ? "1 plan" : `${results.length} plans`}
         right={
           // Only when there were more: the kept best are merged by week, so
@@ -135,7 +137,7 @@ export function Results({
         <div
           role="toolbar"
           aria-label="Filter by included courses"
-          className="flex flex-wrap items-center gap-1 px-4 pb-2"
+          className="flex flex-wrap items-center gap-1 px-4 pt-2 pb-2"
         >
           <span className="mr-0.5 text-xs text-faint">Includes</span>
           <FilterChip
@@ -163,12 +165,19 @@ export function Results({
         </div>
       ) : null}
       {unfit.length > 0 ? (
-        <p className="px-4 pb-2 text-sm text-muted">
+        <p className="px-4 pt-2 pb-2 text-muted text-sm">
           No plan fits <span className="font-mono">{unfit.join(", ")}</span>{" "}
           with the rest of your courses.
         </p>
       ) : null}
-      <ul aria-label="Generated plans" className="border-hairline border-t">
+      <ul
+        aria-label="Generated plans"
+        className={cn(
+          // The bar's own hairline closes it when nothing sits between.
+          (choices.length > 0 || unfit.length > 0) &&
+            "border-hairline border-t",
+        )}
+      >
         {visible.slice(0, shown).map((row, i, all) => (
           <ResultRow
             key={row.result.id}
@@ -293,23 +302,39 @@ function ResultRow({
     top && rank > 1
       ? byNeighbor(differencesFrom(result, top, index), prev)
       : [];
-  const seats = seatsLabel(result.stats);
+  const seats = seatsShortLabel(result.stats);
   const summary = `${freeDaysLabel(free, result.stats)} · ${spanLabel(result.stats)}`;
 
   return (
-    <li
+    <ListRow
+      as="li"
       data-testid="generated-plan"
-      className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 border-hairline border-b px-4 py-2 hover:bg-hover"
+      className="hover:bg-hover"
+      lead={
+        <WithTooltip label="Tick several to save them at once" side="right">
+          <input
+            type="checkbox"
+            aria-label={`Select ${label}`}
+            checked={selected}
+            onChange={onToggle}
+            className="block size-3.5 accent-accent"
+          />
+        </WithTooltip>
+      }
+      trail={
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-faint text-xs">{rank}</span>
+          {result.equivalents.count > 1 ? (
+            <span
+              title={equivalentsTip(result.equivalents)}
+              className="rounded-sm bg-accent-soft px-1 font-mono text-2xs text-muted"
+            >
+              ×{result.equivalents.count}
+            </span>
+          ) : null}
+        </div>
+      }
     >
-      <WithTooltip label="Tick several to save them at once" side="right">
-        <input
-          type="checkbox"
-          aria-label={`Select ${label}`}
-          checked={selected}
-          onChange={onToggle}
-          className="mt-5 size-3.5 shrink-0 accent-accent"
-        />
-      </WithTooltip>
       <WithTooltip label="Preview on the calendar and see details" side="right">
         <button
           type="button"
@@ -319,7 +344,7 @@ function ResultRow({
               .getState()
               .drill({ kind: "generated-plan", resultId: result.id })
           }
-          className="grid min-w-0 grid-cols-[76px_minmax(0,1fr)_auto] gap-x-3 text-left"
+          className="grid w-full min-w-0 grid-cols-[76px_minmax(0,1fr)] gap-x-3 text-left"
         >
           <div className="h-14">
             <MiniWeek
@@ -370,7 +395,7 @@ function ResultRow({
                 "Otherwise as Option 1"
               )}
             </div>
-            <div className="grid grid-cols-[2.5rem_4rem_minmax(0,1fr)] gap-x-2 text-muted text-xs">
+            <div className="grid grid-cols-[2rem_3.25rem_minmax(0,1fr)] gap-x-2 text-muted text-xs">
               <span>
                 {result.stats.avgRating !== null
                   ? `★ ${result.stats.avgRating.toFixed(1)}`
@@ -382,6 +407,7 @@ function ResultRow({
                   : "– GPA"}
               </span>
               <span
+                title={seatsLabel(result.stats) ?? undefined}
                 className={cn(
                   "truncate",
                   result.stats.fewestOpenSeats === 0 && "text-warn",
@@ -391,19 +417,8 @@ function ResultRow({
               </span>
             </div>
           </div>
-          <div className="tnum flex flex-col items-end gap-1">
-            <span className="text-faint text-xs">{rank}</span>
-            {result.equivalents.count > 1 ? (
-              <span
-                title={equivalentsTip(result.equivalents)}
-                className="rounded-sm bg-accent-soft px-1 font-mono text-2xs text-muted"
-              >
-                ×{result.equivalents.count}
-              </span>
-            ) : null}
-          </div>
         </button>
       </WithTooltip>
-    </li>
+    </ListRow>
   );
 }

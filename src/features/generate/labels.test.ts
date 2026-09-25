@@ -6,6 +6,7 @@ import {
   freeDaysLabel,
   requestSummary,
   seatsLabel,
+  seatsShortLabel,
   spanLabel,
 } from "./labels";
 
@@ -29,6 +30,11 @@ describe("result labels", () => {
       "Fewest seats: 3 open",
     );
     expect(seatsLabel(stats())).toBeNull();
+    expect(seatsShortLabel(stats({ fewestOpenSeats: 0 }))).toBe("Seats: full");
+    expect(seatsShortLabel(stats({ fewestOpenSeats: 3 }))).toBe(
+      "Seats: 3 open",
+    );
+    expect(seatsShortLabel(stats())).toBeNull();
   });
 
   it("names free days, else the days on campus, and the span", () => {

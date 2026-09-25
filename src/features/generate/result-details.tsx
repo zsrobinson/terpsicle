@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { track } from "~/app/analytics";
 import { MessageText } from "~/app/message-text";
 import { PanelBody } from "~/app/panel";
@@ -18,7 +18,7 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { optionLabel, statsLine } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
-import { PanelFooter, SectionHeader } from "./panel-parts";
+import { ListRow, PanelFooter, SectionHeader } from "./panel-parts";
 import { useGenerateRun } from "./run-store";
 import { coursesOf, saveResults } from "./save";
 
@@ -86,24 +86,9 @@ function ChangeText({ change: c }: { change: PlanChange }) {
   }
 }
 
-/** A hairline row: the course code, then what's said about it. */
-function CourseRow({
-  code,
-  title,
-  children,
-}: {
-  code: string;
-  title?: string;
-  children: ReactNode;
-}) {
-  return (
-    <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 border-hairline border-b px-4 py-2 text-base">
-      <span className="font-mono font-semibold">{code}</span>
-      <span className="min-w-0 truncate" title={title}>
-        {children}
-      </span>
-    </li>
-  );
+/** A detail row's lead: the course code, one width down the list. */
+function Code({ code }: { code: string }) {
+  return <span className="block w-16 font-mono font-semibold">{code}</span>;
 }
 
 /**
@@ -121,11 +106,14 @@ function SameTimesRow({
   const [open, setOpen] = useState(false);
   const n = others.length;
   return (
-    <li className="border-hairline border-b px-4 py-2 text-base">
-      <span className="font-mono font-semibold">{courseCode}</span>
+    <ListRow
+      as="li"
+      className="items-start text-base"
+      lead={<Code code={courseCode} />}
+    >
       <span className="text-muted">
-        : {n === 1 ? "1 other section meets" : `${n} other sections meet`} at
-        the same times ·{" "}
+        {n === 1 ? "1 other section meets" : `${n} other sections meet`} at the
+        same times ·{" "}
       </span>
       <WithTooltip
         label={open ? "Hide the section numbers" : "Show the section numbers"}
@@ -146,7 +134,7 @@ function SameTimesRow({
           may differ. Switch any time in course details.
         </p>
       ) : null}
-    </li>
+    </ListRow>
   );
 }
 
@@ -228,7 +216,7 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
   return (
     <>
       <PanelBody className="pb-6">
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-4 pb-4">
           <h3 className="font-semibold text-lg">{optionLabel(found.rank)}</h3>
           <p className="tnum mt-1 text-base text-muted">
             {problems.length === 1
@@ -254,10 +242,7 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
         </div>
 
         <SectionHeader title={`Changes from ${current.plan.name}`} />
-        <ul
-          aria-label={`Changes from ${current.plan.name}`}
-          className="border-hairline border-t"
-        >
+        <ul aria-label={`Changes from ${current.plan.name}`}>
           {changes.length > 0 ? (
             changes.map((c) => {
               const who =
@@ -267,20 +252,23 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
                   ? instructorsOf(c.courseCode, c.to)
                   : undefined;
               return (
-                <CourseRow
+                <ListRow
+                  as="li"
                   key={c.courseCode}
-                  code={c.courseCode}
-                  title={who || undefined}
+                  className="text-base"
+                  lead={<Code code={c.courseCode} />}
                 >
-                  <ChangeText change={c} />
-                  {who ? <span className="text-muted"> · {who}</span> : null}
-                </CourseRow>
+                  <div className="truncate" title={who || undefined}>
+                    <ChangeText change={c} />
+                    {who ? <span className="text-muted"> · {who}</span> : null}
+                  </div>
+                </ListRow>
               );
             })
           ) : (
-            <li className="border-hairline border-b px-4 py-2 text-base text-muted">
+            <ListRow as="li" className="text-base text-muted">
               No changes.
-            </li>
+            </ListRow>
           )}
           {result.equivalents.byCourse.map((c) => (
             <SameTimesRow
@@ -296,19 +284,16 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
         {problems.length > 0 ? (
           <>
             <SectionHeader title="Problems" count={problems.length} />
-            <ul aria-label="Problems" className="border-hairline border-t">
+            <ul aria-label="Problems">
               {problems.map((p) => (
-                <li
-                  key={p.id}
-                  className="border-hairline border-b px-4 py-2 text-base"
-                >
+                <ListRow as="li" key={p.id} className="text-base">
                   <div>
                     <MessageText message={p.title} />
                   </div>
                   <div className="text-muted text-sm">
                     <MessageText message={p.detail} />
                   </div>
-                </li>
+                </ListRow>
               ))}
             </ul>
           </>

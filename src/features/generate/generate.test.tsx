@@ -279,10 +279,10 @@ describe("Generate", () => {
     const list = await screen.findByRole("list", { name: "Generated plans" });
     await user.click(within(list).getAllByRole("button")[0] as HTMLElement);
     const changes = screen.getByRole("list", { name: "Changes from Plan A" });
-    const row = within(changes).getByText(
-      /other sections? meets? at the same times/,
-    ).parentElement as HTMLElement;
-    expect(row).toHaveTextContent(/^ENGL101: \d+ other sections? meets? at/);
+    const row = within(changes)
+      .getByText(/other sections? meets? at the same times/)
+      .closest("li") as HTMLElement;
+    expect(row).toHaveTextContent(/^ENGL101\s*\d+ other sections? meets? at/);
     const show = within(row).getByRole("button", { name: "Show" });
     expect(show).toHaveAttribute("aria-expanded", "false");
     await user.click(show);
