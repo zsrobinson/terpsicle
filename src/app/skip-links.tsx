@@ -10,7 +10,7 @@ import { SIDEBAR_PANEL_ID } from "./sidebar";
 export const CALENDAR_MAIN_ID = "calendar";
 
 const linkClass =
-  "sr-only rounded-md bg-raised px-3 py-1.5 font-medium text-[12.5px] shadow-pop focus:not-sr-only focus:fixed focus:top-2 focus:z-50";
+  "sr-only rounded-md bg-raised px-3 py-1.5 font-medium text-base shadow-pop focus:not-sr-only focus:fixed focus:top-2 focus:z-50";
 
 function toCalendar(event: MouseEvent) {
   event.preventDefault();
