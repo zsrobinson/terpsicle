@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   CollapsedGroupKeySchema,
   type CourseCode,
+  clampSidebarWidth,
   DEFAULT_UI_PREFS,
   type Plan,
   type RailTab,
@@ -33,6 +34,8 @@ export interface UiState {
   theme: Theme;
   lastTermId: TermId | null;
   collapsedGroups: readonly string[];
+  /** The desktop sidebar's width in px, 320–480 (`--sidebar-width`). */
+  sidebarWidth: number;
   focusRequest: FocusRequest | null;
   /** Mobile bottom drawer position (not persisted). */
   drawerSnap: DrawerSnap;
@@ -73,6 +76,8 @@ export interface UiState {
   setTheme: (theme: Theme) => void;
   setLastTermId: (termId: TermId) => void;
   toggleGroup: (key: string) => void;
+  /** Clamped to 320–480px. A drag commits once, on release. */
+  setSidebarWidth: (px: number) => void;
   requestFocus: (tab: RailTab) => void;
   setDrawerSnap: (snap: DrawerSnap) => void;
   setHoverCourse: (courseCode: CourseCode | null) => void;
@@ -99,6 +104,7 @@ export const INITIAL_UI_STATE = {
   theme: DEFAULT_UI_PREFS.theme,
   lastTermId: DEFAULT_UI_PREFS.lastTermId,
   collapsedGroups: DEFAULT_UI_PREFS.collapsedGroups,
+  sidebarWidth: DEFAULT_UI_PREFS.sidebarWidth,
   focusRequest: null,
   drawerSnap: "peek",
   hoverCourse: null,
@@ -162,6 +168,10 @@ export const useUi = create<UiState>()((set, get) => ({
         : [...groups, key],
     });
   },
+  setSidebarWidth: (px) => {
+    const sidebarWidth = clampSidebarWidth(px);
+    if (get().sidebarWidth !== sidebarWidth) set({ sidebarWidth });
+  },
   requestFocus: (tab) => set({ focusRequest: { tab, seq: ++focusSeq } }),
   setDrawerSnap: (drawerSnap) => set({ drawerSnap }),
   setHoverCourse: (hoverCourse) => {
@@ -199,5 +209,6 @@ export function uiPrefsOf(
     theme: s.theme,
     lastTermId: s.lastTermId,
     collapsedGroups: [...s.collapsedGroups],
+    sidebarWidth: s.sidebarWidth,
   };
 }

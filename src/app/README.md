@@ -148,6 +148,14 @@ Ghosts for the course open in the sidebar come from the drill stack itself (`sel
 
 For the color dot, use `CourseColorPicker` from `~/features/courses/color-picker` (`courseCode`, `color`, `readOnly`); for dots and tints elsewhere, `dotStyle(color)` and `tintStyle(color)` from `~/features/calendar/tint`. Render core `Message`s with `MessageText` (`~/app/message-text`).
 
+## Sidebar width
+
+On desktop the sidebar's right edge drags between 320 and 480px (`SidebarResizeHandle` in `sidebar-resize.tsx`):
+- Arrow keys move it 16px, Home and End jump to the limits, and a double-click resets it to 360px.
+- The width is `useUi`'s `sidebarWidth`, saved in `UiPrefs` once per drag, and applied as `--sidebar-width` on the document root. `w-sidebar` reads it.
+- A localStorage mirror and a head script (`sidebar-width.ts`) set it before first paint, like the theme.
+- Panels shouldn't assume 360px: truncate by content, not by a fixed width.
+
 ## Keyboard
 
 `shortcuts.ts` has `useShortcut(chords, handler)`. Handlers return `true` when they act; that key then stops there. Shortcuts never fire while typing in a field (except chords marked `whileTyping`). Effects run child-first, so a feature's handler gets a key before the shell's.

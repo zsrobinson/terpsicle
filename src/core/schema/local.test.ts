@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BlockSchema,
+  clampSidebarWidth,
   DEFAULT_UI_PREFS,
   LocalSeatAlertSchema,
   type Plan,
@@ -94,6 +95,26 @@ describe("local state", () => {
     expect(BlockSchema.safeParse({ ...block, label: "  " }).success).toBe(
       false,
     );
+  });
+
+  it("clamps sidebar widths to whole pixels within the limits", () => {
+    expect(clampSidebarWidth(300)).toBe(320);
+    expect(clampSidebarWidth(400.6)).toBe(401);
+    expect(clampSidebarWidth(9000)).toBe(480);
+    expect(clampSidebarWidth(Number.NaN)).toBe(360);
+  });
+
+  it("keeps older UI prefs, giving them the default sidebar width", () => {
+    const { sidebarWidth: _, ...older } = DEFAULT_UI_PREFS;
+    expect(UiPrefsSchema.parse(older).sidebarWidth).toBe(360);
+    expect(
+      UiPrefsSchema.parse({ ...DEFAULT_UI_PREFS, sidebarWidth: 9000 })
+        .sidebarWidth,
+    ).toBe(360);
+    expect(
+      UiPrefsSchema.parse({ ...DEFAULT_UI_PREFS, sidebarWidth: 412 })
+        .sidebarWidth,
+    ).toBe(412);
   });
 
   it("parses default settings rows", () => {
