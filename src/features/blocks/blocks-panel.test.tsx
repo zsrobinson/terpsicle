@@ -10,6 +10,17 @@ vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 
 const blocks = () => useWorkspace.getState().blocks;
 
+/** Opens a time select in the form and picks an option ("5pm"). */
+async function pickTime(
+  user: { click: (element: Element) => Promise<void> },
+  form: HTMLElement,
+  label: string,
+  time: string,
+) {
+  await user.click(within(form).getByRole("combobox", { name: label }));
+  await user.click(await screen.findByRole("option", { name: time }));
+}
+
 describe("Blocks tab", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -36,8 +47,8 @@ describe("Blocks tab", () => {
     const form = await screen.findByRole("form", { name: "Add block" });
     await user.click(within(form).getByRole("button", { name: "Gym" }));
     await user.click(within(form).getByRole("button", { name: "Fri" }));
-    await user.selectOptions(within(form).getByLabelText("Starts"), "1020");
-    await user.selectOptions(within(form).getByLabelText("Ends"), "1110");
+    await pickTime(user, form, "Starts", "5pm");
+    await pickTime(user, form, "Ends", "6:30pm");
     await user.click(within(form).getByRole("button", { name: "Add block" }));
     const gym = blocks().find((b) => b.label === "Gym");
     expect(gym).toMatchObject({
@@ -54,7 +65,7 @@ describe("Blocks tab", () => {
     const { user } = await renderPlanTab([panels], "blocks");
     const form = await screen.findByRole("form", { name: "Add block" });
     await user.type(within(form).getByLabelText("Label"), "Practice");
-    await user.selectOptions(within(form).getByLabelText("Ends"), "660");
+    await pickTime(user, form, "Ends", "11am");
     expect(
       within(form).getByRole("button", { name: "Add block" }),
     ).toBeDisabled();

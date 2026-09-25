@@ -3,6 +3,13 @@ import { type FormEvent, useId, useState } from "react";
 import { BlockLabelSchema, type Day } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTime, sortDays } from "~/core/time";
 import { Button } from "~/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/ui/select";
 import { WithTooltip } from "~/ui/tooltip";
 import type { BlockFields } from "./actions";
 
@@ -190,19 +197,22 @@ function TimeSelect({
     ? HALF_HOURS
     : [...HALF_HOURS, value].sort((a, b) => a - b);
   return (
-    <WithTooltip label={label}>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="tnum h-8 min-w-0 flex-1 rounded-md border border-hairline bg-bg px-1.5 text-[12.5px] outline-none focus:border-hairline-strong"
-      >
+    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+      <WithTooltip label={label}>
+        <SelectTrigger
+          aria-label={label}
+          className="tnum h-8 flex-1 text-[12.5px]"
+        >
+          <SelectValue />
+        </SelectTrigger>
+      </WithTooltip>
+      <SelectContent className="max-h-72">
         {options.map((m) => (
-          <option key={m} value={m}>
+          <SelectItem key={m} value={String(m)} className="tnum">
             {formatTime(m)}
-          </option>
+          </SelectItem>
         ))}
-      </select>
-    </WithTooltip>
+      </SelectContent>
+    </Select>
   );
 }

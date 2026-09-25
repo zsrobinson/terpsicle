@@ -105,8 +105,10 @@ test("add a block from the Blocks form", async ({ page }) => {
   await openTab(page, "Blocks");
   const form = page.getByRole("form", { name: "Add block" });
   await form.getByRole("button", { name: "Lunch" }).click();
-  await form.getByLabel("Starts").selectOption("720");
-  await form.getByLabel("Ends").selectOption("780");
+  await form.getByRole("combobox", { name: "Starts" }).click();
+  await page.getByRole("option", { name: "12pm" }).click();
+  await form.getByRole("combobox", { name: "Ends" }).click();
+  await page.getByRole("option", { name: "1pm" }).click();
   await form.getByRole("button", { name: "Add block" }).click();
   await expect(
     page.getByRole("list", { name: "Blocks" }).getByText("Lunch"),
