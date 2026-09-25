@@ -84,17 +84,18 @@
   --fg: #18181b;
   /*
    * WCAG AA: muted, faint and the semantic colors are text, so each clears
-   * 4.5:1 on bg, panel, raised, hover and its own soft fill. Faint stays a
-   * step lighter than muted, and muted a step lighter than fg.
+   * 4.5:1 on bg, panel, raised, hover, accent-soft (the selected row) and
+   * its own soft fill. Faint stays a step lighter than muted, and muted a
+   * step lighter than fg.
    */
   --muted: #5f5f69;
   --faint: #6a6a75;
   --accent: #18181b;
   --accent-fg: #ffffff;
   --accent-soft: color-mix(in oklab, #18181b 7%, transparent);
-  --ok: #117d39;
+  --ok: #0f7a37;
   --ok-soft: rgb(22 163 74 / 0.1);
-  --warn: #9b5e08;
+  --warn: #965a07;
   --warn-soft: rgb(217 119 6 / 0.12);
   --error: #c81e1e;
   --error-soft: rgb(220 38 38 / 0.1);

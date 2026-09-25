@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 import { blockLabel, classLabel, ghostLabel, pillLabel } from "./labels";
 import type { BlockEntry, ClassEntry, GhostEntry, Pill } from "./layout";
-import { ghostStyle, tintStyle } from "./tint";
+import { dimmedStyle, ghostStyle, tintStyle } from "./tint";
 
 // What sits in a day column: classes, blocks, ghosts and travel pills.
 
@@ -67,6 +67,9 @@ export function ClassBlock({
   const place = entry.online
     ? "Online"
     : [entry.building, entry.room].filter(Boolean).join(" ");
+  // Secondary lines are softer, except when dimmed: muted text is already
+  // as light as AA contrast allows.
+  const soft = dimmed ? undefined : "opacity-80";
   return (
     <WithTooltip
       label={
@@ -83,11 +86,13 @@ export function ClassBlock({
         data-course={entry.courseCode}
         aria-label={classLabel(entry)}
         className={cn(
-          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border px-1.5 py-1 text-left transition-opacity duration-150",
-          dimmed && "opacity-35",
+          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border px-1.5 py-1 text-left transition-colors duration-150",
           (selected || changed) && "ring-2 ring-fg/70",
         )}
-        style={{ ...style, ...tintStyle(entry.color) }}
+        style={{
+          ...style,
+          ...(dimmed ? dimmedStyle(entry.color) : tintStyle(entry.color)),
+        }}
       >
         <div className="flex items-baseline gap-1 text-[11.5px] leading-tight">
           {/* The code wins the space; "discussion" gives way on narrow days. */}
@@ -95,18 +100,18 @@ export function ClassBlock({
             {entry.courseCode}
           </span>
           {kind ? (
-            <span className="min-w-0 truncate text-[10px] opacity-70">
+            <span className={cn("min-w-0 truncate text-[10px]", soft)}>
               {kind}
             </span>
           ) : null}
         </div>
         {height > 30 ? (
-          <div className="tnum truncate text-[10.5px] opacity-75">
+          <div className={cn("tnum truncate text-[10.5px]", soft)}>
             {formatTimeRange(entry.start, entry.end)}
           </div>
         ) : null}
         {height > 46 && place ? (
-          <div className="truncate text-[10.5px] opacity-75">{place}</div>
+          <div className={cn("truncate text-[10.5px]", soft)}>{place}</div>
         ) : null}
       </button>
     </WithTooltip>
@@ -131,8 +136,11 @@ export function BusyBlock({
         onClick={() => openTab("blocks", "click")}
         aria-label={blockLabel(entry)}
         className={cn(
-          "stripes absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border border-hairline bg-panel px-1.5 py-1 text-left text-muted transition-opacity duration-150",
-          dimmed && "opacity-35",
+          "stripes absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border bg-panel px-1.5 py-1 text-left transition-colors duration-150",
+          // Dimmed with color, not opacity, so its words stay readable.
+          dimmed
+            ? "border-hairline/60 text-faint"
+            : "border-hairline text-muted",
         )}
         style={style}
       >
@@ -140,7 +148,7 @@ export function BusyBlock({
           {entry.label}
         </div>
         {height > 30 ? (
-          <div className="tnum truncate text-[10.5px] opacity-80">
+          <div className="tnum truncate text-[10.5px]">
             {formatTimeRange(entry.start, entry.end)}
           </div>
         ) : null}
