@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import type { BlobStore } from "~/ingest/blob-store";
 
@@ -20,7 +26,8 @@ export function createFsBlobStore(root: string): BlobStore {
       return null;
     }
   };
-  const etagOf = (bytes: Uint8Array) => createHash("md5").update(bytes).digest("hex");
+  const etagOf = (bytes: Uint8Array) =>
+    createHash("md5").update(bytes).digest("hex");
   const write = (key: string, body: Uint8Array | string) => {
     mkdirSync(path.dirname(file(key)), { recursive: true });
     writeFileSync(file(key), body);

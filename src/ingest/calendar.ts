@@ -10,9 +10,9 @@ import {
   TermsFileSchema,
 } from "~/core/schema";
 import type { BlobStore } from "./blob-store";
+import { JSON_TYPE, toJsonBytes } from "./hash";
 import { squash } from "./html";
 import type { HttpClient } from "./http";
-import { JSON_TYPE, toJsonBytes } from "./hash";
 import { type Logger, readJson } from "./publish";
 import { isoDate, MONTHS } from "./time";
 
@@ -22,7 +22,8 @@ import { isoDate, MONTHS } from "./time";
 // stripped (RESEARCH.md §5.6).
 
 export const CALENDAR_URL = "https://provost.umd.edu/calendar.md";
-export const ARCHIVED_CALENDAR_URL = "https://provost.umd.edu/calendar/archived";
+export const ARCHIVED_CALENDAR_URL =
+  "https://provost.umd.edu/calendar/archived";
 
 export interface CalendarEvent {
   name: string;
@@ -35,11 +36,19 @@ export type CalendarBlocks = Map<string, CalendarEvent[]>;
 
 const blockKey = (fallYear: number, season: Season) => `${fallYear}:${season}`;
 
-const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const WEEKDAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
 const DATE = String.raw`([A-Z][a-z]+) (\d{1,2})(?:st|nd|rd|th) \(([A-Z][a-z]+)\)`;
 const SEASON_HEADER =
   /Fall (\d{4}) - (?:Summer|Spring) (\d{4}) Events for the (Fall|Winter|Spring|Summer) Season/g;
-const EVENT = new RegExp(String.raw`Event (.+?) Date ${DATE}(?: To to ${DATE})?`, "g");
+const EVENT = new RegExp(`Event (.+?) Date ${DATE}(?: To to ${DATE})?`, "g");
 
 export class CalendarFormatError extends Error {
   constructor(message: string) {
@@ -95,7 +104,8 @@ export function parseCalendar(source: string): CalendarBlocks {
     for (const m of text.slice(from, to).matchAll(EVENT)) {
       const [, name = "", mo = "", d = "", wd = "", mo2, d2, wd2] = m;
       const start = resolveDate(fallYear, season, mo, d, wd);
-      const end = mo2 && d2 && wd2 ? resolveDate(fallYear, season, mo2, d2, wd2) : start;
+      const end =
+        mo2 && d2 && wd2 ? resolveDate(fallYear, season, mo2, d2, wd2) : start;
       events.push({ name: squash(name), start, end });
     }
     const key = blockKey(fallYear, season);
@@ -114,18 +124,30 @@ export function termCalendar(
   termId: string,
 ): { classesStart: string; classesEnd: string; noClasses: NoClasses[] } | null {
   const year = Number(termId.slice(0, 4));
-  const season = SEASON_BY_MONTH_CODE[termId.slice(4) as keyof typeof SEASON_BY_MONTH_CODE];
+  const season =
+    SEASON_BY_MONTH_CODE[termId.slice(4) as keyof typeof SEASON_BY_MONTH_CODE];
   // Fall and winter sit in the block that starts that fall; spring and summer in the previous one.
   const fallYear = season === "fall" || season === "winter" ? year : year - 1;
   const events = blocks.get(blockKey(fallYear, season));
   if (!events) return null;
-  const starts = events.filter((e) => STARTS.test(e.name)).map((e) => e.start).sort();
-  const ends = events.filter((e) => ENDS.test(e.name)).map((e) => e.end).sort();
+  const starts = events
+    .filter((e) => STARTS.test(e.name))
+    .map((e) => e.start)
+    .sort();
+  const ends = events
+    .filter((e) => ENDS.test(e.name))
+    .map((e) => e.end)
+    .sort();
   const classesStart = starts[0];
   const classesEnd = ends[ends.length - 1];
   if (!classesStart || !classesEnd || classesEnd < classesStart) return null;
   const noClasses = events
-    .filter((e) => NO_CLASSES.test(e.name) && e.end >= classesStart && e.start <= classesEnd)
+    .filter(
+      (e) =>
+        NO_CLASSES.test(e.name) &&
+        e.end >= classesStart &&
+        e.start <= classesEnd,
+    )
     .map((e) => ({ name: e.name, start: e.start, end: e.end }))
     .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
   return { classesStart, classesEnd, noClasses };
@@ -144,10 +166,13 @@ export interface CalendarResult {
   errors: string[];
 }
 
-export async function runCalendar(options: CalendarOptions): Promise<CalendarResult> {
+export async function runCalendar(
+  options: CalendarOptions,
+): Promise<CalendarResult> {
   const { http, store, now, log } = options;
   const terms = await readJson(store, TERMS_KEY, TermsFileSchema);
-  if (!terms) throw new Error(`${TERMS_KEY} is missing; run the catalog job first`);
+  if (!terms)
+    throw new Error(`${TERMS_KEY} is missing; run the catalog job first`);
   const errors: string[] = [];
 
   const current = parseCalendar(await http.text(CALENDAR_URL));
@@ -187,17 +212,25 @@ export async function runCalendar(options: CalendarOptions): Promise<CalendarRes
         };
     const parsed = AcademicCalendarSchema.safeParse(calendar);
     if (!parsed.success) {
-      errors.push(`${term.id}: ${parsed.error.issues[0]?.message ?? "invalid"}`);
+      errors.push(
+        `${term.id}: ${parsed.error.issues[0]?.message ?? "invalid"}`,
+      );
       continue;
     }
-    await store.put(calendarKey(term.id), toJsonBytes(parsed.data), { contentType: JSON_TYPE });
+    await store.put(calendarKey(term.id), toJsonBytes(parsed.data), {
+      contentType: JSON_TYPE,
+    });
     if (found) result.published++;
     else result.notPublished++;
   }
   return result;
 }
 
-function sourceFor(current: CalendarBlocks, archived: CalendarBlocks, termId: string): string | null {
+function sourceFor(
+  current: CalendarBlocks,
+  archived: CalendarBlocks,
+  termId: string,
+): string | null {
   if (termCalendar(current, termId)) return CALENDAR_URL;
   if (termCalendar(archived, termId)) return ARCHIVED_CALENDAR_URL;
   return null;

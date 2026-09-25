@@ -5,10 +5,12 @@ import {
   DAYS,
   type Day,
   type Delivery,
+  type GenEdGroup,
   type Meeting,
   type MeetingKind,
   type SeatTuple,
   type Section,
+  SectionCodeSchema,
 } from "~/core/schema";
 import { squash } from "../html";
 import { parseClock, parseLongDate } from "../time";
@@ -27,12 +29,7 @@ import type {
 
 // Raw SOC records → the published catalog shapes (DATA.md §3.2).
 
-/** A section plus fields the published schema may not carry yet. */
-export type NormalizedSection = Section & {
-  /** Non-standard first and last meeting dates (every summer section has them). */
-  startDate?: string;
-  endDate?: string;
-};
+export type NormalizedSection = Section;
 
 export interface NormalizedCourseSections {
   sections: NormalizedSection[];
@@ -102,22 +99,29 @@ function deliveryOf(raw: RawSection, meetings: readonly Meeting[]): Delivery {
   return "f2f";
 }
 
+/**
+ * A sentence that limits who can register. Checked over every section note on
+ * the four saved terms: "Restricted to …", "This section is restricted to …",
+ * "Registration is restricted to …", "Reserved for …", "Restriction: …",
+ * "Must be in the … program", "Only open to …", "Limited to …", "Golden ID
+ * students are not eligible …". Links ("Click here …") aren't restrictions.
+ */
 const RESTRICTION =
-  /\b(restricted|reserved|restriction)\b|^(must be|open only to|only open to)\b/i;
+  /\b(restrict(ed|ion|s)?|reserved for|limited to|not eligible|open only to|only open to)\b|^must (be|have)\b/i;
 
 /**
- * The sentences of `notes` that restrict who can register ("Restricted to …",
- * "Reserved for …", "Must be in …").
+ * The sentences of a section's notes that restrict who can register, joined
+ * with a space, with any "Restriction:" label dropped; null when none do
+ * (DATA.md §3.2).
  */
 export function restrictionOf(notes: string | null): string | null {
   if (!notes) return null;
   const sentences = notes
     .split(/(?<=[.!?])\s+/)
-    .filter((s) => RESTRICTION.test(s));
+    .map((s) => s.replace(/^Restrictions?:\s*/i, "").trim())
+    .filter((s) => s && RESTRICTION.test(s));
   return sentences.length > 0 ? sentences.join(" ") : null;
 }
-
-const SECTION_CODE = /^[A-Z0-9]{3,6}$/;
 
 export function normalizeSections(
   course: RawCourseSections,
@@ -129,9 +133,9 @@ export function normalizeSections(
 
   for (const raw of course.sections) {
     const code = raw.code.toUpperCase();
-    if (!SECTION_CODE.test(code)) {
+    if (!SectionCodeSchema.safeParse(code).success) {
       skipped.push(
-        `${course.course}: section code "${raw.code}" isn't 3–6 letters or digits`,
+        `${course.course}: section code "${raw.code}" isn't four letters or digits`,
       );
       continue;
     }
@@ -163,19 +167,14 @@ export function normalizeSections(
       notes,
       restriction: restrictionOf(notes),
     };
-    const startDate = parseLongDate(raw.startDate);
-    const endDate = parseLongDate(raw.endDate);
-    if (startDate) section.startDate = startDate;
-    if (endDate) section.endDate = endDate;
+    const start = parseLongDate(raw.startDate);
+    const end = parseLongDate(raw.endDate);
+    if (start && end && end >= start) section.dates = { start, end };
     out.push(section);
 
     if (raw.open !== null && raw.total !== null) {
-      seats.set(code, [
-        raw.open,
-        raw.total,
-        raw.waitlist ?? 0,
-        raw.holdfile ?? 0,
-      ]);
+      // Waitlist and holdfile stay null when Testudo doesn't show them.
+      seats.set(code, [raw.open, raw.total, raw.waitlist, raw.holdfile]);
     }
   }
   out.sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
@@ -184,7 +183,7 @@ export function normalizeSections(
 
 // ---------- courses ----------
 
-const COURSE_CODE = /[A-Z]{4}\d{3}[A-Z]{0,2}/g;
+const COURSE_CODE = /\b[A-Z]{4}\d{3}[A-Z]?\b/g;
 
 type TextField = "prerequisite" | "corequisite" | "restriction";
 
@@ -197,6 +196,7 @@ const LABEL_FIELDS: Record<string, TextField | "crossListings"> = {
   restrictions: "restriction",
   "cross-listed with": "crossListings",
   "also offered as": "crossListings",
+  "jointly offered with": "crossListings",
 };
 
 /**
@@ -292,19 +292,24 @@ export function splitCourseText(
 }
 
 /**
- * Testudo's gen-ed list → groups that all apply; codes joined by "or" share a
- * group. "DSHS or DSSP, DVUP" → [["DSHS","DSSP"],["DVUP"]].
+ * Testudo's gen-ed list → groups that all apply; options joined by "or" share
+ * a group. "DSNL (if taken with GEOL110) or DSNS, SCIS" →
+ * [[{DSNL, "if taken with GEOL110"}, {DSNS}], [{SCIS}]].
  */
-export function genEdGroups(genEds: readonly RawGenEd[]): string[][] {
-  const groups: string[][] = [];
+export function genEdGroups(genEds: readonly RawGenEd[]): GenEdGroup[] {
+  const groups: GenEdGroup[] = [];
   for (const [i, g] of genEds.entries()) {
     const code = g.code.toUpperCase();
     if (!/^[A-Z]{4}$/.test(code)) continue;
+    const condition = g.condition
+      ? squash(g.condition.replace(/^\(|\)$/g, "")).slice(0, 120)
+      : "";
+    const option = condition ? { code, condition } : { code };
     const last = groups[groups.length - 1];
     if (i > 0 && last && /\bor\b/i.test(g.separator)) {
-      if (!last.includes(code)) last.push(code);
+      if (!last.some((o) => o.code === code)) last.push(option);
     } else {
-      groups.push([code]);
+      groups.push([option]);
     }
   }
   return groups;
@@ -320,7 +325,7 @@ function credits(text: string | null): number | null {
 export function normalizeCourse(
   raw: RawCourse,
   sections: readonly NormalizedSection[],
-): Course & { sections: NormalizedSection[] } {
+): Course {
   const text = splitCourseText(raw);
   const min = credits(raw.minCredits) ?? 0;
   const max = Math.max(min, credits(raw.maxCredits) ?? min);
@@ -343,6 +348,7 @@ export function normalizeCourse(
     restriction: text.fields.restriction ?? null,
     otherNotes: text.otherNotes,
     crossListings,
+    ...(raw.individualInstruction ? { contactDepartment: true as const } : {}),
     sections: [...sections],
   };
 }

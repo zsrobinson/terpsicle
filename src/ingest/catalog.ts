@@ -115,7 +115,19 @@ export async function runCatalog(
 
   for (const termId of termIds) {
     result.terms++;
-    await crawlTerm(options, termId, result, rooms);
+    // One term failing (its department list didn't load) mustn't stop the others.
+    try {
+      await crawlTerm(options, termId, result, rooms);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      result.errors.push(`${termId}: ${message}`);
+      options.log.error(`Left ${termId} as it was`, { error: message });
+    }
+  }
+  if (result.terms > 0 && result.departments === 0) {
+    throw new Error(
+      `No term could be crawled: ${result.errors.slice(0, 3).join("; ")}`,
+    );
   }
 
   if (Object.keys(rooms).length > 0) {

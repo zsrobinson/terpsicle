@@ -1,5 +1,5 @@
-import type { TravelMode } from "~/core/schema";
 import { z } from "zod";
+import type { TravelMode } from "~/core/schema";
 import type { HttpClient } from "../http";
 
 // UMD's campus routing network (gis.umd.edu ArcGIS Server; RESEARCH.md §5.3).
@@ -45,7 +45,9 @@ export interface GisToken {
 export function parseTokenScript(text: string): GisToken {
   const m = /"token":\s*"([^"]+)"[\s\S]*?"expires":\s*(\d+)/.exec(text);
   if (!m?.[1] || !m[2]) {
-    throw new Error(`${TOKEN_URL} has no "token"/"expires" pair; UMD changed its format`);
+    throw new Error(
+      `${TOKEN_URL} has no "token"/"expires" pair; UMD changed its format`,
+    );
   }
   return { token: m[1], expires: Number(m[2]) };
 }
@@ -88,6 +90,27 @@ const ArcGisErrorSchema = z.object({
   }),
 });
 
+/**
+ * ArcGIS answers HTTP 200 with `{"error":{"code":503,…"was unavailable"}}`
+ * when a service instance is busy; retry those like a 503.
+ */
+async function postArcGis(
+  http: HttpClient,
+  url: string,
+  body: URLSearchParams,
+  attempts = 4,
+  sleep = (ms: number) => new Promise((r) => setTimeout(r, ms)),
+): Promise<unknown> {
+  let json: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) await sleep(1000 * 2 ** (attempt - 1));
+    json = await http.json(url, { method: "POST", body });
+    const code = ArcGisErrorSchema.safeParse(json).data?.error.code;
+    if (code === undefined || ![500, 502, 503, 504].includes(code)) return json;
+  }
+  return json;
+}
+
 function arcGisError(json: unknown): string | null {
   const parsed = ArcGisErrorSchema.safeParse(json);
   if (!parsed.success) return null;
@@ -117,15 +140,19 @@ export async function fetchEntrances(
     outSR: "4326",
     token,
   });
-  const json = await http.json(`${service(mode)}/MapServer/13/query`, {
-    method: "POST",
+  const json = await postArcGis(
+    http,
+    `${service(mode)}/MapServer/13/query`,
     body,
-  });
+  );
   const error = arcGisError(json);
   if (error) throw new Error(`Entrances (${mode}): ${error}`);
   const parsed = EntranceApiSchema.parse(json);
 
-  const raw = new Map<string, { e: Entrance; card: boolean; accessible: boolean }[]>();
+  const raw = new Map<
+    string,
+    { e: Entrance; card: boolean; accessible: boolean }[]
+  >();
   for (const f of parsed.features) {
     const building = f.attributes.LOCATIONID;
     if (!building) continue;
@@ -145,7 +172,11 @@ export async function fetchEntrances(
         : list.some((x) => !x.card)
           ? list.filter((x) => !x.card)
           : list;
-    if (usable.length > 0) out.set(building, usable.map((x) => x.e));
+    if (usable.length > 0)
+      out.set(
+        building,
+        usable.map((x) => x.e),
+      );
   }
   return out;
 }
@@ -215,10 +246,11 @@ export async function solveClosest(
     polygonBarriers: barriersParam,
     token,
   });
-  const json = await http.json(`${service(mode)}/NAServer/Closest%20Facility/solveClosestFacility`, {
-    method: "POST",
+  const json = await postArcGis(
+    http,
+    `${service(mode)}/NAServer/Closest%20Facility/solveClosestFacility`,
     body,
-  });
+  );
   const best = new Map<string, Closest>();
   const error = arcGisError(json);
   if (error) {
@@ -250,7 +282,9 @@ const RouteApiSchema = z.object({
       features: z.array(
         z.object({
           attributes: z.object({ Name: z.string(), Total_Length: z.number() }),
-          geometry: z.object({ paths: z.array(z.array(z.array(z.number()))) }).optional(),
+          geometry: z
+            .object({ paths: z.array(z.array(z.array(z.number()))) })
+            .optional(),
         }),
       ),
     })
@@ -287,11 +321,19 @@ export async function solveRoutes(
     returnPolylineBarriers: "false",
     outputLines: "esriNAOutputLineTrueShape",
     findBestSequence: "false",
-    stops: JSON.stringify({ type: "features", features: stops, doNotLocateOnRestrictedElements: true }),
+    stops: JSON.stringify({
+      type: "features",
+      features: stops,
+      doNotLocateOnRestrictedElements: true,
+    }),
     polygonBarriers: barriersParam,
     token,
   });
-  const json = await http.json(`${service(mode)}/NAServer/Route/solve`, { method: "POST", body });
+  const json = await postArcGis(
+    http,
+    `${service(mode)}/NAServer/Route/solve`,
+    body,
+  );
   const error = arcGisError(json);
   if (error) throw new Error(`Route solve (${mode}): ${error}`);
   const out = new Map<string, { feet: number; path: [number, number][] }>();
@@ -299,7 +341,11 @@ export async function solveRoutes(
     const path = (route.geometry?.paths ?? [])
       .flat()
       .map((p) => [p[0] ?? 0, p[1] ?? 0] as [number, number]);
-    if (path.length >= 2) out.set(route.attributes.Name, { feet: route.attributes.Total_Length, path });
+    if (path.length >= 2)
+      out.set(route.attributes.Name, {
+        feet: route.attributes.Total_Length,
+        path,
+      });
   }
   return out;
 }

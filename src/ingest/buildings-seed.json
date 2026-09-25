@@ -501,14 +501,34 @@
   ],
   "unresolved": {
     "4MLK": "unknown: popup 404; one Fall 2026 section (BIOE679F-0201 room 4103); likely off campus",
-    "BA": "off campus: Baltimore location (Smith School BA01 sections)",
-    "BLD2": "off campus: Universities at Shady Grove Building II (Rockville); sections ESG*/restricted to Shady Grove",
-    "BLD3": "off campus: Universities at Shady Grove Building III",
-    "BLD4": "off campus: Universities at Shady Grove Building IV",
-    "BSE4": "off campus: Shady Grove (Biomedical Sciences & Engineering Education Facility)",
-    "DC": "off campus: Washington, DC location (Smith School DC sections, rooms C2/C3)",
     "PWS": "unknown: popup 500; one Fall 2026 section (PHYS456-0101 room 0100); no ArcGIS match",
     "SEN": "unknown: popup 500; one section (EDCP738-0101 room 1102M); maybe Seneca Building (ArcGIS 812), unconfirmed",
     "TBA": "not a building: room to be announced"
-  }
+  },
+  "offCampus": [
+    {
+      "code": "BA",
+      "name": "University of Maryland, Baltimore (Smith School)"
+    },
+    {
+      "code": "BLD2",
+      "name": "Universities at Shady Grove, Building II"
+    },
+    {
+      "code": "BLD3",
+      "name": "Universities at Shady Grove, Building III"
+    },
+    {
+      "code": "BLD4",
+      "name": "Universities at Shady Grove, Building IV"
+    },
+    {
+      "code": "BSE4",
+      "name": "Universities at Shady Grove, Biomedical Sciences and Engineering Education Facility"
+    },
+    {
+      "code": "DC",
+      "name": "Washington, DC (Smith School)"
+    }
+  ]
 }

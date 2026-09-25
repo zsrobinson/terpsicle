@@ -96,19 +96,19 @@ describe("scheduled", () => {
   });
 
   it.each(Object.keys(CRON_JOBS))("runs the job for %s", async (cron) => {
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const job = CRON_JOBS[cron];
+    if (!job) throw new Error(`no job for ${cron}`);
+    const run = vi.spyOn(job, "run").mockResolvedValue();
     const controller = createScheduledController({
       cron,
       scheduledTime: Date.UTC(2026, 8, 25, 12),
     });
     await worker.scheduled(controller, env, createExecutionContext());
-    expect(info).toHaveBeenCalledWith(
-      expect.objectContaining({
-        job: CRON_JOBS[cron]?.name,
-        scheduledFor: "2026-09-25T12:00:00.000Z",
-      }),
-    );
-    info.mockRestore();
+    expect(run).toHaveBeenCalledWith({
+      env,
+      now: new Date("2026-09-25T12:00:00.000Z"),
+    });
+    run.mockRestore();
   });
 
   it("fails loudly on a cron with no job", async () => {

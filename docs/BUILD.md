@@ -45,7 +45,7 @@ Cloudflare Worker "terpsicle"  (one deployable: src/server.ts)
 │                   sections → per-dept chunks + manifest; archive terms Testudo dropped │
 │   17 5 * * *      PlanetTerp: ratings, reviews metadata, grades                        │
 │   23 6 * * 1      academic calendar; buildings join                                   │
-│   41 * * * *      routes: fill in missing building-pair routes, N pairs per run (resumable)│
+│   routes: not a cron; GitHub Actions runs scripts/build-routes.ts weekly (below)    │
 │ bindings: R2 DATA (terpsicle-data) · D1 DB (terpsicle) · AI (Workers AI) · secrets     │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 Browser
@@ -57,9 +57,9 @@ Browser
   - Jobs under an hour apart get 30 s CPU, hourly-or-slower get 15 min, and memory is 128 MB.
   - Crawls fetch at concurrency ≤ 4 and parse **per department with a streaming parser** (htmlparser2), writing as they go. They never hold a whole term in memory.
   - Waiting on network doesn't count as CPU time.
-  - Long jobs (routes) are **resumable**: they keep progress in R2 and do a bounded chunk per run.
+  - Jobs keep their memory in R2 under `_jobs/` (DATA.md §2.6): the seats job's diff baseline, the PlanetTerp grade rotation, routes already solved. So every run does a bounded amount of work.
 - **Ingest code is platform-agnostic.** It takes a `fetch` and a `BlobStore` interface, so the same code runs in the Worker (R2 binding), in Node scripts (local filesystem or R2), and in tests (in-memory).
-- **Routes may need to run from a script.** If Workers can't reach `maps.umd.edu` (incomplete TLS chain, `RESEARCH.md` §1), run the routes job from `scripts/build-routes.ts` locally or in a manual GitHub workflow, and upload to R2. The data format doesn't change.
+- **Routes run from a script, not a cron.** A Worker can't fetch the routing token from `maps.umd.edu`: Cloudflare answers **526** (invalid certificate) because UMD serves an incomplete TLS chain (verified 2026-09-25 from the edge; STATUS.md). `scripts/build-routes.ts` runs in Node with the two missing intermediates (`scripts/certs/umd-intermediates.pem`) from `.github/workflows/routes.yml`, weekly and on manual dispatch (an owner-approved exception to "Actions only for CI and deploy"). It writes to R2 through R2's S3 API. It's incremental: only new pairs, pairs whose entrances changed, and missing geometry are solved. A full build is about 230 requests and 3 minutes.
 - **Terms are data, not config** (`SPEC.md` §3.0).
   - `catalog/terms.json` comes from Testudo's term dropdown on every catalog run.
   - Jobs iterate the active terms, and the client builds the term switcher and picks the default from it.
@@ -191,7 +191,7 @@ Each milestone ends green and deployed. The orchestrator checks the acceptance c
 - SOC adapter with golden tests and delivery inference.
 - PlanetTerp (+/−/W grades).
 - Buildings join.
-- Routes: distances plus geometries, standard and accessible, resumable.
+- Routes: distances plus geometries, standard and accessible, incremental (a script in GitHub Actions; see §2).
 - Academic calendar.
 - Publisher: chunks, manifest, seats, changes.
 - Cron handlers.

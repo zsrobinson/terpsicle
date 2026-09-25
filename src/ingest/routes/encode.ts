@@ -3,6 +3,7 @@ import {
   ROUTES_HEADER_BYTES,
   ROUTES_MAGIC,
   ROUTES_MAX_FEET,
+  ROUTES_NO_ROUTE,
   ROUTES_UNKNOWN,
   type RoutesIndex,
   RoutesIndexSchema,
@@ -13,19 +14,27 @@ import {
 
 /**
  * `matrices[m][i * N + j]` is feet from buildings[i] to buildings[j] in
- * modes[m], or null when unknown.
+ * modes[m]; null when UMD's network has no route, undefined when not computed.
  */
 export function encodeRoutes(
   index: RoutesIndex,
-  matrices: readonly (readonly (number | null)[])[],
+  matrices: readonly (readonly (number | null | undefined)[])[],
 ): Uint8Array {
   const parsed = RoutesIndexSchema.parse(index);
   const n = parsed.buildings.length;
   const m = parsed.modes.length;
-  if (new Set(parsed.buildings).size !== n || parsed.buildings.some((b, i) => i > 0 && (parsed.buildings[i - 1] ?? "") >= b)) {
+  if (
+    new Set(parsed.buildings).size !== n ||
+    parsed.buildings.some(
+      (b, i) => i > 0 && (parsed.buildings[i - 1] ?? "") >= b,
+    )
+  ) {
     throw new Error("Routes index buildings must be sorted and unique");
   }
-  if (matrices.length !== m || matrices.some((matrix) => matrix.length !== n * n)) {
+  if (
+    matrices.length !== m ||
+    matrices.some((matrix) => matrix.length !== n * n)
+  ) {
     throw new Error(`Expected ${m} matrices of ${n}×${n} cells`);
   }
   const json = new TextEncoder().encode(JSON.stringify(parsed));
@@ -43,9 +52,11 @@ export function encodeRoutes(
   matrices.forEach((matrix, mi) => {
     matrix.forEach((feet, cell) => {
       const value =
-        feet === null || !Number.isFinite(feet)
+        feet === undefined || (feet !== null && !Number.isFinite(feet))
           ? ROUTES_UNKNOWN
-          : Math.min(ROUTES_MAX_FEET, Math.max(0, Math.round(feet)));
+          : feet === null
+            ? ROUTES_NO_ROUTE
+            : Math.min(ROUTES_MAX_FEET, Math.max(0, Math.round(feet)));
       view.setUint16(dataStart + 2 * (mi * n * n + cell), value, true);
     });
   });
@@ -53,7 +64,10 @@ export function encodeRoutes(
 }
 
 /** Metres between two [lng, lat] points, equirectangular (fine at campus scale). */
-function metres(a: readonly [number, number], b: readonly [number, number]): number {
+function metres(
+  a: readonly [number, number],
+  b: readonly [number, number],
+): number {
   const lat = ((a[1] + b[1]) / 2) * (Math.PI / 180);
   const dx = (b[0] - a[0]) * 111_320 * Math.cos(lat);
   const dy = (b[1] - a[1]) * 110_540;
@@ -71,7 +85,8 @@ function distanceToSegment(
   const [px, py] = [(p[0] - a[0]) * kx, (p[1] - a[1]) * ky];
   const [bx, by] = [(b[0] - a[0]) * kx, (b[1] - a[1]) * ky];
   const len2 = bx * bx + by * by;
-  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / len2));
+  const t =
+    len2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / len2));
   return Math.hypot(px - t * bx, py - t * by);
 }
 
@@ -113,7 +128,8 @@ export function simplifyPath(
     const prev = out[out.length - 1];
     if (!prev || prev[0] !== r[0] || prev[1] !== r[1]) out.push(r);
   });
-  if (out.length === 1) out.push(round6(path[path.length - 1] ?? path[0] ?? [0, 0]));
+  if (out.length === 1)
+    out.push(round6(path[path.length - 1] ?? path[0] ?? [0, 0]));
   return out;
 }
 

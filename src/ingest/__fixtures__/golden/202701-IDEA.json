@@ -185,7 +185,7 @@
       }
      ],
      "notes": "Restriction: Must be in the College Park Scholars Program; or permissio of College Park Scholars.",
-     "restriction": "Restriction: Must be in the College Park Scholars Program; or permissio of College Park Scholars."
+     "restriction": "Must be in the College Park Scholars Program; or permissio of College Park Scholars."
     }
    ]
   },
@@ -214,6 +214,7 @@
     }
    ],
    "crossListings": [],
+   "contactDepartment": true,
    "sections": []
   },
   {
@@ -240,6 +241,7 @@
     }
    ],
    "crossListings": [],
+   "contactDepartment": true,
    "sections": []
   }
  ]

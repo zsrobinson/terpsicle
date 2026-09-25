@@ -1,15 +1,16 @@
+import { z } from "zod";
 import {
   type Building,
   BuildingCodeSchema,
   BuildingSchema,
-  buildingsKey,
   BuildingsFileSchema,
+  buildingsKey,
   GEO_MANIFEST_KEY,
   GeoManifestSchema,
   JOBS_PREFIX,
+  OffCampusSchema,
   SCHEMA_VERSIONS,
 } from "~/core/schema";
-import { z } from "zod";
 import type { BlobStore } from "./blob-store";
 import seed from "./buildings-seed.json";
 import { BUILDING_ROOMS_KEY, BuildingRoomsSchema } from "./catalog";
@@ -32,7 +33,8 @@ export const ARCGIS_BUILDINGS_URL =
 
 const SeedSchema = z.object({
   buildings: z.array(BuildingSchema),
-  /** Codes that never join (off campus, TBA), with why. */
+  offCampus: z.array(OffCampusSchema),
+  /** Codes that don't join and aren't off campus (TBA, unknown), with why. */
   unresolved: z.record(z.string(), z.string()),
 });
 
@@ -83,18 +85,39 @@ export interface BuildingsResult {
   written: boolean;
 }
 
-export async function runBuildings(options: BuildingsOptions): Promise<BuildingsResult> {
+export async function runBuildings(
+  options: BuildingsOptions,
+): Promise<BuildingsResult> {
   const { http, store, now, log } = options;
   const known = new Map(BUILDINGS_SEED.buildings.map((b) => [b.code, b]));
-  const rooms = await readJsonOrNull(store, BUILDING_ROOMS_KEY, BuildingRoomsSchema, log);
-  const discovered: Discovered =
-    (await readJsonOrNull(store, DISCOVERED_KEY, DiscoveredSchema, log)) ?? { codes: {} };
+  const offCampus = new Set(BUILDINGS_SEED.offCampus.map((o) => o.code));
+  const rooms = await readJsonOrNull(
+    store,
+    BUILDING_ROOMS_KEY,
+    BuildingRoomsSchema,
+    log,
+  );
+  const discovered: Discovered = (await readJsonOrNull(
+    store,
+    DISCOVERED_KEY,
+    DiscoveredSchema,
+    log,
+  )) ?? { codes: {} };
 
   const due = Object.entries(rooms?.codes ?? {}).filter(([code]) => {
-    if (known.has(code) || code in BUILDINGS_SEED.unresolved) return false;
+    if (
+      known.has(code) ||
+      offCampus.has(code) ||
+      code in BUILDINGS_SEED.unresolved
+    )
+      return false;
     if (!BuildingCodeSchema.safeParse(code).success) return false;
     const prior = discovered.codes[code];
-    return !prior || (!prior.building && now.getTime() - Date.parse(prior.checkedAt) > RETRY_MS);
+    return (
+      !prior ||
+      (!prior.building &&
+        now.getTime() - Date.parse(prior.checkedAt) > RETRY_MS)
+    );
   });
 
   let joined = 0;
@@ -117,7 +140,10 @@ export async function runBuildings(options: BuildingsOptions): Promise<Buildings
               lng: Math.round(arc.POINT_X * 1e6) / 1e6,
             }
           : null;
-      const building = candidate && BuildingSchema.safeParse(candidate).success ? candidate : null;
+      const building =
+        candidate && BuildingSchema.safeParse(candidate).success
+          ? candidate
+          : null;
       discovered.codes[code] = {
         building,
         reason: building
@@ -139,22 +165,38 @@ export async function runBuildings(options: BuildingsOptions): Promise<Buildings
       known.set(entry.building.code, entry.building);
     }
   }
-  const buildings: Building[] = [...known.values()].sort((a, b) => (a.code < b.code ? -1 : 1));
-  const previous = await readJsonOrNull(store, GEO_MANIFEST_KEY, GeoManifestSchema, log);
+  const buildings: Building[] = [...known.values()].sort((a, b) =>
+    a.code < b.code ? -1 : 1,
+  );
+  const previous = await readJsonOrNull(
+    store,
+    GEO_MANIFEST_KEY,
+    GeoManifestSchema,
+    log,
+  );
   const out = await writeHashed(
     store,
     BuildingsFileSchema,
-    { schemaVersion: SCHEMA_VERSIONS.geo, buildings },
+    {
+      schemaVersion: SCHEMA_VERSIONS.geo,
+      buildings,
+      offCampus: BUILDINGS_SEED.offCampus,
+    },
     buildingsKey,
     "buildings",
     previous?.buildings.hash ?? null,
   );
-  await updatePointer(store, GEO_MANIFEST_KEY, GeoManifestSchema, (current) => ({
-    schemaVersion: SCHEMA_VERSIONS.geo,
-    generatedAt: now.toISOString(),
-    buildings: { hash: out.hash, count: buildings.length },
-    routes: current?.routes ?? null,
-  }));
+  await updatePointer(
+    store,
+    GEO_MANIFEST_KEY,
+    GeoManifestSchema,
+    (current) => ({
+      schemaVersion: SCHEMA_VERSIONS.geo,
+      generatedAt: now.toISOString(),
+      buildings: { hash: out.hash, count: buildings.length },
+      routes: current?.routes ?? null,
+    }),
+  );
   return {
     buildings: buildings.length,
     looked: due.length,

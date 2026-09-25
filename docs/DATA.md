@@ -44,14 +44,14 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `catalog/<term>/changes.<hash>.json` | `ChangesFileSchema` | seats job | hashed |
 | `planetterp/manifest.json` | `PlanetTerpManifestSchema` | PlanetTerp job (daily) | fixed |
 | `planetterp/dept/<DEPT>.<hash>.json` | `PlanetTerpDeptSchema` | PlanetTerp job | hashed |
-| `geo/manifest.json` | `GeoManifestSchema` | buildings job (weekly), routes job (hourly) | fixed |
+| `geo/manifest.json` | `GeoManifestSchema` | buildings job (weekly), routes script (weekly, GitHub Actions) | fixed |
 | `geo/buildings.<hash>.json` | `BuildingsFileSchema` | buildings job | hashed |
-| `geo/routes.<hash>.bin` | binary, §4.2 | routes job | hashed |
-| `geo/route/<from>-<to>-<mode>.json` | `RouteGeometrySchema` | routes job | fixed |
+| `geo/routes.<hash>.bin` | binary, §4.2 | routes script | hashed |
+| `geo/route/<from>-<to>-<mode>.json` | `RouteGeometrySchema` | routes script | fixed |
 | `geo/tiles.pmtiles` | PMTiles | script, rarely | fixed |
 | `calendar/<term>.json` | `AcademicCalendarSchema` | calendar job (weekly) | fixed |
 | `summaries/<slug>.json` | `ReviewSummarySchema` | `POST /api/review-summary` (§7.2) | fixed, **not served** |
-| `_jobs/…` | owned by M2 | jobs (resume cursors, last-crawl snapshots) | **not served** |
+| `_jobs/…` | owned by M2, §2.6 | jobs (baselines, rotation state, reports) | **not served** |
 
 ### 2.2 Content hashing
 - Hash = SHA-256 of the exact UTF-8 bytes written (`JSON.stringify(value)`, no whitespace), first 16 hex chars.
@@ -66,12 +66,12 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
   - data version > client's → the open tab is stale; keep using the cache and reload the app at the next visibility change;
   - data version < client's → the jobs haven't republished yet; keep a compatible cache or show the loading state, and retry on the next poll.
 - A bump drops that family's IndexedDB cache (full refetch).
-- Deploys that bump a family: the next run of any job that writes that family sees the published `schemaVersion` is older and republishes everything in it from its `_jobs/` snapshot, without recrawling. So the gap is at most one seats interval (5 min) for catalog.
+- Deploys that bump a family: the next run of the job that writes that family sees the published `schemaVersion` differs and republishes everything (hashes don't match, so every file is rewritten). For catalog that's the catalog job, up to 6 h later; the seats job skips a term until its manifest has the current version. So after deploying a catalog bump, run `pnpm tsx scripts/ingest.ts catalog --target r2` (then `seats`) instead of waiting.
 - Server-fn inputs are the exception: they use `z.strictObject` (untrusted input, reject unknown keys).
 
 ### 2.4 Writing
 - Write order: every new hashed file first, the manifest last. A manifest never points at a file that doesn't exist yet.
-- **Two jobs write `catalog/<term>/manifest.json`** (catalog: `departments`, `catalogCrawledAt`; seats: `seats`, `changes`). Each does read → change only its own fields → set `generatedAt` → `put` with `onlyIf: { etagMatches }`; on a failed precondition it re-reads and retries (up to 5 times). `geo/manifest.json` follows the same rule (buildings job vs routes job).
+- **Two jobs write `catalog/<term>/manifest.json`** (catalog: `departments`, `catalogCrawledAt`; seats: `seats`, `changes`). Each does read → change only its own fields → set `generatedAt` → `put` with `onlyIf: { etagMatches }`; on a failed precondition it re-reads and retries (up to 5 times). `geo/manifest.json` follows the same rule (buildings job vs routes script).
 - Department chunks include section fields (meetings, instructors, notes), so a section change seen by the seats job rewrites that department's chunk in the same run as the `changes` entry that reports it. The catalog and the changes file never disagree for longer than one run.
 - Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working.
 
@@ -88,6 +88,19 @@ The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys
 | `geo/tiles.pmtiles` | `max-age=604800`, Range requests | 1 week |
 | `summaries/*`, `_jobs/*`, anything else | 404 | — |
 
+### 2.6 Job state (`_jobs/`, not served)
+The jobs' memory between runs. Everything here can be rebuilt by running the job again, so a file that fails validation is ignored rather than fatal.
+
+| Key | Written by | Holds |
+|---|---|---|
+| `_jobs/seats/<term>/baseline.json` | seats | Testudo's last seats stamp, the last full refresh time, each department's chunk hash and course list, and every section's `SectionSnapshot` (the diff base for `changes`) |
+| `_jobs/catalog/<term>/orphans.json` | catalog | when each unreferenced hashed file was first seen, for the 24 h garbage-collection grace |
+| `_jobs/catalog/building-rooms.json` | catalog | every building code seen, with one room, for the buildings job's popup lookups |
+| `_jobs/buildings/discovered.json` | buildings | codes joined (or not) since the checked-in seed, with why; failures retry after 30 days |
+| `_jobs/planetterp/grades.json` | PlanetTerp | per course, grades summed per PlanetTerp professor name, and when they were fetched (the rotation order) |
+| `_jobs/planetterp/unmatched.json` | PlanetTerp | Testudo instructor names with no PlanetTerp match |
+| `_jobs/routes/state.json` | routes script | feet per building-number pair and mode, entrance hashes per building, and which geometry files exist |
+
 ---
 
 ## 3. Catalog
@@ -102,8 +115,9 @@ The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys
 - **Credits:** `{min, max}`; `max > min` for variable credits ("3 - 6").
 - **Individual instruction:** a course with "Contact department for information to register for this course." has `contactDepartment: true` and no sections (Testudo lists none).
 - **Sections:** sorted by `code` (section-number order) and unique within a course.
-  - `instructors` is empty for "Instructor: TBA".
-  - `notes` is the free text; `restriction` is the "Restricted to…"/"Reserved for…" sentences from it, or `null`.
+  - `instructors` is empty for "Instructor: TBA", and **sorted by name**: Testudo lists co-instructors in a different order from one request to the next, which would otherwise read as a change every run.
+  - `notes` is the free text (a course footnote such as the seat-management note is appended to the sections it marks).
+  - `restriction`: the sentences of `notes` that limit who can register, joined with a space, with a leading "Restriction:" dropped; `null` when none do. A sentence counts when it matches `restrict(ed|ion|s)`, `reserved for`, `limited to`, `not eligible`, `open only to`/`only open to`, or starts with `Must be`/`Must have` (`restrictionOf` in `src/ingest/soc/normalize.ts`). Checked against every note in the four saved terms: it catches "Restricted to students in Freshmen Connection.", "Must be in the Computer Science (M.S.) program.", "Golden ID students are not eligible for this section.", and leaves out links ("Click here …") and advice ("Other students may request enrollment…").
   - `dates` is set when Testudo lists non-standard dates (`.section-start-date`/`.section-end-date`): every summer section and a few hundred per fall or spring term. .ics uses them instead of the term's dates, and two sections whose spans don't intersect never overlap.
   - There's no cancelled flag. Testudo has no marker; a cancelled section just disappears (§3.3).
 - **Meetings:** one per Testudo row, in row order.
@@ -170,11 +184,12 @@ Little-endian throughout.
 - Two sentinels: `ROUTES_UNKNOWN` (65535) means not computed yet; `ROUTES_NO_ROUTE` (65534) means UMD's network found no route (common in accessible mode: IPT, PBR and GVC have none). The diagonal is 0.
 - The file length is exactly `D + 2·M·N·N`; decoders reject anything else.
 - Matrices are directed, but every pair measured in recon was symmetric, so the job solves unordered pairs and fills both cells.
-- Distances come from UMD GIS; an OSRM fallback fills a cell only when GIS fails, and never produces geometry. Size is about 160 KB at N = 200. Encoder and decoder live in `core/travel` (M1).
+- Distances come from UMD GIS; an OSRM fallback fills a cell only when GIS fails, and never produces geometry. Size is about 160 KB at N = 200 (20 KB at today's 71 codes). The encoder is `encodeRoutes` in `src/ingest/routes/encode.ts`; the client's decoder belongs in `core/travel` (M1).
 
 ### 4.3 Route geometry
 `geo/route/<from>-<to>-<mode>.json` is fetched only when a connection's map opens.
-- `coordinates` are `[lng, lat]` in WGS84 with 6 decimals, converted by ingest from web mercator (wkid 102100).
+- `coordinates` are `[lng, lat]` in WGS84 with 6 decimals. UMD's solver returns them in WGS84 (`outSR=4326`), and ingest simplifies the path (Douglas–Peucker, 1 m), so a typical file is 1–2 KB.
+- One file per ordered pair and mode: the reverse direction is the same path reversed. Codes that share a building number (`EDU`/`EDUC`) each get their own files.
 - `lengthFeet` equals the binary's cell.
 - If the file is missing (404), hide the map. Never draw a straight line.
 
@@ -478,5 +493,4 @@ These aren't stored, but several workers build against them:
 ## 10. Open questions
 
 1. **Low-section alerts.** The rule above emails only when a full section reopens (0 → >0). Should watching a *low* (not full) section also email when it gets close to full? The spec only says "when a seat opens".
-2. **Route geometry packaging.** RESEARCH §5.0 suggests one polyline-encoded geometry file per mode (about 470 KB for all pairs) instead of one JSON file per pair. The per-pair schema stands until M2 decides; switching is a `geo` schema bump.
-3. **Gmail/Yahoo one-click unsubscribe.** Bulk-sender rules want `List-Unsubscribe-Post` (one-click), which would skip the confirmation the spec requires. We send `List-Unsubscribe` only (§7.1). At our volume that's fine; revisit if deliverability suffers.
+2. **Gmail/Yahoo one-click unsubscribe.** Bulk-sender rules want `List-Unsubscribe-Post` (one-click), which would skip the confirmation the spec requires. We send `List-Unsubscribe` only (§7.1). At our volume that's fine; revisit if deliverability suffers.

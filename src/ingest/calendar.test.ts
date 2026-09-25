@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { CalendarFormatError, parseCalendar, termCalendar } from "./calendar";
 
 const read = (path: string) =>
-  readFileSync(new URL(`./__fixtures__/provost/${path}`, import.meta.url), "utf8");
+  readFileSync(
+    new URL(`./__fixtures__/provost/${path}`, import.meta.url),
+    "utf8",
+  );
 
 describe("provost calendar", () => {
   const current = parseCalendar(read("calendar.md"));
@@ -43,13 +46,19 @@ describe("provost calendar", () => {
       classesStart: "2027-01-04",
       classesEnd: "2027-01-22",
       noClasses: [
-        { name: "Dr. Martin Luther King Holiday", start: "2027-01-18", end: "2027-01-18" },
+        {
+          name: "Dr. Martin Luther King Holiday",
+          start: "2027-01-18",
+          end: "2027-01-18",
+        },
       ],
     });
     expect(termCalendar(current, "202701")).toEqual({
       classesStart: "2027-01-27",
       classesEnd: "2027-05-11",
-      noClasses: [{ name: "Spring Break", start: "2027-03-14", end: "2027-03-21" }],
+      noClasses: [
+        { name: "Spring Break", start: "2027-03-14", end: "2027-03-21" },
+      ],
     });
   });
 

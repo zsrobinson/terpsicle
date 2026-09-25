@@ -123,6 +123,7 @@ function snapshotOf(section: Section): SectionSnapshot {
     instructors: section.instructors,
     delivery: section.delivery,
     meetings: section.meetings,
+    ...(section.dates ? { dates: section.dates } : {}),
   };
 }
 
@@ -414,7 +415,12 @@ export function diffSnapshots(
   }
   for (const [key, json] of Object.entries(before)) {
     if (key in after || !depts.has(key.slice(0, 4))) continue;
-    changes.push({ kind: "removed", sectionKey: key, at, before: parse(json) });
+    changes.push({
+      kind: "cancelled",
+      sectionKey: key,
+      at,
+      before: parse(json),
+    });
   }
   return changes.sort((a, b) => (a.sectionKey < b.sectionKey ? -1 : 1));
 }

@@ -1,22 +1,28 @@
+import { z } from "zod";
 import {
   type Building,
-  buildingsKey,
   BuildingsFileSchema,
+  buildingsKey,
   GEO_MANIFEST_KEY,
   GeoManifestSchema,
   JOBS_PREFIX,
-  routeGeometryKey,
   RouteGeometrySchema,
+  routeGeometryKey,
   routesKey,
   SCHEMA_VERSIONS,
   TRAVEL_MODES,
   type TravelMode,
 } from "~/core/schema";
-import { z } from "zod";
 import type { BlobStore } from "../blob-store";
 import { contentHash, JSON_TYPE, toJsonBytes } from "../hash";
 import { type HttpClient, mapLimit } from "../http";
-import { type Logger, readJson, readJsonOrNull, updatePointer, writeJson } from "../publish";
+import {
+  type Logger,
+  readJson,
+  readJsonOrNull,
+  updatePointer,
+  writeJson,
+} from "../publish";
 import { encodeRoutes, simplifyPath } from "./encode";
 import {
   type Closest,
@@ -44,7 +50,13 @@ const PairSchema = z.object({
 });
 const StateSchema = z.object({
   /** Building number → hash of its routable entrances per mode (null: none). */
-  entrances: z.record(z.string(), z.object({ standard: z.string().nullable(), accessible: z.string().nullable() })),
+  entrances: z.record(
+    z.string(),
+    z.object({
+      standard: z.string().nullable(),
+      accessible: z.string().nullable(),
+    }),
+  ),
   /** "<a>|<b>" (building numbers, a < b) → feet per mode, null when there's no route. */
   pairs: z.record(z.string(), PairSchema),
   /** "<FROM>|<TO>|<mode>" (codes) → the lengthFeet of the geometry file written. */
@@ -87,15 +99,26 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
   const { http, store, now, log } = options;
   const errors: string[] = [];
   const manifest = await readJson(store, GEO_MANIFEST_KEY, GeoManifestSchema);
-  if (!manifest) throw new Error(`${GEO_MANIFEST_KEY} is missing; run the buildings job first`);
-  const buildingsFile = await readJson(store, buildingsKey(manifest.buildings.hash), BuildingsFileSchema);
-  if (!buildingsFile) throw new Error(`The buildings file in ${GEO_MANIFEST_KEY} is missing`);
+  if (!manifest)
+    throw new Error(
+      `${GEO_MANIFEST_KEY} is missing; run the buildings job first`,
+    );
+  const buildingsFile = await readJson(
+    store,
+    buildingsKey(manifest.buildings.hash),
+    BuildingsFileSchema,
+  );
+  if (!buildingsFile)
+    throw new Error(`The buildings file in ${GEO_MANIFEST_KEY} is missing`);
   const buildings = buildingsFile.buildings;
   const codesByNumber = new Map<string, Building[]>();
-  for (const b of buildings) codesByNumber.set(b.number, [...(codesByNumber.get(b.number) ?? []), b]);
+  for (const b of buildings)
+    codesByNumber.set(b.number, [...(codesByNumber.get(b.number) ?? []), b]);
   const numbers = [...codesByNumber.keys()].sort();
 
-  const saved = options.force ? null : await readJsonOrNull(store, STATE_KEY, StateSchema, log);
+  const saved = options.force
+    ? null
+    : await readJsonOrNull(store, STATE_KEY, StateSchema, log);
   const state: State = saved ?? { entrances: {}, pairs: {}, geometry: {} };
   const requestsBefore = http.stats.requests;
   const { token } = await fetchToken(options.tokenHttp ?? http);
@@ -110,16 +133,24 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
     for (const n of numbers) {
       const list = entrances.get(n);
       entranceHashes[n] ??= { standard: null, accessible: null };
-      entranceHashes[n][mode] = list ? await contentHash(JSON.stringify(list)) : null;
+      entranceHashes[n][mode] = list
+        ? await contentHash(JSON.stringify(list))
+        : null;
     }
-    const changed = new Set(numbers.filter((n) => state.entrances[n]?.[mode] !== entranceHashes[n]?.[mode]));
+    const changed = new Set(
+      numbers.filter(
+        (n) => state.entrances[n]?.[mode] !== entranceHashes[n]?.[mode],
+      ),
+    );
 
     const needsGeometry = (a: string, b: string, feet: number) =>
       (codesByNumber.get(a) ?? []).some((ca) =>
         (codesByNumber.get(b) ?? []).some(
           (cb) =>
-            state.geometry[`${ca.code}|${cb.code}|${mode}`] !== Math.round(feet) ||
-            state.geometry[`${cb.code}|${ca.code}|${mode}`] !== Math.round(feet),
+            state.geometry[`${ca.code}|${cb.code}|${mode}`] !==
+              Math.round(feet) ||
+            state.geometry[`${cb.code}|${ca.code}|${mode}`] !==
+              Math.round(feet),
         ),
       );
 
@@ -135,7 +166,8 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
           changed.has(a) ||
           changed.has(b) ||
           (feet !== null && needsGeometry(a, b, feet));
-        if (stale && entrances.has(a) && entrances.has(b)) work.set(a, [...(work.get(a) ?? []), b]);
+        if (stale && entrances.has(a) && entrances.has(b))
+          work.set(a, [...(work.get(a) ?? []), b]);
         else if (stale) setPair(state, a, b, mode, null);
       }
     }
@@ -160,7 +192,10 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
     });
 
     // Geometry for every solved pair, in batches, both directions for every code.
-    const requests: (RouteRequest & { closest: Closest; fromNumber: string })[] = solved.map((c) => ({
+    const requests: (RouteRequest & {
+      closest: Closest;
+      fromNumber: string;
+    })[] = solved.map((c) => ({
       id: `${c.from.building}-${c.to}`,
       from: c.from,
       to: c.toEntrance,
@@ -168,7 +203,8 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
       fromNumber: c.from.building,
     }));
     const batches: (typeof requests)[] = [];
-    for (let i = 0; i < requests.length; i += ROUTES_PER_SOLVE) batches.push(requests.slice(i, i + ROUTES_PER_SOLVE));
+    for (let i = 0; i < requests.length; i += ROUTES_PER_SOLVE)
+      batches.push(requests.slice(i, i + ROUTES_PER_SOLVE));
     await mapLimit(batches, GIS_CONCURRENCY, async (batch) => {
       let paths: Awaited<ReturnType<typeof solveRoutes>>;
       try {
@@ -178,7 +214,12 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
         errors.push(`${mode} geometry: ${message}`);
         return;
       }
-      const writes: { key: string; bytes: Uint8Array; id: string; feet: number }[] = [];
+      const writes: {
+        key: string;
+        bytes: Uint8Array;
+        id: string;
+        feet: number;
+      }[] = [];
       for (const r of batch) {
         const path = paths.get(r.id)?.path;
         if (!path) continue;
@@ -200,7 +241,12 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
                 source: "umd-gis",
                 fetchedAt: now.toISOString(),
               });
-              writes.push({ key: routeGeometryKey(from, to, mode), bytes: toJsonBytes(file), id: `${from}|${to}|${mode}`, feet });
+              writes.push({
+                key: routeGeometryKey(from, to, mode),
+                bytes: toJsonBytes(file),
+                id: `${from}|${to}|${mode}`,
+                feet,
+              });
             }
           }
         }
@@ -225,23 +271,34 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
         const a = numberOf.get(ci) ?? "";
         const b = numberOf.get(cj) ?? "";
         if (a === b) return 0;
-        const feet = state.pairs[pairKey(a, b)]?.[mode] ?? null;
-        if (feet !== null) knownPairs[mode]++;
+        // undefined: not solved yet; null: no route.
+        const feet = state.pairs[pairKey(a, b)]?.[mode];
+        if (typeof feet === "number") knownPairs[mode]++;
         return feet;
       }),
     ),
   );
-  const bytes = encodeRoutes({ buildings: codes, modes: ["standard", "accessible"] }, matrices);
+  const bytes = encodeRoutes(
+    { buildings: codes, modes: ["standard", "accessible"] },
+    matrices,
+  );
   const hash = await contentHash(bytes);
   if (manifest.routes?.hash !== hash) {
-    await store.put(routesKey(hash), bytes, { contentType: "application/octet-stream" });
+    await store.put(routesKey(hash), bytes, {
+      contentType: "application/octet-stream",
+    });
   }
   await updatePointer(store, GEO_MANIFEST_KEY, GeoManifestSchema, (current) =>
     current
       ? {
           ...current,
           generatedAt: now.toISOString(),
-          routes: { hash, buildingCount: codes.length, knownPairs, builtAt: now.toISOString() },
+          routes: {
+            hash,
+            buildingCount: codes.length,
+            knownPairs,
+            builtAt: now.toISOString(),
+          },
         }
       : null,
   );
@@ -258,7 +315,13 @@ export async function runRoutes(options: RoutesOptions): Promise<RoutesResult> {
   };
 }
 
-function setPair(state: State, a: string, b: string, mode: TravelMode, feet: number | null) {
+function setPair(
+  state: State,
+  a: string,
+  b: string,
+  mode: TravelMode,
+  feet: number | null,
+) {
   const key = pairKey(a, b);
   const pair = state.pairs[key] ?? {};
   // Whole feet, the same rounding as the binary and the geometry files.

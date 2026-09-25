@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   type CourseGrades,
   DeptChunkSchema,
@@ -19,9 +20,8 @@ import {
   TermIdSchema,
   TermsFileSchema,
 } from "~/core/schema";
-import { z } from "zod";
 import type { BlobStore } from "./blob-store";
-import { HttpError, type HttpClient, mapLimit } from "./http";
+import { type HttpClient, HttpError, mapLimit } from "./http";
 import {
   type Logger,
   readJson,
@@ -116,7 +116,9 @@ interface CatalogIndex {
   coursesByName: Map<string, Set<string>>;
 }
 
-export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetTerpResult> {
+export async function runPlanetTerp(
+  options: PlanetTerpOptions,
+): Promise<PlanetTerpResult> {
   const { http, store, now, log } = options;
   const errors: string[] = [];
   const catalog = await loadCatalog(store, log);
@@ -130,11 +132,15 @@ export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetT
     const created = p.reviews
       .map((r) => Date.parse(r.created))
       .filter((t) => Number.isFinite(t));
-    const latest = created.length > 0 ? new Date(Math.max(...created)).toISOString() : null;
+    const latest =
+      created.length > 0 ? new Date(Math.max(...created)).toISOString() : null;
     reviews += p.reviews.length;
-    if (latest && (!latestReviewAt || latest > latestReviewAt)) latestReviewAt = latest;
+    if (latest && (!latestReviewAt || latest > latestReviewAt))
+      latestReviewAt = latest;
     const rating =
-      p.average_rating !== null && p.average_rating >= 1 && p.average_rating <= 5
+      p.average_rating !== null &&
+      p.average_rating >= 1 &&
+      p.average_rating <= 5
         ? Math.round(p.average_rating * 1000) / 1000
         : null;
     bySlug.set(p.slug, {
@@ -160,7 +166,10 @@ export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetT
         // biome-ignore lint/style/noNonNullAssertion: every slug in byName came from bySlug.
         const p = bySlug.get(slug)!;
         const overlap = [...courses].some((c) => p.courses.has(c)) ? 1 : 0;
-        return { slug, score: [overlap, p.type === "professor" ? 1 : 0, p.reviewCount] };
+        return {
+          slug,
+          score: [overlap, p.type === "professor" ? 1 : 0, p.reviewCount],
+        };
       })
       .sort((a, b) => compareScores(b.score, a.score));
     return ranked[0]?.slug ?? null;
@@ -169,15 +178,24 @@ export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetT
   for (const [name, courses] of catalog.coursesByName) {
     slugForTestudo.set(name, pick(name, courses));
   }
-  const unmatched = [...slugForTestudo].filter(([, s]) => s === null).map(([n]) => n).sort();
+  const unmatched = [...slugForTestudo]
+    .filter(([, s]) => s === null)
+    .map(([n]) => n)
+    .sort();
 
   // Grades: never-fetched courses first, then the stalest.
-  const grades =
-    (await readJsonOrNull(store, GRADES_KEY, GradesStateSchema, log)) ?? { courses: {} };
+  const grades = (await readJsonOrNull(
+    store,
+    GRADES_KEY,
+    GradesStateSchema,
+    log,
+  )) ?? { courses: {} };
   const allCourses = [...catalog.courses.values()].flatMap((s) => [...s]);
   const queue = allCourses
     .map((code) => ({ code, at: grades.courses[code]?.fetchedAt ?? "" }))
-    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.code < b.code ? -1 : 1))
+    .sort((a, b) =>
+      a.at < b.at ? -1 : a.at > b.at ? 1 : a.code < b.code ? -1 : 1,
+    )
     .slice(0, options.gradeRequests ?? 700);
   let gradeRequests = 0;
   await mapLimit(queue, CONCURRENCY, async ({ code }) => {
@@ -188,7 +206,9 @@ export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetT
         byProfessor: summarizeGrades(await fetchGrades(http, code)),
       };
     } catch (error) {
-      errors.push(`grades ${code}: ${error instanceof Error ? error.message : String(error)}`);
+      errors.push(
+        `grades ${code}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   });
   await writeJson(store, GRADES_KEY, grades);
@@ -197,7 +217,12 @@ export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetT
     pick(professor, new Set([course]));
 
   // One file per catalog department.
-  const previous = await readJsonOrNull(store, PLANETTERP_MANIFEST_KEY, PlanetTerpManifestSchema, log);
+  const previous = await readJsonOrNull(
+    store,
+    PLANETTERP_MANIFEST_KEY,
+    PlanetTerpManifestSchema,
+    log,
+  );
   const previousHashes = new Map(
     previous?.schemaVersion === SCHEMA_VERSIONS.planetterp
       ? previous.departments.map((d) => [d.code, d.hash])
@@ -207,7 +232,9 @@ export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetT
   let gradesThrough: string | null = null;
   let coursesWithGrades = 0;
   const departments: { code: string; hash: string }[] = [];
-  for (const [dept, courses] of [...catalog.courses].sort(([a], [b]) => (a < b ? -1 : 1))) {
+  for (const [dept, courses] of [...catalog.courses].sort(([a], [b]) =>
+    a < b ? -1 : 1,
+  )) {
     const instructors: Record<string, Instructor> = {};
     const names: Record<string, string> = {};
     const addInstructor = (slug: string) => {
@@ -225,14 +252,17 @@ export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetT
     const courseGrades: Record<string, CourseGrades> = {};
     for (const code of [...courses].sort()) {
       const state = grades.courses[code];
-      const record = state ? buildCourseGrades(state.byProfessor, code, gradeSlug) : null;
+      const record = state
+        ? buildCourseGrades(state.byProfessor, code, gradeSlug)
+        : null;
       courseGrades[code] = record ?? { all: null, byInstructor: {} };
       if (record?.all) {
         coursesWithGrades++;
         if (!gradesThrough || record.all.latestTermId > gradesThrough)
           gradesThrough = record.all.latestTermId;
       }
-      for (const slug of Object.keys(record?.byInstructor ?? {})) addInstructor(slug);
+      for (const slug of Object.keys(record?.byInstructor ?? {}))
+        addInstructor(slug);
     }
     try {
       const out = await writeHashed(
@@ -260,13 +290,22 @@ export async function runPlanetTerp(options: PlanetTerpOptions): Promise<PlanetT
     }
   }
 
-  await updatePointer(store, PLANETTERP_MANIFEST_KEY, PlanetTerpManifestSchema, () => ({
-    schemaVersion: SCHEMA_VERSIONS.planetterp,
-    generatedAt: now.toISOString(),
-    gradesThrough,
-    departments,
-  }));
-  await writeJson(store, UNMATCHED_KEY, { at: now.toISOString(), count: unmatched.length, names: unmatched });
+  await updatePointer(
+    store,
+    PLANETTERP_MANIFEST_KEY,
+    PlanetTerpManifestSchema,
+    () => ({
+      schemaVersion: SCHEMA_VERSIONS.planetterp,
+      generatedAt: now.toISOString(),
+      gradesThrough,
+      departments,
+    }),
+  );
+  await writeJson(store, UNMATCHED_KEY, {
+    at: now.toISOString(),
+    count: unmatched.length,
+    names: unmatched,
+  });
 
   return {
     professors: professors.length,
@@ -291,14 +330,24 @@ function compareScores(a: readonly number[], b: readonly number[]): number {
 }
 
 function sortRecord<T>(record: Record<string, T>): Record<string, T> {
-  return Object.fromEntries(Object.entries(record).sort(([a], [b]) => (a < b ? -1 : 1)));
+  return Object.fromEntries(
+    Object.entries(record).sort(([a], [b]) => (a < b ? -1 : 1)),
+  );
 }
 
 /** Course codes and Testudo instructor names per department, across active terms. */
-async function loadCatalog(store: BlobStore, log: Logger): Promise<CatalogIndex> {
+async function loadCatalog(
+  store: BlobStore,
+  log: Logger,
+): Promise<CatalogIndex> {
   const terms = await readJson(store, TERMS_KEY, TermsFileSchema);
-  if (!terms) throw new Error(`${TERMS_KEY} is missing; run the catalog job first`);
-  const index: CatalogIndex = { courses: new Map(), names: new Map(), coursesByName: new Map() };
+  if (!terms)
+    throw new Error(`${TERMS_KEY} is missing; run the catalog job first`);
+  const index: CatalogIndex = {
+    courses: new Map(),
+    names: new Map(),
+    coursesByName: new Map(),
+  };
   const add = <K, V>(map: Map<K, Set<V>>, key: K, value: V) => {
     const set = map.get(key) ?? new Set<V>();
     set.add(value);
@@ -312,7 +361,11 @@ async function loadCatalog(store: BlobStore, log: Logger): Promise<CatalogIndex>
     }
     // Sequential on purpose: one chunk in memory at a time.
     for (const dept of manifest.departments) {
-      const chunk = await readJson(store, deptChunkKey(termId, dept.code, dept.hash), DeptChunkSchema);
+      const chunk = await readJson(
+        store,
+        deptChunkKey(termId, dept.code, dept.hash),
+        DeptChunkSchema,
+      );
       if (!chunk) continue;
       for (const course of chunk.courses) {
         add(index.courses, dept.code, course.code);
@@ -325,7 +378,8 @@ async function loadCatalog(store: BlobStore, log: Logger): Promise<CatalogIndex>
       }
     }
   }
-  if (index.courses.size === 0) throw new Error("No catalog departments to attach PlanetTerp data to");
+  if (index.courses.size === 0)
+    throw new Error("No catalog departments to attach PlanetTerp data to");
   return index;
 }
 
@@ -354,10 +408,15 @@ async function fetchProfessors(http: HttpClient) {
   return all;
 }
 
-async function fetchGrades(http: HttpClient, course: string): Promise<GradeRowApi[]> {
+async function fetchGrades(
+  http: HttpClient,
+  course: string,
+): Promise<GradeRowApi[]> {
   let raw: unknown;
   try {
-    raw = await http.json(`${PLANETTERP_API}/grades?course=${encodeURIComponent(course)}`);
+    raw = await http.json(
+      `${PLANETTERP_API}/grades?course=${encodeURIComponent(course)}`,
+    );
   } catch (error) {
     // PlanetTerp answers 400 "course not found" for courses it has never seen.
     if (error instanceof HttpError && error.status === 400) return [];
@@ -365,7 +424,9 @@ async function fetchGrades(http: HttpClient, course: string): Promise<GradeRowAp
   }
   const parsed = z.array(GradeRowApiSchema).safeParse(raw);
   if (!parsed.success) {
-    throw new Error(`grades for ${course} aren't a list of grade rows: ${parsed.error.issues[0]?.message}`);
+    throw new Error(
+      `grades for ${course} aren't a list of grade rows: ${parsed.error.issues[0]?.message}`,
+    );
   }
   return parsed.data as GradeRowApi[];
 }
@@ -376,18 +437,25 @@ export function summarizeGrades(rows: readonly GradeRowApi[]) {
   for (const row of rows) {
     if (!TermIdSchema.safeParse(row.semester).success) continue;
     const name = row.professor ?? "";
-    const entry = out[name] ?? { counts: GRADE_KEYS.map(() => 0), semesters: [] };
+    const entry = out[name] ?? {
+      counts: GRADE_KEYS.map(() => 0),
+      semesters: [],
+    };
     GRADE_KEYS.forEach((k, i) => {
       entry.counts[i] = (entry.counts[i] ?? 0) + Number(row[k] ?? 0);
     });
-    if (!entry.semesters.includes(row.semester)) entry.semesters.push(row.semester);
+    if (!entry.semesters.includes(row.semester))
+      entry.semesters.push(row.semester);
     out[name] = entry;
   }
   for (const entry of Object.values(out)) entry.semesters.sort();
   return out;
 }
 
-function toRecord(counts: readonly number[], semesters: ReadonlySet<string>): GradeRecord | null {
+function toRecord(
+  counts: readonly number[],
+  semesters: ReadonlySet<string>,
+): GradeRecord | null {
   if (semesters.size === 0 || counts.every((n) => n === 0)) return null;
   const sorted = [...semesters].sort();
   return {
@@ -406,15 +474,23 @@ export function buildCourseGrades(
 ): CourseGrades | null {
   const total = GRADE_KEYS.map(() => 0);
   const allSemesters = new Set<string>();
-  const perSlug = new Map<string, { counts: number[]; semesters: Set<string> }>();
-  for (const [professor, { counts, semesters }] of Object.entries(byProfessor)) {
+  const perSlug = new Map<
+    string,
+    { counts: number[]; semesters: Set<string> }
+  >();
+  for (const [professor, { counts, semesters }] of Object.entries(
+    byProfessor,
+  )) {
     counts.forEach((n, i) => {
       total[i] = (total[i] ?? 0) + n;
     });
     for (const s of semesters) allSemesters.add(s);
     const slug = professor ? slugFor(professor, course) : null;
     if (!slug) continue;
-    const entry = perSlug.get(slug) ?? { counts: GRADE_KEYS.map(() => 0), semesters: new Set() };
+    const entry = perSlug.get(slug) ?? {
+      counts: GRADE_KEYS.map(() => 0),
+      semesters: new Set(),
+    };
     counts.forEach((n, i) => {
       entry.counts[i] = (entry.counts[i] ?? 0) + n;
     });
@@ -424,7 +500,9 @@ export function buildCourseGrades(
   const all = toRecord(total, allSemesters);
   if (!all) return null;
   const byInstructor: Record<string, GradeRecord> = {};
-  for (const [slug, entry] of [...perSlug].sort(([a], [b]) => (a < b ? -1 : 1))) {
+  for (const [slug, entry] of [...perSlug].sort(([a], [b]) =>
+    a < b ? -1 : 1,
+  )) {
     const record = toRecord(entry.counts, entry.semesters);
     if (record) byInstructor[slug] = record;
   }

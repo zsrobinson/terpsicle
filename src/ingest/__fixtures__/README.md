@@ -75,3 +75,7 @@ Not saved: for unknown or section-less course ids, the sections endpoint returns
 | `cf-085-084-{standard,accessible}.json` | | IPT→MTH: standard OK; accessible fails with HTTP 200 `{"error":{"code":400,…"No solution found."}}`. |
 | `cf-batch-039-to-20-standard-nolines.json` | CF with 7 incidents × 101 facilities (20 buildings), `defaultTargetFacilityCount=101`, `outputLines=esriNAOutputLineNone` | 665 routes, 0.65 s: the batched distance call. |
 | `route-multi-039-to-20-standard.json` | `…/NAServer/Route/solve` with 40 stops grouped by `RouteName` | 20 routes with geometry in one call (0.35 s). Lengths match CF exactly. |
+
+## `golden/`: expected parser output
+
+`202701-{AGNR,ARMY,BUSI,IDEA}.json` are the normalized department chunks `src/ingest/soc/soc.test.ts` builds from the saved pages above (Vitest file snapshots). A parser change that alters them fails the test. Review the diff, then update them deliberately with `pnpm vitest run --project ingest -u`.
