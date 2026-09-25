@@ -6,23 +6,30 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 
 | Milestone | State | Notes |
 |---|---|---|
-| M0: Foundations | In review | `m0/scaffold`: package, lint and boundaries, Vitest projects, Playwright, CI and deploy, Worker entry, shell placeholder. terpsicle.com serves the shell. |
-| M1: Core domain | Not started | Schema is in flight in parallel. |
-| M2: Ingest and jobs | In review | `m2/ingest`: SOC, PlanetTerp, calendar, buildings and routes ingest; publisher; four crons; `scripts/ingest.ts`, `scripts/build-routes.ts` (GitHub Actions), `scripts/build-tiles.ts`. Production R2 is seeded with real data for every active term. |
-| M3: Shell and calendar | Not started | Replaces the M0 placeholder in `src/app`. |
-| M4: Sidebar features | Not started | |
-| M5: Generate | Not started | |
-| M6: Live data | Not started | `/data/*` serving (R2, Cache API, ETags) exists from M0. |
-| M7: Backend features | Not started | |
+| M0: Foundations | Done (#3) | Package, lint and boundaries, Vitest projects, Playwright, CI + PR previews, deploy, Worker entry. |
+| M1: Core domain | Done (#1, #4, #7) | Schema + DATA.md, fixtures and mock catalog, all pure domain logic. Generator is part of M5. |
+| M2: Ingest and jobs | Done (#2, #8) | Real data for every listed term in R2; crons refresh catalog (6 h), seats (5 min), PlanetTerp (daily), calendar + buildings (weekly); routes weekly via Actions. Matching improvements in flight. |
+| M3: Shell and calendar | Done (#5, #9) | |
+| M4: Sidebar features | In progress | Courses, Problems, Blocks, Export done (#10). Search + course details, Travel + route map in flight. |
+| M5: Generate | In progress | Core generator, Web Worker, Generate tab. |
+| M6: Live data | In progress | Manifest diffing, IndexedDB cache, seat polling, freshness, `/data` Range support. |
+| M7: Backend features | Server done (#6) | Review summaries and seat alerts server side. UI in M4 search/details; seat alerts behind `SEAT_ALERTS_ENABLED` until e2e-tested. |
 | M8: Polish and launch | Not started | |
 
 ## In flight
 
-- `m0/scaffold`: foundations (this document's first version).
-- `src/core/schema`: the shared schema.
-- `m2/ingest`: ingest and jobs (M2).
+- `m4/search-details`: Search tab and course details (M4A).
+- `m4/travel`: Travel tab, connection details, route map (M4C).
+- `m5/generate`: generator, worker, Generate tab.
+- `m6/live-data`: live data layer.
+- `m2/instructor-matching`: better PlanetTerp name matching.
 
 ## Decisions
+
+- **Server API is plain `POST /api/*` JSON routes** (not `createServerFn`), validated both ways with `~/core/schema`; the browser client is `~/server/fns/api.ts` (M7).
+- **Review summaries:** Workers AI `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, cached per instructor in R2, daily cap, reviews fenced as untrusted input.
+- **Seat alerts** send only when a full section reopens, with cooldown and daily caps; subscribe answers identically for every address (no leak of who watches what).
+- **Blocks are per term; course colors are global per course code; saved-for-later is per plan.**
 
 - **Seat-alert email uses Cloudflare Email Service** (the `send_email` binding `EMAIL`), not Resend. The owner granted it and terpsicle.com is onboarded for sending, so there's no API key or extra DNS work. Previews get no email binding.
 - **PostHog analytics, anonymous, through a first-party `/ingest` proxy.** Only terpsicle.com with live data reports. Details: `docs/ANALYTICS.md`.
@@ -44,10 +51,7 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 
 ## Known issues
 
-- **D1 migrations for previews:** `deploy.yml` migrates production only. `terpsicle-preview` is on `0001_init`. When M7 adds migrations, also migrate it (e.g. a small wrangler config that names `terpsicle-preview`); `preview_database_id` is not an option, because the Vite plugin then binds production to the preview database.
 - **Local Playwright browsers:** agent sandboxes ship an older Chromium under `PLAYWRIGHT_BROWSERS_PATH`; `playwright.config.ts` falls back to it when the expected build is missing. CI installs the matching browser.
-- **Server functions and types:** a future `createServerFn` file under `src/server/fns/` is imported by the app program (DOM types) and uses `cloudflare:workers` (Worker types). M7 needs to settle how those files typecheck (likely: keep `cloudflare:workers` access behind a worker-only module).
 - **PlanetTerp name join:** 394 of the 3,904 Testudo instructor names in the active terms have no exact PlanetTerp match (mostly people PlanetTerp doesn't list yet). `_jobs/planetterp/unmatched.json` lists them after every run; a small alias map could recover a few.
 - **PlanetTerp reviews stopped on 2026-05-01** and grades end at Spring 2025, so ratings and summaries won't move until PlanetTerp resumes.
-- **Seat alerts** aren't wired into the seats job yet (M7). The job's result has everything an alert pass needs.
 - **Catalog schema bumps** republish on the next catalog run (up to 6 h); run `pnpm tsx scripts/ingest.ts catalog --target r2` after deploying one (DATA.md §2.3).
