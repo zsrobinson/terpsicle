@@ -6,6 +6,8 @@ import type { GhostSummary, UntimedSection } from "./layout";
 import { dotStyle, tintStyle } from "./tint";
 
 // One-line strips above the grid. Nothing ever goes below it (SPEC §2).
+// The ghost and preview hints lay over the day names (`WeekFrame` overlay),
+// so they never push the grid down as the pointer moves.
 
 /**
  * While a course's sections show as ghosts: what's happening and the keys,
@@ -26,9 +28,11 @@ export function GhostHint({
   // A course with nothing to pick from (one section, already placed, or none
   // listed) gets no "click one to switch" and no keys that do nothing.
   const others = ghost.sectionCount - (ghost.placedCode ? 1 : 0);
-  const choosing = interactive && !readOnly && others > 0;
+  // With one section there's nothing to step through, placed or not.
+  const choosing =
+    interactive && !readOnly && others > 0 && ghost.sectionCount > 1;
   return (
-    <div className="flex h-[35px] shrink-0 items-center gap-2 border-hairline border-b bg-panel px-3 text-[12px]">
+    <div className="@container flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
       {interactive && !readOnly ? (
         <CourseColorPicker courseCode={ghost.courseCode} color={color} />
       ) : (
@@ -41,18 +45,18 @@ export function GhostHint({
       <span className="truncate">
         {ghost.sectionCount === 0 ? (
           <>
-            <span className="font-mono font-semibold">{ghost.courseCode}</span>{" "}
-            has no sections listed this term.
+            <span className="ident font-semibold">{ghost.courseCode}</span> has
+            no sections listed this term.
           </>
         ) : others === 0 ? (
           <>
-            <span className="font-mono font-semibold">{ghost.courseCode}</span>{" "}
-            has no other sections.
+            <span className="ident font-semibold">{ghost.courseCode}</span> has
+            no other sections.
           </>
         ) : ghost.sectionCount === 1 ? (
           <>
             Showing{" "}
-            <span className="font-mono font-semibold">{ghost.courseCode}</span>
+            <span className="ident font-semibold">{ghost.courseCode}</span>
             's only section.{" "}
             {interactive
               ? readOnly
@@ -63,7 +67,7 @@ export function GhostHint({
         ) : (
           <>
             Showing every section of{" "}
-            <span className="font-mono font-semibold">{ghost.courseCode}</span>.{" "}
+            <span className="ident font-semibold">{ghost.courseCode}</span>.{" "}
             {interactive
               ? readOnly
                 ? "Save a copy to change sections."
@@ -79,7 +83,7 @@ export function GhostHint({
         ) : null}
       </span>
       {choosing ? (
-        <span className="ml-auto hidden shrink-0 items-center gap-1 text-muted sm:flex">
+        <span className="ml-auto hidden shrink-0 items-center gap-1 text-muted @2xl:flex">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd> preview <Kbd>↵</Kbd> switch <Kbd>esc</Kbd> done
         </span>
@@ -97,7 +101,7 @@ export function PreviewHint({
   planName: string;
 }) {
   return (
-    <div className="flex h-[35px] shrink-0 items-center gap-2 border-hairline border-b bg-panel px-3 text-[12px]">
+    <div className="@container flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
       <span className="truncate">
         <span className="font-medium">Previewing {label}.</span>{" "}
         <span className="text-muted">
@@ -125,7 +129,7 @@ export function UntimedStrip({
 }) {
   if (sections.length === 0) return null;
   return (
-    <div className="flex min-h-[31px] shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-hairline border-b px-3 py-1 text-[11.5px] text-muted">
+    <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-hairline border-b px-3 py-1 text-muted text-sm">
       <span>No set time:</span>
       {sections.map((s) => (
         <WithTooltip
@@ -135,7 +139,7 @@ export function UntimedStrip({
           <button
             type="button"
             onClick={() => onOpen(s.courseCode)}
-            className="rounded border px-1.5 py-0.5 font-medium font-mono"
+            className="rounded border px-1.5 py-0.5 ident font-medium"
             style={tintStyle(s.color)}
           >
             {s.courseCode} {s.sectionCode} ·{" "}

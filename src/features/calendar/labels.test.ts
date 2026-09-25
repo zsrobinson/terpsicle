@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { aConnection } from "~/fixtures";
-import { blockLabel, classLabel, ghostLabel, pillLabel } from "./labels";
+import { blockLabel, classLabel, ghostName, pillLabel } from "./labels";
 import type { BlockEntry, ClassEntry, GhostEntry } from "./layout";
 
 const lecture: ClassEntry = {
@@ -35,6 +35,8 @@ const ghost: GhostEntry = {
   full: false,
   overlaps: true,
   previewed: false,
+  previewCode: null,
+  when: {},
   color: "violet",
 };
 
@@ -71,11 +73,11 @@ describe("calendar labels", () => {
   });
 
   it("names a ghost as another section to switch to", () => {
-    expect(ghostLabel(ghost, "CMSC351")).toBe(
+    expect(ghostName(ghost, "CMSC351")).toBe(
       "Switch to 0201, another section of CMSC351: Wednesday 2pm to 2:50pm, Jada Abernathy, overlaps another class",
     );
     expect(
-      ghostLabel(
+      ghostName(
         { ...ghost, sectionCodes: ["0201", "0202"], label: "0201–0202" },
         "CMSC351",
       ),

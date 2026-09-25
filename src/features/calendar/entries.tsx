@@ -15,8 +15,14 @@ import { formatFeet, travelMath, verdictMessage } from "~/core/travel";
 import { useUi } from "~/state/ui-store";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
-import { blockLabel, classLabel, ghostLabel, pillLabel } from "./labels";
-import type { BlockEntry, ClassEntry, GhostEntry, Pill } from "./layout";
+import { blockLabel, classLabel, ghostName, pillLabel } from "./labels";
+import {
+  type BlockEntry,
+  type ClassEntry,
+  type GhostEntry,
+  ghostLabel,
+  type Pill,
+} from "./layout";
 import { dimmedStyle, ghostStyle, tintStyle } from "./tint";
 
 // What sits in a day column: classes, blocks, ghosts and travel pills.
@@ -37,6 +43,11 @@ export function laneStyle(
 
 const KIND_WORDS = { discussion: "discussion", lab: "lab" } as const;
 
+/** The width in px a course code needs on one line (10px mono, padding and border). */
+function fitsCode(code: string): number {
+  return code.length * 6.1 + 14;
+}
+
 export function ClassBlock({
   entry,
   height,
@@ -46,9 +57,12 @@ export function ClassBlock({
   onOpen,
   open,
   style,
+  width = null,
 }: {
   entry: Lane<ClassEntry>;
   height: number;
+  /** Its width in px, so a narrow lane can stack the code; null before it's measured. */
+  width?: number | null;
   /** Another course's sections are showing. */
   dimmed: boolean;
   /** This course's sections are showing: it's the current one. */
@@ -77,6 +91,10 @@ export function ClassBlock({
   // Summer sessions (and some fall and spring sections) meet for part of the
   // term; two can share a weekday and time without overlapping.
   const dates = entry.dates ? formatDateSpan(entry.dates) : null;
+  // Two classes side by side on a narrow day (a wide sidebar, a phone):
+  // "CMSC" over "330" reads where "CMSC3" wouldn't.
+  const stacked = width !== null && width < fitsCode(entry.courseCode);
+  const extra = stacked ? 13 : 0;
   return (
     <WithTooltip
       label={
@@ -96,7 +114,8 @@ export function ClassBlock({
         data-course={entry.courseCode}
         aria-label={classLabel(entry)}
         className={cn(
-          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border px-1.5 py-1 text-left transition-colors duration-150",
+          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border py-1 text-left transition-colors duration-150",
+          stacked && width !== null && width < 40 ? "px-0.5" : "px-1.5",
           (selected || changed) && "ring-2 ring-fg/70",
         )}
         style={{
@@ -104,24 +123,36 @@ export function ClassBlock({
           ...(dimmed ? dimmedStyle(entry.color) : tintStyle(entry.color)),
         }}
       >
-        <div className="flex items-baseline gap-1 text-[11.5px] leading-tight">
+        <div className="flex items-baseline gap-1 text-2xs">
           {/* The code wins the space; "discussion" gives way on narrow days. */}
-          <span className="shrink-0 font-mono font-semibold">
-            {entry.courseCode}
+          <span
+            className={cn(
+              "ident shrink-0 font-semibold",
+              stacked && "flex flex-col",
+            )}
+          >
+            {stacked ? (
+              <>
+                <span>{entry.courseCode.slice(0, 4)}</span>
+                <span>{entry.courseCode.slice(4)}</span>
+              </>
+            ) : (
+              entry.courseCode
+            )}
           </span>
           {kind ? (
-            <span className={cn("min-w-0 truncate text-[10px]", soft)}>
+            <span className={cn("min-w-0 truncate font-normal", soft)}>
               {kind}
             </span>
           ) : null}
         </div>
-        {height > 30 ? (
-          <div className={cn("tnum truncate text-[10.5px]", soft)}>
+        {height > 30 + extra ? (
+          <div className={cn("tnum truncate text-2xs", soft)}>
             {formatTimeRange(entry.start, entry.end)}
           </div>
         ) : null}
-        {height > 46 && place ? (
-          <div className={cn("truncate text-[10.5px]", soft)}>{place}</div>
+        {height > 46 + extra && place ? (
+          <div className={cn("truncate text-2xs", soft)}>{place}</div>
         ) : null}
       </button>
     </WithTooltip>
@@ -154,11 +185,9 @@ export function BusyBlock({
         )}
         style={style}
       >
-        <div className="truncate font-semibold text-[11.5px] leading-tight">
-          {entry.label}
-        </div>
+        <div className="truncate font-semibold text-2xs">{entry.label}</div>
         {height > 30 ? (
-          <div className="tnum truncate text-[10.5px]">
+          <div className="tnum truncate text-2xs">
             {formatTimeRange(entry.start, entry.end)}
           </div>
         ) : null}
@@ -182,47 +211,43 @@ function ghostWords(entry: GhostEntry): string {
 export function Ghost({
   entry,
   height,
-  narrow,
+  width,
   readOnly,
   seats,
   style,
 }: {
   entry: Lane<GhostEntry>;
   height: number;
-  /** Too narrow for more than the code. */
-  narrow: boolean;
+  /** Its width in px, for what the label can fit; null before it's measured. */
+  width: number | null;
   readOnly: boolean;
   seats: SeatsMap | null;
   style: CSSProperties;
 }) {
   const setPreview = useUi((s) => s.setPreviewSection);
   const merged = entry.sectionCodes.length > 1;
-  const code = entry.sectionCodes[0] ?? "";
+  const label = ghostLabel(entry, width);
+  const narrow = width !== null && width < 44;
   const body = (
     <>
-      <div
-        className={cn(
-          "flex items-baseline gap-1 font-mono font-semibold leading-tight",
-          narrow ? "text-[10.5px]" : "text-[11.5px]",
-        )}
-      >
-        {/* Narrow, the code alone must read: it never gives way to "×3". */}
-        <span className={narrow ? "shrink-0" : "truncate"}>
-          {narrow ? code : entry.label}
+      <div className="ident flex items-baseline gap-1 font-semibold text-2xs">
+        {/* The code must read: it never gives way to "×3". */}
+        <span className={label.count ? "shrink-0" : "truncate"}>
+          {label.text}
         </span>
-        {narrow && merged ? (
-          <span className="min-w-0 overflow-hidden font-normal text-[10px] opacity-75">
-            ×{entry.sectionCodes.length}
+        {label.count ? (
+          <span className="min-w-0 overflow-hidden font-normal opacity-75">
+            {label.count}
           </span>
         ) : null}
       </div>
-      {!narrow && height > 30 ? (
-        <div className="truncate text-[10.5px] opacity-80">
+      {label.instructor && height > 30 ? (
+        <div className="truncate text-2xs opacity-80">
           {entry.instructors || "Instructor TBA"}
         </div>
       ) : null}
       {height > 44 && (entry.full || entry.overlaps) ? (
-        <div className="truncate font-medium text-[10.5px]">
+        <div className="truncate font-medium text-2xs">
           {entry.full ? "Full" : "Overlaps"}
         </div>
       ) : null}
@@ -238,6 +263,20 @@ export function Ghost({
     ...style,
     ...(entry.previewed ? tintStyle(entry.color) : ghostStyle(entry.color)),
   };
+  const shown = entry.previewCode ?? entry.sectionCodes[0] ?? "";
+
+  // A preview inside a merged stretch, drawn at its own time over the merge.
+  if (entry.overlay)
+    return (
+      <div
+        aria-hidden="true"
+        className={cn(className, "pointer-events-none")}
+        style={boxStyle}
+      >
+        {body}
+      </div>
+    );
+
   const hover = {
     onPointerEnter: () => setPreview(entry.sectionKey),
     onPointerLeave: () => {
@@ -254,7 +293,7 @@ export function Ghost({
         <div
           className={className}
           style={boxStyle}
-          data-ghost={code}
+          data-ghost={shown}
           {...hover}
         >
           {body}
@@ -267,7 +306,7 @@ export function Ghost({
       <WithTooltip
         label={
           <span className="flex flex-col">
-            <span>Switch to {code}</span>
+            <span>Switch to {shown}</span>
             <span className="opacity-70">{ghostWords(entry)}</span>
           </span>
         }
@@ -275,8 +314,8 @@ export function Ghost({
       >
         <button
           type="button"
-          data-ghost={code}
-          aria-label={ghostLabel(entry, parsed.courseCode)}
+          data-ghost={shown}
+          aria-label={ghostName(entry, parsed.courseCode)}
           className={className}
           style={boxStyle}
           onClick={() =>
@@ -295,8 +334,8 @@ export function Ghost({
         <PopoverTrigger asChild>
           <button
             type="button"
-            data-ghost={code}
-            aria-label={ghostLabel(entry, parsed.courseCode)}
+            data-ghost={shown}
+            aria-label={ghostName(entry, parsed.courseCode)}
             className={className}
             style={boxStyle}
             {...hover}
@@ -308,16 +347,17 @@ export function Ghost({
       <PopoverContent
         className="w-64 p-1"
         side="right"
-        aria-label={`Sections of ${parsed.courseCode} at these times`}
+        aria-label={`Sections of ${parsed.courseCode}`}
       >
-        <div className="px-2 pt-1 pb-1.5 text-[11px] text-muted">
+        <div className="px-2 pt-1 pb-1.5 text-muted text-xs">
           {entry.sameTimes
             ? "Same times · pick a section"
-            : "Pick a section · the list shows each one's times"}
+            : "Pick a section · each one's times"}
         </div>
         {entry.sectionCodes.map((sectionCode) => {
           const key = sectionKey(parsed.courseCode, sectionCode);
           const status = seatStatus(seatCounts(seats, key));
+          const when = entry.sameTimes ? null : entry.when[sectionCode];
           return (
             <WithTooltip key={sectionCode} label={`Switch to ${sectionCode}`}>
               <button
@@ -325,21 +365,35 @@ export function Ghost({
                 onClick={() =>
                   switchSection(parsed.courseCode, sectionCode, "ghost")
                 }
-                className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] hover:bg-hover"
+                // The calendar shows the row's section while it's pointed at.
+                onPointerEnter={() => setPreview(key)}
+                onPointerLeave={() => {
+                  if (useUi.getState().previewSection === key) setPreview(null);
+                }}
+                className="flex min-h-8 w-full flex-col justify-center rounded-md px-2 py-1 text-left hover:bg-hover"
               >
-                <span className="font-mono font-medium">{sectionCode}</span>
-                <span
-                  className={cn(
-                    "ml-auto text-[11.5px]",
-                    status.level === "full"
-                      ? "text-error"
-                      : status.level === "low"
-                        ? "text-warn"
-                        : "text-muted",
-                  )}
-                >
-                  {status.words}
+                <span className="flex w-full items-baseline gap-2">
+                  <span className="ident font-medium text-base">
+                    {sectionCode}
+                  </span>
+                  <span
+                    className={cn(
+                      "tnum ml-auto text-sm",
+                      status.level === "full"
+                        ? "text-error"
+                        : status.level === "low"
+                          ? "text-warn"
+                          : "text-muted",
+                    )}
+                  >
+                    {status.words}
+                  </span>
                 </span>
+                {when ? (
+                  <span className="tnum w-full truncate text-muted text-sm">
+                    {when}
+                  </span>
+                ) : null}
               </button>
             </WithTooltip>
           );
@@ -399,13 +453,13 @@ export function TravelPill({
         data-verdict={c.verdict}
         aria-label={pillLabel(c)}
         // The button is a 24px-tall target (WCAG 2.5.8); the pill drawn
-        // inside it stays 19px so it doesn't crowd the classes around it.
+        // inside it stays 20px so it doesn't crowd the classes around it.
         className="-translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-6 items-center rounded-full"
         style={{ top, left: `${x * 100}%` }}
       >
         <span
           className={cn(
-            "tnum flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-[10.5px] shadow-xs",
+            "tnum flex h-5 items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-2xs shadow-xs",
             PILL_TONE[c.verdict],
             selected && "ring-2 ring-fg/70",
           )}

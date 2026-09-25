@@ -31,11 +31,11 @@ export function blockLabel(entry: BlockEntry): string {
 }
 
 /** Ghosts are options, not classes in the plan, and say so. */
-export function ghostLabel(entry: GhostEntry, courseCode: string): string {
+export function ghostName(entry: GhostEntry, courseCode: string): string {
   const facts = [entry.instructors || "instructor TBA"];
   if (entry.full) facts.push("full");
   if (entry.overlaps) facts.push("overlaps another class");
-  const code = entry.sectionCodes[0] ?? "";
+  const code = entry.previewCode ?? entry.sectionCodes[0] ?? "";
   if (entry.sectionCodes.length > 1)
     return `${entry.sectionCodes.length} sections of ${courseCode} to choose from, ${when(entry)}: pick one`;
   return `Switch to ${code}, another section of ${courseCode}: ${when(entry)}, ${facts.join(", ")}`;

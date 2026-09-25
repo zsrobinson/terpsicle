@@ -120,3 +120,18 @@ test("a travel pill marks the demo's tight connection", async ({ page }) => {
     page.getByRole("navigation", { name: "Breadcrumb" }),
   ).toContainText("Connection");
 });
+
+test("travel pills step aside while a course's sections show", async ({
+  page,
+}) => {
+  const pills = calendar(page).locator("[data-verdict]");
+  await expect(pills.first()).toBeVisible();
+  await calendar(page)
+    .getByRole("button", { name: /^CMSC351 0301/ })
+    .first()
+    .click();
+  await expect(calendar(page).locator("[data-ghost]").first()).toBeVisible();
+  await expect(pills).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(pills.first()).toBeVisible();
+});

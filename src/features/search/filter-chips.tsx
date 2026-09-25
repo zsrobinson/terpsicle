@@ -31,7 +31,7 @@ const GEN_EDS = Object.keys(GEN_ED_LABELS) as GenEdCode[];
 
 const chipClass = (active: boolean) =>
   cn(
-    "flex h-6 shrink-0 items-center gap-px rounded-md border px-[5px] text-[11px] transition-colors",
+    "flex h-6 shrink-0 items-center gap-px rounded-md border px-1.5 text-xs transition-colors",
     active
       ? "border-fg bg-fg text-bg hover:bg-fg/85"
       : "border-hairline text-muted hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
@@ -71,7 +71,7 @@ export function FilterChips({
           value: code,
           label: (
             <span className="flex min-w-0 items-baseline gap-2">
-              <span className="font-mono text-[11.5px]">{code}</span>
+              <span className="ident text-sm">{code}</span>
               <span className="truncate text-muted">{GEN_ED_LABELS[code]}</span>
             </span>
           ),
@@ -185,7 +185,7 @@ function MultiChip<T extends string | number>({
             aria-label={active ? `${label}: ${ordered.join(", ")}` : label}
             className={chipClass(active)}
           >
-            <span className={cn(active && label === "Gen-eds" && "font-mono")}>
+            <span className={cn(active && label === "Gen-eds" && "ident")}>
               {summary(label, ordered)}
             </span>
             <ChevronDown size={10} aria-hidden="true" />

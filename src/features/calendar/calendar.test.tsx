@@ -156,7 +156,18 @@ describe("calendar", () => {
     expect(screen.getByText(/only section/)).toHaveTextContent(
       "Showing CMSC425's only section. Open it to add it.",
     );
+    // Open, not in the plan (SOCY411 on real data): one section to add, and
+    // nothing to step through.
     act(() => {
+      useUi.getState().setHoverCourse(null);
+      useUi.getState().drill({ kind: "course", courseCode: "CMSC425" });
+    });
+    expect(screen.getByText(/only section/)).toHaveTextContent(
+      "Click it to add it.",
+    );
+    expect(screen.queryByText("preview")).toBeNull();
+    act(() => {
+      useUi.getState().back();
       useUi.getState().setHoverCourse(null);
       switchSection("CMSC425", "0101", "list");
       useUi.getState().drill({ kind: "course", courseCode: "CMSC425" });

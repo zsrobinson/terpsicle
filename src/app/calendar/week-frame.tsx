@@ -39,8 +39,13 @@ export interface WeekFrameProps {
   /** Last hour shown. Rounded up to the hour. */
   endMinute: number;
   minHourHeight?: number;
-  /** Strips above the grid (the hint strip, "No set time"). Part 2. */
+  /** Strips above the grid that stay while the plan does ("No set time"). */
   top?: ReactNode;
+  /**
+   * A strip laid over the day names, for hints that come and go with the
+   * pointer (the ghost hint, a plan preview): the grid never moves for it.
+   */
+  overlay?: ReactNode;
   /** Positioned over the hour grid, right of the gutter. */
   children?: (layout: CalendarLayout) => ReactNode;
   className?: string;
@@ -68,6 +73,7 @@ export function WeekFrame({
   endMinute,
   minHourHeight = MIN_HOUR_HEIGHT,
   top,
+  overlay,
   children,
   className,
 }: WeekFrameProps) {
@@ -110,68 +116,78 @@ export function WeekFrame({
       className={cn("flex h-full min-h-0 flex-col", className)}
     >
       {top}
-      <div
-        ref={scrollRef}
-        className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {overlay ? (
+          <div
+            className="absolute inset-x-0 top-0 z-30"
+            style={{ height: DAY_HEADER_HEIGHT }}
+          >
+            {overlay}
+          </div>
+        ) : null}
         <div
-          className="sticky top-0 z-10 grid border-hairline border-b bg-bg"
-          style={{ gridTemplateColumns: columns, height: DAY_HEADER_HEIGHT }}
+          ref={scrollRef}
+          className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
         >
-          <div />
-          {days.map((day) => (
-            <div
-              key={day}
-              className="flex items-center px-2 text-[12px] text-muted"
-            >
-              {DAY_SHORT_NAMES[day]}
-            </div>
-          ))}
-        </div>
-        <div
-          className="relative grid"
-          style={{ gridTemplateColumns: columns, height: layout.height }}
-          data-hour-height={Math.round(hourHeight)}
-        >
-          <div className="relative" aria-hidden="true">
-            {lines.slice(1, -1).map((minute) => (
-              <span
-                key={minute}
-                className="tnum -translate-y-1/2 absolute right-2 font-mono text-[10.5px] text-faint"
-                style={{ top: layout.yOf(minute) }}
+          <div
+            className="sticky top-0 z-10 grid border-hairline border-b bg-bg"
+            style={{ gridTemplateColumns: columns, height: DAY_HEADER_HEIGHT }}
+          >
+            <div />
+            {days.map((day) => (
+              <div
+                key={day}
+                className="flex items-center px-2 text-muted text-sm"
               >
-                {hourLabel(minute)}
-              </span>
+                {DAY_SHORT_NAMES[day]}
+              </div>
             ))}
           </div>
-          {days.map((day) => (
-            <div
-              key={day}
-              className="border-hairline border-l"
-              aria-hidden="true"
-            />
-          ))}
           <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0"
-            style={{ left: GUTTER_WIDTH }}
+            className="relative grid"
+            style={{ gridTemplateColumns: columns, height: layout.height }}
+            data-hour-height={Math.round(hourHeight)}
           >
-            {lines.slice(1, -1).map((minute) => (
+            <div className="relative" aria-hidden="true">
+              {lines.slice(1, -1).map((minute) => (
+                <span
+                  key={minute}
+                  className="ident -translate-y-1/2 absolute right-2 text-2xs text-faint"
+                  style={{ top: layout.yOf(minute) }}
+                >
+                  {hourLabel(minute)}
+                </span>
+              ))}
+            </div>
+            {days.map((day) => (
               <div
-                key={minute}
-                className="absolute inset-x-0 border-hairline border-t"
-                style={{ top: layout.yOf(minute) }}
+                key={day}
+                className="border-hairline border-l"
+                aria-hidden="true"
               />
             ))}
-          </div>
-          {children ? (
             <div
-              className="absolute inset-y-0 right-0"
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 right-0"
               style={{ left: GUTTER_WIDTH }}
             >
-              {children(layout)}
+              {lines.slice(1, -1).map((minute) => (
+                <div
+                  key={minute}
+                  className="absolute inset-x-0 border-hairline border-t"
+                  style={{ top: layout.yOf(minute) }}
+                />
+              ))}
             </div>
-          ) : null}
+            {children ? (
+              <div
+                className="absolute inset-y-0 right-0"
+                style={{ left: GUTTER_WIDTH }}
+              >
+                {children(layout)}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </section>

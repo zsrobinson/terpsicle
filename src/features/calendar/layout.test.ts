@@ -26,6 +26,8 @@ import {
 import {
   buildCalendarModel,
   type CalendarInput,
+  ghostGroupLabel,
+  ghostLabel,
   ghostLanesFor,
   PILL_CLEARANCE,
   packGhosts,
@@ -410,7 +412,7 @@ describe("buildCalendarModel", () => {
     });
 
     it("merges sooner in a phone-width column, so codes stay readable", () => {
-      // Three same-time ghosts: side by side on desktop, one on a phone.
+      // Three overlapping ghosts: side by side on desktop, one on a phone.
       const three = aCourse({
         sections: Array.from({ length: 3 }, (_, i) =>
           aSection({
@@ -423,8 +425,8 @@ describe("buildCalendarModel", () => {
               }),
               aTimedMeeting({
                 days: ["Tu"],
-                start: 960,
-                end: 1010,
+                start: 960 + i * 10,
+                end: 1010 + i * 10,
                 kind: "discussion",
               }),
             ],
@@ -433,6 +435,7 @@ describe("buildCalendarModel", () => {
       });
       const tuesday = on(notPlaced(three), "Tu");
       expect(tuesday).toHaveLength(3);
+      expect(tuesday.map((g) => g.lanes)).toEqual([3, 3, 3]);
       expect(ghostLanesFor(194)).toBe(3); // 1440px desktop
       expect(ghostLanesFor(68)).toBe(1); // 390px phone
       expect(ghostLanesFor(0)).toBe(3); // not measured yet
@@ -513,6 +516,245 @@ describe("buildCalendarModel", () => {
       { key: connection.id, day: "M", at: 655, connection },
     ]);
     expect(model.columns.find((c) => c.day === "Tu")?.pills).toEqual([]);
+  });
+});
+
+describe("ghosts at one time", () => {
+  // MATH141's shape: a lecture per instructor, and discussions that land at
+  // the same Tuesday time across lectures ("0111 ×2 | 0121 ×2 | 0131").
+  const lecture = (start: number) =>
+    aTimedMeeting({ days: ["M", "W", "F"], start, end: start + 50 });
+  const discussion = (start: number) =>
+    aTimedMeeting({
+      days: ["Tu", "Th"],
+      start,
+      end: start + 50,
+      kind: "discussion",
+    });
+  const math141 = aCourse({
+    code: "MATH141",
+    sections: [
+      aSection({ code: "0101", meetings: [lecture(480), discussion(600)] }),
+      aSection({ code: "0111", meetings: [lecture(540), discussion(840)] }),
+      aSection({ code: "0112", meetings: [lecture(540), discussion(840)] }),
+      aSection({ code: "0121", meetings: [lecture(600), discussion(840)] }),
+      aSection({ code: "0122", meetings: [lecture(600), discussion(840)] }),
+      aSection({ code: "0131", meetings: [lecture(660), discussion(840)] }),
+    ],
+  });
+  const base = input([math141], { ghostCourse: math141 });
+  const column = (model: ReturnType<typeof buildCalendarModel>, day: string) =>
+    model.columns.find((c) => c.day === day);
+
+  it("always merge into one ghost, whose popover lists each one's times", () => {
+    const tuesday = column(buildCalendarModel(base), "Tu")?.ghosts ?? [];
+    expect(tuesday).toHaveLength(1);
+    expect(tuesday[0]).toMatchObject({
+      sectionCodes: ["0111", "0112", "0121", "0122", "0131"],
+      label: "0111–0131 · 5 sections",
+      sameTimes: false,
+      lanes: 1,
+    });
+    expect(tuesday[0]?.when).toMatchObject({
+      "0111": "MWF 9am–9:50am · TuTh 2pm–2:50pm",
+      "0131": "MWF 11am–11:50am · TuTh 2pm–2:50pm",
+    });
+  });
+
+  it("name the previewed section, drawn solid in place", () => {
+    const tuesday =
+      column(
+        buildCalendarModel({
+          ...base,
+          preview: sectionKey("MATH141", "0121"),
+        }),
+        "Tu",
+      )?.ghosts ?? [];
+    expect(tuesday).toHaveLength(1);
+    expect(tuesday[0]).toMatchObject({
+      previewed: true,
+      previewCode: "0121",
+      sectionKey: "MATH141-0121",
+    });
+    expect(tuesday[0] && ghostLabel(tuesday[0], 60)).toEqual({
+      text: "0121",
+      count: "+4",
+      instructor: false,
+    });
+  });
+
+  it("keep the plan's own section clear: ghosts over it take the next lane", () => {
+    // The placed 0101 meets MWF 8am; a ghost at 8:30 overlaps it.
+    const overlapping = aCourse({
+      code: "MATH141",
+      sections: [
+        aSection({ code: "0101", meetings: [lecture(480)] }),
+        aSection({ code: "0201", meetings: [lecture(510)] }),
+      ],
+    });
+    const model = buildCalendarModel(
+      input([overlapping], { ghostCourse: overlapping }),
+    );
+    const monday = column(model, "M");
+    expect(monday?.own).toMatchObject([{ start: 480, end: 530 }]);
+    expect(monday?.ghosts).toMatchObject([
+      { sectionCodes: ["0201"], lane: 1, lanes: 2 },
+    ]);
+  });
+
+  it("draw a preview merged into a crowded stretch at its own time, over it", () => {
+    const staggered = aCourse({
+      sections: Array.from({ length: 5 }, (_, i) =>
+        aSection({
+          code: code(101 + i),
+          meetings: [
+            aTimedMeeting({
+              days: ["W"],
+              start: 600 + i * 10,
+              end: 675 + i * 10,
+            }),
+          ],
+        }),
+      ),
+    });
+    const model = buildCalendarModel({
+      ...input([aCourse({ code: "MATH240" })]),
+      ghostCourse: staggered,
+      preview: sectionKey("CMSC351", "0103"),
+    });
+    const wednesday = column(model, "W")?.ghosts ?? [];
+    const merged = wednesday.find((g) => !g.overlay);
+    const overlay = wednesday.find((g) => g.overlay);
+    expect(merged).toMatchObject({ start: 600, end: 715, previewed: false });
+    expect(overlay).toMatchObject({
+      sectionCodes: ["0103"],
+      previewed: true,
+      start: 620,
+      end: 695,
+      lane: merged?.lane,
+      lanes: merged?.lanes,
+    });
+    // Packing again for a narrower column keeps it.
+    const phone = packGhosts(column(model, "W")?.ghostItems ?? [], 1);
+    expect(phone.filter((g) => g.overlay)).toHaveLength(1);
+  });
+});
+
+describe("ghost labels", () => {
+  const merged = {
+    sectionCodes: ["0101", "0102", "0103", "0104", "0105", "0106"],
+    label: "0101–0106 · 6 sections",
+    previewCode: null,
+  };
+
+  it("say everything when there's room", () => {
+    expect(ghostLabel(merged, 190)).toEqual({
+      text: "0101–0106 · 6 sections",
+      count: null,
+      instructor: true,
+    });
+    expect(ghostLabel(merged, null).instructor).toBe(true);
+  });
+
+  it("drop the instructor before the section range", () => {
+    expect(ghostLabel(merged, 95)).toEqual({
+      text: "0101–0106",
+      count: "×6",
+      instructor: false,
+    });
+    expect(ghostLabel(merged, 72)).toEqual({
+      text: "0101–0106",
+      count: null,
+      instructor: false,
+    });
+  });
+
+  it("never claim a range that isn't one (CMSC330's Friday 10am)", () => {
+    expect(ghostGroupLabel(["0102", "0201", "0302"])).toBe(
+      "0102 · 0201 · 0302 · 3 sections",
+    );
+    expect(ghostGroupLabel(["0101", "0102", "0103"])).toBe(
+      "0101–0103 · 3 sections",
+    );
+    // Past three, first–last keeps it short.
+    expect(ghostGroupLabel(["0111", "0112", "0121", "0131"])).toBe(
+      "0111–0131 · 4 sections",
+    );
+    expect(ghostGroupLabel(["0201"])).toBe("0201");
+    const few = {
+      sectionCodes: ["0102", "0201", "0302"],
+      label: ghostGroupLabel(["0102", "0201", "0302"]),
+      previewCode: null,
+    };
+    expect(ghostLabel(few, 150).text).toBe("0102 · 0201 · 0302");
+  });
+
+  it("keep the first code whole when the range doesn't fit", () => {
+    expect(ghostLabel(merged, 50)).toEqual({
+      text: "0101",
+      count: "×6",
+      instructor: false,
+    });
+    expect(
+      ghostLabel(
+        { sectionCodes: ["0201"], label: "0201", previewCode: null },
+        40,
+      ).text,
+    ).toBe("0201");
+  });
+});
+
+describe("travel pills", () => {
+  const pillsOf = (model: ReturnType<typeof buildCalendarModel>) =>
+    model.columns.flatMap((c) => c.pills.map((p) => p.connection.id));
+  const tight = aConnection();
+  const farApart = aConnection({
+    id: "M:far",
+    gapMinutes: 180,
+    verdict: "ok",
+    walkMinutes: 6,
+  });
+
+  it("show only between back-to-back classes, or when time is short", () => {
+    const model = buildCalendarModel(
+      input([aCourse()], { connections: [tight, farApart] }),
+    );
+    expect(pillsOf(model)).toEqual([tight.id]);
+  });
+
+  it("thin a cluster at one spot to the ones that matter", () => {
+    // One class leading into three others ("17 min | 4 min | 15 min" on
+    // real data): only the back-to-back and the tight ones stay.
+    const from = tight.from;
+    const cluster = [
+      aConnection({ id: "Tu:a", from, gapMinutes: 15, verdict: "ok" }),
+      aConnection({ id: "Tu:b", from, gapMinutes: 75, verdict: "ok" }),
+      aConnection({ id: "Tu:c", from, gapMinutes: 45, verdict: "tight" }),
+    ];
+    const model = buildCalendarModel(
+      input([aCourse()], { connections: cluster }),
+    );
+    expect(pillsOf(model)).toEqual(["Tu:a", "Tu:c"]);
+  });
+
+  it("show the connection open in the sidebar, whatever its gap", () => {
+    const model = buildCalendarModel(
+      input([aCourse()], {
+        connections: [tight, farApart],
+        selectedConnection: farApart.id,
+      }),
+    );
+    expect(pillsOf(model)).toEqual([tight.id, farApart.id]);
+  });
+
+  it("hide while ghosts show, since they'd sit on ghost labels", () => {
+    const course = aCourse({
+      sections: [aSection(), aSection({ code: "0201" })],
+    });
+    const model = buildCalendarModel(
+      input([course], { connections: [tight], ghostCourse: course }),
+    );
+    expect(pillsOf(model)).toEqual([]);
   });
 });
 

@@ -41,7 +41,7 @@ test.describe("desktop", () => {
     await expect(searchBox(page)).toBeFocused();
     await searchBox(page).fill("cmsc 351");
     const result = page.locator('[data-course-result="CMSC351"]');
-    await expect(result).toContainText("4 sections · 1 fits your plan");
+    await expect(result).toContainText("4 sections · 1 fit");
 
     await result.hover();
     await expect(
@@ -67,6 +67,33 @@ test.describe("desktop", () => {
         .first(),
     ).toBeVisible();
     await expect(row).toContainText("Current");
+  });
+
+  test("hovering results never moves the calendar", async ({ page }) => {
+    await page.keyboard.press("/");
+    await searchBox(page).fill("cmsc");
+    const block = calendar(page)
+      .getByRole("button", { name: /^CMSC351 0301/ })
+      .first();
+    const before = await block.boundingBox();
+    const rows = page.locator("[data-course-result]");
+    for (const i of [0, 1, 2]) {
+      await rows.nth(i).hover();
+      await expect(page.getByText(/^Showing /)).toBeVisible();
+      expect(await block.boundingBox()).toEqual(before);
+    }
+    // The day names are under the hint, and come back when it goes.
+    await page.mouse.move(0, 0);
+    await expect(page.getByText(/^Showing /)).toHaveCount(0);
+    expect(await block.boundingBox()).toEqual(before);
+  });
+
+  test("a one-section course says when it meets", async ({ page }) => {
+    await page.keyboard.press("/");
+    await searchBox(page).fill("cmsc425");
+    const result = page.locator('[data-course-result="CMSC425"]');
+    await expect(result).toContainText("TuTh 2pm–3:15pm");
+    await expect(page.getByText(/^\d+ courses?$/)).toBeVisible();
   });
 
   test("filter chips narrow the results", async ({ page }) => {
