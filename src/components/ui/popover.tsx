@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { Popover as PopoverPrimitive } from "radix-ui";
 import type * as React from "react";
+import { quietTooltips } from "./tooltip";
 
 // shadcn/ui popover, restyled to our tokens: a raised card with a hairline
 // and the same quick pop-in as menus.
@@ -26,6 +27,7 @@ function PopoverContent({
   align = "start",
   sideOffset = 6,
   collisionPadding = 8,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   return (
@@ -34,6 +36,10 @@ function PopoverContent({
         data-slot="popover-content"
         align={align}
         sideOffset={sideOffset}
+        onCloseAutoFocus={(event) => {
+          quietTooltips();
+          onCloseAutoFocus?.(event);
+        }}
         // Keeps popovers off the screen's edge on phones.
         collisionPadding={collisionPadding}
         className={cn(

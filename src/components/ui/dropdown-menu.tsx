@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CheckIcon } from "lucide-react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import type * as React from "react";
+import { quietTooltips } from "./tooltip";
 
 // shadcn/ui dropdown menu, restyled to our tokens and density: a raised card
 // with a hairline, 12.5px items, a quick pop-in (reference prototype `Menu`).
@@ -38,6 +39,7 @@ function DropdownMenuContent({
   sideOffset = 6,
   align = "start",
   collisionPadding = 8,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
@@ -46,6 +48,10 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         align={align}
+        onCloseAutoFocus={(event) => {
+          quietTooltips();
+          onCloseAutoFocus?.(event);
+        }}
         // Keeps menus off the screen's edge on phones.
         collisionPadding={collisionPadding}
         className={cn(

@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
-import type * as React from "react";
+import * as React from "react";
 import { Kbd } from "./kbd";
 
 // shadcn/ui tooltip, restyled to our tokens: inverted fg/bg chip, quick fade.
@@ -54,6 +54,17 @@ function TooltipContent({
   );
 }
 
+let quietUntil = 0;
+
+/**
+ * Keeps tooltips shut for a moment. Menus and popovers call it as they close:
+ * they hand focus back to their trigger, and a tooltip opening on that focus
+ * would cover what the person was looking at.
+ */
+function quietTooltips(ms = 400): void {
+  quietUntil = performance.now() + ms;
+}
+
 /**
  * The one way to give a control a tooltip. Every interactive element gets one
  * (CLAUDE.md), and if it has a shortcut, `shortcut` shows it.
@@ -69,8 +80,15 @@ function WithTooltip({
   side?: React.ComponentProps<typeof TooltipPrimitive.Content>["side"];
   children: React.ReactElement;
 }) {
+  const [open, setOpen] = React.useState(false);
   return (
-    <Tooltip>
+    <Tooltip
+      open={open}
+      onOpenChange={(next) => {
+        if (next && performance.now() < quietUntil) return;
+        setOpen(next);
+      }}
+    >
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side={side}>
         {label}
@@ -81,6 +99,7 @@ function WithTooltip({
 }
 
 export {
+  quietTooltips,
   Tooltip,
   TooltipContent,
   TooltipProvider,

@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 import type * as React from "react";
+import { quietTooltips } from "./tooltip";
 
 // shadcn/ui select, restyled to our tokens and density: a 28px trigger with a
 // hairline, and the same raised card as our dropdown menus for the list.
@@ -29,7 +30,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "flex w-fit min-w-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-md border border-hairline-strong bg-bg text-fg outline-none transition-colors",
+        "flex w-fit min-w-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-md border border-hairline-strong bg-bg text-fg transition-colors",
         "hover:bg-hover focus-visible:border-fg/40 data-[state=open]:bg-hover disabled:pointer-events-none disabled:opacity-50 data-placeholder:text-muted",
         "data-[size=default]:h-7 data-[size=default]:px-2 data-[size=default]:text-[12px] data-[size=sm]:h-6 data-[size=sm]:px-1.5 data-[size=sm]:text-[11.5px]",
         "*:data-[slot=select-value]:truncate",
@@ -51,6 +52,8 @@ function SelectContent({
   position = "popper",
   align = "start",
   sideOffset = 4,
+  collisionPadding = 8,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
   return (
@@ -60,6 +63,11 @@ function SelectContent({
         position={position}
         align={align}
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
+        onCloseAutoFocus={(event) => {
+          quietTooltips();
+          onCloseAutoFocus?.(event);
+        }}
         className={cn(
           "z-50 min-w-(--radix-select-trigger-width) overflow-y-auto overflow-x-hidden rounded-lg border border-hairline bg-raised p-1 text-fg shadow-pop",
           "max-h-(--radix-select-content-available-height) origin-(--radix-select-content-transform-origin)",
