@@ -142,10 +142,18 @@ export const ContentHashSchema = z
   .regex(/^[0-9a-f]{16}$/, "Expected a 16-hex-char content hash");
 export type ContentHash = z.infer<typeof ContentHashSchema>;
 
-/** PlanetTerp professor slug ("kruskal"); also safe inside R2 keys. */
+/**
+ * PlanetTerp professor slug ("kruskal", "o'malley_sharon", "shankar_a.u.").
+ * PlanetTerp's own slugs include apostrophes, dots and non-ASCII letters, so
+ * this only rules out what would break an R2 key or a URL path: whitespace,
+ * `/ \ ? # %`, a leading `.` or `-`, and `..`.
+ */
 export const InstructorSlugSchema = z
   .string()
-  .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/, "Expected a PlanetTerp slug");
+  .regex(
+    /^(?!.*\.\.)[^\s/\\?#%.-][^\s/\\?#%]{0,63}$/u,
+    "Expected a PlanetTerp slug",
+  );
 export type InstructorSlug = z.infer<typeof InstructorSlugSchema>;
 
 /** Display name exactly as Testudo prints it: "Clyde Kruskal". */
