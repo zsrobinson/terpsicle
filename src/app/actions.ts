@@ -211,11 +211,13 @@ export function switchSection(
         ? `Switched ${courseCode} to ${sectionCode}`
         : `Placed ${courseCode} ${sectionCode} in ${plan.name}`,
     );
-  else
+  else {
     w.dispatch(
       { type: "course/add", planId: plan.id, courseCode, section, now },
       `Added ${courseCode} ${sectionCode} to ${plan.name}`,
     );
+    track("course_added", { via: via === "list" ? "details" : "ghost" });
+  }
   track("section_switched", { via });
   return true;
 }

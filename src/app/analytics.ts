@@ -68,6 +68,16 @@ export interface AnalyticsEvents {
   generate_result_previewed: { rank: number };
   generate_plans_saved: { count: number };
   generate_relaxation_applied: { constraint: Relaxable };
+  /** Debounced; the query's length only, never its text. */
+  search_performed: { queryLength: number; results: number; filtered: boolean };
+  search_filter_changed: {
+    filter: "gen-eds" | "credits" | "fits" | "open-seats" | "level";
+  };
+  /** 0-based position in the results. */
+  search_result_opened: { position: number };
+  course_details_tab: { tab: "instructors" | "grades" | "about" };
+  course_added: { via: "details" | "ghost" };
+  review_summary_viewed: { state: "shown" | "unavailable" };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

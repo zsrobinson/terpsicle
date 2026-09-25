@@ -42,7 +42,14 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `generate_plans_saved` | `count` | Whether Generate produces plans people keep, and whether saving several at once is used. |
   | `generate_relaxation_applied` | `constraint` | Which suggested relaxations people take when nothing fits. |
 
-  Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere.
+  | `search_performed` | `queryLength`, `results`, `filtered` | Whether search finds things (how often zero results), and how long queries are. Debounced; the text itself is never sent. |
+  | `search_filter_changed` | `filter` | Which filter chips earn their place on the line. |
+  | `search_result_opened` | `position` | Whether ranking works: most opens should be in the first few results. |
+  | `course_details_tab` | `tab` | Which of Instructors, Grades and About people read. |
+  | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
+  | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
+
+  Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
 - **Session recordings**, when enabled in the PostHog project. They're recorded with every input masked (`maskAllInputs`) and the text of any element marked `data-private` masked.
 - **Server events** from cron jobs and the `/api` endpoints, via `captureServerEvent()` in `src/server/analytics.ts` (declared in `ServerEvents`). They use one fixed id (`terpsicle-worker`) and never describe a person:
