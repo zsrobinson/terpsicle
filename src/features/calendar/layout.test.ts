@@ -58,6 +58,23 @@ function input(
 }
 
 describe("buildCalendarModel", () => {
+  it("gives courses with no stored color distinct colors (a shared link)", () => {
+    // The shared plan whose three courses once all came out pink.
+    const courses = ["ENEE322", "BMGT220", "BIOE221", "ECON306"].map((c) =>
+      aCourse({ code: c }),
+    );
+    const model = buildCalendarModel(
+      input(courses, { colors: { ECON306: "green" } }),
+    );
+    const byCourse = new Map(
+      model.columns
+        .flatMap((c) => c.entries)
+        .flatMap((e) => (e.kind === "class" ? [[e.courseCode, e.color]] : [])),
+    );
+    expect(byCourse.get("ECON306")).toBe("green");
+    expect(new Set(byCourse.values()).size).toBe(4);
+  });
+
   it("fits hours to the plan, never less than 8am–5pm, Monday to Friday", () => {
     const model = buildCalendarModel(input([aCourse()]));
     expect(model.startMinute).toBe(8 * 60);

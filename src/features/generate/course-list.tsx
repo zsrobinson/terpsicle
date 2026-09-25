@@ -2,7 +2,7 @@ import { cn } from "cn";
 import { Minus, Plus, X } from "lucide-react";
 import { type Ref, useMemo } from "react";
 import type { CatalogIndex } from "~/core/catalog";
-import { defaultCourseColor } from "~/core/color";
+import { defaultCourseColor, resolveCourseColors } from "~/core/color";
 import { draftCourseCodes } from "~/core/generate";
 import type {
   CourseCode,
@@ -52,8 +52,13 @@ export function CourseList({
   const fromPlan = (plan?.courses ?? []).filter(
     (c) => !listed.has(c.courseCode),
   );
+  // Courses without a stored color still come out distinct in the list.
+  const resolved = resolveCourseColors(
+    [...listed, ...fromPlan.map((c) => c.courseCode)],
+    colors,
+  );
   const chip = (code: CourseCode) => ({
-    color: colors[code] ?? defaultCourseColor(code, []),
+    color: resolved[code] ?? defaultCourseColor(code, []),
     missing: complete && index !== undefined && !index.courses.has(code),
   });
 

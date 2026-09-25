@@ -81,3 +81,33 @@ export function defaultCourseColor(
   }
   return best;
 }
+
+/**
+ * A color for every course in a plan: its stored color if it has one, else
+ * `defaultCourseColor` against the colors already taken, in plan order. For
+ * plans whose courses have no stored color (a shared link, a generated
+ * result), so courses still come out distinct instead of whatever their
+ * codes hash to, which can collide.
+ */
+export function resolveCourseColors(
+  courseCodes: Iterable<CourseCode>,
+  stored: Readonly<Partial<Record<CourseCode, CourseColor>>>,
+): Record<CourseCode, CourseColor> {
+  const codes = [...new Set(courseCodes)];
+  const out: Record<CourseCode, CourseColor> = {};
+  const used: CourseColor[] = [];
+  for (const code of codes) {
+    const color = stored[code];
+    if (color) {
+      out[code] = color;
+      used.push(color);
+    }
+  }
+  for (const code of codes) {
+    if (out[code]) continue;
+    const color = defaultCourseColor(code, used);
+    out[code] = color;
+    used.push(color);
+  }
+  return out;
+}

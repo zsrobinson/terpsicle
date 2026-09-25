@@ -5,6 +5,7 @@ import {
   COURSE_COLOR_LABELS,
   courseColorTokens,
   defaultCourseColor,
+  resolveCourseColors,
 } from "./color";
 
 describe("course colors", () => {
@@ -50,5 +51,37 @@ describe("course colors", () => {
   it("avoids colors already in the plan", () => {
     const used = COURSE_COLORS.filter((c) => c !== "teal");
     expect(defaultCourseColor("CMSC351", used)).toBe("teal");
+  });
+});
+
+describe("resolveCourseColors", () => {
+  it("keeps stored colors and gives every other course a distinct one", () => {
+    const colors = resolveCourseColors(
+      ["ENEE322", "ECON306", "BIOE221", "BMGT220"],
+      { ECON306: "green" },
+    );
+    expect(colors.ECON306).toBe("green");
+    expect(new Set(Object.values(colors)).size).toBe(4);
+  });
+
+  it("stays distinct for up to a palette's worth of uncolored courses", () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(fc.stringMatching(/^[A-Z]{4}\d{3}$/), {
+          maxLength: COURSE_COLORS.length,
+        }),
+        (codes) => {
+          const colors = resolveCourseColors(codes, {});
+          expect(new Set(Object.values(colors)).size).toBe(codes.length);
+        },
+      ),
+    );
+  });
+
+  it("gives the same answer for the same plan", () => {
+    const codes = ["CMSC351", "CMSC330", "STAT400"];
+    expect(resolveCourseColors(codes, {})).toEqual(
+      resolveCourseColors(codes, {}),
+    );
   });
 });
