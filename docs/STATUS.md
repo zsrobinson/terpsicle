@@ -56,6 +56,17 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 - **Routing matches UMD's own map app:** its one barrier polygon (`ColeConstPoly`, between Knight Hall and the Clarice Smith center) is sent with every solve, and card-only entrances are left out of standard routes.
 - **Co-instructors are sorted by name:** Testudo returns them in a different order from one request to the next, which would otherwise show up as a section change every run.
 - **Seats refresh:** a term is re-crawled when Testudo's "Open Seats as of" stamp moves, and at least hourly otherwise (terms outside registration show no stamp). A full refresh of all four listed terms took 7 s of CPU in Node; the cron limit is 30 s.
+- **Deploys and old build files** (QA round 2). Workers static assets are uploaded per Worker version, and a deploy swaps the whole set at once. The previous version's hashed `/assets/*` files stop being served right away, and Cloudflare keeps no older versions. So a tab opened before a deploy that lazily loads a chunk (the map, the generate worker, a route), or HTML served just as the deploy switches over, asks for files that are gone. What handles it:
+  - The Worker sends HTML with `Cache-Control: no-cache`, so a browser always checks for the current copy. It answers a missing `/assets/*` with a plain `404` and `no-store`, so no cache keeps the miss.
+  - `public/_headers` makes `/assets/*` `immutable` for a year. The files are content-hashed; before this, the default was `max-age=0, must-revalidate`.
+  - A head script (`src/app/load-recovery.ts`) reloads the page once when a build file fails to load (a script or stylesheet `error`, `vite:preloadError`, or a failed dynamic import). Plans and the open tab are saved, so the reload lands the person where they were. A `sessionStorage` timestamp allows at most one automatic reload per 5 minutes; after that, a small card explains and offers Reload. The generate worker reports its own load failure (#19).
+  - **We don't serve old versions' files from R2.** We considered copying every build's `assets/` to R2 in the deploy workflow and falling back to it from the Worker for missing files. That needs upload credentials in CI, a retention and pruning policy, and a second source of truth for build files, all to save a single reload that already lands in the same place.
+- **Service worker (`/sw.js`, served by the Worker from `src/server/service-worker.ts`) exists only so a reload works offline.**
+  - Pages are network-first, so every online load gets the current deploy; the last copy is used only when the network fails.
+  - `/assets/*` are cache-first as they're fetched, capped at 400 files.
+  - `/data`, `/api` and analytics pass through. IndexedDB already holds the data.
+  - It's registered in production builds only.
+  - To retire it, serve a `/sw.js` that calls `self.registration.unregister()`. Browsers check `/sw.js` on every navigation, so the change spreads on the next visit. Bumping `SERVICE_WORKER_VERSION` drops its caches.
 
 ## Known issues
 
