@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { isMain, ROOT } from "./lib/source-files";
 
 // Several checkouts of this repo (agents' worktrees, a second clone) can run
 // e2e on one machine at once. Each gets its own pair of ports (the app, and
@@ -34,3 +35,6 @@ export function alertsHarnessPort(
 ): number {
   return e2ePort(root, env) + 1;
 }
+
+// `pnpm e2e:port` prints this checkout's port, to start a server to reuse.
+if (isMain(import.meta.url)) console.log(e2ePort(ROOT));

@@ -23,6 +23,7 @@
     "test:coverage": "vitest run --project core --coverage",
     "test:e2e": "playwright test",
     "test:e2e:live": "playwright test -c playwright.live.config.ts",
+    "e2e:port": "tsx scripts/e2e-checkout.ts",
     "deploy": "pnpm build && wrangler d1 migrations apply terpsicle --remote && wrangler deploy",
     "cf-typegen": "wrangler types"
   },
