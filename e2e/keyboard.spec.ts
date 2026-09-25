@@ -30,8 +30,7 @@ const drillIn = (page: Page, name: string) =>
 async function tabTo(page: Page, target: ReturnType<Page["locator"]>) {
   for (let i = 0; i < 80; i++) {
     await page.keyboard.press("Tab");
-    if (await target.evaluate((el) => el === document.activeElement))
-      return;
+    if (await target.evaluate((el) => el === document.activeElement)) return;
   }
   throw new Error("never reached the target with Tab");
 }
@@ -121,9 +120,7 @@ test("the plan menu works from the keyboard and gives focus back", async ({
 
   await page.keyboard.press("Enter");
   await page.keyboard.press("ArrowDown");
-  await expect(
-    page.getByRole("menuitem", { name: "Duplicate" }),
-  ).toBeFocused();
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(
     page
@@ -169,7 +166,9 @@ test("every focused control shows a ring", async ({ page }) => {
       name: "Search",
     }),
     page.getByRole("button", { name: "Plan A", exact: true }),
-    calendar(page).getByRole("button", { name: /^CMSC351 0301/ }).first(),
+    calendar(page)
+      .getByRole("button", { name: /^CMSC351 0301/ })
+      .first(),
     page.getByRole("button", { name: "New plan" }),
   ]) {
     await target.focus();
