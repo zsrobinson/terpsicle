@@ -43,6 +43,11 @@ export interface WeekFrameProps {
   top?: ReactNode;
   /** Positioned over the hour grid, right of the gutter. */
   children?: (layout: CalendarLayout) => ReactNode;
+  /**
+   * Room under the grid, in px, for whatever covers the calendar's bottom
+   * (a phone's drawer at half), so every hour can scroll above it.
+   */
+  bottomInset?: number;
   className?: string;
 }
 
@@ -69,6 +74,7 @@ export function WeekFrame({
   minHourHeight = MIN_HOUR_HEIGHT,
   top,
   children,
+  bottomInset = 0,
   className,
 }: WeekFrameProps) {
   const start = Math.floor(startMinute / 60) * 60;
@@ -113,6 +119,7 @@ export function WeekFrame({
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div
           ref={scrollRef}
+          data-calendar-scroll=""
           className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
         >
           <div
@@ -180,6 +187,9 @@ export function WeekFrame({
               </div>
             ) : null}
           </div>
+          {bottomInset > 0 ? (
+            <div aria-hidden="true" style={{ height: bottomInset }} />
+          ) : null}
         </div>
       </div>
     </section>

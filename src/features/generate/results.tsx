@@ -398,15 +398,17 @@ function ResultRow({
               )}
             </div>
             <div className="grid grid-cols-[2rem_3.25rem_minmax(0,1fr)] gap-x-2 text-muted text-xs">
+              {/* No reviews or grades: the cell stays empty (and the columns
+                  aligned) rather than saying "– GPA". */}
               <span>
                 {result.stats.avgRating !== null
                   ? `★ ${result.stats.avgRating.toFixed(1)}`
-                  : "★ –"}
+                  : null}
               </span>
               <span>
                 {result.stats.avgGpa !== null
                   ? `${result.stats.avgGpa.toFixed(2)} GPA`
-                  : "– GPA"}
+                  : null}
               </span>
               <span
                 title={seatsLabel(result.stats) ?? undefined}

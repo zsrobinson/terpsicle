@@ -14,6 +14,7 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { AboutMore } from "./about";
 import { addToPlan, saveNewCourseForLater } from "./actions";
+import { permissionWords } from "./words";
 
 // The top of course details (UX review §3.4): who the course is, then the
 // facts that could rule it out (prerequisite, restriction) before anything
@@ -49,7 +50,10 @@ export function DetailsHeader({
     ["Prerequisite", course.prerequisite],
     ["Corequisite", course.corequisite],
     ["Restriction", course.restriction],
-    ["Permission", course.permission],
+    [
+      "Permission",
+      course.permission ? permissionWords(course.permission) : null,
+    ],
   ];
   return (
     <header className="px-4 pt-4 pb-3">
