@@ -47,11 +47,12 @@ describe("WeekFrame", () => {
     const calendar = screen.getByRole("region", { name: "Week calendar" });
     for (const day of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
       expect(within(calendar).getByText(day)).toBeInTheDocument();
-    // Rounded out to whole hours; the edges carry no label.
+    // Rounded out to whole hours. Every row is labeled, the first one too;
+    // the bottom edge only closes the grid.
     expect(screen.getByTestId("probe")).toHaveTextContent(
       `480-1080:${MIN_HOUR_HEIGHT}`,
     );
-    expect(screen.queryByText("8am")).toBeNull();
+    expect(screen.getByText("8am")).toBeInTheDocument();
     expect(screen.getByText("5pm")).toBeInTheDocument();
     expect(screen.queryByText("6pm")).toBeNull();
   });
