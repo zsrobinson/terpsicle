@@ -116,10 +116,23 @@ const CODE_PREFIX = /^[A-Z]{1,4}$|^[A-Z]{4}\d{1,3}[A-Z]?$/;
 const NUMBER_PREFIX = /^\d{1,3}[A-Z]?$/;
 
 /**
+ * The department a query starts with ("cmsc3", "cmsc prog"), when the term
+ * has one: its courses outrank other departments' typo matches (FMSC374 for
+ * "cmsc3").
+ */
+function queryDept(search: CourseSearch, query: string): string | null {
+  const first = queryTokens(query)[0]?.toUpperCase() ?? "";
+  if (!/^[A-Z]{4}$/.test(first)) return null;
+  const next = search.codes[lowerBound(search.codes, first)] ?? "";
+  return next.startsWith(first) ? first : null;
+}
+
+/**
  * Course codes best match first:
  * 1. the exact code, then other codes the query is a prefix of, in code order;
  * 2. codes whose number starts with the query ("351"), in code order;
- * 3. everything else MiniSearch finds, by relevance (from two characters on).
+ * 3. everything else MiniSearch finds, by relevance (from two characters on),
+ *    the query's department first.
  */
 export function searchCourses(
   search: CourseSearch,
@@ -145,6 +158,9 @@ export function searchCourses(
       if (code.slice(4).startsWith(compact)) take(code);
   // One character matches a prefix of nearly every word; only codes are useful.
   if (compact.length < MIN_TEXT_QUERY) return out;
-  for (const hit of search.mini.search(query)) take(hit.id as CourseCode);
+  const hits = search.mini.search(query).map((hit) => hit.id as CourseCode);
+  const dept = queryDept(search, query);
+  if (dept) for (const code of hits) if (code.startsWith(dept)) take(code);
+  for (const code of hits) take(code);
   return out;
 }

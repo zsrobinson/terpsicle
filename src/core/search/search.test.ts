@@ -21,13 +21,11 @@ import {
   courseFilter,
   courseLevel,
   coversGenEds,
-  formatSectionSummary,
   hasOpenSeats,
   isFiltering,
   matchesCredits,
   NO_FILTERS,
   type SearchFilters,
-  sectionSummary,
 } from "./filters";
 import {
   codeTokens,
@@ -144,6 +142,31 @@ describe("searchCourses", () => {
     const results = searchCourses(search, "algo");
     expect(results[0]).toBe("ALGO101");
     expect(results).toContain("CMSC351");
+  });
+
+  it("ranks a department prefix's courses before other departments' typo matches", () => {
+    const withFmsc = createCourseSearch([
+      ...courses,
+      aCourse({ code: "FMSC374", title: "Working with Diverse Families" }),
+      aCourse({ code: "FMSC330", title: "Family Programs and Programming" }),
+      aCourse({ code: "FMSC101", title: "Intro" }),
+      aCourse({ code: "CMSC100", title: "Introduction to Computing" }),
+    ]);
+    // A text query that starts with a department: without the department
+    // first, FMSC101's short, exact "Intro" outscores CMSC100.
+    expect(searchCourses(withFmsc, "cmsc intro")[0]).toBe("CMSC100");
+    const cmsc3 = searchCourses(withFmsc, "cmsc3");
+    expect(cmsc3.slice(0, 3)).toEqual(["CMSC330", "CMSC350", "CMSC351"]);
+    const firstOther = cmsc3.findIndex((c) => !c.startsWith("CMSC"));
+    expect(firstOther).toBe(cmsc3.filter((c) => c.startsWith("CMSC")).length);
+    // Words after the department: its matches still lead.
+    const program = searchCourses(withFmsc, "cmsc programming");
+    expect(program[0]).toBe("CMSC330");
+    expect(program.indexOf("CMSC330")).toBeLessThan(
+      program.includes("FMSC330") ? program.indexOf("FMSC330") : Infinity,
+    );
+    // A department the term doesn't have ranks by relevance alone.
+    expect(searchCourses(withFmsc, "fami")[0]).toBe("FMSC330");
   });
 
   it("finds by instructor across courses", () => {
@@ -267,40 +290,5 @@ describe("filters", () => {
     ).toHaveLength(3);
     expect(isFiltering(NO_FILTERS)).toBe(false);
     expect(isFiltering({ ...NO_FILTERS, openSeats: true })).toBe(true);
-  });
-});
-
-describe("section summary", () => {
-  it("reads 4 sections · 2 fit your plan", () => {
-    expect(formatSectionSummary({ sections: 4, fit: 2 })).toBe(
-      "4 sections · 2 fit your plan",
-    );
-    expect(formatSectionSummary({ sections: 2, fit: 1 })).toBe(
-      "2 sections · 1 fits your plan",
-    );
-    expect(formatSectionSummary({ sections: 3, fit: 0 })).toBe(
-      "3 sections · none fit your plan",
-    );
-    expect(formatSectionSummary({ sections: 1, fit: null })).toBe("1 section");
-    expect(formatSectionSummary({ sections: 0, fit: 0 })).toBe("0 sections");
-  });
-
-  it("counts sections and those that fit", () => {
-    const other = aCourse({ code: "CMSC330" });
-    const c = aCourse({
-      sections: [
-        aSection({ code: "0101" }),
-        aSection({ code: "0201", meetings: [aMeeting({ days: ["Tu"] })] }),
-      ],
-    });
-    const fit = buildFitContext({
-      plan: aPlan({ termId: TERM, courses: [placed(other, "0101")] }),
-      index: buildCatalogIndex(TERM, [other, c]),
-      blocks: [],
-      travel: DEFAULT_TRAVEL_SETTINGS,
-      campus: EMPTY_CAMPUS,
-    });
-    expect(sectionSummary(c, fit)).toEqual({ sections: 2, fit: 1 });
-    expect(sectionSummary(c, null)).toEqual({ sections: 2, fit: null });
   });
 });

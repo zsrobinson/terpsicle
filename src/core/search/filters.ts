@@ -1,8 +1,4 @@
-import {
-  countFittingSections,
-  courseFitsPlan,
-  type FitContext,
-} from "../fit/fit";
+import { courseFitsPlan, type FitContext } from "../fit/fit";
 import type { Course, CourseCode, GenEdCode, GenEdGroup } from "../schema";
 import { sectionKey } from "../schema";
 import { type SeatsMap, seatCounts } from "../seats/seats";
@@ -113,28 +109,4 @@ export function courseFilter(
     (!filters.fitsMyPlan ||
       ctx.fit === null ||
       courseFitsPlan(ctx.fit, course));
-}
-
-export type SectionSummary = {
-  readonly sections: number;
-  /** How many fit the plan; null when there's no plan to fit against. */
-  readonly fit: number | null;
-};
-
-export function sectionSummary(
-  course: Course,
-  fit: FitContext | null,
-): SectionSummary {
-  return {
-    sections: course.sections.length,
-    fit: fit ? countFittingSections(fit, course) : null,
-  };
-}
-
-/** "4 sections · 2 fit your plan", "2 sections · 1 fits your plan", "3 sections · none fit your plan". */
-export function formatSectionSummary(summary: SectionSummary): string {
-  const n = summary.sections;
-  const count = `${n} section${n === 1 ? "" : "s"}`;
-  if (summary.fit === null || n === 0) return count;
-  return `${count} · ${summary.fit === 0 ? "none" : summary.fit} fit${summary.fit === 1 ? "s" : ""} your plan`;
 }
