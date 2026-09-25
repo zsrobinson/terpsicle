@@ -28,7 +28,9 @@ export function GhostHint({
   // A course with nothing to pick from (one section, already placed, or none
   // listed) gets no "click one to switch" and no keys that do nothing.
   const others = ghost.sectionCount - (ghost.placedCode ? 1 : 0);
-  const choosing = interactive && !readOnly && others > 0;
+  // With one section there's nothing to step through, placed or not.
+  const choosing =
+    interactive && !readOnly && others > 0 && ghost.sectionCount > 1;
   return (
     <div className="@container flex h-full items-center gap-2 border-hairline border-b bg-panel px-3 text-sm">
       {interactive && !readOnly ? (

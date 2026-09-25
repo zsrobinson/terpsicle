@@ -26,6 +26,7 @@ import {
 import {
   buildCalendarModel,
   type CalendarInput,
+  ghostGroupLabel,
   ghostLabel,
   ghostLanesFor,
   packGhosts,
@@ -664,6 +665,26 @@ describe("ghost labels", () => {
       count: null,
       instructor: false,
     });
+  });
+
+  it("never claim a range that isn't one (CMSC330's Friday 10am)", () => {
+    expect(ghostGroupLabel(["0102", "0201", "0302"])).toBe(
+      "0102 · 0201 · 0302 · 3 sections",
+    );
+    expect(ghostGroupLabel(["0101", "0102", "0103"])).toBe(
+      "0101–0103 · 3 sections",
+    );
+    // Past three, first–last keeps it short.
+    expect(ghostGroupLabel(["0111", "0112", "0121", "0131"])).toBe(
+      "0111–0131 · 4 sections",
+    );
+    expect(ghostGroupLabel(["0201"])).toBe("0201");
+    const few = {
+      sectionCodes: ["0102", "0201", "0302"],
+      label: ghostGroupLabel(["0102", "0201", "0302"]),
+      previewCode: null,
+    };
+    expect(ghostLabel(few, 150).text).toBe("0102 · 0201 · 0302");
   });
 
   it("keep the first code whole when the range doesn't fit", () => {

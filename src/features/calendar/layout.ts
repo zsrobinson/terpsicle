@@ -8,7 +8,6 @@ import {
   groupSectionsByTime,
   placedSections,
   type TimeGroup,
-  timeGroupLabel,
 } from "~/core/catalog";
 import { defaultCourseColor, resolveCourseColors } from "~/core/color";
 import { type FitContext, fitLabel } from "~/core/fit";
@@ -275,7 +274,7 @@ function ghostEntries(input: CalendarInput): {
         end: item.end,
         sectionKey: key,
         sectionCodes: group.sections.map((s) => s.code),
-        label: group.label,
+        label: ghostGroupLabel(group.sections.map((s) => s.code)),
         sameTimes: true,
         instructors: rep.instructors.join(", "),
         meetingKind: rep.meetings[item.source.meetingIndex]?.kind ?? "lecture",
@@ -362,7 +361,7 @@ function mergeGhosts(
     // Hovering previews a section inside, so the box stays put under the pointer.
     sectionKey: (previewed ?? first).sectionKey,
     sectionCodes: codes,
-    label: timeGroupLabel(codes),
+    label: ghostGroupLabel(codes),
     sameTimes: false,
     instructors: [...new Set(ghosts.map((g) => g.instructors))].join(", "),
     meetingKind: ghosts.every((g) => g.meetingKind === first.meetingKind)
@@ -509,6 +508,32 @@ interface GhostLabel {
  * the "· 6 sections" goes, then the instructor, then the range shrinks to
  * its first code (UX-REVIEW §4.2). Width null: not measured, so everything.
  */
+/** Section numbers that follow on one another: 0101, 0102, 0103. */
+function consecutive(codes: readonly SectionCode[]): boolean {
+  return codes.every((code, i) => {
+    if (i === 0) return true;
+    const prev = Number(codes[i - 1]);
+    return Number.isInteger(prev) && Number(code) === prev + 1;
+  });
+}
+
+/**
+ * The codes, shortest honest way: "0101–0105" for a run, "0102 · 0201 ·
+ * 0302" for a few that aren't (a range would claim 0103–0301 too), and
+ * first–last past three.
+ */
+function codeSpan(codes: readonly SectionCode[]): string {
+  if (codes.length <= 1) return codes[0] ?? "";
+  if (codes.length <= 3 && !consecutive(codes)) return codes.join(" · ");
+  return `${codes[0]}–${codes[codes.length - 1]}`;
+}
+
+/** "0101", "0101–0106 · 6 sections", "0102 · 0201 · 0302 · 3 sections". */
+export function ghostGroupLabel(codes: readonly SectionCode[]): string {
+  if (codes.length <= 1) return codes[0] ?? "";
+  return `${codeSpan(codes)} · ${codes.length} sections`;
+}
+
 export function ghostLabel(
   entry: Pick<GhostEntry, "sectionCodes" | "label" | "previewCode">,
   width: number | null,
@@ -528,7 +553,7 @@ export function ghostLabel(
     };
   if (fits(entry.label))
     return { text: entry.label, count: null, instructor: true };
-  const range = `${first}–${codes[codes.length - 1]}`;
+  const range = codeSpan(codes);
   const times = `×${codes.length}`;
   if (fits(`${range} ${times}`))
     return { text: range, count: times, instructor: false };
