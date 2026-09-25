@@ -120,7 +120,10 @@ export function startPersisting(
     queue = queue.then(write).catch(onError);
   };
 
-  let lastUi = JSON.stringify(uiRow());
+  // Empty, so the row is written once now: React can run effects between
+  // `hydrate` and this call (a deep link opening a course), and a change made
+  // then would otherwise never reach storage.
+  let lastUi = "";
   const writeUiIfChanged = () => {
     const row = uiRow();
     const text = JSON.stringify(row);
@@ -128,6 +131,7 @@ export function startPersisting(
     lastUi = text;
     enqueue(() => db.settings.put(row));
   };
+  writeUiIfChanged();
 
   const stopWorkspace = useWorkspace.subscribe((next, prev) => {
     const w: Workspace = next;

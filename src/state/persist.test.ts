@@ -188,6 +188,20 @@ describe("persistence", () => {
     expect(useGenerateDrafts.getState().drafts).toEqual({ [SPRING]: draft });
   });
 
+  it("keeps a drill-in made between loading and saving", async () => {
+    // A deep link's effect can run before persistence starts.
+    await persistence.flushed();
+    persistence.stop();
+    resetStores();
+    await hydrate(db);
+    useUi.getState().drill({ kind: "course", courseCode: "CMSC351" });
+    persistence = startPersisting(db);
+    await reload();
+    expect(useUi.getState().stack).toEqual([
+      { kind: "course", courseCode: "CMSC351" },
+    ]);
+  });
+
   it("remembers the innermost drill-in only", async () => {
     useUi.getState().drill({ kind: "course", courseCode: "CMSC351" });
     useUi.getState().drill({ kind: "connection", connectionId: "M:a>b" });
