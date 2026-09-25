@@ -53,6 +53,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@biomejs/biome": "^2.5.14",
     "@cloudflare/vite-plugin": "^1.60.1",
     "@cloudflare/vitest-plugin": "^1.2.7",
