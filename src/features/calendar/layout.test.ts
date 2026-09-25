@@ -25,8 +25,8 @@ import {
 } from "~/fixtures";
 import {
   buildCalendarModel,
-  pillColumns,
   type CalendarInput,
+  pillColumns,
   previewOrder,
   stepPreview,
 } from "./layout";

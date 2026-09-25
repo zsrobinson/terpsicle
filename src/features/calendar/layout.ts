@@ -128,6 +128,8 @@ export interface GhostSummary {
   overflow: number;
   /** The course's section in the plan, if it's placed. */
   placedCode: SectionCode | null;
+  /** Every section the course has, placed or not. */
+  sectionCount: number;
 }
 
 export interface CalendarModel {
@@ -258,6 +260,7 @@ function ghostEntries(input: CalendarInput): {
       groups: shown,
       overflow: overflow.length,
       placedCode,
+      sectionCount: course.sections.length,
     },
   };
 }
