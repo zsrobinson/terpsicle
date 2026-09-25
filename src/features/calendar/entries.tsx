@@ -121,7 +121,7 @@ export function ClassBlock({
           {/* The code wins the space; "discussion" gives way on narrow days. */}
           <span
             className={cn(
-              "shrink-0 font-mono font-semibold",
+              "ident shrink-0 font-semibold",
               stacked && "flex flex-col",
             )}
           >
@@ -221,7 +221,7 @@ export function Ghost({
   const narrow = width !== null && width < 44;
   const body = (
     <>
-      <div className="flex items-baseline gap-1 font-mono font-semibold text-2xs">
+      <div className="ident flex items-baseline gap-1 font-semibold text-2xs">
         {/* The code must read: it never gives way to "×3". */}
         <span className={label.count ? "shrink-0" : "truncate"}>
           {label.text}
@@ -364,7 +364,7 @@ export function Ghost({
                 className="flex min-h-8 w-full flex-col justify-center rounded-md px-2 py-1 text-left hover:bg-hover"
               >
                 <span className="flex w-full items-baseline gap-2">
-                  <span className="font-medium font-mono text-base">
+                  <span className="ident font-medium text-base">
                     {sectionCode}
                   </span>
                   <span
@@ -444,7 +444,7 @@ export function TravelPill({
         data-verdict={c.verdict}
         aria-label={`${words} From ${c.from.building} to ${c.to.building}.`}
         className={cn(
-          "tnum -translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-2xs shadow-xs",
+          "tnum -translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-5 items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-2xs shadow-xs",
           PILL_TONE[c.verdict],
           selected && "ring-2 ring-fg/70",
         )}

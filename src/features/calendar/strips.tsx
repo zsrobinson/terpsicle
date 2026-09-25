@@ -43,18 +43,18 @@ export function GhostHint({
       <span className="truncate">
         {ghost.sectionCount === 0 ? (
           <>
-            <span className="font-mono font-semibold">{ghost.courseCode}</span>{" "}
-            has no sections listed this term.
+            <span className="ident font-semibold">{ghost.courseCode}</span> has
+            no sections listed this term.
           </>
         ) : others === 0 ? (
           <>
-            <span className="font-mono font-semibold">{ghost.courseCode}</span>{" "}
-            has no other sections.
+            <span className="ident font-semibold">{ghost.courseCode}</span> has
+            no other sections.
           </>
         ) : ghost.sectionCount === 1 ? (
           <>
             Showing{" "}
-            <span className="font-mono font-semibold">{ghost.courseCode}</span>
+            <span className="ident font-semibold">{ghost.courseCode}</span>
             's only section.{" "}
             {interactive
               ? readOnly
@@ -65,7 +65,7 @@ export function GhostHint({
         ) : (
           <>
             Showing every section of{" "}
-            <span className="font-mono font-semibold">{ghost.courseCode}</span>.{" "}
+            <span className="ident font-semibold">{ghost.courseCode}</span>.{" "}
             {interactive
               ? readOnly
                 ? "Save a copy to change sections."
@@ -127,7 +127,7 @@ export function UntimedStrip({
 }) {
   if (sections.length === 0) return null;
   return (
-    <div className="flex min-h-[31px] shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-hairline border-b px-3 py-1 text-muted text-sm">
+    <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-hairline border-b px-3 py-1 text-muted text-sm">
       <span>No set time:</span>
       {sections.map((s) => (
         <WithTooltip
@@ -137,7 +137,7 @@ export function UntimedStrip({
           <button
             type="button"
             onClick={() => onOpen(s.courseCode)}
-            className="rounded border px-1.5 py-0.5 font-medium font-mono"
+            className="rounded border px-1.5 py-0.5 ident font-medium"
             style={tintStyle(s.color)}
           >
             {s.courseCode} {s.sectionCode} ·{" "}

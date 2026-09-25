@@ -185,7 +185,7 @@ function MultiChip<T extends string | number>({
             aria-label={active ? `${label}: ${ordered.join(", ")}` : label}
             className={chipClass(active)}
           >
-            <span className={cn(active && label === "Gen-eds" && "font-mono")}>
+            <span className={cn(active && label === "Gen-eds" && "ident")}>
               {summary(label, ordered)}
             </span>
             <ChevronDown size={10} aria-hidden="true" />

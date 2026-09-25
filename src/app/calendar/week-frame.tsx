@@ -152,7 +152,7 @@ export function WeekFrame({
               {lines.slice(1, -1).map((minute) => (
                 <span
                   key={minute}
-                  className="tnum -translate-y-1/2 absolute right-2 font-mono text-2xs text-faint"
+                  className="ident -translate-y-1/2 absolute right-2 text-2xs text-faint"
                   style={{ top: layout.yOf(minute) }}
                 >
                   {hourLabel(minute)}

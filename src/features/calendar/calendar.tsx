@@ -426,7 +426,7 @@ function Grid({
       {hint ? (
         <div
           role="tooltip"
-          className="pointer-events-none absolute z-40 rounded-md bg-fg px-2 py-1 text-bg text-xs"
+          className="pointer-events-none absolute z-40 rounded-md bg-fg px-2 py-1 text-bg text-sm"
           style={{ left: hint.x + 12, top: hint.y + 14 }}
         >
           Drag to block off time
