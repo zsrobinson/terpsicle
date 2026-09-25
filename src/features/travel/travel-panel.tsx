@@ -2,7 +2,7 @@ import { cn } from "cn";
 import { messageToText } from "~/app/message-text";
 import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
 import { type Connection, parseSectionKey } from "~/core/schema";
-import { DAY_LONG_NAMES } from "~/core/time";
+import { DAY_LONG_NAMES, formatDuration } from "~/core/time";
 import { connectionsByDay, verdictMessage } from "~/core/travel";
 import { useCampus } from "~/state/data-hooks";
 import {
@@ -125,27 +125,29 @@ export function ConnectionRow({
       >
         <VerdictDot verdict={c.verdict} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12.5px]">
-            <span className="font-medium font-mono">{from}</span>
-            <span className="text-muted"> → </span>
-            <span className="font-medium font-mono">{to}</span>
+          <span className="flex items-baseline gap-2 text-[12.5px]">
+            <span className="min-w-0 flex-1 truncate">
+              <span className="font-medium font-mono">{from}</span>
+              <span className="text-muted"> → </span>
+              <span className="font-medium font-mono">{to}</span>
+            </span>
+            <span
+              className={cn(
+                "shrink-0 text-[11.5px]",
+                VERDICT_TEXT[c.verdict],
+                c.verdict !== "ok" && "font-medium",
+              )}
+            >
+              {verdictShort(c)}
+            </span>
           </span>
           <span className="tnum block truncate text-[11.5px] text-muted">
             <span className="font-mono">
               {c.from.building} → {c.to.building}
             </span>
             {c.walkMinutes !== null ? ` · ${c.walkMinutes} min walk` : ""}
-            {` · ${c.gapMinutes} min gap`}
+            {` · ${formatDuration(c.gapMinutes)} gap`}
           </span>
-        </span>
-        <span
-          className={cn(
-            "shrink-0 text-[11.5px]",
-            VERDICT_TEXT[c.verdict],
-            c.verdict !== "ok" && "font-medium",
-          )}
-        >
-          {verdictShort(c)}
         </span>
       </button>
     </WithTooltip>
