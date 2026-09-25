@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
-import { MessageText } from "~/app/message-text";
-import { PanelLabel } from "~/app/panel";
+import { MessageText, messageToText } from "~/app/message-text";
+import { ListRow, SectionHeader } from "~/app/panel";
 import type { CatalogIndex } from "~/core/catalog";
 import type {
   CourseCode,
@@ -17,6 +17,9 @@ import { MiniWeek, type MiniWeekMark } from "./mini-week";
 // and the closest plans with what stops them marked. Information, not an
 // alarm: no red, no banner (DESIGN §5).
 
+/** Conflict lines per closest plan; the rest are counted (UX-REVIEW §4.8). */
+const CONFLICTS_SHOWN = 2;
+
 export function NothingFits({
   result,
   index,
@@ -31,8 +34,8 @@ export function NothingFits({
   const { relaxations, nearMisses } = result;
   return (
     <div data-testid="nothing-fits">
-      <PanelLabel>No plans</PanelLabel>
-      <p className="px-4 text-[12.5px]">
+      <SectionHeader variant="label" title="No plans" />
+      <p className="px-4 text-base">
         Nothing fits all of that.{" "}
         {relaxations.length > 0 ? (
           <span className="text-muted">Loosening one of these would help:</span>
@@ -54,10 +57,11 @@ export function NothingFits({
                 <button
                   type="button"
                   onClick={() => onRelax(r)}
-                  className="flex w-full items-center gap-2 rounded-md border border-hairline bg-raised px-2.5 py-1.5 text-left text-[12.5px] hover:bg-hover"
+                  className="flex w-full items-start gap-2 rounded-md border border-hairline bg-raised px-2.5 py-1.5 text-left text-base hover:bg-hover"
                 >
-                  <span className="min-w-0 flex-1 truncate">{r.label}</span>
-                  <ArrowRight className="size-3.5 shrink-0 text-faint" />
+                  {/* Wraps rather than truncates: the label is the choice. */}
+                  <span className="min-w-0 flex-1 text-pretty">{r.label}</span>
+                  <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-faint" />
                   <span className="tnum shrink-0 text-muted">
                     {r.unlockCount.toLocaleString()}
                     {r.atLeast ? "+" : ""}
@@ -71,8 +75,8 @@ export function NothingFits({
       ) : null}
       {nearMisses.length > 0 ? (
         <>
-          <PanelLabel>Closest plans</PanelLabel>
-          <ul aria-label="Closest plans" className="border-hairline border-t">
+          <SectionHeader className="mt-4" title="Closest plans" />
+          <ul aria-label="Closest plans">
             {nearMisses.map((miss) => (
               <NearMissRow
                 key={miss.sections.join(",")}
@@ -100,29 +104,40 @@ function NearMissRow({
   const marks = new Map<SectionKey, MiniWeekMark>();
   for (const c of miss.conflicts)
     for (const key of c.sectionKeys) marks.set(key, "conflict");
+  const shown = miss.conflicts.slice(0, CONFLICTS_SHOWN);
+  const more = miss.conflicts.length - shown.length;
+  const all = miss.conflicts.map((c) => messageToText(c.message)).join("\n");
   return (
-    <li className="flex gap-3 border-hairline border-b px-4 py-2.5">
-      <div className="h-14 w-[76px] shrink-0">
-        <MiniWeek
-          sections={miss.sections}
-          index={index}
-          colors={colors}
-          marks={marks}
-        />
-      </div>
-      <div className="min-w-0 flex-1 text-[11.5px] leading-[1.45]">
-        <div className="font-mono text-[11px] text-muted">
-          {miss.sections.map((k) => k.replace("-", " ")).join(" · ")}
+    <ListRow
+      as="li"
+      title={`${miss.sections.map((k) => k.replace("-", " ")).join(", ")}\n${all}`}
+      lead={
+        <div className="h-14 w-[76px]">
+          <MiniWeek
+            sections={miss.sections}
+            index={index}
+            colors={colors}
+            marks={marks}
+          />
         </div>
-        <ul className="mt-0.5">
-          {miss.conflicts.map((c) => (
-            <li key={`${c.kind}:${c.sectionKeys.join(",")}:${c.day ?? ""}`}>
-              <span className="mr-1 inline-block size-1.5 rounded-full bg-warn align-middle" />
+      }
+    >
+      <ul className="text-sm">
+        {shown.map((c, i) => (
+          <li
+            key={`${c.kind}:${c.sectionKeys.join(",")}:${c.day ?? ""}`}
+            className="flex min-w-0 items-baseline gap-1.5"
+          >
+            <span className="inline-block size-1.5 shrink-0 self-center rounded-full bg-warn" />
+            <span className="min-w-0 truncate">
               <MessageText message={c.message} />
-            </li>
-          ))}
-        </ul>
-      </div>
-    </li>
+            </span>
+            {more > 0 && i === shown.length - 1 ? (
+              <span className="tnum shrink-0 text-faint">+{more} more</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </ListRow>
   );
 }

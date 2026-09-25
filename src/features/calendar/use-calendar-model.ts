@@ -1,11 +1,14 @@
 import { useMemo } from "react";
+import { placedSections } from "~/core/catalog";
 import type { SeatsMap } from "~/core/seats";
+import { planConnections } from "~/core/travel";
 import {
   type CurrentPlan,
   useCurrentPlan,
   useFitContext,
   usePlanConnections,
   useTermCatalog,
+  useTravel,
 } from "~/state/hooks";
 import { selectGhostCourse, selectOpenCourse, useUi } from "~/state/ui-store";
 import { buildCalendarModel, type CalendarModel } from "./layout";
@@ -35,6 +38,20 @@ export function useCalendarModel(): CalendarView {
     (ghostCode ? catalog?.index.courses.get(ghostCode) : undefined) ?? null;
   const index = catalog?.index;
   const seats = catalog?.seats?.seats ?? null;
+  const { travel, campus } = useTravel();
+  // A previewed plan (Generate) gets its own connections, through the same
+  // path as the open plan's, so its pills say what its details say.
+  const previewConnections = useMemo(
+    () =>
+      planPreview && index
+        ? planConnections(
+            placedSections(planPreview.plan, index),
+            travel,
+            campus,
+          )
+        : null,
+    [planPreview, index, travel, campus],
+  );
 
   const model = useMemo(
     () =>
@@ -44,8 +61,7 @@ export function useCalendarModel(): CalendarView {
             index,
             blocks: current.blocks,
             colors: current.colors,
-            // A previewed plan's connections are the generator's to show.
-            connections: planPreview ? [] : connections,
+            connections: previewConnections ?? connections,
             ghostCourse: planPreview ? null : ghostCourse,
             fit,
             seats,
@@ -56,6 +72,7 @@ export function useCalendarModel(): CalendarView {
       current,
       index,
       connections,
+      previewConnections,
       ghostCourse,
       fit,
       seats,

@@ -24,7 +24,7 @@ const END_OPTIONS = [14, 15, 16, 17, 18, 19, 20, 21].map((h) => h * 60);
 const WEEKDAYS: readonly Day[] = ["M", "Tu", "W", "Th", "F"];
 
 const selectClass =
-  "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-[12px] outline-none focus:border-fg/40";
+  "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-sm outline-none focus:border-fg/40";
 
 /** Radix values can't be empty, so "Any time" gets its own. */
 const ANY = "any";
@@ -66,7 +66,7 @@ function TimeSelect({
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 text-[12.5px]">
+    <div className="flex items-center gap-2 text-base">
       <span className="w-20 shrink-0 text-muted">{label}</span>
       {children}
     </div>
@@ -88,7 +88,7 @@ function Check({
 }) {
   return (
     <WithTooltip label={tip} side="right">
-      <label className="flex w-fit items-center gap-2 text-[12.5px]">
+      <label className="flex w-fit items-center gap-2 text-base">
         <input
           type="checkbox"
           data-testid={testId}
@@ -164,7 +164,7 @@ export function MustHaveFields({
                   aria-label={`${DAY_LONG_NAMES[day]} off`}
                   onClick={() => toggleDay(day)}
                   className={cn(
-                    "h-7 flex-1 rounded-md border text-[11.5px]",
+                    "h-7 flex-1 rounded-md border text-sm",
                     off
                       ? "border-transparent bg-accent text-accent-fg"
                       : "border-hairline-strong text-muted hover:bg-hover",
