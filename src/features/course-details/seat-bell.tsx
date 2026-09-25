@@ -163,7 +163,7 @@ export function SeatBell({
               placeholder="you@terpmail.umd.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-8 min-w-0 flex-1 rounded-md border border-hairline bg-bg px-2 text-[12.5px] outline-none placeholder:text-faint focus:border-hairline-strong"
+              className="h-8 min-w-0 flex-1 rounded-md border border-hairline bg-bg px-2 text-[12.5px] placeholder:text-faint focus:border-hairline-strong"
             />
             <WithTooltip label="Send the confirmation link">
               <Button type="submit" size="sm" disabled={busy}>

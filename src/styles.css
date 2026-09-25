@@ -255,6 +255,12 @@
   }
 }
 
+/* The focus ring, for a box whose field inside draws none (the search box). */
+@utility focus-outline {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
 @utility tnum {
   font-variant-numeric: tabular-nums;
 }
@@ -271,6 +277,19 @@
     var(--grid) 0 6px,
     transparent 6px 12px
   );
+}
+
+/*
+ * iOS Safari zooms the page into any field under 16px when it's focused, and
+ * doesn't zoom back. On phones and touch screens, fields use 16px. Unlayered,
+ * so it beats the text-[12.5px]-style utilities in the utilities layer.
+ */
+@media (max-width: 768px), (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 /* Reduced motion must beat any component animation, hence !important. */

@@ -96,7 +96,7 @@ export function SearchPanel() {
       {/* The box is the header here (as in the prototype); screen readers still get a title. */}
       <h2 className="sr-only">Search</h2>
       <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-3 pt-3 pb-2.5">
-        <div className="flex h-9 items-center gap-2 rounded-lg border border-hairline bg-raised px-2.5 focus-within:border-hairline-strong">
+        <div className="flex h-9 items-center gap-2 rounded-lg border border-hairline bg-raised px-2.5 focus-within:border-hairline-strong has-[input:focus-visible]:focus-outline">
           <SearchIcon size={14} className="shrink-0 text-muted" aria-hidden />
           <input
             ref={inputRef}

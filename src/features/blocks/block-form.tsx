@@ -111,7 +111,7 @@ export function BlockForm({
           maxLength={40}
           autoComplete="off"
           data-private
-          className="h-8 w-full rounded-md border border-hairline bg-bg px-2 text-[12.5px] outline-none placeholder:text-faint focus:border-hairline-strong"
+          className="h-8 w-full rounded-md border border-hairline bg-bg px-2 text-[12.5px] placeholder:text-faint focus:border-hairline-strong"
         />
       </WithTooltip>
       <fieldset className="flex gap-1" aria-label="Days">

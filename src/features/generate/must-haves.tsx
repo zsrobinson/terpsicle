@@ -26,7 +26,7 @@ const DAY_SHORT: Partial<Record<Day, string>> = {
 };
 
 const selectClass =
-  "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-[12px] outline-none focus:border-fg/40";
+  "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-[12px] focus:border-fg/40";
 
 /** Radix values can't be empty, so "Any time" gets its own. */
 const ANY = "any";
