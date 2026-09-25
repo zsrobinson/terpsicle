@@ -162,6 +162,15 @@ for (const scheme of ["light", "dark"] as const) {
         page.getByRole("heading", { name: "Algorithms" }),
       ).toBeVisible();
       await scan(page, `course details: sections and ghosts (${scheme})`);
+      await page
+        .locator('[data-section="0101"]')
+        .getByRole("button", { name: "Get an email when a seat opens" })
+        .click();
+      await expect(
+        page.getByRole("textbox", { name: "Your email" }),
+      ).toBeVisible();
+      await scan(page, `seat alert popover (${scheme})`);
+      await page.keyboard.press("Escape");
       for (const tab of ["Instructors", "Grades", "About"]) {
         await page.getByRole("tab", { name: tab }).click();
         await scan(page, `course details: ${tab} (${scheme})`);

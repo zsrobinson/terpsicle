@@ -295,7 +295,11 @@ export function Ghost({
           </button>
         </PopoverTrigger>
       </WithTooltip>
-      <PopoverContent className="w-64 p-1" side="right">
+      <PopoverContent
+        className="w-64 p-1"
+        side="right"
+        aria-label={`Sections of ${parsed.courseCode} at these times`}
+      >
         <div className="px-2 pt-1 pb-1.5 text-[11px] text-muted">
           {entry.sameTimes
             ? "Same times · pick a section"

@@ -96,7 +96,12 @@ export function SeatBell({
           </button>
         </PopoverTrigger>
       </WithTooltip>
-      <PopoverContent className="w-72" side="bottom" align="end">
+      <PopoverContent
+        className="w-72"
+        side="bottom"
+        align="end"
+        aria-label={`Seat alert for ${label}`}
+      >
         <div className="font-medium text-[12.5px]">
           {full || alert.kind === "watching" ? (
             <>
