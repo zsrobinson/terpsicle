@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import { Search as SearchIcon, X } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -9,14 +8,17 @@ import {
   useState,
 } from "react";
 import { track } from "~/app/analytics";
-import { useFocusRequest } from "~/app/panel";
+import { TONE_TEXT } from "~/app/emphasis";
+import { EmptyState, ListRow, MetaSep, useFocusRequest } from "~/app/panel";
 import type { FitContext } from "~/core/fit";
 import type { Course } from "~/core/schema";
 import {
   isFiltering,
   NO_FILTERS,
+  resultFitWords,
+  resultSummary,
   type SearchFilters,
-  sectionSummary,
+  sectionCountWords,
 } from "~/core/search";
 import { openCourse } from "~/features/courses/actions";
 import { useActiveTerm, useCurrentPlan, useFitContext } from "~/state/hooks";
@@ -33,7 +35,7 @@ import { useCourseResults } from "./use-course-search";
 // calendar; clicking opens its details.
 
 /** Every result row has the same height, so the list can be windowed. */
-export const ROW_HEIGHT = 76;
+export const ROW_HEIGHT = 72;
 const OVERSCAN = 6;
 
 export function SearchPanel() {
@@ -95,7 +97,7 @@ export function SearchPanel() {
     <div className="flex min-h-0 flex-1 flex-col">
       {/* The box is the header here (as in the prototype); screen readers still get a title. */}
       <h2 className="sr-only">Search</h2>
-      <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-3 pt-3 pb-2.5">
+      <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-4 py-3">
         <div className="flex h-9 items-center gap-2 rounded-lg border border-hairline bg-raised px-2.5 focus-within:border-hairline-strong">
           <SearchIcon size={14} className="shrink-0 text-muted" aria-hidden />
           <input
@@ -118,7 +120,7 @@ export function SearchPanel() {
             onChange={(e) => setQuery(termId, e.target.value)}
             onKeyDown={onKeyDown}
             onBlur={() => useUi.getState().setHoverCourse(null)}
-            className="h-full min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint [&::-webkit-search-cancel-button]:hidden"
+            className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-faint [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
             <WithTooltip label="Clear the search">
@@ -159,24 +161,24 @@ export function SearchPanel() {
         />
       ) : (
         <>
-          {isFiltering(filters) ? (
-            <div className="flex shrink-0 items-center justify-between border-hairline border-b py-1 pr-2 pl-4 text-[11.5px] text-muted">
-              <span className="tnum">
-                {courses.length} {courses.length === 1 ? "course" : "courses"}{" "}
-                match
-              </span>
+          {/* Always there with results, so the list never jumps when a filter goes on. */}
+          <div className="flex h-7 shrink-0 items-center justify-between gap-2 border-hairline border-b px-4 text-muted text-xs">
+            <span className="tnum">
+              {courses.length} {courses.length === 1 ? "course" : "courses"}
+            </span>
+            {isFiltering(filters) ? (
               <WithTooltip label="Turn every filter off">
                 <button
                   type="button"
                   onClick={() => setFilters(termId, NO_FILTERS)}
-                  className="flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg"
+                  className="-mr-1.5 flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg"
                 >
                   <X size={11} aria-hidden="true" />
                   Clear filters
                 </button>
               </WithTooltip>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
           <ResultList
             courses={courses}
             active={active}
@@ -318,7 +320,6 @@ function ResultRow({
   onOpen: () => void;
   onHover: () => void;
 }) {
-  const summary = sectionSummary(course, fit);
   const genEds = [
     ...new Set(course.genEds.flatMap((g) => g.map((o) => o.code))),
   ];
@@ -330,7 +331,7 @@ function ResultRow({
   // sections on the calendar and "Open it to pick one" above them. A tooltip
   // here would cover those ghosts.
   return (
-    <div
+    <ListRow
       id={`search-result-${index}`}
       role="option"
       aria-selected={active}
@@ -341,70 +342,101 @@ function ResultRow({
         if (e.key === "Enter") onOpen();
       }}
       onPointerEnter={onHover}
-      className={cn(
-        "absolute inset-x-0 flex cursor-pointer flex-col justify-center border-hairline border-b px-4",
-        active ? "bg-hover" : "hover:bg-hover",
-      )}
+      state={active ? "previewed" : undefined}
+      className="absolute inset-x-0 cursor-pointer hover:bg-hover"
       style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
+      trail={
+        inPlan ? <span className="text-muted text-xs">In plan</span> : undefined
+      }
     >
-      <div className="flex items-center gap-2">
-        <span className="font-mono font-semibold text-[12.5px]">
-          {course.code}
-        </span>
-        <span className="tnum text-[11px] text-muted">{credits}</span>
+      <div className="flex items-baseline gap-2">
+        <span className="ident font-semibold text-base">{course.code}</span>
+        <span className="tnum text-muted text-sm">{credits}</span>
         {genEds.slice(0, 3).map((code) => (
           <span
             key={code}
-            className="rounded border border-hairline px-1 font-mono text-[10px] text-muted"
+            className="ident rounded border border-hairline px-1 text-2xs text-muted"
           >
             {code}
           </span>
         ))}
-        {inPlan ? (
-          <span className="ml-auto text-[11px] text-muted">In plan</span>
-        ) : null}
       </div>
-      <div className="mt-0.5 truncate text-[12.5px]">{course.title}</div>
-      <div className="tnum mt-0.5 truncate text-[11.5px] text-muted">
-        {summary.sections} section{summary.sections === 1 ? "" : "s"}
-        {summary.fit !== null && summary.sections > 0 ? (
-          <>
-            {" · "}
-            <span className={summary.fit > 0 ? "text-ok" : undefined}>
-              {summary.fit === 0 ? "none" : summary.fit} fit
-              {summary.fit === 1 ? "s" : ""} your plan
-            </span>
-          </>
-        ) : null}
-      </div>
-    </div>
+      <div className="mt-0.5 truncate text-base">{course.title}</div>
+      <ResultSummaryLine course={course} fit={fit} />
+    </ListRow>
   );
+}
+
+/**
+ * The third line, by section count (DESIGN §5): one section is the class,
+ * so say when it meets and whether it fits; more say how many fit.
+ */
+function ResultSummaryLine({
+  course,
+  fit,
+}: {
+  course: Course;
+  fit: FitContext | null;
+}) {
+  const summary = resultSummary(course, fit);
+  const line = "tnum mt-0.5 truncate text-muted text-sm";
+  switch (summary.kind) {
+    case "none":
+      return <div className={line}>No sections this term</div>;
+    case "some":
+      return (
+        <div className={line}>
+          {sectionCountWords(summary.sections, summary.fit)}
+        </div>
+      );
+    case "one": {
+      const words = summary.fit ? resultFitWords(summary.fit) : null;
+      return (
+        <div className={line}>
+          {summary.when}
+          {words && summary.fit ? (
+            <>
+              <MetaSep />
+              <span
+                className={
+                  summary.fit.kind === "fits" ? TONE_TEXT.ok : TONE_TEXT.warn
+                }
+              >
+                {words}
+              </span>
+            </>
+          ) : null}
+        </div>
+      );
+    }
+  }
 }
 
 const EXAMPLES = ["cmsc 351", "statistics", "writing"] as const;
 
 function SearchHints({ onPick }: { onPick: (query: string) => void }) {
   return (
-    <div className="px-4 py-4 text-[12.5px] text-muted">
-      <p>Search by course code, title or instructor.</p>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className="text-[11.5px] text-faint">Try</span>
-        {EXAMPLES.map((q) => (
-          <WithTooltip key={q} label={`Search for "${q}"`}>
-            <button
-              type="button"
-              onClick={() => onPick(q)}
-              className="rounded-md border border-hairline px-1.5 py-0.5 font-mono text-[11.5px] text-fg transition-colors hover:bg-hover"
-            >
-              {q}
-            </button>
-          </WithTooltip>
-        ))}
-      </div>
-      <p className="mt-3 text-[11.5px] text-faint">
-        Or pick a filter, like Gen-eds, to browse every course that matches.
-      </p>
-    </div>
+    <EmptyState
+      action={
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-faint text-xs">Try</span>
+          {EXAMPLES.map((q) => (
+            <WithTooltip key={q} label={`Search for "${q}"`}>
+              <button
+                type="button"
+                onClick={() => onPick(q)}
+                className="rounded-md border border-hairline px-1.5 py-0.5 text-fg text-sm transition-colors hover:bg-hover"
+              >
+                {q}
+              </button>
+            </WithTooltip>
+          ))}
+        </div>
+      }
+    >
+      Search by course code, title or instructor, or pick a filter to browse.
+      Hover a result to see its sections on the calendar.
+    </EmptyState>
   );
 }
 
@@ -456,7 +488,7 @@ function NoResults({
   const what = q ? `No courses match "${q}"` : "No courses match these filters";
   const only = on.length === 1 ? on[0] : undefined;
   return (
-    <div className="px-4 py-4 text-[12.5px]" role="status">
+    <div className="px-4 py-3 text-base" role="status">
       <p>
         {what}
         {q && only ? ` with ${FILTER_WORDS[only]} on.` : "."}
@@ -466,7 +498,7 @@ function NoResults({
           <button
             type="button"
             onClick={() => onClearFilter(without(filters, only))}
-            className="mt-1.5 text-[12.5px] text-muted underline underline-offset-2 hover:text-fg"
+            className="mt-1 text-muted text-sm underline underline-offset-2 hover:text-fg"
           >
             Turn it off
           </button>
@@ -476,13 +508,13 @@ function NoResults({
           <button
             type="button"
             onClick={() => onClearFilter(NO_FILTERS)}
-            className="mt-1.5 text-[12.5px] text-muted underline underline-offset-2 hover:text-fg"
+            className="mt-1 text-muted text-sm underline underline-offset-2 hover:text-fg"
           >
             Turn the filters off
           </button>
         </WithTooltip>
       ) : (
-        <p className="mt-1 text-muted">
+        <p className="mt-1 text-muted text-sm">
           {q
             ? "Check the spelling, or try the course code (like CMSC351) or an instructor's last name."
             : "Turn a filter off to see more."}

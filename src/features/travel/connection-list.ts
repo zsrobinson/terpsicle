@@ -5,6 +5,7 @@ import {
   type Day,
   type TravelSettings,
 } from "~/core/schema";
+import { PILL_MAX_GAP, shouldShowPill } from "~/core/travel/pill";
 
 // How the Travel tab lists connections (docs/UX-REVIEW.md §4.6): the same
 // walk on several days is one row ("Mon, Wed, Fri"), the ones that need a
@@ -80,20 +81,13 @@ export function groupConnections(
 
 /**
  * Breaks longer than this, with enough time, get no pill on the calendar
- * (docs/UX-REVIEW.md §4.3; the calendar's rule lives in core/travel's
- * `pill.ts`). The list keeps them, under their own heading, so every
- * connection is still somewhere.
+ * (docs/UX-REVIEW.md §4.3). The list keeps them, under their own heading,
+ * so every connection is still somewhere.
  */
-export const BACK_TO_BACK_MINUTES = 30;
+export const BACK_TO_BACK_MINUTES = PILL_MAX_GAP;
 
-/** A connection the calendar marks with a pill: a short break, or one that's tight or too short. */
-export function isBackToBack(c: Connection): boolean {
-  return (
-    c.gapMinutes <= BACK_TO_BACK_MINUTES ||
-    c.verdict === "tight" ||
-    c.verdict === "insufficient"
-  );
-}
+/** A connection the calendar marks with a pill: the calendar's own rule. */
+export const isBackToBack: (c: Connection) => boolean = shouldShowPill;
 
 const PACE_WORDS = {
   slower: "Slower pace",

@@ -42,9 +42,6 @@ import { type CalendarView, useCalendarModel } from "./use-calendar-model";
 
 const WEEKDAYS: readonly Day[] = ["M", "Tu", "W", "Th", "F"];
 
-/** Ghost labels shrink to the section code below this width (px). */
-const NARROW_GHOST = 76;
-
 export function Calendar() {
   const view = useCalendarModel();
   const { model, current } = view;
@@ -63,24 +60,24 @@ export function Calendar() {
       days={model.days}
       startMinute={model.startMinute}
       endMinute={model.endMinute}
-      top={
-        <>
-          {view.previewing ? (
-            <PreviewHint
-              label={view.previewing.label}
-              planName={current.plan.name}
-            />
-          ) : null}
-          {model.ghost && ghostColor ? (
-            <GhostHint
-              ghost={model.ghost}
-              interactive={view.ghostsFromOpenCourse}
-              readOnly={current.readOnly}
-              color={ghostColor}
-            />
-          ) : null}
-          <UntimedStrip sections={model.untimed} onOpen={openCourse} />
-        </>
+      top={<UntimedStrip sections={model.untimed} onOpen={openCourse} />}
+      // Hovering search results and previewing generated plans come and go
+      // with the pointer: their hints lay over the day names instead of
+      // pushing the grid down each time (UX-REVIEW §4.2).
+      overlay={
+        view.previewing ? (
+          <PreviewHint
+            label={view.previewing.label}
+            planName={current.plan.name}
+          />
+        ) : model.ghost && ghostColor ? (
+          <GhostHint
+            ghost={model.ghost}
+            interactive={view.ghostsFromOpenCourse}
+            readOnly={current.readOnly}
+            color={ghostColor}
+          />
+        ) : null
       }
     >
       {(layout) => (
@@ -240,7 +237,8 @@ function Grid({
 
   const n = model.columns.length;
   const colWidth = n > 0 ? width / n : 0;
-  // Phones fit fewer side-by-side ghosts than the model's desktop default.
+  // Narrow days (a phone, a wide sidebar on a small laptop) fit fewer
+  // side-by-side ghosts than the model's desktop default.
   const maxGhostLanes = ghostLanesFor(colWidth);
   const columns = useMemo(
     () =>
@@ -248,7 +246,7 @@ function Grid({
         ? model.columns
         : model.columns.map((column) => ({
             ...column,
-            ghosts: packGhosts(column.ghosts, maxGhostLanes),
+            ghosts: packGhosts(column.ghostItems, maxGhostLanes, column.own),
           })),
     [model.columns, maxGhostLanes],
   );
@@ -378,6 +376,7 @@ function Grid({
                 open={openCode === entry.courseCode}
                 onOpen={() => openCourse(entry.courseCode)}
                 style={style}
+                width={colWidth > 0 ? colWidth / entry.lanes - 4 : null}
               />
             );
           })}
@@ -386,7 +385,7 @@ function Grid({
               key={ghost.key}
               entry={ghost}
               height={layout.yOf(ghost.end) - layout.yOf(ghost.start)}
-              narrow={colWidth / ghost.lanes < NARROW_GHOST}
+              width={colWidth > 0 ? colWidth / ghost.lanes - 4 : null}
               readOnly={readOnly}
               seats={seats}
               style={laneStyle(ghost, layout.yOf)}
@@ -427,7 +426,7 @@ function Grid({
       {hint ? (
         <div
           role="tooltip"
-          className="pointer-events-none absolute z-40 rounded-md bg-fg px-2 py-1 text-bg text-xs"
+          className="pointer-events-none absolute z-40 rounded-md bg-fg px-2 py-1 text-bg text-sm"
           style={{ left: hint.x + 12, top: hint.y + 14 }}
         >
           Drag to block off time
