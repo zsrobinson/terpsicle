@@ -120,6 +120,7 @@ describe("generator I/O", () => {
           constraint: "earliest-start",
           label: "Allow classes before 10am",
           unlockCount: 38,
+          atLeast: false,
           patch: { mustHaves: { earliestStart: null } },
         },
       ],

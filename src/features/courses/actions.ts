@@ -1,4 +1,4 @@
-import { openTab } from "~/app/actions";
+import { openTab, startGenerate } from "~/app/actions";
 import { track } from "~/app/analytics";
 import type { CourseCode, Plan } from "~/core/schema";
 import { readActiveTermId } from "~/state/hooks";
@@ -72,7 +72,8 @@ export function chooseFirstVisitPath(path: "build" | "generate"): void {
     openTab("search", "click");
     useUi.getState().requestFocus("search");
   } else {
-    // Generate's own tab is where plans get generated (SPEC §3.9).
-    openTab("generate", "click");
+    // Generate's own tab is where plans get generated (SPEC §3.9), ready
+    // for the first course.
+    startGenerate();
   }
 }

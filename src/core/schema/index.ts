@@ -9,6 +9,7 @@ export * from "./local";
 export * from "./planetterp";
 export * from "./primitives";
 export * from "./problems";
+export * from "./settings";
 export * from "./share";
 export * from "./travel";
 export * from "./versions";

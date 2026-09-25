@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { aBlock } from "~/fixtures";
 import { TerpsicleDb } from "./db";
+import { EMPTY_DRAFT, useGenerateDrafts } from "./generate-drafts";
 import {
   diffById,
   hydrate,
@@ -172,6 +173,19 @@ describe("persistence", () => {
     ]);
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  it("remembers Generate's inputs per term", async () => {
+    const draft = {
+      items: [
+        { kind: "course" as const, courseCode: "CMSC351", required: true },
+      ],
+      mustHaves: { ...EMPTY_DRAFT.mustHaves, earliestStart: 600 },
+      rankBy: { preset: "later-starts" as const },
+    };
+    useGenerateDrafts.getState().setDraft(SPRING, draft);
+    await reload();
+    expect(useGenerateDrafts.getState().drafts).toEqual({ [SPRING]: draft });
   });
 
   it("remembers the innermost drill-in only", async () => {

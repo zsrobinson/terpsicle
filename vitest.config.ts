@@ -22,12 +22,14 @@ export default defineConfig({
       },
       {
         // Timing budgets (BUILD.md §5). Kept out of "core" so they never run
-        // under coverage instrumentation, which slows code several times over.
+        // under coverage instrumentation, which slows code several times over,
+        // and run after every other project so they get the CPU to themselves.
         extends: true,
         test: {
           name: "perf",
           environment: "node",
           include: ["src/**/*.perf.test.ts"],
+          sequence: { groupOrder: 1 },
         },
       },
       {

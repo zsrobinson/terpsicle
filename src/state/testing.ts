@@ -11,6 +11,7 @@ import {
 } from "~/fixtures";
 import { INITIAL_CATALOG_STATE, useCatalog } from "./catalog-store";
 import { createBucketDataSource, createDataReader } from "./data-source";
+import { useGenerateDrafts } from "./generate-drafts";
 import { INITIAL_SEAT_ALERTS_STATE, useSeatAlerts } from "./seat-alerts";
 import { useShare } from "./share-store";
 import { INITIAL_UI_STATE, useUi } from "./ui-store";
@@ -23,6 +24,7 @@ export function resetStores(): void {
   useCatalog.setState(INITIAL_CATALOG_STATE);
   useShare.setState({ shared: null });
   useSeatAlerts.setState(INITIAL_SEAT_ALERTS_STATE);
+  useGenerateDrafts.setState({ drafts: {} });
 }
 
 /**

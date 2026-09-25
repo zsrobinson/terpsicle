@@ -110,7 +110,16 @@ export function openPlan(termId: TermId, planId: LocalId): void {
 
 /** `+` → Generate plans…: generating makes new plans, so it has its own tab (SPEC §3.9). */
 export function openGenerate(): void {
+  startGenerate();
+}
+
+/**
+ * Every way into Generate (the tab's `+` entry, the first-visit guide's
+ * "Generate plans"): opens the tab with its course field focused.
+ */
+export function startGenerate(): void {
   openTab("generate", "click");
+  useUi.getState().requestFocus("generate");
 }
 
 export function openTab(tab: RailTab, via: "click" | "shortcut"): void {

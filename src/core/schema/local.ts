@@ -18,7 +18,6 @@ import {
   SectionKeySchema,
   TermIdSchema,
 } from "./primitives";
-import { TravelSettingsSchema } from "./travel";
 import { SchemaFamilySchema } from "./versions";
 
 // Everything the browser keeps in IndexedDB (Dexie). Tables and versions: docs/DATA.md §5.
@@ -173,12 +172,8 @@ export const DEFAULT_UI_PREFS: UiPrefs = {
   collapsedGroups: [],
 };
 
-/** Rows of the `settings` table, one per key. */
-export const SettingsRowSchema = z.discriminatedUnion("key", [
-  z.object({ key: z.literal("ui"), value: UiPrefsSchema }),
-  z.object({ key: z.literal("travel"), value: TravelSettingsSchema }),
-]);
-export type SettingsRow = z.infer<typeof SettingsRowSchema>;
+// The `settings` table's rows live in settings.ts: one of them (Generate's
+// drafts) needs generate.ts, which imports this file.
 
 // ---------- seat alerts (local mirror) ----------
 

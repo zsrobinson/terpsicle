@@ -5,9 +5,9 @@ import {
   LocalSeatAlertSchema,
   type Plan,
   PlanSchema,
-  SettingsRowSchema,
   UiPrefsSchema,
 } from "./local";
+import { SettingsRowSchema } from "./settings";
 import { type SharePayload, SharePayloadSchema } from "./share";
 import { DEFAULT_TRAVEL_SETTINGS, TravelSettingsSchema } from "./travel";
 
