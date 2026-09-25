@@ -1,13 +1,23 @@
 import { z } from "zod";
 import { TravelModeSchema } from "./geo";
-import { BuildingCodeSchema, type Day, DaySchema, MinutesSchema, SectionKeySchema } from "./primitives";
+import {
+  BuildingCodeSchema,
+  type Day,
+  DaySchema,
+  MinutesSchema,
+  SectionKeySchema,
+} from "./primitives";
 
 // Travel settings and connections (SPEC §3.7). The math is in docs/DATA.md §6.
 
 export const PaceSchema = z.enum(["slower", "typical", "faster"]);
 export type Pace = z.infer<typeof PaceSchema>;
 
-export const PACE_MPH = { slower: 2.5, typical: 3.0, faster: 3.5 } as const satisfies Record<Pace, number>;
+export const PACE_MPH = {
+  slower: 2.5,
+  typical: 3.0,
+  faster: 3.5,
+} as const satisfies Record<Pace, number>;
 
 /** 1 mph = 5280 ft / 60 min. */
 export const FEET_PER_MINUTE_PER_MPH = 88;
@@ -15,7 +25,11 @@ export const FEET_PER_MINUTE_PER_MPH = 88;
 /** A connection is "tight" when the walk needs at least this share of the gap. */
 export const TIGHT_SHARE = 0.75;
 
-export const ExtraMinutesSchema = z.union([z.literal(0), z.literal(2), z.literal(5)]);
+export const ExtraMinutesSchema = z.union([
+  z.literal(0),
+  z.literal(2),
+  z.literal(5),
+]);
 export type ExtraMinutes = z.infer<typeof ExtraMinutesSchema>;
 
 export const TravelSettingsSchema = z.object({
@@ -27,7 +41,11 @@ export const TravelSettingsSchema = z.object({
 });
 export type TravelSettings = z.infer<typeof TravelSettingsSchema>;
 
-export const DEFAULT_TRAVEL_SETTINGS: TravelSettings = { pace: "typical", accessible: false, extraMinutes: 0 };
+export const DEFAULT_TRAVEL_SETTINGS: TravelSettings = {
+  pace: "typical",
+  accessible: false,
+  extraMinutes: 0,
+};
 
 export const ConnectionVerdictSchema = z.enum([
   "ok",

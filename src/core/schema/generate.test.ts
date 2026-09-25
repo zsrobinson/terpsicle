@@ -19,8 +19,18 @@ describe("generator I/O", () => {
       termId: TERM,
       items: [
         { kind: "course", courseCode: "CMSC351", required: true },
-        { kind: "course", courseCode: "STAT400", required: false, sections: ["0101", "0301"] },
-        { kind: "pick", id: "g1", count: 1, courses: [{ courseCode: "MUSC130" }, { courseCode: "PHIL140" }] },
+        {
+          kind: "course",
+          courseCode: "STAT400",
+          required: false,
+          sections: ["0101", "0301"],
+        },
+        {
+          kind: "pick",
+          id: "g1",
+          count: 1,
+          courses: [{ courseCode: "MUSC130" }, { courseCode: "PHIL140" }],
+        },
       ],
       mustHaves: { ...DEFAULT_MUST_HAVES, earliestStart: 600, daysOff: ["F"] },
       rankBy: { preset: "fewer-days" },
@@ -32,7 +42,12 @@ describe("generator I/O", () => {
   });
 
   it("rejects a pick group asking for more courses than it lists", () => {
-    const item = { kind: "pick", id: "g1", count: 3, courses: [{ courseCode: "MUSC130" }, { courseCode: "PHIL140" }] };
+    const item = {
+      kind: "pick",
+      id: "g1",
+      count: 3,
+      courses: [{ courseCode: "MUSC130" }, { courseCode: "PHIL140" }],
+    };
     const req = {
       termId: TERM,
       items: [item],
@@ -54,9 +69,13 @@ describe("generator I/O", () => {
       "higher-gpa": 0.2,
       "safest-seats": 0.3,
     };
-    expect(RankBySchema.safeParse({ preset: "custom", weights }).success).toBe(true);
+    expect(RankBySchema.safeParse({ preset: "custom", weights }).success).toBe(
+      true,
+    );
     const { compact: _dropped, ...partial } = weights;
-    expect(RankBySchema.safeParse({ preset: "custom", weights: partial }).success).toBe(false);
+    expect(
+      RankBySchema.safeParse({ preset: "custom", weights: partial }).success,
+    ).toBe(false);
   });
 
   it("accepts a result with equivalents, relaxations and near-misses", () => {
@@ -85,7 +104,12 @@ describe("generator I/O", () => {
             avgGpa: 3.1,
             fewestOpenSeats: 0,
           },
-          equivalents: { count: 3, byCourse: [{ courseCode: "CMSC351", sectionCodes: ["0101", "0102", "0103"] }] },
+          equivalents: {
+            count: 3,
+            byCourse: [
+              { courseCode: "CMSC351", sectionCodes: ["0101", "0102", "0103"] },
+            ],
+          },
         },
       ],
       totalFound: 1,
@@ -133,25 +157,37 @@ describe("problems and fit labels", () => {
       { kind: "text", text: " is full" },
     ],
     detail: [{ kind: "text", text: "14 on the waitlist" }],
-    fix: { kind: "switch", sectionKey: "CMSC351-0201", label: "Switch to 0201" },
+    fix: {
+      kind: "switch",
+      sectionKey: "CMSC351-0201",
+      label: "Switch to 0201",
+    },
   };
 
   it("accepts a problem whose severity matches its kind", () => {
     expect(ProblemSchema.safeParse(problem).success).toBe(true);
-    expect(ProblemSchema.safeParse({ ...problem, severity: "error" }).success).toBe(false);
-    expect(ProblemSchema.safeParse({ ...problem, subjects: [] }).success).toBe(false);
+    expect(
+      ProblemSchema.safeParse({ ...problem, severity: "error" }).success,
+    ).toBe(false);
+    expect(ProblemSchema.safeParse({ ...problem, subjects: [] }).success).toBe(
+      false,
+    );
   });
 
   it("accepts every fit label", () => {
     const labels = [
       { kind: "fits" },
       { kind: "overlaps", with: { kind: "course", courseCode: "ENGL393" } },
-      { kind: "overlaps", with: { kind: "block", blockId: "blk_12345678", label: "Lunch" } },
+      {
+        kind: "overlaps",
+        with: { kind: "block", blockId: "blk_12345678", label: "Lunch" },
+      },
       { kind: "not-enough-time", direction: "after", courseCode: "CMSC330" },
       { kind: "in-plan" },
       { kind: "no-set-times" },
     ];
-    for (const label of labels) expect(FitLabelSchema.safeParse(label).success).toBe(true);
+    for (const label of labels)
+      expect(FitLabelSchema.safeParse(label).success).toBe(true);
     expect(FitLabelSchema.safeParse({ kind: "tight" }).success).toBe(false);
   });
 });

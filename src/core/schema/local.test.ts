@@ -54,32 +54,64 @@ describe("local state", () => {
   it("keeps sectionCode and snapshot consistent", () => {
     const [placed, saved] = plan.courses;
     if (!placed || !saved) throw new Error("fixture has two courses");
-    expect(PlanSchema.safeParse({ ...plan, courses: [{ ...placed, snapshot: null }] }).success).toBe(false);
-    expect(PlanSchema.safeParse({ ...plan, courses: [{ ...saved, snapshot: placed.snapshot }] }).success).toBe(false);
+    expect(
+      PlanSchema.safeParse({
+        ...plan,
+        courses: [{ ...placed, snapshot: null }],
+      }).success,
+    ).toBe(false);
+    expect(
+      PlanSchema.safeParse({
+        ...plan,
+        courses: [{ ...saved, snapshot: placed.snapshot }],
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects the same course twice", () => {
     const [placed] = plan.courses;
     if (!placed) throw new Error("fixture has a course");
-    expect(PlanSchema.safeParse({ ...plan, courses: [placed, { ...placed, sectionCode: "0201" }] }).success).toBe(
+    expect(
+      PlanSchema.safeParse({
+        ...plan,
+        courses: [placed, { ...placed, sectionCode: "0201" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts blocks and rejects empty or backwards ones", () => {
+    const block = {
+      id: "blk_12345678",
+      termId: TERM,
+      label: "Work",
+      days: ["F"],
+      start: 780,
+      end: 960,
+    };
+    expect(BlockSchema.safeParse(block).success).toBe(true);
+    expect(BlockSchema.safeParse({ ...block, days: [] }).success).toBe(false);
+    expect(BlockSchema.safeParse({ ...block, end: 700 }).success).toBe(false);
+    expect(BlockSchema.safeParse({ ...block, label: "  " }).success).toBe(
       false,
     );
   });
 
-  it("accepts blocks and rejects empty or backwards ones", () => {
-    const block = { id: "blk_12345678", termId: TERM, label: "Work", days: ["F"], start: 780, end: 960 };
-    expect(BlockSchema.safeParse(block).success).toBe(true);
-    expect(BlockSchema.safeParse({ ...block, days: [] }).success).toBe(false);
-    expect(BlockSchema.safeParse({ ...block, end: 700 }).success).toBe(false);
-    expect(BlockSchema.safeParse({ ...block, label: "  " }).success).toBe(false);
-  });
-
   it("parses default settings rows", () => {
     expect(UiPrefsSchema.parse(DEFAULT_UI_PREFS)).toEqual(DEFAULT_UI_PREFS);
-    expect(TravelSettingsSchema.parse(DEFAULT_TRAVEL_SETTINGS)).toEqual(DEFAULT_TRAVEL_SETTINGS);
-    expect(SettingsRowSchema.safeParse({ key: "travel", value: DEFAULT_TRAVEL_SETTINGS }).success).toBe(true);
+    expect(TravelSettingsSchema.parse(DEFAULT_TRAVEL_SETTINGS)).toEqual(
+      DEFAULT_TRAVEL_SETTINGS,
+    );
     expect(
-      SettingsRowSchema.safeParse({ key: "travel", value: { ...DEFAULT_TRAVEL_SETTINGS, extraMinutes: 3 } }).success,
+      SettingsRowSchema.safeParse({
+        key: "travel",
+        value: DEFAULT_TRAVEL_SETTINGS,
+      }).success,
+    ).toBe(true);
+    expect(
+      SettingsRowSchema.safeParse({
+        key: "travel",
+        value: { ...DEFAULT_TRAVEL_SETTINGS, extraMinutes: 3 },
+      }).success,
     ).toBe(false);
     const drilled = {
       ...DEFAULT_UI_PREFS,
@@ -101,7 +133,13 @@ describe("local state", () => {
       updatedAt: NOW,
     };
     expect(LocalSeatAlertSchema.safeParse(alert).success).toBe(true);
-    expect(LocalSeatAlertSchema.safeParse({ ...alert, subscriptionId: null, manageToken: null }).success).toBe(true);
+    expect(
+      LocalSeatAlertSchema.safeParse({
+        ...alert,
+        subscriptionId: null,
+        manageToken: null,
+      }).success,
+    ).toBe(true);
   });
 });
 
@@ -118,14 +156,24 @@ describe("share payload", () => {
 
   it("accepts a full payload and a minimal one", () => {
     expect(SharePayloadSchema.parse(payload)).toEqual(payload);
-    expect(SharePayloadSchema.safeParse({ v: 1, termId: TERM, sections: [] }).success).toBe(true);
+    expect(
+      SharePayloadSchema.safeParse({ v: 1, termId: TERM, sections: [] })
+        .success,
+    ).toBe(true);
   });
 
   it("rejects a course listed twice or an unknown version", () => {
-    expect(SharePayloadSchema.safeParse({ ...payload, sections: ["CMSC351-0101", "CMSC351-0201"] }).success).toBe(
+    expect(
+      SharePayloadSchema.safeParse({
+        ...payload,
+        sections: ["CMSC351-0101", "CMSC351-0201"],
+      }).success,
+    ).toBe(false);
+    expect(
+      SharePayloadSchema.safeParse({ ...payload, saved: ["CMSC351"] }).success,
+    ).toBe(false);
+    expect(SharePayloadSchema.safeParse({ ...payload, v: 2 }).success).toBe(
       false,
     );
-    expect(SharePayloadSchema.safeParse({ ...payload, saved: ["CMSC351"] }).success).toBe(false);
-    expect(SharePayloadSchema.safeParse({ ...payload, v: 2 }).success).toBe(false);
   });
 });

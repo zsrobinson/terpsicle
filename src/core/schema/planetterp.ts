@@ -133,7 +133,9 @@ export const PlanetTerpManifestSchema = z.object({
   /** Newest semester in PlanetTerp's grade data; null if none. */
   gradesThrough: TermIdSchema.nullable(),
   /** Sorted by code. */
-  departments: z.array(z.object({ code: DeptCodeSchema, hash: ContentHashSchema })),
+  departments: z.array(
+    z.object({ code: DeptCodeSchema, hash: ContentHashSchema }),
+  ),
 });
 export type PlanetTerpManifest = z.infer<typeof PlanetTerpManifestSchema>;
 

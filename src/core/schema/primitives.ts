@@ -7,7 +7,9 @@ import { z } from "zod";
  * (01 spring, 05 summer, 08 fall, 12 winter). Winter's id carries the previous
  * calendar year. Never write a real id in source; terms are data (SPEC §3.0).
  */
-export const TermIdSchema = z.string().regex(/^\d{4}(01|05|08|12)$/, "Expected a term id like YYYYMM");
+export const TermIdSchema = z
+  .string()
+  .regex(/^\d{4}(01|05|08|12)$/, "Expected a term id like YYYYMM");
 export type TermId = z.infer<typeof TermIdSchema>;
 
 export const SeasonSchema = z.enum(["spring", "summer", "fall", "winter"]);
@@ -37,7 +39,9 @@ function inWeekOrder(days: readonly Day[]): boolean {
 }
 
 /** A set of days: unique, in week order (so equal sets compare equal as arrays). */
-export const DaysSchema = z.array(DaySchema).refine(inWeekOrder, { message: "Days must be unique and in week order" });
+export const DaysSchema = z
+  .array(DaySchema)
+  .refine(inWeekOrder, { message: "Days must be unique and in week order" });
 
 /** Minutes since local (America/New_York) midnight. 9:30am = 570. */
 export const MinutesSchema = z
@@ -56,15 +60,21 @@ export const IsoDateSchema = z.iso.date();
 export type IsoDate = z.infer<typeof IsoDateSchema>;
 
 /** Department prefix: "CMSC". */
-export const DeptCodeSchema = z.string().regex(/^[A-Z]{4}$/, "Expected a department like CMSC");
+export const DeptCodeSchema = z
+  .string()
+  .regex(/^[A-Z]{4}$/, "Expected a department like CMSC");
 export type DeptCode = z.infer<typeof DeptCodeSchema>;
 
 /** Course code: dept + three digits + optional suffix letters: "CMSC351", "CMSC389N". */
-export const CourseCodeSchema = z.string().regex(/^[A-Z]{4}\d{3}[A-Z]{0,2}$/, "Expected a course code like CMSC351");
+export const CourseCodeSchema = z
+  .string()
+  .regex(/^[A-Z]{4}\d{3}[A-Z]{0,2}$/, "Expected a course code like CMSC351");
 export type CourseCode = z.infer<typeof CourseCodeSchema>;
 
 /** Section code within a course: usually four digits ("0101"), sometimes alphanumeric ("FC01"). */
-export const SectionCodeSchema = z.string().regex(/^[A-Z0-9]{3,6}$/, "Expected a section code like 0101");
+export const SectionCodeSchema = z
+  .string()
+  .regex(/^[A-Z0-9]{3,6}$/, "Expected a section code like 0101");
 export type SectionCode = z.infer<typeof SectionCodeSchema>;
 
 /**
@@ -73,29 +83,41 @@ export type SectionCode = z.infer<typeof SectionCodeSchema>;
  */
 export const SectionKeySchema = z
   .string()
-  .regex(/^[A-Z]{4}\d{3}[A-Z]{0,2}-[A-Z0-9]{3,6}$/, "Expected a section key like CMSC351-0101");
+  .regex(
+    /^[A-Z]{4}\d{3}[A-Z]{0,2}-[A-Z0-9]{3,6}$/,
+    "Expected a section key like CMSC351-0101",
+  );
 export type SectionKey = z.infer<typeof SectionKeySchema>;
 
-export function sectionKey(courseCode: CourseCode, sectionCode: SectionCode): SectionKey {
+export function sectionKey(
+  courseCode: CourseCode,
+  sectionCode: SectionCode,
+): SectionKey {
   return `${courseCode}-${sectionCode}`;
 }
 
 /** Splits a section key; null when it isn't one. */
-export function parseSectionKey(key: string): { courseCode: CourseCode; sectionCode: SectionCode } | null {
+export function parseSectionKey(
+  key: string,
+): { courseCode: CourseCode; sectionCode: SectionCode } | null {
   if (!SectionKeySchema.safeParse(key).success) return null;
   const dash = key.indexOf("-");
   return { courseCode: key.slice(0, dash), sectionCode: key.slice(dash + 1) };
 }
 
 /** Testudo building code: "IRB", "ESJ", "STAMP". */
-export const BuildingCodeSchema = z.string().regex(/^[A-Z0-9]{2,6}$/, "Expected a building code like IRB");
+export const BuildingCodeSchema = z
+  .string()
+  .regex(/^[A-Z0-9]{2,6}$/, "Expected a building code like IRB");
 export type BuildingCode = z.infer<typeof BuildingCodeSchema>;
 
 /**
  * A gen-ed code. Validated by shape rather than a closed list so a new UMD
  * category never breaks ingest; `GEN_ED_LABELS` names the ones we know.
  */
-export const GenEdCodeSchema = z.string().regex(/^[A-Z]{4}$/, "Expected a gen-ed code like DSHU");
+export const GenEdCodeSchema = z
+  .string()
+  .regex(/^[A-Z]{4}$/, "Expected a gen-ed code like DSHU");
 export type GenEdCode = z.infer<typeof GenEdCodeSchema>;
 
 export const GEN_ED_LABELS: Readonly<Record<string, string>> = {
@@ -115,11 +137,15 @@ export const GEN_ED_LABELS: Readonly<Record<string, string>> = {
 };
 
 /** First 16 hex chars of the SHA-256 of a file's exact bytes. */
-export const ContentHashSchema = z.string().regex(/^[0-9a-f]{16}$/, "Expected a 16-hex-char content hash");
+export const ContentHashSchema = z
+  .string()
+  .regex(/^[0-9a-f]{16}$/, "Expected a 16-hex-char content hash");
 export type ContentHash = z.infer<typeof ContentHashSchema>;
 
 /** PlanetTerp professor slug ("kruskal"); also safe inside R2 keys. */
-export const InstructorSlugSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/, "Expected a PlanetTerp slug");
+export const InstructorSlugSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/, "Expected a PlanetTerp slug");
 export type InstructorSlug = z.infer<typeof InstructorSlugSchema>;
 
 /** Display name exactly as Testudo prints it: "Clyde Kruskal". */
@@ -130,9 +156,15 @@ export const EmailSchema = z.email().max(254);
 export type Email = z.infer<typeof EmailSchema>;
 
 /** A local id we mint (plans, blocks): 8–64 URL-safe chars. */
-export const LocalIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/, "Expected a URL-safe id");
+export const LocalIdSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{8,64}$/, "Expected a URL-safe id");
 export type LocalId = z.infer<typeof LocalIdSchema>;
 
 /** Checks `end > start` on anything with a time range; attach with `.refine`. */
-export const endsAfterStart = (v: { start: number; end: number }): boolean => v.end > v.start;
-export const ENDS_AFTER_START = { message: "end must be after start", path: ["end"] };
+export const endsAfterStart = (v: { start: number; end: number }): boolean =>
+  v.end > v.start;
+export const ENDS_AFTER_START = {
+  message: "end must be after start",
+  path: ["end"],
+};

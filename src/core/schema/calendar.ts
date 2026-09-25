@@ -13,7 +13,10 @@ export const NoClassesSchema = z
     start: IsoDateSchema,
     end: IsoDateSchema,
   })
-  .refine((r) => r.end >= r.start, { message: "end before start", path: ["end"] });
+  .refine((r) => r.end >= r.start, {
+    message: "end before start",
+    path: ["end"],
+  });
 export type NoClasses = z.infer<typeof NoClassesSchema>;
 
 const calendarBase = {
@@ -45,4 +48,7 @@ export const AcademicCalendarSchema = z.discriminatedUnion("status", [
   }),
 ]);
 export type AcademicCalendar = z.infer<typeof AcademicCalendarSchema>;
-export type PublishedCalendar = Extract<AcademicCalendar, { status: "published" }>;
+export type PublishedCalendar = Extract<
+  AcademicCalendar,
+  { status: "published" }
+>;

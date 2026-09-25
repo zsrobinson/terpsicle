@@ -1,7 +1,13 @@
 import { z } from "zod";
 
 /** Families of published files; each has its own schema version. */
-export const SchemaFamilySchema = z.enum(["catalog", "planetterp", "geo", "calendar", "summaries"]);
+export const SchemaFamilySchema = z.enum([
+  "catalog",
+  "planetterp",
+  "geo",
+  "calendar",
+  "summaries",
+]);
 export type SchemaFamily = z.infer<typeof SchemaFamilySchema>;
 
 /**

@@ -28,11 +28,14 @@ const cmsc351: Course = {
   genEds: [],
   gradingMethods: ["Reg", "P-F", "Aud"],
   permission: null,
-  description: "A systematic study of the complexity of some elementary algorithms.",
+  description:
+    "A systematic study of the complexity of some elementary algorithms.",
   prerequisite: "Minimum grade of C- in CMSC250 and CMSC216.",
   corequisite: null,
   restriction: null,
-  otherNotes: [{ label: "Credit only granted for", text: "CMSC351 or CMSC651." }],
+  otherNotes: [
+    { label: "Credit only granted for", text: "CMSC351 or CMSC651." },
+  ],
   crossListings: [],
   sections: [
     {
@@ -79,7 +82,13 @@ const cmsc351: Course = {
           kind: "lecture",
           online: false,
         },
-        { timed: false, building: null, room: null, kind: "lecture", online: true },
+        {
+          timed: false,
+          building: null,
+          room: null,
+          kind: "lecture",
+          online: true,
+        },
       ],
       notes: "Restricted to CMSC majors. Blended learning section.",
       restriction: "Restricted to CMSC majors.",
@@ -105,7 +114,15 @@ const engl393: Course = {
       code: "0312",
       instructors: ["Jane Doe", "John Roe"],
       delivery: "online-async",
-      meetings: [{ timed: false, building: null, room: null, kind: "lecture", online: true }],
+      meetings: [
+        {
+          timed: false,
+          building: null,
+          room: null,
+          kind: "lecture",
+          online: true,
+        },
+      ],
       notes: "Class time/details on ELMS.",
       restriction: null,
     },
@@ -114,7 +131,16 @@ const engl393: Course = {
       instructors: ["Jane Doe"],
       delivery: "online-sync",
       meetings: [
-        { timed: true, days: ["Sa"], start: 600, end: 750, building: null, room: null, kind: "lecture", online: true },
+        {
+          timed: true,
+          days: ["Sa"],
+          start: 600,
+          end: 750,
+          building: null,
+          room: null,
+          kind: "lecture",
+          online: true,
+        },
       ],
       notes: null,
       restriction: null,
@@ -125,15 +151,26 @@ const engl393: Course = {
 
 describe("catalog wire schemas", () => {
   it("accepts a realistic department chunk", () => {
-    const chunk: DeptChunk = { schemaVersion: 1, termId: TERM, dept: "CMSC", courses: [cmsc351] };
+    const chunk: DeptChunk = {
+      schemaVersion: 1,
+      termId: TERM,
+      dept: "CMSC",
+      courses: [cmsc351],
+    };
     expect(DeptChunkSchema.parse(chunk)).toEqual(chunk);
     expect(CourseSchema.parse(engl393)).toEqual(engl393);
   });
 
   it("models gen-ed alternatives as groups", () => {
-    const course = { ...engl393, code: "PHIL140", genEds: [["DSHS", "DSSP"], ["DVUP"]] };
+    const course = {
+      ...engl393,
+      code: "PHIL140",
+      genEds: [["DSHS", "DSSP"], ["DVUP"]],
+    };
     expect(CourseSchema.safeParse(course).success).toBe(true);
-    expect(CourseSchema.safeParse({ ...course, genEds: [[]] }).success).toBe(false);
+    expect(CourseSchema.safeParse({ ...course, genEds: [[]] }).success).toBe(
+      false,
+    );
   });
 
   it("strips unknown keys so newer data doesn't break older clients", () => {
@@ -155,18 +192,30 @@ describe("catalog wire schemas", () => {
     expect(MeetingSchema.safeParse(timed).success).toBe(true);
     expect(MeetingSchema.safeParse({ ...timed, end: 600 }).success).toBe(false);
     expect(MeetingSchema.safeParse({ ...timed, days: [] }).success).toBe(false);
-    expect(MeetingSchema.safeParse({ ...timed, kind: "Lec" }).success).toBe(false);
+    expect(MeetingSchema.safeParse({ ...timed, kind: "Lec" }).success).toBe(
+      false,
+    );
   });
 
   it("requires sections unique and in section-number order", () => {
     const [a, b] = cmsc351.sections;
-    expect(CourseSchema.safeParse({ ...cmsc351, sections: [b, a] }).success).toBe(false);
-    expect(CourseSchema.safeParse({ ...cmsc351, sections: [a, a] }).success).toBe(false);
+    expect(
+      CourseSchema.safeParse({ ...cmsc351, sections: [b, a] }).success,
+    ).toBe(false);
+    expect(
+      CourseSchema.safeParse({ ...cmsc351, sections: [a, a] }).success,
+    ).toBe(false);
   });
 
   it("rejects credits with max below min", () => {
-    expect(CourseSchema.safeParse({ ...cmsc351, credits: { min: 3, max: 1 } }).success).toBe(false);
-    expect(CourseSchema.safeParse({ ...cmsc351, credits: { min: 1, max: 3 } }).success).toBe(true);
+    expect(
+      CourseSchema.safeParse({ ...cmsc351, credits: { min: 3, max: 1 } })
+        .success,
+    ).toBe(false);
+    expect(
+      CourseSchema.safeParse({ ...cmsc351, credits: { min: 1, max: 3 } })
+        .success,
+    ).toBe(true);
   });
 
   it("accepts terms, manifest, seats and changes files", () => {
@@ -201,13 +250,26 @@ describe("catalog wire schemas", () => {
       termId: TERM,
       generatedAt: NOW,
       catalogCrawledAt: NOW,
-      departments: [{ code: "CMSC", name: "Computer Science", hash: HASH, courseCount: 95, sectionCount: 410 }],
+      departments: [
+        {
+          code: "CMSC",
+          name: "Computer Science",
+          hash: HASH,
+          courseCount: 95,
+          sectionCount: 410,
+        },
+      ],
       seats: { hash: HASH, asOf: "2026-09-25T02:30:00.000Z", fetchedAt: NOW },
       changes: { hash: HASH, count: 1, latestAt: NOW },
     };
     expect(ManifestSchema.parse(manifest)).toEqual(manifest);
-    expect(ManifestSchema.safeParse({ ...manifest, seats: null, changes: null }).success).toBe(true);
-    expect(ManifestSchema.safeParse({ ...manifest, schemaVersion: 2 }).success).toBe(false);
+    expect(
+      ManifestSchema.safeParse({ ...manifest, seats: null, changes: null })
+        .success,
+    ).toBe(true);
+    expect(
+      ManifestSchema.safeParse({ ...manifest, schemaVersion: 2 }).success,
+    ).toBe(false);
 
     const seats: SeatsFile = {
       schemaVersion: 1,
@@ -216,12 +278,24 @@ describe("catalog wire schemas", () => {
       seats: { "CMSC351-0101": [0, 120, 14, 0], "ENGL393-FC01": [7, 19, 0, 2] },
     };
     expect(SeatsFileSchema.parse(seats)).toEqual(seats);
-    expect(SeatsFileSchema.safeParse({ ...seats, seats: { "CMSC351-0101": [1, 2, 3] } }).success).toBe(false);
-    expect(SeatsFileSchema.safeParse({ ...seats, seats: { CMSC351: [1, 2, 3, 0] } }).success).toBe(false);
+    expect(
+      SeatsFileSchema.safeParse({
+        ...seats,
+        seats: { "CMSC351-0101": [1, 2, 3] },
+      }).success,
+    ).toBe(false);
+    expect(
+      SeatsFileSchema.safeParse({ ...seats, seats: { CMSC351: [1, 2, 3, 0] } })
+        .success,
+    ).toBe(false);
 
     const [before] = cmsc351.sections;
     if (!before) throw new Error("fixture has sections");
-    const snapshot = { instructors: before.instructors, delivery: before.delivery, meetings: before.meetings };
+    const snapshot = {
+      instructors: before.instructors,
+      delivery: before.delivery,
+      meetings: before.meetings,
+    };
     const changes: ChangesFile = {
       schemaVersion: 1,
       termId: TERM,
@@ -234,7 +308,12 @@ describe("catalog wire schemas", () => {
           before: snapshot,
           after: { ...snapshot, instructors: [] },
         },
-        { kind: "cancelled", sectionKey: "CMSC351-0201", at: NOW, before: snapshot },
+        {
+          kind: "cancelled",
+          sectionKey: "CMSC351-0201",
+          at: NOW,
+          before: snapshot,
+        },
         { kind: "added", sectionKey: "CMSC351-0301", at: NOW, after: snapshot },
       ],
     };
@@ -242,7 +321,14 @@ describe("catalog wire schemas", () => {
     expect(
       ChangesFileSchema.safeParse({
         ...changes,
-        changes: [{ kind: "changed", sectionKey: "CMSC351-0101", at: NOW, after: snapshot }],
+        changes: [
+          {
+            kind: "changed",
+            sectionKey: "CMSC351-0101",
+            at: NOW,
+            after: snapshot,
+          },
+        ],
       }).success,
     ).toBe(false);
   });

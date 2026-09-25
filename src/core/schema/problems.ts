@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { CourseCodeSchema, DaySchema, LocalIdSchema, MinutesSchema, SectionKeySchema } from "./primitives";
+import {
+  CourseCodeSchema,
+  DaySchema,
+  LocalIdSchema,
+  MinutesSchema,
+  SectionKeySchema,
+} from "./primitives";
 
 // Problems (SPEC §3.6) and fit labels (SPEC §3.4), as core computes them for the UI.
 
@@ -34,7 +40,11 @@ export const PROBLEM_SEVERITY = {
   "instructor-tba": "info",
 } as const satisfies Record<ProblemKind, Severity>;
 
-export const SEVERITY_ORDER = ["error", "warning", "info"] as const satisfies readonly Severity[];
+export const SEVERITY_ORDER = [
+  "error",
+  "warning",
+  "info",
+] as const satisfies readonly Severity[];
 
 /** What a problem is about. The first subject is what clicking the problem opens. */
 export const SubjectSchema = z.discriminatedUnion("kind", [
@@ -53,7 +63,11 @@ export const MessagePartSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), text: z.string() }),
   z.object({ kind: z.literal("course"), courseCode: CourseCodeSchema }),
   z.object({ kind: z.literal("section"), sectionKey: SectionKeySchema }),
-  z.object({ kind: z.literal("block"), blockId: LocalIdSchema, label: z.string() }),
+  z.object({
+    kind: z.literal("block"),
+    blockId: LocalIdSchema,
+    label: z.string(),
+  }),
   z.object({ kind: z.literal("day"), day: DaySchema }),
   /** A clock time. */
   z.object({ kind: z.literal("time"), minutes: MinutesSchema }),
@@ -66,9 +80,17 @@ export type Message = z.infer<typeof MessageSchema>;
 
 export const ProblemFixSchema = z.discriminatedUnion("kind", [
   /** Offered only when switching creates no new problem ("Switch to 0205"). */
-  z.object({ kind: z.literal("switch"), sectionKey: SectionKeySchema, label: z.string().min(1) }),
+  z.object({
+    kind: z.literal("switch"),
+    sectionKey: SectionKeySchema,
+    label: z.string().min(1),
+  }),
   /** For "changed": take the new meeting times into the plan's snapshot ("Keep new times"). */
-  z.object({ kind: z.literal("accept-change"), sectionKey: SectionKeySchema, label: z.string().min(1) }),
+  z.object({
+    kind: z.literal("accept-change"),
+    sectionKey: SectionKeySchema,
+    label: z.string().min(1),
+  }),
 ]);
 export type ProblemFix = z.infer<typeof ProblemFixSchema>;
 
@@ -93,7 +115,11 @@ export type Problem = z.infer<typeof ProblemSchema>;
 
 export const OverlapTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("course"), courseCode: CourseCodeSchema }),
-  z.object({ kind: z.literal("block"), blockId: LocalIdSchema, label: z.string() }),
+  z.object({
+    kind: z.literal("block"),
+    blockId: LocalIdSchema,
+    label: z.string(),
+  }),
 ]);
 export type OverlapTarget = z.infer<typeof OverlapTargetSchema>;
 

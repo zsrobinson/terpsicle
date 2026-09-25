@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { SubscriptionIdSchema, SubscriptionStatusSchema, TokenSchema } from "./api";
+import {
+  SubscriptionIdSchema,
+  SubscriptionStatusSchema,
+  TokenSchema,
+} from "./api";
 import { SectionSnapshotSchema } from "./catalog";
 import {
   CourseCodeSchema,
@@ -33,7 +37,8 @@ export const PlanCourseSchema = z
     snapshot: SectionSnapshotSchema.nullable(),
   })
   .refine((c) => (c.sectionCode === null) === (c.snapshot === null), {
-    message: "A placed course needs a snapshot and a saved one must not have one",
+    message:
+      "A placed course needs a snapshot and a saved one must not have one",
     path: ["snapshot"],
   });
 export type PlanCourse = z.infer<typeof PlanCourseSchema>;
@@ -53,7 +58,9 @@ export const PlanSchema = z.object({
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,
   /** Display order in the Courses tab. At most one entry per course. */
-  courses: z.array(PlanCourseSchema).refine(uniqueCourses, { message: "A course appears twice in the plan" }),
+  courses: z
+    .array(PlanCourseSchema)
+    .refine(uniqueCourses, { message: "A course appears twice in the plan" }),
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
@@ -105,15 +112,31 @@ export type CourseColorPref = z.infer<typeof CourseColorPrefSchema>;
 
 // ---------- UI prefs and settings ----------
 
-export const RailTabSchema = z.enum(["courses", "search", "problems", "travel", "blocks", "generate", "export"]);
+export const RailTabSchema = z.enum([
+  "courses",
+  "search",
+  "problems",
+  "travel",
+  "blocks",
+  "generate",
+  "export",
+]);
 export type RailTab = z.infer<typeof RailTabSchema>;
 
-export const CourseDetailsTabSchema = z.enum(["instructors", "grades", "about"]);
+export const CourseDetailsTabSchema = z.enum([
+  "instructors",
+  "grades",
+  "about",
+]);
 export type CourseDetailsTab = z.infer<typeof CourseDetailsTabSchema>;
 
 /** What the sidebar is drilled into. Generated results aren't persisted, so they aren't restorable. */
 export const DrillTargetSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("course"), courseCode: CourseCodeSchema, tab: CourseDetailsTabSchema.optional() }),
+  z.object({
+    kind: z.literal("course"),
+    courseCode: CourseCodeSchema,
+    tab: CourseDetailsTabSchema.optional(),
+  }),
   z.object({ kind: z.literal("connection"), connectionId: z.string().min(1) }),
 ]);
 export type DrillTarget = z.infer<typeof DrillTargetSchema>;
@@ -122,7 +145,9 @@ export const ThemeSchema = z.enum(["system", "light", "dark"]);
 export type Theme = z.infer<typeof ThemeSchema>;
 
 /** Collapsed instructor group in course details: `${courseCode}|${instructorName}` ("" name = TBA). */
-export const CollapsedGroupKeySchema = z.string().regex(/^[A-Z]{4}\d{3}[A-Z]{0,2}\|/);
+export const CollapsedGroupKeySchema = z
+  .string()
+  .regex(/^[A-Z]{4}\d{3}[A-Z]{0,2}\|/);
 
 export const UiPrefsSchema = z.object({
   tab: RailTabSchema,

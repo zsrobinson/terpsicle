@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { BuildingCodeSchema, ContentHashSchema, IsoDateTimeSchema } from "./primitives";
+import {
+  BuildingCodeSchema,
+  ContentHashSchema,
+  IsoDateTimeSchema,
+} from "./primitives";
 import { SCHEMA_VERSIONS } from "./versions";
 
 // Buildings, walking distances and route geometry (docs/DATA.md §4.2–4.4).
@@ -10,7 +14,10 @@ export const TravelModeSchema = z.enum(["standard", "accessible"]);
 export type TravelMode = z.infer<typeof TravelModeSchema>;
 
 /** Matrix order inside the routes binary. */
-export const TRAVEL_MODES = ["standard", "accessible"] as const satisfies readonly TravelMode[];
+export const TRAVEL_MODES = [
+  "standard",
+  "accessible",
+] as const satisfies readonly TravelMode[];
 
 const latitude = z.number().min(-90).max(90);
 const longitude = z.number().min(-180).max(180);
@@ -85,14 +92,20 @@ export type RouteGeometry = z.infer<typeof RouteGeometrySchema>;
 export const GeoManifestSchema = z.object({
   schemaVersion: geoVersion,
   generatedAt: IsoDateTimeSchema,
-  buildings: z.object({ hash: ContentHashSchema, count: z.number().int().min(0) }),
+  buildings: z.object({
+    hash: ContentHashSchema,
+    count: z.number().int().min(0),
+  }),
   /** null until the first routes run completes a file. */
   routes: z
     .object({
       hash: ContentHashSchema,
       buildingCount: z.number().int().min(0),
       /** Directed pairs with a known distance, per mode. */
-      knownPairs: z.object({ standard: z.number().int().min(0), accessible: z.number().int().min(0) }),
+      knownPairs: z.object({
+        standard: z.number().int().min(0),
+        accessible: z.number().int().min(0),
+      }),
       builtAt: IsoDateTimeSchema,
     })
     .nullable(),

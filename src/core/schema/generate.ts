@@ -27,7 +27,11 @@ export type GenCourse = z.infer<typeof GenCourseSchema>;
 
 /** A requested course, or a "pick N of these" group. */
 export const GenItemSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("course"), required: z.boolean(), ...GenCourseFields }),
+  z.object({
+    kind: z.literal("course"),
+    required: z.boolean(),
+    ...GenCourseFields,
+  }),
   z
     .object({
       kind: z.literal("pick"),
@@ -37,7 +41,10 @@ export const GenItemSchema = z.discriminatedUnion("kind", [
       count: z.number().int().min(1),
       courses: z.array(GenCourseSchema).min(2),
     })
-    .refine((g) => g.count <= g.courses.length, { message: "count exceeds the courses listed", path: ["count"] }),
+    .refine((g) => g.count <= g.courses.length, {
+      message: "count exceeds the courses listed",
+      path: ["count"],
+    }),
 ]);
 export type GenItem = z.infer<typeof GenItemSchema>;
 
@@ -81,7 +88,10 @@ export const RankFactorSchema = z.enum([
 export type RankFactor = z.infer<typeof RankFactorSchema>;
 
 /** Every factor, 0–1. */
-export const RankWeightsSchema = z.record(RankFactorSchema, z.number().min(0).max(1));
+export const RankWeightsSchema = z.record(
+  RankFactorSchema,
+  z.number().min(0).max(1),
+);
 export type RankWeights = z.infer<typeof RankWeightsSchema>;
 
 export const RankBySchema = z.discriminatedUnion("preset", [
@@ -98,7 +108,10 @@ export const GenerateLimitsSchema = z.object({
 });
 export type GenerateLimits = z.infer<typeof GenerateLimitsSchema>;
 
-export const DEFAULT_GENERATE_LIMITS: GenerateLimits = { maxResults: 200, maxSteps: 500_000 };
+export const DEFAULT_GENERATE_LIMITS: GenerateLimits = {
+  maxResults: 200,
+  maxSteps: 500_000,
+};
 
 /** The worker already holds the catalog and seats; this is only what the person chose. */
 export const GenerateRequestSchema = z.object({
@@ -116,7 +129,10 @@ export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
 // ---------- result ----------
 
 /** Per factor, normalized 0–1 (higher is better); `score` is their weighted sum. */
-export const ScoreBreakdownSchema = z.record(RankFactorSchema, z.number().min(0).max(1));
+export const ScoreBreakdownSchema = z.record(
+  RankFactorSchema,
+  z.number().min(0).max(1),
+);
 export type ScoreBreakdown = z.infer<typeof ScoreBreakdownSchema>;
 
 export const PlanStatsSchema = z.object({
@@ -138,7 +154,12 @@ export const EquivalentsSchema = z.object({
   /** Product of alternatives across courses; 1 when nothing merged. */
   count: z.number().int().min(1),
   /** Only courses with more than one interchangeable section, section-number order. */
-  byCourse: z.array(z.object({ courseCode: CourseCodeSchema, sectionCodes: z.array(SectionCodeSchema).min(2) })),
+  byCourse: z.array(
+    z.object({
+      courseCode: CourseCodeSchema,
+      sectionCodes: z.array(SectionCodeSchema).min(2),
+    }),
+  ),
 });
 export type Equivalents = z.infer<typeof EquivalentsSchema>;
 

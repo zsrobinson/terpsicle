@@ -52,10 +52,20 @@ export type TermsFile = z.infer<typeof TermsFileSchema>;
 
 // ---------- meetings, sections, courses ----------
 
-export const MeetingKindSchema = z.enum(["lecture", "discussion", "lab", "other"]);
+export const MeetingKindSchema = z.enum([
+  "lecture",
+  "discussion",
+  "lab",
+  "other",
+]);
 export type MeetingKind = z.infer<typeof MeetingKindSchema>;
 
-export const DeliverySchema = z.enum(["f2f", "blended", "online-sync", "online-async"]);
+export const DeliverySchema = z.enum([
+  "f2f",
+  "blended",
+  "online-sync",
+  "online-async",
+]);
 export type Delivery = z.infer<typeof DeliverySchema>;
 
 const meetingPlace = {
@@ -86,7 +96,10 @@ export const UntimedMeetingSchema = z.object({
 });
 export type UntimedMeeting = z.infer<typeof UntimedMeetingSchema>;
 
-export const MeetingSchema = z.discriminatedUnion("timed", [TimedMeetingSchema, UntimedMeetingSchema]);
+export const MeetingSchema = z.discriminatedUnion("timed", [
+  TimedMeetingSchema,
+  UntimedMeetingSchema,
+]);
 export type Meeting = z.infer<typeof MeetingSchema>;
 
 export const SectionSchema = z.object({
@@ -110,7 +123,10 @@ export const CreditsSchema = z
     min: z.number().min(0).max(30),
     max: z.number().min(0).max(30),
   })
-  .refine((c) => c.max >= c.min, { message: "max credits below min", path: ["max"] });
+  .refine((c) => c.max >= c.min, {
+    message: "max credits below min",
+    path: ["max"],
+  });
 export type Credits = z.infer<typeof CreditsSchema>;
 
 /**
@@ -134,7 +150,8 @@ function uniqueSortedCodes(sections: readonly { code: string }[]): boolean {
   for (let i = 1; i < sections.length; i++) {
     const prev = sections[i - 1];
     const cur = sections[i];
-    if (prev === undefined || cur === undefined || prev.code >= cur.code) return false;
+    if (prev === undefined || cur === undefined || prev.code >= cur.code)
+      return false;
   }
   return true;
 }
@@ -157,7 +174,9 @@ export const CourseSchema = z.object({
   /** Other codes for the same course ("Cross-listed with", "Also offered as"). */
   crossListings: z.array(CourseCodeSchema),
   /** Section-number order (ascending `code`), unique. */
-  sections: z.array(SectionSchema).refine(uniqueSortedCodes, { message: "Sections must be unique and sorted by code" }),
+  sections: z.array(SectionSchema).refine(uniqueSortedCodes, {
+    message: "Sections must be unique and sorted by code",
+  }),
 });
 export type Course = z.infer<typeof CourseSchema>;
 
@@ -190,7 +209,12 @@ export const SeatCountsSchema = z.object({
 });
 export type SeatCounts = z.infer<typeof SeatCountsSchema>;
 
-export function seatCountsFromTuple([open, total, waitlist, holdfile]: SeatTuple): SeatCounts {
+export function seatCountsFromTuple([
+  open,
+  total,
+  waitlist,
+  holdfile,
+]: SeatTuple): SeatCounts {
   return { open, total, waitlist, holdfile };
 }
 
@@ -225,12 +249,29 @@ export type SectionSnapshot = z.infer<typeof SectionSnapshotSchema>;
 const changeBase = { sectionKey: SectionKeySchema, at: IsoDateTimeSchema };
 
 export const CatalogChangeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("added"), ...changeBase, after: SectionSnapshotSchema }),
-  z.object({ kind: z.literal("changed"), ...changeBase, before: SectionSnapshotSchema, after: SectionSnapshotSchema }),
+  z.object({
+    kind: z.literal("added"),
+    ...changeBase,
+    after: SectionSnapshotSchema,
+  }),
+  z.object({
+    kind: z.literal("changed"),
+    ...changeBase,
+    before: SectionSnapshotSchema,
+    after: SectionSnapshotSchema,
+  }),
   /** Testudo marks it cancelled (it may still be listed). */
-  z.object({ kind: z.literal("cancelled"), ...changeBase, before: SectionSnapshotSchema }),
+  z.object({
+    kind: z.literal("cancelled"),
+    ...changeBase,
+    before: SectionSnapshotSchema,
+  }),
   /** It vanished from Testudo without a cancelled marker. Treated as cancelled in Problems. */
-  z.object({ kind: z.literal("removed"), ...changeBase, before: SectionSnapshotSchema }),
+  z.object({
+    kind: z.literal("removed"),
+    ...changeBase,
+    before: SectionSnapshotSchema,
+  }),
 ]);
 export type CatalogChange = z.infer<typeof CatalogChangeSchema>;
 export type CatalogChangeKind = CatalogChange["kind"];

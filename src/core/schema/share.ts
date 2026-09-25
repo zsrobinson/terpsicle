@@ -24,7 +24,10 @@ export const SharedBlockSchema = z
   .refine(endsAfterStart, ENDS_AFTER_START);
 export type SharedBlock = z.infer<typeof SharedBlockSchema>;
 
-function oneSectionPerCourse(p: { sections: readonly string[]; saved?: readonly string[] | undefined }): boolean {
+function oneSectionPerCourse(p: {
+  sections: readonly string[];
+  saved?: readonly string[] | undefined;
+}): boolean {
   const courses = p.sections.map((k) => parseSectionKey(k)?.courseCode ?? k);
   const all = [...courses, ...(p.saved ?? [])];
   return new Set(all).size === all.length;
@@ -49,5 +52,8 @@ export const SharePayloadSchema = z
     /** The sharer's colors for these courses, used in the shared view only (colors are the viewer's own prefs). */
     colors: z.record(CourseCodeSchema, CourseColorSchema).optional(),
   })
-  .refine(oneSectionPerCourse, { message: "A course appears twice", path: ["sections"] });
+  .refine(oneSectionPerCourse, {
+    message: "A course appears twice",
+    path: ["sections"],
+  });
 export type SharePayload = z.infer<typeof SharePayloadSchema>;

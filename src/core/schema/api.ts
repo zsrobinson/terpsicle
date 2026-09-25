@@ -1,19 +1,33 @@
 import { z } from "zod";
 import { ReviewSummarySchema } from "./planetterp";
-import { EmailSchema, InstructorSlugSchema, IsoDateTimeSchema, SectionKeySchema, TermIdSchema } from "./primitives";
+import {
+  EmailSchema,
+  InstructorSlugSchema,
+  IsoDateTimeSchema,
+  SectionKeySchema,
+  TermIdSchema,
+} from "./primitives";
 
 // Server function inputs and outputs, and D1 rows. Inputs are strict: they come
 // from the network. Flow and SQL: docs/DATA.md §7.
 
 /** 32 random bytes, base64url without padding. Only its SHA-256 is stored. */
-export const TokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/, "Expected a 43-char token");
+export const TokenSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{43}$/, "Expected a 43-char token");
 export type Token = z.infer<typeof TokenSchema>;
 
 /** 16 random bytes, base64url without padding. */
-export const SubscriptionIdSchema = z.string().regex(/^[A-Za-z0-9_-]{22}$/, "Expected a 22-char id");
+export const SubscriptionIdSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{22}$/, "Expected a 22-char id");
 export type SubscriptionId = z.infer<typeof SubscriptionIdSchema>;
 
-export const SubscriptionStatusSchema = z.enum(["pending", "active", "unsubscribed"]);
+export const SubscriptionStatusSchema = z.enum([
+  "pending",
+  "active",
+  "unsubscribed",
+]);
 export type SubscriptionStatus = z.infer<typeof SubscriptionStatusSchema>;
 
 // ---------- alerts.subscribe ----------
@@ -27,12 +41,19 @@ export type SubscribeInput = z.infer<typeof SubscribeInputSchema>;
 
 export const SubscribeResultSchema = z.discriminatedUnion("status", [
   /** New (or previously unsubscribed) watch; confirmation email sent. Only this reveals the manage token. */
-  z.object({ status: z.literal("confirmation-sent"), subscriptionId: SubscriptionIdSchema, manageToken: TokenSchema }),
+  z.object({
+    status: z.literal("confirmation-sent"),
+    subscriptionId: SubscriptionIdSchema,
+    manageToken: TokenSchema,
+  }),
   /** A pending watch already existed; the confirmation email was sent again. */
   z.object({ status: z.literal("confirmation-resent") }),
   /** "You're already watching this". */
   z.object({ status: z.literal("already-watching") }),
-  z.object({ status: z.literal("rate-limited"), retryAfterSeconds: z.number().int().min(1) }),
+  z.object({
+    status: z.literal("rate-limited"),
+    retryAfterSeconds: z.number().int().min(1),
+  }),
   /** Not a section in that term, or the term is archived. */
   z.object({ status: z.literal("unknown-section") }),
   /** Feature flag off or email not configured. */
@@ -46,8 +67,16 @@ export const ConfirmInputSchema = z.strictObject({ token: TokenSchema });
 export type ConfirmInput = z.infer<typeof ConfirmInputSchema>;
 
 export const ConfirmResultSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("confirmed"), termId: TermIdSchema, sectionKey: SectionKeySchema }),
-  z.object({ status: z.literal("already-confirmed"), termId: TermIdSchema, sectionKey: SectionKeySchema }),
+  z.object({
+    status: z.literal("confirmed"),
+    termId: TermIdSchema,
+    sectionKey: SectionKeySchema,
+  }),
+  z.object({
+    status: z.literal("already-confirmed"),
+    termId: TermIdSchema,
+    sectionKey: SectionKeySchema,
+  }),
   /** Unknown, used up, or expired. */
   z.object({ status: z.literal("invalid-token") }),
 ]);
@@ -72,7 +101,11 @@ export type LookupResult = z.infer<typeof LookupResultSchema>;
 
 /** Step 2, after the person confirms. Idempotent. */
 export const UnsubscribeResultSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("unsubscribed"), termId: TermIdSchema, sectionKey: SectionKeySchema }),
+  z.object({
+    status: z.literal("unsubscribed"),
+    termId: TermIdSchema,
+    sectionKey: SectionKeySchema,
+  }),
   z.object({ status: z.literal("invalid-token") }),
 ]);
 export type UnsubscribeResult = z.infer<typeof UnsubscribeResultSchema>;
@@ -80,7 +113,14 @@ export type UnsubscribeResult = z.infer<typeof UnsubscribeResultSchema>;
 // ---------- alerts.status (refresh this browser's list) ----------
 
 export const StatusInputSchema = z.strictObject({
-  items: z.array(z.strictObject({ subscriptionId: SubscriptionIdSchema, manageToken: TokenSchema })).max(50),
+  items: z
+    .array(
+      z.strictObject({
+        subscriptionId: SubscriptionIdSchema,
+        manageToken: TokenSchema,
+      }),
+    )
+    .max(50),
 });
 export type StatusInput = z.infer<typeof StatusInputSchema>;
 
@@ -97,7 +137,9 @@ export type StatusResult = z.infer<typeof StatusResultSchema>;
 
 // ---------- reviewSummary ----------
 
-export const ReviewSummaryInputSchema = z.strictObject({ slug: InstructorSlugSchema });
+export const ReviewSummaryInputSchema = z.strictObject({
+  slug: InstructorSlugSchema,
+});
 export type ReviewSummaryInput = z.infer<typeof ReviewSummaryInputSchema>;
 
 /** On "unavailable" the UI hides the summary entirely (SPEC §4). */
@@ -105,7 +147,12 @@ export const ReviewSummaryResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("ok"), summary: ReviewSummarySchema }),
   z.object({
     status: z.literal("unavailable"),
-    reason: z.enum(["no-reviews", "unknown-instructor", "daily-limit", "failed"]),
+    reason: z.enum([
+      "no-reviews",
+      "unknown-instructor",
+      "daily-limit",
+      "failed",
+    ]),
   }),
 ]);
 export type ReviewSummaryResult = z.infer<typeof ReviewSummaryResultSchema>;
