@@ -8,6 +8,25 @@ const DISTINCT_ID = "terpsicle-worker";
 export interface ServerEvents {
   cron_job_finished: { job: string; durationMs: number };
   cron_job_failed: { job: string; durationMs: number; error: string };
+  // Review summaries. Never the review text or anything about the requester.
+  summary_generated: {
+    model: string;
+    durationMs: number;
+    reviews: number;
+    attempts: number;
+  };
+  summary_cached: { ageDays: number };
+  summary_failed: {
+    reason: "model-output" | "model-error" | "planetterp" | "storage";
+  };
+  summary_capped: { cap: number };
+  // Seat alerts. Never an email address, token or IP, not even hashed.
+  alert_subscribed: {
+    outcome: "confirm-sent" | "already-watching" | "not-sent";
+  };
+  alert_confirmed: { termId: string };
+  alert_sent: { termId: string; count: number };
+  alert_unsubscribed: { termId: string };
 }
 export type ServerEvent = keyof ServerEvents;
 

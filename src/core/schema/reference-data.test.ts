@@ -174,14 +174,18 @@ describe("server fn contracts", () => {
 
   it("covers every subscribe and summary outcome", () => {
     expect(
-      SubscribeResultSchema.safeParse({ status: "already-watching" }).success,
+      SubscribeResultSchema.safeParse({ status: "check-email" }).success,
     ).toBe(true);
-    const sent = {
-      status: "confirmation-sent",
+    // The subscribe answer never carries a token: it would reveal whether
+    // the address already had a watch.
+    const leaky = {
+      status: "check-email",
       subscriptionId: "A".repeat(22),
       manageToken: "b".repeat(43),
     };
-    expect(SubscribeResultSchema.safeParse(sent).success).toBe(true);
+    expect(SubscribeResultSchema.parse(leaky)).toEqual({
+      status: "check-email",
+    });
     expect(
       ReviewSummaryResultSchema.safeParse({
         status: "unavailable",

@@ -245,6 +245,38 @@
       }
     },
     {
+      // The typed API client runs in the browser: it may import ~/core and
+      // zod only, never Worker code, so it typechecks in the app program too.
+      "includes": ["src/server/fns/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "cloudflare:*",
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/jobs/**",
+                      "~/server/**",
+                      "~/fixtures",
+                      "~/fixtures/**",
+                      "../*",
+                      "../**"
+                    ],
+                    "message": "src/server/fns is imported by the browser: only ~/core and zod (docs/STATUS.md)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["src/fixtures/**"],
       "linter": {
         "rules": {

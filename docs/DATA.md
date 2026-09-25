@@ -1,6 +1,6 @@
 # Terpsicle v2: data contract
 
-The shapes and rules that `src/ingest` + `src/jobs` (producers), `src/server` (server fns, D1) and the app (consumers) share. The code is `src/core/schema/` (zod 4 schemas + inferred types, one barrel: `~/core/schema`). **If this document and the schemas disagree, the schemas win; fix this document in the same PR.**
+The shapes and rules that `src/ingest` + `src/jobs` (producers), `src/server` (the `/api` endpoints, D1) and the app (consumers) share. The code is `src/core/schema/` (zod 4 schemas + inferred types, one barrel: `~/core/schema`). **If this document and the schemas disagree, the schemas win; fix this document in the same PR.**
 
 Naming: every schema is `FooSchema` with `type Foo = z.infer<typeof FooSchema>`. Constants are `SCREAMING_CASE`. Time is always passed in, never read (`CLAUDE.md`).
 
@@ -50,7 +50,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `geo/route/<from>-<to>-<mode>.json` | `RouteGeometrySchema` | routes job | fixed |
 | `geo/tiles.pmtiles` | PMTiles | script, rarely | fixed |
 | `calendar/<term>.json` | `AcademicCalendarSchema` | calendar job (weekly) | fixed |
-| `summaries/<slug>.json` | `ReviewSummarySchema` | `reviewSummary` server fn | fixed, **not served** |
+| `summaries/<slug>.json` | `ReviewSummarySchema` | `POST /api/review-summary` (§7.2) | fixed, **not served** |
 | `_jobs/…` | owned by M2 | jobs (resume cursors, last-crawl snapshots) | **not served** |
 
 ### 2.2 Content hashing
@@ -216,7 +216,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 - **Course colors are global:** one color per course code, the same in every plan and term (SPEC §3.2). A course with no row gets a color when first added to a plan (the palette color least used in that plan), and that color is written to `courseColors` so it stays stable. `COURSE_COLORS` are palette ids; the UI maps each to light and dark tints. Only append to that list.
 - **UI prefs:** open tab, sidebar open, drill target (course with its details tab, or a connection; generated results aren't restorable), theme, last term, active plan per term, and collapsed instructor groups (`<course>|<instructor name>`).
 - **Not persisted:** the undo stack, hover/preview state, search text, and generator results.
-- **Seat alerts (local mirror):** the person's own email is kept so the UI can say "Watching as…" and prefill the next bell. `subscriptionId` and `manageToken` are set only when this browser created the subscription.
+- **Seat alerts (local mirror):** the person's own email is kept so the UI can say "Watching as…" and prefill the next bell. `subscriptionId` and `manageToken` arrive when this browser follows the confirmation link (the confirm page leaves them in the alerts inbox, §7.1); until then the entry is `pending` with both null.
 
 ### 5.1 Client catalog flow
 1. Fetch `catalog/terms.json` (ETag revalidation). Pick the term.
@@ -248,46 +248,97 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 
 ---
 
-## 7. Server functions and D1
+## 7. The JSON API and D1
+
+**The API.** Everything the browser asks the server lives under `POST /api/<name>`:
+- JSON in, JSON out, `Cache-Control: no-store`;
+- routed in `src/server/worker.ts`, implemented in `src/server/api/router.ts`;
+- the browser calls it through `api` in `src/server/fns/api.ts`, the one server module UI code may import.
+
+Both ends validate with the same schemas from `~/core/schema`:
+- the client checks the input before sending and the answer on arrival;
+- the Worker checks the input with a `z.strictObject` schema (unknown keys are rejected).
+
+Expected outcomes come back as `200` with a result union (`status: …`). Bad input, rate limits and the feature flag come back as non-2xx with an `ApiErrorSchema` body, and the client throws `ApiCallError(reason)`.
+
+**Why plain routes, not `createServerFn`:**
+- They run in the worker test pool against real D1 and R2, which BUILD.md §5 requires for seat alerts.
+- They see the raw request (`CF-Connecting-IP` for rate limits).
+- Worker-only types stay out of the app's TS program. `src/server/fns` imports only `~/core` and zod; Biome enforces that, and `tsconfig.app.json` includes it.
+
+**Every request:**
+- must be `POST` with `Content-Type: application/json`. A cross-site form can't send that type without a CORS preflight, which is never granted;
+- is rate-limited per IP per hour, keyed by an HMAC of `CF-Connecting-IP`. The HMAC key lives only in R2 (`_jobs/keys/hmac.json`, made on first use) and the IP is never stored.
+
+| Endpoint | Input | Result | Per IP per hour |
+|---|---|---|---|
+| `review-summary` | `ReviewSummaryInputSchema` `{slug, course}` | `ReviewSummaryResultSchema` | 300 |
+| `alerts/subscribe` | `SubscribeInputSchema` `{email, termId, sectionKey}` | `SubscribeResultSchema` | 10 |
+| `alerts/confirm` | `ConfirmInputSchema` `{token}` | `ConfirmResultSchema` | 60 |
+| `alerts/lookup` | `ManageInputSchema` `{token}` | `LookupResultSchema` | 60 |
+| `alerts/unsubscribe` | `ManageInputSchema` `{token}` | `UnsubscribeResultSchema` | 60 |
+| `alerts/status` | `StatusInputSchema` `{items: [{subscriptionId, manageToken}]}` (≤ 50) | `StatusResultSchema` | 120 |
 
 ### 7.1 Seat alerts (`SPEC.md` §3.12)
-All inputs use `z.strictObject`. Tokens are 32 random bytes in base64url (43 characters); only their hex SHA-256 is stored. Subscription ids are 16 random bytes in base64url (22 characters). Emails are trimmed and lowercased before storing or comparing.
 
-| Fn | Input | Result |
-|---|---|---|
-| `alerts.subscribe` | `SubscribeInputSchema` `{email, termId, sectionKey}` | `SubscribeResultSchema`: `confirmation-sent` (new, or re-activating an `unsubscribed` row, with `subscriptionId` + `manageToken`) · `confirmation-resent` (a `pending` row existed) · `already-watching` (an `active` row existed: "You're already watching this") · `rate-limited` · `unknown-section` (not in that term's catalog, or the term is archived) · `unavailable` (flag off or no `RESEND_API_KEY`) |
-| `alerts.confirm` | `{token}` from the email link | `confirmed` · `already-confirmed` · `invalid-token` |
-| `alerts.lookup` | `{token}` (manage token) | `found` (with term, section, status) · `invalid-token`. The unsubscribe page shows this and asks "Stop emails for CMSC351 0101?" |
-| `alerts.unsubscribe` | `{token}` (manage token) | `unsubscribed` (idempotent) · `invalid-token`. Called only after that confirmation; the app's Export → Seat alerts list asks the same question |
-| `alerts.status` | `{items: [{subscriptionId, manageToken}]}` (≤ 50) | per item: `pending`, `active`, `unsubscribed` or `unknown`. Refreshes the local mirror |
+**Flag.** Everything is behind `SEAT_ALERTS_ENABLED` (a `wrangler.jsonc` var, `"false"` until the end-to-end tests have passed and the owner flips it):
+- while it's off, or where there's no `EMAIL` binding (previews never have one), `alerts/subscribe` answers `{status: "unavailable"}`;
+- the other alert endpoints answer `503 unavailable`;
+- `notifySeatChanges` does nothing.
 
-- The manage token goes to the browser only in a `confirmation-sent` response. `already-watching` and `confirmation-resent` never reveal an existing row's token.
-- **Confirmation** links expire after 48 h. A resend is allowed at most once per 10 min per subscription.
-- **Alert rule:** each seats run, for each `active` subscription in that term whose section is in the seats map:
-  - send "A seat opened" when `last_open = 0` and the new `open > 0`, and `last_notified_at` is more than 30 min ago;
-  - then set `last_open`, `last_checked_at`, and (when sent) `last_notified_*`;
-  - `last_open` is set from the seats file at confirmation.
-- **Rate limits:**
-  - at most 5 confirmation emails per email per 24 h;
-  - at most 20 seat-open emails per email per 24 h;
-  - counted from `email_sends`.
-- `email_sends.dedupe_key` makes a retried cron send nothing twice:
-  - `confirm:<subscription id>:<first 16 hex of token hash>`;
-  - `seat-open:<subscription id>:<seats asOf or fetchedAt>`.
+**Tokens and ids:**
+- Tokens are 32 random bytes in base64url (43 characters). Only their hex SHA-256 is stored, in `alert_tokens`.
+- Subscription ids are 16 random bytes (22 characters).
+- Addresses are trimmed and lowercased by the input schema.
 
-Proposed migration (`migrations/0001_seat_alerts.sql`; M0/M7 create the file):
+**Flow:**
+1. **Subscribe.** The answer is always `check-email`, whether the address is new, pending, already watching or unsubscribed, so the API never reveals who watches what. The email says which:
+   - new, pending or unsubscribed: a confirmation link, `/alerts/confirm?token=…`. It expires after 48 h and works once;
+   - already watching: "You're already watching CMSC351 0101", with a stop link. This is how the spec's "You're already watching this" reaches the person without leaking it to anyone else.
+   - The app shows "You're already watching this" itself when its own local list has the watch.
+2. **Confirm.** The page at `/alerts/confirm` calls `alerts/confirm`:
+   - `confirmed` makes the watch `active` and returns a **manage token**. Holding the emailed token proves the address, so the browser that followed the link keeps it;
+   - the page leaves `{termId, sectionKey, subscriptionId, manageToken, status}` in `localStorage["terpsicle:alerts-inbox"]` (`src/features/alerts/inbox.ts`). The state layer moves it into Dexie `seatAlerts` and clears the inbox;
+   - `last_open` is set from the current seats file, so only a reopening after confirmation emails.
+3. **Alert.** The seats cron calls `notifySeatChanges(env, before, after, {now})` (`src/server/alerts/notify.ts`) after publishing a term's seats file. For each `active` subscription in that term whose section has counts, it sends "A seat opened" when all of these hold:
+   - the section had 0 open seats before (the previous file, or else `last_open`);
+   - it has more than 0 now;
+   - there was no alert for this subscription in the last 30 min;
+   - the address got fewer than 20 alerts in 24 h.
+
+   It records `last_open`, `last_checked_at` and `last_notified_*`, and prunes old counters and expired confirm tokens.
+4. **Unsubscribe.** It takes two steps, per the spec: `alerts/lookup` shows "Stop seat alerts?" on `/alerts/unsubscribe`, and only the button calls `alerts/unsubscribe` (idempotent). Every alert email carries a fresh manage token in its stop link and its `List-Unsubscribe` header. That header points at the confirming page. There's deliberately no `List-Unsubscribe-Post`: one-click would skip the confirmation.
+5. **Status.** `alerts/status` refreshes the browser's local list with its manage tokens. A token that doesn't match the id reads `unknown`.
+
+**Emails** (`src/server/alerts/email.ts`, all three kinds):
+- plain text plus simple table-based HTML, and `Auto-Submitted: auto-generated`;
+- from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`.
+
+**Links in emails:**
+- to the app: `https://terpsicle.com/?term=<id>&course=<code>`. The app should open that course; that's still a UI task;
+- to Testudo's page for the course.
+
+API-triggered emails link to the requesting origin only when it's ours (terpsicle.com, this project's preview hosts, localhost), so a forged `Host` can never inject another domain. Cron emails always link to terpsicle.com.
+
+**Limits:**
+- at most 5 signup emails (confirmation or "already watching") per address per 24 h, and at most one per subscription per 10 min. Hitting either limit skips the email but keeps the answer `check-email`, so limits can't reveal anything;
+- at most 20 alerts per address per 24 h, and a 30-min cooldown per subscription;
+- the per-IP limits in the table above.
+
+**Dedupe.** `email_sends.dedupe_key` is unique, so a retried cron sends nothing twice. The keys are:
+- `confirm:<id>:<16 hex of token hash>`;
+- `already-watching:<id>:<…>`;
+- `seat-open:<id>:<seats asOf, or the 30-min window>`.
+
+**Migration** (`migrations/0002_seat_alerts.sql`, applied by `deploy.yml` to production and by ci.yml's preview job to `terpsicle-preview` via `wrangler.preview-d1.jsonc`):
 
 ```sql
--- Seat-alert subscriptions: the only server-side user data (SPEC §1, principle 6).
 CREATE TABLE alert_subscriptions (
   id                 TEXT PRIMARY KEY,          -- 16 random bytes, base64url
   email              TEXT NOT NULL,             -- trimmed, lowercased
   term_id            TEXT NOT NULL,
   section_key        TEXT NOT NULL,             -- e.g. CMSC351-0101
   status             TEXT NOT NULL CHECK (status IN ('pending', 'active', 'unsubscribed')),
-  confirm_token_hash TEXT UNIQUE,               -- hex SHA-256; NULL once confirmed
-  confirm_expires_at TEXT,                      -- ISO UTC; created/resent + 48 h
-  manage_token_hash  TEXT NOT NULL UNIQUE,      -- hex SHA-256; unsubscribe links and alerts.status
   created_at         TEXT NOT NULL,             -- ISO UTC
   confirmed_at       TEXT,
   unsubscribed_at    TEXT,
@@ -297,36 +348,77 @@ CREATE TABLE alert_subscriptions (
   last_notified_open INTEGER,
   UNIQUE (email, term_id, section_key)
 );
+CREATE INDEX alert_subscriptions_active ON alert_subscriptions (term_id, section_key) WHERE status = 'active';
 
--- The seats cron reads active watchers per term and section.
-CREATE INDEX alert_subscriptions_active
-  ON alert_subscriptions (term_id, section_key)
-  WHERE status = 'active';
+CREATE TABLE alert_tokens (
+  token_hash      TEXT PRIMARY KEY,             -- hex SHA-256
+  subscription_id TEXT NOT NULL REFERENCES alert_subscriptions (id) ON DELETE CASCADE,
+  purpose         TEXT NOT NULL CHECK (purpose IN ('confirm', 'manage')),
+  created_at      TEXT NOT NULL,
+  expires_at      TEXT,                         -- confirm tokens: +48 h
+  used_at         TEXT                          -- confirm tokens: once
+);
+CREATE INDEX alert_tokens_by_subscription ON alert_tokens (subscription_id, purpose);
 
--- Every email we try to send: dedupe for cron retries, and rate limits per address.
 CREATE TABLE email_sends (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   email           TEXT NOT NULL,
   subscription_id TEXT REFERENCES alert_subscriptions (id) ON DELETE SET NULL,
-  kind            TEXT NOT NULL CHECK (kind IN ('confirm', 'seat-open')),
+  kind            TEXT NOT NULL CHECK (kind IN ('confirm', 'already-watching', 'seat-open')),
   dedupe_key      TEXT NOT NULL UNIQUE,
   status          TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
-  provider_id     TEXT,                         -- Resend message id
-  sent_at         TEXT NOT NULL                 -- ISO UTC
+  provider_id     TEXT,                         -- Email Service message id
+  sent_at         TEXT NOT NULL
 );
+CREATE INDEX email_sends_by_email ON email_sends (email, kind, sent_at);
 
-CREATE INDEX email_sends_by_email ON email_sends (email, sent_at);
+-- Fixed-window counters: per-IP limits (keyed hash) and the summary cap.
+CREATE TABLE counters (
+  name         TEXT NOT NULL,
+  window_start TEXT NOT NULL,
+  count        INTEGER NOT NULL,
+  PRIMARY KEY (name, window_start)
+);
 ```
 
-`AlertSubscriptionRowSchema` and `EmailSendRowSchema` validate rows on read.
+`AlertSubscriptionRowSchema`, `AlertTokenRowSchema` and `EmailSendRowSchema` validate rows on read (`src/server/alerts/store.ts`).
 
 ### 7.2 Review summaries
-`reviewSummary({slug})` returns `ReviewSummaryResultSchema`.
-- **Normal path:** return `summaries/<slug>.json` if it exists and its `basedOnReviewCount` is at least the instructor's current `reviewCount`.
-- **Otherwise,** generate with Workers AI and store it. Concurrent first requests for one slug share one generation.
-- **When it can't:** return `unavailable` with a reason: `no-reviews`, `unknown-instructor`, `daily-limit` or `failed`. The UI hides the summary for all of them.
-- Review text is untrusted input to the model.
-- The summary is the only thing shown with the sparkles icon.
+
+`review-summary` takes `{slug, course}` and returns `ReviewSummaryResultSchema` (`src/server/summaries/`).
+
+1. **Find the instructor.** The course's department names the PlanetTerp file that holds the instructor's `reviewCount` and `latestReviewAt`: `planetterp/manifest.json` → `planetterp/dept/<DEPT>.<hash>.json`. Missing → `unknown-instructor`; no reviews → `no-reviews`.
+2. **Serve the cache.** `summaries/<slug>.json` is used when it's fresh: `basedOnReviewCount ≥ reviewCount` and its `latestReviewAt` is at least the instructor's. The summary covers all of an instructor's reviews, so one file per instructor serves every course.
+3. **Otherwise, generate once.**
+   - **One generation at a time.** Concurrent requests in one isolate share one promise. Across isolates, a lock object `_jobs/summary-locks/<slug>.json` is taken with a create-only R2 put (`etagDoesNotMatch: "*"`). A lock older than its 60 s TTL is taken over with an etag-conditional put.
+   - **Losers wait.** They poll R2 for up to 20 s for the new summary, then answer `busy`.
+4. **Enforce the daily cap.** A D1 counter `summaries` per UTC day is checked against `SUMMARIES_DAILY_CAP` (a var, 200). Past it → `daily-limit`.
+5. **Get the reviews.** They come from PlanetTerp `/professor?name=…&reviews=true`. The result is used only if its slug matches: names collide, so a mismatch is `failed` rather than the wrong person's reviews.
+6. **Run the model** (`src/server/summaries/prompt.ts`).
+   - **Input:** the 40 newest reviews, at most 18k characters, each stripped of `<`, `>` and links, inside one `<reviews>` fence. The system prompt says the reviews are data and any instructions inside them must be ignored.
+   - **Output:** JSON mode with a schema, then `ModelSummarySchema`:
+     - a summary of 20–600 characters and at most about 75 words, with no links, addresses or markup;
+     - 2–4 themes of 1–4 lowercase words, each with a sentiment.
+   - **Retries:** invalid output gets one retry that names the problem; a second failure is `failed`. Nothing that fails validation is stored or shown.
+7. **Store and return** the `ReviewSummary`. The UI hides the summary for every `unavailable` reason, and the summary is the only thing shown with the sparkles icon.
+
+**Model: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`**, from the live Workers AI catalog on 2026-09-25.
+- **Why this one:**
+  - it's on Cloudflare's JSON-mode list;
+  - it's concise and followed the 60-word, 2–4-theme format on real PlanetTerp reviews (3.4–4.1 s);
+  - it ignored a planted prompt-injection review.
+- **Alternatives tried:**
+  - `gemma-4-26b-a4b-it` and `qwen3.8-27b` are reasoning models that spent the whole token budget thinking and returned no JSON;
+  - `mistral-small-3.1-24b-instruct` ran over the length limits.
+- `scripts/try-review-summaries.ts` reruns the comparison.
+
+### 7.3 Analytics
+
+Server events (`src/server/analytics.ts`, `docs/ANALYTICS.md`):
+- summaries: `summary_generated`, `summary_cached`, `summary_failed`, `summary_capped`;
+- seat alerts: `alert_subscribed`, `alert_confirmed`, `alert_sent`, `alert_unsubscribed`.
+
+They carry counts, reasons and term ids only. They never carry an address, token, IP or review text, not even hashed.
 
 ---
 
@@ -375,6 +467,5 @@ These aren't stored, but several workers build against them:
 ## 10. Open questions
 
 1. **Low-section alerts.** The rule above emails only when a full section reopens (0 → >0). Should watching a *low* (not full) section also email when it gets close to full? The spec only says "when a seat opens".
-2. **List-Unsubscribe.** Mail clients' one-click unsubscribe (RFC 8058 `List-Unsubscribe-Post`) skips our confirmation step. The proposal is to send `List-Unsubscribe` with the confirming page URL only, with no `-Post` header.
-3. **Route geometry packaging.** RESEARCH §5.0 suggests one polyline-encoded geometry file per mode (about 470 KB for all pairs) instead of one JSON file per pair. The per-pair schema stands until M2 decides; switching is a `geo` schema bump.
-4. **Per-IP abuse limits** on `alerts.subscribe`. D1 counts by email only; a Workers rate-limiting binding may not count as a "proven product".
+2. **Route geometry packaging.** RESEARCH §5.0 suggests one polyline-encoded geometry file per mode (about 470 KB for all pairs) instead of one JSON file per pair. The per-pair schema stands until M2 decides; switching is a `geo` schema bump.
+3. **Gmail/Yahoo one-click unsubscribe.** Bulk-sender rules want `List-Unsubscribe-Post` (one-click), which would skip the confirmation the spec requires. We send `List-Unsubscribe` only (§7.1). At our volume that's fine; revisit if deliverability suffers.

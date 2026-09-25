@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AlertsConfirmRouteImport } from './routes/alerts.confirm'
+import { Route as AlertsUnsubscribeRouteImport } from './routes/alerts.unsubscribe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AlertsConfirmRoute = AlertsConfirmRouteImport.update({
+  id: '/alerts/confirm',
+  path: '/alerts/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlertsUnsubscribeRoute = AlertsUnsubscribeRouteImport.update({
+  id: '/alerts/unsubscribe',
+  path: '/alerts/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/alerts/confirm': typeof AlertsConfirmRoute
+  '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/alerts/confirm': typeof AlertsConfirmRoute
+  '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/alerts/confirm': typeof AlertsConfirmRoute
+  '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/alerts/confirm' | '/alerts/unsubscribe'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/alerts/confirm' | '/alerts/unsubscribe'
+  id: '__root__' | '/' | '/alerts/confirm' | '/alerts/unsubscribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AlertsConfirmRoute: typeof AlertsConfirmRoute
+  AlertsUnsubscribeRoute: typeof AlertsUnsubscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/alerts/confirm': {
+      id: '/alerts/confirm'
+      path: '/alerts/confirm'
+      fullPath: '/alerts/confirm'
+      preLoaderRoute: typeof AlertsConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alerts/unsubscribe': {
+      id: '/alerts/unsubscribe'
+      path: '/alerts/unsubscribe'
+      fullPath: '/alerts/unsubscribe'
+      preLoaderRoute: typeof AlertsUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AlertsConfirmRoute: AlertsConfirmRoute,
+  AlertsUnsubscribeRoute: AlertsUnsubscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

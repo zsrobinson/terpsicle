@@ -15,6 +15,11 @@
     "e2e",
     "src/ingest",
     "src/core",
-    "src/fixtures"
+    "src/fixtures",
+    // Pure server modules that scripts reuse (the summary prompt trial, the
+    // test email send). They use only fetch and zod, so Node types suffice.
+    "src/server/summaries/prompt.ts",
+    "src/server/summaries/planetterp-api.ts",
+    "src/server/alerts/email.ts"
   ]
 }

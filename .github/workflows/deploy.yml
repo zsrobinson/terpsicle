@@ -34,8 +34,8 @@ jobs:
       - name: Build
         run: pnpm build
 
-      # Production only. The previews database (terpsicle-preview) is on
-      # 0001_init; see docs/STATUS.md known issues before adding migrations.
+      # Production. The previews database is migrated by ci.yml's preview job
+      # (wrangler.preview-d1.jsonc).
       - name: Apply D1 migrations
         run: pnpm exec wrangler d1 migrations apply terpsicle --remote
 
