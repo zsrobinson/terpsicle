@@ -117,7 +117,15 @@ export function MobileDrawer() {
           >
             <Grabber snap={snap} onSnap={setSnap} />
             <DrawerTabs />
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div
+              className="flex min-h-0 flex-1 flex-col"
+              // At peek only the search box shows: typing there put the
+              // results below the screen's edge. Anything focused inside
+              // raises a resting drawer to half.
+              onFocus={() => {
+                if (useUi.getState().drawerSnap === "peek") setSnap("half");
+              }}
+            >
               <SidebarContent />
             </div>
           </div>
