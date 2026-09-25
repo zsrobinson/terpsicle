@@ -5,11 +5,16 @@ import {
   Ellipsis,
   PanelRightOpen,
   Trash2,
-  TriangleAlert,
 } from "lucide-react";
-import { type ReactElement, useMemo } from "react";
-import { messageToText } from "~/app/message-text";
-import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
+import { Fragment, type ReactElement, useMemo } from "react";
+import { MessageText, messageToText } from "~/app/message-text";
+import {
+  EmptyState,
+  ListRow,
+  PanelBody,
+  PanelHeader,
+  SectionHeader,
+} from "~/app/panel";
 import { planLabel } from "~/app/plan-label";
 import type { CatalogIndex } from "~/core/catalog";
 import type {
@@ -46,6 +51,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { openCourse, removeCourse, saveCourseForLater } from "./actions";
 import { CourseColorPicker } from "./color-picker";
 import { FirstVisit } from "./first-visit";
+import { problemWords } from "./problem-words";
 import { SeatMeter } from "./seat-meter";
 import { sectionLine } from "./section-words";
 
@@ -105,7 +111,11 @@ export function CoursesPanel() {
         {/* A shared plan can't save anything, so it gets no "save one" hint. */}
         {saved.length > 0 || (placed.length > 0 && !readOnly) ? (
           <>
-            <PanelLabel>Saved for later</PanelLabel>
+            <SectionHeader
+              variant="label"
+              title="Saved for later"
+              count={saved.length > 0 ? saved.length : undefined}
+            />
             {saved.length > 0 ? (
               <ul aria-label="Saved for later" className="pb-3">
                 {saved.map((entry) => (
@@ -118,10 +128,10 @@ export function CoursesPanel() {
                 ))}
               </ul>
             ) : (
-              <p className="px-4 pb-4 text-[12px] text-faint">
+              <EmptyState className="pt-0 text-faint">
                 Courses you're considering but haven't placed show up here. Save
                 one from its details.
-              </p>
+              </EmptyState>
             )}
           </>
         ) : null}
@@ -174,9 +184,34 @@ function PlacedRow({
   // (still loading, or cancelled: Problems says which).
   const section = index?.sections.get(key)?.section ?? entry.snapshot;
   const problemText = problems?.map((p) => messageToText(p.title)).join(" · ");
+  // What's wrong, in a few words on the row itself (UX-REVIEW §4.4). Seat
+  // problems are the seat words' job, so a flagged row can have no words.
+  const said = (problems ?? []).flatMap((p) => {
+    const words = problemWords(p, courseCode);
+    return words ? [words] : [];
+  });
 
   const row = (
-    <div className="group relative border-hairline border-b transition-colors hover:bg-hover has-[button[data-state=open]]:bg-hover">
+    <ListRow
+      className="group items-start hover:bg-hover has-[button[data-state=open]]:bg-hover"
+      lead={
+        <CourseColorPicker
+          courseCode={courseCode}
+          color={color}
+          readOnly={readOnly}
+        />
+      }
+      trail={
+        // The ⋯ menu sits under the seats, in the trail column, instead of
+        // an action column that would take 68px from every title.
+        <span className="flex flex-col items-end gap-1">
+          <SeatMeter seats={seats} sectionKey={key} stacked />
+          {readOnly ? null : (
+            <RowMenu courseCode={courseCode} placed className="-mr-1" />
+          )}
+        </span>
+      }
+    >
       <WithTooltip
         label={
           problemText
@@ -187,48 +222,38 @@ function PlacedRow({
         <button
           type="button"
           onClick={() => openCourse(courseCode)}
-          className="block w-full py-2.5 pr-4 pl-8 text-left"
+          className="block w-full text-left"
           data-testid={`course-row-${courseCode}`}
         >
-          <span className="flex items-center gap-2">
-            <span className="font-mono font-semibold text-[12.5px]">
-              {courseCode}
-            </span>
-            <span className="font-mono text-[11.5px] text-muted">
-              {sectionCode}
-            </span>
+          <span className="flex items-baseline gap-2">
+            <span className="ident font-semibold text-base">{courseCode}</span>
+            <span className="ident text-muted text-sm">{sectionCode}</span>
             {problems ? (
-              <TriangleAlert
-                size={12}
-                className="shrink-0 text-warn"
-                aria-label={`${problems.length} ${problems.length === 1 ? "problem" : "problems"}`}
-              />
+              <span className="sr-only">
+                {`${problems.length} ${problems.length === 1 ? "problem" : "problems"}`}
+              </span>
             ) : null}
-            <SeatMeter seats={seats} sectionKey={key} className="ml-auto" />
           </span>
-          <span className="mt-0.5 block truncate text-[12px] text-muted">
+          <span className="block truncate text-sm">
             {course?.title ?? "\u00a0"}
           </span>
-          <span className="mt-0.5 block truncate pr-7 text-[11.5px] text-muted">
+          <span className="block truncate text-muted text-sm">
             {sectionLine(section)}
           </span>
+          {said.length > 0 ? (
+            <span className="block truncate text-sm text-warn">
+              {said.map((words, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: problems keep their order
+                <Fragment key={i}>
+                  {i > 0 ? " · " : null}
+                  <MessageText message={words} />
+                </Fragment>
+              ))}
+            </span>
+          ) : null}
         </button>
       </WithTooltip>
-      <div className="absolute top-[13px] left-[11px]">
-        <CourseColorPicker
-          courseCode={courseCode}
-          color={color}
-          readOnly={readOnly}
-        />
-      </div>
-      {readOnly ? null : (
-        <RowMenu
-          courseCode={courseCode}
-          placed
-          className="absolute right-2 bottom-1.5"
-        />
-      )}
-    </div>
+    </ListRow>
   );
 
   return (
@@ -254,28 +279,29 @@ function SavedRow({
   readOnly: boolean;
 }) {
   const row = (
-    <div className="group relative transition-colors hover:bg-hover has-[button[data-state=open]]:bg-hover">
+    <ListRow
+      density="compact"
+      className="group hover:bg-hover has-[button[data-state=open]]:bg-hover"
+      lead={
+        <Bookmark size={12} className="mx-px shrink-0 text-muted" aria-hidden />
+      }
+      trail={
+        readOnly ? undefined : (
+          <RowMenu courseCode={courseCode} placed={false} className="-mr-1" />
+        )
+      }
+    >
       <WithTooltip label="Pick a section">
         <button
           type="button"
           onClick={() => openCourse(courseCode)}
-          className="flex w-full items-center gap-2 py-2 pr-10 pl-4 text-left"
+          className="flex w-full items-baseline gap-2 text-left"
         >
-          <Bookmark size={12} className="shrink-0 text-muted" aria-hidden />
-          <span className="font-mono font-semibold text-[12.5px]">
-            {courseCode}
-          </span>
-          <span className="truncate text-[12px] text-muted">{title}</span>
+          <span className="ident font-semibold text-base">{courseCode}</span>
+          <span className="truncate text-muted text-sm">{title}</span>
         </button>
       </WithTooltip>
-      {readOnly ? null : (
-        <RowMenu
-          courseCode={courseCode}
-          placed={false}
-          className="-translate-y-1/2 absolute top-1/2 right-2"
-        />
-      )}
-    </div>
+    </ListRow>
   );
   return (
     <li>

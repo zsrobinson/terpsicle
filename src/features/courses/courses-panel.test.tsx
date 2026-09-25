@@ -27,10 +27,21 @@ describe("Courses tab", () => {
     expect(row).toHaveTextContent("CMSC351");
     expect(row).toHaveTextContent("0301");
     expect(row).toHaveTextContent("Algorithms");
-    expect(row).toHaveTextContent("3 left");
-    expect(row).toHaveTextContent(/· MWF$/);
-    // CMSC351 is low on seats and tight after STAT400: flagged, calmly.
-    expect(await within(row).findByLabelText("2 problems")).toBeInTheDocument();
+    expect(row).toHaveTextContent("Keiko Ashdown · MWF");
+    // Seats sit in the row's trail column, outside the button.
+    const item = row.closest("li");
+    if (!item) throw new Error("no list item");
+    expect(item).toHaveTextContent("3 left");
+    // CMSC351 is low on seats and tight after STAT400: flagged calmly, and
+    // the row says what's wrong in words, not just an icon. "3 left" is the
+    // seat words' job, so it isn't repeated.
+    await waitFor(() => expect(row).toHaveTextContent("2 problems"));
+    expect(within(row).getByText(/^Tight connection from/)).toHaveTextContent(
+      "Tight connection from STAT400",
+    );
+    expect(within(row).getByText(/^Tight connection from/)).toHaveClass(
+      "text-warn",
+    );
     // Color dot opens the palette.
     expect(
       screen.getByRole("button", { name: "CMSC351 color: Violet" }),

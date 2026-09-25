@@ -1,7 +1,13 @@
 import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { MessageText } from "~/app/message-text";
-import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
+import {
+  EmptyState,
+  ListRow,
+  PanelBody,
+  PanelHeader,
+  SectionHeader,
+} from "~/app/panel";
 import { planLabel } from "~/app/plan-label";
 import { countBySeverity, problemCountWords } from "~/core/problems";
 import {
@@ -51,24 +57,29 @@ export function ProblemsPanel() {
         {(checking || !current) && hasPlaced !== false ? (
           <Checking />
         ) : problems.length === 0 ? (
-          <p className="flex items-center gap-2 px-4 py-6 text-[12.5px] text-muted">
-            <CircleCheck size={15} className="shrink-0 text-ok" aria-hidden />
-            {hasPlaced
-              ? "Nothing to fix. This plan works."
-              : "Nothing to check yet. Problems show up here as you add courses."}
-          </p>
+          <EmptyState className="py-6">
+            <span className="flex items-center gap-2">
+              <CircleCheck size={15} className="shrink-0 text-ok" aria-hidden />
+              {hasPlaced
+                ? "Nothing to fix. This plan works."
+                : "Nothing to check yet. Problems show up here as you add courses."}
+            </span>
+          </EmptyState>
         ) : (
           SEVERITY_ORDER.map((severity) => {
             const group = problems.filter((p) => p.severity === severity);
             if (group.length === 0) return null;
+            const first = severity === problems[0]?.severity;
             return (
               <section key={severity} aria-label={GROUP_LABEL[severity]}>
-                <PanelLabel
-                  right={<span className="tnum">{group.length}</span>}
-                >
-                  {GROUP_LABEL[severity]}
-                </PanelLabel>
-                <ul className="divide-y divide-hairline border-hairline border-y">
+                <SectionHeader
+                  sticky
+                  title={GROUP_LABEL[severity]}
+                  count={group.length}
+                  // The panel header's hairline is right above the first bar.
+                  className={first ? "border-t-0" : undefined}
+                />
+                <ul>
                   {group.map((p) => (
                     <ProblemRow
                       key={p.id}
@@ -120,42 +131,42 @@ function ProblemRow({
 }) {
   const { fix } = problem;
   return (
-    <li
-      className="relative flex gap-3 px-4 py-3 transition-colors hover:bg-hover"
+    <ListRow
+      as="li"
+      // The whole row opens the problem (the button's ::after covers it);
+      // links and the fix sit above that.
+      className="relative items-start py-3 hover:bg-hover"
       data-testid={`problem-${problem.kind}`}
+      lead={ICON[problem.severity]}
     >
-      {ICON[problem.severity]}
-      <div className="min-w-0 flex-1">
-        <WithTooltip label={openLabel(problem.subjects[0])}>
-          <button
-            type="button"
-            onClick={() => openProblem(problem)}
-            // The whole row opens the problem; links and the fix sit above it.
-            className="block text-left font-medium text-[12.5px] leading-snug after:absolute after:inset-0"
+      <WithTooltip label={openLabel(problem.subjects[0])}>
+        <button
+          type="button"
+          onClick={() => openProblem(problem)}
+          className="block text-left font-medium text-base after:absolute after:inset-0"
+        >
+          <MessageText message={problem.title} />
+        </button>
+      </WithTooltip>
+      {problem.detail.length > 0 ? (
+        <LinkedMessage
+          message={problem.detail}
+          className="mt-0.5 block text-muted text-sm"
+        />
+      ) : null}
+      {fix && !readOnly ? (
+        <WithTooltip label={`${fix.label}. You can undo this.`}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="relative z-10 mt-2 h-6 px-2 font-normal text-sm"
+            onClick={() => applyFix(problem, fix)}
           >
-            <MessageText message={problem.title} />
-          </button>
+            {fix.label}
+          </Button>
         </WithTooltip>
-        {problem.detail.length > 0 ? (
-          <LinkedMessage
-            message={problem.detail}
-            className="mt-0.5 block text-[12px] text-muted leading-snug"
-          />
-        ) : null}
-        {fix && !readOnly ? (
-          <WithTooltip label={`${fix.label}. You can undo this.`}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="relative z-10 mt-2 font-normal text-[12px]"
-              onClick={() => applyFix(problem, fix)}
-            >
-              {fix.label}
-            </Button>
-          </WithTooltip>
-        ) : null}
-      </div>
-    </li>
+      ) : null}
+    </ListRow>
   );
 }
 

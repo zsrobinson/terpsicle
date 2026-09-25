@@ -53,6 +53,16 @@ describe("Export tab", () => {
       0,
     );
     expect(within(list).getAllByText(/^Backup:/).length).toBeGreaterThan(0);
+    // The backup leads with its code, then who teaches it; "also fits" is
+    // said once, above the list.
+    expect(
+      within(screen.getByTestId("checklist-ECON200-0101")).getByText(
+        /^Backup:/,
+      ),
+    ).toHaveTextContent("Backup: 0201 · Daniel Novak");
+    expect(
+      screen.getByText(/If one fills, try its backup, which also fits/),
+    ).toBeInTheDocument();
   });
 
   it("says a one-section course has no other section, not that no backup fits", async () => {
