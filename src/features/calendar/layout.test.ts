@@ -26,6 +26,8 @@ import {
 import {
   buildCalendarModel,
   type CalendarInput,
+  ghostLanesFor,
+  packGhosts,
   pillColumns,
   previewOrder,
   stepPreview,
@@ -371,6 +373,41 @@ describe("buildCalendarModel", () => {
         "0304",
         "0305",
       ]);
+    });
+
+    it("merges sooner in a phone-width column, so codes stay readable", () => {
+      // Three same-time ghosts: side by side on desktop, one on a phone.
+      const three = aCourse({
+        sections: Array.from({ length: 3 }, (_, i) =>
+          aSection({
+            code: code(301 + i),
+            meetings: [
+              aTimedMeeting({
+                days: ["M"],
+                start: 480 + i * 60,
+                end: 530 + i * 60,
+              }),
+              aTimedMeeting({
+                days: ["Tu"],
+                start: 960,
+                end: 1010,
+                kind: "discussion",
+              }),
+            ],
+          }),
+        ),
+      });
+      const tuesday = on(notPlaced(three), "Tu");
+      expect(tuesday).toHaveLength(3);
+      expect(ghostLanesFor(194)).toBe(3); // 1440px desktop
+      expect(ghostLanesFor(68)).toBe(1); // 390px phone
+      expect(ghostLanesFor(0)).toBe(3); // not measured yet
+      const phone = packGhosts(tuesday, ghostLanesFor(68));
+      expect(phone).toHaveLength(1);
+      expect(phone[0]).toMatchObject({
+        sectionCodes: ["0301", "0302", "0303"],
+        lanes: 1,
+      });
     });
 
     it("keeps the merged ghost in place while one of its sections is previewed", () => {

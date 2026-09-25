@@ -3,6 +3,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -17,7 +18,10 @@ import { selectOpenCourse, useUi } from "~/state/ui-store";
 import { BusyBlock, ClassBlock, Ghost, laneStyle, TravelPill } from "./entries";
 import {
   type CalendarModel,
+  ghostLanesFor,
+  MAX_GHOST_LANES,
   type Pill,
+  packGhosts,
   pillColumns,
   previewOrder,
   stepPreview,
@@ -230,6 +234,18 @@ function Grid({
 
   const n = model.columns.length;
   const colWidth = n > 0 ? width / n : 0;
+  // Phones fit fewer side-by-side ghosts than the model's desktop default.
+  const maxGhostLanes = ghostLanesFor(colWidth);
+  const columns = useMemo(
+    () =>
+      maxGhostLanes >= MAX_GHOST_LANES
+        ? model.columns
+        : model.columns.map((column) => ({
+            ...column,
+            ghosts: packGhosts(column.ghosts, maxGhostLanes),
+          })),
+    [model.columns, maxGhostLanes],
+  );
   const ghostCourse = model.ghost?.courseCode ?? null;
   const bounds = { start: model.startMinute, end: model.endMinute };
 
@@ -323,7 +339,7 @@ function Grid({
         setHint(null);
       }}
     >
-      {model.columns.map((column) => (
+      {columns.map((column) => (
         <div
           key={column.day}
           data-empty=""

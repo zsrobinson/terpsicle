@@ -277,6 +277,22 @@ function meetingTimeKey(item: WeekItem): string {
  */
 export const MAX_GHOST_LANES = 3;
 
+/** The narrowest a ghost can be and still show a section code ("0111"). */
+export const MIN_GHOST_WIDTH = 36;
+
+/**
+ * How many ghosts fit side by side in a day column this wide: three on
+ * desktop, fewer on a phone, where three read as "01…". Zero width means
+ * not measured yet (or a test DOM): keep the default.
+ */
+export function ghostLanesFor(colWidth: number): number {
+  if (colWidth <= 0) return MAX_GHOST_LANES;
+  return Math.max(
+    1,
+    Math.min(MAX_GHOST_LANES, Math.floor(colWidth / MIN_GHOST_WIDTH)),
+  );
+}
+
 /** Several ghosts drawn as one, picked from a popover like a time-identical group. */
 function mergeGhosts(
   ghosts: readonly GhostEntry[],
