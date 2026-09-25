@@ -1,6 +1,6 @@
 # Terpsicle v2
 
-A UMD class scheduler at terpsicle.com. Before changing anything, read in this order: `docs/SPEC.md` (what), `docs/DESIGN.md` (why, and the owner's taste), then `docs/BUILD.md` (how). The clickable design reference is `reference/prototype/built/final.html`, with screenshots in `reference/prototype/screenshots/`.
+A UMD class scheduler at terpsicle.com. Before changing anything, read in this order: `docs/SPEC.md` (what), `docs/DESIGN.md` (why, and the owner's taste), then `docs/BUILD.md` (how), and `docs/DATA.md` (the data contract: R2 layout, schemas, local storage). Current progress and decisions live in `docs/STATUS.md`. The clickable design reference is `reference/prototype/built/final.html`, with screenshots in `reference/prototype/screenshots/`.
 
 ## Commands
 - `pnpm i`: install
