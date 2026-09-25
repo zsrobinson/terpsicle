@@ -3,12 +3,13 @@ import type {
   FitLabel,
   GenEdGroup,
   Meeting,
+  Minutes,
   SeatCounts,
   Section,
 } from "~/core/schema";
 import { GEN_ED_LABELS } from "~/core/schema";
 import { seatLevel } from "~/core/seats";
-import { formatDays, formatTime, formatTimeRange } from "~/core/time";
+import { formatDays, formatTime } from "~/core/time";
 
 // Words for course details (SPEC §3.4): fit labels, meetings, delivery and
 // gen-eds. Pure, so they're tested on their own.
@@ -35,13 +36,13 @@ export function shortFitWords(label: FitLabel): string {
     case "fits":
       return "Fits";
     case "in-plan":
-      return "In plan";
+      return "Current";
     case "no-set-times":
       return "No times";
     case "overlaps":
       return "Overlaps";
     case "not-enough-time":
-      return "Too close";
+      return "Too tight";
   }
 }
 
@@ -74,19 +75,41 @@ const KIND: Partial<Record<Meeting["kind"], string>> = {
   lab: "lab",
 };
 
-/** "MWF 10am–10:50am IRB 0324", "Tu 2pm–2:50pm ESJ 2101 discussion", "Online, no set times". */
-export function meetingWords(meeting: Meeting): string {
-  const place = meeting.online
-    ? "online"
-    : [meeting.building, meeting.room].filter(Boolean).join(" ");
-  const kind = KIND[meeting.kind];
+/** "9–9:50am", "11:30am–12:20pm": the start's am/pm goes when the end has the same. */
+export function compactTimeRange(start: Minutes, end: Minutes): string {
+  const from = formatTime(start);
+  const to = formatTime(end);
+  const suffix = from.slice(-2);
+  return suffix === to.slice(-2)
+    ? `${from.slice(0, -2)}–${to}`
+    : `${from}–${to}`;
+}
+
+export interface MeetingWordsOptions {
+  /** Say "discussion" or "lab" (off under a shared-lecture line, where it's implied). */
+  kind?: boolean;
+  /** Say the building and room (off in one-line rows). */
+  place?: boolean;
+}
+
+/** "MWF 10–10:50am IRB 0324", "Tu 2–2:50pm ESJ 2101 discussion", "Online, no set times". */
+export function meetingWords(
+  meeting: Meeting,
+  { kind: sayKind = true, place: sayPlace = true }: MeetingWordsOptions = {},
+): string {
+  const place = !sayPlace
+    ? ""
+    : meeting.online
+      ? "online"
+      : [meeting.building, meeting.room].filter(Boolean).join(" ");
+  const kind = sayKind ? KIND[meeting.kind] : undefined;
   if (!meeting.timed)
     return meeting.online
       ? `Online, no set times${kind ? ` (${kind})` : ""}`
       : `Times TBA${place ? ` ${place}` : ""}${kind ? ` (${kind})` : ""}`;
   return [
     formatDays(meeting.days),
-    formatTimeRange(meeting.start, meeting.end),
+    compactTimeRange(meeting.start, meeting.end),
     place,
     kind,
   ]
@@ -97,16 +120,33 @@ export function meetingWords(meeting: Meeting): string {
 /** Every meeting, " · " between. Empty rows say to ask the department. */
 export function sectionMeetingWords(section: Section): string {
   if (section.meetings.length === 0) return "Contact the department for times";
-  return section.meetings.map(meetingWords).join(" · ");
+  return section.meetings.map((m) => meetingWords(m)).join(" · ");
 }
 
-/** Just the first meeting's days and start, for compact rows: "MWF 10am" (+2). */
-export function compactMeetingWords(section: Section): string {
-  const timed = section.meetings.filter((m) => m.timed);
-  const first = timed[0];
-  if (!first) return section.delivery === "online-async" ? "Online" : "TBA";
-  const more = timed.length > 1 ? ` +${timed.length - 1}` : "";
-  return `${formatDays(first.days)} ${formatTime(first.start)}${more}`;
+/**
+ * When, for one-line rows: every meeting's days and times, no rooms, never
+ * "+1" ("MWF 9–9:50am · Th 2–2:50pm").
+ */
+export function compactMeetingWords(meetings: readonly Meeting[]): string {
+  const timed = meetings.filter((m) => m.timed);
+  if (timed.length === 0)
+    return meetings.some((m) => m.online) ? "Online" : "Times TBA";
+  return timed
+    .map((m) => meetingWords(m, { kind: false, place: false }))
+    .join(" · ");
+}
+
+/** The words for a row's own meetings, after its run's shared line ("All meet …"). */
+export function restMeetingWords(
+  rest: readonly Meeting[],
+  { underShared, compact }: { underShared: boolean; compact: boolean },
+): string {
+  if (rest.length === 0)
+    return underShared
+      ? "No other meetings"
+      : "Contact the department for times";
+  if (compact) return compactMeetingWords(rest);
+  return rest.map((m) => meetingWords(m, { kind: !underShared })).join(" · ");
 }
 
 /** A chip next to the section code, or null for in-person sections. */

@@ -8,11 +8,13 @@ import {
 } from "~/fixtures";
 import {
   compactMeetingWords,
+  compactTimeRange,
   deliveryWords,
   fitTone,
   fitWords,
   genEdGroupWords,
   meetingWords,
+  restMeetingWords,
   sectionMeetingWords,
   shortFitWords,
   shortSeatWords,
@@ -20,7 +22,7 @@ import {
 
 const LABELS: readonly [FitLabel, string, string, string][] = [
   [{ kind: "fits" }, "Fits", "Fits", "ok"],
-  [{ kind: "in-plan" }, "In your plan", "In plan", "plain"],
+  [{ kind: "in-plan" }, "In your plan", "Current", "plain"],
   [{ kind: "no-set-times" }, "No set times", "No times", "muted"],
   [
     { kind: "overlaps", with: { kind: "course", courseCode: "ENGL393" } },
@@ -44,7 +46,7 @@ const LABELS: readonly [FitLabel, string, string, string][] = [
       courseCode: "CMSC330",
     },
     "Not enough time after CMSC330",
-    "Too close",
+    "Too tight",
     "warn",
   ],
 ];
@@ -74,7 +76,7 @@ describe("shortSeatWords", () => {
 
 describe("meeting words", () => {
   it("reads days, times, room and kind", () => {
-    expect(meetingWords(aTimedMeeting())).toBe("MWF 10am–10:50am IRB 0324");
+    expect(meetingWords(aTimedMeeting())).toBe("MWF 10–10:50am IRB 0324");
     expect(
       meetingWords(
         aTimedMeeting({
@@ -86,7 +88,26 @@ describe("meeting words", () => {
           room: "2101",
         }),
       ),
-    ).toBe("Tu 2pm–2:50pm ESJ 2101 discussion");
+    ).toBe("Tu 2–2:50pm ESJ 2101 discussion");
+  });
+
+  it("leaves out the kind or the place when asked", () => {
+    const lab = aTimedMeeting({
+      days: ["Th"],
+      kind: "lab",
+      start: 780,
+      end: 890,
+    });
+    expect(meetingWords(lab, { kind: false })).toBe("Th 1–2:50pm IRB 0324");
+    expect(meetingWords(lab, { kind: false, place: false })).toBe(
+      "Th 1–2:50pm",
+    );
+  });
+
+  it("keeps both halves of a range that crosses noon", () => {
+    expect(compactTimeRange(690, 740)).toBe("11:30am–12:20pm");
+    expect(compactTimeRange(540, 590)).toBe("9–9:50am");
+    expect(compactTimeRange(720, 770)).toBe("12–12:50pm");
   });
 
   it("says when there are no set times", () => {
@@ -102,27 +123,46 @@ describe("meeting words", () => {
       ],
     });
     expect(sectionMeetingWords(section)).toBe(
-      "MWF 10am–10:50am IRB 0324 · Th 1pm–2:50pm IRB 0324 lab",
+      "MWF 10–10:50am IRB 0324 · Th 1–2:50pm IRB 0324 lab",
     );
     expect(sectionMeetingWords(aSection({ meetings: [] }))).toBe(
       "Contact the department for times",
     );
   });
 
-  it("shortens to the first meeting for compact rows", () => {
-    expect(compactMeetingWords(aSection())).toBe("MWF 10am");
+  it("says every meeting's days and times in one-line rows, never +1", () => {
+    expect(compactMeetingWords(aSection().meetings)).toBe("MWF 10–10:50am");
     expect(
-      compactMeetingWords(
-        aSection({
-          meetings: [aTimedMeeting(), aTimedMeeting({ days: ["Th"] })],
-        }),
-      ),
-    ).toBe("MWF 10am +1");
+      compactMeetingWords([
+        aTimedMeeting(),
+        aTimedMeeting({ days: ["Th"], kind: "discussion" }),
+      ]),
+    ).toBe("MWF 10–10:50am · Th 10–10:50am");
+    expect(compactMeetingWords([anUntimedMeeting()])).toBe("Online");
+    expect(compactMeetingWords([aTbaMeeting()])).toBe("Times TBA");
+  });
+
+  it("words a row's own meetings under a shared line", () => {
+    const discussion = aTimedMeeting({
+      days: ["F"],
+      start: 540,
+      end: 590,
+      kind: "discussion",
+      building: "CSI",
+      room: "1122",
+    });
     expect(
-      compactMeetingWords(
-        aSection({ delivery: "online-async", meetings: [anUntimedMeeting()] }),
-      ),
-    ).toBe("Online");
+      restMeetingWords([discussion], { underShared: true, compact: false }),
+    ).toBe("F 9–9:50am CSI 1122");
+    expect(
+      restMeetingWords([discussion], { underShared: false, compact: false }),
+    ).toBe("F 9–9:50am CSI 1122 discussion");
+    expect(
+      restMeetingWords([discussion], { underShared: true, compact: true }),
+    ).toBe("F 9–9:50am");
+    expect(restMeetingWords([], { underShared: true, compact: false })).toBe(
+      "No other meetings",
+    );
   });
 });
 

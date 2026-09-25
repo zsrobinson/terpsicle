@@ -1,7 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
 // Search and course details on `pnpm dev:mock?demo=1`: hover a result for
-// its ghosts, open it, switch from the section list; filter chips; grades;
+// its ghosts, open it, switch from the section list; filter chips; course
+// details at one, a few and many sections, with grades;
 // and the same on a phone, inside the drawer.
 
 let errors: string[] = [];
@@ -96,16 +97,41 @@ test.describe("desktop", () => {
     await expect.poll(() => matchCount(page)).toBe(all);
   });
 
-  test("the Grades tab draws bars", async ({ page }) => {
+  test("course details: facts first, Grades a click away", async ({ page }) => {
     await page.keyboard.press("/");
     await searchBox(page).fill("cmsc 351");
     await page.keyboard.press("Enter");
-    await page.getByRole("tab", { name: "Grades" }).click();
-    const bars = page.getByTestId("grade-bars");
-    await expect(bars).toBeVisible();
-    await expect(page.getByRole("tabpanel")).toContainText("got an A or B");
-    await page.locator("[data-grade]").first().hover();
+    const sidebar = page.getByRole("complementary", { name: "Sidebar" });
+    // The prerequisite shows without scrolling, and there are no tabs.
+    await expect(sidebar.getByText("Prerequisite")).toBeInViewport();
+    await expect(sidebar.getByRole("tab")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Grades ↓" }).click();
+    const grades = page.getByTestId("grades");
+    await expect(grades.getByTestId("grade-bars")).toBeInViewport();
+    await expect(grades).toContainText("got an A or B");
+    await grades.locator("[data-grade]").first().hover();
     await expect(page.getByRole("tooltip")).toContainText(/students · \d+%/);
+  });
+
+  test("course details at one and many sections", async ({ page }) => {
+    await page.keyboard.press("/");
+    await searchBox(page).fill("cmsc 401");
+    await page.locator('[data-course-result="CMSC401"]').click();
+    const sections = page.getByTestId("sections");
+    await expect(sections).toContainText("One section");
+    await expect(sections).toContainText("TuTh 12:30–1:45pm ESJ 1309");
+    await expect(sections.getByRole("button", { name: "Add" })).toHaveCount(0);
+
+    await page.keyboard.press("/");
+    await searchBox(page).fill("engl 101");
+    await page.locator('[data-course-result="ENGL101"]').click();
+    await page.getByRole("button", { name: "Add to Plan A" }).click();
+    await expect(page.getByTestId("your-section")).toContainText("Current");
+    await page.getByRole("button", { name: "Only fits" }).click();
+    await expect(
+      page.getByRole("button", { name: /^MWF 10–10:50am/ }),
+    ).toHaveCount(0);
   });
 });
 

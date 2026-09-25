@@ -1,4 +1,5 @@
 import {
+  type Course,
   type Instructor,
   type InstructorSlug,
   instructorNameKey,
@@ -16,4 +17,12 @@ export function instructorFor(
   if (!data) return null;
   const slug: InstructorSlug | undefined = data.names[instructorNameKey(name)];
   return slug ? (data.instructors[slug] ?? null) : null;
+}
+
+/** Everyone who teaches a section this term, in section order, TBA left out. */
+export function courseInstructors(course: Course): string[] {
+  const names: string[] = [];
+  for (const s of course.sections)
+    for (const n of s.instructors) if (!names.includes(n)) names.push(n);
+  return names;
 }
