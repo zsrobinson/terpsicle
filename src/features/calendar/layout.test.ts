@@ -120,9 +120,21 @@ describe("buildCalendarModel", () => {
         }),
       ],
     });
-    const model = buildCalendarModel(input([aCourse(), online]));
+    // An internship Testudo lists with no meetings at all.
+    const internship = aCourse({
+      code: "COMM288",
+      sections: [aSection({ code: "0101", delivery: "f2f", meetings: [] })],
+    });
+    const model = buildCalendarModel(input([aCourse(), online, internship]));
     expect(model.untimed).toMatchObject([
-      { courseCode: "ENGL393", sectionCode: "0312", delivery: "online-async" },
+      {
+        courseCode: "ENGL393",
+        sectionCode: "0312",
+        delivery: "online-async",
+        reason: "online",
+      },
+      // Course details says "Contact the department for times"; so does the strip.
+      { courseCode: "COMM288", reason: "contact-department" },
     ]);
     expect(
       model.columns

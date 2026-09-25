@@ -108,6 +108,13 @@ export function PreviewHint({
   );
 }
 
+/** Matches course details' "Contact the department for times". */
+const UNTIMED_WORDS: Record<UntimedSection["reason"], string> = {
+  "contact-department": "contact the department",
+  online: "online",
+  "times-tba": "times TBA",
+};
+
 /** "No set time: ENGL393 0312 · online" (SPEC §3.3). */
 export function UntimedStrip({
   sections,
@@ -133,9 +140,7 @@ export function UntimedStrip({
           >
             {s.courseCode} {s.sectionCode} ·{" "}
             <span className="font-sans font-normal">
-              {s.delivery === "online-async" || s.delivery === "online-sync"
-                ? "online"
-                : "times TBA"}
+              {UNTIMED_WORDS[s.reason]}
             </span>
           </button>
         </WithTooltip>

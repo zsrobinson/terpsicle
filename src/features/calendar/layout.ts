@@ -109,6 +109,11 @@ export interface UntimedSection {
   courseCode: CourseCode;
   sectionCode: SectionCode;
   delivery: Delivery;
+  /**
+   * Why it has no time: Testudo lists no meetings (ask the department, as
+   * course details says), it's online, or its times aren't set yet.
+   */
+  reason: "contact-department" | "online" | "times-tba";
   color: CourseColor;
 }
 
@@ -398,6 +403,13 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
         courseCode: course.code,
         sectionCode: section.code,
         delivery: section.delivery,
+        reason:
+          section.meetings.length === 0
+            ? "contact-department"
+            : section.delivery === "online-async" ||
+                section.delivery === "online-sync"
+              ? "online"
+              : "times-tba",
         color,
       });
       continue;
