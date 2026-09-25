@@ -181,6 +181,62 @@ describe("buildCalendarModel", () => {
     });
   });
 
+  it("doesn't draw ghosts over the placed section's own meetings", () => {
+    // MATH140-style: one lecture per instructor, a discussion per section.
+    const lecture = aTimedMeeting({ days: ["M", "W", "F"], start: 600 });
+    const discussion = (start: number) =>
+      aTimedMeeting({
+        days: ["Tu", "Th"],
+        start,
+        end: start + 50,
+        kind: "discussion",
+      });
+    const course = aCourse({
+      code: "MATH140",
+      sections: [
+        aSection({ code: "0211", meetings: [lecture, discussion(720)] }),
+        aSection({ code: "0212", meetings: [lecture, discussion(780)] }),
+        aSection({
+          code: "0311",
+          meetings: [
+            aTimedMeeting({ days: ["M", "W", "F"], start: 660 }),
+            discussion(720),
+          ],
+        }),
+      ],
+    });
+    const base = input([course], { ghostCourse: course });
+    const ghostsOn = (
+      model: ReturnType<typeof buildCalendarModel>,
+      day: string,
+    ) =>
+      (model.columns.find((c) => c.day === day)?.ghosts ?? []).map((g) => [
+        g.sectionCodes[0],
+        g.start,
+      ]);
+
+    const model = buildCalendarModel(base);
+    // 0212 shares 0211's lecture: only its own discussion is drawn.
+    expect(ghostsOn(model, "M")).toEqual([["0311", 660]]);
+    // 0311's discussion is at 0211's discussion time: left out too.
+    expect(ghostsOn(model, "Tu")).toEqual([["0212", 780]]);
+    // Both are still there to pick.
+    expect(model.ghost?.groups.map((g) => g.sections[0]?.code)).toEqual([
+      "0212",
+      "0311",
+    ]);
+
+    // Previewing one draws all of it, on top.
+    const previewed = buildCalendarModel({
+      ...base,
+      preview: sectionKey("MATH140", "0212"),
+    });
+    expect(ghostsOn(previewed, "M")).toEqual([
+      ["0212", 600],
+      ["0311", 660],
+    ]);
+  });
+
   it("caps ghosts at 12 in section order, and still draws a previewed one past the cap", () => {
     const course = aCourse({
       sections: Array.from({ length: 16 }, (_, i) =>

@@ -101,7 +101,8 @@ export function CoursesPanel() {
             ))}
           </ul>
         ) : null}
-        {saved.length > 0 || placed.length > 0 ? (
+        {/* A shared plan can't save anything, so it gets no "save one" hint. */}
+        {saved.length > 0 || (placed.length > 0 && !readOnly) ? (
           <>
             <PanelLabel>Saved for later</PanelLabel>
             {saved.length > 0 ? (

@@ -81,18 +81,21 @@ export function ClassBlock({
         data-course={entry.courseCode}
         aria-label={`${entry.courseCode} ${entry.sectionCode}${kind ? ` ${kind}` : ""}, ${formatTimeRange(entry.start, entry.end)}${place ? `, ${place}` : ""}`}
         className={cn(
-          "absolute z-[1] overflow-hidden rounded-md border px-1.5 py-1 text-left transition-opacity duration-150",
+          "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border px-1.5 py-1 text-left transition-opacity duration-150",
           dimmed && "opacity-35",
           (selected || changed) && "ring-2 ring-fg/70",
         )}
         style={{ ...style, ...tintStyle(entry.color) }}
       >
         <div className="flex items-baseline gap-1 text-[11.5px] leading-tight">
-          <span className="truncate font-mono font-semibold">
+          {/* The code wins the space; "discussion" gives way on narrow days. */}
+          <span className="shrink-0 font-mono font-semibold">
             {entry.courseCode}
           </span>
           {kind ? (
-            <span className="shrink-0 text-[10px] opacity-70">{kind}</span>
+            <span className="min-w-0 truncate text-[10px] opacity-70">
+              {kind}
+            </span>
           ) : null}
         </div>
         {height > 30 ? (
@@ -126,7 +129,7 @@ export function BusyBlock({
         onClick={() => openTab("blocks", "click")}
         aria-label={`${entry.label}, ${formatTimeRange(entry.start, entry.end)}`}
         className={cn(
-          "stripes absolute z-[1] overflow-hidden rounded-md border border-hairline bg-panel px-1.5 py-1 text-left text-muted transition-opacity duration-150",
+          "stripes absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border border-hairline bg-panel px-1.5 py-1 text-left text-muted transition-opacity duration-150",
           dimmed && "opacity-35",
         )}
         style={style}
@@ -177,10 +180,18 @@ export function Ghost({
   const code = entry.sectionCodes[0] ?? "";
   const body = (
     <>
-      <div className="flex items-baseline gap-1 font-mono font-semibold text-[11.5px] leading-tight">
-        <span className="truncate">{narrow ? code : entry.label}</span>
+      <div
+        className={cn(
+          "flex items-baseline gap-1 font-mono font-semibold leading-tight",
+          narrow ? "text-[10.5px]" : "text-[11.5px]",
+        )}
+      >
+        {/* Narrow, the code alone must read: it never gives way to "×3". */}
+        <span className={narrow ? "shrink-0" : "truncate"}>
+          {narrow ? code : entry.label}
+        </span>
         {narrow && merged ? (
-          <span className="shrink-0 font-normal text-[10px] opacity-75">
+          <span className="min-w-0 overflow-hidden font-normal text-[10px] opacity-75">
             ×{entry.sectionCodes.length}
           </span>
         ) : null}
@@ -198,7 +209,8 @@ export function Ghost({
     </>
   );
   const className = cn(
-    "absolute z-10 overflow-hidden rounded-md border-[1.5px] px-1.5 py-1 text-left",
+    "absolute z-10 flex flex-col justify-start overflow-hidden rounded-md border-[1.5px] py-1 text-left",
+    narrow ? "px-0.5" : "px-1.5",
     "fade-in-0 animate-in duration-150",
     entry.previewed ? "z-20 border-solid shadow-md" : "border-dashed",
   );

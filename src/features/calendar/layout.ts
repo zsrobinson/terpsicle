@@ -38,6 +38,7 @@ import {
   type Lane,
   packLanes as packIntoLanes,
   sectionWeekItems,
+  type WeekItem,
 } from "~/core/time";
 
 export type { Lane } from "~/core/time";
@@ -202,6 +203,19 @@ function ghostEntries(input: CalendarInput): {
       ? [...shown, previewGroup]
       : shown;
   const color = colorOf(course.code, input.colors);
+  // Sibling sections often share the placed section's lecture (MATH140's
+  // 0211–0222 all meet MWF 10am). A ghost of that shared meeting would sit on
+  // top of the person's own class and hide it, and says nothing new, so it's
+  // left out; each ghost still shows where it differs. A previewed section is
+  // always drawn in full.
+  const placedSection = placedCode
+    ? course.sections.find((s) => s.code === placedCode)
+    : undefined;
+  const placedTimes = new Set(
+    placedSection
+      ? sectionWeekItems(course.code, placedSection).map(meetingTimeKey)
+      : [],
+  );
   const entries: GhostEntry[] = [];
   for (const group of drawn) {
     const rep = group.sections[0];
@@ -219,6 +233,8 @@ function ghostEntries(input: CalendarInput): {
       input.fit !== null &&
       fitLabel(input.fit, course, rep).kind === "overlaps";
     for (const item of sectionWeekItems(course.code, rep)) {
+      if (group !== previewGroup && placedTimes.has(meetingTimeKey(item)))
+        continue;
       entries.push({
         kind: "ghost",
         key: `ghost:${key}:${item.source.meetingIndex}:${item.day}`,
@@ -248,6 +264,12 @@ function ghostEntries(input: CalendarInput): {
       placedCode,
     },
   };
+}
+
+/** When and on which dates a meeting happens, ignoring where. */
+function meetingTimeKey(item: WeekItem): string {
+  const dates = item.dates ? `${item.dates.start}/${item.dates.end}` : "";
+  return `${item.day}:${item.start}-${item.end}:${dates}`;
 }
 
 /**

@@ -52,6 +52,13 @@ export function SearchPanel() {
   useEffect(() => setActive(-1), [query, filters, termId]);
   // The hovered result's ghosts shouldn't outlive the panel being on screen.
   useEffect(() => () => useUi.getState().setHoverCourse(null), []);
+  // Nor the result: typing narrows the list under a resting pointer, and the
+  // row it was over is gone without a pointerleave.
+  useEffect(() => {
+    const { hoverCourse, setHoverCourse } = useUi.getState();
+    if (hoverCourse && !courses.some((c) => c.code === hoverCourse))
+      setHoverCourse(null);
+  }, [courses]);
 
   const open = (index: number) => {
     const course = courses[index];
@@ -102,6 +109,11 @@ export function SearchPanel() {
             }
             aria-label="Search courses"
             placeholder="Course, title or instructor"
+            // Course codes aren't words: no red squiggles or autocorrect.
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
             value={query}
             onChange={(e) => setQuery(termId, e.target.value)}
             onKeyDown={onKeyDown}
