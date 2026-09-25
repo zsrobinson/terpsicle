@@ -100,7 +100,7 @@ export function CustomWeights({
               }
               className="h-4 min-w-0 flex-1 accent-accent"
             />
-            <span className="tnum w-7 text-right font-mono text-xs text-muted">
+            <span className="tnum w-7 text-right text-muted text-xs">
               {Math.round(weights[f] * 100)}
             </span>
           </label>

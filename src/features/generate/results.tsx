@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { useMemo, useState } from "react";
+import { ListRow, SectionHeader } from "~/app/panel";
 import type { CatalogIndex } from "~/core/catalog";
 import {
   chosenCourses,
@@ -23,6 +24,7 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   differenceLabel,
+  differenceWhen,
   equivalentsTip,
   freeDaysLabel,
   optionLabel,
@@ -31,7 +33,6 @@ import {
   spanLabel,
 } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
-import { ListRow, SectionHeader } from "./panel-parts";
 import { useGenerateRun } from "./run-store";
 import { coursesOf } from "./save";
 
@@ -166,8 +167,8 @@ export function Results({
       ) : null}
       {unfit.length > 0 ? (
         <p className="px-4 pt-2 pb-2 text-muted text-sm">
-          No plan fits <span className="font-mono">{unfit.join(", ")}</span>{" "}
-          with the rest of your courses.
+          No plan fits <span className="ident">{unfit.join(", ")}</span> with
+          the rest of your courses.
         </p>
       ) : null}
       <ul
@@ -251,7 +252,7 @@ function FilterChip({
             : "border-hairline-strong text-muted hover:bg-hover hover:text-fg",
         )}
       >
-        <span className={cn(mono && "font-mono")}>{label}</span>
+        <span className={cn(mono && "ident")}>{label}</span>
         <span className={cn("tnum", active ? "opacity-70" : "text-faint")}>
           {count}
         </span>
@@ -327,7 +328,7 @@ function ResultRow({
           {result.equivalents.count > 1 ? (
             <span
               title={equivalentsTip(result.equivalents)}
-              className="rounded-sm bg-accent-soft px-1 font-mono text-2xs text-muted"
+              className="rounded-sm bg-accent-soft px-1 text-2xs text-muted"
             >
               ×{result.equivalents.count}
             </span>
@@ -361,9 +362,7 @@ function ResultRow({
                 {chosen.length ? (
                   <>
                     with{" "}
-                    <span className="font-mono text-fg">
-                      {chosen.join(" + ")}
-                    </span>
+                    <span className="ident text-fg">{chosen.join(" + ")}</span>
                   </>
                 ) : (
                   "No optional courses"
@@ -378,12 +377,15 @@ function ResultRow({
                 "Best match"
               ) : diffs.length > 0 ? (
                 <>
-                  <span className="font-mono">
-                    {diffs
-                      .slice(0, DIFFS_SHOWN)
-                      .map(differenceLabel)
-                      .join(", ")}
-                  </span>
+                  {diffs.slice(0, DIFFS_SHOWN).map((d, i) => (
+                    <span key={`${d.courseCode}-${d.sectionCode}`}>
+                      {i > 0 ? ", " : null}
+                      <span className="ident">
+                        {d.courseCode} {d.sectionCode}
+                      </span>{" "}
+                      {differenceWhen(d)}
+                    </span>
+                  ))}
                   {diffs.length > DIFFS_SHOWN ? (
                     <span className="text-faint">
                       {" "}

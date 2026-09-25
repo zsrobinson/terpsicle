@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { track } from "~/app/analytics";
 import { MessageText } from "~/app/message-text";
-import { PanelBody } from "~/app/panel";
+import { ListRow, PanelBody, PanelFooter, SectionHeader } from "~/app/panel";
 import type { DrillViewProps } from "~/app/registry";
 import { changesFrom, type PlanChange } from "~/core/generate/result-plan";
 import { planProblems } from "~/core/problems";
@@ -18,7 +18,6 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { optionLabel, statsLine } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
-import { ListRow, PanelFooter, SectionHeader } from "./panel-parts";
 import { useGenerateRun } from "./run-store";
 import { coursesOf, saveResults } from "./save";
 
@@ -58,12 +57,12 @@ function ChangeText({ change: c }: { change: PlanChange }) {
       return (
         <>
           <span className="text-muted">added </span>
-          <span className="font-mono">{c.to}</span>
+          <span className="ident">{c.to}</span>
         </>
       );
     case "switched":
       return (
-        <span className="font-mono">
+        <span className="ident">
           <span className="text-muted">{c.from} → </span>
           {c.to}
         </span>
@@ -72,13 +71,13 @@ function ChangeText({ change: c }: { change: PlanChange }) {
       return (
         <>
           <span className="text-muted">placed </span>
-          <span className="font-mono">{c.to}</span>
+          <span className="ident">{c.to}</span>
         </>
       );
     case "unplaced":
       return (
         <span className="text-muted">
-          <span className="font-mono">{c.from}</span> → saved for later
+          <span className="ident">{c.from}</span> → saved for later
         </span>
       );
     case "dropped":
@@ -88,7 +87,7 @@ function ChangeText({ change: c }: { change: PlanChange }) {
 
 /** A detail row's lead: the course code, one width down the list. */
 function Code({ code }: { code: string }) {
-  return <span className="block w-16 font-mono font-semibold">{code}</span>;
+  return <span className="block w-16 ident font-semibold">{code}</span>;
 }
 
 /**
@@ -130,8 +129,8 @@ function SameTimesRow({
       </WithTooltip>
       {open ? (
         <p className="mt-1 text-muted text-sm">
-          <span className="font-mono text-fg">{others.join(", ")}</span>. Rooms
-          may differ. Switch any time in course details.
+          <span className="ident text-fg">{others.join(", ")}</span>. Rooms may
+          differ. Switch any time in course details.
         </p>
       ) : null}
     </ListRow>

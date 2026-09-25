@@ -135,9 +135,7 @@ export function CourseField({
                 i === active && "bg-hover",
               )}
             >
-              <span className="font-mono font-semibold text-sm">
-                {course.code}
-              </span>
+              <span className="ident font-semibold text-sm">{course.code}</span>
               <span className="truncate text-muted">{course.title}</span>
             </div>
           ))}

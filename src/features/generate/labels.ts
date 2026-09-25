@@ -61,16 +61,19 @@ export function statsLine(stats: PlanStats): string {
 
 /** "ENGL101 9020 MF 11am", "ENGL101 9009 Tu 12:30pm, Th online" */
 export function differenceLabel(d: SectionDifference): string {
+  return `${d.courseCode} ${d.sectionCode} ${differenceWhen(d)}`;
+}
+
+/** The when of a difference, set apart from its codes: "Tu 12:30pm, Th online". */
+export function differenceWhen(d: SectionDifference): string {
   const at = d.start === null ? "" : ` ${formatTime(d.start)}`;
-  const when =
-    d.start === null
-      ? "online"
-      : d.days && d.onlineDays
-        ? `${d.days}${at}, ${d.onlineDays} online`
-        : d.onlineDays
-          ? `${d.onlineDays}${at} online`
-          : `${d.days}${at}`;
-  return `${d.courseCode} ${d.sectionCode} ${when}`;
+  return d.start === null
+    ? "online"
+    : d.days && d.onlineDays
+      ? `${d.days}${at}, ${d.onlineDays} online`
+      : d.onlineDays
+        ? `${d.onlineDays}${at} online`
+        : `${d.days}${at}`;
 }
 
 /** The tooltip on "×3": which sections are interchangeable. */

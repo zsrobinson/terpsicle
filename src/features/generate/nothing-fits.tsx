@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { MessageText, messageToText } from "~/app/message-text";
+import { ListRow, SectionHeader } from "~/app/panel";
 import type { CatalogIndex } from "~/core/catalog";
 import type {
   CourseCode,
@@ -11,7 +12,6 @@ import type {
 } from "~/core/schema";
 import { WithTooltip } from "~/ui/tooltip";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
-import { ListRow, SectionHeader } from "./panel-parts";
 
 // When nothing fits (SPEC §3.9): what loosening each must-have would unlock,
 // and the closest plans with what stops them marked. Information, not an

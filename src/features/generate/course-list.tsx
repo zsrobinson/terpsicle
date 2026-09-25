@@ -211,7 +211,7 @@ function CourseChip({
     </>
   );
   const chipClass = cn(
-    "flex h-7 items-center gap-1.5 rounded-l-md border border-r-0 pr-1 pl-2 font-mono text-sm",
+    "flex h-7 items-center gap-1.5 rounded-l-md border border-r-0 pr-1 pl-2 ident text-sm",
     required === false
       ? "border-hairline-strong border-dashed text-muted"
       : "border-hairline-strong bg-hover font-semibold",
@@ -303,9 +303,7 @@ function PickGroup({
             <Minus className="size-3" />
           </Button>
         </WithTooltip>
-        <span className="tnum w-3 text-center font-mono font-semibold">
-          {count}
-        </span>
+        <span className="tnum w-3 text-center font-semibold">{count}</span>
         <WithTooltip label="One more">
           <Button
             variant="ghost"

@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import { track } from "~/app/analytics";
-import { PanelBody, PanelHeader, useFocusRequest } from "~/app/panel";
+import {
+  PanelBody,
+  PanelFooter,
+  PanelHeader,
+  SectionHeader,
+  useFocusRequest,
+} from "~/app/panel";
 import { resolveCourseColors } from "~/core/color";
 import {
   draftCourseCodes,
@@ -17,7 +23,6 @@ import { CourseList } from "./course-list";
 import { requestSummary } from "./labels";
 import { MustHaveFields } from "./must-haves";
 import { NothingFits } from "./nothing-fits";
-import { PanelFooter, SectionHeader } from "./panel-parts";
 import { CustomWeights, RankBySelect } from "./rank-by";
 import { Results } from "./results";
 import { runGenerate, stopGenerate, useGenerateRun } from "./run-store";
