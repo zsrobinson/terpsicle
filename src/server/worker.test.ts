@@ -35,56 +35,14 @@ describe("fetch", () => {
 });
 
 describe("/data/*", () => {
-  it("serves an R2 object with a short max-age and an ETag", async () => {
-    await env.DATA.put("t1/manifest.json", '{"schemaVersion":1}');
-    const response = await get("https://terpsicle.com/data/t1/manifest.json");
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ schemaVersion: 1 });
-    expect(response.headers.get("Content-Type")).toContain("application/json");
-    expect(response.headers.get("Cache-Control")).toBe("public, max-age=60");
-    expect(response.headers.get("ETag")).toMatch(/^"/);
-  });
-
-  it("answers a matching If-None-Match with a bodyless 304", async () => {
-    await env.DATA.put("t2/terms.json", "[]");
-    const first = await get("https://terpsicle.com/data/t2/terms.json");
-    const etag = first.headers.get("ETag") ?? "";
-    await first.arrayBuffer();
-
-    const second = await get("https://terpsicle.com/data/t2/terms.json", {
-      headers: { "If-None-Match": `W/${etag}` },
-    });
-    expect(second.status).toBe(304);
-    expect(second.headers.get("ETag")).toBe(etag);
-    expect(await second.text()).toBe("");
-  });
-
-  it("marks content-hashed files immutable", async () => {
-    await env.DATA.put("t3/geo/routes.0123abcd.bin", new Uint8Array([7]));
+  // Behavior is tested in data.test.ts; this checks the route reaches it.
+  it("routes /data/ to R2", async () => {
+    await env.DATA.put("calendar/202701.json", '{"status":"published"}');
     const response = await get(
-      "https://terpsicle.com/data/t3/geo/routes.0123abcd.bin",
+      "https://terpsicle.com/data/calendar/202701.json",
     );
-    expect(response.headers.get("Cache-Control")).toContain("immutable");
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
-      new Uint8Array([7]),
-    );
-  });
-
-  it("404s in plain text when the object is missing", async () => {
-    const response = await get("https://terpsicle.com/data/nope.json");
-    expect(response.status).toBe(404);
-    expect(response.headers.get("Content-Type")).toBe("text/plain");
-    expect(await response.text()).toBe("No data file at /data/nope.json.");
-  });
-
-  it("rejects writes", async () => {
-    const response = await get("https://terpsicle.com/data/x.json", {
-      method: "PUT",
-      body: "{}",
-    });
-    expect(response.status).toBe(405);
-    expect(response.headers.get("Allow")).toBe("GET, HEAD");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "published" });
   });
 });
 
