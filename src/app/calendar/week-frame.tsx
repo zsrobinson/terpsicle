@@ -135,11 +135,17 @@ export function WeekFrame({
             data-hour-height={Math.round(hourHeight)}
           >
             <div className="relative" aria-hidden="true">
-              {lines.slice(1, -1).map((minute) => (
+              {/* The first hour is labeled too, so the top row doesn't read as
+                  padding; it hangs below its line, where the header can't
+                  cover it. The last line ends the grid and has no row. */}
+              {lines.slice(0, -1).map((minute, i) => (
                 <span
                   key={minute}
-                  className="ident -translate-y-1/2 absolute right-2 text-2xs text-faint"
-                  style={{ top: layout.yOf(minute) }}
+                  className={cn(
+                    "ident absolute right-2 text-2xs text-faint",
+                    i === 0 ? "top-1" : "-translate-y-1/2",
+                  )}
+                  style={i === 0 ? undefined : { top: layout.yOf(minute) }}
                 >
                   {hourLabel(minute)}
                 </span>

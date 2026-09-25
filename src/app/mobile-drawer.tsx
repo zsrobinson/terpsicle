@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { Drawer } from "vaul";
 import type { RailTab } from "~/core/schema";
 import { useCurrentPlan } from "~/state/hooks";
@@ -62,6 +62,20 @@ export function MobileDrawer() {
     if (changed && useUi.getState().drawerSnap === "peek") setSnap("half");
   }, [tab, depth, setSnap]);
 
+  // At peek only the search box shows: typing there put the results below
+  // the screen's edge. Anything focused inside raises a resting drawer.
+  const raiseOnFocus = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (!el) return;
+      const raise = () => {
+        if (useUi.getState().drawerSnap === "peek") setSnap("half");
+      };
+      el.addEventListener("focusin", raise);
+      return () => el.removeEventListener("focusin", raise);
+    },
+    [setSnap],
+  );
+
   // An empty plan's calendar has nothing on it, and the Courses tab has the
   // first-visit guide: open far enough to show it, once, on arrival. Half
   // when it fits there (most phones), full on short screens.
@@ -117,7 +131,7 @@ export function MobileDrawer() {
           >
             <Grabber snap={snap} onSnap={setSnap} />
             <DrawerTabs />
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div ref={raiseOnFocus} className="flex min-h-0 flex-1 flex-col">
               <SidebarContent />
             </div>
           </div>

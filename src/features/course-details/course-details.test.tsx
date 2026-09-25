@@ -6,6 +6,7 @@ import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { panels as searchPanels } from "~/features/search/panels";
 import { aProblem, aReviewSummary } from "~/fixtures";
 import { api } from "~/server/fns/api";
+import { useCatalog } from "~/state/catalog-store";
 import { useSeatAlerts } from "~/state/seat-alerts";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
@@ -450,5 +451,56 @@ describe("Course details", () => {
     await renderPlanTab([searchPanels, panels], "search");
     act(() => openCourse("ZZZZ999"));
     expect(await screen.findByText(/isn't offered in/)).toBeInTheDocument();
+  });
+
+  it("says a course isn't offered once its department loads, before the rest", async () => {
+    await renderPlanTab([searchPanels, panels], "search");
+    // A seat-alert link to a cancelled course: waiting on every department
+    // left a skeleton for ~10 seconds on production.
+    act(() =>
+      useCatalog.setState((s) => {
+        const t = s.byTerm[TEST_TERM_ID];
+        if (!t) throw new Error("term not loaded");
+        return {
+          byTerm: { ...s.byTerm, [TEST_TERM_ID]: { ...t, complete: false } },
+        };
+      }),
+    );
+    const sidebar = screen.getByRole("complementary", { name: "Sidebar" });
+    // Its department has loaded.
+    act(() => openCourse("CMSC999"));
+    await waitFor(() =>
+      expect(sidebar).toHaveTextContent("CMSC999 isn't offered in"),
+    );
+    // The term has no such department.
+    act(() => openCourse("ZZZZ999"));
+    await waitFor(() =>
+      expect(sidebar).toHaveTextContent("ZZZZ999 isn't offered in"),
+    );
+  });
+
+  it("counts the placed section the same way in the bar and its group", async () => {
+    // Production read "12 of 12 fit" over "3 of 4 fit" after adding MATH140.
+    await renderDetails("CMSC351");
+    const [bar, ...groups] = within(screen.getByTestId("sections"))
+      .getAllByText(/^\d+ of \d+ fit$/)
+      .map((el) => Number(el.textContent?.split(" ")[0]));
+    expect(groups.reduce((a, b) => a + b, 0)).toBe(bar);
+  });
+
+  it("counts sections with no set times as fitting, in the bar and in each group", async () => {
+    // IDEA201's four sections are all online with no set times.
+    await renderDetails("IDEA201");
+    expect(sectionsBar()).toHaveTextContent("Sections4 of 4 fit");
+    const counts = within(screen.getByTestId("sections"))
+      .getAllByText(/^\d+ of \d+ fit$/)
+      .map((el) => el.textContent);
+    // The bar, then Priya Brandt, Elena Yamada and Zane Quintero's groups.
+    expect(counts).toEqual([
+      "4 of 4 fit",
+      "1 of 1 fit",
+      "1 of 1 fit",
+      "2 of 2 fit",
+    ]);
   });
 });

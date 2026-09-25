@@ -313,6 +313,14 @@
   --sidebar-max: 480px;
 }
 
+/* A tablet keeps the calendar wide enough: the default is the minimum there
+   (COMPACT_SIDEBAR_QUERY in sidebar-width.ts). A saved width is set inline. */
+@media (max-width: 1023px) {
+  :root {
+    --sidebar-width: 320px;
+  }
+}
+
 @utility w-sidebar {
   width: clamp(var(--sidebar-min), var(--sidebar-width), var(--sidebar-max));
 }

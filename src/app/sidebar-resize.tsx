@@ -9,7 +9,13 @@ import {
 import { clampSidebarWidth, SIDEBAR_WIDTH } from "~/core/schema";
 import { useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
-import { applySidebarWidth, setSidebarWidthVar } from "./sidebar-width";
+import {
+  applySidebarWidth,
+  COMPACT_SIDEBAR_QUERY,
+  setSidebarWidthVar,
+  shownSidebarWidth,
+} from "./sidebar-width";
+import { useMediaQuery } from "./use-media-query";
 
 // The desktop sidebar's right edge, draggable from 320 to 480px (the owner:
 // "draggable would be sick"). A drag moves `--sidebar-width` once per frame
@@ -38,7 +44,10 @@ export function sidebarWidthForKey(width: number, key: string): number | null {
 }
 
 export function SidebarResizeHandle({ controls }: { controls: string }) {
-  const width = useUi((s) => s.sidebarWidth);
+  const saved = useUi((s) => s.sidebarWidth);
+  const compact = useMediaQuery(COMPACT_SIDEBAR_QUERY);
+  // What's on screen: drags, keys and the value read from here.
+  const width = shownSidebarWidth(saved, compact);
   const setWidth = useUi((s) => s.setSidebarWidth);
   const [dragging, setDragging] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -46,7 +55,7 @@ export function SidebarResizeHandle({ controls }: { controls: string }) {
   const frame = useRef(0);
 
   // The saved width (and every change to it) reaches the layout here.
-  useEffect(() => applySidebarWidth(width), [width]);
+  useEffect(() => applySidebarWidth(saved, width), [saved, width]);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {

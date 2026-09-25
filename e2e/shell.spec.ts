@@ -239,5 +239,14 @@ test.describe("phone", () => {
     // Tapping the open tab lowers it again.
     await tabs.getByRole("button", { name: "Search" }).tap();
     await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
+
+    // At peek the search box still shows; tapping it raises the drawer, so
+    // the results aren't typed below the screen's edge.
+    await page.getByRole("combobox", { name: "Search courses" }).tap();
+    await expect(drawer(page)).toHaveAttribute("data-snap", "half");
+    await page.keyboard.type("cmsc 401");
+    await expect(
+      page.locator('[data-course-result="CMSC401"]'),
+    ).toBeInViewport();
   });
 });

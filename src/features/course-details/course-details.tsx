@@ -33,8 +33,15 @@ export function CourseDetails({ entry }: DrillViewProps<"course">) {
   const current = useCurrentPlan();
   const course = catalog?.index.courses.get(entry.courseCode);
 
-  if (!termId || !catalog || (!course && !catalog.complete))
-    return <DetailsSkeleton />;
+  // A missing course is known to be missing once its department has loaded,
+  // or when the term has no such department: no waiting on the other ~200.
+  const dept = deptOf(entry.courseCode);
+  const settled =
+    catalog?.complete ||
+    catalog?.depts[dept] === "ready" ||
+    (catalog?.manifest &&
+      !catalog.manifest.departments.some((d) => d.code === dept));
+  if (!termId || !catalog || (!course && !settled)) return <DetailsSkeleton />;
   if (!course)
     return (
       <PanelBody className="px-4 py-4 text-base">
