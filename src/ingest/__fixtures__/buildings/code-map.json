@@ -1,0 +1,965 @@
+{
+ "AJC": {
+  "number": "429",
+  "name": "A James Clark Hall",
+  "arcgisName": "A. James Clark Hall",
+  "lon": -76.937725,
+  "lat": 38.991963,
+  "source": "soc-popup",
+  "meetings": 190,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "ANA": {
+  "number": "060",
+  "name": "Anne Arundel Hall",
+  "arcgisName": "Anne Arundel Hall",
+  "lon": -76.946736,
+  "lat": 38.985947,
+  "source": "soc-popup",
+  "meetings": 16,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "ANS": {
+  "number": "142",
+  "name": "Animal Sciences Bldg.",
+  "arcgisName": "Animal Sciences/Agricultural Engineering Building",
+  "lon": -76.939478,
+  "lat": 38.991642,
+  "source": "soc-popup",
+  "meetings": 201,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "ARC": {
+  "number": "145",
+  "name": "Architecture Bldg.",
+  "arcgisName": "Architecture Building",
+  "lon": -76.947634,
+  "lat": 38.984314,
+  "source": "soc-popup",
+  "meetings": 263,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "ARM": {
+  "number": "078",
+  "name": "Armory (Reckord)",
+  "arcgisName": "Reckord Armory",
+  "lon": -76.938942,
+  "lat": 38.986029,
+  "source": "soc-popup",
+  "meetings": 278,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "ASY": {
+  "number": "146",
+  "name": "Parren J. Mitchell Art-Sociology Bldg.",
+  "arcgisName": "Parren J. Mitchell Art-Sociology Building",
+  "lon": -76.947646,
+  "lat": 38.985214,
+  "source": "soc-popup",
+  "meetings": 501,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "ATL": {
+  "number": "224",
+  "name": "Atlantic Building",
+  "arcgisName": "Atlantic Building",
+  "lon": -76.942461,
+  "lat": 38.991004,
+  "source": "soc-popup",
+  "meetings": 351,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "AVW": {
+  "number": "115",
+  "name": "A. V. Williams",
+  "arcgisName": "A.V. Williams Building",
+  "lon": -76.936525,
+  "lat": 38.990771,
+  "source": "soc-popup",
+  "meetings": 245,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "BMS": {
+  "number": "296",
+  "name": "Biomolecular Sciences Building",
+  "arcgisName": "Biomolecular Sciences Building",
+  "lon": -76.937729,
+  "lat": 38.992867,
+  "source": "inferred",
+  "meetings": 5,
+  "terms": [
+   "202608",
+   "202701"
+  ],
+  "note": "popup 500; ArcGIS 296 'Biomolecular Sciences Building' (rooms 3118 used by BSCI/NACS)"
+ },
+ "BPS": {
+  "number": "144",
+  "name": "Biology Psychology Building",
+  "arcgisName": "Biology-Psychology Building",
+  "lon": -76.942602,
+  "lat": 38.988843,
+  "source": "soc-popup",
+  "meetings": 424,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "BRB": {
+  "number": "413",
+  "name": "Biosciences Research Building",
+  "arcgisName": "Bioscience Research Building",
+  "lon": -76.942983,
+  "lat": 38.989058,
+  "source": "soc-popup",
+  "meetings": 220,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "CBD": {
+  "number": "122",
+  "name": "Cumberland Hall",
+  "arcgisName": "Cumberland Hall",
+  "lon": -76.943975,
+  "lat": 38.992253,
+  "source": "soc-popup",
+  "meetings": 2,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "CCC": {
+  "number": "097",
+  "name": "Cambridge Community Center",
+  "arcgisName": "Cambridge Community Center",
+  "lon": -76.94304,
+  "lat": 38.992205,
+  "source": "soc-popup",
+  "meetings": 206,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "CEN": {
+  "number": "098",
+  "name": "Centreville Hall",
+  "arcgisName": "Centreville Hall",
+  "lon": -76.942111,
+  "lat": 38.992251,
+  "source": "soc-popup",
+  "meetings": 4,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "CHE": {
+  "number": "090",
+  "name": "Chemical Engineering Bldg.",
+  "arcgisName": "Chemical & Nuclear Engineering Building",
+  "lon": -76.939216,
+  "lat": 38.990585,
+  "source": "soc-popup",
+  "meetings": 259,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "CHI": {
+  "number": "059",
+  "name": "Chincoteague Hall",
+  "arcgisName": "Chincoteague Hall",
+  "lon": -76.944548,
+  "lat": 38.985227,
+  "source": "inferred",
+  "meetings": 1,
+  "terms": [
+   "202701"
+  ],
+  "note": "popup 500; ArcGIS 059 'Chincoteague Hall'"
+ },
+ "CHM": {
+  "number": "091",
+  "name": "Chemistry-Biochemistry Bldg.",
+  "arcgisName": "Chemistry Building",
+  "lon": -76.939841,
+  "lat": 38.989614,
+  "source": "soc-popup",
+  "meetings": 622,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "CSI": {
+  "number": "406",
+  "name": "Computer Science Instructional Center",
+  "arcgisName": "Computer Science Instructional Center",
+  "lon": -76.936166,
+  "lat": 38.989982,
+  "source": "soc-popup",
+  "meetings": 345,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "DOR": {
+  "number": "064",
+  "name": "Dorcester Hall",
+  "arcgisName": "Dorchester Hall",
+  "lon": -76.946163,
+  "lat": 38.986742,
+  "source": "soc-popup",
+  "meetings": 14,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "EAF": {
+  "number": "228",
+  "name": "E.A. Fernandez IDEA Factory",
+  "arcgisName": "Idea Factory",
+  "lon": -76.938192,
+  "lat": 38.990372,
+  "source": "soc-popup",
+  "meetings": 6,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "EDU": {
+  "number": "143",
+  "name": "Education Bldg (Benjamin)",
+  "arcgisName": "Benjamin Building",
+  "lon": -76.947381,
+  "lat": 38.986693,
+  "source": "soc-popup",
+  "meetings": 282,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "EDUC": {
+  "number": "143",
+  "name": "Benjamin Building",
+  "arcgisName": "Benjamin Building",
+  "lon": -76.947381,
+  "lat": 38.986693,
+  "source": "inferred",
+  "meetings": 3,
+  "terms": [
+   "202701"
+  ],
+  "note": "popup 404; one-off typo of EDU (Benjamin Building) in VIPS208/308/408-0115"
+ },
+ "EGL": {
+  "number": "089",
+  "name": "Engineering Laboratory Bldg. (Martin)",
+  "arcgisName": "Engineering Laboratory Building",
+  "lon": -76.937968,
+  "lat": 38.989299,
+  "source": "soc-popup",
+  "meetings": 35,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "EGR": {
+  "number": "088",
+  "name": "Engineering Classroom Bldg. (Martin)",
+  "arcgisName": "Martin Hall",
+  "lon": -76.937992,
+  "lat": 38.988896,
+  "source": "soc-popup",
+  "meetings": 552,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "ERC": {
+  "number": "068",
+  "name": "Eppely Recreation Center",
+  "arcgisName": "Eppley Recreation Center",
+  "lon": -76.945287,
+  "lat": 38.993608,
+  "source": "soc-popup",
+  "meetings": 11,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "ESJ": {
+  "number": "226",
+  "name": "Edward St. John Learning and Teaching Center",
+  "arcgisName": "Edward St. John Learning & Teaching Center",
+  "lon": -76.941748,
+  "lat": 38.987083,
+  "source": "soc-popup",
+  "meetings": 1067,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "GEO": {
+  "number": "237",
+  "name": "Geology Bldg.",
+  "arcgisName": "Geology Building",
+  "lon": -76.940911,
+  "lat": 38.988161,
+  "source": "soc-popup",
+  "meetings": 23,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "GLF": {
+  "number": "165",
+  "name": "Golf Range Classroom",
+  "arcgisName": "Golf Course Driving Range Control Building",
+  "lon": -76.955011,
+  "lat": 38.99079,
+  "source": "soc-popup",
+  "meetings": 3,
+  "terms": [
+   "202605",
+   "202608"
+  ]
+ },
+ "GVC": {
+  "number": "795",
+  "name": "Avrum Gudelsky Veterinary Center",
+  "arcgisName": "Avrum Gudelsky",
+  "lon": -76.941817,
+  "lat": 39.004245,
+  "source": "soc-popup",
+  "meetings": 5,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "HBK": {
+  "number": "147",
+  "name": "Undergraduate Library",
+  "arcgisName": "Hornbake Library",
+  "lon": -76.941575,
+  "lat": 38.988164,
+  "source": "soc-popup",
+  "meetings": 416,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "HIL": {
+  "number": "973",
+  "name": "Hillel Center",
+  "arcgisName": "Hillel Center",
+  "lon": -76.948741,
+  "lat": 38.982737,
+  "source": "inferred",
+  "meetings": 1,
+  "terms": [
+   "202608"
+  ],
+  "note": "popup 500; ArcGIS BUILDINGID 973 'Hillel Center' (BLDG_NUM is null)"
+ },
+ "HJP": {
+  "number": "073",
+  "name": "H.J. Patterson Hall",
+  "arcgisName": "H.J. Patterson Hall",
+  "lon": -76.943532,
+  "lat": 38.986975,
+  "source": "soc-popup",
+  "meetings": 431,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "IPT": {
+  "number": "085",
+  "name": "Institute for Physical Sciences & Technology",
+  "arcgisName": "Institute for Physical Science & Technology",
+  "lon": -76.940985,
+  "lat": 38.990927,
+  "source": "soc-popup",
+  "meetings": 10,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "IRB": {
+  "number": "432",
+  "name": "Brendan Iribe Center",
+  "arcgisName": "Brendan Iribe Center",
+  "lon": -76.93619,
+  "lat": 38.989224,
+  "source": "soc-popup",
+  "meetings": 292,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "JMP": {
+  "number": "083",
+  "name": "J. M. Patterson Building",
+  "arcgisName": "J.M. Patterson Building",
+  "lon": -76.940245,
+  "lat": 38.99051,
+  "source": "soc-popup",
+  "meetings": 292,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "JMZ": {
+  "number": "034",
+  "name": "Jimenez Bldg. (World Languages)",
+  "arcgisName": "Jimenez Hall",
+  "lon": -76.944577,
+  "lat": 38.986811,
+  "source": "soc-popup",
+  "meetings": 640,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "KEB": {
+  "number": "225",
+  "name": "Jeong H. Kim Engineering Building",
+  "arcgisName": "Kim Engineering Building",
+  "lon": -76.938097,
+  "lat": 38.990986,
+  "source": "soc-popup",
+  "meetings": 198,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "KEY": {
+  "number": "048",
+  "name": "Francis Scott Key Hall",
+  "arcgisName": "Francis Scott Key Hall",
+  "lon": -76.943078,
+  "lat": 38.985086,
+  "source": "soc-popup",
+  "meetings": 476,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "KNI": {
+  "number": "417",
+  "name": "Knight Hall",
+  "arcgisName": "Knight Hall",
+  "lon": -76.948606,
+  "lat": 38.986847,
+  "source": "soc-popup",
+  "meetings": 195,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "LCC": {
+  "number": "250",
+  "name": "Leonardtown Community Center",
+  "arcgisName": "Leonardtown Community Center",
+  "lon": -76.933497,
+  "lat": 38.983361,
+  "source": "soc-popup",
+  "meetings": 9,
+  "terms": [
+   "202608"
+  ]
+ },
+ "LEF": {
+  "number": "038",
+  "name": "LeFrak Hall (Social Sciences)",
+  "arcgisName": "LeFrak Hall",
+  "lon": -76.943701,
+  "lat": 38.98369,
+  "source": "soc-popup",
+  "meetings": 470,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "LPA": {
+  "number": "259",
+  "name": "LaPlata Hall",
+  "arcgisName": "La Plata Hall",
+  "lon": -76.945909,
+  "lat": 38.992446,
+  "source": "soc-popup",
+  "meetings": 14,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "MCB": {
+  "number": "231",
+  "name": "Microbiology Bldg.",
+  "arcgisName": "Microbiology Building",
+  "lon": -76.943386,
+  "lat": 38.988114,
+  "source": "soc-popup",
+  "meetings": 127,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "MCK": {
+  "number": "035",
+  "name": "McKeldin Library",
+  "arcgisName": "McKeldin Library",
+  "lon": -76.945109,
+  "lat": 38.985962,
+  "source": "soc-popup",
+  "meetings": 3,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "MMH": {
+  "number": "046",
+  "name": "Marie Mount Hall",
+  "arcgisName": "Marie Mount Hall",
+  "lon": -76.940798,
+  "lat": 38.984985,
+  "source": "soc-popup",
+  "meetings": 232,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "MTH": {
+  "number": "084",
+  "name": "William E. Kirwan Hall",
+  "arcgisName": "William E. Kirwan Hall",
+  "lon": -76.939204,
+  "lat": 38.988631,
+  "source": "soc-popup",
+  "meetings": 583,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "PAC": {
+  "number": "386",
+  "name": "Clarice Smith Performing Arts Center",
+  "arcgisName": "Clarice Smith Performing Arts Center",
+  "lon": -76.950465,
+  "lat": 38.99063,
+  "source": "soc-popup",
+  "meetings": 627,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "PBR": {
+  "number": "395",
+  "name": "Paint Branch Research Facility",
+  "arcgisName": "Turfgrass Research Facility",
+  "lon": -76.941189,
+  "lat": 39.006987,
+  "source": "soc-popup",
+  "meetings": 2,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "PFR": {
+  "number": "425",
+  "name": "Prince Frederick Hall",
+  "arcgisName": "Prince Frederick Hall",
+  "lon": -76.945787,
+  "lat": 38.983112,
+  "source": "soc-popup",
+  "meetings": 36,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "PHY": {
+  "number": "082",
+  "name": "John S. Toll Physics Building",
+  "arcgisName": "John S. Toll Physics Building",
+  "lon": -76.94008,
+  "lat": 38.988677,
+  "source": "soc-popup",
+  "meetings": 1120,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "PKT": {
+  "number": "054",
+  "name": "Preinkert Field House",
+  "arcgisName": "Preinkert Hall",
+  "lon": -76.94622,
+  "lat": 38.984461,
+  "source": "soc-popup",
+  "meetings": 5,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "PLS": {
+  "number": "036",
+  "name": "Plant Sciences",
+  "arcgisName": "Plant Sciences Building",
+  "lon": -76.941347,
+  "lat": 38.988768,
+  "source": "soc-popup",
+  "meetings": 554,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "PSC": {
+  "number": "415",
+  "name": "Physical Sciences Complex",
+  "arcgisName": "Physical Sciences Complex",
+  "lon": -76.941454,
+  "lat": 38.990929,
+  "source": "soc-popup",
+  "meetings": 15,
+  "terms": [
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "QAN": {
+  "number": "061",
+  "name": "Queen Ann's Hall",
+  "arcgisName": "Queen Anne's Hall",
+  "lon": -76.94615,
+  "lat": 38.985241,
+  "source": "soc-popup",
+  "meetings": 2,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "RDG": {
+  "number": "202",
+  "name": "Regents Drive Garage",
+  "arcgisName": "Regents Drive Parking Garage",
+  "lon": -76.941478,
+  "lat": 38.989671,
+  "source": "soc-popup",
+  "meetings": 2,
+  "terms": [
+   "202612",
+   "202701"
+  ]
+ },
+ "RGC": {
+  "number": "398",
+  "name": "Research Greenhouse Complex",
+  "arcgisName": "Research Greenhouse",
+  "lon": -76.942915,
+  "lat": 38.997235,
+  "source": "soc-popup",
+  "meetings": 1,
+  "terms": [
+   "202701"
+  ]
+ },
+ "SHM": {
+  "number": "037",
+  "name": "Shoemaker Bldg.",
+  "arcgisName": "Shoemaker Building",
+  "lon": -76.942753,
+  "lat": 38.983938,
+  "source": "soc-popup",
+  "meetings": 79,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "SKN": {
+  "number": "044",
+  "name": "Skinner Bldg.",
+  "arcgisName": "Skinner Building",
+  "lon": -76.941853,
+  "lat": 38.984858,
+  "source": "soc-popup",
+  "meetings": 211,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "SOM": {
+  "number": "063",
+  "name": "Somerset Hall",
+  "arcgisName": "Somerset Hall",
+  "lon": -76.945572,
+  "lat": 38.985024,
+  "source": "soc-popup",
+  "meetings": 5,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "SPH": {
+  "number": "255",
+  "name": "School of Public Health",
+  "arcgisName": "School of Public Health Building",
+  "lon": -76.943129,
+  "lat": 38.993473,
+  "source": "soc-popup",
+  "meetings": 711,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "SQH": {
+  "number": "233",
+  "name": "Susquehanna Hall",
+  "arcgisName": "Susquehanna Hall",
+  "lon": -76.943776,
+  "lat": 38.982088,
+  "source": "soc-popup",
+  "meetings": 269,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "SSU": {
+  "number": "163",
+  "name": "Stamp Student Union",
+  "arcgisName": "Stamp Student Union",
+  "lon": -76.944735,
+  "lat": 38.988126,
+  "source": "soc-popup",
+  "meetings": 2,
+  "terms": [
+   "202701"
+  ]
+ },
+ "SYM": {
+  "number": "076",
+  "name": "Symons Hall",
+  "arcgisName": "Symons Hall",
+  "lon": -76.940768,
+  "lat": 38.98708,
+  "source": "soc-popup",
+  "meetings": 138,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "TLF": {
+  "number": "043",
+  "name": "Taliaferro Hall",
+  "arcgisName": "Taliaferro Hall",
+  "lon": -76.943162,
+  "lat": 38.984822,
+  "source": "soc-popup",
+  "meetings": 183,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "TMH": {
+  "number": "433",
+  "name": "Thurgood Marshall Hall",
+  "arcgisName": "Thurgood Marshall Hall",
+  "lon": -76.938787,
+  "lat": 38.985136,
+  "source": "soc-popup",
+  "meetings": 149,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "TWS": {
+  "number": "141",
+  "name": "Tawes Fine Arts Bldg.",
+  "arcgisName": "Tawes Hall",
+  "lon": -76.948153,
+  "lat": 38.985947,
+  "source": "soc-popup",
+  "meetings": 912,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "TYD": {
+  "number": "042",
+  "name": "Tydings Hall",
+  "arcgisName": "Tydings Hall",
+  "lon": -76.944033,
+  "lat": 38.984838,
+  "source": "soc-popup",
+  "meetings": 564,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "VMH": {
+  "number": "039",
+  "name": "Van Munching Hall",
+  "arcgisName": "Van Munching Hall",
+  "lon": -76.947264,
+  "lat": 38.983077,
+  "source": "soc-popup",
+  "meetings": 904,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "WDS": {
+  "number": "047",
+  "name": "Woods Hall",
+  "arcgisName": "Woods Hall",
+  "lon": -76.94186,
+  "lat": 38.985153,
+  "source": "soc-popup",
+  "meetings": 180,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ },
+ "YDH": {
+  "number": "436",
+  "name": "Yahentamitsi Dining Hall",
+  "arcgisName": "Yahentamitsi Dining Hall",
+  "lon": -76.944604,
+  "lat": 38.991056,
+  "source": "soc-popup",
+  "meetings": 42,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "ZUP": {
+  "number": "438",
+  "name": "STANLEY R. ZUPNIK HALL",
+  "arcgisName": "Stanley R. Zupnik Hall",
+  "lon": -76.9377,
+  "lat": 38.989862,
+  "source": "soc-popup",
+  "meetings": 6,
+  "terms": [
+   "202701"
+  ]
+ }
+}

@@ -1,0 +1,81 @@
+{
+ "4MLK": {
+  "why": "unknown: popup 404; one Fall 2026 section (BIOE679F-0201 room 4103); likely off campus",
+  "meetings": 1,
+  "terms": [
+   "202608"
+  ]
+ },
+ "BA": {
+  "why": "off campus: Baltimore location (Smith School BA01 sections)",
+  "meetings": 7,
+  "terms": [
+   "202608"
+  ]
+ },
+ "BLD2": {
+  "why": "off campus: Universities at Shady Grove Building II (Rockville); sections ESG*/restricted to Shady Grove",
+  "meetings": 9,
+  "terms": [
+   "202608"
+  ]
+ },
+ "BLD3": {
+  "why": "off campus: Universities at Shady Grove Building III",
+  "meetings": 48,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "BLD4": {
+  "why": "off campus: Universities at Shady Grove Building IV",
+  "meetings": 138,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "BSE4": {
+  "why": "off campus: Shady Grove (Biomedical Sciences & Engineering Education Facility)",
+  "meetings": 1,
+  "terms": [
+   "202608"
+  ]
+ },
+ "DC": {
+  "why": "off campus: Washington, DC location (Smith School DC sections, rooms C2/C3)",
+  "meetings": 26,
+  "terms": [
+   "202605",
+   "202608",
+   "202701"
+  ]
+ },
+ "PWS": {
+  "why": "unknown: popup 500; one Fall 2026 section (PHYS456-0101 room 0100); no ArcGIS match",
+  "meetings": 2,
+  "terms": [
+   "202608"
+  ]
+ },
+ "SEN": {
+  "why": "unknown: popup 500; one section (EDCP738-0101 room 1102M); maybe Seneca Building (ArcGIS 812), unconfirmed",
+  "meetings": 2,
+  "terms": [
+   "202608",
+   "202701"
+  ]
+ },
+ "TBA": {
+  "why": "not a building: room to be announced",
+  "meetings": 497,
+  "terms": [
+   "202605",
+   "202608",
+   "202612",
+   "202701"
+  ]
+ }
+}
