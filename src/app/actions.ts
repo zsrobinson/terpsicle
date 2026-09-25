@@ -12,7 +12,7 @@ import {
   type TermId,
   type Theme,
 } from "~/core/schema";
-import { useCatalog } from "~/state/catalog-store";
+import { type CatalogEvent, useCatalog } from "~/state/catalog-store";
 import { readActiveTermId } from "~/state/hooks";
 import { newLocalId, nowIso } from "~/state/ids";
 import { activePlanId } from "~/state/plan-ops";
@@ -132,6 +132,19 @@ export function switchTerm(term: Term): void {
   if (ui.lastTermId === term.id) return;
   ui.setLastTermId(term.id);
   track("term_switched", { status: term.status });
+}
+
+/** The catalog store reports its loads here (it can't import analytics). */
+export function trackCatalogEvent(event: CatalogEvent): void {
+  if (event.type === "catalog_loaded") {
+    const { termId, fromCache, deptsFetched, ms } = event;
+    track("catalog_loaded", { termId, fromCache, deptsFetched, ms });
+  } else {
+    track("catalog_load_failed", {
+      termId: event.termId,
+      reason: event.reason,
+    });
+  }
 }
 
 export function setTheme(theme: Theme): void {

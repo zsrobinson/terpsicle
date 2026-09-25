@@ -2,7 +2,9 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { chromium, defineConfig, devices } from "@playwright/test";
 
-const PORT = 3100;
+// E2E_PORT lets checkouts side by side run e2e at once: locally an existing
+// server on the port is reused, which would test the other checkout's code.
+const PORT = Number(process.env.E2E_PORT ?? 3100);
 const isCI = Boolean(process.env.CI);
 
 // CI installs the browser this Playwright version expects. Local agent
@@ -25,6 +27,8 @@ const executablePath = chromiumExecutable();
 
 export default defineConfig({
   testDir: "e2e",
+  // Real data, against a deployment: playwright.live.config.ts.
+  testIgnore: "live/**",
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,

@@ -71,11 +71,27 @@ Read through the hooks in `~/state/hooks`, never a plan picked by hand, so the s
 | `usePlanConnections()` | Core `Connection`s between back-to-back classes (travel pills, Travel tab). |
 | `useTravel()` | `{ travel, campus }`: travel settings and the campus map (routes load once the plan has a placed section). |
 
+Published data beyond the term catalog, in `~/state/data-hooks`. Each hook starts its own load (from the IndexedDB cache first, then the server), once per session:
+
+| Hook | Returns |
+|---|---|
+| `useSeatsFreshness(termId)` | `{ state, text, asOf }`. Put `text` above a section list: "Seats as of 2 min ago" (`live`, from Testudo's as-of time), "Seats stopped updating when this term was archived." (`archived`), "Offline · showing saved data" (`offline`), "Seats unknown" (`unknown`), or "" while `loading`. It re-renders every 30 s. |
+| `useInstructors(dept)` | `{ data, state }`: the department's PlanetTerp file (`instructors` by slug, `names` for the Testudo-name join, `grades` per course), or `null` when PlanetTerp has none. |
+| `useAcademicCalendar(termId)` | `{ calendar, state }`: the provost calendar for .ics export. `status: "not-published"`, or `ready` with no calendar (no file yet), means the dates aren't out: say so plainly. Cached, so it works offline. |
+| `useCampus()` | `{ campus, state }`: core's `CampusMap` (routes and off-campus codes), `EMPTY_CAMPUS` until loaded. |
+| `useRouteGeometry(from, to, mode)` | `{ geometry, state }`: a connection's walking path for a map. `geometry` stays `null` when there's no file: hide the map, never draw a straight line. |
+| `useCatalogPolling(termId)` | The seat poll. The shell runs it for the term on screen, so features don't need to. |
+
 Stores (Zustand) for everything else:
 
 - `useWorkspace` (`~/state/workspace-store`): plans, blocks, course colors, travel settings and the open plan per term. Change the workspace only through `commit(label, recipe, { toast? })` or `dispatch(action, label)`; both keep undo history, and `label` ("Removed CMSC351 from Plan A") becomes the Undo toast. Use `{ toast: false }` for quiet edits (renames). `setTravel` saves settings without history.
 - `useUi` (`~/state/ui-store`): `drill(entry)`, `replaceDrill(entry)`, `back()`, `backTo(depth)`, `openTab(tab)`, `requestFocus(tab)`, `toggleGroup(key)`, the drawer's snap, and the calendar fields below.
-- `useCatalog` (`~/state/catalog-store`): terms; per term the manifest, seats, changes and a core `CatalogIndex`; the campus map. `ensureTerm(termId)` loads every department (the shell does this for the term on screen), `ensureDepts(termId, depts)` a few, `ensureCampus()` the buildings and routes files.
+- `useCatalog` (`~/state/catalog-store`): terms; per term (`byTerm[termId]`) the `manifest`, `seats`, `changes` (the changes file; `usePlanProblems` already feeds it to core) and a core `CatalogIndex`; the campus map; `instructors` and `calendars`. `ensureTerm(termId, first?)` loads every department, `first` ones first (the shell does this for the term on screen, with the plan's departments first), `ensureDepts(termId, depts)` a few, `ensureCampus()` the buildings and routes files, `refreshTerm(termId)` revalidates, and `retry()` tries a failed load again.
+  - How loading works (`DATA.md` §5.1): everything is read from the IndexedDB cache first, so a repeat visit starts instantly, and then revalidated against the server. The manifest is diffed with core's `diffManifest`, so only departments whose hash changed are fetched, and files the manifest no longer lists are evicted. A file that fails validation keeps the previous one. The same path runs in mock mode (cache keys prefixed `mock:`).
+  - `byTerm[termId].manifestSource` is `"cache"` or `"network"`; `checkedAt` is when the server last confirmed it.
+  - `network` is `"offline"` when the last request couldn't reach the server. The top bar then says "Offline · showing saved data"; with nothing saved, the calendar's place shows the error and **Try again** (`catalog-error.tsx`).
+  - `appStale` is true when the server publishes a newer data format than this tab reads; the page reloads the next time it becomes visible.
+  - Archived terms never poll. Active ones poll the manifest every 60 s while the page is visible, and right away when it becomes visible or comes back online; seats are refetched only when their hash changes.
 
 User actions that should be counted go through `actions.ts`, which records the analytics event (`docs/ANALYTICS.md`):
 - plans: `createEmptyPlan`, `copyPlan`, `renamePlan`, `deletePlan`, `openPlan`, and `createPlanFrom(termId, courses, { source: "generate", name })` for Generate;

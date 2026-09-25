@@ -5,6 +5,7 @@ import type {
   ProblemFix,
   ProblemKind,
   RailTab,
+  TermId,
   TermStatus,
   Theme,
 } from "~/core/schema";
@@ -40,6 +41,16 @@ export interface AnalyticsEvents {
   seat_alert_stopped: NoProperties;
   first_visit_path_chosen: { path: "build" | "generate" };
   deep_link_opened: { outcome: "ok" | "unknown-term" };
+  catalog_loaded: {
+    termId: TermId;
+    fromCache: boolean;
+    deptsFetched: number;
+    ms: number;
+  };
+  catalog_load_failed: {
+    termId: TermId | null;
+    reason: "missing" | "network" | "invalid" | "newer-data";
+  };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --project core --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:live": "playwright test -c playwright.live.config.ts",
     "deploy": "pnpm build && wrangler d1 migrations apply terpsicle --remote && wrangler deploy",
     "cf-typegen": "wrangler types"
   },

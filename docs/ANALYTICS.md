@@ -35,6 +35,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `registration_item_checked` | | Whether the checklist is used on registration day. |
   | `seat_alert_requested` / `seat_alert_stopped` | | Seat-alert demand from the app's side (the server counts confirmations and sends). Never the address. |
   | `deep_link_opened` | `outcome`: `ok` · `unknown-term` | How often seat-alert emails bring people back, and whether their terms still exist. |
+  | `catalog_loaded` | `termId`, `fromCache`, `deptsFetched`, `ms` (until every department is in) | Whether the IndexedDB cache and manifest diffing keep repeat visits fast (BUILD §5), and how long a first visit waits for the whole catalog. |
+  | `catalog_load_failed` | `termId` (null when the terms list failed), `reason`: `missing` · `network` · `invalid` · `newer-data` | Visits that saw the "couldn't load" state instead of a calendar, and which failure caused it. |
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere.
 

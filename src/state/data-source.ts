@@ -22,17 +22,20 @@ import {
   RouteGeometrySchema,
   routeGeometryKey,
   routesKey,
+  SCHEMA_VERSIONS,
+  type SchemaFamily,
   SeatsFileSchema,
   seatsKey,
   TERMS_KEY,
   type TermId,
   TermsFileSchema,
   type TravelMode,
+  WireEnvelopeSchema,
 } from "~/core/schema";
 
 // The one way the app reads published data, by DATA.md key (§2.1). Mock mode
-// serves files from memory; live mode fetches `/data/<key>`. M6 adds the
-// IndexedDB cache and manifest diffing behind this same interface.
+// serves files from memory; live mode fetches `/data/<key>`. The IndexedDB
+// cache and manifest diffing sit above this, in the catalog store.
 
 export interface DataSource {
   readonly kind: "mock" | "live";
@@ -163,12 +166,41 @@ export async function createDataSource(
   return createBucketDataSource(mockDataSource);
 }
 
+/**
+ * A file in a schema version this build doesn't read (DATA.md §2.3). Newer
+ * means this tab is out of date; older means the jobs haven't republished.
+ */
+export class SchemaVersionError extends DataError {
+  constructor(
+    key: string,
+    readonly found: number,
+    readonly expected: number,
+  ) {
+    super(
+      key,
+      "invalid",
+      `${key} is schema version ${found}; this build reads ${expected}`,
+    );
+    this.name = "SchemaVersionError";
+  }
+
+  get newer(): boolean {
+    return this.found > this.expected;
+  }
+}
+
 async function readParsed<S extends z.ZodType>(
   source: DataSource,
   key: string,
   schema: S,
+  family: SchemaFamily,
 ): Promise<z.infer<S>> {
   const raw = await source.readJson(key);
+  // The envelope first, so a newer format reads as "reload", not "broken".
+  const envelope = WireEnvelopeSchema.safeParse(raw);
+  const expected = SCHEMA_VERSIONS[family];
+  if (envelope.success && envelope.data.schemaVersion !== expected)
+    throw new SchemaVersionError(key, envelope.data.schemaVersion, expected);
   const parsed = schema.safeParse(raw);
   if (!parsed.success)
     throw new DataError(
@@ -183,27 +215,58 @@ async function readParsed<S extends z.ZodType>(
 export function createDataReader(source: DataSource) {
   return {
     kind: source.kind,
-    terms: () => readParsed(source, TERMS_KEY, TermsFileSchema),
+    terms: () => readParsed(source, TERMS_KEY, TermsFileSchema, "catalog"),
     manifest: (termId: TermId) =>
-      readParsed(source, manifestKey(termId), ManifestSchema),
+      readParsed(source, manifestKey(termId), ManifestSchema, "catalog"),
     deptChunk: (termId: TermId, dept: DeptCode, hash: ContentHash) =>
-      readParsed(source, deptChunkKey(termId, dept, hash), DeptChunkSchema),
+      readParsed(
+        source,
+        deptChunkKey(termId, dept, hash),
+        DeptChunkSchema,
+        "catalog",
+      ),
     seats: (termId: TermId, hash: ContentHash) =>
-      readParsed(source, seatsKey(termId, hash), SeatsFileSchema),
+      readParsed(source, seatsKey(termId, hash), SeatsFileSchema, "catalog"),
     changes: (termId: TermId, hash: ContentHash) =>
-      readParsed(source, changesKey(termId, hash), ChangesFileSchema),
+      readParsed(
+        source,
+        changesKey(termId, hash),
+        ChangesFileSchema,
+        "catalog",
+      ),
     planetTerpManifest: () =>
-      readParsed(source, PLANETTERP_MANIFEST_KEY, PlanetTerpManifestSchema),
+      readParsed(
+        source,
+        PLANETTERP_MANIFEST_KEY,
+        PlanetTerpManifestSchema,
+        "planetterp",
+      ),
     planetTerpDept: (dept: DeptCode, hash: ContentHash) =>
-      readParsed(source, planetTerpDeptKey(dept, hash), PlanetTerpDeptSchema),
-    geoManifest: () => readParsed(source, GEO_MANIFEST_KEY, GeoManifestSchema),
+      readParsed(
+        source,
+        planetTerpDeptKey(dept, hash),
+        PlanetTerpDeptSchema,
+        "planetterp",
+      ),
+    geoManifest: () =>
+      readParsed(source, GEO_MANIFEST_KEY, GeoManifestSchema, "geo"),
     buildings: (hash: ContentHash) =>
-      readParsed(source, buildingsKey(hash), BuildingsFileSchema),
+      readParsed(source, buildingsKey(hash), BuildingsFileSchema, "geo"),
     routes: (hash: ContentHash) => source.readBinary(routesKey(hash)),
     routeGeometry: (from: BuildingCode, to: BuildingCode, mode: TravelMode) =>
-      readParsed(source, routeGeometryKey(from, to, mode), RouteGeometrySchema),
+      readParsed(
+        source,
+        routeGeometryKey(from, to, mode),
+        RouteGeometrySchema,
+        "geo",
+      ),
     calendar: (termId: TermId) =>
-      readParsed(source, calendarKey(termId), AcademicCalendarSchema),
+      readParsed(
+        source,
+        calendarKey(termId),
+        AcademicCalendarSchema,
+        "calendar",
+      ),
   };
 }
 export type DataReader = ReturnType<typeof createDataReader>;

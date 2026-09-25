@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useCatalog } from "~/state/catalog-store";
+import { deptOf, useCatalog } from "~/state/catalog-store";
+import { useCatalogPolling } from "~/state/data-hooks";
 import { useActiveTerm, useCurrentPlan } from "~/state/hooks";
 import { saveSharedCopy, useShare } from "~/state/share-store";
 import { useUi } from "~/state/ui-store";
@@ -9,6 +10,7 @@ import { Skeleton } from "~/ui/skeleton";
 import { openTab, redo, undo } from "./actions";
 import { track } from "./analytics";
 import { CalendarRegion } from "./calendar/calendar-region";
+import { CatalogError, useCatalogFailure } from "./catalog-error";
 import { MobileDrawer, PEEK_HEIGHT } from "./mobile-drawer";
 import { PlanTabs } from "./plan-tabs";
 import { Rail } from "./rail";
@@ -42,6 +44,12 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
   useDefaultPlan(Boolean(sharedParam));
   useTermData();
   const shared = useSharedLink(sharedParam, onClearShared, mobile);
+  const failure = useCatalogFailure();
+  const calendar = failure ? (
+    <CatalogError message={failure} />
+  ) : (
+    <CalendarRegion />
+  );
 
   const topBar = (
     <TopBar
@@ -57,7 +65,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
       <div className="flex h-dvh flex-col bg-bg text-fg">
         {topBar}
         <main className="min-h-0 flex-1" style={{ paddingBottom: PEEK_HEIGHT }}>
-          <CalendarRegion />
+          {calendar}
         </main>
         <MobileDrawer />
         <UndoToasts />
@@ -78,9 +86,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
         >
           <SidebarContent />
         </aside>
-        <main className="min-w-0 flex-1">
-          <CalendarRegion />
-        </main>
+        <main className="min-w-0 flex-1">{calendar}</main>
       </div>
       <UndoToasts />
       <FeatureEffects />
@@ -128,20 +134,27 @@ function useDefaultPlan(linkInUrl: boolean) {
 
 /**
  * Loads the catalog of the term on screen (search, fit and problems need all
- * of it), and the campus map once the plan has somewhere to walk between.
+ * of it; the plan's departments come first), polls it for seats, and loads
+ * the campus map once the plan has somewhere to walk between.
  */
 function useTermData() {
   const termId = useActiveTerm().termId;
   const reader = useCatalog((s) => s.reader);
   const ensureTerm = useCatalog((s) => s.ensureTerm);
   const ensureCampus = useCatalog((s) => s.ensureCampus);
-  const placed = useCurrentPlan()?.plan.courses.some(
-    (c) => c.sectionCode !== null,
-  );
+  const current = useCurrentPlan();
+  const placed = current?.plan.courses.some((c) => c.sectionCode !== null);
+  const planDepts = current
+    ? [...new Set(current.plan.courses.map((c) => deptOf(c.courseCode)))]
+        .sort()
+        .join(",")
+    : "";
   useEffect(() => {
     // A shared link can name its term before the data source is ready.
-    if (termId && reader) void ensureTerm(termId);
-  }, [termId, reader, ensureTerm]);
+    if (termId && reader)
+      void ensureTerm(termId, planDepts ? planDepts.split(",") : []);
+  }, [termId, reader, ensureTerm, planDepts]);
+  useCatalogPolling(termId);
   useEffect(() => {
     if (placed && reader) void ensureCampus();
   }, [placed, reader, ensureCampus]);
