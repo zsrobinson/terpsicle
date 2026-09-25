@@ -630,24 +630,28 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
   const hours = calendarHourRange(everything);
   const days = calendarDays(everything);
 
-  const columns: DayColumn[] = days.map((day) => ({
-    day,
-    entries: packLanes<ClassEntry | BlockEntry>([
-      ...classes.filter((c) => c.day === day),
-      ...blocks.filter((b) => b.day === day),
-    ]),
-    ghosts: packGhosts(ghostsOn(day), MAX_GHOST_LANES, ownOn(day)),
-    ghostItems: ghostsOn(day),
-    own: ownOn(day),
-    pills: pills
-      .filter((c) => c.day === day)
-      .map((connection) => ({
-        key: connection.id,
-        day,
-        at: (connection.from.time + connection.to.time) / 2,
-        connection,
-      })),
-  }));
+  const columns: DayColumn[] = days.map((day) => {
+    const ghostItems = ghostsOn(day);
+    const own = ownOn(day);
+    return {
+      day,
+      entries: packLanes<ClassEntry | BlockEntry>([
+        ...classes.filter((c) => c.day === day),
+        ...blocks.filter((b) => b.day === day),
+      ]),
+      ghosts: packGhosts(ghostItems, MAX_GHOST_LANES, own),
+      ghostItems,
+      own,
+      pills: pills
+        .filter((c) => c.day === day)
+        .map((connection) => ({
+          key: connection.id,
+          day,
+          at: (connection.from.time + connection.to.time) / 2,
+          connection,
+        })),
+    };
+  });
 
   return {
     days,
