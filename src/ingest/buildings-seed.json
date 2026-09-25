@@ -1,0 +1,514 @@
+{
+  "source": "Testudo building popups joined to UMD ArcGIS BuildingAllSearch on 2026-09-25 (RESEARCH.md \u00a75.1.7)",
+  "buildings": [
+    {
+      "code": "AJC",
+      "number": "429",
+      "name": "A. James Clark Hall",
+      "lat": 38.991963,
+      "lng": -76.937725
+    },
+    {
+      "code": "ANA",
+      "number": "060",
+      "name": "Anne Arundel Hall",
+      "lat": 38.985947,
+      "lng": -76.946736
+    },
+    {
+      "code": "ANS",
+      "number": "142",
+      "name": "Animal Sciences/Agricultural Engineering Building",
+      "lat": 38.991642,
+      "lng": -76.939478
+    },
+    {
+      "code": "ARC",
+      "number": "145",
+      "name": "Architecture Building",
+      "lat": 38.984314,
+      "lng": -76.947634
+    },
+    {
+      "code": "ARM",
+      "number": "078",
+      "name": "Reckord Armory",
+      "lat": 38.986029,
+      "lng": -76.938942
+    },
+    {
+      "code": "ASY",
+      "number": "146",
+      "name": "Parren J. Mitchell Art-Sociology Building",
+      "lat": 38.985214,
+      "lng": -76.947646
+    },
+    {
+      "code": "ATL",
+      "number": "224",
+      "name": "Atlantic Building",
+      "lat": 38.991004,
+      "lng": -76.942461
+    },
+    {
+      "code": "AVW",
+      "number": "115",
+      "name": "A.V. Williams Building",
+      "lat": 38.990771,
+      "lng": -76.936525
+    },
+    {
+      "code": "BMS",
+      "number": "296",
+      "name": "Biomolecular Sciences Building",
+      "lat": 38.992867,
+      "lng": -76.937729
+    },
+    {
+      "code": "BPS",
+      "number": "144",
+      "name": "Biology-Psychology Building",
+      "lat": 38.988843,
+      "lng": -76.942602
+    },
+    {
+      "code": "BRB",
+      "number": "413",
+      "name": "Bioscience Research Building",
+      "lat": 38.989058,
+      "lng": -76.942983
+    },
+    {
+      "code": "CBD",
+      "number": "122",
+      "name": "Cumberland Hall",
+      "lat": 38.992253,
+      "lng": -76.943975
+    },
+    {
+      "code": "CCC",
+      "number": "097",
+      "name": "Cambridge Community Center",
+      "lat": 38.992205,
+      "lng": -76.94304
+    },
+    {
+      "code": "CEN",
+      "number": "098",
+      "name": "Centreville Hall",
+      "lat": 38.992251,
+      "lng": -76.942111
+    },
+    {
+      "code": "CHE",
+      "number": "090",
+      "name": "Chemical & Nuclear Engineering Building",
+      "lat": 38.990585,
+      "lng": -76.939216
+    },
+    {
+      "code": "CHI",
+      "number": "059",
+      "name": "Chincoteague Hall",
+      "lat": 38.985227,
+      "lng": -76.944548
+    },
+    {
+      "code": "CHM",
+      "number": "091",
+      "name": "Chemistry Building",
+      "lat": 38.989614,
+      "lng": -76.939841
+    },
+    {
+      "code": "CSI",
+      "number": "406",
+      "name": "Computer Science Instructional Center",
+      "lat": 38.989982,
+      "lng": -76.936166
+    },
+    {
+      "code": "DOR",
+      "number": "064",
+      "name": "Dorchester Hall",
+      "lat": 38.986742,
+      "lng": -76.946163
+    },
+    {
+      "code": "EAF",
+      "number": "228",
+      "name": "Idea Factory",
+      "lat": 38.990372,
+      "lng": -76.938192
+    },
+    {
+      "code": "EDU",
+      "number": "143",
+      "name": "Benjamin Building",
+      "lat": 38.986693,
+      "lng": -76.947381
+    },
+    {
+      "code": "EDUC",
+      "number": "143",
+      "name": "Benjamin Building",
+      "lat": 38.986693,
+      "lng": -76.947381
+    },
+    {
+      "code": "EGL",
+      "number": "089",
+      "name": "Engineering Laboratory Building",
+      "lat": 38.989299,
+      "lng": -76.937968
+    },
+    {
+      "code": "EGR",
+      "number": "088",
+      "name": "Martin Hall",
+      "lat": 38.988896,
+      "lng": -76.937992
+    },
+    {
+      "code": "ERC",
+      "number": "068",
+      "name": "Eppley Recreation Center",
+      "lat": 38.993608,
+      "lng": -76.945287
+    },
+    {
+      "code": "ESJ",
+      "number": "226",
+      "name": "Edward St. John Learning & Teaching Center",
+      "lat": 38.987083,
+      "lng": -76.941748
+    },
+    {
+      "code": "GEO",
+      "number": "237",
+      "name": "Geology Building",
+      "lat": 38.988161,
+      "lng": -76.940911
+    },
+    {
+      "code": "GLF",
+      "number": "165",
+      "name": "Golf Course Driving Range Control Building",
+      "lat": 38.99079,
+      "lng": -76.955011
+    },
+    {
+      "code": "GVC",
+      "number": "795",
+      "name": "Avrum Gudelsky",
+      "lat": 39.004245,
+      "lng": -76.941817
+    },
+    {
+      "code": "HBK",
+      "number": "147",
+      "name": "Hornbake Library",
+      "lat": 38.988164,
+      "lng": -76.941575
+    },
+    {
+      "code": "HIL",
+      "number": "973",
+      "name": "Hillel Center",
+      "lat": 38.982737,
+      "lng": -76.948741
+    },
+    {
+      "code": "HJP",
+      "number": "073",
+      "name": "H.J. Patterson Hall",
+      "lat": 38.986975,
+      "lng": -76.943532
+    },
+    {
+      "code": "IPT",
+      "number": "085",
+      "name": "Institute for Physical Science & Technology",
+      "lat": 38.990927,
+      "lng": -76.940985
+    },
+    {
+      "code": "IRB",
+      "number": "432",
+      "name": "Brendan Iribe Center",
+      "lat": 38.989224,
+      "lng": -76.93619
+    },
+    {
+      "code": "JMP",
+      "number": "083",
+      "name": "J.M. Patterson Building",
+      "lat": 38.99051,
+      "lng": -76.940245
+    },
+    {
+      "code": "JMZ",
+      "number": "034",
+      "name": "Jimenez Hall",
+      "lat": 38.986811,
+      "lng": -76.944577
+    },
+    {
+      "code": "KEB",
+      "number": "225",
+      "name": "Kim Engineering Building",
+      "lat": 38.990986,
+      "lng": -76.938097
+    },
+    {
+      "code": "KEY",
+      "number": "048",
+      "name": "Francis Scott Key Hall",
+      "lat": 38.985086,
+      "lng": -76.943078
+    },
+    {
+      "code": "KNI",
+      "number": "417",
+      "name": "Knight Hall",
+      "lat": 38.986847,
+      "lng": -76.948606
+    },
+    {
+      "code": "LCC",
+      "number": "250",
+      "name": "Leonardtown Community Center",
+      "lat": 38.983361,
+      "lng": -76.933497
+    },
+    {
+      "code": "LEF",
+      "number": "038",
+      "name": "LeFrak Hall",
+      "lat": 38.98369,
+      "lng": -76.943701
+    },
+    {
+      "code": "LPA",
+      "number": "259",
+      "name": "La Plata Hall",
+      "lat": 38.992446,
+      "lng": -76.945909
+    },
+    {
+      "code": "MCB",
+      "number": "231",
+      "name": "Microbiology Building",
+      "lat": 38.988114,
+      "lng": -76.943386
+    },
+    {
+      "code": "MCK",
+      "number": "035",
+      "name": "McKeldin Library",
+      "lat": 38.985962,
+      "lng": -76.945109
+    },
+    {
+      "code": "MMH",
+      "number": "046",
+      "name": "Marie Mount Hall",
+      "lat": 38.984985,
+      "lng": -76.940798
+    },
+    {
+      "code": "MTH",
+      "number": "084",
+      "name": "William E. Kirwan Hall",
+      "lat": 38.988631,
+      "lng": -76.939204
+    },
+    {
+      "code": "PAC",
+      "number": "386",
+      "name": "Clarice Smith Performing Arts Center",
+      "lat": 38.99063,
+      "lng": -76.950465
+    },
+    {
+      "code": "PBR",
+      "number": "395",
+      "name": "Turfgrass Research Facility",
+      "lat": 39.006987,
+      "lng": -76.941189
+    },
+    {
+      "code": "PFR",
+      "number": "425",
+      "name": "Prince Frederick Hall",
+      "lat": 38.983112,
+      "lng": -76.945787
+    },
+    {
+      "code": "PHY",
+      "number": "082",
+      "name": "John S. Toll Physics Building",
+      "lat": 38.988677,
+      "lng": -76.94008
+    },
+    {
+      "code": "PKT",
+      "number": "054",
+      "name": "Preinkert Hall",
+      "lat": 38.984461,
+      "lng": -76.94622
+    },
+    {
+      "code": "PLS",
+      "number": "036",
+      "name": "Plant Sciences Building",
+      "lat": 38.988768,
+      "lng": -76.941347
+    },
+    {
+      "code": "PSC",
+      "number": "415",
+      "name": "Physical Sciences Complex",
+      "lat": 38.990929,
+      "lng": -76.941454
+    },
+    {
+      "code": "QAN",
+      "number": "061",
+      "name": "Queen Anne's Hall",
+      "lat": 38.985241,
+      "lng": -76.94615
+    },
+    {
+      "code": "RDG",
+      "number": "202",
+      "name": "Regents Drive Parking Garage",
+      "lat": 38.989671,
+      "lng": -76.941478
+    },
+    {
+      "code": "RGC",
+      "number": "398",
+      "name": "Research Greenhouse",
+      "lat": 38.997235,
+      "lng": -76.942915
+    },
+    {
+      "code": "SHM",
+      "number": "037",
+      "name": "Shoemaker Building",
+      "lat": 38.983938,
+      "lng": -76.942753
+    },
+    {
+      "code": "SKN",
+      "number": "044",
+      "name": "Skinner Building",
+      "lat": 38.984858,
+      "lng": -76.941853
+    },
+    {
+      "code": "SOM",
+      "number": "063",
+      "name": "Somerset Hall",
+      "lat": 38.985024,
+      "lng": -76.945572
+    },
+    {
+      "code": "SPH",
+      "number": "255",
+      "name": "School of Public Health Building",
+      "lat": 38.993473,
+      "lng": -76.943129
+    },
+    {
+      "code": "SQH",
+      "number": "233",
+      "name": "Susquehanna Hall",
+      "lat": 38.982088,
+      "lng": -76.943776
+    },
+    {
+      "code": "SSU",
+      "number": "163",
+      "name": "Stamp Student Union",
+      "lat": 38.988126,
+      "lng": -76.944735
+    },
+    {
+      "code": "SYM",
+      "number": "076",
+      "name": "Symons Hall",
+      "lat": 38.98708,
+      "lng": -76.940768
+    },
+    {
+      "code": "TLF",
+      "number": "043",
+      "name": "Taliaferro Hall",
+      "lat": 38.984822,
+      "lng": -76.943162
+    },
+    {
+      "code": "TMH",
+      "number": "433",
+      "name": "Thurgood Marshall Hall",
+      "lat": 38.985136,
+      "lng": -76.938787
+    },
+    {
+      "code": "TWS",
+      "number": "141",
+      "name": "Tawes Hall",
+      "lat": 38.985947,
+      "lng": -76.948153
+    },
+    {
+      "code": "TYD",
+      "number": "042",
+      "name": "Tydings Hall",
+      "lat": 38.984838,
+      "lng": -76.944033
+    },
+    {
+      "code": "VMH",
+      "number": "039",
+      "name": "Van Munching Hall",
+      "lat": 38.983077,
+      "lng": -76.947264
+    },
+    {
+      "code": "WDS",
+      "number": "047",
+      "name": "Woods Hall",
+      "lat": 38.985153,
+      "lng": -76.94186
+    },
+    {
+      "code": "YDH",
+      "number": "436",
+      "name": "Yahentamitsi Dining Hall",
+      "lat": 38.991056,
+      "lng": -76.944604
+    },
+    {
+      "code": "ZUP",
+      "number": "438",
+      "name": "Stanley R. Zupnik Hall",
+      "lat": 38.989862,
+      "lng": -76.9377
+    }
+  ],
+  "unresolved": {
+    "4MLK": "unknown: popup 404; one Fall 2026 section (BIOE679F-0201 room 4103); likely off campus",
+    "BA": "off campus: Baltimore location (Smith School BA01 sections)",
+    "BLD2": "off campus: Universities at Shady Grove Building II (Rockville); sections ESG*/restricted to Shady Grove",
+    "BLD3": "off campus: Universities at Shady Grove Building III",
+    "BLD4": "off campus: Universities at Shady Grove Building IV",
+    "BSE4": "off campus: Shady Grove (Biomedical Sciences & Engineering Education Facility)",
+    "DC": "off campus: Washington, DC location (Smith School DC sections, rooms C2/C3)",
+    "PWS": "unknown: popup 500; one Fall 2026 section (PHYS456-0101 room 0100); no ArcGIS match",
+    "SEN": "unknown: popup 500; one section (EDCP738-0101 room 1102M); maybe Seneca Building (ArcGIS 812), unconfirmed",
+    "TBA": "not a building: room to be announced"
+  }
+}

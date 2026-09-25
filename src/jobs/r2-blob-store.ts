@@ -1,18 +1,40 @@
-import type { BlobStore } from "~/ingest/blob-store";
+import type { BlobStore, PutOptions } from "~/ingest/blob-store";
 
 /** The Worker's `BlobStore`: R2 bucket `DATA`. */
 export function createR2BlobStore(bucket: R2Bucket): BlobStore {
+  const metadata = (options?: PutOptions) =>
+    options?.contentType
+      ? { httpMetadata: { contentType: options.contentType } }
+      : {};
+
   return {
     async get(key) {
       const object = await bucket.get(key);
       return object ? new Uint8Array(await object.arrayBuffer()) : null;
     },
+    async getVersioned(key) {
+      const object = await bucket.get(key);
+      if (!object) return null;
+      return {
+        body: new Uint8Array(await object.arrayBuffer()),
+        etag: object.etag,
+      };
+    },
     async put(key, body, options) {
-      await bucket.put(key, body, {
-        ...(options?.contentType
-          ? { httpMetadata: { contentType: options.contentType } }
-          : {}),
+      await bucket.put(key, body, metadata(options));
+    },
+    async putIfMatch(key, body, etag, options) {
+      // R2 returns null instead of an object when the precondition fails.
+      // "Must not exist yet" is If-None-Match: *.
+      const onlyIf =
+        etag === null
+          ? new Headers({ "If-None-Match": "*" })
+          : { etagMatches: etag };
+      const written = await bucket.put(key, body, {
+        ...metadata(options),
+        onlyIf,
       });
+      return written !== null;
     },
     async delete(key) {
       await bucket.delete(key);

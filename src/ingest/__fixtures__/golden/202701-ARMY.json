@@ -1,0 +1,334 @@
+{
+ "schemaVersion": 1,
+ "termId": "202701",
+ "dept": "ARMY",
+ "courses": [
+  {
+   "code": "ARMY105",
+   "title": "Basic Military Science II",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "P-F"
+   ],
+   "permission": null,
+   "description": "Exploration of the Army Leadership Model through classroom instruction, leadership training and mentorship. Develops knowledge and competency in physical fitness through rigorous training and experiential leadership education through leadership laboratories.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [
+    {
+     "label": "Credit only granted for",
+     "text": "ARMY119 or ARMY105."
+    }
+   ],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Andrew Bischoff"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu",
+        "Th"
+       ],
+       "start": 570,
+       "end": 645,
+       "kind": "lecture",
+       "building": "ARM",
+       "room": "0126",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "0102",
+     "instructors": [
+      "Andrew Bischoff"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "M",
+        "W",
+        "F"
+       ],
+       "start": 540,
+       "end": 590,
+       "kind": "lecture",
+       "building": "PLS",
+       "room": "1140",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "ARMY110",
+   "title": "Intro to Army Military History",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "P-F",
+    "Aud"
+   ],
+   "permission": null,
+   "description": "This course is composed of 46 modules, including 43 lessons and 3 exams, covering military history from early colonial warfare in the eighteenth century to the global war on terrorism in the twenty-first century. The course begins with a pretest, which provides the learner with insight into what will be covered in the course and an opportunity to gauge their knowledge coming into the course. Each lesson will include readings and an Interactive Multimedia Instruction (IMI) piece. Discussion activities, writing assignments, and midterm and final exams will allow students to synthesize what they have learned.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in the Army ROTC program.",
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Andrew Bischoff"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu",
+        "Th"
+       ],
+       "start": 750,
+       "end": 825,
+       "kind": "lecture",
+       "building": "ESJ",
+       "room": "B0322",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "ARMY202",
+   "title": "Military Leadership in Practice",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "P-F",
+    "Aud"
+   ],
+   "permission": null,
+   "description": "This course uses the case study method to examine the Army Leadership Model as applied to assigned missions in U.S. history. Students learn to evaluate and assimilate effective leadership methods and techniques. Includes a laboratory period in which case studies are worked out and presented by individuals and groups.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "0102",
+     "instructors": [
+      "Andrew Bischoff"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu",
+        "Th"
+       ],
+       "start": 840,
+       "end": 915,
+       "kind": "lecture",
+       "building": "SPH",
+       "room": "1303",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "ARMY302",
+   "title": "Advanced Military Leadership II",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "P-F",
+    "Aud"
+   ],
+   "permission": null,
+   "description": "Prepares contracted students for certification at the Army National Advance Camp, a prerequisite for commissioning as an officer in the U.S. Army. Focus is directed to military tactics, squad and platoon drills, marksmanship, land navigation and fitness excellence. Includes a laboratory period in applied leadership skills as well as a three day field exercise.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Andrew Bischoff"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu",
+        "Th"
+       ],
+       "start": 660,
+       "end": 735,
+       "kind": "lecture",
+       "building": "ESJ",
+       "room": "B0324",
+       "online": false
+      },
+      {
+       "timed": true,
+       "days": [
+        "Th"
+       ],
+       "start": 960,
+       "end": 1080,
+       "kind": "lab",
+       "building": "ESJ",
+       "room": "B0324",
+       "online": false
+      },
+      {
+       "timed": true,
+       "days": [
+        "M",
+        "W",
+        "F"
+       ],
+       "start": 390,
+       "end": 450,
+       "kind": "lab",
+       "building": "ARM",
+       "room": "0126",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "ARMY402",
+   "title": "Advanced Military Leadership IV",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg",
+    "P-F",
+    "Aud"
+   ],
+   "permission": null,
+   "description": "The military system and code of ethics in the military environment is studied. Topics include code of conduct during all forms of military operations, the Geneva Conventions and the ethical decision making process. Also includes a laboratory in applied leadership skills, fitness excellence and two field exercises.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Andrew Bischoff"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Th"
+       ],
+       "start": 960,
+       "end": 1080,
+       "kind": "lab",
+       "building": "ARM",
+       "room": "0135",
+       "online": false
+      },
+      {
+       "timed": true,
+       "days": [
+        "M",
+        "W",
+        "F"
+       ],
+       "start": 390,
+       "end": 450,
+       "kind": "lab",
+       "building": "ARM",
+       "room": "0135",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "0102",
+     "instructors": [
+      "Andrew Bischoff"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu",
+        "Th"
+       ],
+       "start": 360,
+       "end": 565,
+       "kind": "lecture",
+       "building": "ARM",
+       "room": "0126",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  }
+ ]
+}

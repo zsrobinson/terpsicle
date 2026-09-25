@@ -1,0 +1,1077 @@
+{
+ "schemaVersion": 1,
+ "termId": "202701",
+ "dept": "BUSI",
+ "courses": [
+  {
+   "code": "BUSI610",
+   "title": "Introduction to Financial Accounting",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": "Perm Req",
+   "description": "Overview of financial accounting, periodic financial statements and the financial reporting process. Importance of financial statements as information source for creditors and investors and as a means by which managers can communicate information about their firms.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in one of the following programs (Business and Management (Master's); Business and Management (Master's)).",
+   "otherNotes": [
+    {
+     "label": "Credit only granted for",
+     "text": "BUSI610, BUAC602, BUFN602, or BMGT602."
+    }
+   ],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Naman Desai"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "M"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Sue Cooper"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Th"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Sue Cooper"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI621",
+   "title": "Digital Transformation in Business",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "Introduces students to the strategic role of digital transformation within businesses, and provides an overview for how major information technologies may be used to inform and transform the firm's strategic, operational, and tactical decisions. Topics discussed in the course include the strategic use of digital technologies to generate sustainable competitive value; the contributions of new forms of technology infrastructure; the evaluation of new technology investments and the resulting ROI; acquiring, managing and governing technological capabilities within the firm; understanding the role of enterprise systems and social technologies within the firm; and the management of disruptive technologies within and outside the firm.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in Business and Management (Master's); or permission of BMGT-Robert H Smith.",
+   "otherNotes": [
+    {
+     "label": "Credit only granted for",
+     "text": "BUSI621 or BUSO620."
+    }
+   ],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Jillian Chavis"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "DC01",
+     "instructors": [],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "W"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "GS01",
+     "instructors": [],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "M"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI640",
+   "title": "Corporate Finance",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": "Perm Req",
+   "description": "Focuses on the valuation of the real assets of firms as well as the valuation of stocks and bonds, the primary financial assets in an economy. While details vary, the conceptual foundations of valuation boil down to three themes: time value of money, no-arbitrage, and systematic risk.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in one of the following programs (Business and Management (Master's); Business and Management (Master's)).",
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Michael Faulkender"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "W"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Michael Faulkender"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Tania Babina"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Th"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI641",
+   "title": "Corporate Finance II",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "Builds on the concepts and analytic methods covered in Corporate Finance I. Students will learn about the structure of financial markets, the financing and payout choices of large and small corporations, and the role of risk management in the corporation. In particular, the following issues will be addressed: The drivers of shareholder value; Corporate financing alternatives and the design of a company's capital structure; Coordinating investment, financing and payout policies; Corporate Finance Issues for Start-up firms; Key issues in international corporate finance.",
+   "prerequisite": "BUSI640.",
+   "corequisite": null,
+   "restriction": "Must be in Business and Management (Master's) program OR Permission of BMGT-Robert H. Smith School of Business.",
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Geoffrey Tate"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "W"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Geoffrey Tate"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Geoffrey Tate"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Th"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI683",
+   "title": "The Global Economic Environment",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "Relationship between national and international economic environments. Determinants of output, interest rates, prices and exchange rates. Analysis of effect of economic policies (fiscal, monetary, trade, tax) on the firm and the economy.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in one of the following programs (Business and Management (Master's); Business and Management (Master's)).",
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Cristian Dezso"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Cristian Dezso"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "W"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Cristian Dezso"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "M"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI690",
+   "title": "Strategic Management",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": "Perm Req",
+   "description": "Analyze and identify profit opportunities and threats in different industry and competitive environments; Analyze and identify a firm's valuable assets, resources and capabilities and how they might be protected, leveraged, and extended in the market; Learn how to organize your company to be the best prepared to adapt its strategy over time as the market environment changes; and how to use organic growth as well as mergers, acquisitions, joint ventures, alliances, and divestitures to ensure that the firm maintians the proper scale and scope to compete effectively over time.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in one of the following programs (Business and Management (Master's); Business and Management (Master's)).",
+   "otherNotes": [
+    {
+     "label": "Credit only granted for",
+     "text": "BUSI690 or BMGT614."
+    }
+   ],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Anil Gupta"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "M"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Anil Gupta"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Th"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Anil Gupta"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Tu"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI718I",
+   "title": "Special Topics in Business; Building Local Advantage: How Enterprises Thrive by Strengthening Local Economies",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "In-person meetings on April 10, 11 & 12.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Bennet Zelner"
+     ],
+     "delivery": "blended",
+     "meetings": [
+      {
+       "timed": false,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": true
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI718Q",
+   "title": "Special Topics in Business; The Business of Washington",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": null,
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "DC01",
+     "instructors": [
+      "Robert Coomber"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Th"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C2",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI721",
+   "title": "Creativity for Business Leaders and Entrepreneurs",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "Examines the concept of creativity as it applies in today's and tomorrow's complex business environment. An overview of the cognitive foundations of creativity, examines many of the preconceived notions about creativity in business and discusses multiple ways in which creativity can help business leaders and entrepreneurs to succeed. Topics include creativity techniques for groups and individuals, creativity as a foundation to recognize business opportunities and develop innovative products and services, selecting ideas and making them stick, mental and organizational obstacles to creativity as well as an overview of electronic tools to increase creative capability.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in Business and Management (Master's) program OR Permission of BMGT-Robert H. Smith School of Business.",
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Oliver Schlake"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Th"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI758A",
+   "title": "Special Topics in Business; Cyber/Enterprise Risks and Resilience Modeling",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "For students in the Technology Management Certificate program only. In-person meetings on 4/17 and 4/25.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "DC06",
+     "instructors": [
+      "Charles Harry"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Sa"
+       ],
+       "start": 540,
+       "end": 1020,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI758B",
+   "title": "Special Topics in Business; Ethics and Governance of Emergent Technology",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "For students in the Technology Management Certificate program only. In-person meetings on 5/8 and 5/15.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "DC06",
+     "instructors": [
+      "Anil Gupta"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Sa"
+       ],
+       "start": 540,
+       "end": 1020,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI758F",
+   "title": "Special Topics in Business; Investment Fund Management",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": "Perm Req",
+   "description": null,
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "DC01",
+     "instructors": [
+      "George Gao"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "W"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI758X",
+   "title": "Special Topics in Business; AI and Business Strategy",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "Cross-listed with BDBA808G. Credit will be only granted for BDBA808G or BUSI758X.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "GS01",
+     "instructors": [
+      "Suresh Acharya"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "W"
+       ],
+       "start": 1105,
+       "end": 1320,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI759",
+   "title": "Independent Study in Business",
+   "credits": {
+    "min": 1,
+    "max": 6
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": "Perm Req",
+   "description": null,
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": []
+  },
+  {
+   "code": "BUSI782",
+   "title": "Science and Technology Project Valuation",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "The application of financial management principles and techniques to science and technology investments and research and development projects. It will enable technology managers to estimate return on investment of R&D projects, value technology assets, quantify risk and make sound replacement and upgrade decisions for S&T projects. By the end of the course, students will be able to build financial models and make presentations to senior executives explaining the value creation potentially arising from investments in R&D, new product development, as well as infrastructure necessary to sustain the enterprise. For students in the Technology Management Certificate program only. In-person meetings on 3/6, 3/20 and 4/3.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in Business and Management (Master's) program; or permission of BMGT-Robert H Smith School of Business.",
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "DC06",
+     "instructors": [
+      "Michael Faulkender"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Sa"
+       ],
+       "start": 540,
+       "end": 1020,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI784",
+   "title": "Systems Design, Development, Test and Evaluation",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "Systems engineering approaches to the definition, design, development, implementation, integration, verification, and validation of successful systems. Particular focus will be placed on the critical collaboration needed between business leaders and IT leaders in the early stages of program definition and how to effectively leverage and assess business-driven enterprise, product, and program development. The course will cover contemporary product lifecycle phases and the systems engineering technical processes associated with research and product development organizations in industry and government. It will explore currently popular development methodologies such as incremental, spiral, evolutionary, lean, and agile and how these are driven by concept and requirements development, systems analysis and modeling, and system architecting and are measured by technology prototyping, research validation, technology testing, and program/product evaluation. The intent is exposure to the systems engineering processes and product/program lifecycle is to help technology management professionals align developmental efforts to business/mission strategy; help them to oversee, collaborate with, and evaluate technology development efforts; and help them navigate challenges of technology development and adoption and advance technologies more efficiently from concept to operational use. For students in the Technology Management Certificate program only. In-person meetings on 1/30, 2/6 and 2/20.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in Business and Management (Master's) program; or permission of BMGT-Robert H Smith School of Business.",
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "DC06",
+     "instructors": [
+      "Timothy Eveleigh"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Sa"
+       ],
+       "start": 540,
+       "end": 1020,
+       "kind": "lecture",
+       "building": "DC",
+       "room": "C3",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI788G",
+   "title": "Introduction to Global Business Experience; Doing Business in Europe/North Africa",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "Cross-listed with BUSM788G,BUSO788G, and EMBA788G. Credit only granted for BUSI788G,BUSM788G,BUSO788G, or EMBA788G.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "GX01",
+     "instructors": [
+      "Judy Frels"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Su"
+       ],
+       "start": 720,
+       "end": 780,
+       "kind": "lecture",
+       "building": null,
+       "room": null,
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI788V",
+   "title": "Introduction to Global Business Experience; Doing Business in Asia",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "Reg"
+   ],
+   "permission": null,
+   "description": "Cross-listed with BUSM788V, BUSO788V, and EMBA788V. Credit only granted for BUSI788V, BUSM788V, BUSO788V, or EMBA788V.",
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": [
+    {
+     "code": "GX01",
+     "instructors": [
+      "Zhi-Long Chen"
+     ],
+     "delivery": "f2f",
+     "meetings": [
+      {
+       "timed": true,
+       "days": [
+        "Su"
+       ],
+       "start": 720,
+       "end": 780,
+       "kind": "lecture",
+       "building": "VMH",
+       "room": "1335",
+       "online": false
+      }
+     ],
+     "notes": null,
+     "restriction": null
+    }
+   ]
+  },
+  {
+   "code": "BUSI799",
+   "title": "Masters Thesis Research",
+   "credits": {
+    "min": 1,
+    "max": 6
+   },
+   "genEds": [],
+   "gradingMethods": [
+    "S-F"
+   ],
+   "permission": "Perm Req",
+   "description": null,
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "otherNotes": [],
+   "crossListings": [],
+   "sections": []
+  }
+ ]
+}

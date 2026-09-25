@@ -36,6 +36,26 @@ describe("createMemoryBlobStore", () => {
     ]);
   });
 
+  it("writes conditionally on the etag it handed out", async () => {
+    const store = createMemoryBlobStore();
+    expect(await store.putIfMatch("m.json", "1", null)).toBe(true);
+    expect(await store.putIfMatch("m.json", "x", null)).toBe(false);
+
+    const first = await store.getVersioned("m.json");
+    expect(decode(first?.body ?? null)).toBe("1");
+    await store.put("m.json", "2");
+    // Someone else wrote in between: the stale etag no longer matches.
+    expect(await store.putIfMatch("m.json", "3", first?.etag ?? "")).toBe(
+      false,
+    );
+    const second = await store.getVersioned("m.json");
+    expect(await store.putIfMatch("m.json", "3", second?.etag ?? "")).toBe(
+      true,
+    );
+    expect(decode(await store.get("m.json"))).toBe("3");
+    expect(store.writes).toEqual(["m.json", "m.json", "m.json"]);
+  });
+
   it("isolates stored bytes from caller mutation", async () => {
     const bytes = new Uint8Array([1]);
     const store = createMemoryBlobStore();
