@@ -10,6 +10,7 @@ export {
   differencesFrom,
   freeWeekdays,
   hasChoices,
+  requestColors,
   type SectionDifference,
 } from "./describe";
 export {

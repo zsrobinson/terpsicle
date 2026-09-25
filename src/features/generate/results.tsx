@@ -94,6 +94,20 @@ export function Results({
       counts.set(row.choiceKey, (counts.get(row.choiceKey) ?? 0) + 1);
     return counts.size > 1 ? [...counts] : [];
   }, [rows, request.items]);
+  // Courses the person offered as choices that no plan could fit, so their
+  // absence from the filters isn't a mystery.
+  const unfit = useMemo(() => {
+    const placed = new Set(
+      results.flatMap((r) => r.sections.map((k) => k.split("-")[0])),
+    );
+    return request.items.flatMap((item) =>
+      item.kind === "pick"
+        ? item.courses
+            .map((c) => c.courseCode)
+            .filter((code) => !placed.has(code))
+        : [],
+    );
+  }, [results, request.items]);
   const visible =
     filter === null ? rows : rows.filter((r) => r.choiceKey === filter);
   const more = visible.length - shown;
@@ -153,6 +167,12 @@ export function Results({
             />
           ))}
         </div>
+      ) : null}
+      {unfit.length > 0 ? (
+        <p className="px-4 pb-2 text-[11.5px] text-muted">
+          No plan fits <span className="font-mono">{unfit.join(", ")}</span>{" "}
+          with the rest of your courses.
+        </p>
       ) : null}
       <ul aria-label="Generated plans" className="border-hairline border-t">
         {visible.slice(0, shown).map((row, i, all) => (

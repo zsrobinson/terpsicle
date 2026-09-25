@@ -1,6 +1,8 @@
 import type { CatalogIndex } from "../catalog/catalog-index";
+import { defaultCourseColor } from "../color/color";
 import type {
   CourseCode,
+  CourseColor,
   Day,
   GeneratedPlan,
   GenItem,
@@ -96,3 +98,22 @@ export function differencesFrom(
 }
 
 const WEEK_ORDER: readonly Day[] = ["M", "Tu", "W", "Th", "F", "Sa", "Su"];
+
+/**
+ * Colors for the request's courses, as saving a plan with them would pick:
+ * a course keeps its color, and each new one takes the palette color least
+ * used by the courses before it.
+ */
+export function requestColors(
+  codes: readonly CourseCode[],
+  colors: Readonly<Partial<Record<CourseCode, CourseColor>>>,
+): Partial<Record<CourseCode, CourseColor>> {
+  const out: Partial<Record<CourseCode, CourseColor>> = { ...colors };
+  const used: CourseColor[] = [];
+  for (const code of codes) {
+    const color = out[code] ?? defaultCourseColor(code, used);
+    out[code] = color;
+    used.push(color);
+  }
+  return out;
+}

@@ -6,7 +6,12 @@ import {
   PanelLabel,
   useFocusRequest,
 } from "~/app/panel";
-import { relaxDraft, requestItems } from "~/core/generate";
+import {
+  draftCourseCodes,
+  relaxDraft,
+  requestColors,
+  requestItems,
+} from "~/core/generate";
 import type { GenerateDraft, Relaxation } from "~/core/schema";
 import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { useActiveTerm, useCurrentPlan, useTermCatalog } from "~/state/hooks";
@@ -84,7 +89,10 @@ export function GeneratePanel() {
     void runGenerate(termId, next, { relaxed: true });
   };
 
-  const colors = current?.colors ?? {};
+  const colors = useMemo(
+    () => requestColors(draftCourseCodes(draft.items), current?.colors ?? {}),
+    [draft.items, current?.colors],
+  );
   const termName = term?.name ?? "this term";
 
   return (
@@ -134,7 +142,7 @@ export function GeneratePanel() {
                 onChange={(rankBy) => update((d) => ({ ...d, rankBy }))}
               />
             ) : null}
-            <div className="sticky top-0 z-10 mt-2 flex items-center gap-2 bg-bg px-4 py-2">
+            <div className="sticky top-0 z-10 mt-2 flex items-center gap-2 border-hairline border-b bg-bg px-4 py-2">
               {busy ? (
                 <>
                   <WithTooltip label="Stop searching">
