@@ -15,7 +15,7 @@ export function createHistory<S>(present: S): History<S> {
 }
 
 /** Records a new present; a no-op (same object) records nothing. */
-export function record<S>(
+export function pushHistory<S>(
   history: History<S>,
   next: S,
   limit: number = UNDO_LIMIT,
@@ -34,7 +34,7 @@ export function applyWithHistory<S, A>(
   reducer: (state: S, action: A) => S,
   action: A,
 ): History<S> {
-  return record(history, reducer(history.present, action));
+  return pushHistory(history, reducer(history.present, action));
 }
 
 export function canUndo<S>(history: History<S>): boolean {

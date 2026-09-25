@@ -9,7 +9,7 @@ import {
   canUndo,
   createHistory,
   type History,
-  record,
+  pushHistory,
   redo,
   resetHistory,
   undo,
@@ -439,9 +439,9 @@ describe("history", () => {
 
   it("drops redo on a new change and caps the stack", () => {
     let h = createHistory(0);
-    for (let i = 1; i <= 5; i++) h = record(h, i, 3);
+    for (let i = 1; i <= 5; i++) h = pushHistory(h, i, 3);
     expect(h.past).toEqual([2, 3, 4]);
-    h = record(undo(h), 9, 3);
+    h = pushHistory(undo(h), 9, 3);
     expect(h.future).toEqual([]);
   });
 

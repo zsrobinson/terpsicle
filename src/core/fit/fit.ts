@@ -85,7 +85,7 @@ export type FitContext = {
   };
 };
 
-/** Everything fit needs about one section, computed once per section object. */
+/** Everything fit needs about one section, computed once (see `courseShapes`). */
 type SectionShape = {
   /** Timed meetings per day, in week order (day, then start). */
   readonly items: readonly MeetingItem[];
