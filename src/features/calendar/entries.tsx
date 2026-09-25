@@ -10,12 +10,13 @@ import {
   type TravelSettings,
 } from "~/core/schema";
 import { type SeatsMap, seatCounts, seatStatus } from "~/core/seats";
+import type { Lane } from "~/core/time";
 import { formatTimeRange } from "~/core/time";
 import { formatFeet, travelMath, verdictMessage } from "~/core/travel";
 import { useUi } from "~/state/ui-store";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
-import type { BlockEntry, ClassEntry, GhostEntry, Lane, Pill } from "./layout";
+import type { BlockEntry, ClassEntry, GhostEntry, Pill } from "./layout";
 import { ghostStyle, tintStyle } from "./tint";
 
 // What sits in a day column: classes, blocks, ghosts and travel pills.
