@@ -1,4 +1,6 @@
+import path from "node:path";
 import { expect, type Page, test } from "@playwright/test";
+import { alertsHarnessPort } from "../scripts/e2e-checkout";
 
 // Seat alerts end to end (SPEC §3.12, BUILD §5): the bell on a full section →
 // the confirmation email → the confirm page → "Watching" in the app and in
@@ -9,7 +11,7 @@ import { expect, type Page, test } from "@playwright/test";
 // (e2e/alerts-harness): the real router and alert code over local D1 and R2,
 // with the flag on and an EMAIL binding that keeps what it's sent.
 
-const HARNESS = `http://localhost:${Number(process.env.E2E_PORT ?? 3100) + 1}`;
+const HARNESS = `http://localhost:${alertsHarnessPort(path.resolve(import.meta.dirname, ".."))}`;
 
 type Sent = {
   to: string;

@@ -12,7 +12,22 @@ import { encodeShare } from "../../src/core/share/share";
 // Real data on a deployment (playwright.live.config.ts): the default term's
 // catalog loads from /data (production R2 on a PR preview), a real section
 // shows on the calendar, and the next visit starts from the IndexedDB cache
-// without refetching departments. Logs what the first visit downloaded.
+// without refetching departments. Logs what the first visit downloaded, and
+// holds it to the budgets below (BUILD §5: regressions fail CI).
+
+/**
+ * BUILD §5's "first load < 1.5 MB compressed": everything over the wire until
+ * the plan is on the calendar (app, fonts, terms, manifest, seats, the
+ * departments it needs).
+ */
+const FIRST_LOAD_BUDGET = 1.5 * 1024 * 1024;
+/**
+ * After that the rest of the term's departments stream into the cache in the
+ * background (search needs them all). Their total is held to its own budget:
+ * 1.11 MB for Spring 2027's 199 departments at the time of writing, plus
+ * headroom for a bigger term.
+ */
+const CATALOG_DATA_BUDGET = 1.4 * 1024 * 1024;
 
 let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
@@ -84,6 +99,7 @@ test("the default term's real courses load, then come from the cache", async ({
       .first(),
   ).toBeVisible({ timeout: 30_000 });
   const sectionMs = Date.now() - started;
+  const firstLoad = first.app + first.data;
   await expect(page.getByRole("alert")).toHaveCount(0);
   // Every department is in once the manifest is committed to the cache.
   await expect
@@ -105,17 +121,22 @@ test("the default term's real courses load, then come from the cache", async ({
   const repeatMs = Date.now() - reloaded;
   // Let background revalidation run; it must not refetch departments.
   await page.waitForTimeout(3_000);
-  expect(second.deptRequests).toBe(0);
+  expect(second.deptRequests, "repeat visit refetched departments").toBe(0);
 
   const kb = (n: number) => `${Math.round(n / 1024)} KB`;
   const report = [
     `${term.name}: ${manifest.departments.length} departments, ${key} on the calendar`,
     `First visit: ${sectionMs} ms to the section, ${catalogMs} ms to the whole catalog`,
-    `First visit transfer: app ${kb(firstVisit.app)}, data ${kb(firstVisit.data)} (${firstVisit.deptRequests} department files)`,
+    `First load (until the plan shows): ${kb(firstLoad)} of ${kb(FIRST_LOAD_BUDGET)}`,
+    `First visit transfer: app ${kb(firstVisit.app)}, data ${kb(firstVisit.data)} of ${kb(CATALOG_DATA_BUDGET)} (${firstVisit.deptRequests} department files)`,
     `Repeat visit: ${repeatMs} ms to the section, ${second.deptRequests} department files, data ${kb(second.data)}`,
   ].join("\n");
   console.log(report);
   test.info().annotations.push({ type: "load", description: report });
+  expect(firstLoad, "first load over budget").toBeLessThan(FIRST_LOAD_BUDGET);
+  expect(firstVisit.data, "catalog data over budget").toBeLessThan(
+    CATALOG_DATA_BUDGET,
+  );
 });
 
 /** Pointer keys in the app's IndexedDB cache (runs in the page; closes its connection). */

@@ -4,8 +4,7 @@ import {
   activeMustHaves,
   draftCourseCodes,
   requestItems,
-  sectionQuality,
-} from "~/core/generate";
+} from "~/core/generate/draft";
 import {
   DEFAULT_GENERATE_LIMITS,
   type GenerateDraft,
@@ -122,7 +121,7 @@ async function gatherInput(request: GenerateRequest): Promise<GenerateInput> {
     courses,
     seats: term.seats?.seats ?? null,
     campus,
-    quality: [...sectionQuality(courses, ratings)],
+    ratings,
   };
 }
 

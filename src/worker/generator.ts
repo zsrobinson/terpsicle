@@ -1,10 +1,9 @@
 import { proxy, type Remote, wrap } from "comlink";
 import type { GenerateRequest, GenerateResult } from "~/core/schema";
-import {
-  type GenerateInput,
-  type GenerateProgress,
-  type GenerateWorkerApi,
-  runGenerate,
+import type {
+  GenerateInput,
+  GenerateProgress,
+  GenerateWorkerApi,
 } from "./generate-job";
 
 // How the app runs the generator: in a Web Worker in the browser, in-process
@@ -96,21 +95,30 @@ export function createWorkerGenerator(
   };
 }
 
-/** Runs on the calling thread after a tick; for tests and browsers without workers. */
+/**
+ * Runs on the calling thread after a tick; for tests and browsers without
+ * workers. The generator is imported on first use, so it stays out of the
+ * page's eager bundle (scripts/check-bundle.ts).
+ */
 export function createInProcessGenerator(): Generator {
   return {
     run(request, input, onProgress) {
       let cancelled = false;
-      const result = new Promise<GenerateResult>((resolve, reject) => {
-        setTimeout(() => {
-          if (cancelled) return reject(new GenerateCancelled());
-          try {
-            resolve(runGenerate(request, input, onProgress, () => cancelled));
-          } catch (error) {
-            reject(error);
-          }
-        }, 0);
-      });
+      const result = import("./generate-job").then(
+        ({ runGenerate }) =>
+          new Promise<GenerateResult>((resolve, reject) => {
+            setTimeout(() => {
+              if (cancelled) return reject(new GenerateCancelled());
+              try {
+                resolve(
+                  runGenerate(request, input, onProgress, () => cancelled),
+                );
+              } catch (error) {
+                reject(error);
+              }
+            }, 0);
+          }),
+      );
       return {
         result: result.then((r) => {
           if (cancelled) throw new GenerateCancelled();

@@ -3,13 +3,13 @@ import { useMemo, useState } from "react";
 import { PanelLabel } from "~/app/panel";
 import type { CatalogIndex } from "~/core/catalog";
 import {
-  changesFrom,
   chosenCourses,
   differencesFrom,
   freeWeekdays,
   hasChoices,
   type SectionDifference,
-} from "~/core/generate";
+} from "~/core/generate/describe";
+import { changesFrom } from "~/core/generate/result-plan";
 import type {
   CourseCode,
   CourseColor,

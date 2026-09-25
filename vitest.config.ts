@@ -30,6 +30,8 @@ export default defineConfig({
           environment: "node",
           include: ["src/**/*.perf.test.ts"],
           sequence: { groupOrder: 1 },
+          // Budgets are medians of several runs (src/fixtures/timing.ts).
+          testTimeout: 60_000,
         },
       },
       {

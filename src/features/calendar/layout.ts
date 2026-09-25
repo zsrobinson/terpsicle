@@ -36,14 +36,10 @@ import {
   calendarHourRange,
   hasSetTimes,
   type Lane,
-  packLanes as packIntoLanes,
+  packLanes,
   sectionWeekItems,
   type WeekItem,
 } from "~/core/time";
-
-export type { Lane } from "~/core/time";
-/** @deprecated moved to ~/core/time */
-export const packLanes = packIntoLanes;
 
 interface Timed {
   day: Day;
@@ -318,7 +314,7 @@ export function packGhosts(
   ghosts: readonly GhostEntry[],
   maxLanes: number = MAX_GHOST_LANES,
 ): Lane<GhostEntry>[] {
-  const packed = packIntoLanes(ghosts);
+  const packed = packLanes(ghosts);
   if (packed.every((g) => g.lanes <= maxLanes)) return packed;
 
   const out: GhostEntry[] = [];
@@ -337,7 +333,7 @@ export function packGhosts(
         ? list[0]
         : mergeGhosts(list, list[0]?.start ?? 0, list[0]?.end ?? 0),
     );
-    const repacked = packIntoLanes(sameTime);
+    const repacked = packLanes(sameTime);
     if (repacked.every((g) => g.lanes <= maxLanes)) out.push(...sameTime);
     else
       out.push(
@@ -348,7 +344,7 @@ export function packGhosts(
         ),
       );
   }
-  return packIntoLanes(out);
+  return packLanes(out);
 }
 
 /** Packed items split back into their overlap clusters. */
@@ -425,7 +421,7 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
 
   const columns: DayColumn[] = days.map((day) => ({
     day,
-    entries: packIntoLanes<ClassEntry | BlockEntry>([
+    entries: packLanes<ClassEntry | BlockEntry>([
       ...classes.filter((c) => c.day === day),
       ...blocks.filter((b) => b.day === day),
     ]),

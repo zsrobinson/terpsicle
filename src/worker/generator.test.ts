@@ -14,7 +14,7 @@ const input: GenerateInput = {
   courses: mockCourses(),
   seats: mockSeats.seats,
   campus: EMPTY_CAMPUS,
-  quality: [],
+  ratings: [],
 };
 
 const request = aGenerateRequest({

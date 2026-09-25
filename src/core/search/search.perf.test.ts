@@ -8,6 +8,7 @@ import {
   aSeatTuple,
   aSection,
   fixtureTermId,
+  medianMs,
   randomInt,
   seededRandom,
   snapshotOf,
@@ -124,18 +125,6 @@ function syntheticCatalog(): {
   return { courses, seats };
 }
 
-/** Best of a few runs after a few warm-ups, so JIT tiers and GC pauses don't fail CI. */
-function timeMs(run: () => void, repeats = 5, warmups = 3): number {
-  for (let i = 0; i < warmups; i++) run();
-  let best = Number.POSITIVE_INFINITY;
-  for (let i = 0; i < repeats; i++) {
-    const t = performance.now();
-    run();
-    best = Math.min(best, performance.now() - t);
-  }
-  return best;
-}
-
 function keystrokes(text: string): string[] {
   return Array.from({ length: text.length }, (_, i) => text.slice(0, i + 1));
 }
@@ -202,7 +191,7 @@ describe("search performance", () => {
     ];
     const times = queries.map((q) => ({
       q,
-      ms: timeMs(() => {
+      ms: medianMs(() => {
         const codes = searchCourses(search, q);
         codes.filter((code) => {
           const course = byCode.get(code);
@@ -225,7 +214,7 @@ describe("search performance", () => {
   it("filters the whole term by Fits my plan in under a frame after a plan change", () => {
     const index = buildCatalogIndex(fixtureTermId, courses);
     // A fresh context each run: the first keystroke after a plan change pays for all of it.
-    const ms = timeMs(
+    const ms = medianMs(
       () => {
         const fresh = buildFitContext({
           plan,
@@ -242,8 +231,7 @@ describe("search performance", () => {
         );
       },
       // Plans change many times a session, so this measures the warmed-up path.
-      5,
-      10,
+      { runs: 7, warmups: 10 },
     );
     console.info(
       `fits my plan over ${courses.length} courses after a plan change: ${ms.toFixed(2)} ms`,

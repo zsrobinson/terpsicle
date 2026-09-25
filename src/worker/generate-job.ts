@@ -1,11 +1,11 @@
 import { buildCatalogIndex } from "~/core/catalog";
-import { generatePlans, type SectionQuality } from "~/core/generate";
+import { generatePlans, sectionQuality } from "~/core/generate";
 import type {
   Course,
   GenerateProgress,
   GenerateRequest,
   GenerateResult,
-  SectionKey,
+  PlanetTerpDept,
 } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
 import type { CampusMap } from "~/core/travel";
@@ -21,8 +21,8 @@ export type GenerateInput = {
   readonly courses: readonly Course[];
   readonly seats: SeatsMap | null;
   readonly campus: CampusMap;
-  /** Ratings and GPAs per section, when ranking by them. */
-  readonly quality: readonly (readonly [SectionKey, SectionQuality])[];
+  /** PlanetTerp files for the request's departments (ratings and GPAs). */
+  readonly ratings: readonly PlanetTerpDept[];
 };
 
 export function runGenerate(
@@ -37,7 +37,7 @@ export function runGenerate(
       index: buildCatalogIndex(request.termId, input.courses),
       seats: input.seats,
       campus: input.campus,
-      quality: new Map(input.quality),
+      quality: sectionQuality(input.courses, input.ratings),
     },
     {
       ...(onProgress ? { onProgress } : {}),

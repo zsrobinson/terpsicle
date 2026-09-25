@@ -7,7 +7,11 @@ import {
   useFocusRequest,
 } from "~/app/panel";
 import { resolveCourseColors } from "~/core/color";
-import { draftCourseCodes, relaxDraft, requestItems } from "~/core/generate";
+import {
+  draftCourseCodes,
+  relaxDraft,
+  requestItems,
+} from "~/core/generate/draft";
 import type { GenerateDraft, Relaxation } from "~/core/schema";
 import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { useActiveTerm, useCurrentPlan, useTermCatalog } from "~/state/hooks";

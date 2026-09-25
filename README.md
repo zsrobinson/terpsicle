@@ -26,11 +26,30 @@ Node 22 and pnpm 10.
 | `pnpm dev` | Run the app on live data from terpsicle.com |
 | `pnpm check` | Typecheck, lint (with import boundaries and the term-id check), all unit tests. Run before every commit. |
 | `pnpm test` / `pnpm test:watch` | Unit tests; add `--project core` (or `ingest`, `ui`, `worker`, `scripts`) for one project |
-| `pnpm test:e2e` | Playwright against `pnpm dev:mock` |
+| `pnpm test:e2e` | Playwright against `pnpm dev:mock` (see below) |
+| `pnpm test:e2e:live` | Playwright on real data against a deployment: `LIVE_URL=<url> pnpm test:e2e:live` |
 | `pnpm fix` | Format and apply safe lint fixes |
 | `pnpm build` | Production build |
+| `pnpm check:bundle` | After `pnpm build`: the eager JS and CSS for `/` against its budget, and nothing that must stay lazy (MapLibre, the generator, fixtures) in it |
 | `pnpm deploy` | Build, migrate D1 and deploy (CI does this on every push to `main`) |
 | `pnpm cf-typegen` | Regenerate `worker-configuration.d.ts` after changing `wrangler.jsonc` |
+
+### End-to-end tests
+
+`pnpm test:e2e` starts `pnpm dev:mock`, which applies the local D1 migrations first, and runs Playwright against it. Several checkouts can run e2e on one machine at once:
+
+- **Each checkout has its own pair of ports**, derived from its path (`scripts/e2e-checkout.ts`): an even port in 3100–3898 for the app, and the next one for the seat-alert harness (`e2e/alerts-harness`). Set `E2E_PORT` to choose the app's port; the harness takes the one after it.
+- **A running server is reused only if it's this checkout's.** Playwright waits on `/__checkout/<id>`, which only this checkout's dev server and harness answer with 200. If another checkout's server holds a port, the run stops with "port in use" instead of silently testing that checkout's code.
+- To keep a server warm between runs, start it on this checkout's port: `pnpm dev:mock --port $(pnpm -s e2e:port)`.
+- CI never reuses a server.
+
+### Performance budgets
+
+BUILD §5's budgets fail CI when they regress:
+
+- search keystroke, generator and seats-job CPU: the `perf` Vitest project (in `pnpm check`), medians of several runs;
+- the eager bundle for `/`: `pnpm check:bundle`;
+- the first visit's transfer on real data: `e2e/live/preview.spec.ts`, against each PR's preview.
 
 ## License
 

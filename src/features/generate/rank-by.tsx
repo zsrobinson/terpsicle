@@ -1,4 +1,4 @@
-import { RANK_FACTOR_LABELS, RANK_FACTORS } from "~/core/generate";
+import { RANK_FACTOR_LABELS, RANK_FACTORS } from "~/core/generate/score";
 import type { RankBy, RankFactor, RankWeights } from "~/core/schema";
 import {
   Select,

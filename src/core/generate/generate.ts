@@ -5,7 +5,6 @@ import {
   type GeneratedPlan,
   type GenerateRequest,
   type GenerateResult,
-  type GenItem,
   type Relaxation,
   sectionKey,
 } from "../schema";
@@ -17,6 +16,7 @@ import {
   type QualityMap,
   type SectionGroup,
 } from "./candidates";
+import { relaxCourseItem } from "./draft";
 import { mergeSameWeek } from "./merge";
 import { nearMisses } from "./near-miss";
 import { planStats } from "./score";
@@ -224,21 +224,6 @@ export function applyRelaxation(
       item.kind === "course" ? relaxCourseItem(item, patch) : item,
     ),
   };
-}
-
-/** A requested course with a relaxation's course patch applied. */
-export function relaxCourseItem(
-  item: Extract<GenItem, { kind: "course" }>,
-  patch: Relaxation["patch"],
-): Extract<GenItem, { kind: "course" }> {
-  let next = item;
-  if (item.courseCode === patch.makeOptional)
-    next = { ...next, required: false };
-  if (item.courseCode === patch.allowAllSections) {
-    const { sections: _all, ...rest } = next;
-    next = rest;
-  }
-  return next;
 }
 
 function run(
