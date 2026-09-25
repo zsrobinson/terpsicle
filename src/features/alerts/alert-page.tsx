@@ -26,7 +26,7 @@ export function AlertPage({
           aria-busy={busy}
           className="rounded-lg border border-hairline bg-raised p-5 shadow-pop"
         >
-          <h1 className="mb-1.5 font-semibold text-[15px] tracking-tight">
+          <h1 className="mb-1.5 font-semibold text-lg tracking-tight">
             {title}
           </h1>
           <div className="space-y-4 text-muted">{children}</div>
@@ -38,5 +38,5 @@ export function AlertPage({
 
 /** Section code in mono, like everywhere else in the app. */
 export function Code({ children }: { children: ReactNode }) {
-  return <span className="font-medium font-mono text-fg">{children}</span>;
+  return <span className="ident font-medium text-fg">{children}</span>;
 }

@@ -1,6 +1,6 @@
 import { BellRing, MailCheck } from "lucide-react";
 import { useState } from "react";
-import { PanelLabel } from "~/app/panel";
+import { ListRow, SectionHeader } from "~/app/panel";
 import type { LocalSeatAlert, TermId } from "~/core/schema";
 import { sectionLabel, termLabel } from "~/features/alerts/labels";
 import {
@@ -21,8 +21,8 @@ export function SeatAlertsList({ termId }: { termId: TermId }) {
   if (!available || alerts.length === 0) return null;
   return (
     <section aria-label="Seat alerts">
-      <PanelLabel>Seat alerts</PanelLabel>
-      <ul className="mx-4 overflow-hidden rounded-lg border border-hairline">
+      <SectionHeader title="Seat alerts" count={alerts.length} />
+      <ul>
         {alerts.map((alert) => (
           <AlertRow
             key={`${alert.termId}|${alert.sectionKey}`}
@@ -66,30 +66,33 @@ function AlertRow({
   };
 
   return (
-    <li
-      className="border-hairline border-b px-3 py-2.5 last:border-b-0"
+    <ListRow
+      as="li"
+      className="items-start"
       data-testid={`seat-alert-${alert.sectionKey}`}
-    >
-      <div className="flex items-center gap-2">
-        {watching ? (
-          <BellRing size={13} className="shrink-0 text-muted" aria-hidden />
+      lead={
+        watching ? (
+          <BellRing size={13} className="mt-0.5 text-muted" aria-hidden />
         ) : (
-          <MailCheck size={13} className="shrink-0 text-muted" aria-hidden />
-        )}
-        <span className="font-mono font-semibold text-[12.5px]">{label}</span>
-        {showTerm ? (
-          <span className="text-[11.5px] text-muted">
-            {termLabel(alert.termId)}
-          </span>
-        ) : null}
-        <span className="ml-auto text-[11.5px] text-muted">
+          <MailCheck size={13} className="mt-0.5 text-muted" aria-hidden />
+        )
+      }
+      trail={
+        <span className="text-muted">
           {watching ? "Watching" : "Check your email"}
         </span>
+      }
+    >
+      <div className="flex items-baseline gap-2">
+        <span className="ident font-semibold text-base">{label}</span>
+        {showTerm ? (
+          <span className="text-muted text-sm">{termLabel(alert.termId)}</span>
+        ) : null}
       </div>
       {state.kind === "confirming" || state.kind === "stopping" ? (
         <fieldset
           aria-label={`Stop watching ${label}?`}
-          className="mt-2 flex items-center gap-2 pl-5"
+          className="mt-2 flex items-center gap-2"
           onKeyDown={(e) => {
             if (e.key === "Escape" && state.kind === "confirming") {
               e.stopPropagation();
@@ -97,12 +100,12 @@ function AlertRow({
             }
           }}
         >
-          <span className="flex-1 text-[12px]">Stop these emails?</span>
+          <span className="flex-1 text-sm">Stop these emails?</span>
           <WithTooltip label="Keep watching" shortcut="Esc">
             <Button
               size="sm"
               variant="ghost"
-              className="text-[12px]"
+              className="h-6 px-2 text-sm"
               disabled={state.kind === "stopping"}
               onClick={() => setState({ kind: "idle" })}
             >
@@ -113,7 +116,7 @@ function AlertRow({
             <Button
               size="sm"
               variant="outline"
-              className="text-[12px]"
+              className="h-6 px-2 text-sm"
               disabled={state.kind === "stopping"}
               onClick={() => void stop()}
             >
@@ -122,9 +125,9 @@ function AlertRow({
           </WithTooltip>
         </fieldset>
       ) : (
-        <div className="mt-0.5 flex items-center gap-2 pl-5">
+        <div className="mt-0.5 flex items-center gap-2">
           <span
-            className="min-w-0 flex-1 truncate text-[11.5px] text-muted"
+            className="min-w-0 flex-1 truncate text-muted text-sm"
             data-private
           >
             {state.kind === "message"
@@ -145,13 +148,13 @@ function AlertRow({
             <button
               type="button"
               onClick={() => setState({ kind: "confirming" })}
-              className="shrink-0 rounded px-1 text-[11.5px] text-muted transition-colors hover:bg-hover hover:text-fg"
+              className="shrink-0 rounded px-1 text-muted text-sm transition-colors hover:bg-hover hover:text-fg"
             >
               Stop watching
             </button>
           </WithTooltip>
         </div>
       )}
-    </li>
+    </ListRow>
   );
 }

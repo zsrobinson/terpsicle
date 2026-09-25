@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { CalendarDays, Copy, Link2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { PanelBody, PanelHeader, PanelLabel } from "~/app/panel";
+import { EmptyState, PanelBody, PanelHeader, SectionHeader } from "~/app/panel";
 import { planLabel } from "~/app/plan-label";
 import { useAcademicCalendar } from "~/state/data-hooks";
 import {
@@ -41,7 +41,7 @@ export function ExportPanel() {
     <div className="flex min-h-0 flex-1 flex-col">
       <PanelHeader title="Export" sub={planLabel(current)} />
       <PanelBody className="pb-4">
-        <div className="p-2">
+        <div>
           <ActionRow
             icon={<Copy size={15} />}
             label="Copy course and section codes"
@@ -87,16 +87,19 @@ export function ExportPanel() {
           />
         </div>
 
-        <PanelLabel>Registration checklist</PanelLabel>
+        <SectionHeader
+          title="Registration checklist"
+          count={empty ? undefined : sections.length}
+        />
         {empty ? (
-          <p className="px-4 text-[12px] text-faint">
+          <EmptyState className="text-faint">
             Add a course to see the order to register in.
-          </p>
+          </EmptyState>
         ) : (
           <>
-            <p className="px-4 pb-2 text-[12px] text-muted">
+            <p className="px-4 py-2 text-muted text-sm">
               Register in this order: the sections most likely to fill go first.
-              If one fills, try its backup.
+              If one fills, try its backup, which also fits your plan.
             </p>
             <RegistrationChecklist
               planId={plan.id}
@@ -137,7 +140,7 @@ function ActionRow({
         aria-disabled={disabled}
         // aria-disabled, not disabled: the tooltip and hint still explain why.
         className={cn(
-          "flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors",
+          "flex w-full items-center gap-3 border-hairline border-b px-4 py-2 text-left transition-colors last:border-b-0",
           disabled ? "cursor-default" : "hover:bg-hover",
         )}
       >
@@ -147,13 +150,13 @@ function ActionRow({
         <span className="min-w-0">
           <span
             className={cn(
-              "block font-medium text-[12.5px]",
+              "block font-medium text-base",
               disabled && "text-muted",
             )}
           >
             {label}
           </span>
-          <span className="block text-[11.5px] text-muted">{hint}</span>
+          <span className="block text-muted text-sm">{hint}</span>
         </span>
       </button>
     </WithTooltip>
