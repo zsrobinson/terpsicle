@@ -127,6 +127,17 @@ describe("words", () => {
         }),
       ),
     ).toBe("MW 10am–10:50am · F 9am–9:50am");
+    // SOCY423 lists Tuesday and Thursday as two meetings at one time.
+    expect(
+      sectionWhen(
+        aSection({
+          meetings: [
+            aTimedMeeting({ days: ["Th"], start: 750, end: 825 }),
+            aTimedMeeting({ days: ["Tu"], start: 750, end: 825 }),
+          ],
+        }),
+      ),
+    ).toBe("TuTh 12:30pm–1:45pm");
     expect(
       sectionWhen(
         aSection({ delivery: "online-async", meetings: [anUntimedMeeting()] }),

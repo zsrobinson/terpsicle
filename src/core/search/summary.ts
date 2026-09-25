@@ -1,5 +1,5 @@
 import { countFittingSections, type FitContext, fitLabel } from "../fit/fit";
-import type { Course, FitLabel, Section } from "../schema";
+import type { Course, Day, FitLabel, Section } from "../schema";
 import { formatDays, formatTimeRange } from "../time/format";
 
 // What a search result says about its sections, by how many there are
@@ -43,10 +43,18 @@ export function resultSummary(
 
 /** Days and times, no rooms: the part that decides whether it fits. */
 export function sectionWhen(section: Section): string {
-  const timed = section.meetings.flatMap((m) =>
-    m.timed ? [`${formatDays(m.days)} ${formatTimeRange(m.start, m.end)}`] : [],
-  );
-  if (timed.length > 0) return [...new Set(timed)].join(" · ");
+  // Meetings at the same time on different days read as one ("TuTh", not
+  // "Tu 12:30pm–1:45pm · Th 12:30pm–1:45pm", as Testudo lists some).
+  const byTime = new Map<string, Day[]>();
+  for (const m of section.meetings) {
+    if (!m.timed) continue;
+    const range = formatTimeRange(m.start, m.end);
+    byTime.set(range, [...(byTime.get(range) ?? []), ...m.days]);
+  }
+  if (byTime.size > 0)
+    return [...byTime]
+      .map(([range, days]) => `${formatDays([...new Set(days)])} ${range}`)
+      .join(" · ");
   if (section.meetings.length === 0) return "Contact the department for times";
   return section.delivery === "online-async" ||
     section.delivery === "online-sync"
