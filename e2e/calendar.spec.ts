@@ -84,16 +84,24 @@ test("change a course's color, then undo it", async ({ page }) => {
     .getByRole("button", { name: /^CMSC351 0301/ })
     .first()
     .click();
-  await page.getByRole("button", { name: "CMSC351 color: Violet" }).click();
+  // Course details has the same dot; this is the one over the calendar.
+  await calendar(page)
+    .getByRole("button", { name: "CMSC351 color: Violet" })
+    .click();
   await page.getByRole("button", { name: "Teal" }).click();
   await expect(page.getByText("Changed CMSC351's color")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "CMSC351 color: Teal" }),
+    calendar(page).getByRole("button", { name: "CMSC351 color: Teal" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("complementary", { name: "Sidebar" })
+      .getByRole("button", { name: "CMSC351 color: Teal" }),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(
-    page.getByRole("button", { name: "CMSC351 color: Violet" }),
+    calendar(page).getByRole("button", { name: "CMSC351 color: Violet" }),
   ).toBeVisible();
 });
 

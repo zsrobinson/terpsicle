@@ -221,6 +221,7 @@ describe("seat alerts", () => {
         at: NOW.toISOString(),
       });
       const status = vi.fn(async () => ({
+        status: "ok" as const,
         items: [{ subscriptionId: SUB, status: "active" as const }],
       }));
       await syncSeatAlerts(NOW, { status });
@@ -243,6 +244,7 @@ describe("seat alerts", () => {
       await useSeatAlerts.getState().put([aWatch()]);
       await refreshSeatAlerts(NOW, {
         status: async () => ({
+          status: "ok",
           items: [{ subscriptionId: SUB, status: "unknown" }],
         }),
       });
@@ -250,9 +252,7 @@ describe("seat alerts", () => {
     });
 
     it("learns that seat alerts are off, even with no watches", async () => {
-      const status = vi.fn(async () => {
-        throw new ApiCallError("unavailable");
-      });
+      const status = vi.fn(async () => ({ status: "unavailable" as const }));
       await refreshSeatAlerts(NOW, { status });
       expect(status).toHaveBeenCalledWith({ items: [] });
       expect(useSeatAlerts.getState().availability).toBe("unavailable");

@@ -116,6 +116,18 @@ Seat alerts (`~/features/alerts/seat-alerts`, backed by the `useSeatAlerts` stor
 
 `SeatMeter` (`~/features/courses/seat-meter`) draws seats as a meter plus words for any section key.
 
+## Search and course details
+
+Each is behind a small hook, so where the work happens can change without touching the components:
+
+| Export | For |
+|---|---|
+| `useCourseResults(termId, query, filters)` (`~/features/search/use-course-search`) | `idle`, `loading` or `ready` with courses. Runs core search on the main thread over an index built once per catalog (`courseSearchFor`); moving it into the web worker changes this file only. `findCourses` is the pure part. |
+| `useTermSearch(termId)`, `useSearchStore` (`~/features/search/search-store`) | The query and filters, remembered per term for the session. |
+| `instructorFor(data, name)` (`~/features/course-details/planetterp`) | The PlanetTerp instructor for a Testudo name, from `useInstructors(dept)`'s file. |
+| `useReviewSummary(slug, course)` (`~/features/course-details/use-review-summary`) | The LLM summary: `loading`, `shown` or `hidden` (every "unavailable" and every failure hides it; "busy" is asked once more after 4 s). One request per instructor per visit. |
+| `SeatBell` (`~/features/course-details/seat-bell`) | The bell for a low or full section, over `useSeatAlert`/`subscribeSeatAlert`. |
+
 ## The calendar's store fields
 
 Features talk to the calendar through three `useUi` fields. None is persisted.

@@ -9,7 +9,9 @@ import {
   ManageInputSchema,
   ReviewSummaryInputSchema,
   StatusInputSchema,
+  type StatusResult,
   SubscribeInputSchema,
+  type SubscribeResult,
 } from "~/core/schema";
 import {
   type AlertsContext,
@@ -37,6 +39,12 @@ interface Route<S extends z.ZodType> {
   perIpPerHour: number;
   /** Seat-alert routes answer "unavailable" while the flag is off. */
   alerts: boolean;
+  /**
+   * The route's own answer while seat alerts are off, sent before rate
+   * limiting: the app asks for status on every load, and an off switch
+   * shouldn't cost a D1 write per page view.
+   */
+  whenOff?: unknown;
   handle: (
     env: ApiEnv,
     input: z.infer<S>,
@@ -57,7 +65,8 @@ const ROUTES = {
   "alerts/subscribe": route({
     input: SubscribeInputSchema,
     perIpPerHour: 10,
-    alerts: false, // Answers "unavailable" in its own result when off.
+    alerts: false,
+    whenOff: { status: "unavailable" } satisfies SubscribeResult,
     handle: (env, input, ctx) => subscribe(env, input, ctx),
   }),
   "alerts/confirm": route({
@@ -81,7 +90,8 @@ const ROUTES = {
   "alerts/status": route({
     input: StatusInputSchema,
     perIpPerHour: 120,
-    alerts: true,
+    alerts: false,
+    whenOff: { status: "unavailable" } satisfies StatusResult,
     handle: (env, input) => status(env, input),
   }),
 } as const;
@@ -118,6 +128,7 @@ export async function handleApi(
   if (!request.headers.get("Content-Type")?.includes("application/json")) {
     return apiError("invalid-input");
   }
+  if (r.whenOff !== undefined && !alertsEnabled(env)) return json(r.whenOff);
   if (r.alerts && !alertsEnabled(env)) return apiError("unavailable");
 
   const ipHash = await keyedHash(env.DATA, clientIp(request));

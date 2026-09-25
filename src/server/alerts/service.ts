@@ -296,6 +296,7 @@ export async function status(
   env: AlertsEnv,
   input: StatusInput,
 ): Promise<StatusResult> {
+  if (!alertsEnabled(env)) return { status: "unavailable" };
   const items = await Promise.all(
     input.items.map(async (item) => {
       const token = await findToken(
@@ -313,5 +314,5 @@ export async function status(
       };
     }),
   );
-  return { items };
+  return { status: "ok", items };
 }

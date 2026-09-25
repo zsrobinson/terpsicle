@@ -124,7 +124,7 @@ describe("seat alerts, end to end", () => {
         { items: [{ subscriptionId, manageToken }] },
         opts,
       ),
-    ).toEqual({ items: [{ subscriptionId, status: "active" }] });
+    ).toEqual({ status: "ok", items: [{ subscriptionId, status: "active" }] });
 
     // Signing up again later: the email (not the API) says "already watching".
     tick(15);
@@ -205,7 +205,10 @@ describe("seat alerts, end to end", () => {
         { items: [{ subscriptionId, manageToken }] },
         opts,
       ),
-    ).toEqual({ items: [{ subscriptionId, status: "unsubscribed" }] });
+    ).toEqual({
+      status: "ok",
+      items: [{ subscriptionId, status: "unsubscribed" }],
+    });
 
     // No more alerts after unsubscribing, even past the cooldown.
     tick(60);
@@ -375,6 +378,25 @@ describe("seat alerts, end to end", () => {
     ).rejects.toMatchObject({
       reason: "unavailable",
     });
+    // The app asks for status on every load: a plain answer, not a 503.
+    expect(await api.alerts.status({ items: [] }, client(off.testEnv))).toEqual(
+      { status: "unavailable" },
+    );
+    // ...answered before rate limiting, so it never counts against anyone.
+    const counted = async () =>
+      (
+        await off.testEnv.DB.prepare(
+          "SELECT COALESCE(SUM(count), 0) AS n FROM counters WHERE name LIKE 'alerts/status:%'",
+        ).first<{ n: number }>()
+      )?.n;
+    const before = await counted();
+    const statuses = await Promise.all(
+      Array.from({ length: 125 }, () =>
+        api.alerts.status({ items: [] }, client(off.testEnv)),
+      ),
+    );
+    expect(statuses.every((s) => s.status === "unavailable")).toBe(true);
+    expect(await counted()).toBe(before);
     const preview = makeEnv({ EMAIL: undefined });
     expect(await api.alerts.subscribe(input, client(preview.testEnv))).toEqual({
       status: "unavailable",

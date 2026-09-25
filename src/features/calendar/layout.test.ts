@@ -240,6 +240,124 @@ describe("buildCalendarModel", () => {
     expect(by["0301"]).toMatchObject({ overlaps: false, full: true });
   });
 
+  describe("crowded ghosts", () => {
+    const notPlaced = (
+      course: Course,
+      preview: CalendarInput["preview"] = null,
+    ) =>
+      buildCalendarModel({
+        ...input([aCourse({ code: "MATH240" })]),
+        ghostCourse: course,
+        preview,
+      });
+    const on = (model: ReturnType<typeof buildCalendarModel>, day: string) =>
+      model.columns.find((c) => c.day === day)?.ghosts ?? [];
+
+    // Five sections: different lectures, one shared Tuesday 4pm discussion
+    // (CMSC330's shape), so they don't merge as time-identical groups.
+    const sharedDiscussion = aCourse({
+      sections: Array.from({ length: 5 }, (_, i) =>
+        aSection({
+          code: code(301 + i),
+          meetings: [
+            aTimedMeeting({
+              days: ["M"],
+              start: 480 + i * 60,
+              end: 530 + i * 60,
+            }),
+            aTimedMeeting({
+              days: ["Tu"],
+              start: 960,
+              end: 1010,
+              kind: "discussion",
+            }),
+          ],
+        }),
+      ),
+    });
+
+    it("merges ghosts at the same time that day into one, past three lanes", () => {
+      const model = notPlaced(sharedDiscussion);
+      expect(model.ghost?.groups).toHaveLength(5);
+      const tuesday = on(model, "Tu");
+      expect(tuesday).toHaveLength(1);
+      expect(tuesday[0]).toMatchObject({
+        label: "0301–0305 · 5 sections",
+        sectionCodes: ["0301", "0302", "0303", "0304", "0305"],
+        sameTimes: false,
+        lanes: 1,
+        start: 960,
+        end: 1010,
+      });
+      // Monday's lectures don't overlap: five separate ghosts, as before.
+      expect(on(model, "M").map((g) => g.label)).toEqual([
+        "0301",
+        "0302",
+        "0303",
+        "0304",
+        "0305",
+      ]);
+    });
+
+    it("keeps the merged ghost in place while one of its sections is previewed", () => {
+      const model = notPlaced(sharedDiscussion, sectionKey("CMSC351", "0303"));
+      const tuesday = on(model, "Tu");
+      expect(tuesday).toHaveLength(1);
+      expect(tuesday[0]).toMatchObject({
+        previewed: true,
+        sectionKey: "CMSC351-0303",
+      });
+    });
+
+    it("merges a staggered crowd into one ghost spanning it", () => {
+      const staggered = aCourse({
+        sections: Array.from({ length: 5 }, (_, i) =>
+          aSection({
+            code: code(101 + i),
+            meetings: [
+              aTimedMeeting({
+                days: ["W"],
+                start: 600 + i * 10,
+                end: 675 + i * 10,
+              }),
+            ],
+          }),
+        ),
+      });
+      const wednesday = on(notPlaced(staggered), "W");
+      expect(wednesday).toHaveLength(1);
+      expect(wednesday[0]).toMatchObject({
+        label: "0101–0105 · 5 sections",
+        start: 600,
+        end: 715,
+        lanes: 1,
+      });
+    });
+
+    it("leaves three side by side alone", () => {
+      const three = aCourse({
+        sections: Array.from({ length: 3 }, (_, i) =>
+          aSection({
+            code: code(101 + i),
+            meetings: [
+              aTimedMeeting({
+                days: ["W"],
+                start: 600 + i * 10,
+                end: 675 + i * 10,
+              }),
+            ],
+          }),
+        ),
+      });
+      const wednesday = on(notPlaced(three), "W");
+      expect(wednesday.map((g) => [g.label, g.lanes, g.sameTimes])).toEqual([
+        ["0101", 3, true],
+        ["0102", 3, true],
+        ["0103", 3, true],
+      ]);
+    });
+  });
+
   it("puts a travel pill halfway through the gap on its day", () => {
     const connection = aConnection();
     const model = buildCalendarModel(

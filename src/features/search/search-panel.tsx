@@ -1,0 +1,498 @@
+import { cn } from "cn";
+import { Search as SearchIcon, X } from "lucide-react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { track } from "~/app/analytics";
+import { useFocusRequest } from "~/app/panel";
+import type { FitContext } from "~/core/fit";
+import type { Course } from "~/core/schema";
+import {
+  isFiltering,
+  NO_FILTERS,
+  type SearchFilters,
+  sectionSummary,
+} from "~/core/search";
+import { openCourse } from "~/features/courses/actions";
+import { useActiveTerm, useCurrentPlan, useFitContext } from "~/state/hooks";
+import { useUi } from "~/state/ui-store";
+import { Kbd } from "~/ui/kbd";
+import { Skeleton } from "~/ui/skeleton";
+import { WithTooltip } from "~/ui/tooltip";
+import { FilterChips, type FilterName } from "./filter-chips";
+import { useSearchStore, useTermSearch } from "./search-store";
+import { useCourseResults } from "./use-course-search";
+
+// The Search tab (SPEC §3.5): a box, one line of filter chips, and a list of
+// courses (never sections). Hovering a result shows its sections on the
+// calendar; clicking opens its details.
+
+/** Every result row has the same height, so the list can be windowed. */
+export const ROW_HEIGHT = 76;
+const OVERSCAN = 6;
+
+export function SearchPanel() {
+  const { termId } = useActiveTerm();
+  const { query, filters } = useTermSearch(termId);
+  const setQuery = useSearchStore((s) => s.setQuery);
+  const setFilters = useSearchStore((s) => s.setFilters);
+  const results = useCourseResults(termId, query, filters);
+  const inputRef = useFocusRequest<HTMLInputElement>("search");
+  const [active, setActive] = useState(-1);
+  const courses = results.status === "ready" ? results.courses : NO_COURSES;
+
+  useSearchAnalytics(query, filters, results);
+  // A new query starts the keyboard cursor over.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on these inputs only
+  useEffect(() => setActive(-1), [query, filters, termId]);
+  // The hovered result's ghosts shouldn't outlive the panel being on screen.
+  useEffect(() => () => useUi.getState().setHoverCourse(null), []);
+
+  const open = (index: number) => {
+    const course = courses[index];
+    if (!course) return;
+    useUi.getState().setHoverCourse(null);
+    track("search_result_opened", { position: index });
+    openCourse(course.code);
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      if (courses.length === 0) return;
+      event.preventDefault();
+      const next =
+        event.key === "ArrowDown"
+          ? Math.min(courses.length - 1, active + 1)
+          : Math.max(0, active - 1);
+      setActive(next);
+      useUi.getState().setHoverCourse(courses[next]?.code ?? null);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      open(active >= 0 ? active : 0);
+    }
+  };
+
+  if (!termId)
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <ResultsSkeleton />
+      </div>
+    );
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* The box is the header here (as in the prototype); screen readers still get a title. */}
+      <h2 className="sr-only">Search</h2>
+      <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-3 pt-3 pb-2.5">
+        <div className="flex h-9 items-center gap-2 rounded-lg border border-hairline bg-raised px-2.5 focus-within:border-hairline-strong">
+          <SearchIcon size={14} className="shrink-0 text-muted" aria-hidden />
+          <input
+            ref={inputRef}
+            type="search"
+            role="combobox"
+            aria-expanded={courses.length > 0}
+            aria-controls="search-results"
+            aria-activedescendant={
+              active >= 0 ? `search-result-${active}` : undefined
+            }
+            aria-label="Search courses"
+            placeholder="Course, title or instructor"
+            value={query}
+            onChange={(e) => setQuery(termId, e.target.value)}
+            onKeyDown={onKeyDown}
+            onBlur={() => useUi.getState().setHoverCourse(null)}
+            className="h-full min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint [&::-webkit-search-cancel-button]:hidden"
+          />
+          {query ? (
+            <WithTooltip label="Clear the search">
+              <button
+                type="button"
+                aria-label="Clear the search"
+                onClick={() => {
+                  setQuery(termId, "");
+                  inputRef.current?.focus();
+                }}
+                className="flex size-5 items-center justify-center rounded text-muted hover:bg-hover hover:text-fg"
+              >
+                <X size={12} aria-hidden="true" />
+              </button>
+            </WithTooltip>
+          ) : (
+            <WithTooltip label="Jump to search from anywhere" shortcut="/">
+              <span>
+                <Kbd>/</Kbd>
+              </span>
+            </WithTooltip>
+          )}
+        </div>
+        <FilterChips
+          filters={filters}
+          onChange={(next) => setFilters(termId, next)}
+        />
+      </div>
+      {results.status === "idle" ? (
+        <SearchHints onPick={(q) => setQuery(termId, q)} />
+      ) : results.status === "loading" ? (
+        <ResultsSkeleton />
+      ) : courses.length === 0 ? (
+        <NoResults
+          query={query}
+          filters={filters}
+          onClearFilter={(next) => setFilters(termId, next)}
+        />
+      ) : (
+        <>
+          {isFiltering(filters) ? (
+            <div className="flex shrink-0 items-center justify-between border-hairline border-b py-1 pr-2 pl-4 text-[11.5px] text-muted">
+              <span className="tnum">
+                {courses.length} {courses.length === 1 ? "course" : "courses"}{" "}
+                match
+              </span>
+              <WithTooltip label="Turn every filter off">
+                <button
+                  type="button"
+                  onClick={() => setFilters(termId, NO_FILTERS)}
+                  className="flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg"
+                >
+                  <X size={11} aria-hidden="true" />
+                  Clear filters
+                </button>
+              </WithTooltip>
+            </div>
+          ) : null}
+          <ResultList
+            courses={courses}
+            active={active}
+            onOpen={open}
+            onHover={setActive}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+const NO_COURSES: readonly Course[] = [];
+
+/** `search_performed` once typing settles; the query's length only. */
+function useSearchAnalytics(
+  query: string,
+  filters: SearchFilters,
+  results: ReturnType<typeof useCourseResults>,
+) {
+  const count = results.status === "ready" ? results.courses.length : null;
+  useEffect(() => {
+    if (count === null) return;
+    const timer = setTimeout(
+      () =>
+        track("search_performed", {
+          queryLength: query.trim().length,
+          results: count,
+          filtered: isFiltering(filters),
+        }),
+      800,
+    );
+    return () => clearTimeout(timer);
+  }, [query, filters, count]);
+}
+
+function ResultList({
+  courses,
+  active,
+  onOpen,
+  onHover,
+}: {
+  courses: readonly Course[];
+  active: number;
+  onOpen: (index: number) => void;
+  onHover: (index: number) => void;
+}) {
+  const fit = useFitContext();
+  const plan = useCurrentPlan()?.plan;
+  const inPlan = useMemo(
+    () => new Set(plan?.courses.map((c) => c.courseCode) ?? []),
+    [plan],
+  );
+  const ref = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState({ top: 0, height: 800 });
+  const setHoverCourse = useUi((s) => s.setHoverCourse);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () =>
+      setView({ top: el.scrollTop, height: el.clientHeight || 800 });
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Keep the keyboard's row on screen.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || active < 0) return;
+    const top = active * ROW_HEIGHT;
+    if (top < el.scrollTop) el.scrollTop = top;
+    else if (top + ROW_HEIGHT > el.scrollTop + el.clientHeight)
+      el.scrollTop = top + ROW_HEIGHT - el.clientHeight;
+  }, [active]);
+
+  const first = Math.max(0, Math.floor(view.top / ROW_HEIGHT) - OVERSCAN);
+  const last = Math.min(
+    courses.length,
+    Math.ceil((view.top + view.height) / ROW_HEIGHT) + OVERSCAN,
+  );
+
+  return (
+    <div
+      ref={ref}
+      id="search-results"
+      role="listbox"
+      aria-label={`${courses.length} ${courses.length === 1 ? "course" : "courses"}`}
+      className="scroll-thin relative min-h-0 flex-1 overflow-y-auto"
+      onScroll={(e) =>
+        setView({
+          top: e.currentTarget.scrollTop,
+          height: e.currentTarget.clientHeight || 800,
+        })
+      }
+      onPointerLeave={() => setHoverCourse(null)}
+    >
+      <div style={{ height: courses.length * ROW_HEIGHT }} className="relative">
+        {courses.slice(first, last).map((course, i) => {
+          const index = first + i;
+          return (
+            <ResultRow
+              key={course.code}
+              index={index}
+              course={course}
+              fit={fit}
+              inPlan={inPlan.has(course.code)}
+              active={index === active}
+              onOpen={() => onOpen(index)}
+              onHover={() => {
+                onHover(index);
+                setHoverCourse(course.code);
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ResultRow({
+  index,
+  course,
+  fit,
+  inPlan,
+  active,
+  onOpen,
+  onHover,
+}: {
+  index: number;
+  course: Course;
+  fit: FitContext | null;
+  inPlan: boolean;
+  active: boolean;
+  onOpen: () => void;
+  onHover: () => void;
+}) {
+  const summary = sectionSummary(course, fit);
+  const genEds = [
+    ...new Set(course.genEds.flatMap((g) => g.map((o) => o.code))),
+  ];
+  const credits =
+    course.credits.min === course.credits.max
+      ? `${course.credits.min} cr`
+      : `${course.credits.min}–${course.credits.max} cr`;
+  // No tooltip: hovering a result already explains itself, with the course's
+  // sections on the calendar and "Open it to pick one" above them. A tooltip
+  // here would cover those ghosts.
+  return (
+    <div
+      id={`search-result-${index}`}
+      role="option"
+      aria-selected={active}
+      tabIndex={-1}
+      data-course-result={course.code}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onOpen();
+      }}
+      onPointerEnter={onHover}
+      className={cn(
+        "absolute inset-x-0 flex cursor-pointer flex-col justify-center border-hairline border-b px-4",
+        active ? "bg-hover" : "hover:bg-hover",
+      )}
+      style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="font-mono font-semibold text-[12.5px]">
+          {course.code}
+        </span>
+        <span className="tnum text-[11px] text-muted">{credits}</span>
+        {genEds.slice(0, 3).map((code) => (
+          <span
+            key={code}
+            className="rounded border border-hairline px-1 font-mono text-[10px] text-muted"
+          >
+            {code}
+          </span>
+        ))}
+        {inPlan ? (
+          <span className="ml-auto text-[11px] text-muted">In plan</span>
+        ) : null}
+      </div>
+      <div className="mt-0.5 truncate text-[12.5px]">{course.title}</div>
+      <div className="tnum mt-0.5 truncate text-[11.5px] text-muted">
+        {summary.sections} section{summary.sections === 1 ? "" : "s"}
+        {summary.fit !== null && summary.sections > 0 ? (
+          <>
+            {" · "}
+            <span className={summary.fit > 0 ? "text-ok" : undefined}>
+              {summary.fit === 0 ? "none" : summary.fit} fit
+              {summary.fit === 1 ? "s" : ""} your plan
+            </span>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+const EXAMPLES = ["cmsc 351", "statistics", "writing"] as const;
+
+function SearchHints({ onPick }: { onPick: (query: string) => void }) {
+  return (
+    <div className="px-4 py-4 text-[12.5px] text-muted">
+      <p>Search by course code, title or instructor.</p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="text-[11.5px] text-faint">Try</span>
+        {EXAMPLES.map((q) => (
+          <WithTooltip key={q} label={`Search for "${q}"`}>
+            <button
+              type="button"
+              onClick={() => onPick(q)}
+              className="rounded-md border border-hairline px-1.5 py-0.5 font-mono text-[11.5px] text-fg transition-colors hover:bg-hover"
+            >
+              {q}
+            </button>
+          </WithTooltip>
+        ))}
+      </div>
+      <p className="mt-3 text-[11.5px] text-faint">
+        Or pick a filter, like Gen-eds, to browse every course that matches.
+      </p>
+    </div>
+  );
+}
+
+const FILTER_WORDS: Record<FilterName, string> = {
+  "gen-eds": "the Gen-eds filter",
+  credits: "the Credits filter",
+  fits: "Fits my plan",
+  "open-seats": "Open seats",
+  level: "the Level filter",
+};
+
+function activeFilters(filters: SearchFilters): FilterName[] {
+  const on: FilterName[] = [];
+  if (filters.genEds.length) on.push("gen-eds");
+  if (filters.credits.length) on.push("credits");
+  if (filters.fitsMyPlan) on.push("fits");
+  if (filters.openSeats) on.push("open-seats");
+  if (filters.levels.length) on.push("level");
+  return on;
+}
+
+function without(filters: SearchFilters, name: FilterName): SearchFilters {
+  switch (name) {
+    case "gen-eds":
+      return { ...filters, genEds: [] };
+    case "credits":
+      return { ...filters, credits: [] };
+    case "fits":
+      return { ...filters, fitsMyPlan: false };
+    case "open-seats":
+      return { ...filters, openSeats: false };
+    case "level":
+      return { ...filters, levels: [] };
+  }
+}
+
+/** Says what to change: "No courses match "xyz" with Fits my plan on. Turn it off?" */
+function NoResults({
+  query,
+  filters,
+  onClearFilter,
+}: {
+  query: string;
+  filters: SearchFilters;
+  onClearFilter: (next: SearchFilters) => void;
+}) {
+  const on = activeFilters(filters);
+  const q = query.trim();
+  const what = q ? `No courses match "${q}"` : "No courses match these filters";
+  const only = on.length === 1 ? on[0] : undefined;
+  return (
+    <div className="px-4 py-4 text-[12.5px]" role="status">
+      <p>
+        {what}
+        {q && only ? ` with ${FILTER_WORDS[only]} on.` : "."}
+      </p>
+      {only && q ? (
+        <WithTooltip label={`Search again without ${FILTER_WORDS[only]}`}>
+          <button
+            type="button"
+            onClick={() => onClearFilter(without(filters, only))}
+            className="mt-1.5 text-[12.5px] text-muted underline underline-offset-2 hover:text-fg"
+          >
+            Turn it off
+          </button>
+        </WithTooltip>
+      ) : on.length > 1 && q ? (
+        <WithTooltip label="Search again with every filter off">
+          <button
+            type="button"
+            onClick={() => onClearFilter(NO_FILTERS)}
+            className="mt-1.5 text-[12.5px] text-muted underline underline-offset-2 hover:text-fg"
+          >
+            Turn the filters off
+          </button>
+        </WithTooltip>
+      ) : (
+        <p className="mt-1 text-muted">
+          {q
+            ? "Check the spelling, or try the course code (like CMSC351) or an instructor's last name."
+            : "Turn a filter off to see more."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ResultsSkeleton() {
+  return (
+    <div className="flex flex-col" data-testid="search-loading">
+      {[0.62, 0.74, 0.55].map((w) => (
+        <div
+          key={w}
+          className="flex flex-col gap-2 border-hairline border-b px-4 py-3"
+        >
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3" style={{ width: `${w * 100}%` }} />
+          <Skeleton className="h-2.5 w-1/3" />
+        </div>
+      ))}
+    </div>
+  );
+}
