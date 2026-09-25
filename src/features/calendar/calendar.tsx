@@ -23,6 +23,7 @@ import {
   MAX_GHOST_LANES,
   type Pill,
   packGhosts,
+  pillsWhileComparing,
   previewOrder,
   spreadPills,
   stepPreview,
@@ -397,22 +398,24 @@ function Grid({
               style={laneStyle(ghost, layout.yOf)}
             />
           ))}
-          {placePills(column.pills, layout, colWidth).map(
-            ({ pill, top, x }) => (
-              <TravelPill
-                key={pill.key}
-                pill={pill}
-                top={top}
-                x={x}
-                travel={travel}
-                selected={
-                  stackTop?.kind === "connection" &&
-                  stackTop.connectionId === pill.connection.id
-                }
-                onOpen={openConnection}
-              />
-            ),
-          )}
+          {placePills(
+            pillsWhileComparing(column.pills, ghostCourse),
+            layout,
+            colWidth,
+          ).map(({ pill, top, x }) => (
+            <TravelPill
+              key={pill.key}
+              pill={pill}
+              top={top}
+              x={x}
+              travel={travel}
+              selected={
+                stackTop?.kind === "connection" &&
+                stackTop.connectionId === pill.connection.id
+              }
+              onOpen={openConnection}
+            />
+          ))}
           {draft?.days.includes(column.day) ? (
             <DraftOutline style={draftBox(draft.start, draft.end)} />
           ) : null}

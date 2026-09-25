@@ -117,7 +117,8 @@ function GradesJump({ onJump }: { onJump: () => void }) {
       <button
         type="button"
         onClick={onJump}
-        className="ml-auto text-sm text-muted hover:text-fg"
+        // A 24px target (WCAG 2.5.8) in the bar's line height.
+        className="-my-1 ml-auto flex h-6 items-center rounded-md px-1 text-muted text-sm hover:text-fg"
       >
         Grades ↓
       </button>

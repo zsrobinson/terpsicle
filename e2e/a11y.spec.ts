@@ -145,6 +145,14 @@ for (const scheme of ["light", "dark"] as const) {
       for (const label of TABS) {
         await openTab(page, isMobile, label);
         await scan(page, `${label} tab (${scheme})`);
+        if (label === "Blocks") {
+          // The form waits behind "Add a block" while there are blocks.
+          await page.getByRole("button", { name: "Add a block" }).click();
+          await expect(
+            page.getByRole("region", { name: "Add a block" }),
+          ).toBeVisible();
+          await scan(page, `Blocks form (${scheme})`);
+        }
       }
     });
 
@@ -171,9 +179,31 @@ for (const scheme of ["light", "dark"] as const) {
       ).toBeVisible();
       await scan(page, `seat alert popover (${scheme})`);
       await page.keyboard.press("Escape");
-      for (const tab of ["Instructors", "Grades", "About"]) {
-        await page.getByRole("tab", { name: tab }).click();
-        await scan(page, `course details: ${tab} (${scheme})`);
+      // One page: the description, reviews and grades open in place.
+      await page
+        .getByRole("button", { name: "More about this course" })
+        .click();
+      await page.getByRole("button", { name: "Reviews" }).first().click();
+      await page.getByRole("button", { name: "Grades ↓" }).click();
+      await expect(page.getByTestId("grade-bars")).toBeVisible();
+      // Back to the top: mid-scroll, rows slide under the sticky Sections
+      // bar, and axe counts a row's button half under it as a small target.
+      await page
+        .locator("[data-layer][data-active] [data-panel-body]")
+        .evaluate((el) => el.scrollTo(0, 0));
+      await scan(page, `course details: opened up (${scheme})`);
+
+      // A course with one section, and one with many.
+      for (const [query, code] of [
+        ["cmsc 401", "CMSC401"],
+        ["engl 101", "ENGL101"],
+      ] as const) {
+        // `/` goes back to Search from the drill-in.
+        await page.keyboard.press("/");
+        await box.fill(query);
+        await page.locator(`[data-course-result="${code}"]`).click();
+        await expect(page.getByTestId("sections")).toBeVisible();
+        await scan(page, `course details: ${code} (${scheme})`);
       }
     });
 
