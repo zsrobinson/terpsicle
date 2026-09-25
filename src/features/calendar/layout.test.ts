@@ -720,6 +720,21 @@ describe("travel pills", () => {
     expect(pillsOf(model)).toEqual([tight.id]);
   });
 
+  it("thin a cluster at one spot to the ones that matter", () => {
+    // One class leading into three others ("17 min | 4 min | 15 min" on
+    // real data): only the back-to-back and the tight ones stay.
+    const from = tight.from;
+    const cluster = [
+      aConnection({ id: "Tu:a", from, gapMinutes: 15, verdict: "ok" }),
+      aConnection({ id: "Tu:b", from, gapMinutes: 75, verdict: "ok" }),
+      aConnection({ id: "Tu:c", from, gapMinutes: 45, verdict: "tight" }),
+    ];
+    const model = buildCalendarModel(
+      input([aCourse()], { connections: cluster }),
+    );
+    expect(pillsOf(model)).toEqual(["Tu:a", "Tu:c"]);
+  });
+
   it("show the connection open in the sidebar, whatever its gap", () => {
     const model = buildCalendarModel(
       input([aCourse()], {
