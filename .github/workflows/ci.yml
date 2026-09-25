@@ -61,6 +61,14 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm build
 
+      # Previews share one D1 database (terpsicle-preview); bring it up to
+      # this PR's migrations before its code runs against it.
+      - name: Apply D1 migrations to the previews database
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler d1 migrations apply terpsicle-preview --remote -c wrangler.preview-d1.jsonc
+
       - name: Upload Worker preview
         id: preview
         env:

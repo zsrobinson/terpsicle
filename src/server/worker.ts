@@ -1,8 +1,9 @@
 import { runScheduled } from "~/jobs/index";
+import { APEX_HOST } from "./apex";
+import { API_PREFIX, handleApi } from "./api/router";
 import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
 
-export const APEX_HOST = "terpsicle.com";
 const WWW_HOST = `www.${APEX_HOST}`;
 
 /** The TanStack Start request handler (or a stand-in in tests). */
@@ -29,6 +30,9 @@ export function createWorker(app: AppHandler) {
       }
       if (url.pathname.startsWith(DATA_PREFIX)) {
         return serveData(request, env, ctx);
+      }
+      if (url.pathname.startsWith(API_PREFIX)) {
+        return handleApi(request, env, ctx);
       }
       if (
         url.pathname === POSTHOG_PROXY_PREFIX ||

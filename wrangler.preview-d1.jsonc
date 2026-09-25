@@ -1,0 +1,16 @@
+// Only for `wrangler d1 migrations apply terpsicle-preview`: the main config
+// names the previews database inside `previews`, where the d1 commands don't
+// look (and `preview_database_id` would rebind production in dev). CI's
+// preview job uses this before uploading each PR preview.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "terpsicle-preview-d1",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "terpsicle-preview",
+      "database_id": "b1a4458a-e0ae-4ce5-b410-46bc2130db8c",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

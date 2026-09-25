@@ -189,7 +189,7 @@ export const LocalSeatAlertSchema = z.object({
   /** The person's own address, kept to show "Watching as …" and prefill the next bell. */
   email: EmailSchema,
   status: SubscriptionStatusSchema,
-  /** From the subscribe response; null when the server didn't issue one to this browser. */
+  /** From confirming in this browser (the alerts inbox); null while pending or when confirmed elsewhere. */
   subscriptionId: SubscriptionIdSchema.nullable(),
   /** Lets this browser check status and unsubscribe; null when not issued to this browser. */
   manageToken: TokenSchema.nullable(),

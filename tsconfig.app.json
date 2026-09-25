@@ -16,6 +16,9 @@
     "src/worker",
     "src/core",
     "src/fixtures",
+    // The browser's typed API client. It imports only ~/core and zod (Biome
+    // enforces it), so it typechecks in both this program and the Worker's.
+    "src/server/fns",
     "src/router.tsx",
     "src/routeTree.gen.ts"
   ]

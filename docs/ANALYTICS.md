@@ -23,7 +23,21 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `shared_plan_saved` | `droppedSections` | How often a shared plan becomes the viewer's own, and how often sections have gone missing since it was shared. |
 
 - **Session recordings**, when enabled in the PostHog project. They're recorded with every input masked (`maskAllInputs`) and the text of any element marked `data-private` masked.
-- **Server events** from cron jobs, via `captureServerEvent()` in `src/server/analytics.ts` (declared in `ServerEvents`). They use one fixed id (`terpsicle-worker`) and never describe a person.
+- **Server events** from cron jobs and the `/api` endpoints, via `captureServerEvent()` in `src/server/analytics.ts` (declared in `ServerEvents`). They use one fixed id (`terpsicle-worker`) and never describe a person:
+
+  | Event | Properties | Why |
+  |---|---|---|
+  | `cron_job_finished` / `cron_job_failed` | `job`, `durationMs`, `error` | Jobs that run long or break. |
+  | `summary_generated` | `model`, `durationMs`, `reviews`, `attempts` | Workers AI cost and latency; how often the first answer fails validation. |
+  | `summary_cached` | `ageDays` | How often summaries come from R2, and how old they get. |
+  | `summary_failed` | `reason` (`model-output`, `model-error`, `planetterp`, `storage`) | Which dependency fails. |
+  | `summary_capped` | `cap` | Whether the daily cap is too low. |
+  | `alert_subscribed` | `outcome` (`confirm-sent`, `already-watching`, `not-sent`) | Signups, and how often limits skip an email. |
+  | `alert_confirmed` | `termId` | How many signups confirm. |
+  | `alert_sent` | `termId`, `count` | Alert volume per seats run. |
+  | `alert_unsubscribed` | `termId` | Whether alerts are wanted. |
+
+  Seat-alert events never carry an address, token or IP, not even hashed: a count per term is all we need.
 
 ## Privacy
 
