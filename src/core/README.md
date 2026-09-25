@@ -1,0 +1,35 @@
+# src/core
+
+Pure domain logic: no DOM, no fetch, no clock (time is always an argument). Everything is exported from `~/core`, or import one module (`~/core/fit`). Types come from `~/core/schema` (docs/DATA.md).
+
+Conventions across modules:
+- **Words come as `Message`** (`MessagePart[]`) wherever codes, times or durations appear, so the UI sets them in mono and makes them clickable. Plain strings are used only for fixed phrases ("12 of 36 open").
+- **Catalog lookups go through a `CatalogIndex`** (`buildCatalogIndex(termId, courses)`), built once per catalog load in the worker.
+- **Travel takes a `CampusMap`** (`campusMap(routesTable, buildingsFile)`, or `EMPTY_CAMPUS` before geo data loads). Without routes, every connection is `unknown` and travel never rules a section out.
+- **Caches are keyed by catalog objects.** Catalog objects must never be mutated.
+
+## Modules
+
+| Module | Main entry points |
+|---|---|
+| `time` | `formatTime(570)` → "9:30am", `formatTimeRange`, `formatDays(["Tu","Th"])` → "TuTh", `formatDuration`, `formatDateSpan`, `parseTime`, `formatRelative(then, now)` → "2 min ago"; calendar extent `calendarHourRange(items)` (≥ 8am–5pm) and `calendarDays(items)` (Sat/Sun only when needed); week items `sectionWeekItems(code, section)`, `blockWeekItems(block)`, `itemsOverlap` (dates-aware); busy bitmasks `weekMaskOf`, `masksIntersect`, `unionMasks`, `toSparse`/`sparseIntersects` (5-minute slots, shared with the generator) |
+| `travel` | `decodeRoutes(bytes)` / `encodeRoutes({buildings, distance})`, `routeDistance(table, from, to, mode)` → feet · `"no-route"` · null; `campusMap`; `planConnections(sections, travel, campus)` → `Connection[]`; `connectionsByDay`; `walkMinutes`, `connectionVerdict`, `formatFeet`; `verdictMessage(connection)` ("Not enough time: 18 min to get there…"), `VERDICT_WORDS`; `travelMath(connection, travel)` and `connectionToExplain(connections)` for "How?" |
+| `fit` | `buildFitContext({plan, index, blocks, travel, campus})` once per plan state, then `fitLabel(ctx, course, section)` → `FitLabel`, `countFittingSections` ("Sections · 2 fit"), `courseFitsPlan` (search filter), `sectionFits`; `prepareFit(courses)` warms caches at catalog load; `sectionMask`/`sectionSparseMask` for the generator |
+| `problems` | `planProblems({plan, index, blocks, travel, campus, seats, changes})` → `Problem[]`, sorted by severity, with `switch` or `accept-change` fixes; `countBySeverity`; `planWithSection` (what a switch fix produces) |
+| `catalog` | `buildCatalogIndex`, `findCourse`, `findSection`, `placedSections(plan, index)`, `snapshotOf(section)`; `diffPlanAgainstCatalog(plan, index, changes)` → cancelled/changed; `diffManifest(cachedCatalogOf(old), next)` → `{fetch, drop, seats, changes}`; ghosts `groupSectionsByTime(course, exclude)` ("0101–0106 · 6 sections") and `capGhosts(groups)` (12 shown, rest listed); `groupSectionsByInstructor(course)` (section order) and `collapsedGroupKey` |
+| `seats` | `seatCounts(seatsMap, key)`, `seatStatus(counts)` → `{level, words, filled}` ("12 of 36 open", "2 left", "Full · 9 waitlisted"), `seatLevel`, `canWatchSeats` (bell); `registrationOrder(sections, seats)`; `backupSection(fitCtx, course, current, seats)` |
+| `grades` | `gradeSummary(counts)` → students, GPA, % A/B; `gradeSentence` ("64% got an A or B · average GPA 2.93"); `gradeBars(counts)` (A–D split +/plain/−, F, W, Other); `formatRating(rating, reviewCount)` |
+| `plans` | `plansReducer(state, action)` over `PlansState` (plans, per-term blocks, global colors), `PlanAction` union; history `createHistory`, `applyWithHistory(history, plansReducer, action)`, `undo`, `redo`, `canUndo`, `canRedo`, `pushHistory`, `resetHistory`; `plansInTerm`, `blocksInTerm`; names `nextPlanName`, `copyName`, `cleanPlanName` |
+| `share` | `encodeShare(payload)` / `decodeShare(param)` → `{ok, payload}` or a typed `ShareDecodeError` with its message; `shareUrl(origin, payload)`; `sharePayloadFromPlan(plan, blocks, colors)`; `sharedViewPlan(payload, index, id, now)` (read-only view); `coursesFromShare(payload, index)` → `{courses, dropped}` for Save a copy |
+| `ics` | `buildIcs({termId, termName, sections, calendar, now})` → `{kind: "ok", ics}` · `"not-published"` · `"nothing-to-add"`; `icsFileName(termName)` |
+| `search` | `createCourseSearch(courses)` (MiniSearch with code-aware tokens) and `searchCourses(search, query)` → ranked codes; filters `courseFilter(filters, {seats, fit})`, `NO_FILTERS`, `CREDIT_OPTIONS`, `LEVEL_OPTIONS`, `isFiltering`; `sectionSummary` + `formatSectionSummary` ("4 sections · 2 fit your plan") |
+| `color` | `COURSE_COLORS` (schema) with `COURSE_COLOR_LABELS`, `courseColorTokens(color)` → theme token names (`course-blue-bg`, …), `defaultCourseColor(code, colorsInPlan)` |
+| `schema` | The data contract: zod schemas and types (docs/DATA.md) |
+
+## Notes for UI and worker code
+
+- **Build contexts once, not per render.** `buildFitContext` memoizes answers for one plan state. Rebuild it when the plan, blocks, travel settings or campus data change, and reuse it for every row and keystroke in between. Call `prepareFit(courses)` after a catalog loads (about 0.2 s for a full term).
+- **Performance (synthetic 4,500-course term):** a search keystroke with filters on stays under about 3 ms, and "Fits my plan" over the whole term after a plan change takes about 5 ms (`src/core/search/search.perf.test.ts`, the `perf` Vitest project).
+- **Seats**: pass the seats file's `seats` map (`SeatsMap`), or null before it loads ("Seats unknown").
+- **Colors**: the reducer assigns a course its color on first add. Map palette ids to Tailwind classes explicitly, since dynamic class names aren't detected.
+- **Share links**: read `?plan=` (`SHARE_PARAM`) and show `error.message` for bad links. The wire format is described in DATA.md §8.

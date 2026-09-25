@@ -17,6 +17,17 @@ export default defineConfig({
           name: "core",
           environment: "node",
           include: ["src/core/**/*.test.ts", "src/fixtures/**/*.test.ts"],
+          exclude: ["**/*.perf.test.ts"],
+        },
+      },
+      {
+        // Timing budgets (BUILD.md §5). Kept out of "core" so they never run
+        // under coverage instrumentation, which slows code several times over.
+        extends: true,
+        test: {
+          name: "perf",
+          environment: "node",
+          include: ["src/**/*.perf.test.ts"],
         },
       },
       {

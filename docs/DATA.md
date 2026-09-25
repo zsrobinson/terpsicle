@@ -237,7 +237,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 
 - `feetPerMinute = mph × 88`, with `PACE_MPH`: slower 2.5, typical 3.0, faster 3.5.
 - `walkMinutes = ceil(distanceFeet / feetPerMinute) + extraMinutes`, with extra minutes 0, 2 or 5.
-- Connections are consecutive timed, in-person meetings on one day in different buildings, among sections whose `dates` spans intersect. Blocks, online meetings, meetings with no building (TBA) and off-campus meetings never take part. The distance comes from the `accessible` matrix when `TravelSettings.accessible` is on, otherwise from `standard`.
+- Connections are consecutive timed, in-person meetings on one day in different buildings, among sections whose `dates` spans intersect. "Consecutive" means the walk comes from the stop that ends latest before this one starts (among stops meeting in the same weeks); when something overlaps a class, nothing connects into it (the overlap is its own problem). There's no maximum gap: a long gap is simply `ok`. Blocks, online meetings, meetings with no building (TBA) and off-campus meetings never take part. The distance comes from the `accessible` matrix when `TravelSettings.accessible` is on, otherwise from `standard`.
 - **Verdicts:**
   - `insufficient` when `walkMinutes > gapMinutes`;
   - `tight` when `walkMinutes ≥ TIGHT_SHARE × gapMinutes`, where `TIGHT_SHARE` = 0.75;
@@ -424,7 +424,7 @@ They carry counts, reasons and term ids only. They never carry an address, token
 
 ## 8. Share links
 
-`/?plan=<base64url(deflate-raw(UTF-8 JSON))>`, where the JSON matches `SharePayloadSchema`:
+`/?plan=<base64url(deflate-raw(UTF-8 JSON))>`. The link carries a `SharePayloadSchema` payload:
 - `v: 1`, `termId`, `name?`;
 - `sections`: section keys in course order;
 - `saved?`: saved-for-later course codes;
@@ -432,6 +432,17 @@ They carry counts, reasons and term ids only. They never carry an address, token
 - `colors?`: course → palette id.
 
 At most 40 entries per list, and one entry per course across `sections` and `saved`. There are no ids, timestamps or snapshots.
+
+**Wire form.** To keep links short (a typical plan is about 150 characters, half the plain-JSON form), the JSON inside the link is a compact array that `core/share` expands and then validates with `SharePayloadSchema`:
+
+```
+[v, termId, name | 0, "CMSC351-0101 ENGL393-0312", "MUSC130", [["Lunch", "MWF", 720, 780]], "05"]
+```
+
+- `v` comes first, so a future layout can always be told apart;
+- sections and saved courses are space-joined strings; days are Testudo's tokens run together;
+- colors are one base-36 palette index per course, in sections-then-saved order, `-` for none (trailing `-` dropped). Colors for courses outside the plan aren't carried;
+- empty lists are `""` or `[]`, and an absent name is `0`.
 - The shared view is read-only and shows the sharer's blocks and colors.
 - **Save a copy** makes a new plan in `termId` with fresh snapshots from the current catalog. It doesn't import the blocks (yours are per term) or the colors (yours are global).
 - Section keys missing from the catalog show up as cancelled problems in the shared view and are dropped on Save a copy, with a toast that names them.
