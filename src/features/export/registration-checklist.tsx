@@ -82,7 +82,10 @@ export function RegistrationChecklist({
                 />
               </div>
               <div className="truncate pl-6 text-[11.5px] text-muted">
-                {backup ? (
+                {ref.course.sections.length === 1 ? (
+                  // "No backup fits" would read as a scheduling problem.
+                  "The only section"
+                ) : backup ? (
                   <>
                     Backup: <span className="font-mono">{backup.code}</span> (
                     {backup.instructors.length > 1
