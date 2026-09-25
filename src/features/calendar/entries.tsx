@@ -16,6 +16,7 @@ import { formatFeet, travelMath, verdictMessage } from "~/core/travel";
 import { useUi } from "~/state/ui-store";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
+import { blockLabel, classLabel, ghostLabel, pillLabel } from "./labels";
 import type { BlockEntry, ClassEntry, GhostEntry, Pill } from "./layout";
 import { ghostStyle, tintStyle } from "./tint";
 
@@ -80,7 +81,7 @@ export function ClassBlock({
         type="button"
         onClick={onOpen}
         data-course={entry.courseCode}
-        aria-label={`${entry.courseCode} ${entry.sectionCode}${kind ? ` ${kind}` : ""}, ${formatTimeRange(entry.start, entry.end)}${place ? `, ${place}` : ""}`}
+        aria-label={classLabel(entry)}
         className={cn(
           "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border px-1.5 py-1 text-left transition-opacity duration-150",
           dimmed && "opacity-35",
@@ -128,7 +129,7 @@ export function BusyBlock({
       <button
         type="button"
         onClick={() => openTab("blocks", "click")}
-        aria-label={`${entry.label}, ${formatTimeRange(entry.start, entry.end)}`}
+        aria-label={blockLabel(entry)}
         className={cn(
           "stripes absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border border-hairline bg-panel px-1.5 py-1 text-left text-muted transition-opacity duration-150",
           dimmed && "opacity-35",
@@ -257,7 +258,7 @@ export function Ghost({
         <button
           type="button"
           data-ghost={code}
-          aria-label={`Switch to ${code}: ${ghostWords(entry)}`}
+          aria-label={ghostLabel(entry, parsed.courseCode)}
           className={className}
           style={boxStyle}
           onClick={() =>
@@ -277,7 +278,7 @@ export function Ghost({
           <button
             type="button"
             data-ghost={code}
-            aria-label={`${entry.label}: pick a section`}
+            aria-label={ghostLabel(entry, parsed.courseCode)}
             className={className}
             style={boxStyle}
             {...hover}
@@ -352,6 +353,8 @@ export function TravelPill({
   const math = travelMath(c, travel);
   const words = messageToText(verdictMessage(c));
   const known = c.walkMinutes !== null;
+  // Side by side with pills leaving at the same time, centered in its slot.
+  const left = `${((pill.slot + 0.5) / pill.slots) * 100}%`;
   return (
     <WithTooltip
       label={
@@ -371,16 +374,22 @@ export function TravelPill({
         type="button"
         onClick={() => onOpen(c)}
         data-verdict={c.verdict}
-        aria-label={`${words} From ${c.from.building} to ${c.to.building}.`}
-        className={cn(
-          "tnum -translate-x-1/2 -translate-y-1/2 absolute left-1/2 z-20 flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-[10.5px] shadow-xs",
-          PILL_TONE[c.verdict],
-          selected && "ring-2 ring-fg/70",
-        )}
-        style={{ top }}
+        aria-label={pillLabel(c)}
+        // The button is a 24px-tall target (WCAG 2.5.8); the pill drawn
+        // inside it stays 19px so it doesn't crowd the classes around it.
+        className="-translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-6 items-center rounded-full"
+        style={{ top, left }}
       >
-        <Route size={10} aria-hidden="true" />
-        {known ? `${c.walkMinutes} min` : null}
+        <span
+          className={cn(
+            "tnum flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-[10.5px] shadow-xs",
+            PILL_TONE[c.verdict],
+            selected && "ring-2 ring-fg/70",
+          )}
+        >
+          <Route size={10} aria-hidden="true" />
+          {known ? `${c.walkMinutes} min` : null}
+        </span>
       </button>
     </WithTooltip>
   );

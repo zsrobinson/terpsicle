@@ -13,6 +13,7 @@ import {
   formatTimeRange,
   parseTime,
   sortDays,
+  spokenTimeRange,
 } from "./format";
 import { formatRelative } from "./relative";
 import {
@@ -50,6 +51,10 @@ describe("formatTime", () => {
 
   it("formats ranges with an en dash", () => {
     expect(formatTimeRange(660, 735)).toBe("11am–12:15pm");
+  });
+
+  it("says ranges in words for screen readers", () => {
+    expect(spokenTimeRange(660, 710)).toBe("11am to 11:50am");
   });
 
   it("round-trips through parseTime", () => {

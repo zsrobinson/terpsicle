@@ -24,6 +24,14 @@ export function formatTimeRange(start: Minutes, end: Minutes): string {
   return `${formatTime(start)}–${formatTime(end)}`;
 }
 
+/**
+ * "11am to 12:15pm": for accessible names. Screen readers skip or misread
+ * the en dash in `formatTimeRange`.
+ */
+export function spokenTimeRange(start: Minutes, end: Minutes): string {
+  return `${formatTime(start)} to ${formatTime(end)}`;
+}
+
 /** Testudo's compact day string: "MWF", "TuTh". */
 export function formatDays(days: readonly Day[]): string {
   return sortDays(days).join("");

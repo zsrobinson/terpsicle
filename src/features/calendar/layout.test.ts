@@ -438,9 +438,27 @@ describe("buildCalendarModel", () => {
     );
     const monday = model.columns.find((c) => c.day === "M");
     expect(monday?.pills).toEqual([
-      { key: connection.id, day: "M", at: 655, connection },
+      { key: connection.id, day: "M", at: 655, connection, slot: 0, slots: 1 },
     ]);
     expect(model.columns.find((c) => c.day === "Tu")?.pills).toEqual([]);
+  });
+
+  it("sets pills leaving at the same time side by side, so none hides another", () => {
+    const first = aConnection({ id: "a" });
+    const second = aConnection({ id: "b" });
+    const later = aConnection({
+      id: "c",
+      from: { ...first.from, time: first.from.time + 60 },
+    });
+    const model = buildCalendarModel(
+      input([aCourse()], { connections: [first, second, later] }),
+    );
+    const monday = model.columns.find((c) => c.day === "M");
+    expect(monday?.pills.map((p) => [p.key, p.slot, p.slots])).toEqual([
+      ["a", 0, 2],
+      ["b", 1, 2],
+      ["c", 0, 1],
+    ]);
   });
 });
 

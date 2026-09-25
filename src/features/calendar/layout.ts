@@ -102,6 +102,29 @@ export interface Pill {
   /** Where to center it: halfway through the gap. */
   at: Minutes;
   connection: Connection;
+  /**
+   * Side by side with the other pills leaving at the same time (from
+   * overlapping classes), so none hides another: `slot` of `slots`.
+   */
+  slot: number;
+  slots: number;
+}
+
+function pillsFor(connections: readonly Connection[], day: Day): Pill[] {
+  const byStart = new Map<Minutes, Connection[]>();
+  for (const c of connections)
+    byStart.set(c.from.time, [...(byStart.get(c.from.time) ?? []), c]);
+  return connections.map((connection) => {
+    const group = byStart.get(connection.from.time) ?? [connection];
+    return {
+      key: connection.id,
+      day,
+      at: (connection.from.time + connection.to.time) / 2,
+      connection,
+      slot: group.indexOf(connection),
+      slots: group.length,
+    };
+  });
 }
 
 export interface UntimedSection {
@@ -426,14 +449,10 @@ export function buildCalendarModel(given: CalendarInput): CalendarModel {
       ...blocks.filter((b) => b.day === day),
     ]),
     ghosts: packGhosts(ghosts.filter((g) => g.day === day)),
-    pills: input.connections
-      .filter((c) => c.day === day)
-      .map((connection) => ({
-        key: connection.id,
-        day,
-        at: (connection.from.time + connection.to.time) / 2,
-        connection,
-      })),
+    pills: pillsFor(
+      input.connections.filter((c) => c.day === day),
+      day,
+    ),
   }));
 
   return {

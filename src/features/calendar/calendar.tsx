@@ -12,6 +12,7 @@ import { useShortcut } from "~/app/shortcuts";
 import type { Connection, CourseCode, Day } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
+import { DAY_LONG_NAMES } from "~/core/time";
 import { useTravel } from "~/state/hooks";
 import { selectOpenCourse, useUi } from "~/state/ui-store";
 import { BusyBlock, ClassBlock, Ghost, laneStyle, TravelPill } from "./entries";
@@ -313,8 +314,12 @@ function Grid({
       }}
     >
       {model.columns.map((column) => (
+        // Screen readers hear which day they're in as they move through.
+        // biome-ignore lint/a11y/useSemanticElements: a day isn't a form, so not a <fieldset>
         <div
           key={column.day}
+          role="group"
+          aria-label={DAY_LONG_NAMES[column.day]}
           data-empty=""
           data-day={column.day}
           className="relative h-full min-w-0 flex-1"
