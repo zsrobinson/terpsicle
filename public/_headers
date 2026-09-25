@@ -1,0 +1,5 @@
+# Workers static assets headers. Vite names every build file by its content
+# hash, so a file never changes: cache it for good. (HTML gets no-cache from
+# the Worker: src/server/worker.ts.)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

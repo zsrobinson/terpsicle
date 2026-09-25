@@ -6,6 +6,7 @@ import {
   nameTokens,
   type PlanetTerpPerson,
 } from "./names";
+import { AliasFileSchema } from "./planetterp";
 
 // Cases are real Testudo/PlanetTerp pairs from 2026-09-25 unless noted.
 
@@ -109,9 +110,52 @@ describe("createNameMatcher", () => {
     });
 
     it("has a reason for every entry and no duplicate names", () => {
-      const names = aliases.map((a) => a.testudo.toLowerCase());
+      const entries = AliasFileSchema.parse(aliases);
+      const names = entries.flatMap((a) =>
+        "testudo" in a ? [a.testudo.toLowerCase()] : [],
+      );
       expect(new Set(names).size).toBe(names.length);
-      for (const a of aliases) expect(a.why.length).toBeGreaterThan(20);
+      const duplicates = entries.flatMap((a) =>
+        "duplicateSlug" in a ? [a.duplicateSlug] : [],
+      );
+      expect(new Set(duplicates).size).toBe(duplicates.length);
+      for (const a of entries) expect(a.why.length).toBeGreaterThan(20);
+    });
+  });
+
+  describe("one person under two slugs", () => {
+    // Real: PlanetTerp's Cliff Bakalian (175 reviews) and Clifford Bakalian
+    // (none), whose CMSC330 grade rows came in under both names.
+    const m = createNameMatcher(
+      [
+        person("Cliff Bakalian", "bakalian", ["CMSC250", "CMSC330"], {
+          reviewCount: 175,
+        }),
+        person("Clifford Bakalian", "bakalian_clifford", ["CMSC330"]),
+      ],
+      { sameAs: new Map([["bakalian_clifford", "bakalian"]]) },
+    );
+
+    it("joins grade rows under either name to the one slug", () => {
+      expect(m.exact("Cliff Bakalian", set("CMSC330"))).toBe("bakalian");
+      expect(m.exact("Clifford Bakalian", set("CMSC330"))).toBe("bakalian");
+    });
+
+    it("matches Testudo's name for them to the slug with the reviews", () => {
+      expect(m.match("Clifford Bakalian", set("CMSC330"))).toEqual({
+        slug: "bakalian",
+        rule: "exact",
+      });
+    });
+
+    it("ignores an entry whose main slug PlanetTerp no longer has", () => {
+      const gone = createNameMatcher(
+        [person("Clifford Bakalian", "bakalian_clifford", ["CMSC330"])],
+        { sameAs: new Map([["bakalian_clifford", "bakalian"]]) },
+      );
+      expect(gone.exact("Clifford Bakalian", set("CMSC330"))).toBe(
+        "bakalian_clifford",
+      );
     });
   });
 

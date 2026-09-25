@@ -10,8 +10,7 @@ import {
   type TravelSettings,
 } from "~/core/schema";
 import { type SeatsMap, seatCounts, seatStatus } from "~/core/seats";
-import type { Lane } from "~/core/time";
-import { formatTimeRange } from "~/core/time";
+import { formatDateSpan, formatTimeRange, type Lane } from "~/core/time";
 import { formatFeet, travelMath, verdictMessage } from "~/core/travel";
 import { useUi } from "~/state/ui-store";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
@@ -66,21 +65,32 @@ export function ClassBlock({
   const place = entry.online
     ? "Online"
     : [entry.building, entry.room].filter(Boolean).join(" ");
+  const action = selected
+    ? `Your current section, ${entry.sectionCode}`
+    : open
+      ? `Close ${entry.courseCode}`
+      : `See ${entry.courseCode}'s sections`;
+  // Summer sessions (and some fall and spring sections) meet for part of the
+  // term; two can share a weekday and time without overlapping.
+  const dates = entry.dates ? formatDateSpan(entry.dates) : null;
   return (
     <WithTooltip
       label={
-        selected
-          ? `Your current section, ${entry.sectionCode}`
-          : open
-            ? `Close ${entry.courseCode}`
-            : `See ${entry.courseCode}'s sections`
+        dates ? (
+          <span className="flex flex-col">
+            <span>{action}</span>
+            <span className="tnum opacity-70">Meets {dates}</span>
+          </span>
+        ) : (
+          action
+        )
       }
     >
       <button
         type="button"
         onClick={onOpen}
         data-course={entry.courseCode}
-        aria-label={`${entry.courseCode} ${entry.sectionCode}${kind ? ` ${kind}` : ""}, ${formatTimeRange(entry.start, entry.end)}${place ? `, ${place}` : ""}`}
+        aria-label={`${entry.courseCode} ${entry.sectionCode}${kind ? ` ${kind}` : ""}, ${formatTimeRange(entry.start, entry.end)}${place ? `, ${place}` : ""}${dates ? `, ${dates}` : ""}`}
         className={cn(
           "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border px-1.5 py-1 text-left transition-opacity duration-150",
           dimmed && "opacity-35",
@@ -338,12 +348,15 @@ const PILL_TONE = {
 export function TravelPill({
   pill,
   top,
+  x = 0.5,
   travel,
   selected,
   onOpen,
 }: {
   pill: Pill;
   top: number;
+  /** Across the column, 0.5 centered (`spreadPills`). */
+  x?: number;
   travel: TravelSettings;
   selected: boolean;
   onOpen: (connection: Connection) => void;
@@ -373,11 +386,11 @@ export function TravelPill({
         data-verdict={c.verdict}
         aria-label={`${words} From ${c.from.building} to ${c.to.building}.`}
         className={cn(
-          "tnum -translate-x-1/2 -translate-y-1/2 absolute left-1/2 z-20 flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-[10.5px] shadow-xs",
+          "tnum -translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full border bg-raised px-1.5 text-[10.5px] shadow-xs",
           PILL_TONE[c.verdict],
           selected && "ring-2 ring-fg/70",
         )}
-        style={{ top }}
+        style={{ top, left: `${x * 100}%` }}
       >
         <Route size={10} aria-hidden="true" />
         {known ? `${c.walkMinutes} min` : null}

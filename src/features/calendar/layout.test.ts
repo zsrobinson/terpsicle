@@ -26,7 +26,10 @@ import {
 import {
   buildCalendarModel,
   type CalendarInput,
+  ghostLanesFor,
+  packGhosts,
   previewOrder,
+  spreadPills,
   stepPreview,
 } from "./layout";
 import { daysBetween, snapMinute } from "./new-block";
@@ -92,6 +95,26 @@ describe("buildCalendarModel", () => {
     expect(buildCalendarModel(input([late])).endMinute).toBe(21 * 60);
   });
 
+  it("keeps a section's own dates on its blocks, for the tooltip", () => {
+    const summer = aCourse({
+      sections: [
+        aSection({ dates: { start: "2026-06-01", end: "2026-07-24" } }),
+      ],
+    });
+    const blocks = buildCalendarModel(
+      input([summer, aCourse({ code: "ENGL101" })]),
+    )
+      .columns.flatMap((c) => c.entries)
+      .filter((e) => e.kind === "class");
+    expect(
+      blocks.filter((b) => b.courseCode === "CMSC351").map((b) => b.dates),
+    ).toContainEqual({ start: "2026-06-01", end: "2026-07-24" });
+    // The whole term: nothing to say.
+    expect(
+      blocks.filter((b) => b.courseCode === "ENGL101").map((b) => b.dates),
+    ).toEqual([null, null, null]);
+  });
+
   it("adds Saturday only when something meets then", () => {
     const saturday = aCourse({
       sections: [aSection({ meetings: [aTimedMeeting({ days: ["Sa"] })] })],
@@ -117,9 +140,21 @@ describe("buildCalendarModel", () => {
         }),
       ],
     });
-    const model = buildCalendarModel(input([aCourse(), online]));
+    // An internship Testudo lists with no meetings at all.
+    const internship = aCourse({
+      code: "COMM288",
+      sections: [aSection({ code: "0101", delivery: "f2f", meetings: [] })],
+    });
+    const model = buildCalendarModel(input([aCourse(), online, internship]));
     expect(model.untimed).toMatchObject([
-      { courseCode: "ENGL393", sectionCode: "0312", delivery: "online-async" },
+      {
+        courseCode: "ENGL393",
+        sectionCode: "0312",
+        delivery: "online-async",
+        reason: "online",
+      },
+      // Course details says "Contact the department for times"; so does the strip.
+      { courseCode: "COMM288", reason: "contact-department" },
     ]);
     expect(
       model.columns
@@ -372,6 +407,41 @@ describe("buildCalendarModel", () => {
       ]);
     });
 
+    it("merges sooner in a phone-width column, so codes stay readable", () => {
+      // Three same-time ghosts: side by side on desktop, one on a phone.
+      const three = aCourse({
+        sections: Array.from({ length: 3 }, (_, i) =>
+          aSection({
+            code: code(301 + i),
+            meetings: [
+              aTimedMeeting({
+                days: ["M"],
+                start: 480 + i * 60,
+                end: 530 + i * 60,
+              }),
+              aTimedMeeting({
+                days: ["Tu"],
+                start: 960,
+                end: 1010,
+                kind: "discussion",
+              }),
+            ],
+          }),
+        ),
+      });
+      const tuesday = on(notPlaced(three), "Tu");
+      expect(tuesday).toHaveLength(3);
+      expect(ghostLanesFor(194)).toBe(3); // 1440px desktop
+      expect(ghostLanesFor(68)).toBe(1); // 390px phone
+      expect(ghostLanesFor(0)).toBe(3); // not measured yet
+      const phone = packGhosts(tuesday, ghostLanesFor(68));
+      expect(phone).toHaveLength(1);
+      expect(phone[0]).toMatchObject({
+        sectionCodes: ["0301", "0302", "0303"],
+        lanes: 1,
+      });
+    });
+
     it("keeps the merged ghost in place while one of its sections is previewed", () => {
       const model = notPlaced(sharedDiscussion, sectionKey("CMSC351", "0303"));
       const tuesday = on(model, "Tu");
@@ -519,5 +589,29 @@ describe("performance", () => {
     // A frame is 16 ms; layout gets a small slice of it.
     expect(perRun).toBeLessThan(4);
     expect(run(null).ghost?.groups.length).toBeGreaterThan(0);
+  });
+});
+
+describe("spreadPills", () => {
+  const xs = (spots: { x: number }[]) => spots.map((s) => s.x);
+  const tops = (spots: { top: number }[]) => spots.map((s) => s.top);
+
+  it("leaves pills that are apart where they are", () => {
+    const spots = spreadPills([100, 200, 300], 194);
+    expect(xs(spots)).toEqual([0.5, 0.5, 0.5]);
+    expect(tops(spots)).toEqual([100, 200, 300]);
+  });
+
+  it("puts pills at the same spot side by side, so none hides another", () => {
+    // A class leading into two overlapping classes: two pills at one spot.
+    expect(xs(spreadPills([300, 120, 120], 194))).toEqual([0.5, 0.25, 0.75]);
+    // Close but not equal still collides.
+    expect(xs(spreadPills([120, 130, 140], 194))).toEqual([1 / 6, 0.5, 5 / 6]);
+  });
+
+  it("stacks them instead in a phone's narrow column", () => {
+    const spots = spreadPills([120, 120], 68);
+    expect(xs(spots)).toEqual([0.5, 0.5]);
+    expect(tops(spots)).toEqual([110, 130]);
   });
 });

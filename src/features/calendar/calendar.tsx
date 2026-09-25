@@ -3,6 +3,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -17,8 +18,12 @@ import { selectOpenCourse, useUi } from "~/state/ui-store";
 import { BusyBlock, ClassBlock, Ghost, laneStyle, TravelPill } from "./entries";
 import {
   type CalendarModel,
+  ghostLanesFor,
+  MAX_GHOST_LANES,
   type Pill,
+  packGhosts,
   previewOrder,
+  spreadPills,
   stepPreview,
 } from "./layout";
 import {
@@ -174,6 +179,22 @@ function pillTop(pill: Pill, layout: CalendarLayout): number {
   return Math.min(layout.yOf(pill.at), from + 14);
 }
 
+function placePills(
+  pills: readonly Pill[],
+  layout: CalendarLayout,
+  colWidth: number,
+) {
+  const spots = spreadPills(
+    pills.map((pill) => pillTop(pill, layout)),
+    colWidth,
+  );
+  return pills.map((pill, i) => ({
+    pill,
+    top: spots[i]?.top ?? 0,
+    x: spots[i]?.x ?? 0.5,
+  }));
+}
+
 interface DragState {
   fromCol: number;
   toCol: number;
@@ -219,6 +240,18 @@ function Grid({
 
   const n = model.columns.length;
   const colWidth = n > 0 ? width / n : 0;
+  // Phones fit fewer side-by-side ghosts than the model's desktop default.
+  const maxGhostLanes = ghostLanesFor(colWidth);
+  const columns = useMemo(
+    () =>
+      maxGhostLanes >= MAX_GHOST_LANES
+        ? model.columns
+        : model.columns.map((column) => ({
+            ...column,
+            ghosts: packGhosts(column.ghosts, maxGhostLanes),
+          })),
+    [model.columns, maxGhostLanes],
+  );
   const ghostCourse = model.ghost?.courseCode ?? null;
   const bounds = { start: model.startMinute, end: model.endMinute };
 
@@ -312,7 +345,7 @@ function Grid({
         setHint(null);
       }}
     >
-      {model.columns.map((column) => (
+      {columns.map((column) => (
         <div
           key={column.day}
           data-empty=""
@@ -359,19 +392,22 @@ function Grid({
               style={laneStyle(ghost, layout.yOf)}
             />
           ))}
-          {column.pills.map((pill) => (
-            <TravelPill
-              key={pill.key}
-              pill={pill}
-              top={pillTop(pill, layout)}
-              travel={travel}
-              selected={
-                stackTop?.kind === "connection" &&
-                stackTop.connectionId === pill.connection.id
-              }
-              onOpen={openConnection}
-            />
-          ))}
+          {placePills(column.pills, layout, colWidth).map(
+            ({ pill, top, x }) => (
+              <TravelPill
+                key={pill.key}
+                pill={pill}
+                top={top}
+                x={x}
+                travel={travel}
+                selected={
+                  stackTop?.kind === "connection" &&
+                  stackTop.connectionId === pill.connection.id
+                }
+                onOpen={openConnection}
+              />
+            ),
+          )}
           {draft?.days.includes(column.day) ? (
             <DraftOutline style={draftBox(draft.start, draft.end)} />
           ) : null}

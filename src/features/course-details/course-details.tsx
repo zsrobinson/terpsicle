@@ -157,34 +157,44 @@ function Details({
         )}
       </header>
 
-      <div className="flex items-center justify-between gap-2 px-4 pt-1 pb-1.5">
-        <span className="font-medium text-[11px] text-muted">
-          Sections
-          {fitting !== null ? (
-            <>
-              {" · "}
-              <span className={fitting > 0 ? "text-ok" : undefined}>
-                {fitting} fit
-              </span>
-            </>
-          ) : null}
-        </span>
-        <span className="flex items-center gap-2">
-          <SeatsFreshness termId={termId} />
-          <RowModeToggle compact={compact} onChange={setCompact} />
-        </span>
-      </div>
-      <SectionGroups
-        course={course}
-        termId={termId}
-        placedCode={entry?.sectionCode ?? null}
-        inPlan={Boolean(entry)}
-        readOnly={readOnly}
-        fit={fit}
-        seats={seats}
-        planetTerp={planetTerp.data}
-        compact={compact}
-      />
+      {course.sections.length === 0 ? (
+        // Theses, research and internships: Testudo lists them without sections.
+        <p className="border-hairline border-y px-4 py-3 text-[12.5px] text-muted">
+          Testudo lists no sections of {course.code} this term. The department
+          can tell you how to register for it.
+        </p>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-2 px-4 pt-1 pb-1.5">
+            <span className="font-medium text-[11px] text-muted">
+              Sections
+              {fitting !== null ? (
+                <>
+                  {" · "}
+                  <span className={fitting > 0 ? "text-ok" : undefined}>
+                    {fitting} fit
+                  </span>
+                </>
+              ) : null}
+            </span>
+            <span className="flex items-center gap-2">
+              <SeatsFreshness termId={termId} />
+              <RowModeToggle compact={compact} onChange={setCompact} />
+            </span>
+          </div>
+          <SectionGroups
+            course={course}
+            termId={termId}
+            placedCode={entry?.sectionCode ?? null}
+            inPlan={Boolean(entry)}
+            readOnly={readOnly}
+            fit={fit}
+            seats={seats}
+            planetTerp={planetTerp.data}
+            compact={compact}
+          />
+        </>
+      )}
 
       <div
         role="tablist"
