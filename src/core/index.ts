@@ -1,3 +1,15 @@
-// Public entry for `~/core`. Domain modules (schema, time, fit, …) re-export
-// from here as they land; M0 only needs the path to exist.
-export {};
+// Public entry for `~/core`: every domain module. Import from a module path
+// (`~/core/fit`) when you only need one; see README.md for the index.
+export * from "./catalog";
+export * from "./color";
+export * from "./fit";
+export * from "./grades";
+export * from "./ics";
+export * from "./plans";
+export * from "./problems";
+export * from "./schema";
+export * from "./search";
+export * from "./seats";
+export * from "./share";
+export * from "./time";
+export * from "./travel";

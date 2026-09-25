@@ -1,0 +1,2 @@
+# .ics goldens are CRLF by spec (RFC 5545); never convert their line endings.
+src/core/ics/__golden__/*.ics -text
