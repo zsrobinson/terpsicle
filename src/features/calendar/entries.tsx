@@ -355,7 +355,7 @@ export function TravelPill({
 }: {
   pill: Pill;
   top: number;
-  /** Across the column, 0.5 centered (`pillColumns`). */
+  /** Across the column, 0.5 centered (`spreadPills`). */
   x?: number;
   travel: TravelSettings;
   selected: boolean;

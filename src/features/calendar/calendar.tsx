@@ -22,8 +22,8 @@ import {
   MAX_GHOST_LANES,
   type Pill,
   packGhosts,
-  pillColumns,
   previewOrder,
+  spreadPills,
   stepPreview,
 } from "./layout";
 import {
@@ -179,13 +179,19 @@ function pillTop(pill: Pill, layout: CalendarLayout): number {
   return Math.min(layout.yOf(pill.at), from + 14);
 }
 
-function placePills(pills: readonly Pill[], layout: CalendarLayout) {
-  const tops = pills.map((pill) => pillTop(pill, layout));
-  const xs = pillColumns(tops);
+function placePills(
+  pills: readonly Pill[],
+  layout: CalendarLayout,
+  colWidth: number,
+) {
+  const spots = spreadPills(
+    pills.map((pill) => pillTop(pill, layout)),
+    colWidth,
+  );
   return pills.map((pill, i) => ({
     pill,
-    top: tops[i] ?? 0,
-    x: xs[i] ?? 0.5,
+    top: spots[i]?.top ?? 0,
+    x: spots[i]?.x ?? 0.5,
   }));
 }
 
@@ -386,20 +392,22 @@ function Grid({
               style={laneStyle(ghost, layout.yOf)}
             />
           ))}
-          {placePills(column.pills, layout).map(({ pill, top, x }) => (
-            <TravelPill
-              key={pill.key}
-              pill={pill}
-              top={top}
-              x={x}
-              travel={travel}
-              selected={
-                stackTop?.kind === "connection" &&
-                stackTop.connectionId === pill.connection.id
-              }
-              onOpen={openConnection}
-            />
-          ))}
+          {placePills(column.pills, layout, colWidth).map(
+            ({ pill, top, x }) => (
+              <TravelPill
+                key={pill.key}
+                pill={pill}
+                top={top}
+                x={x}
+                travel={travel}
+                selected={
+                  stackTop?.kind === "connection" &&
+                  stackTop.connectionId === pill.connection.id
+                }
+                onOpen={openConnection}
+              />
+            ),
+          )}
           {draft?.days.includes(column.day) ? (
             <DraftOutline style={draftBox(draft.start, draft.end)} />
           ) : null}

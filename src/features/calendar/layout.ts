@@ -515,23 +515,34 @@ export function stepPreview(
 
 /** Pills closer than this, in px, would cover each other. */
 export const PILL_CLEARANCE = 20;
+/** About the widest pill ("18 min" with its icon), in px. */
+export const PILL_WIDTH = 56;
 
 /**
- * Where each of a day's pills sits across its column, as a fraction (0.5 is
- * centered), from their tops in px. A class that leads into two overlapping
- * classes (or two into one) gives two pills at the same spot, and the one
- * drawn last would hide the other, even when that one says "Not enough
- * time"; pills that close share the width side by side instead.
+ * Where each of a day's pills goes, from their natural tops in px: `x`
+ * across the column (0.5 centered) and the `top` to draw at. A class that
+ * leads into two overlapping classes (or two into one) gives two pills at
+ * the same spot, and the one drawn last would hide the other, even when
+ * that one says "Not enough time". Pills that close sit side by side when
+ * the column fits them, and stack otherwise (a phone's narrow days).
  */
-export function pillColumns(tops: readonly number[]): number[] {
+export function spreadPills(
+  tops: readonly number[],
+  colWidth: number,
+): { x: number; top: number }[] {
   const order = tops
     .map((top, i) => ({ top, i }))
     .sort((a, b) => a.top - b.top || a.i - b.i);
-  const out = tops.map(() => 0.5);
+  const out = tops.map((top) => ({ x: 0.5, top }));
   let cluster: typeof order = [];
   const flush = () => {
-    cluster.forEach(({ i }, k) => {
-      out[i] = (k + 0.5) / cluster.length;
+    const n = cluster.length;
+    const sideBySide = colWidth <= 0 || colWidth >= n * PILL_WIDTH;
+    const first = cluster[0]?.top ?? 0;
+    cluster.forEach(({ i, top }, k) => {
+      out[i] = sideBySide
+        ? { x: (k + 0.5) / n, top }
+        : { x: 0.5, top: first + (k - (n - 1) / 2) * PILL_CLEARANCE };
     });
     cluster = [];
   };

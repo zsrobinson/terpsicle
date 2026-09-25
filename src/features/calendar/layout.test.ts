@@ -28,8 +28,8 @@ import {
   type CalendarInput,
   ghostLanesFor,
   packGhosts,
-  pillColumns,
   previewOrder,
+  spreadPills,
   stepPreview,
 } from "./layout";
 import { daysBetween, snapMinute } from "./new-block";
@@ -592,15 +592,26 @@ describe("performance", () => {
   });
 });
 
-describe("pillColumns", () => {
-  it("centers pills that are apart", () => {
-    expect(pillColumns([100, 200, 300])).toEqual([0.5, 0.5, 0.5]);
+describe("spreadPills", () => {
+  const xs = (spots: { x: number }[]) => spots.map((s) => s.x);
+  const tops = (spots: { top: number }[]) => spots.map((s) => s.top);
+
+  it("leaves pills that are apart where they are", () => {
+    const spots = spreadPills([100, 200, 300], 194);
+    expect(xs(spots)).toEqual([0.5, 0.5, 0.5]);
+    expect(tops(spots)).toEqual([100, 200, 300]);
   });
 
   it("puts pills at the same spot side by side, so none hides another", () => {
     // A class leading into two overlapping classes: two pills at one spot.
-    expect(pillColumns([300, 120, 120])).toEqual([0.5, 0.25, 0.75]);
+    expect(xs(spreadPills([300, 120, 120], 194))).toEqual([0.5, 0.25, 0.75]);
     // Close but not equal still collides.
-    expect(pillColumns([120, 130, 140])).toEqual([1 / 6, 0.5, 5 / 6]);
+    expect(xs(spreadPills([120, 130, 140], 194))).toEqual([1 / 6, 0.5, 5 / 6]);
+  });
+
+  it("stacks them instead in a phone's narrow column", () => {
+    const spots = spreadPills([120, 120], 68);
+    expect(xs(spots)).toEqual([0.5, 0.5]);
+    expect(tops(spots)).toEqual([110, 130]);
   });
 });
