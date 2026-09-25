@@ -479,6 +479,15 @@ describe("Course details", () => {
     );
   });
 
+  it("counts the placed section the same way in the bar and its group", async () => {
+    // Production read "12 of 12 fit" over "3 of 4 fit" after adding MATH140.
+    await renderDetails("CMSC351");
+    const [bar, ...groups] = within(screen.getByTestId("sections"))
+      .getAllByText(/^\d+ of \d+ fit$/)
+      .map((el) => Number(el.textContent?.split(" ")[0]));
+    expect(groups.reduce((a, b) => a + b, 0)).toBe(bar);
+  });
+
   it("counts sections with no set times as fitting, in the bar and in each group", async () => {
     // IDEA201's four sections are all online with no set times.
     await renderDetails("IDEA201");
