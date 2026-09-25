@@ -76,6 +76,34 @@ describe("calendar", () => {
     expect(pill).toHaveAccessibleName(/^Tight: 8 min to get there/);
   });
 
+  it("draws a previewed plan's own travel pills", async () => {
+    const { calendar } = await renderDemo();
+    const tight = () => calendar.querySelectorAll('[data-verdict="tight"]');
+    await waitFor(() => expect(tight().length).toBeGreaterThan(0));
+
+    // Generate's preview of the same week keeps the pill its details list.
+    act(() =>
+      useUi
+        .getState()
+        .setPreviewPlan({ plan: { ...demoPlan }, label: "Option 1" }),
+    );
+    expect(screen.getByText("Previewing Option 1.")).toBeVisible();
+    expect(tight().length).toBeGreaterThan(0);
+
+    // A preview without STAT400 has no STAT400 → CMSC351 walk to show.
+    act(() =>
+      useUi.getState().setPreviewPlan({
+        plan: {
+          ...demoPlan,
+          courses: demoPlan.courses.filter((c) => c.courseCode !== "STAT400"),
+        },
+        label: "Option 2",
+      }),
+    );
+    expect(tight()).toHaveLength(0);
+    act(() => useUi.getState().setPreviewPlan(null));
+  });
+
   it("opening a course shows its other sections; clicking one switches", async () => {
     const { calendar, user } = await renderDemo();
     const [block] = within(calendar).getAllByRole("button", {
