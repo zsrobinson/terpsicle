@@ -63,7 +63,7 @@ export function MiniWeek({
   return (
     <div
       aria-hidden
-      className={cn("grid h-full gap-[2px]", className)}
+      className={cn("grid h-full gap-0.5", className)}
       style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
     >
       {days.map((day) => (

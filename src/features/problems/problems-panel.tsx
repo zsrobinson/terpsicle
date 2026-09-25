@@ -158,8 +158,8 @@ function ProblemRow({
         <WithTooltip label={`${fix.label}. You can undo this.`}>
           <Button
             variant="outline"
-            size="sm"
-            className="relative z-10 mt-2 h-6 px-2 font-normal text-sm"
+            size="row"
+            className="relative z-10 mt-2"
             onClick={() => applyFix(problem, fix)}
           >
             {fix.label}

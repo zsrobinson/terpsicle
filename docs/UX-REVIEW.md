@@ -2,6 +2,32 @@
 
 The owner, after using the live app: *"there's a lot of solid stuff there, but i'm not sure it's always laid out in the best way it could … this was really sparked by it being a bit confusing and cramped on the page for a course with the sections list and then the tabs at the bottom."* Later: *"my socy4xx classes all are just one section, but the intro CS and math courses have like a billion sections. our UI should be great in both scenarios."*
 
+## What changed (WP0–WP7, all shipped)
+
+Each pair is the live app before the review (left) and after it (right), on real Spring 2027 data at 1440×900 unless noted. The images are in `docs/ux-review/after/`.
+
+| | Before | After | What changed |
+|---|---|---|---|
+| **Many sections** (ENGL101, 92) | ![](ux-review/after/01-details-many-engl101-before.jpg) | ![](ux-review/after/01-details-many-engl101-after.jpg) | One page, no tabs under 92 rows. Sections grouped by meeting time, matching the calendar's merged ghosts. One-line rows show the room. "Only fits" and "Grades ↓" sit in the sticky Sections header. |
+| **Lecture + discussion** (CMSC330, 14) | ![](ux-review/after/02-details-few-cmsc330-before.jpg) | ![](ux-review/after/02-details-few-cmsc330-after.jpg) | Prerequisite and restriction under the title. The shared lecture is said once ("All meet TuTh 9:30–10:45am"), so each row shows its own Friday discussion untruncated. Rating and GPA are in the instructor header, with Reviews one click away. |
+| **A few** (CMSC351, 4) | ![](ux-review/after/03-details-few-cmsc351-before.jpg) | ![](ux-review/after/03-details-few-cmsc351-after.jpg) | The same structure at a small size: no filter, and no chrome that isn't earning its place. |
+| **One section** (SOCY411) | ![](ux-review/after/04-details-one-socy411-before.jpg) | ![](ux-review/after/04-details-one-socy411-after.jpg) | Reads as "this is the class": meets, taught by, fit, seats. No group of one, no second "Add" button, no tabs. |
+| **Intro course** (MATH140, 12) | ![](ux-review/after/05-details-intro-math140-before.jpg) | ![](ux-review/after/05-details-intro-math140-after.jpg) | Each instructor's lecture is said once. Discussion times and rooms fit whole at the default 360px width. |
+| **Search hover** | ![](ux-review/after/06-search-hover-before.jpg) | ![](ux-review/after/06-search-hover-after.jpg) | The hint row is there as soon as Search opens ("Hover a result to see its sections here"), so hovering never moves the grid and the day names stay. A 1-section result shows when it meets. The result count is always shown. |
+| **Courses** | ![](ux-review/after/07-courses-before.jpg) | ![](ux-review/after/07-courses-after.jpg) | Hairline rows. Problems in words ("Tight connection to ECON200") instead of a bare ⚠. The top bar and Problems say "2 problems · 1 note". |
+| **Travel** | ![](ux-review/after/08-travel-before.jpg) | ![](ux-review/after/08-travel-after.jpg) | Connections first. Settings fold into one summary line. Identical connections merge across days. Long breaks are listed apart and get no pill on the calendar. |
+| **Generate** | ![](ux-review/after/09-generate-results-before.jpg) | ![](ux-review/after/09-generate-results-after.jpg) | The request stays summarized above the results ("4 courses · compact days · Edit"). Primary actions sit in the panel footer. Rows are hairline, not cards. |
+| **Phone** (390×844) | ![](ux-review/after/10-phone-details-many-before.jpg) | ![](ux-review/after/10-phone-details-many-after.jpg) | Course details keep the calendar above them (the drawer drops to half). The same one-page structure, with the hint over the day names gone. |
+| **Dark** (CMSC330) | ![](ux-review/after/11-details-few-cmsc330-dark-before.jpg) | ![](ux-review/after/11-details-few-cmsc330-dark-after.jpg) | Both themes from the same tokens. |
+
+**App-wide:**
+- **One design system, enforced by a test.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, and color tokens only. `src/app/design-tokens.test.ts` fails on anything else.
+- **One panel anatomy:** `SectionHeader`, `GroupHeader`, `ListRow`, `EmptyState` and `PanelFooter` in `src/app/panel.tsx`, with one row-action button size (`size="row"`).
+- **A draggable sidebar** from 320 to 480px, with keyboard control, double-click to reset, and the width remembered.
+- **A rail whose selected tab can't be mistaken for a hovered one.**
+
+---
+
 This is the research-backed audit and the plan. The principles it cites are in `UX-PRINCIPLES.md` (numbered P1–P8 below, matching its sections). `DESIGN.md` still wins wherever they disagree.
 
 **How to read it:**

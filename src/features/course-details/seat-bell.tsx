@@ -125,9 +125,9 @@ export function SeatBell({
                 label={`Send the link to ${alert.alert.email} again`}
               >
                 <Button
-                  size="sm"
+                  size="row"
                   variant="ghost"
-                  className="h-6 px-1.5 text-sm"
+                  className="px-1.5"
                   disabled={busy}
                   onClick={() => void submit(alert.alert.email ?? "")}
                 >
