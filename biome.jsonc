@@ -26,7 +26,9 @@
       "!src/routeTree.gen.ts",
       "!worker-configuration.d.ts",
       "!docs/review-answers.json",
-      "!assets"
+      "!assets",
+      // Raw captured pages: golden inputs, never reformatted.
+      "!src/ingest/__fixtures__"
     ]
   },
   "formatter": {
