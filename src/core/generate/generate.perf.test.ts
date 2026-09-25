@@ -7,6 +7,7 @@ import {
   aSeatTuple,
   aSection,
   fixtureTermId,
+  medianMs,
   randomInt,
   seededRandom,
 } from "~/fixtures";
@@ -82,17 +83,6 @@ function syntheticTerm(): {
   return { courses, seats };
 }
 
-function timeMs(run: () => void, repeats = 5, warmups = 3): number {
-  for (let i = 0; i < warmups; i++) run();
-  let best = Number.POSITIVE_INFINITY;
-  for (let i = 0; i < repeats; i++) {
-    const t = performance.now();
-    run();
-    best = Math.min(best, performance.now() - t);
-  }
-  return best;
-}
-
 describe("generator performance", () => {
   const { courses, seats } = syntheticTerm();
   const routes = decodeRoutes(
@@ -122,7 +112,7 @@ describe("generator performance", () => {
   it(`generates 7 courses × 20 sections in under ${BUDGET_MS} ms`, () => {
     let found = 0;
     let steps = 0;
-    const ms = timeMs(() => {
+    const ms = medianMs(() => {
       const result = generatePlans(request(), data);
       found = result.totalFound;
       steps = result.steps;
@@ -136,7 +126,7 @@ describe("generator performance", () => {
 
   it("answers a nothing-fits request (relaxations and near-misses) in under a second", () => {
     let relaxations = 0;
-    const ms = timeMs(
+    const ms = medianMs(
       () => {
         const result = generatePlans(
           request({ mustHaves: { ...DEFAULT_MUST_HAVES, earliestStart: 900 } }),
@@ -144,8 +134,7 @@ describe("generator performance", () => {
         );
         relaxations = result.relaxations.length;
       },
-      3,
-      1,
+      { runs: 5, warmups: 1 },
     );
     console.info(
       `generate, nothing fits: ${ms.toFixed(1)} ms, ${relaxations} relaxations`,

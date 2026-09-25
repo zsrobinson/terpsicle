@@ -55,3 +55,4 @@ export {
 } from "./mock/seats";
 export { mockCalendars, mockTermsFile } from "./mock/terms";
 export { hashString, randomInt, seededRandom } from "./random";
+export { median, medianMs } from "./timing";

@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { SectionSchema } from "~/core/schema";
+import { median } from "~/fixtures";
 import { normalizeSections } from "./soc/normalize";
 import { createSectionsParser } from "./soc/parse-sections";
 
@@ -14,6 +15,7 @@ import { createSectionsParser } from "./soc/parse-sections";
 const FULL_TERM_BYTES = 37_400_000;
 /** Generous for slow CI machines; locally this takes about 1.5 s. */
 const BUDGET_MS = 10_000;
+const PASSES = 3;
 
 const dir = new URL("./__fixtures__/soc/202701/sections/", import.meta.url);
 const pages = readdirSync(dir).map((f) =>
@@ -22,27 +24,35 @@ const pages = readdirSync(dir).map((f) =>
 
 describe("seats job CPU", () => {
   it(`parses a full term's sections in under ${BUDGET_MS / 1000} s`, () => {
-    const cpu = process.cpuUsage();
-    let bytes = 0;
-    let sections = 0;
     const sectionsSchema = z.array(SectionSchema);
-    while (bytes < FULL_TERM_BYTES) {
-      for (const html of pages) {
-        const parser = createSectionsParser((raw) => {
-          const normalized = normalizeSections(raw);
-          sections += sectionsSchema.parse(normalized.sections).length;
-        });
-        // 64 KB chunks, like a network stream.
-        for (let i = 0; i < html.length; i += 65_536)
-          parser.write(html.slice(i, i + 65_536));
-        parser.end();
-        bytes += html.length;
+    /** One full term through the job's parse path; its CPU time and counts. */
+    const pass = () => {
+      const cpu = process.cpuUsage();
+      let bytes = 0;
+      let sections = 0;
+      while (bytes < FULL_TERM_BYTES) {
+        for (const html of pages) {
+          const parser = createSectionsParser((raw) => {
+            const normalized = normalizeSections(raw);
+            sections += sectionsSchema.parse(normalized.sections).length;
+          });
+          // 64 KB chunks, like a network stream.
+          for (let i = 0; i < html.length; i += 65_536)
+            parser.write(html.slice(i, i + 65_536));
+          parser.end();
+          bytes += html.length;
+        }
       }
-    }
-    const used = process.cpuUsage(cpu);
-    const ms = (used.user + used.system) / 1000;
+      const used = process.cpuUsage(cpu);
+      return { ms: (used.user + used.system) / 1000, bytes, sections };
+    };
+    // CPU time, not wall time, so a busy machine doesn't count against it;
+    // the median of three passes, so one GC-heavy pass doesn't either.
+    const passes = Array.from({ length: PASSES }, pass);
+    const ms = median(passes.map((p) => p.ms));
+    const { bytes, sections } = passes[0] ?? { bytes: 0, sections: 0 };
     console.info(
-      `seats parse: ${(bytes / 1e6).toFixed(1)} MB, ${sections} sections, ${Math.round(ms)} ms CPU`,
+      `seats parse: ${(bytes / 1e6).toFixed(1)} MB, ${sections} sections, median ${Math.round(ms)} ms CPU of ${PASSES} passes`,
     );
     expect(sections).toBeGreaterThan(7000);
     expect(ms).toBeLessThan(BUDGET_MS);
