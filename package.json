@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "pnpm db:local && vite dev --port 3000",
-    "dev:mock": "pnpm db:local && vite dev --mode mock --port 3000",
+    "dev:mock": "pnpm db:local && tsx scripts/seed-mock-data.ts && vite dev --mode mock --port 3000",
     "db:local": "wrangler d1 migrations apply terpsicle --local",
     "build": "vite build",
     "check:bundle": "tsx scripts/check-bundle.ts",

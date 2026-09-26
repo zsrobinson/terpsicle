@@ -9,6 +9,11 @@ export {
 } from "./combine";
 export { matchCourses } from "./find";
 export {
+  buildReviewsDepts,
+  type PublishedReviewFact,
+  type ReviewNameFact,
+} from "./publish";
+export {
   isBurst,
   mainReason,
   REVIEW_LIMITS,

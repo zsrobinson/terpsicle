@@ -1,8 +1,6 @@
 import { cn } from "cn";
 import { ChevronDown } from "lucide-react";
-import { type ComponentProps, type ReactNode, useEffect, useRef } from "react";
-import type { RailTab } from "~/core/schema";
-import { useUi } from "~/state/ui-store";
+import type { ComponentProps, ReactNode } from "react";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -17,19 +15,6 @@ import { WithTooltip } from "~/ui/tooltip";
 //   PanelFooter (optional): sticky at the bottom, the panel's primary action
 //
 // At most two sticky levels inside a PanelBody: a bar, then a group header.
-
-/**
- * Focuses an element when the shell asks this tab to (e.g. `/` focuses the
- * search box): `const ref = useFocusRequest<HTMLInputElement>("search")`.
- */
-export function useFocusRequest<T extends HTMLElement>(tab: RailTab) {
-  const ref = useRef<T>(null);
-  const request = useUi((s) => s.focusRequest);
-  useEffect(() => {
-    if (request?.tab === tab) ref.current?.focus();
-  }, [request, tab]);
-  return ref;
-}
 
 /** The 48px header at the top of a tab panel: a title, an optional muted line, and actions. */
 export function PanelHeader({

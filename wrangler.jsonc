@@ -73,9 +73,9 @@
     // new reviews and chat messages wait for the owner (docs/MODERATION.md).
     "MODERATION_DAILY_CAP": "2000",
     // Terpsicle Chat: "off" refuses sockets and chat/* routes, "read" lets
-    // people read but not send, "on". Off until its e2e and the owner's
-    // trial pass (docs/V2.md §15).
-    "CHAT_ENABLED": "off",
+    // people read but not send, "on". On since the Chat UI (#91) shipped
+    // (the owner, 2026-09-26: ship each product when its screens land).
+    "CHAT_ENABLED": "on",
     // Terpsicle Reviews: off | read | on (docs/V2.md §7.4). "off" answers
     // every reviews/* route with "unavailable"; "read" lists, deletes and
     // reports but takes no new words. On since the Reviews UI (#85) shipped
@@ -106,6 +106,7 @@
       "0 */6 * * *", // catalog
       "17 5 * * *", // planetterp
       "23 6 * * 1", // calendar + buildings
+      "37 * * * *", // reviews-publish: Terpsicle reviews' numbers to R2
       "7 13 * * *", // daily: account purge, expired sessions, Todo pruning
       "3,23,43 * * * *" // todo feeds
       // Routes run from GitHub Actions (.github/workflows/routes.yml): a

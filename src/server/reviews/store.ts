@@ -3,18 +3,24 @@
 // (V2 §7.5): it leaves only as "is this yours" (a WHERE clause or a boolean)
 // and as counts for limits. Every row read is validated, and ReviewRowSchema
 // has no author column, so a row handed out can't carry one.
+import { z } from "zod";
+import type { PublishedReviewFact, ReviewNameFact } from "~/core/reviews";
 import {
   type CourseCode,
+  CourseCodeSchema,
   type DeptCode,
   type InstructorId,
+  InstructorIdSchema,
   type InstructorNameRow,
   InstructorNameRowSchema,
   type InstructorNameRule,
   type InstructorRow,
   InstructorRowSchema,
+  IsoDateTimeSchema,
   type PendingEdit,
   type ReasonCode,
   type ReviewGrade,
+  ReviewRatingSchema,
   type ReviewRow,
   ReviewRowSchema,
   type TermId,
@@ -585,4 +591,106 @@ export async function pruneReviews(
     blanked: blanked?.meta.changes ?? 0,
     removed: removed?.meta.changes ?? 0,
   };
+}
+
+// ---------- published numbers (the reviews-publish job) and summaries ----------
+
+const PublishedFactRowSchema = z.object({
+  instructor_id: InstructorIdSchema,
+  course: CourseCodeSchema,
+  rating: ReviewRatingSchema,
+  published_at: IsoDateTimeSchema,
+});
+
+/**
+ * Every published review's instructor, course, rating and publish time: all
+ * the hourly job needs for R2's numbers (V2 §7.6). No words, no author.
+ */
+export async function publishedReviewFacts(
+  db: D1Database,
+): Promise<PublishedReviewFact[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT instructor_id, course, rating, published_at FROM reviews
+       WHERE status = 'published' AND published_at IS NOT NULL`,
+    )
+    .all();
+  return results.map((row) => {
+    const r = PublishedFactRowSchema.parse(row);
+    return {
+      instructorId: r.instructor_id,
+      course: r.course,
+      rating: r.rating,
+      publishedAt: r.published_at,
+    };
+  });
+}
+
+/** The name rows R2 may carry: the owner's fixes and minted instructors'. */
+export async function publishableNameFacts(
+  db: D1Database,
+): Promise<ReviewNameFact[]> {
+  const { results } = await db
+    .prepare(
+      "SELECT * FROM instructor_names WHERE rule IN ('minted', 'manual')",
+    )
+    .all();
+  return results.map((row) => {
+    const r = InstructorNameRowSchema.parse(row);
+    return {
+      nameKey: r.name_key,
+      dept: r.dept,
+      instructorId: r.instructor_id,
+      rule: r.rule,
+    };
+  });
+}
+
+const SummarySourceRowSchema = z.object({
+  course: CourseCodeSchema,
+  body: z.string(),
+  rating: ReviewRatingSchema,
+  created_at: IsoDateTimeSchema,
+});
+
+/** An instructor's published reviews for their summary, newest first. */
+export async function publishedForSummary(
+  db: D1Database,
+  instructorId: InstructorId,
+  limit: number,
+): Promise<
+  { course: string; body: string; rating: number; createdAt: string }[]
+> {
+  const { results } = await db
+    .prepare(
+      `SELECT course, body, rating, created_at FROM reviews
+       WHERE instructor_id = ?1 AND status = 'published'
+       ORDER BY published_at DESC, id DESC LIMIT ?2`,
+    )
+    .bind(instructorId, limit)
+    .all();
+  return results.map((row) => {
+    const r = SummarySourceRowSchema.parse(row);
+    return {
+      course: r.course,
+      body: r.body,
+      rating: r.rating,
+      createdAt: r.created_at,
+    };
+  });
+}
+
+/** How many published reviews an instructor has, and when the newest went up. */
+export async function publishedStats(
+  db: D1Database,
+  instructorId: InstructorId,
+): Promise<{ count: number; latestPublishedAt: string | null }> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS count, MAX(published_at) AS latest FROM reviews
+       WHERE instructor_id = ?1 AND status = 'published'`,
+    )
+    .bind(instructorId)
+    .first<{ count: number; latest: string | null }>();
+  return { count: row?.count ?? 0, latestPublishedAt: row?.latest ?? null };
 }

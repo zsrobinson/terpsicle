@@ -172,8 +172,9 @@ test("/ shows the marketing page to a first visit, and /privacy loads", async ({
 }) => {
   // Google's OAuth consent screen links to /privacy and checks that it loads.
   await page.goto("/");
+  // The hero's button; the closing section repeats it.
   await expect(
-    page.getByRole("link", { name: "Open the scheduler" }),
+    page.getByRole("link", { name: "Open the scheduler" }).first(),
   ).toBeVisible();
   await page.goto("/privacy");
   await expect(

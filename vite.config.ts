@@ -65,6 +65,10 @@ export default defineConfig(({ command, mode }) => ({
                 worker.vars.REVIEWS_ENABLED = "on";
                 // Todo in test mode: the fixed key and the fixture feed.
                 worker.vars.TODO_ENABLED = "on";
+                // Chat runs against the mock catalog (scripts/seed-mock-data.ts
+                // puts it in local R2), screened by offline stand-in models.
+                worker.vars.CHAT_ENABLED = "on";
+                worker.vars.MODERATION_OFFLINE = "true";
               }
             }
           : undefined,

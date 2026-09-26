@@ -6,7 +6,7 @@ import type {
   Reaction,
   SectionCode,
 } from "../schema";
-import { formatDays, formatTime } from "../time";
+import { formatDays, formatTime } from "../time/format";
 
 // Plain words for room labels, details and descriptions (SPEC §3.13), in the
 // Chat canvas's style: "Sadeghian's sections", "0303 · MWF 11am and TuTh 11am

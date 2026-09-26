@@ -46,45 +46,9 @@ export function SitePage({
   /** The right end of the header, after the products (Reviews' account link). */
   actions?: ReactNode;
 }) {
-  const flags = useAccount((s) => s.flags);
-  const path = useRouterState({ select: (s) => s.location.pathname });
-  const current = PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null;
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4">
-        <WithTooltip label="About Terpsicle">
-          {/* ?stay: returning visitors would otherwise skip to the scheduler. */}
-          <a href={`/?${STAY_PARAM}`} className="flex">
-            <Logo />
-          </a>
-        </WithTooltip>
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* The product menu's links, flat: these pages stay light (no menu code). */}
-          <nav aria-label="Products" className="flex items-center sm:gap-1">
-            {listedProducts(flags, current).map((p) => (
-              <WithTooltip key={p.to} label={p.view}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className={`max-sm:px-1.5 aria-[current=page]:text-fg ${CURRENT[p.id]}`}
-                >
-                  <Link to={p.to} activeProps={{ "aria-current": "page" }}>
-                    {/* size-4: the button shrinks unsized icons. */}
-                    <Mark id={p.id} size={16} className="size-4" />
-                    {/* Phones name only the product you're on: every mark
-                        and one name fit beside the logo at 390px. */}
-                    <span className="max-sm:not-in-aria-[current=page]:sr-only">
-                      {p.label}
-                    </span>
-                  </Link>
-                </Button>
-              </WithTooltip>
-            ))}
-          </nav>
-          {actions}
-        </div>
-      </header>
+      <SiteHeader actions={actions} />
       <main className={`mx-auto w-full flex-1 px-4 pb-8 ${MAIN[layout]}`}>
         {children}
       </main>
@@ -96,6 +60,61 @@ export function SitePage({
         </WithTooltip>
       </footer>
     </div>
+  );
+}
+
+/**
+ * The header of pages outside the scheduler: the logo, the products as flat
+ * links (no menu code, so these pages stay light) and `actions` at the end.
+ * Chat's page uses it too, above its own full-height layout.
+ */
+export function SiteHeader({
+  actions,
+  className = "",
+}: {
+  actions?: ReactNode;
+  className?: string;
+}) {
+  const flags = useAccount((s) => s.flags);
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const current = PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null;
+  return (
+    <header
+      className={`flex h-12 shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4 ${className}`}
+    >
+      <WithTooltip label="About Terpsicle">
+        {/* ?stay: returning visitors would otherwise skip to the scheduler. */}
+        <a href={`/?${STAY_PARAM}`} className="flex">
+          <Logo />
+        </a>
+      </WithTooltip>
+      <div className="flex items-center gap-1 sm:gap-2">
+        {/* The product menu's links, flat: these pages stay light (no menu code). */}
+        <nav aria-label="Products" className="flex items-center sm:gap-1">
+          {listedProducts(flags, current).map((p) => (
+            <WithTooltip key={p.to} label={p.view}>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className={`max-sm:px-1.5 aria-[current=page]:text-fg ${CURRENT[p.id]}`}
+              >
+                <Link to={p.to} activeProps={{ "aria-current": "page" }}>
+                  {/* size-4: the button shrinks unsized icons. */}
+                  <Mark id={p.id} size={16} className="size-4" />
+                  {/* Phones name only the product you're on: every mark
+                      and one name fit beside the logo at 390px. */}
+                  <span className="max-sm:not-in-aria-[current=page]:sr-only">
+                    {p.label}
+                  </span>
+                </Link>
+              </Button>
+            </WithTooltip>
+          ))}
+        </nav>
+        {actions}
+      </div>
+    </header>
   );
 }
 

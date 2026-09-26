@@ -56,7 +56,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
   | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
 
-  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `todo` · `reviews` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `todo`: from signed-out `/todo` or `/todo/connect`. `reviews`: from writing or reporting a review. |
+  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `reviews` · `chat` · `todo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `reviews`: from writing or reporting a review. `chat`: from signed-out `/chat`. `todo`: from signed-out `/todo` or `/todo/connect`. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
@@ -93,7 +93,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `cron_job_failed` | `job`, `durationMs`, `error`; when a source answered with data we won't publish (PlanetTerp's list came back empty or more than 10% short, DATA.md §4.1), also `firstError` (the specific reason) and `counts` (what this run saw against the last good run) | Runs that gave up (Cloudflare marks the cron failed too), and sources that are breaking while the last good data stays up. |
   | `summary_generated` | `model`, `durationMs`, `reviews`, `attempts` | Workers AI cost and latency; how often the first answer fails validation. |
   | `summary_cached` | `ageDays` | How often summaries come from R2, and how old they get. |
-  | `summary_failed` | `reason` (`model-output`, `model-error`, `planetterp`, `storage`) | Which dependency fails. |
+  | `summary_failed` | `reason` (`model-output`, `model-error`, `planetterp`, `storage`; `unsafe` when Llama Guard flags the summary, `guard-error` when the check itself failed) | Which dependency fails. |
   | `summary_capped` | `cap` | Whether the daily cap is too low. |
   | `alert_subscribed` | `outcome` (`confirm-sent`, `already-watching`, `not-sent`) | Signups, and how often limits skip an email. |
   | `alert_confirmed` | `termId` | How many signups confirm. |

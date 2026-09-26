@@ -1,6 +1,7 @@
 import { Bookmark, BookmarkCheck, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
-import type { Course, CourseColor } from "~/core/schema";
+import { lazy, type ReactNode, Suspense } from "react";
+import type { Course, CourseColor, TermId } from "~/core/schema";
+import { useAccount } from "~/features/auth/account-store";
 import { dotStyle } from "~/features/calendar/tint";
 import {
   bookmarkInstead,
@@ -19,6 +20,14 @@ import { permissionWords } from "./words";
 // facts that could rule it out (prerequisite, restriction) before anything
 // else, the description clamped to two lines, and the actions.
 
+// Chat's way in (V2.md §8.2), loaded only while Chat is on: the scheduler's
+// first load never carries it.
+const CourseChatEntry = lazy(() =>
+  import("~/features/chat/course-entry").then((m) => ({
+    default: m.CourseChatEntry,
+  })),
+);
+
 export function creditWords(course: Course): string {
   const { min, max } = course.credits;
   if (min === max) return `${min} credit${min === 1 ? "" : "s"}`;
@@ -27,6 +36,7 @@ export function creditWords(course: Course): string {
 
 export function DetailsHeader({
   course,
+  termId,
   current,
   color,
   inPlan,
@@ -35,6 +45,7 @@ export function DetailsHeader({
   onAbout,
 }: {
   course: Course;
+  termId: TermId;
   current: CurrentPlan | null;
   color: CourseColor;
   inPlan: boolean;
@@ -42,6 +53,7 @@ export function DetailsHeader({
   aboutOpen: boolean;
   onAbout: (open: boolean) => void;
 }) {
+  const chatOn = useAccount((s) => s.flags.chat !== "off");
   const genEds = [
     ...new Set(course.genEds.flatMap((g) => g.map((o) => o.code))),
   ];
@@ -117,6 +129,13 @@ export function DetailsHeader({
       {readOnly || !current ? null : (
         <Actions course={course} current={current} />
       )}
+      {chatOn ? (
+        <div className="mt-2">
+          <Suspense fallback={null}>
+            <CourseChatEntry termId={termId} courseCode={course.code} />
+          </Suspense>
+        </div>
+      ) : null}
     </header>
   );
 }
