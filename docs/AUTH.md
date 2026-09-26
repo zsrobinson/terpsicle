@@ -145,6 +145,8 @@ Chat, reviews, sync and admin build on this. **Only the route table's `auth` fie
 
 For `auth: "user"` and `"admin"`, the router refuses a request whose `Origin` isn't its own origin (or whose `Sec-Fetch-Site` isn't `same-origin`) with `403 forbidden`, one without a session with `401 unauthorized`, and a non-admin on an admin route with `403 forbidden`. It refreshes the session and sends the new cookie with your response. A handler may return a plain value (sent as JSON) or a `Response` (to set its own headers).
 
+`auth: "optional"` is for routes anyone may call that still write (today `feedback/send` and `feedback/undo`): the same origin check, then `ctx.session` when there's a valid session and `null` otherwise, never a 401. `perUserPerHour` counts only signed-in calls; such a route needs `perIpPerHour` too.
+
 **Anything else** (a WebSocket upgrade, a Worker route outside the table):
 
 ```ts

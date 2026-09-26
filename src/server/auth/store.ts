@@ -237,8 +237,12 @@ export async function purgeAccounts(
   // so nothing of an account outlives it even where foreign keys are off.
   const due =
     "SELECT id FROM users WHERE status = 'deleting' AND delete_after <= ?1";
-  const [, , , , accounts, sessions] = await db.batch([
+  const [, , , , , accounts, sessions] = await db.batch([
     db.prepare(`DELETE FROM sessions WHERE user_id IN (${due})`).bind(at),
+    // Feedback stays, without who sent it (they can't be replied to now).
+    db
+      .prepare(`UPDATE feedback SET user_id = NULL WHERE user_id IN (${due})`)
+      .bind(at),
     db
       .prepare(`DELETE FROM user_identities WHERE user_id IN (${due})`)
       .bind(at),
