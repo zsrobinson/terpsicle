@@ -130,8 +130,10 @@ jobs:
         with:
           only-shell: "true"
 
+      # Three workers on the runner's four cores: the fourth is the dev
+      # server's.
       - name: e2e (against pnpm dev:mock)
-        run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ env.E2E_SHARDS }} --reporter=github,blob
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ env.E2E_SHARDS }} --workers=3 --reporter=github,blob
 
       # e2e-report merges the shards into one report.
       - uses: actions/upload-artifact@v7
