@@ -18,8 +18,10 @@ export function call(fnSource: string, ...args: unknown[]): string {
  */
 export const INSTALL = `(() => {
   const w = window;
-  if (w.__lab) return { fresh: false, timeOrigin: performance.timeOrigin };
-  const lab = { events: [], frames: [], errors: [] };
+  if (w.__lab) return { fresh: false, id: w.__lab.id };
+  // A reload loses this id with the rest of the page. (timeOrigin drifts by
+  // tens of milliseconds in the iOS Simulator, so it can't tell.)
+  const lab = { id: String(Math.random()).slice(2), events: [], frames: [], errors: [] };
   w.__lab = lab;
   const now = () => Math.round(performance.now());
   const describe = (el) => {
@@ -85,7 +87,7 @@ export const INSTALL = `(() => {
   };
   requestAnimationFrame(tick);
   push("installed", { navigation: (performance.getEntriesByType("navigation")[0] || {}).type || null });
-  return { fresh: true, timeOrigin: performance.timeOrigin };
+  return { fresh: true, id: lab.id };
 })()`;
 
 /** Column names for `frames` rows (`[t, ...FRAME_COLUMNS]`). */
@@ -132,6 +134,7 @@ export const PROBE = `(() => {
     title: document.title,
     timeOrigin: performance.timeOrigin,
     installed: !!lab,
+    labId: lab ? lab.id : null,
     innerWidth, innerHeight, outerWidth, outerHeight,
     devicePixelRatio,
     screen: { width: screen.width, height: screen.height, orientation: screen.orientation ? screen.orientation.type : null },

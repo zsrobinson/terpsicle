@@ -62,7 +62,7 @@ export interface StepOptions {
 export class Lab {
   readonly steps: Step[] = [];
   private actions: Action[] = [];
-  private timeOrigin = 0;
+  private labId = "";
   private readonly started = Date.now();
 
   constructor(
@@ -79,12 +79,12 @@ export class Lab {
 
   /** Installs the recorder; the first install is the load we compare to. */
   async install(): Promise<void> {
-    const { fresh, timeOrigin } = await this.device.evaluate<{
+    const { fresh, id } = await this.device.evaluate<{
       fresh: boolean;
-      timeOrigin: number;
+      id: string;
     }>(INSTALL);
-    if (!this.timeOrigin) this.timeOrigin = timeOrigin;
-    else if (fresh) this.log("reinstalled after a reload", { timeOrigin });
+    if (!this.labId) this.labId = id;
+    else if (fresh) this.log("reinstalled after a reload", { id });
   }
 
   /** Waits for the app shell and the drawer, then starts recording. */
@@ -233,7 +233,7 @@ export class Lab {
         );
       step.probe = probe;
       const ctx: StepContext = {
-        timeOrigin: this.timeOrigin,
+        labId: this.labId,
         settled: options.settled ?? false,
       };
       step.checks = [

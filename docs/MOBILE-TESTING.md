@@ -65,7 +65,7 @@ Every step checks (`scripts/mobile-lab/checks.ts`):
 
 | Check | Severity | Fails when |
 |---|---|---|
-| `no-reload` | fail | The page reloaded or navigated (its `performance.timeOrigin` changed): pull-to-refresh, a history swipe, a crash. |
+| `no-reload` | fail | The page reloaded or navigated (the recorder the scenario installed in the page is gone): pull-to-refresh, a history swipe, a crash. |
 | `no-page-errors` | fail | An uncaught error or rejection. |
 | `focused-field-visible` | fail | A focused text field isn't wholly inside the visible band (`visualViewport.offsetTop` to `offsetTop + height`), or something covers it: the keyboard, or a pan that moved it out of view. |
 | `drawer-on-screen` | fail | The drawer's top is off the screen. |

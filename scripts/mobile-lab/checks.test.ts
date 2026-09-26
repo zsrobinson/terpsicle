@@ -8,6 +8,7 @@ function aProbe(overrides: Partial<Probe> = {}): Probe {
     title: "Terpsicle",
     timeOrigin: 1000,
     installed: true,
+    labId: "a",
     innerWidth: 412,
     innerHeight: 800,
     outerWidth: 412,
@@ -49,7 +50,7 @@ function aProbe(overrides: Partial<Probe> = {}): Probe {
 }
 
 const failed = (p: Probe, settled = true) =>
-  stepChecks(p, { timeOrigin: 1000, settled })
+  stepChecks(p, { labId: "a", settled })
     .filter((c) => !c.ok)
     .map((c) => c.id);
 
@@ -59,10 +60,12 @@ describe("stepChecks", () => {
   });
 
   it("catches a reload", () => {
-    expect(failed(aProbe({ timeOrigin: 2000 }))).toContain("no-reload");
-    expect(failed(aProbe({ installed: false }))).toContain("no-reload");
-    // WebKit's timeOrigin can wobble by a millisecond within one load.
-    expect(failed(aProbe({ timeOrigin: 1001 }))).not.toContain("no-reload");
+    expect(failed(aProbe({ labId: "b" }))).toContain("no-reload");
+    expect(failed(aProbe({ installed: false, labId: null }))).toContain(
+      "no-reload",
+    );
+    // timeOrigin drifts within one load in the iOS Simulator: not a reload.
+    expect(failed(aProbe({ timeOrigin: 1020 }))).not.toContain("no-reload");
   });
 
   it("catches a focused field the keyboard or a pan hid", () => {

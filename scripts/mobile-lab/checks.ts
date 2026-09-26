@@ -34,6 +34,8 @@ export interface Probe {
   title: string;
   timeOrigin: number;
   installed: boolean;
+  /** The recorder's id for this page load (null: not installed). */
+  labId: string | null;
   innerWidth: number;
   innerHeight: number;
   outerWidth: number;
@@ -91,8 +93,8 @@ export interface Check {
 }
 
 export interface StepContext {
-  /** The page load the scenario started with. */
-  timeOrigin: number;
+  /** The recorder id of the page load the scenario started with. */
+  labId: string;
   /** The drawer should be resting (no gesture or animation in flight). */
   settled: boolean;
 }
@@ -133,16 +135,15 @@ export function stepChecks(p: Probe, ctx: StepContext): Check[] {
     detail: string,
   ) => checks.push({ id, ok, severity, detail });
 
-  // A reload drops the recorder and moves timeOrigin; WebKit can report the
-  // same origin a millisecond apart, so that alone isn't one.
-  const sameLoad = p.installed && Math.abs(p.timeOrigin - ctx.timeOrigin) < 5;
+  // A reload loses the recorder installed in the page, and its id.
+  const sameLoad = p.installed && p.labId === ctx.labId;
   add(
     "no-reload",
     sameLoad,
     "fail",
     sameLoad
       ? "same page load"
-      : `the page reloaded or navigated (timeOrigin ${ctx.timeOrigin} → ${p.timeOrigin})`,
+      : "the page reloaded or navigated (the recorder installed at the start is gone)",
   );
   add(
     "no-page-errors",
