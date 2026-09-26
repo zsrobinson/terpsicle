@@ -57,6 +57,7 @@ export function tally(scenarios: ScenarioResult[]): Tally {
 
 /** A run passes when no "fail" check failed and nothing threw. */
 export function passed(run: RunResult): boolean {
+  if (run.scenarios.length === 0) return false;
   const t = tally(run.scenarios);
   return t.failed === 0 && t.errors === 0;
 }

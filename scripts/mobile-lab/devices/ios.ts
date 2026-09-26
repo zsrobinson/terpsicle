@@ -3,11 +3,12 @@
 // drags and typing are XCTest touches on the screen and keys on the software
 // keyboard (the Simulator's hardware keyboard is disconnected), so Safari's
 // own scrolling, rubber-banding, zoom-on-focus, keyboard and toolbars are
-// what's under test. Talks WebDriver over fetch; the Appium server comes
+// what's under test. Talks WebDriver over HTTP; the Appium server comes
 // from the workflow (APPIUM_URL, default http://127.0.0.1:4723).
 
 import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -27,6 +28,54 @@ interface WebDriverError {
   message: string;
 }
 
+/**
+ * One WebDriver call. Plain `http`, not fetch: creating the first session
+ * builds WebDriverAgent, which outlasts fetch's five-minute wait for headers.
+ */
+function request<T>(
+  method: "GET" | "POST" | "DELETE",
+  url: string,
+  body?: unknown,
+): Promise<{ value: T | WebDriverError }> {
+  return new Promise((resolve, reject) => {
+    const payload = body === undefined ? undefined : JSON.stringify(body);
+    const req = http.request(
+      url,
+      {
+        method,
+        headers: {
+          "content-type": "application/json",
+          ...(payload ? { "content-length": Buffer.byteLength(payload) } : {}),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () => {
+          try {
+            resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+          } catch (error) {
+            reject(error);
+          }
+        });
+        res.on("error", reject);
+      },
+    );
+    req.on("error", reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+function failure(value: unknown): WebDriverError | null {
+  return value &&
+    typeof value === "object" &&
+    "error" in value &&
+    typeof value.error === "string"
+    ? (value as WebDriverError)
+    : null;
+}
+
 class WebDriver {
   constructor(
     private readonly base: string,
@@ -37,17 +86,15 @@ class WebDriver {
     base: string,
     capabilities: Record<string, unknown>,
   ): Promise<WebDriver> {
-    const response = await fetch(`${base}/session`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ capabilities: { alwaysMatch: capabilities } }),
-    });
-    const body = (await response.json()) as {
-      value: { sessionId?: string } & Partial<WebDriverError>;
-    };
-    if (!body.value.sessionId)
-      throw new Error(`Appium session failed: ${body.value.message}`);
-    return new WebDriver(base, body.value.sessionId);
+    const { value } = await request<{ sessionId?: string }>(
+      "POST",
+      `${base}/session`,
+      { capabilities: { alwaysMatch: capabilities } },
+    );
+    const error = failure(value);
+    if (error || !("sessionId" in value) || !value.sessionId)
+      throw new Error(`Appium session failed: ${error?.message}`);
+    return new WebDriver(base, value.sessionId);
   }
 
   async send<T>(
@@ -55,20 +102,14 @@ class WebDriver {
     path: string,
     body?: unknown,
   ): Promise<T> {
-    const response = await fetch(`${this.base}/session/${this.id}${path}`, {
+    const { value } = await request<T>(
       method,
-      headers: { "content-type": "application/json" },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-    const json = (await response.json()) as { value: T | WebDriverError };
-    const value = json.value;
-    if (
-      value &&
-      typeof value === "object" &&
-      "error" in value &&
-      typeof value.error === "string"
-    )
-      throw new Error(`${method} ${path}: ${value.error}: ${value.message}`);
+      `${this.base}/session/${this.id}${path}`,
+      body,
+    );
+    const error = failure(value);
+    if (error)
+      throw new Error(`${method} ${path}: ${error.error}: ${error.message}`);
     return value as T;
   }
 }

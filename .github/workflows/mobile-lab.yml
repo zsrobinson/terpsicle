@@ -194,6 +194,13 @@ jobs:
         run: |
           npm install -g appium@3
           appium driver install xcuitest
+      # A prebuilt WebDriverAgent saves building it (5+ minutes); without
+      # one, the first session builds it.
+      - name: Download WebDriverAgent
+        run: |
+          appium driver run xcuitest download-wda-sim --platform=ios --outdir="$RUNNER_TEMP/wda" || true
+          app=$(find "$RUNNER_TEMP/wda" -maxdepth 2 -name 'WebDriverAgentRunner-Runner.app' 2>/dev/null | head -1)
+          if [ -n "$app" ]; then echo "WDA_PATH=$app" >> "$GITHUB_ENV"; echo "Using $app"; fi
       # The software keyboard, as on a phone: no Mac keyboard attached.
       - name: Disconnect the Simulator's hardware keyboard
         run: defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false

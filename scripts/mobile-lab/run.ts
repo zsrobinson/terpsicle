@@ -61,7 +61,32 @@ async function device(): Promise<Device> {
 
 mkdirSync(out, { recursive: true });
 const started = Date.now();
-const phone = await device();
+let phone: Device;
+try {
+  phone = await device();
+} catch (error) {
+  // Still leave a report, so a run that never started says why.
+  const message = error instanceof Error ? error.message : String(error);
+  const failed: RunResult = {
+    engine,
+    device: `couldn't start: ${message}`,
+    url,
+    startedAt: new Date(started).toISOString(),
+    ms: Date.now() - started,
+    source: values.source ?? null,
+    scenarios: [],
+  };
+  writeFileSync(
+    path.join(out, "summary.json"),
+    JSON.stringify(failed, null, 1),
+  );
+  writeFileSync(path.join(out, "README.md"), markdown(failed));
+  writeFileSync(
+    path.join(out, "RESULT"),
+    `Failed: the ${engine} device didn't start\n${engine}: ${message.slice(0, 200)}\n${url}\n`,
+  );
+  throw error;
+}
 const run: RunResult = {
   engine,
   device: await phone.describe(),
