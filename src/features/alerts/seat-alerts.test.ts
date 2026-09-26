@@ -124,8 +124,10 @@ describe("seat alerts", () => {
   describe("state", () => {
     it("reads none, pending or watching", () => {
       expect(seatAlertState(undefined, "available").kind).toBe("none");
+      // A day after the request: the link still works. (Without `now`, the
+      // real clock expired this fixture on 2026-09-26.)
       expect(
-        seatAlertState(aWatch({ status: "pending" }), "unknown").kind,
+        seatAlertState(aWatch({ status: "pending" }), "unknown", NOW).kind,
       ).toBe("pending");
       expect(seatAlertState(aWatch(), "available").kind).toBe("watching");
     });
