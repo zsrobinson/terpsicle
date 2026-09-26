@@ -5,7 +5,9 @@ import type { MarkId } from "./brand/marks";
 // around the scheduler. One origin: each is a path. A link from one product
 // into another says what you'll see ("View reviews"), never "Open in Reviews".
 
-export type ProductId = Exclude<MarkId, "umbrella">;
+// Plan has a mark (the marketing page shows it) but joins the menu when it
+// launches (docs/V3.md §1).
+export type ProductId = Exclude<MarkId, "umbrella" | "plan">;
 
 export const PRODUCTS = [
   {

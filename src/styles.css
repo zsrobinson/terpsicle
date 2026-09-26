@@ -13,7 +13,7 @@
  * Colors are Flexoki by Steph Ango (https://stephango.com/flexoki), MIT
  * License, Copyright (c) 2024 Steph Ango. Each value names its Flexoki step.
  * Ink is paper, black ink and hairlines; product color appears only in the
- * marks and the product menu.
+ * marks, the product menu and the marketing page.
  *
  * shadcn/ui: the compatibility names below (background, primary, card,
  * popover, border, input, ring, destructive, muted-foreground) make generated
@@ -54,19 +54,37 @@
   --color-shared-soft: var(--shared-soft);
   --color-grid: var(--grid);
 
-  /* The products (the marks, the app switcher). */
+  /*
+   * The five products, in color order (the marks, the app switcher, the
+   * marketing page). Per product: the tile, its glyph, the soft fill, and
+   * for `/` only, `-text` (product-colored words, AA on paper and on -soft)
+   * and `-line` (the hero's rails, 3:1 on paper).
+   */
   --color-product-schedule: var(--product-schedule);
   --color-product-schedule-fg: var(--product-schedule-fg);
   --color-product-schedule-soft: var(--product-schedule-soft);
+  --color-product-schedule-text: var(--product-schedule-text);
+  --color-product-schedule-line: var(--product-schedule-line);
   --color-product-reviews: var(--product-reviews);
   --color-product-reviews-fg: var(--product-reviews-fg);
   --color-product-reviews-soft: var(--product-reviews-soft);
+  --color-product-reviews-text: var(--product-reviews-text);
+  --color-product-reviews-line: var(--product-reviews-line);
   --color-product-chat: var(--product-chat);
   --color-product-chat-fg: var(--product-chat-fg);
   --color-product-chat-soft: var(--product-chat-soft);
+  --color-product-chat-text: var(--product-chat-text);
+  --color-product-chat-line: var(--product-chat-line);
+  --color-product-plan: var(--product-plan);
+  --color-product-plan-fg: var(--product-plan-fg);
+  --color-product-plan-soft: var(--product-plan-soft);
+  --color-product-plan-text: var(--product-plan-text);
+  --color-product-plan-line: var(--product-plan-line);
   --color-product-todo: var(--product-todo);
   --color-product-todo-fg: var(--product-todo-fg);
   --color-product-todo-soft: var(--product-todo-soft);
+  --color-product-todo-text: var(--product-todo-text);
+  --color-product-todo-line: var(--product-todo-line);
   --color-product-todo-keyline: var(--product-todo-keyline);
   /* The marks' own pieces (src/app/brand/marks.ts). */
   --color-mark-offset: var(--mark-offset);
@@ -210,21 +228,41 @@
   --offset-ink: #100f0f; /* black */
   --offset-ink-filled: #878580; /* base-500 */
 
-  /* Products: the tile is the 600 step in both themes, with a paper glyph. */
+  /*
+   * Products, in color order. The tile is the 600 step in both themes, with a
+   * paper glyph, except where that fails: Plan's green-600 would put paper
+   * at 4.4:1, so its tile is green-700; paper fails on every yellow lighter
+   * than 700, so Todo's is yellow-400 with an ink glyph and, in light only,
+   * an ink keyline (the tile alone is 2.3:1 on paper).
+   *   -soft  the product's fill (50; dark 900)
+   *   -text  product-colored words on `/` (AA on paper and on -soft)
+   *   -line  the hero's lines on `/` (3:1 on paper)
+   */
   --product-schedule: #af3029; /* red-600 */
   --product-schedule-fg: #fffcf0; /* paper */
   --product-schedule-soft: #ffe1d5; /* red-50 */
+  --product-schedule-text: #af3029; /* red-600 */
+  --product-schedule-line: #af3029; /* red-600 */
   --product-reviews: #5e409d; /* purple-600 */
   --product-reviews-fg: #fffcf0; /* paper */
   --product-reviews-soft: #f0eaec; /* purple-50 */
+  --product-reviews-text: #5e409d; /* purple-600 */
+  --product-reviews-line: #5e409d; /* purple-600 */
   --product-chat: #205ea6; /* blue-600 */
   --product-chat-fg: #fffcf0; /* paper */
   --product-chat-soft: #e1eceb; /* blue-50 */
-  /* Todo's tile is yellow-400, too light for paper: an ink glyph, and an ink
-     keyline in light only, since the tile alone is 2.31 against paper. */
+  --product-chat-text: #205ea6; /* blue-600 */
+  --product-chat-line: #205ea6; /* blue-600 */
+  --product-plan: #536907; /* green-700 */
+  --product-plan-fg: #fffcf0; /* paper */
+  --product-plan-soft: #edeecf; /* green-50 */
+  --product-plan-text: #536907; /* green-700 */
+  --product-plan-line: #66800b; /* green-600 */
   --product-todo: #d0a215; /* yellow-400 */
   --product-todo-fg: #100f0f; /* black */
   --product-todo-soft: #faeec6; /* yellow-50 */
+  --product-todo-text: #664d01; /* yellow-800 */
+  --product-todo-line: #ad8301; /* yellow-600 */
   --product-todo-keyline: #100f0f; /* black */
   /* A product tile's offset. */
   --mark-offset: #100f0f; /* black */
@@ -269,11 +307,22 @@
   --offset-ink-filled: #575653; /* base-700 */
 
   --product-schedule-soft: #3e1715; /* red-900 */
+  --product-schedule-text: #e8705f; /* red-300 */
+  --product-schedule-line: #e8705f; /* red-300 */
   --product-reviews-soft: #261c39; /* purple-900 */
+  --product-reviews-text: #a699d0; /* purple-300 */
+  --product-reviews-line: #a699d0; /* purple-300 */
   --product-chat-soft: #12253b; /* blue-900 */
+  --product-chat-text: #66a0c8; /* blue-300 */
+  --product-chat-line: #66a0c8; /* blue-300 */
+  --product-plan-soft: #252d09; /* green-900 */
+  --product-plan-text: #a0af54; /* green-300 */
+  --product-plan-line: #a0af54; /* green-300 */
   --product-todo-soft: #3a2d04; /* yellow-900 */
-  /* No keyline on ink: the tile's own color hides it. */
-  --product-todo-keyline: var(--product-todo);
+  --product-todo-text: #dfb431; /* yellow-300 */
+  --product-todo-line: #dfb431; /* yellow-300 */
+  /* Unused: the tile is 8.1:1 on black, so the mark draws no keyline here. */
+  --product-todo-keyline: #b7b5ac; /* base-300 */
   --mark-offset: #575653; /* base-700 */
   --umbrella-tile: #282726; /* base-900 */
   --umbrella-glyph: #fffcf0; /* paper */

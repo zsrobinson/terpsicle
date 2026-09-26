@@ -113,7 +113,14 @@ export interface AnalyticsEvents {
   push_disabled: NoProperties;
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
   signin_started: {
-    from: "topbar" | "settings" | "signin-page" | "undo" | "todo" | "reviews";
+    from:
+      | "topbar"
+      | "settings"
+      | "signin-page"
+      | "undo"
+      | "reviews"
+      | "chat"
+      | "todo";
   };
   signin_completed: { firstOnDevice: boolean };
   signin_failed: { reason: SignInError };

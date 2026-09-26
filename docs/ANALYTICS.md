@@ -56,7 +56,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
   | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
 
-  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `todo` · `reviews` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `todo`: from signed-out `/todo` or `/todo/connect`. `reviews`: from writing or reporting a review. |
+  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `reviews` · `chat` · `todo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `reviews`: from writing or reporting a review. `chat`: from signed-out `/chat`. `todo`: from signed-out `/todo` or `/todo/connect`. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
   | `push_enabled` | none | People turning on notifications on a device, from Settings. |

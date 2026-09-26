@@ -136,6 +136,7 @@ function Details({
     <PanelBody>
       <DetailsHeader
         course={course}
+        termId={termId}
         current={current}
         color={color}
         inPlan={Boolean(entry)}
