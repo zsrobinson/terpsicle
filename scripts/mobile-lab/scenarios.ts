@@ -473,8 +473,10 @@ export const SCENARIOS: Scenario[] = [
 /** The open panel's list ends on screen, not under a toolbar or the edge. */
 function bottomVisible(p: Probe): Check[] {
   const body = p.panel?.body?.rect ?? p.searchResults?.rect;
-  if (!body) return [];
   const band = visibleBand(p);
+  // A list the lowered drawer hides (no height, or below the screen) has no
+  // end to see.
+  if (!body || body.height < 1 || body.y >= band.bottom) return [];
   return [
     expectation(
       "list-bottom-on-screen",
