@@ -157,6 +157,32 @@ describe("the top bar's account button", () => {
     ).toBeInTheDocument();
   });
 
+  it("on phones, stands in for the theme toggle only once sign-in is on", async () => {
+    const toggle = <button type="button">Theme</button>;
+    const { rerender } = wrap(<AccountButton compact themeToggle={toggle} />);
+    expect(screen.getByRole("button", { name: "Theme" })).toBeInTheDocument();
+
+    await loaded({ status: "signed-out", flags: flags({ signIn: true }) });
+    rerender(
+      <TooltipProvider delayDuration={0}>
+        <AccountButton compact themeToggle={toggle} />
+      </TooltipProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Theme" })).toBeNull();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    const menu = await screen.findByRole("menu");
+    expect(
+      within(menu).getByRole("menuitem", { name: "Sign in with Google" }),
+    ).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/api\/auth\/google\?return=/),
+    );
+    expect(
+      within(menu).getByRole("menuitemradio", { name: "Dark" }),
+    ).toBeInTheDocument();
+  });
+
   it("links admins to /admin", async () => {
     await loaded(signedIn({ ...USER, isAdmin: true }));
     const user = userEvent.setup();

@@ -57,8 +57,7 @@ export function TopBar({
         <OfflineNote compact={compact} />
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
-        {end}
-        <AccountButton compact={compact} />
+        <AccountButton compact={compact} themeToggle={end} />
       </div>
     </header>
   );

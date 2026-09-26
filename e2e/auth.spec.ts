@@ -33,17 +33,25 @@ async function sessionCookie(page: Page) {
 
 test("sign in as a test person, see the account menu, and sign out", async ({
   page,
+  isMobile,
 }) => {
   await open(page);
   // Signed out, Terpsicle sets no cookie at all.
   expect(await page.context().cookies()).toEqual([]);
 
   await signInButton(page).click();
-  const sheet = page.getByRole("dialog");
+  // A sheet on desktop; on phones, one menu holds sign-in and the theme.
+  const sheet = page.getByRole(isMobile ? "menu" : "dialog");
   await expect(
     sheet.getByText("Sign in to join your class chats. Your plans sync too."),
   ).toBeVisible();
-  await sheet.getByRole("link", { name: "Sign in (test mode)" }).click();
+  if (isMobile)
+    await expect(
+      sheet.getByRole("menuitemradio", { name: "Dark" }),
+    ).toBeVisible();
+  await sheet
+    .getByRole(isMobile ? "menuitem" : "link", { name: "Sign in (test mode)" })
+    .click();
 
   await expect(page).toHaveURL(/\/auth\/test\?return=%2F$/);
   await expect(

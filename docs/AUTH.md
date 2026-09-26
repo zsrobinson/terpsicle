@@ -21,7 +21,7 @@ How Terpsicle knows who someone is. The plan is `docs/V2.md` §4; this is how th
 | Pictures (`/avatars/*`) | `src/server/auth/pictures.ts` |
 | Admins | `config/admins.txt`, read by `src/server/auth/admin.ts` |
 | The account purge | `src/jobs/daily.ts` (`7 13 * * *`) |
-| Top bar button and menu, `/settings`, `/signin`, `/auth/test` | `src/features/auth/`, `src/routes/{settings,signin}.tsx`, `src/routes/auth/test.tsx` |
+| Top bar button and menu, `/settings`, `/signin`, `/auth/test` | `src/features/auth/`, `src/routes/{settings,signin}.tsx`, `src/routes/auth/test.tsx`. On phones one top-bar button holds both the account (or Sign in) and the theme, so the plan's name keeps a tappable width. |
 | Tests | `src/core/auth/*.test.ts` (golden ID-token payloads in `src/fixtures/users.ts`), `src/server/auth/auth.test.ts` (the whole flow against D1 and R2, Google's token endpoint mocked), `src/features/auth/account.test.tsx`, `e2e/auth.spec.ts` |
 
 ## Configuration
