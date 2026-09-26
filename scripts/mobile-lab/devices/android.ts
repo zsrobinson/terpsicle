@@ -64,6 +64,11 @@ class AndroidChrome implements Device {
     // Rotation under our control, starting upright.
     await this.shell("settings put system accelerometer_rotation 0");
     await this.shell("settings put system user_rotation 0");
+    // A busy emulator can make Chrome miss Android's five seconds to answer
+    // input; its "isn't responding" box would then take every tap.
+    await this.shell("settings put global hide_error_dialogs 1").catch(
+      () => "",
+    );
     // Android 13+ asks whether Chrome may notify, over the page, on first
     // run. Answer it ahead of time so no dialog eats the first taps.
     await this.shell(
@@ -113,6 +118,7 @@ class AndroidChrome implements Device {
       "Don't allow",
       "Not now",
       "Got it",
+      "Wait",
       "Dismiss",
     ];
     for (const label of labels) {

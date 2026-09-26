@@ -164,6 +164,10 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_7
+          # The runner's four cores and room for Chrome: with two, Chrome
+          # on the software GPU missed input deadlines ("isn't responding").
+          cores: 4
+          ram-size: 4096M
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           script: pnpm tsx scripts/mobile-lab/run.ts --engine android --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"} || touch mobile-lab-failed
