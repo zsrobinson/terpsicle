@@ -55,6 +55,16 @@ export type FourYearAction =
   | { type: "duplicate"; docId: LocalId; id: LocalId; now: IsoDateTime }
   | { type: "delete"; docId: LocalId }
   | { type: "rename"; docId: LocalId; name: string; now: IsoDateTime }
+  /**
+   * The first semester shown. Entries stay where they are: a term that's
+   * no longer one of the eight still shows while it has an entry.
+   */
+  | {
+      type: "set-first-term";
+      docId: LocalId;
+      firstTermId: TermId;
+      now: IsoDateTime;
+    }
   /** Adds at `index` in its term's column, or at the end. */
   | {
       type: "add";
@@ -338,6 +348,12 @@ export function fourYearReducer(
         const name = cleanPlanName(action.name);
         return name === null || name === doc.name ? doc : { ...doc, name };
       });
+    case "set-first-term":
+      return updateDoc(state, action.docId, action.now, (doc) =>
+        doc.firstTermId === action.firstTermId
+          ? doc
+          : { ...doc, firstTermId: action.firstTermId },
+      );
     case "add":
       return updateDoc(state, action.docId, action.now, (doc) =>
         addEntry(doc, action.entry, action.index),

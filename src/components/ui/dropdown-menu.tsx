@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import type * as React from "react";
 import { quietTooltips } from "./tooltip";
@@ -217,6 +217,52 @@ function DropdownMenuShortcut({
   );
 }
 
+function DropdownMenuSub(
+  props: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>,
+) {
+  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />;
+}
+
+/** An item that opens a submenu ("Move to…"), with a chevron. */
+function DropdownMenuSubTrigger({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger>) {
+  return (
+    <DropdownMenuPrimitive.SubTrigger
+      data-slot="dropdown-menu-sub-trigger"
+      className={cn(itemClass, "data-[state=open]:bg-hover", className)}
+      {...props}
+    >
+      {children}
+      <ChevronRightIcon className="ml-auto text-muted" />
+    </DropdownMenuPrimitive.SubTrigger>
+  );
+}
+
+function DropdownMenuSubContent({
+  className,
+  collisionPadding = 8,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  return (
+    <DropdownMenuPrimitive.Portal>
+      <DropdownMenuPrimitive.SubContent
+        data-slot="dropdown-menu-sub-content"
+        collisionPadding={collisionPadding}
+        className={cn(
+          "z-50 min-w-[180px] overflow-y-auto overflow-x-hidden border border-keyline bg-raised p-1 text-fg shadow-pop",
+          "max-h-(--radix-dropdown-menu-content-available-height) origin-(--radix-dropdown-menu-content-transform-origin)",
+          "data-[state=open]:fade-in-0 data-[state=open]:animate-in data-[state=open]:duration-150",
+          className,
+        )}
+        {...props}
+      />
+    </DropdownMenuPrimitive.Portal>
+  );
+}
+
 export {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -229,5 +275,8 @@ export {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 };

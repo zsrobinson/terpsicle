@@ -111,6 +111,7 @@ export function appFlags(
     seatAlerts: others.seatAlerts,
     push: features.PUSH_ENABLED,
     todo: others.todo,
+    plan: features.PLAN_ENABLED,
     authTestMode: mode.kind === "test",
   };
 }

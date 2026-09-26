@@ -126,6 +126,8 @@ export const FlagsSchema = z.object({
   push: z.boolean(),
   /** Terpsicle Todo works here (TODO_ENABLED, and the feed key or test mode). */
   todo: z.boolean(),
+  /** Terpsicle Plan is listed with the products (PLAN_ENABLED, docs/V3.md §8). */
+  plan: z.boolean(),
   /** Test mode: Sign in goes to /auth/test's fixture people, not Google. */
   authTestMode: z.boolean(),
 });
@@ -136,6 +138,11 @@ export const FeatureVarsSchema = z.object({
   CHAT_ENABLED: FeatureLevelSchema.catch("off"),
   REVIEWS_ENABLED: FeatureLevelSchema.catch("off"),
   PUSH_ENABLED: z
+    .string()
+    .optional()
+    .catch(undefined)
+    .transform((value) => value === "true"),
+  PLAN_ENABLED: z
     .string()
     .optional()
     .catch(undefined)

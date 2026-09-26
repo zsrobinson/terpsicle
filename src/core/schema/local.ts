@@ -182,6 +182,17 @@ export const DEFAULT_UI_PREFS: UiPrefs = {
   sidebarWidth: SIDEBAR_WIDTH.default,
 };
 
+/**
+ * Terpsicle Plan's own prefs (docs/V3.md §2.3): which four-year plan is
+ * open. Local, never synced. Its own settings row rather than a field of
+ * `UiPrefs`, which the scheduler saves whole from its own store: a Plan tab
+ * writing that row would race an open scheduler tab.
+ */
+export const FourYearPrefsSchema = z.object({
+  activeId: LocalIdSchema.nullable(),
+});
+export type FourYearPrefs = z.infer<typeof FourYearPrefsSchema>;
+
 // The `settings` table's rows live in settings.ts: one of them (Generate's
 // drafts) needs generate.ts, which imports this file.
 
