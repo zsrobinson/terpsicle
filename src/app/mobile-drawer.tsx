@@ -29,6 +29,54 @@ function useViewportHeight(): number {
   );
 }
 
+/**
+ * How much of the screen's bottom the on-screen keyboard covers. Phones
+ * shrink the visual viewport for it and leave the layout (`innerHeight`,
+ * `dvh`) alone, so the drawer, sized to the layout, runs on under it.
+ * Small differences are the browser's toolbars, not a keyboard.
+ */
+function useKeyboardInset(): number {
+  return useSyncExternalStore(
+    (onChange) => {
+      const vv = window.visualViewport;
+      vv?.addEventListener("resize", onChange);
+      vv?.addEventListener("scroll", onChange);
+      return () => {
+        vv?.removeEventListener("resize", onChange);
+        vv?.removeEventListener("scroll", onChange);
+      };
+    },
+    () => {
+      const vv = window.visualViewport;
+      if (!vv) return 0;
+      const inset = Math.round(window.innerHeight - vv.height - vv.offsetTop);
+      return inset > 80 ? inset : 0;
+    },
+    () => 0,
+  );
+}
+
+/** Fields that bring up the on-screen keyboard. */
+const NON_TEXT_INPUTS = new Set([
+  "button",
+  "checkbox",
+  "color",
+  "file",
+  "image",
+  "radio",
+  "range",
+  "reset",
+  "submit",
+]);
+
+function isTextEntry(el: EventTarget | null): boolean {
+  if (el instanceof HTMLInputElement) return !NON_TEXT_INPUTS.has(el.type);
+  return (
+    el instanceof HTMLTextAreaElement ||
+    (el instanceof HTMLElement && el.isContentEditable)
+  );
+}
+
 export function snapHeights(viewport: number): Record<DrawerSnap, number> {
   return {
     peek: PEEK_HEIGHT,
@@ -44,6 +92,7 @@ export function MobileDrawer() {
   const depth = useUi((s) => s.stack.length);
   const viewport = useViewportHeight();
   const heights = snapHeights(viewport);
+  const keyboard = useKeyboardInset();
   useCalendarStaysVisible(depth);
   const points = [
     `${heights.peek}px`,
@@ -63,18 +112,41 @@ export function MobileDrawer() {
   }, [tab, depth, setSnap]);
 
   // At peek only the search box shows: typing there put the results below
-  // the screen's edge. Anything focused inside raises a resting drawer.
+  // the screen's edge. Anything focused inside raises a resting drawer. A
+  // field a finger taps goes all the way up at once: the keyboard is coming,
+  // and iPhones pan the page to a field the keyboard would cover, measuring
+  // where it is now rather than where the drawer is headed.
   const raiseOnFocus = useCallback(
     (el: HTMLDivElement | null) => {
       if (!el) return;
-      const raise = () => {
-        if (useUi.getState().drawerSnap === "peek") setSnap("half");
+      const raise = (event: FocusEvent) => {
+        if (
+          isTextEntry(event.target) &&
+          matchMedia("(pointer: coarse)").matches
+        )
+          setSnap("full");
+        else if (useUi.getState().drawerSnap === "peek") setSnap("half");
       };
       el.addEventListener("focusin", raise);
       return () => el.removeEventListener("focusin", raise);
     },
     [setSnap],
   );
+
+  // Typing with the keyboard up: at half, the keyboard covered all but the
+  // drawer's header, so what was typed (search results) had nowhere to show.
+  // Raise it all the way, as a phone's own search sheets do; it stays there
+  // when the keyboard goes, with the results now the screen.
+  const content = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const focused = document.activeElement;
+    if (
+      keyboard > 0 &&
+      isTextEntry(focused) &&
+      content.current?.contains(focused)
+    )
+      setSnap("full");
+  }, [keyboard, setSnap]);
 
   // An empty plan's calendar has nothing on it, and the Courses tab has the
   // first-visit guide: open far enough to show it, once, on arrival. Half
@@ -118,6 +190,10 @@ export function MobileDrawer() {
       // snapping once it lifts. There's no overlay (the drawer isn't modal),
       // so start the fade at the first point and every drag follows.
       fadeFromIndex={0}
+      // vaul's own keyboard handling resizes and lifts the drawer by the
+      // keyboard plus the snap's offset, which squeezed ours (full height,
+      // slid down) to its header. We size the inside to the keyboard instead.
+      repositionInputs={false}
       activeSnapPoint={points[["peek", "half", "full"].indexOf(snap)] ?? null}
       setActiveSnapPoint={(point) => setSnap(snapOf(point))}
     >
@@ -136,10 +212,17 @@ export function MobileDrawer() {
         >
           <Drawer.Title className="sr-only">Sidebar</Drawer.Title>
           <div
+            ref={content}
             className="flex flex-col"
             // The drawer is full height and slides down; size the inside to
-            // what's showing so its scroll area ends at the screen's edge.
-            style={{ height: heights[snap] }}
+            // what's showing so its scroll area ends at the screen's edge, or
+            // at the keyboard's when it's up. Never less than the header.
+            style={{
+              height: Math.max(
+                heights[snap] - keyboard,
+                Math.min(heights[snap], PEEK_HEIGHT),
+              ),
+            }}
           >
             <Grabber snap={snap} onSnap={setSnap} />
             <DrawerTabs />
