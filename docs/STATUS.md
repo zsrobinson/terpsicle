@@ -27,7 +27,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 | V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | `v2/sync-merge`, `v2/sync-api` in review |
 | V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Not started |
 | V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | Not started |
-| V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | Not started |
+| V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | `v2/chat-do` in review |
 | V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | Not started |
 
 **v2 decisions** (details in `docs/V2.md`):
@@ -38,6 +38,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 - **Seat alerts retire the email-token flow** rather than migrate it; nothing is public, and the only real subscriptions were the owner's deleted test rows.
 - **One Worker** (`terpsicle`) with one Durable Object class (`CourseChat`, one object per course per term), the one exception to BUILD.md §1's no-Durable-Objects rule.
 - **Migrations are pre-numbered** `0003`–`0009` so parallel PRs don't collide.
+- **Chat's server** (`v2/chat-do`, DATA.md §7.8): `0009_chat`, the `CourseChat` object (core's protocol over hibernatable sockets, the moderation pipeline, edits, deletes, reactions, one-level threads, typing, read markers, retention alarms), `/api/chat/socket`, `chat/unread|follow|unfollow|mute|members`, and `chat_members` rewritten after each `sync/push`. `CHAT_ENABLED` is `"off"` in production and `"on"` in previews, where each preview's `COURSE_CHAT` is its own namespace. Moderation handlers are now `moderationHandlers(env)`, since Chat's reaches its object through a binding.
 - **Brand refresh** (Bulletin paper, Flexoki, Bricolage Grotesque) waits for the owner's sign-off; engineering keeps today's tokens.
 
 **Owner actions** (`docs/V2.md` §14): the Google OAuth client is done (External, published, scopes `openid email profile`, redirect `https://terpsicle.com/api/auth/google/callback` plus localhost; `GOOGLE_CLIENT_ID` in vars, `GOOGLE_CLIENT_SECRET` set on the Worker). `AUTH_SECRET` and `VAPID_*` are set and the `terpsicle-user-content` buckets exist. Admins are the git-tracked `config/admins.txt` (first entry `robinson`, the owner), bundled at build time, so they need no owner action. Later: brand verification once `/privacy` is live, a sign-in trial with a TERPmail and a UMD Gmail account, confirming the sync decision, and emailing PlanetTerp about review text.

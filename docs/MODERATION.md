@@ -47,7 +47,7 @@ What the caller does with each decision:
 - **"What's allowed":** `MODERATION_POLICY.review` and `MODERATION_POLICY.chat` hold the text for the panel next to each composer.
 - **Edits:** call `moderate()` again with the same `targetId`. A waiting hold is replaced (held again with the new text, or cleared when the edit passes).
 - **The current state** of an item, including a later decision by a retry or the owner: `currentDecision(db, kind, targetId)`.
-- **Later decisions** (a retry that passes, or the owner) reach the feature through a `ModerationHandler`. Reviews and Chat each add theirs to `MODERATION_HANDLERS` in `src/server/moderation/handlers.ts` when they land.
+- **Later decisions** (a retry that passes, or the owner) reach the feature through a `ModerationHandler`, from `moderationHandlers(env)` in `src/server/moderation/handlers.ts`: Chat's (through the `COURSE_CHAT` binding) is there; Reviews adds its own when it lands. `latestDecision(db, kind, targetId)` also returns the reasons and time, so a feature can tell a hold waiting for a retry from one waiting for the owner.
 
 ## 2. The pipeline
 
@@ -150,7 +150,7 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
 
 - **No confirmation dialogs** (DESIGN §5): approve and remove act at once, and the UI offers **Undo**. Undo reopens the item, held, unless its ref was held again since (an edit), which answers `nothing-to-undo`.
 - These are the routes V2 §10 lists. `v2/admin-shell` builds the panel on them and adds the rest (`admin/decisions`, `admin/health`, `admin/chat/remove`, author actions).
-- **Reaching the feature:** each handler in `MODERATION_HANDLERS` gets `(targetId, "publish" | "remove" | "hold")` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
+- **Reaching the feature:** each handler from `moderationHandlers(env)` gets `(targetId, "publish" | "remove" | "hold")` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
 
 ## 7. Configuration
 

@@ -2,6 +2,9 @@
 // the feature that owns the item: Reviews publishes or hides the review,
 // Chat delivers or deletes the message.
 
+import type { CourseChatNamespace } from "../chat/course-chat";
+import { chatModerationHandler } from "../chat/moderation-handler";
+
 /**
  * Called with the item's new state. Must be idempotent: undo calls it again
  * with "hold", and a retry that fails partway runs it again next time.
@@ -15,8 +18,21 @@ export type ModerationHandlers = Partial<
   Record<"review" | "chat", ModerationHandler>
 >;
 
+/** The bindings handlers reach their feature through. */
+export interface ModerationHandlerEnv {
+  /** Chat's objects; absent in harnesses that don't run Chat. */
+  COURSE_CHAT?: CourseChatNamespace;
+}
+
 /**
- * The live handlers. Reviews and Chat each add theirs here when they land;
- * until then, features read an item's state with currentDecision().
+ * The live handlers, for this Worker's bindings. Reviews adds its own here
+ * when it lands; until then, features read an item's state with
+ * currentDecision().
  */
-export const MODERATION_HANDLERS: ModerationHandlers = {};
+export function moderationHandlers(
+  env: ModerationHandlerEnv,
+): ModerationHandlers {
+  return env.COURSE_CHAT
+    ? { chat: chatModerationHandler(env.COURSE_CHAT) }
+    : {};
+}

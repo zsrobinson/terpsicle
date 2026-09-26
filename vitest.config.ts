@@ -75,11 +75,17 @@ export default defineConfig({
             // see production vars (POSTHOG_TOKEN).
             const wrangler = unstable_readConfig({ config: "wrangler.jsonc" });
             return {
+              // Exports the Durable Object classes (src/server.ts would pull
+              // in TanStack Start's build-time modules).
+              main: "src/server/test-worker.ts",
               miniflare: {
                 compatibilityDate: wrangler.compatibility_date,
                 compatibilityFlags: wrangler.compatibility_flags,
                 r2Buckets: ["DATA", "USER_CONTENT"],
                 d1Databases: ["DB"],
+                durableObjects: {
+                  COURSE_CHAT: { className: "CourseChat", useSQLite: true },
+                },
                 bindings: {
                   TEST_CRONS: wrangler.triggers.crons ?? [],
                   // Which vars production and previews set (names only).

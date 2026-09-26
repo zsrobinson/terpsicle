@@ -6,6 +6,10 @@
 import type { z } from "zod";
 import {
   AccountDeleteInputSchema,
+  ChatFollowInputSchema,
+  ChatMembersInputSchema,
+  ChatMuteInputSchema,
+  ChatUnreadInputSchema,
   ConfirmInputSchema,
   ManageInputSchema,
   MeInputSchema,
@@ -45,6 +49,14 @@ import type { AuthEnv } from "../auth/config";
 import { handleFlow, isFlowRoute } from "../auth/flow";
 import { isSameOrigin } from "../auth/guard";
 import { getSession } from "../auth/session";
+import {
+  type ChatApiEnv,
+  follow,
+  members,
+  mute,
+  unfollow,
+  unread,
+} from "../chat/api";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import {
@@ -53,8 +65,8 @@ import {
   undoQueueItem,
 } from "../moderation/admin";
 import {
-  MODERATION_HANDLERS,
   type ModerationHandlers,
+  moderationHandlers,
 } from "../moderation/handlers";
 import type { ModerationEnv } from "../moderation/service";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
@@ -69,7 +81,11 @@ import {
 
 export const API_PREFIX = "/api/";
 
-export type ApiEnv = AlertsEnv & SummaryEnv & AuthEnv & ModerationEnv;
+export type ApiEnv = AlertsEnv &
+  SummaryEnv &
+  AuthEnv &
+  ModerationEnv &
+  ChatApiEnv;
 
 interface Route<S extends z.ZodType> {
   input: S;
@@ -113,7 +129,7 @@ export type RouteContext = AlertsContext &
 export interface ApiOptions {
   /** Outbound fetch for Google and pictures; tests mock it. */
   fetch?: typeof fetch;
-  /** Overrides MODERATION_HANDLERS, for tests. */
+  /** Overrides moderationHandlers(env), for tests. */
   moderationHandlers?: ModerationHandlers;
 }
 
@@ -201,6 +217,42 @@ const ROUTES = {
     alerts: false,
     auth: "user",
     handle: (env, input, ctx) => pull(env, input, ctx),
+  }),
+  // Chat (V2.md §8.5). Messages go over the socket, /api/chat/socket.
+  "chat/unread": route({
+    input: ChatUnreadInputSchema,
+    perUserPerHour: 1_200,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => unread(env, input, ctx),
+  }),
+  "chat/follow": route({
+    input: ChatFollowInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => follow(env, input, ctx),
+  }),
+  "chat/unfollow": route({
+    input: ChatFollowInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => unfollow(env, input, ctx),
+  }),
+  "chat/mute": route({
+    input: ChatMuteInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => mute(env, input, ctx),
+  }),
+  "chat/members": route({
+    input: ChatMembersInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => members(env, input, ctx),
   }),
   // Moderation's admin side (docs/MODERATION.md §6).
   "admin/moderation/queue": route({
@@ -328,7 +380,7 @@ export async function handleApi(
     request,
     session,
     ...(options.fetch ? { fetch: options.fetch } : {}),
-    moderationHandlers: options.moderationHandlers ?? MODERATION_HANDLERS,
+    moderationHandlers: options.moderationHandlers ?? moderationHandlers(env),
   });
   return reply(result instanceof Response ? result : json(result));
 }
