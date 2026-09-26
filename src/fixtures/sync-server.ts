@@ -4,6 +4,7 @@
 // against both and checks they answer alike.
 import {
   type IsoDateTime,
+  SYNC_MAX_FOUR_YEAR_DOCS,
   SYNC_MAX_PLANS,
   SYNC_PULL_PAGE,
   type SyncDoc,
@@ -16,6 +17,12 @@ import {
 
 const DAY_MS = 86_400_000;
 const TOMBSTONE_DAYS = 30;
+
+/** Live docs of a kind an account may hold, as the Worker caps them. */
+const CAPS: Partial<Record<SyncDoc["kind"], number>> = {
+  plan: SYNC_MAX_PLANS,
+  "four-year": SYNC_MAX_FOUR_YEAR_DOCS,
+};
 
 export class FakeSyncServer {
   /** The last rev handed out. */
@@ -41,12 +48,13 @@ export class FakeSyncServer {
         const stored = this.docs.get(key);
         if ((stored?.rev ?? 0) !== doc.baseRev)
           return { ...ref, status: "conflict", doc: stored ?? null };
-        const live = (d: SyncDoc) => d.kind === "plan" && d.body !== null;
+        const live = (d: SyncDoc) => d.kind === doc.kind && d.body !== null;
+        const cap = CAPS[doc.kind];
         if (
-          doc.kind === "plan" &&
+          cap !== undefined &&
           doc.body !== null &&
           !(stored && live(stored)) &&
-          [...this.docs.values()].filter(live).length >= SYNC_MAX_PLANS
+          [...this.docs.values()].filter(live).length >= cap
         )
           return { ...ref, status: "too-many-plans" };
         const rev = ++this.head;
@@ -54,7 +62,21 @@ export class FakeSyncServer {
         const saved: SyncDoc =
           doc.kind === "plan"
             ? { kind: "plan", id: doc.id, rev, updatedAt, body: doc.body }
-            : { kind: "settings", id: doc.id, rev, updatedAt, body: doc.body };
+            : doc.kind === "four-year"
+              ? {
+                  kind: "four-year",
+                  id: doc.id,
+                  rev,
+                  updatedAt,
+                  body: doc.body,
+                }
+              : {
+                  kind: "settings",
+                  id: doc.id,
+                  rev,
+                  updatedAt,
+                  body: doc.body,
+                };
         this.docs.set(key, saved);
         return { ...ref, status: "ok", rev };
       }),
@@ -85,7 +107,11 @@ export class FakeSyncServer {
     ).toISOString();
     let pruned = 0;
     for (const [key, doc] of this.docs) {
-      if (doc.kind === "plan" && doc.body === null && doc.updatedAt < cutoff) {
+      if (
+        doc.kind !== "settings" &&
+        doc.body === null &&
+        doc.updatedAt < cutoff
+      ) {
         this.prunedThrough = Math.max(this.prunedThrough, doc.rev);
         this.docs.delete(key);
         pruned++;
