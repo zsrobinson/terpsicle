@@ -140,23 +140,14 @@ export async function initAnalytics(
   if (!token) return;
 
   pending = [];
-  const { default: posthog } = await import("posthog-js");
-  posthog.init(token, {
-    api_host: "/ingest",
-    ui_host: "https://us.posthog.com",
-    // We never call identify(), so every visitor stays anonymous.
-    person_profiles: "identified_only",
-    // No cookies; the /ingest proxy strips them anyway.
-    persistence: "localStorage",
-    capture_pageview: "history_change",
-    autocapture: true,
-    // We don't run surveys; don't download their code.
-    disable_surveys: true,
-    session_recording: {
-      maskAllInputs: true,
-      maskTextSelector: "[data-private]",
-    },
-  });
+  // Both chunks load only here, so the privacy rules add nothing to the
+  // pages' eager bundles.
+  const [{ default: posthog }, { posthogOptions, pagePrivateText }] =
+    await Promise.all([import("posthog-js"), import("./posthog-options")]);
+  posthog.init(
+    token,
+    posthogOptions(() => pagePrivateText()),
+  );
   client = posthog;
   for (const { event, properties } of pending)
     client.capture(event, properties);

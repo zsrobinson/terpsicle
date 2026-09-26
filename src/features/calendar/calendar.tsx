@@ -17,7 +17,8 @@ import {
   DAY_HEADER_HEIGHT,
   WeekFrame,
 } from "~/app/calendar/week-frame";
-import { PEEK_HEIGHT, snapHeights } from "~/app/mobile-drawer";
+import { PEEK_HEIGHT, snapHeights } from "~/app/drawer-heights";
+import { preloadDrill, usePanelRegistry } from "~/app/registry";
 import { useShortcut } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
 import type { Connection, CourseCode, Day } from "~/core/schema";
@@ -328,6 +329,8 @@ function Grid({
   seats: SeatsMap | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const registry = usePanelRegistry();
+  const preloadConnection = () => preloadDrill(registry, "connection");
   const [width, setWidth] = useState(0);
   const openCode = useUi(selectOpenCourse);
   const stackTop = useUi((s) => s.stack.at(-1));
@@ -643,6 +646,7 @@ function Grid({
                   stackTop.connectionId === pill.connection.id
                 }
                 onOpen={openConnection}
+                onIntent={preloadConnection}
                 nav={nav(`p:${column.day}:${pill.key}`)}
               />
             ),

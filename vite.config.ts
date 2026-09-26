@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { bundleGraph } from "./scripts/bundle-graph";
 import { CHECKOUT_MARKER_PATH, checkoutId } from "./scripts/e2e-checkout";
+import { inlineScripts } from "./scripts/inline-scripts";
 
 /**
  * Answers `GET /__checkout/<id>` with 200 only for this checkout's id, so
@@ -36,6 +37,9 @@ export default defineConfig(({ command, mode }) => ({
   plugins: [
     // First, so the Worker never sees the marker path.
     checkoutMarker(),
+    // The head scripts' text and their CSP hashes, from one build of their
+    // source (scripts/inline-scripts.ts).
+    inlineScripts(import.meta.dirname),
     cloudflare({
       viteEnvironment: { name: "ssr" },
       // Remote bindings (Workers AI) need a Cloudflare login and the
@@ -52,6 +56,8 @@ export default defineConfig(({ command, mode }) => ({
               if (mode === "mock") {
                 worker.vars ??= {};
                 worker.vars.AUTH_TEST_MODE = "true";
+                // Todo in test mode: the fixed key and the fixture feed.
+                worker.vars.TODO_ENABLED = "on";
               }
             }
           : undefined,

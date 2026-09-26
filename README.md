@@ -41,7 +41,8 @@ Node 22 and pnpm 10.
 - **Each checkout has its own pair of ports**, derived from its path (`scripts/e2e-checkout.ts`): an even port in 3100–3898 for the app, and the next one for the seat-alert harness (`e2e/alerts-harness`). Set `E2E_PORT` to choose the app's port; the harness takes the one after it.
 - **A running server is reused only if it's this checkout's.** Playwright waits on `/__checkout/<id>`, which only this checkout's dev server and harness answer with 200. If another checkout's server holds a port, the run stops with "port in use" instead of silently testing that checkout's code.
 - To keep a server warm between runs, start it on this checkout's port: `pnpm dev:mock --port $(pnpm -s e2e:port)`.
-- CI never reuses a server.
+- CI never reuses a server. It runs e2e in four shards, each with its own server, and merges their reports (the "e2e report" job's `playwright-report` artifact).
+- A `warm-up` project loads the scheduler and `/` once before any other test, so no test waits on a fresh server's first compile.
 
 ### Performance budgets
 

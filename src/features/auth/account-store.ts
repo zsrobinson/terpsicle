@@ -31,6 +31,7 @@ export const FLAGS_OFF: Flags = {
   reviews: "off",
   seatAlerts: false,
   push: false,
+  todo: false,
   authTestMode: false,
 };
 

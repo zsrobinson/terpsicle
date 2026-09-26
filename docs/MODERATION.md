@@ -47,7 +47,7 @@ What the caller does with each decision:
 - **"What's allowed":** `MODERATION_POLICY.review` and `MODERATION_POLICY.chat` hold the text for the panel next to each composer.
 - **Edits:** call `moderate()` again with the same `targetId`. A waiting hold is replaced (held again with the new text, or cleared when the edit passes).
 - **The current state** of an item, including a later decision by a retry or the owner: `currentDecision(db, kind, targetId)`.
-- **Later decisions** (a retry that passes, or the owner) reach the feature through a `ModerationHandler`, called as `(targetId, decision, {db, now, reasons})`: `reasons` are the retry's, or the owner's (`admin` with their `adminReason` on a removal, `undo` on an undo; empty on an approval). Reviews' is in `MODERATION_HANDLERS` (`src/server/reviews/decisions.ts`); Chat adds its own when it lands.
+- **Later decisions** (a retry that passes, or the owner) reach the feature through a `ModerationHandler`, called as `(targetId, decision, {db, now, reasons})`: `reasons` are the retry's, or the owner's (`admin` with their `adminReason` on a removal, `undo` on an undo; empty on an approval). They come from `moderationHandlers(env)` in `src/server/moderation/handlers.ts`: Reviews' (`src/server/reviews/decisions.ts`) and Chat's, which reaches the message's `CourseChat` object through the `COURSE_CHAT` binding. `latestDecision(db, kind, targetId)` also returns the reasons and time, so a feature can tell a hold waiting for a retry from one waiting for the owner.
 - **Sending something to the owner for a reason that isn't the text** (a report, a burst of reviews): `queueForOwner(env, {kind, targetId, text, course, reasons, urgent}, {now, decision?})`. A waiting item keeps its place and snapshot, gains the reasons and becomes `open` (a retry can't clear it); `decision` also logs a `reports:hide` or `rules:hold`. `withdrawFromQueue(db, kind, targetId)` takes out an item its author deleted.
 - **Reports:** `POST /api/reports/create` (§6).
 
@@ -152,7 +152,7 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
 
 - **No confirmation dialogs** (DESIGN §5): approve and remove act at once, and the UI offers **Undo**. Undo reopens the item, held, unless its ref was held again since (an edit), which answers `nothing-to-undo`.
 - These are the routes V2 §10 lists. `v2/admin-shell` builds the panel on them and adds the rest (`admin/decisions`, `admin/health`, `admin/chat/remove`, author actions).
-- **Reaching the feature:** each handler in `MODERATION_HANDLERS` gets `(targetId, "publish" | "remove" | "hold", {db, now, reasons})` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
+- **Reaching the feature:** each handler from `moderationHandlers(env)` gets `(targetId, "publish" | "remove" | "hold", {db, now, reasons})` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
 
 **Reports** (V2 §9.3): `POST /api/reports/create {surface, ref, reason, note | null}`, `auth: "user"`, 30 per person per hour, in `src/server/moderation/reports.ts`.
 - Reasons: `personal-info`, `names-a-student`, `hate`, `threat`, `sexual`, `misconduct-claim`, `graded-work`, `off-topic`, `other`; a note of at most 300 characters.

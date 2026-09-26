@@ -3,6 +3,7 @@ import { useProblemCounts } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
 import { clickRailTab } from "./actions";
+import { preloadTab, usePanelRegistry } from "./registry";
 import { SIDEBAR_PANEL_ID } from "./sidebar";
 import { TABS, type Tab } from "./tabs";
 import { ThemeToggle } from "./theme-toggle";
@@ -60,6 +61,8 @@ function RailButton({
 }) {
   const Icon = tab.icon;
   const selected = current && open;
+  const registry = usePanelRegistry();
+  const preload = () => preloadTab(registry, tab.id);
   return (
     <WithTooltip
       label={hint(tab, current, open, drilled)}
@@ -71,6 +74,8 @@ function RailButton({
         aria-pressed={selected}
         aria-controls={selected ? SIDEBAR_PANEL_ID : undefined}
         onClick={() => clickRailTab(tab.id)}
+        onPointerEnter={preload}
+        onFocus={preload}
         className={cn(
           "relative flex w-[54px] flex-col items-center gap-1 rounded-lg py-2 transition-colors",
           // Selected: a fill about three times as deep as hover's, and a 2px
