@@ -308,8 +308,16 @@ describe("reordering", () => {
       aFourYear({
         firstTermId: "202508",
         entries: [
-          aFourYearEntry({ id: "entry_cmsc351", term: "202701", code: "CMSC351" }),
-          aFourYearEntry({ id: "entry_cmsc420", term: "202701", code: "CMSC420" }),
+          aFourYearEntry({
+            id: "entry_cmsc351",
+            term: "202701",
+            code: "CMSC351",
+          }),
+          aFourYearEntry({
+            id: "entry_cmsc420",
+            term: "202701",
+            code: "CMSC420",
+          }),
         ],
       }),
     );
