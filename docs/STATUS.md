@@ -38,7 +38,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 - **Migrations are pre-numbered** `0003`–`0009` so parallel PRs don't collide.
 - **Brand refresh** (Bulletin paper, Flexoki, Bricolage Grotesque) waits for the owner's sign-off; engineering keeps today's tokens.
 
-**Owner actions** (`docs/V2.md` §14): create the Google OAuth client and its redirect URIs, brand verification, set the new secrets (or approve an agent doing it), create the `terpsicle-user-content` buckets, try sign-in with a TERPmail and a UMD Gmail account, confirm the sync decision, and email PlanetTerp about review text.
+**Owner actions** (`docs/V2.md` §14): the Google OAuth client is done (External, published, scopes `openid email profile`, redirect `https://terpsicle.com/api/auth/google/callback` plus localhost; `GOOGLE_CLIENT_ID` in vars, `GOOGLE_CLIENT_SECRET` set on the Worker). The orchestrator sets `AUTH_SECRET` and `VAPID_*` and creates the `terpsicle-user-content` buckets. Admins are the git-tracked `config/admins.txt` (first entry `robinson`, the owner), bundled at build time, so they need no owner action. Later: brand verification once `/privacy` is live, a sign-in trial with a TERPmail and a UMD Gmail account, confirming the sync decision, and emailing PlanetTerp about review text.
 
 ## UX redesign (owner request, 2026-09-25)
 

@@ -276,7 +276,7 @@ Each milestone ends green and deployed. The orchestrator checks the acceptance c
 | `CLOUDFLARE_API_TOKEN` | Claude Code environment variables **and** GitHub Actions secrets | wrangler: deploy, R2, D1, custom domain |
 | `CLOUDFLARE_ACCOUNT_ID` | same two places | wrangler |
 
-v2 adds secrets and vars for sign-in, push and admin (`GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `ADMIN_DIRECTORY_IDS`, `VAPID_PRIVATE_KEY`; `docs/V2.md` §13–14). Before v2 there were no other secrets: seat-alert email goes through Cloudflare Email Service (the `EMAIL` `send_email` binding; terpsicle.com is onboarded for sending), and the PostHog project token is public (`env/.env` for the client, `vars.POSTHOG_TOKEN` in `wrangler.jsonc` for the Worker).
+v2 adds secrets and vars for sign-in and push (`GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `VAPID_PRIVATE_KEY`; `docs/V2.md` §13–14). Admins are the git-tracked `config/admins.txt`, not an env var. Before v2 there were no other secrets: seat-alert email goes through Cloudflare Email Service (the `EMAIL` `send_email` binding; terpsicle.com is onboarded for sending), and the PostHog project token is public (`env/.env` for the client, `vars.POSTHOG_TOKEN` in `wrangler.jsonc` for the Worker).
 
 Cloudflare resources (all in place since M0, declared in `wrangler.jsonc`):
 - Worker `terpsicle`, with custom domains `terpsicle.com` and `www.terpsicle.com` (www 301s to the apex in `src/server.ts`), no production `workers.dev` route;
