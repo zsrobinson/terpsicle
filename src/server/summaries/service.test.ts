@@ -5,10 +5,16 @@ import {
   JOBS_PREFIX,
   PLANETTERP_MANIFEST_KEY,
   planetTerpDeptKey,
+  planetTerpReviewsKey,
   ReviewSummarySchema,
   summaryKey,
 } from "~/core/schema";
-import { anInstructor, aPlanetTerpDept, aReviewSummary } from "~/fixtures";
+import {
+  anInstructor,
+  aPlanetTerpDept,
+  aReviewSummary,
+  someStoredReviews,
+} from "~/fixtures";
 import { type ApiEnv, handleApi } from "../api/router";
 import { api } from "../fns/api";
 import { getReviewSummary, isFresh, type SummaryEnv } from "./service";
@@ -232,6 +238,67 @@ describe("review summaries", () => {
     );
     expect(result).toEqual({ status: "unavailable", reason: "failed" });
     expect(run).not.toHaveBeenCalled();
+  });
+
+  it("summarizes the stored reviews without asking PlanetTerp", async () => {
+    await publishInstructors(
+      anInstructor({ slug: "kept_one", name: "Kept One", reviewCount: 3 }),
+    );
+    await env.DATA.put(
+      planetTerpReviewsKey("kept_one"),
+      JSON.stringify(
+        someStoredReviews(3, { slug: "kept_one", name: "Kept One" }),
+      ),
+    );
+    const { ai, run } = mockAi();
+    const fetcher = vi.fn(async () => new Response("down", { status: 503 }));
+    const result = await getReviewSummary(
+      testEnv(ai),
+      { slug: "kept_one", course: "TEST101" },
+      { now: NOW, fetcher },
+    );
+    expect(result.status === "ok" && result.summary.basedOnReviewCount).toBe(3);
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(JSON.stringify(run.mock.calls[0])).toContain("Stored review 3");
+  });
+
+  it("asks PlanetTerp when the stored copy is behind, and falls back to it when PlanetTerp is down", async () => {
+    await publishInstructors(
+      anInstructor({ slug: "behind_one", name: "Behind One", reviewCount: 4 }),
+      anInstructor({ slug: "gone_one", name: "Gone One", reviewCount: 4 }),
+    );
+    for (const [slug, name] of [
+      ["behind_one", "Behind One"],
+      ["gone_one", "Gone One"],
+    ] as const) {
+      await env.DATA.put(
+        planetTerpReviewsKey(slug),
+        JSON.stringify(someStoredReviews(2, { slug, name })),
+      );
+    }
+
+    const live = mockAi();
+    const fetcher = planetTerp("behind_one", "Behind One", 4);
+    const fresh = await getReviewSummary(
+      testEnv(live.ai),
+      { slug: "behind_one", course: "TEST101" },
+      { now: NOW, fetcher },
+    );
+    expect(fresh.status).toBe("ok");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(live.run.mock.calls[0])).toContain("Review 3:");
+
+    const stored = mockAi();
+    const down = vi.fn(async () => new Response("down", { status: 503 }));
+    const kept = await getReviewSummary(
+      testEnv(stored.ai),
+      { slug: "gone_one", course: "TEST101" },
+      { now: NOW, fetcher: down },
+    );
+    expect(kept.status).toBe("ok");
+    expect(JSON.stringify(stored.run.mock.calls[0])).toContain(
+      "Stored review 2",
+    );
   });
 
   it("answers unknown instructors and ones with no reviews without calling anything", async () => {
