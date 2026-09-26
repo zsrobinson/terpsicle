@@ -2,6 +2,7 @@ import { runScheduled } from "~/jobs/index";
 import { APEX_HOST } from "./apex";
 import { API_PREFIX, handleApi } from "./api/router";
 import { AVATARS_PREFIX, serveAvatar } from "./auth/pictures";
+import { CHAT_SOCKET_PATH, openChatSocket } from "./chat/socket";
 import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
 import { landingRedirect } from "./routing";
@@ -61,6 +62,10 @@ export function createWorker(
       }
       if (url.pathname.startsWith(DATA_PREFIX)) {
         return serveData(request, env, ctx);
+      }
+      // The one WebSocket route: a GET beside the JSON API's POSTs.
+      if (url.pathname === CHAT_SOCKET_PATH) {
+        return openChatSocket(request, env, new Date());
       }
       if (url.pathname.startsWith(API_PREFIX)) {
         return handleApi(request, env, ctx);

@@ -40,6 +40,15 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Terpsicle Chat: one CourseChat object per course per term, with its own
+  // SQLite (docs/V2.md §8.4, §13). Class changes can't ship as gradual
+  // deployments; we don't use them.
+  "durable_objects": {
+    "bindings": [{ "name": "COURSE_CHAT", "class_name": "CourseChat" }]
+  },
+  "migrations": [
+    { "tag": "v1-course-chat", "new_sqlite_classes": ["CourseChat"] }
+  ],
   "vars": {
     // Public PostHog project token (the same one the client ships). Server
     // telemetry is off wherever it's unset: tests, local dev, previews.
@@ -62,7 +71,15 @@
     "GOOGLE_REDIRECT_ORIGINS": "https://terpsicle.com",
     // Moderation model calls per UTC day, at most (Workers AI cost). Past it,
     // new reviews and chat messages wait for the owner (docs/MODERATION.md).
-    "MODERATION_DAILY_CAP": "2000"
+    "MODERATION_DAILY_CAP": "2000",
+    // Terpsicle Chat: "off" refuses sockets and chat/* routes, "read" lets
+    // people read but not send, "on". Off until its e2e and the owner's
+    // trial pass (docs/V2.md §15).
+    "CHAT_ENABLED": "off",
+    // Terpsicle Reviews: off | read | on (docs/V2.md §7.4). "off" answers
+    // every reviews/* route with "unavailable"; "read" lists, deletes and
+    // reports but takes no new words. Off until the e2e and the owner's trial.
+    "REVIEWS_ENABLED": "off"
   },
   "ai": { "binding": "AI" },
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.
@@ -90,9 +107,17 @@
   // reach unreviewed PR code): /auth/test lists the TEST_USERS fixtures,
   // and tadmin is the admin. The Worker refuses test mode on terpsicle.com
   // whatever the vars say (docs/AUTH.md, "Test mode").
+  // Chat is on in previews. Bound without `script_name`, each preview's
+  // COURSE_CHAT is its own namespace, so previews never share rooms with
+  // each other or with production (checked for v2/chat-do; STATUS.md).
   "previews": {
     "vars": {
-      "AUTH_TEST_MODE": "true"
+      "AUTH_TEST_MODE": "true",
+      "CHAT_ENABLED": "on",
+      "REVIEWS_ENABLED": "on"
+    },
+    "durable_objects": {
+      "bindings": [{ "name": "COURSE_CHAT", "class_name": "CourseChat" }]
     },
     "r2_buckets": [
       { "binding": "DATA", "bucket_name": "terpsicle-data" },

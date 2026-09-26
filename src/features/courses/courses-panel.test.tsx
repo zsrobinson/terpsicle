@@ -174,10 +174,16 @@ describe("Courses tab", () => {
       const generate = within(guide).getByRole("group", {
         name: "Generate plans",
       });
-      // Equally weighted: the same card, four steps and a primary button each.
+      // Equally weighted: the same card, a one-line summary and a primary
+      // button each.
       expect(build.className).toBe(generate.className);
-      expect(within(build).getAllByRole("listitem")).toHaveLength(4);
-      expect(within(generate).getAllByRole("listitem")).toHaveLength(4);
+      const buildSummary = within(build).getByText(
+        "Search, pick sections, fix what's flagged.",
+      );
+      const generateSummary = within(generate).getByText(
+        "Tell it what you need, then pick a plan.",
+      );
+      expect(buildSummary.className).toBe(generateSummary.className);
       const searchButton = within(build).getByRole("button", {
         name: "Search for a course",
       });

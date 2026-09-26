@@ -13,6 +13,7 @@ export * from "./moderation";
 export * from "./plans";
 export * from "./problems";
 export * from "./pwa";
+export * from "./reviews";
 export * from "./routing";
 export * from "./schema";
 export * from "./search";
