@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { InstallAppMenuItem } from "~/features/install/install-entry";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCatalogPolling } from "~/state/data-hooks";
 import { useActiveTerm, useCurrentPlan } from "~/state/hooks";
@@ -64,7 +65,13 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
       compact={mobile}
       term={<TermSwitcher />}
       plans={shared.plans}
-      end={mobile ? <ThemeToggle side="bottom" /> : null}
+      end={
+        mobile ? (
+          <ThemeToggle side="bottom">
+            <InstallAppMenuItem />
+          </ThemeToggle>
+        ) : null
+      }
     />
   );
 

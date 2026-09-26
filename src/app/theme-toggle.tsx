@@ -1,4 +1,5 @@
 import { Monitor, Moon, Sun } from "lucide-react";
+import type { ReactNode } from "react";
 import { type Theme, ThemeSchema } from "~/core/schema";
 import { useUi } from "~/state/ui-store";
 import {
@@ -20,9 +21,16 @@ const OPTIONS: readonly { theme: Theme; label: string; icon: typeof Sun }[] = [
 
 /**
  * A small icon at the foot of the rail (in the top bar on phones): set once,
- * rarely touched, so it stays out of the way of the plan.
+ * rarely touched, so it stays out of the way of the plan. `children` go at
+ * the end of its menu (on phones, "Install app").
  */
-export function ThemeToggle({ side }: { side: "right" | "bottom" }) {
+export function ThemeToggle({
+  side,
+  children,
+}: {
+  side: "right" | "bottom";
+  children?: ReactNode;
+}) {
   const theme = useUi((s) => s.theme);
   const current = OPTIONS.find((o) => o.theme === theme) ?? OPTIONS[0];
   const Icon = current?.icon ?? Monitor;
@@ -55,6 +63,7 @@ export function ThemeToggle({ side }: { side: "right" | "bottom" }) {
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        {children}
       </DropdownMenuContent>
     </DropdownMenu>
   );

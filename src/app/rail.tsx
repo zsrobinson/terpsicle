@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { InstallAppButton } from "~/features/install/install-entry";
 import { useProblemCounts } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
@@ -32,7 +33,8 @@ export function Rail() {
           />
         ))}
       </nav>
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col items-center gap-1">
+        <InstallAppButton side="right" />
         <ThemeToggle side="right" />
       </div>
     </div>

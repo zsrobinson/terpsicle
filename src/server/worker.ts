@@ -3,7 +3,7 @@ import { APEX_HOST } from "./apex";
 import { API_PREFIX, handleApi } from "./api/router";
 import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
-import { SERVICE_WORKER_JS } from "./service-worker";
+import { serviceWorkerScript } from "./service-worker";
 
 const WWW_HOST = `www.${APEX_HOST}`;
 /** Vite's hashed build output (dist/client/assets). */
@@ -35,7 +35,16 @@ export interface AppHandler {
  * The Worker's handlers. src/server.ts wires in the real app; tests pass a
  * stub so they don't need TanStack Start's build-time virtual modules.
  */
-export function createWorker(app: AppHandler) {
+export function createWorker(
+  app: AppHandler,
+  {
+    precache = [],
+  }: {
+    /** The app shell's build files, for /sw.js to precache (scripts/pwa-precache.ts). */
+    precache?: readonly string[];
+  } = {},
+) {
+  const serviceWorkerJs = serviceWorkerScript(precache);
   return {
     async fetch(
       request: Request,
@@ -63,7 +72,7 @@ export function createWorker(app: AppHandler) {
       if (url.pathname === SERVICE_WORKER_PATH) {
         // Browsers check this on every navigation; no-cache keeps a new
         // version (or a retiring one) reaching them on the next visit.
-        return new Response(SERVICE_WORKER_JS, {
+        return new Response(serviceWorkerJs, {
           headers: {
             "Content-Type": "text/javascript; charset=utf-8",
             "Cache-Control": "no-cache",

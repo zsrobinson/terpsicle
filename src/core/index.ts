@@ -6,6 +6,7 @@ export * from "./fit";
 export * from "./generate";
 export * from "./grades";
 export * from "./ics";
+export * from "./install";
 export * from "./plans";
 export * from "./problems";
 export * from "./schema";

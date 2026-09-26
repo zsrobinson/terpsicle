@@ -6,8 +6,11 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { loadRecoveryScript } from "~/app/load-recovery";
+import { Pwa } from "~/app/pwa";
+import { pwaLinks, pwaMeta, themeColorMeta } from "~/app/pwa-head";
 import { sidebarWidthInitScript } from "~/app/sidebar-width";
 import { themeInitScript } from "~/app/theme";
+import { installPromptInitScript } from "~/features/install/install-capture";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import appCss from "../styles.css?url";
@@ -22,10 +25,12 @@ export const Route = createRootRoute({
         name: "description",
         content: "A fast, clear class scheduler for UMD students.",
       },
+      ...pwaMeta,
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      ...pwaLinks,
     ],
   }),
   shellComponent: RootDocument,
@@ -44,6 +49,16 @@ function RootDocument({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: sidebarWidthInitScript }} />
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; it must listen before the app's scripts load */}
         <script dangerouslySetInnerHTML={{ __html: loadRecoveryScript }} />
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; Chrome's install prompt can fire before the app's scripts load */}
+        <script dangerouslySetInnerHTML={{ __html: installPromptInitScript }} />
+        {themeColorMeta.map(({ content, media }) => (
+          <meta
+            key={media}
+            name="theme-color"
+            content={content}
+            media={media}
+          />
+        ))}
         <HeadContent />
       </head>
       <body>
@@ -59,6 +74,7 @@ function RootLayout() {
     <TooltipProvider>
       <Outlet />
       <Toaster />
+      <Pwa />
     </TooltipProvider>
   );
 }

@@ -16,7 +16,6 @@ import { useUi } from "~/state/ui-store";
 import { trackCatalogEvent } from "./actions";
 import { AppShell, type AppShellProps } from "./app-shell";
 import { type ClientConfig, clientConfig } from "./config";
-import { registerServiceWorker } from "./service-worker-registration";
 import { applyThemePreference } from "./theme";
 
 /** The app: loads local state and the catalog, then shows the shell. */
@@ -28,7 +27,6 @@ export function App(props: AppShellProps) {
 function useBootstrap(config: ClientConfig) {
   useEffect(() => {
     let cancelled = false;
-    registerServiceWorker(config);
     let persistence: Persistence | undefined;
     const db = new TerpsicleDb();
     // Apart from plans: a broken alerts table mustn't block the schedule.

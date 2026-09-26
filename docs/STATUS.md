@@ -61,12 +61,15 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
   - `public/_headers` makes `/assets/*` `immutable` for a year. The files are content-hashed; before this, the default was `max-age=0, must-revalidate`.
   - A head script (`src/app/load-recovery.ts`) reloads the page once when a build file fails to load (a script or stylesheet `error`, `vite:preloadError`, or a failed dynamic import). Plans and the open tab are saved, so the reload lands the person where they were. A `sessionStorage` timestamp allows at most one automatic reload per 5 minutes; after that, a small card explains and offers Reload. The generate worker reports its own load failure (#19).
   - **We don't serve old versions' files from R2.** We considered copying every build's `assets/` to R2 in the deploy workflow and falling back to it from the Worker for missing files. That needs upload credentials in CI, a retention and pruning policy, and a second source of truth for build files, all to save a single reload that already lands in the same place.
-- **Service worker (`/sw.js`, served by the Worker from `src/server/service-worker.ts`) exists only so a reload works offline.**
-  - Pages are network-first, so every online load gets the current deploy; the last copy is used only when the network fails.
-  - `/assets/*` are cache-first as they're fetched, capped at 400 files.
-  - `/data`, `/api` and analytics pass through. IndexedDB already holds the data.
-  - It's registered in production builds only.
+- **Service worker (`/sw.js`, served by the Worker from `src/server/service-worker.ts`): the installable app, offline loads and push** (`v2/pwa`; DATA.md §5.2).
+  - Pages are network-first, so every online load gets the current deploy; the last copy (or the `/schedule` app's) is used only when the network fails.
+  - The app shell's hashed files are precached at install, from the client build's chunk graph (`scripts/pwa-precache.ts` hands the list to the Worker's build). Other `/assets/*` are cache-first as they're fetched, capped at 400 files.
+  - `/api` and `/data` are never cached: IndexedDB already holds the data, and stale-while-revalidate would fight the manifests' `no-cache` (the 60 s poll would see a new catalog one poll late). Analytics pass through.
+  - A new version waits; open tabs show a quiet "Update ready" toast with Reload (`src/app/update-toast.tsx`), and tabs check for one when they come back into view (at most every 30 min).
+  - Push: shows `PushPayloadSchema` payloads; a click focuses a tab on the URL, else navigates an open one, else opens a window.
+  - Registered on every page in production builds; in dev and mock mode only with `localStorage["terpsicle:service-worker"] = "on"` (e2e uses it).
   - To retire it, serve a `/sw.js` that calls `self.registration.unregister()`. Browsers check `/sw.js` on every navigation, so the change spreads on the next visit. Bumping `SERVICE_WORKER_VERSION` drops its caches.
+- **Installable app** (`v2/pwa`): `public/manifest.webmanifest` (`start_url` `/schedule`, scope `/`, standalone) and icons rebuilt from `public/favicon.svg` by `pnpm tsx scripts/icons.ts` (the SVG's first `<rect>` is the tile that full-bleed icons extend). The install prompt is `offerInstall(reason)` from `~/features/install/install-store`, wired to "enabled-alerts" on the seat-alert confirm page; the "Install app" entry is at the foot of the rail (in the theme menu on phones) until `/settings` exists (`InstallAppSetting`).
 
 ## Known issues
 

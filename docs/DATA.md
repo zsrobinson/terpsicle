@@ -267,6 +267,12 @@ The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cac
 - Hashed files are put as they arrive, and the manifest is committed (with the eviction of step 4, in one transaction) once every file it lists is saved. The invariant is the same, and an interrupted first load resumes from the files it already has.
 - Mock mode prefixes its rows with `mock:`, since `pnpm dev` and `pnpm dev:mock` share localhost. A cache row records nothing about schema versions; instead the pointer `_schema-versions` does, and a build with a different version for a family clears that family first.
 
+### 5.2 The installable app (service worker, install prompt, push)
+- **Service worker** (`/sw.js`, `src/server/service-worker.ts`): one for the whole site. It keeps pages (network-first) and build files in Cache Storage (`terpsicle-pages-v<n>`, `terpsicle-assets-v<n>`, and `terpsicle-shell-v<n>-<build>` for the app shell precached at install). It never caches `/api/*` or `/data/*`: IndexedDB already keeps the data, and the manifests must revalidate (§2.5, §5.1).
+- **Install prompt** (`src/features/install`): `localStorage["terpsicle:install-prompt"]` holds `InstallPromptPrefsSchema` (`{lastOfferedAt, never}`); `sessionStorage["terpsicle:install-offered"]` marks a tab where the prompt already opened. A key moment (`offerInstall(reason)`) opens it only where installing works, never in the installed app, at most once per session, not within 30 days of the last time, and never after "Don't ask again". Unreadable or blocked storage falls back to once per page load.
+- **Push payload** (`PushPayloadSchema`): `{title, body, url, tag?}`. `url` is a path on this site; a click focuses a window already there, or opens one. A newer notification with the same `tag` replaces the older one. The service worker repeats the schema's checks by hand (it can't load zod) and shows a generic "Open Terpsicle" notification for a payload it can't read.
+- **Dev flag:** `localStorage["terpsicle:service-worker"] = "on"` registers the service worker outside production builds.
+
 ---
 
 ## 6. Travel math (`core/travel`)
