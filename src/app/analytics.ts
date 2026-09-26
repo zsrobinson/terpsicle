@@ -5,12 +5,14 @@ import type {
   ConnectionVerdict,
   ExtraMinutes,
   InstallTrigger,
+  ModerationKind,
   Pace,
   ProblemFix,
   ProblemKind,
   RailTab,
   RankBy,
   Relaxable,
+  ReportReason,
   SignInError,
   TermId,
   TermStatus,
@@ -107,13 +109,20 @@ export interface AnalyticsEvents {
   };
   pwa_installed: NoProperties;
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
-  signin_started: { from: "topbar" | "settings" | "signin-page" | "undo" };
+  signin_started: {
+    from: "topbar" | "settings" | "signin-page" | "undo" | "reviews";
+  };
   signin_completed: { firstOnDevice: boolean };
   signin_failed: { reason: SignInError };
   signed_out: { removedLocal: boolean };
   account_deletion_requested: NoProperties;
   // Plan sync (V2.md §11): counts only, never plan names or courses.
   sync_first_sign_in: { uploaded: number; renamed: number; copies: number };
+  // Reviews (V2.md §11). Never a review, instructor or course on writing events.
+  reviews_page_viewed: { page: "home" | "instructor" | "course" };
+  review_form_opened: NoProperties;
+  review_submitted: { outcome: "published" | "held" | "rejected" };
+  report_created: { surface: ModerationKind; reason: ReportReason };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 
