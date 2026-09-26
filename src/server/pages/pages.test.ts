@@ -128,7 +128,7 @@ describe("the render context", () => {
     await get("https://terpsicle.com/reviews", undefined, {
       ...env,
       REVIEWS_ENABLED: "off",
-    });
+    } as unknown as Env);
     const off = app.fetch.mock.calls[0]?.[1]?.context;
     expect(off?.reviews).toBeNull();
     expect(await off?.published.readJson("planetterp/manifest.json")).toEqual({

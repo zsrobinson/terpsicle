@@ -72,7 +72,11 @@ describe("sitemap", () => {
 
   it("lists every instructor PlanetTerp's index knows", async () => {
     const xml = await (
-      await get("/sitemaps/instructors.xml", { ...env, REVIEWS_ENABLED: "off" })
+      await get("/sitemaps/instructors.xml", {
+        ...env,
+        // Env types each var as its wrangler.jsonc value.
+        REVIEWS_ENABLED: "off",
+      } as unknown as Env)
     ).text();
     expect(xml).toContain(
       "<loc>https://terpsicle.com/reviews/instructors/kruskal</loc>",
