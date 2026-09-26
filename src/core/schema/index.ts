@@ -6,6 +6,7 @@ export * from "./catalog";
 export * from "./chat";
 export * from "./generate";
 export * from "./geo";
+export * from "./ics-feed";
 export * from "./keys";
 export * from "./local";
 export * from "./moderation";
