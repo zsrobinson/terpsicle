@@ -1,4 +1,4 @@
-import { useUi } from "./ui-store";
+import { restoreNavigation, useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";
 
 // `?demo=1` in `pnpm dev:mock` loads the fixtures' demo plans (a returning
@@ -30,5 +30,6 @@ export async function loadDemoState(): Promise<void> {
     past: [],
     future: [],
   });
-  useUi.setState({ lastTermId: null, stack: [], tab: "courses" });
+  useUi.setState({ lastTermId: null });
+  restoreNavigation({ stack: [], tab: "courses" });
 }
