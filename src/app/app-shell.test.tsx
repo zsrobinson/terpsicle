@@ -38,8 +38,8 @@ const fakePanels = definePanels({
   drills: {
     course: {
       component: ({ entry }) => <p>Details for {entry.courseCode}</p>,
-      crumb: (entry) => entry.courseCode,
-      monoCrumb: true,
+      name: (entry) => entry.courseCode,
+      monoName: true,
     },
   },
 });
@@ -105,7 +105,7 @@ describe("AppShell", () => {
     expect(tooltip).toHaveTextContent("Travel4");
   });
 
-  it("drills in with a breadcrumb, and Esc returns to exactly where you were", async () => {
+  it("drills in under one Back, and Esc returns to exactly where you were", async () => {
     const { user } = await renderShell({ panels: [fakePanels] });
     await user.click(railTab("Search"));
     const field = screen.getByRole("textbox", { name: "Search courses" });
@@ -114,8 +114,12 @@ describe("AppShell", () => {
     results.scrollTop = 40;
 
     await user.click(screen.getByRole("button", { name: "CMSC351" }));
-    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(crumbs).toHaveTextContent("SearchCMSC351");
+    expect(
+      screen.getByRole("button", { name: "Back to Search" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("CMSC351", { selector: "[aria-current=page]" }),
+    ).toBeVisible();
     expect(screen.getByText("Details for CMSC351")).toBeVisible();
     expect(
       screen.queryByRole("textbox", { name: "Search courses" }),
@@ -130,13 +134,46 @@ describe("AppShell", () => {
     expect(results.scrollTop).toBe(40);
   });
 
-  it("the breadcrumb's first level goes back to the tab", async () => {
+  it("Back returns to the tab", async () => {
     const { user } = await renderShell({ panels: [fakePanels] });
     await user.click(railTab("Search"));
     await user.click(screen.getByRole("button", { name: "CMSC351" }));
-    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
-    await user.click(within(crumbs).getByRole("button", { name: "Search" }));
+    await user.click(screen.getByRole("button", { name: "Back to Search" }));
     expect(screen.getByRole("heading", { name: "Search" })).toBeVisible();
+  });
+
+  it("course to course shows one Back, to the course before, never a trail", async () => {
+    const { user } = await renderShell({ panels: [fakePanels] });
+    await user.click(railTab("Search"));
+    await user.click(screen.getByRole("button", { name: "CMSC351" }));
+    act(() => {
+      useUi.getState().drill({ kind: "course", courseCode: "CMSC330" });
+    });
+    expect(screen.getByText("Details for CMSC330")).toBeVisible();
+    const back = screen.getByRole("button", { name: "Back to CMSC351" });
+    expect(screen.queryByRole("button", { name: "Back to Search" })).toBeNull();
+    await user.click(back);
+    expect(screen.getByText("Details for CMSC351")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Back to Search" }));
+    expect(screen.getByRole("heading", { name: "Search" })).toBeVisible();
+  });
+
+  it("labels Back with the view history returns to, when there's one", async () => {
+    const { user } = await renderShell({ panels: [fakePanels] });
+    await user.click(railTab("Search"));
+    act(() => {
+      useUi.getState().drill({ kind: "course", courseCode: "CMSC351" });
+      useUi.setState({ historyBack: { label: "Courses", mono: false } });
+    });
+    expect(
+      screen.getByRole("button", { name: "Back to Courses" }),
+    ).toBeVisible();
+    // Back to the same view (another plan's CMSC351) just says Back.
+    act(() => {
+      useUi.setState({ historyBack: { label: "CMSC351", mono: true } });
+    });
+    await user.hover(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("BackEsc");
   });
 
   it("clicking the open tab while drilled in goes back before collapsing", async () => {
