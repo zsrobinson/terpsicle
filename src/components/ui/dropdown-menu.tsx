@@ -55,7 +55,7 @@ function DropdownMenuContent({
         // Keeps menus off the screen's edge on phones.
         collisionPadding={collisionPadding}
         className={cn(
-          "z-50 min-w-[180px] overflow-y-auto overflow-x-hidden rounded-lg border border-hairline bg-raised p-1 text-fg shadow-pop",
+          "z-50 min-w-[180px] overflow-y-auto overflow-x-hidden border border-keyline bg-raised p-1 text-fg shadow-pop",
           "max-h-(--radix-dropdown-menu-content-available-height) origin-(--radix-dropdown-menu-content-transform-origin)",
           "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=open]:slide-in-from-top-1 data-[state=open]:animate-in data-[state=open]:duration-150",
           className,

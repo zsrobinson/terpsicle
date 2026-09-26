@@ -1,6 +1,6 @@
 # Terpsicle v2
 
-A UMD class scheduler at terpsicle.com, plus Terpsicle Reviews (`/reviews`) and Terpsicle Chat (`/chat`) in v2. Before changing anything, read in this order: `docs/SPEC.md` (what), `docs/DESIGN.md` (why, and the owner's taste), then `docs/BUILD.md` (how), and `docs/DATA.md` (the data contract: R2 layout, schemas, local storage). For v2 work (accounts, sync, PWA, notifications, reviews, chat, moderation, admin), `docs/V2.md` is the plan and wins over the older docs where they differ. Current progress and decisions live in `docs/STATUS.md`. The clickable design reference is `reference/prototype/built/final.html`, with screenshots in `reference/prototype/screenshots/`.
+UMD academic planning tools at terpsicle.com, in color order: the scheduler (`/schedule`, red), Terpsicle Reviews (`/reviews`, purple), Terpsicle Chat (`/chat`, blue), Terpsicle Plan (`/plan`, green) and Terpsicle Todo (`/todo`, yellow). Before changing anything, read in this order: `docs/SPEC.md` (what), `docs/DESIGN.md` (why, and the owner's taste), then `docs/BUILD.md` (how), and `docs/DATA.md` (the data contract: R2 layout, schemas, local storage). For v2 work (accounts, sync, PWA, notifications, reviews, chat, moderation, admin), `docs/V2.md` is the plan and wins over the older docs where they differ; for Plan and Todo, `docs/V3.md` is. Current progress and decisions live in `docs/STATUS.md`. The clickable design reference is `reference/prototype/built/final.html`, with screenshots in `reference/prototype/screenshots/`.
 
 ## Commands
 - `pnpm i`: install

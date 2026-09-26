@@ -9,6 +9,7 @@ One-off objects for tests. Each returns a schema-valid value with defaults taken
 | Area | Builders |
 |---|---|
 | Catalog | `aTerm`, `aTermsFile`, `aTimedMeeting` (= `aMeeting`), `anUntimedMeeting` (async online), `aTbaMeeting` (days TBA, with a room), `aSection`, `aCourse`, `aDeptChunk`, `aSeatTuple`, `aSeatsFile`, `aSectionSnapshot`, `snapshotOf(section)`, `aCatalogChange`, `aChangesFile`, `aManifestDepartment`, `aManifest` |
+| Course index | `aCourseIndexEntry`, `aCourseIndexDept`, `aCourseSearchFile`, `aCourseIndexManifest` |
 | Plans | `aPlanCourse`, `aSavedCourse`, `aPlan`, `aBlock`, `aSharePayload` |
 | Plan sync | `aSettingsDoc`, `aPlanSyncDoc` (a tombstone with `body: null`), `aSettingsSyncDoc` |
 | PlanetTerp | `anInstructor`, `someGrades` (by letter), `gradeCountsFrom`, `aGradeRecord`, `someCourseGrades`, `aPlanetTerpDept`, `aReviewSummary` |
@@ -45,6 +46,8 @@ Don't hand-roll these objects in tests (CLAUDE.md).
 - `get(key)` returns the exact bytes, or `null` where R2 would 404;
 - `json(key)` returns parsed JSON;
 - `keys()` lists the keys.
+
+It includes the course index (`courses/`, `docs/DATA.md` §3.4), built from the mock catalog's two terms by the same core functions the catalog job runs.
 
 In mock mode (`VITE_DATA_SOURCE=mock`), the data layer calls `mockDataSource.get(key)` where it would `fetch(\`${dataBaseUrl}/${key}\`)`. Everything else stays on the same code path: manifest diffing, hashing, schema checks and caching. Load `~/fixtures` with a dynamic `import()` in mock mode only, so production bundles never include it. There are no map tiles offline.
 

@@ -1,0 +1,49 @@
+SYNTHETIC FIXTURE: invented courses and grades, not a real student's transcript.
+Shaped like v1's 2025 format. Replace with a redacted real paste (docs/V3.md §2.10, §10).
+
+Unofficial Transcript                                   Sam Testudo
+UID XXXXXXXXX                                           sam.testudo@example.edu
+Birth Date: 01/01/2000
+Program: Computer Science (CMNS)
+
+Transfer Credit
+  Advanced Placement Examinations
+    AP CALCULUS BC                    P     MATH141   4.00   FSAR, FSMA
+    AP CALCULUS AB                    P     MATH140   4.00   FSAR, FSMA
+    AP ENGLISH LANG & COMP            P     ENGL101   3.00   FSAW
+    AP PHYSICS C MECHANICS            P     PHYS161   3.00   DSNS
+    AP US HISTORY                     NC                     Credit not granted
+    AP PSYCHOLOGY                     P     PSYC100   3.00   DSHS or DSNS
+    AP CHEMISTRY                      P     CHEM 1XX  4.00   DSNL
+  Montgomery College
+    2   INTRO TO SOCIOLOGY            A     SOCY100   3.00   DSHS, DVUP
+    2   WORLD RELIGIONS               B+    RELS 1XX  3.00   DSHU
+    2   PUBLIC SPEAKING               B                3.00
+    2   COLLEGE ALGEBRA               C-    MATH115   3.00
+
+Fall 2024
+    CMSC131  OBJECT-ORIENTED PROG I           A-    4.00    4.00   14.80
+    MATH240  INTRO TO LINEAR ALGEBRA          B+    4.00    4.00   13.20
+    CMSC100  BITCAMP                          A     1.00    1.00    4.00
+    ARTH200  ART & SOCIETY IN ANCIENT WORLD   A     3.00    3.00   12.00   DSHU, SCIS
+    ECON200  PRINCIPLES OF MICRO-ECONOMICS    B     4.00    4.00   12.00   DSHS
+    Meth = Reg     Sem: 16.00 crds   GPA 3.50
+    ==========================================================
+
+Winter 2025
+    PHIL140  CONTEMP MORAL ISSUES             A     3.00    3.00   12.00   DSHU
+    Meth = Reg     Sem: 3.00 crds   GPA 4.00
+    ==========================================================
+
+Spring 2025
+    CMSC132  OBJECT-ORIENTED PROG II          B+    4.00    4.00   13.20
+    CMSC250  DISCRETE STRUCTURES              A-    4.00    4.00   14.80
+    ENGL393  TECHNICAL WRITING                A     3.00    3.00   12.00   FSPW
+    AASP100  INTRO AFRICAN AMER STUDIES       A     3.00    3.00   12.00   DSHS or DSHU, DVUP
+    Meth = Reg     Sem: 14.00 crds   GPA 3.62
+    ==========================================================
+
+Summer 2025
+    STAT400  APPLIED PROBABILITY & STATS I    B     3.00    3.00    9.00
+    Meth = Reg     Sem: 3.00 crds   GPA 3.00
+    ==========================================================
