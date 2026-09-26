@@ -12,5 +12,6 @@ export * from "./primitives";
 export * from "./problems";
 export * from "./settings";
 export * from "./share";
+export * from "./sync";
 export * from "./travel";
 export * from "./versions";

@@ -34,6 +34,7 @@ import {
   type PlanCourse,
   type PlanetTerpDept,
   type PlanetTerpSource,
+  type PlanSyncDoc,
   PROBLEM_SEVERITY,
   type Problem,
   type Review,
@@ -43,6 +44,8 @@ import {
   type SeatTuple,
   type Section,
   type SectionSnapshot,
+  type SettingsDoc,
+  type SettingsSyncDoc,
   type SharePayload,
   type StoredReviews,
   type Term,
@@ -311,6 +314,51 @@ export function aBlock(overrides: Partial<Block> = {}): Block {
     days: ["M", "W", "F"],
     start: 720,
     end: 780,
+    ...overrides,
+  };
+}
+
+/** The settings doc (plan sync): one block, one course color, default travel. */
+export function aSettingsDoc(
+  overrides: Partial<SettingsDoc> = {},
+): SettingsDoc {
+  return {
+    blocks: [aBlock()],
+    colors: { CMSC351: "blue" },
+    travel: DEFAULT_TRAVEL_SETTINGS,
+    chatPlans: {},
+    ...overrides,
+  };
+}
+
+/**
+ * A plan's doc as the server returns it, at rev 1. Its id follows the body's;
+ * pass `body: null` and an `id` for a tombstone.
+ */
+export function aPlanSyncDoc(
+  overrides: Partial<PlanSyncDoc> = {},
+): PlanSyncDoc {
+  const body = overrides.body === undefined ? aPlan() : overrides.body;
+  return {
+    kind: "plan",
+    id: body?.id ?? "plan_fixture_a",
+    rev: 1,
+    updatedAt: FIXTURE_NOW,
+    ...overrides,
+    body,
+  };
+}
+
+/** The settings doc as the server returns it, at rev 1. */
+export function aSettingsSyncDoc(
+  overrides: Partial<SettingsSyncDoc> = {},
+): SettingsSyncDoc {
+  return {
+    kind: "settings",
+    id: "settings",
+    rev: 1,
+    updatedAt: FIXTURE_NOW,
+    body: aSettingsDoc(),
     ...overrides,
   };
 }

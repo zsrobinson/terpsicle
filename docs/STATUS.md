@@ -24,7 +24,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 |---|---|---|
 | V0: Plan | `v2/plan` | In review |
 | V1: Foundations | `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation` | In flight |
-| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | Not started |
+| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | `v2/sync-merge` in review |
 | V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Not started |
 | V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | Not started |
 | V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | Not started |
@@ -32,6 +32,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 
 **v2 decisions** (details in `docs/V2.md`):
 - **Plan sync is plain server-side storage**, encrypted at rest by Cloudflare, not end-to-end encrypted. The orchestrator's call, flagged for the owner: it lets Chat derive rooms from plans and keeps recovery simple.
+- **Plan sync is not a sync engine:** one doc per plan plus one settings doc, saved whole with per-doc rev compare-and-swap. A conflicting plan is never merged; the person gets both, the local one as "<name> (copy)". The core (`src/core/sync`) is in `v2/sync-merge`.
 - **PR previews sign in with a fixed test mode** (`AUTH_TEST_MODE`, fixture identities), not a production broker: previews run unreviewed code and have their own D1, and CI needs a deterministic sign-in anyway.
 - **Seat alerts retire the email-token flow** rather than migrate it; nothing is public, and the only real subscriptions were the owner's deleted test rows.
 - **One Worker** (`terpsicle`) with one Durable Object class (`CourseChat`, one object per course per term), the one exception to BUILD.md §1's no-Durable-Objects rule.
