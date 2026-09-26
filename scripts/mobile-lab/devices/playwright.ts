@@ -48,7 +48,9 @@ async function kernelLog(): Promise<string[] | null> {
       const { stdout } = await run(command, [...args], {
         maxBuffer: 32 * 1024 * 1024,
       });
-      return stdout.split("\n");
+      // Without the empty string after the last newline: counting it made
+      // the next look skip the first new line (the segfault itself).
+      return stdout.split("\n").filter((l) => l.trim());
     } catch (error) {
       // Not allowed here; try the next way, or give up.
       console.error(`  kernel log: ${command} failed: ${error}`);
@@ -206,7 +208,7 @@ class PlaywrightDevice implements Device {
         this.kernelSeen = lines.length;
         return null;
       }
-      const fresh = lines.slice(this.kernelSeen ?? 0).filter((l) => l.trim());
+      const fresh = lines.slice(this.kernelSeen ?? 0);
       if (
         fresh.some((l) =>
           /segfault|general protection|killed process|out of memory/i.test(l),
