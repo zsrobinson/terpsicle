@@ -14,8 +14,10 @@ import {
   TermsFileSchema,
 } from "~/core/schema";
 import type { BlobStore } from "./blob-store";
+import { publishCourseIndex } from "./course-index";
 import { type HttpClient, MAX_CONCURRENCY, mapLimit } from "./http";
 import {
+  deleteOrphans,
   type Logger,
   readJson,
   readJsonOrNull,
@@ -36,7 +38,7 @@ import { activeTermIds, mergeTerms } from "./soc/terms";
 // The catalog job (DATA.md §2–3): Testudo's term list → terms.json, then per
 // active term every department page plus its sections → one hashed chunk per
 // department and the term manifest. Unchanged departments keep their hash and
-// aren't rewritten.
+// aren't rewritten. Then the course index across every term (course-index.ts).
 
 export interface CatalogOptions {
   http: HttpClient;
@@ -47,6 +49,8 @@ export interface CatalogOptions {
   terms?: readonly string[];
   /** Limit to these departments (scripts, tests). Others keep their previous entry. */
   departments?: readonly string[];
+  /** Publish the course index after the crawl (default true). */
+  courseIndex?: boolean;
 }
 
 export interface CatalogResult {
@@ -59,6 +63,9 @@ export interface CatalogResult {
   courses: number;
   sections: number;
   deleted: number;
+  /** Courses in the course index, and its files written this run. */
+  indexCourses: number;
+  indexWritten: number;
   errors: string[];
 }
 
@@ -76,9 +83,6 @@ const orphansKey = (termId: string) =>
   `${JOBS_PREFIX}catalog/${termId}/orphans.json`;
 const OrphansSchema = z.object({ firstSeen: z.record(z.string(), z.string()) });
 
-/** Hashed files no manifest references are deleted once they've been orphaned this long. */
-export const ORPHAN_GRACE_MS = 24 * 3600 * 1000;
-
 export async function runCatalog(
   options: CatalogOptions,
 ): Promise<CatalogResult> {
@@ -93,6 +97,8 @@ export async function runCatalog(
     courses: 0,
     sections: 0,
     deleted: 0,
+    indexCourses: 0,
+    indexWritten: 0,
     errors: [],
   };
 
@@ -140,6 +146,21 @@ export async function runCatalog(
     await writeJson(store, BUILDING_ROOMS_KEY, {
       codes: { ...(previous?.codes ?? {}), ...rooms },
     } satisfies BuildingRooms);
+  }
+
+  if (options.courseIndex !== false) {
+    // The catalog is published either way; a failed index keeps its last files.
+    try {
+      const index = await publishCourseIndex({ store, now, log });
+      result.indexCourses = index.courses;
+      result.indexWritten = index.written;
+      result.deleted += index.deleted;
+      result.errors.push(...index.errors);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      result.errors.push(`course index: ${message}`);
+      log.error("Left the course index as it was", { error: message });
+    }
   }
   return result;
 }
@@ -282,27 +303,19 @@ async function collectGarbage(
   if (manifest.changes)
     referenced.add(changesKey(termId, manifest.changes.hash));
 
-  const hashed = /\.[0-9a-f]{16}\.json$/;
-  const keys = (await store.list(`catalog/${termId}/`)).filter(
-    (k) => hashed.test(k) && !referenced.has(k),
-  );
   const previous = await readJsonOrNull(
     store,
     orphansKey(termId),
     OrphansSchema,
     log,
   );
-  const firstSeen: Record<string, string> = {};
-  let deleted = 0;
-  for (const key of keys) {
-    const since = previous?.firstSeen[key] ?? now.toISOString();
-    if (now.getTime() - Date.parse(since) >= ORPHAN_GRACE_MS) {
-      await store.delete(key);
-      deleted++;
-    } else {
-      firstSeen[key] = since;
-    }
-  }
+  const { deleted, firstSeen } = await deleteOrphans(
+    store,
+    `catalog/${termId}/`,
+    referenced,
+    previous?.firstSeen ?? {},
+    now,
+  );
   await writeJson(store, orphansKey(termId), { firstSeen });
   return deleted;
 }

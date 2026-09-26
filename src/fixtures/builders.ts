@@ -16,6 +16,10 @@ import {
   type ConnectionEnd,
   type Course,
   type CourseGrades,
+  type CourseIndexDept,
+  type CourseIndexEntry,
+  type CourseIndexManifest,
+  type CourseSearchFile,
   connectionId,
   courseRoomId,
   DEFAULT_GENERATE_LIMITS,
@@ -273,6 +277,60 @@ export function aManifest(overrides: Partial<Manifest> = {}): Manifest {
       fetchedAt: FIXTURE_NOW,
     },
     changes: { hash: FIXTURE_HASH, count: 1, latestAt: FIXTURE_NOW },
+    ...overrides,
+  };
+}
+
+// ---------- course index ----------
+
+/** CMSC351 as the course index has it: listed in both mock terms. */
+export function aCourseIndexEntry(
+  overrides: Partial<CourseIndexEntry> = {},
+): CourseIndexEntry {
+  return {
+    code: "CMSC351",
+    title: "Algorithms",
+    credits: { min: 3, max: 3 },
+    genEds: [],
+    prerequisite: "Minimum grade of C- in CMSC250 and CMSC216.",
+    corequisite: null,
+    restriction: null,
+    crossListings: [],
+    prereqs: { groups: [["CMSC250"], ["CMSC216"]], complete: true },
+    offered: [fixtureTermId, archivedFixtureTermId],
+    ...overrides,
+  };
+}
+
+export function aCourseIndexDept(
+  overrides: Partial<CourseIndexDept> = {},
+): CourseIndexDept {
+  return {
+    schemaVersion: 1,
+    dept: "CMSC",
+    courses: [aCourseIndexEntry()],
+    ...overrides,
+  };
+}
+
+export function aCourseSearchFile(
+  overrides: Partial<CourseSearchFile> = {},
+): CourseSearchFile {
+  return {
+    schemaVersion: 1,
+    courses: [["CMSC351", "Algorithms", 3, 3, []]],
+    ...overrides,
+  };
+}
+
+export function aCourseIndexManifest(
+  overrides: Partial<CourseIndexManifest> = {},
+): CourseIndexManifest {
+  return {
+    schemaVersion: 1,
+    generatedAt: FIXTURE_NOW,
+    search: { hash: FIXTURE_HASH },
+    departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
     ...overrides,
   };
 }

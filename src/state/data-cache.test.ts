@@ -80,6 +80,33 @@ describe("the Dexie cache", () => {
     expect((await cache.getPointer("manifest"))?.data).toEqual({ v: 2 });
   });
 
+  it("evicts a term-less family's files by family (the course index)", async () => {
+    for (const cache of [createDexieCache(db), createMemoryCache()]) {
+      await cache.putFiles([
+        file("courses/old", { family: "courses", termId: null }),
+        file("courses/kept", { family: "courses", termId: null }),
+        file("geo", { family: "geo", termId: null }),
+        file("catalog"),
+      ]);
+      await cache.commit(
+        { key: "courses/manifest.json", data: { v: 2 }, checkedAt: AT },
+        [],
+        { termId: null, family: "courses", keep: new Set(["courses/kept"]) },
+      );
+      const found = await cache.getFiles([
+        "courses/old",
+        "courses/kept",
+        "geo",
+        "catalog",
+      ]);
+      expect([...found.keys()].sort()).toEqual([
+        "catalog",
+        "courses/kept",
+        "geo",
+      ]);
+    }
+  });
+
   it("keeps mock and live data apart", async () => {
     const live = createDexieCache(db);
     const mock = createDexieCache(db, "mock:");

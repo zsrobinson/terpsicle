@@ -4,6 +4,7 @@ export * from "./auth";
 export * from "./calendar";
 export * from "./catalog";
 export * from "./chat";
+export * from "./course-index";
 export * from "./generate";
 export * from "./geo";
 export * from "./ics-feed";
