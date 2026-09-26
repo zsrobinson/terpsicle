@@ -577,6 +577,57 @@ export class CourseChat extends DurableObject<Env> {
   }
 
   /**
+   * What reports/create needs about a message (docs/MODERATION.md §6), for
+   * someone reporting it: whether they wrote it, whether classmates see it
+   * now, and its text for the owner's queue (never its author). Null when
+   * the reporter couldn't be looking at it: no such message, a room they
+   * can't read, or one held from everyone but its author. One taken down by
+   * reports may still be on someone's screen, so it's still found.
+   */
+  async reportTarget(target: {
+    termId: string;
+    courseCode: string;
+    messageId: string;
+    reporterId: string;
+  }): Promise<{ own: boolean; shown: boolean; text: string } | null> {
+    this.#bind(target.termId, target.courseCode);
+    const row = this.#store.message(target.messageId);
+    if (!row) return null;
+    if (row.author_id === target.reporterId)
+      return { own: true, shown: row.status === "visible", text: row.body };
+    const reported = row.status === "held" && row.held_reason === "reported";
+    if (row.status !== "visible" && !reported) return null;
+    const [course, sections] = await Promise.all([
+      this.#course(),
+      planSections(
+        this.env.DB,
+        target.reporterId,
+        target.termId,
+        target.courseCode,
+      ),
+    ]);
+    if (!course || !canReadRoom(course.tree, row.room_id, sections))
+      return null;
+    return { own: false, shown: row.status === "visible", text: row.body };
+  }
+
+  /**
+   * Reports reached the hiding weight (V2 §9.3): the message goes back to
+   * its author only until a person decides. False if it wasn't showing.
+   */
+  async hideReported(target: {
+    termId: string;
+    courseCode: string;
+    messageId: string;
+  }): Promise<boolean> {
+    this.#bind(target.termId, target.courseCode);
+    const row = this.#store.message(target.messageId);
+    if (row?.status !== "visible") return false;
+    await this.#apply(row.id, { state: "held", reason: "reported" }, row.body);
+    return true;
+  }
+
+  /**
    * Moves a message to a moderation state and tells whoever may see the
    * change. `screenedText`: the text the decision was about; if the author
    * edited it since, the edit's own screening decides instead.

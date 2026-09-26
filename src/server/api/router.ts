@@ -15,6 +15,7 @@ import {
   FeatureVarsSchema,
   ManageInputSchema,
   MeInputSchema,
+  type ModerationKind,
   QueueListInputSchema,
   ReportCreateInputSchema,
   ResolveInputSchema,
@@ -91,7 +92,7 @@ import {
   type ModerationHandlers,
   moderationHandlers,
 } from "../moderation/handlers";
-import { createReport } from "../moderation/reports";
+import { createReport, reportTargets } from "../moderation/reports";
 import type { ModerationEnv } from "../moderation/service";
 import {
   deleteReview,
@@ -356,15 +357,17 @@ export const ROUTES = {
     reviews: "read",
     handle: (env, _input, ctx) => myReviews(env, ctx),
   }),
-  // Shared with Chat (V2.md §9.3); only reviews take reports so far, so it
-  // follows Reviews' switch until Chat lands.
+  // Shared by Reviews and Chat (V2.md §9.3): each surface follows its own
+  // switch, and reporting works while it's read-only.
   "reports/create": route({
     input: ReportCreateInputSchema,
     perUserPerHour: 30,
     alerts: false,
     auth: "user",
-    reviews: "read",
-    handle: (env, input, ctx) => createReport(env, input, ctx),
+    handle: async (env, input, ctx) =>
+      reportsOpen(env, input.surface)
+        ? createReport(env, input, ctx, reportTargets(env))
+        : apiError("unavailable"),
   }),
   // Terpsicle Todo (docs/V3.md §3.8). Each answers "unavailable" while
   // TODO_ENABLED is off or the feed key is missing (outside test mode).
@@ -477,6 +480,13 @@ const LEVELS: readonly FeatureLevel[] = ["off", "read", "on"];
 function reviewsAllow(env: ApiEnv, needed: FeatureLevel): boolean {
   const level = FeatureVarsSchema.parse(env).REVIEWS_ENABLED;
   return LEVELS.indexOf(level) >= LEVELS.indexOf(needed);
+}
+
+/** Whether a surface takes reports now: its switch is at least "read". */
+function reportsOpen(env: ApiEnv, surface: ModerationKind): boolean {
+  return surface === "review"
+    ? reviewsAllow(env, "read")
+    : FeatureVarsSchema.parse(env).CHAT_ENABLED !== "off";
 }
 
 /**

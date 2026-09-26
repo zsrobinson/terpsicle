@@ -166,10 +166,11 @@ The panel itself is `src/features/admin/` at `/admin` (the queue, with the healt
 
 **Reports** (V2 §9.3): `POST /api/reports/create {surface, ref, reason, note | null}`, `auth: "user"`, 30 per person per hour, in `src/server/moderation/reports.ts`.
 - Reasons: `personal-info`, `names-a-student`, `hate`, `threat`, `sexual`, `misconduct-claim`, `graded-work`, `off-topic`, `other`; a note of at most 300 characters.
-- Answers `reported` (also when this person already reported it: one report per person per item), `not-found` (nothing readers can see, or a surface that takes no reports yet: Chat adds its `ReportTarget` to `REPORT_TARGETS` when it lands), or `own` (you wrote it).
+- Answers `reported` (also when this person already reported it: one report per person per item), `not-found` (nothing the reporter could be reading), or `own` (you wrote it).
+- Each surface finds its items through a `ReportTarget` (`reportTargets(env)`): Reviews' reads D1. Chat's (`src/server/chat/report-target.ts`, `v2/chat-ui`) reaches the message's `CourseChat` object from the ref (`<termId>:<courseCode>:<messageId>`): `reportTarget` finds a message the reporter can read (visible, or taken down by reports and maybe still on their screen), with its text for the snapshot and never its author; `hideReported` holds it for its author only (`held: reported`) until a person decides, and the owner's approve or remove reaches it through Chat's handler as usual.
 - Every report puts the item in the owner's queue (`queueForOwner`) with one `reported` label per report reason (`{code: "reported", source: "reports", report}`). The labels only flag it, unless the reports **hide** it: 3 different people, or 1 report of `threat`, `personal-info` or `names-a-student` (`shouldHide` in `src/core/moderation/reports.ts`). Hiding logs `reports:hide` and makes the labels holds. A reported threat is urgent.
 - Only reports since the owner last **approved** the item count, so an approval settles them. The pure rules are in `src/core/moderation/reports.ts`; the reporter's id never reaches the queue.
-- `REVIEWS_ENABLED` gates the route (`read` or `on`) while reviews are the only surface.
+- Each surface follows its own switch: review reports need `REVIEWS_ENABLED` at `read` or `on`, chat reports `CHAT_ENABLED` at `read` or `on`; otherwise `unavailable`.
 
 ## 7. Configuration
 
@@ -239,5 +240,5 @@ Reading every message adds little latency, because the policy model runs beside 
 - **Scores near 0.5 wobble.** One harsh-but-fair review flipped between publish and hold across runs. That costs the owner a click, not a wrong publish.
 - **Decision rows are kept.** V2 says a year; nothing prunes them yet (it's the daily job's, V2 §13).
 - **V2 §9 and §10 describe this API** (`moderate()`, per-label scores, `admin/moderation/*`) and point here for details.
-- **Reports** landed with `v2/reviews-api` (§6). Chat reports wait for `v2/chat-do`'s `ReportTarget`.
+- **Reports** landed with `v2/reviews-api` (§6); chat reports with `v2/chat-ui`.
 - **Analytics:** no moderation events yet. When added, they carry counts and reason codes only, never text (`docs/ANALYTICS.md`).
