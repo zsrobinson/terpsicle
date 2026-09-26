@@ -263,7 +263,9 @@ export function traceChecks(frames: Frame[]): Check[] {
     });
   }
   // The focused field above the visible band at any frame: the page panned
-  // it out of sight, even if only for a moment.
+  // it out of sight, even if only for a moment. That's the owner's "you're
+  // no longer able to see where you're typing" (the drawer slid the field
+  // up out of a view the phone had panned down for the keyboard).
   const i = {
     top: FRAME_COLUMNS.indexOf("focusedTop") + 1,
     vvTop: FRAME_COLUMNS.indexOf("vvOffsetTop") + 1,
@@ -279,7 +281,7 @@ export function traceChecks(frames: Frame[]): Check[] {
     checks.push({
       id: "focused-field-never-above-view",
       ok: false,
-      severity: "warn",
+      severity: "fail",
       detail: `in ${hidden.length} frame(s) the focused field was above the visible area`,
     });
   return checks;
