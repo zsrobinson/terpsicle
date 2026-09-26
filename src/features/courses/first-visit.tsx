@@ -8,10 +8,10 @@ import { chooseFirstVisitPath } from "./actions";
 // "Build your <term> schedule" (SPEC §3.2): two equally weighted ways in,
 // shown on a first visit and whenever a plan is empty. The owner asked for
 // starting from scratch and generating to read as "equally valid paths"
-// (DESIGN §4b), so they sit side by side in two identical columns: the same
-// card, the same numbered steps, the same primary button. Stacked cards would
-// make the top one read as the recommended path, which is what the prototype
-// got wrong (one primary button plus a small "or generate" link).
+// (DESIGN §4b): the same card, the same numbered steps, the same primary
+// button. They stack (the owner found two columns too cramped in the
+// sidebar), so the heading says there are two ways, and neither card is
+// styled as the default.
 
 const BUILD_STEPS = [
   "Find your courses",
@@ -38,9 +38,9 @@ export function FirstVisit({ termName }: { termName: string | undefined }) {
         Build your {termName ?? "term"} schedule
       </h3>
       <p className="mt-0.5 px-1 text-muted text-sm">
-        Pick a way to start. You can switch anytime.
+        There are two ways to start. You can switch anytime.
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 flex flex-col gap-2">
         <Path
           title="Build it yourself"
           steps={BUILD_STEPS}
