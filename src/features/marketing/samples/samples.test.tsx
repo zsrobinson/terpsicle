@@ -99,7 +99,7 @@ describe("ChatSample", () => {
     const messages = within(
       screen.getByRole("list", { name: "Messages in CMSC351 0301" }),
     );
-    expect(messages.getAllByRole("listitem")).toHaveLength(3);
+    expect(messages.getAllByRole("listitem")).toHaveLength(6);
   });
 
   it("sends a message and gets a reply, from the keyboard", async () => {

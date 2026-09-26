@@ -233,9 +233,14 @@
   stroke-width: 2px;
   stroke-dasharray: 3 6;
 }
+/* Each label sits on a slip of paper, so a line passing under it never runs
+   through the words. */
 .mk-label {
   position: absolute;
   left: 0;
+  padding-inline: 4px;
+  margin-left: -4px;
+  background: var(--bg);
   white-space: nowrap;
   line-height: 16px;
 }
@@ -246,8 +251,8 @@
    simply stand there. */
 .mk-end {
   transition:
-    opacity 0.35s ease-out calc(60ms * var(--i, 0)),
-    transform 0.5s var(--mk-spring) calc(60ms * var(--i, 0));
+    opacity 0.3s ease-out calc(45ms * var(--i, 0)),
+    transform 0.45s var(--mk-spring) calc(45ms * var(--i, 0));
 }
 [data-tangle="playing"] .mk-end {
   opacity: 0;

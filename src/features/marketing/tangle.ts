@@ -37,11 +37,17 @@ export const TANGLE_SIZE: Record<
 export const POINTS = 25;
 
 /** Before the detangle starts, so the tangle registers first. */
-export const DETANGLE_DELAY_MS = 350;
+export const DETANGLE_DELAY_MS = 300;
 /** The whole detangle, first move to last settle. */
-export const DETANGLE_MS = 1700;
+export const DETANGLE_MS = 1500;
 /** Each line starts this much after the one before it. */
-export const STAGGER_MS = 70;
+export const STAGGER_MS = 60;
+/**
+ * How far along the detangle the marks arrive: by then the far end of every
+ * rail is straight (progressAt(1, t) is 1 from t = 0.75), so the marks land
+ * on rails that are already there while the mess is still settling.
+ */
+export const MARKS_AT = 0.8;
 
 /**
  * Where each line starts and ends across the flow, in color order. The
@@ -69,7 +75,7 @@ export const WOBBLE = {
  * How far along the flow the lines run calm before the tangle: room for the
  * wide layout's labels at the lines' starts; the tall one has none.
  */
-export const CALM: Record<TangleLayout, number> = { wide: 0.15, tall: 0.03 };
+export const CALM: Record<TangleLayout, number> = { wide: 0.2, tall: 0.03 };
 
 export type Point = readonly [x: number, y: number];
 
@@ -232,6 +238,7 @@ export const TANGLE_CONFIG = {
   delayMs: DETANGLE_DELAY_MS,
   durationMs: DETANGLE_MS,
   staggerMs: STAGGER_MS,
+  marksAt: MARKS_AT,
   start: START,
   slot: SLOT,
   wobble: WOBBLE,

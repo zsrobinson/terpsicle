@@ -35,9 +35,30 @@ const ARRIVING: Omit<Message, "id">[] = [
     tone: "b",
   },
   {
+    who: "Maya Okafor",
+    initials: "MO",
+    when: "2:16 pm",
+    text: "Thanks. Is the problem set due before or after that?",
+    tone: "a",
+  },
+  {
     who: "Priya Nair",
     initials: "PN",
+    when: "2:20 pm",
+    text: "After, 11:59 pm. Ashdown said the last two questions are extra credit.",
+    tone: "c",
+  },
+  {
+    who: "Devin Ruiz",
+    initials: "DR",
     when: "2:31 pm",
+    text: "Anyone want to go over recurrences before the midterm?",
+    tone: "b",
+  },
+  {
+    who: "Priya Nair",
+    initials: "PN",
+    when: "2:32 pm",
     text: "Midterm study group in McKeldin, Sunday 2 pm. I'll post the room.",
     tone: "c",
   },
@@ -71,8 +92,8 @@ const ARRIVE_EVERY_MS = 1500;
 const TYPING_MS = 700;
 
 const ALL: Message[] = ARRIVING.map((m, id) => ({ ...m, id }));
-/** The first message is already there on the server render; two more come. */
-const OPENING: Message[] = ALL.slice(0, 1);
+/** The room already has an exchange going on the server render; two more come. */
+const OPENING: Message[] = ALL.slice(0, 4);
 
 export function ChatSample({ active, reduced }: SampleProps) {
   const [messages, setMessages] = useState<Message[]>(OPENING);
@@ -166,7 +187,7 @@ export function ChatSample({ active, reduced }: SampleProps) {
     >
       <ul
         aria-label={`Messages in ${ROOM.course} ${ROOM.section}`}
-        className="mk-chat-log flex h-[248px] flex-col justify-end gap-3 overflow-hidden px-3 py-3"
+        className="mk-chat-log flex h-[232px] flex-col justify-end gap-3 overflow-hidden px-3 py-3"
       >
         {messages.map((m) => (
           <li key={m.id} className="mk-arrive flex items-start gap-3">

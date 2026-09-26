@@ -32,6 +32,21 @@ async function lines(page: Page): Promise<string[]> {
     .evaluateAll((els) => els.map((el) => el.getAttribute("d") ?? ""));
 }
 
+/**
+ * The lines once they stop moving: the marks arrive while the mess is still
+ * settling, so "done" comes a little before the last frame.
+ */
+async function settledLines(page: Page): Promise<string[]> {
+  let last = await lines(page);
+  for (let i = 0; i < 40; i++) {
+    await page.waitForTimeout(150);
+    const next = await lines(page);
+    if (next.join() === last.join()) return next;
+    last = next;
+  }
+  return last;
+}
+
 /** Waits until the page has hydrated: the samples answer from then on. */
 async function ready(page: Page): Promise<void> {
   await expect(page.locator('[data-marketing="ready"]')).toBeAttached({
@@ -62,7 +77,7 @@ test("the hero tangles first, then straightens into five rails that end in the p
   await expect(tangle).toHaveAttribute("data-tangle", "done", {
     timeout: 10_000,
   });
-  const done = await lines(page);
+  const done = await settledLines(page);
   expect(done).not.toEqual(mid);
   const ends = figure(page).getByRole("list", {
     name: "The five parts of Terpsicle",
@@ -93,7 +108,7 @@ test("the hero tangles first, then straightens into five rails that end in the p
   await expect(tangle).toHaveAttribute("data-tangle", "done", {
     timeout: 10_000,
   });
-  expect(await lines(page)).toEqual(done);
+  expect(await settledLines(page)).toEqual(done);
 });
 
 test("the page never scrolls sideways on a phone", async ({ page }) => {
@@ -157,7 +172,7 @@ test.describe("with reduced motion", () => {
     const messages = chat.getByRole("list", {
       name: "Messages in CMSC351 0301",
     });
-    await expect(messages.getByRole("listitem")).toHaveCount(3);
+    await expect(messages.getByRole("listitem")).toHaveCount(6);
     await chat
       .getByRole("textbox", { name: "Message CMSC351 0301" })
       .fill("Room?");
@@ -188,8 +203,9 @@ test("chat messages arrive one at a time", async ({ page }) => {
   await page.goto("/?stay");
   const chat = await block(page, "chat");
   const messages = chat.getByRole("list", { name: "Messages in CMSC351 0301" });
-  await expect(messages.getByText(/^Is the Friday discussion/)).toBeVisible();
-  // The first is there and the last isn't yet: they come one at a time.
+  await expect(messages.getByText(/^After, 11:59 pm/)).toBeVisible();
+  // The room's exchange is there and the last message isn't yet: they come
+  // one at a time.
   await expect(messages.getByText(/^Midterm study group/)).toHaveCount(0);
   await expect(messages.getByText(/^Midterm study group/)).toBeVisible({
     timeout: 10_000,

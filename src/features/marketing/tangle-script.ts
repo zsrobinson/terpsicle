@@ -94,8 +94,8 @@ export function playTangle(
       if (!started) started = now + config.delayMs;
       const t = Math.min(1, Math.max(0, (now - started) / config.durationMs));
       draw(t);
+      if (t >= config.marksAt) root.setAttribute(attr, "done");
       if (t < 1) frame = requestAnimationFrame(step);
-      else root.setAttribute(attr, "done");
     };
     frame = requestAnimationFrame(step);
   };
