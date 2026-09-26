@@ -382,8 +382,12 @@ export const SCENARIOS: Scenario[] = [
       await lab.rotate("landscape");
       await lab.wait(2000);
       await lab.step("landscape", { settled: true });
-      await snapTo(lab, "half");
-      await lab.step("landscape, half", { settled: true });
+      // A wide phone on its side gets the desktop layout (over 768px), with
+      // no drawer.
+      if (await lab.exists({ selector: DRAWER })) {
+        await snapTo(lab, "half");
+        await lab.step("landscape, half", { settled: true });
+      }
       await lab.rotate("portrait");
       await lab.wait(2000);
       await lab.step("portrait again", { settled: true });
