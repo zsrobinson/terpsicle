@@ -10,7 +10,9 @@ import { AccountButton } from "./account-button";
 import {
   type AccountClient,
   FLAGS_OFF,
+  type SignOutHooks,
   setAccountClient,
+  setSignOutHooks,
   useAccount,
 } from "./account-store";
 import { initials } from "./avatar";
@@ -71,6 +73,25 @@ async function loaded(me: MeResult) {
   return client;
 }
 
+let hooks: {
+  beforeSignOut: ReturnType<typeof vi.fn<SignOutHooks["beforeSignOut"]>>;
+  afterSignOut: ReturnType<typeof vi.fn<SignOutHooks["afterSignOut"]>>;
+};
+
+/** Plan sync's sign-out steps, recorded (~/features/sync/sign-out). */
+function fakeHooks() {
+  hooks = {
+    beforeSignOut: vi.fn<SignOutHooks["beforeSignOut"]>(async () => {}),
+    afterSignOut: vi.fn<SignOutHooks["afterSignOut"]>(async () => {}),
+  };
+  setSignOutHooks(async () => hooks);
+}
+
+/** What ~/features/sync/sign-out throws when the account lacks changes. */
+class UnsavedChangesError extends Error {
+  override name = "UnsavedChangesError";
+}
+
 beforeEach(() => {
   useAccount.setState({
     status: "loading",
@@ -78,6 +99,8 @@ beforeEach(() => {
     user: null,
     deleteAfter: null,
   });
+  fakeHooks();
+  localStorage.clear();
 });
 afterEach(() => setAccountClient(api));
 
@@ -155,6 +178,52 @@ describe("the top bar's account button", () => {
     expect(
       await screen.findByRole("button", { name: "Sign in" }),
     ).toBeInTheDocument();
+    // Plans stay; sync forgets this account's state, now and at next start.
+    expect(hooks.beforeSignOut).not.toHaveBeenCalled();
+    expect(hooks.afterSignOut).toHaveBeenCalledWith({ removeLocal: false });
+    expect(localStorage.getItem("terpsicle:sync-reset")).toBe("1");
+  });
+
+  it("signs out and removes plans, after the account has every change", async () => {
+    const client = await loaded(signedIn());
+    const user = userEvent.setup();
+    wrap(<AccountButton />);
+    await user.click(
+      screen.getByRole("button", { name: "Account: Testudo Terrapin" }),
+    );
+    const item = await screen.findByRole("menuitem", {
+      name: "Sign out and remove plans from this device",
+    });
+    await user.click(item);
+    expect(hooks.beforeSignOut).toHaveBeenCalledWith({
+      removeLocal: true,
+      userId: "testudo",
+    });
+    expect(client.auth.signOut).toHaveBeenCalledWith({ removeLocal: true });
+    expect(hooks.afterSignOut).toHaveBeenCalledWith({ removeLocal: true });
+  });
+
+  it("keeps everything, signed in, when changes haven't reached the account", async () => {
+    const client = await loaded(signedIn());
+    hooks.beforeSignOut.mockRejectedValue(new UnsavedChangesError());
+    const user = userEvent.setup();
+    wrap(<AccountButton />);
+    await user.click(
+      screen.getByRole("button", { name: "Account: Testudo Terrapin" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "Sign out and remove plans from this device",
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "Your latest changes haven't reached your account yet, so nothing was removed. Try again once you're online.",
+      ),
+    ).toBeInTheDocument();
+    expect(client.auth.signOut).not.toHaveBeenCalled();
+    expect(hooks.afterSignOut).not.toHaveBeenCalled();
+    expect(useAccount.getState().status).toBe("signed-in");
   });
 
   it("on phones, stands in for the theme toggle only once sign-in is on", async () => {
@@ -226,6 +295,28 @@ describe("/settings", () => {
     expect(
       screen.getByRole("link", { name: "Sign in with Google" }),
     ).toHaveAttribute("href", "/api/auth/google?return=%2Fsettings");
+  });
+
+  it("signs out and removes plans from this device, with no dialog", async () => {
+    const client = await loaded(signedIn());
+    const user = userEvent.setup();
+    wrap(<SettingsPage />);
+    await user.click(
+      screen.getByRole("button", {
+        name: "Sign out and remove plans from this device",
+      }),
+    );
+    expect(hooks.beforeSignOut).toHaveBeenCalledWith({
+      removeLocal: true,
+      userId: "testudo",
+    });
+    expect(client.auth.signOut).toHaveBeenCalledWith({ removeLocal: true });
+    expect(
+      await screen.findByText(
+        "Your plans are removed from this browser. They're still on your account.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
   it("invites signing in when signed out", async () => {
