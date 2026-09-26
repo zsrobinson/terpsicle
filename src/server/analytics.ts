@@ -44,13 +44,11 @@ export interface ServerEvents {
       | "guard-error";
   };
   summary_capped: { cap: number };
-  // Seat alerts. Never an email address, token or IP, not even hashed.
-  alert_subscribed: {
-    outcome: "confirm-sent" | "already-watching" | "not-sent";
-  };
-  alert_confirmed: { termId: string };
+  // Seat watches. Never who, an address or an IP, not even hashed.
+  alert_watched: { termId: string };
   alert_sent: { termId: string; count: number };
-  alert_unsubscribed: { termId: string };
+  alert_unwatched: { termId: string; via: "app" | "email" };
+  alert_watches_ended: { terms: number; watches: number };
   // Identity. Never an address, name, directory ID, token or IP, not even
   // hashed: the outcome and the domain only (V2.md §11).
   signin_result: {

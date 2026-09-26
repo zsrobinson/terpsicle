@@ -16,7 +16,7 @@
     "src/ingest",
     "src/core",
     "src/fixtures",
-    // The seat-alert e2e harness (a local-only Worker for e2e/seat-alerts.spec.ts).
+    // The seat-watch e2e harness (a local-only Worker for e2e/seat-watches.spec.ts).
     "e2e/alerts-harness/worker.ts"
   ],
   // Ingest tests run in Node (the `ingest` Vitest project) and read saved

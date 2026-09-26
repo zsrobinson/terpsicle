@@ -26,6 +26,7 @@ import { parseSectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
 import { DAY_LONG_NAMES } from "~/core/time";
 import { useTravel } from "~/state/hooks";
+import { useWatchedSections } from "~/state/seat-watches";
 import { selectOpenCourse, useUi } from "~/state/ui-store";
 import { Kbd } from "~/ui/kbd";
 import { quietTooltips } from "~/ui/tooltip";
@@ -79,6 +80,10 @@ export function Calendar() {
   useGhostKeys(view);
   useClearStalePreview(model);
   const bottomInset = useDrawerInset();
+  // Seat watches are the signed-in person's own, not a shared plan's.
+  const watched = useWatchedSections(
+    current && !current.readOnly ? current.termId : null,
+  );
 
   if (!model || !current)
     return (
@@ -130,6 +135,7 @@ export function Calendar() {
           readOnly={current.readOnly || view.previewing !== null}
           changed={view.previewing?.changed ?? null}
           seats={view.seats}
+          watched={watched}
         />
       )}
     </WeekFrame>
@@ -320,6 +326,7 @@ function Grid({
   readOnly,
   changed,
   seats,
+  watched,
 }: {
   model: CalendarModel;
   layout: CalendarLayout;
@@ -327,6 +334,8 @@ function Grid({
   /** Sections of a previewed plan that differ from the open plan. */
   changed: ReadonlySet<string> | null;
   seats: SeatsMap | null;
+  /** Sections with a seat watch on ("Watching"). */
+  watched: ReadonlySet<string>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const registry = usePanelRegistry();
@@ -604,6 +613,7 @@ function Grid({
                   }
                   selected={ghostCourse === entry.courseCode}
                   changed={changed?.has(entry.sectionKey) ?? false}
+                  watching={watched.has(entry.sectionKey)}
                   open={openCode === entry.courseCode}
                   onOpen={() => openCourse(entry.courseCode)}
                   style={style}

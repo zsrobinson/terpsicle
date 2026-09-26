@@ -3,7 +3,6 @@ import {
   BlockSchema,
   clampSidebarWidth,
   DEFAULT_UI_PREFS,
-  LocalSeatAlertSchema,
   type Plan,
   PlanSchema,
   UiPrefsSchema,
@@ -140,35 +139,6 @@ describe("local state", () => {
       drill: { kind: "course", courseCode: "CMSC351", tab: "grades" },
     };
     expect(UiPrefsSchema.safeParse(drilled).success).toBe(true);
-  });
-
-  it("accepts a local seat alert", () => {
-    const alert = {
-      termId: TERM,
-      sectionKey: "CMSC351-0101",
-      email: "testudo@umd.edu",
-      status: "pending",
-      subscriptionId: "AAAAAAAAAAAAAAAAAAAAAA",
-      manageToken: "A".repeat(43),
-      createdAt: NOW,
-      updatedAt: NOW,
-    };
-    expect(LocalSeatAlertSchema.safeParse(alert).success).toBe(true);
-    expect(
-      LocalSeatAlertSchema.safeParse({
-        ...alert,
-        subscriptionId: null,
-        manageToken: null,
-      }).success,
-    ).toBe(true);
-    // Confirmed here but asked for in another browser: no address.
-    expect(
-      LocalSeatAlertSchema.safeParse({ ...alert, email: null }).success,
-    ).toBe(true);
-    expect(
-      LocalSeatAlertSchema.safeParse({ ...alert, email: "not an email" })
-        .success,
-    ).toBe(false);
   });
 });
 

@@ -2,8 +2,13 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
+import {
+  fakeSeatWatchesClient,
+  resetSeatWatches,
+  seatAlertsAccount,
+} from "~/features/alerts/testing";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
-import { demoPlanB, fixtureTermId } from "~/fixtures";
+import { aMeUser, demoPlanB, fixtureTermId } from "~/fixtures";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { panels } from "./panels";
@@ -14,6 +19,7 @@ describe("Problems tab", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.mocked(track).mockClear();
+    resetSeatWatches();
   });
 
   it("lists problems by severity, calmly, with no banner", async () => {
@@ -97,6 +103,7 @@ describe("Problems tab", () => {
   });
 
   it("offers to watch a full section for a seat, rather than switch away", async () => {
+    seatAlertsAccount(aMeUser());
     await renderPlanTab([panels], "problems");
     // CMSC351 0101 is full (the demo's pinned seats); full sections can be added.
     act(() => {
@@ -109,6 +116,53 @@ describe("Problems tab", () => {
     });
     expect(watch).toHaveAttribute("data-alert", "none");
     expect(within(full).queryByRole("button", { name: /^Switch / })).toBeNull();
+  });
+
+  it("watching takes care of it: the problem becomes a note, Watching for a seat", async () => {
+    seatAlertsAccount(aMeUser());
+    const client = fakeSeatWatchesClient();
+    const { user } = await renderPlanTab([panels], "problems");
+    act(() => {
+      switchSection("CMSC351", "0101", "list");
+    });
+    const full = await screen.findByTestId("problem-full");
+    await user.click(
+      within(full).getByRole("button", {
+        name: "Watch for a seat, CMSC351 0101",
+      }),
+    );
+    expect(client.watch).toHaveBeenCalledOnce();
+    const note = await screen.findByTestId("problem-watching");
+    expect(screen.queryByTestId("problem-full")).toBeNull();
+    expect(note).toHaveTextContent("Watching for a seat in CMSC351 0101");
+    expect(note).toHaveTextContent("We'll email you when a seat opens.");
+    expect(
+      within(screen.getByRole("region", { name: "Good to know" })).getByTestId(
+        "problem-watching",
+      ),
+    ).toBe(note);
+    // Its button stops the watch, and the problem comes back.
+    await user.click(
+      within(note).getByRole("button", { name: /^Watching CMSC351 0101/ }),
+    );
+    expect(await screen.findByTestId("problem-full")).toBeInTheDocument();
+  });
+
+  it("offers sign-in for the watch when signed out", async () => {
+    seatAlertsAccount(null);
+    const { user } = await renderPlanTab([panels], "problems");
+    act(() => {
+      switchSection("CMSC351", "0101", "list");
+    });
+    const full = await screen.findByTestId("problem-full");
+    await user.click(
+      within(full).getByRole("button", {
+        name: "Watch for a seat, CMSC351 0101",
+      }),
+    );
+    expect(
+      await screen.findByRole("link", { name: /Sign in/ }),
+    ).toBeInTheDocument();
   });
 
   it("says so when there's nothing to fix", async () => {

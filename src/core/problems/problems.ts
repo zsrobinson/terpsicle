@@ -6,6 +6,7 @@ import {
   type ProblemFix,
   SEVERITY_ORDER,
   type Section,
+  type SectionKey,
   type Severity,
   sectionKey,
 } from "../schema";
@@ -124,6 +125,41 @@ function attachFixes(
 /** Every problem in the plan (SPEC §3.6), sorted by severity, with fixes. */
 export function planProblems(input: ProblemsInput): Problem[] {
   return sortProblems(attachFixes(input, detectProblems(input)));
+}
+
+/**
+ * A full section someone watches is taken care of (the owner's "auto
+ * resolution"): its problem becomes a note, "Watching for a seat in
+ * CMSC351 0101", which keeps the watch as its fix so it can be stopped
+ * from there. The same array back when nothing changes.
+ */
+export function withWatches(
+  problems: readonly Problem[],
+  watched: ReadonlySet<SectionKey>,
+): readonly Problem[] {
+  if (watched.size === 0) return problems;
+  let changed = false;
+  const out = problems.map((p): Problem => {
+    const key = p.fix?.kind === "watch" ? p.fix.sectionKey : null;
+    if (p.kind !== "full" || key === null || !watched.has(key)) return p;
+    changed = true;
+    return {
+      ...p,
+      id: `watching:${key}`,
+      kind: "watching",
+      severity: "info",
+      title: [
+        { kind: "text", text: "Watching for a seat in " },
+        { kind: "section", sectionKey: key },
+      ],
+      detail: [
+        { kind: "text", text: "It's full. " },
+        ...p.detail,
+        { kind: "text", text: " We'll email you when a seat opens." },
+      ],
+    };
+  });
+  return changed ? sortProblems(out) : problems;
 }
 
 export function countBySeverity(

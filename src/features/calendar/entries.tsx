@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { CircleX, Route, TriangleAlert } from "lucide-react";
+import { Bell, CircleX, Route, TriangleAlert } from "lucide-react";
 import type { CSSProperties } from "react";
 import { openTab, switchSection } from "~/app/actions";
 import { messageToText } from "~/app/message-text";
@@ -65,6 +65,7 @@ export function ClassBlock({
   dimmed,
   selected,
   changed = false,
+  watching = false,
   onOpen,
   open,
   style,
@@ -82,6 +83,8 @@ export function ClassBlock({
   selected: boolean;
   /** In a previewed plan, this section differs from the open plan. */
   changed?: boolean;
+  /** A seat watch is on for this section: a small bell, and "Watching" in the tooltip. */
+  watching?: boolean;
   onOpen: () => void;
   open: boolean;
   style: CSSProperties;
@@ -115,10 +118,15 @@ export function ClassBlock({
   return (
     <WithTooltip
       label={
-        dates ? (
+        dates || watching ? (
           <span className="flex flex-col">
             <span>{action}</span>
-            <span className="tnum opacity-70">Meets {dates}</span>
+            {dates ? (
+              <span className="tnum opacity-70">Meets {dates}</span>
+            ) : null}
+            {watching ? (
+              <span className="opacity-70">Watching for a seat</span>
+            ) : null}
           </span>
         ) : (
           action
@@ -132,7 +140,8 @@ export function ClassBlock({
         // Forced colors drop the ring (a box-shadow); styles.css draws a
         // thicker border instead.
         data-selected={selected || changed ? "" : undefined}
-        aria-label={classLabel(entry)}
+        aria-label={`${classLabel(entry)}${watching ? ", watching for a seat" : ""}`}
+        data-watching={watching ? "" : undefined}
         {...nav}
         className={cn(
           "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border py-1 text-left transition-colors duration-150",
@@ -165,6 +174,14 @@ export function ClassBlock({
             <span className={cn("min-w-0 truncate font-normal", soft)}>
               {kind}
             </span>
+          ) : null}
+          {watching && !tight ? (
+            <Bell
+              size={9}
+              fill="currentColor"
+              aria-hidden
+              className="ml-auto shrink-0 self-center"
+            />
           ) : null}
         </div>
         {height > 30 + extra && clock ? (
