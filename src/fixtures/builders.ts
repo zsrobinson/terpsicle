@@ -62,6 +62,8 @@ import {
   type Term,
   type TermsFile,
   type TimedMeeting,
+  type TodoFeedState,
+  type TodoItem,
   type TranscriptLine,
   type UntimedMeeting,
 } from "~/core/schema";
@@ -784,6 +786,40 @@ export function aFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
     dueDate: "2026-09-29",
     endAt: null,
     link: "https://elms.umd.edu/courses/1300001/assignments/4410001",
+    ...overrides,
+  };
+}
+
+/** The same assignment as the app gets it from `todo/list`. */
+export function aTodoItem(overrides: Partial<TodoItem> = {}): TodoItem {
+  return {
+    uid: "event-assignment-4410001",
+    source: "elms",
+    title: "Project 2",
+    courseLabel: "CMSC216-0103: Introduction to Computer Systems",
+    courseCode: "CMSC216",
+    sectionCode: "0103",
+    kind: "assignment",
+    exam: false,
+    gradescope: false,
+    dueAt: "2026-09-30T03:59:00.000Z",
+    dueDate: "2026-09-29",
+    link: "https://elms.umd.edu/courses/1300001/assignments/4410001",
+    ...overrides,
+  };
+}
+
+/** A healthy ELMS feed, read a few minutes before `FIXTURE_NOW`. */
+export function aTodoFeedState(
+  overrides: Partial<TodoFeedState> = {},
+): TodoFeedState {
+  return {
+    source: "elms",
+    status: "active",
+    lastSuccessAt: "2026-09-25T11:46:00.000Z",
+    lastFetchAt: "2026-09-25T11:46:00.000Z",
+    lastError: null,
+    itemCount: 6,
     ...overrides,
   };
 }

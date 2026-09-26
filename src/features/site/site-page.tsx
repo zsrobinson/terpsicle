@@ -8,51 +8,66 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 
 // The frame for pages outside the scheduler (`/`, the coming-soon pages,
-// `/privacy`, not found): the product menu, one column, and a footer.
+// `/privacy`, not found, Todo): the product menu, one column, and a footer.
 
 /** The product you're on wears its soft color, as in the product menu. */
 const CURRENT: Record<ProductId, string> = {
   schedule: "aria-[current=page]:bg-product-schedule-soft",
   reviews: "aria-[current=page]:bg-product-reviews-soft",
   chat: "aria-[current=page]:bg-product-chat-soft",
+  todo: "aria-[current=page]:bg-product-todo-soft",
+};
+
+/**
+ * How a page sits under the header:
+ * - `note`: a narrow column a little way down (`/`, coming soon, `/privacy`);
+ * - `reading`: a product's pages to read, from the top (Reviews);
+ * - `app`: a product's own tool, wide, from the top (Todo's list and week).
+ */
+export type SiteLayout = "note" | "reading" | "app";
+
+const MAIN: Record<SiteLayout, string> = {
+  note: "max-w-[560px] pt-[12vh]",
+  reading: "max-w-[720px] pt-6",
+  app: "max-w-[1120px] pt-4",
 };
 
 export function SitePage({
   children,
+  layout = "note",
   actions,
-  wide = false,
 }: {
   children: ReactNode;
-  /** The right end of the header (the account link, on Reviews). */
+  layout?: SiteLayout;
+  /** The right end of the header, after the products (Reviews' account link). */
   actions?: ReactNode;
-  /** A product's pages (Reviews) read wider than a note, and start higher. */
-  wide?: boolean;
 }) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-4 px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4">
         <WithTooltip label="About Terpsicle">
           {/* ?stay: returning visitors would otherwise skip to the scheduler. */}
           <a href={`/?${STAY_PARAM}`} className="flex">
             <Logo />
           </a>
         </WithTooltip>
-        {/* The product menu's links, flat: these pages stay light (no menu code). */}
-        <div className="flex items-center gap-2">
-          <nav aria-label="Products" className="flex items-center gap-1">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* The product menu's links, flat: these pages stay light (no menu code). */}
+          <nav aria-label="Products" className="flex items-center sm:gap-1">
             {PRODUCTS.map((p) => (
               <WithTooltip key={p.to} label={p.view}>
                 <Button
                   variant="ghost"
                   size="sm"
                   asChild
-                  className={`aria-[current=page]:text-fg ${CURRENT[p.id]}`}
+                  className={`max-sm:px-1.5 aria-[current=page]:text-fg ${CURRENT[p.id]}`}
                 >
                   <Link to={p.to} activeProps={{ "aria-current": "page" }}>
                     {/* size-4: the button shrinks unsized icons. */}
                     <Mark id={p.id} size={16} className="size-4" />
-                    {/* With actions beside them, phones show the marks only. */}
-                    <span className={actions ? "max-sm:sr-only" : undefined}>
+                    {/* Phones name only the product you're on: every mark
+                        and one name fit beside the logo at 390px. */}
+                    <span className="max-sm:not-in-aria-[current=page]:sr-only">
                       {p.label}
                     </span>
                   </Link>
@@ -63,13 +78,7 @@ export function SitePage({
           {actions}
         </div>
       </header>
-      <main
-        className={
-          wide
-            ? "mx-auto w-full max-w-[720px] flex-1 px-4 pt-6 pb-8"
-            : "mx-auto w-full max-w-[560px] flex-1 px-4 pt-[12vh] pb-8"
-        }
-      >
+      <main className={`mx-auto w-full flex-1 px-4 pb-8 ${MAIN[layout]}`}>
         {children}
       </main>
       <footer className="flex h-12 shrink-0 items-center gap-4 px-4 text-muted text-sm">

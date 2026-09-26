@@ -40,6 +40,7 @@ describe("parseClientConfig", () => {
       dataSource: "live",
       dataBaseUrl: "/data",
       posthogToken: undefined,
+      swDev: false,
     });
   });
 

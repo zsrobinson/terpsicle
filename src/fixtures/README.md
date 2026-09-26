@@ -19,6 +19,7 @@ One-off objects for tests. Each returns a schema-valid value with defaults taken
 | Computed | `aGenerateRequest`, `aProblem` |
 | Chat | `aChatAuthor`, `aChatMessage` |
 | Four-year plan | `aTranscriptLine`, `aFourYear`, `aFourYearEntry` (a course block), `aFourYearWildcardEntry`, `aFourYearCreditEntry` |
+| Todo | `aFeedItem`, `aTodoItem`, `aTodoFeedState` |
 
 Don't hand-roll these objects in tests (CLAUDE.md).
 

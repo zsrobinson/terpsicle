@@ -24,7 +24,6 @@ import { trackCatalogEvent } from "./actions";
 import { track } from "./analytics";
 import { AppShell, type AppShellProps } from "./app-shell";
 import { type ClientConfig, clientConfig } from "./config";
-import { registerServiceWorker } from "./service-worker-registration";
 import { applyThemePreference } from "./theme";
 
 /** The app: loads local state and the catalog, then shows the shell. */
@@ -37,7 +36,6 @@ function useBootstrap(config: ClientConfig) {
   useEffect(() => {
     let cancelled = false;
     useUi.setState({ restored: false });
-    registerServiceWorker(config);
     let persistence: Persistence | undefined;
     let stopReturning: (() => void) | undefined;
     let stopAccount: (() => void) | undefined;

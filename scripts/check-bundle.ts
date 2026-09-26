@@ -127,6 +127,19 @@ export const REVIEWS_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
  */
 export const ADMIN_BUDGET = 245 * 1024;
 
+/**
+ * Gzipped JS + CSS for /todo and /todo/connect, in bytes: 225 KB when this
+ * was set (v3 todo-ui), `/`'s base plus the list, the week and the .ics
+ * parser for dropped files, plus about 10% headroom. Same rule for raising it.
+ */
+export const TODO_BUDGET = 248 * 1024;
+
+/** Todo loads with /todo, never with the scheduler. */
+const TODO_NEVER_EAGER = {
+  pattern: /^src\/(features\/todo\/|server\/fns\/todo\.ts$)/,
+  why: "Todo loads with /todo, not the scheduler",
+};
+
 /** The owner's panel loads with /admin, never with anyone else's pages. */
 const ADMIN_NEVER_EAGER = {
   pattern: /^src\/features\/admin\//,
@@ -154,8 +167,16 @@ export const ROUTE_BUDGETS: readonly {
       },
       ...SCHEDULE_NEVER_EAGER,
       ADMIN_NEVER_EAGER,
+      TODO_NEVER_EAGER,
     ],
   },
+  // Todo keeps `/`'s rules: no Dexie and no scheduler stores (course colors
+  // are a raw IndexedDB read).
+  ...["/todo/", "/todo/connect"].map((route) => ({
+    route,
+    budget: TODO_BUDGET,
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  })),
   ...["/", "/chat/", "/settings", "/signin", "/privacy"].map((route) => ({
     route,
     budget: LANDING_BUDGET,

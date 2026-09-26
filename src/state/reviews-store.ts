@@ -22,7 +22,7 @@ import {
   SchemaVersionError,
 } from "./data-source";
 
-// Terpsicle reviews' numbers (R2 family `reviews/`, V2 §7.6, DATA.md §5.3),
+// Terpsicle reviews' numbers (R2 family `reviews/`, V2 §7.6, DATA.md §5.4),
 // for the scheduler's course details and the reviews pages. Department files
 // load only when asked for, like the course index (DATA.md §5.2): the cached
 // manifest shows at once and is checked with the server once per session,

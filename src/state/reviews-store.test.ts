@@ -19,7 +19,7 @@ import {
   useReviewNumbers,
 } from "./reviews-store";
 
-// Terpsicle reviews' numbers in the browser (DATA.md §5.3): against the mock
+// Terpsicle reviews' numbers in the browser (DATA.md §5.4): against the mock
 // bucket, and a fake server with an in-memory cache.
 
 const hash = (n: number) => n.toString(16).padStart(16, "0");
