@@ -358,6 +358,27 @@ export async function insertReport(
 }
 
 /**
+ * Account deletion (V2 §4.7): a purged person's reports stay, since they
+ * count toward hiding an item and the owner reads them, but each one's
+ * reporter becomes a random stand-in that links to nobody. Distinct
+ * stand-ins keep "3 different people" true for reports already made.
+ */
+export function forgetReporterStatement(
+  db: D1Database,
+  userId: string,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `UPDATE reports SET reporter_id = '${PURGED_REPORTER_PREFIX}' || lower(hex(randomblob(12)))
+       WHERE reporter_id = ?1`,
+    )
+    .bind(userId);
+}
+
+/** A purged reporter's stand-in starts with this; directory IDs can't contain a colon. */
+export const PURGED_REPORTER_PREFIX = "purged:";
+
+/**
  * The item's reports since the owner last approved it, oldest first: the
  * ones still waiting for a person. An approval settles earlier reports, so
  * they don't count toward hiding it again.

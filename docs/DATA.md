@@ -637,7 +637,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 | `chat_rooms` | `(term_id, course_code, room_id)` | `kind`, `sections` (JSON section codes), `last_seq`, `last_message_at` | Written by the object when a message becomes visible, so a room has a row only after its first. `kind` and `sections` let `chat/unread` pick your professor and section rooms without the catalog. |
 | `chat_read_markers` | `(user_id, term_id, course_code, room_id)` | `seq` | Only moves forward. `chat/unread`'s count is `last_seq − seq`. |
 | `chat_room_prefs` | `(user_id, term_id, course_code, room_id)` | `muted` | |
-| `chat_author_courses` | `(user_id, term_id, course_code)` | | Where someone has posted, for account deletion (`v2/account-delete`). No foreign key: the purge reads it after the user row is gone. |
+| `chat_author_courses` | `(user_id, term_id, course_code)` | | Where someone has written, for account deletion: recorded at their first send in a course, so held messages count. The purge calls `purgeAuthor` on each course's object and deletes the row once it answers. No foreign key. |
 
 **The object's SQLite** (made on its first write; an object nobody wrote in has no storage):
 - `meta`: `term_id`, `course_code`, `read_only_at` and `delete_at` (epoch ms, from `chatRetention`), `read_only_announced`.

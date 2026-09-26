@@ -102,6 +102,8 @@ export const SIGNIN_PATH = "/signin";
 export const SIGNIN_ERROR_PARAM = "error";
 export const RETURN_PARAM = "return";
 export const SIGNED_IN_PARAM = "signed-in";
+/** `?signed-in=kept`: this sign-in cancelled the account's deletion (V2.md §4.7). */
+export const SIGNED_IN_KEPT = "kept";
 
 /** The browser-side start of a sign-in: a navigation, never fetched. */
 export const SIGN_IN_START_PATH = "/api/auth/google";

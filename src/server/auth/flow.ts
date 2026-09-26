@@ -125,7 +125,13 @@ function loginHint(request: Request): string | undefined {
 }
 
 export type SignInResult =
-  | { ok: true; cookies: string[]; firstTime: boolean }
+  | {
+      ok: true;
+      cookies: string[];
+      firstTime: boolean;
+      /** The account was waiting to be deleted, and this sign-in kept it. */
+      kept: boolean;
+    }
   | { ok: false; error: SignInError };
 
 /**
@@ -167,6 +173,7 @@ export async function signIn(
       setCookie(HINT_COOKIE, identity.email, HINT_MAX_AGE_SECONDS),
     ],
     firstTime: before === null,
+    kept: before?.status === "deleting",
   };
 }
 
@@ -278,7 +285,7 @@ async function callback(
   const signedIn = await signIn(request, env, ctx, checked.identity);
   if (!signedIn.ok) return fail(signedIn.error);
   return redirect(
-    withSignedIn(returnTo),
+    withSignedIn(returnTo, { kept: signedIn.kept }),
     url,
     [...cookies, ...signedIn.cookies],
     303,

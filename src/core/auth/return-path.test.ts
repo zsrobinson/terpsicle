@@ -65,6 +65,9 @@ describe("sign-in URLs", () => {
     expect(withSignedIn("/schedule?plan=abc#top")).toBe(
       "/schedule?plan=abc&signed-in=1#top",
     );
+    expect(withSignedIn("/settings", { kept: true })).toBe(
+      "/settings?signed-in=kept",
+    );
   });
 
   it("builds the Sign in link", () => {

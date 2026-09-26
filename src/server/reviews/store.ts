@@ -593,6 +593,20 @@ export async function pruneReviews(
   };
 }
 
+/**
+ * Account deletion (V2 §4.7): the person's reviews stay as they are, with
+ * no author. Nothing else links a review to anyone. A statement for the
+ * purge's batch, since this file is the only one that names `author_id`.
+ */
+export function forgetAuthorStatement(
+  db: D1Database,
+  userId: string,
+): D1PreparedStatement {
+  return db
+    .prepare("UPDATE reviews SET author_id = NULL WHERE author_id = ?1")
+    .bind(userId);
+}
+
 // ---------- published numbers (the reviews-publish job) and summaries ----------
 
 const PublishedFactRowSchema = z.object({

@@ -1,10 +1,15 @@
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { track } from "~/app/analytics";
-import { SIGNED_IN_PARAM } from "~/core/schema";
+import { SIGNED_IN_KEPT, SIGNED_IN_PARAM } from "~/core/schema";
 import { useAccount } from "./account-store";
 
 /** Set once this browser has signed in, for `firstOnDevice`. */
 const SIGNED_IN_BEFORE_KEY = "terpsicle:signed-in-before";
+
+/** The quiet note when signing in cancelled a pending deletion (V2.md §4.7). */
+export const KEPT_ACCOUNT_NOTE = "Your account is staying";
+export const KEPT_ACCOUNT_DETAIL = "Signing in cancelled its deletion.";
 
 /**
  * Asks /api/me who's signed in, once per page load, on every route. After a
@@ -15,7 +20,8 @@ export function AccountBoot() {
   useEffect(() => {
     void useAccount.getState().load();
     const url = new URL(window.location.href);
-    if (url.searchParams.get(SIGNED_IN_PARAM) !== "1") return;
+    const signedIn = url.searchParams.get(SIGNED_IN_PARAM);
+    if (signedIn !== "1" && signedIn !== SIGNED_IN_KEPT) return;
     url.searchParams.delete(SIGNED_IN_PARAM);
     window.history.replaceState(window.history.state, "", url);
     let firstOnDevice = true;
@@ -26,6 +32,11 @@ export function AccountBoot() {
       // Storage blocked: count it as a first sign-in.
     }
     track("signin_completed", { firstOnDevice });
+    if (signedIn === SIGNED_IN_KEPT)
+      toast(KEPT_ACCOUNT_NOTE, {
+        id: "account-kept",
+        description: KEPT_ACCOUNT_DETAIL,
+      });
   }, []);
   return null;
 }

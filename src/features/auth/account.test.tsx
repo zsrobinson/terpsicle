@@ -6,6 +6,11 @@ import type { MeResult, MeUser } from "~/core/schema";
 import { api } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
+import {
+  AccountBoot,
+  KEPT_ACCOUNT_DETAIL,
+  KEPT_ACCOUNT_NOTE,
+} from "./account-boot";
 import { AccountButton } from "./account-button";
 import {
   type AccountClient,
@@ -295,6 +300,23 @@ describe("/settings", () => {
     expect(
       screen.getByRole("link", { name: "Sign in with Google" }),
     ).toHaveAttribute("href", "/api/auth/google?return=%2Fsettings");
+  });
+
+  it("says quietly when signing in kept an account that was being deleted", async () => {
+    fakeClient(signedIn());
+    window.history.replaceState(null, "", "/settings?signed-in=kept");
+    wrap(<AccountBoot />);
+    expect(await screen.findByText(KEPT_ACCOUNT_NOTE)).toBeInTheDocument();
+    expect(screen.getByText(KEPT_ACCOUNT_DETAIL)).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+  });
+
+  it("says nothing extra after an ordinary sign-in", async () => {
+    fakeClient(signedIn());
+    window.history.replaceState(null, "", "/settings?signed-in=1");
+    wrap(<AccountBoot />);
+    await vi.waitFor(() => expect(window.location.search).toBe(""));
+    expect(screen.queryByText(KEPT_ACCOUNT_NOTE)).toBeNull();
   });
 
   it("signs out and removes plans from this device, with no dialog", async () => {
