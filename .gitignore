@@ -12,3 +12,6 @@ test-results
 
 # Local ingest output (pnpm tsx scripts/ingest.ts … --target fs)
 .data
+
+# Mobile lab runs (scripts/mobile-lab); CI publishes them to the mobile-runs branch
+mobile-lab-results

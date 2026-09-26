@@ -1,0 +1,252 @@
+name: Mobile lab
+
+# Scripted phone scenarios (scripts/mobile-lab) against a deployment, on real
+# mobile engines. docs/MOBILE-TESTING.md explains the engines and the results.
+#
+# - By hand: Actions → Mobile lab → Run workflow, with any URL and engines.
+# - Nightly: every engine against production.
+# - PRs: ci.yml calls this with WebKit against the PR's preview when a PR
+#   touches the app shell or styles; the `mobile-lab` label adds Android and
+#   iOS (adding the label runs them at once, on the current preview).
+#
+# Every run's screenshots, recordings and step logs go to the `mobile-runs`
+# branch (runs/<time>-<engine>-<run id>/README.md) and to the run's artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Deployment to test
+        default: https://terpsicle.com
+        required: true
+      engines:
+        description: "Engines, comma-separated: webkit, android, ios"
+        default: webkit,android,ios
+        required: true
+      scenarios:
+        description: Only these scenario ids, comma-separated (empty for all)
+        default: ""
+  workflow_call:
+    inputs:
+      url:
+        type: string
+        required: true
+      engines:
+        type: string
+        default: webkit
+      scenarios:
+        type: string
+        default: ""
+  schedule:
+    - cron: "23 8 * * *"
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: mobile-lab-${{ github.event.pull_request.number || github.run_id }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+permissions:
+  # Publishing results to the mobile-runs branch.
+  contents: write
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Called from ci.yml, `github.event_name` is the caller's (pull_request):
+    # a URL input tells that apart from the label trigger.
+    if: inputs.url != '' || github.event_name != 'pull_request' || github.event.label.name == 'mobile-lab'
+    outputs:
+      url: ${{ steps.plan.outputs.url }}
+      engines: ${{ steps.plan.outputs.engines }}
+      scenarios: ${{ steps.plan.outputs.scenarios }}
+    steps:
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_URL: ${{ inputs.url }}
+          INPUT_ENGINES: ${{ inputs.engines }}
+          INPUT_SCENARIOS: ${{ inputs.scenarios }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$INPUT_URL" ]; then
+            url="$INPUT_URL"; engines="$INPUT_ENGINES"; scenarios="$INPUT_SCENARIOS"
+          elif [ "$EVENT" = pull_request ]; then
+            url="https://pr-$PR-terpsicle.zsrobinson.workers.dev"; engines=webkit,android,ios; scenarios=
+          else
+            url=https://terpsicle.com; engines=webkit,android,ios; scenarios=
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "engines=$engines" >> "$GITHUB_OUTPUT"
+          echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
+          echo "Testing $url on $engines ${scenarios:+(only $scenarios)}"
+          # Labeled before the preview is up (a new PR): wait for it.
+          if [ "$EVENT" = pull_request ] && [ -z "$INPUT_URL" ]; then
+            for i in $(seq 1 100); do
+              curl -fsS -o /dev/null "$url" && exit 0
+              sleep 15
+            done
+            echo "::error::$url didn't come up"; exit 1
+          fi
+
+  webkit:
+    name: WebKit (iPhone viewport)
+    needs: plan
+    if: contains(needs.plan.outputs.engines, 'webkit')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      URL: ${{ needs.plan.outputs.url }}
+      SCENARIOS: ${{ needs.plan.outputs.scenarios }}
+      SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm exec playwright install --with-deps webkit
+      # Screenshots as small JPEGs and recordings at 360px (scripts/mobile-lab/media.ts).
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      - name: Name the run
+        run: echo "RUN_NAME=$(date -u +%Y-%m-%dT%H%M)-webkit-${{ github.run_id }}" >> "$GITHUB_ENV"
+      - name: Run the scenarios
+        id: lab
+        run: |
+          set +e
+          pnpm tsx scripts/mobile-lab/run.ts --engine webkit --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"}
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mobile-lab-webkit
+          path: mobile-lab-results
+          retention-days: 14
+      - name: Publish to the mobile-runs branch
+        if: always() && steps.lab.outcome != 'skipped'
+        run: |
+          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
+          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Result
+        if: steps.lab.outputs.status != '0'
+        run: |
+          echo "::error::Mobile lab checks failed on WebKit. See runs/$RUN_NAME/README.md on the mobile-runs branch."
+          exit 1
+
+  android:
+    name: Android Chrome (emulator)
+    needs: plan
+    if: contains(needs.plan.outputs.engines, 'android')
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      URL: ${{ needs.plan.outputs.url }}
+      SCENARIOS: ${{ needs.plan.outputs.scenarios }}
+      SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      # Screenshots as small JPEGs and recordings at 360px (scripts/mobile-lab/media.ts).
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      # Hardware acceleration for the emulator.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Name the run
+        run: echo "RUN_NAME=$(date -u +%Y-%m-%dT%H%M)-android-${{ github.run_id }}" >> "$GITHUB_ENV"
+      - name: Run the scenarios
+        id: lab
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          # Google APIs images ship Chrome and read its command-line file,
+          # which is how Playwright turns on remote debugging.
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          # The runner's four cores and room for Chrome: with two, Chrome
+          # on the software GPU missed input deadlines ("isn't responding").
+          cores: 4
+          ram-size: 4096M
+          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
+          script: pnpm tsx scripts/mobile-lab/run.ts --engine android --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"} || touch mobile-lab-failed
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mobile-lab-android
+          path: mobile-lab-results
+          retention-days: 14
+      - name: Publish to the mobile-runs branch
+        if: always() && steps.lab.outcome != 'skipped'
+        run: |
+          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
+          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Result
+        run: |
+          if [ -e mobile-lab-failed ]; then
+            echo "::error::Mobile lab checks failed on Android. See runs/$RUN_NAME/README.md on the mobile-runs branch."
+            exit 1
+          fi
+
+  ios:
+    name: iOS Safari (Simulator)
+    needs: plan
+    if: contains(needs.plan.outputs.engines, 'ios')
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      URL: ${{ needs.plan.outputs.url }}
+      SCENARIOS: ${{ needs.plan.outputs.scenarios }}
+      SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      IOS_DEVICE: iPhone 16
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Install Appium and the XCUITest driver
+        run: |
+          npm install -g appium@3
+          appium driver install xcuitest
+      # A prebuilt WebDriverAgent saves building it (5+ minutes); without
+      # one, the first session builds it.
+      - name: Download WebDriverAgent
+        run: |
+          appium driver run xcuitest download-wda-sim --platform=ios --outdir="$RUNNER_TEMP/wda" || true
+          app=$(find "$RUNNER_TEMP/wda" -maxdepth 2 -name 'WebDriverAgentRunner-Runner.app' 2>/dev/null | head -1)
+          if [ -n "$app" ]; then echo "WDA_PATH=$app" >> "$GITHUB_ENV"; echo "Using $app"; fi
+      # The software keyboard, as on a phone: no Mac keyboard attached.
+      - name: Disconnect the Simulator's hardware keyboard
+        run: defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+      - name: Start Appium
+        run: |
+          appium --log-level warn --log appium.log --port 4723 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4723/status >/dev/null && exit 0; sleep 2; done
+          echo "::error::Appium didn't start"; exit 1
+      - name: Name the run
+        run: echo "RUN_NAME=$(date -u +%Y-%m-%dT%H%M)-ios-${{ github.run_id }}" >> "$GITHUB_ENV"
+      - name: Run the scenarios
+        id: lab
+        run: |
+          set +e
+          pnpm tsx scripts/mobile-lab/run.ts --engine ios --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"}
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mobile-lab-ios
+          path: |
+            mobile-lab-results
+            appium.log
+          retention-days: 14
+      - name: Publish to the mobile-runs branch
+        if: always() && steps.lab.outcome != 'skipped'
+        run: |
+          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
+          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Result
+        if: steps.lab.outputs.status != '0'
+        run: |
+          echo "::error::Mobile lab checks failed on iOS. See runs/$RUN_NAME/README.md on the mobile-runs branch."
+          exit 1

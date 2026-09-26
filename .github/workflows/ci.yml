@@ -69,6 +69,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    outputs:
+      url: ${{ steps.preview.outputs.url }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -134,3 +136,39 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+  # Phone behavior on real engines (docs/MOBILE-TESTING.md), for PRs that
+  # touch the app shell, the styles or the lab itself: WebKit with an
+  # iPhone's viewport on every such PR; the `mobile-lab` label adds the
+  # Android emulator and the iOS Simulator.
+  mobile-changes:
+    name: Mobile paths changed?
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      touched: ${{ steps.files.outputs.result }}
+    steps:
+      - id: files
+        uses: actions/github-script@v9
+        with:
+          result-encoding: string
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: context.issue.number,
+            });
+            const mobile = /^(src\/app\/|src\/styles\.css$|scripts\/mobile-lab\/|\.github\/workflows\/mobile-lab\.yml$)|drawer/;
+            return String(files.some((f) => mobile.test(f.filename)));
+
+  mobile-lab:
+    name: Mobile lab
+    needs: [preview, mobile-changes]
+    if: needs.mobile-changes.outputs.touched == 'true' || contains(github.event.pull_request.labels.*.name, 'mobile-lab')
+    permissions:
+      contents: write
+    uses: ./.github/workflows/mobile-lab.yml
+    with:
+      url: ${{ needs.preview.outputs.url }}
+      engines: ${{ contains(github.event.pull_request.labels.*.name, 'mobile-lab') && 'webkit,android,ios' || 'webkit' }}
