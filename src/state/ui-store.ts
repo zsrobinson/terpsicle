@@ -40,6 +40,11 @@ export interface UiState {
   /** Mobile bottom drawer position (not persisted). */
   drawerSnap: DrawerSnap;
   /**
+   * Whether the person has opened a tab, drilled in or gone back since the
+   * page loaded (not persisted). See `restoreNavigation`.
+   */
+  navigated: boolean;
+  /**
    * A course whose sections the calendar shows as ghosts while the pointer
    * rests on it outside course details, e.g. a search result (SPEC §3.5).
    * Set on hover, clear on leave. Not persisted.
@@ -107,6 +112,7 @@ export const INITIAL_UI_STATE = {
   sidebarWidth: DEFAULT_UI_PREFS.sidebarWidth,
   focusRequest: null,
   drawerSnap: "peek",
+  navigated: false,
   hoverCourse: null,
   previewSection: null,
   previewPlan: null,
@@ -118,43 +124,47 @@ export const useUi = create<UiState>()((set, get) => ({
   clickTab: (tab) => {
     const s = get();
     if (tab !== s.tab || !s.sidebarOpen) {
-      set({ tab, sidebarOpen: true, stack: [] });
+      set({ tab, sidebarOpen: true, stack: [], navigated: true });
       return "opened";
     }
     if (s.stack.length > 0) {
-      set({ stack: [] });
+      set({ stack: [], navigated: true });
       return "back-to-root";
     }
-    set({ sidebarOpen: false });
+    set({ sidebarOpen: false, navigated: true });
     return "collapsed";
   },
 
-  openTab: (tab) => set({ tab, sidebarOpen: true, stack: [] }),
+  openTab: (tab) => set({ tab, sidebarOpen: true, stack: [], navigated: true }),
 
   drill: (entry) => {
     const { stack } = get();
     const top = stack.at(-1);
     if (top && sameDrillSubject(top, entry)) {
       if (top !== entry) set({ stack: [...stack.slice(0, -1), entry] });
-      set({ sidebarOpen: true });
+      set({ sidebarOpen: true, navigated: true });
       return;
     }
-    set({ stack: [...stack, entry], sidebarOpen: true });
+    set({ stack: [...stack, entry], sidebarOpen: true, navigated: true });
   },
 
   replaceDrill: (entry) => {
     const { stack } = get();
-    set({ stack: [...stack.slice(0, -1), entry] });
+    set({ stack: [...stack.slice(0, -1), entry], navigated: true });
   },
 
   back: () => {
     const { stack } = get();
     if (stack.length === 0) return false;
-    set({ stack: stack.slice(0, -1) });
+    set({ stack: stack.slice(0, -1), navigated: true });
     return true;
   },
 
-  backTo: (depth) => set({ stack: get().stack.slice(0, Math.max(0, depth)) }),
+  backTo: (depth) =>
+    set({
+      stack: get().stack.slice(0, Math.max(0, depth)),
+      navigated: true,
+    }),
 
   setTheme: (theme) => set({ theme }),
   setLastTermId: (lastTermId) => set({ lastTermId, stack: [] }),
@@ -182,6 +192,20 @@ export const useUi = create<UiState>()((set, get) => ({
   },
   setPreviewPlan: (previewPlan) => set({ previewPlan }),
 }));
+
+/** Where the sidebar is: its tab, whether it shows, and the drill-in stack. */
+export type Navigation = Pick<UiState, "tab" | "sidebarOpen" | "stack">;
+
+/**
+ * Puts the sidebar where saved (or demo) state says, unless the person has
+ * already moved it. The shell takes input as soon as it shows, a moment
+ * before that state loads, and loading it mustn't undo a tab tapped or a `/`
+ * pressed meanwhile.
+ */
+export function restoreNavigation(navigation: Partial<Navigation>): void {
+  if (useUi.getState().navigated) return;
+  useUi.setState(navigation);
+}
 
 /** The course opened in the sidebar (the innermost course drill-in), if any. */
 export function selectOpenCourse(s: UiState): CourseCode | null {

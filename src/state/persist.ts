@@ -12,7 +12,7 @@ import { type TerpsicleDb, validRows } from "./db";
 import { restorableTarget } from "./drill";
 import { useGenerateDrafts } from "./generate-drafts";
 import type { Workspace } from "./plan-ops";
-import { uiPrefsOf, useUi } from "./ui-store";
+import { restoreNavigation, uiPrefsOf, useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";
 
 // Loads the stores from IndexedDB, then writes every change back. Writes are
@@ -57,10 +57,12 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
     future: [],
   });
   useGenerateDrafts.setState({ drafts });
-  useUi.setState({
+  restoreNavigation({
     tab: ui.tab,
     sidebarOpen: ui.sidebarOpen,
     stack: ui.drill ? [ui.drill] : [],
+  });
+  useUi.setState({
     theme: ui.theme,
     lastTermId: ui.lastTermId,
     collapsedGroups: ui.collapsedGroups,
