@@ -120,7 +120,7 @@ export function WeekFrame({
         <div
           ref={scrollRef}
           data-calendar-scroll=""
-          className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+          className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain"
         >
           <div
             className="sticky top-0 z-10 grid border-hairline border-b bg-bg"

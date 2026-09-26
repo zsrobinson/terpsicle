@@ -68,7 +68,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
 
   if (mobile) {
     return (
-      <div className="flex h-dvh flex-col bg-bg text-fg">
+      <div data-app-shell="" className="flex h-dvh flex-col bg-bg text-fg">
         <SkipLinks />
         {topBar}
         <main
@@ -87,7 +87,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-bg text-fg">
+    <div data-app-shell="" className="flex h-dvh flex-col bg-bg text-fg">
       <SkipLinks />
       {topBar}
       <div className="flex min-h-0 flex-1">
