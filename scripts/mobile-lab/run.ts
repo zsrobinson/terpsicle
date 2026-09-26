@@ -96,9 +96,14 @@ for (const scenario of scenarios) {
     ms: 0,
     video: null,
     error: null,
+    skipped: scenario.skip?.(engine) ?? null,
     steps: lab.steps,
   };
   run.scenarios.push(result);
+  if (result.skipped) {
+    console.log(`${scenario.id}: skipped (${result.skipped})`);
+    continue;
+  }
   try {
     await phone.begin(url, values.video ? path.join(dir, "video") : null);
     await scenario.run(lab);

@@ -194,7 +194,10 @@ export const VIEWPORT = `(() => {
 export const ARM_CALIBRATION = `(() => {
   const w = window;
   w.__labCalibration = null;
-  const types = ["pointerdown","pointerup","pointermove","touchstart","touchmove","touchend","mousedown","mouseup","click"];
+  const touch = ["pointerdown","pointerup","pointermove","pointercancel","touchstart","touchmove","touchend","touchcancel"];
+  // What a browser may send after the touch ends, for a tap.
+  const after = ["mousedown","mouseup","click"];
+  const off = (types) => types.forEach((t) => removeEventListener(t, swallow, true));
   const swallow = (e) => {
     if (e.type === "touchstart" && !w.__labCalibration) {
       const t = e.changedTouches[0];
@@ -203,11 +206,14 @@ export const ARM_CALIBRATION = `(() => {
     }
     if (e.cancelable) e.preventDefault();
     e.stopImmediatePropagation();
-    if (e.type === "click") types.forEach((t) => removeEventListener(t, swallow, true));
+    // Disarm as soon as the tap is over, so the next real tap gets through.
+    if (e.type === "touchend" || e.type === "touchcancel") {
+      off(touch);
+      setTimeout(() => off(after), 400);
+    }
   };
-  types.forEach((t) => addEventListener(t, swallow, { capture: true, passive: false }));
-  // No click follows a cancelled touch on some browsers: disarm anyway.
-  setTimeout(() => types.forEach((t) => removeEventListener(t, swallow, true)), 3000);
+  touch.concat(after).forEach((t) => addEventListener(t, swallow, { capture: true, passive: false }));
+  setTimeout(() => off(touch.concat(after)), 3000);
   return true;
 })()`;
 

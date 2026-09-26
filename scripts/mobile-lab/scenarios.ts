@@ -4,11 +4,14 @@
 
 import type { Check, Probe } from "./checks";
 import { visibleBand } from "./checks";
+import type { Engine } from "./device";
 import { expectation, type Lab, type Target } from "./lab";
 
 export interface Scenario {
   id: string;
   title: string;
+  /** Why this scenario means nothing on an engine, if it doesn't. */
+  skip?: (engine: Engine) => string | null;
   run(lab: Lab): Promise<void>;
 }
 
@@ -273,6 +276,10 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "grabber-drag",
     title: "Drag the grabber peek → half → full → peek",
+    skip: (engine) =>
+      engine === "webkit"
+        ? "Playwright can't send WebKit a touch drag, and vaul doesn't follow its mouse drags as a finger's"
+        : null,
     async run(lab) {
       await open(lab);
       await snapTo(lab, "peek");

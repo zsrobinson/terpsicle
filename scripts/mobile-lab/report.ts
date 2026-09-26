@@ -12,6 +12,8 @@ export interface ScenarioResult {
   ms: number;
   video: string | null;
   error: string | null;
+  /** Why it didn't run on this engine. */
+  skipped: string | null;
   steps: Step[];
 }
 
@@ -141,7 +143,7 @@ export function markdown(run: RunResult): string {
     const checks = s.steps.flatMap((step) => step.checks);
     const stepError = s.steps.find((step) => step.error)?.error;
     out.push(
-      `| [${cell(s.title)}](#${s.id}) | ${status(checks, s.error ?? stepError)} | ${s.steps.length} | ${seconds(s.ms)} | ${s.video ? `[video](${s.video})` : "none"} |`,
+      `| [${cell(s.title)}](#${s.id}) | ${s.skipped ? "skipped" : status(checks, s.error ?? stepError)} | ${s.steps.length} | ${seconds(s.ms)} | ${s.video ? `[video](${s.video})` : "none"} |`,
     );
   }
   for (const s of run.scenarios) {
@@ -151,6 +153,11 @@ export function markdown(run: RunResult): string {
     out.push(`## ${s.title}`);
     out.push("");
     out.push(`\`${s.id}\`${s.video ? ` · [recording](${s.video})` : ""}`);
+    if (s.skipped) {
+      out.push("");
+      out.push(`Skipped on this engine: ${cell(s.skipped)}.`);
+      continue;
+    }
     if (s.error) {
       out.push("");
       out.push(`**Error:** ${cell(s.error)}`);

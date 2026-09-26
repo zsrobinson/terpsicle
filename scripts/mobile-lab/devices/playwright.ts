@@ -119,14 +119,20 @@ class PlaywrightDevice implements Device {
       await send("touchEnd", []);
       return;
     }
-    // WebKit takes no touch drags from Playwright. A scroll is a wheel (a
-    // mouse drag on the calendar would draw a block); a drag is a mouse drag,
-    // which vaul follows as it does a finger.
-    await this.p.mouse.move(from.x, from.y);
+    // WebKit takes no touch drags from Playwright, and mobile WebKit no
+    // wheel. A scroll scrolls whatever scrolls under the point (a mouse drag
+    // on the calendar would draw a block); a drag is a mouse drag.
     if (intent === "scroll") {
-      await this.p.mouse.wheel(from.x - to.x, from.y - to.y);
+      await this.p.evaluate(
+        `(() => {
+          let el = document.elementFromPoint(${from.x}, ${from.y});
+          while (el && !(el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement;
+          if (el) el.scrollBy({ top: ${from.y - to.y} });
+        })()`,
+      );
       return;
     }
+    await this.p.mouse.move(from.x, from.y);
     await this.p.mouse.down();
     for (let i = 1; i <= steps; i++) {
       await this.p.mouse.move(at(i).x, at(i).y);
