@@ -344,6 +344,9 @@ describe("your own review", () => {
     await renderPage(<div />);
     act(() => deleteWithUndo(mine.id));
     expect(useReviews.getState().deleting[mine.id]).toBe(true);
+    // Sonner adds a toast on a timer but applies a dismiss on the next
+    // frame, so a dismiss sent before the toast is up is lost. Wait for it.
+    expect(await screen.findByText("Review deleted")).toBeInTheDocument();
     // The toast's close (timing out, or dismissed) commits it.
     await act(async () => {
       toast.dismiss(`review-delete-${mine.id}`);
