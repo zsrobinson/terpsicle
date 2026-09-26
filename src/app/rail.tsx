@@ -16,8 +16,10 @@ export function Rail() {
   const tab = useUi((s) => s.tab);
   const open = useUi((s) => s.sidebarOpen);
   const drilled = useUi((s) => s.stack.length > 0);
+  // On a short screen (a phone on its side gets this layout) the tabs run
+  // past the bottom: the rail scrolls, with no scrollbar eating its width.
   return (
-    <div className="flex w-[62px] shrink-0 flex-col items-center border-hairline border-r bg-panel py-2">
+    <div className="flex w-[62px] shrink-0 flex-col items-center overflow-y-auto border-hairline border-r bg-panel py-2 [scrollbar-width:none]">
       <nav
         aria-label="Sidebar tabs"
         className="flex flex-col items-center gap-0.5"

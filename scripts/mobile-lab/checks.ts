@@ -79,6 +79,8 @@ export interface Probe {
   searchResults: Scroller | null;
   resultCount: number;
   calendar: Scroller | null;
+  /** The desktop layout's rail: tabs past the bottom, and whether it scrolls. */
+  rail?: { cut: string[]; scrolls: boolean } | null;
   events: LabEvent[];
   frames: Frame[];
   errors: string[];
@@ -185,6 +187,16 @@ export function stepChecks(p: Probe, ctx: StepContext): Check[] {
     `document ${p.document.scrollWidth}px wide in ${p.document.clientWidth}px`,
   );
 
+  // A phone on its side can get the desktop layout: every rail tab must be
+  // on screen or scrollable to, since there's no keyboard for its shortcuts.
+  if (p.rail && p.rail.cut.length > 0)
+    add(
+      "rail-tabs-reachable",
+      p.rail.scrolls,
+      "fail",
+      `${p.rail.cut.join(", ")} past the bottom of a ${p.innerHeight}px screen, and the rail ${p.rail.scrolls ? "scrolls" : "doesn't scroll"}`,
+    );
+
   const d = p.drawer;
   if (d?.rect) {
     add(
@@ -251,7 +263,9 @@ export function traceChecks(frames: Frame[]): Check[] {
     });
   }
   // The focused field above the visible band at any frame: the page panned
-  // it out of sight, even if only for a moment.
+  // it out of sight, even if only for a moment. That's the owner's "you're
+  // no longer able to see where you're typing" (the drawer slid the field
+  // up out of a view the phone had panned down for the keyboard).
   const i = {
     top: FRAME_COLUMNS.indexOf("focusedTop") + 1,
     vvTop: FRAME_COLUMNS.indexOf("vvOffsetTop") + 1,
@@ -267,7 +281,7 @@ export function traceChecks(frames: Frame[]): Check[] {
     checks.push({
       id: "focused-field-never-above-view",
       ok: false,
-      severity: "warn",
+      severity: "fail",
       detail: `in ${hidden.length} frame(s) the focused field was above the visible area`,
     });
   return checks;

@@ -1,0 +1,31 @@
+CMSC131 · everyone  —  20 sections · 5 lectures  [202608:CMSC131]
+  Everyone in CMSC131 this term
+# Elias Gonzalez · MWF 10am lecture · 4 sections  {CMSC131|Elias Gonzalez}
+  Gonzalez · MWF 10am lecture  —  IRB 0324 · 0101–0104  [202608:CMSC131:L:0101]
+    0101 · TuTh 8am discussion  —  CSI 2120  [202608:CMSC131:0101]
+    0102 · TuTh 8am discussion  —  CSI 2118  [202608:CMSC131:0102]
+    0103 · TuTh 9:30am discussion  —  CSI 1121  [202608:CMSC131:0103]
+    0104 · TuTh 9:30am discussion  —  CSI 1122  [202608:CMSC131:0104]
+# Nora Burkhauser · MWF 1pm lecture · 4 sections  {CMSC131|Nora Burkhauser}
+  Burkhauser · MWF 1pm lecture  —  IRB 0324 · 0201–0204  [202608:CMSC131:L:0201]
+    0201 · TuTh 2pm discussion  —  CSI 2120  [202608:CMSC131:0201]
+    0202 · TuTh 2pm discussion  —  CSI 2118  [202608:CMSC131:0202]
+    0203 · TuTh 3:30pm discussion  —  CSI 1121  [202608:CMSC131:0203]
+    0204 · TuTh 3:30pm discussion  —  CSI 1122  [202608:CMSC131:0204]
+# Pedram Sadeghian · 2 lectures · 10 sections  {CMSC131|Pedram Sadeghian}
+  Sadeghian · MWF 11am lecture  —  IRB 0324 · 0301–0305  [202608:CMSC131:L:0301]
+    0301 · TuTh 9:30am discussion  —  CSI 2120  [202608:CMSC131:0301]
+    0302 · TuTh 9:30am discussion  —  CSI 2118  [202608:CMSC131:0302]
+    0303 · TuTh 11am discussion  —  CSI 1121  [202608:CMSC131:0303]
+    0304 · TuTh 11am discussion  —  CSI 2118  [202608:CMSC131:0304]
+    0305 · TuTh 12:30pm discussion  —  CSI 2118  [202608:CMSC131:0305]
+  Sadeghian · MWF 12pm lecture  —  IRB 0324 · 0401–0405  [202608:CMSC131:L:0401]
+    0401 · TuTh 2pm discussion  —  CSI 2120  [202608:CMSC131:0401]
+    0402 · TuTh 2pm discussion  —  CSI 2118  [202608:CMSC131:0402]
+    0403 · TuTh 3:30pm discussion  —  CSI 1121  [202608:CMSC131:0403]
+    0404 · TuTh 3:30pm discussion  —  CSI 2118  [202608:CMSC131:0404]
+    0405 · TuTh 5pm discussion  —  CSI 2118  [202608:CMSC131:0405]
+# Aaron Kyei-Asare · TuTh 6pm lecture · 2 sections  {CMSC131|Aaron Kyei-Asare}
+  Kyei-Asare · TuTh 6pm lecture  —  ESJ 0202 · 0501 and 0502  [202608:CMSC131:L:0501]
+    0501 · W 5pm discussion  —  CSI 3117  [202608:CMSC131:0501]
+    0502 · W 5pm discussion  —  CSI 3118  [202608:CMSC131:0502]
