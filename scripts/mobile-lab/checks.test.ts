@@ -109,6 +109,18 @@ describe("stepChecks", () => {
     ).toContain("focused-field-visible");
   });
 
+  it("needs every rail tab on screen or scrollable to", () => {
+    const rail = (scrolls: boolean) => ({
+      cut: ["Generate", "Export"],
+      scrolls,
+    });
+    expect(failed(aProbe({ rail: rail(false) }))).toContain(
+      "rail-tabs-reachable",
+    );
+    expect(failed(aProbe({ rail: rail(true) }))).toEqual([]);
+    expect(failed(aProbe({ rail: { cut: [], scrolls: false } }))).toEqual([]);
+  });
+
   it("knows where the drawer rests at each snap", () => {
     expect(expectedDrawerTop(aProbe())).toBe(400);
     const full = aProbe();
