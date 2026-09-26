@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { LocalIdSchema } from "./primitives";
 import {
+  FourYearSyncBodySchema,
   PlanDocSchema,
   RevSchema,
   SETTINGS_DOC_ID,
   SettingsDocSchema,
+  SYNC_DOC_KINDS,
   type SyncDoc,
   SyncDocKindSchema,
   SyncDocSchema,
@@ -20,6 +22,8 @@ export const SYNC_MAX_BODY_BYTES = 65_536;
 export const SYNC_MAX_PUSH_DOCS = 50;
 /** Plans a person can have on their account, not counting deleted ones. */
 export const SYNC_MAX_PLANS = 200;
+/** Four-year plans a person can have on their account, not counting deleted ones (V3 §2.4). */
+export const SYNC_MAX_FOUR_YEAR_DOCS = 20;
 /** Docs in one pull page. */
 export const SYNC_PULL_PAGE = 200;
 /** Days a deleted plan's tombstone is kept before the daily job prunes it. */
@@ -71,6 +75,19 @@ export const SyncPushDocSchema = z.discriminatedUnion("kind", [
       body: SettingsDocSchema,
     })
     .refine(fitsBodyLimit, BODY_TOO_BIG),
+  z
+    .strictObject({
+      kind: z.literal("four-year"),
+      id: LocalIdSchema,
+      baseRev: RevSchema,
+      /** null deletes the four-year plan (a tombstone). */
+      body: FourYearSyncBodySchema.nullable(),
+    })
+    .refine((d) => d.body === null || d.body.id === d.id, {
+      message: "A four-year doc's body must have the doc's id",
+      path: ["body", "id"],
+    })
+    .refine(fitsBodyLimit, BODY_TOO_BIG),
 ]);
 export type SyncPushDoc = z.infer<typeof SyncPushDocSchema>;
 
@@ -105,8 +122,9 @@ export const SyncPushDocResultSchema = z.discriminatedUnion("status", [
     doc: SyncDocSchema.nullable(),
   }),
   /**
-   * Not saved: it would be a new plan past the account's SYNC_MAX_PLANS.
-   * Nothing on the device changes; it can push again after deleting one.
+   * Not saved: it would be a new plan past the account's SYNC_MAX_PLANS (or
+   * a new four-year plan past SYNC_MAX_FOUR_YEAR_DOCS). Nothing on the
+   * device changes; it can push again after deleting one.
    */
   z.object({ ...docRef, status: z.literal("too-many-plans") }),
 ]);
@@ -120,6 +138,23 @@ export type SyncPushResult = z.infer<typeof SyncPushResultSchema>;
 
 // ---------- POST /api/sync/pull ----------
 
+const knownKinds: ReadonlySet<unknown> = new Set(SYNC_DOC_KINDS);
+
+/** Drops docs that name a kind this build doesn't have; anything else stays for the schema to judge. */
+function withoutUnknownKinds(docs: unknown): unknown {
+  if (!Array.isArray(docs)) return docs;
+  return docs.filter(
+    (d: unknown) =>
+      !(
+        typeof d === "object" &&
+        d !== null &&
+        "kind" in d &&
+        typeof d.kind === "string" &&
+        !knownKinds.has(d.kind)
+      ),
+  );
+}
+
 export const SyncPullInputSchema = z.strictObject({
   /** The cursor from the last page (0: everything). */
   since: RevSchema,
@@ -131,8 +166,15 @@ export const SyncPullResultSchema = z.discriminatedUnion("status", [
     status: z.literal("ok"),
     /** Pull from here next: the last doc's rev, or `since` when none. */
     cursor: RevSchema,
-    /** Every doc (tombstones too) with a rev above `since`, ascending. */
-    docs: z.array(SyncDocSchema).max(SYNC_PULL_PAGE),
+    /**
+     * Every doc (tombstones too) with a rev above `since`, ascending. A doc
+     * of a kind this build doesn't know is dropped, not an error, so a tab
+     * from before a new kind keeps syncing the kinds it has (V3 §2.4).
+     */
+    docs: z.preprocess(
+      withoutUnknownKinds,
+      z.array(SyncDocSchema).max(SYNC_PULL_PAGE),
+    ),
     /** More pages wait: pull again from `cursor` now. */
     more: z.boolean(),
   }),

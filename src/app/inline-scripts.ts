@@ -1,4 +1,5 @@
 import { returningCheckScript } from "~/features/marketing/returning";
+import { installPromptInitScript } from "~/features/pwa/install-prompt-script";
 import { loadRecoveryScript } from "./load-recovery";
 import { sidebarWidthInitScript } from "./sidebar-width";
 import { themeInitScript } from "./theme";
@@ -27,6 +28,8 @@ export const INLINE_SCRIPT_SOURCES = {
   sidebarWidth: sidebarWidthInitScript,
   loadRecovery: loadRecoveryScript,
   zodJitless: zodJitlessScript,
+  /** Chrome's `beforeinstallprompt` can fire before the app's scripts load. */
+  installPrompt: installPromptInitScript,
   /** `/` only, in its route's `head()` (src/routes/index.tsx). */
   returningCheck: returningCheckScript,
 } as const satisfies Record<string, string>;

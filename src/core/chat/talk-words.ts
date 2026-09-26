@@ -150,17 +150,18 @@ export function chatErrorWords(
 }
 
 /** Report reasons, in the order the form lists them (V2 §9.3). */
-export const REPORT_REASON_WORDS: Readonly<Record<ReportReason, string>> = {
-  "graded-work": "Shares or asks for answers to graded work",
-  "names-a-student": "Names or singles out a student",
-  "personal-info": "Shares someone's private info",
-  threat: "A threat",
-  hate: "Hate or harassment",
-  sexual: "Sexual content",
-  "misconduct-claim": "Accuses someone of misconduct",
-  "off-topic": "Spam or off-topic",
-  other: "Something else",
-};
+export const CHAT_REPORT_REASON_WORDS: Readonly<Record<ReportReason, string>> =
+  {
+    "graded-work": "Shares or asks for answers to graded work",
+    "names-a-student": "Names or singles out a student",
+    "personal-info": "Shares someone's private info",
+    threat: "A threat",
+    hate: "Hate or harassment",
+    sexual: "Sexual content",
+    "misconduct-claim": "Accuses someone of misconduct",
+    "off-topic": "Spam or off-topic",
+    other: "Something else",
+  };
 
 /** "3 unread", for a count's accessible name. */
 export function unreadWords(n: number): string {

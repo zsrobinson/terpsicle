@@ -2,8 +2,7 @@ import { cn } from "cn";
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { problemCountWords } from "~/core/problems";
-// Not the barrel: it re-exports the account pages, which would then load
-// with the scheduler.
+// Not the barrel: its pages (settings, sign-in) would load with the scheduler.
 import { AccountButton } from "~/features/auth/account-button";
 import { SyncStatusIcon } from "~/features/sync/status-view";
 import { useCatalog } from "~/state/catalog-store";

@@ -4,6 +4,9 @@ import { Resvg } from "@resvg/resvg-js";
 import { describe, expect, it } from "vitest";
 import { drawMark, MARK_IDS } from "~/app/brand/marks";
 import {
+  BADGE,
+  badgePng,
+  badgeSvg,
   FAVICON_SVG,
   faviconSvg,
   iconPng,
@@ -32,6 +35,24 @@ describe("icon files (scripts/build-icons.ts)", () => {
       });
       expect(committed.equals(iconPng(icon)), icon.file).toBe(true);
     }
+    const badge = readFileSync(publicFile(BADGE.file));
+    expect(pngSize(badge)).toEqual({ width: BADGE.size, height: BADGE.size });
+    expect(badge.equals(badgePng()), BADGE.file).toBe(true);
+  });
+
+  it("draw the notification badge as white glyph on clear", () => {
+    const { width, pixels } = new Resvg(badgeSvg(), {
+      fitTo: { mode: "width", value: BADGE.size },
+    }).render();
+    const at = (x: number, y: number) => {
+      const i = (y * width + x) * 4;
+      return [...pixels.subarray(i, i + 4)];
+    };
+    // A corner is clear; the first course's middle is solid white.
+    expect(at(0, 0)[3]).toBe(0);
+    expect(at(Math.round(width * 0.25), Math.round(width * 0.3))).toEqual([
+      255, 255, 255, 255,
+    ]);
   });
 
   it("keep the maskable icon's glyph inside the 80% safe circle", () => {

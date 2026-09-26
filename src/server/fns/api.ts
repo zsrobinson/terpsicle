@@ -60,7 +60,7 @@ export interface ApiOptions {
   signal?: AbortSignal;
 }
 
-/** One typed POST to /api/<path>; ./admin-api shares it. */
+/** One typed POST to /api/<path>; ./admin-api and ./todo share it. */
 export async function call<I extends z.ZodType, O extends z.ZodType>(
   path: string,
   inputSchema: I,

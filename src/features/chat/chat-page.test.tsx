@@ -1,3 +1,11 @@
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -107,14 +115,28 @@ function fakeClient(unread: ChatUnreadRoom[] = []) {
   return client;
 }
 
-function page(view: ChatView = {}) {
+/** The page under a router (its header links to the products). */
+async function page(view: ChatView = {}) {
   const go = vi.fn();
-  render(
-    <TooltipProvider delayDuration={0}>
-      <ChatPage view={view} go={go} />
-      <Toaster />
-    </TooltipProvider>,
-  );
+  const root = createRootRoute({
+    component: () => (
+      <TooltipProvider delayDuration={0}>
+        <Outlet />
+        <Toaster />
+      </TooltipProvider>
+    ),
+  });
+  const chat = createRoute({
+    getParentRoute: () => root,
+    path: "$",
+    component: () => <ChatPage view={view} go={go} />,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([chat]),
+    history: createMemoryHistory({ initialEntries: ["/chat"] }),
+  });
+  await router.load();
+  render(<RouterProvider router={router} />);
   return { go, user: userEvent.setup() };
 }
 
@@ -139,13 +161,13 @@ const signedIn = () =>
   });
 
 describe("ChatPage", () => {
-  it("is the front door while you're signed out: what's kept, and what classmates see", () => {
+  it("is the front door while you're signed out: what's kept, and what classmates see", async () => {
     useAccount.setState({
       status: "signed-out",
       flags: { ...FLAGS_OFF, signIn: true, chat: "on" },
       user: null,
     });
-    page();
+    await page();
     expect(
       screen.getByRole("heading", { name: "Terpsicle Chat", level: 1 }),
     ).toBeInTheDocument();
@@ -155,9 +177,9 @@ describe("ChatPage", () => {
     expect(screen.getByText(/delete them/)).toBeInTheDocument();
   });
 
-  it("says so, quietly, while Chat is off", () => {
+  it("says so, quietly, while Chat is off", async () => {
     useAccount.setState({ status: "signed-out", flags: FLAGS_OFF, user: null });
-    page();
+    await page();
     expect(screen.getByText(/Chat isn't open yet/)).toBeInTheDocument();
   });
 
@@ -173,7 +195,7 @@ describe("ChatPage", () => {
         muted: false,
       },
     ]);
-    const { go, user } = page();
+    const { go, user } = await page();
     const list = await screen.findByRole("list", { name: "Your classes" });
     const rows = within(list)
       .getAllByRole("button")
@@ -195,7 +217,7 @@ describe("ChatPage", () => {
   it("shows a course's whole room tree, with rooms you can't open yet saying why", async () => {
     signedIn();
     fakeClient();
-    const { user } = page({ course: "CMSC351" });
+    const { user } = await page({ course: "CMSC351" });
     const locked = await screen.findByRole("button", { name: /^0201 · / });
     expect(locked).toHaveAttribute("aria-disabled", "true");
     await user.hover(locked);
@@ -223,7 +245,7 @@ describe("ChatPage", () => {
       more: false,
       docs: [],
     });
-    const { user } = page({ course: "CMSC351" });
+    const { user } = await page({ course: "CMSC351" });
     await user.click(await screen.findByRole("button", { name: "Join" }));
     expect(client.chat.follow).toHaveBeenCalledWith({
       termId: fixtureTermId,

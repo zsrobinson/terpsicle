@@ -1,0 +1,228 @@
+import { create } from "zustand";
+import { track } from "~/app/analytics";
+import type {
+  IsoDate,
+  TodoConnectResult,
+  TodoFeedState,
+  TodoFileItem,
+  TodoImportFileResult,
+  TodoItem,
+} from "~/core/schema";
+import { isStale, listRange } from "~/core/todo";
+import { todoApi } from "~/server/fns/todo";
+
+// Terpsicle Todo in the browser (docs/V3.md §3.8): the last list, in memory
+// only. Nothing from Todo goes to IndexedDB or localStorage: the data is the
+// server's, and a shared computer shouldn't keep a student's deadlines.
+// Done marks are optimistic.
+
+export type TodoClient = typeof todoApi;
+
+let client: TodoClient = todoApi;
+
+/** Test hook: a fake API client. */
+export function setTodoClient(next: TodoClient): void {
+  client = next;
+}
+
+/** How long Disconnect waits for Undo before it deletes anything (V3 §3.2). */
+export const DISCONNECT_UNDO_MS = 8_000;
+
+export type TodoPhase = "idle" | "loading" | "ready" | "failed";
+
+/** What the refresh control last said, if anything. */
+export type RefreshNote = "too-soon" | "failed" | null;
+
+interface Snapshot {
+  feed: TodoFeedState | null;
+  items: TodoItem[];
+  done: ReadonlySet<string>;
+}
+
+export interface TodoState {
+  phase: TodoPhase;
+  /** The date the list was loaded for, New York's. */
+  today: IsoDate | null;
+  feed: TodoFeedState | null;
+  items: TodoItem[];
+  done: ReadonlySet<string>;
+  refreshing: boolean;
+  refreshNote: RefreshNote;
+  /** Set while Disconnect's Undo is still open. */
+  disconnecting: boolean;
+
+  /** Loads the list around `today`; asks ELMS again when the last read is stale. */
+  load: (today: IsoDate, now: number) => Promise<void>;
+  /** Asks ELMS now (the refresh control). */
+  refresh: () => Promise<void>;
+  /** Marks an item done or not; false when the server didn't take it. */
+  setDone: (uid: string, done: boolean) => Promise<boolean>;
+  connect: (url: string) => Promise<TodoConnectResult["status"] | "failed">;
+  /** Shows the disconnected state now; the route runs when Undo is gone. */
+  disconnect: () => void;
+  undoDisconnect: () => void;
+  /** Sends a pending disconnect at once (leaving the page). */
+  flushDisconnect: () => void;
+  importFile: (items: TodoFileItem[]) => Promise<TodoImportFileResult | null>;
+}
+
+let pending: { timer: ReturnType<typeof setTimeout>; before: Snapshot } | null =
+  null;
+
+const INITIAL = {
+  phase: "idle" as TodoPhase,
+  today: null,
+  feed: null,
+  items: [],
+  done: new Set<string>(),
+  refreshing: false,
+  refreshNote: null as RefreshNote,
+  disconnecting: false,
+};
+
+export const useTodo = create<TodoState>()((set, get) => {
+  const fetchList = async (today: IsoDate) => {
+    const result = await client.list(listRange(today));
+    // A disconnect waiting on Undo: keep showing it gone.
+    if (pending) return;
+    set({
+      phase: "ready",
+      today,
+      feed: result.feed,
+      items: result.items,
+      done: new Set(result.done),
+    });
+  };
+
+  const sendDisconnect = (keepalive: boolean) => {
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pending = null;
+    set({ disconnecting: false });
+    track("todo_disconnected", {});
+    void client
+      .disconnect(
+        keepalive
+          ? { fetcher: (url, init) => fetch(url, { ...init, keepalive: true }) }
+          : undefined,
+      )
+      .catch(() => {
+        // Nothing to show: the next load says whether it's still connected.
+      });
+  };
+
+  return {
+    ...INITIAL,
+
+    load: async (today, now) => {
+      if (get().phase !== "ready") set({ phase: "loading" });
+      try {
+        await fetchList(today);
+      } catch {
+        set({ phase: "failed" });
+        return;
+      }
+      if (isStale(get().feed, now)) await get().refresh();
+    },
+
+    refresh: async () => {
+      if (get().refreshing) return;
+      set({ refreshing: true, refreshNote: null });
+      try {
+        const result = await client.refresh();
+        set({
+          feed: result.feed,
+          refreshNote: result.status === "fetched" ? null : result.status,
+        });
+        const today = get().today;
+        if (result.status === "fetched" && today) await fetchList(today);
+      } catch {
+        set({ refreshNote: "failed" });
+      } finally {
+        set({ refreshing: false });
+      }
+    },
+
+    setDone: async (uid, done) => {
+      const flip = (on: boolean) => {
+        const next = new Set(get().done);
+        if (on) next.add(uid);
+        else next.delete(uid);
+        set({ done: next });
+      };
+      flip(done);
+      try {
+        await client.done({ uid, done });
+        return true;
+      } catch {
+        flip(!done);
+        return false;
+      }
+    },
+
+    connect: async (url) => {
+      // A disconnect still waiting on Undo goes first, or it would delete
+      // the link being connected now.
+      if (pending) {
+        clearTimeout(pending.timer);
+        pending = null;
+        set({ disconnecting: false });
+        await client.disconnect().catch(() => undefined);
+      }
+      try {
+        const result = await client.connect({ url });
+        if (result.status === "connected") {
+          set({ feed: result.feed });
+          const today = get().today;
+          if (today) await fetchList(today).catch(() => undefined);
+        }
+        return result.status;
+      } catch {
+        return "failed";
+      }
+    },
+
+    disconnect: () => {
+      if (pending) return;
+      const { feed, items, done } = get();
+      pending = {
+        before: { feed, items, done },
+        timer: setTimeout(() => sendDisconnect(false), DISCONNECT_UNDO_MS),
+      };
+      set({
+        feed: null,
+        items: items.filter((i) => i.source !== "elms"),
+        disconnecting: true,
+        refreshNote: null,
+      });
+    },
+
+    undoDisconnect: () => {
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      const { before } = pending;
+      pending = null;
+      set({ ...before, disconnecting: false });
+    },
+
+    flushDisconnect: () => sendDisconnect(true),
+
+    importFile: async (items) => {
+      try {
+        const result = await client.importFile({ items });
+        const today = get().today;
+        if (today) await fetchList(today).catch(() => undefined);
+        return result;
+      } catch {
+        return null;
+      }
+    },
+  };
+});
+
+/** Test hook: back to nothing loaded, with no disconnect waiting. */
+export function resetTodo(): void {
+  if (pending) clearTimeout(pending.timer);
+  pending = null;
+  useTodo.setState(INITIAL);
+}

@@ -89,7 +89,7 @@ function classifier(env: ModerationEnv, deps: ModerationDeps) {
   const config = deps.config ?? resolveConfig(env.MODERATION_CONFIG);
   return (input: ModerationInput) =>
     classify(input, {
-      ai: moderationModels(env),
+      ai: moderationModels(env, input.kind),
       config,
       budget: async () =>
         (await hit(env.DB, CAP_COUNTER, CAP_WINDOW, deps.now)) <= cap,

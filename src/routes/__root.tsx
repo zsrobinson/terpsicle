@@ -6,6 +6,8 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { InlineScript } from "~/app/inline-script";
+import { Pwa } from "~/app/pwa";
+import { pwaLinks, pwaMeta, themeColorMeta } from "~/app/pwa-head";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { AccountBoot } from "~/features/auth/account-boot";
@@ -24,6 +26,7 @@ export const Route = createRootRoute({
         name: "description",
         content: "A fast, clear class scheduler for UMD students.",
       },
+      ...pwaMeta,
       // Link previews (Messages, Slack, Discord). Pages set their own title;
       // these stay the site's name and line.
       { property: "og:site_name", content: "Terpsicle" },
@@ -51,6 +54,7 @@ export const Route = createRootRoute({
         href: "/icons/apple-touch-icon.png",
         sizes: "180x180",
       },
+      ...pwaLinks,
     ],
   }),
   shellComponent: RootDocument,
@@ -66,12 +70,22 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Inline, so they run before paint (the theme, the sidebar's width)
-            and before the app's scripts load (load recovery, Zod's config).
-            The CSP allows each by hash: src/app/inline-scripts.ts. */}
+            and before the app's scripts load (load recovery, Zod's config,
+            Chrome's install prompt). The CSP allows each by hash:
+            src/app/inline-scripts.ts. */}
         <InlineScript name="theme" />
         <InlineScript name="sidebarWidth" />
         <InlineScript name="loadRecovery" />
         <InlineScript name="zodJitless" />
+        <InlineScript name="installPrompt" />
+        {themeColorMeta.map(({ content, media }) => (
+          <meta
+            key={media}
+            name="theme-color"
+            content={content}
+            media={media}
+          />
+        ))}
         <HeadContent />
       </head>
       <body>
@@ -88,6 +102,7 @@ function RootLayout() {
       <AccountBoot />
       <Outlet />
       <Toaster />
+      <Pwa />
     </TooltipProvider>
   );
 }

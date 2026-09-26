@@ -45,6 +45,9 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `travel_how_opened` | | Whether people want to see how estimates are made ("How?"). |
   | `connection_opened` | `verdict` | How often people look into a connection, and which kinds (tight, not enough time, fine). Counted once its verdict is known, from any way in: a pill, the Travel list, Problems. |
   | `route_map_shown` | `mode`, `hasGeometry` | How often a connection has a route to draw, per mode: missing geometry hides the map. |
+  | `install_prompt_shown` | `trigger`: `first-sign-in` · `chat-joined` · `alert-on` · `menu`; `platform`: `ios` · `chromium` | How often the install prompt opens, and at which key moment (or from the "Install app" item). |
+  | `install_prompt_result` | `trigger`, `platform`, `outcome`: `installed` · `dismissed` | Whether the prompt earns its place or annoys: mostly `dismissed` means it's asked at the wrong moments. |
+  | `pwa_installed` | | Installs from any way in, the browser's own menu included (`appinstalled`). |
 
   | `search_performed` | `queryLength`, `results`, `filtered` | Whether search finds things (how often zero results), and how long queries are. Debounced; the text itself is never sent. |
   | `search_filter_changed` | `filter` | Which filter chips earn their place on the line. |
@@ -53,12 +56,23 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
   | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
 
-  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. |
+  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `todo` · `reviews` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `todo`: from signed-out `/todo` or `/todo/connect`. `reviews`: from writing or reporting a review. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
   | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names or courses. |
   | `account_deletion_requested` | | How often people delete their account. |
+  | `reviews_page_viewed` | `page`: `home` · `instructor` · `course` | Which Reviews pages people read. Never which instructor or course. |
+  | `review_form_opened` | | How often people start a review. |
+  | `review_submitted` | `outcome`: `published` · `held` · `rejected` | How many new reviews post on their own, and how many wait for a person (V2.md §9.2's under-5% target). Never the review, instructor or course. |
+  | `report_created` | `surface`, `reason` | How often readers report, and why. Never what they reported. |
+  | `todo_connect_result` | `outcome` (`connected`, `invalid-link`, `unreachable`, `not-a-calendar`) | Where connecting ELMS fails. |
+  | `todo_disconnected` | | Churn: sent once Disconnect's Undo is gone. |
+  | `todo_item_checked` | `done`, `via` (`list`, `week`) | Whether checking things off is the habit. |
+  | `todo_view_changed` | `view` (`day`, `course`, `week`) | Which views earn their place. |
+  | `todo_file_imported` | `items`, `skipped` (counts) | Whether the Gradescope fallback (a dropped `.ics`) is used. |
+
+  Todo's events never carry an item's title, course, date or link, nor anything from the feed. `/todo` is on the no-autocapture list, and titles and course names are `data-private`.
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
@@ -78,7 +92,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `alert_sent` | `termId`, `count` | Alert volume per seats run. |
   | `alert_unsubscribed` | `termId` | Whether alerts are wanted. |
   | `signin_result` | `outcome` (`signed-in`, a `SignInError` code, or `sub-conflict`), `hd` (the domain only, on success) | Server-side truth for sign-in success and failure, including failures the browser never reports, and the TERPmail versus UMD Gmail split. |
-  | `sync_push` | `docs`, `conflicts` | Plan sync's load and how often two devices change the same doc (a conflict makes a "(copy)" plan). Counts only. |
+  | `sync_push` | `docs`, `fourYearDocs`, `conflicts` | Plan sync's load (and how much of it is Terpsicle Plan's four-year plans) and how often two devices change the same doc (a conflict makes a "(copy)" plan). Counts only. |
   | `todo_fetch_run` | `due`, `fetched`, `notModified`, `unchanged`, `failed`, `broken`, `paused`, `durationMs` | Terpsicle Todo's feed cadence and failure rates. Counts only: never a feed, link, person or item. |
 
   Seat-alert events never carry an address, token or IP, not even hashed: a count per term is all we need. Identity events carry no user id, directory ID, name, email or `sub`: the domain is the most specific thing they say.

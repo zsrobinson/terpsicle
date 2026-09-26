@@ -6,10 +6,12 @@ import {
   type LocalId,
   type Plan,
   type PlanDoc,
+  type PlanSyncDoc,
   SETTINGS_DOC_ID,
   type SettingsDoc,
+  type SettingsSyncDoc,
   type SyncDoc,
-  type SyncDocKind,
+  type SyncPushDoc,
   type TravelSettings,
 } from "../schema";
 import { sameJson } from "./equal";
@@ -28,7 +30,19 @@ export function planDocKey(id: LocalId): DocKey {
   return `plan:${id}`;
 }
 
-export function docKeyOf(doc: { kind: SyncDocKind; id: string }): DocKey {
+/**
+ * The docs these tables hold. Four-year docs are Terpsicle Plan's (V3 §2.4),
+ * kept in their own table; this engine skips them.
+ */
+export type ScheduleSyncDoc = PlanSyncDoc | SettingsSyncDoc;
+export type ScheduleDocKind = ScheduleSyncDoc["kind"];
+export type SchedulePushDoc = Extract<SyncPushDoc, { kind: ScheduleDocKind }>;
+
+export function isScheduleDoc(doc: SyncDoc): doc is ScheduleSyncDoc {
+  return doc.kind === "plan" || doc.kind === "settings";
+}
+
+export function docKeyOf(doc: { kind: ScheduleDocKind; id: string }): DocKey {
   return doc.kind === "plan" ? planDocKey(doc.id) : SETTINGS_DOC_KEY;
 }
 
@@ -114,7 +128,10 @@ export function withPlan(
  * tombstone removes the plan). Only for docs with no unsaved local changes;
  * the others go through the conflict rules (`./conflict`).
  */
-export function applyDoc<T extends SyncedTables>(t: T, doc: SyncDoc): T {
+export function applyDoc<T extends SyncedTables>(
+  t: T,
+  doc: ScheduleSyncDoc,
+): T {
   if (doc.kind === "settings") return withSettingsDoc(t, doc.body);
   const plans = withPlan(t.plans, doc.id, doc.body);
   return plans === t.plans ? t : { ...t, plans };

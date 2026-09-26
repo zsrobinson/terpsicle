@@ -16,12 +16,12 @@ import {
 } from "lucide-react";
 import { type KeyboardEvent, memo, useId, useState } from "react";
 import {
+  CHAT_REPORT_REASON_WORDS,
   type ChatItem,
   chatErrorWords,
   clockWords,
   heldWords,
   REACTION_WORDS,
-  REPORT_REASON_WORDS,
   threadWords,
   whenWords,
 } from "~/core/chat";
@@ -553,7 +553,7 @@ function EditBox({
   );
 }
 
-const REASONS = Object.keys(REPORT_REASON_WORDS) as ReportReason[];
+const REASONS = Object.keys(CHAT_REPORT_REASON_WORDS) as ReportReason[];
 
 /** Report, inline (V2 §8.6): a reason, an optional note, and a plain thank-you. */
 function ReportForm({
@@ -614,7 +614,7 @@ function ReportForm({
               checked={reason === r}
               onChange={() => setReason(r)}
             />
-            {REPORT_REASON_WORDS[r]}
+            {CHAT_REPORT_REASON_WORDS[r]}
           </label>
         ))}
       </fieldset>

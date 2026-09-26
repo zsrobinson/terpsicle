@@ -51,7 +51,9 @@ export async function pullSynced(client: ChatApi): Promise<Synced> {
       continue;
     }
     for (const doc of result.docs) {
+      // Four-year plans (Plan's docs) have nothing to do with rooms.
       if (doc.kind === "settings") settings = doc;
+      else if (doc.kind !== "plan") continue;
       else if (doc.body) plans.set(doc.id, doc.body);
       else plans.delete(doc.id);
     }
