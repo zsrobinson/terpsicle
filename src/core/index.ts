@@ -8,6 +8,7 @@ export * from "./fit";
 export * from "./generate";
 export * from "./grades";
 export * from "./ics";
+export * from "./moderation";
 export * from "./plans";
 export * from "./problems";
 export * from "./routing";
