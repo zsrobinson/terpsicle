@@ -331,8 +331,13 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | `auth/test-sign-in` (test mode only; 404 elsewhere) | `TestSignInInputSchema` `{userId, return?}` | `TestSignInResultSchema` | 60 |
 | `sync/push` (`auth: "user"`) | `SyncPushInputSchema` `{docs: [{kind, id, baseRev, body}]}` (≤ 50, each body ≤ 64 KiB) | `SyncPushResultSchema` `{results}`: per doc `ok` (with `rev`), `conflict` (with the server's `doc`, or null) or `too-many-plans` | none; 1,200 per user |
 | `sync/pull` (`auth: "user"`) | `SyncPullInputSchema` `{since}` | `SyncPullResultSchema`: `ok` (`cursor`, `docs`, `more`) or `reset` | none; 600 per user |
+| `admin/moderation/queue` (`auth: "admin"`) | `QueueListInputSchema` `{status?, limit?}` | `QueueListResultSchema` | 600 |
+| `admin/moderation/resolve` (`auth: "admin"`) | `ResolveInputSchema` `{id, action, reason}` | `ResolveResultSchema` | 600 |
+| `admin/moderation/undo` (`auth: "admin"`) | `UndoInputSchema` `{id}` | `ResolveResultSchema` | 600 |
 
 **Identity** (§7.6, `docs/AUTH.md`) adds the `auth` field to the route table: `"user"` and `"admin"` routes need a same-origin request (`Origin`, and `Sec-Fetch-Site` when sent) and a session, answer `401 unauthorized` or `403 forbidden` otherwise, and get the session's user in `ctx.session`. `ApiErrorSchema` gains `unauthorized` and `forbidden`. Two GET navigations sit beside the table, `/api/auth/google` and `/api/auth/google/callback`, and one Worker route outside `/api`, `/avatars/*`.
+
+Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `reports` tables in `0004_moderation`, the retry cron, the admin API) is described in `docs/MODERATION.md`.
 
 ### 7.1 Seat alerts (`SPEC.md` §3.12)
 
