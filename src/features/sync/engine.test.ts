@@ -15,6 +15,7 @@ import {
 } from "~/core/sync";
 import {
   aBlock,
+  aFourYear,
   aPlan,
   aPlanCourse,
   aSavedCourse,
@@ -326,7 +327,7 @@ describe("pulling", () => {
     const a = track(await syncedDevice("a", server));
     a.edit((t) => ({ ...t, plans: [planA] }));
     await a.settle();
-    const fourYear = { id: planA.id, name: "My plan" };
+    const fourYear = aFourYear({ id: planA.id });
     server.push({
       docs: [
         { kind: "four-year", id: fourYear.id, baseRev: 0, body: fourYear },

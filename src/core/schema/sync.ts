@@ -57,11 +57,12 @@ export const SettingsDocSchema = z.object({
 export type SettingsDoc = z.infer<typeof SettingsDocSchema>;
 
 /**
- * A four-year doc's body as sync checks it. The server stores it whole and
- * never reads it (V3 §2.4–2.5: grades live in it), so this checks only what
- * sync relies on: a JSON object with the doc's id. The size limit is the
- * push's, like every kind's. The device validates the full doc when it reads
- * the body (`FourYearDocSchema`, `~/core/schema/four-year`).
+ * A four-year doc's body as the shared sync schemas check it: a JSON object
+ * with the doc's id, under the push's size limit like every kind. The full
+ * `FourYearDocSchema` stays out of this barrel (every page loads it; see
+ * ./index.ts), so the Worker checks it on push (src/server/sync/api.ts) and
+ * the device when it reads a body. Nothing on the server reads the body past
+ * that (V3 §2.4–2.5: grades live in it).
  */
 export const FourYearSyncBodySchema = z.looseObject({ id: LocalIdSchema });
 export type FourYearSyncBody = z.infer<typeof FourYearSyncBodySchema>;

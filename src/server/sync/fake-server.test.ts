@@ -17,6 +17,7 @@ import {
 } from "~/core/schema";
 import {
   aBlock,
+  aFourYear,
   aPlan,
   aSavedCourse,
   aSettingsDoc,
@@ -154,7 +155,7 @@ describe("FakeSyncServer", () => {
       kind: "four-year" as const,
       id: `fy_${String(n).padStart(4, "0")}_fake`,
       baseRev,
-      body: { id: `fy_${String(n).padStart(4, "0")}_fake`, name },
+      body: aFourYear({ id: `fy_${String(n).padStart(4, "0")}_fake`, name }),
     });
     await pair.push(
       Array.from({ length: SYNC_MAX_FOUR_YEAR_DOCS }, (_, i) => fourYear(i)),

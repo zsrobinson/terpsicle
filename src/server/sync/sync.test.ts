@@ -5,7 +5,6 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { findTestUser } from "~/core/auth";
 import {
-  type FourYearSyncBody,
   type Plan,
   SYNC_MAX_BODY_BYTES,
   SYNC_MAX_FOUR_YEAR_DOCS,
@@ -20,7 +19,14 @@ import {
   SyncPushResultSchema,
   syncBodyBytes,
 } from "~/core/schema";
-import { aPlan, aPlanCourse, aSettingsDoc } from "~/fixtures";
+import type { FourYearDoc } from "~/core/schema/four-year";
+import {
+  aFourYear,
+  aFourYearEntry,
+  aPlan,
+  aPlanCourse,
+  aSettingsDoc,
+} from "~/fixtures";
 import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
@@ -130,24 +136,16 @@ const saveSettings = (baseRev = 0): SyncPushDoc => ({
 
 const fourYearId = (n: number) => `fy_${String(n).padStart(4, "0")}_test`;
 
-/**
- * A four-year doc's body. Sync stores it whole and checks only its id
- * (FourYearSyncBodySchema), so any object with the doc's id stands in until
- * the four-year fixtures land.
- */
-const aFourYearBody = (id: string, extra: Record<string, unknown> = {}) => ({
-  id,
-  name: "My plan",
-  firstTermId: "202608",
-  entries: [],
-  grades: { entry_1_test: "A" },
-  template: null,
-  createdAt: "2026-09-01T12:00:00.000Z",
-  updatedAt: "2026-09-01T12:00:00.000Z",
-  ...extra,
-});
+/** A four-year doc with a graded course: grades travel in the body (V3 §2.5). */
+const aFourYearBody = (id: string, overrides: Partial<FourYearDoc> = {}) =>
+  aFourYear({
+    id,
+    entries: [aFourYearEntry()],
+    grades: { [aFourYearEntry().id]: "A" },
+    ...overrides,
+  });
 
-const saveFourYear = (body: FourYearSyncBody, baseRev = 0): SyncPushDoc => ({
+const saveFourYear = (body: FourYearDoc, baseRev = 0): SyncPushDoc => ({
   kind: "four-year",
   id: body.id,
   baseRev,
@@ -393,11 +391,19 @@ describe("four-year docs", () => {
     ]);
   });
 
-  it("refuses a body under another id, or that isn't an object", async () => {
+  it("refuses a body under another id, or that isn't a four-year doc", async () => {
     const phone = await signIn("tstudent");
-    for (const body of [aFourYearBody(fourYearId(2)), [], "plan", 3]) {
+    const id = fourYearId(1);
+    for (const body of [
+      aFourYearBody(fourYearId(2)),
+      { ...aFourYearBody(id), name: "" },
+      { ...aFourYearBody(id), grades: { [aFourYearEntry().id]: "A++" } },
+      { id },
+      [],
+      "plan",
+    ]) {
       const response = await phone.request("/api/sync/push", {
-        docs: [{ kind: "four-year", id: fourYearId(1), baseRev: 0, body }],
+        docs: [{ kind: "four-year", id, baseRev: 0, body }],
       });
       expect(response.status).toBe(400);
     }
@@ -407,14 +413,26 @@ describe("four-year docs", () => {
   it("caps each body at SYNC_MAX_BODY_BYTES", async () => {
     const phone = await signIn("tstudent");
     const id = fourYearId(1);
-    const padding = (n: number) => aFourYearBody(id, { name: "x".repeat(n) });
-    const room = SYNC_MAX_BODY_BYTES - syncBodyBytes(padding(0));
-    expect(syncBodyBytes(padding(room))).toBe(SYNC_MAX_BODY_BYTES);
+    // Grades are the one part of the doc without a count limit.
+    const graded = (n: number) =>
+      aFourYearBody(id, {
+        grades: Object.fromEntries(
+          Array.from({ length: n }, (_, i) => [
+            `entry_${String(i).padStart(6, "0")}`,
+            "A",
+          ]),
+        ),
+      });
+    const per = syncBodyBytes(graded(2)) - syncBodyBytes(graded(1));
+    const n =
+      Math.floor((SYNC_MAX_BODY_BYTES - syncBodyBytes(graded(1))) / per) + 1;
+    expect(syncBodyBytes(graded(n))).toBeLessThanOrEqual(SYNC_MAX_BODY_BYTES);
+    expect(syncBodyBytes(graded(n + 1))).toBeGreaterThan(SYNC_MAX_BODY_BYTES);
     const over = await phone.request("/api/sync/push", {
-      docs: [saveFourYear(padding(room + 1))],
+      docs: [saveFourYear(graded(n + 1))],
     });
     expect(over.status).toBe(400);
-    expect((await phone.push(saveFourYear(padding(room)))).results).toEqual([
+    expect((await phone.push(saveFourYear(graded(n)))).results).toEqual([
       { kind: "four-year", id, status: "ok", rev: 1 },
     ]);
   });

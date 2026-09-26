@@ -9,6 +9,7 @@ import type {
   SyncPushInput,
   SyncPushResult,
 } from "~/core/schema";
+import { FourYearDocSchema } from "~/core/schema/four-year";
 import { captureServerEvent } from "../analytics";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
@@ -36,6 +37,16 @@ export async function push(
   const fourYearDocs = input.docs.filter((d) => d.kind === "four-year").length;
   if (fourYearDocs > 0 && env.PLAN_ENABLED !== "true")
     return apiError("unavailable");
+  // The input schema checks only a four-year body's id (FourYearSyncBodySchema
+  // keeps the full schema out of the shared barrel); the whole doc is checked
+  // here, and like any invalid input nothing of the push is saved.
+  const invalidFourYear = input.docs.some(
+    (d) =>
+      d.kind === "four-year" &&
+      d.body !== null &&
+      !FourYearDocSchema.safeParse(d.body).success,
+  );
+  if (invalidFourYear) return apiError("invalid-input");
   const results = await pushDocs(env.DB, user.id, input.docs, ctx.now);
   // Chat rooms come from the stored plans (V2.md §8.2): what was saved moves
   // the person's chat_members.
