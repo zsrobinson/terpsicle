@@ -33,6 +33,7 @@ import {
   SyncDocSchema,
   TermSchema,
   TermsFileSchema,
+  TranscriptLineSchema,
 } from "~/core/schema";
 import {
   aBlock,
@@ -70,6 +71,7 @@ import {
   aTerm,
   aTermsFile,
   aTimedMeeting,
+  aTranscriptLine,
   seededRandom,
   someGrades,
 } from "~/fixtures";
@@ -121,6 +123,7 @@ describe("builders return schema-valid objects by default", () => {
     ["aProblem", ProblemSchema, aProblem()],
     ["aChatAuthor", ChatAuthorSchema, aChatAuthor()],
     ["aChatMessage", ChatMessageSchema, aChatMessage()],
+    ["aTranscriptLine", TranscriptLineSchema, aTranscriptLine()],
   ];
   it.each(cases)("%s", (_, schema, value) => {
     expect(schema.safeParse(value).success).toBe(true);
