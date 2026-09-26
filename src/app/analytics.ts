@@ -199,7 +199,10 @@ export async function initAnalytics(
 
   pending = [];
   const { default: posthog } = await import("posthog-js");
-  posthog.init(token, posthogOptions(() => pagePrivateText()));
+  posthog.init(
+    token,
+    posthogOptions(() => pagePrivateText()),
+  );
   client = posthog;
   for (const { event, properties } of pending)
     client.capture(event, properties);
