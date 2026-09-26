@@ -1,0 +1,49 @@
+name: Playwright browser
+description: >-
+  One Playwright browser and its system packages, with the browser download
+  cached per Playwright version. Run after ./.github/actions/setup.
+inputs:
+  browser:
+    description: chromium, webkit or firefox
+    default: chromium
+  only-shell:
+    description: For chromium, only the headless shell (what headless runs use), not the full browser.
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - id: version
+      shell: bash
+      run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}-${{ inputs.browser }}${{ inputs.only-shell == 'true' && '-shell' || '' }}
+
+    # A no-op on a cache hit: it checks the expected build is there.
+    - name: Download ${{ inputs.browser }}
+      shell: bash
+      env:
+        BROWSER: ${{ inputs.browser }}
+        ONLY_SHELL: ${{ inputs.only-shell }}
+      run: |
+        if [ "$ONLY_SHELL" = true ]; then
+          pnpm exec playwright install --only-shell "$BROWSER"
+        else
+          pnpm exec playwright install "$BROWSER"
+        fi
+
+    # The same packages `install --with-deps` installs. When the runner image
+    # already has them all, apt only costs time: the dry run simulates the
+    # install and fails if any package would be installed.
+    - name: System packages for ${{ inputs.browser }}
+      shell: bash
+      env:
+        BROWSER: ${{ inputs.browser }}
+      run: |
+        if pnpm exec playwright install-deps --dry-run "$BROWSER"; then
+          echo "The runner already has every package $BROWSER needs."
+        else
+          pnpm exec playwright install-deps "$BROWSER"
+        fi
