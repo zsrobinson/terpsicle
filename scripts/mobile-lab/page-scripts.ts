@@ -206,6 +206,8 @@ export const ARM_CALIBRATION = `(() => {
     }
     if (e.cancelable) e.preventDefault();
     e.stopImmediatePropagation();
+    // The tap's own mouse events come once each, if at all.
+    if (after.includes(e.type)) removeEventListener(e.type, swallow, true);
     // Disarm as soon as the tap is over, so the next real tap gets through.
     if (e.type === "touchend" || e.type === "touchcancel") {
       off(touch);

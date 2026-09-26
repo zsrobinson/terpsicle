@@ -293,6 +293,8 @@ class SimulatorSafari implements Device {
     }
     if (!seen) throw new Error("the calibration tap never reached the page");
     // Points are CSS pixels in Safari at 1× zoom.
+    // Let the catcher disarm before the next tap (page-scripts.ts).
+    await new Promise((resolve) => setTimeout(resolve, 600));
     this.mapping = calibrate(at, seen, 1);
     return this.mapping;
   }

@@ -225,6 +225,8 @@ class AndroidChrome implements Device {
       if (retry && (await this.dismissDialogs())) return this.calibrate(false);
       throw new Error("the calibration tap never reached the page");
     }
+    // Let the catcher disarm before the next tap (page-scripts.ts).
+    await new Promise((resolve) => setTimeout(resolve, 600));
     this.mapping = calibrate(at, seen, dpr);
     return this.mapping;
   }
