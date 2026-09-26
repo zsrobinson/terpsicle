@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import { signInStartHref } from "~/core/auth";
@@ -26,7 +26,14 @@ export function deletionDay(iso: string): string {
   });
 }
 
-/** `/settings`: the account section (V2.md §1.1). Notifications come later. */
+// Signed in only, and its own chunk: /settings stays light for everyone else.
+const NotificationSettingsSection = lazy(() =>
+  import("~/features/notifications/notification-settings").then((m) => ({
+    default: m.NotificationSettingsSection,
+  })),
+);
+
+/** `/settings`: the account (V2.md §1.1) and notifications (§6.2). */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
   return (
@@ -34,6 +41,13 @@ export function SettingsPage() {
       <AccountSection title="Account">
         <AccountDetails />
       </AccountSection>
+      {status === "signed-in" ? (
+        <AccountSection title="Notifications" id="notifications">
+          <Suspense fallback={<Skeleton className="h-24 w-full" />}>
+            <NotificationSettingsSection />
+          </Suspense>
+        </AccountSection>
+      ) : null}
     </AccountPage>
   );
 }

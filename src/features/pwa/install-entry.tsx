@@ -1,9 +1,8 @@
 import { Download } from "lucide-react";
-import { Button } from "~/ui/button";
 import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import {
-  isStandalone,
+  INSTALL_HINT,
   openInstallPrompt,
   useInstallMethod,
 } from "./install-state";
@@ -11,18 +10,17 @@ import {
 // "Install app", always available and quiet (V2 §3.4): it opens the same
 // dialog as the key moments, whatever the cooldown. It's in the account menu
 // (the phone menu too), and for people who haven't signed in, at the foot of
-// the scheduler's rail (the theme menu on phones). `InstallAppSetting` is
-// for /settings/notifications. Each piece renders nothing where installing
+// the scheduler's rail (the theme menu on phones). `InstallAppSetting`
+// (install-setting.tsx, apart so the scheduler's chunk doesn't split) is for
+// /settings#notifications. Each piece renders nothing where installing
 // doesn't work or already happened.
-
-const HINT = "Put Terpsicle on your home screen";
 
 /** An icon button: the foot of the rail. */
 export function InstallAppButton({ side }: { side: "right" | "bottom" }) {
   const method = useInstallMethod();
   if (method === null) return null;
   return (
-    <WithTooltip label={HINT} side={side}>
+    <WithTooltip label={INSTALL_HINT} side={side}>
       <button
         type="button"
         aria-label="Install app"
@@ -47,35 +45,5 @@ export function InstallAppMenuItem() {
         Install app
       </DropdownMenuItem>
     </>
-  );
-}
-
-/**
- * A settings row that's always there and says why when installing isn't
- * possible (for /settings/notifications' "This device").
- */
-export function InstallAppSetting() {
-  const method = useInstallMethod();
-  const installed = typeof window !== "undefined" && isStandalone();
-  return (
-    <div className="flex items-center gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="font-medium">Install app</div>
-        <p className="text-sm text-muted">
-          {installed
-            ? "You're using the installed app."
-            : method === null
-              ? "This browser can't install Terpsicle. Try Chrome or Edge, or Safari on iPhone and iPad."
-              : "Get notified when a seat opens or a classmate replies, and open Terpsicle from your home screen."}
-        </p>
-      </div>
-      {method === null ? null : (
-        <WithTooltip label={HINT}>
-          <Button variant="outline" size="sm" onClick={openInstallPrompt}>
-            Install
-          </Button>
-        </WithTooltip>
-      )}
-    </div>
   );
 }

@@ -647,6 +647,20 @@ The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the
 
 ---
 
+### 7.11 Notifications (landed: `migrations/0006_notifications.sql`)
+
+The design is `docs/V2.md` §6 (its "As built" under §6.4). Routes: `src/server/notifications/api.ts`; sending: `notify` and `sendTestPush` (`src/server/notifications/notify.ts`) over `sendPush` (`src/server/push/send.ts`); SQL: `src/server/notifications/store.ts` and `src/server/push/store.ts`; schemas: `src/core/schema/notifications.ts` (kept out of the schema barrel); crypto and push request rules: `src/core/push`; settings rules: `src/core/notifications`. The number was reserved in V2.md §13, so it lands after `0011` (wrangler applies migrations by name).
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `notification_settings` | `user_id` | `settings` (`NotificationSettingsSchema` JSON), `updated_at` | No row means the defaults. A row that no longer reads also gives the defaults. |
+| `push_subscriptions` | `id` (16 random bytes) | `user_id`, `endpoint` (unique), `p256dh`, `auth`, `user_agent_label`, `created_at`, `last_success_at`, `failure_count` | One per device. Saving an endpoint again refreshes its keys; another account saving it takes the row over (a new `id` and date). 404/410 deletes it; the 10th failure in a row does too. The endpoint never leaves the server. |
+| `notifications` | `id` | `user_id`, `type`, `term_id`, `course_code`, `room_id`, `seq`, `message_id`, `actor_id`, `created_at`, `read_at`, `emailed_at` | Chat mentions and replies, for read state and the digest; `v2/chat-notify` fills it. |
+| `notification_deliveries` | `id` | `user_id` (no foreign key; null once the account is purged), `type`, `channel`, `dedupe_key` (unique), `status` (`sent` · `failed` · `skipped`), `provider_id`, `sent_at` | One row per event per channel, claimed before sending, so a retry sends nothing twice. `provider_id` is the Email Service id, or the push services' statuses (`201,410`). Pruned after 90 days. "Send me a test" writes none. |
+
+- **Deleting an account** drops every push subscription at once (`account/delete`); the purge deletes settings, subscriptions and `notifications`, and sets deliveries' `user_id` to null.
+- **Signing out** with `pushEndpoint` deletes that device's row.
+
 ## 8. Share links
 
 `/schedule?plan=<base64url(deflate-raw(UTF-8 JSON))>`. The link carries a `SharePayloadSchema` payload:

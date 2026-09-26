@@ -225,7 +225,8 @@ export async function accountsDueForPurge(
 
 /**
  * Deletes accounts whose week of grace has ended, with their identities,
- * sessions and synced docs, then expired sessions. Returns the counts. (Their pictures are
+ * sessions, synced docs, push devices and notification settings (their
+ * deliveries lose the user id), then expired sessions. Returns the counts. (Their pictures are
  * in R2: the daily job deletes those first.)
  */
 export async function purgeAccounts(
@@ -237,13 +238,19 @@ export async function purgeAccounts(
   // so nothing of an account outlives it even where foreign keys are off.
   const due =
     "SELECT id FROM users WHERE status = 'deleting' AND delete_after <= ?1";
-  const [, , , , accounts, sessions] = await db.batch([
-    db.prepare(`DELETE FROM sessions WHERE user_id IN (${due})`).bind(at),
-    db
-      .prepare(`DELETE FROM user_identities WHERE user_id IN (${due})`)
-      .bind(at),
-    db.prepare(`DELETE FROM sync_docs WHERE user_id IN (${due})`).bind(at),
-    db.prepare(`DELETE FROM sync_heads WHERE user_id IN (${due})`).bind(at),
+  const cleanup = [
+    `DELETE FROM sessions WHERE user_id IN (${due})`,
+    `DELETE FROM user_identities WHERE user_id IN (${due})`,
+    `DELETE FROM sync_docs WHERE user_id IN (${due})`,
+    `DELETE FROM sync_heads WHERE user_id IN (${due})`,
+    `DELETE FROM push_subscriptions WHERE user_id IN (${due})`,
+    `DELETE FROM notification_settings WHERE user_id IN (${due})`,
+    `DELETE FROM notifications WHERE user_id IN (${due})`,
+    // Deliveries stay for the counts, without whose they were.
+    `UPDATE notification_deliveries SET user_id = NULL WHERE user_id IN (${due})`,
+  ];
+  const results = await db.batch([
+    ...cleanup.map((sql) => db.prepare(sql).bind(at)),
     db
       .prepare(
         "DELETE FROM users WHERE status = 'deleting' AND delete_after <= ?1",
@@ -251,6 +258,8 @@ export async function purgeAccounts(
       .bind(at),
     db.prepare("DELETE FROM sessions WHERE expires_at <= ?1").bind(at),
   ]);
+  const accounts = results[cleanup.length];
+  const sessions = results[cleanup.length + 1];
   return {
     accounts: accounts?.meta.changes ?? 0,
     sessions: sessions?.meta.changes ?? 0,

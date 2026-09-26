@@ -170,7 +170,7 @@ export const MeResultSchema = z.discriminatedUnion("status", [
     status: z.literal("signed-in"),
     flags: FlagsSchema,
     user: MeUserSchema,
-    /** The VAPID public key, once push lands (V2.md §6.4). */
+    /** The VAPID public key while push is on, else null (V2.md §6.4). */
     pushPublicKey: z.string().nullable(),
   }),
 ]);
@@ -181,6 +181,8 @@ export type MeResult = z.infer<typeof MeResultSchema>;
 export const SignOutInputSchema = z.strictObject({
   /** "Sign out and remove plans from this device" (the app does the removing). */
   removeLocal: z.boolean().optional(),
+  /** This device's push endpoint: signing out stops its notifications (V2 §4.7). */
+  pushEndpoint: z.string().min(1).max(2048).optional(),
 });
 export const SignOutResultSchema = z.object({
   status: z.literal("signed-out"),
