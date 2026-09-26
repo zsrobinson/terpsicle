@@ -3,14 +3,21 @@ import { cn } from "cn";
 import { Slot } from "radix-ui";
 import type * as React from "react";
 
-// shadcn/ui button, restyled to our tokens and compact density.
+// shadcn/ui button in the Ink brand (docs/DESIGN.md §7): square, with a hard
+// offset shadow on the filled and outline variants. A press shifts the button
+// into its shadow, the way a key goes down. Ghost and link buttons stay flat,
+// so a row of icon buttons doesn't turn into a row of boxes.
+const PRESS =
+  "active:translate-x-(--offset) active:translate-y-(--offset) active:shadow-none";
+
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap font-semibold transition-colors focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-accent text-accent-fg hover:bg-accent/85",
-        outline: "border border-hairline bg-raised hover:bg-hover",
+        // Ink-filled: its offset is gray, never ink on ink.
+        default: `bg-accent text-accent-fg shadow-offset-filled hover:bg-accent/85 ${PRESS}`,
+        outline: `border border-fg bg-raised text-fg shadow-offset hover:bg-hover ${PRESS}`,
         ghost: "text-muted hover:bg-hover hover:text-fg",
         link: "text-fg underline-offset-4 hover:underline",
       },

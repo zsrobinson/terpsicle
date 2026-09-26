@@ -62,7 +62,11 @@
     "GOOGLE_REDIRECT_ORIGINS": "https://terpsicle.com",
     // Moderation model calls per UTC day, at most (Workers AI cost). Past it,
     // new reviews and chat messages wait for the owner (docs/MODERATION.md).
-    "MODERATION_DAILY_CAP": "2000"
+    "MODERATION_DAILY_CAP": "2000",
+    // Terpsicle Reviews: off | read | on (docs/V2.md §7.4). "off" answers
+    // every reviews/* route with "unavailable"; "read" lists, deletes and
+    // reports but takes no new words. Off until the e2e and the owner's trial.
+    "REVIEWS_ENABLED": "off"
   },
   "ai": { "binding": "AI" },
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.
@@ -92,7 +96,8 @@
   // whatever the vars say (docs/AUTH.md, "Test mode").
   "previews": {
     "vars": {
-      "AUTH_TEST_MODE": "true"
+      "AUTH_TEST_MODE": "true",
+      "REVIEWS_ENABLED": "on"
     },
     "r2_buckets": [
       { "binding": "DATA", "bucket_name": "terpsicle-data" },

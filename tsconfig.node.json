@@ -21,6 +21,9 @@
     "src/server/summaries/prompt.ts",
     "src/server/summaries/planetterp-api.ts",
     "src/server/alerts/email.ts",
+    // The marks and the token reader (scripts/build-icons.ts).
+    "src/app/brand/marks.ts",
+    "src/app/brand/css-tokens.ts",
     // The moderation pipeline and its eval set (scripts/moderation-eval.ts).
     "src/server/moderation/classify.ts",
     "src/server/moderation/models.ts",

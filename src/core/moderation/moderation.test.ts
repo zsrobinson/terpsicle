@@ -272,6 +272,10 @@ describe("decide", () => {
     expect(needsRetry([failed, r("phone", "hold")])).toBe(false);
     expect(needsRetry([r("link", "flag")])).toBe(false);
     expect(needsRetry([])).toBe(false);
+    // A burst of reviews is for a person; screening again changes nothing.
+    const burst = { code: "burst", source: "system", action: "hold" } as const;
+    expect(needsRetry([burst])).toBe(false);
+    expect(needsRetry([failed, burst])).toBe(false);
   });
 
   it("maps Llama Guard categories through the configured actions", () => {

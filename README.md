@@ -54,3 +54,8 @@ BUILD §5's budgets fail CI when they regress:
 ## License
 
 [MIT](LICENSE)
+
+## Credits
+
+- Colors: [Flexoki](https://stephango.com/flexoki) by Steph Ango, MIT License.
+- Type: [Bricolage Grotesque](https://github.com/ateliertriay/bricolage) and [Geist Mono](https://vercel.com/font), SIL Open Font License 1.1.
