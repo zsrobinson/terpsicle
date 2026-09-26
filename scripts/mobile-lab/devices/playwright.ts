@@ -198,15 +198,20 @@ class PlaywrightDevice implements Device {
   async crashEvidence(): Promise<string | null> {
     const lines = await kernelLog();
     if (!lines) return null;
-    const fresh = lines.slice(this.kernelSeen ?? 0);
-    console.error(
-      `  kernel log: ${lines.length} lines, ${fresh.length} new since the last look`,
-    );
+    const fresh = lines.slice(this.kernelSeen ?? 0).filter((l) => l.trim());
+    const first = this.kernelSeen === null;
     this.kernelSeen = lines.length;
-    const crashes = fresh.filter((l) =>
-      /segfault|general protection|killed process|out of memory/i.test(l),
+    if (first) return null;
+    // All of it: the kernel may split one report over lines (the faulting
+    // library can come on the line after the segfault).
+    console.error(
+      `  kernel log, new since the last look:\n${fresh.join("\n")}`,
     );
-    return crashes.length > 0 ? crashes.join("\n") : null;
+    return fresh.some((l) =>
+      /segfault|general protection|killed process|out of memory/i.test(l),
+    )
+      ? fresh.join("\n")
+      : null;
   }
 
   async close(): Promise<void> {

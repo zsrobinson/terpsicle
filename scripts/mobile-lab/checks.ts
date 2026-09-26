@@ -287,5 +287,8 @@ function round(n: number): number {
  * fails.
  */
 export function isWebkitCompositorCrash(kernel: string): boolean {
-  return /Compositor\[\d+\]: segfault at 0 .* in libWPEWebKit/.test(kernel);
+  // One report can span lines; read it as one.
+  return /Compositor\[\d+\]: segfault at 0 .* in libWPEWebKit/.test(
+    kernel.replace(/\s*\n\s*/g, " "),
+  );
 }

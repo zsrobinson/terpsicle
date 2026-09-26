@@ -172,6 +172,12 @@ describe("isWebkitCompositorCrash", () => {
         "[Sat Sep 26 14:20:04 2026] eadedCompositor[6411]: segfault at 0 ip 00007f2c4aca0f8a sp 00007f2bbaff98f0 error 4 in libWPEWebKit-2.0.so.1.12.0[60a0f8a,7f2c45408000+5edd000] likely on CPU 3 (core 1, socket 0)",
       ),
     ).toBe(true);
+    // The same report, split over two lines as raw dmesg can print it.
+    expect(
+      isWebkitCompositorCrash(
+        "[  312.4] eadedCompositor[6411]: segfault at 0 ip 00007f2c4aca0f8a sp 00007f2bbaff98f0 error 4\n[  312.4]  in libWPEWebKit-2.0.so.1.12.0[60a0f8a,7f2c45408000+5edd000] likely on CPU 3",
+      ),
+    ).toBe(true);
     // A crash anywhere else in the page process is the page's problem.
     expect(
       isWebkitCompositorCrash(
