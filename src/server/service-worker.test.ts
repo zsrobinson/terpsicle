@@ -284,6 +284,32 @@ describe("service worker: pages and files", () => {
     );
   });
 
+  it("doesn't keep pages that say no-store, like the admin panel", async () => {
+    const sw = setUp();
+    sw.fetchWith(async () => html("the landing page"));
+    await sw.request("/", { navigate: true });
+    sw.fetchWith(
+      async () =>
+        new Response("the owner's queue", {
+          headers: {
+            "Content-Type": "text/html",
+            "Cache-Control": "private, no-store",
+          },
+        }),
+    );
+    expect(await (await sw.request("/admin", { navigate: true }))?.text()).toBe(
+      "the owner's queue",
+    );
+    sw.fetchWith(offline);
+    // Neither kept for itself nor handed to another page as the newest copy.
+    expect(await (await sw.request("/admin", { navigate: true }))?.text()).toBe(
+      "the landing page",
+    );
+    expect(await (await sw.request("/chat", { navigate: true }))?.text()).toBe(
+      "the landing page",
+    );
+  });
+
   it("precaches the app shell on install, so the first offline launch works", async () => {
     const sw = setUp({
       precache: ["/assets/index-a.js", "/assets/styles-b.css"],

@@ -250,7 +250,13 @@ export function installServiceWorker(
     try {
       const response = await doFetch(request);
       const type = response.headers.get("Content-Type") ?? "";
-      if (response.ok && type.startsWith("text/html"))
+      // `no-store` marks a page that depends on who's asking (the admin
+      // panel: src/server/worker.ts), which no cache may keep or hand to
+      // another path offline.
+      const keep = !/no-store/i.test(
+        response.headers.get("Cache-Control") ?? "",
+      );
+      if (response.ok && keep && type.startsWith("text/html"))
         await cache.put(key, response.clone());
       return response;
     } catch (error) {
