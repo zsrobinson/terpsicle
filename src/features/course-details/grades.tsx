@@ -44,10 +44,13 @@ export function Grades({
   course,
   planetTerp,
   loading,
+  failed = false,
 }: {
   course: Course;
   planetTerp: PlanetTerpDept | null;
   loading: boolean;
+  /** The department's PlanetTerp file didn't load: say so, not "no grades". */
+  failed?: boolean;
 }) {
   const grades = planetTerp?.courses[course.code];
   const [who, setWho] = useState<InstructorSlug | "all">("all");
@@ -58,6 +61,13 @@ export function Grades({
         <Skeleton className="h-3 w-3/4" />
         <Skeleton className="h-28 w-full" />
       </div>
+    );
+  if (failed && !planetTerp)
+    return (
+      <p className="text-sm text-muted">
+        Couldn't load grades from PlanetTerp. Check your connection and reopen
+        this course.
+      </p>
     );
   if (!grades?.all)
     return (

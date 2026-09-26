@@ -6,6 +6,7 @@ import {
   formatRating,
   formatShare,
   gradeSummary,
+  planetTerpFreshnessWords,
 } from "~/core/grades";
 import {
   type Course,
@@ -13,6 +14,8 @@ import {
   type PlanetTerpDept,
   planetTerpUrl,
 } from "~/core/schema";
+import { deptOf } from "~/state/catalog-store";
+import { usePlanetTerpStatus } from "~/state/data-hooks";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
@@ -122,6 +125,8 @@ export function InstructorReviews({
     pt && pt.reviewCount > 0 ? pt.slug : null,
     course.code,
   );
+  const { source, failed } = usePlanetTerpStatus(deptOf(course.code));
+  const freshness = pt ? planetTerpFreshnessWords(source) : null;
   return (
     <div
       className="border-hairline border-b px-4 py-3 text-sm"
@@ -134,6 +139,11 @@ export function InstructorReviews({
       ) : null}
       {loading ? (
         <Skeleton className="mt-2 h-2.5 w-2/3" />
+      ) : failed && !planetTerp ? (
+        <p className="text-muted">
+          Couldn't load reviews from PlanetTerp. Check your connection and
+          reopen this course.
+        </p>
       ) : !pt ? (
         <p className="text-muted">
           PlanetTerp has nothing on this instructor yet.
@@ -188,6 +198,11 @@ export function InstructorReviews({
           {pt.reviewCount} review{pt.reviewCount === 1 ? "" : "s"} on PlanetTerp
           · <ReadThem slug={pt.slug} />
         </div>
+      ) : null}
+      {freshness && !loading ? (
+        <p className="mt-1 text-xs text-faint" data-testid="pt-freshness">
+          {freshness}
+        </p>
       ) : null}
     </div>
   );

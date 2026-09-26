@@ -4,6 +4,7 @@ import type {
   BuildingCode,
   DeptCode,
   PlanetTerpDept,
+  PlanetTerpSource,
   RouteGeometry,
   TermId,
   TravelMode,
@@ -88,21 +89,40 @@ export function useCampus(): { campus: CampusMap; state: LoadState | "idle" } {
 /**
  * A department's PlanetTerp file: instructors (by slug), the Testudo name →
  * slug join (`names`, keyed by `instructorNameKey`), and grades per course.
+ * `source` says how current PlanetTerp is (null until its manifest loads);
+ * `state: "error"` means the file didn't load, which isn't "no data".
  */
 export function useInstructors(dept: DeptCode | null): {
   data: PlanetTerpDept | null;
   state: LoadState | "idle";
+  source: PlanetTerpSource | null;
 } {
   const data = useCatalog((s) => (dept ? (s.instructors[dept] ?? null) : null));
   const state = useCatalog((s) =>
     dept ? (s.instructorsState[dept] ?? "idle") : "idle",
   );
+  const source = useCatalog((s) => s.planetTerpSource);
   const reader = useCatalog((s) => s.reader);
   const ensure = useCatalog((s) => s.ensureInstructors);
   useEffect(() => {
     if (reader && dept) void ensure(dept);
   }, [reader, dept, ensure]);
-  return { data, state };
+  return { data, state, source };
+}
+
+/**
+ * How current PlanetTerp is, and whether this department's file failed to
+ * load. Reads only: `useInstructors` does the loading.
+ */
+export function usePlanetTerpStatus(dept: DeptCode | null): {
+  source: PlanetTerpSource | null;
+  failed: boolean;
+} {
+  const source = useCatalog((s) => s.planetTerpSource);
+  const failed = useCatalog((s) =>
+    dept ? s.instructorsState[dept] === "error" : false,
+  );
+  return { source, failed };
 }
 
 /**

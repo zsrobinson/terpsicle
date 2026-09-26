@@ -35,6 +35,7 @@ import {
 } from "./geo";
 import {
   MOCK_GRADES_THROUGH,
+  MOCK_LATEST_REVIEW_AT,
   mockPlanetTerpDepts,
   mockReviewSummaries,
 } from "./planetterp";
@@ -131,6 +132,13 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     generatedAt: FIXTURE_NOW,
     gradesThrough: MOCK_GRADES_THROUGH,
     departments: ptDepartments,
+    // Like production: good runs, but no new review since May.
+    source: {
+      status: "stale",
+      lastSuccessAt: FIXTURE_NOW,
+      gradesThrough: MOCK_GRADES_THROUGH,
+      latestReviewAt: MOCK_LATEST_REVIEW_AT,
+    },
   };
   put(PLANETTERP_MANIFEST_KEY, jsonBytes(ptManifest));
   for (const summary of mockReviewSummaries)

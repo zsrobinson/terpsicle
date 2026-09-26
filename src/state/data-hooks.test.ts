@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   archivedFixtureTermId,
   fixtureTermId,
+  MOCK_GRADES_THROUGH,
   mockPlanetTerpDepts,
   mockRouteGeometries,
 } from "~/fixtures";
@@ -28,6 +29,11 @@ describe("useInstructors", () => {
     const { result } = renderHook(() => useInstructors(dept));
     await waitFor(() => expect(result.current.state).toBe("ready"));
     expect(result.current.data?.dept).toBe(dept);
+    // With the manifest's word on how current PlanetTerp is.
+    expect(result.current.source).toMatchObject({
+      status: "stale",
+      gradesThrough: MOCK_GRADES_THROUGH,
+    });
   });
 
   it("is ready with nothing for a department PlanetTerp doesn't cover", async () => {
@@ -38,7 +44,7 @@ describe("useInstructors", () => {
 
   it("is idle without a department", () => {
     const { result } = renderHook(() => useInstructors(null));
-    expect(result.current).toEqual({ data: null, state: "idle" });
+    expect(result.current).toEqual({ data: null, state: "idle", source: null });
   });
 });
 

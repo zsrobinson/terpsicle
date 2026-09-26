@@ -17,13 +17,16 @@ import {
   PlanetTerpDeptSchema,
   PlanetTerpManifestSchema,
   planetTerpDeptKey,
+  planetTerpReviewsKey,
   SeatsFileSchema,
+  StoredReviewsSchema,
   seatsKey,
   TERMS_KEY,
   TermsFileSchema,
 } from "~/core/schema";
 import buildingAllSearch from "~/ingest/__fixtures__/buildings/building-all-search.json?raw";
 import planetterpGrades from "~/ingest/__fixtures__/planetterp/grades-CMSC351.json?raw";
+import planetterpCourseNotFound from "~/ingest/__fixtures__/planetterp/grades-course-not-found.json?raw";
 import planetterpKruskal from "~/ingest/__fixtures__/planetterp/professor-kruskal-reviews.json?raw";
 import planetterpPage from "~/ingest/__fixtures__/planetterp/professors-reviews-limit10-offset3000.json?raw";
 import calendarMd from "~/ingest/__fixtures__/provost/calendar.md?raw";
@@ -42,7 +45,7 @@ import buildingPopup from "~/ingest/__fixtures__/soc/buildings/SHM-2102.html?raw
 import socIndex from "~/ingest/__fixtures__/soc/index.html?raw";
 import { runCalendarBuildingsJob } from "./calendar-buildings";
 import { runCatalogJob } from "./catalog";
-import { runPlanetTerpJob } from "./planetterp";
+import { keepsReviewText, runPlanetTerpJob } from "./planetterp";
 import { runSeatsJob } from "./seats";
 
 // Cron handlers against a fake internet built from the saved pages in
@@ -63,7 +66,22 @@ interface Fake {
   pages: Map<string, string>;
   requests: string[];
   fetch: typeof fetch;
+  /** PlanetTerp's professor list page at an offset; tests swap in broken answers. */
+  professors: (offset: number) => Response;
+  /** PlanetTerp's grades for a course. */
+  grades: (course: string) => Response;
 }
+
+const planetTerpProfessors = (offset: number) =>
+  Response.json(
+    offset === 0
+      ? [JSON.parse(planetterpKruskal), ...JSON.parse(planetterpPage)]
+      : [],
+  );
+const planetTerpGrades = (course: string) =>
+  course === "CMSC351"
+    ? new Response(planetterpGrades)
+    : new Response(planetterpCourseNotFound, { status: 400 });
 
 function fakeInternet(): Fake {
   const pages = new Map<string, string>([
@@ -100,6 +118,8 @@ function fakeInternet(): Fake {
   const fake: Fake = {
     pages,
     requests,
+    professors: planetTerpProfessors,
+    grades: planetTerpGrades,
     fetch: async (input) => {
       const url = String(input instanceof Request ? input.url : input);
       requests.push(url);
@@ -111,18 +131,10 @@ function fakeInternet(): Fake {
         ? `${SOC}/${sections[1]}/sections/${sections[2]}`
         : url;
       if (url.startsWith("https://planetterp.com/api/v1/professors")) {
-        const offset = Number(new URL(url).searchParams.get("offset"));
-        const body =
-          offset === 0
-            ? [JSON.parse(planetterpKruskal), ...JSON.parse(planetterpPage)]
-            : [];
-        return Response.json(body);
-      }
-      if (url === "https://planetterp.com/api/v1/grades?course=CMSC351") {
-        return new Response(planetterpGrades);
+        return fake.professors(Number(new URL(url).searchParams.get("offset")));
       }
       if (url.startsWith("https://planetterp.com/api/v1/grades")) {
-        return Response.json({ error: "course not found" }, { status: 400 });
+        return fake.grades(new URL(url).searchParams.get("course") ?? "");
       }
       if (url.startsWith("https://services9.arcgis.com/"))
         return new Response(buildingAllSearch);
@@ -331,7 +343,10 @@ describe("seats job", () => {
 });
 
 describe("planetterp job", () => {
-  it("joins Testudo names to slugs and publishes grades per department", async () => {
+  /** Keeping review text is off unless the var says so (`keepsReviewText`). */
+  const keepingText = { ...env, PLANETTERP_KEEP_REVIEW_TEXT: "true" };
+
+  it("keeps no review text unless it's turned on", async () => {
     const fake = fakeInternet();
     await runCatalogJob({
       env,
@@ -340,6 +355,23 @@ describe("planetterp job", () => {
     });
     await runPlanetTerpJob({
       env,
+      now: at("2026-09-26T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+    expect(await env.DATA.get(planetTerpReviewsKey("kruskal"))).toBeNull();
+    expect(keepsReviewText({})).toBe(false);
+    expect(keepsReviewText({ PLANETTERP_KEEP_REVIEW_TEXT: "true" })).toBe(true);
+  });
+
+  it("joins Testudo names to slugs and publishes grades per department", async () => {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    await runPlanetTerpJob({
+      env: keepingText,
       now: at("2026-09-26T05:17:00Z"),
       fetch: fake.fetch,
     });
@@ -367,6 +399,184 @@ describe("planetterp job", () => {
     expect(grades?.all?.latestTermId).toBe("202501");
     expect(grades?.byInstructor.kruskal?.semesters).toBeGreaterThan(1);
     expect(file.courses.CMSC131).toEqual({ all: null, byInstructor: {} });
+
+    // The manifest says how current PlanetTerp is. The fixture's newest
+    // review is from April, months before this run: stale, not broken.
+    expect(manifest.source).toEqual({
+      status: "stale",
+      lastSuccessAt: "2026-09-26T05:17:00.000Z",
+      gradesThrough: "202501",
+      latestReviewAt: "2026-04-19T23:53:54.033Z",
+    });
+    // Review text is kept privately for summaries.
+    const kept = await readJson(
+      planetTerpReviewsKey("kruskal"),
+      StoredReviewsSchema,
+    );
+    expect(kept.reviews).toHaveLength(111);
+    expect(kept.reviews[0]?.text.length).toBeGreaterThan(0);
+  });
+
+  /** A good run, then one with PlanetTerp answering `professors`; returns what was captured. */
+  async function goodThenBroken(
+    professors: (offset: number) => Response,
+    brokenAt = "2026-09-27T05:17:00Z",
+  ) {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    await runPlanetTerpJob({
+      env: keepingText,
+      now: at("2026-09-26T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+    const before = await readJson(
+      PLANETTERP_MANIFEST_KEY,
+      PlanetTerpManifestSchema,
+    );
+    const reviewsBefore = await env.DATA.get(planetTerpReviewsKey("kruskal"));
+
+    fake.professors = professors;
+    const events: { event: string; properties: Record<string, unknown> }[] = [];
+    const run = runPlanetTerpJob({
+      // Telemetry on, so the failure event reaches the fake PostHog below.
+      env: {
+        ...keepingText,
+        POSTHOG_TOKEN: "test-token" as Env["POSTHOG_TOKEN"],
+      },
+      now: at(brokenAt),
+      fetch: async (input, init) => {
+        if (String(input).startsWith("https://us.i.posthog.com/")) {
+          events.push(JSON.parse(String(init?.body)));
+          return new Response("ok");
+        }
+        return fake.fetch(input, init);
+      },
+    });
+    return { before, reviewsBefore, run, events };
+  }
+
+  it("keeps the last good files and marks PlanetTerp stale when its list comes back empty", async () => {
+    const { before, reviewsBefore, run, events } = await goodThenBroken(() =>
+      Response.json([]),
+    );
+    await expect(run).rejects.toThrow(/PlanetTerp listed no professors/);
+
+    const after = await readJson(
+      PLANETTERP_MANIFEST_KEY,
+      PlanetTerpManifestSchema,
+    );
+    // Same department files, still published; only the source block changed.
+    expect(after.departments).toEqual(before.departments);
+    expect(after.generatedAt).toBe(before.generatedAt);
+    expect(after.source).toMatchObject({
+      status: "stale",
+      lastSuccessAt: "2026-09-26T05:17:00.000Z",
+      gradesThrough: "202501",
+    });
+    const cmsc = after.departments.find((d) => d.code === "CMSC");
+    const file = await readJson(
+      planetTerpDeptKey("CMSC", cmsc?.hash ?? ""),
+      PlanetTerpDeptSchema,
+    );
+    expect(file.instructors.kruskal?.reviewCount).toBe(111);
+    // Stored review text isn't touched either.
+    expect((await env.DATA.get(planetTerpReviewsKey("kruskal")))?.etag).toBe(
+      reviewsBefore?.etag,
+    );
+
+    const state = (await (
+      await env.DATA.get("_jobs/planetterp/state.json")
+    )?.json()) as Record<string, unknown>;
+    expect(state).toMatchObject({
+      status: "stale",
+      reason: "PlanetTerp listed no professors",
+      lastSuccessAt: "2026-09-26T05:17:00.000Z",
+      professors: 11,
+      reviews: 171,
+    });
+
+    const failed = events.find((e) => e.event === "cron_job_failed");
+    expect(failed?.properties).toMatchObject({
+      job: "planetterp",
+      firstError: "PlanetTerp listed no professors",
+      counts: { professors: 0, reviews: 0, previousProfessors: 11 },
+    });
+  });
+
+  it("treats a list more than 10% short as a failure, and weeks of them as gone", async () => {
+    // Kruskal's page drops out: 10 of 11 professors, 60 of 171 reviews.
+    const { before, run, events } = await goodThenBroken(
+      (offset) =>
+        offset === 0 ? new Response(planetterpPage) : Response.json([]),
+      "2026-10-28T05:17:00Z",
+    );
+    await expect(run).rejects.toThrow(/60 reviews, down from 171/);
+    const after = await readJson(
+      PLANETTERP_MANIFEST_KEY,
+      PlanetTerpManifestSchema,
+    );
+    expect(after.departments).toEqual(before.departments);
+    // Over 30 days since the last good run.
+    expect(after.source?.status).toBe("gone");
+    expect(
+      events.find((e) => e.event === "cron_job_failed")?.properties.firstError,
+    ).toMatch(/the floor is 154/);
+  });
+
+  it("never replaces stored grades with an empty answer", async () => {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    await runPlanetTerpJob({
+      env,
+      now: at("2026-09-26T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+    // PlanetTerp forgets CMSC351: "course not found", then an empty list.
+    for (const [day, answer] of [
+      ["27", () => new Response(planetterpCourseNotFound, { status: 400 })],
+      ["28", () => Response.json([])],
+    ] as const) {
+      fake.grades = answer;
+      await runPlanetTerpJob({
+        env,
+        now: at(`2026-09-${day}T05:17:00Z`),
+        fetch: fake.fetch,
+      });
+      const manifest = await readJson(
+        PLANETTERP_MANIFEST_KEY,
+        PlanetTerpManifestSchema,
+      );
+      const cmsc = manifest.departments.find((d) => d.code === "CMSC");
+      const file = await readJson(
+        planetTerpDeptKey("CMSC", cmsc?.hash ?? ""),
+        PlanetTerpDeptSchema,
+      );
+      expect(file.courses.CMSC351?.all?.latestTermId).toBe("202501");
+      expect(file.courses.CMSC351?.byInstructor.kruskal).toBeDefined();
+      expect(manifest.source?.gradesThrough).toBe("202501");
+    }
+
+    // Any other 400 is an error, not "no grades": the course keeps its rows.
+    fake.grades = () =>
+      Response.json({ error: "something else" }, { status: 400 });
+    await runPlanetTerpJob({
+      env,
+      now: at("2026-09-29T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+    const manifest = await readJson(
+      PLANETTERP_MANIFEST_KEY,
+      PlanetTerpManifestSchema,
+    );
+    expect(manifest.gradesThrough).toBe("202501");
   });
 });
 

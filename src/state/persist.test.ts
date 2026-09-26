@@ -125,6 +125,27 @@ describe("persistence", () => {
     });
   });
 
+  it("doesn't undo a tab opened while saved state was loading", async () => {
+    useUi.getState().clickTab("travel");
+    useUi.getState().setTheme("dark");
+    await persistence.flushed();
+    persistence.stop();
+    resetStores();
+
+    // The shell takes input before hydrate resolves: `/` opens Search.
+    const loading = hydrate(db);
+    useUi.getState().openTab("search");
+    await loading;
+    persistence = startPersisting(db);
+
+    expect(useUi.getState()).toMatchObject({
+      tab: "search",
+      stack: [],
+      // Everything else saved still loads.
+      theme: "dark",
+    });
+  });
+
   it("writes deletes, and undo writes the plan back", async () => {
     const w = useWorkspace.getState();
     w.dispatch(

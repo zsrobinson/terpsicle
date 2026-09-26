@@ -81,12 +81,16 @@ async function centerOf(page: Page, selector: string): Promise<Point> {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** Search results for "cmsc": a long list, at the top. */
+/**
+ * Search results for "cmsc": a long list, at the top. Typing raised the
+ * drawer all the way (e2e/drawer-keyboard.spec.ts).
+ */
 async function searchResults(page: Page) {
   await tabs(page).getByRole("button", { name: "Search" }).tap();
   await page.getByRole("combobox", { name: "Search courses" }).fill("cmsc");
   const results = page.locator("#search-results");
   await expect(results.locator("[data-course-result]").first()).toBeVisible();
+  await expect(drawer(page)).toHaveAttribute("data-snap", "full");
   return results;
 }
 
@@ -133,7 +137,6 @@ test("the page can't scroll, rubber-band or pull to refresh", async ({
 
 test("pulling a list down at its top lowers the drawer", async ({ page }) => {
   const results = await searchResults(page);
-  await expect(drawer(page)).toHaveAttribute("data-snap", "half");
   await settle(page);
   expect(await results.evaluate((el) => el.scrollTop)).toBe(0);
 
@@ -159,7 +162,8 @@ test("pulling a list down at its top lowers the drawer", async ({ page }) => {
   expect(
     await page.evaluate(() => (window as { cancelled?: number }).cancelled),
   ).toBe(0);
-  await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
+  // Down from full it rests lower: half, or peek for a quick flick.
+  await expect(drawer(page)).toHaveAttribute("data-snap", /^(half|peek)$/);
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
 
@@ -191,8 +195,6 @@ test("a scrolled list scrolls under a finger; the drawer stays", async ({
   page,
 }) => {
   const results = await searchResults(page);
-  await page.getByRole("button", { name: "Raise the panel" }).tap();
-  await expect(drawer(page)).toHaveAttribute("data-snap", "full");
   await settle(page);
 
   const box = await results.boundingBox();

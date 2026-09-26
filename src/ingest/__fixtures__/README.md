@@ -40,6 +40,7 @@ Not saved: for unknown or section-less course ids, the sections endpoint returns
 | `grades-CMSC351.json` | `/grades?course=CMSC351` | 84 rows across 201201–202501. Keys `A+`…`D-`, `F`, `W`, `Other`. Not paginated. |
 | `grades-CMSC351-kruskal-202501.json` | `…&professor=Clyde%20Kruskal&semester=202501` | Section `"501"` (not zero-padded). |
 | `grades-no-params.json` | `/grades` | HTTP 400: needs `course` or `professor`. |
+| `grades-course-not-found.json` | `/grades?course=CMSC999` | HTTP 400 `{"error":"course not found"}`: the only 400 that means "no grades" (captured 2026-09-26). |
 | `professors-limit100-offset0.json` | `/professors?limit=100&offset=0` | List shape without reviews; `average_rating` null when there are no reviews. |
 | `professors-reviews-limit10-offset3000.json` | `/professors?limit=10&offset=3000&reviews=true` | List with embedded reviews (the nightly diff source). |
 | `professors-limit101.json` | `/professors?limit=101` | HTTP 400 `limit parameter must be no more than 100`. |

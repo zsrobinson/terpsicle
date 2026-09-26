@@ -7,10 +7,12 @@ import {
   PlanetTerpDeptSchema,
   PlanetTerpManifestSchema,
   planetTerpDeptKey,
+  planetTerpReviewsKey,
   type ReviewSummary,
   type ReviewSummaryInput,
   type ReviewSummaryResult,
   ReviewSummarySchema,
+  StoredReviewsSchema,
   summaryKey,
 } from "~/core/schema";
 import { captureServerEvent } from "../analytics";
@@ -19,6 +21,7 @@ import { fetchPlanetTerpReviews } from "./planetterp-api";
 import {
   buildSummaryMessages,
   type ModelSummary,
+  type PromptReview,
   parseModelOutput,
   SUMMARY_JSON_SCHEMA,
   SUMMARY_MODEL,
@@ -168,6 +171,58 @@ async function runModel(
   return { ok: false, reason: "model-output" };
 }
 
+/** The review text the PlanetTerp job keeps (DATA.md §2.6), or null when there's none. */
+export async function readStoredReviews(
+  bucket: R2Bucket,
+  slug: string,
+): Promise<PromptReview[] | null> {
+  const object = await bucket.get(planetTerpReviewsKey(slug));
+  if (!object) return null;
+  const parsed = StoredReviewsSchema.safeParse(await object.json());
+  if (!parsed.success || parsed.data.slug !== slug) return null;
+  return parsed.data.reviews.map((r) => ({
+    course: r.course,
+    text: r.text,
+    rating: r.rating,
+    created: r.created,
+  }));
+}
+
+/**
+ * The reviews to summarize: the stored copy when it has every review the
+ * instructor's file counts, else PlanetTerp live, else whatever is stored
+ * (so summaries can still be regenerated if PlanetTerp is down or gone).
+ * Null when there's nothing to summarize from.
+ */
+async function reviewsFor(
+  bucket: R2Bucket,
+  instructor: Instructor,
+  deps: SummaryDeps,
+): Promise<PromptReview[] | null> {
+  const stored = await readStoredReviews(bucket, instructor.slug).catch(
+    (error: unknown) => {
+      console.warn({ summary: "stored reviews error", error: String(error) });
+      return null;
+    },
+  );
+  if (stored && stored.length >= instructor.reviewCount) return stored;
+  const fallback = stored && stored.length > 0 ? stored : null;
+  let professor: Awaited<ReturnType<typeof fetchPlanetTerpReviews>>;
+  try {
+    professor = await fetchPlanetTerpReviews(
+      deps.fetcher ?? fetch,
+      instructor.name,
+    );
+  } catch (error) {
+    console.warn({ summary: "planetterp error", error: String(error) });
+    return fallback;
+  }
+  // PlanetTerp looks professors up by name, and names collide: only a
+  // matching slug is the right person.
+  if (!professor || professor.slug !== instructor.slug) return fallback;
+  return professor.reviews;
+}
+
 async function generate(
   env: SummaryEnv,
   instructor: Instructor,
@@ -186,34 +241,22 @@ async function generate(
     return unavailable("daily-limit");
   }
 
-  let professor: Awaited<ReturnType<typeof fetchPlanetTerpReviews>>;
-  try {
-    professor = await fetchPlanetTerpReviews(
-      deps.fetcher ?? fetch,
-      instructor.name,
-    );
-  } catch (error) {
-    console.warn({ summary: "planetterp error", error: String(error) });
+  const reviews = await reviewsFor(env.DATA, instructor, deps);
+  if (reviews === null) {
     track("summary_failed", { reason: "planetterp" });
     return unavailable("failed");
   }
-  // PlanetTerp looks professors up by name, and names collide: only a
-  // matching slug is the right person.
-  if (!professor || professor.slug !== instructor.slug) {
-    track("summary_failed", { reason: "planetterp" });
-    return unavailable("failed");
-  }
-  if (professor.reviews.length === 0) return unavailable("no-reviews");
+  if (reviews.length === 0) return unavailable("no-reviews");
 
   const started = Date.now();
   const result = await runModel(env.AI, (note) =>
-    buildSummaryMessages(instructor.name, professor.reviews, note),
+    buildSummaryMessages(instructor.name, reviews, note),
   );
   if (!result.ok) {
     track("summary_failed", { reason: result.reason });
     return unavailable("failed");
   }
-  const newest = professor.reviews.reduce<string | null>(
+  const newest = reviews.reduce<string | null>(
     (max, r) => (max === null || r.created > max ? r.created : max),
     null,
   );
@@ -222,10 +265,7 @@ async function generate(
     slug: instructor.slug,
     summary: result.value.summary,
     themes: result.value.themes,
-    basedOnReviewCount: Math.max(
-      professor.reviews.length,
-      instructor.reviewCount,
-    ),
+    basedOnReviewCount: Math.max(reviews.length, instructor.reviewCount),
     latestReviewAt:
       [newest, instructor.latestReviewAt]
         .filter((t): t is string => t !== null)
@@ -254,7 +294,7 @@ async function generate(
   track("summary_generated", {
     model: SUMMARY_MODEL,
     durationMs: Date.now() - started,
-    reviews: professor.reviews.length,
+    reviews: reviews.length,
     attempts: result.attempts,
   });
   return { status: "ok", summary: candidate.data };
