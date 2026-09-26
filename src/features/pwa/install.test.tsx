@@ -109,6 +109,16 @@ describe("requestInstallPrompt", () => {
     expect(ask()).toBe(true);
   });
 
+  it("takes the head script's prompt even before the host has loaded", () => {
+    // pwa.tsx loads the host after the page; a key moment can come first.
+    stopCapture();
+    const { event } = promptEvent();
+    (window as unknown as Record<string, unknown>)[INSTALL_PROMPT_STASH] =
+      event;
+    expect(ask()).toBe(true);
+    expect(useInstall.getState().deferred).toBe(event);
+  });
+
   it("shows once a session", () => {
     browserOffersPrompt();
     expect(ask()).toBe(true);

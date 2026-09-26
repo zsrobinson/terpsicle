@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { track } from "~/app/analytics";
 import { type InstallMethod, installMethod, installPlatform } from "~/core/pwa";
 import type { InstallTrigger } from "~/core/schema";
+import { takeStashedInstallPrompt } from "./install-capture";
 import { markShownThisSession } from "./install-session";
 
 // The install prompt's state (V2 §3.4): the browser's kept prompt, and
@@ -52,6 +53,17 @@ export function isStandalone(win: Window = window): boolean {
   );
 }
 
+/**
+ * Takes the prompt the head script kept (install-capture.ts), if the app
+ * has none yet. The prompt's host loads after the page (src/app/pwa.tsx),
+ * and a key moment or the menu item can come first.
+ */
+export function adoptStashedInstallPrompt(win: Window = window): void {
+  const stashed = takeStashedInstallPrompt(win);
+  if (stashed && useInstall.getState().deferred === null)
+    useInstall.setState({ deferred: stashed as BeforeInstallPromptEvent });
+}
+
 /** How this browser can install the app right now, or null. */
 export function currentInstallMethod(
   state: Pick<InstallState, "deferred" | "installed"> = useInstall.getState(),
@@ -85,6 +97,7 @@ export function show(from: InstallOpenedFrom, method: InstallMethod): void {
 
 /** The "Install app" menu item: opens the dialog whenever installing works. */
 export function openInstallPrompt(): void {
+  adoptStashedInstallPrompt();
   const method = currentInstallMethod();
   if (method === null) return;
   show("menu", method);

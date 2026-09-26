@@ -5,10 +5,10 @@ import {
   shouldOfferInstall,
 } from "~/core/pwa";
 import type { InstallTrigger } from "~/core/schema";
-import { takeStashedInstallPrompt } from "./install-capture";
 import { readInstallState, writeInstallState } from "./install-prefs";
 import { wasShownThisSession } from "./install-session";
 import {
+  adoptStashedInstallPrompt,
   type BeforeInstallPromptEvent,
   currentInstallMethod,
   show,
@@ -47,9 +47,7 @@ export function captureInstallPrompt(win: Window = window): () => void {
     useInstall.setState({ deferred: null, installed: true, open: null });
     track("pwa_installed", {});
   };
-  const stashed = takeStashedInstallPrompt(win);
-  if (stashed)
-    useInstall.setState({ deferred: stashed as BeforeInstallPromptEvent });
+  adoptStashedInstallPrompt(win);
   win.addEventListener("beforeinstallprompt", onPrompt);
   win.addEventListener("appinstalled", onInstalled);
   return () => {
@@ -75,6 +73,7 @@ export function requestInstallPrompt(
   now: Date = new Date(),
 ): boolean {
   if (typeof window === "undefined") return false;
+  adoptStashedInstallPrompt();
   const method = currentInstallMethod();
   const shownThisSession = wasShownThisSession();
   const open = useInstall.getState().open !== null;
