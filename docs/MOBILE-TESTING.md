@@ -69,6 +69,7 @@ Every step checks (`scripts/mobile-lab/checks.ts`):
 | `no-page-errors` | fail | An uncaught error or rejection. |
 | `focused-field-visible` | fail | A focused text field isn't wholly inside the visible band (`visualViewport.offsetTop` to `offsetTop + height`), or something covers it: the keyboard, or a pan that moved it out of view. |
 | `drawer-on-screen` | fail | The drawer's top is off the screen. |
+| `rail-tabs-reachable` | fail | In the desktop layout (a phone on its side is over 768px wide), a rail tab is past the bottom of the screen and the rail doesn't scroll. |
 | `page-not-scrolled` | warn | The window scrolled: the page itself moved. |
 | `not-zoomed` | warn | The visual viewport's scale isn't 1 (Safari zooms into small text fields). |
 | `no-horizontal-overflow` | warn | The document is wider than the screen. |
@@ -89,10 +90,13 @@ In order (`scripts/mobile-lab/scenarios.ts`). Each starts with a fresh load.
 | `tabs` | Tap each drawer tab, then the open one again (which lowers the drawer). |
 | `grabber-drag` | Drag the grabber peek → half → full → peek; the frame trace shows whether the drawer followed the finger. |
 | `pull-lists` | Pull down on the search results at their top at full, half and peek, then on the Courses panel at half. On Android this is where pull-to-refresh would fire. |
+| `scroll-list-back` | Scroll the search results down, then drag them back up: the list scrolls and the drawer stays at full. |
 | `calendar-pull` | Scroll the calendar, then pull down twice at its top. |
 | `rotate` | Landscape (where half is full) and back. |
 | `url-bar` | Scroll the calendar and a list up and down, logging whether the browser's toolbar hides (`innerHeight` and the page's origin change). |
 | `long-course` | Search "engl101", open ENGL101 (90+ sections), raise the drawer and scroll to the bottom; the list's end must be on screen. |
+| `open-results` | Six times: back in the search box, scroll the results, put the keyboard away, tap a result. Each must open on the first tap. |
+| `add-sections` | Open CMSC131, tap Add on a section, then Switch three times. Each tap must take effect the first time. |
 
 To add one, append to `SCENARIOS`: use `lab.tap`, `lab.swipe`, `lab.type`, `lab.hideKeyboard` and `lab.rotate` on `Target`s (a selector, optionally a label), and `lab.step(name, { expect })` after each action.
 

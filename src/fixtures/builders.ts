@@ -10,11 +10,14 @@ import {
   type BuildingsFile,
   type CatalogChange,
   type ChangesFile,
+  type ChatAuthor,
+  type ChatMessage,
   type Connection,
   type ConnectionEnd,
   type Course,
   type CourseGrades,
   connectionId,
+  courseRoomId,
   DEFAULT_GENERATE_LIMITS,
   DEFAULT_MUST_HAVES,
   DEFAULT_TRAVEL_SETTINGS,
@@ -645,6 +648,36 @@ export function aProblem(overrides: Partial<Problem> = {}): Problem {
       sectionKey: "CMSC351-0201",
       label: "Switch to 0201",
     },
+    ...overrides,
+  };
+}
+
+// ---------- chat ----------
+
+export function aChatAuthor(overrides: Partial<ChatAuthor> = {}): ChatAuthor {
+  return {
+    directoryId: "noorh",
+    name: "Noor Haddad",
+    picture: "https://lh3.googleusercontent.com/a/fixture-noor",
+    ...overrides,
+  };
+}
+
+/** A visible top-level message in CMSC351's course room, with no replies or reactions. */
+export function aChatMessage(
+  overrides: Partial<ChatMessage> = {},
+): ChatMessage {
+  return {
+    id: "msg_fixture_01",
+    room: courseRoomId(fixtureTermId, "CMSC351"),
+    author: aChatAuthor(),
+    text: "review and a worksheet. bring a laptop",
+    createdAt: FIXTURE_NOW,
+    editedAt: null,
+    replyTo: null,
+    thread: null,
+    reactions: {},
+    moderation: { state: "visible" },
     ...overrides,
   };
 }

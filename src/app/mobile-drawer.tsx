@@ -309,11 +309,34 @@ export function MobileDrawer() {
  * drag's first move keeps it with the drawer; after that the browser keeps
  * whatever it was given. A drag up, a list scrolled down, a mostly sideways
  * drag and a second finger (pinch-zoom) all stay the browser's.
+ *
+ * The other way round: a finger on a list that's scrolled down is the
+ * list's, but vaul drags any drawer that isn't at its very top (ours never
+ * is: full sits under the top bar). On Android the drawer took the first
+ * few moves, the browser then took the scroll, and vaul read the cancel as
+ * a release: a quick flick down, so scrolling a long list back up dropped
+ * the drawer to half or peek. `data-vaul-no-drag` on the scrolled list,
+ * for that gesture, is vaul's own way to leave a pointer alone.
  */
 function claimPullDown(drawer: HTMLDivElement | null) {
   if (!drawer) return;
   let start: { x: number; y: number } | null = null;
   let claimed: boolean | null = null;
+  let scrolled: Element | null = null;
+  const onDown = (event: PointerEvent) => {
+    release();
+    if (event.pointerType === "mouse") return;
+    scrolled = scrolledAncestor(event.target, drawer);
+    scrolled?.setAttribute("data-vaul-no-drag", "");
+  };
+  const release = () => {
+    scrolled?.removeAttribute("data-vaul-no-drag");
+    scrolled = null;
+  };
+  // vaul takes the pointerout that follows a cancel for a release too, so
+  // the mark stays through a cancelled gesture (until the next finger comes
+  // down) and through a lifted one until vaul has seen the pointerup.
+  const onUp = () => setTimeout(release, 0);
   const onStart = (event: TouchEvent) => {
     const touch = event.touches[0];
     start =
@@ -336,25 +359,39 @@ function claimPullDown(drawer: HTMLDivElement | null) {
     }
     if (claimed && event.cancelable) event.preventDefault();
   };
+  // Capture: marked before vaul (React, at the root) sees the pointer.
+  drawer.addEventListener("pointerdown", onDown, true);
+  drawer.addEventListener("pointerup", onUp, true);
   // Non-passive: only a cancelled touchmove keeps the browser from scrolling.
   drawer.addEventListener("touchstart", onStart, { passive: true });
   drawer.addEventListener("touchmove", onMove, { passive: false });
   return () => {
+    release();
+    drawer.removeEventListener("pointerdown", onDown, true);
+    drawer.removeEventListener("pointerup", onUp, true);
     drawer.removeEventListener("touchstart", onStart);
     drawer.removeEventListener("touchmove", onMove);
   };
+}
+
+/** The nearest scroller under `target`, inside the drawer, that's scrolled down. */
+function scrolledAncestor(
+  target: EventTarget | null,
+  drawer: HTMLElement,
+): Element | null {
+  let el = target instanceof Element ? target : null;
+  while (el && el !== drawer) {
+    if (el.scrollTop > 0) return el;
+    el = el.parentElement;
+  }
+  return null;
 }
 
 /** vaul's own rule: a pull drags the drawer unless something is scrolled. */
 function pullsDrawer(target: EventTarget | null, drawer: HTMLElement): boolean {
   if (!(target instanceof Element) || target.closest("[data-vaul-no-drag]"))
     return false;
-  let el: Element | null = target;
-  while (el && el !== drawer) {
-    if (el.scrollTop > 0) return false;
-    el = el.parentElement;
-  }
-  return true;
+  return scrolledAncestor(target, drawer) === null;
 }
 
 const NEXT_SNAP: Record<DrawerSnap, DrawerSnap> = {
