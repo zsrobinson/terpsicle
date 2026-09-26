@@ -50,10 +50,11 @@ test("first visit shows two equal ways to start", async ({ page }) => {
     generate.boundingBox(),
   ]);
   if (!a || !b) throw new Error("paths not measured");
-  // Side by side, the same size.
+  // Stacked, the same size: neither path is styled as the default.
   expect(a.width).toBeCloseTo(b.width, 0);
   expect(a.height).toBeCloseTo(b.height, 0);
-  expect(a.y).toBeCloseTo(b.y, 0);
+  expect(a.x).toBeCloseTo(b.x, 0);
+  expect(b.y).toBeGreaterThan(a.y + a.height - 1);
 
   await build.getByRole("button", { name: "Search for a course" }).click();
   await expect(
