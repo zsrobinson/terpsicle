@@ -96,7 +96,11 @@
     // breaks every subscription; scripts/vapid-keys.ts makes a pair).
     "PUSH_ENABLED": "false",
     "VAPID_PUBLIC_KEY": "BOnDtbDg5exlOyXB4y_EpxD_MZWykdW7B_TkDL-CWMTah-U4GpdSg8s34lQG_x52Z_elAYMrJ1c75pOIyhXB4Qs",
-    "VAPID_SUBJECT": "mailto:alerts@terpsicle.com"
+    "VAPID_SUBJECT": "mailto:alerts@terpsicle.com",
+    // Terpsicle Plan (docs/V3.md §2.4): "true" lets sync/push save four-year
+    // docs; otherwise a push carrying one answers "unavailable". Off until
+    // the tabs that skip unknown doc kinds have rolled out.
+    "PLAN_ENABLED": "false"
   },
   "ai": { "binding": "AI" },
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.
@@ -137,7 +141,8 @@
       "REVIEWS_ENABLED": "on",
       "TODO_ENABLED": "on",
       // Previews never push: their test-mode key reaches no real device.
-      "PUSH_ENABLED": "false"
+      "PUSH_ENABLED": "false",
+      "PLAN_ENABLED": "true"
     },
     "durable_objects": {
       "bindings": [{ "name": "COURSE_CHAT", "class_name": "CourseChat" }]
