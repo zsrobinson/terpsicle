@@ -362,6 +362,13 @@ export class CourseChat extends DurableObject<Env> {
     const now = Date.now();
     const gate = await this.#writeGate(ws, att, room, req, now);
     if (!gate) return;
+    // Before the message exists, so account deletion always finds it,
+    // even one that's never shown (V2.md §8.5). Awaited before the checks
+    // below, so nothing interleaves between them and the insert.
+    if (!this.#authorsRecorded.has(att.user)) {
+      await recordAuthorCourse(this.env.DB, att.user, att.term, att.course);
+      this.#authorsRecorded.add(att.user);
+    }
     // A resend after a reconnect: the first one's answer, not a copy.
     const earlier = this.#store.messageByRequest(att.user, req);
     if (earlier) return this.#ack(ws, req, earlier);
@@ -376,12 +383,6 @@ export class CourseChat extends DurableObject<Env> {
     }
     if (this.#slowDown(ws, att, req, now)) return;
 
-    // Before the message exists, so account deletion always finds it,
-    // even one that's never shown (V2.md §8.5).
-    if (!this.#authorsRecorded.has(att.user)) {
-      await recordAuthorCourse(this.env.DB, att.user, att.term, att.course);
-      this.#authorsRecorded.add(att.user);
-    }
     const at = new Date(now).toISOString();
     const first = !this.#store.exists;
     const row = this.#store.insertMessage({
@@ -654,6 +655,8 @@ export class CourseChat extends DurableObject<Env> {
     userId: string;
   }): Promise<{ messages: number }> {
     this.#bind(target.termId, target.courseCode);
+    // Should the same directory ID write here again, it's recorded again.
+    this.#authorsRecorded.delete(target.userId);
     for (const ws of this.ctx.getWebSockets(target.userId))
       ws.close(CHAT_CLOSE.signedOut, "Sign in again.");
     const gone = this.#store.purgeAuthor(target.userId);

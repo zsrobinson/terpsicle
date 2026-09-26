@@ -693,6 +693,25 @@ describe("test mode", () => {
     });
   });
 
+  it("keeps an account being deleted, and says so in the return", async () => {
+    const browser = new Browser(testEnv(), local);
+    const signIn = () =>
+      browser.post("/api/auth/test-sign-in", {
+        userId: "tstudent",
+        return: "/settings",
+      });
+    await signIn();
+    await browser.post("/api/account/delete");
+    expect(await (await signIn()).json()).toEqual({
+      status: "signed-in",
+      return: "/settings?signed-in=kept",
+    });
+    expect(await getUser(env.DB, "tstudent")).toMatchObject({
+      status: "active",
+      delete_after: null,
+    });
+  });
+
   it("knows only the fixture users", async () => {
     const browser = new Browser(testEnv(), local);
     const response = await browser.post("/api/auth/test-sign-in", {

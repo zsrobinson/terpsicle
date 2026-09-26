@@ -298,6 +298,12 @@ describe("/settings", () => {
       await screen.findByRole("button", { name: "Undo" }),
     ).toBeInTheDocument();
     expect(
+      screen.getByText(/^Deleting your account on .*October 8$/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Undo signs you back in and keeps it."),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("link", { name: "Sign in with Google" }),
     ).toHaveAttribute("href", "/api/auth/google?return=%2Fsettings");
   });

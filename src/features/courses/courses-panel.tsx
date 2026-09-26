@@ -29,7 +29,7 @@ import type {
 } from "~/core/schema";
 import { parseSectionKey, sectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
-import { useSeatAlert } from "~/features/alerts/seat-alerts";
+import { useSeatWatch } from "~/features/alerts/seat-watches";
 import {
   useActiveTerm,
   useCreditsLabel,
@@ -296,8 +296,8 @@ function WatchingMark({
   termId: TermId;
   sectionKey: SectionKey;
 }) {
-  const alert = useSeatAlert(termId, key);
-  if (alert.kind !== "watching") return null;
+  const watch = useSeatWatch(termId, key);
+  if (watch.kind !== "watching") return null;
   return (
     <span
       className="flex items-center gap-1 self-center text-muted text-xs"

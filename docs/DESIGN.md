@@ -132,7 +132,7 @@ All four variants used the Workbench layout. They differed only in where course 
 
 Use these when the spec is silent:
 - **Clarity over cleverness.** "One place they should go to look for specific pieces of information." If a thing could live in two places, it lives in one.
-- **Don't yell.** Problems are information, not alarms. No banners, no red outlines on choices a person is still weighing, no confirmation dialogs (use undo). The one exception is unsubscribing from seat alerts.
+- **Don't yell.** Problems are information, not alarms. No banners, no red outlines on choices a person is still weighing, no confirmation dialogs (use undo). Stopping a seat watch is no exception: it has Undo like everything else (V2.md §6.5).
 - **People arrive cold, a few times a semester.** Text labels on navigation, a numbered first-visit guide, tooltips everywhere, and shortcuts as a bonus rather than a requirement.
 - **Dense and precise, like Linear or Vercel.** Compact type, hairline rules inside panels, an ink accent, square corners. Motion is quick and quiet. A left rail with a boxed active state risks looking "like Slack", so keep it restrained. The brand (§7) dresses this density; it never loosens it.
 - **One system, not per-panel taste.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, color tokens only, and the shared panel pieces in `src/app/panel.tsx` (`docs/UX-REVIEW.md` §2). `src/app/design-tokens.test.ts` holds the line.
@@ -143,7 +143,7 @@ Use these when the spec is silent:
 - **Returning people land straight in the app.** A marketing page at `/` greets first visits only; anyone with saved plans or a session goes to `/schedule` (`docs/V2.md` §2).
 - **Nothing to babysit.** Terms, buildings and routes are discovered from the data. A new semester needs no code change.
 - **Make each feature excellent rather than adding more.** The owner cut finals, compare, image export and NL input to keep what remains excellent.
-- **Ink, quietly.** The brand (§7) is paper, black ink and hard offsets. Keylines and offsets mark what you can press or what floats above the page; rows, lists and headers stay hairline-quiet. Product color is a tint, never an alarm. Where `docs/V2.md` differs from this list (seat alerts without the confirmation), V2.md wins.
+- **Ink, quietly.** The brand (§7) is paper, black ink and hard offsets. Keylines and offsets mark what you can press or what floats above the page; rows, lists and headers stay hairline-quiet. Product color is a tint, never an alarm. Where `docs/V2.md` differs from this list, V2.md wins.
 
 ---
 

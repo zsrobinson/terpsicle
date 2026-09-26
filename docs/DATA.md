@@ -257,14 +257,14 @@ The hourly `reviews-publish` job (`37 * * * *`, `src/jobs/reviews-publish.ts`) p
 
 Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 2.
 
-**Version 2** (plan sync, landed with `v2/sync-engine`; `src/state/db.ts`): a `syncDocs` table for each doc's sync flags (the settings doc's row also keeps `base`, its body as last saved or pulled), and a `sync` settings row (`{userId, cursor}`). The `seatAlerts` table is dropped: until seat watches move to D1 (`docs/V2.md` §6.5), the email-token alerts' local mirror lives in the `seatAlerts` settings row, and `upgradeToV2` moves existing rows there. Nothing else changes shape, so plans, blocks, colors, settings and the data cache come through untouched (`src/state/db.test.ts` upgrades a v1 database). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
+**Version 2** (plan sync, landed with `v2/sync-engine`; `src/state/db.ts`): a `syncDocs` table for each doc's sync flags (the settings doc's row also keeps `base`, its body as last saved or pulled), and a `sync` settings row (`{userId, cursor}`). The `seatAlerts` table is dropped with the email-token alerts it mirrored: seat watches live on the account in D1 (§7.1). An earlier build moved its rows to a `seatAlerts` settings row, which the app deletes on start. Nothing else changes shape, so plans, blocks, colors, settings and the data cache come through untouched (`src/state/db.test.ts` upgrades a v1 database). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
 
 | Table | Primary key, indexes | Row schema |
 |---|---|---|
 | `plans` | `id`, `termId` | `PlanSchema` |
 | `blocks` | `id`, `termId` | `BlockSchema` |
 | `courseColors` | `courseCode` | `CourseColorPrefSchema` |
-| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor; `seatAlerts` → `LocalSeatAlert[]`) |
+| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor) |
 | `syncDocs` | `key` (`plan:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
 | `manifests` | `key` (the R2 key) | `CachedManifestSchema` |
 | `files` | `key` (the R2 key), `family`, `termId` | `CachedFileSchema` |
@@ -284,10 +284,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 2.
 - **UI prefs:** open tab, sidebar open, drill target (course with its details tab, or a connection; generated results aren't restorable), theme, last term, active plan per term, and collapsed instructor groups (`<course>|<instructor name>`).
 - **Not persisted:** the undo stack, hover/preview state, search text, and generator results.
 - **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors` and the `travel` and `chatPlans` rows.
-- **Seat alerts (local mirror, the `seatAlerts` settings row):** the person's own email is kept so the UI can say "Watching as…" and prefill the next bell. `subscriptionId` and `manageToken` arrive when this browser follows the confirmation link (the confirm page leaves them in the alerts inbox, §7.1); until then the entry is `pending` with both null.
-  - `email` is null when the watch was confirmed in this browser but asked for in another: the confirm page learns the section and token, never the address.
-  - On startup the app (`src/features/alerts/sync.ts`) moves inbox entries into the table and clears the inbox, then refreshes every row that has a manage token with `alerts/status`. Rows the server reports `unsubscribed` or `unknown` are dropped. That call, sent even with no rows, also tells the app whether seat alerts are on: `unavailable` hides every seat-alert control.
-  - The Export tab lists the rows. **Stop watching** asks first (the one confirmation in the app, SPEC §3.12), then calls `alerts/unsubscribe` with the row's manage token. A row with no token (confirmed on another device) points to the stop link in any alert email.
+- **Seat watches** aren't kept in the browser: they're the signed-in person's, in D1 (§7.1), and the app holds the list in memory (`src/state/seat-watches.ts`). The one thing kept locally is a watch asked for while signed out, in `sessionStorage["terpsicle:pending-watch"]` (`{termId, sectionKey, at}`, zod-checked, 30 minutes), so the watch starts when the person comes back signed in to that tab.
 
 ### 5.1 Client catalog flow
 1. Fetch `catalog/terms.json` (ETag revalidation). Pick the term.
@@ -370,11 +367,9 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | Endpoint | Input | Result | Per IP per hour |
 |---|---|---|---|
 | `review-summary` | `ReviewSummaryInputSchema` `{slug, course}` | `ReviewSummaryResultSchema` | 300 |
-| `alerts/subscribe` | `SubscribeInputSchema` `{email, termId, sectionKey}` | `SubscribeResultSchema` | 10 |
-| `alerts/confirm` | `ConfirmInputSchema` `{token}` | `ConfirmResultSchema` | 60 |
-| `alerts/lookup` | `ManageInputSchema` `{token}` | `LookupResultSchema` | 60 |
-| `alerts/unsubscribe` | `ManageInputSchema` `{token}` | `UnsubscribeResultSchema` | 60 |
-| `alerts/status` | `StatusInputSchema` `{items: [{subscriptionId, manageToken}]}` (≤ 50) | `StatusResultSchema` | 120 |
+| `alerts/watch` (`auth: "user"`) | `SeatWatchInputSchema` `{termId, sectionKey}` | `SeatWatchResultSchema`: `watching` (with the `watch`; idempotent), `unknown-section`, `too-many` (past 30) or `unavailable` | none; 120 per user |
+| `alerts/unwatch` (`auth: "user"`) | `SeatWatchInputSchema` `{termId, sectionKey}` | `{status: "stopped"}` (idempotent; works while the flag is off) | none; 120 per user |
+| `alerts/list` (`auth: "user"`) | `SeatWatchListInputSchema` `{termId?}` | `SeatWatchListResultSchema`: `ok` (`watches`, newest first) or `unavailable` | none; 600 per user |
 | `me` | `MeInputSchema` `{}` | `MeResultSchema`: `signed-out` or `signed-in` (with `user`), and `flags` | 600 |
 | `auth/sign-out` | `SignOutInputSchema` `{removeLocal?}` | `{status: "signed-out"}`, and clears the cookies | 30 |
 | `account/delete` (`auth: "user"`) | `AccountDeleteInputSchema` `{}` | `AccountDeleteResultSchema` `{status: "deleting", deleteAfter}` | 30 |
@@ -399,112 +394,71 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 
 Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `reports` tables in `0004_moderation`, the retry cron, the admin API) is described in `docs/MODERATION.md`.
 
-### 7.1 Seat alerts (`SPEC.md` §3.12)
+### 7.1 Seat watches (`SPEC.md` §3.12, `docs/V2.md` §6.5)
 
-**Flag.** Everything is behind `SEAT_ALERTS_ENABLED` (a `wrangler.jsonc` var, `"true"` since the end-to-end tests passed; `"false"` is the off switch):
-- while it's off, or where there's no `EMAIL` binding (previews never have one), `alerts/subscribe` and `alerts/status` answer `{status: "unavailable"}` (the app then hides the bell);
-- the other alert endpoints answer `503 unavailable`;
-- `notifySeatChanges` does nothing.
+A signed-in person watches a section; the seats cron emails them when it reopens. The email-token flow (subscribe, confirmation link, manage tokens, the `/alerts/*` pages) retired with `0007_seat_watches`, which dropped its tables rather than migrating them (nothing was public; STATUS.md).
+
+**Flag.** `SEAT_ALERTS_ENABLED` (a `wrangler.jsonc` var, `"true"`; `"false"` is the off switch):
+- while it's off, or where there's no `EMAIL` binding (previews never have one), `alerts/watch` and `alerts/list` answer `{status: "unavailable"}` before any rate limiting, `/api/me`'s `flags.seatAlerts` is false (the app then hides every bell and list), and `notifySeatChanges` does nothing;
+- `alerts/unwatch` works either way: stopping is always allowed;
 - `EMAIL_SUBJECT_PREFIX` (a var, unset in production) is prepended to every alert subject, e.g. `[Test] ` for a trial run.
 
-**Tokens and ids:**
-- Tokens are 32 random bytes in base64url (43 characters). Only their hex SHA-256 is stored, in `alert_tokens`.
-- Subscription ids are 16 random bytes (22 characters).
-- Addresses are trimmed and lowercased by the input schema.
-
-**Flow:**
-1. **Subscribe.** The answer is always `check-email`, whether the address is new, pending, already watching or unsubscribed, so the API never reveals who watches what. The email says which:
-   - new, pending or unsubscribed: a confirmation link, `/alerts/confirm?token=…`. It expires after 48 h and works once;
-   - already watching: "You're already watching CMSC351 0101", with a stop link. This is how the spec's "You're already watching this" reaches the person without leaking it to anyone else.
-   - The app shows "You're already watching this" itself when its own local list has the watch.
-   - The app keeps a pending request for 48 h (the link's life), with a "Send again" button; after that the bell offers a fresh start.
-2. **Confirm.** The page at `/alerts/confirm` calls `alerts/confirm`:
-   - `confirmed` makes the watch `active` and returns a **manage token**. Holding the emailed token proves the address, so the browser that followed the link keeps it;
-   - the page leaves `{termId, sectionKey, subscriptionId, manageToken, status}` in `localStorage["terpsicle:alerts-inbox"]` (`src/features/alerts/inbox.ts`). The state layer moves it into the Dexie `seatAlerts` settings row and clears the inbox;
-   - `last_open` is set from the current seats file, so only a reopening after confirmation emails.
-3. **Alert.** The seats cron calls `notifySeatChanges(env, before, after, {now})` (`src/server/alerts/notify.ts`) after publishing a term's seats file. For each `active` subscription in that term whose section has counts, it sends "A seat opened" when all of these hold:
+**Flow** (`src/server/alerts/`):
+1. **Watch.** `alerts/watch` checks the section exists in an active term (the published catalog in R2), counts the person's watches (at most `SEAT_WATCH_MAX_PER_USER`, 30, across terms), and inserts the row with `last_open` from the current seats file, so only a reopening after now emails. Watching twice answers the same watch.
+2. **Alert.** The seats cron calls `notifySeatChanges(env, before, after, {now})` (`notify.ts`) after publishing a term's seats file. For each watch in that term whose person is `active` and whose section has counts, it sends "A seat opened" (or "3 seats opened") to the account's address (`users.email`, the one used last) when all of these hold:
    - the section had 0 open seats before (the previous file, or else `last_open`);
    - it has more than 0 now;
-   - there was no alert for this subscription in the last 30 min;
-   - the address got fewer than 20 alerts in 24 h.
+   - there was no alert for this watch in the last 30 min;
+   - the person got fewer than 20 alerts in 24 h (`seat_alert_sends`).
 
-   It records `last_open`, `last_checked_at` and `last_notified_*`, and prunes old counters and expired confirm tokens.
-4. **Unsubscribe.** It takes two steps, per the spec: `alerts/lookup` shows "Stop seat alerts?" on `/alerts/unsubscribe`, and only the button calls `alerts/unsubscribe` (idempotent). Every alert email carries a fresh manage token in its stop link and its `List-Unsubscribe` header. That header points at the confirming page. There's deliberately no `List-Unsubscribe-Post`: one-click would skip the confirmation.
-5. **Status.** `alerts/status` refreshes the browser's local list with its manage tokens. A token that doesn't match the id reads `unknown`.
+   It records `last_open`, `last_checked_at` and `last_notified_*`, and prunes counters and week-old send rows. Web push joins here once `v2/push` lands (V2.md §6.4).
+3. **Stop.** In the app: `alerts/unwatch`, from the bell, the problem's button, or the Watching list, with Undo (no confirmation, DESIGN §5). From the email: its one-click unsubscribe (below).
+4. **The end of a term.** The daily job (`endPastTermWatches`) deletes watches whose term isn't `active` in `terms.json` any more (archived or gone): seats stop updating then. Deleting an account deletes its watches (`ON DELETE CASCADE`).
 
-**Emails** (`src/server/alerts/email.ts`, all three kinds):
-- plain text plus simple table-based HTML, and `Auto-Submitted: auto-generated`;
-- from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`.
+**The email** (`email.ts`): plain text plus simple table-based HTML, `Auto-Submitted: auto-generated`, from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`. It has the counts, Testudo's as-of time in Eastern, a link that opens the course (`/schedule?term=<id>&course=<code>`, which opens it over Courses in that term; `ScheduleSearchSchema`, §8.1), Testudo's page, and "See or stop your watches" (`/settings#watching`). Cron emails always link to terpsicle.com.
 
-**Links in emails:**
-- to the app: `https://terpsicle.com/schedule?term=<id>&course=<code>`, which opens that course over Courses in that term (`ScheduleSearchSchema`, §8.1);
-- to Testudo's page for the course.
+**One-click unsubscribe** (RFC 8058): `List-Unsubscribe: <https://terpsicle.com/api/alerts/one-click?u&t&s&k>` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. `k` is an HMAC of the user, term and section under the Worker's own key (`keyedHash`, the R2 key that also hashes IPs), so a link stops only that one watch and can't be made for anyone else's. The route sits outside the JSON table (mail providers POST a form):
+- `POST` stops the watch (idempotent) and answers a plain "Stopped";
+- `GET` (a person, or a link scanner) changes nothing and redirects to `/settings#watching`, where Stop has Undo;
+- a bad key is `400`; at most 60 per IP per hour.
 
-API-triggered emails link to the requesting origin only when it's ours (terpsicle.com, this project's preview hosts, localhost), so a forged `Host` can never inject another domain. Cron emails always link to terpsicle.com.
+**Dedupe.** `seat_alert_sends.dedupe_key` is unique, so a retried cron sends nothing twice: `seat-open:<userId>:<term>:<section>:<seats asOf, or the 30-min window>:email` (V2.md §6.5's key).
 
-**Limits:**
-- at most 5 signup emails (confirmation or "already watching") per address per 24 h, and at most one per subscription per 10 min. Hitting either limit skips the email but keeps the answer `check-email`, so limits can't reveal anything;
-- at most 300 signup emails in total per UTC day (`signup-emails` counter), a backstop against abuse spread over many networks and addresses. Past it, the answer is still `check-email`;
-- at most 20 alerts per address per 24 h, and a 30-min cooldown per subscription;
-- the per-IP limits in the table above.
-
-**Dedupe.** `email_sends.dedupe_key` is unique, so a retried cron sends nothing twice. The keys are:
-- `confirm:<id>:<16 hex of token hash>`;
-- `already-watching:<id>:<…>`;
-- `seat-open:<id>:<seats asOf, or the 30-min window>`.
-
-**Migration** (`migrations/0002_seat_alerts.sql`, applied by `deploy.yml` to production and by ci.yml's preview job to `terpsicle-preview` via `wrangler.preview-d1.jsonc`):
+**Migration** (`migrations/0007_seat_watches.sql`, applied by `deploy.yml` to production and by ci.yml's preview job to `terpsicle-preview`):
 
 ```sql
-CREATE TABLE alert_subscriptions (
-  id                 TEXT PRIMARY KEY,          -- 16 random bytes, base64url
-  email              TEXT NOT NULL,             -- trimmed, lowercased
-  term_id            TEXT NOT NULL,
-  section_key        TEXT NOT NULL,             -- e.g. CMSC351-0101
-  status             TEXT NOT NULL CHECK (status IN ('pending', 'active', 'unsubscribed')),
-  created_at         TEXT NOT NULL,             -- ISO UTC
-  confirmed_at       TEXT,
-  unsubscribed_at    TEXT,
-  last_open          INTEGER,                   -- open seats at the last check
-  last_checked_at    TEXT,
-  last_notified_at   TEXT,
-  last_notified_open INTEGER,
-  UNIQUE (email, term_id, section_key)
-);
-CREATE INDEX alert_subscriptions_active ON alert_subscriptions (term_id, section_key) WHERE status = 'active';
+DROP TABLE alert_tokens;
+DROP TABLE email_sends;
+DROP TABLE alert_subscriptions;
 
-CREATE TABLE alert_tokens (
-  token_hash      TEXT PRIMARY KEY,             -- hex SHA-256
-  subscription_id TEXT NOT NULL REFERENCES alert_subscriptions (id) ON DELETE CASCADE,
-  purpose         TEXT NOT NULL CHECK (purpose IN ('confirm', 'manage')),
-  created_at      TEXT NOT NULL,
-  expires_at      TEXT,                         -- confirm tokens: +48 h
-  used_at         TEXT                          -- confirm tokens: once
+CREATE TABLE seat_watches (
+  user_id             TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  term_id             TEXT NOT NULL,
+  section_key         TEXT NOT NULL,          -- e.g. CMSC351-0101
+  created_at          TEXT NOT NULL,
+  last_open           INTEGER,                -- open seats at the last check
+  last_checked_at     TEXT,
+  last_notified_at    TEXT,
+  last_notified_open  INTEGER,
+  PRIMARY KEY (user_id, term_id, section_key)
 );
-CREATE INDEX alert_tokens_by_subscription ON alert_tokens (subscription_id, purpose);
+CREATE INDEX seat_watches_by_section ON seat_watches (term_id, section_key);
 
-CREATE TABLE email_sends (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  email           TEXT NOT NULL,
-  subscription_id TEXT REFERENCES alert_subscriptions (id) ON DELETE SET NULL,
-  kind            TEXT NOT NULL CHECK (kind IN ('confirm', 'already-watching', 'seat-open')),
-  dedupe_key      TEXT NOT NULL UNIQUE,
-  status          TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
-  provider_id     TEXT,                         -- Email Service message id
-  sent_at         TEXT NOT NULL
+CREATE TABLE seat_alert_sends (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  term_id      TEXT NOT NULL,
+  section_key  TEXT NOT NULL,
+  channel      TEXT NOT NULL CHECK (channel IN ('email')),
+  dedupe_key   TEXT NOT NULL UNIQUE,
+  status       TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
+  provider_id  TEXT,
+  sent_at      TEXT NOT NULL
 );
-CREATE INDEX email_sends_by_email ON email_sends (email, kind, sent_at);
-
--- Fixed-window counters: per-IP limits (keyed hash) and the summary cap.
-CREATE TABLE counters (
-  name         TEXT NOT NULL,
-  window_start TEXT NOT NULL,
-  count        INTEGER NOT NULL,
-  PRIMARY KEY (name, window_start)
-);
+CREATE INDEX seat_alert_sends_by_user ON seat_alert_sends (user_id, sent_at);
 ```
 
-`AlertSubscriptionRowSchema`, `AlertTokenRowSchema` and `EmailSendRowSchema` validate rows on read (`src/server/alerts/store.ts`).
+`seat_alert_sends` stands in for V2.md's `notification_deliveries` until `0006_notifications` lands; `v2/push` can fold it in. `counters` (from `0002_seat_alerts`) stays: per-IP and per-user limits and the summary cap. `SeatWatchRowSchema` validates rows on read (`src/server/alerts/store.ts`).
 
 ### 7.2 Review summaries
 
@@ -540,7 +494,7 @@ CREATE TABLE counters (
 
 Server events (`src/server/analytics.ts`, `docs/ANALYTICS.md`):
 - summaries: `summary_generated`, `summary_cached`, `summary_failed`, `summary_capped`;
-- seat alerts: `alert_subscribed`, `alert_confirmed`, `alert_sent`, `alert_unsubscribed`;
+- seat watches: `alert_watched`, `alert_sent`, `alert_unwatched` (`via`: `app` or `email`), `alert_watches_ended`;
 - identity: `signin_result` (`outcome`, and `hd` on success).
 
 They carry counts, reasons and term ids only. They never carry an address, token, IP or review text, not even hashed.
@@ -565,7 +519,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0004_moderation` | `moderation_decisions` (text-free log), `moderation_queue` (the human queue; snapshots blanked 30 days after close), `reports` | The shared moderation service (V2.md §9.4) |
 | `0005_sync` (landed, §7.7) | `sync_docs` (`user_id`, `kind`, `doc_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `pruned_through`) | Plan sync: one JSON row per doc, per-doc rev compare-and-swap (V2.md §5.2) |
 | `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
-| `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
+| `0007_seat_watches` (landed, §7.1) | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields), `seat_alert_sends` (dedupe and the daily cap, until `notification_deliveries`); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` (landed, §7.8) | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
 | `0009_chat` (landed, §7.9) | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
 | `0010_four_year_sync` (landed, §7.7) | rebuilds `sync_docs` so `kind` also allows `four-year` (with tombstones) | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
@@ -725,6 +679,7 @@ These aren't stored, but several workers build against them:
   - `subjects[0]` is what clicking the problem opens.
   - `title` and `detail` are `MessagePart[]`, so codes, times and durations render in mono and can be clicked without parsing strings.
   - `fix` is `switch` (offered only when it creates no new problem), `accept-change` (for `changed`) or `watch` (for `full`: "Watch for a seat"; the UI shows the seat watch's own button and state instead of applying it).
+  - A `full` problem on a section the signed-in person watches becomes kind `watching` (info), "Watching for a seat in CMSC351 0101", keeping its `watch` fix (`withWatches` in `src/core/problems`, applied by `usePlanProblemsState`). It's taken care of, so it counts as a note, not a problem.
   - `id` is `<kind>:<subject ids>`, stable while the cause lasts.
 - **`FourYearProblem`** (Plan, `src/core/schema/four-year.ts`): the same shape as `Problem`, with `kind` in `prereq-order` · `light-semester` · `repeated-course` · `unknown-course` (warning) · `not-offered-lately` (the rest info, `FOUR_YEAR_PROBLEM_SEVERITY`); `subjects` are `entry {entryId}` or `term {term}`; `fix` is `move {entryId, term}` or `remove {entryId}`, offered only when applying it adds no problem. `id` is `<kind>:<subject ids>`.
 - **`FitLabel`:** `fits` · `overlaps {with: course | block}` · `not-enough-time {direction, courseCode}` · `in-plan` · `no-set-times`. "Not enough time after CMSC330" means CMSC330 comes first.

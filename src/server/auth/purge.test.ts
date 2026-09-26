@@ -20,6 +20,7 @@ import { chatTargetId } from "../chat/moderation-handler";
 import { ObjectStore } from "../chat/object-store";
 import { PURGED_REPORTER_PREFIX } from "../moderation/store";
 import {
+  accountStatements,
   PURGE_LEDGER,
   type PurgeEnv,
   purgeDueAccounts,
@@ -258,26 +259,18 @@ async function seedAccount(id: string, n: number) {
         at,
       ],
       [
-        `INSERT INTO alert_subscriptions (id, email, term_id, section_key, status, created_at)
-         VALUES (?2, ?1, ?3, 'CMSC351-0101', 'active', ?4)`,
-        `${id}@umd.edu`,
-        `sub-${id}`,
+        `INSERT INTO seat_watches (user_id, term_id, section_key, created_at)
+         VALUES (?1, ?2, 'CMSC351-0101', ?3)`,
+        id,
         TERM,
         at,
       ],
       [
-        `INSERT INTO alert_tokens (token_hash, subscription_id, purpose, created_at)
-         VALUES (?1, ?2, 'manage', ?3)`,
-        `token-${id}`,
-        `sub-${id}`,
-        at,
-      ],
-      [
-        `INSERT INTO email_sends (email, subscription_id, kind, dedupe_key, status, sent_at)
-         VALUES (?1, ?2, 'seat-open', ?3, 'sent', ?4)`,
-        `${id}@umd.edu`,
-        `sub-${id}`,
-        `seat-open:${id}`,
+        `INSERT INTO seat_alert_sends (user_id, term_id, section_key, channel, dedupe_key, status, sent_at)
+         VALUES (?1, ?2, 'CMSC351-0101', 'email', ?3, 'sent', ?4)`,
+        id,
+        TERM,
+        `seat-open:${id}:${TERM}:CMSC351-0101:email`,
         at,
       ],
       [
@@ -440,6 +433,69 @@ describe("the daily purge", () => {
       chatMessages: 0,
       errors: [],
     });
+  });
+
+  it("keeps an account whose person signs in while the run is on its way", async () => {
+    const before = await rowsMentioning(GONE);
+    // They sign in while the first course's object is being purged.
+    const signingIn: PurgeEnv = {
+      ...(env as Env),
+      COURSE_CHAT: {
+        idFromName: (name: string) => env.COURSE_CHAT.idFromName(name),
+        get: (id: DurableObjectId) => ({
+          purgeAuthor: async (
+            target: Parameters<CourseChat["purgeAuthor"]>[0],
+          ) => {
+            await upsertUser(
+              env.DB,
+              anIdentity({
+                directoryId: GONE,
+                email: `${GONE}@terpmail.umd.edu`,
+                name: `Name ${GONE}`,
+                sub: `1${GONE}`,
+              }),
+              NOW,
+            );
+            return env.COURSE_CHAT.get(id).purgeAuthor(target);
+          },
+        }),
+      } as unknown as PurgeEnv["COURSE_CHAT"],
+    };
+
+    expect(await purgeDueAccounts(signingIn, NOW)).toEqual({
+      accounts: 0,
+      chatCourses: 1,
+      chatMessages: 1,
+      errors: [],
+    });
+    expect(
+      await env.DB.prepare("SELECT status FROM users WHERE id = ?1")
+        .bind(GONE)
+        .first("status"),
+    ).toBe("active");
+    // The course already under way is gone; nothing after it is touched.
+    expect(await chatRowsOf("CMSC131", GONE)).toBe(0);
+    expect(await chatRowsOf("CMSC351", GONE)).toBeGreaterThan(0);
+    expect(
+      (await env.USER_CONTENT.list({ prefix: `avatars/${GONE}/` })).objects,
+    ).toHaveLength(1);
+    // Every row is still there, but the finished course's chat record.
+    expect(await rowsMentioning(GONE)).toEqual(
+      before.map((r) =>
+        r === "chat_author_courses: 2" ? "chat_author_courses: 1" : r,
+      ),
+    );
+  });
+
+  it("changes nothing in the batch once the account is kept", async () => {
+    await env.DB.prepare(
+      "UPDATE users SET status = 'active', delete_after = NULL WHERE id = ?1",
+    )
+      .bind(GONE)
+      .run();
+    const before = await rowsMentioning(GONE);
+    await env.DB.batch(accountStatements(env.DB, GONE, NOW));
+    expect(await rowsMentioning(GONE)).toEqual(before);
   });
 
   it("leaves an account in its week alone, then takes it when the week ends", async () => {

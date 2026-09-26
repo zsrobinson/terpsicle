@@ -362,17 +362,19 @@ export async function insertReport(
  * count toward hiding an item and the owner reads them, but each one's
  * reporter becomes a random stand-in that links to nobody. Distinct
  * stand-ins keep "3 different people" true for reports already made.
+ * `onlyIf` is the purge's condition on `?1` (the user) and `?2` (`at`).
  */
 export function forgetReporterStatement(
   db: D1Database,
   userId: string,
+  guard: { onlyIf: string; at: string },
 ): D1PreparedStatement {
   return db
     .prepare(
       `UPDATE reports SET reporter_id = '${PURGED_REPORTER_PREFIX}' || lower(hex(randomblob(12)))
-       WHERE reporter_id = ?1`,
+       WHERE reporter_id = ?1 AND ${guard.onlyIf}`,
     )
-    .bind(userId);
+    .bind(userId, guard.at);
 }
 
 /** A purged reporter's stand-in starts with this; directory IDs can't contain a colon. */

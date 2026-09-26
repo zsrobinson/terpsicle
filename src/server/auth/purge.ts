@@ -29,11 +29,7 @@ import { deletePictures } from "./pictures";
  * so the owner keeps what was said but not who said it).
  */
 export const PURGE_LEDGER = {
-  // 0002_seat_alerts: seat alerts are keyed by email, not user id.
-  alert_subscriptions:
-    "deleted where the email is one of the account's addresses",
-  alert_tokens: "deleted with their subscriptions",
-  email_sends: "deleted where the email is one of the account's addresses",
+  // 0002_seat_alerts (its alert tables dropped by 0007)
   counters:
     "the person's rate-limit windows (`user:<id>:…`) deleted; the rest are keyed by a hash of an IP",
   // 0003_identity
@@ -43,7 +39,7 @@ export const PURGE_LEDGER = {
   // 0004_moderation: nothing here names an author.
   moderation_decisions: "kept: no user id, only a surface and a ref",
   moderation_queue:
-    "kept: no user id; purgeAuthor withdraws waiting items for the chat messages it deletes",
+    "kept: no user id; purgeAuthor withdraws waiting items for the chat messages it deletes. A decided item's snapshot keeps the words, never the author, until it's blanked 30 days after closing",
   reports:
     "kept for moderation, each reporter_id swapped for a random stand-in",
   // 0005_sync, 0010_four_year_sync
@@ -61,6 +57,9 @@ export const PURGE_LEDGER = {
   chat_room_prefs: "deleted",
   chat_author_courses:
     "each row deleted once purgeAuthor has run on its course's object",
+  // 0007_seat_watches
+  seat_watches: "deleted",
+  seat_alert_sends: "deleted",
   // 0011_todo
   todo_feeds: "deleted (the sealed ELMS link with it)",
   todo_items: "deleted",
@@ -75,7 +74,7 @@ export const SYSTEM_TABLES = ["d1_migrations", "_cf_KV", "_cf_METADATA"];
 
 export interface PurgeEnv {
   DB: D1Database;
-  USER_CONTENT?: R2Bucket;
+  USER_CONTENT: R2Bucket;
   COURSE_CHAT: CourseChatNamespace;
 }
 
@@ -102,8 +101,30 @@ export async function accountsDueForPurge(
 }
 
 /**
+ * SQL that's true while `?1` is still deleting and past its date, with the
+ * run's time as `?2`. Every step checks it, so someone who signs in while a
+ * run is on its way to them keeps their account (V2.md §4.7).
+ */
+export const STILL_DUE =
+  "EXISTS (SELECT 1 FROM users WHERE id = ?1 AND status = 'deleting' AND delete_after <= ?2)";
+
+async function stillDue(
+  db: D1Database,
+  userId: string,
+  at: string,
+): Promise<boolean> {
+  return (
+    (await db
+      .prepare(`SELECT ${STILL_DUE} AS due`)
+      .bind(userId, at)
+      .first<number>("due")) === 1
+  );
+}
+
+/**
  * Purges every account past its `delete_after`. One account's failure
- * doesn't stop the others: it's reported, and the next run resumes it.
+ * doesn't stop the others: it's reported, with the step, and the next run
+ * resumes it.
  */
 export async function purgeDueAccounts(
   env: PurgeEnv,
@@ -116,17 +137,25 @@ export async function purgeDueAccounts(
     errors: [],
   };
   for (const userId of await accountsDueForPurge(env.DB, now)) {
+    let step = "chat";
     try {
-      const chat = await purgeChat(env, userId);
+      const chat = await purgeChat(env, userId, now);
       report.chatCourses += chat.courses;
       report.chatMessages += chat.messages;
-      if (env.USER_CONTENT) await deletePictures(env.USER_CONTENT, userId);
-      await env.DB.batch(accountStatements(env.DB, userId));
-      report.accounts += 1;
+      // Signed in since the run started: the account stays.
+      if (!chat.due) continue;
+      step = "pictures";
+      await deletePictures(env.USER_CONTENT, userId);
+      step = "rows";
+      const results = await env.DB.batch(
+        accountStatements(env.DB, userId, now),
+      );
+      // The `users` delete is last; 0 when a sign-in got there first.
+      if ((results.at(-1)?.meta.changes ?? 0) > 0) report.accounts += 1;
     } catch (error) {
-      // The error's name only: no user id or message text in logs.
+      // The step and the error's name only: no user id or text in logs.
       report.errors.push(
-        `purge: ${error instanceof Error ? error.name : "unknown"}`,
+        `purge ${step}: ${error instanceof Error ? error.name : "unknown"}`,
       );
     }
   }
@@ -136,20 +165,26 @@ export async function purgeDueAccounts(
 /**
  * Step 1: the person's messages in every course they wrote in. Each
  * `chat_author_courses` row goes once its object has answered, so a crash
- * leaves exactly the courses still to do.
+ * leaves exactly the courses still to do. Stops (`due: false`) as soon as
+ * the account isn't due any more.
  */
 export async function purgeChat(
   env: PurgeEnv,
   userId: string,
-): Promise<{ courses: number; messages: number }> {
+  now: Date,
+): Promise<{ courses: number; messages: number; due: boolean }> {
+  const at = now.toISOString();
   const { results } = await env.DB.prepare(
     `SELECT term_id, course_code FROM chat_author_courses
      WHERE user_id = ?1 ORDER BY term_id, course_code`,
   )
     .bind(userId)
     .all<{ term_id: string; course_code: string }>();
+  let courses = 0;
   let messages = 0;
   for (const row of results) {
+    if (!(await stillDue(env.DB, userId, at)))
+      return { courses, messages, due: false };
     // Named as chat/socket.ts and moderation name it.
     const stub = env.COURSE_CHAT.get(
       env.COURSE_CHAT.idFromName(courseRoomId(row.term_id, row.course_code)),
@@ -159,6 +194,7 @@ export async function purgeChat(
       courseCode: row.course_code,
       userId,
     });
+    courses += 1;
     messages += purged.messages;
     await env.DB.prepare(
       `DELETE FROM chat_author_courses
@@ -167,45 +203,37 @@ export async function purgeChat(
       .bind(userId, row.term_id, row.course_code)
       .run();
   }
-  return { courses: results.length, messages };
+  return { courses, messages, due: await stillDue(env.DB, userId, at) };
 }
 
 /**
  * Step 3, one transaction. Dependent rows are deleted explicitly as well as
  * by ON DELETE CASCADE, so nothing outlives the account even where foreign
- * keys are off. Order matters only for the seat alerts, which read the
- * account's addresses before `users` and `user_identities` go.
+ * keys are off. Every statement holds only while the account is still due
+ * (STILL_DUE), so a sign-in that lands first leaves it all; `users` goes
+ * last.
  */
 export function accountStatements(
   db: D1Database,
   userId: string,
+  now: Date,
 ): D1PreparedStatement[] {
-  const addresses = `SELECT email FROM users WHERE id = ?1
-     UNION SELECT email FROM user_identities WHERE user_id = ?1`;
+  const at = now.toISOString();
   const byUser = (table: string) =>
-    db.prepare(`DELETE FROM ${table} WHERE user_id = ?1`).bind(userId);
+    db
+      .prepare(`DELETE FROM ${table} WHERE user_id = ?1 AND ${STILL_DUE}`)
+      .bind(userId, at);
   return [
-    // Seat alerts (0002): by address.
-    db
-      .prepare(
-        `DELETE FROM alert_tokens WHERE subscription_id IN (
-           SELECT id FROM alert_subscriptions WHERE email IN (${addresses}))`,
-      )
-      .bind(userId),
-    db
-      .prepare(`DELETE FROM email_sends WHERE email IN (${addresses})`)
-      .bind(userId),
-    db
-      .prepare(`DELETE FROM alert_subscriptions WHERE email IN (${addresses})`)
-      .bind(userId),
     // Rate limits: userLimitKey (api/router.ts) and chat/socket.ts. A
     // directory ID is [a-z0-9], so it can't carry a LIKE wildcard.
     db
-      .prepare("DELETE FROM counters WHERE name LIKE 'user:' || ?1 || ':%'")
-      .bind(userId),
+      .prepare(
+        `DELETE FROM counters WHERE name LIKE 'user:' || ?1 || ':%' AND ${STILL_DUE}`,
+      )
+      .bind(userId, at),
     // Reviews and reports stay, linked to nobody.
-    forgetAuthorStatement(db, userId),
-    forgetReporterStatement(db, userId),
+    forgetAuthorStatement(db, userId, { onlyIf: STILL_DUE, at }),
+    forgetReporterStatement(db, userId, { onlyIf: STILL_DUE, at }),
     // Sync: plans, settings and four-year docs.
     byUser("sync_docs"),
     byUser("sync_heads"),
@@ -215,6 +243,9 @@ export function accountStatements(
     byUser("chat_read_markers"),
     byUser("chat_room_prefs"),
     byUser("chat_author_courses"),
+    // Seat watches and the alerts sent for them.
+    byUser("seat_watches"),
+    byUser("seat_alert_sends"),
     // Todo: the feed (its sealed link), its items and done marks.
     byUser("todo_items"),
     byUser("todo_done"),
@@ -222,7 +253,11 @@ export function accountStatements(
     // Identity, the account last.
     byUser("sessions"),
     byUser("user_identities"),
-    db.prepare("DELETE FROM users WHERE id = ?1").bind(userId),
+    db
+      .prepare(
+        "DELETE FROM users WHERE id = ?1 AND status = 'deleting' AND delete_after <= ?2",
+      )
+      .bind(userId, at),
   ];
 }
 

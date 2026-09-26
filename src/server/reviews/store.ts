@@ -596,15 +596,19 @@ export async function pruneReviews(
 /**
  * Account deletion (V2 §4.7): the person's reviews stay as they are, with
  * no author. Nothing else links a review to anyone. A statement for the
- * purge's batch, since this file is the only one that names `author_id`.
+ * purge's batch, since this file is the only one that names `author_id`;
+ * `onlyIf` is the purge's condition on `?1` (the user) and `?2` (`at`).
  */
 export function forgetAuthorStatement(
   db: D1Database,
   userId: string,
+  guard: { onlyIf: string; at: string },
 ): D1PreparedStatement {
   return db
-    .prepare("UPDATE reviews SET author_id = NULL WHERE author_id = ?1")
-    .bind(userId);
+    .prepare(
+      `UPDATE reviews SET author_id = NULL WHERE author_id = ?1 AND ${guard.onlyIf}`,
+    )
+    .bind(userId, guard.at);
 }
 
 // ---------- published numbers (the reviews-publish job) and summaries ----------

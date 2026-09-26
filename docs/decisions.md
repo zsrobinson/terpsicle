@@ -66,7 +66,7 @@ Revisit if: never on its own.
 
 ### A deleted account leaves nothing that names the person
 2026-09-26 · agent · app-wide
-After the week, the daily purge removes every row with the person's directory ID or addresses (seat alerts too, by address), their chat messages in every course object and their pictures. Reviews stay with no author and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
+After the week, the daily purge removes every row with the person's directory ID or addresses, their chat messages in every course object and their pictures. Reviews stay with no author and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
 Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
 
 ### LLMs only in three places
