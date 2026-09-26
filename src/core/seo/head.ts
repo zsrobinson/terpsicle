@@ -237,6 +237,16 @@ export function instructorHead(data: InstructorPageData): PageHead {
     ...(data.name ? [{ name: data.name, path }] : []),
   ];
   const name = data.name;
+  // Nothing published says who this is yet (before PlanetTerp's index, or a
+  // minted id the browser can't look up): say nothing wrong, and keep it
+  // out of search results until a render knows.
+  if (!name)
+    return pageHead({
+      title: instructorTitle(data),
+      description: "Ratings, grades and student reviews for a UMD instructor.",
+      path,
+      noindex: true,
+    });
   return pageHead({
     title: instructorTitle(data),
     description: instructorDescription(data),
