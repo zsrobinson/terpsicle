@@ -162,12 +162,14 @@ export function GeneratePanel() {
                 index={catalog.index}
                 colors={colors}
                 plan={current?.plan ?? null}
+                termName={termName}
               />
             ) : (
               <NothingFits
                 result={showing.result}
                 index={catalog.index}
                 colors={colors}
+                termName={termName}
                 onRelax={relax}
               />
             )}

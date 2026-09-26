@@ -1,10 +1,18 @@
+import {
+  noMatchesMessage,
+  wildcardFromId,
+  wildcardLabel,
+  wildcardNoun,
+} from "~/core/catalog";
 import type { SectionDifference } from "~/core/generate/describe";
 import { RANK_FACTOR_LABELS } from "~/core/generate/score";
 import type {
   Day,
   Equivalents,
+  GeneratedPlan,
   GenerateRequest,
   PlanStats,
+  WildcardReport,
 } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTime, sortDays } from "~/core/time";
 
@@ -84,7 +92,7 @@ export function equivalentsTip(equivalents: Equivalents): string {
   return `${equivalents.count} ways to get this same week: ${lines.join("; ")}`;
 }
 
-/** "3 courses", "3 courses (1 optional) + 1 of 3" */
+/** "3 courses", "3 courses (1 optional) + 1 of 3 + Any CMSC 400-level ×2" */
 function coursesPart(items: GenerateRequest["items"]): string {
   const courses = items.filter((i) => i.kind === "course");
   const optional = courses.filter((i) => i.kind === "course" && !i.required);
@@ -97,7 +105,51 @@ function coursesPart(items: GenerateRequest["items"]): string {
   for (const item of items)
     if (item.kind === "pick")
       parts.push(`${item.count} of ${item.courses.length}`);
+    else if (item.kind === "wildcard")
+      parts.push(
+        wildcardLabel(item.wildcard) +
+          (item.count > 1 ? ` ×${item.count}` : "") +
+          (item.required ? "" : " (optional)"),
+      );
   return parts.join(" + ");
+}
+
+/**
+ * What a wildcard had to choose from, when that needs saying: nothing
+ * matched, nothing fit, or the cap left some out. null when it's plain.
+ */
+export function wildcardNote(
+  report: WildcardReport,
+  termName: string,
+): string | null {
+  const wildcard = wildcardFromId(report.wildcard);
+  if (!wildcard) return null;
+  if (report.matched === 0) return noMatchesMessage(wildcard, termName);
+  if (report.fit === 0)
+    return report.matched === 1
+      ? `The one ${wildcardNoun(wildcard, 1)} doesn't fit your must-haves and required courses.`
+      : `None of the ${report.matched} ${wildcardNoun(wildcard)} fits your must-haves and required courses.`;
+  if (report.tried < report.fit)
+    return `Tried the ${report.tried} most promising of ${report.fit} ${wildcardNoun(wildcard)}. Add must-haves to narrow them down.`;
+  return null;
+}
+
+/** An optional wildcard no plan could include: "No CMSC 400-level course fits with the rest of your courses." */
+export function unfitWildcardNote(report: WildcardReport): string | null {
+  const wildcard = wildcardFromId(report.wildcard);
+  return wildcard
+    ? `No ${wildcardNoun(wildcard, 1)} fits with the rest of your courses.`
+    : null;
+}
+
+/** "CMSC420 for Any CMSC 400-level", for each course a result took for a wildcard. */
+export function filledTip(filled: GeneratedPlan["filled"]): string {
+  return filled
+    .map((f) => {
+      const wildcard = wildcardFromId(f.wildcard);
+      return `${f.courseCode} for ${wildcard ? wildcardLabel(wildcard) : f.wildcard}`;
+    })
+    .join(", ");
 }
 
 /**

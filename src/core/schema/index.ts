@@ -17,3 +17,4 @@ export * from "./sync";
 export * from "./sync-api";
 export * from "./travel";
 export * from "./versions";
+export * from "./wildcard";

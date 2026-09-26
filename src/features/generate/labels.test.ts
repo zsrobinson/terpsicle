@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MUST_HAVES, type PlanStats } from "~/core/schema";
+import {
+  DEFAULT_MUST_HAVES,
+  type PlanStats,
+  type WildcardReport,
+} from "~/core/schema";
 import { aBlock, aGenerateRequest } from "~/fixtures";
 import {
   differenceLabel,
+  filledTip,
   freeDaysLabel,
   requestSummary,
   seatsLabel,
   seatsShortLabel,
   spanLabel,
+  unfitWildcardNote,
+  wildcardNote,
 } from "./labels";
 
 const stats = (patch: Partial<PlanStats> = {}): PlanStats => ({
@@ -100,5 +107,85 @@ describe("requestSummary", () => {
       );
     expect(withCredits(12, null)).toContain("12+ credits");
     expect(withCredits(null, 15)).toContain("up to 15 credits");
+  });
+
+  it("names wildcards by their labels", () => {
+    expect(
+      requestSummary(
+        aGenerateRequest({
+          items: [
+            { kind: "course", courseCode: "CMSC351", required: true },
+            {
+              kind: "wildcard",
+              wildcard: { kind: "pattern", pattern: "CMSC4XX" },
+              required: true,
+              count: 2,
+            },
+            {
+              kind: "wildcard",
+              wildcard: { kind: "gen-ed", code: "DSHS" },
+              required: false,
+              count: 1,
+            },
+          ],
+        }),
+      ),
+    ).toBe(
+      "1 course + Any CMSC 400-level ×2 + Any DSHS course (optional) · compact days",
+    );
+  });
+});
+
+describe("wildcard notes", () => {
+  const report = (patch: Partial<WildcardReport> = {}): WildcardReport => ({
+    wildcard: "CMSC4XX",
+    matched: 37,
+    fit: 30,
+    tried: 30,
+    ...patch,
+  });
+
+  it("stays quiet when every fitting course was tried", () => {
+    expect(wildcardNote(report(), "Spring 2027")).toBeNull();
+  });
+
+  it("says plainly when nothing matches or fits", () => {
+    expect(
+      wildcardNote(
+        report({ wildcard: "ARTTXXX", matched: 0, fit: 0, tried: 0 }),
+        "Spring 2027",
+      ),
+    ).toBe("Spring 2027 has no ARTT courses.");
+    expect(wildcardNote(report({ fit: 0, tried: 0 }), "Spring 2027")).toBe(
+      "None of the 37 CMSC 400-level courses fits your must-haves and required courses.",
+    );
+    expect(
+      wildcardNote(report({ matched: 1, fit: 0, tried: 0 }), "Spring 2027"),
+    ).toBe(
+      "The one CMSC 400-level course doesn't fit your must-haves and required courses.",
+    );
+    expect(unfitWildcardNote(report({ wildcard: "gen-ed:DSHS" }))).toBe(
+      "No DSHS course fits with the rest of your courses.",
+    );
+  });
+
+  it("owns up to the cap", () => {
+    expect(
+      wildcardNote(
+        report({ wildcard: "gen-ed:DSHS", matched: 420, fit: 408, tried: 40 }),
+        "Spring 2027",
+      ),
+    ).toBe(
+      "Tried the 40 most promising of 408 DSHS courses. Add must-haves to narrow them down.",
+    );
+  });
+
+  it("names the wildcard each course filled", () => {
+    expect(
+      filledTip([
+        { wildcard: "CMSC4XX", courseCode: "CMSC420" },
+        { wildcard: "gen-ed:DSHS", courseCode: "ANTH210" },
+      ]),
+    ).toBe("CMSC420 for Any CMSC 400-level, ANTH210 for Any DSHS course");
   });
 });

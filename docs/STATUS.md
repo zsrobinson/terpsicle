@@ -39,6 +39,13 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 - **One Worker** (`terpsicle`) with one Durable Object class (`CourseChat`, one object per course per term), the one exception to BUILD.md §1's no-Durable-Objects rule.
 - **Migrations are pre-numbered** `0003`–`0009` so parallel PRs don't collide.
 - **Brand refresh** (Bulletin paper, Flexoki, Bricolage Grotesque) waits for the owner's sign-off; engineering keeps today's tokens.
+- **Wildcards in Generate** (`v2/wildcards`, owner request): `CMSC4XX`, `ARTTXXX` and gen-ed codes (`DSHS`) as "pick one course from this set", with the matcher in `src/core/catalog/wildcard.ts` for the four-year planner to reuse. Interpretations, flagged for the owner:
+  - suffix letters match (`CMSC4XX` includes CMSC498A and honors "H" courses);
+  - a conditional gen-ed ("DSNL if taken with GEOL110") doesn't count; a choice ("DSHS or DSHU") counts for each code;
+  - X only fills the end of the number (`CMSC4X1` isn't a pattern) and needs all three places (`CMSC4X` isn't one);
+  - a wildcard never picks a course listed on its own; adding one again asks for one more course from it (up to 6);
+  - each wildcard offers the search at most 40 section groups (pruned, then best first a course at a time), and the results say when that left courses out;
+  - a gen-ed wildcard loads the whole term; PlanetTerp files for its departments are fetched only when ranking by ratings or GPA.
 
 **Owner actions** (`docs/V2.md` §14): the Google OAuth client is done (External, published, scopes `openid email profile`, redirect `https://terpsicle.com/api/auth/google/callback` plus localhost; `GOOGLE_CLIENT_ID` in vars, `GOOGLE_CLIENT_SECRET` set on the Worker). `AUTH_SECRET` and `VAPID_*` are set and the `terpsicle-user-content` buckets exist. Admins are the git-tracked `config/admins.txt` (first entry `robinson`, the owner), bundled at build time, so they need no owner action. Later: brand verification once `/privacy` is live, a sign-in trial with a TERPmail and a UMD Gmail account, confirming the sync decision, and emailing PlanetTerp about review text.
 

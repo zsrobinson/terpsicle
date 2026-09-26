@@ -3,3 +3,4 @@ export * from "./manifest-diff";
 export * from "./plan-diff";
 export * from "./section-groups";
 export * from "./terms";
+export * from "./wildcard";
