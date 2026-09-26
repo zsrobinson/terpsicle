@@ -72,6 +72,33 @@ export const ROUTE_BUDGETS: readonly {
   ),
 ];
 
+/**
+ * Text that must never be in the build: the contact address stays away from
+ * scrapers (src/features/site/contact-email.tsx). Joined here so this file
+ * doesn't hold it either.
+ */
+export const NEVER_IN_BUILD: readonly string[] = [
+  ["admin", "terpsicle.com"].join("@"),
+];
+
+/** "file: contains …" for each build file that holds forbidden text. */
+export function forbiddenText(
+  files: readonly { file: string; text: string }[],
+): string[] {
+  return files.flatMap(({ file, text }) =>
+    NEVER_IN_BUILD.filter((t) => text.includes(t)).map(
+      (t) => `${file}: contains "${t}"`,
+    ),
+  );
+}
+
+/** Every file under `dir`, recursively, relative to ROOT. */
+function filesUnder(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => path.relative(ROOT, path.join(e.parentPath, e.name)));
+}
+
 /** Chunks loaded with `starts`, following static imports only. */
 export function eagerChunks(
   graph: BundleGraph,
@@ -194,7 +221,15 @@ async function main() {
   }
   const graph = JSON.parse(readFileSync(graphFile, "utf8")) as BundleGraph;
   const { routes } = await routeManifest();
-  const problems = ROUTE_BUDGETS.flatMap((r) => checkRoute(graph, routes, r));
+  const problems = [
+    ...ROUTE_BUDGETS.flatMap((r) => checkRoute(graph, routes, r)),
+    ...forbiddenText(
+      filesUnder(path.join(ROOT, "dist")).map((file) => ({
+        file,
+        text: readFileSync(path.join(ROOT, file), "latin1"),
+      })),
+    ),
+  ];
   if (problems.length > 0) {
     console.error(`bundle: ${problems.length} problem(s)`);
     for (const p of problems) console.error(`  ${p}`);

@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import { waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { RETURNING_FLAG_KEY } from "~/core/routing";
 import { aPlan } from "~/fixtures";
@@ -63,6 +64,17 @@ describe("the returning flag", () => {
 });
 
 describe("returningCheckScript", () => {
+  it("runs once per document, so a second run can't hide the page again", async () => {
+    const root = document.documentElement;
+    new Function(returningCheckScript)();
+    expect(root.getAttribute("data-landing")).toBe("checking");
+    // No database and no flag: the page shows.
+    await waitFor(() => expect(root.hasAttribute("data-landing")).toBe(false));
+    // What TanStack does after hydration when the text differs.
+    new Function(returningCheckScript)();
+    expect(root.hasAttribute("data-landing")).toBe(false);
+  });
+
   it("is one self-contained script", () => {
     expect(() => new Function(returningCheckScript)).not.toThrow();
     expect(returningCheckScript).not.toMatch(/\bimport\b|__vite|require\(/);

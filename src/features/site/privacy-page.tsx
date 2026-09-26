@@ -1,13 +1,11 @@
 import type { ReactNode } from "react";
+import { ContactEmail } from "./contact-email";
 import { SitePage } from "./site-page";
 
 // `/privacy`: Google's OAuth consent screen links here, and brand
 // verification checks that it loads (docs/V2.md §14). A draft for the owner
 // to review. Keep it true to the app as built and planned (docs/V2.md, the
 // owner's decisions), with nothing added that isn't.
-
-/** Where people write about their data; the owner hasn't picked one yet. */
-const CONTACT_EMAIL = "[OWNER CONTACT EMAIL]";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -34,6 +32,12 @@ export function PrivacyPage() {
           with course reviews and class chats. This page says what it keeps
           about you, where, and why. Terpsicle isn't affiliated with the
           University of Maryland.
+        </p>
+        <p className="font-medium text-fg">We don't sell or share your data.</p>
+        <p>
+          The services named below (Google for sign-in, Cloudflare for hosting
+          and moderation, PostHog for anonymous analytics, and your browser's
+          push service) handle it only to run Terpsicle for you.
         </p>
 
         <Section title="The scheduler">
@@ -140,10 +144,8 @@ export function PrivacyPage() {
         </Section>
 
         <Section title="Contact">
-          <p>
-            Questions about your data, or a request to delete it:{" "}
-            {CONTACT_EMAIL}.
-          </p>
+          <p>Questions about your data, or a request to delete it:</p>
+          <ContactEmail />
         </Section>
       </article>
     </SitePage>

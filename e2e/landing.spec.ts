@@ -60,6 +60,10 @@ test("a first visit sees the marketing page; after that, / opens the scheduler",
   await page.goto("/");
   await expect(marketingHeading(page)).toBeVisible();
   await expect(page).toHaveTitle("Terpsicle");
+  // Still shown once the app has hydrated: the check never runs twice.
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("html")).not.toHaveAttribute("data-landing");
+  await expect(marketingHeading(page)).toBeVisible();
 
   await page.getByRole("link", { name: "Open the scheduler" }).click();
   await expect(page).toHaveURL(/\/schedule$/);
@@ -147,6 +151,25 @@ for (const [path, heading, title] of [
     await expect(page.locator("[data-app-shell]")).toHaveCount(0);
   });
 }
+
+test("/privacy shows the contact address in words, never whole", async ({
+  page,
+  request,
+}) => {
+  const address = ["admin", "terpsicle.com"].join("@");
+  const html = await (await request.get("/privacy")).text();
+  expect(html).toContain("admin [at] terpsicle.com");
+  expect(html).not.toContain(address);
+
+  await page.goto("/privacy");
+  await expect(
+    page.getByText("We don't sell or share your data."),
+  ).toBeVisible();
+  // "Email us" builds the mailto: only on click, so the hydrated page
+  // doesn't hold the address either.
+  await expect(page.getByRole("button", { name: "Email us" })).toBeVisible();
+  expect(await page.content()).not.toContain(address);
+});
 
 test("an unknown path says so and offers the scheduler", async ({ page }) => {
   const response = await page.goto("/schedule/nowhere");

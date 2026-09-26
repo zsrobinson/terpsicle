@@ -113,6 +113,13 @@ function checkReturning(
   read: typeof readPlanCount,
   decide: typeof shouldSkipMarketing,
 ) {
+  // Once per document. TanStack's <HeadContent> runs a head script again
+  // after hydration when the client's copy of its text differs from the
+  // server's (the two builds print functions differently); a second run
+  // would hide the page again after it had shown.
+  const w = window as unknown as Record<string, unknown>;
+  if (w.__terpsicleReturningCheck) return;
+  w.__terpsicleReturningCheck = true;
   const root = document.documentElement;
   const check = () => {
     if (new URLSearchParams(window.location.search).has(stayParam)) return;
