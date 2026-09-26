@@ -6,6 +6,8 @@ import {
   BuildingSchema,
   BuildingsFileSchema,
   ChangesFileSchema,
+  ChatAuthorSchema,
+  ChatMessageSchema,
   ConnectionSchema,
   CourseSchema,
   DAYS,
@@ -35,6 +37,8 @@ import {
   aBuilding,
   aBuildingsFile,
   aChangesFile,
+  aChatAuthor,
+  aChatMessage,
   aConnection,
   aCourse,
   aDeptChunk,
@@ -102,6 +106,8 @@ describe("builders return schema-valid objects by default", () => {
     ["anUnpublishedCalendar", AcademicCalendarSchema, anUnpublishedCalendar()],
     ["aGenerateRequest", GenerateRequestSchema, aGenerateRequest()],
     ["aProblem", ProblemSchema, aProblem()],
+    ["aChatAuthor", ChatAuthorSchema, aChatAuthor()],
+    ["aChatMessage", ChatMessageSchema, aChatMessage()],
   ];
   it.each(cases)("%s", (_, schema, value) => {
     expect(schema.safeParse(value).success).toBe(true);
