@@ -4,8 +4,8 @@
 
 | Engine | What it is | Touch and keyboard | Where it runs | Time |
 |---|---|---|---|---|
-| `webkit` | Playwright WebKit with an iPhone 15's viewport, touch and user agent | Emulated taps; drags are mouse drags; no on-screen keyboard or toolbar | Ubuntu runner, on every PR that touches the shell | ~3 min |
-| `android` | Chrome on an Android 14 emulator (Pixel 7 profile, Google APIs image) | Real: `adb shell input` taps, swipes and typing through the IME, so Android's pull-to-refresh, keyboard and dynamic toolbar are the real ones | Ubuntu runner with KVM | ~6 min |
+| `webkit` | Playwright WebKit with an iPhone 15's viewport, touch and user agent | Emulated taps; drags are mouse drags and scrolls are script scrolls (Playwright can't send WebKit a touch drag), so `grabber-drag` is skipped; no on-screen keyboard or toolbar | Ubuntu runner, on every PR that touches the shell | ~3 min |
+| `android` | Chrome on an Android 14 emulator (Pixel 7 profile, Google APIs image, which ships Chrome 113) | Real: `adb shell input` taps, swipes and typing through the IME, so Android's pull-to-refresh, keyboard and dynamic toolbar are the real ones | Ubuntu runner with KVM | ~6 min |
 | `ios` | Safari on an iPhone 16 in the iOS Simulator | Real: XCUITest touches and taps on the software keyboard (the Simulator's hardware keyboard is disconnected), so Safari's panning, zoom on focus, rubber-banding and toolbars are the real ones | macOS runner, Appium's XCUITest driver (prebuilt WebDriverAgent) | ~14 min |
 | `chromium` | Playwright Chromium with the same phone viewport and CDP touch | Emulated | Local only (agent sandboxes have Chromium and no WebKit) | ~3 min |
 
