@@ -57,6 +57,7 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Called from ci.yml, `github.event_name` is the caller's (pull_request):
     # a URL input tells that apart from the label trigger.
     if: inputs.url != '' || github.event_name != 'pull_request' || github.event.label.name == 'mobile-lab'
@@ -84,6 +85,14 @@ jobs:
           echo "engines=$engines" >> "$GITHUB_OUTPUT"
           echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
           echo "Testing $url on $engines ${scenarios:+(only $scenarios)}"
+          # Labeled before the preview is up (a new PR): wait for it.
+          if [ "$EVENT" = pull_request ] && [ -z "$INPUT_URL" ]; then
+            for i in $(seq 1 100); do
+              curl -fsS -o /dev/null "$url" && exit 0
+              sleep 15
+            done
+            echo "::error::$url didn't come up"; exit 1
+          fi
 
   webkit:
     name: WebKit (iPhone viewport)
