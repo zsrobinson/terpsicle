@@ -4,3 +4,5 @@ import app from "@tanstack/react-start/server-entry";
 import { createWorker } from "~/server/worker";
 
 export default createWorker(app);
+// Chat's Durable Object class (wrangler.jsonc `durable_objects`).
+export { CourseChat } from "~/server/chat/course-chat";

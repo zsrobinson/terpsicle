@@ -22,7 +22,11 @@ import {
   type ModerationConfig,
   resolveConfig,
 } from "./classify";
-import { MODERATION_HANDLERS, type ModerationHandlers } from "./handlers";
+import {
+  type ModerationHandlerEnv,
+  type ModerationHandlers,
+  moderationHandlers,
+} from "./handlers";
 import {
   autoVerdict,
   blankOldSnapshots,
@@ -39,7 +43,7 @@ import {
   upsertQueueItem,
 } from "./store";
 
-export interface ModerationEnv {
+export interface ModerationEnv extends ModerationHandlerEnv {
   DB: D1Database;
   AI: Ai;
   /** Model calls per UTC day, at most (Workers AI cost). */
@@ -268,7 +272,7 @@ export async function retryHeld(
   env: ModerationEnv,
   deps: ModerationDeps & { handlers?: ModerationHandlers },
 ): Promise<RetryReport> {
-  const handlers = deps.handlers ?? MODERATION_HANDLERS;
+  const handlers = deps.handlers ?? moderationHandlers(env);
   const report: RetryReport = {
     retried: 0,
     published: 0,
@@ -353,7 +357,30 @@ export async function currentDecision(
   kind: ModerationKind,
   targetId: string,
 ): Promise<ModerationDecision | null> {
+  return (await latestDecision(db, kind, targetId))?.decision ?? null;
+}
+
+/**
+ * The latest decision with its reasons, so a feature can tell a hold that
+ * waits for a retry (`needsRetry`) from one that waits for the owner.
+ */
+export async function latestDecision(
+  db: D1Database,
+  kind: ModerationKind,
+  targetId: string,
+): Promise<{
+  decision: ModerationDecision;
+  reasons: ModerationReason[];
+  /** When it was decided, ISO: an edit after it hasn't been screened. */
+  decidedAt: string;
+} | null> {
   const decisions = await decisionsFor(db, kind, targetId);
   const latest = decisions.at(-1);
-  return latest ? decisionOf(latest.verdict) : null;
+  return latest
+    ? {
+        decision: decisionOf(latest.verdict),
+        reasons: latest.labels,
+        decidedAt: latest.created_at,
+      }
+    : null;
 }
