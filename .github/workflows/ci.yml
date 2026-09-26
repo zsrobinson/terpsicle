@@ -7,10 +7,11 @@ name: CI
 # (deploy.yml) runs check and build on main but not the bundle budget or
 # e2e, so main keeps its own run here.
 #
-# The work runs as parallel jobs: `pnpm check` in two (typecheck, lint and
-# build; unit tests), e2e in shards. "Check, build, e2e" waits for them all
-# and is the one check to require. A PR that only touches docs (docs/**, *.md
-# at the root) skips e2e and the preview; everything else runs everything.
+# The work runs as parallel jobs: typecheck, lint and build in one, unit
+# tests in two, e2e in four shards. "Check, build, e2e" waits for them all
+# and is the one check to require. The preview deploys once the unit tests
+# pass, beside e2e. A PR that only touches docs (docs/**, *.md at the root)
+# skips e2e and the preview; everything else runs everything.
 on:
   pull_request:
   push:
@@ -35,7 +36,7 @@ env:
   # time; re-tune them from the "e2e report" job's times when one shard runs
   # long. PWTEST_SHARD_WEIGHTS is Playwright's own but undocumented: if it
   # goes away, the split is even again and every test still runs.
-  E2E_SHARD_WEIGHTS: "24:56:42:86"
+  E2E_SHARD_WEIGHTS: "22:55:46:85"
 
 jobs:
   changes:
