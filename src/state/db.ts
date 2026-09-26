@@ -10,6 +10,7 @@ import {
   type Plan,
   type SettingsRow,
 } from "~/core/schema";
+import type { FourYearDoc } from "~/core/schema/four-year";
 
 // The browser database. Tables, keys and versions are docs/DATA.md §5; a shape
 // change bumps LOCAL_DB_VERSION with an upgrade() that migrates rows (plans are
@@ -43,6 +44,30 @@ export async function upgradeToV2(tx: Transaction): Promise<void> {
     await tx.table("settings").put({ key: "seatAlerts", value: alerts });
 }
 
+/**
+ * Version 3 (Terpsicle Plan, docs/V3.md §2.3): the `fourYear` table, one
+ * row per four-year doc.
+ */
+const V3_CHANGES = { fourYear: "id" } as const;
+
+/**
+ * Sends the next pull back to the start (V3 §2.4). A tab from before the
+ * four-year sync kind skipped those docs but still moved its cursor past
+ * them, so this device pulls everything once and sees what it skipped.
+ */
+export async function upgradeToV3(tx: Transaction): Promise<void> {
+  const settings = tx.table("settings");
+  const row: unknown = await settings.get("sync");
+  if (
+    typeof row === "object" &&
+    row !== null &&
+    "value" in row &&
+    typeof row.value === "object" &&
+    row.value !== null
+  )
+    await settings.put({ key: "sync", value: { ...row.value, cursor: 0 } });
+}
+
 export class TerpsicleDb extends Dexie {
   plans!: EntityTable<Plan, "id">;
   blocks!: EntityTable<Block, "id">;
@@ -51,11 +76,14 @@ export class TerpsicleDb extends Dexie {
   syncDocs!: EntityTable<LocalSyncDoc, "key">;
   manifests!: EntityTable<CachedManifest, "key">;
   files!: EntityTable<CachedFile, "key">;
+  /** Four-year docs, validated on read (`FourYearDocSchema`). */
+  fourYear!: EntityTable<FourYearDoc, "id">;
 
   constructor(name: string = LOCAL_DB_NAME) {
     super(name);
     this.version(1).stores(DB_V1_STORES);
-    this.version(LOCAL_DB_VERSION).stores(V2_CHANGES).upgrade(upgradeToV2);
+    this.version(2).stores(V2_CHANGES).upgrade(upgradeToV2);
+    this.version(LOCAL_DB_VERSION).stores(V3_CHANGES).upgrade(upgradeToV3);
   }
 }
 

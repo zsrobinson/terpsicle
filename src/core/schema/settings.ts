@@ -5,7 +5,11 @@ import {
   MustHavesSchema,
   RankBySchema,
 } from "./generate";
-import { LocalSeatAlertSchema, UiPrefsSchema } from "./local";
+import {
+  FourYearPrefsSchema,
+  LocalSeatAlertSchema,
+  UiPrefsSchema,
+} from "./local";
 import { TermIdSchema } from "./primitives";
 import { ChatPlansSchema, LocalSyncMetaSchema } from "./sync";
 import { TravelSettingsSchema } from "./travel";
@@ -50,6 +54,8 @@ export const SettingsRowSchema = z.discriminatedUnion("key", [
   z.object({ key: z.literal("generate"), value: GenerateDraftsSchema }),
   /** Synced in the settings doc: which plan is your chat plan, per term. */
   z.object({ key: z.literal("chatPlans"), value: ChatPlansSchema }),
+  /** Which four-year plan Terpsicle Plan has open. Local only. */
+  z.object({ key: z.literal("fourYear"), value: FourYearPrefsSchema }),
   /** Plan sync's account and pull cursor (DATA.md §5). */
   z.object({ key: z.literal("sync"), value: LocalSyncMetaSchema }),
   /**

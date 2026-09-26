@@ -45,6 +45,15 @@ const PAINT: Record<
     keyline: { fill: "fill-keyline", stroke: "stroke-keyline" },
     offset: { fill: "fill-mark-offset", stroke: "stroke-mark-offset" },
   },
+  plan: {
+    tile: { fill: "fill-product-plan", stroke: "stroke-product-plan" },
+    glyph: {
+      fill: "fill-product-plan-fg",
+      stroke: "stroke-product-plan-fg",
+    },
+    keyline: { fill: "fill-keyline", stroke: "stroke-keyline" },
+    offset: { fill: "fill-mark-offset", stroke: "stroke-mark-offset" },
+  },
   todo: {
     tile: { fill: "fill-product-todo", stroke: "stroke-product-todo" },
     glyph: {

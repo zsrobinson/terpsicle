@@ -1,5 +1,5 @@
 // The marks (docs/DESIGN.md §7.5), as data: the owner's locked "Pixel star"
-// set, and Todo's from the brand track's hand-off (docs/V3.md §7). Both the <Mark> component and scripts/build-icons.ts (favicons,
+// set, and Plan's and Todo's from the brand track's hand-off (docs/V3.md §7). Both the <Mark> component and scripts/build-icons.ts (favicons,
 // home-screen icons) draw from here, so swapping a drawing is one edit:
 // replace its shapes in GLYPHS, then run `pnpm tsx scripts/build-icons.ts`.
 //
@@ -12,6 +12,7 @@ export const MARK_IDS = [
   "schedule",
   "reviews",
   "chat",
+  "plan",
   "todo",
 ] as const;
 export type MarkId = (typeof MARK_IDS)[number];
@@ -57,6 +58,11 @@ export const GLYPHS: Record<
     { d: "M3 3H15V11H6V12.5H4.5V14H3Z", opacity: 1 },
     { d: "M10.5 11.5h4.5v3.5h-4.5Z", opacity: 0.7, halo: true },
   ],
+  // A two-step staircase, and the next step still to climb (docs/V3.md §7).
+  plan: [
+    { d: "M3 15V11H7V7H15V15Z", opacity: 1 },
+    { d: "M11 3h4v4h-4Z", opacity: 0.7 },
+  ],
   // Two list rows done, and the third still open (docs/V3.md §7).
   todo: [
     { d: "M3 3h3v3h-3ZM8 3h7v3h-7ZM3 7.5h3v3h-3ZM8 7.5h7v3h-7Z", opacity: 1 },
@@ -73,6 +79,7 @@ const KEYLINE: Record<MarkId, boolean> = {
   schedule: false,
   reviews: false,
   chat: false,
+  plan: false,
   todo: true,
 };
 

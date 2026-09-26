@@ -64,6 +64,9 @@
   --color-product-chat: var(--product-chat);
   --color-product-chat-fg: var(--product-chat-fg);
   --color-product-chat-soft: var(--product-chat-soft);
+  --color-product-plan: var(--product-plan);
+  --color-product-plan-fg: var(--product-plan-fg);
+  --color-product-plan-soft: var(--product-plan-soft);
   --color-product-todo: var(--product-todo);
   --color-product-todo-fg: var(--product-todo-fg);
   --color-product-todo-soft: var(--product-todo-soft);
@@ -220,6 +223,11 @@
   --product-chat: #205ea6; /* blue-600 */
   --product-chat-fg: #fffcf0; /* paper */
   --product-chat-soft: #e1eceb; /* blue-50 */
+  /* Plan's tile is green-700, a step past the 600 the others use: green-600
+     is only 4.39 against paper (docs/V3.md §7). */
+  --product-plan: #536907; /* green-700 */
+  --product-plan-fg: #fffcf0; /* paper */
+  --product-plan-soft: #edeecf; /* green-50 */
   /* Todo's tile is yellow-400, too light for paper: an ink glyph, and an ink
      keyline in light only, since the tile alone is 2.31 against paper. */
   --product-todo: #d0a215; /* yellow-400 */
@@ -271,6 +279,7 @@
   --product-schedule-soft: #3e1715; /* red-900 */
   --product-reviews-soft: #261c39; /* purple-900 */
   --product-chat-soft: #12253b; /* blue-900 */
+  --product-plan-soft: #252d09; /* green-900 */
   --product-todo-soft: #3a2d04; /* yellow-900 */
   /* No keyline on ink: the tile's own color hides it. */
   --product-todo-keyline: var(--product-todo);

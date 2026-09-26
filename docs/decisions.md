@@ -197,6 +197,11 @@ Revisit if: a course's traffic outgrows one object.
 Both are approved. Plan's first release has no degree requirements and no major quirks.
 Revisit if: the owner starts the requirements work.
 
+### Plan is listed once PLAN_ENABLED is on
+2026-09-26 · agent · one feature
+`/plan` works for anyone who opens it, since it needs no server, but the product menu and the site header list Plan only when `PLAN_ENABLED` is on (or while you're in it). The manifest's shortcut and `/`'s returning path to `/plan` wait for the flag, since both are static.
+Revisit if: Plan turns on in production; then list it always and add the shortcut.
+
 ### Gradescope, honestly
 2026-09-26 · owner · one feature
 Todo never stores an ELMS or Gradescope password, never automates a login, and never fetches gradescope.com.

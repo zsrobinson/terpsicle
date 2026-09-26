@@ -140,6 +140,45 @@ const TODO_NEVER_EAGER = {
   why: "Todo loads with /todo, not the scheduler",
 };
 
+/**
+ * Gzipped JS + CSS for /plan, in bytes: 290 KB when this was set (v3
+ * plan-ui), `/`'s base plus Dexie, the course index store, the menus and
+ * Plan's core (credits, GenEds, problems), plus about 10% headroom. Same
+ * rule for raising it.
+ */
+export const PLAN_BUDGET = 320 * 1024;
+
+/** Plan loads with /plan, never with anyone else's pages. */
+const PLAN_NEVER_EAGER = {
+  pattern: /^src\/features\/four-year\//,
+  why: "Plan loads with /plan",
+};
+
+/**
+ * Plan keeps the scheduler out: it opens Dexie for its own table and the
+ * course index, and never the scheduler's app, stores, calendar or map.
+ */
+const PLAN_ROUTE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
+  {
+    pattern: /^src\/app\/app\.tsx$/,
+    why: "the scheduler's app loads with /schedule",
+  },
+  {
+    pattern:
+      /^src\/state\/(workspace-store|ui-store|catalog-store|persist)\.ts$/,
+    why: "Plan doesn't load the scheduler's stores",
+  },
+  {
+    pattern: /^src\/features\/(calendar|courses|course-details|search)\//,
+    why: "the scheduler's panels load with /schedule",
+  },
+  // Term status reads a date helper from ~/core/ics; the rest of .ics
+  // export stays out, as for the scheduler.
+  ...SCHEDULE_NEVER_EAGER.filter(
+    (r) => !r.pattern.test("src/core/ics/dates.ts"),
+  ),
+];
+
 /** The owner's panel loads with /admin, never with anyone else's pages. */
 const ADMIN_NEVER_EAGER = {
   pattern: /^src\/features\/admin\//,
@@ -168,19 +207,25 @@ export const ROUTE_BUDGETS: readonly {
       ...SCHEDULE_NEVER_EAGER,
       ADMIN_NEVER_EAGER,
       TODO_NEVER_EAGER,
+      PLAN_NEVER_EAGER,
     ],
+  },
+  {
+    route: "/plan",
+    budget: PLAN_BUDGET,
+    never: [...PLAN_ROUTE_NEVER_EAGER, ADMIN_NEVER_EAGER, TODO_NEVER_EAGER],
   },
   // Todo keeps `/`'s rules: no Dexie and no scheduler stores (course colors
   // are a raw IndexedDB read).
   ...["/todo/", "/todo/connect"].map((route) => ({
     route,
     budget: TODO_BUDGET,
-    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
   ...["/", "/chat/", "/settings", "/signin", "/privacy"].map((route) => ({
     route,
     budget: LANDING_BUDGET,
-    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
   ...[
     "/reviews/",
@@ -191,12 +236,12 @@ export const ROUTE_BUDGETS: readonly {
   ].map((route) => ({
     route,
     budget: REVIEWS_BUDGET,
-    never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER],
+    never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
   ...["/admin/", "/admin/decisions"].map((route) => ({
     route,
     budget: ADMIN_BUDGET,
-    never: LANDING_NEVER_EAGER,
+    never: [...LANDING_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
 ];
 

@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import Dexie from "dexie";
 import { afterEach, describe, expect, it } from "vitest";
 import type { LocalSeatAlert } from "~/core/schema";
-import { aBlock, aPlan } from "~/fixtures";
+import { aBlock, aFourYear, aPlan } from "~/fixtures";
 import { DB_V1_STORES, TerpsicleDb } from "./db";
 import { hydrate } from "./persist";
 import {
@@ -73,11 +73,12 @@ describe("Dexie v2", () => {
 
     const db = new TerpsicleDb(name);
     await db.open();
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       "blocks",
       "courseColors",
       "files",
+      "fourYear",
       "manifests",
       "plans",
       "settings",
@@ -117,11 +118,11 @@ describe("Dexie v2", () => {
     db.close();
   });
 
-  it("makes a fresh database at v2", async () => {
+  it("makes a fresh database at v3", async () => {
     name = `fresh-${++count}`;
     const db = new TerpsicleDb(name);
     await db.open();
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
     await db.syncDocs.put({
       key: "plan:planAAAA",
       rev: 3,
@@ -129,6 +130,59 @@ describe("Dexie v2", () => {
       inFlight: false,
     });
     expect(await db.syncDocs.get("plan:planAAAA")).toMatchObject({ rev: 3 });
+    db.close();
+  });
+});
+
+// Dexie v2 → v3 (Terpsicle Plan, V3 §2.3–2.4): the `fourYear` table, and a
+// signed-in device's pull cursor back to 0 so it pulls the four-year docs an
+// older tab skipped.
+describe("Dexie v3", () => {
+  afterEach(async () => {
+    await Dexie.delete(name);
+  });
+
+  async function seedV2(sync: unknown): Promise<void> {
+    const v2 = new Dexie(name);
+    v2.version(1).stores(DB_V1_STORES);
+    v2.version(2).stores({ syncDocs: "key", seatAlerts: null });
+    await v2.open();
+    await v2.table("plans").put(aPlan({ id: "planAAAA" }));
+    await v2.table("syncDocs").put({
+      key: "plan:planAAAA",
+      rev: 7,
+      dirty: false,
+      inFlight: false,
+    });
+    if (sync !== undefined)
+      await v2.table("settings").put({ key: "sync", value: sync });
+    v2.close();
+  }
+
+  it("resets the sync cursor and keeps everything else", async () => {
+    name = `v3-${++count}`;
+    await seedV2({ userId: "u_1", cursor: 42 });
+    const db = new TerpsicleDb(name);
+    await db.open();
+    expect(db.verno).toBe(3);
+    expect(await db.settings.get("sync")).toEqual({
+      key: "sync",
+      value: { userId: "u_1", cursor: 0 },
+    });
+    expect(await db.plans.count()).toBe(1);
+    expect(await db.syncDocs.get("plan:planAAAA")).toMatchObject({ rev: 7 });
+    expect(await db.fourYear.count()).toBe(0);
+    await db.fourYear.put(aFourYear());
+    expect(await db.fourYear.get(aFourYear().id)).toEqual(aFourYear());
+    db.close();
+  });
+
+  it("upgrades a signed-out device with no sync row", async () => {
+    name = `v3-${++count}`;
+    await seedV2(undefined);
+    const db = new TerpsicleDb(name);
+    await db.open();
+    expect(await db.settings.get("sync")).toBeUndefined();
     db.close();
   });
 });
