@@ -5,6 +5,7 @@ export * from "./catalog";
 export * from "./chat";
 export * from "./color";
 export * from "./fit";
+export * from "./four-year";
 export * from "./generate";
 export * from "./grades";
 export * from "./ics";

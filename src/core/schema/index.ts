@@ -16,5 +16,6 @@ export * from "./settings";
 export * from "./share";
 export * from "./sync";
 export * from "./sync-api";
+export * from "./transcript";
 export * from "./travel";
 export * from "./versions";

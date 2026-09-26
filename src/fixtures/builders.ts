@@ -51,6 +51,7 @@ import {
   type Term,
   type TermsFile,
   type TimedMeeting,
+  type TranscriptLine,
   type UntimedMeeting,
 } from "~/core/schema";
 
@@ -726,6 +727,30 @@ export function aChatMessage(
     thread: null,
     reactions: {},
     moderation: { state: "visible" },
+    ...overrides,
+  };
+}
+
+// ---------- four-year plan ----------
+
+/** A finished UMD course as `parseTranscript` reads it: CMSC131 in the fall before the fixture term. */
+export function aTranscriptLine(
+  overrides: Partial<TranscriptLine> = {},
+): TranscriptLine {
+  return {
+    term: "202608",
+    code: "CMSC131",
+    title: "OBJECT-ORIENTED PROG I",
+    grade: "A",
+    credits: 4,
+    earned: 4,
+    qualityPoints: 16,
+    genEds: [],
+    via: "umd",
+    equivalentOf: null,
+    equivalentPattern: null,
+    sectionCode: null,
+    inProgress: false,
     ...overrides,
   };
 }
