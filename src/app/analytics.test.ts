@@ -1,8 +1,9 @@
 import type { CaptureResult } from "posthog-js";
 import { afterEach, describe, expect, it } from "vitest";
 import { NO_AUTOCAPTURE_ROUTES } from "~/core/analytics";
-import { analyticsEnabled, pagePrivateText, posthogOptions } from "./analytics";
+import { analyticsEnabled } from "./analytics";
 import { parseClientConfig } from "./config";
+import { pagePrivateText, posthogOptions } from "./posthog-options";
 
 const production = {
   mode: "production",

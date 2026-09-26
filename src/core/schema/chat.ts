@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AvatarUrlSchema } from "./auth";
 import {
   type CourseCode,
   DirectoryIdSchema,
@@ -118,19 +119,19 @@ export const CHAT_TEXT_MAX = 2000;
 export const ChatTextSchema = z.string().trim().min(1).max(CHAT_TEXT_MAX);
 
 /**
- * Who wrote a message, as they were when they wrote it: real names and
- * Google pictures (no pseudonyms), snapshotted so a later name change
- * doesn't rewrite history.
+ * Who wrote a message: real names and Google pictures (no pseudonyms). The
+ * object fills it in from `users` as it is now (docs/AUTH.md: show the stored
+ * name and picture, never your own copy), so it follows the Google account.
  */
 export const ChatAuthorSchema = z.object({
   directoryId: DirectoryIdSchema,
   /** The Google account's name. */
   name: z.string().trim().min(1).max(120),
-  /** The Google picture, or our cached copy of it; null when there's none. */
-  picture: z
-    .url({ protocol: /^https$/ })
-    .max(2048)
-    .nullable(),
+  /**
+   * Our same-origin copy of the Google picture (`/avatars/…`, docs/AUTH.md
+   * "Pictures"), never Google's own URL; null when there's none.
+   */
+  picture: AvatarUrlSchema.nullable(),
 });
 export type ChatAuthor = z.infer<typeof ChatAuthorSchema>;
 
@@ -213,7 +214,12 @@ export const CHAT_PROTOCOL_VERSION = 1;
 /** Frames per history page, at most. */
 export const CHAT_PAGE_MAX = 100;
 
-/** A client-chosen id that ties an `ack` or `error` to its request. */
+/**
+ * A client-chosen id that ties an `ack` or `error` to its request. For
+ * `send` it's also the message's idempotency key: a resend with the same
+ * `req` (after a reconnect) gets the first message back, not a copy. So a
+ * client picks a fresh random one per message, not a counter.
+ */
 export const ChatRequestIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,64}$/, "Expected a request id");
