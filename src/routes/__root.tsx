@@ -5,9 +5,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { loadRecoveryScript } from "~/app/load-recovery";
-import { sidebarWidthInitScript } from "~/app/sidebar-width";
-import { themeInitScript } from "~/app/theme";
+import { InlineScript } from "~/app/inline-script";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { AccountBoot } from "~/features/auth/account-boot";
@@ -67,12 +65,13 @@ function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; it must run before paint */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; the sidebar's width must be set before paint */}
-        <script dangerouslySetInnerHTML={{ __html: sidebarWidthInitScript }} />
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; it must listen before the app's scripts load */}
-        <script dangerouslySetInnerHTML={{ __html: loadRecoveryScript }} />
+        {/* Inline, so they run before paint (the theme, the sidebar's width)
+            and before the app's scripts load (load recovery, Zod's config).
+            The CSP allows each by hash: src/app/inline-scripts.ts. */}
+        <InlineScript name="theme" />
+        <InlineScript name="sidebarWidth" />
+        <InlineScript name="loadRecovery" />
+        <InlineScript name="zodJitless" />
         <HeadContent />
       </head>
       <body>
