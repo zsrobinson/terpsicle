@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { loadRecoveryScript } from "~/app/load-recovery";
 import { sidebarWidthInitScript } from "~/app/sidebar-width";
 import { themeInitScript } from "~/app/theme";
+import { AccountBoot } from "~/features/auth";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import appCss from "../styles.css?url";
@@ -57,6 +58,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 function RootLayout() {
   return (
     <TooltipProvider>
+      <AccountBoot />
       <Outlet />
       <Toaster />
     </TooltipProvider>

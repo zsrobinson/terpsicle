@@ -18,6 +18,8 @@ const STATUS: Record<ApiError["error"], number> = {
   "method-not-allowed": 405,
   "rate-limited": 429,
   unavailable: 503,
+  unauthorized: 401,
+  forbidden: 403,
 };
 
 export function apiError(
