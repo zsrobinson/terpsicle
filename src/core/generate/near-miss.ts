@@ -18,6 +18,7 @@ import {
   overlapBetween,
   type SolveVar,
   shortWalkBetween,
+  twinsBefore,
 } from "./solve";
 
 // When nothing fits (SPEC §3.9): the closest plans, each with what breaks.
@@ -208,6 +209,8 @@ export function nearMisses(problem: NearMissProblem): NearMiss[] {
   for (const v of vars)
     if (v.role.kind === "pick")
       pickLeft[v.role.group] = (pickLeft[v.role.group] ?? 0) + 1;
+  const used = new Set<string>();
+  const twinBefore = twinsBefore(vars);
   const kept: { choice: number[]; cost: number }[] = [];
   let steps = 0;
   let cost = 0;
@@ -244,21 +247,32 @@ export function nearMisses(problem: NearMissProblem): NearMiss[] {
     const v = vars[depth] as SolveVar;
     const pick = v.role.kind === "pick" ? v.role.group : -1;
     if (pick >= 0) pickLeft[pick] = (pickLeft[pick] ?? 0) - 1;
+    // As in the main search: a twin follows the one before it, in code order.
+    const twin = twinBefore[depth] as number;
+    const after = twin >= 0 ? (choice[twin] ?? -1) : null;
     if (
       v.credits !== null &&
+      after !== -1 &&
       (pick < 0 || (pickCounts[pick] ?? 0) < (picks[pick]?.count ?? 0))
     ) {
       for (let i = lo[depth] as number; i < (hi[depth] as number); i++) {
+        const code = (all[i] as SectionGroup).course.code;
+        // A course goes in a plan once, whichever wildcards could take it.
+        if (used.has(code)) continue;
+        if (after !== null && code <= (all[after] as SectionGroup).course.code)
+          continue;
         const extra = added(i);
         if (cost + extra > bound()) continue;
         cost += extra;
         choice[depth] = i;
         setBit(chosen, i);
+        used.add(code);
         included++;
         if (pick >= 0) pickCounts[pick] = (pickCounts[pick] ?? 0) + 1;
         visit(depth + 1);
         if (pick >= 0) pickCounts[pick] = (pickCounts[pick] ?? 0) - 1;
         included--;
+        used.delete(code);
         chosen[i >>> 5] =
           ((chosen[i >>> 5] as number) & ~(1 << (i & 31))) >>> 0;
         choice[depth] = -1;
@@ -281,8 +295,9 @@ export function nearMisses(problem: NearMissProblem): NearMiss[] {
     );
     return {
       sections: groups.map(repKey),
+      // A wildcard left out isn't a course to name.
       skipped: vars.flatMap((v, k) =>
-        (picked[k] ?? -1) >= 0 ? [] : [v.courseCode],
+        (picked[k] ?? -1) >= 0 || v.wildcard ? [] : [v.courseCode],
       ),
       conflicts: describe(groups, problem, maxWalk),
     };

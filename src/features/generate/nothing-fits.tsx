@@ -11,6 +11,7 @@ import type {
   SectionKey,
 } from "~/core/schema";
 import { WithTooltip } from "~/ui/tooltip";
+import { wildcardNote } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
 
 // When nothing fits (SPEC §3.9): what loosening each must-have would unlock,
@@ -24,17 +25,29 @@ export function NothingFits({
   result,
   index,
   colors,
+  termName,
   onRelax,
 }: {
   result: GenerateResult;
   index: CatalogIndex;
   colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
+  termName: string;
   onRelax: (relaxation: Relaxation) => void;
 }) {
   const { relaxations, nearMisses } = result;
+  // A wildcard with nothing to pick from is usually the whole story.
+  const notes = result.wildcards.flatMap((report) => {
+    const note = wildcardNote(report, termName);
+    return note ? [{ id: report.wildcard, note }] : [];
+  });
   return (
     <div data-testid="nothing-fits">
       <SectionHeader variant="label" title="No plans" />
+      {notes.map(({ id, note }) => (
+        <p key={id} data-testid="wildcard-note" className="px-4 pb-2 text-base">
+          {note}
+        </p>
+      ))}
       <p className="px-4 text-base">
         Nothing fits all of that.{" "}
         {relaxations.length > 0 ? (

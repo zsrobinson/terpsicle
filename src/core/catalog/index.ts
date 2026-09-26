@@ -5,3 +5,4 @@ export * from "./plan-diff";
 export * from "./prereqs";
 export * from "./section-groups";
 export * from "./terms";
+export * from "./wildcard";

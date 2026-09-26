@@ -178,6 +178,15 @@ Nobody should have to touch the app when a new semester appears.
 ### 3.9 Generate (first-class, no sparkles)
 Generating **creates plans**; it doesn't edit one. Entry points: the Generate tab, `+` → Generate plans…, and the first-visit guide.
 - **Courses:** type or pick courses. Each is **Required** or **Optional**, with a "pick N of these" group for things like "any 1 DSHU from this list".
+- **Wildcards (owner request, 2026-09-26):** for "some upper-level, not sure which". The course field takes a pattern or a gen-ed code as well as a course, and suggests it first: `CMSC4XX` is "Any CMSC 400-level", `CMSC42X` "Any CMSC 420–429", `ARTTXXX` "Any ARTT course", and `DSHS` "Any DSHS course". Typing a department ("CMSC", "CMSC4") offers its pattern after the courses.
+  - A wildcard is one course picked from its set; the generator tries each and ranks them with everything else. Adding the same wildcard again asks for one more course from it ("Any CMSC 400-level ×2"); ✕ takes one away. It's Required or Optional like a course.
+  - X only fills the end of the number, in all three places: `CMSC4X` and `CMSC4X1` aren't patterns, and the field says how to fix them. `BUSI758X` is a course (X as its suffix letter).
+  - **Suffix letters match:** `CMSC4XX` includes CMSC498A and honors versions like AAAS400H.
+  - **Gen-eds:** a course matches when it can count for the code. A choice ("DSHS or DSHU") counts for each. A conditional code ("DSNL if taken with GEOL110") doesn't count, since a wildcard can't promise the condition.
+  - A wildcard never picks a course that's listed on its own, a course with no sections this term, or the same course as another wildcard.
+  - Each result names the course it took ("with CMSC420 + ANTH210"), and its details list them under "Picked for your wildcards".
+  - Nothing to pick from is said plainly: the suggestion reads "Spring 2027 has no ARTT courses." and can't be added; after a run, "None of the 37 CMSC 400-level courses fits your must-haves and required courses." A required wildcard gets the relaxation "Make any … optional".
+  - To stay fast, a wildcard offers the search at most 40 section groups: sections that break a must-have or overlap every section of a required course go first, then each course's best section by the ranking, a course at a time. When that leaves some out, the results say so ("Tried the 40 most promising of 408 DSHS courses").
 - **Must-haves:**
   - earliest start and latest end;
   - days off;

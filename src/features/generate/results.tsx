@@ -26,11 +26,14 @@ import {
   differenceLabel,
   differenceWhen,
   equivalentsTip,
+  filledTip,
   freeDaysLabel,
   optionLabel,
   seatsLabel,
   seatsShortLabel,
   spanLabel,
+  unfitWildcardNote,
+  wildcardNote,
 } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
 import { useGenerateRun } from "./run-store";
@@ -60,12 +63,14 @@ export function Results({
   index,
   colors,
   plan,
+  termName,
 }: {
   request: GenerateRequest;
   result: GenerateResult;
   index: CatalogIndex;
   colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
   plan: Plan | null;
+  termName: string;
 }) {
   const [shown, setShown] = useState(PAGE);
   const [filter, setFilter] = useState<string | null>(null);
@@ -110,6 +115,18 @@ export function Results({
         : [],
     );
   }, [results, request.items]);
+  // What each wildcard had to choose from, when that needs saying.
+  const notes = useMemo(() => {
+    const filled = new Set(
+      results.flatMap((r) => r.filled.map((f) => f.wildcard)),
+    );
+    return result.wildcards.flatMap((report) => {
+      const note =
+        wildcardNote(report, termName) ??
+        (filled.has(report.wildcard) ? null : unfitWildcardNote(report));
+      return note ? [{ id: report.wildcard, note }] : [];
+    });
+  }, [results, result.wildcards, termName]);
   const visible =
     filter === null ? rows : rows.filter((r) => r.choiceKey === filter);
   const more = visible.length - shown;
@@ -171,11 +188,20 @@ export function Results({
           the rest of your courses.
         </p>
       ) : null}
+      {notes.map(({ id, note }) => (
+        <p
+          key={id}
+          data-testid="wildcard-note"
+          className="px-4 pt-2 pb-2 text-muted text-sm"
+        >
+          {note}
+        </p>
+      ))}
       <ul
         aria-label="Generated plans"
         className={cn(
           // The bar's own hairline closes it when nothing sits between.
-          (choices.length > 0 || unfit.length > 0) &&
+          (choices.length > 0 || unfit.length > 0 || notes.length > 0) &&
             "border-hairline border-t",
         )}
       >
@@ -185,7 +211,9 @@ export function Results({
             row={row}
             top={top}
             prev={all[i - 1]?.result}
-            showChoices={hasChoices(request.items)}
+            showChoices={
+              hasChoices(request.items) || result.wildcards.length > 0
+            }
             request={request}
             index={index}
             colors={colors}
@@ -286,6 +314,9 @@ function ResultRow({
   onToggle: () => void;
 }) {
   const { result, rank, chosen } = row;
+  // What the person left open: the pick-N and optional courses it takes,
+  // then the course each wildcard took.
+  const included = [...chosen, ...result.filled.map((f) => f.courseCode)];
   const label = optionLabel(rank);
   const changes = useMemo(
     () => (plan ? changesFrom(plan, coursesOf(result, request)) : []),
@@ -358,11 +389,20 @@ function ResultRow({
           <div className="tnum min-w-0 text-sm">
             <div className="truncate font-medium text-base">{summary}</div>
             {showChoices ? (
-              <div className="truncate text-muted">
-                {chosen.length ? (
+              <div
+                className="truncate text-muted"
+                title={
+                  result.filled.length > 0
+                    ? filledTip(result.filled)
+                    : undefined
+                }
+              >
+                {included.length ? (
                   <>
                     with{" "}
-                    <span className="ident text-fg">{chosen.join(" + ")}</span>
+                    <span className="ident text-fg">
+                      {included.join(" + ")}
+                    </span>
                   </>
                 ) : (
                   "No optional courses"

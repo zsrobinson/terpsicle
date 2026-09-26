@@ -38,7 +38,7 @@ export function chosenCourses(
     items.flatMap((item) =>
       item.kind === "pick"
         ? item.courses.map((c) => c.courseCode)
-        : item.required
+        : item.kind === "wildcard" || item.required
           ? []
           : [item.courseCode],
     ),

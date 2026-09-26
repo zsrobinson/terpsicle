@@ -28,3 +28,4 @@ export * from "./todo-api";
 export * from "./transcript";
 export * from "./travel";
 export * from "./versions";
+export * from "./wildcard";

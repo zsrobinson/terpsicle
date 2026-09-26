@@ -218,6 +218,20 @@ export function rankWeights(rankBy: RankBy): Float64Array {
   return w;
 }
 
+/**
+ * Whether ratings or GPAs weigh more than a tie-breaker in this ranking, so
+ * they're worth fetching for every course a gen-ed wildcard could pick.
+ */
+export function ranksByQuality(rankBy: RankBy): boolean {
+  if (rankBy.preset !== "custom")
+    return rankBy.preset === "best-rated" || rankBy.preset === "higher-gpa";
+  const w = rankWeights(rankBy);
+  return (
+    (w[RANK_FACTORS.indexOf("best-rated")] ?? 0) > 0 ||
+    (w[RANK_FACTORS.indexOf("higher-gpa")] ?? 0) > 0
+  );
+}
+
 export function dot(factors: Float64Array, weights: Float64Array): number {
   let score = 0;
   for (let i = 0; i < weights.length; i++)

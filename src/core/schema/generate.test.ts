@@ -60,6 +60,46 @@ describe("generator I/O", () => {
     expect(GenerateRequestSchema.safeParse(req).success).toBe(false);
   });
 
+  it("accepts wildcard items, and rejects a bad pattern or count", () => {
+    const req = (item: unknown) => ({
+      termId: TERM,
+      items: [item],
+      mustHaves: DEFAULT_MUST_HAVES,
+      rankBy: { preset: "compact" },
+      blocks: [],
+      travel: DEFAULT_TRAVEL_SETTINGS,
+      limits: DEFAULT_GENERATE_LIMITS,
+    });
+    const pattern = { kind: "pattern", pattern: "CMSC4XX" };
+    const ok = (item: unknown) =>
+      GenerateRequestSchema.safeParse(req(item)).success;
+    expect(
+      ok({ kind: "wildcard", wildcard: pattern, required: true, count: 2 }),
+    ).toBe(true);
+    expect(
+      ok({
+        kind: "wildcard",
+        wildcard: { kind: "gen-ed", code: "DSHS" },
+        required: false,
+        count: 1,
+      }),
+    ).toBe(true);
+    expect(
+      ok({
+        kind: "wildcard",
+        wildcard: { kind: "pattern", pattern: "CMSC4X" },
+        required: true,
+        count: 1,
+      }),
+    ).toBe(false);
+    expect(
+      ok({ kind: "wildcard", wildcard: pattern, required: true, count: 0 }),
+    ).toBe(false);
+    expect(
+      ok({ kind: "wildcard", wildcard: pattern, required: true, count: 7 }),
+    ).toBe(false);
+  });
+
   it("needs a weight for every factor in custom ranking", () => {
     const weights = {
       compact: 1,
@@ -93,6 +133,7 @@ describe("generator I/O", () => {
           id: "CMSC351-0101,MUSC130-0101",
           sections: ["CMSC351-0101", "MUSC130-0101"],
           skipped: ["PHIL140"],
+          filled: [{ wildcard: "gen-ed:DSHU", courseCode: "MUSC130" }],
           score: 0.73,
           breakdown,
           stats: {
@@ -143,6 +184,7 @@ describe("generator I/O", () => {
           ],
         },
       ],
+      wildcards: [{ wildcard: "gen-ed:DSHU", matched: 12, fit: 9, tried: 9 }],
     };
     expect(GenerateResultSchema.parse(result)).toEqual(result);
   });

@@ -359,6 +359,135 @@ describe("Generate", () => {
     );
   });
 
+  it("adds a wildcard from a typed pattern, asks for more, and takes one away", async () => {
+    const { user } = await renderGenerate();
+    await user.click(courseField());
+    await user.keyboard("cmsc4xx");
+    const list = await screen.findByRole("listbox", {
+      name: "Suggested courses",
+    });
+    const first = within(list).getAllByRole("option")[0];
+    expect(first).toHaveTextContent("Any CMSC 400-level");
+    expect(first).toHaveTextContent(/\d+ courses/);
+    await user.keyboard("{Enter}");
+    const cmsc4xx = { kind: "pattern", pattern: "CMSC4XX" };
+    expect(draft()?.items).toEqual([
+      { kind: "wildcard", wildcard: cmsc4xx, required: true, count: 1 },
+    ]);
+
+    await addCourse(user, "CMSC4XX");
+    const chip = screen.getByRole("button", {
+      name: "Any CMSC 400-level ×2, required",
+    });
+    await user.click(chip);
+    expect(draft()?.items[0]).toMatchObject({ required: false, count: 2 });
+    await user.click(
+      screen.getByRole("button", { name: "Remove one CMSC 400-level course" }),
+    );
+    expect(draft()?.items).toEqual([
+      { kind: "wildcard", wildcard: cmsc4xx, required: false, count: 1 },
+    ]);
+    await user.click(
+      screen.getByRole("button", { name: "Remove Any CMSC 400-level" }),
+    );
+    expect(draft()?.items).toEqual([]);
+  });
+
+  it("suggests gen-ed codes, and says plainly when nothing matches", async () => {
+    const { user } = await renderGenerate();
+    await user.click(courseField());
+    await user.keyboard("DSHS");
+    const list = await screen.findByRole("listbox", {
+      name: "Suggested courses",
+    });
+    expect(within(list).getAllByRole("option")[0]).toHaveTextContent(
+      /Any DSHS course.*History and Social Sciences · \d+ courses/,
+    );
+
+    await user.clear(courseField());
+    await user.keyboard("ARTTXXX");
+    const empty = within(
+      await screen.findByRole("listbox", { name: "Suggested courses" }),
+    ).getAllByRole("option")[0];
+    expect(empty).toHaveTextContent("Spring 2027 has no ARTT courses.");
+    expect(empty).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter}");
+    expect(draft()?.items ?? []).toEqual([]);
+
+    await user.clear(courseField());
+    await user.keyboard("CMSC4X");
+    const hint = await screen.findByText(
+      "Use three places for the number, as in CMSC4XX.",
+    );
+    expect(courseField()).toHaveAttribute("aria-describedby", hint.id);
+  });
+
+  it("generates with a wildcard and shows which course each plan took", async () => {
+    const { user } = await renderGenerate();
+    act(() =>
+      useGenerateDrafts.getState().setDraft(fixtureTermId, {
+        ...EMPTY_DRAFT,
+        items: [
+          { kind: "course", courseCode: "CMSC351", required: true },
+          {
+            kind: "wildcard",
+            wildcard: { kind: "pattern", pattern: "CMSC4XX" },
+            required: true,
+            count: 1,
+          },
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    const list = await screen.findByRole("list", { name: "Generated plans" });
+    expect(
+      screen.getByText("1 course + Any CMSC 400-level · compact days"),
+    ).toBeVisible();
+    const rows = within(list).getAllByTestId("generated-plan");
+    for (const row of rows)
+      expect(row).toHaveTextContent(/with CMSC4\d\d[A-Z]?/);
+    expect(track).toHaveBeenCalledWith(
+      "generate_run",
+      expect.objectContaining({ courses: 1, wildcards: ["pattern"] }),
+    );
+
+    await user.click(within(list).getAllByRole("button")[0] as HTMLElement);
+    const picked = screen.getByRole("list", {
+      name: "Picked for your wildcards",
+    });
+    expect(picked).toHaveTextContent(/CMSC4\d\d[A-Z]?for Any CMSC 400-level/);
+  });
+
+  it("says plainly when a required wildcard has nothing to pick from", async () => {
+    const { user } = await renderGenerate();
+    act(() =>
+      useGenerateDrafts.getState().setDraft(fixtureTermId, {
+        ...EMPTY_DRAFT,
+        items: [
+          { kind: "course", courseCode: "CMSC351", required: true },
+          {
+            kind: "wildcard",
+            wildcard: { kind: "pattern", pattern: "ARTTXXX" },
+            required: true,
+            count: 1,
+          },
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    const nothing = await screen.findByTestId("nothing-fits");
+    expect(within(nothing).getByTestId("wildcard-note")).toHaveTextContent(
+      "Spring 2027 has no ARTT courses.",
+    );
+    await user.click(
+      within(nothing).getByRole("button", {
+        name: /^Make any ARTT course optional/,
+      }),
+    );
+    await screen.findByRole("list", { name: "Generated plans" });
+    expect(draft()?.items[1]).toMatchObject({ required: false });
+  });
+
   it("focuses the course field when asked to start generating", async () => {
     await renderGenerate();
     const { startGenerate } = await import("~/app/actions");

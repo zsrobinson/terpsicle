@@ -1,12 +1,15 @@
 import type { CatalogIndex } from "../catalog/catalog-index";
+import { wildcardId, wildcardLabel } from "../catalog/wildcard";
 import {
   type CourseCode,
   type Day,
   type GeneratedPlan,
   type GenerateRequest,
   type GenerateResult,
+  type GenWildcardItem,
   type Relaxation,
   sectionKey,
+  type WildcardReport,
 } from "../schema";
 import type { SeatsMap } from "../seats/seats";
 import { formatTime, sortDays } from "../time/format";
@@ -16,11 +19,12 @@ import {
   type QualityMap,
   type SectionGroup,
 } from "./candidates";
-import { relaxCourseItem } from "./draft";
+import { relaxCourseItem, relaxWildcardItem } from "./draft";
 import { mergeSameWeek } from "./merge";
 import { nearMisses } from "./near-miss";
-import { planStats } from "./score";
+import { planStats, rankWeights } from "./score";
 import { orderVars, type SolveProgress, type SolveVar, solve } from "./solve";
+import { creditSpan, wildcardOptions } from "./wildcards";
 
 // The generator (SPEC §3.9): the person's courses and must-haves in, ranked
 // plans out; and when nothing fits, what to loosen and the closest misses.
@@ -42,11 +46,20 @@ export type GenerateOptions = {
 type Built = {
   vars: SolveVar[];
   picks: { count: number }[];
-  /** Request position of each course, so results list courses as the person did. */
-  order: Map<CourseCode, number>;
+  /**
+   * Request position of each course and wildcard id, so results list
+   * courses as the person did, a wildcard's in its place.
+   */
+  order: Map<string, number>;
+  /** One per wildcard item, in request order. */
+  wildcards: WildcardReport[];
 };
 
-/** The request's items as search variables, one per course (first mention wins). */
+/**
+ * The request's items as search variables: one per course (first mention
+ * wins), and one per course a wildcard asks for, after the courses so a
+ * wildcard never picks one listed on its own.
+ */
 function buildVars(
   request: GenerateRequest,
   data: GenerateData,
@@ -54,8 +67,14 @@ function buildVars(
 ): Built {
   const vars: SolveVar[] = [];
   const picks: { count: number }[] = [];
-  const order = new Map<CourseCode, number>();
-  const blocks = request.mustHaves.respectBlocks ? request.blocks : [];
+  const order = new Map<string, number>();
+  const candidate = {
+    mustHaves: request.mustHaves,
+    blocks: request.mustHaves.respectBlocks ? request.blocks : [],
+    seats: data.seats,
+    quality: data.quality,
+    keepViolations,
+  };
   const add = (
     courseCode: CourseCode,
     only: readonly string[] | undefined,
@@ -66,50 +85,84 @@ function buildVars(
     const course = data.index.courses.get(courseCode) ?? null;
     vars.push({
       courseCode,
+      wildcard: null,
+      twin: null,
       role,
       credits: course ? course.credits : null,
       groups: course
-        ? candidateGroups(course, {
-            mustHaves: request.mustHaves,
-            blocks,
-            seats: data.seats,
-            quality: data.quality,
-            only: only ?? null,
-            keepViolations,
-          })
+        ? candidateGroups(course, { ...candidate, only: only ?? null })
         : [],
     });
   };
+  const wildcardItems: GenWildcardItem[] = [];
   for (const item of request.items) {
     if (item.kind === "course") {
       add(item.courseCode, item.sections, {
         kind: item.required ? "required" : "optional",
       });
-    } else {
+    } else if (item.kind === "pick") {
       const group = picks.length;
       const before = vars.length;
       for (const c of item.courses)
         add(c.courseCode, c.sections, { kind: "pick", group });
       // A course already listed elsewhere doesn't count twice toward the group.
       picks.push({ count: Math.min(item.count, vars.length - before) });
+    } else {
+      const id = wildcardId(item.wildcard);
+      if (!order.has(id)) order.set(id, order.size);
+      wildcardItems.push(item);
     }
   }
-  return { vars: orderVars(vars), picks, order };
+
+  const listed = new Set(vars.map((v) => v.courseCode));
+  const required = vars.flatMap((v) =>
+    v.role.kind === "required" ? [v.groups] : [],
+  );
+  const weights = rankWeights(request.rankBy);
+  const wildcards = wildcardItems.map((item) => {
+    const { groups, report } = wildcardOptions({
+      item,
+      courses: data.index.courses.values(),
+      listed,
+      candidate,
+      required,
+      weights,
+    });
+    const role: SolveVar["role"] = {
+      kind: item.required ? "required" : "optional",
+    };
+    for (let k = 0; k < item.count; k++)
+      vars.push({
+        courseCode: report.wildcard,
+        wildcard: report.wildcard,
+        twin: `${report.wildcard}|${role.kind}`,
+        role,
+        credits: creditSpan(groups),
+        groups,
+      });
+    return report;
+  });
+  return { vars: orderVars(vars), picks, order, wildcards };
 }
 
 function toPlan(
   vars: readonly SolveVar[],
   choices: readonly (SectionGroup | null)[],
-  order: ReadonlyMap<CourseCode, number>,
+  order: ReadonlyMap<string, number>,
   score: number,
   breakdown: GeneratedPlan["breakdown"],
 ): GeneratedPlan {
-  const chosen = choices
-    .filter((g): g is SectionGroup => g !== null)
+  const picked = vars
+    .flatMap((v, i) => {
+      const g = choices[i];
+      return g ? [{ v, g }] : [];
+    })
+    // Stable: a wildcard's courses stay in code order.
     .sort(
       (a, b) =>
-        (order.get(a.course.code) ?? 0) - (order.get(b.course.code) ?? 0),
+        (order.get(a.v.courseCode) ?? 0) - (order.get(b.v.courseCode) ?? 0),
     );
+  const chosen = picked.map((p) => p.g);
   const sections = chosen.map((g) =>
     // biome-ignore lint/style/noNonNullAssertion: every group has a first section
     sectionKey(g.course.code, g.sections[0]!.code),
@@ -119,8 +172,11 @@ function toPlan(
     id: [...sections].sort().join(","),
     sections,
     skipped: vars
-      .flatMap((v, i) => (choices[i] ? [] : [v.courseCode]))
+      .flatMap((v, i) => (choices[i] || v.wildcard ? [] : [v.courseCode]))
       .sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)),
+    filled: picked.flatMap(({ v, g }) =>
+      v.wildcard ? [{ wildcard: v.wildcard, courseCode: g.course.code }] : [],
+    ),
     score,
     breakdown,
     stats: planStats(chosen),
@@ -195,6 +251,14 @@ export function relaxationOptions(
       patch: { mustHaves: { credits: { min: null, max: null } } },
     });
   for (const item of request.items) {
+    if (item.kind === "wildcard" && item.required) {
+      const label = wildcardLabel(item.wildcard);
+      out.push({
+        constraint: "required-course",
+        label: `Make ${label.charAt(0).toLowerCase()}${label.slice(1)} optional`,
+        patch: { makeWildcardOptional: wildcardId(item.wildcard) },
+      });
+    }
     if (item.kind !== "course") continue;
     if (item.required)
       out.push({
@@ -221,7 +285,11 @@ export function applyRelaxation(
     ...request,
     mustHaves: { ...request.mustHaves, ...(patch.mustHaves ?? {}) },
     items: request.items.map((item) =>
-      item.kind === "course" ? relaxCourseItem(item, patch) : item,
+      item.kind === "course"
+        ? relaxCourseItem(item, patch)
+        : item.kind === "wildcard"
+          ? relaxWildcardItem(item, patch)
+          : item,
     ),
   };
 }
@@ -329,6 +397,7 @@ export function generatePlans(
       steps: outcome.steps + extra.steps,
       relaxations: [],
       nearMisses: [],
+      wildcards: built.wildcards,
     };
   }
 
@@ -370,5 +439,6 @@ export function generatePlans(
     steps: outcome.steps,
     relaxations,
     nearMisses: misses,
+    wildcards: built.wildcards,
   };
 }

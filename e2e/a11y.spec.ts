@@ -258,6 +258,17 @@ for (const scheme of ["light", "dark"] as const) {
         await field.press("Enter");
         await expect(page.getByTestId(`gen-course-${code}`)).toBeVisible();
       }
+      // A wildcard too: its suggestion, chip, and what each plan took.
+      await field.fill("CMSC4XX");
+      await expect(
+        page
+          .getByRole("listbox", { name: "Suggested courses" })
+          .getByRole("option")
+          .first(),
+      ).toContainText("Any CMSC 400-level");
+      await scan(page, `generate wildcard suggestion (${scheme})`);
+      await field.press("Enter");
+      await expect(page.getByTestId("gen-wildcard-CMSC4XX")).toBeVisible();
       await page.getByRole("button", { name: "Generate plans" }).click();
       const results = page.getByRole("list", { name: "Generated plans" });
       await expect(results.getByRole("listitem").first()).toBeVisible();
