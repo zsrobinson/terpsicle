@@ -6,6 +6,10 @@
 import type { z } from "zod";
 import {
   AccountDeleteInputSchema,
+  ChatFollowInputSchema,
+  ChatMembersInputSchema,
+  ChatMuteInputSchema,
+  ChatUnreadInputSchema,
   ConfirmInputSchema,
   type FeatureLevel,
   FeatureVarsSchema,
@@ -60,6 +64,14 @@ import { type AuthEnv, isTestMode } from "../auth/config";
 import { handleFlow, isFlowRoute } from "../auth/flow";
 import { isSameOrigin } from "../auth/guard";
 import { getSession } from "../auth/session";
+import {
+  type ChatApiEnv,
+  follow,
+  members,
+  mute,
+  unfollow,
+  unread,
+} from "../chat/api";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import {
@@ -68,8 +80,8 @@ import {
   undoQueueItem,
 } from "../moderation/admin";
 import {
-  MODERATION_HANDLERS,
   type ModerationHandlers,
+  moderationHandlers,
 } from "../moderation/handlers";
 import { createReport } from "../moderation/reports";
 import type { ModerationEnv } from "../moderation/service";
@@ -106,6 +118,7 @@ export type ApiEnv = AlertsEnv &
   SummaryEnv &
   AuthEnv &
   ModerationEnv &
+  ChatApiEnv &
   ReviewsEnv &
   TodoEnv;
 
@@ -157,7 +170,7 @@ export type RouteContext = AlertsContext &
 export interface ApiOptions {
   /** Outbound fetch for Google and pictures; tests mock it. */
   fetch?: typeof fetch;
-  /** Overrides MODERATION_HANDLERS, for tests. */
+  /** Overrides moderationHandlers(env), for tests. */
   moderationHandlers?: ModerationHandlers;
 }
 
@@ -248,6 +261,42 @@ const ROUTES = {
     alerts: false,
     auth: "user",
     handle: (env, input, ctx) => pull(env, input, ctx),
+  }),
+  // Chat (V2.md §8.5). Messages go over the socket, /api/chat/socket.
+  "chat/unread": route({
+    input: ChatUnreadInputSchema,
+    perUserPerHour: 1_200,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => unread(env, input, ctx),
+  }),
+  "chat/follow": route({
+    input: ChatFollowInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => follow(env, input, ctx),
+  }),
+  "chat/unfollow": route({
+    input: ChatFollowInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => unfollow(env, input, ctx),
+  }),
+  "chat/mute": route({
+    input: ChatMuteInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => mute(env, input, ctx),
+  }),
+  "chat/members": route({
+    input: ChatMembersInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => members(env, input, ctx),
   }),
   // Terpsicle Reviews (V2.md §7.4). Anonymous to readers: see reviews/api.ts.
   "reviews/list": route({
@@ -483,7 +532,7 @@ export async function handleApi(
     request,
     session,
     ...(options.fetch ? { fetch: options.fetch } : {}),
-    moderationHandlers: options.moderationHandlers ?? MODERATION_HANDLERS,
+    moderationHandlers: options.moderationHandlers ?? moderationHandlers(env),
   });
   return reply(result instanceof Response ? result : json(result));
 }

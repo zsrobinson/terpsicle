@@ -809,7 +809,7 @@ export function aChatAuthor(overrides: Partial<ChatAuthor> = {}): ChatAuthor {
   return {
     directoryId: "noorh",
     name: "Noor Haddad",
-    picture: "https://lh3.googleusercontent.com/a/fixture-noor",
+    picture: "/avatars/noorh/0f1e2d3c4b5a6978.jpg",
     ...overrides,
   };
 }

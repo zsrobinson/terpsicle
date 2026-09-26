@@ -6,13 +6,15 @@ export {
 } from "./classify";
 export {
   type HandlerContext,
-  MODERATION_HANDLERS,
   type ModerationHandler,
+  type ModerationHandlerEnv,
   type ModerationHandlers,
+  moderationHandlers,
 } from "./handlers";
 export {
   currentDecision,
   DEFAULT_DAILY_CAP,
+  latestDecision,
   type ModerationEnv,
   moderate,
   type OwnerItem,
