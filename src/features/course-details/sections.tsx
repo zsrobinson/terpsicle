@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ArrowRightLeft, Check, Minus, Plus } from "lucide-react";
+import { ArrowRightLeft, Bell, Check, Minus, Plus } from "lucide-react";
 import { memo, type ReactNode, useEffect, useRef, useState } from "react";
 import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
@@ -38,7 +38,7 @@ import {
   seatStatus,
 } from "~/core/seats";
 import { formatDateSpan } from "~/core/time";
-import { useSeatAlert } from "~/features/alerts/seat-alerts";
+import { useSeatWatch } from "~/features/alerts/seat-watches";
 import { removeCourse } from "~/features/courses/actions";
 import { SeatMeter } from "~/features/courses/seat-meter";
 import { useUi } from "~/state/ui-store";
@@ -389,16 +389,11 @@ function useWatchable(
   key: SectionKey,
   readOnly: boolean,
   counts: ReturnType<typeof seatCounts>,
-): boolean {
-  const alert = useSeatAlert(termId, key);
+): { bell: boolean; watching: boolean } {
+  const watching = useSeatWatch(termId, key).kind === "watching";
   // A watched section keeps its bell after seats open up, so "Watching"
   // stays visible where it was set.
-  return (
-    !readOnly &&
-    (canWatchSeats(counts) ||
-      alert.kind === "watching" ||
-      alert.kind === "pending")
-  );
+  return { bell: !readOnly && (canWatchSeats(counts) || watching), watching };
 }
 
 /** One meeting on its own line: "Lec  MWF 10–10:50am  IRB 0324". */
@@ -443,7 +438,7 @@ const SectionRow = memo(function SectionRow({
   const label = fit ? fitLabel(fit, course, section) : null;
   const counts = seatCounts(seats, key);
   const status = seatStatus(counts);
-  const watch = useWatchable(termId, key, readOnly, counts);
+  const { bell, watching } = useWatchable(termId, key, readOnly, counts);
   const delivery = deliveryWords(section.delivery);
   const dates = section.dates ? formatDateSpan(section.dates) : null;
   const full = [
@@ -453,6 +448,7 @@ const SectionRow = memo(function SectionRow({
     dates,
     label ? fitWords(label) : null,
     status.words,
+    watching ? "Watching for a seat" : null,
     section.restriction,
   ]
     .filter(Boolean)
@@ -485,7 +481,7 @@ const SectionRow = memo(function SectionRow({
       }
       trail={
         <span className="flex items-center gap-0.5">
-          {watch ? (
+          {bell ? (
             <SeatBell
               termId={termId}
               sectionKey={key}
@@ -530,6 +526,18 @@ const SectionRow = memo(function SectionRow({
                 {status.words}
               </span>
             </WithTooltip>
+            {watching ? (
+              <span className="text-fg" data-testid={`section-watching-${key}`}>
+                {" · "}
+                <Bell
+                  size={10}
+                  fill="currentColor"
+                  aria-hidden
+                  className="inline align-[-1px]"
+                />{" "}
+                Watching
+              </span>
+            ) : null}
             {[delivery, dates].filter(Boolean).map((w) => (
               <span key={w} className="text-muted">
                 {" · "}

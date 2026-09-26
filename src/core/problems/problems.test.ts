@@ -29,6 +29,7 @@ import {
   planProblems,
   planWithSection,
   sortProblems,
+  withWatches,
 } from "./problems";
 
 /** A plan course placed in one of `course`'s sections, snapshotted as it is now. */
@@ -93,7 +94,7 @@ function words(message: Message): string {
   return message.map(partWords).join("");
 }
 
-const summary = (ps: Problem[]) =>
+const summary = (ps: readonly Problem[]) =>
   ps.map((p) => [p.severity, p.kind, words(p.title), p.fix?.label ?? null]);
 
 const cmsc330 = aCourse({
@@ -303,6 +304,35 @@ describe("section problems", () => {
   });
   const plan = (code: string) =>
     aPlan({ termId: TERM, courses: [placed(course, code)] });
+
+  it("turns a watched full section's problem into a note, Watching for a seat", () => {
+    const seats = {
+      "CMSC351-0101": aSeatTuple({ open: 0, total: 30, waitlist: 9 }),
+    };
+    const problems = planProblems(input([course], plan("0101"), { seats }));
+    // Nothing watched, or another section: the same array back.
+    expect(withWatches(problems, new Set())).toBe(problems);
+    expect(withWatches(problems, new Set(["CMSC351-0501"]))).toBe(problems);
+
+    const watched = withWatches(problems, new Set(["CMSC351-0101"]));
+    expect(summary(watched)).toEqual([
+      ["warning", "restricted", "CMSC351 0101 is restricted", "Switch to 0501"],
+      [
+        "info",
+        "watching",
+        "Watching for a seat in CMSC351 0101",
+        "Watch for a seat",
+      ],
+    ]);
+    const note = watched.find((p) => p.kind === "watching");
+    expect(words(note?.detail ?? [])).toBe(
+      "It's full. 9 waitlisted. We'll email you when a seat opens.",
+    );
+    // The watch stays its fix, so it can be stopped from there.
+    expect(note?.fix).toEqual(problems[0]?.fix);
+    expect(ProblemSchema.safeParse(note).success).toBe(true);
+    expect(countBySeverity(watched)).toEqual({ error: 0, warning: 1, info: 1 });
+  });
 
   it("warns about full and low sections, with seat words", () => {
     const seats = {

@@ -13,11 +13,10 @@ import {
 // The installable app on `pnpm dev:mock`: the manifest, icons and head tags,
 // /sw.js and what it does once registered, Chrome's own installability
 // check (what Lighthouse reports), and the install prompt: offered once when
-// a seat alert turns on, never again after it's closed.
+// a seat watch turns on, never again after it's closed.
 
 const IPHONE_SAFARI =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1";
-const TOKEN = "t".repeat(43);
 
 let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
@@ -28,21 +27,86 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-/** The confirm link's API call, answered "confirmed" (after `gate`, if given). */
-async function confirmsAlert(page: Page, gate?: Promise<void>) {
-  await page.route("**/api/alerts/confirm", async (route: Route) => {
+/**
+ * Signed in (test mode, a throwaway person), with a watch asked for before
+ * signing in, so the app starts it on load. The watch API is answered here
+ * ("watching", after `gate` if given); the rest is the dev server's.
+ */
+async function watchesASeat(page: Page, gate?: Promise<void>) {
+  await page.route("**/api/alerts/list", (route: Route) =>
+    route.fulfill({ json: { status: "ok", watches: [] } }),
+  );
+  await page.route("**/api/alerts/watch", async (route: Route) => {
     await gate;
     await route.fulfill({
       json: {
-        status: "confirmed",
-        termId: "202701",
-        sectionKey: "CMSC131-0101",
-        subscriptionId: "s".repeat(22),
-        manageToken: "m".repeat(43),
+        status: "watching",
+        watch: {
+          termId: "202701",
+          sectionKey: "CMSC351-0101",
+          createdAt: new Date().toISOString(),
+          lastNotifiedAt: null,
+        },
       },
     });
   });
+  await page.goto("/schedule");
+  const signedIn = await page.evaluate(async () => {
+    const id = `e2e${Math.random().toString(36).slice(2, 12)}`;
+    const response = await fetch("/api/auth/test-sign-in", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: id, return: "/schedule" }),
+    });
+    return ((await response.json()) as { status: string }).status;
+  });
+  expect(signedIn).toBe("signed-in");
+  await page.evaluate(() =>
+    sessionStorage.setItem(
+      "terpsicle:pending-watch",
+      JSON.stringify({
+        termId: "202701",
+        sectionKey: "CMSC351-0101",
+        at: new Date().toISOString(),
+      }),
+    ),
+  );
+  await page.reload();
 }
+
+/** A new tab with its own watch to start (cookies are the context's). */
+async function watchesAnotherSeat(page: Page) {
+  await page.route("**/api/alerts/list", (route: Route) =>
+    route.fulfill({ json: { status: "ok", watches: [] } }),
+  );
+  await page.route("**/api/alerts/watch", (route: Route) =>
+    route.fulfill({
+      json: {
+        status: "watching",
+        watch: {
+          termId: "202701",
+          sectionKey: "CMSC351-0101",
+          createdAt: new Date().toISOString(),
+          lastNotifiedAt: null,
+        },
+      },
+    }),
+  );
+  await page.goto("/schedule");
+  await page.evaluate(() =>
+    sessionStorage.setItem(
+      "terpsicle:pending-watch",
+      JSON.stringify({
+        termId: "202701",
+        sectionKey: "CMSC351-0101",
+        at: new Date().toISOString(),
+      }),
+    ),
+  );
+  await page.reload();
+}
+
+const watchingToast = (page: Page) => page.getByText("Watching CMSC351 0101");
 
 /** Chrome's `beforeinstallprompt`, recording whether our dialog replays it. */
 async function browserOffersInstall(page: Page) {
@@ -183,15 +247,12 @@ test.describe("install prompt", () => {
   test.describe("on iPhone", () => {
     test.use({ userAgent: IPHONE_SAFARI });
 
-    test("shows the steps once when a seat alert turns on, then never again", async ({
+    test("shows the steps once when a seat watch turns on, then never again", async ({
       page,
       context,
     }) => {
-      await confirmsAlert(page);
-      await page.goto(`/alerts/confirm?token=${TOKEN}`);
-      await expect(
-        page.getByRole("heading", { name: "Watching" }),
-      ).toBeVisible();
+      await watchesASeat(page);
+      await expect(watchingToast(page)).toBeVisible({ timeout: 15_000 });
       const dialog = installDialog(page);
       await expect(dialog).toBeVisible();
       await expect(dialog).toContainText(
@@ -203,11 +264,8 @@ test.describe("install prompt", () => {
 
       // The same tab, and then a new one: not again.
       for (const next of [page, await context.newPage()]) {
-        await confirmsAlert(next);
-        await next.goto(`/alerts/confirm?token=${TOKEN}`);
-        await expect(
-          next.getByRole("heading", { name: "Watching" }),
-        ).toBeVisible();
+        await watchesAnotherSeat(next);
+        await expect(watchingToast(next)).toBeVisible({ timeout: 15_000 });
         // The dialog's code loads lazily: give it time to show if it would.
         await next.waitForTimeout(1000);
         await expect(installDialog(next)).toHaveCount(0);
@@ -220,8 +278,7 @@ test.describe("install prompt", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await confirmsAlert(page, gate);
-    await page.goto(`/alerts/confirm?token=${TOKEN}`);
+    await watchesASeat(page, gate);
     await browserOffersInstall(page);
     release();
 

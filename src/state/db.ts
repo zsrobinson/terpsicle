@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable, type Transaction } from "dexie";
+import Dexie, { type EntityTable } from "dexie";
 import {
   type Block,
   type CachedFile,
@@ -29,19 +29,12 @@ export const DB_V1_STORES = {
 /**
  * Version 2 (plan sync, V2 §5.3): `syncDocs` holds each doc's rev and flags;
  * the account and pull cursor are the `sync` settings row. `seatAlerts`
- * becomes a settings row until seat watches move to accounts (V2 §6.5).
+ * goes: seat watches live on the account now (V2 §6.5).
  */
 const V2_CHANGES = {
   syncDocs: "key",
   seatAlerts: null,
 } as const;
-
-/** Moves v1's seat alerts into their settings row before the table goes. */
-export async function upgradeToV2(tx: Transaction): Promise<void> {
-  const alerts: unknown[] = await tx.table("seatAlerts").toArray();
-  if (alerts.length > 0)
-    await tx.table("settings").put({ key: "seatAlerts", value: alerts });
-}
 
 export class TerpsicleDb extends Dexie {
   plans!: EntityTable<Plan, "id">;
@@ -55,7 +48,7 @@ export class TerpsicleDb extends Dexie {
   constructor(name: string = LOCAL_DB_NAME) {
     super(name);
     this.version(1).stores(DB_V1_STORES);
-    this.version(LOCAL_DB_VERSION).stores(V2_CHANGES).upgrade(upgradeToV2);
+    this.version(LOCAL_DB_VERSION).stores(V2_CHANGES);
   }
 }
 
