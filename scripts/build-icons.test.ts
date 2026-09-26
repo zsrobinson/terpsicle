@@ -2,7 +2,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import { describe, expect, it } from "vitest";
-import { drawMark, MARK_IDS } from "~/app/brand/marks";
+import {
+  drawMark,
+  MARK_IDS,
+  type MarkId,
+  type MarkTheme,
+} from "~/app/brand/marks";
 import {
   FAVICON_SVG,
   faviconSvg,
@@ -67,6 +72,21 @@ describe("marks (src/app/brand/marks.ts)", () => {
       expect(at(32).sort(), id).toEqual([0.7, 1]);
       expect(at(16), id).toEqual([1, 1]);
     }
+  });
+
+  it("draw Todo's keyline in light only, and the umbrella's in both", () => {
+    const keylines = (id: MarkId, theme?: MarkTheme) =>
+      drawMark(id, 28, "page", theme).layers.filter(
+        (l) => l.role === "keyline",
+      );
+    expect(keylines("todo", "light")).toHaveLength(1);
+    expect(keylines("todo", "dark")).toHaveLength(0);
+    // A page switches themes with CSS, so it gets the layer, marked.
+    expect(keylines("todo")).toMatchObject([{ only: "light" }]);
+    expect(keylines("umbrella")).toHaveLength(1);
+    expect(keylines("umbrella")[0]).not.toHaveProperty("only");
+    for (const id of ["schedule", "reviews", "chat", "plan"] as const)
+      expect(keylines(id), id).toHaveLength(0);
   });
 
   it("put the offset 2px out on the page and none on an app icon", () => {

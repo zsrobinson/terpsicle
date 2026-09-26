@@ -64,8 +64,9 @@ export default defineConfig({
           name: "ui",
           environment: "happy-dom",
           // Vitest blanks CSS imports; the design-token test reads the
-          // palette from styles.css as text (`?raw`).
-          css: { include: [/styles\.css\?raw/] },
+          // palette from styles.css as text (`?raw`), and the marketing
+          // page's test its motion rules from marketing.css.
+          css: { include: [/styles\.css\?raw/, /marketing\.css\?raw/] },
           include: [
             "src/{app,features,state,components,routes,worker}/**/*.test.{ts,tsx}",
           ],
