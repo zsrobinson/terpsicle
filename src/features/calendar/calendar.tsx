@@ -27,6 +27,7 @@ import { DAY_LONG_NAMES } from "~/core/time";
 import { useTravel } from "~/state/hooks";
 import { selectOpenCourse, useUi } from "~/state/ui-store";
 import { Kbd } from "~/ui/kbd";
+import { quietTooltips } from "~/ui/tooltip";
 import {
   BusyBlock,
   ClassBlock,
@@ -525,6 +526,9 @@ function Grid({
     focused.current = null;
     const active = document.activeElement;
     if (active && active !== document.body) return;
+    // No tooltip over the class that just appeared: it would hide it, and
+    // take the next Esc.
+    quietTooltips();
     ref.current
       ?.querySelector<HTMLElement>(`[data-nav-key="${CSS.escape(stop)}"]`)
       ?.focus({ preventScroll: true });
