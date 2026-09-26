@@ -24,6 +24,10 @@ const watch: LocalSeatAlert = {
 let db: TerpsicleDb;
 let count = 0;
 
+async function storedAlerts(): Promise<unknown> {
+  return (await db.settings.get("seatAlerts"))?.value;
+}
+
 describe("seat alerts store", () => {
   beforeEach(() => {
     useSeatAlerts.setState(INITIAL_SEAT_ALERTS_STATE);
@@ -42,7 +46,7 @@ describe("seat alerts store", () => {
       .put([
         { ...watch, status: "active", updatedAt: "2026-09-26T00:00:00.000Z" },
       ]);
-    expect(await db.seatAlerts.count()).toBe(1);
+    expect(await storedAlerts()).toHaveLength(1);
 
     useSeatAlerts.setState(INITIAL_SEAT_ALERTS_STATE);
     await startSeatAlerts(db);
@@ -53,15 +57,18 @@ describe("seat alerts store", () => {
     );
 
     await useSeatAlerts.getState().remove(TEST_TERM_ID, "CMSC351-0301");
-    expect(await db.seatAlerts.count()).toBe(0);
+    expect(await storedAlerts()).toEqual([]);
   });
 
   it("skips invalid rows instead of failing", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    await db.seatAlerts.bulkPut([
-      watch,
-      { ...watch, sectionKey: "ENGL393-0101", email: "not an email" },
-    ]);
+    await db.settings.put({
+      key: "seatAlerts",
+      value: [
+        watch,
+        { ...watch, sectionKey: "ENGL393-0101", email: "not an email" },
+      ],
+    });
     await startSeatAlerts(db);
     expect(useSeatAlerts.getState().alerts).toEqual([watch]);
     expect(warn).toHaveBeenCalled();

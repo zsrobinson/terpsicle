@@ -11,6 +11,7 @@ import {
 } from "./primitives";
 import { MessageSchema } from "./problems";
 import { TravelSettingsSchema } from "./travel";
+import { WildcardIdSchema, WildcardSchema } from "./wildcard";
 
 // Generator input and output (SPEC §3.9, recipe in RESEARCH §2). Runs in the Web Worker.
 
@@ -25,7 +26,22 @@ const GenCourseFields = {
 export const GenCourseSchema = z.object(GenCourseFields);
 export type GenCourse = z.infer<typeof GenCourseSchema>;
 
-/** A requested course, or a "pick N of these" group. */
+/** Most courses one wildcard item asks for ("Any CMSC 400-level ×3"). */
+export const MAX_WILDCARD_COUNT = 6;
+
+/**
+ * A wildcard item: `count` different courses from the wildcard's set, never
+ * one listed on its own (src/core/catalog/wildcard.ts).
+ */
+export const GenWildcardItemSchema = z.object({
+  kind: z.literal("wildcard"),
+  wildcard: WildcardSchema,
+  required: z.boolean(),
+  count: z.number().int().min(1).max(MAX_WILDCARD_COUNT),
+});
+export type GenWildcardItem = z.infer<typeof GenWildcardItemSchema>;
+
+/** A requested course, a "pick N of these" group, or a wildcard ("Any CMSC 400-level"). */
 export const GenItemSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("course"),
@@ -45,6 +61,7 @@ export const GenItemSchema = z.discriminatedUnion("kind", [
       message: "count exceeds the courses listed",
       path: ["count"],
     }),
+  GenWildcardItemSchema,
 ]);
 export type GenItem = z.infer<typeof GenItemSchema>;
 
@@ -170,6 +187,10 @@ export const GeneratedPlanSchema = z.object({
   sections: z.array(SectionKeySchema).min(1),
   /** Optional courses (or pick-group courses) left out of this result. */
   skipped: z.array(CourseCodeSchema),
+  /** The course each wildcard took, in request order (none for a left-out optional one). */
+  filled: z.array(
+    z.object({ wildcard: WildcardIdSchema, courseCode: CourseCodeSchema }),
+  ),
   score: z.number(),
   breakdown: ScoreBreakdownSchema,
   stats: PlanStatsSchema,
@@ -202,6 +223,8 @@ export const RelaxationSchema = z.object({
     mustHaves: MustHavesSchema.partial().optional(),
     /** Make this required course optional. */
     makeOptional: CourseCodeSchema.optional(),
+    /** Make this required wildcard optional. */
+    makeWildcardOptional: WildcardIdSchema.optional(),
     /** Drop this course's section restriction. */
     allowAllSections: CourseCodeSchema.optional(),
   }),
@@ -226,6 +249,18 @@ export const NearMissSchema = z.object({
 });
 export type NearMiss = z.infer<typeof NearMissSchema>;
 
+/** What a wildcard had to choose from, so the results can say so plainly. */
+export const WildcardReportSchema = z.object({
+  wildcard: WildcardIdSchema,
+  /** The term's courses it could pick: matching, with sections, not listed on their own. */
+  matched: z.number().int().min(0),
+  /** Of those, courses with a section that meets the must-haves and can sit beside the required courses. */
+  fit: z.number().int().min(0),
+  /** Of those, the courses the search tried: all of them, or the most promising up to a cap. */
+  tried: z.number().int().min(0),
+});
+export type WildcardReport = z.infer<typeof WildcardReportSchema>;
+
 export const GenerateResultSchema = z.object({
   /** Best first; at most `limits.maxResults`. */
   results: z.array(GeneratedPlanSchema),
@@ -239,6 +274,8 @@ export const GenerateResultSchema = z.object({
   /** Filled when results are empty (and may be when few), most unlocks first. */
   relaxations: z.array(RelaxationSchema),
   nearMisses: z.array(NearMissSchema),
+  /** One per wildcard item, in request order. */
+  wildcards: z.array(WildcardReportSchema),
 });
 export type GenerateResult = z.infer<typeof GenerateResultSchema>;
 

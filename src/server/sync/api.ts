@@ -9,6 +9,7 @@ import type {
   SyncPushInput,
   SyncPushResult,
 } from "~/core/schema";
+import { captureServerEvent } from "../analytics";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
 import { refreshChatMembers } from "../chat/store";
@@ -16,6 +17,7 @@ import { pullDocs, pushDocs } from "./store";
 
 export interface SyncEnv {
   DB: D1Database;
+  POSTHOG_TOKEN?: string;
 }
 
 export async function push(
@@ -34,6 +36,17 @@ export async function push(
     planIds: saved.filter((r) => r.kind === "plan").map((r) => r.id),
     settings: saved.some((r) => r.kind === "settings"),
   });
+  ctx.waitUntil(
+    captureServerEvent(
+      env,
+      "sync_push",
+      {
+        docs: results.length,
+        conflicts: results.filter((r) => r.status === "conflict").length,
+      },
+      { now: ctx.now, ...(ctx.fetch ? { fetcher: ctx.fetch } : {}) },
+    ),
+  );
   return { results };
 }
 

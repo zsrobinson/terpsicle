@@ -56,5 +56,6 @@ export {
 } from "./mock/seats";
 export { mockCalendars, mockTermsFile } from "./mock/terms";
 export { hashString, randomInt, seededRandom } from "./random";
+export { FakeSyncServer } from "./sync-server";
 export { median, medianMs } from "./timing";
 export * from "./users";

@@ -54,7 +54,16 @@ export interface ModerationEnv extends ModerationHandlerEnv {
 
 /** V2 §13. Every attempt counts, hedges and retries included. */
 export const DEFAULT_DAILY_CAP = 2_000;
-const CAP_COUNTER = "moderation";
+/** The `counters` row that counts model attempts per UTC day. */
+export const CAP_COUNTER = "moderation";
+export const CAP_WINDOW = { seconds: 86_400 };
+
+/** MODERATION_DAILY_CAP, or the default when it's unset or not a number. */
+export function dailyCap(env: Pick<ModerationEnv, "MODERATION_DAILY_CAP">) {
+  return (
+    Number(env.MODERATION_DAILY_CAP ?? DEFAULT_DAILY_CAP) || DEFAULT_DAILY_CAP
+  );
+}
 
 /**
  * Automatic re-screens before a failed check goes to the owner. The cron
@@ -72,15 +81,14 @@ export interface ModerationDeps {
 }
 
 function classifier(env: ModerationEnv, deps: ModerationDeps) {
-  const cap =
-    Number(env.MODERATION_DAILY_CAP ?? DEFAULT_DAILY_CAP) || DEFAULT_DAILY_CAP;
+  const cap = dailyCap(env);
   const config = deps.config ?? resolveConfig(env.MODERATION_CONFIG);
   return (input: ModerationInput) =>
     classify(input, {
       ai: env.AI,
       config,
       budget: async () =>
-        (await hit(env.DB, CAP_COUNTER, { seconds: 86_400 }, deps.now)) <= cap,
+        (await hit(env.DB, CAP_COUNTER, CAP_WINDOW, deps.now)) <= cap,
     });
 }
 

@@ -138,7 +138,6 @@ test("the logo opens the product menu", async ({ page }) => {
 for (const [path, heading, title] of [
   ["/reviews", "Terpsicle Reviews", "Reviews · Terpsicle"],
   ["/chat", "Terpsicle Chat", "Chat · Terpsicle"],
-  ["/admin", "Admin", "Admin · Terpsicle"],
   ["/privacy", "Privacy", "Privacy · Terpsicle"],
 ] as const) {
   test(`${path} is its own page, outside the scheduler`, async ({ page }) => {
@@ -150,6 +149,23 @@ for (const [path, heading, title] of [
     await expect(page.locator("[data-app-shell]")).toHaveCount(0);
   });
 }
+
+// Admins only (V2 §10): a signed-out visit goes to sign in first. The
+// admin's own page (outside the scheduler) and everyone else's 404 are in
+// e2e/admin.spec.ts.
+test("/admin sends a signed-out visitor to sign in, and back afterwards", async ({
+  page,
+}) => {
+  const response = await page.goto("/admin");
+  await expect(page).toHaveURL(/\/signin\?return=%2Fadmin$/);
+  expect(
+    (await response?.request().redirectedFrom()?.response())?.status(),
+  ).toBe(302);
+  await expect(
+    page.getByRole("heading", { name: "Sign in", level: 1 }),
+  ).toBeVisible();
+  await expect(page.locator("[data-app-shell]")).toHaveCount(0);
+});
 
 test("/privacy shows the contact address in words, never whole", async ({
   page,

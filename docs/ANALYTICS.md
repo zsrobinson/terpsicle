@@ -37,7 +37,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `deep_link_opened` | `outcome`: `ok` · `unknown-term` | How often seat-alert emails bring people back, and whether their terms still exist. |
   | `catalog_loaded` | `termId`, `fromCache`, `deptsFetched`, `ms` (until every department is in) | Whether the IndexedDB cache and manifest diffing keep repeat visits fast (BUILD §5), and how long a first visit waits for the whole catalog. |
   | `catalog_load_failed` | `termId` (null when the terms list failed), `reason`: `missing` · `network` · `invalid` · `newer-data` | Visits that saw the "couldn't load" state instead of a calendar, and which failure caused it. |
-  | `generate_run` | `courses`, `mustHaves` (names of the ones set), `rankBy`, `results`, `durationMs`, `truncated`, `relaxed` | How big Generate requests get, which must-haves people set, how often nothing fits, and whether runs stay fast on real devices. |
+  | `generate_run` | `courses` (listed by code), `wildcards` (each wildcard item's kind, `pattern` or `gen-ed`), `mustHaves` (names of the ones set), `rankBy`, `results`, `durationMs`, `truncated`, `relaxed` | How big Generate requests get, whether people use wildcards, which must-haves people set, how often nothing fits, and whether runs stay fast on real devices. |
   | `generate_result_previewed` | `rank` | Whether people look past the first few results (is the ranking right?). |
   | `generate_plans_saved` | `count` | Whether Generate produces plans people keep, and whether saving several at once is used. |
   | `generate_relaxation_applied` | `constraint` | Which suggested relaxations people take when nothing fits. |
@@ -59,7 +59,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
-  | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option gets used (always `false` until plan sync). |
+  | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
+  | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names or courses. |
   | `account_deletion_requested` | | How often people delete their account. |
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
@@ -80,6 +81,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `alert_sent` | `termId`, `count` | Alert volume per seats run. |
   | `alert_unsubscribed` | `termId` | Whether alerts are wanted. |
   | `signin_result` | `outcome` (`signed-in`, a `SignInError` code, or `sub-conflict`), `hd` (the domain only, on success) | Server-side truth for sign-in success and failure, including failures the browser never reports, and the TERPmail versus UMD Gmail split. |
+  | `sync_push` | `docs`, `conflicts` | Plan sync's load and how often two devices change the same doc (a conflict makes a "(copy)" plan). Counts only. |
   | `todo_fetch_run` | `due`, `fetched`, `notModified`, `unchanged`, `failed`, `broken`, `paused`, `durationMs` | Terpsicle Todo's feed cadence and failure rates. Counts only: never a feed, link, person or item. |
 
   Seat-alert events never carry an address, token or IP, not even hashed: a count per term is all we need. Identity events carry no user id, directory ID, name, email or `sub`: the domain is the most specific thing they say.
