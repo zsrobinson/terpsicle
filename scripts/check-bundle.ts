@@ -95,6 +95,21 @@ export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
   ];
 
 /**
+ * Gzipped JS + CSS for the admin panel (/admin, /admin/decisions), in bytes:
+ * 224 KB when this was set (v2 admin-shell), `/`'s base plus the panel, plus
+ * about 10% headroom; 213 KB once the panel stopped using Radix's menu and
+ * select (sharing them split them out of /schedule's chunk, which cost
+ * /schedule about 5 KB). Same rule for raising it.
+ */
+export const ADMIN_BUDGET = 245 * 1024;
+
+/** The owner's panel loads with /admin, never with anyone else's pages. */
+const ADMIN_NEVER_EAGER = {
+  pattern: /^src\/features\/admin\//,
+  why: "the admin panel loads with /admin",
+};
+
+/**
  * Each entry route (docs/V2.md §1.1), its budget and its extra never-eager
  * rules. The pages other tracks fill in start on `/`'s budget and rules, so
  * none of them pulls in the scheduler; the PR that builds one gives it its
@@ -114,19 +129,19 @@ export const ROUTE_BUDGETS: readonly {
         why: "the course index loads with Plan, not the scheduler",
       },
       ...SCHEDULE_NEVER_EAGER,
+      ADMIN_NEVER_EAGER,
     ],
   },
-  ...[
-    "/",
-    "/reviews/",
-    "/chat/",
-    "/settings",
-    "/signin",
-    "/admin/",
-    "/privacy",
-  ].map((route) => ({
+  ...["/", "/reviews/", "/chat/", "/settings", "/signin", "/privacy"].map(
+    (route) => ({
+      route,
+      budget: LANDING_BUDGET,
+      never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+    }),
+  ),
+  ...["/admin/", "/admin/decisions"].map((route) => ({
     route,
-    budget: LANDING_BUDGET,
+    budget: ADMIN_BUDGET,
     never: LANDING_NEVER_EAGER,
   })),
 ];

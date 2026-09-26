@@ -171,6 +171,8 @@ These never refresh sessions or set cookies. For a GET that only reads (like `/a
 
 `isAdmin(userId, {authTestMode})` in `src/server/auth/admin.ts` is the only check: the id is in the file, or, in test mode only, the user is the fixture `tadmin`. `/api/me` tells the app (`user.isAdmin`), and the account menu shows "Admin" (`/admin`) to admins.
 
+**Admin pages** (`/admin`, `/admin/*`): the Worker decides before the app renders anything (`pageAccess` in `src/server/auth/pages.ts`, a read-only `getSession`). Signed out → `302 /signin?return=<path>`, and back after signing in; signed in but not an admin → the app's own "Page not found" with a real 404, so nothing hints the panel exists; the admin → the page. All three are `private, no-store`. The panel's API routes are `auth: "admin"` regardless.
+
 ## Pictures
 
 Our own copy, never a hot link to Google:
