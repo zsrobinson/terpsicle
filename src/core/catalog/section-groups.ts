@@ -218,3 +218,135 @@ export function factorMeetings(sections: readonly Section[]): MeetingRun[] {
   }
   return runs.map(run);
 }
+
+// ---------- shared lectures ----------
+
+/**
+ * Sections that attend a lecture together: 2+ sections with the same
+ * `lectureKey`, where that lecture has a set time. In section order of each
+ * lecture's first section. Async online sections all share an "untimed
+ * online" key, and discussion-only sections share "": neither is a lecture
+ * anyone attends together, so neither counts.
+ */
+export function sharedLectures(course: Course): Section[][] {
+  const byKey = new Map<string, Section[]>();
+  for (const section of course.sections) {
+    const key = lectureKey(section);
+    const list = byKey.get(key);
+    if (list) list.push(section);
+    else byKey.set(key, [section]);
+  }
+  return [...byKey.values()].filter(
+    (sections) =>
+      sections.length >= 2 &&
+      (sections[0]?.meetings.some((m) => m.timed && !OWN_KINDS.has(m.kind)) ??
+        false),
+  );
+}
+
+// ---------- how course details and Chat group sections ----------
+
+/**
+ * - `instructor`: the usual (SPEC §3.4).
+ * - `time`: many sections all in one instructor group (ENGL101: 92, all TBA)
+ *   would be one group of everything, so they group by meeting time, like
+ *   the calendar's ghosts (UX review, decision 2).
+ * - `lecture`: the same, but the sections share lectures (CHEM231: 25 TBA
+ *   sections, 4 lectures). A lecture plus a discussion is unique to each
+ *   section, so time groups would be one per section; the lecture is what
+ *   they have in common.
+ */
+export type SectionGrouping = "instructor" | "time" | "lecture";
+
+export function sectionGrouping(
+  course: Course,
+  byInstructor: readonly InstructorGroup[] = groupSectionsByInstructor(course),
+): SectionGrouping {
+  if (
+    sectionCountSize(course.sections.length) !== "many" ||
+    byInstructor.length !== 1
+  )
+    return "instructor";
+  return sharedLectures(course).length >= 2 ? "lecture" : "time";
+}
+
+type GroupBase = {
+  /**
+   * The `UiPrefs.collapsedGroups` entry: `CMSC131|Pedram Sadeghian`,
+   * `CHEM231|lecture|0101` (the lecture's first section, so a time or room
+   * change keeps it), `ENGL101|time|<signature>`, `ENGL101|time|none`.
+   */
+  readonly key: string;
+  /** Section-number order. */
+  readonly sections: readonly Section[];
+};
+
+/** A heading in course details' section list, and in Chat's room list. */
+export type SectionListGroup =
+  | ({ readonly by: "instructor" } & InstructorGroup & GroupBase)
+  | ({
+      readonly by: "lecture";
+      /** The lecture-like meetings every section in the group shares, in the first section's order. */
+      readonly lecture: readonly Meeting[];
+    } & GroupBase)
+  | ({
+      readonly by: "time";
+      /** `timeSignature` of every section in the group; "" for sections with no set times. */
+      readonly signature: string;
+    } & GroupBase);
+
+/**
+ * A course's sections as course details lists them, by `sectionGrouping`.
+ * Groups come in the order of their first section, except that sections
+ * with no set times go last; sections keep section-number order (SPEC §3.4).
+ * Under `lecture`, a section that shares no lecture gets a time group, as
+ * it would under `time`.
+ */
+export function groupSections(course: Course): SectionListGroup[] {
+  const byInstructor = groupSectionsByInstructor(course);
+  const grouping = sectionGrouping(course, byInstructor);
+  if (grouping === "instructor")
+    return byInstructor.map((g) => ({
+      by: "instructor",
+      key: collapsedGroupKey(course.code, g),
+      ...g,
+    }));
+
+  const order = new Map(course.sections.map((s, i) => [s.code, i]));
+  const firstOf = (sections: readonly Section[]) =>
+    order.get(sections[0]?.code ?? "") ?? 0;
+  const timed: SectionListGroup[] = [];
+  const inLecture = new Set<SectionCode>();
+  if (grouping === "lecture")
+    for (const sections of sharedLectures(course)) {
+      const [first] = sections;
+      if (!first) continue;
+      for (const s of sections) inLecture.add(s.code);
+      timed.push({
+        by: "lecture",
+        key: `${course.code}|lecture|${first.code}`,
+        lecture: first.meetings.filter((m) => !OWN_KINDS.has(m.kind)),
+        sections,
+      });
+    }
+  const rest = course.sections.filter((s) => !inLecture.has(s.code));
+  for (const t of groupSectionsByTime({ ...course, sections: rest }))
+    timed.push({
+      by: "time",
+      key: `${course.code}|time|${t.signature}`,
+      signature: t.signature,
+      sections: t.sections,
+    });
+  timed.sort((a, b) => firstOf(a.sections) - firstOf(b.sections));
+  const untimed = rest.filter((s) => timeSignature(s) === "");
+  if (untimed.length === 0) return timed;
+  return [
+    ...timed,
+    {
+      by: "time",
+      key: `${course.code}|time|none`,
+      signature: "",
+      sections: untimed,
+    },
+  ];
+}

@@ -1,16 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  aCourse,
   anUntimedMeeting,
   aSection,
   aTimedMeeting,
   mockCourse,
 } from "~/fixtures";
+import type { Section } from "../schema";
 import {
+  collapsedGroupKey,
   factorMeetings,
+  groupSections,
   groupSectionsByInstructor,
   lectureKey,
   MANY_SECTIONS,
   sectionCountSize,
+  sectionGrouping,
+  sharedLectures,
   sharedMeetings,
 } from "./section-groups";
 
@@ -141,5 +147,183 @@ describe("sharedMeetings and lectureKey", () => {
 
   it("needs two sections to share anything", () => {
     expect(sharedMeetings([aSection()])).toEqual([]);
+  });
+});
+
+describe("sharedLectures", () => {
+  it("finds 2+ sections with the same timed lecture, in section order", () => {
+    const other = aTimedMeeting();
+    const course = aCourse({
+      sections: [
+        aSection({ code: "0101", meetings: [lecture, discussion(540)] }),
+        aSection({ code: "0201", meetings: [other, discussion(540)] }),
+        aSection({ code: "0102", meetings: [lecture, discussion(600)] }),
+        aSection({ code: "0301", meetings: [other] }),
+        // A lecture of its own isn't shared.
+        aSection({
+          code: "0401",
+          meetings: [aTimedMeeting({ start: 900, end: 950 })],
+        }),
+      ],
+    });
+    expect(sharedLectures(course).map((l) => l.map((s) => s.code))).toEqual([
+      ["0101", "0102"],
+      ["0201", "0301"],
+    ]);
+  });
+
+  it("never counts async or discussion-only sections as sharing a lecture", () => {
+    const course = aCourse({
+      sections: [
+        aSection({ code: "0101", meetings: [anUntimedMeeting()] }),
+        aSection({ code: "0102", meetings: [anUntimedMeeting()] }),
+        aSection({ code: "0201", meetings: [discussion(540)] }),
+        aSection({ code: "0202", meetings: [discussion(600)] }),
+      ],
+    });
+    expect(sharedLectures(course)).toEqual([]);
+  });
+});
+
+describe("sectionGrouping and groupSections", () => {
+  /** TBA sections: `lectures` lectures with `per` sections each, then `alone` sections with a lecture each. */
+  function tbaCourse(lectures: number, per: number, alone = 0) {
+    const sections: Section[] = [];
+    for (let l = 0; l < lectures; l++)
+      for (let i = 0; i < per; i++)
+        sections.push(
+          aSection({
+            code: `0${l + 1}${String(i + 1).padStart(2, "0")}`,
+            instructors: [],
+            meetings: [
+              aTimedMeeting({
+                days: ["M", "W"],
+                start: 480 + 90 * l,
+                end: 530 + 90 * l,
+              }),
+              discussion(480 + 60 * i),
+            ],
+          }),
+        );
+    for (let i = 0; i < alone; i++)
+      sections.push(
+        aSection({
+          code: `09${String(i + 1).padStart(2, "0")}`,
+          instructors: [],
+          meetings: [
+            aTimedMeeting({
+              days: ["F"],
+              start: 480 + 60 * i,
+              end: 530 + 60 * i,
+            }),
+          ],
+        }),
+      );
+    return aCourse({ code: "CHEM231", sections });
+  }
+  const byCode = (a: Section, b: Section) => (a.code < b.code ? -1 : 1);
+
+  it("groups by instructor at a few sections, and at many with 2+ instructors", () => {
+    expect(sectionGrouping(mockCourse("CMSC330"))).toBe("instructor");
+    expect(sectionGrouping(tbaCourse(4, 5))).toBe("instructor");
+    const many = tbaCourse(4, 6);
+    expect(sectionGrouping(many)).toBe("lecture");
+    const named = aCourse({
+      ...many,
+      sections: many.sections.map((s, i) => ({
+        ...s,
+        instructors: [i % 2 ? "Lee Moss" : "Ada Brandt"],
+      })),
+    });
+    expect(sectionGrouping(named)).toBe("instructor");
+  });
+
+  it("groups many sections that share no lecture, or just one, by time (ENGL101)", () => {
+    expect(sectionGrouping(mockCourse("ENGL101"))).toBe("time");
+    expect(sectionGrouping(tbaCourse(0, 0, 21))).toBe("time");
+    expect(sectionGrouping(tbaCourse(1, 6, 20))).toBe("time");
+  });
+
+  it("groups many sections that share 2+ lectures by lecture (CHEM231)", () => {
+    const course = mockCourse("CHEM231");
+    expect(course.sections.length).toBeGreaterThan(MANY_SECTIONS);
+    expect(sectionGrouping(course)).toBe("lecture");
+    const groups = groupSections(course);
+    expect(groups.map((g) => [g.by, g.key, g.sections.length])).toEqual([
+      ["lecture", "CHEM231|lecture|5116", 6],
+      ["lecture", "CHEM231|lecture|5322", 6],
+      ["lecture", "CHEM231|lecture|5421", 6],
+      ["lecture", "CHEM231|lecture|5511", 6],
+      // The SIE section shares no lecture, so it's timed on its own.
+      ["time", "CHEM231|time|M@1080-1250,W@1080-1130", 1],
+    ]);
+    const [first] = groups;
+    expect(first?.by === "lecture" ? first.lecture : null).toEqual([
+      aTimedMeeting({
+        days: ["Tu", "Th"],
+        start: 840,
+        end: 915,
+        building: "CHM",
+        room: "1407",
+      }),
+    ]);
+    expect(first?.sections.map((s) => s.code)).toEqual([
+      "5116",
+      "5117",
+      "5118",
+      "5136",
+      "5137",
+      "5138",
+    ]);
+  });
+
+  it("lists every section once: groups by first section, no set times last", () => {
+    const base = tbaCourse(3, 6, 2);
+    const course = aCourse({
+      ...base,
+      sections: [
+        aSection({ code: "0001", instructors: [], meetings: [] }),
+        ...base.sections,
+        // 0901's time in another room: its own lecture, but the same time group.
+        aSection({
+          code: "0999",
+          instructors: [],
+          meetings: [
+            aTimedMeeting({
+              days: ["F"],
+              start: 480,
+              end: 530,
+              building: "KEY",
+              room: "0103",
+            }),
+          ],
+        }),
+      ],
+    });
+    const groups = groupSections(course);
+    expect(groups.map((g) => g.key)).toEqual([
+      "CHEM231|lecture|0101",
+      "CHEM231|lecture|0201",
+      "CHEM231|lecture|0301",
+      "CHEM231|time|F@480-530",
+      "CHEM231|time|F@540-590",
+      "CHEM231|time|none",
+    ]);
+    expect(groups[3]?.sections.map((s) => s.code)).toEqual(["0901", "0999"]);
+    expect(groups.flatMap((g) => g.sections).sort(byCode)).toEqual(
+      [...course.sections].sort(byCode),
+    );
+  });
+
+  it("keeps course details' instructor and time keys", () => {
+    const course = mockCourse("CMSC330");
+    expect(groupSections(course).map((g) => g.key)).toEqual(
+      groupSectionsByInstructor(course).map((g) =>
+        collapsedGroupKey(course.code, g),
+      ),
+    );
+    const engl = groupSections(mockCourse("ENGL101"));
+    expect(engl.every((g) => g.by === "time")).toBe(true);
+    expect(engl[0]?.key).toBe("ENGL101|time|MWF@480-530");
   });
 });

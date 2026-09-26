@@ -290,6 +290,47 @@ describe("Course details", () => {
       expect(screen.queryByTestId("your-section")).toBeNull();
     });
 
+    it("groups many TBA sections that share lectures by lecture", async () => {
+      await renderDetails("CHEM231");
+      const sections = screen.getByTestId("sections");
+      expect(sectionsBar()).toHaveTextContent(/\d+ of 25 fit/);
+      expect(
+        screen.getByText(
+          "Testudo hasn't named instructors for these sections yet.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        [...sections.querySelectorAll("[data-group]")].map((g) =>
+          g.getAttribute("data-group"),
+        ),
+      ).toEqual([
+        "CHEM231|lecture|5116",
+        "CHEM231|lecture|5322",
+        "CHEM231|lecture|5421",
+        "CHEM231|lecture|5511",
+        "CHEM231|time|M@1080-1250,W@1080-1130",
+      ]);
+      // The header says the lecture and where, once.
+      const header = screen.getByRole("button", {
+        name: /^TuTh 2–3:15pm lecture/,
+      });
+      expect(header).toHaveAttribute("aria-expanded", "true");
+      expect(header).toHaveTextContent("CHM 1407");
+      expect(within(sections).queryByText(/^All meet/)).toBeNull();
+      // Rows say their own discussion, in section order.
+      expect(row("5116")).toHaveTextContent(/^5116M 1–1:50pm/);
+      expect(row("5116")).not.toHaveTextContent("TuTh");
+      expect(rowCodes().slice(0, 7)).toEqual([
+        "5116",
+        "5117",
+        "5118",
+        "5136",
+        "5137",
+        "5138",
+        "5322",
+      ]);
+    });
+
     it("pins your section at the top", async () => {
       const { user } = await renderDetails("ENGL101");
       await user.click(screen.getByRole("button", { name: "Add to Plan A" }));

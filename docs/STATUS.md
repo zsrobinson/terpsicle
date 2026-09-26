@@ -18,7 +18,7 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 
 ## UX redesign (owner request, 2026-09-25)
 
-`docs/UX-PRINCIPLES.md` (research) and `docs/UX-REVIEW.md` (audit, plan, before/after). Owner decisions: course details is one page with no tabs (1A); many-section courses group by meeting time (2A); the sidebar is draggable, 320–480px. The design system is enforced by `src/app/design-tokens.test.ts` (type scale, 4px spacing, no raw colors). Rule added to DESIGN.md §5: design for 1, a few and many sections.
+`docs/UX-PRINCIPLES.md` (research) and `docs/UX-REVIEW.md` (audit, plan, before/after). Owner decisions: course details is one page with no tabs (1A); many-section courses group by meeting time (2A), or by lecture when their sections share lectures (CHEM231, refined 2026-09-26: UX-REVIEW decision 2); the sidebar is draggable, 320–480px. The design system is enforced by `src/app/design-tokens.test.ts` (type scale, 4px spacing, no raw colors). Rule added to DESIGN.md §5: design for 1, a few and many sections.
 
 ## In flight
 

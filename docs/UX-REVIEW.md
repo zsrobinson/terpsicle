@@ -88,6 +88,8 @@ The options as presented follow. There were only three, each with screenshots fr
 
 Grouping by time mirrors the calendar's merged ghosts ("0101–0105 · 5 sections" is one group), turns 92 rows into about 17 collapsible groups, and each row then shows only the room. Flat is simpler and fine with "Only fits" on.
 
+**Refined 2026-09-26: shared lectures group by lecture.** Time groups need sections that are each their own class. CHEM231 (Spring 2027: 25 sections, all TBA) has four big lectures that six sections each share, and each section adds its own discussion. No two sections meet at exactly the same times, so time grouping gave 25 groups of one. Now, when a many-section, one-group course has 2 or more lectures that 2 or more sections share (with set times), it groups by lecture: the header says the lecture ("TuTh 2–3:15pm lecture") with its room muted beside it ("CHM 1407"), and the rows under it are its sections in section order, each showing its own discussion or lab ("M 1–1:50pm"). A section that shares no lecture (CHEM231's SIE section) gets a time group as before, and sections with no set times still go last. ENGL101's independent sections still group by time. The rule is `sectionGrouping` and `groupSections` in `src/core/catalog/section-groups.ts`; Chat's room list uses the same groups. On the real Spring 2027 catalog it changes CHEM231 and CHEM272 only.
+
 **Decision 3: sidebar width** (§3.6). *Recommend 400px at ≥1280px wide, 360px below.* **Decided: draggable, 320–480px.**
 
 | 360px (now) | 440px |
@@ -334,7 +336,7 @@ The primary task is to **pick a section of this course that fits, from an instru
 
 | | 1 section (SOCY411, CMSC401) | A few, 2–20 (CMSC351, CMSC330, STAT400, MATH140) | Many, over 20 (ENGL101 92; MATH/CMSC intro in fall) |
 |---|---|---|---|
-| Sections area | **"One section 0101"** block: Meets / Taught by (★, GPA, Reviews) / Fit / Seats / Note, as a definition list. No group, no row button (the header's Add already adds it). | Instructor groups, regular two-line rows, shared-lecture lines. | Instructor groups when there are 2 or more instructors. With one group (all TBA), see Decision 2: group **by meeting time** (recommended) or a flat list. One-line compact rows: code, when, short fit, seats, action. |
+| Sections area | **"One section 0101"** block: Meets / Taught by (★, GPA, Reviews) / Fit / Seats / Note, as a definition list. No group, no row button (the header's Add already adds it). | Instructor groups, regular two-line rows, shared-lecture lines. | Instructor groups when there are 2 or more instructors. With one group (all TBA), see Decision 2: group **by meeting time** (recommended) or a flat list; **by lecture** when sections share 2+ lectures (CHEM231, refined 2026-09-26). One-line compact rows: code, when, short fit, seats, action. |
 | "Only fits" | Hidden | From 9 sections | Shown |
 | Plan's own section | It's the block | In place (`bg-accent-soft`) | **Pinned** under the Sections bar ("Your section"), and in place |
 | Ghosts on the calendar | One ghost | Every section | Merged by time (existing), capped at 12; the rest listed |

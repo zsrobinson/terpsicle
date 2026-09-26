@@ -150,6 +150,18 @@ test.describe("desktop", () => {
     await expect(sections).toContainText("TuTh 12:30–1:45pm ESJ 1309");
     await expect(sections.getByRole("button", { name: "Add" })).toHaveCount(0);
 
+    // Many TBA sections that share lectures: grouped by lecture, rows by discussion.
+    await page.keyboard.press("/");
+    await searchBox(page).fill("chem 231");
+    await page.locator('[data-course-result="CHEM231"]').click();
+    await expect(
+      sections.getByRole("button", { name: /^TuTh 2–3:15pm lecture/ }),
+    ).toBeVisible();
+    await expect(sections.locator('[data-section="5116"]')).toContainText(
+      "M 1–1:50pm",
+    );
+    await expect(sections.getByText(/^All meet/)).toHaveCount(0);
+
     await page.keyboard.press("/");
     await searchBox(page).fill("engl 101");
     await page.locator('[data-course-result="ENGL101"]').click();

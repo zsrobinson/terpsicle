@@ -1,13 +1,11 @@
 import type { CatalogIndex } from "../catalog/catalog-index";
 import { sameMeeting } from "../catalog/plan-diff";
 import {
-  collapsedGroupKey,
-  groupSectionsByInstructor,
-  groupSectionsByTime,
-  type InstructorGroup,
+  groupSections,
   lectureKey,
   type SectionCountSize,
   sectionCountSize,
+  sharedLectures,
   sharedMeetings,
 } from "../catalog/section-groups";
 import {
@@ -46,9 +44,10 @@ import {
 // 3. lecture rooms sit between them only when a lecture is shared by 2+
 //    sections and the course has 2+ lectures (one shared lecture: the course
 //    room is the lecture room);
-// 4. the list groups rooms like course details: by instructor in section
-//    order, or by meeting time when one group would hold every section of a
-//    many-section course.
+// 4. the list groups rooms like course details (`groupSections`): by
+//    instructor in section order; or, when one group would hold every
+//    section of a many-section course, by shared lecture (CHEM231), or by
+//    meeting time when the sections share none (ENGL101).
 
 export type Room = {
   readonly id: RoomId;
@@ -79,14 +78,14 @@ export type RoomNode = {
 
 /** A list heading (not a room), as course details groups sections. */
 export type RoomGroup = {
-  /** Course details' group key: `CMSC131|Pedram Sadeghian`, `ENGL101|time|<signature>`, `ENGL101|time|none`. */
+  /** Course details' group key: `CMSC131|Pedram Sadeghian`, `CHEM231|lecture|5116`, `ENGL101|time|<signature>`, `ENGL101|time|none`. */
   readonly key: string;
-  readonly by: "instructor" | "time";
-  /** "Pedram Sadeghian", "Instructor TBA", "MWF 10am", "No set times". */
+  readonly by: "instructor" | "lecture" | "time";
+  /** "Pedram Sadeghian", "Instructor TBA", "TuTh 2pm lecture", "MWF 10am", "No set times". */
   readonly title: string;
   /** "2 lectures · 10 sections", "MWF 10am lecture · 4 sections", "6 sections". */
   readonly summary: string;
-  /** The group's instructors; empty for TBA and for time groups. */
+  /** The group's instructors; empty for TBA and for lecture and time groups. */
   readonly instructors: readonly InstructorName[];
   /**
    * In section order of each row's first section. A lecture shared across
@@ -116,20 +115,6 @@ export type RoomTree = {
 const isLectureLike = (m: Meeting) =>
   m.kind !== "discussion" && m.kind !== "lab";
 
-/**
- * Many sections that would all land in one instructor group group by meeting
- * time instead, like course details (ENGL101: 92 sections, all TBA).
- */
-export function groupsRoomsByTime(
-  course: Course,
-  byInstructor: readonly InstructorGroup[] = groupSectionsByInstructor(course),
-): boolean {
-  return (
-    sectionCountSize(course.sections.length) === "many" &&
-    byInstructor.length === 1
-  );
-}
-
 type Lecture = {
   readonly room: Room;
   readonly shared: readonly Meeting[];
@@ -142,23 +127,13 @@ function lectures(
   course: Course,
   order: readonly SectionCode[],
 ): Map<SectionCode, Lecture> {
-  const byKey = new Map<string, Section[]>();
-  for (const section of course.sections) {
-    const key = lectureKey(section);
-    const list = byKey.get(key);
-    if (list) list.push(section);
-    else byKey.set(key, [section]);
-  }
   const bySection = new Map<SectionCode, Lecture>();
   // One lecture for the whole course: the course room is the lecture room.
-  if (byKey.size < 2) return bySection;
-  for (const sections of byKey.values()) {
+  if (new Set(course.sections.map(lectureKey)).size < 2) return bySection;
+  for (const sections of sharedLectures(course)) {
     const [first] = sections;
-    if (!first || sections.length < 2) continue;
+    if (!first) continue;
     const meetings = first.meetings.filter(isLectureLike);
-    // Async online sections share an "untimed online" key, and sections with
-    // only discussions share "": neither is a lecture anyone attends together.
-    if (!meetings.some((m) => m.timed)) continue;
     const codes = sections.map((s) => s.code);
     const who = instructorsWords(commonInstructors(sections));
     const when = `${startWords(meetings, { kinds: false })} lecture`;
@@ -321,64 +296,55 @@ function build(termId: TermId, course: Course): RoomTree {
     const nodes = nodesFor(members, roomOf, lectureOf, listed);
     return {
       ...g,
-      summary: groupSummary(nodes, members.length, lectureOf),
+      // A lecture group's heading already names the lecture.
+      summary:
+        g.by === "lecture"
+          ? countWords(members.length, "section")
+          : groupSummary(nodes, members.length, lectureOf),
       nodes,
     };
   };
 
-  const byInstructor = groupSectionsByInstructor(course);
-  const groups: RoomGroup[] = [];
-  if (groupsRoomsByTime(course, byInstructor)) {
-    for (const t of groupSectionsByTime(course)) {
-      const first = t.sections[0];
-      groups.push(
-        group(
-          {
-            key: `${course.code}|time|${t.signature}`,
-            by: "time",
-            title: first
+  const groups = groupSections(course).map((g): RoomGroup => {
+    if (g.by === "instructor")
+      return group(
+        {
+          key: g.key,
+          by: "instructor",
+          title: g.name || "Instructor TBA",
+          instructors: g.instructors,
+        },
+        g.sections,
+      );
+    const first = g.sections[0];
+    if (g.by === "lecture")
+      return group(
+        {
+          key: g.key,
+          by: "lecture",
+          title: (first && lectureOf.get(first.code)?.when) ?? "",
+          instructors: [],
+        },
+        g.sections,
+      );
+    return group(
+      {
+        key: g.key,
+        by: "time",
+        title:
+          g.signature === ""
+            ? "No set times"
+            : first
               ? startWords(
                   first.meetings.filter((m) => m.timed),
-                  {
-                    kinds: false,
-                  },
+                  { kinds: false },
                 )
               : "",
-            instructors: [],
-          },
-          t.sections,
-        ),
-      );
-    }
-    const untimed = course.sections.filter(
-      (s) => !s.meetings.some((m) => m.timed),
+        instructors: [],
+      },
+      g.sections,
     );
-    if (untimed.length > 0)
-      groups.push(
-        group(
-          {
-            key: `${course.code}|time|none`,
-            by: "time",
-            title: "No set times",
-            instructors: [],
-          },
-          untimed,
-        ),
-      );
-  } else {
-    for (const g of byInstructor)
-      groups.push(
-        group(
-          {
-            key: collapsedGroupKey(course.code, g),
-            by: "instructor",
-            title: g.name || "Instructor TBA",
-            instructors: g.instructors,
-          },
-          g.sections,
-        ),
-      );
-  }
+  });
 
   const rooms: Room[] = [courseRoom];
   for (const g of groups)

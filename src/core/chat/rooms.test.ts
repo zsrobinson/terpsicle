@@ -8,10 +8,15 @@ import {
   aSection,
   aTimedMeeting,
   fixtureTermId,
+  mockCourse,
   mockCourses,
 } from "~/fixtures";
 import { buildCatalogIndex } from "../catalog/catalog-index";
-import { MANY_SECTIONS } from "../catalog/section-groups";
+import {
+  groupSections,
+  MANY_SECTIONS,
+  sectionGrouping,
+} from "../catalog/section-groups";
 import {
   type Course,
   type Day,
@@ -22,7 +27,6 @@ import {
   type Section,
 } from "../schema";
 import {
-  groupsRoomsByTime,
   myRooms,
   type Room,
   type RoomTree,
@@ -32,7 +36,8 @@ import {
 
 // The Chat canvas's four example courses, built from fixtures: one section
 // (SOCY411), a few with separate lectures (CMSC351), lectures with
-// discussions (CMSC131) and many TBA sections (ENGL101).
+// discussions (CMSC131) and many TBA sections (ENGL101). Plus the mock
+// catalog's CHEM231: many TBA sections that share lectures.
 
 const TERM = "202608";
 const MWF: Day[] = ["M", "W", "F"];
@@ -304,6 +309,38 @@ describe("roomsForCourse: the canvas's four courses", () => {
     });
     await expect(outline(tree)).toMatchFileSnapshot("__fixtures__/engl101.txt");
   });
+
+  it("groups many TBA sections by the lecture they share (CHEM231)", async () => {
+    const chem231 = mockCourse("CHEM231");
+    const tree = roomsForCourse(TERM, chem231);
+    expect(tree.size).toBe("many");
+    expect(tree.course.detail).toBe("25 sections · 4 lectures");
+    expect(tree.groups.map((g) => [g.by, g.title, g.summary])).toEqual([
+      ["lecture", "TuTh 2pm lecture", "6 sections"],
+      ["lecture", "MWF 10am lecture", "6 sections"],
+      ["lecture", "MWF 1pm lecture", "6 sections"],
+      ["lecture", "TuTh 8am lecture", "6 sections"],
+      // The SIE section shares no lecture: a time group of its own.
+      ["time", "M 6pm and W 6pm", "1 section"],
+    ]);
+    // Under each lecture, its sections in section order, by their discussion.
+    const [first] = tree.groups;
+    expect(first?.nodes).toHaveLength(1);
+    expect(first?.nodes[0]?.room.label).toBe("TuTh 2pm lecture");
+    expect(first?.nodes[0]?.children.map((r) => r.label)).toEqual([
+      "5116 · M 1pm discussion",
+      "5117 · M 2pm discussion",
+      "5118 · M 3pm discussion",
+      "5136 · W 1pm discussion",
+      "5137 · W 2pm discussion",
+      "5138 · W 3pm discussion",
+    ]);
+    // The same groups as course details, key for key.
+    expect(tree.groups.map((g) => g.key)).toEqual(
+      groupSections(chem231).map((g) => g.key),
+    );
+    await expect(outline(tree)).toMatchFileSnapshot("__fixtures__/chem231.txt");
+  });
 });
 
 describe("roomsForCourse: edge cases", () => {
@@ -418,13 +455,13 @@ describe("roomsForCourse: edge cases", () => {
         ),
       ),
     });
-    expect(groupsRoomsByTime(course)).toBe(false);
+    expect(sectionGrouping(course)).toBe("instructor");
     expect(roomsForCourse(TERM, course).groups.map((g) => g.by)).toEqual([
       "instructor",
       "instructor",
     ]);
-    expect(groupsRoomsByTime(engl101)).toBe(true);
-    expect(groupsRoomsByTime(cmsc131)).toBe(false);
+    expect(sectionGrouping(engl101)).toBe("time");
+    expect(sectionGrouping(cmsc131)).toBe("instructor");
   });
 });
 

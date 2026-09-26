@@ -1,6 +1,7 @@
 // Courses the recon didn't capture (their departments' pages weren't saved),
 // taken from the prototype (reference/prototype/src/data.ts): real UMD codes,
-// titles, gen-eds and buildings, with invented instructors. The sections are
+// titles, gen-eds and buildings, with invented instructors. CHEM231 is the
+// exception: its sections are live Spring 2027 data (instructors all TBA). The sections are
 // arranged so the demo plans show the states the UI must handle; see plans.ts.
 import type { Course, Section, TimedMeeting } from "~/core/schema";
 import {
@@ -35,6 +36,60 @@ function sections(...list: Section[]): Section[] {
   return list;
 }
 
+/**
+ * CHEM231 as Spring 2027 lists it: 25 sections, instructors all TBA, four
+ * big lectures that six sections each share, and one SIE section of its own.
+ * Many sections sharing lectures (course details groups them by lecture).
+ */
+function chem231(): Section[] {
+  const tuth2 = lec(["Tu", "Th"], t(14), t(15, 15), "CHM", "1407");
+  const mwf10 = lec(["M", "W", "F"], t(10), t(10, 50), "CHM", "1407");
+  const mwf1 = lec(["M", "W", "F"], t(13), t(13, 50), "CHM", "1407");
+  const tuth8 = lec(["Tu", "Th"], t(8), t(9, 15), "CHM", "1407");
+  const rows: [string, TimedMeeting, TimedMeeting][] = [
+    ["5116", tuth2, dis(["M"], t(13), t(13, 50), "CHM", "1224")],
+    ["5117", tuth2, dis(["M"], t(14), t(14, 50), "CHM", "1224")],
+    ["5118", tuth2, dis(["M"], t(15), t(15, 50), "CHM", "1228")],
+    ["5136", tuth2, dis(["W"], t(13), t(13, 50), "CHM", "1224")],
+    ["5137", tuth2, dis(["W"], t(14), t(14, 50), "CHM", "1224")],
+    ["5138", tuth2, dis(["W"], t(15), t(15, 50), "CHM", "1228")],
+    ["5322", mwf10, dis(["Tu"], t(12, 30), t(13, 20), "PHY", "2122")],
+    ["5325", mwf10, dis(["Tu"], t(14), t(14, 50), "PHY", "2122")],
+    ["5328", mwf10, dis(["Tu"], t(15, 30), t(16, 20), "PHY", "2122")],
+    ["5342", mwf10, dis(["Th"], t(12, 30), t(13, 20), "CHE", "2118")],
+    ["5345", mwf10, dis(["Th"], t(14), t(14, 50), "PHY", "2122")],
+    ["5348", mwf10, dis(["Th"], t(15, 30), t(16, 20), "PHY", "2122")],
+    ["5421", mwf1, dis(["Tu"], t(12, 30), t(13, 20), "CHM", "1224")],
+    ["5427", mwf1, dis(["Tu"], t(14), t(14, 50), "CHM", "1224")],
+    ["5428", mwf1, dis(["Tu"], t(15, 30), t(16, 20), "CHM", "1224")],
+    ["5441", mwf1, dis(["Th"], t(12, 30), t(13, 20), "CHM", "1224")],
+    ["5447", mwf1, dis(["Th"], t(14), t(14, 50), "CHM", "1224")],
+    ["5448", mwf1, dis(["Th"], t(15, 30), t(16, 20), "CHM", "1224")],
+    ["5511", tuth8, dis(["M"], t(8), t(8, 50), "CHM", "1224")],
+    ["5512", tuth8, dis(["M"], t(9), t(9, 50), "CHM", "1224")],
+    ["5513", tuth8, dis(["M"], t(10), t(10, 50), "CHM", "1224")],
+    ["5531", tuth8, dis(["W"], t(8), t(8, 50), "CHM", "1224")],
+    ["5532", tuth8, dis(["W"], t(9), t(9, 50), "CHM", "1224")],
+    ["5533", tuth8, dis(["W"], t(10), t(10, 50), "CHM", "1224")],
+  ];
+  return [
+    ...rows.map(([code, lecture, discussion]) =>
+      aSection({ code, instructors: [], meetings: [lecture, discussion] }),
+    ),
+    aSection({
+      code: "SES1",
+      instructors: [],
+      meetings: [
+        lec(["M"], t(18), t(20, 50), "CHE", "2108"),
+        dis(["W"], t(18), t(18, 50), "CHE", "2108"),
+      ],
+      notes:
+        "Restricted to students in the SIE Program. Click here for more information.",
+      restriction: "Restricted to students in the SIE Program.",
+    }),
+  ];
+}
+
 const noText = {
   prerequisite: null,
   corequisite: null,
@@ -64,6 +119,23 @@ export const handCourses: Record<string, { name: string; courses: Course[] }> =
               meetings: [lec(["Tu", "Th"], t(11), t(12, 15), "ASY", "2309")],
             }),
           ),
+        }),
+      ],
+    },
+    CHEM: {
+      name: "Chemistry",
+      courses: [
+        aCourse({
+          ...noText,
+          code: "CHEM231",
+          title: "Organic Chemistry I",
+          gradingMethods: ["Reg", "P-F", "Aud"],
+          prerequisite:
+            "CHEM131, CHEM135, or CHEM146; and (CHEM132, CHEM136, CHEM147, or CHEM177).",
+          corequisite: "CHEM232.",
+          description:
+            "The chemistry of carbon: aliphatic compounds, aromatic compounds, stereochemistry, arenes, halides, alcohols, esters and spectroscopy.",
+          sections: chem231(),
         }),
       ],
     },

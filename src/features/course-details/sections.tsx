@@ -6,12 +6,12 @@ import { TEXT, TONE_TEXT } from "~/app/emphasis";
 import { MessageText } from "~/app/message-text";
 import { EmptyState, GroupHeader, ListRow, SectionHeader } from "~/app/panel";
 import {
-  collapsedGroupKey,
   factorMeetings,
-  groupSectionsByInstructor,
-  groupSectionsByTime,
+  groupSections,
   ONLY_FITS_FROM,
   type SectionCountSize,
+  type SectionListGroup,
+  sameMeeting,
   sectionCountSize,
 } from "~/core/catalog";
 import {
@@ -69,8 +69,10 @@ import {
 // Sections (SPEC §3.4, UX review §3.4–3.5), shaped by how many there are:
 // one reads as "this is the class"; a few get full rows grouped by
 // instructor; many get one-line rows, "Only fits", and the plan's own
-// section pinned. In every group, meetings all its sections share are said
-// once ("All meet TuTh 9:30–10:45am IRB 0324") and rows show what differs.
+// section pinned; when one instructor group would hold them all, they group
+// by shared lecture or by meeting time instead (`groupSections`). In every
+// group, meetings all its sections share are said once ("All meet TuTh
+// 9:30–10:45am IRB 0324") and rows show what differs.
 // Rows preview on the calendar when hovered; ↑/↓/↵ there move the same
 // highlight. Section order never changes.
 
@@ -303,8 +305,15 @@ type GroupView = {
   /** The instructor behind "Reviews", when the group is one person. */
   instructor: string | null;
   sections: readonly Section[];
-  /** The header says when: rows say only where. */
-  whereOnly: boolean;
+  /**
+   * What rows say: `factored`, their meetings after their run's shared line
+   * ("All meet …"); `where`, only where, since a time group's header says
+   * when; `after`, what they have beyond the lecture the header names.
+   */
+  rows:
+    | { kind: "factored" }
+    | { kind: "where" }
+    | { kind: "after"; lecture: readonly Meeting[] };
 };
 
 function SectionList({
@@ -324,30 +333,15 @@ function SectionList({
   const visible = (s: Section) => !onlyFits || s.code === placedCode || fits(s);
   const placed = course.sections.find((s) => s.code === placedCode);
 
-  const byInstructor = groupSectionsByInstructor(course);
   // One group of everything (ENGL101: 92 sections, all TBA) groups nothing:
-  // many of them group by meeting time instead, like the calendar's ghosts.
-  const byTime = many && byInstructor.length === 1;
-  const groups: GroupView[] = byTime
-    ? timeGroups(course, course.sections.filter(visible))
-    : byInstructor.map((g) => ({
-        key: collapsedGroupKey(course.code, g),
-        title: g.name || "Instructor TBA",
-        meta: (
-          <InstructorMeta
-            name={g.instructors.length === 1 ? g.name : ""}
-            course={course}
-            planetTerp={planetTerp}
-          />
-        ),
-        toggleLabel: g.name ? `${g.name}'s sections` : "the TBA sections",
-        instructor:
-          g.instructors.length === 1 ? (g.instructors[0] ?? null) : null,
-        sections: g.sections.filter(visible),
-        whereOnly: false,
-      }));
-  const shown = groups.filter((g) => g.sections.length > 0);
-  const tba = byInstructor[0];
+  // many of them group by lecture or meeting time instead, under a note
+  // that says who teaches.
+  const grouped = groupSections(course);
+  const note =
+    grouped[0]?.by === "instructor" ? null : (course.sections[0] ?? null);
+  const shown = grouped
+    .map((g) => groupView(course, g, g.sections.filter(visible), planetTerp))
+    .filter((g) => g.sections.length > 0);
 
   return (
     <section aria-label="Sections" data-testid="sections">
@@ -407,7 +401,9 @@ function SectionList({
           />
         </ul>
       ) : null}
-      {byTime && tba ? <GroupNote {...props} name={tba.name} /> : null}
+      {note ? (
+        <GroupNote {...props} name={note.instructors.join(", ")} />
+      ) : null}
       {shown.length === 0 ? (
         <EmptyState
           action={
@@ -473,33 +469,68 @@ function SectionList({
   );
 }
 
-/** Many sections, one instructor group: groups of sections that meet at the same times. */
-function timeGroups(course: Course, sections: readonly Section[]): GroupView[] {
-  const timed = groupSectionsByTime({ ...course, sections: [...sections] });
-  const views: GroupView[] = timed.map((g) => {
-    const when = g.sections[0]
-      ? compactMeetingWords(g.sections[0].meetings)
-      : "";
-    return {
-      key: `${course.code}|time|${g.signature}`,
-      title: <span className="tnum">{when}</span>,
-      toggleLabel: `the sections at ${when}`,
-      instructor: null,
-      sections: g.sections,
-      whereOnly: true,
-    };
-  });
-  const untimed = sections.filter((s) => !s.meetings.some((m) => m.timed));
-  if (untimed.length > 0)
-    views.push({
-      key: `${course.code}|time|none`,
-      title: "No set times",
-      toggleLabel: "the sections with no set times",
-      instructor: null,
-      sections: untimed,
-      whereOnly: false,
-    });
-  return views;
+/** A core group, as a header and rows; `sections` are the ones "Only fits" leaves. */
+function groupView(
+  course: Course,
+  g: SectionListGroup,
+  sections: readonly Section[],
+  planetTerp: PlanetTerpDept | null,
+): GroupView {
+  switch (g.by) {
+    case "instructor":
+      return {
+        key: g.key,
+        title: g.name || "Instructor TBA",
+        meta: (
+          <InstructorMeta
+            name={g.instructors.length === 1 ? g.name : ""}
+            course={course}
+            planetTerp={planetTerp}
+          />
+        ),
+        toggleLabel: g.name ? `${g.name}'s sections` : "the TBA sections",
+        instructor:
+          g.instructors.length === 1 ? (g.instructors[0] ?? null) : null,
+        sections,
+        rows: { kind: "factored" },
+      };
+    case "lecture": {
+      // Many sections, a few big lectures (CHEM231): the header says the
+      // lecture and where once, and rows say their own discussion or lab.
+      const when = `${compactMeetingWords(g.lecture)} lecture`;
+      return {
+        key: g.key,
+        title: <span className="tnum">{when}</span>,
+        meta: meetingPlaces(g.lecture),
+        toggleLabel: `the sections in the ${when}`,
+        instructor: null,
+        sections,
+        rows: { kind: "after", lecture: g.lecture },
+      };
+    }
+    case "time": {
+      if (g.signature === "")
+        return {
+          key: g.key,
+          title: "No set times",
+          toggleLabel: "the sections with no set times",
+          instructor: null,
+          sections,
+          rows: { kind: "factored" },
+        };
+      const when = g.sections[0]
+        ? compactMeetingWords(g.sections[0].meetings)
+        : "";
+      return {
+        key: g.key,
+        title: <span className="tnum">{when}</span>,
+        toggleLabel: `the sections at ${when}`,
+        instructor: null,
+        sections,
+        rows: { kind: "where" },
+      };
+    }
+  }
 }
 
 /** The one line that replaces a header-less group: who teaches, or that nobody's named yet. */
@@ -565,7 +596,8 @@ function GroupRows({
 }: SectionsProps & { group: GroupView; compact: boolean }) {
   // Lists, so a screen reader says how many sections a group has and can
   // skip past it.
-  if (group.whereOnly)
+  const { rows } = group;
+  if (rows.kind !== "factored")
     return (
       <ul>
         {group.sections.map((s) => (
@@ -573,10 +605,16 @@ function GroupRows({
             key={s.code}
             {...props}
             section={s}
-            rest={s.meetings}
-            underShared={false}
+            rest={
+              rows.kind === "after"
+                ? s.meetings.filter(
+                    (m) => !rows.lecture.some((l) => sameMeeting(l, m)),
+                  )
+                : s.meetings
+            }
+            underShared={rows.kind === "after"}
             compact={compact}
-            whereOnly
+            whereOnly={rows.kind === "where"}
           />
         ))}
       </ul>
@@ -615,9 +653,9 @@ function SharedLine({ meetings }: { meetings: readonly Meeting[] }) {
   );
 }
 
-/** Where, for a row under a time group's header: rooms, or "Online". */
-function placeWords(section: Section): string {
-  const places = section.meetings.map((m) =>
+/** Where: rooms, or "Online". For rows under a time group's header, and a lecture group's header. */
+function meetingPlaces(meetings: readonly Meeting[]): string {
+  const places = meetings.map((m) =>
     m.online
       ? "Online"
       : [m.building, m.room].filter(Boolean).join(" ") || "Room TBA",
@@ -679,7 +717,7 @@ const SectionRow = memo(function SectionRow({
   const delivery = deliveryWords(section.delivery);
   const dates = section.dates ? formatDateSpan(section.dates) : null;
   const when = whereOnly
-    ? placeWords(section)
+    ? meetingPlaces(section.meetings)
     : restMeetingWords(rest, { underShared, compact });
   const full = [
     sectionMeetingWords(section),

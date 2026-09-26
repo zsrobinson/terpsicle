@@ -1,0 +1,36 @@
+CHEM231 · everyone  —  25 sections · 4 lectures  [202608:CHEM231]
+  Everyone in CHEM231 this term
+# TuTh 2pm lecture · 6 sections  {CHEM231|lecture|5116}
+  TuTh 2pm lecture  —  CHM 1407 · 5116–5138  [202608:CHEM231:L:5116]
+    5116 · M 1pm discussion  —  CHM 1224  [202608:CHEM231:5116]
+    5117 · M 2pm discussion  —  CHM 1224  [202608:CHEM231:5117]
+    5118 · M 3pm discussion  —  CHM 1228  [202608:CHEM231:5118]
+    5136 · W 1pm discussion  —  CHM 1224  [202608:CHEM231:5136]
+    5137 · W 2pm discussion  —  CHM 1224  [202608:CHEM231:5137]
+    5138 · W 3pm discussion  —  CHM 1228  [202608:CHEM231:5138]
+# MWF 10am lecture · 6 sections  {CHEM231|lecture|5322}
+  MWF 10am lecture  —  CHM 1407 · 5322–5348  [202608:CHEM231:L:5322]
+    5322 · Tu 12:30pm discussion  —  PHY 2122  [202608:CHEM231:5322]
+    5325 · Tu 2pm discussion  —  PHY 2122  [202608:CHEM231:5325]
+    5328 · Tu 3:30pm discussion  —  PHY 2122  [202608:CHEM231:5328]
+    5342 · Th 12:30pm discussion  —  CHE 2118  [202608:CHEM231:5342]
+    5345 · Th 2pm discussion  —  PHY 2122  [202608:CHEM231:5345]
+    5348 · Th 3:30pm discussion  —  PHY 2122  [202608:CHEM231:5348]
+# MWF 1pm lecture · 6 sections  {CHEM231|lecture|5421}
+  MWF 1pm lecture  —  CHM 1407 · 5421–5448  [202608:CHEM231:L:5421]
+    5421 · Tu 12:30pm discussion  —  CHM 1224  [202608:CHEM231:5421]
+    5427 · Tu 2pm discussion  —  CHM 1224  [202608:CHEM231:5427]
+    5428 · Tu 3:30pm discussion  —  CHM 1224  [202608:CHEM231:5428]
+    5441 · Th 12:30pm discussion  —  CHM 1224  [202608:CHEM231:5441]
+    5447 · Th 2pm discussion  —  CHM 1224  [202608:CHEM231:5447]
+    5448 · Th 3:30pm discussion  —  CHM 1224  [202608:CHEM231:5448]
+# TuTh 8am lecture · 6 sections  {CHEM231|lecture|5511}
+  TuTh 8am lecture  —  CHM 1407 · 5511–5533  [202608:CHEM231:L:5511]
+    5511 · M 8am discussion  —  CHM 1224  [202608:CHEM231:5511]
+    5512 · M 9am discussion  —  CHM 1224  [202608:CHEM231:5512]
+    5513 · M 10am discussion  —  CHM 1224  [202608:CHEM231:5513]
+    5531 · W 8am discussion  —  CHM 1224  [202608:CHEM231:5531]
+    5532 · W 9am discussion  —  CHM 1224  [202608:CHEM231:5532]
+    5533 · W 10am discussion  —  CHM 1224  [202608:CHEM231:5533]
+# M 6pm and W 6pm · 1 section  {CHEM231|time|M@1080-1250,W@1080-1130}
+  SES1 · M 6pm and W 6pm discussion  —  CHE 2108  [202608:CHEM231:SES1]

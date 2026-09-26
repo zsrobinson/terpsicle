@@ -26,7 +26,7 @@ Don't hand-roll these objects in tests (CLAUDE.md).
   - Summer 2026: CMSC;
   - 71 buildings, the off-campus codes, and every UMD GIS distance and route polyline the recon captured.
   - **Instructor names are invented.** The derivation swaps each real name for one from a fixed pool, because the mock pairs them with invented ratings and reviews.
-- **Hand-made** (`mock/hand-courses.ts`): the prototype's STAT400, ENGL393, ECON200, MUSC130, PHIL140, PSYC100, ARTH200 and MATH240, for departments the recon didn't save.
+- **Hand-made** (`mock/hand-courses.ts`): the prototype's STAT400, ENGL393, ECON200, MUSC130, PHIL140, PSYC100, ARTH200 and MATH240, for departments the recon didn't save. Plus CHEM231 as Spring 2027 lists it (25 TBA sections sharing four lectures), for course details' lecture grouping.
 - **Generated:**
   - open seats, seeded by section key, keeping Testudo's real totals and waitlist/holdfile shape; `PINNED_SEATS` fixes the demo's seat states;
   - PlanetTerp ratings and grade distributions (CMSC351's course totals are the real sums);
