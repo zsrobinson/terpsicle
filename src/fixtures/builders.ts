@@ -35,13 +35,16 @@ import {
   type Instructor,
   type Manifest,
   type ManifestDepartment,
+  type MyReview,
   type Plan,
   type PlanCourse,
   type PlanetTerpDept,
+  type PlanetTerpManifest,
   type PlanetTerpSource,
   type PlanSyncDoc,
   PROBLEM_SEVERITY,
   type Problem,
+  type PublicReview,
   type Review,
   type ReviewSubmitInput,
   type ReviewSummary,
@@ -533,6 +536,20 @@ export function aPlanetTerpDept(
   };
 }
 
+/** PlanetTerp's manifest, listing CMSC at FIXTURE_HASH. */
+export function aPlanetTerpManifest(
+  overrides: Partial<PlanetTerpManifest> = {},
+): PlanetTerpManifest {
+  return {
+    schemaVersion: 1,
+    generatedAt: FIXTURE_NOW,
+    gradesThrough: "202501",
+    departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
+    source: aPlanetTerpSource(),
+    ...overrides,
+  };
+}
+
 export function aPlanetTerpSource(
   overrides: Partial<PlanetTerpSource> = {},
 ): PlanetTerpSource {
@@ -799,6 +816,45 @@ export function aReviewSubmitInput(
     rating: 4,
     grade: "A-",
     body: "Lectures were clear and the problem sets matched the exams. Office hours were worth it.",
+    ...overrides,
+  };
+}
+
+/** A published review as readers get it from reviews/list: no author, month only. */
+export function aPublicReview(
+  overrides: Partial<PublicReview> = {},
+): PublicReview {
+  return {
+    id: "rvPublicReview00000001",
+    course: "CMSC351",
+    termId: "202601",
+    rating: 4,
+    grade: "A-",
+    body: "Lectures were clear and the problem sets matched the exams. Office hours were worth it.",
+    createdMonth: "2026-10",
+    edited: false,
+    ...overrides,
+  };
+}
+
+/** One of your own reviews as reviews/mine returns it: posted, nothing waiting. */
+export function aMyReview(overrides: Partial<MyReview> = {}): MyReview {
+  return {
+    id: "rvPublicReview00000001",
+    instructorId: "brandt",
+    instructorName: "Ada Brandt",
+    reviewedName: "Ada Brandt",
+    course: "CMSC351",
+    termId: "202601",
+    rating: 4,
+    grade: "A-",
+    body: "Lectures were clear and the problem sets matched the exams. Office hours were worth it.",
+    status: "published",
+    reason: null,
+    pendingEdit: null,
+    createdAt: "2026-10-02T14:00:00.000Z",
+    publishedAt: "2026-10-02T14:00:04.000Z",
+    editedAt: null,
     ...overrides,
   };
 }

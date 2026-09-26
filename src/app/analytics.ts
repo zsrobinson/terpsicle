@@ -4,12 +4,14 @@ import type { PostHog } from "posthog-js";
 import type {
   ConnectionVerdict,
   ExtraMinutes,
+  ModerationKind,
   Pace,
   ProblemFix,
   ProblemKind,
   RailTab,
   RankBy,
   Relaxable,
+  ReportReason,
   SignInError,
   TermId,
   TermStatus,
@@ -91,11 +93,18 @@ export interface AnalyticsEvents {
   connection_opened: { verdict: ConnectionVerdict };
   route_map_shown: { mode: TravelMode; hasGeometry: boolean };
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
-  signin_started: { from: "topbar" | "settings" | "signin-page" | "undo" };
+  signin_started: {
+    from: "topbar" | "settings" | "signin-page" | "undo" | "reviews";
+  };
   signin_completed: { firstOnDevice: boolean };
   signin_failed: { reason: SignInError };
   signed_out: { removedLocal: boolean };
   account_deletion_requested: NoProperties;
+  // Reviews (V2.md §11). Never a review, instructor or course on writing events.
+  reviews_page_viewed: { page: "home" | "instructor" | "course" };
+  review_form_opened: NoProperties;
+  review_submitted: { outcome: "published" | "held" | "rejected" };
+  report_created: { surface: ModerationKind; reason: ReportReason };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

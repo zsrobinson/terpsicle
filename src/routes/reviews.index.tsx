@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ComingSoonPage } from "~/features/site/site-page";
+import { ReviewsHomePage } from "~/features/reviews/home-page";
 
-// Terpsicle Reviews: a stub until the reviews track fills it in.
+// Terpsicle Reviews (V2.md §1.1): find a course, or one of your classes.
 export const Route = createFileRoute("/reviews/")({
-  head: () => ({ meta: [{ title: "Reviews · Terpsicle" }] }),
-  component: ReviewsPage,
+  head: () => ({
+    meta: [
+      { title: "Reviews · Terpsicle" },
+      {
+        name: "description",
+        content: "What students say about UMD courses and instructors.",
+      },
+    ],
+  }),
+  component: ReviewsHomePage,
 });
-
-function ReviewsPage() {
-  return (
-    <ComingSoonPage title="Terpsicle Reviews">
-      Read and write reviews of UMD courses and instructors.
-    </ComingSoonPage>
-  );
-}

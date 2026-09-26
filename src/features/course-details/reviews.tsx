@@ -10,10 +10,12 @@ import {
 } from "~/core/grades";
 import {
   type Course,
+  type CourseCode,
   type Instructor,
   type PlanetTerpDept,
   planetTerpUrl,
 } from "~/core/schema";
+import { useAccount } from "~/features/auth/account-store";
 import { deptOf } from "~/state/catalog-store";
 import { usePlanetTerpStatus } from "~/state/data-hooks";
 import { Skeleton } from "~/ui/skeleton";
@@ -190,13 +192,13 @@ export function InstructorReviews({
           <div className="mt-2 text-xs text-faint">
             Summary of {review.summary.basedOnReviewCount} PlanetTerp review
             {review.summary.basedOnReviewCount === 1 ? "" : "s"} ·{" "}
-            <ReadThem slug={pt.slug} />
+            <ReadThem slug={pt.slug} course={course.code} />
           </div>
         </div>
       ) : pt.reviewCount > 0 ? (
         <div className="mt-1 text-xs text-faint">
           {pt.reviewCount} review{pt.reviewCount === 1 ? "" : "s"} on PlanetTerp
-          · <ReadThem slug={pt.slug} />
+          · <ReadThem slug={pt.slug} course={course.code} />
         </div>
       ) : null}
       {freshness && !loading ? (
@@ -208,7 +210,24 @@ export function InstructorReviews({
   );
 }
 
-function ReadThem({ slug }: { slug: string }) {
+/**
+ * Where full reviews live: Terpsicle Reviews once it's open here (V2 §7.1),
+ * else PlanetTerp. A plain link, like the product menu's: none of Reviews'
+ * code loads with the scheduler.
+ */
+function ReadThem({ slug, course }: { slug: string; course: CourseCode }) {
+  const reviews = useAccount((s) => s.flags.reviews);
+  if (reviews !== "off")
+    return (
+      <WithTooltip label="All reviews and grades for this instructor">
+        <a
+          href={`/reviews/instructors/${encodeURIComponent(slug)}?course=${course}`}
+          className="underline underline-offset-2 hover:text-fg"
+        >
+          Read reviews
+        </a>
+      </WithTooltip>
+    );
   return (
     <WithTooltip label="Open on PlanetTerp">
       <a

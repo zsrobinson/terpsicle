@@ -155,15 +155,25 @@ export interface DataSourceConfig {
 
 /**
  * Mock mode reads the fixtures' mock bucket, imported only here and only in
- * mock mode so production bundles never include it.
+ * mock (and test) builds. Production builds drop the import, so no chunk of
+ * theirs can reach the fixtures: this module is shared with pages that load
+ * without the scheduler (Reviews), and a reachable fixtures chunk would
+ * split the scheduler's own modules out of its chunk.
  */
 export async function createDataSource(
   config: DataSourceConfig,
 ): Promise<DataSource> {
   if (config.dataSource === "live")
     return createFetchDataSource(config.dataBaseUrl);
-  const { mockDataSource } = await import("~/fixtures");
-  return createBucketDataSource(mockDataSource);
+  if (import.meta.env.MODE === "mock" || import.meta.env.MODE === "test") {
+    const { mockDataSource } = await import("~/fixtures");
+    return createBucketDataSource(mockDataSource);
+  }
+  throw new DataError(
+    "",
+    "missing",
+    "Mock data is only in mock builds (pnpm dev:mock)",
+  );
 }
 
 /**

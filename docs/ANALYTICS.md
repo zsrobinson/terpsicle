@@ -53,11 +53,15 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
   | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
 
-  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. |
+  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `reviews` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `reviews`: from writing or reporting a review. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option gets used (always `false` until plan sync). |
   | `account_deletion_requested` | | How often people delete their account. |
+  | `reviews_page_viewed` | `page`: `home` · `instructor` · `course` | Which Reviews pages people read. Never which instructor or course. |
+  | `review_form_opened` | | How often people start a review. |
+  | `review_submitted` | `outcome`: `published` · `held` · `rejected` | How many new reviews post on their own, and how many wait for a person (V2.md §9.2's under-5% target). Never the review, instructor or course. |
+  | `report_created` | `surface`, `reason` | How often readers report, and why. Never what they reported. |
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
