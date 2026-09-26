@@ -89,6 +89,7 @@ In order (`scripts/mobile-lab/scenarios.ts`). Each starts with a fresh load.
 | `tabs` | Tap each drawer tab, then the open one again (which lowers the drawer). |
 | `grabber-drag` | Drag the grabber peek → half → full → peek; the frame trace shows whether the drawer followed the finger. |
 | `pull-lists` | Pull down on the search results at their top at full, half and peek, then on the Courses panel at half. On Android this is where pull-to-refresh would fire. |
+| `scroll-list-back` | Scroll the search results down, then drag them back up: the list scrolls and the drawer stays at full. |
 | `calendar-pull` | Scroll the calendar, then pull down twice at its top. |
 | `rotate` | Landscape (where half is full) and back. |
 | `url-bar` | Scroll the calendar and a list up and down, logging whether the browser's toolbar hides (`innerHeight` and the page's origin change). |
