@@ -12,7 +12,12 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { useAccount } from "./account-store";
 
-export type SignInFrom = "topbar" | "settings" | "signin-page" | "undo";
+export type SignInFrom =
+  | "topbar"
+  | "settings"
+  | "signin-page"
+  | "undo"
+  | "reviews";
 
 /** Where a sign-in should come back to: this page. */
 export function currentPath(): string {
