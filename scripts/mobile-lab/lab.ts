@@ -226,7 +226,11 @@ export class Lab {
           ),
         );
       step.keyboard = await this.device.keyboardShown();
-      const probe = await this.device.evaluate<Probe>(PROBE);
+      const probe = await this.device.evaluate<Probe | null>(PROBE);
+      if (!probe || typeof probe.innerHeight !== "number")
+        throw new Error(
+          `the page didn't answer the probe: ${JSON.stringify(probe)?.slice(0, 200)}`,
+        );
       step.probe = probe;
       const ctx: StepContext = {
         timeOrigin: this.timeOrigin,

@@ -98,7 +98,7 @@ function glance(step: Step): string[] {
           : ""),
     );
   if (p.panel?.heading) lines.push(`panel "${p.panel.heading}"`);
-  const notable = p.events.filter((e) =>
+  const notable = (p.events ?? []).filter((e) =>
     [
       "resize",
       "vv-resize",

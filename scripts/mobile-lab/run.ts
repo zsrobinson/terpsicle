@@ -100,7 +100,14 @@ const run: RunResult = {
 function save(): void {
   run.ms = Date.now() - started;
   writeFileSync(path.join(out, "summary.json"), JSON.stringify(run, null, 1));
-  writeFileSync(path.join(out, "README.md"), markdown(run));
+  try {
+    writeFileSync(path.join(out, "README.md"), markdown(run));
+  } catch (error) {
+    writeFileSync(
+      path.join(out, "README.md"),
+      `# Mobile lab: ${engine}\n\nThe report failed to render (${error}); summary.json has the run.\n`,
+    );
+  }
   // Three lines for the mobile-runs index (publish.sh).
   const t = tally(run.scenarios);
   writeFileSync(
