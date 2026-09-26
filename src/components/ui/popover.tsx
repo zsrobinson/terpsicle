@@ -43,7 +43,7 @@ function PopoverContent({
         // Keeps popovers off the screen's edge on phones.
         collisionPadding={collisionPadding}
         className={cn(
-          "z-50 rounded-lg border border-hairline bg-raised p-3 text-fg shadow-pop outline-none",
+          "z-50 border border-keyline bg-raised p-3 text-fg shadow-pop outline-none",
           "origin-(--radix-popover-content-transform-origin) data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=open]:animate-in data-[state=open]:duration-150",
           className,
         )}

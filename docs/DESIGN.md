@@ -134,7 +134,7 @@ Use these when the spec is silent:
 - **Clarity over cleverness.** "One place they should go to look for specific pieces of information." If a thing could live in two places, it lives in one.
 - **Don't yell.** Problems are information, not alarms. No banners, no red outlines on choices a person is still weighing, no confirmation dialogs (use undo). The one exception is unsubscribing from seat alerts.
 - **People arrive cold, a few times a semester.** Text labels on navigation, a numbered first-visit guide, tooltips everywhere, and shortcuts as a bonus rather than a requirement.
-- **Dense and precise, like Linear or Vercel.** Compact type, hairline borders, a black/white accent, and Geist. Motion is quick and quiet. A left rail with a boxed active state risks looking "like Slack", so keep it restrained.
+- **Dense and precise, like Linear or Vercel.** Compact type, hairline rules inside panels, an ink accent, square corners. Motion is quick and quiet. A left rail with a boxed active state risks looking "like Slack", so keep it restrained. The brand (§7) dresses this density; it never loosens it.
 - **One system, not per-panel taste.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, color tokens only, and the shared panel pieces in `src/app/panel.tsx` (`docs/UX-REVIEW.md` §2). `src/app/design-tokens.test.ts` holds the line.
 - **Design for 1, a few, and many sections.** Upper-level courses often have one section; intro courses have dozens. Every section-bearing surface (course details, search results, calendar ghosts, generate results) must be great at both extremes. In the owner's words: "my socy4xx classes all are just one section, but the intro CS and math courses have like a billion sections. our UI should be great in both scenarios."
 - **Don't prefill or over-model.** Blocks are just labeled time. Don't add fields people didn't ask for.
@@ -143,7 +143,7 @@ Use these when the spec is silent:
 - **Returning people land straight in the app.** A marketing page at `/` greets first visits only; anyone with saved plans or a session goes to `/schedule` (`docs/V2.md` §2).
 - **Nothing to babysit.** Terms, buildings and routes are discovered from the data. A new semester needs no code change.
 - **Make each feature excellent rather than adding more.** The owner cut finals, compare, image export and NL input to keep what remains excellent.
-- **v2 note: a brand refresh is pending the owner's sign-off.** The direction is "Bulletin" paper (square corners, small offset shadows), the Flexoki palette and Bricolage Grotesque. Until the owner agrees final tokens, keep today's tokens and Geist; build new UI with tokens only, so the switch is one change. Where `docs/V2.md` differs from this list (seat alerts without the confirmation), V2.md wins.
+- **Ink, quietly.** The brand (§7) is paper, black ink and hard offsets. Keylines and offsets mark what you can press or what floats above the page; rows, lists and headers stay hairline-quiet. Product color is a tint, never an alarm. Where `docs/V2.md` differs from this list (seat alerts without the confirmation), V2.md wins.
 
 ---
 
@@ -154,3 +154,71 @@ Use these when the spec is silent:
 - One package at the repo root with unified TypeScript tooling (no monorepo).
 - New repo, MIT license, at `terpsicle.com`; the old app stays at `bitcamp.terpsicle.com`.
 - Build autonomously with an orchestrator agent managing subagents, rather than a big issue map.
+
+---
+
+## 7. The brand: Ink (owner, 2026-09-26)
+
+The v2 brand came from a prototype track: a "Bulletin" paper round, then six variations of a risograph ("Riso") direction, then an icons-only round. The owner chose the first Riso variation, **Ink**, with paper grain, and the **Pixel star** icons: "after we lock this in, we can implement the design." On buttons: "i really like the effect we have going in the design guide for buttons." The tokens live in `src/styles.css`; `src/app/design-tokens.test.ts` checks their contrast and spacing.
+
+### 7.1 Palette
+
+[Flexoki](https://stephango.com/flexoki) (MIT, Steph Ango): paper, black ink and warm grays.
+
+| Token | Light | Dark |
+|---|---|---|
+| `bg`, `raised` | paper `#FFFCF0` | black `#100F0F`; raised base-950 |
+| `panel` | base-50 | base-950 |
+| `hover` | base-100 | base-900 |
+| `hairline` / `hairline-strong` | base-200 / base-300 | base-850 / base-700 |
+| `keyline` (ink line) | black | base-300 |
+| `fg` | black | paper |
+| `muted` | base-700 | base-300 |
+| `faint` | `#605F5C`, between base-600 and 700 (Ink's base-600 is 4.0:1 on `hover`) | base-400 |
+| `accent` | black | paper |
+| `accent-soft` (the selected row) | `#E0DED3`, between base-100 and 150 | `#2E2D2B`, between base-900 and 850 |
+| `ok` / `warn` / `error` | green-700 / yellow-800 / red-600, on their 50 steps | green-300 / yellow-300 / red-300, on their 900 steps |
+
+- **Product colors:** Terpsicle (the scheduler) red, Reviews purple, Chat blue. `bg-product-<id>` is the 600 step in both themes, `text-product-<id>-fg` paper on it, and `bg-product-<id>-soft` the 50 step (dark: 900).
+- **Where product color goes (Ink: "tint only"):** the marks and the product menu. It is never a button, a heading or a border.
+- **The selected row is neutral,** a half-step past `hover`, so the current item reads stronger than a hovered one. Ink tinted it with the scheduler's soft red, which is also the error fill, and selection must never read as an error.
+- **Course colors** are Flexoki too: fill 100 (dark 900), border and dot 400, text 900 (dark 150). The text is a step darker than Ink's 700/800 because a block's time and room lines are drawn at 70–80% opacity and must still clear 4.5:1. Flexoki has eight hues and red means an error here, so three of the ten course ids are oklab midpoints of neighbors, in Flexoki's widest hue gaps: green (green + cyan), cyan (cyan + blue) and indigo (blue + purple). The ten sit at least 22° apart, and every line of block text clears 4.5:1, placed, ghosted or dimmed.
+
+### 7.2 Type
+
+- **Bricolage Grotesque** for everything but codes, self-hosted (`@fontsource-variable/bricolage-grotesque`, its optical-size cut). The browser picks the optical size from the font size, so 11px rows get the open text drawing and the wordmark the tight display one. Ink sets it at 13px in dense rows too; it held up in the scheduler's lists, so there is no second text face.
+- **Geist Mono** for codes (course, section, building, gen-ed), as before (UX-REVIEW §2.7).
+- The UX-REVIEW §2.1 scale and density are unchanged. Weights: 400 body, 500 labels, 600 titles, codes and buttons. 700 only in the wordmark.
+- **The wordmark:** lowercase "terpsicle", Bricolage 700 at optical size 96, 17px, tracking -0.02em (the `wordmark` utility).
+
+### 7.3 Shape and elevation
+
+- **Square corners** everywhere: every `rounded-*` step is 0. `rounded-full` stays for things that are round by meaning (the course dot, the switch knob).
+- **Offsets, never blur:** a hard copy of the box, 2px down and right (`shadow-offset`); 3px for menus, popovers and toasts (`shadow-pop`). Tailwind's `shadow-xs`…`2xl` map onto these, so nothing is soft.
+- **Keylines:** menus, popovers, toasts and cards get a 1px ink line (`border-keyline`). Panels, rows and headers keep hairlines.
+- **A black box never gets a black offset** (owner), **and in dark, a light box never gets a light offset.** The ink-filled button's offset is gray (base-500) in light, and every dark offset is base-700.
+- **Buttons** (`src/components/ui/button.tsx`): filled and outline buttons carry the offset. Outline is paper with an ink border. Hover changes the fill only. Pressing moves the button into its shadow (it shifts by the offset, and the shadow goes). Focus is a 2px ink ring, 2px out. Disabled buttons lose the offset and fade. Ghost and link buttons stay flat, so a row of icon buttons isn't a row of boxes.
+- **The phone drawer** has an ink top edge and a 2px offset above it.
+
+### 7.4 Grain
+
+Ink's "subtle" paper grain: a 220px fractal-noise tile, dark specks at 28% on paper, light specks at 20% on ink. It sits on a fixed layer behind the shell's content: it shows on the page's paper and never under text, and anything with its own fill (panels, menus, blocks) stays clean. It's off under `prefers-reduced-transparency`, `prefers-contrast: more`, forced colors and print. On a phone (390×844, 4× CPU throttle) it adds no paint or raster work while scrolling, and the median frame time is unchanged.
+
+### 7.5 Marks
+
+Four marks on an 18-unit grid (`src/app/brand/marks.ts`): the **umbrella** (Terpsicle, the family), **Schedule**, **Reviews** and **Chat**.
+- Each has a primary shape at 100% and a secondary at 70%, and fills the 12-unit live area. At 16px the 70% shape goes solid.
+- Schedule is two courses side by side, stepped in time. Reviews is a pixel star with a small sparkle. Chat is a bubble with a stepped tail and a reply.
+- **Tiles:** a product's tile is its 600 step with a paper glyph and no keyline. The umbrella is the scheduler's glyph on a neutral tile: paper with an ink keyline (dark: base-900 with a base-300 keyline and a base-600 offset). It is never a black box on a black offset.
+- The drawings are data. The owner may refine them: replace the shapes in `GLYPHS`, then run `pnpm tsx scripts/build-icons.ts`, which redraws the favicon (SVG, following the browser's theme, plus a 32px PNG), the 180px home-screen icon and the 192, 512 and maskable 512 app icons in `public/icons/`. A test fails when those files are stale.
+
+### 7.6 The product menu
+
+The umbrella and the wordmark, top left, open the product menu (`src/app/product-menu.tsx`, docs/V2.md §1.1): Schedule, Reviews and Chat, each with its mark and a one-line description.
+- The product you're in wears its soft color and a check. There are no paths, counts or badges: nothing here pulls you into another product.
+- Links between products say what you'll see: "View schedule", "View reviews", "View chat".
+
+### 7.7 Credits
+
+- Colors: [Flexoki](https://stephango.com/flexoki) by Steph Ango, MIT License.
+- Type: Bricolage Grotesque (The Bricolage Grotesque Project Authors) and Geist Mono (Vercel), both SIL Open Font License 1.1, self-hosted from Fontsource.
