@@ -172,6 +172,7 @@ beforeEach(async () => {
       "sessions",
       "moderation_decisions",
       "moderation_queue",
+      "reports",
       "users",
     ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
   );
@@ -1348,6 +1349,139 @@ describe("chat_members", () => {
 });
 
 // ---------- chat/* routes ----------
+
+describe("reports", () => {
+  const report = (
+    who: Person,
+    ref: string,
+    reason = "off-topic",
+    level: "on" | "off" = "on",
+  ) =>
+    who.api(
+      "reports/create",
+      { surface: "chat", ref, reason, note: null },
+      level,
+    );
+
+  it("queues a reported message for the owner, without its author", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "selling my old textbook");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    const ref = chatTargetId(TERM, COURSE, id);
+
+    expect(await (await report(classmate, ref)).json()).toEqual({
+      status: "reported",
+    });
+    // Asking again changes nothing; your own message isn't yours to report.
+    expect(await (await report(classmate, ref)).json()).toEqual({
+      status: "reported",
+    });
+    expect(await (await report(student, ref)).json()).toEqual({
+      status: "own",
+    });
+    const queued = await env.DB.prepare(
+      "SELECT surface, ref, snapshot, status FROM moderation_queue",
+    ).all<{ surface: string; ref: string; snapshot: string; status: string }>();
+    expect(queued.results).toMatchObject([
+      { surface: "chat", ref, status: "open" },
+    ]);
+    const snapshot = queued.results[0]?.snapshot ?? "";
+    expect(JSON.parse(snapshot)).toMatchObject({
+      text: "selling my old textbook",
+      course: COURSE,
+    });
+    expect(snapshot).not.toContain("tstudent");
+    expect(snapshot).not.toContain("Test Student");
+    // One report of this kind doesn't take it down.
+    expect(
+      (await a.client.history(courseRoom)).messages[0]?.moderation,
+    ).toEqual({ state: "visible" });
+  });
+
+  it("takes a message down on a threat report, until the owner decides", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const b = await classmate.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "meet me after class");
+    const id = ack.message?.id ?? "";
+    await b.client.next("message", (f) => f.message.id === id);
+    const ref = chatTargetId(TERM, COURSE, id);
+
+    expect(await (await report(classmate, ref, "threat")).json()).toEqual({
+      status: "reported",
+    });
+    expect(
+      await a.client.next(
+        "moderation",
+        (f) => f.id === id && f.moderation.state === "held",
+      ),
+    ).toMatchObject({ moderation: { state: "held", reason: "reported" } });
+    expect(await b.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      { moderation: { state: "removed" } },
+    );
+    expect((await b.client.history(courseRoom)).messages).toEqual([]);
+    expect(
+      await env.DB.prepare(
+        "SELECT verdict FROM moderation_decisions WHERE ref = ?1",
+      )
+        .bind(ref)
+        .all(),
+    ).toMatchObject({ results: [{ verdict: "hide" }] });
+    // Still reportable while it's down (it may be on someone's screen).
+    const admin = await signIn("tadmin");
+    await admin.push([
+      aPlan({
+        id: "plan_admin_1",
+        courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0102" })],
+      }),
+    ]);
+    expect(await (await report(admin, ref)).json()).toEqual({
+      status: "reported",
+    });
+
+    // The owner approves: classmates see it again.
+    await moderationHandlers(env).chat?.(ref, "publish", decided());
+    expect(
+      (await b.client.next("message", (f) => f.message.id === id)).message.text,
+    ).toBe("meet me after class");
+  });
+
+  it("finds only messages the reporter could be reading", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom, room0101]);
+    const inSection = await a.client.sendText(room0101, "0101 folks, hi");
+    const held = await a.client.sendText(courseRoom, "psst [hold]");
+    await a.client.next("moderation", (f) => f.id === inSection.message?.id);
+    await a.client.next("moderation", (f) => f.id === held.message?.id);
+    // tclassmate is in 0201: 0101's room isn't theirs, and held text is hidden.
+    for (const id of [
+      inSection.message?.id,
+      held.message?.id,
+      "nosuchmessage1",
+    ])
+      expect(
+        await (
+          await report(classmate, chatTargetId(TERM, COURSE, id ?? ""))
+        ).json(),
+      ).toEqual({ status: "not-found" });
+    expect(await (await report(classmate, "202701:CMSC351")).json()).toEqual({
+      status: "not-found",
+    });
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS n FROM reports").first("n"),
+    ).toBe(0);
+  });
+
+  it("follow Chat's switch, not Reviews'", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "quiz tomorrow?");
+    const ref = chatTargetId(TERM, COURSE, ack.message?.id ?? "");
+    expect((await report(classmate, ref, "other", "off")).status).toBe(503);
+  });
+});
 
 describe("chat routes", () => {
   it("follow, unfollow and mute", async () => {

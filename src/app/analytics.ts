@@ -115,8 +115,9 @@ export interface AnalyticsEvents {
       | "settings"
       | "signin-page"
       | "undo"
-      | "todo"
       | "reviews"
+      | "chat"
+      | "todo"
       | "seat-watch";
   };
   signin_completed: { firstOnDevice: boolean };

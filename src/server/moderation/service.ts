@@ -27,6 +27,7 @@ import {
   type ModerationHandlers,
   moderationHandlers,
 } from "./handlers";
+import { moderationModels } from "./offline-models";
 import {
   autoVerdict,
   blankOldSnapshots,
@@ -50,6 +51,9 @@ export interface ModerationEnv extends ModerationHandlerEnv {
   MODERATION_DAILY_CAP?: string;
   /** Optional JSON overrides for models and thresholds (ModerationConfigOverridesSchema). */
   MODERATION_CONFIG?: string;
+  /** "true" in `pnpm dev:mock` only: offline stand-ins for the models (./offline-models). */
+  MODERATION_OFFLINE?: string;
+  AUTH_TEST_MODE?: string;
 }
 
 /** V2 §13. Every attempt counts, hedges and retries included. */
@@ -85,7 +89,7 @@ function classifier(env: ModerationEnv, deps: ModerationDeps) {
   const config = deps.config ?? resolveConfig(env.MODERATION_CONFIG);
   return (input: ModerationInput) =>
     classify(input, {
-      ai: env.AI,
+      ai: moderationModels(env, input.kind),
       config,
       budget: async () =>
         (await hit(env.DB, CAP_COUNTER, CAP_WINDOW, deps.now)) <= cap,
