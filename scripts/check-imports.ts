@@ -3,7 +3,9 @@
 // - a relative import must stay inside its top-level src folder, so every
 //   cross-folder import is a `~/` alias, which biome.jsonc checks per folder;
 // - nothing imports from reference/ (CLAUDE.md);
-// - src/core never reads the clock: time comes in as an argument (CLAUDE.md).
+// - src/core never reads the clock: time comes in as an argument (CLAUDE.md);
+// - only src/server/todo/crypto.ts and fetch.ts touch the sealed ELMS feed
+//   link: its `url_enc` column and `openFeedLink` (docs/V3.md §5.1).
 import path from "node:path";
 import {
   isMain,
@@ -19,6 +21,12 @@ const CODE = /\.(ts|tsx)$/;
 // `from "x"`, `import "x"`, `import("x")`, `export … from "x"`.
 const SPECIFIER = /(?:\bfrom|\bimport)\s*\(?\s*["']([^"'\n]+)["']/g;
 const CLOCK = /\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\)/g;
+const FEED_LINK = /\burl_enc\b|\bopenFeedLink\b/g;
+/** The files that may read, write or open the sealed feed link. */
+export const FEED_LINK_FILES: readonly string[] = [
+  "src/server/todo/crypto.ts",
+  "src/server/todo/fetch.ts",
+];
 
 /** `core`, `app`, … or `(root)` for files directly in src/. */
 export function topFolder(absPath: string): string | null {
@@ -71,6 +79,14 @@ export function findImportProblems(rel: string, text: string): string[] {
       if (isCommented(text, match.index)) continue;
       problems.push(
         `${at(match.index)}  "${match[0]}": src/core takes the time as an argument, never reads the clock`,
+      );
+    }
+  }
+  if (!FEED_LINK_FILES.includes(rel) && !isTestFile(rel)) {
+    for (const match of text.matchAll(FEED_LINK)) {
+      if (isCommented(text, match.index)) continue;
+      problems.push(
+        `${at(match.index)}  "${match[0]}": only ${FEED_LINK_FILES.join(" and ")} may touch the sealed feed link (docs/V3.md §5.1)`,
       );
     }
   }

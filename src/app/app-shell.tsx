@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCatalogPolling } from "~/state/data-hooks";
@@ -12,7 +12,9 @@ import { track } from "./analytics";
 import { CalendarRegion } from "./calendar/calendar-region";
 import { CatalogError, useCatalogFailure } from "./catalog-error";
 import { useDocumentTitle } from "./document-title";
-import { MobileDrawer, PEEK_HEIGHT } from "./mobile-drawer";
+import { PEEK_HEIGHT } from "./drawer-heights";
+import { lazyModule, lazyPanel } from "./lazy-panel";
+import { PanelLoadBoundary } from "./panel-load-boundary";
 import { PlanTabs } from "./plan-tabs";
 import { Rail } from "./rail";
 import { FeatureEffects } from "./registry";
@@ -30,7 +32,14 @@ import { TermSwitcher } from "./term-switcher";
 import { ThemeToggle } from "./theme-toggle";
 import { TopBar } from "./top-bar";
 import { UndoToasts } from "./undo-toasts";
-import { useIsMobile } from "./use-media-query";
+import { MOBILE_QUERY, useIsMobile } from "./use-media-query";
+
+// The phone drawer (vaul) is its own chunk: desktops never load it, and
+// phones start fetching it as this module runs, alongside the app's data.
+const drawer = lazyModule(() => import("./mobile-drawer"));
+if (typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches)
+  drawer.load().catch(() => {});
+const MobileDrawer = lazyPanel(drawer, (m) => m.MobileDrawer);
 
 // The layout in SPEC §2: top bar; rail, one sidebar panel and a calendar that
 // fills the rest. On phones, the same pieces with the sidebar in a bottom
@@ -81,7 +90,11 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
         >
           {calendar}
         </main>
-        <MobileDrawer />
+        <PanelLoadBoundary title="Sidebar">
+          <Suspense fallback={<DrawerPlaceholder />}>
+            <MobileDrawer />
+          </Suspense>
+        </PanelLoadBoundary>
         <UndoToasts />
         <FeatureEffects />
       </div>
@@ -114,6 +127,17 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
       <UndoToasts />
       <FeatureEffects />
     </div>
+  );
+}
+
+/** The drawer's resting edge while its code arrives, so nothing jumps. */
+function DrawerPlaceholder() {
+  return (
+    <div
+      aria-hidden="true"
+      className="fixed inset-x-0 bottom-0 z-40 border-keyline border-t bg-bg shadow-drawer"
+      style={{ height: PEEK_HEIGHT }}
+    />
   );
 }
 
