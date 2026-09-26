@@ -1,0 +1,868 @@
+[
+ {
+  "where": "202605 CMSC125",
+  "text": "Must have completed or be concurrently enrolled in MATH115 or higher.",
+  "groups": [
+   [
+    "MATH115"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202605 CMSC132",
+  "text": "Minimum grade of C- in CMSC131 or CMSC133; or must have earned a score of 5 on the A Java AP exam; or must have earned a satisfactory score on the departmental placement exam; and minimum grade of C- in MATH140.",
+  "groups": [
+   [
+    "CMSC131",
+    "CMSC133"
+   ],
+   [
+    "MATH140"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202605 CMSC216",
+  "text": "Minimum grade of C- in CMSC132; and minimum grade of C- in MATH141.",
+  "groups": [
+   [
+    "CMSC132"
+   ],
+   [
+    "MATH141"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202605 CMSC250",
+  "text": "Minimum grade of C- in CMSC131; and minimum grade of C- in MATH141.",
+  "groups": [
+   [
+    "CMSC131"
+   ],
+   [
+    "MATH141"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202605 CMSC320",
+  "text": "Minimum grade of C- in CMSC216 and CMSC250.",
+  "groups": [
+   [
+    "CMSC216"
+   ],
+   [
+    "CMSC250"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202605 CMSC330",
+  "text": "Minimum grade of C- in CMSC250 and CMSC216.",
+  "groups": [
+   [
+    "CMSC250"
+   ],
+   [
+    "CMSC216"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202605 CMSC420",
+  "text": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+  "groups": [
+   [
+    "CMSC351"
+   ],
+   [
+    "CMSC330"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202605 CMSC422",
+  "text": "Minimum grade of C- in CMSC320, CMSC330, and CMSC351; and 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290); and permission of CMNS-Computer Science department.",
+  "groups": [
+   [
+    "CMSC320"
+   ],
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ],
+   [
+    "MATH240",
+    "MATH341",
+    "MATH461",
+    "ENEE290"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202605 CMSC426",
+  "text": "Minimum grade of C- in CMSC330 and CMSC351 and 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290); or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program; or permission of the instructor.",
+  "groups": [
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ],
+   [
+    "MATH240",
+    "MATH341",
+    "MATH461",
+    "ENEE290"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202605 CMSC430",
+  "text": "Minimum grade of C- in CMSC330 and CMSC351; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+  "groups": [
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202605 CMSC433",
+  "text": "Minimum grade of C- in CMSC330; or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+  "groups": [
+   [
+    "CMSC330"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202605 CMSC456",
+  "text": "Permission of CMNS-Mathematics department.",
+  "groups": [],
+  "complete": false
+ },
+ {
+  "where": "202605 CMSC460",
+  "text": "1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290, MATH243); and 1 course with a minimum grade of C- from (MATH241, MATH340); and 1 course with a minimum grade of C- from (CMSC106, CMSC131); and 1 course with a minimum grade of C- from (MATH246, MATH341, ENEE290, MATH243).",
+  "groups": [
+   [
+    "MATH240",
+    "MATH341",
+    "MATH461",
+    "ENEE290",
+    "MATH243"
+   ],
+   [
+    "MATH241",
+    "MATH340"
+   ],
+   [
+    "CMSC106",
+    "CMSC131"
+   ],
+   [
+    "MATH246",
+    "MATH341",
+    "ENEE290",
+    "MATH243"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202608 HESI318R",
+  "text": "Permission of Instructor needed. Required course to become a Challenge C ourse facilitator with the RecWell Adventure Program. Contact Meghan Lou ghry at mloughry@umd.edu to schedule an interview.",
+  "groups": [],
+  "complete": false
+ },
+ {
+  "where": "202612 CMSC388A",
+  "text": "CMSC330.",
+  "groups": [
+   [
+    "CMSC330"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202612 CMSC398B",
+  "text": "CMSC216.",
+  "groups": [
+   [
+    "CMSC216"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202612 CMSC398C",
+  "text": "Minimum grade of C- in CMSC131 or permission of instructor; and permission of CMNS-Computer Science department.",
+  "groups": [
+   [
+    "CMSC131"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202612 CMSC398O",
+  "text": "Minimum grade of C- in CMSC132. Intermediate Python programming experience and basic familiarity with general APIs and Large Language Models (LLMs) is required. Please contact the instructor if you have any questions about whether you meet these prerequisites.",
+  "groups": [
+   [
+    "CMSC132"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202612 CMSC488A",
+  "text": "basic calculus and linear algebra.",
+  "groups": [],
+  "complete": false
+ },
+ {
+  "where": "202701 AAAS400",
+  "text": "AAAS202 or AAAS100.",
+  "groups": [
+   [
+    "AAAS202",
+    "AAAS100"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 ANTH310",
+  "text": "ANTH210.",
+  "groups": [
+   [
+    "ANTH210"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 ANTH360",
+  "text": "ANTH260.",
+  "groups": [
+   [
+    "ANTH260"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 ANTH447",
+  "text": "ANTH240.",
+  "groups": [
+   [
+    "ANTH240"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 ANTH487",
+  "text": "ANTH486.",
+  "groups": [
+   [
+    "ANTH486"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 ANTH712",
+  "text": "ANTH789.",
+  "groups": [
+   [
+    "ANTH789"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 ANTH856",
+  "text": "AMST655, ANTH655, or HIST610.",
+  "groups": [
+   [
+    "AMST655",
+    "ANTH655",
+    "HIST610"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 ANTH857",
+  "text": "AMST856, ANTH856, or HIST810.",
+  "groups": [
+   [
+    "AMST856",
+    "ANTH856",
+    "HIST810"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 BUSI641",
+  "text": "BUSI640.",
+  "groups": [
+   [
+    "BUSI640"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 CMSC298C",
+  "text": "Minimum grade of C- in CMSC131, INST126 or equivalent",
+  "groups": [
+   [
+    "CMSC131",
+    "INST126"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC401",
+  "text": "GEOG276; or a minimum grade of C- in CMSC330 and CMSC351; or permission of instructor.",
+  "groups": [
+   [
+    "GEOG276",
+    "CMSC330"
+   ],
+   [
+    "GEOG276",
+    "CMSC351"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC412",
+  "text": "Minimum grade of C- in CMSC330 and CMSC351; and 1 course with a minimum grade of C- from (CMSC414, CMSC417, CMSC420, CMSC430, CMSC433, CMSC435, ENEE440, ENEE457).",
+  "groups": [
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ],
+   [
+    "CMSC414",
+    "CMSC417",
+    "CMSC420",
+    "CMSC430",
+    "CMSC433",
+    "CMSC435",
+    "ENEE440",
+    "ENEE457"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 CMSC414",
+  "text": "Minimum grade of C- in CMSC330 and CMSC351; or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+  "groups": [
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC416",
+  "text": "Minimum grade of C- in CMSC330 and CMSC351; or permission of instructor.",
+  "groups": [
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC423",
+  "text": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department.",
+  "groups": [
+   [
+    "CMSC351"
+   ],
+   [
+    "CMSC330"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC425",
+  "text": "Minimum grade of C- in CMSC330 and CMSC351.",
+  "groups": [
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 CMSC427",
+  "text": "Minimum grade of C- in CMSC330 and CMSC351; 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290).",
+  "groups": [
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ],
+   [
+    "MATH240",
+    "MATH341",
+    "MATH461",
+    "ENEE290"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 CMSC435",
+  "text": "1 course with a minimum grade of C- from (CMSC412, CMSC417, CMSC420, CMSC430, CMSC433, ENEE447); and permission of CMNS-Computer Science department.",
+  "groups": [
+   [
+    "CMSC412",
+    "CMSC417",
+    "CMSC420",
+    "CMSC430",
+    "CMSC433",
+    "ENEE447"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC437",
+  "text": "Minimum grade of C- in CMSC457 or PHYS467; and familiarity with basic programming, languages (e.g., Python).",
+  "groups": [
+   [
+    "CMSC457",
+    "PHYS467"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC451",
+  "text": "Minimum grade of C- in CMSC351; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+  "groups": [
+   [
+    "CMSC351"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC457",
+  "text": "1 course with a minimum grade of C- from (ENEE290, MATH240, MATH341, MATH461, MATH243); and 1 course with a minimum grade of C- from (CMSC351, PHYS313).",
+  "groups": [
+   [
+    "ENEE290",
+    "MATH240",
+    "MATH341",
+    "MATH461",
+    "MATH243"
+   ],
+   [
+    "CMSC351",
+    "PHYS313"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 CMSC466",
+  "text": "1 course with a minimum grade of C- from (CMSC106, CMSC131); and minimum grade of C- in MATH410.",
+  "groups": [
+   [
+    "CMSC106",
+    "CMSC131"
+   ],
+   [
+    "MATH410"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 CMSC475",
+  "text": "1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290, MATH243); and 1 course with a minimum grade of C- from (MATH241, MATH340); and 1 course with a minimum grade of C- from (MATH310, CMSC250).",
+  "groups": [
+   [
+    "MATH240",
+    "MATH341",
+    "MATH461",
+    "ENEE290",
+    "MATH243"
+   ],
+   [
+    "MATH241",
+    "MATH340"
+   ],
+   [
+    "MATH310",
+    "CMSC250"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 CMSC476",
+  "text": "Minimum grade of C- in CMSC421 or CMSC422; and/or permission of CMNS-Computer Science department; or must be in the Computer Science graduate program.",
+  "groups": [
+   [
+    "CMSC421",
+    "CMSC422"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC477",
+  "text": "1 course from (MATH240, MATH243, MATH341, MATH461, ENEE290); and (ENEE467 or CMSC420).",
+  "groups": [
+   [
+    "MATH240",
+    "MATH243",
+    "MATH341",
+    "MATH461",
+    "ENEE290"
+   ],
+   [
+    "ENEE467",
+    "CMSC420"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 CMSC498E",
+  "text": "Minimum grade C- in CMSC330 and CMSC351 and 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461); and permission of CMNS-Computer Science Department.",
+  "groups": [
+   [
+    "CMSC330"
+   ],
+   [
+    "CMSC351"
+   ],
+   [
+    "MATH240",
+    "MATH341",
+    "MATH461"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC498W",
+  "text": "Minimum grade of C- in CMSC351; and permission of CMNS-Computer Science Department.",
+  "groups": [
+   [
+    "CMSC351"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC498Y",
+  "text": "Minimum grade of C- in CMSC351 and minimum grade of C- in any STAT400-level course; or DATA400; or ENEE324.",
+  "groups": [
+   [
+    "CMSC351",
+    "DATA400",
+    "ENEE324"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC616",
+  "text": "CMSC411 and CMSC412; or permission of instructor.",
+  "groups": [
+   [
+    "CMSC411"
+   ],
+   [
+    "CMSC412"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC764",
+  "text": "MATH410 or equivalent; or permission of instructor.",
+  "groups": [
+   [
+    "MATH410"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 CMSC828C",
+  "text": "MATH461; or students who have taken courses with comparable content may contact the department; or permission of instructor.",
+  "groups": [
+   [
+    "MATH461"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL102",
+  "text": "GEOL120 or GEOL100; and GEOL110. Or permission of CMNS-Geology department.",
+  "groups": [
+   [
+    "GEOL120",
+    "GEOL100"
+   ],
+   [
+    "GEOL110"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL110",
+  "text": "Must have completed or be concurrently enrolled in GEOL120 or GEOL100.",
+  "groups": [
+   [
+    "GEOL120",
+    "GEOL100"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL322",
+  "text": "GEOL120 or GEOL100; and GEOL110. And (CHEM131 or CHEM135) and (CHEM132 or CHEM136).",
+  "groups": [
+   [
+    "GEOL120",
+    "GEOL100"
+   ],
+   [
+    "GEOL110"
+   ],
+   [
+    "CHEM131",
+    "CHEM135"
+   ],
+   [
+    "CHEM132",
+    "CHEM136"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 GEOL340",
+  "text": "GEOL120 or GEOL100.",
+  "groups": [
+   [
+    "GEOL120",
+    "GEOL100"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 GEOL393",
+  "text": "PHYS141 or PHYS161; and MATH141; and (CHEM131 or CHEM135) and (CHEM132 or CHEM136); and must have completed at least two upper-level geology courses and be concurrently enrolled in a third.",
+  "groups": [
+   [
+    "PHYS141",
+    "PHYS161"
+   ],
+   [
+    "MATH141"
+   ],
+   [
+    "CHEM131",
+    "CHEM135"
+   ],
+   [
+    "CHEM132",
+    "CHEM136"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL394",
+  "text": "GEOL393; and must have completed at least three upper level GEOL courses.",
+  "groups": [
+   [
+    "GEOL393"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL435",
+  "text": "MATH115 and (GEOL436 or GEOL444).",
+  "groups": [
+   [
+    "MATH115"
+   ],
+   [
+    "GEOL436",
+    "GEOL444"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 GEOL437",
+  "text": "MATH115 or MATH140; and (GEOL100 or GEOL120); and (CHEM131 or CHEM135); and (CHEM132 or CHEM136).",
+  "groups": [
+   [
+    "MATH115",
+    "MATH140"
+   ],
+   [
+    "GEOL100",
+    "GEOL120"
+   ],
+   [
+    "CHEM131",
+    "CHEM135"
+   ],
+   [
+    "CHEM132",
+    "CHEM136"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 GEOL443",
+  "text": "Must have completed or be concurrently enrolled in GEOL423.",
+  "groups": [
+   [
+    "GEOL423"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL445",
+  "text": "MATH115 and GEOL322.",
+  "groups": [
+   [
+    "MATH115"
+   ],
+   [
+    "GEOL322"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 GEOL447",
+  "text": "MATH141; and (PHYS141, PHYS161, or PHYS171).",
+  "groups": [
+   [
+    "MATH141"
+   ],
+   [
+    "PHYS141",
+    "PHYS161",
+    "PHYS171"
+   ]
+  ],
+  "complete": true
+ },
+ {
+  "where": "202701 GEOL457",
+  "text": "MATH141; and (GEOL120 or GEOL100); and GEOL110; or permission of CMNS-Geology department.",
+  "groups": [
+   [
+    "MATH141"
+   ],
+   [
+    "GEOL120",
+    "GEOL100"
+   ],
+   [
+    "GEOL110"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL497",
+  "text": "Must have completed at least 2 upper-level GEOL courses.",
+  "groups": [],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL615",
+  "text": "GEOL445; or permission of instructor.",
+  "groups": [
+   [
+    "GEOL445"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL680",
+  "text": "Permission of instructor.",
+  "groups": [],
+  "complete": false
+ },
+ {
+  "where": "202701 GEOL789M",
+  "text": "MATH240 or equivalent; or permission of CMNS-Geology department; Some experience in computer programming; Non-degree-seeking students require the permission of the instructor.",
+  "groups": [
+   [
+    "MATH240"
+   ]
+  ],
+  "complete": false
+ },
+ {
+  "where": "202701 IDEA498",
+  "text": "Previous design experience required; and must have Permission of Academy for Innovation & Entrepreneurship. Repeatable to 6 credits.",
+  "groups": [],
+  "complete": false
+ }
+]

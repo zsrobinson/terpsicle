@@ -273,7 +273,7 @@ export function MobileDrawer() {
           // the page over it; allow that back. (Safari may not know the
           // value and keep `none`.)
           style={{ touchAction: "pinch-zoom" }}
-          className="fixed inset-x-0 bottom-0 z-40 flex h-dvh flex-col rounded-t-xl border border-hairline border-b-0 bg-bg shadow-pop outline-none"
+          className="fixed inset-x-0 bottom-0 z-40 flex h-dvh flex-col border-keyline border-t bg-bg shadow-drawer outline-none"
         >
           <Drawer.Title className="sr-only">Sidebar</Drawer.Title>
           <div

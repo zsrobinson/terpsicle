@@ -29,12 +29,14 @@ export interface DataCache {
   /**
    * In one transaction: the files, then the pointer that lists them, then
    * drop this term's files the pointer no longer needs (DATA.md §5.1 step 4).
+   * A `termId` of null evicts the family's files that belong to no term
+   * (the course index).
    */
   commit(
     pointer: { key: string; data: unknown; checkedAt: string },
     files: readonly CacheFile[],
     evict: {
-      termId: TermId;
+      termId: TermId | null;
       family: SchemaFamily;
       keep: ReadonlySet<string>;
     } | null,
@@ -103,12 +105,16 @@ export function createDexieCache(
           });
           if (evict) {
             const keep = new Set([...evict.keep].map(k));
-            await db.files
-              .where("termId")
-              .equals(evict.termId)
+            // IndexedDB can't index null, so term-less files go by family.
+            const rows =
+              evict.termId === null
+                ? db.files.where("family").equals(evict.family)
+                : db.files.where("termId").equals(evict.termId);
+            await rows
               .filter(
                 (row) =>
                   row.family === evict.family &&
+                  row.termId === evict.termId &&
                   row.key.startsWith(namespace) &&
                   !keep.has(row.key),
               )

@@ -44,6 +44,9 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `catalog/<term>/dept/<DEPT>.<hash>.json` | `DeptChunkSchema` | catalog job, seats job on section changes | hashed |
 | `catalog/<term>/seats.<hash>.json` | `SeatsFileSchema` | seats job (5 min) | hashed |
 | `catalog/<term>/changes.<hash>.json` | `ChangesFileSchema` | seats job | hashed |
+| `courses/manifest.json` (v3) | `CourseIndexManifestSchema` | catalog job (6 h), when the index changed | fixed |
+| `courses/search.<hash>.json` (v3) | `CourseSearchFileSchema`: every course as `[code, title, creditsMin, creditsMax, genEdCodes]`, sorted by code | catalog job | hashed |
+| `courses/dept/<DEPT>.<hash>.json` (v3) | `CourseIndexDeptSchema`: per course the title, credits, GenEd groups, prerequisite, corequisite and restriction text, cross-listings, parsed prerequisites and the terms it was offered in (§3.4) | catalog job | hashed |
 | `planetterp/manifest.json` | `PlanetTerpManifestSchema` | PlanetTerp job (daily) | fixed |
 | `planetterp/dept/<DEPT>.<hash>.json` | `PlanetTerpDeptSchema` | PlanetTerp job | hashed |
 | `geo/manifest.json` | `GeoManifestSchema` | buildings job (weekly), routes script (weekly, GitHub Actions) | fixed |
@@ -66,7 +69,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 - A hashed key is never overwritten with different bytes.
 
 ### 2.3 Schema versions
-- `SCHEMA_VERSIONS` has one integer per family: `catalog`, `planetterp`, `geo`, `calendar`, `summaries`. Every JSON file has `schemaVersion: <literal>`. The routes binary has its own header version (`ROUTES_BINARY_VERSION`); share links have `v` (`SHARE_PAYLOAD_VERSION`).
+- `SCHEMA_VERSIONS` has one integer per family: `catalog`, `planetterp`, `geo`, `calendar`, `summaries`, and (v3) `courses`. Every JSON file has `schemaVersion: <literal>`. The routes binary has its own header version (`ROUTES_BINARY_VERSION`); share links have `v` (`SHARE_PAYLOAD_VERSION`).
 - **Readers strip unknown keys** (plain `z.object`). So adding an optional field is not a bump: older clients ignore it. Bump only for breaking changes: a field removed, renamed, retyped, made required, or its meaning changed.
 - Clients parse `WireEnvelopeSchema` first:
   - data version > client's → the open tab is stale; keep using the cache and reload the app at the next visibility change;
@@ -79,7 +82,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 - Write order: every new hashed file first, the manifest last. A manifest never points at a file that doesn't exist yet.
 - **Two jobs write `catalog/<term>/manifest.json`** (catalog: `departments`, `catalogCrawledAt`; seats: `seats`, `changes`). Each does read → change only its own fields → set `generatedAt` → `put` with `onlyIf: { etagMatches }`; on a failed precondition it re-reads and retries (up to 5 times). `geo/manifest.json` follows the same rule (buildings job vs routes script).
 - Department chunks include section fields (meetings, instructors, notes), so a section change seen by the seats job rewrites that department's chunk in the same run as the `changes` entry that reports it. The catalog and the changes file never disagree for longer than one run.
-- Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working.
+- Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working. It does the same under `courses/`.
 
 ### 2.5 Serving `/data/*`
 The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys.ts`). A `null` policy means 404. Every response carries an ETag, and `If-None-Match` gets a 304.
@@ -88,7 +91,7 @@ The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys
 |---|---|---|
 | hashed (`*.<16hex>.json\|bin`) | `public, max-age=31536000, immutable` | 1 year |
 | `catalog/terms.json`, `catalog/<term>/manifest.json` | `public, no-cache` (revalidate with ETag) | 60 s |
-| `planetterp/manifest.json`, `geo/manifest.json` | `public, no-cache` | 1 h |
+| `planetterp/manifest.json`, `geo/manifest.json`, `courses/manifest.json` | `public, no-cache` | 1 h |
 | `calendar/<term>.json` | `max-age=3600` | 1 h |
 | `geo/route/*.json` | `max-age=86400` | 1 day |
 | `geo/tiles.pmtiles` | `max-age=604800`, Range requests | 1 week |
@@ -102,6 +105,7 @@ The jobs' memory between runs. Everything here can be rebuilt by running the job
 | `_jobs/seats/<term>/baseline.json` | seats | Testudo's last seats stamp, the last full refresh time, each department's chunk hash and course list, and every section's `SectionSnapshot` (the diff base for `changes`) |
 | `_jobs/catalog/<term>/orphans.json` | catalog | when each unreferenced hashed file was first seen, for the 24 h garbage-collection grace |
 | `_jobs/catalog/building-rooms.json` | catalog | every building code seen, with one room, for the buildings job's popup lookups |
+| `_jobs/courses/state.json` | catalog | per department, the `<term>:<chunk hash>` list its course-index file was built from (an unchanged list skips the rebuild), and when each unreferenced `courses/` file was first seen |
 | `_jobs/buildings/discovered.json` | buildings | codes joined (or not) since the checked-in seed, with why; failures retry after 30 days |
 | `_jobs/planetterp/grades.json` | PlanetTerp | per course, grades summed per PlanetTerp professor name, and when they were fetched (the rotation order). A course's rows are never replaced by an empty answer (§4.1) |
 | `_jobs/planetterp/unmatched.json` | PlanetTerp | Testudo instructor names with no PlanetTerp match, and how many names each matching rule joined |
@@ -151,6 +155,20 @@ The seats job compares each run's sections with the previous run's (kept in `_jo
 - `cancelled`: `before`. The section vanished. Testudo has no cancelled marker, so this diff is the only source of "cancelled".
 
 The file keeps a rolling 30-day window, newest first. Plans don't depend on it for correctness: `core/catalog` diffs each placed course's snapshot against the current catalog, and a missing section means cancelled. `changes` only adds *when* the change happened.
+
+### 3.4 Course index (v3, `courses/`)
+
+The scheduler's catalog is per term and covers only the terms Testudo lists. The four-year planner needs every course, including ones not offered this term, so after its crawl the catalog job publishes an index across every term whose catalog is in R2 (`src/ingest/course-index.ts`, built by `src/core/catalog/course-index.ts`).
+- **Source:** the department chunks already in R2, for every term in `terms.json`, active and archived. Nothing extra is crawled. So the index reaches back only as far as the terms the catalog job has seen: `offered` grows by a term each time Testudo adds one.
+- **Which term's text:** a course's title, credits, `genEds`, `prerequisite`, `corequisite`, `restriction` and `crossListings` come from the first term that lists it, taking active terms newest first, then archived ones newest first (`courseIndexTermOrder`). So Testudo's current wording wins over an archived term's.
+- **`offered`** is every term id that listed the course, newest first, so the UI can say "Last offered Fall 2025" and "Usually offered in fall". A course is listed when its department page shows it, sections or not ("contact department" courses count).
+- **`genEds`** is the catalog's shape (§3.2): groups that all apply, options with their `condition`. The search row flattens them to each code once, in order, for the GenEd filter.
+- **`prereqs`** is `parsePrerequisite(prerequisite)` (`src/core/catalog/prereqs.ts`), computed in ingest so every client gets the same answer: `{groups, complete}`, where every group applies and one code in a group is enough. Sentences and `;` clauses join left to right, with "and" unless the clause starts with "or"; inside a clause `and` binds tighter than `or`, a comma takes its list's conjunction, and "1 course from (A, B)" is a choice. "A; or B and C" becomes `[[A, B], [A, C]]`. Anything that isn't a course ("permission of", "or equivalent", a score, a program, "any STAT400-level course", "must have completed") never adds a requirement and never meets one, and makes `complete` false. So do sentences Testudo appends that aren't requirements ("Cross-listed with", "Credit only granted for", "Repeatable to"). No prerequisite is `{groups: [], complete: true}`. A golden test snapshots the reading of every saved prerequisite sentence (`src/ingest/__fixtures__/golden/prerequisites.json`).
+- **Incremental:** a department is rebuilt only when the list of chunks it was built from changed (`_jobs/courses/state.json`); the rest keep their file. The manifest is rewritten only when the search hash or a department hash changed, so `generatedAt` is when the index last changed.
+- **Failures:** a term whose manifest can't be read is skipped (an archived term published before a `catalog` schema bump can't be read by the app either). A department whose chunk is missing keeps its previous file and retries next run. If no term can be read, the index is left alone. The catalog is published either way.
+- **Size:** about 5,000 courses in production, so the search file is roughly 120 KB gzipped; a department file loads only when the planner needs that department.
+- **Mock mode** builds the index from the fixtures' catalog with the same functions (`src/fixtures/mock/data-source.ts`).
+- `pnpm tsx scripts/ingest.ts courses` rebuilds the index alone from the catalog already in the store (after a `courses` bump, say).
 
 ---
 
@@ -275,6 +293,15 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 2.
 The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cache.ts`). Two details:
 - Hashed files are put as they arrive, and the manifest is committed (with the eviction of step 4, in one transaction) once every file it lists is saved. The invariant is the same, and an interrupted first load resumes from the files it already has.
 - Mock mode prefixes its rows with `mock:`, since `pnpm dev` and `pnpm dev:mock` share localhost. A cache row records nothing about schema versions; instead the pointer `_schema-versions` does, and a build with a different version for a family clears that family first.
+
+### 5.2 Client course index flow (v3)
+
+`src/state/course-index-store.ts` follows §5.1 with the same cache (`files` rows with `family: "courses"` and no `termId`, the pointer under `courses/manifest.json`, `mock:` prefixes), and loads only on demand: Plan imports it, the scheduler never does (`scripts/check-bundle.ts` fails the build if `/schedule` loads it eagerly).
+1. `ensureSearch()` or `ensureDepts(depts)` first shows the cached manifest if there is one, and checks the server's once per session; with nothing cached it waits for the server.
+2. Files are read by hash from the cache, else fetched, validated and cached. A department the index doesn't list is ready and empty, so `courseIndexEntry(state, code)` is `null` for a code the index doesn't know and `undefined` while its department hasn't loaded.
+3. The manifest check diffs hashes and refetches only files already loaded that changed, then, in one Dexie transaction, stores the new manifest and drops cached `courses/` files it no longer lists.
+4. Unlike the catalog, the cached manifest may list department files the browser doesn't have yet. What's cached is always listed by it. A cached manifest more than a day old can name files the server has deleted; a file that's missing waits for the session's manifest check and loads the new hash.
+5. There's no polling: the index changes at most every 6 h.
 
 ---
 

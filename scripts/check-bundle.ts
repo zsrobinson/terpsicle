@@ -71,7 +71,16 @@ export const ROUTE_BUDGETS: readonly {
   budget: number;
   never: readonly { pattern: RegExp; why: string }[];
 }[] = [
-  { route: "/schedule", budget: EAGER_BUDGET, never: [] },
+  {
+    route: "/schedule",
+    budget: EAGER_BUDGET,
+    never: [
+      {
+        pattern: /^src\/state\/course-index-store\.ts$/,
+        why: "the course index loads with Plan, not the scheduler",
+      },
+    ],
+  },
   ...[
     "/",
     "/reviews/",

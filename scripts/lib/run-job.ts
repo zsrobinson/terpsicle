@@ -2,6 +2,7 @@ import type { BlobStore } from "~/ingest/blob-store";
 import { runBuildings } from "~/ingest/buildings";
 import { runCalendar } from "~/ingest/calendar";
 import { runCatalog } from "~/ingest/catalog";
+import { publishCourseIndex } from "~/ingest/course-index";
 import { createHttpClient } from "~/ingest/http";
 import { runPlanetTerp } from "~/ingest/planetterp/planetterp";
 import { consoleLogger } from "~/ingest/publish";
@@ -12,6 +13,7 @@ import { createR2S3BlobStore } from "./r2-s3-blob-store";
 
 export const PIPELINE_JOBS = [
   "catalog",
+  "courses",
   "seats",
   "planetterp",
   "calendar",
@@ -56,6 +58,10 @@ export async function runPipelineJob(
           departments: options.departments,
         })),
       };
+      break;
+    case "courses":
+      // The course index alone, from the catalog already in the store.
+      result = { ...(await publishCourseIndex(common)) };
       break;
     case "seats":
       result = {
