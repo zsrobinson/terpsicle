@@ -337,6 +337,43 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "open-results",
+    title: "Open five search results in a row, going back each time",
+    async run(lab) {
+      await open(lab);
+      await search(lab, "cmsc");
+      await lab.hideKeyboard();
+      await lab.wait(SETTLE);
+      for (let i = 0; i < 5; i++) {
+        // Opening a course lowers the drawer; back up, where five show.
+        await snapTo(lab, "full");
+        // One tap each, as a person would; a result that needs a second
+        // tap fails here.
+        await lab.tap({
+          selector: "#search-results [data-course-result]",
+          visible: true,
+          index: i,
+        });
+        await lab.wait(1500);
+        const step = await lab.step(`tapped result ${i + 1}`, {
+          expect: (p) => [
+            expectation(
+              "result-opens-on-one-tap",
+              !!p.panel?.heading && p.panel.heading !== "Search",
+              `panel heading "${p.panel?.heading}"`,
+            ),
+          ],
+        });
+        if (step.probe?.panel?.heading === "Search") continue;
+        await lab.tap({
+          selector: 'nav[aria-label="Breadcrumb"] button',
+          text: "Search",
+        });
+        await lab.wait(SETTLE);
+      }
+    },
+  },
+  {
     id: "calendar-pull",
     title: "Scroll the calendar, then pull down at its top",
     async run(lab) {

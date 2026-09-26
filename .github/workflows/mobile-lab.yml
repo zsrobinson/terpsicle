@@ -40,6 +40,9 @@ on:
     - cron: "23 8 * * *"
   pull_request:
     types: [labeled]
+  # TEMPORARY, not for merge: production "before" runs of new checks.
+  push:
+    branches: [m8/lab-before]
 
 concurrency:
   group: mobile-lab-${{ github.event.pull_request.number || github.run_id }}-${{ github.event_name }}
@@ -74,6 +77,8 @@ jobs:
             url="$INPUT_URL"; engines="$INPUT_ENGINES"; scenarios="$INPUT_SCENARIOS"
           elif [ "$EVENT" = pull_request ]; then
             url="https://pr-$PR-terpsicle.zsrobinson.workers.dev"; engines=webkit,android,ios; scenarios=
+          elif [ "$EVENT" = push ]; then
+            url=https://terpsicle.com; engines=android,ios; scenarios=open-results,open-results
           else
             url=https://terpsicle.com; engines=webkit,android,ios; scenarios=
           fi
