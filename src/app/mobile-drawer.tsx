@@ -156,8 +156,44 @@ export function MobileDrawer() {
           raiseAtOnce(el, setSnap);
         else if (useUi.getState().drawerSnap === "peek") setSnap("half");
       };
+      // A tap on a field: raise first, then focus. iOS Safari measures the
+      // field for the keyboard as it takes focus, before focusin, so raised
+      // there it still panned the page to the field's old place for a
+      // moment. Cancelling the tap's end keeps the browser from focusing
+      // it; focusing it here, in the tap, still brings up the keyboard.
+      let tap: { field: HTMLElement; x: number; y: number } | null = null;
+      const touchStart = (event: TouchEvent) => {
+        const touch = event.touches[0];
+        tap =
+          touch &&
+          event.touches.length === 1 &&
+          isTextEntry(event.target) &&
+          event.target instanceof HTMLElement &&
+          event.target !== document.activeElement &&
+          useUi.getState().drawerSnap !== "full"
+            ? { field: event.target, x: touch.clientX, y: touch.clientY }
+            : null;
+      };
+      const touchEnd = (event: TouchEvent) => {
+        const start = tap;
+        tap = null;
+        const touch = event.changedTouches[0];
+        if (!start || !touch || !event.cancelable) return;
+        // A drag that started on the field isn't a tap.
+        if (Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 10)
+          return;
+        event.preventDefault();
+        raiseAtOnce(el, setSnap);
+        start.field.focus({ preventScroll: true });
+      };
       el.addEventListener("focusin", raise);
-      return () => el.removeEventListener("focusin", raise);
+      el.addEventListener("touchstart", touchStart, { passive: true });
+      el.addEventListener("touchend", touchEnd, { passive: false });
+      return () => {
+        el.removeEventListener("focusin", raise);
+        el.removeEventListener("touchstart", touchStart);
+        el.removeEventListener("touchend", touchEnd);
+      };
     },
     [setSnap],
   );
