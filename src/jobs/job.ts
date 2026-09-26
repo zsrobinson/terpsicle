@@ -1,5 +1,5 @@
 import { createHttpClient, type HttpClient } from "~/ingest/http";
-import { consoleLogger } from "~/ingest/publish";
+import { consoleLogger, SourceFailureError } from "~/ingest/publish";
 import { captureServerEvent } from "~/server/analytics";
 
 export interface JobContext {
@@ -69,11 +69,17 @@ export async function runJob(
   } catch (error) {
     const durationMs = Date.now() - started;
     const message = error instanceof Error ? error.message : String(error);
+    // A source that answered with junk: the job kept the last good files,
+    // and the specific reason goes where recovered errors go.
+    const source =
+      error instanceof SourceFailureError
+        ? { firstError: error.reason.slice(0, 300), counts: error.counts }
+        : {};
     console.error({ job: name, durationMs, error: message });
     await captureServerEvent(
       context.env,
       "cron_job_failed",
-      { job: name, durationMs, error: message.slice(0, 500) },
+      { job: name, durationMs, error: message.slice(0, 500), ...source },
       telemetry,
     );
     throw error;

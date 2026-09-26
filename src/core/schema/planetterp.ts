@@ -124,6 +124,18 @@ export const ReviewSchema = z.object({
 export type Review = z.infer<typeof ReviewSchema>;
 
 /**
+ * `_jobs/planetterp/reviews/<slug>.json`: review text the nightly job
+ * already downloads, kept so summaries can be regenerated if PlanetTerp goes
+ * away. Private job state (DATA.md §2.6): never served or republished.
+ */
+export const StoredReviewsSchema = z.object({
+  slug: InstructorSlugSchema,
+  name: z.string().min(1).max(120),
+  reviews: z.array(ReviewSchema),
+});
+export type StoredReviews = z.infer<typeof StoredReviewsSchema>;
+
+/**
  * `planetterp/dept/<DEPT>.<hash>.json`. Instructors are everyone who teaches a
  * section of this department in an active term or appears in its grade data,
  * so an instructor can appear in several department files.
@@ -142,6 +154,28 @@ export const PlanetTerpDeptSchema = z.object({
 });
 export type PlanetTerpDept = z.infer<typeof PlanetTerpDeptSchema>;
 
+/**
+ * How PlanetTerp itself is doing, so the UI can say how current its numbers
+ * are (DATA.md §4.1). `stale`: the last run found PlanetTerp broken or
+ * emptied and kept the previous files, or PlanetTerp has published no new
+ * review in weeks. `gone`: no good run for weeks.
+ */
+export const PlanetTerpSourceStatusSchema = z.enum(["ok", "stale", "gone"]);
+export type PlanetTerpSourceStatus = z.infer<
+  typeof PlanetTerpSourceStatusSchema
+>;
+
+export const PlanetTerpSourceSchema = z.object({
+  status: PlanetTerpSourceStatusSchema,
+  /** The last run that passed the sanity checks and published; null before one has. */
+  lastSuccessAt: IsoDateTimeSchema.nullable(),
+  /** Newest semester in PlanetTerp's grade data; null if none. */
+  gradesThrough: TermIdSchema.nullable(),
+  /** Newest review PlanetTerp had published, as of the last good run. */
+  latestReviewAt: IsoDateTimeSchema.nullable(),
+});
+export type PlanetTerpSource = z.infer<typeof PlanetTerpSourceSchema>;
+
 /** `planetterp/manifest.json`. */
 export const PlanetTerpManifestSchema = z.object({
   schemaVersion: planetterpVersion,
@@ -152,6 +186,11 @@ export const PlanetTerpManifestSchema = z.object({
   departments: z.array(
     z.object({ code: DeptCodeSchema, hash: ContentHashSchema }),
   ),
+  /**
+   * Added without a version bump (DATA.md §2.3): older clients strip it, and
+   * manifests written before it read as "unknown", never as a problem.
+   */
+  source: PlanetTerpSourceSchema.optional(),
 });
 export type PlanetTerpManifest = z.infer<typeof PlanetTerpManifestSchema>;
 

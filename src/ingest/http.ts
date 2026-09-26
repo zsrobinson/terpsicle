@@ -26,7 +26,8 @@ export class HttpError extends Error {
   constructor(
     readonly url: string,
     readonly status: number,
-    detail: string,
+    /** The start of the response body, for telling one 400 from another. */
+    readonly detail: string,
   ) {
     super(
       `GET ${url} failed with HTTP ${status}${detail ? `: ${detail}` : ""}`,

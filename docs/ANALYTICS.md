@@ -61,7 +61,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | Event | Properties | Why |
   |---|---|---|
   | `cron_job_finished` | `job`, `durationMs` (wall time), `counts` (what the run did: departments written, sections, changes, grade requests, …), `errorCount`, `firstError` | Jobs that run long, do nothing, or keep recovering from the same error. |
-  | `cron_job_failed` | `job`, `durationMs`, `error` | Runs that gave up (Cloudflare marks the cron failed too). |
+  | `cron_job_failed` | `job`, `durationMs`, `error`; when a source answered with data we won't publish (PlanetTerp's list came back empty or more than 10% short, DATA.md §4.1), also `firstError` (the specific reason) and `counts` (what this run saw against the last good run) | Runs that gave up (Cloudflare marks the cron failed too), and sources that are breaking while the last good data stays up. |
   | `summary_generated` | `model`, `durationMs`, `reviews`, `attempts` | Workers AI cost and latency; how often the first answer fails validation. |
   | `summary_cached` | `ageDays` | How often summaries come from R2, and how old they get. |
   | `summary_failed` | `reason` (`model-output`, `model-error`, `planetterp`, `storage`) | Which dependency fails. |

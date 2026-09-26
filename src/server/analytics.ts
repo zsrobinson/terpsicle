@@ -15,7 +15,17 @@ export interface ServerEvents {
     errorCount?: number;
     firstError?: string;
   };
-  cron_job_failed: { job: string; durationMs: number; error: string };
+  cron_job_failed: {
+    job: string;
+    durationMs: number;
+    error: string;
+    /**
+     * Set when a source answered with data we won't publish (empty,
+     * truncated, unreachable): the specific reason, with the counts seen.
+     */
+    firstError?: string;
+    counts?: Record<string, number>;
+  };
   // Review summaries. Never the review text or anything about the requester.
   summary_generated: {
     model: string;
