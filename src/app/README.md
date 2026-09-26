@@ -168,9 +168,14 @@ On desktop the sidebar's right edge drags between 320 and 480px (`SidebarResizeH
 | `1`–`7` | Rail tabs | shell |
 | `Esc` | Back one drill level; in a field, leave the field | sidebar |
 | `⌘Z` / `Ctrl+Z`, `⇧⌘Z` / `Ctrl+Y` | Undo, redo | shell |
-| `↑` `↓` `↵` | Preview the open course's sections on the calendar, and switch to the preview | calendar |
+| `↑` `↓` `↵` | Preview the open course's sections on the calendar, and switch to the preview (focus anywhere but the calendar) | calendar |
+| `←` `→` `↑` `↓` `Home` `End` | With focus on the calendar: move between its classes, blocks, ghosts and pills (a roving tabindex, `keyboard.ts`); focusing a ghost previews it | calendar |
 
 Every interactive element gets a tooltip through `WithTooltip` (`~/ui/tooltip`), with its shortcut if it has one.
+
+Accessibility (what's supported, how it's tested, a manual screen-reader script) is in `docs/ACCESSIBILITY.md`. Two rules for new UI:
+- A button in a list says which item it's for: `aria-label="Add 0101"` on a button that shows "Add", starting with the visible words.
+- Anything drawn with a fill or a box-shadow to show state needs a forced-colors fallback (`styles.css`, "Forced colors"): `forced-fill` for meters and bars; selected states are outlined through `aria-pressed`, `aria-current` or `data-state`.
 
 ## The calendar
 
