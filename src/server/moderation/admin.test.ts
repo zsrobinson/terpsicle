@@ -177,9 +177,29 @@ describe("admin moderation API", () => {
         resolution: { decision: "remove", reason: "hate" },
       },
     });
-    expect(handler.mock.calls).toEqual([
-      [approveId, "publish"],
-      [removeId, "remove"],
+    // The feature hears the decision, and for a removal the owner's reason.
+    expect(
+      handler.mock.calls.map(([ref, decision, ctx]) => [
+        ref,
+        decision,
+        ctx.reasons,
+        ctx.now,
+      ]),
+    ).toEqual([
+      [approveId, "publish", [], NOW],
+      [
+        removeId,
+        "remove",
+        [
+          {
+            code: "admin",
+            source: "admin",
+            action: "remove",
+            adminReason: "hate",
+          },
+        ],
+        NOW,
+      ],
     ]);
     expect((await queue("closed")).map((i) => i.targetId)).toContain(removeId);
 
@@ -191,7 +211,14 @@ describe("admin moderation API", () => {
       status: "ok",
       item: { status: "open", closedAt: null, resolution: null },
     });
-    expect(handler).toHaveBeenLastCalledWith(removeId, "hold");
+    expect(handler).toHaveBeenLastCalledWith(
+      removeId,
+      "hold",
+      expect.objectContaining({
+        now: NOW,
+        reasons: [{ code: "undo", source: "admin", action: "hold" }],
+      }),
+    );
     expect(
       (await decisionsFor(env.DB, "chat", removeId)).map(
         (d) => `${d.decided_by}:${d.stage}:${d.verdict}:${d.reason ?? ""}`,
