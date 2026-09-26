@@ -147,6 +147,17 @@ export const PROBE = `(() => {
     searchResults: scroller(document.querySelector("#search-results")),
     resultCount: document.querySelectorAll("[data-course-result]").length,
     calendar: scroller(document.querySelector("[data-calendar-scroll]")),
+    rail: (() => {
+      const nav = document.querySelector('nav[aria-label="Sidebar tabs"]');
+      if (!nav) return null;
+      const cut = [...nav.querySelectorAll("button")].filter((b) => b.getBoundingClientRect().bottom > innerHeight + 1).map((b) => b.textContent.trim());
+      let el = nav, scrolls = false;
+      while (el && el !== document.body) {
+        if (/auto|scroll/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight) { scrolls = true; break; }
+        el = el.parentElement;
+      }
+      return { cut, scrolls };
+    })(),
     events: lab ? lab.events.splice(0) : [],
     frames: lab ? lab.frames.splice(0) : [],
     errors: lab ? lab.errors.splice(0) : [],
