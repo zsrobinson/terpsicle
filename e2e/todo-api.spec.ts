@@ -8,13 +8,15 @@ import { TEST_FEED_TOKENS, testFeedLink } from "../src/core/todo/test-feed";
 
 test.skip(({ isMobile }) => isMobile, "API only: once is enough");
 
+// Test Admin: e2e/todo.spec.ts connects and disconnects Test Student's and
+// Test Classmate's feeds at the same time as this runs.
 async function signIn(page: Page) {
   await page.goto("/auth/test?return=/schedule");
-  await page.getByRole("button", { name: "Sign in as Test Student" }).click();
+  await page.getByRole("button", { name: "Sign in as Test Admin" }).click();
   await expect(
     page
       .getByRole("banner")
-      .getByRole("button", { name: "Account: Test Student" }),
+      .getByRole("button", { name: "Account: Test Admin" }),
   ).toBeVisible();
 }
 

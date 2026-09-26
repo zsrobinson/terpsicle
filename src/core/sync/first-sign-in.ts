@@ -4,7 +4,6 @@ import type {
   Plan,
   Rev,
   SettingsSyncDoc,
-  SyncDoc,
   TermId,
 } from "../schema";
 import {
@@ -17,6 +16,7 @@ import {
   type DocKey,
   docKeyOf,
   planDocKey,
+  type ScheduleSyncDoc,
   SETTINGS_DOC_KEY,
   type SyncedTables,
   settingsDocOf,
@@ -43,7 +43,7 @@ export interface FirstSignInInput<T extends SyncedTables> {
   /** This device's tables. */
   local: T;
   /** A full pull: every doc on the account, tombstones included. */
-  server: readonly SyncDoc[];
+  server: readonly ScheduleSyncDoc[];
   /** The cursor that pull returned. */
   cursor: Rev;
   /** Mints ids for copies (only needed when a plan is already on the account and differs). */

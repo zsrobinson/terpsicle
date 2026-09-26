@@ -4,12 +4,15 @@ import type { PostHog } from "posthog-js";
 import type {
   ConnectionVerdict,
   ExtraMinutes,
+  InstallTrigger,
+  ModerationKind,
   Pace,
   ProblemFix,
   ProblemKind,
   RailTab,
   RankBy,
   Relaxable,
+  ReportReason,
   SignInError,
   TermId,
   TermStatus,
@@ -94,9 +97,27 @@ export interface AnalyticsEvents {
   travel_how_opened: NoProperties;
   connection_opened: { verdict: ConnectionVerdict };
   route_map_shown: { mode: TravelMode; hasGeometry: boolean };
+  /** `menu`: the "Install app" item; otherwise the key moment (V2 §3.4). */
+  install_prompt_shown: {
+    trigger: InstallTrigger | "menu";
+    platform: "ios" | "chromium";
+  };
+  install_prompt_result: {
+    trigger: InstallTrigger | "menu";
+    platform: "ios" | "chromium";
+    outcome: "installed" | "dismissed";
+  };
+  pwa_installed: NoProperties;
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
   signin_started: {
-    from: "topbar" | "settings" | "signin-page" | "undo" | "seat-watch";
+    from:
+      | "topbar"
+      | "settings"
+      | "signin-page"
+      | "undo"
+      | "todo"
+      | "reviews"
+      | "seat-watch";
   };
   signin_completed: { firstOnDevice: boolean };
   signin_failed: { reason: SignInError };
@@ -104,6 +125,20 @@ export interface AnalyticsEvents {
   account_deletion_requested: NoProperties;
   // Plan sync (V2.md §11): counts only, never plan names or courses.
   sync_first_sign_in: { uploaded: number; renamed: number; copies: number };
+  // Reviews (V2.md §11). Never a review, instructor or course on writing events.
+  reviews_page_viewed: { page: "home" | "instructor" | "course" };
+  review_form_opened: NoProperties;
+  review_submitted: { outcome: "published" | "held" | "rejected" };
+  report_created: { surface: ModerationKind; reason: ReportReason };
+  // Terpsicle Todo (V3.md §6). Never a title, course, date or anything from
+  // the feed: outcomes and counts only.
+  todo_connect_result: {
+    outcome: "connected" | "invalid-link" | "unreachable" | "not-a-calendar";
+  };
+  todo_disconnected: NoProperties;
+  todo_item_checked: { done: boolean; via: "list" | "week" };
+  todo_view_changed: { view: "day" | "course" | "week" };
+  todo_file_imported: { items: number; skipped: number };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

@@ -51,7 +51,7 @@ export interface ServerEvents {
     hd?: string;
   };
   // Plan sync: counts only, never who or what (V2.md §11).
-  sync_push: { docs: number; conflicts: number };
+  sync_push: { docs: number; fourYearDocs: number; conflicts: number };
   // Terpsicle Todo's cron (docs/V3.md §6). Counts only: never a feed, a
   // link, a user or an item.
   todo_fetch_run: {

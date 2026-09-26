@@ -95,6 +95,30 @@ export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
   ];
 
 /**
+ * Gzipped JS + CSS for each Terpsicle Reviews page, in bytes: 246 KB for
+ * an instructor or course page when this was set (v2/reviews-ui; the home
+ * page 218 KB), plus about 10% headroom. `/`'s React and router, plus the
+ * review form with stage 0's rules, the grade bars and the published-data
+ * reader. Same rule for raising it.
+ */
+export const REVIEWS_BUDGET = 270 * 1024;
+
+/**
+ * Reviews reads published files through the data layer's reader
+ * (`src/state/data-source.ts`, which reaches the fixtures only in mock
+ * builds) and nothing else of the scheduler's: no Dexie, no stores.
+ */
+export const REVIEWS_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
+  [
+    { pattern: /(^|\/)dexie\//, why: "only the scheduler opens Dexie" },
+    {
+      pattern: /^src\/state\/(?!data-source\.ts$)/,
+      why: "the app's stores load with /schedule",
+    },
+    { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
+  ];
+
+/**
  * Gzipped JS + CSS for the admin panel (/admin, /admin/decisions), in bytes:
  * 224 KB when this was set (v2 admin-shell), `/`'s base plus the panel, plus
  * about 10% headroom; 213 KB once the panel stopped using Radix's menu and
@@ -102,6 +126,19 @@ export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
  * /schedule about 5 KB). Same rule for raising it.
  */
 export const ADMIN_BUDGET = 245 * 1024;
+
+/**
+ * Gzipped JS + CSS for /todo and /todo/connect, in bytes: 225 KB when this
+ * was set (v3 todo-ui), `/`'s base plus the list, the week and the .ics
+ * parser for dropped files, plus about 10% headroom. Same rule for raising it.
+ */
+export const TODO_BUDGET = 248 * 1024;
+
+/** Todo loads with /todo, never with the scheduler. */
+const TODO_NEVER_EAGER = {
+  pattern: /^src\/(features\/todo\/|server\/fns\/todo\.ts$)/,
+  why: "Todo loads with /todo, not the scheduler",
+};
 
 /** The owner's panel loads with /admin, never with anyone else's pages. */
 const ADMIN_NEVER_EAGER = {
@@ -130,15 +167,32 @@ export const ROUTE_BUDGETS: readonly {
       },
       ...SCHEDULE_NEVER_EAGER,
       ADMIN_NEVER_EAGER,
+      TODO_NEVER_EAGER,
     ],
   },
-  ...["/", "/reviews/", "/chat/", "/settings", "/signin", "/privacy"].map(
-    (route) => ({
-      route,
-      budget: LANDING_BUDGET,
-      never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
-    }),
-  ),
+  // Todo keeps `/`'s rules: no Dexie and no scheduler stores (course colors
+  // are a raw IndexedDB read).
+  ...["/todo/", "/todo/connect"].map((route) => ({
+    route,
+    budget: TODO_BUDGET,
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  })),
+  ...["/", "/chat/", "/settings", "/signin", "/privacy"].map((route) => ({
+    route,
+    budget: LANDING_BUDGET,
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  })),
+  ...[
+    "/reviews/",
+    "/reviews/instructors/$id",
+    "/reviews/courses/$code",
+    "/reviews/mine",
+    "/reviews/policy",
+  ].map((route) => ({
+    route,
+    budget: REVIEWS_BUDGET,
+    never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  })),
   ...["/admin/", "/admin/decisions"].map((route) => ({
     route,
     budget: ADMIN_BUDGET,

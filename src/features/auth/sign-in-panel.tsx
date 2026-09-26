@@ -17,6 +17,8 @@ export type SignInFrom =
   | "settings"
   | "signin-page"
   | "undo"
+  | "todo"
+  | "reviews"
   | "seat-watch";
 
 /** Where a sign-in should come back to: this page. */

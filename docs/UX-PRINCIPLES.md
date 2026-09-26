@@ -41,7 +41,7 @@ Linear, Vercel, GitHub and Stripe fit a lot on screen and still feel calm:
 
 - **Fitts's law:** time to hit a target depends on its distance and size [5]. Put the frequent action close to what it acts on, and make row targets generous. *Terpsicle:* the Switch button stays in the row, at a fixed column. Ghosts on the calendar are the big targets.
 - **Hick's law:** decision time grows with the number of choices [5]. *Terpsicle:* 92 rows each with an "Add" button is 92 equal choices. Group them (by instructor, or by time) and filter them ("Only fits") so the eye picks a group first.
-- **Jakob's law:** people expect your app to work like the others they use [5]. *Terpsicle:* sidebar-and-calendar like Google Calendar, filter chips like Linear, drill-in with a breadcrumb like Finder.
+- **Jakob's law:** people expect your app to work like the others they use [5]. *Terpsicle:* sidebar-and-calendar like Google Calendar, filter chips like Linear, drill-in with one Back like a phone's navigation (it was a breadcrumb like Finder's until the owner asked for Back).
 - **Miller's law and chunking:** working memory holds only a few items, so chunk information into meaningful groups [5]. *Terpsicle:* sections chunk by instructor, then by shared lecture.
 - **Aesthetic-usability effect:** attractive interfaces are perceived as easier to use [5]. *Terpsicle:* polish (alignment, one type scale) isn't vanity. It buys trust in the numbers.
 
@@ -61,7 +61,7 @@ Linear, Vercel, GitHub and Stripe fit a lot on screen and still feel calm:
 ## 7. Narrow sidebars and detail panels
 
 - **Sticky headers** keep context in long scrolls, but they take space, so use them responsibly [14]. They must stay in a fixed spot rather than slide in late [14].
-  - *Terpsicle:* at most **two** sticky levels in a panel: the section header ("Sections · 3 of 14 fit") and the group header (the instructor). The breadcrumb is outside the scroll area already.
+  - *Terpsicle:* at most **two** sticky levels in a panel: the section header ("Sections · 3 of 14 fit") and the group header (the instructor). The Back bar is outside the scroll area already.
 - **Section headers with counts** ("Sections · 3 of 14 fit") give scent and progress at once.
 - **Collapsible groups** for long lists. Remember what people collapsed (the app already does).
 - **Truncate the least distinguishing part.** Truncate rooms, not times. Never truncate the only thing that differs between two rows (today CMSC330's Friday discussion time is the part cut off). Every truncation gets a tooltip.

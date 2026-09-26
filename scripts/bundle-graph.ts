@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { Plugin } from "vite";
+import type { Plugin, Rolldown } from "vite";
 
 // The client build's chunk graph, for scripts/check-bundle.ts: which chunks
 // import which, statically or lazily, and which source modules each holds.
@@ -20,31 +20,36 @@ export type BundleGraph = Record<string, BundleChunk>;
 
 export const BUNDLE_GRAPH_FILE = "dist/bundle-graph.json";
 
+/** The chunk graph of a client build's output (also the service worker's precache list: pwa-precache.ts). */
+export function chunkGraph(
+  bundle: Rolldown.OutputBundle,
+  root: string,
+): BundleGraph {
+  const graph: BundleGraph = {};
+  for (const [file, output] of Object.entries(bundle)) {
+    if (output.type !== "chunk") continue;
+    graph[file] = {
+      isEntry: output.isEntry,
+      imports: [...output.imports],
+      dynamicImports: [...output.dynamicImports],
+      css: [...(output.viteMetadata?.importedCss ?? [])],
+      modules: output.moduleIds.map((id) =>
+        path.relative(root, id.replace(/^\0/, "")).split(path.sep).join("/"),
+      ),
+    };
+  }
+  return graph;
+}
+
 export function bundleGraph(root: string): Plugin {
   return {
     name: "terpsicle:bundle-graph",
     apply: "build",
     applyToEnvironment: (environment) => environment.name === "client",
     writeBundle(_options, bundle) {
-      const graph: BundleGraph = {};
-      for (const [file, output] of Object.entries(bundle)) {
-        if (output.type !== "chunk") continue;
-        graph[file] = {
-          isEntry: output.isEntry,
-          imports: [...output.imports],
-          dynamicImports: [...output.dynamicImports],
-          css: [...(output.viteMetadata?.importedCss ?? [])],
-          modules: output.moduleIds.map((id) =>
-            path
-              .relative(root, id.replace(/^\0/, ""))
-              .split(path.sep)
-              .join("/"),
-          ),
-        };
-      }
       const out = path.join(root, BUNDLE_GRAPH_FILE);
       mkdirSync(path.dirname(out), { recursive: true });
-      writeFileSync(out, JSON.stringify(graph, null, 1));
+      writeFileSync(out, JSON.stringify(chunkGraph(bundle, root), null, 1));
     },
   };
 }

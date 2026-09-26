@@ -1,6 +1,7 @@
-// The shared data contract. Prose version: docs/DATA.md. The admin panel's
-// schemas stay out of this barrel (import ~/core/schema/admin): every page
-// loads the barrel, and only /admin needs them.
+// The shared data contract. Prose version: docs/DATA.md. Two families stay
+// out of this barrel, since every page loads it and zod objects don't
+// tree-shake: the admin panel's schemas (import ~/core/schema/admin) and
+// Plan's four-year doc (import ~/core/schema/four-year).
 export * from "./api";
 export * from "./auth";
 export * from "./calendar";
@@ -17,8 +18,10 @@ export * from "./moderation";
 export * from "./planetterp";
 export * from "./primitives";
 export * from "./problems";
+export * from "./pwa";
 export * from "./reviews";
 export * from "./rows";
+export * from "./schedule-url";
 export * from "./seat-watches";
 export * from "./security";
 export * from "./settings";

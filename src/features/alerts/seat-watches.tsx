@@ -13,6 +13,7 @@ import {
   TermIdSchema,
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
+import { requestInstallPrompt } from "~/features/pwa/install-store";
 import { ApiCallError, api } from "~/server/fns/api";
 import { findSeatWatch, useSeatWatches } from "~/state/seat-watches";
 import { sectionLabel } from "./labels";
@@ -118,6 +119,8 @@ export async function watchSeat(
     case "watching":
       useSeatWatches.getState().put(result.watch);
       track("seat_watch_started", { signedInFirst });
+      // A seat alert just turned on: the moment to offer the app (V2 §3.4).
+      requestInstallPrompt("alert-on");
       toast(`Watching ${label}`, {
         id: TOAST_ID,
         description: "We'll email you when a seat opens.",

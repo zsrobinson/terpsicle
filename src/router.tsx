@@ -1,4 +1,4 @@
-import { createRouter } from "@tanstack/react-router";
+import { createRouter, stringifySearchWith } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { CSP_NONCE_HEADER } from "~/core/schema";
@@ -21,6 +21,11 @@ export function getRouter() {
     routeTree,
     scrollRestoration: true,
     defaultPreload: "intent",
+    // Text as text: `?q=351`, not the default's `?q=%22351%22`
+    // (it quotes any string that would parse as JSON). Parsing still reads
+    // `351` as a number, so every search schema takes numbers back as
+    // text (`~/core/schema/schedule-url`).
+    stringifySearch: stringifySearchWith(JSON.stringify),
     ...(nonce ? { ssr: { nonce } } : {}),
   });
 }

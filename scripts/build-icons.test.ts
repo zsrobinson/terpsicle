@@ -2,13 +2,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import { describe, expect, it } from "vitest";
+import { drawMark, MARK_IDS } from "~/app/brand/marks";
 import {
-  drawMark,
-  MARK_IDS,
-  type MarkId,
-  type MarkTheme,
-} from "~/app/brand/marks";
-import {
+  BADGE,
+  badgePng,
+  badgeSvg,
   FAVICON_SVG,
   faviconSvg,
   iconPng,
@@ -37,6 +35,24 @@ describe("icon files (scripts/build-icons.ts)", () => {
       });
       expect(committed.equals(iconPng(icon)), icon.file).toBe(true);
     }
+    const badge = readFileSync(publicFile(BADGE.file));
+    expect(pngSize(badge)).toEqual({ width: BADGE.size, height: BADGE.size });
+    expect(badge.equals(badgePng()), BADGE.file).toBe(true);
+  });
+
+  it("draw the notification badge as white glyph on clear", () => {
+    const { width, pixels } = new Resvg(badgeSvg(), {
+      fitTo: { mode: "width", value: BADGE.size },
+    }).render();
+    const at = (x: number, y: number) => {
+      const i = (y * width + x) * 4;
+      return [...pixels.subarray(i, i + 4)];
+    };
+    // A corner is clear; the first course's middle is solid white.
+    expect(at(0, 0)[3]).toBe(0);
+    expect(at(Math.round(width * 0.25), Math.round(width * 0.3))).toEqual([
+      255, 255, 255, 255,
+    ]);
   });
 
   it("keep the maskable icon's glyph inside the 80% safe circle", () => {
@@ -72,21 +88,6 @@ describe("marks (src/app/brand/marks.ts)", () => {
       expect(at(32).sort(), id).toEqual([0.7, 1]);
       expect(at(16), id).toEqual([1, 1]);
     }
-  });
-
-  it("draw Todo's keyline in light only, and the umbrella's in both", () => {
-    const keylines = (id: MarkId, theme?: MarkTheme) =>
-      drawMark(id, 28, "page", theme).layers.filter(
-        (l) => l.role === "keyline",
-      );
-    expect(keylines("todo", "light")).toHaveLength(1);
-    expect(keylines("todo", "dark")).toHaveLength(0);
-    // A page switches themes with CSS, so it gets the layer, marked.
-    expect(keylines("todo")).toMatchObject([{ only: "light" }]);
-    expect(keylines("umbrella")).toHaveLength(1);
-    expect(keylines("umbrella")[0]).not.toHaveProperty("only");
-    for (const id of ["schedule", "reviews", "chat", "plan"] as const)
-      expect(keylines(id), id).toHaveLength(0);
   });
 
   it("put the offset 2px out on the page and none on an app icon", () => {

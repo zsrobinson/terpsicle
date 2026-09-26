@@ -36,13 +36,16 @@ import {
   type Manifest,
   type ManifestDepartment,
   type MeUser,
+  type MyReview,
   type Plan,
   type PlanCourse,
   type PlanetTerpDept,
+  type PlanetTerpManifest,
   type PlanetTerpSource,
   type PlanSyncDoc,
   PROBLEM_SEVERITY,
   type Problem,
+  type PublicReview,
   type Review,
   type ReviewSubmitInput,
   type ReviewSummary,
@@ -59,9 +62,17 @@ import {
   type Term,
   type TermsFile,
   type TimedMeeting,
+  type TodoFeedState,
+  type TodoItem,
   type TranscriptLine,
   type UntimedMeeting,
 } from "~/core/schema";
+import type {
+  FourYearCourseEntry,
+  FourYearCreditEntry,
+  FourYearDoc,
+  FourYearWildcardEntry,
+} from "~/core/schema/four-year";
 
 /** Term id of the mock catalog's active, default term (Spring 2027). */
 export const fixtureTermId = "202701";
@@ -535,6 +546,20 @@ export function aPlanetTerpDept(
   };
 }
 
+/** PlanetTerp's manifest, listing CMSC at FIXTURE_HASH. */
+export function aPlanetTerpManifest(
+  overrides: Partial<PlanetTerpManifest> = {},
+): PlanetTerpManifest {
+  return {
+    schemaVersion: 1,
+    generatedAt: FIXTURE_NOW,
+    gradesThrough: "202501",
+    departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
+    source: aPlanetTerpSource(),
+    ...overrides,
+  };
+}
+
 export function aPlanetTerpSource(
   overrides: Partial<PlanetTerpSource> = {},
 ): PlanetTerpSource {
@@ -738,6 +763,40 @@ export function aFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
   };
 }
 
+/** The same assignment as the app gets it from `todo/list`. */
+export function aTodoItem(overrides: Partial<TodoItem> = {}): TodoItem {
+  return {
+    uid: "event-assignment-4410001",
+    source: "elms",
+    title: "Project 2",
+    courseLabel: "CMSC216-0103: Introduction to Computer Systems",
+    courseCode: "CMSC216",
+    sectionCode: "0103",
+    kind: "assignment",
+    exam: false,
+    gradescope: false,
+    dueAt: "2026-09-30T03:59:00.000Z",
+    dueDate: "2026-09-29",
+    link: "https://elms.umd.edu/courses/1300001/assignments/4410001",
+    ...overrides,
+  };
+}
+
+/** A healthy ELMS feed, read a few minutes before `FIXTURE_NOW`. */
+export function aTodoFeedState(
+  overrides: Partial<TodoFeedState> = {},
+): TodoFeedState {
+  return {
+    source: "elms",
+    status: "active",
+    lastSuccessAt: "2026-09-25T11:46:00.000Z",
+    lastFetchAt: "2026-09-25T11:46:00.000Z",
+    lastError: null,
+    itemCount: 6,
+    ...overrides,
+  };
+}
+
 // ---------- computed contracts ----------
 
 export function aGenerateRequest(
@@ -829,6 +888,45 @@ export function aReviewSubmitInput(
   };
 }
 
+/** A published review as readers get it from reviews/list: no author, month only. */
+export function aPublicReview(
+  overrides: Partial<PublicReview> = {},
+): PublicReview {
+  return {
+    id: "rvPublicReview00000001",
+    course: "CMSC351",
+    termId: "202601",
+    rating: 4,
+    grade: "A-",
+    body: "Lectures were clear and the problem sets matched the exams. Office hours were worth it.",
+    createdMonth: "2026-10",
+    edited: false,
+    ...overrides,
+  };
+}
+
+/** One of your own reviews as reviews/mine returns it: posted, nothing waiting. */
+export function aMyReview(overrides: Partial<MyReview> = {}): MyReview {
+  return {
+    id: "rvPublicReview00000001",
+    instructorId: "brandt",
+    instructorName: "Ada Brandt",
+    reviewedName: "Ada Brandt",
+    course: "CMSC351",
+    termId: "202601",
+    rating: 4,
+    grade: "A-",
+    body: "Lectures were clear and the problem sets matched the exams. Office hours were worth it.",
+    status: "published",
+    reason: null,
+    pendingEdit: null,
+    createdAt: "2026-10-02T14:00:00.000Z",
+    publishedAt: "2026-10-02T14:00:04.000Z",
+    editedAt: null,
+    ...overrides,
+  };
+}
+
 // ---------- chat ----------
 
 export function aChatAuthor(overrides: Partial<ChatAuthor> = {}): ChatAuthor {
@@ -879,6 +977,69 @@ export function aTranscriptLine(
     equivalentPattern: null,
     sectionCode: null,
     inProgress: false,
+    ...overrides,
+  };
+}
+
+/** Terpsicle Plan's four-year doc: an empty "My plan" from Fall 2026, the fall before the fixture term. */
+export function aFourYear(overrides: Partial<FourYearDoc> = {}): FourYearDoc {
+  return {
+    id: "fouryear_fixture_a",
+    name: "My plan",
+    firstTermId: "202608",
+    entries: [],
+    grades: {},
+    template: null,
+    createdAt: FIXTURE_NOW,
+    updatedAt: FIXTURE_NOW,
+    ...overrides,
+  };
+}
+
+/** A typed course block: CMSC351 in the fixture term. */
+export function aFourYearEntry(
+  overrides: Partial<FourYearCourseEntry> = {},
+): FourYearCourseEntry {
+  return {
+    kind: "course",
+    id: "entry_fixture_1",
+    term: fixtureTermId,
+    code: "CMSC351",
+    credits: null,
+    genEdChoices: {},
+    source: "typed",
+    transcript: null,
+    ...overrides,
+  };
+}
+
+/** A placeholder block: CMSC4XX, 3 credits, in the fixture term. */
+export function aFourYearWildcardEntry(
+  overrides: Partial<FourYearWildcardEntry> = {},
+): FourYearWildcardEntry {
+  return {
+    kind: "wildcard",
+    id: "entry_fixture_w",
+    term: fixtureTermId,
+    wildcard: { kind: "pattern", pattern: "CMSC4XX" },
+    credits: 3,
+    source: "typed",
+    ...overrides,
+  };
+}
+
+/** Transfer credit with no UMD course: "CHEM 1XX, 4 credits", before UMD. */
+export function aFourYearCreditEntry(
+  overrides: Partial<FourYearCreditEntry> = {},
+): FourYearCreditEntry {
+  return {
+    kind: "credit",
+    id: "entry_fixture_c",
+    term: "before",
+    title: "GENERAL CHEMISTRY",
+    credits: 4,
+    genEds: [],
+    source: "transcript",
     ...overrides,
   };
 }
