@@ -72,12 +72,17 @@ describe("moderation retries", () => {
     const now = nextDay();
     const ref = await heldByOutage(now);
     const handler = vi.fn<ModerationHandler>(async () => undefined);
+    const later = new Date(now.getTime() + 5 * 60_000);
     const report = await retryHeld(withAi(ai("clean")), {
-      now: new Date(now.getTime() + 5 * 60_000),
+      now: later,
       handlers: { chat: handler },
     });
     expect(report).toMatchObject({ retried: 1, published: 1, toOwner: 0 });
-    expect(handler).toHaveBeenCalledWith(ref, "publish");
+    expect(handler).toHaveBeenCalledWith(
+      ref,
+      "publish",
+      expect.objectContaining({ now: later }),
+    );
     expect(await listRetryRows(env.DB, 10)).toEqual([]);
     expect(await listQueueRows(env.DB, "open", 10)).toEqual([]);
     expect(
