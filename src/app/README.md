@@ -50,7 +50,7 @@ Use the pieces in `panel.tsx` so every panel matches the prototype:
 - `PanelHeader({ title, sub?, right? })`: the 48px header ("Plan A / 5 courses · 16 credits").
 - `PanelBody`: the scroll area under the header.
 - `PanelLabel`: a small section label ("Bookmarked").
-- `useFocusRequest(tab)`: a ref the shell focuses on request; `/` focuses Search's field with `useFocusRequest<HTMLInputElement>("search")`.
+- `useFocusRequest(tab)` (in `focus-request.ts`, so `panel.tsx` stays free of the scheduler's stores): a ref the shell focuses on request; `/` focuses Search's field with `useFocusRequest<HTMLInputElement>("search")`.
 
 Panels and drill levels stay mounted while hidden, so going back (`Esc` or the breadcrumb) returns to exactly where the person was: scroll position, typed text, open groups. Don't reset local state on mount.
 

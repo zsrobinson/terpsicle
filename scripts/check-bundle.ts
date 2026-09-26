@@ -29,6 +29,14 @@ export const EAGER_BUDGET = 380 * 1024;
  */
 export const LANDING_BUDGET = 215 * 1024;
 
+/**
+ * Gzipped JS + CSS for /chat/, in bytes: 269 KB when this was set (v2 chat
+ * UI), plus about 10% headroom. That's the landing page's 204 KB, Radix's
+ * popover, menu, select and dialog with vaul (shared with the scheduler),
+ * and Chat itself; never the scheduler's stores. Same rule for raising it.
+ */
+export const CHAT_BUDGET = 296 * 1024;
+
 /** Modules that must only ever load on demand, and why. */
 export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
   { pattern: /(^|\/)maplibre-gl\//, why: "MapLibre loads with the route map" },
@@ -74,21 +82,27 @@ export const ROUTE_BUDGETS: readonly {
         pattern: /^src\/state\/course-index-store\.ts$/,
         why: "the course index loads with Plan, not the scheduler",
       },
+      {
+        pattern: /^src\/(features|core)\/chat\//,
+        why: "course details loads Chat's way in on demand, only while Chat is on",
+      },
     ],
   },
-  ...[
-    "/",
-    "/reviews/",
-    "/chat/",
-    "/settings",
-    "/signin",
-    "/admin/",
-    "/privacy",
-  ].map((route) => ({
-    route,
-    budget: LANDING_BUDGET,
-    never: LANDING_NEVER_EAGER,
-  })),
+  {
+    route: "/chat/",
+    budget: CHAT_BUDGET,
+    never: [
+      ...LANDING_NEVER_EAGER,
+      { pattern: /(^|\/)maplibre-gl\//, why: "Chat draws no maps" },
+    ],
+  },
+  ...["/", "/reviews/", "/settings", "/signin", "/admin/", "/privacy"].map(
+    (route) => ({
+      route,
+      budget: LANDING_BUDGET,
+      never: LANDING_NEVER_EAGER,
+    }),
+  ),
 ];
 
 /**

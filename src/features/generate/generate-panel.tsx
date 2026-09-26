@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { track } from "~/app/analytics";
+import { useFocusRequest } from "~/app/focus-request";
 import {
   PanelBody,
   PanelFooter,
   PanelHeader,
   SectionHeader,
-  useFocusRequest,
 } from "~/app/panel";
 import { resolveCourseColors } from "~/core/color";
 import {

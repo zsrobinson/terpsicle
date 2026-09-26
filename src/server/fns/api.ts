@@ -60,7 +60,11 @@ export interface ApiOptions {
   signal?: AbortSignal;
 }
 
-async function call<I extends z.ZodType, O extends z.ZodType>(
+/**
+ * One typed call. Features with their own routes (Chat) build their clients
+ * on it, so the routes only some pages use stay out of every page's bundle.
+ */
+export async function callApi<I extends z.ZodType, O extends z.ZodType>(
   path: string,
   inputSchema: I,
   outputSchema: O,
@@ -101,14 +105,14 @@ async function call<I extends z.ZodType, O extends z.ZodType>(
 export const api = {
   /** Who's signed in, and what's on (docs/AUTH.md). Called on every app load. */
   me: (options?: ApiOptions) =>
-    call("me", MeInputSchema, MeResultSchema, {}, options),
+    callApi("me", MeInputSchema, MeResultSchema, {}, options),
   auth: {
     /** Ends this device's session; plans stay on the device. */
     signOut: (
       input: z.input<typeof SignOutInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "auth/sign-out",
         SignOutInputSchema,
         SignOutResultSchema,
@@ -120,7 +124,7 @@ export const api = {
       input: z.input<typeof TestSignInInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "auth/test-sign-in",
         TestSignInInputSchema,
         TestSignInResultSchema,
@@ -131,7 +135,7 @@ export const api = {
   account: {
     /** Signs out everywhere; the account goes after a week unless they sign in. */
     delete: (options?: ApiOptions) =>
-      call(
+      callApi(
         "account/delete",
         AccountDeleteInputSchema,
         AccountDeleteResultSchema,
@@ -144,7 +148,7 @@ export const api = {
     input: z.input<typeof ReviewSummaryInputSchema>,
     options?: ApiOptions,
   ) =>
-    call(
+    callApi(
       "review-summary",
       ReviewSummaryInputSchema,
       ReviewSummaryResultSchema,
@@ -157,7 +161,7 @@ export const api = {
       input: z.input<typeof SubscribeInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "alerts/subscribe",
         SubscribeInputSchema,
         SubscribeResultSchema,
@@ -169,7 +173,7 @@ export const api = {
       input: z.input<typeof ConfirmInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "alerts/confirm",
         ConfirmInputSchema,
         ConfirmResultSchema,
@@ -178,7 +182,7 @@ export const api = {
       ),
     /** Step 1 of unsubscribing: what would stop. */
     lookup: (input: z.input<typeof ManageInputSchema>, options?: ApiOptions) =>
-      call(
+      callApi(
         "alerts/lookup",
         ManageInputSchema,
         LookupResultSchema,
@@ -190,7 +194,7 @@ export const api = {
       input: z.input<typeof ManageInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "alerts/unsubscribe",
         ManageInputSchema,
         UnsubscribeResultSchema,
@@ -199,7 +203,7 @@ export const api = {
       ),
     /** Refreshes this browser's local list of watches. */
     status: (input: z.input<typeof StatusInputSchema>, options?: ApiOptions) =>
-      call(
+      callApi(
         "alerts/status",
         StatusInputSchema,
         StatusResultSchema,
@@ -211,7 +215,7 @@ export const api = {
   sync: {
     /** Saves docs, each only if the server's rev is still its `baseRev`. */
     push: (input: z.input<typeof SyncPushInputSchema>, options?: ApiOptions) =>
-      call(
+      callApi(
         "sync/push",
         SyncPushInputSchema,
         SyncPushResultSchema,
@@ -220,7 +224,7 @@ export const api = {
       ),
     /** One page of docs saved since `since`; pull again while `more`. */
     pull: (input: z.input<typeof SyncPullInputSchema>, options?: ApiOptions) =>
-      call(
+      callApi(
         "sync/pull",
         SyncPullInputSchema,
         SyncPullResultSchema,
@@ -235,7 +239,7 @@ export const api = {
       input: z.input<typeof ReviewListInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "reviews/list",
         ReviewListInputSchema,
         ReviewListResultSchema,
@@ -247,7 +251,7 @@ export const api = {
       input: z.input<typeof ReviewSubmitInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "reviews/submit",
         ReviewSubmitInputSchema,
         ReviewWriteResultSchema,
@@ -258,7 +262,7 @@ export const api = {
       input: z.input<typeof ReviewEditInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "reviews/edit",
         ReviewEditInputSchema,
         ReviewWriteResultSchema,
@@ -270,7 +274,7 @@ export const api = {
       input: z.input<typeof ReviewDeleteInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "reviews/delete",
         ReviewDeleteInputSchema,
         ReviewDeleteResultSchema,
@@ -278,7 +282,7 @@ export const api = {
         options,
       ),
     mine: (options?: ApiOptions) =>
-      call(
+      callApi(
         "reviews/mine",
         ReviewsMineInputSchema,
         ReviewsMineResultSchema,
@@ -292,7 +296,7 @@ export const api = {
       input: z.input<typeof ReportCreateInputSchema>,
       options?: ApiOptions,
     ) =>
-      call(
+      callApi(
         "reports/create",
         ReportCreateInputSchema,
         ReportCreateResultSchema,

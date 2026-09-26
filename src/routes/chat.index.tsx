@@ -1,16 +1,25 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ComingSoonPage } from "~/features/site/site-page";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback } from "react";
+import { ChatSearchSchema } from "~/core/schema";
+import { ChatPage } from "~/features/chat/chat-page";
+import type { ChatGo } from "~/features/chat/nav";
 
-// Terpsicle Chat: a stub until the chat track fills it in.
+// Terpsicle Chat (V2.md §8.6). Everything talks to the Worker from the
+// browser (the socket, chat/*, sync/pull), so it renders only there.
 export const Route = createFileRoute("/chat/")({
+  ssr: false,
+  validateSearch: ChatSearchSchema,
   head: () => ({ meta: [{ title: "Chat · Terpsicle" }] }),
-  component: ChatPage,
+  component: ChatRoute,
 });
 
-function ChatPage() {
-  return (
-    <ComingSoonPage title="Terpsicle Chat">
-      Talk with the other students in your classes.
-    </ComingSoonPage>
+function ChatRoute() {
+  const view = Route.useSearch();
+  const navigate = useNavigate({ from: "/chat/" });
+  const go: ChatGo = useCallback(
+    (next, options) =>
+      void navigate({ search: next, replace: options?.replace ?? false }),
+    [navigate],
   );
+  return <ChatPage view={view} go={go} />;
 }

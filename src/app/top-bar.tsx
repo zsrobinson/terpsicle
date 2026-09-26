@@ -2,7 +2,9 @@ import { cn } from "cn";
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { problemCountWords } from "~/core/problems";
-import { AccountButton } from "~/features/auth";
+// Not the barrel: it re-exports the account pages, which would then load
+// with the scheduler.
+import { AccountButton } from "~/features/auth/account-button";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCreditsLabel,

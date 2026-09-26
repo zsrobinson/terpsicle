@@ -36,7 +36,7 @@ Node 22 and pnpm 10.
 
 ### End-to-end tests
 
-`pnpm test:e2e` starts `pnpm dev:mock`, which applies the local D1 migrations first, and runs Playwright against it. Several checkouts can run e2e on one machine at once:
+`pnpm test:e2e` starts `pnpm dev:mock`, which applies the local D1 migrations and puts the mock bucket into local R2 first (for Chat's rooms), and runs Playwright against it. Several checkouts can run e2e on one machine at once:
 
 - **Each checkout has its own pair of ports**, derived from its path (`scripts/e2e-checkout.ts`): an even port in 3100–3898 for the app, and the next one for the seat-alert harness (`e2e/alerts-harness`). Set `E2E_PORT` to choose the app's port; the harness takes the one after it.
 - **A running server is reused only if it's this checkout's.** Playwright waits on `/__checkout/<id>`, which only this checkout's dev server and harness answer with 200. If another checkout's server holds a port, the run stops with "port in use" instead of silently testing that checkout's code.

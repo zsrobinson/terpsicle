@@ -9,7 +9,8 @@ import {
 } from "react";
 import { track } from "~/app/analytics";
 import { TONE_TEXT } from "~/app/emphasis";
-import { EmptyState, ListRow, MetaSep, useFocusRequest } from "~/app/panel";
+import { useFocusRequest } from "~/app/focus-request";
+import { EmptyState, ListRow, MetaSep } from "~/app/panel";
 import type { FitContext } from "~/core/fit";
 import type { Course } from "~/core/schema";
 import {

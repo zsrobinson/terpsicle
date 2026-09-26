@@ -445,6 +445,34 @@ describe("moderate", () => {
     expect(await getQueueRow(env.DB, "nope-nope-nope-nope-nop")).toBeNull();
   });
 
+  it("uses offline stand-ins only in mock mode's test mode", async () => {
+    const { ai, run } = mockAi({
+      guard: [() => Promise.reject(new Error("offline"))],
+      policy: [() => Promise.reject(new Error("offline"))],
+    });
+    const offline = { ...testEnv(ai), MODERATION_OFFLINE: "true" };
+    const clean = await moderate(
+      { ...offline, AUTH_TEST_MODE: "true" },
+      review(GOOD_REVIEW),
+      { now: nextDay() },
+    );
+    expect(clean.decision).toBe("publish");
+    expect(run).not.toHaveBeenCalled();
+    // The rules still hold what they hold.
+    expect(
+      (
+        await moderate(
+          { ...offline, AUTH_TEST_MODE: "true" },
+          chat("here are the answers to hw 3"),
+          { now: nextDay() },
+        )
+      ).decision,
+    ).toBe("hold");
+    // Without test mode the switch does nothing: the real models are asked.
+    await moderate(offline, review(GOOD_REVIEW), { now: nextDay() });
+    expect(run).toHaveBeenCalled();
+  });
+
   it("rejects malformed input instead of guessing", async () => {
     await expect(
       moderate(

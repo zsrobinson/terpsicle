@@ -52,6 +52,10 @@ export default defineConfig(({ command, mode }) => ({
               if (mode === "mock") {
                 worker.vars ??= {};
                 worker.vars.AUTH_TEST_MODE = "true";
+                // Chat runs against the mock catalog (scripts/seed-mock-data.ts
+                // puts it in local R2), screened by offline stand-in models.
+                worker.vars.CHAT_ENABLED = "on";
+                worker.vars.MODERATION_OFFLINE = "true";
               }
             }
           : undefined,
