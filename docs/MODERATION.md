@@ -149,7 +149,7 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
 | `admin/moderation/undo` | `{id}` | `{status: "ok", item}`, `{status: "nothing-to-undo"}` or `{status: "not-found"}` |
 
 - **No confirmation dialogs** (DESIGN §5): approve and remove act at once, and the UI offers **Undo**. Undo reopens the item, held, unless its ref was held again since (an edit), which answers `nothing-to-undo`.
-- V2 §10 names the eventual routes `admin/queue` and `admin/decide`. `v2/admin-shell` can rename these when it builds the panel; the functions (`listQueue`, `resolveQueueItem`, `undoQueueItem`) stay.
+- These are the routes V2 §10 lists. `v2/admin-shell` builds the panel on them and adds the rest (`admin/decisions`, `admin/health`, `admin/chat/remove`, author actions).
 - **Who is the admin:** `handleApi(…, {requireAdmin})` takes an `AdminGuard`. Until Identity's `requireAdmin` (Google sign-in plus the admin allowlist) is merged, the default `denyAllAdmins` lets nobody in. Wiring it is one line in `src/server/worker.ts`.
 - **Reaching the feature:** each handler in `MODERATION_HANDLERS` gets `(targetId, "publish" | "remove" | "hold")` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
 
@@ -220,6 +220,6 @@ Reading every message adds little latency, because the policy model runs beside 
 - **Unflagged chat only acts on `targets-person`.** Answers, contact details and spam in chat that no rule and no Guard category catch still publish. Widening that set brings back the false holds measured in §8.
 - **Scores near 0.5 wobble.** One harsh-but-fair review flipped between publish and hold across runs. That costs the owner a click, not a wrong publish.
 - **Decision rows are kept.** V2 says a year; nothing prunes them yet (it's the daily job's, V2 §13).
-- **Differences from V2 §9 in the code's API** (V2's `screen()` with `allow | hold | reject`, a policy `verdict` plus `confidence`, and `ALLOW_CONFIDENCE` thresholds). This service scores each label from 0 to 1, tuned against the eval set, and maps onto V2's tables. Reviews and Chat should call `moderate()` as documented here.
+- **V2 §9 and §10 describe this API** (`moderate()`, per-label scores, `admin/moderation/*`) and point here for details.
 - **Reports:** the table exists; `reports/create`, one report per user per item, and hiding after 3 reports (or 1 for a threat, personal info or a named student) land with `v2/reviews-api`.
 - **Analytics:** no moderation events yet. When added, they carry counts and reason codes only, never text (`docs/ANALYTICS.md`).
