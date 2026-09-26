@@ -16,6 +16,30 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 | M7: Backend features | Done (#6, #20) | Review summaries (Workers AI) and seat alerts, on in production. |
 | M8: Polish and launch | Done, final QA in flight | Polish (#16), QA rounds 1–2 (#19, #22), accessibility and mobile (#25, axe in e2e), UX redesign WP0–WP7 (#23, #24, #27–#33). QA round 3 (post-redesign regression) in flight. |
 
+## v2 (owner decisions, 2026-09-26)
+
+Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/reviews`, Terpsicle Chat at `/chat`, with Google sign-in (UMD accounts only), plan sync, one PWA and a light `/admin`. Earshot and Orgs are shelved. The plan, with every table, route, binding and the PR order, is `docs/V2.md`; its §15 lists the PRs by wave.
+
+| Milestone | PRs (`docs/V2.md` §15) | State |
+|---|---|---|
+| V0: Plan | `v2/plan` | In review |
+| V1: Foundations | `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation` | In flight |
+| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | Not started |
+| V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Not started |
+| V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | Not started |
+| V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | Not started |
+| V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | Not started |
+
+**v2 decisions** (details in `docs/V2.md`):
+- **Plan sync is plain server-side storage**, encrypted at rest by Cloudflare, not end-to-end encrypted. The orchestrator's call, flagged for the owner: it lets Chat derive rooms from plans and keeps recovery simple.
+- **PR previews sign in with a fixed test mode** (`AUTH_TEST_MODE`, fixture identities), not a production broker: previews run unreviewed code and have their own D1, and CI needs a deterministic sign-in anyway.
+- **Seat alerts retire the email-token flow** rather than migrate it; nothing is public, and the only real subscriptions were the owner's deleted test rows.
+- **One Worker** (`terpsicle`) with one Durable Object class (`CourseChat`, one object per course per term), the one exception to BUILD.md §1's no-Durable-Objects rule.
+- **Migrations are pre-numbered** `0003`–`0009` so parallel PRs don't collide.
+- **Brand refresh** (Bulletin paper, Flexoki, Bricolage Grotesque) waits for the owner's sign-off; engineering keeps today's tokens.
+
+**Owner actions** (`docs/V2.md` §14): the Google OAuth client is done (External, published, scopes `openid email profile`, redirect `https://terpsicle.com/api/auth/google/callback` plus localhost; `GOOGLE_CLIENT_ID` in vars, `GOOGLE_CLIENT_SECRET` set on the Worker). `AUTH_SECRET` and `VAPID_*` are set and the `terpsicle-user-content` buckets exist. Admins are the git-tracked `config/admins.txt` (first entry `robinson`, the owner), bundled at build time, so they need no owner action. Later: brand verification once `/privacy` is live, a sign-in trial with a TERPmail and a UMD Gmail account, confirming the sync decision, and emailing PlanetTerp about review text.
+
 ## UX redesign (owner request, 2026-09-25)
 
 `docs/UX-PRINCIPLES.md` (research) and `docs/UX-REVIEW.md` (audit, plan, before/after). Owner decisions: course details is one page with no tabs (1A); many-section courses group by meeting time (2A); the sidebar is draggable, 320–480px. The design system is enforced by `src/app/design-tokens.test.ts` (type scale, 4px spacing, no raw colors). Rule added to DESIGN.md §5: design for 1, a few and many sections.
@@ -23,6 +47,7 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 ## In flight
 
 - `m8/qa-3`: post-redesign regression on production.
+- v2 wave 1: `v2/plan`, `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation`.
 
 ## Decisions
 

@@ -2,6 +2,7 @@
 export * from "./api";
 export * from "./calendar";
 export * from "./catalog";
+export * from "./chat";
 export * from "./generate";
 export * from "./geo";
 export * from "./keys";

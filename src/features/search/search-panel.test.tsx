@@ -96,6 +96,16 @@ describe("Search tab", () => {
     expect(useUi.getState().hoverCourse).toBeNull();
   });
 
+  it("a finger on a result doesn't preview it", async () => {
+    // iOS Safari drops a tap's click when content appears as it lands.
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc 351");
+    const row = await screen.findByRole("option", { name: /^CMSC351/ });
+    await user.pointer({ keys: "[TouchA>]", target: row });
+    expect(useUi.getState().hoverCourse).toBeNull();
+    await user.pointer({ keys: "[/TouchA]", target: row });
+  });
+
   it("drops a hovered result's ghosts when typing takes the result away", async () => {
     const { user, box } = await renderSearch();
     await user.type(box, "cmsc");

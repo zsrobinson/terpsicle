@@ -14,6 +14,7 @@ One-off objects for tests. Each returns a schema-valid value with defaults taken
 | Geo and travel | `aBuilding`, `aBuildingsFile`, `aRouteGeometry`, `aConnection` |
 | Calendar | `aPublishedCalendar`, `anUnpublishedCalendar` |
 | Computed | `aGenerateRequest`, `aProblem` |
+| Chat | `aChatAuthor`, `aChatMessage` |
 
 Don't hand-roll these objects in tests (CLAUDE.md).
 

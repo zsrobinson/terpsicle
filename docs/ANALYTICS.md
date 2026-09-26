@@ -77,8 +77,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
 ## Privacy
 
-- **Anonymous only.** We never call `identify()`, so no person profiles exist (`person_profiles: "identified_only"`). There are no accounts to link to.
-- **No cookies.** PostHog state lives in `localStorage`, and the `/ingest` proxy strips cookies in both directions.
+- **Anonymous only.** We never call `identify()`, so no person profiles exist (`person_profiles: "identified_only"`). v2 adds accounts, and this doesn't change: signing in never identifies anyone to PostHog, and events never carry a user id, name, email, directory ID or user-written text (`docs/V2.md` §11).
+- **No analytics cookies.** PostHog state lives in `localStorage`, and the `/ingest` proxy strips cookies in both directions (so the v2 session cookie never reaches PostHog).
 - **No IP addresses.** The proxy drops the visitor's IP headers, so PostHog only sees Cloudflare's.
 - **Inputs are masked** in recordings, and anything marked `data-private` is too. Use it for anything a person types or that identifies them.
 - **Seat-alert emails never reach analytics.** They're stored in D1 for sending alerts and nothing else: never pass one to `track()`, an event property, or a `data-*` attribute autocapture could read, and mark the email field `data-private`.
