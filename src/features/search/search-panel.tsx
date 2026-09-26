@@ -368,7 +368,13 @@ function ResultRow({
       onKeyDown={(e) => {
         if (e.key === "Enter") onOpen();
       }}
-      onPointerEnter={onHover}
+      // Only a mouse previews. A finger's tap would preview too, on touch
+      // down, and iOS Safari takes content that appears under a tap for a
+      // hover menu and drops the click: the result didn't open (the mobile
+      // lab's open-results on iOS).
+      onPointerEnter={(e) => {
+        if (e.pointerType === "mouse") onHover();
+      }}
       state={active ? "previewed" : undefined}
       className="absolute inset-x-0 cursor-pointer hover:bg-hover"
       style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}

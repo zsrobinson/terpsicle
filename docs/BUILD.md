@@ -22,7 +22,7 @@ Every subagent brief links the sections of these documents that apply to its tas
 - Work happens on short-lived branches named `<milestone>/<slug>` (e.g. `m1/fit`), each opened as a PR into `main`. **The orchestrator squash-merges** once CI is green and a review pass finds nothing blocking.
 - **Pure logic lives in `src/core`** and is exhaustively tested. UI stays thin: read state, call core, render.
 - **Mock data is first-class.** The app runs fully offline against `src/fixtures` (`pnpm dev:mock`). Every UI feature is built and tested against fixtures before real data is wired in.
-- **Cloudflare: proven products only.** Workers (static assets, Cron Triggers), R2, D1. No Queues, Workflows, Durable Objects, Vectorize, or beta products. We're on **Workers Paid**.
+- **Cloudflare: proven products only.** Workers (static assets, Cron Triggers), R2, D1. No Queues, Workflows, Durable Objects, Vectorize, or beta products. We're on **Workers Paid**. v2 exception: one SQLite-backed Durable Object class, `CourseChat`, in the same `terpsicle` Worker, for Chat only (`docs/V2.md` §8.4, §13).
 - **GitHub Actions only runs CI and deploys.** All data jobs are Worker cron triggers.
 - **The spec is the tiebreaker.** If something is ambiguous, pick the option most consistent with `SPEC.md` §1 and `DESIGN.md` §5, write the choice in the PR, and keep going. Don't stop to ask the owner.
 
@@ -276,7 +276,7 @@ Each milestone ends green and deployed. The orchestrator checks the acceptance c
 | `CLOUDFLARE_API_TOKEN` | Claude Code environment variables **and** GitHub Actions secrets | wrangler: deploy, R2, D1, custom domain |
 | `CLOUDFLARE_ACCOUNT_ID` | same two places | wrangler |
 
-No other secrets: seat-alert email goes through Cloudflare Email Service (the `EMAIL` `send_email` binding; terpsicle.com is onboarded for sending), and the PostHog project token is public (`env/.env` for the client, `vars.POSTHOG_TOKEN` in `wrangler.jsonc` for the Worker).
+v2 adds secrets and vars for sign-in and push (`GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `VAPID_PRIVATE_KEY`; `docs/V2.md` §13–14). Admins are the git-tracked `config/admins.txt`, not an env var. Before v2 there were no other secrets: seat-alert email goes through Cloudflare Email Service (the `EMAIL` `send_email` binding; terpsicle.com is onboarded for sending), and the PostHog project token is public (`env/.env` for the client, `vars.POSTHOG_TOKEN` in `wrangler.jsonc` for the Worker).
 
 Cloudflare resources (all in place since M0, declared in `wrangler.jsonc`):
 - Worker `terpsicle`, with custom domains `terpsicle.com` and `www.terpsicle.com` (www 301s to the apex in `src/server.ts`), no production `workers.dev` route;

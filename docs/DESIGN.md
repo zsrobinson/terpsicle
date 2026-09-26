@@ -143,6 +143,7 @@ Use these when the spec is silent:
 - **Returning people land straight in the app.** A marketing page at `/` greets first visits only; anyone with saved plans or a session goes to `/schedule` (owner, v2).
 - **Nothing to babysit.** Terms, buildings and routes are discovered from the data. A new semester needs no code change.
 - **Make each feature excellent rather than adding more.** The owner cut finals, compare, image export and NL input to keep what remains excellent.
+- **v2 note: a brand refresh is pending the owner's sign-off.** The direction is "Bulletin" paper (square corners, small offset shadows), the Flexoki palette and Bricolage Grotesque. Until the owner agrees final tokens, keep today's tokens and Geist; build new UI with tokens only, so the switch is one change. Where `docs/V2.md` differs from this list (a marketing page at `/`; seat alerts without the confirmation), V2.md wins.
 
 ---
 
