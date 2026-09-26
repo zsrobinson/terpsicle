@@ -23,10 +23,6 @@ import { deletePictures } from "./pictures";
  * in it. A worker test checks this against the live schema, so a migration
  * that adds a table fails until it's listed here (and, if it holds user
  * data, purged below).
- *
- * The feedback table isn't on main yet. When `feedback.user_id` lands, add
- * `feedback` here and its statement to `accountStatements` (null the column,
- * so the owner keeps what was said but not who said it).
  */
 export const PURGE_LEDGER = {
   // 0002_seat_alerts (its alert tables dropped by 0007)
@@ -64,6 +60,10 @@ export const PURGE_LEDGER = {
   todo_feeds: "deleted (the sealed ELMS link with it)",
   todo_items: "deleted",
   todo_done: "deleted",
+  // 0012_feedback
+  feedback:
+    "kept for the owner, user_id set to null (they can't be replied to now)",
+  feedback_groups: "untouched: no user data",
 } as const satisfies Record<string, string>;
 
 /**
@@ -246,6 +246,12 @@ export function accountStatements(
     // Seat watches and the alerts sent for them.
     byUser("seat_watches"),
     byUser("seat_alert_sends"),
+    // Feedback stays, without who sent it.
+    db
+      .prepare(
+        `UPDATE feedback SET user_id = NULL WHERE user_id = ?1 AND ${STILL_DUE}`,
+      )
+      .bind(userId, at),
     // Todo: the feed (its sealed link), its items and done marks.
     byUser("todo_items"),
     byUser("todo_done"),

@@ -274,6 +274,13 @@ async function seedAccount(id: string, n: number) {
         at,
       ],
       [
+        `INSERT INTO feedback (id, kind, product, path, text, host, user_id, created_at, updated_at)
+         VALUES (?2, 'bug', 'schedule', '/schedule', 'The calendar jumps when I drag a block.', 'terpsicle.com', ?1, ?3, ?3)`,
+        id,
+        `feedback-${n}`,
+        at,
+      ],
+      [
         "INSERT INTO counters (name, window_start, count) VALUES (?1, ?2, 3)",
         `user:${id}:reviews/submit`,
         new Date(NOW.getTime() - DAY).toISOString(),

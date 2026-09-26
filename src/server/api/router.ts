@@ -46,6 +46,16 @@ import {
   AdminSamplesInputSchema,
   DecisionListInputSchema,
 } from "~/core/schema/admin";
+import {
+  FEEDBACK_MAX_REQUEST_BYTES,
+  FeedbackDeleteInputSchema,
+  FeedbackListInputSchema,
+  FeedbackPinInputSchema,
+  FeedbackPinsInputSchema,
+  FeedbackSendInputSchema,
+  FeedbackUndoInputSchema,
+  FeedbackUpdateInputSchema,
+} from "~/core/schema/feedback";
 import { listDecisions } from "../admin/decisions";
 import { adminHealth } from "../admin/health";
 import { addSamples } from "../admin/samples";
@@ -81,6 +91,15 @@ import {
 } from "../chat/api";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
+import {
+  adminDeleteFeedback,
+  adminListFeedback,
+  adminUpdateFeedback,
+  listPins,
+  pinFeedback,
+  sendFeedback,
+  undoFeedback,
+} from "../feedback/api";
 import {
   listQueue,
   resolveQueueItem,
@@ -151,9 +170,12 @@ interface Route<S extends z.ZodType> {
   /**
    * Who may call it (V2.md §12). "user" and "admin" need a same-origin
    * request and a session (401 without, 403 for a non-admin), and the
-   * handler gets `ctx.session`. Omitted means "none".
+   * handler gets `ctx.session`. "optional" is for anyone, signed in or not:
+   * it needs a same-origin request (it writes), and hands the handler the
+   * session when there is one, counting `perUserPerHour` then. Omitted
+   * means "none".
    */
-  auth?: "none" | "user" | "admin";
+  auth?: "none" | "optional" | "user" | "admin";
   /**
    * The least REVIEWS_ENABLED this route needs (V2 §7.4): "read" for
    * reading, deleting and reporting, "on" for writing. Below it the route
@@ -406,6 +428,60 @@ export const ROUTES = {
     auth: "user",
     handle: (env, input, ctx) => todoImportFile(env, input, ctx),
   }),
+  // Feedback (docs/FEEDBACK.md). Anyone can send it; who sent it is kept
+  // only when they ask for a reply.
+  "feedback/send": route({
+    input: FeedbackSendInputSchema,
+    perIpPerHour: 12,
+    perUserPerHour: 20,
+    maxBytes: FEEDBACK_MAX_REQUEST_BYTES,
+    alerts: false,
+    auth: "optional",
+    handle: (env, input, ctx) => sendFeedback(env, input, ctx),
+  }),
+  "feedback/undo": route({
+    input: FeedbackUndoInputSchema,
+    perIpPerHour: 30,
+    alerts: false,
+    auth: "optional",
+    handle: (env, input, ctx) => undoFeedback(env, input, ctx),
+  }),
+  "feedback/pin": route({
+    input: FeedbackPinInputSchema,
+    perIpPerHour: 600,
+    maxBytes: FEEDBACK_MAX_REQUEST_BYTES,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => pinFeedback(env, input, ctx),
+  }),
+  "feedback/pins": route({
+    input: FeedbackPinsInputSchema,
+    perIpPerHour: 2_000,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input) => listPins(env, input),
+  }),
+  "admin/feedback/list": route({
+    input: FeedbackListInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input) => adminListFeedback(env, input),
+  }),
+  "admin/feedback/update": route({
+    input: FeedbackUpdateInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => adminUpdateFeedback(env, input, ctx),
+  }),
+  "admin/feedback/delete": route({
+    input: FeedbackDeleteInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => adminDeleteFeedback(env, input, ctx),
+  }),
   // Moderation's admin side (docs/MODERATION.md §6).
   "admin/moderation/queue": route({
     input: QueueListInputSchema,
@@ -549,6 +625,9 @@ export async function handleApi(
     if (!isSameOrigin(request)) return apiError("forbidden");
     session = await getSession(request, env, now, { refresh: true });
     if (!session) return apiError("unauthorized");
+  } else if (r.auth === "optional") {
+    if (!isSameOrigin(request)) return apiError("forbidden");
+    session = await getSession(request, env, now, { refresh: true });
   }
   // From here on a refreshed session's new cookie goes out with every
   // answer, errors included: the old token stops working a minute later.

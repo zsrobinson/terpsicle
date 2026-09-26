@@ -66,7 +66,7 @@ Revisit if: never on its own.
 
 ### A deleted account leaves nothing that names the person
 2026-09-26 · agent · app-wide
-After the week, the daily purge removes every row with the person's directory ID or addresses, their chat messages in every course object and their pictures. Reviews stay with no author and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
+After the week, the daily purge removes every row with the person's directory ID or addresses, their chat messages in every course object and their pictures. Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
 Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
 
 ### LLMs only in three places
@@ -238,6 +238,11 @@ Revisit if: reports turn out too thin to act on.
 2026-09-26 · agent · one feature
 The feedback sheet's admin-only "Pin a note" mode stores notes on elements of a deployment, pulled by agents with `scripts/feedback.ts`.
 Revisit if: the owner prefers another way to leave notes.
+
+### Feedback reads the session without needing one
+2026-09-26 · agent · one feature
+`feedback/send` and `feedback/undo` are `auth: "optional"` routes: same-origin like signed-in routes (they write), with the session when there is one (for the reply toggle and the per-person limit), never a 401. The inbox shows whether a reply may go, never to whom.
+Revisit if: another route needs the same, or feedback needs sign-in.
 
 ## Process
 

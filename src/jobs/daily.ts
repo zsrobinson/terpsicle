@@ -1,5 +1,6 @@
 import { endPastTermWatches } from "~/server/alerts/service";
 import { deleteExpiredSessions, purgeDueAccounts } from "~/server/auth/purge";
+import { pruneFeedback } from "~/server/feedback/store";
 import { pruneReviews } from "~/server/reviews/store";
 import { pruneTombstones } from "~/server/sync/store";
 import { pruneTodo } from "~/server/todo/store";
@@ -13,8 +14,11 @@ import { type Job, runJob } from "./job";
  * sessions, deleted plans' tombstones 30 days on (V2.md §5.2), and
  * reviews' words: rejected ones cleared and deleted rows removed 30 days on
  * (V2.md §7.3), and Todo items due over 30 days ago with their stale done
- * marks (V3.md §3.4). A purged author's reviews stay up without one. Seat
- * watches end once their term is no longer active (V2.md §6.5).
+ * marks (V3.md §3.4), and feedback past its retention (docs/FEEDBACK.md):
+ * undo tokens after 10 minutes, screenshots after 180 days or 30 after
+ * closing, items after a year or once the owner's delete can't be undone.
+ * A purged author's reviews stay up without one. Seat watches end once
+ * their term is no longer active (V2.md §6.5).
  * Later PRs add the chat digest and the moderation digest.
  */
 export const runDailyJob: Job = async (context) => {
@@ -27,6 +31,7 @@ export const runDailyJob: Job = async (context) => {
     const reviews = await pruneReviews(env.DB, now);
     const todo = await pruneTodo(env.DB, now);
     const watches = await endPastTermWatches(env);
+    const feedback = await pruneFeedback(env.DB, env.USER_CONTENT, now);
     return {
       counts: {
         accountsPurged: purged.accounts,
@@ -39,6 +44,9 @@ export const runDailyJob: Job = async (context) => {
         todoItemsPruned: todo.items,
         todoDoneMarksPruned: todo.doneMarks,
         seatWatchesEnded: watches.watches,
+        feedbackUndoCleared: feedback.undoCleared,
+        feedbackShotsExpired: feedback.shotsExpired,
+        feedbackRemoved: feedback.removed,
       },
       errors: purged.errors,
     };

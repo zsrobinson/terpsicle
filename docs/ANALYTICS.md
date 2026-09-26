@@ -94,6 +94,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signin_result` | `outcome` (`signed-in`, a `SignInError` code, or `sub-conflict`), `hd` (the domain only, on success) | Server-side truth for sign-in success and failure, including failures the browser never reports, and the TERPmail versus UMD Gmail split. |
   | `sync_push` | `docs`, `fourYearDocs`, `conflicts` | Plan sync's load (and how much of it is Terpsicle Plan's four-year plans) and how often two devices change the same doc (a conflict makes a "(copy)" plan). Counts only. |
   | `todo_fetch_run` | `due`, `fetched`, `notModified`, `unchanged`, `failed`, `broken`, `paused`, `durationMs` | Terpsicle Todo's feed cadence and failure rates. Counts only: never a feed, link, person or item. |
+  | `feedback_received` | `kind` (`bug` · `idea`), `product`, `hasScreenshot`, `withContext`, `reply` | How much feedback arrives and whether people keep the screenshot and activity log on (docs/FEEDBACK.md). Never its words, its page or who sent it. |
 
   Seat-alert events never carry an address, token or IP, not even hashed: a count per term is all we need. Identity events carry no user id, directory ID, name, email or `sub`: the domain is the most specific thing they say.
 
