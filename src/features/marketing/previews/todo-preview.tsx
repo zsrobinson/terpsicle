@@ -1,7 +1,6 @@
-import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Mark } from "~/app/brand/mark";
 import { WithTooltip } from "~/ui/tooltip";
+import { ChevronIcon } from "./icons";
 import { type PreviewProps, SampleTag, type Tint, vars } from "./preview";
 
 // Todo, before it ships: a sample week from an ELMS calendar feed. The Due
@@ -89,7 +88,7 @@ function minutes(time: string): number {
   return h * 60 + Number(m[2]);
 }
 
-export function TodoPreview({ active, reduced }: PreviewProps) {
+export function TodoPreview({ active, reduced, mark }: PreviewProps) {
   const [done, setDone] = useState<ReadonlySet<number>>(new Set());
   const [said, setSaid] = useState("");
   // The Due lane fills in once, when it scrolls into view.
@@ -109,23 +108,30 @@ export function TodoPreview({ active, reduced }: PreviewProps) {
   };
 
   return (
-    <div className="relative flex w-full max-w-[340px] flex-col overflow-hidden border border-keyline bg-raised text-base shadow-pop">
+    <div
+      style={{ maxWidth: 340 }}
+      className="relative flex w-full flex-col overflow-hidden border border-keyline bg-raised text-base shadow-pop"
+    >
       <div className="flex h-10 shrink-0 items-center gap-2 border-b px-2.5">
-        <Mark id="todo" size={22} />
+        {mark}
         <span className="flex flex-col leading-4">
           <span className="font-semibold text-lg">Todo</span>
           <span className="text-muted text-xs">{open} open</span>
         </span>
-        <ChevronDown size={12} aria-hidden="true" className="text-muted" />
+        <ChevronIcon className="size-3 text-muted" />
         <span className="ml-auto text-muted text-xs">Fall 2026</span>
         <SampleTag inline />
       </div>
       <div
         role="img"
         aria-label={`Due this week: ${DUE.map((d) => `${d.title}, ${DAYS[d.day]}`).join("; ")}`}
-        className="grid shrink-0 grid-cols-[22px_repeat(5,minmax(0,1fr))] border-b bg-panel"
+        className="grid shrink-0 border-b bg-panel"
+        style={{ gridTemplateColumns: "22px repeat(5, minmax(0, 1fr))" }}
       >
-        <span className="rotate-180 py-1 text-center font-semibold text-2xs text-muted uppercase tracking-wider [writing-mode:vertical-rl]">
+        <span
+          className="rotate-180 py-1 text-center font-semibold text-2xs text-muted uppercase tracking-wider"
+          style={{ writingMode: "vertical-rl" }}
+        >
           Due
         </span>
         {[1, 2, 3, 4, 5].map((day) => (
@@ -172,7 +178,10 @@ export function TodoPreview({ active, reduced }: PreviewProps) {
                     <WithTooltip
                       label={done.has(d.id) ? "Mark as not done" : "Mark done"}
                     >
-                      <label className="grid cursor-pointer grid-cols-[auto_1fr_auto] items-start gap-x-2 px-3 py-1.5">
+                      <label
+                        className="grid cursor-pointer items-start gap-x-2 px-3 py-1.5"
+                        style={{ gridTemplateColumns: "auto 1fr auto" }}
+                      >
                         <input
                           type="checkbox"
                           checked={done.has(d.id)}

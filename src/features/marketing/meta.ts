@@ -14,5 +14,5 @@ export const OG_IMAGE = {
   path: "/og.png",
   width: 1200,
   height: 630,
-  alt: "Five tangled lines straighten into Terpsicle's five parts: Schedule, Reviews, Chat, Plan and Todo.",
+  alt: "Five tangled lines straighten into five rails, one per part of Terpsicle.",
 } as const;

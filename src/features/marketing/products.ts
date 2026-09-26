@@ -41,58 +41,14 @@ export const BECOMES: Record<MarketingProduct, string> = {
 };
 
 /**
- * Tailwind classes per product, spelled out so Tailwind finds them:
- * the section's fill, product-colored words, the rails and the misprint.
+ * The class that sets a product's paints (marketing.css): `mk-soft`,
+ * `mk-text`, `mk-stroke`, `mk-mis-stroke`, `mk-mis-color` and
+ * `mk-rail-fill` inside it use them.
  */
-export const PAINT: Record<
-  MarketingProduct,
-  {
-    soft: string;
-    text: string;
-    stroke: string;
-    misStroke: string;
-    misText: string;
-    rail: string;
-  }
-> = {
-  schedule: {
-    soft: "bg-product-schedule-soft",
-    text: "text-product-schedule-text",
-    stroke: "stroke-product-schedule-line",
-    misStroke: "stroke-product-schedule-mis",
-    misText: "text-product-schedule-mis",
-    rail: "bg-product-schedule-line",
-  },
-  reviews: {
-    soft: "bg-product-reviews-soft",
-    text: "text-product-reviews-text",
-    stroke: "stroke-product-reviews-line",
-    misStroke: "stroke-product-reviews-mis",
-    misText: "text-product-reviews-mis",
-    rail: "bg-product-reviews-line",
-  },
-  chat: {
-    soft: "bg-product-chat-soft",
-    text: "text-product-chat-text",
-    stroke: "stroke-product-chat-line",
-    misStroke: "stroke-product-chat-mis",
-    misText: "text-product-chat-mis",
-    rail: "bg-product-chat-line",
-  },
-  plan: {
-    soft: "bg-product-plan-soft",
-    text: "text-product-plan-text",
-    stroke: "stroke-product-plan-line",
-    misStroke: "stroke-product-plan-mis",
-    misText: "text-product-plan-mis",
-    rail: "bg-product-plan-line",
-  },
-  todo: {
-    soft: "bg-product-todo-soft",
-    text: "text-product-todo-text",
-    stroke: "stroke-product-todo-line",
-    misStroke: "stroke-product-todo-mis",
-    misText: "text-product-todo-mis",
-    rail: "bg-product-todo-line",
-  },
+export const PAINT: Record<MarketingProduct, string> = {
+  schedule: "mk-schedule",
+  reviews: "mk-reviews",
+  chat: "mk-chat",
+  plan: "mk-plan",
+  todo: "mk-todo",
 };

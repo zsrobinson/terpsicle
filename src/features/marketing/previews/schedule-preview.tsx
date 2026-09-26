@@ -1,17 +1,22 @@
-import {
-  Bell,
-  BellRing,
-  Check,
-  CircleCheck,
-  CircleX,
-  Plus,
-  Search,
-  TriangleAlert,
-} from "lucide-react";
 import { useState } from "react";
-import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { type PreviewProps, SampleTag, type Tint, tint, vars } from "./preview";
+import {
+  BellIcon,
+  CheckIcon,
+  OkIcon,
+  PlusIcon,
+  ProblemIcon,
+  SearchIcon,
+  WarnIcon,
+} from "./icons";
+import {
+  type PreviewProps,
+  SampleButton,
+  SampleTag,
+  type Tint,
+  tint,
+  vars,
+} from "./preview";
 
 // A mini scheduler with sample sections: add a section, see it on the week
 // and in the problems, fix a problem, watch a full section, undo. It
@@ -240,6 +245,8 @@ function problemsOf(st: State): Problem[] {
 }
 
 const FROM = 9;
+/** The hours' column, then the five days. */
+const WEEK_COLUMNS = "30px repeat(5, minmax(0, 1fr))";
 const TO = 16;
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -318,7 +325,7 @@ export function SchedulePreview(_: PreviewProps) {
       <div className="grid grid-cols-1 items-start gap-3 @[540px]:grid-cols-2">
         <div className="border border-keyline bg-raised shadow-offset">
           <div className="flex h-8 items-center gap-2 border-b px-2.5 text-muted text-sm">
-            <Search size={14} aria-hidden="true" />
+            <SearchIcon />
             <span className="font-medium text-fg">Fits my plan</span>
             <span className="ml-auto">
               <SampleTag inline label="Sample seats" />
@@ -352,27 +359,26 @@ export function SchedulePreview(_: PreviewProps) {
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     {added ? (
                       <WithTooltip label="In your plan">
-                        <Button
-                          size="icon-sm"
+                        <SampleButton
+                          look="filled"
+                          size="icon"
                           aria-label={`${course.code} is in your plan`}
                           aria-disabled="true"
-                          className="shadow-none"
                         >
-                          <Check aria-hidden="true" />
-                        </Button>
+                          <CheckIcon />
+                        </SampleButton>
                       </WithTooltip>
                     ) : (
                       <WithTooltip
                         label={`Add section ${section.label} to your plan`}
                       >
-                        <Button
-                          size="icon-sm"
-                          variant="outline"
+                        <SampleButton
+                          size="icon"
                           aria-label={`Add ${course.code} ${section.label}`}
                           onClick={() => commit({ [k]: 0 }, k)}
                         >
-                          <Plus aria-hidden="true" />
-                        </Button>
+                          <PlusIcon />
+                        </SampleButton>
                       </WithTooltip>
                     )}
                     <span
@@ -432,9 +438,10 @@ export function SchedulePreview(_: PreviewProps) {
               {problems.map((p) => (
                 <li
                   key={p.id}
-                  className={`grid grid-cols-[16px_1fr] gap-x-2 gap-y-0.5 border-t px-2.5 py-2 first:border-t-0 ${arrived.includes(p.id) ? "mk-arrive" : ""}`}
+                  style={{ gridTemplateColumns: "16px 1fr" }}
+                  className={`grid gap-x-2 gap-y-0.5 border-t px-2.5 py-2 first:border-t-0 ${arrived.includes(p.id) ? "mk-arrive" : ""}`}
                 >
-                  <ProblemIcon tone={p.tone} />
+                  <ToneIcon tone={p.tone} />
                   <span className="font-semibold">{p.title}</span>
                   <span className="col-start-2 text-muted text-sm">
                     {p.detail}
@@ -442,9 +449,7 @@ export function SchedulePreview(_: PreviewProps) {
                   <span className="col-start-2 mt-1 flex flex-wrap items-center gap-2">
                     {p.fix ? (
                       <WithTooltip label={p.fix.tip}>
-                        <Button
-                          size="row"
-                          variant="outline"
+                        <SampleButton
                           aria-pressed={
                             p.fix.icon === "ring" ? true : undefined
                           }
@@ -460,14 +465,10 @@ export function SchedulePreview(_: PreviewProps) {
                             );
                           }}
                         >
-                          {p.fix.icon === "bell" ? (
-                            <Bell aria-hidden="true" />
-                          ) : null}
-                          {p.fix.icon === "ring" ? (
-                            <BellRing aria-hidden="true" />
-                          ) : null}
+                          {p.fix.icon === "bell" ? <BellIcon /> : null}
+                          {p.fix.icon === "ring" ? <BellIcon on /> : null}
                           {p.fix.label}
-                        </Button>
+                        </SampleButton>
                       </WithTooltip>
                     ) : null}
                     {p.note ? (
@@ -484,12 +485,11 @@ export function SchedulePreview(_: PreviewProps) {
   );
 }
 
-function ProblemIcon({ tone }: { tone: Tone }) {
+function ToneIcon({ tone }: { tone: Tone }) {
   const cls = `mt-0.5 size-3.5 ${tone === "error" ? "text-error" : tone === "warn" ? "text-warn" : "text-ok"}`;
-  if (tone === "error") return <CircleX aria-label="Problem" className={cls} />;
-  if (tone === "warn")
-    return <TriangleAlert aria-label="Heads-up" className={cls} />;
-  return <CircleCheck aria-label="Handled" className={cls} />;
+  if (tone === "error") return <ProblemIcon label="Problem" className={cls} />;
+  if (tone === "warn") return <WarnIcon label="Heads-up" className={cls} />;
+  return <OkIcon label="Handled" className={cls} />;
 }
 
 function Week({
@@ -514,7 +514,10 @@ function Week({
       aria-label={`A sample week: ${[...new Set(blocks.map((b) => b.code))].join(", ")}`}
       className="relative overflow-hidden border bg-raised text-2xs [--hpx:36px] md:[--hpx:40px]"
     >
-      <div className="grid h-6 grid-cols-[30px_repeat(5,minmax(0,1fr))] items-center border-b font-semibold text-muted text-xs">
+      <div
+        style={{ gridTemplateColumns: WEEK_COLUMNS }}
+        className="grid h-6 items-center border-b font-semibold text-muted text-xs"
+      >
         <span />
         {DAYS.map((d) => (
           <span key={d} className="border-l pl-1">
@@ -523,8 +526,11 @@ function Week({
         ))}
       </div>
       <div
-        className="grid grid-cols-[30px_repeat(5,minmax(0,1fr))]"
-        style={{ height: `calc(${TO - FROM} * var(--hpx))` }}
+        className="grid"
+        style={{
+          gridTemplateColumns: WEEK_COLUMNS,
+          height: `calc(${TO - FROM} * var(--hpx))`,
+        }}
       >
         <div className="relative">
           {hours.map((h) => (

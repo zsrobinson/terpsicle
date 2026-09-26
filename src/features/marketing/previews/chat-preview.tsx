@@ -1,7 +1,6 @@
-import { ArrowUp, ChevronDown, Star } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import { Mark } from "~/app/brand/mark";
 import { WithTooltip } from "~/ui/tooltip";
+import { ChevronIcon, SendIcon, StarIcon } from "./icons";
 import { type PreviewProps, SampleTag } from "./preview";
 
 // A course chat with sample classmates: messages arrive one at a time, and
@@ -60,15 +59,15 @@ const REPLIES: Omit<Message, "id">[] = [
 ];
 
 const AVATAR: Record<Message["tone"], string> = {
-  blue: "bg-product-chat-soft text-product-chat-text",
-  violet: "bg-product-reviews-soft text-product-reviews-text",
-  pink: "bg-product-schedule-soft text-product-schedule-text",
+  blue: "mk-chat mk-soft mk-text",
+  violet: "mk-reviews mk-soft mk-text",
+  pink: "mk-schedule mk-soft mk-text",
   me: "bg-accent text-accent-fg",
 };
 
 const ROOMS = ["CMSC351", "A. Moreno", "0201", "0301"];
 
-export function ChatPreview({ active, reduced }: PreviewProps) {
+export function ChatPreview({ active, reduced, mark }: PreviewProps) {
   const [messages, setMessages] = useState<Message[]>(() =>
     reduced ? ARRIVING.map((m, id) => ({ ...m, id })) : [],
   );
@@ -173,11 +172,14 @@ export function ChatPreview({ active, reduced }: PreviewProps) {
   };
 
   return (
-    <div className="relative flex w-full max-w-[330px] flex-col overflow-hidden border border-keyline bg-raised text-base shadow-pop">
+    <div
+      style={{ maxWidth: 330 }}
+      className="relative flex w-full flex-col overflow-hidden border border-keyline bg-raised text-base shadow-pop"
+    >
       <div className="flex h-10 shrink-0 items-center gap-2 border-b px-2.5">
-        <Mark id="chat" size={22} />
+        {mark}
         <span className="font-semibold text-lg">CMSC351</span>
-        <ChevronDown size={12} aria-hidden="true" className="text-muted" />
+        <ChevronIcon className="size-3 text-muted" />
         <span className="ml-auto text-muted text-xs">48 in this chat</span>
         <SampleTag inline />
       </div>
@@ -214,7 +216,7 @@ export function ChatPreview({ active, reduced }: PreviewProps) {
                   title="Two classmates starred this"
                   className="mk-pop mt-1 inline-flex h-4.5 items-center gap-1 border border-hairline-strong px-1.5 font-semibold text-muted text-xs"
                 >
-                  <Star size={10} aria-hidden="true" className="fill-current" />
+                  <StarIcon />
                   {m.stars}
                   <span className="sr-only"> stars</span>
                 </span>
@@ -264,7 +266,7 @@ export function ChatPreview({ active, reduced }: PreviewProps) {
             aria-label="Send"
             className="inline-flex size-8 shrink-0 items-center justify-center bg-accent text-accent-fg"
           >
-            <ArrowUp size={14} aria-hidden="true" />
+            <SendIcon />
           </button>
         </WithTooltip>
       </form>

@@ -52,7 +52,8 @@ async function block(page: Page, id: string): Promise<Locator> {
   // Again until it sticks: the router puts the page back at the top when it
   // hydrates, which can land after a scroll this early.
   await expect(async () => {
-    await section.scrollIntoViewIfNeeded();
+    // The sample itself, which on a phone sits below the block's words.
+    await section.locator("[data-preview]").scrollIntoViewIfNeeded();
     await expect(section.getByText(/^Sample/).first()).toBeVisible({
       timeout: 1000,
     });
@@ -234,13 +235,12 @@ test("tells search engines and link previews what it is", async ({ page }) => {
   expect(image.headers()["content-type"]).toBe("image/png");
 });
 
-test("the footer credits the data, disclaims UMD, and keeps the address whole only on click", async ({
+test("the footer credits the data, disclaims UMD, and builds the address only on click", async ({
   page,
   request,
 }) => {
   const address = ["admin", "terpsicle.com"].join("@");
   const html = await (await request.get("/")).text();
-  expect(html).toContain("admin [at] terpsicle.com");
   expect(html).not.toContain(address);
   await page.goto("/");
   const footer = page.getByRole("contentinfo");
@@ -252,7 +252,15 @@ test("the footer credits the data, disclaims UMD, and keeps the address whole on
   await expect(footer).toContainText(
     "Not affiliated with the University of Maryland.",
   );
+  // The contact loads as the footer nears: in words, with a button.
+  await expect(async () => {
+    await footer.scrollIntoViewIfNeeded();
+    await expect(footer.getByText("admin [at] terpsicle.com")).toBeVisible({
+      timeout: 1000,
+    });
+  }).toPass({ timeout: 15_000 });
   await expect(footer.getByRole("button", { name: "Email us" })).toBeVisible();
+  expect(await page.content()).not.toContain(address);
 });
 
 test("shows the paper grain, and fits a phone without sideways scrolling", async ({

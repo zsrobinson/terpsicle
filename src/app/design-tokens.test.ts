@@ -163,7 +163,17 @@ const STYLES =
       eager: true,
     }),
   )[0] ?? "";
-const THEMES = readTokens(STYLES);
+// The marketing page keeps its own product tokens (-text, -line, -mis) in its
+// route stylesheet; they're held to the same rules.
+const MARKETING =
+  Object.values(
+    import.meta.glob<string>("/src/features/marketing/marketing.css", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    }),
+  )[0] ?? "";
+const THEMES = readTokens(`${STYLES}\n${MARKETING}`);
 const MODES: Theme[] = ["light", "dark"];
 /** The five products, in color order. */
 const PRODUCTS = MARK_IDS.filter((id) => id !== "umbrella");

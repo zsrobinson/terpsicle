@@ -72,20 +72,15 @@ export function Hero() {
   return (
     <section aria-labelledby="hero-title" className="mk-hero">
       <div className="mk-wrap flex flex-col gap-6">
-        <div className="flex max-w-[640px] flex-col gap-4">
+        <div className="mk-hero-text flex flex-col gap-4">
           <h1
             id="hero-title"
-            className="mk-display mk-rise max-w-[18ch] text-display"
+            className="mk-display mk-h1 mk-rise"
             style={vars({ "--i": 0 })}
           >
-            <Misprint className="text-product-schedule-mis">
-              {HEADLINE}
-            </Misprint>
+            <Misprint className="mk-schedule mk-mis-color">{HEADLINE}</Misprint>
           </h1>
-          <p
-            className="mk-rise mk-pretty max-w-[54ch] text-lead"
-            style={vars({ "--i": 1 })}
-          >
+          <p className="mk-lead mk-rise mk-pretty" style={vars({ "--i": 1 })}>
             {LEAD}
           </p>
           <div
@@ -93,12 +88,12 @@ export function Hero() {
             style={vars({ "--i": 2 })}
           >
             <WithTooltip label="No account needed">
-              <Button asChild className="h-10 px-4 text-lg">
+              <Button asChild className="mk-cta">
                 <a href={SCHEDULE_PATH}>Open the scheduler</a>
               </Button>
             </WithTooltip>
             <WithTooltip label={SIGN_IN_PITCH}>
-              <Button asChild variant="outline" className="h-10 px-4 text-lg">
+              <Button asChild variant="outline" className="mk-cta">
                 <a href="/signin">Sign in with Google</a>
               </Button>
             </WithTooltip>
@@ -120,7 +115,7 @@ export function Hero() {
             <TangleFigure layout="wide" />
             <TangleFigure layout="tall" />
           </div>
-          <div className="motion-reduce:hidden">
+          <div className="mk-replay">
             <WithTooltip label="Play the detangle again">
               <button
                 type="button"
@@ -144,11 +139,7 @@ function TangleFigure({ layout }: { layout: TangleLayout }) {
   return (
     <div
       data-layout={layout}
-      className={
-        wide
-          ? "hidden lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-x-4"
-          : "mx-auto flex w-full max-w-xl flex-col gap-2 lg:hidden"
-      }
+      className={wide ? "mk-figure-wide" : "mk-figure-tall"}
     >
       <div
         className="mk-canvas"
@@ -168,12 +159,15 @@ function TangleFigure({ layout }: { layout: TangleLayout }) {
           {lines.map((l) => (
             <path
               key={`m-${l.product}`}
-              className={`mk-mis-line ${PAINT[l.product].misStroke}`}
+              className={`mk-mis-line mk-mis-stroke ${PAINT[l.product]}`}
               d={l.tangle}
             />
           ))}
           {lines.map((l) => (
-            <g key={`s-${l.product}`} className={PAINT[l.product].stroke}>
+            <g
+              key={`s-${l.product}`}
+              className={`mk-stroke ${PAINT[l.product]}`}
+            >
               {l.segments.map((s, k) => (
                 <line
                   // A line's segments never reorder.
@@ -192,7 +186,7 @@ function TangleFigure({ layout }: { layout: TangleLayout }) {
           {lines.map((l) => (
             <path
               key={`r-${l.product}`}
-              className={`mk-rail ${PAINT[l.product].stroke}`}
+              className={`mk-rail mk-stroke ${PAINT[l.product]}`}
               d={l.rail}
               data-rail={l.product}
             />

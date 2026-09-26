@@ -8,7 +8,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { ProductBlocks } from "./blocks";
 import { Hero, SIGN_IN_PITCH } from "./hero";
 import { armReveals, useReducedMotion } from "./motion";
-import { InstallSection, MarketingFooter, PromisesSection } from "./tail";
+import { MarketingFooter, PromisesSection } from "./tail";
 
 // `/` for first visits (docs/V2.md §2), from Fable's "Detangle" prototype:
 // the semester's mess straightening into Terpsicle's five parts, then a
@@ -35,10 +35,7 @@ export function MarketingPage() {
         <div className="mk-wrap flex h-14 items-center justify-between gap-4">
           <Logo />
           <WithTooltip label={SIGN_IN_PITCH}>
-            <a
-              href="/signin"
-              className="font-semibold text-base underline decoration-hairline-strong underline-offset-4 hover:decoration-current"
-            >
+            <a href="/signin" className="mk-link font-semibold text-base">
               Sign in
             </a>
           </WithTooltip>
@@ -47,7 +44,6 @@ export function MarketingPage() {
       <main>
         <Hero />
         <ProductBlocks />
-        <InstallSection />
         <PromisesSection />
       </main>
       <MarketingFooter />

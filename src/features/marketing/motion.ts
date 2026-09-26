@@ -1,5 +1,9 @@
-import { type RefObject, useEffect, useState } from "react";
-import { useMediaQuery } from "~/app/use-media-query";
+import {
+  type RefObject,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 // The marketing page's motion switches. CSS does the moving (marketing.css);
 // these decide when scripted motion starts, and skip it for anyone who asked
@@ -7,9 +11,21 @@ import { useMediaQuery } from "~/app/use-media-query";
 
 export const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
-/** True when motion should be skipped: the end state, straight away. */
+/**
+ * True when motion should be skipped: the end state, straight away. Its own
+ * few lines rather than ~/app/use-media-query, which the scheduler shares:
+ * a module both import becomes one more small chunk on both pages.
+ */
 export function useReducedMotion(): boolean {
-  return useMediaQuery(REDUCED_MOTION_QUERY);
+  return useSyncExternalStore(
+    (onChange) => {
+      const media = window.matchMedia(REDUCED_MOTION_QUERY);
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
+    () => false,
+  );
 }
 
 /**

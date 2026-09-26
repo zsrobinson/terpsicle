@@ -25,8 +25,6 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: MARKETING_DESCRIPTION },
       { property: "og:url", content: `${SITE_ORIGIN}/` },
       { property: "og:image", content: `${SITE_ORIGIN}${OG_IMAGE.path}` },
-      { property: "og:image:width", content: String(OG_IMAGE.width) },
-      { property: "og:image:height", content: String(OG_IMAGE.height) },
       { property: "og:image:alt", content: OG_IMAGE.alt },
       { name: "twitter:card", content: "summary_large_image" },
     ],

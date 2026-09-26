@@ -58,33 +58,18 @@
   --color-product-schedule: var(--product-schedule);
   --color-product-schedule-fg: var(--product-schedule-fg);
   --color-product-schedule-soft: var(--product-schedule-soft);
-  --color-product-schedule-text: var(--product-schedule-text);
-  --color-product-schedule-line: var(--product-schedule-line);
-  --color-product-schedule-mis: var(--product-schedule-mis);
   --color-product-reviews: var(--product-reviews);
   --color-product-reviews-fg: var(--product-reviews-fg);
   --color-product-reviews-soft: var(--product-reviews-soft);
-  --color-product-reviews-text: var(--product-reviews-text);
-  --color-product-reviews-line: var(--product-reviews-line);
-  --color-product-reviews-mis: var(--product-reviews-mis);
   --color-product-chat: var(--product-chat);
   --color-product-chat-fg: var(--product-chat-fg);
   --color-product-chat-soft: var(--product-chat-soft);
-  --color-product-chat-text: var(--product-chat-text);
-  --color-product-chat-line: var(--product-chat-line);
-  --color-product-chat-mis: var(--product-chat-mis);
   --color-product-plan: var(--product-plan);
   --color-product-plan-fg: var(--product-plan-fg);
   --color-product-plan-soft: var(--product-plan-soft);
-  --color-product-plan-text: var(--product-plan-text);
-  --color-product-plan-line: var(--product-plan-line);
-  --color-product-plan-mis: var(--product-plan-mis);
   --color-product-todo: var(--product-todo);
   --color-product-todo-fg: var(--product-todo-fg);
   --color-product-todo-soft: var(--product-todo-soft);
-  --color-product-todo-text: var(--product-todo-text);
-  --color-product-todo-line: var(--product-todo-line);
-  --color-product-todo-mis: var(--product-todo-mis);
   --color-product-todo-keyline: var(--product-todo-keyline);
   /* The marks' own pieces (src/app/brand/marks.ts). */
   --color-mark-offset: var(--mark-offset);
@@ -183,18 +168,6 @@
   --text-lg--line-height: 20px;
   --text-xl: 18px;
   --text-xl--line-height: 24px;
-  /*
-   * The marketing page only (src/features/marketing): its headline, its
-   * product blocks' heads and its lead paragraph. The app never uses them.
-   */
-  --text-display: clamp(36px, 5.2vw, 64px);
-  --text-display--line-height: 1.02;
-  --text-display--letter-spacing: -0.022em;
-  --text-headline: clamp(25px, 3vw, 36px);
-  --text-headline--line-height: 1.1;
-  --text-headline--letter-spacing: -0.015em;
-  --text-lead: 17px;
-  --text-lead--line-height: 26px;
 }
 
 :root {
@@ -247,40 +220,24 @@
    * than 700, so Todo's is yellow-400 with an ink glyph and, in light only,
    * an ink keyline (the tile alone is 2.3:1 on paper).
    *   -soft  the product's fill (50; dark 900)
-   *   -text  product-colored words, AA on the page and on -soft
-   *   -line  the marketing page's lines and rails (3:1 on the page)
-   *   -mis   the Riso misprint layer on the marketing page (decoration)
+   * The marketing page adds -text, -line and -mis in its own stylesheet
+   * (src/features/marketing/marketing.css).
    */
   --product-schedule: #af3029; /* red-600 */
   --product-schedule-fg: #fffcf0; /* paper */
   --product-schedule-soft: #ffe1d5; /* red-50 */
-  --product-schedule-text: #af3029; /* red-600 */
-  --product-schedule-line: #af3029; /* red-600 */
-  --product-schedule-mis: #e8705f; /* red-300 */
   --product-reviews: #5e409d; /* purple-600 */
   --product-reviews-fg: #fffcf0; /* paper */
   --product-reviews-soft: #f0eaec; /* purple-50 */
-  --product-reviews-text: #5e409d; /* purple-600 */
-  --product-reviews-line: #5e409d; /* purple-600 */
-  --product-reviews-mis: #a699d0; /* purple-300 */
   --product-chat: #205ea6; /* blue-600 */
   --product-chat-fg: #fffcf0; /* paper */
   --product-chat-soft: #e1eceb; /* blue-50 */
-  --product-chat-text: #205ea6; /* blue-600 */
-  --product-chat-line: #205ea6; /* blue-600 */
-  --product-chat-mis: #66a0c8; /* blue-300 */
   --product-plan: #536907; /* green-700 */
   --product-plan-fg: #fffcf0; /* paper */
   --product-plan-soft: #edeecf; /* green-50 */
-  --product-plan-text: #536907; /* green-700 */
-  --product-plan-line: #66800b; /* green-600 */
-  --product-plan-mis: #a0af54; /* green-300 */
   --product-todo: #d0a215; /* yellow-400 */
   --product-todo-fg: #100f0f; /* black */
   --product-todo-soft: #faeec6; /* yellow-50 */
-  --product-todo-text: #664d01; /* yellow-800 */
-  --product-todo-line: #ad8301; /* yellow-600 */
-  --product-todo-mis: #dfb431; /* yellow-300 */
   --product-todo-keyline: #100f0f; /* black */
   /* A product tile's offset. */
   --mark-offset: #100f0f; /* black */
@@ -325,25 +282,10 @@
   --offset-ink-filled: #575653; /* base-700 */
 
   --product-schedule-soft: #3e1715; /* red-900 */
-  --product-schedule-text: #e8705f; /* red-300 */
-  --product-schedule-line: #e8705f; /* red-300 */
-  --product-schedule-mis: #942822; /* red-700 */
   --product-reviews-soft: #261c39; /* purple-900 */
-  --product-reviews-text: #a699d0; /* purple-300 */
-  --product-reviews-line: #a699d0; /* purple-300 */
-  --product-reviews-mis: #4f3685; /* purple-700 */
   --product-chat-soft: #12253b; /* blue-900 */
-  --product-chat-text: #66a0c8; /* blue-300 */
-  --product-chat-line: #66a0c8; /* blue-300 */
-  --product-chat-mis: #1a4f8c; /* blue-700 */
   --product-plan-soft: #252d09; /* green-900 */
-  --product-plan-text: #a0af54; /* green-300 */
-  --product-plan-line: #a0af54; /* green-300 */
-  --product-plan-mis: #3d4c07; /* green-800 */
   --product-todo-soft: #3a2d04; /* yellow-900 */
-  --product-todo-text: #dfb431; /* yellow-300 */
-  --product-todo-line: #dfb431; /* yellow-300 */
-  --product-todo-mis: #664d01; /* yellow-800 */
   /* Unused: the tile is 8.1:1 on black, so the mark draws no keyline here. */
   --product-todo-keyline: #b7b5ac; /* base-300 */
   --mark-offset: #575653; /* base-700 */

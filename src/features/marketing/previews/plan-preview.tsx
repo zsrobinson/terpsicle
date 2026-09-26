@@ -1,8 +1,13 @@
 import { type DragEvent, useId, useState } from "react";
-import { Mark } from "~/app/brand/mark";
-import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { type PreviewProps, SampleTag, type Tint, tint, vars } from "./preview";
+import {
+  type PreviewProps,
+  SampleButton,
+  SampleTag,
+  type Tint,
+  tint,
+  vars,
+} from "./preview";
 
 // Plan, before it ships: three sample semesters. Drag a course between them
 // (or use the Move form, the keyboard's and phones' way), and the GenEd
@@ -109,7 +114,7 @@ const GENEDS: [code: string, name: string, needed: number][] = [
 const placeName = (p: Place) =>
   p === "tray" ? "Not placed" : (TERMS.find((t) => t.id === p)?.name ?? p);
 
-export function PlanPreview(_: PreviewProps) {
+export function PlanPreview({ mark }: PreviewProps) {
   const [plan, setPlan] = useState(START);
   const [over, setOver] = useState<Place | null>(null);
   const [fresh, setFresh] = useState<string | null>(null);
@@ -157,8 +162,11 @@ export function PlanPreview(_: PreviewProps) {
             ? "A placeholder: any course matching CMSC4XX"
             : `${c.title}, ${c.credits} credits. Drag it to another semester.`
         }
-        className={`grid cursor-grab grid-cols-[1fr_auto] gap-x-1.5 border border-l-4 px-1.5 py-1 active:cursor-grabbing ${c.wildcard ? "border-dashed border-hairline-strong text-muted" : ""} ${fresh === code ? "mk-pop" : ""}`}
-        style={c.wildcard ? undefined : tint(c.tint)}
+        className={`grid cursor-grab gap-x-1.5 border border-l-4 px-1.5 py-1 active:cursor-grabbing ${c.wildcard ? "border-dashed border-hairline-strong text-muted" : ""} ${fresh === code ? "mk-pop" : ""}`}
+        style={{
+          gridTemplateColumns: "1fr auto",
+          ...(c.wildcard ? {} : tint(c.tint)),
+        }}
       >
         <span className="ident font-semibold text-sm text-fg">{code}</span>
         <span className="text-2xs tnum">{c.credits} cr</span>
@@ -196,7 +204,7 @@ export function PlanPreview(_: PreviewProps) {
     <div className="@container relative flex w-full flex-col border border-keyline bg-raised text-sm shadow-offset">
       <SampleTag />
       <div className="flex h-9 items-center gap-2 border-b px-2.5 font-semibold text-base">
-        <Mark id="plan" size={20} /> Plan
+        {mark} Plan
       </div>
       <div className="grid grid-cols-3">
         {TERMS.map((t) => {
@@ -246,7 +254,10 @@ export function PlanPreview(_: PreviewProps) {
         onMove={move}
       />
 
-      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1 border-t px-2.5 py-2 text-xs">
+      <div
+        className="grid items-center gap-x-2 gap-y-1 border-t px-2.5 py-2 text-xs"
+        style={{ gridTemplateColumns: "auto 1fr auto" }}
+      >
         {GENEDS.map(([code, name, needed]) => {
           const done = DONE[code] ?? 0;
           const more = Math.min(planned[code] ?? 0, needed - done);
@@ -337,9 +348,9 @@ function MoveForm({
         </select>
       </WithTooltip>
       <WithTooltip label={`Move ${code} to ${placeName(to)}`}>
-        <Button type="submit" size="sm" variant="outline">
+        <SampleButton type="submit" size="sm">
           Move
-        </Button>
+        </SampleButton>
       </WithTooltip>
     </form>
   );
@@ -372,16 +383,20 @@ function GenEdRow({
         className="forced-track relative h-2 overflow-hidden border border-hairline-strong bg-raised"
       >
         <i
-          className="mk-grow forced-fill absolute inset-0 origin-left bg-product-plan opacity-60"
+          className="mk-grow forced-fill absolute inset-0 origin-left opacity-60"
           style={vars({
+            backgroundColor: "var(--product-plan)",
             transform: `scaleX(${(done + planned) / needed})`,
             backgroundImage:
               "repeating-linear-gradient(135deg, transparent 0 3px, var(--raised) 3px 6px)",
           })}
         />
         <i
-          className="mk-grow forced-fill absolute inset-0 origin-left bg-product-plan"
-          style={vars({ transform: `scaleX(${done / needed})` })}
+          className="mk-grow forced-fill absolute inset-0 origin-left"
+          style={vars({
+            backgroundColor: "var(--product-plan)",
+            transform: `scaleX(${done / needed})`,
+          })}
         />
       </span>
       <span

@@ -1,6 +1,6 @@
-import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { WithTooltip } from "~/ui/tooltip";
+import { SparklesIcon } from "./icons";
 import { type PreviewProps, SampleTag, vars } from "./preview";
 
 // A course's reviews, with sample instructors: the grade distribution grows
@@ -97,7 +97,10 @@ export function ReviewsPreview({ active, reduced }: PreviewProps) {
   const done = shown >= full;
   const barsUp = reduced || grown;
   return (
-    <div className="relative w-full max-w-[380px] border border-keyline bg-raised text-base shadow-offset">
+    <div
+      style={{ maxWidth: 380 }}
+      className="relative w-full border border-keyline bg-raised text-base shadow-offset"
+    >
       <SampleTag />
       <div className="flex flex-col gap-2 px-3 py-3">
         <div className="flex items-baseline gap-2">
@@ -138,8 +141,12 @@ export function ReviewsPreview({ active, reduced }: PreviewProps) {
               className="flex h-full flex-col justify-end gap-0.5 text-center text-2xs text-muted"
             >
               <i
-                className={`mk-grow forced-fill block origin-bottom ${l === "W" ? "bg-hairline-strong" : "bg-product-reviews"}`}
+                className="mk-grow forced-fill block origin-bottom"
                 style={vars({
+                  backgroundColor:
+                    l === "W"
+                      ? "var(--hairline-strong)"
+                      : "var(--product-reviews)",
                   "--i": i,
                   height: `${who.grades[i]}px`,
                   transform: barsUp ? "none" : "scaleY(0)",
@@ -151,13 +158,16 @@ export function ReviewsPreview({ active, reduced }: PreviewProps) {
         </div>
         <div className="flex min-h-24 flex-col gap-1 border px-2.5 py-2 text-sm">
           <span className="inline-flex items-center gap-1 font-semibold text-xs">
-            <Sparkles size={12} aria-hidden="true" /> Summary
+            <SparklesIcon className="size-3" /> Summary
           </span>
           <span className="sr-only">{who.summary}</span>
           <span aria-hidden="true" className="min-h-9">
             {who.summary.slice(0, shown)}
             {done ? null : (
-              <span className="ml-px inline-block h-3 w-1.5 bg-fg align-[-2px]" />
+              <span
+                className="ml-px inline-block h-3 w-1.5 bg-fg"
+                style={{ verticalAlign: -2 }}
+              />
             )}
           </span>
           <span className="flex flex-wrap gap-1">

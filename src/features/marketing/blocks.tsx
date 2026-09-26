@@ -1,4 +1,3 @@
-import { Check } from "lucide-react";
 import {
   type ComponentType,
   type CSSProperties,
@@ -11,6 +10,7 @@ import { Mark } from "~/app/brand/mark";
 import { WithTooltip } from "~/ui/tooltip";
 import { Misprint } from "./misprint";
 import { useNear, useReducedMotion } from "./motion";
+import { CheckIcon } from "./previews/icons";
 import type { PreviewProps } from "./previews/preview";
 import {
   COMING,
@@ -145,7 +145,7 @@ function ProductBlock({
       aria-labelledby={`${p}-title`}
       data-reveal
       data-alt={alt ? "" : undefined}
-      className={`mk-block mk-grain scroll-mt-4 border-t ${paint.soft}`}
+      className={`mk-block mk-grain mk-soft border-t ${paint}`}
     >
       <div className="mk-wrap mk-block-grid">
         <div
@@ -153,8 +153,8 @@ function ProductBlock({
           className="mk-block-rail flex flex-col items-center gap-2"
         >
           <Mark id={p} size={18} />
-          <div className="relative w-[3px] flex-1 overflow-hidden bg-hairline">
-            <div className={`mk-rail-line absolute inset-0 ${paint.rail}`} />
+          <div className="mk-rail-track relative flex-1 overflow-hidden bg-hairline">
+            <div className="mk-rail-line mk-rail-fill absolute inset-0" />
           </div>
         </div>
         <div className="mk-block-text flex flex-col gap-4">
@@ -172,25 +172,18 @@ function ProductBlock({
           </div>
           <h2
             id={`${p}-title`}
-            className="mk-st mk-display text-headline"
+            className="mk-st mk-display mk-h2"
             style={st(1)}
           >
-            <Misprint className={paint.misText}>{block.head}</Misprint>
+            <Misprint className="mk-mis-color">{block.head}</Misprint>
           </h2>
-          <p
-            className="mk-st mk-pretty max-w-[58ch] text-lg leading-6"
-            style={st(2)}
-          >
+          <p className="mk-st mk-pretty mk-body" style={st(2)}>
             {block.body}
           </p>
           <ul className="mk-st flex flex-col gap-2 text-base" style={st(3)}>
             {block.facts.map((f) => (
               <li key={f} className="flex items-start gap-2">
-                <Check
-                  size={14}
-                  aria-hidden="true"
-                  className={`mt-0.5 shrink-0 ${paint.text}`}
-                />
+                <CheckIcon className="mk-text mt-0.5 shrink-0" />
                 <span>{f}</span>
               </li>
             ))}
@@ -198,10 +191,7 @@ function ProductBlock({
           {view ? (
             <div className="mk-st" style={st(4)}>
               <WithTooltip label={`Open Terpsicle ${NAME[p]}`}>
-                <a
-                  href={view.to}
-                  className={`font-semibold underline decoration-hairline-strong underline-offset-4 hover:decoration-current ${paint.text}`}
-                >
+                <a href={view.to} className={"mk-link mk-text font-semibold"}>
                   {view.label}
                 </a>
               </WithTooltip>
@@ -252,7 +242,11 @@ function LazyPreview({
     >
       {near ? (
         <Suspense fallback={placeholder}>
-          <Preview active={seen} reduced={reduced} />
+          <Preview
+            active={seen}
+            reduced={reduced}
+            mark={<Mark id={product} size={22} />}
+          />
         </Suspense>
       ) : (
         placeholder

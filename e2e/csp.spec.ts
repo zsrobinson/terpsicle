@@ -57,7 +57,10 @@ test("/, then search, add a section, Travel and a route map: no CSP violations",
     (await landing?.headerValue("content-security-policy-report-only")) ?? "";
   expect(policy).toMatch(/script-src 'self' 'nonce-[^']+' 'sha256-/);
   await expect(
-    page.getByRole("heading", { name: "Terpsicle", level: 1 }),
+    page.getByRole("heading", {
+      name: "Your semester's a tangle of tabs. Let's straighten it out.",
+      level: 1,
+    }),
   ).toBeVisible();
 
   await page.goto("/schedule?demo=1");

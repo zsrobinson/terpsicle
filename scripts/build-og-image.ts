@@ -66,8 +66,11 @@ function placedMark(
 }
 
 export function ogSvg(): string {
+  // The palette, plus the marketing page's own line colors.
   const tokens = readTokens(
-    readFileSync(path.join(ROOT, "src/styles.css"), "utf8"),
+    ["src/styles.css", "src/features/marketing/marketing.css"]
+      .map((file) => readFileSync(path.join(ROOT, file), "utf8"))
+      .join("\n"),
   ).light;
   const { width: tw, height: th } = TANGLE_SIZE.wide;
   const place = (points: Point[]): Point[] =>
