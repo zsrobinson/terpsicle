@@ -1,5 +1,6 @@
 import { returningCheckScript } from "~/features/marketing/returning";
 import { installPromptInitScript } from "~/features/pwa/install-prompt-script";
+import { tangleScript } from "~/features/marketing/tangle-script";
 import { loadRecoveryScript } from "./load-recovery";
 import { sidebarWidthInitScript } from "./sidebar-width";
 import { themeInitScript } from "./theme";
@@ -32,6 +33,8 @@ export const INLINE_SCRIPT_SOURCES = {
   installPrompt: installPromptInitScript,
   /** `/` only, in its route's `head()` (src/routes/index.tsx). */
   returningCheck: returningCheckScript,
+  /** `/` only, right after the hero's drawing (src/features/marketing/hero.tsx). */
+  tangle: tangleScript,
 } as const satisfies Record<string, string>;
 
 export type InlineScriptName = keyof typeof INLINE_SCRIPT_SOURCES;
