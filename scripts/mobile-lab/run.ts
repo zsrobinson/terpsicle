@@ -22,6 +22,7 @@ import { SCENARIOS } from "./scenarios";
 const ENGINES: Engine[] = ["webkit", "chromium", "android", "ios"];
 
 const { values } = parseArgs({
+  allowNegative: true,
   options: {
     engine: { type: "string", default: "webkit" },
     url: { type: "string", default: "https://terpsicle.com" },
