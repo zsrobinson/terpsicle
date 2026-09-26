@@ -11,12 +11,12 @@ import {
 import { deviceLabel } from "../src/core/pwa/device-label";
 import { scan } from "./axe";
 
-// Notifications in /settings on `pnpm dev:mock` (V2.md §6), signed in as
-// tstudent in test mode: turn them on here, "Send me a test", see it arrive,
-// then remove the device. Everything on our side is the real code: the
+// Notifications at /settings/notifications on `pnpm dev:mock` (V2.md §6),
+// signed in with test mode: turn them on here, "Send me a test", see it
+// arrive, then remove the device. Everything on our side is the real code: the
 // settings page, POST /api/push/*, VAPID signing and RFC 8291 encryption in
 // the Worker. Two stand-ins: the browser's push subscription (Chromium's
-// needs Google's push service) is a fixed key pair from this test, and the
+// needs Google's push service) is a key pair this test makes, and the
 // push service is a local server that decrypts what the Worker sends with
 // that key and hands it to the service worker over CDP, as FCM would.
 //
@@ -131,17 +131,22 @@ async function fakePushManager(
   }, subscription);
 }
 
-/** Test sign-in as tstudent, as /auth/test's button does it. */
+/**
+ * Test sign-in, as /auth/test's button does it, as a new E2E person each
+ * run (like sync.spec.ts): the local D1 outlives runs, so tstudent would
+ * carry other runs' devices and use up the hourly limit on tests.
+ */
 async function signIn(page: Page) {
-  const next = await page.evaluate(async () => {
+  const userId = `e2e${Math.random().toString(36).slice(2, 12)}`;
+  const next = await page.evaluate(async (id) => {
     const response = await fetch("/api/auth/test-sign-in", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "tstudent", return: "/settings" }),
+      body: JSON.stringify({ userId: id, return: "/settings" }),
     });
     const result: { return?: string } = await response.json();
     return result.return ?? "";
-  });
+  }, userId);
   expect(next).toContain("/settings");
 }
 
@@ -163,14 +168,19 @@ test("turn on notifications, send a test, see it, remove the device", async ({
       await navigator.serviceWorker.ready;
     });
     await signIn(page);
-    await page.goto("/settings#notifications");
+    // From Settings, as a person gets there.
+    await page.goto("/settings");
+    await page
+      .getByRole("link", { name: "Choose what Terpsicle sends you, and where" })
+      .click();
+    await expect(page).toHaveURL(/\/settings\/notifications$/);
     // "Windows · Chrome" under Playwright's desktop Chrome.
     const label = deviceLabel(
       await page.evaluate(() => navigator.userAgent),
       await page.evaluate(() => navigator.maxTouchPoints),
     );
 
-    const section = page.getByRole("region", { name: "Notifications" });
+    const section = page.getByRole("main");
     await expect(section.getByText("What to send")).toBeVisible();
     // Types stay quiet until their features send.
     const seatPush = section.getByRole("switch", {
@@ -197,7 +207,7 @@ test("turn on notifications, send a test, see it, remove the device", async ({
 
     await section.getByRole("button", { name: "Send me a test" }).click();
     await expect(section.getByRole("status")).toHaveText(
-      /^Sent to \d+ devices?\. It should show up in a few seconds\.$/,
+      "Sent to 1 device. It should show up in a few seconds.",
     );
 
     // The Worker's request, as the push service saw it.
@@ -218,7 +228,7 @@ test("turn on notifications, send a test, see it, remove the device", async ({
       type: "test",
       title: "Notifications are on",
       body: `This is how Terpsicle reaches you on ${label}.`,
-      url: "/settings#notifications",
+      url: "/settings/notifications",
       tag: "test",
     });
 
@@ -259,9 +269,7 @@ test("turn on notifications, send a test, see it, remove the device", async ({
     });
     await page.reload();
     await expect(
-      page
-        .getByRole("region", { name: "Notifications" })
-        .getByText("Notifications are off here."),
+      page.getByRole("main").getByText("Notifications are off here."),
     ).toBeVisible();
   } finally {
     await service.close();

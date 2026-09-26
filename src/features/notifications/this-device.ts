@@ -79,12 +79,12 @@ export type TurnOnResult =
 export async function turnOnHere(publicKey: string): Promise<TurnOnResult> {
   const key = fromBase64url(publicKey);
   if (!key || pushSupport() !== "ok") return "unsupported";
-  const permission = await Notification.requestPermission();
-  if (permission === "denied") return "denied";
-  if (permission !== "granted") return "dismissed";
-  const reg = await registration();
-  if (!reg) return "no-service-worker";
   try {
+    const permission = await Notification.requestPermission();
+    if (permission === "denied") return "denied";
+    if (permission !== "granted") return "dismissed";
+    const reg = await registration();
+    if (!reg) return "no-service-worker";
     let subscription = await reg.pushManager.getSubscription();
     if (
       subscription &&

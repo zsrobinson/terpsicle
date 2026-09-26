@@ -23,7 +23,7 @@ import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
 import { Route as ReviewsMineRouteImport } from './routes/reviews.mine'
 import { Route as ReviewsPolicyRouteImport } from './routes/reviews.policy'
-import { Route as SettingsNotificationsRouteImport } from './routes/settings.notifications'
+import { Route as SettingsNotificationsRouteImport } from './routes/settings_.notifications'
 import { Route as TodoIndexRouteImport } from './routes/todo.index'
 import { Route as TodoConnectRouteImport } from './routes/todo.connect'
 import { Route as ReviewsCoursesCodeRouteImport } from './routes/reviews.courses.$code'
@@ -100,9 +100,9 @@ const ReviewsPolicyRoute = ReviewsPolicyRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => SettingsRoute,
+  id: '/settings_/notifications',
+  path: '/settings/notifications',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TodoIndexRoute = TodoIndexRouteImport.update({
   id: '/todo/',
@@ -129,7 +129,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
@@ -150,7 +150,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
@@ -172,7 +172,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
@@ -180,7 +180,7 @@ export interface FileRoutesById {
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
-  '/settings/notifications': typeof SettingsNotificationsRoute
+  '/settings_/notifications': typeof SettingsNotificationsRoute
   '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
@@ -245,7 +245,7 @@ export interface FileRouteTypes {
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
-    | '/settings/notifications'
+    | '/settings_/notifications'
     | '/todo/connect'
     | '/admin/'
     | '/chat/'
@@ -259,7 +259,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrivacyRoute: typeof PrivacyRoute
   ScheduleRoute: typeof ScheduleRoute
-  SettingsRoute: typeof SettingsRouteWithChildren
+  SettingsRoute: typeof SettingsRoute
   SigninRoute: typeof SigninRoute
   AdminDecisionsRoute: typeof AdminDecisionsRoute
   AlertsConfirmRoute: typeof AlertsConfirmRoute
@@ -267,6 +267,7 @@ export interface RootRouteChildren {
   AuthTestRoute: typeof AuthTestRoute
   ReviewsMineRoute: typeof ReviewsMineRoute
   ReviewsPolicyRoute: typeof ReviewsPolicyRoute
+  SettingsNotificationsRoute: typeof SettingsNotificationsRoute
   TodoConnectRoute: typeof TodoConnectRoute
   AdminIndexRoute: typeof AdminIndexRoute
   ChatIndexRoute: typeof ChatIndexRoute
@@ -376,12 +377,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewsPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/notifications': {
-      id: '/settings/notifications'
-      path: '/notifications'
+    '/settings_/notifications': {
+      id: '/settings_/notifications'
+      path: '/settings/notifications'
       fullPath: '/settings/notifications'
       preLoaderRoute: typeof SettingsNotificationsRouteImport
-      parentRoute: typeof SettingsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/todo/': {
       id: '/todo/'
@@ -414,23 +415,11 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface SettingsRouteChildren {
-  SettingsNotificationsRoute: typeof SettingsNotificationsRoute
-}
-
-const SettingsRouteChildren: SettingsRouteChildren = {
-  SettingsNotificationsRoute: SettingsNotificationsRoute,
-}
-
-const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
-  SettingsRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrivacyRoute: PrivacyRoute,
   ScheduleRoute: ScheduleRoute,
-  SettingsRoute: SettingsRouteWithChildren,
+  SettingsRoute: SettingsRoute,
   SigninRoute: SigninRoute,
   AdminDecisionsRoute: AdminDecisionsRoute,
   AlertsConfirmRoute: AlertsConfirmRoute,
@@ -438,6 +427,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthTestRoute: AuthTestRoute,
   ReviewsMineRoute: ReviewsMineRoute,
   ReviewsPolicyRoute: ReviewsPolicyRoute,
+  SettingsNotificationsRoute: SettingsNotificationsRoute,
   TodoConnectRoute: TodoConnectRoute,
   AdminIndexRoute: AdminIndexRoute,
   ChatIndexRoute: ChatIndexRoute,

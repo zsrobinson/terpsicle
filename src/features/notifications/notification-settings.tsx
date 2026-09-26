@@ -31,7 +31,7 @@ import {
   turnOnHere,
 } from "./this-device";
 
-// /settings#notifications (V2.md §6.2): what to send, this device, and the
+// /settings/notifications (V2.md §6.2): what to send, this device, and the
 // devices with notifications on. Loaded only for someone signed in.
 
 interface TypeRow {
@@ -86,7 +86,7 @@ const TURN_ON_WORDS: Record<Exclude<TurnOnResult, "on">, string | null> = {
   "no-service-worker":
     "Notifications need the app from terpsicle.com. Reload the page and try again.",
   unsupported: "This browser can't get notifications from Terpsicle.",
-  "off-here": "Notifications aren't available right now.",
+  "off-here": "Notifications are turned off on Terpsicle for now.",
   failed:
     "Couldn't turn on notifications. Check your connection and try again.",
 };
@@ -99,6 +99,9 @@ export function NotificationSettingsSection() {
   const publicKey = useAccount((s) => s.pushPublicKey);
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [devices, setDevices] = useState<PushDevice[] | null>(null);
+  // Devices removed but still in Undo's window: hidden from every list,
+  // whatever a refresh brings back, until the server hears or Undo.
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -136,21 +139,35 @@ export function NotificationSettingsSection() {
       </div>
     );
 
+  const shown = devices.filter((d) => !removing.has(d.id));
+  const startRemove = (id: string) =>
+    setRemoving((ids) => new Set(ids).add(id));
+  const endRemove = (id: string, removed: boolean) => {
+    setRemoving((ids) => {
+      const next = new Set(ids);
+      next.delete(id);
+      return next;
+    });
+    if (removed) setDevices((list) => list?.filter((d) => d.id !== id) ?? null);
+  };
+
   return (
     <>
       <TypeRows settings={settings} onChange={setSettings} pushOn={pushOn} />
       {pushOn && publicKey ? (
-        <ThisDevice
-          publicKey={publicKey}
-          devices={devices}
-          onChanged={refresh}
-        />
+        <ThisDevice publicKey={publicKey} devices={shown} onChanged={refresh} />
       ) : (
         <Group>
           <p>Notifications on your phone and computer are coming soon.</p>
         </Group>
       )}
-      {pushOn ? <Devices devices={devices} onChanged={setDevices} /> : null}
+      {pushOn ? (
+        <Devices
+          devices={shown}
+          onRemoveStart={startRemove}
+          onRemoveEnd={endRemove}
+        />
+      ) : null}
     </>
   );
 }
@@ -349,7 +366,7 @@ function ThisDevice({
           : result.status === "no-devices"
             ? "Turn on notifications on a device first."
             : result.status === "off"
-              ? "Notifications aren't available right now."
+              ? "Notifications are turned off on Terpsicle for now."
               : "It didn't go through. Turn notifications off and on here, then try again.",
       );
       await onChanged();
@@ -431,10 +448,13 @@ const REMOVE_UNDO_MS = 6_000;
 
 function Devices({
   devices,
-  onChanged,
+  onRemoveStart,
+  onRemoveEnd,
 }: {
   devices: readonly PushDevice[];
-  onChanged: (next: PushDevice[]) => void;
+  onRemoveStart: (id: string) => void;
+  /** `removed`: the server heard; otherwise Undo, or it failed. */
+  onRemoveEnd: (id: string, removed: boolean) => void;
 }) {
   if (devices.length === 0) return null;
   // No confirmation (DESIGN §5): the row goes at once, and the server hears
@@ -449,25 +469,27 @@ function Devices({
       // A closing page still sends it.
       const fetcher: typeof fetch = (input, init) =>
         fetch(input, { ...init, keepalive });
-      void notificationsApi.remove({ id: device.id }, { fetcher }).catch(() => {
-        if (!keepalive) {
-          onChanged([...devices]);
+      notificationsApi.remove({ id: device.id }, { fetcher }).then(
+        () => onRemoveEnd(device.id, true),
+        () => {
+          if (keepalive) return;
+          onRemoveEnd(device.id, false);
           toast(
             `Couldn't remove ${name}. Check your connection and try again.`,
           );
-        }
-      });
+        },
+      );
     };
     const onHide = () => commit(true);
     const undo = () => {
       if (settled) return;
       settled = true;
       window.removeEventListener("pagehide", onHide);
-      onChanged([...devices]);
+      onRemoveEnd(device.id, false);
       toast.dismiss(toastId);
     };
     const toastId = `push-remove-${device.id}`;
-    onChanged(devices.filter((d) => d.id !== device.id));
+    onRemoveStart(device.id);
     window.addEventListener("pagehide", onHide);
     toast(`Removed ${name}`, {
       id: toastId,

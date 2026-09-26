@@ -351,7 +351,7 @@ describe("push/test", () => {
       type: "test",
       title: "Notifications are on",
       body: "This is how Terpsicle reaches you on Mac · Chrome.",
-      url: "/settings#notifications",
+      url: "/settings/notifications",
       tag: "test",
     });
     // Tests aren't notifications: nothing to dedupe or count.
@@ -430,24 +430,25 @@ describe("pruning", () => {
   });
 });
 
+const seatOpen = (key = "seat-open:tstudent:202608:CMSC351-0101:t1") => ({
+  type: "seat-open" as const,
+  key,
+  push: {
+    title: "A seat opened in CMSC351 0101",
+    body: "1 of 40 open. Register on Testudo before it's gone.",
+    url: "/schedule?course=CMSC351",
+    tag: "seat:202608:CMSC351-0101",
+  },
+  email: {
+    to: "tstudent@terpmail.umd.edu",
+    subject: "A seat opened in CMSC351 0101",
+    text: "…",
+    html: "<p>…</p>",
+    headers: {},
+  },
+});
+
 describe("notify", () => {
-  const seatOpen = (key = "seat-open:tstudent:202608:CMSC351-0101:t1") => ({
-    type: "seat-open" as const,
-    key,
-    push: {
-      title: "A seat opened in CMSC351 0101",
-      body: "1 of 40 open. Register on Testudo before it's gone.",
-      url: "/schedule?course=CMSC351",
-      tag: "seat:202608:CMSC351-0101",
-    },
-    email: {
-      to: "tstudent@terpmail.umd.edu",
-      subject: "A seat opened in CMSC351 0101",
-      text: "…",
-      html: "<p>…</p>",
-      headers: {},
-    },
-  });
   const options = () => ({ now: now(), fetch: service.fetch });
 
   const deliveries = () =>
@@ -637,24 +638,4 @@ describe("signing out, deleting the account and the purge", () => {
     clock += 2 * 86_400_000;
     expect(await pruneDeliveries(env.DB, now())).toBe(1);
   });
-
-  function seatOpen() {
-    return {
-      type: "seat-open" as const,
-      key: "seat-open:tstudent:202608:CMSC351-0101:t1",
-      push: {
-        title: "A seat opened in CMSC351 0101",
-        body: "1 of 40 open.",
-        url: "/schedule?course=CMSC351",
-        tag: "seat:202608:CMSC351-0101",
-      },
-      email: {
-        to: "tstudent@terpmail.umd.edu",
-        subject: "A seat opened",
-        text: "…",
-        html: "<p>…</p>",
-        headers: {},
-      },
-    };
-  }
 });

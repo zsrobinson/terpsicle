@@ -11,10 +11,10 @@ import { markShownThisSession } from "./install-session";
 // dialog's actions live in install-store.ts, which loads after the page does
 // (src/app/pwa.tsx).
 
-/** Chromium's install prompt event (not in TypeScript's DOM types). */
 /** What "Install app" does, in its tooltips. */
 export const INSTALL_HINT = "Put Terpsicle on your home screen";
 
+/** Chromium's install prompt event (not in TypeScript's DOM types). */
 export interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   readonly userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;

@@ -12,7 +12,7 @@ import {
 // (the phone menu too), and for people who haven't signed in, at the foot of
 // the scheduler's rail (the theme menu on phones). `InstallAppSetting`
 // (install-setting.tsx, apart so the scheduler's chunk doesn't split) is for
-// /settings#notifications. Each piece renders nothing where installing
+// /settings/notifications. Each piece renders nothing where installing
 // doesn't work or already happened.
 
 /** An icon button: the foot of the rail. */

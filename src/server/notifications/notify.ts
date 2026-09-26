@@ -244,7 +244,7 @@ export async function sendTestPush(
       body: device.user_agent_label
         ? `This is how Terpsicle reaches you on ${device.user_agent_label}.`
         : "This is how Terpsicle reaches you on this device.",
-      url: "/settings#notifications",
+      url: "/settings/notifications",
       tag: "test",
     }),
     options,

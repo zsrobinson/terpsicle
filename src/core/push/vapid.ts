@@ -52,15 +52,22 @@ export async function verifyVapidJwt(
   const key = fromBase64url(publicKey);
   const sig = signature === undefined ? null : fromBase64url(signature);
   if (!header || !payload || !sig || !key || rest.length > 0) return null;
-  const ok = await crypto.subtle.verify(
-    { name: "ECDSA", hash: "SHA-256" },
-    await importPublicKey(key, "ECDSA"),
-    sig,
-    utf8(`${header}.${payload}`),
-  );
-  if (!ok) return null;
-  const claims = fromBase64url(payload);
-  return claims
-    ? (JSON.parse(new TextDecoder().decode(claims)) as Record<string, unknown>)
-    : null;
+  try {
+    const ok = await crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      await importPublicKey(key, "ECDSA"),
+      sig,
+      utf8(`${header}.${payload}`),
+    );
+    const claims = ok ? fromBase64url(payload) : null;
+    return claims
+      ? (JSON.parse(new TextDecoder().decode(claims)) as Record<
+          string,
+          unknown
+        >)
+      : null;
+  } catch {
+    // A key that isn't a point, or claims that aren't JSON.
+    return null;
+  }
 }

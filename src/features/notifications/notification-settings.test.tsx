@@ -42,7 +42,7 @@ const api = vi.mocked(notificationsApi);
 const aDevice = (over: Partial<PushDevice> = {}): PushDevice => ({
   id: "d1",
   label: "iPhone · Safari",
-  createdAt: "2026-09-26T16:00:00.000Z",
+  createdAt: new Date(2026, 8, 26, 12).toISOString(),
   lastSuccessAt: null,
   current: false,
   ...over,
@@ -146,6 +146,49 @@ describe("NotificationSettingsSection", () => {
     expect(api.remove).not.toHaveBeenCalled();
   });
 
+  it("keeps a removed device hidden until the server hears, even after a refresh", async () => {
+    api.devices.mockResolvedValue({
+      devices: [
+        aDevice({ id: "a", label: "iPhone · Safari" }),
+        aDevice({ id: "b", label: "Mac · Chrome", current: true }),
+      ],
+    });
+    api.remove.mockReturnValue(new Promise(() => {}));
+    api.test.mockResolvedValue({ status: "sent", devices: 2 });
+    const user = renderSection();
+    const rowOf = async (label: string) => {
+      const li = (await screen.findByText(label)).closest("li");
+      if (!li) throw new Error(`no row for ${label}`);
+      return li;
+    };
+    await user.click(
+      within(await rowOf("iPhone · Safari")).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+    await user.click(
+      within(await rowOf("Mac · Chrome")).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+    // Undo the first: only it comes back, not the second.
+    const toastOfFirst = (
+      await screen.findByText("Removed iPhone · Safari")
+    ).closest("li");
+    if (!toastOfFirst) throw new Error("no toast");
+    const undoFirst = within(toastOfFirst).getByRole("button", {
+      name: "Undo",
+    });
+    await user.click(undoFirst);
+    expect(await screen.findByText("iPhone · Safari")).toBeInTheDocument();
+    expect(screen.queryByText("Mac · Chrome")).not.toBeInTheDocument();
+    // A refresh (after a test) brings back the server's list; the pending
+    // removal stays hidden.
+    await user.click(screen.getByRole("button", { name: "Send me a test" }));
+    await screen.findByText(/^Sent to 2 devices/);
+    expect(screen.queryByText("Mac · Chrome")).not.toBeInTheDocument();
+  });
+
   it("says push is coming while it's off here", async () => {
     useAccount.setState({
       flags: { ...FLAGS_OFF, signIn: true, push: false },
@@ -165,6 +208,7 @@ describe("NotificationSettingsSection", () => {
 
 describe("addedOn", () => {
   it("is a short month and day", () => {
-    expect(addedOn("2026-09-26T16:00:00.000Z")).toBe("Sep 26");
+    // Midday here, whatever the machine's time zone.
+    expect(addedOn(new Date(2026, 8, 26, 12).toISOString())).toBe("Sep 26");
   });
 });

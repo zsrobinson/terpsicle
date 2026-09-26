@@ -1,5 +1,5 @@
-import { ExternalLink } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { ChevronRight, ExternalLink } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import { signInStartHref } from "~/core/auth";
@@ -26,13 +26,6 @@ export function deletionDay(iso: string): string {
   });
 }
 
-// Signed in only, and its own chunk: /settings stays light for everyone else.
-const NotificationSettingsSection = lazy(() =>
-  import("~/features/notifications/notification-settings").then((m) => ({
-    default: m.NotificationSettingsSection,
-  })),
-);
-
 /** `/settings`: the account (V2.md §1.1) and notifications (§6.2). */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
@@ -42,10 +35,18 @@ export function SettingsPage() {
         <AccountDetails />
       </AccountSection>
       {status === "signed-in" ? (
-        <AccountSection title="Notifications" id="notifications">
-          <Suspense fallback={<Skeleton className="h-24 w-full" />}>
-            <NotificationSettingsSection />
-          </Suspense>
+        <AccountSection title="Notifications">
+          <WithTooltip label="Seat openings, Chat mentions and Todo reminders, and your devices">
+            <a
+              href="/settings/notifications"
+              className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1 text-fg transition-colors hover:bg-hover"
+            >
+              <span className="min-w-0 flex-1">
+                Choose what Terpsicle sends you, and where
+              </span>
+              <ChevronRight size={16} aria-hidden="true" />
+            </a>
+          </WithTooltip>
         </AccountSection>
       ) : null}
     </AccountPage>

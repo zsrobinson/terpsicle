@@ -1,4 +1,4 @@
-// "Install app" as a settings row, in /settings#notifications' "This
+// "Install app" as a settings row, in /settings/notifications' "This
 // device" (V2 §6.2). Apart from install-entry.tsx, which the scheduler loads.
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";

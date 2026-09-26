@@ -162,6 +162,9 @@ describe("VAPID (RFC 8292)", () => {
       ),
     );
     expect(await verifyVapidJwt(`${h}.${forged}.${s}`, key)).toBeNull();
+    // A key that isn't a point is a no, not a throw.
+    expect(await verifyVapidJwt(jwt, RFC8291.authSecret)).toBeNull();
+    expect(await verifyVapidJwt("a.b", key)).toBeNull();
   });
 
   it("signs an ES256 token that the public key verifies", async () => {

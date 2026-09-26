@@ -49,7 +49,7 @@ async function vapidJwt(
   audience: string,
   now: Date,
 ): Promise<string> {
-  const cacheKey = `${config.publicKey}|${audience}`;
+  const cacheKey = `${config.publicKey}|${config.subject}|${audience}`;
   const cached = jwtCache.get(cacheKey);
   const at = now.getTime();
   if (cached && at - cached.madeAt >= 0 && at - cached.madeAt < JWT_REUSE_MS)
