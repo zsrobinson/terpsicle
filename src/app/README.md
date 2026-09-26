@@ -28,6 +28,16 @@ export const panels = definePanels({
 });
 ```
 
+- **Load it on first use** unless it's part of the first view (Courses, Search, Problems): wrap the components with `lazyPanel` from `lazy-panel.tsx`, so the panel is its own chunk and stays out of the scheduler's first load (`docs/BUILD.md` §5). The sidebar shows the skeleton while it loads, hovering or focusing its rail tab starts the load, and a chunk that fails says so in the panel.
+
+  ```tsx
+  const views = lazyModule(() => import("./travel-panel"));
+  export const panels = definePanels({
+    tabs: { travel: lazyPanel(views, (m) => m.TravelPanel) },
+  });
+  ```
+
+  A crumb has to work before the module arrives; `views.current` is the module once loaded.
 - **One owner per tab or drill kind.** Registering the same one twice logs a warning.
 - **Tabs:** `courses`, `search`, `problems`, `travel`, `blocks`, `generate`, `export`. Until a feature registers one, the tab shows a neutral skeleton.
 - **Drill kinds:** `course` and `connection` are declared in `~/state/drill` (they're remembered between visits). Add a new kind with module augmentation in your feature, then register its view:
@@ -122,7 +132,7 @@ Each is behind a small hook, so where the work happens can change without touchi
 
 | Export | For |
 |---|---|
-| `useCourseResults(termId, query, filters)` (`~/features/search/use-course-search`) | `idle`, `loading` or `ready` with courses. Runs core search on the main thread over an index built once per catalog (`courseSearchFor`); moving it into the web worker changes this file only. `findCourses` is the pure part. |
+| `useCourseResults(termId, query, filters)` (`~/features/search/use-course-search`) | `idle`, `loading` or `ready` with courses. Runs core search on the main thread over an index built once per catalog (`courseSearchFor`); moving it into the web worker changes this file only. MiniSearch loads when Search first opens (`loading` until then). `findCourses` is the pure part. |
 | `useTermSearch(termId)`, `useSearchStore` (`~/features/search/search-store`) | The query and filters, remembered per term for the session. |
 | `instructorFor(data, name)` (`~/features/course-details/planetterp`) | The PlanetTerp instructor for a Testudo name, from `useInstructors(dept)`'s file. |
 | `useReviewSummary(slug, course)` (`~/features/course-details/use-review-summary`) | The LLM summary: `loading`, `shown` or `hidden` (every "unavailable" and every failure hides it; "busy" is asked once more after 4 s). One request per instructor per visit. |
