@@ -45,6 +45,13 @@ export interface ServerEvents {
   alert_confirmed: { termId: string };
   alert_sent: { termId: string; count: number };
   alert_unsubscribed: { termId: string };
+  // Identity. Never an address, name, directory ID, token or IP, not even
+  // hashed: the outcome and the domain only (V2.md §11).
+  signin_result: {
+    /** "signed-in", or why not (a SignInError code, or "sub-conflict"). */
+    outcome: string;
+    hd?: string;
+  };
 }
 export type ServerEvent = keyof ServerEvents;
 

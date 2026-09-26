@@ -28,7 +28,7 @@ async function keyboard(page: Page, px: number): Promise<void> {
 const KEYBOARD = 300;
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/schedule");
   await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
 });
 

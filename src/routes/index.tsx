@@ -1,39 +1,23 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect } from "react";
-import { z } from "zod";
-import { initAnalytics, track } from "~/app/analytics";
-import { App } from "~/app/app";
-import { clientConfig } from "~/app/config";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { SCHEDULE_PATH } from "~/core/routing";
+import { MarketingPage } from "~/features/marketing/marketing-page";
+import {
+  returningCheckScript,
+  skipMarketingInBrowser,
+} from "~/features/marketing/returning";
 
-// `?plan=` carries a shared plan (DATA.md §8). The router may parse a
-// numeric-looking value as a number, so accept both and keep the text.
-const searchSchema = z.object({
-  plan: z
-    .union([z.string(), z.number()])
-    .transform(String)
-    .optional()
-    .catch(undefined),
-});
-
+// The marketing page, server-rendered so it shows without the app's code.
+// Returning visitors skip it (docs/V2.md §2): a session cookie at the Worker
+// (src/server/routing.ts); the returning flag or saved plans in the head
+// script on a full load, or in `beforeLoad` when the router navigates here.
+// `/?stay` always shows it.
 export const Route = createFileRoute("/")({
-  // Everything lives in the browser (IndexedDB, web worker); the Worker only
-  // serves the shell (BUILD.md §4).
-  ssr: false,
-  validateSearch: searchSchema,
-  component: IndexPage,
+  head: () => ({
+    scripts: [{ children: returningCheckScript }],
+  }),
+  beforeLoad: async ({ location }) => {
+    if (await skipMarketingInBrowser(location.searchStr))
+      throw redirect({ to: SCHEDULE_PATH, replace: true });
+  },
+  component: MarketingPage,
 });
-
-function IndexPage() {
-  const { plan } = Route.useSearch();
-  const navigate = useNavigate({ from: "/" });
-  const clearShared = useCallback(() => {
-    void navigate({ search: {}, replace: true });
-  }, [navigate]);
-
-  useEffect(() => {
-    void initAnalytics();
-    track("app_loaded", { dataSource: clientConfig.dataSource });
-  }, []);
-
-  return <App sharedParam={plan} onClearShared={clearShared} />;
-}

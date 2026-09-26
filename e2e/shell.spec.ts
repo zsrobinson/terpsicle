@@ -25,7 +25,7 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-async function open(page: Page, path = "/") {
+async function open(page: Page, path = "/schedule") {
   await page.goto(path);
   await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
 }
@@ -138,6 +138,27 @@ test.describe("desktop", () => {
     await expect(page.getByRole("heading", { name: "Blocks" })).toBeVisible();
   });
 
+  test("on a short screen every rail tab can be reached", async ({ page }) => {
+    // A phone on its side is wider than 768px, so it gets this layout, and
+    // Chrome leaves it 304px of height (Pixel 7). The rail's last tabs ran
+    // off the bottom with no way to scroll to them (the mobile lab's rotate
+    // scenario on Android), and a phone has no keyboard for 6 and 7.
+    await page.setViewportSize({ width: 863, height: 304 });
+    await open(page);
+    const rail = page.getByRole("navigation", { name: "Sidebar tabs" });
+    const last = rail.getByRole("button", { name: "Export" });
+    // Scrolled the way a person can (a wheel or a finger), not by script.
+    const box = await rail.boundingBox();
+    if (!box) throw new Error("no rail");
+    await page.mouse.move(box.x + box.width / 2, box.y + 100);
+    await page.mouse.wheel(0, 400);
+    await expect(last).toBeInViewport();
+    await last.click();
+    await expect(
+      page.getByRole("heading", { name: "Export", exact: true }),
+    ).toBeVisible();
+  });
+
   test("a shared link shows read-only, and Save a copy keeps it", async ({
     page,
   }) => {
@@ -148,7 +169,7 @@ test.describe("desktop", () => {
       sections: ["CMSC131-0101"],
     };
     const param = encodeShare(payload);
-    await open(page, `/?plan=${param}`);
+    await open(page, `/schedule?plan=${param}`);
 
     // The pill in the top bar, and the panel names it the same way (not the
     // sharer's name for it, which could read as one of your plans).
@@ -179,7 +200,7 @@ test.describe("desktop", () => {
       termId: "202701",
       sections: ["CMSC351-0101"],
     });
-    await open(page, `/?plan=${param}`);
+    await open(page, `/schedule?plan=${param}`);
     await page.getByRole("button", { name: "Close shared plan" }).click();
     await expect(page).toHaveURL((url) => !url.searchParams.has("plan"));
     await expect(planTabs(page)).toHaveText(["Plan A"]);

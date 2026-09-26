@@ -15,7 +15,7 @@ let navigations: string[] = [];
 test.beforeEach(async ({ page }) => {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/schedule");
   await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
   // A first visit opens the drawer to half, on the first-visit guide.
   await expect(drawer(page)).toHaveAttribute("data-snap", "half");

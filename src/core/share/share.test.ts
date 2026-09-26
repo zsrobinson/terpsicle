@@ -87,7 +87,7 @@ describe("share codec", () => {
 
   it("builds the URL", () => {
     expect(shareUrl("https://terpsicle.com/", typical)).toBe(
-      `https://terpsicle.com/?plan=${encodeShare(typical)}`,
+      `https://terpsicle.com/schedule?plan=${encodeShare(typical)}`,
     );
   });
 

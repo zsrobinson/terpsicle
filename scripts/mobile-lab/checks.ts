@@ -79,6 +79,8 @@ export interface Probe {
   searchResults: Scroller | null;
   resultCount: number;
   calendar: Scroller | null;
+  /** The desktop layout's rail: tabs past the bottom, and whether it scrolls. */
+  rail?: { cut: string[]; scrolls: boolean } | null;
   events: LabEvent[];
   frames: Frame[];
   errors: string[];
@@ -185,6 +187,16 @@ export function stepChecks(p: Probe, ctx: StepContext): Check[] {
     `document ${p.document.scrollWidth}px wide in ${p.document.clientWidth}px`,
   );
 
+  // A phone on its side can get the desktop layout: every rail tab must be
+  // on screen or scrollable to, since there's no keyboard for its shortcuts.
+  if (p.rail && p.rail.cut.length > 0)
+    add(
+      "rail-tabs-reachable",
+      p.rail.scrolls,
+      "fail",
+      `${p.rail.cut.join(", ")} past the bottom of a ${p.innerHeight}px screen, and the rail ${p.rail.scrolls ? "scrolls" : "doesn't scroll"}`,
+    );
+
   const d = p.drawer;
   if (d?.rect) {
     add(
@@ -277,4 +289,20 @@ export function traceChecks(frames: Frame[]): Check[] {
 
 function round(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+/**
+ * Playwright's WebKit on Linux (the WPE port) now and then crashes its
+ * page process in the compositor thread: a null dereference in
+ * libWPEWebKit's ThreadedCompositor, logged by the kernel at the same
+ * address every time (docs/MOBILE-TESTING.md, "Known issue:
+ * WebKit's compositor crash"). Safari on iOS composites differently and
+ * never runs that code. run.ts runs such a scenario again; any other crash
+ * fails.
+ */
+export function isWebkitCompositorCrash(kernel: string): boolean {
+  // One report can span lines; read it as one.
+  return /Compositor\[\d+\]: segfault at 0 .* in libWPEWebKit/.test(
+    kernel.replace(/\s*\n\s*/g, " "),
+  );
 }

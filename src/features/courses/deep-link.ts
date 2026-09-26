@@ -6,7 +6,7 @@ import { useCatalog } from "~/state/catalog-store";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 
-// `/?term=<id>&course=<code>`: seat-alert emails and the alert pages link
+// `/schedule?term=<id>&course=<code>`: seat-alert emails and the alert pages link
 // here (DATA.md §7.1). Switch to that term, open that course's details, then
 // drop the params so a reload doesn't do it again.
 

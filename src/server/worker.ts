@@ -1,8 +1,10 @@
 import { runScheduled } from "~/jobs/index";
 import { APEX_HOST } from "./apex";
 import { API_PREFIX, handleApi } from "./api/router";
+import { AVATARS_PREFIX, serveAvatar } from "./auth/pictures";
 import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
+import { landingRedirect } from "./routing";
 import { SERVICE_WORKER_JS } from "./service-worker";
 
 const WWW_HOST = `www.${APEX_HOST}`;
@@ -54,6 +56,9 @@ export function createWorker(app: AppHandler) {
       if (url.pathname.startsWith(API_PREFIX)) {
         return handleApi(request, env, ctx);
       }
+      if (url.pathname.startsWith(AVATARS_PREFIX)) {
+        return serveAvatar(request, env, new Date());
+      }
       if (
         url.pathname === POSTHOG_PROXY_PREFIX ||
         url.pathname.startsWith(`${POSTHOG_PROXY_PREFIX}/`)
@@ -81,6 +86,10 @@ export function createWorker(app: AppHandler) {
           headers: { "Cache-Control": "no-store" },
         });
       }
+      const landing = landingRedirect(request);
+      if (landing) return landing;
+      // Every page (`/`, `/schedule`, `/privacy`, …) is a TanStack route; an
+      // unknown path gets the app's not-found page.
       return withHtmlRevalidation(await app.fetch(request));
     },
 

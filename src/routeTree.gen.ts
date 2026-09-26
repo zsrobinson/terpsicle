@@ -10,12 +10,45 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ScheduleRouteImport } from './routes/schedule'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SigninRouteImport } from './routes/signin'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AlertsConfirmRouteImport } from './routes/alerts.confirm'
 import { Route as AlertsUnsubscribeRouteImport } from './routes/alerts.unsubscribe'
+import { Route as AuthTestRouteImport } from './routes/auth/test'
+import { Route as ChatIndexRouteImport } from './routes/chat.index'
+import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScheduleRoute = ScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AlertsConfirmRoute = AlertsConfirmRouteImport.update({
@@ -28,35 +61,116 @@ const AlertsUnsubscribeRoute = AlertsUnsubscribeRouteImport.update({
   path: '/alerts/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthTestRoute = AuthTestRouteImport.update({
+  id: '/auth/test',
+  path: '/auth/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatIndexRoute = ChatIndexRouteImport.update({
+  id: '/chat/',
+  path: '/chat/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
+  id: '/reviews/',
+  path: '/reviews/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/signin': typeof SigninRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
+  '/auth/test': typeof AuthTestRoute
+  '/admin/': typeof AdminIndexRoute
+  '/chat/': typeof ChatIndexRoute
+  '/reviews/': typeof ReviewsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/signin': typeof SigninRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
+  '/auth/test': typeof AuthTestRoute
+  '/admin': typeof AdminIndexRoute
+  '/chat': typeof ChatIndexRoute
+  '/reviews': typeof ReviewsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/signin': typeof SigninRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
+  '/auth/test': typeof AuthTestRoute
+  '/admin/': typeof AdminIndexRoute
+  '/chat/': typeof ChatIndexRoute
+  '/reviews/': typeof ReviewsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/alerts/confirm' | '/alerts/unsubscribe'
+  fullPaths:
+    | '/'
+    | '/privacy'
+    | '/schedule'
+    | '/settings'
+    | '/signin'
+    | '/alerts/confirm'
+    | '/alerts/unsubscribe'
+    | '/auth/test'
+    | '/admin/'
+    | '/chat/'
+    | '/reviews/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/alerts/confirm' | '/alerts/unsubscribe'
-  id: '__root__' | '/' | '/alerts/confirm' | '/alerts/unsubscribe'
+  to:
+    | '/'
+    | '/privacy'
+    | '/schedule'
+    | '/settings'
+    | '/signin'
+    | '/alerts/confirm'
+    | '/alerts/unsubscribe'
+    | '/auth/test'
+    | '/admin'
+    | '/chat'
+    | '/reviews'
+  id:
+    | '__root__'
+    | '/'
+    | '/privacy'
+    | '/schedule'
+    | '/settings'
+    | '/signin'
+    | '/alerts/confirm'
+    | '/alerts/unsubscribe'
+    | '/auth/test'
+    | '/admin/'
+    | '/chat/'
+    | '/reviews/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PrivacyRoute: typeof PrivacyRoute
+  ScheduleRoute: typeof ScheduleRoute
+  SettingsRoute: typeof SettingsRoute
+  SigninRoute: typeof SigninRoute
   AlertsConfirmRoute: typeof AlertsConfirmRoute
   AlertsUnsubscribeRoute: typeof AlertsUnsubscribeRoute
+  AuthTestRoute: typeof AuthTestRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  ChatIndexRoute: typeof ChatIndexRoute
+  ReviewsIndexRoute: typeof ReviewsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -66,6 +180,41 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schedule': {
+      id: '/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof ScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/alerts/confirm': {
@@ -82,13 +231,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlertsUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/test': {
+      id: '/auth/test'
+      path: '/auth/test'
+      fullPath: '/auth/test'
+      preLoaderRoute: typeof AuthTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/': {
+      id: '/chat/'
+      path: '/chat'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof ChatIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reviews/': {
+      id: '/reviews/'
+      path: '/reviews'
+      fullPath: '/reviews/'
+      preLoaderRoute: typeof ReviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PrivacyRoute: PrivacyRoute,
+  ScheduleRoute: ScheduleRoute,
+  SettingsRoute: SettingsRoute,
+  SigninRoute: SigninRoute,
   AlertsConfirmRoute: AlertsConfirmRoute,
   AlertsUnsubscribeRoute: AlertsUnsubscribeRoute,
+  AuthTestRoute: AuthTestRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  ChatIndexRoute: ChatIndexRoute,
+  ReviewsIndexRoute: ReviewsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

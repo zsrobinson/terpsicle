@@ -94,10 +94,11 @@ export function installServiceWorker(
         await cache.put(key, response.clone());
       return response;
     } catch (error) {
-      // Offline: the last copy of this page, or of the app's home page.
+      // Offline: the last copy of this page, or of the scheduler's
+      // (`SCHEDULE_PATH` in ~/core/routing; this function can't import it).
       const saved =
         (await cache.match(key)) ??
-        (await cache.match(`${sw.location.origin}/`));
+        (await cache.match(`${sw.location.origin}/schedule`));
       if (saved) return saved;
       throw error;
     }

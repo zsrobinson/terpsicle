@@ -53,6 +53,11 @@ export interface Device {
   /** The whole screen: browser chrome, keyboard and all where possible. */
   screenshot(): Promise<Buffer>;
   close(): Promise<void>;
+  /**
+   * What the host saw of a crashed page process since the last call (kernel
+   * lines: a segfault, an OOM kill), if the engine runs on this machine.
+   */
+  crashEvidence?(): Promise<string | null>;
 }
 
 /**
