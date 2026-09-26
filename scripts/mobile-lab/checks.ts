@@ -276,3 +276,16 @@ export function traceChecks(frames: Frame[]): Check[] {
 function round(n: number): number {
   return Math.round(n * 10) / 10;
 }
+
+/**
+ * Playwright's WebKit on Linux (the WPE port) now and then crashes its
+ * page process in the compositor thread: a null dereference in
+ * libWPEWebKit's ThreadedCompositor, logged by the kernel at the same
+ * address every time, during a screenshot (docs/MOBILE-TESTING.md,
+ * "WebKit's compositor crash"). Safari on iOS composites differently and
+ * never runs that code. run.ts runs such a scenario again; any other crash
+ * fails.
+ */
+export function isWebkitCompositorCrash(kernel: string): boolean {
+  return /Compositor\[\d+\]: segfault at 0 .* in libWPEWebKit/.test(kernel);
+}

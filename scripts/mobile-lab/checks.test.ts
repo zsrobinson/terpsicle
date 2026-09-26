@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { expectedDrawerTop, type Probe, reversals, stepChecks } from "./checks";
+import {
+  expectedDrawerTop,
+  isWebkitCompositorCrash,
+  type Probe,
+  reversals,
+  stepChecks,
+} from "./checks";
 import { calibrate, toScreen, toVisual } from "./device";
 
 function aProbe(overrides: Partial<Probe> = {}): Probe {
@@ -155,5 +161,27 @@ describe("screen mapping", () => {
         { offsetTop: 200, offsetLeft: 50, scale: 2 },
       ),
     ).toEqual({ x: 100, y: 600 });
+  });
+});
+
+describe("isWebkitCompositorCrash", () => {
+  it("knows WPE's compositor segfault, and nothing else", () => {
+    // From the runner's kernel log (run 2026-09-26T1419-webkit-36248050878).
+    expect(
+      isWebkitCompositorCrash(
+        "[Sat Sep 26 14:20:04 2026] eadedCompositor[6411]: segfault at 0 ip 00007f2c4aca0f8a sp 00007f2bbaff98f0 error 4 in libWPEWebKit-2.0.so.1.12.0[60a0f8a,7f2c45408000+5edd000] likely on CPU 3 (core 1, socket 0)",
+      ),
+    ).toBe(true);
+    // A crash anywhere else in the page process is the page's problem.
+    expect(
+      isWebkitCompositorCrash(
+        "WebKitWebProces[7001]: segfault at 18 ip 00007f00 sp 00007f00 error 4 in libWPEWebKit-2.0.so.1.12.0[1234,7f00+5edd000]",
+      ),
+    ).toBe(false);
+    expect(
+      isWebkitCompositorCrash(
+        "Out of memory: Killed process 7001 (WPEWebProcess)",
+      ),
+    ).toBe(false);
   });
 });

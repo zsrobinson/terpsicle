@@ -3,8 +3,10 @@
 // there's no on-screen keyboard or browser toolbar, and WebKit can't be sent
 // a touch drag, so drags are mouse drags (vaul follows either).
 
+import { execFile } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
 import {
   type Browser,
   type BrowserContext,
@@ -29,7 +31,29 @@ export async function playwrightDevice(
       ? { proxy: { server: process.env.HTTPS_PROXY } }
       : {}),
   });
-  return new PlaywrightDevice(engine, browser);
+  const device = new PlaywrightDevice(engine, browser);
+  // Only what the kernel logs from here on counts as this run's evidence.
+  await device.crashEvidence();
+  return device;
+}
+
+/** The kernel's log (CI runners allow `sudo dmesg`), or null. */
+async function kernelLog(): Promise<string[] | null> {
+  const run = promisify(execFile);
+  for (const [command, args] of [
+    ["sudo", ["-n", "dmesg"]],
+    ["dmesg", []],
+  ] as const) {
+    try {
+      const { stdout } = await run(command, [...args], {
+        maxBuffer: 32 * 1024 * 1024,
+      });
+      return stdout.split("\n");
+    } catch {
+      // Not allowed here; try the next way, or give up.
+    }
+  }
+  return null;
 }
 
 class PlaywrightDevice implements Device {
@@ -38,6 +62,8 @@ class PlaywrightDevice implements Device {
   private page: Page | null = null;
   private cdp: CDPSession | null = null;
   private landscape = false;
+  /** Kernel log lines already seen, so evidence is only what's new. */
+  private kernelSeen: number | null = null;
 
   constructor(
     readonly engine: "webkit" | "chromium",
@@ -166,6 +192,17 @@ class PlaywrightDevice implements Device {
 
   async screenshot(): Promise<Buffer> {
     return this.p.screenshot();
+  }
+
+  async crashEvidence(): Promise<string | null> {
+    const lines = await kernelLog();
+    if (!lines) return null;
+    const fresh = lines.slice(this.kernelSeen ?? 0);
+    this.kernelSeen = lines.length;
+    const crashes = fresh.filter((l) =>
+      /segfault|general protection|killed process|out of memory/i.test(l),
+    );
+    return crashes.length > 0 ? crashes.join("\n") : null;
   }
 
   async close(): Promise<void> {

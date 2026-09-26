@@ -14,6 +14,8 @@ export interface ScenarioResult {
   error: string | null;
   /** Why it didn't run on this engine. */
   skipped: string | null;
+  /** Something the reader should know about how this scenario ran. */
+  note?: string | null;
   steps: Step[];
 }
 
@@ -162,6 +164,10 @@ export function markdown(run: RunResult): string {
       out.push("");
       out.push(`Skipped on this engine: ${cell(s.skipped)}.`);
       continue;
+    }
+    if (s.note) {
+      out.push("");
+      out.push(`**Note:** ${cell(s.note)}`);
     }
     if (s.error) {
       out.push("");

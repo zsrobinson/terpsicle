@@ -72,6 +72,8 @@ export class Lab {
     readonly device: Device,
     readonly url: string,
     private readonly dir: string,
+    /** Off only to test whether screenshots themselves cause a problem. */
+    private readonly screenshots = true,
   ) {
     mkdirSync(dir, { recursive: true });
   }
@@ -220,7 +222,7 @@ export class Lab {
     this.actions = [];
     this.steps.push(step);
     try {
-      if (!options.noScreenshot)
+      if (this.screenshots && !options.noScreenshot)
         step.screenshot = saveImage(
           await this.device.screenshot(),
           path.join(
