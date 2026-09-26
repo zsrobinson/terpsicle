@@ -88,6 +88,19 @@ describe("TEST_USERS", () => {
     );
     expect(findTestUser("robinson")).toBeUndefined();
   });
+
+  it("makes throwaway e2e people, never admins, and nobody else", () => {
+    expect(findTestUser("e2eab12cd")).toEqual({
+      identity: expect.objectContaining({
+        directoryId: "e2eab12cd",
+        email: "e2eab12cd@terpmail.umd.edu",
+      }),
+      isAdmin: false,
+    });
+    expect(findTestUser("e2e")).toBeUndefined();
+    expect(findTestUser("e2eUPPER")).toBeUndefined();
+    expect(findTestUser("xe2eab")).toBeUndefined();
+  });
 });
 
 describe("signInErrorMessage", () => {

@@ -4,14 +4,15 @@ import {
   LocalSeatAlertSchema,
   type SectionKey,
   type TermId,
+  validRows,
 } from "~/core/schema";
-import { type TerpsicleDb, validRows } from "./db";
+import type { TerpsicleDb } from "./db";
 
-// This browser's seat alerts (DATA.md §5, `seatAlerts`): the list under
-// Export → Seat alerts, and what the course-details bell reads. Writes go
-// straight through to Dexie, so a caller can await them (the alerts inbox is
-// cleared only once its entries have landed). Talking to the server lives in
-// src/features/alerts.
+// This browser's seat alerts (DATA.md §5, the `seatAlerts` settings row): the
+// list under Export → Seat alerts, and what the course-details bell reads.
+// Writes go straight through to Dexie, so a caller can await them (the alerts
+// inbox is cleared only once its entries have landed). Talking to the server
+// lives in src/features/alerts.
 
 /** Whether seat alerts are on, as far as the server has told us. */
 export type SeatAlertsAvailability = "unknown" | "available" | "unavailable";
@@ -43,6 +44,16 @@ const sameWatch =
 // memory only (blocked storage, tests).
 let database: TerpsicleDb | null = null;
 
+const SEAT_ALERTS_ROW = "seatAlerts";
+
+/** Writes the whole list: a handful of watches in one settings row. */
+async function save(): Promise<void> {
+  await database?.settings.put({
+    key: SEAT_ALERTS_ROW,
+    value: [...useSeatAlerts.getState().alerts],
+  });
+}
+
 export const useSeatAlerts = create<SeatAlertsState>()((set, get) => ({
   ...INITIAL_SEAT_ALERTS_STATE,
 
@@ -52,7 +63,7 @@ export const useSeatAlerts = create<SeatAlertsState>()((set, get) => ({
       (a) => !rows.some((r) => sameWatch(r.termId, r.sectionKey)(a)),
     );
     set({ alerts: [...rest, ...rows] });
-    await database?.seatAlerts.bulkPut([...rows]);
+    await save();
   },
 
   remove: async (termId, sectionKey) => {
@@ -60,7 +71,7 @@ export const useSeatAlerts = create<SeatAlertsState>()((set, get) => ({
     set({
       alerts: get().alerts.filter((a) => !sameWatch(termId, sectionKey)(a)),
     });
-    await database?.seatAlerts.delete([termId, sectionKey]);
+    await save();
   },
 
   setAvailability: (availability) => {
@@ -69,15 +80,17 @@ export const useSeatAlerts = create<SeatAlertsState>()((set, get) => ({
 }));
 
 /**
- * Reads the table into the store and keeps writing changes to it. Invalid
- * rows are skipped, never fatal (DATA.md §5).
+ * Reads the row into the store and keeps writing changes to it. Invalid
+ * entries are skipped one by one, never fatal (DATA.md §5).
  */
 export async function startSeatAlerts(db: TerpsicleDb): Promise<void> {
   database = db;
+  const row: { value?: unknown } | undefined =
+    await db.settings.get(SEAT_ALERTS_ROW);
   const rows = validRows(
     "seatAlerts",
     LocalSeatAlertSchema,
-    await db.seatAlerts.toArray(),
+    Array.isArray(row?.value) ? row.value : [],
   );
   // A later start (React remounting the app) owns the store now.
   if (database !== db) return;

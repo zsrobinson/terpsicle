@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  type ChatPlans,
   DEFAULT_TRAVEL_SETTINGS,
   type LocalId,
   type TermId,
@@ -44,6 +45,8 @@ export interface CommitOptions {
 
 export interface WorkspaceState extends Workspace {
   travel: TravelSettings;
+  /** Which plan's sections are your chat rooms, per term (V2 §8.2). Synced, not undoable. */
+  chatPlans: ChatPlans;
   /** False until persisted state has loaded; don't create defaults before then. */
   hydrated: boolean;
   past: readonly UndoEntry[];
@@ -74,6 +77,8 @@ export interface WorkspaceState extends Workspace {
   ensurePlan: (termId: TermId) => void;
   /** Travel settings are preferences: saved, not undoable. */
   setTravel: (patch: Partial<TravelSettings>) => void;
+  /** Picks (or clears, `null`) the term's chat plan. Not undoable. */
+  setChatPlan: (termId: TermId, planId: LocalId | null) => void;
 }
 
 /** Enough to undo a long session of poking around. */
@@ -98,6 +103,7 @@ export function workspaceOf(s: Workspace): Workspace {
 export const INITIAL_WORKSPACE_STATE = {
   ...EMPTY_WORKSPACE,
   travel: DEFAULT_TRAVEL_SETTINGS,
+  chatPlans: {},
   hydrated: false,
   past: [],
   future: [],
@@ -172,6 +178,12 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => ({
   },
 
   setTravel: (patch) => set({ travel: { ...get().travel, ...patch } }),
+
+  setChatPlan: (termId, planId) => {
+    const { [termId]: current, ...rest } = get().chatPlans;
+    if ((current ?? null) === planId) return;
+    set({ chatPlans: planId === null ? rest : { ...rest, [termId]: planId } });
+  },
 }));
 
 /** The open plan's id in a term (see `activePlanId`). */

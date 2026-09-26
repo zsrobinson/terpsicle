@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { hasSessionCookie, shouldSkipMarketing, wantsToStay } from "./routing";
+import {
+  hasSessionCookie,
+  isAdminPath,
+  shouldSkipMarketing,
+  wantsToStay,
+} from "./routing";
+
+describe("isAdminPath", () => {
+  it("covers /admin and everything under it, nothing else", () => {
+    expect(isAdminPath("/admin")).toBe(true);
+    expect(isAdminPath("/admin/")).toBe(true);
+    expect(isAdminPath("/admin/decisions")).toBe(true);
+    expect(isAdminPath("/administration")).toBe(false);
+    expect(isAdminPath("/api/admin/health")).toBe(false);
+    expect(isAdminPath("/")).toBe(false);
+  });
+});
 
 describe("hasSessionCookie", () => {
   it("finds the session cookie among others", () => {

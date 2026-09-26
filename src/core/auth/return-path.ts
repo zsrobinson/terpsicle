@@ -39,6 +39,13 @@ export function safeReturnPath(
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
+/** `/signin?return=<path>`: where a signed-out visit to a signed-in page goes. */
+export function signInPagePath(returnTo: string): string {
+  const url = new URL(SIGNIN_PATH, BASE);
+  url.searchParams.set(RETURN_PARAM, safeReturnPath(returnTo));
+  return `${url.pathname}${url.search}`;
+}
+
 /** `/signin?error=<code>&return=<path>`: where a failed sign-in lands. */
 export function signInErrorPath(error: SignInError, returnTo: string): string {
   const url = new URL(SIGNIN_PATH, BASE);

@@ -1,4 +1,6 @@
-// The shared data contract. Prose version: docs/DATA.md.
+// The shared data contract. Prose version: docs/DATA.md. The admin panel's
+// schemas stay out of this barrel (import ~/core/schema/admin): every page
+// loads the barrel, and only /admin needs them.
 export * from "./api";
 export * from "./auth";
 export * from "./calendar";
@@ -16,6 +18,7 @@ export * from "./planetterp";
 export * from "./primitives";
 export * from "./problems";
 export * from "./reviews";
+export * from "./rows";
 export * from "./schedule-url";
 export * from "./security";
 export * from "./settings";

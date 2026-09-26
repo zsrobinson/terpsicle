@@ -8,7 +8,7 @@ import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { AccountPage, AccountSection } from "./account-page";
-import { useAccount } from "./account-store";
+import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
 import { SignInPanel } from "./sign-in-panel";
 
@@ -112,16 +112,24 @@ function AccountDetails() {
 function AccountActions() {
   const signOut = useAccount((s) => s.signOut);
   const deleteAccount = useAccount((s) => s.deleteAccount);
-  const [working, setWorking] = useState<"sign-out" | "delete" | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [working, setWorking] = useState<
+    "sign-out" | "remove" | "delete" | null
+  >(null);
+  const [failed, setFailed] = useState<string | null>(null);
 
-  const run = async (kind: "sign-out" | "delete") => {
+  const run = async (kind: "sign-out" | "remove" | "delete") => {
     setWorking(kind);
-    setFailed(false);
+    setFailed(null);
     try {
-      if (kind === "sign-out") {
-        await signOut();
-        track("signed_out", { removedLocal: false });
+      if (kind !== "delete") {
+        const removeLocal = kind === "remove";
+        await signOut({ removeLocal });
+        track("signed_out", { removedLocal: removeLocal });
+        if (removeLocal)
+          toast("Signed out", {
+            description:
+              "Your plans are removed from this browser. They're still on your account.",
+          });
       } else {
         const due = await deleteAccount();
         track("account_deletion_requested", {});
@@ -141,8 +149,12 @@ function AccountActions() {
           },
         });
       }
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailed(
+        kind === "delete"
+          ? "That didn't go through. Check your connection and try again."
+          : signOutFailure(error),
+      );
     } finally {
       setWorking(null);
     }
@@ -158,6 +170,17 @@ function AccountActions() {
             onClick={() => void run("sign-out")}
           >
             {working === "sign-out" ? "Signing out…" : "Sign out"}
+          </Button>
+        </WithTooltip>
+        <WithTooltip label={REMOVE_TOOLTIP}>
+          <Button
+            variant="outline"
+            disabled={working !== null}
+            onClick={() => void run("remove")}
+          >
+            {working === "remove"
+              ? "Saving and removing…"
+              : "Sign out and remove plans from this device"}
           </Button>
         </WithTooltip>
         <WithTooltip label="Signs you out everywhere. The account goes after a week unless you sign in again.">
@@ -176,7 +199,7 @@ function AccountActions() {
       </p>
       {failed ? (
         <p role="status" className="text-fg text-sm">
-          That didn't go through. Check your connection and try again.
+          {failed}
         </p>
       ) : null}
     </div>

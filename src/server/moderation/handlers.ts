@@ -18,7 +18,10 @@ export interface HandlerContext {
 
 /**
  * Called with the item's new state. Must be idempotent: undo calls it again
- * with "hold", and a retry that fails partway runs it again next time.
+ * with "hold", and a retry that fails partway runs it again next time. An
+ * unknown `targetId` is done, not an error: the author may have deleted the
+ * post while it waited, and test copies queue made-up posts
+ * (src/server/admin/samples.ts) that no feature stored.
  */
 export type ModerationHandler = (
   targetId: string,

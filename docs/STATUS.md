@@ -24,15 +24,15 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 |---|---|---|
 | V0: Plan | `v2/plan` | In review |
 | V1: Foundations | `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation` | In flight |
-| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | `v2/sync-merge`, `v2/sync-api` in review |
+| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | `v2/sync-merge` (#57) and `v2/sync-api` (#58) merged; `v2/sync-engine` in review |
 | V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Not started |
 | V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | Not started |
-| V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | `v2/chat-do` in review |
-| V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | Not started |
+| V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | `v2/chat-do` merged (#70) |
+| V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | `v2/admin-shell` in review |
 
 **v2 decisions** (details in `docs/V2.md`):
 - **Plan sync is plain server-side storage**, encrypted at rest by Cloudflare, not end-to-end encrypted. The orchestrator's call, flagged for the owner: it lets Chat derive rooms from plans and keeps recovery simple.
-- **Plan sync is not a sync engine:** one doc per plan plus one settings doc, saved whole with per-doc rev compare-and-swap. A conflicting plan is never merged; the person gets both, the local one as "<name> (copy)". The core (`src/core/sync`) is in `v2/sync-merge`; the D1 tables and `sync/push`, `sync/pull` in `v2/sync-api` (`DATA.md` §7.7).
+- **Plan sync is not a sync engine:** one doc per plan plus one settings doc, saved whole with per-doc rev compare-and-swap. A conflicting plan is never merged; the person gets both, the local one as "<name> (copy)". The core (`src/core/sync`) is in `v2/sync-merge`; the D1 tables and `sync/push`, `sync/pull` in `v2/sync-api` (`DATA.md` §7.7); the device side (Dexie v2, the engine, the status, both sign-outs) in `v2/sync-engine` (`V2.md` §5.3), loaded only once someone is signed in.
 - **PR previews sign in with a fixed test mode** (`AUTH_TEST_MODE`, fixture identities), not a production broker: previews run unreviewed code and have their own D1, and CI needs a deterministic sign-in anyway. Cloudflare's version preview URLs, which share the Worker's secrets, were ruled out too: they also share its bindings, so a preview would use production D1 (`docs/AUTH.md`).
 - **Identity** (`v2/identity`, `docs/AUTH.md`): Google sign-in with `hd=*`, `prompt=select_account` and a `login_hint` from a `__Host-hint` cookie; users keyed on the directory ID with both addresses in `user_identities`; name and picture refreshed from Google at every sign-in, pictures cached in R2 `USER_CONTENT` (so `v2/avatars` folded in); sessions refresh daily with a new token; account deletion with a week's grace and the daily purge; admins from `config/admins.txt`. The route table's `auth` field (with the origin check) landed here too, since every later route builds on it.
 - **Security headers** (`v2/security-headers`, V2.md §12): the CSP is report-only for now; our inline head scripts are allowed by hashes built from their source at build time (`src/app/inline-scripts.ts`), TanStack's per-request scripts by a per-response nonce; Zod runs jitless so it never needs eval; reports are sampled into the logs with no PII. The Worker sends HSTS (Cloudflare wasn't). `account/delete` gets its per-user limit, and `route()` refuses a route with no limit.

@@ -3,6 +3,7 @@ import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { problemCountWords } from "~/core/problems";
 import { AccountButton } from "~/features/auth";
+import { SyncStatusIcon } from "~/features/sync/status-view";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCreditsLabel,
@@ -57,6 +58,7 @@ export function TopBar({
         <OfflineNote compact={compact} />
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
+        {compact ? null : <SyncStatusIcon />}
         <AccountButton compact={compact} themeToggle={end} />
       </div>
     </header>

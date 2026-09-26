@@ -43,6 +43,14 @@ import {
   UndoInputSchema,
 } from "~/core/schema";
 import {
+  AdminHealthInputSchema,
+  AdminSamplesInputSchema,
+  DecisionListInputSchema,
+} from "~/core/schema/admin";
+import { listDecisions } from "../admin/decisions";
+import { adminHealth } from "../admin/health";
+import { addSamples } from "../admin/samples";
+import {
   type AlertsContext,
   type AlertsEnv,
   alertsEnabled,
@@ -433,6 +441,28 @@ export const ROUTES = {
         now: ctx.now,
         handlers: ctx.moderationHandlers,
       }),
+  }),
+  // The rest of the admin panel (V2 §10, src/server/admin).
+  "admin/decisions": route({
+    input: DecisionListInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => listDecisions(env.DB, input, ctx.now),
+  }),
+  "admin/health": route({
+    input: AdminHealthInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, _input, ctx) => adminHealth(env, ctx.now),
+  }),
+  "admin/samples": route({
+    input: AdminSamplesInputSchema,
+    perIpPerHour: 60,
+    alerts: false,
+    auth: "admin",
+    handle: (env, _input, ctx) => addSamples(env, ctx),
   }),
 } as const;
 
