@@ -8,6 +8,7 @@ import {
   courseIndexTermOrder,
   courseSearchRow,
 } from "~/core/catalog";
+import { buildReviewsDepts } from "~/core/reviews";
 import {
   buildingsKey,
   type ChangesFile,
@@ -26,6 +27,9 @@ import {
   PLANETTERP_MANIFEST_KEY,
   type PlanetTerpManifest,
   planetTerpDeptKey,
+  REVIEWS_MANIFEST_KEY,
+  type ReviewsManifest,
+  reviewsDeptKey,
   routeGeometryKey,
   routesKey,
   seatsKey,
@@ -50,6 +54,7 @@ import {
   mockPlanetTerpDepts,
   mockReviewSummaries,
 } from "./planetterp";
+import { mockPublishedReviews, mockReviewNames } from "./reviews";
 import { MOCK_SEATS_FETCHED_AT, mockArchivedSeats, mockSeats } from "./seats";
 import { mockCalendars, mockTermsFile } from "./terms";
 
@@ -186,6 +191,20 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
   put(PLANETTERP_MANIFEST_KEY, jsonBytes(ptManifest));
   for (const summary of mockReviewSummaries)
     put(summaryKey(summary.slug), jsonBytes(summary));
+
+  // Terpsicle reviews' numbers, built by the same code the reviews-publish job runs.
+  const reviewsDepartments: ReviewsManifest["departments"] = [];
+  for (const dept of buildReviewsDepts(mockPublishedReviews, mockReviewNames))
+    reviewsDepartments.push({
+      code: dept.dept,
+      hash: await putHashed((h) => reviewsDeptKey(dept.dept, h), dept),
+    });
+  const reviewsManifest: ReviewsManifest = {
+    schemaVersion: 1,
+    generatedAt: FIXTURE_NOW,
+    departments: reviewsDepartments,
+  };
+  put(REVIEWS_MANIFEST_KEY, jsonBytes(reviewsManifest));
 
   const known = { standard: 0, accessible: 0 };
   for (const mode of TRAVEL_MODES)

@@ -5,6 +5,7 @@ import type {
   DeptCode,
   PlanetTerpDept,
   PlanetTerpSource,
+  ReviewsDept,
   RouteGeometry,
   TermId,
   TravelMode,
@@ -12,6 +13,7 @@ import type {
 import { formatRelative } from "~/core/time";
 import type { CampusMap } from "~/core/travel";
 import { type LoadState, useCatalog } from "./catalog-store";
+import { useReviewNumbers } from "./reviews-store";
 
 // Hooks for published data beyond the term catalog. Each one starts its own
 // load (cached, validated, once per session) and re-renders when it lands.
@@ -108,6 +110,27 @@ export function useInstructors(dept: DeptCode | null): {
     if (reader && dept) void ensure(dept);
   }, [reader, dept, ensure]);
   return { data, state, source };
+}
+
+/**
+ * A department's Terpsicle review numbers (V2 §7.6), loaded on first use.
+ * Null while loading, when nothing is published for it, when the file
+ * didn't load (PlanetTerp's numbers then stand alone), and whenever
+ * `enabled` is false (`REVIEWS_ENABLED` off).
+ */
+export function useTerpsicleReviews(
+  dept: DeptCode | null,
+  enabled: boolean,
+): ReviewsDept | null {
+  const data = useReviewNumbers((s) =>
+    dept && enabled ? (s.depts[dept] ?? null) : null,
+  );
+  const source = useReviewNumbers((s) => s.source);
+  const ensure = useReviewNumbers((s) => s.ensureDepts);
+  useEffect(() => {
+    if (source && dept && enabled) void ensure([dept]);
+  }, [source, dept, enabled, ensure]);
+  return data;
 }
 
 /**

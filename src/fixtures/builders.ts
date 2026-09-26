@@ -49,6 +49,8 @@ import {
   type Review,
   type ReviewSubmitInput,
   type ReviewSummary,
+  type ReviewsDept,
+  type ReviewsManifest,
   type RouteGeometry,
   type SeatsFile,
   type SeatTuple,
@@ -617,6 +619,33 @@ export function aReviewSummary(
     latestReviewAt: "2026-04-29T15:02:11.000Z",
     generatedAt: FIXTURE_NOW,
     model: "mock-fixture",
+    ...overrides,
+  };
+}
+
+// ---------- Terpsicle reviews' numbers ----------
+
+export function aReviewsDept(
+  overrides: Partial<ReviewsDept> = {},
+): ReviewsDept {
+  return {
+    schemaVersion: 1,
+    dept: "CMSC",
+    instructors: {
+      brandt: { rating: 4.6, reviewCount: 13, latestReviewMonth: "2026-09" },
+    },
+    names: {},
+    ...overrides,
+  };
+}
+
+export function aReviewsManifest(
+  overrides: Partial<ReviewsManifest> = {},
+): ReviewsManifest {
+  return {
+    schemaVersion: 1,
+    generatedAt: FIXTURE_NOW,
+    departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
     ...overrides,
   };
 }

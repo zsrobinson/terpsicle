@@ -35,7 +35,13 @@ export interface ServerEvents {
   };
   summary_cached: { ageDays: number };
   summary_failed: {
-    reason: "model-output" | "model-error" | "planetterp" | "storage";
+    reason:
+      | "model-output"
+      | "model-error"
+      | "planetterp"
+      | "storage"
+      | "unsafe"
+      | "guard-error";
   };
   summary_capped: { cap: number };
   // Seat watches. Never who, an address or an IP, not even hashed.
