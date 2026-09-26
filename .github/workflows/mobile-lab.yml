@@ -147,7 +147,7 @@ jobs:
           echo "status=$?" >> "$GITHUB_OUTPUT"
           # How a page process died, if one did: a segfault or an OOM kill
           # leaves a kernel line; WebKit ending it itself leaves none.
-          sudo dmesg -T 2>/dev/null | grep -iE "segfault|general protection|oom|killed process|out of memory|WebKit|WPE" > "mobile-lab-results/$RUN_NAME/kernel-log.txt" || true
+          sudo dmesg --time-format iso 2>/dev/null | grep -iE "segfault|general protection|oom|killed process|out of memory|WebKit|WPE" > "mobile-lab-results/$RUN_NAME/kernel-log.txt" || true
           free -m >> "mobile-lab-results/$RUN_NAME/kernel-log.txt" || true
       - uses: actions/upload-artifact@v7
         if: always()

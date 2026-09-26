@@ -267,6 +267,7 @@ export class Lab {
   /** A step for a scenario that threw, with whatever the screen shows. */
   async failure(error: unknown): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
+    console.error(`  ${new Date().toISOString()} scenario failed: ${message}`);
     const step = await this.step("error");
     step.error = message;
     // The page's process died (Playwright: "Target crashed"; a page that

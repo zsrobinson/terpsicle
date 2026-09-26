@@ -41,8 +41,8 @@ export async function playwrightDevice(
 async function kernelLog(): Promise<string[] | null> {
   const run = promisify(execFile);
   for (const [command, args] of [
-    ["sudo", ["-n", "dmesg"]],
-    ["dmesg", []],
+    ["sudo", ["-n", "dmesg", "--time-format", "iso"]],
+    ["dmesg", ["--time-format", "iso"]],
   ] as const) {
     try {
       const { stdout } = await run(command, [...args], {
@@ -196,22 +196,35 @@ class PlaywrightDevice implements Device {
   }
 
   async crashEvidence(): Promise<string | null> {
-    const lines = await kernelLog();
-    if (!lines) return null;
-    const fresh = lines.slice(this.kernelSeen ?? 0).filter((l) => l.trim());
     const first = this.kernelSeen === null;
-    this.kernelSeen = lines.length;
-    if (first) return null;
-    // All of it: the kernel may split one report over lines (the faulting
-    // library can come on the line after the segfault).
+    // The kernel's line can come a moment after Playwright hears of the
+    // crash: look for up to 10 s.
+    for (let i = 0; i < (first ? 1 : 20); i++) {
+      const lines = await kernelLog();
+      if (!lines) return null;
+      if (first) {
+        this.kernelSeen = lines.length;
+        return null;
+      }
+      const fresh = lines.slice(this.kernelSeen ?? 0).filter((l) => l.trim());
+      if (
+        fresh.some((l) =>
+          /segfault|general protection|killed process|out of memory/i.test(l),
+        )
+      ) {
+        this.kernelSeen = lines.length;
+        // All of it: one report can span lines.
+        console.error(
+          `  ${new Date().toISOString()} kernel log, new:\n${fresh.join("\n")}`,
+        );
+        return fresh.join("\n");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
     console.error(
-      `  kernel log, new since the last look:\n${fresh.join("\n")}`,
+      `  ${new Date().toISOString()} kernel log: nothing about the crash`,
     );
-    return fresh.some((l) =>
-      /segfault|general protection|killed process|out of memory/i.test(l),
-    )
-      ? fresh.join("\n")
-      : null;
+    return null;
   }
 
   async close(): Promise<void> {
