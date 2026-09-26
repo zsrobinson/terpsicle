@@ -91,7 +91,7 @@ class AndroidChrome implements Device {
 
   async begin(url: string, video: string | null): Promise<void> {
     this.mapping = null;
-    await this.shell("settings put system user_rotation 0");
+    await this.rotate("portrait");
     if (video) await this.startRecording(`${video}.mp4`);
     await this.p.goto(url);
     await this.dismissDialogs();
@@ -194,8 +194,11 @@ class AndroidChrome implements Device {
     )
       .slice(1)
       .map(Number);
+    // The display's actual rotation, not the setting asked for.
+    const dump = await this.shell("dumpsys input");
     const rotation = Number(
-      (await this.shell("settings get system user_rotation")).trim(),
+      dump.match(/SurfaceOrientation:\s*(\d)/)?.[1] ??
+        (await this.shell("settings get system user_rotation")).trim(),
     );
     return rotation % 2 === 1
       ? { width: h, height: w }
@@ -269,9 +272,10 @@ class AndroidChrome implements Device {
   }
 
   async rotate(orientation: "portrait" | "landscape"): Promise<void> {
-    await this.shell(
-      `settings put system user_rotation ${orientation === "landscape" ? 1 : 0}`,
-    );
+    const rotation = orientation === "landscape" ? 1 : 0;
+    // Newer Android takes the window manager's lock; older, the setting.
+    await this.shell(`wm user-rotation lock ${rotation}`).catch(() => "");
+    await this.shell(`settings put system user_rotation ${rotation}`);
     this.mapping = null;
   }
 
