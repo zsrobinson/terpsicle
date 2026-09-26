@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { OPEN_VIEW } from "./sidebar";
 
 // Wildcards in Generate on `pnpm dev:mock?demo=1`, on desktop and in the
 // phone drawer: type CMSC4XX and DSHS, generate, and see which course each
@@ -83,9 +84,7 @@ test("generate with CMSC4XX and any DSHS course", async ({
   );
 
   await first.getByRole("button").click();
-  await expect(
-    page.getByRole("navigation", { name: "Breadcrumb" }),
-  ).toContainText("Option 1");
+  await expect(page.locator(OPEN_VIEW)).toContainText("Option 1");
   const picked = page.getByRole("list", { name: "Picked for your wildcards" });
   await expect(picked).toContainText("for Any CMSC 400-level");
   await expect(picked).toContainText("for Any DSHS course");
