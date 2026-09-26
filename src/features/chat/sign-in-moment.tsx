@@ -26,7 +26,7 @@ export function SignInMoment({ returnTo }: { returnTo: string }) {
           <li key={point}>{point}</li>
         ))}
       </ul>
-      <GoogleButton returnTo={returnTo} from="signin-page" />
+      <GoogleButton returnTo={returnTo} from="chat" />
       <p className="text-muted text-sm">
         The scheduler works without an account, and always will.
       </p>

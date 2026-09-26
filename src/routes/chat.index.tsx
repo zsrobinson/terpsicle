@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
+import { initAnalytics } from "~/app/analytics";
 import { ChatSearchSchema } from "~/core/schema";
 import { ChatPage } from "~/features/chat/chat-page";
 import type { ChatGo } from "~/features/chat/nav";
@@ -16,6 +17,9 @@ export const Route = createFileRoute("/chat/")({
 function ChatRoute() {
   const view = Route.useSearch();
   const navigate = useNavigate({ from: "/chat/" });
+  useEffect(() => {
+    void initAnalytics();
+  }, []);
   const go: ChatGo = useCallback(
     (next, options) =>
       void navigate({ search: next, replace: options?.replace ?? false }),
