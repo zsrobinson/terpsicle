@@ -21,10 +21,15 @@ export function Avatar({
 }: {
   name: string;
   src: string | null;
-  size?: "sm" | "lg";
+  size?: "sm" | "md" | "lg";
 }) {
   const [failed, setFailed] = useState(false);
-  const box = size === "lg" ? "size-12 text-base" : "size-6 text-2xs";
+  const box =
+    size === "lg"
+      ? "size-12 text-base"
+      : size === "md"
+        ? "size-8 text-xs"
+        : "size-6 text-2xs";
   if (src && !failed)
     return (
       <img

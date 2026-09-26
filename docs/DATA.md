@@ -632,6 +632,10 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 
 **Sending:** check (can read the room, `CHAT_ENABLED` is `on`, the term isn't over, the room is listed, no admin block, the limits) → store as `checking` and ack → `moderate()` (kind `chat`, target `<termId>:<courseCode>:<messageId>`) → `visible` (broadcast), `held` (author only; `graded-work` or `flagged`), `removed` (author only), or still `checking` when only a failed model call held it (moderation's cron retries and calls Chat's handler). An edit is screened again, and classmates get `moderation {removed}` for the old text until the new one is visible. If `moderate()` throws, the object's alarm takes moderation's latest decision about that text, or screens it again, two minutes later.
 
+**Reports** (`v2/chat-ui`): `reports/create` with `surface: "chat"` and the message's ref goes to its object (`src/server/chat/report-target.ts`, MODERATION.md §6). Reports that reach the hiding weight hold the message for its author only (`held`, `held_reason: reported`); the owner's approve shows it again.
+
+**Mock mode** (`pnpm dev:mock`, e2e): `scripts/seed-mock-data.ts` puts the mock bucket into local R2 before Vite starts, so the object reads the same catalog the app does, and the Vite config sets `CHAT_ENABLED: "on"` and `MODERATION_OFFLINE: "true"`: with `AUTH_TEST_MODE` on, moderation calls offline stand-ins for the models (`src/server/moderation/offline-models.ts`: Guard says safe, the policy model scores 0), so only the rules hold anything.
+
 **Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs` and `chat_author_courses` rows (`notifications` join them with `v2/chat-notify`). `chat_members` stays: it describes people.
 
 ### 7.10 Terpsicle Todo (landed: `migrations/0011_todo.sql`)

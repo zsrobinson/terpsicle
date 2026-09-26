@@ -605,14 +605,14 @@ describe("reports", () => {
     expect(await report(reader, "AAAAAAAAAAAAAAAAAAAAAA")).toEqual({
       status: "not-found",
     });
-    expect(
-      await reader.json("reports/create", {
-        surface: "chat",
-        ref: "202701:CMSC351:m1",
-        reason: "other",
-        note: "Not a thing yet.",
-      }),
-    ).toEqual({ status: "not-found" });
+    // Chat messages follow Chat's switch, off here (src/server/chat covers them).
+    const chat = await reader.call("reports/create", {
+      surface: "chat",
+      ref: "202701:CMSC351:m1",
+      reason: "other",
+      note: null,
+    });
+    expect(chat.status).toBe(503);
   });
 });
 

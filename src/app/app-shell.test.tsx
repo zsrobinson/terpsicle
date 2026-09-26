@@ -2,8 +2,8 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUi } from "~/state/ui-store";
+import { useFocusRequest } from "./focus-request";
 import { lazyModule, lazyPanel } from "./lazy-panel";
-import { useFocusRequest } from "./panel";
 import { definePanels } from "./registry";
 import { renderShell } from "./test-utils";
 
