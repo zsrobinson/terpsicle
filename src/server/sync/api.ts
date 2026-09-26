@@ -11,6 +11,7 @@ import type {
 } from "~/core/schema";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
+import { refreshChatMembers } from "../chat/store";
 import { pullDocs, pushDocs } from "./store";
 
 export interface SyncEnv {
@@ -25,7 +26,15 @@ export async function push(
   // The router guarantees a session for `auth: "user"` routes.
   const user = ctx.session?.user;
   if (!user) return apiError("unauthorized");
-  return { results: await pushDocs(env.DB, user.id, input.docs, ctx.now) };
+  const results = await pushDocs(env.DB, user.id, input.docs, ctx.now);
+  // Chat rooms come from the stored plans (V2.md §8.2): what was saved moves
+  // the person's chat_members.
+  const saved = results.filter((r) => r.status === "ok");
+  await refreshChatMembers(env.DB, user.id, {
+    planIds: saved.filter((r) => r.kind === "plan").map((r) => r.id),
+    settings: saved.some((r) => r.kind === "settings"),
+  });
+  return { results };
 }
 
 export async function pull(

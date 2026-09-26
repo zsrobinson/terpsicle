@@ -367,8 +367,12 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | `reviews/delete` (`auth: "user"`, `read`) | `ReviewDeleteInputSchema` `{reviewId}` | `ReviewDeleteResultSchema` | none; 60 per user |
 | `reviews/mine` (`auth: "user"`, `read`) | `ReviewsMineInputSchema` `{}` | `ReviewsMineResultSchema` `{reviews: MyReview[]}` | none; 300 per user |
 | `reports/create` (`auth: "user"`, `read`) | `ReportCreateInputSchema` `{surface, ref, reason, note}` | `ReportCreateResultSchema`: `reported` · `not-found` · `own` | none; 30 per user |
+| `chat/unread` (`auth: "user"`) | `ChatUnreadInputSchema` `{termId}` | `ChatUnreadResultSchema` `{rooms: [{room, courseCode, lastSeq, unread, lastMessageAt, muted}]}` | none; 1,200 per user |
+| `chat/follow`, `chat/unfollow` (`auth: "user"`) | `ChatFollowInputSchema` `{termId, courseCode}` | `{status: "ok"}`, or `too-many` past 100 follows in a term | none; 600 per user |
+| `chat/mute` (`auth: "user"`) | `ChatMuteInputSchema` `{termId, courseCode, roomId, muted}` | `{status: "ok"}` | none; 600 per user |
+| `chat/members` (`auth: "user"`) | `ChatMembersInputSchema` `{termId, courseCode, roomId}` | `ChatMembersResultSchema`: `ok` (`members` by name, ≤ 200, and `total`), `not-a-member` or `not-found` | none; 600 per user |
 
-**Identity** (§7.6, `docs/AUTH.md`) adds the `auth` field to the route table: `"user"` and `"admin"` routes need a same-origin request (`Origin`, and `Sec-Fetch-Site` when sent) and a session, answer `401 unauthorized` or `403 forbidden` otherwise, and get the session's user in `ctx.session`. `ApiErrorSchema` gains `unauthorized` and `forbidden`. Two GET navigations sit beside the table, `/api/auth/google` and `/api/auth/google/callback`, and one Worker route outside `/api`, `/avatars/*`.
+**Identity** (§7.6, `docs/AUTH.md`) adds the `auth` field to the route table: `"user"` and `"admin"` routes need a same-origin request (`Origin`, and `Sec-Fetch-Site` when sent) and a session, answer `401 unauthorized` or `403 forbidden` otherwise, and get the session's user in `ctx.session`. `ApiErrorSchema` gains `unauthorized` and `forbidden`. Two GET navigations sit beside the table, `/api/auth/google` and `/api/auth/google/callback`, and one Worker route outside `/api`, `/avatars/*`. Chat adds the one WebSocket route, `GET /api/chat/socket` (§7.9).
 
 Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `reports` tables in `0004_moderation`, the retry cron, the admin API) is described in `docs/MODERATION.md`.
 
@@ -521,10 +525,11 @@ They carry counts, reasons and term ids only. They never carry an address, token
 
 Rooms aren't stored: `roomsForCourse(termId, course)` in `core/chat` derives them from the catalog, and a room gets storage only with its first message. They follow course details' one level of grouping: a course room; with 2+ sections, a room per section; and with more than one professor, a room per named professor between the course and their sections (TBA sections sit under the course room). There are no lecture rooms. One `CourseChat` Durable Object per course per term (named by the course room id) holds every room of that course, and the app keeps one WebSocket per open course.
 
-- **`ChatMessage`:** `id`, `room`, `author` (directory ID, Google name and picture, snapshotted when sent), `text` (trimmed, 1–2,000 chars), `createdAt`, `editedAt`, `replyTo` (the thread's first message; threads are one level deep), `thread` (reply count and last reply time), `reactions` (who reacted, per reaction in the fixed set `REACTIONS`) and `moderation`: `visible`, `held {reason}` (only the author sees it; `checking` · `graded-work` · `flagged` · `reported`) or `removed`.
+- **`ChatMessage`:** `id`, `room`, `author` (directory ID, the Google name and our `/avatars/…` copy of the picture, as they are now; the name the author wrote under if the account is gone), `text` (trimmed, 1–2,000 chars), `createdAt`, `editedAt`, `replyTo` (the thread's first message; threads are one level deep), `thread` (reply count and last reply time), `reactions` (who reacted, per reaction in the fixed set `REACTIONS`) and `moderation`: `visible`, `held {reason}` (only the author sees it; `checking` · `graded-work` · `flagged` · `reported`) or `removed`.
 - **Client frames** (`ChatClientFrameSchema`, strict): `hello {protocol, rooms}` first, then `history {room, thread, before, limit}`, `send {room, text, replyTo}`, `edit`, `delete`, `react {id, reaction, on}`, `typing {room}` and `read {room, upTo}`. Requests carry a client `req` id.
 - **Server frames** (`ChatServerFrameSchema`): `welcome {you, rooms: [{room, members, unread, writable}]}`, `page {messages (oldest first), more}`, `ack {req, message}` (the message as its author now sees it; null after a delete), `error {req, code, retryAfter}`, `message` (new or changed; replaces the copy with that id), `deleted`, `reactions`, `moderation` (every change to the author; `removed` to everyone who had seen it) and `typing`.
 - `CHAT_PROTOCOL_VERSION` is bumped on a breaking change; an older client's `hello` gets `error {code: "old-client"}` and reloads.
+- A `send`'s `req` is also its idempotency key: resending the same `req` (after a reconnect) gets the first message back. Clients pick a random one per message.
 
 ### 7.5 v2 tables (D1 `terpsicle`)
 
@@ -538,7 +543,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
 | `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` (landed, §7.8) | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
-| `0009_chat` | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
+| `0009_chat` (landed, §7.9) | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
 | `0010_four_year_sync` (v3) | rebuilds `sync_docs` so `kind` also allows `four-year` | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
 
@@ -570,6 +575,7 @@ The design is `docs/V2.md` §5; the routes are `src/server/sync/api.ts`, the SQL
 
 - **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live plan stays within 200. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
 - **Deleting an account** removes both tables' rows: explicitly in the purge, and by `ON DELETE CASCADE`.
+- **Chat membership:** after the batch, a push that saved anything rewrites the person's `chat_members` for the terms it touched (§7.9).
 
 ### 7.8 Reviews (landed: `migrations/0008_reviews.sql`)
 
@@ -589,6 +595,34 @@ The design is `docs/V2.md` §7. Routes: `src/server/reviews/api.ts` (and `report
 - **Later decisions** reach reviews through `MODERATION_HANDLERS.review` (`src/server/reviews/decisions.ts`): approve publishes (applying a waiting edit), remove rejects the review (or only a waiting edit of a published review, unless reports are waiting too), undo puts it back to waiting.
 - **Anonymity** (V2 §7.5): `PublicReview` is strict and has no author; dates are months (America/New_York); the list cursor is a review id, not a time. `reviews/mine` shows your own reviews without an author field. Moderation rows and snapshots never hold the author, and `src/server/reviews/anonymity.test.ts` checks every answer, both moderation tables and the models' input.
 
+
+### 7.9 Chat (landed: `migrations/0009_chat.sql`, the `CourseChat` object)
+
+The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (its SQLite in `object-store.ts`), the socket route `src/server/chat/socket.ts`, the JSON routes `src/server/chat/api.ts`, the D1 SQL `src/server/chat/store.ts`, and the pure rules (who may read, chat plans, retention, message ids, what a moderation decision means) `src/core/chat`.
+
+**D1:**
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `chat_members` | `(user_id, term_id, course_code)` | `section_code` (`''` for a saved-for-later course) | One row per course of each person's chat plan: the settings doc's `chatPlans[term]` when it names one of the term's live plans, else the term's first tab (`chatPlanFor`). Rewritten after every push that saved a plan (its term) or the settings doc (every term the person has rows or a choice in). The write is skipped if another save moved `sync_heads.head` since the read, since that push rewrites the rows itself. |
+| `chat_follows` | `(user_id, term_id, course_code)` | `created_at` | Course rooms opened from outside your plan; ≤ 100 per term. |
+| `chat_rooms` | `(term_id, course_code, room_id)` | `kind`, `sections` (JSON section codes), `last_seq`, `last_message_at` | Written by the object when a message becomes visible, so a room has a row only after its first. `kind` and `sections` let `chat/unread` pick your professor and section rooms without the catalog. |
+| `chat_read_markers` | `(user_id, term_id, course_code, room_id)` | `seq` | Only moves forward. `chat/unread`'s count is `last_seq − seq`. |
+| `chat_room_prefs` | `(user_id, term_id, course_code, room_id)` | `muted` | |
+| `chat_author_courses` | `(user_id, term_id, course_code)` | | Where someone has posted, for account deletion (`v2/account-delete`). No foreign key: the purge reads it after the user row is gone. |
+
+**The object's SQLite** (made on its first write; an object nobody wrote in has no storage):
+- `meta`: `term_id`, `course_code`, `read_only_at` and `delete_at` (epoch ms, from `chatRetention`), `read_only_announced`.
+- `rooms`: `room_id`, `last_seq`, `created_at`.
+- `messages`: `id` (a ULID), `room_id`, `seq` (per room from 1), `author_id`, `author_name` (shown only if the account is gone), `body`, `reply_to` (the thread's first message), `status` (`checking` · `visible` · `held` · `removed`), `held_reason`, `client_req` (unique per author: idempotent sends), `created_at`, `edited_at`, `check_after` (when a message still `checking` is screened again; null once moderation's cron owns it).
+- `reactions`: `(message_id, reaction, user_id)`, `at`.
+- `sends`: `(author_id, at)` for the limits (10 per 30 s, 500 per day, edits included), pruned after a day.
+
+**The socket.** `GET /api/chat/socket?term=<termId>&course=<code>` with `Upgrade: websocket`: `503` while `CHAT_ENABLED` is `off`, `426` without the upgrade, `403` cross-origin, `401` signed out, `400` for a bad query, `429` past 600 sockets per person per hour, `404` for a term or course the catalog doesn't have. The object gets `X-Terpsicle-User`, `-Term`, `-Course` and `-Chat` (`on` or `read`) and trusts them: only the Worker can reach it. Keepalive `ping` gets `pong` without waking it. Close codes: `4001` the rooms turned read-only, `4002` the course's chat was deleted, `4003` sign in again; the app reconnects (or not) and the new `welcome` says the rest.
+
+**Sending:** check (can read the room, `CHAT_ENABLED` is `on`, the term isn't over, the room is listed, no admin block, the limits) → store as `checking` and ack → `moderate()` (kind `chat`, target `<termId>:<courseCode>:<messageId>`) → `visible` (broadcast), `held` (author only; `graded-work` or `flagged`), `removed` (author only), or still `checking` when only a failed model call held it (moderation's cron retries and calls Chat's handler). An edit is screened again, and classmates get `moderation {removed}` for the old text until the new one is visible. If `moderate()` throws, the object's alarm takes moderation's latest decision about that text, or screens it again, two minutes later.
+
+**Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs` and `chat_author_courses` rows (`notifications` join them with `v2/chat-notify`). `chat_members` stays: it describes people.
 ---
 
 ## 8. Share links

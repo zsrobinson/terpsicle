@@ -6,6 +6,10 @@
 import type { z } from "zod";
 import {
   AccountDeleteInputSchema,
+  ChatFollowInputSchema,
+  ChatMembersInputSchema,
+  ChatMuteInputSchema,
+  ChatUnreadInputSchema,
   ConfirmInputSchema,
   type FeatureLevel,
   FeatureVarsSchema,
@@ -53,6 +57,14 @@ import type { AuthEnv } from "../auth/config";
 import { handleFlow, isFlowRoute } from "../auth/flow";
 import { isSameOrigin } from "../auth/guard";
 import { getSession } from "../auth/session";
+import {
+  type ChatApiEnv,
+  follow,
+  members,
+  mute,
+  unfollow,
+  unread,
+} from "../chat/api";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import {
@@ -61,8 +73,8 @@ import {
   undoQueueItem,
 } from "../moderation/admin";
 import {
-  MODERATION_HANDLERS,
   type ModerationHandlers,
+  moderationHandlers,
 } from "../moderation/handlers";
 import { createReport } from "../moderation/reports";
 import type { ModerationEnv } from "../moderation/service";
@@ -90,6 +102,7 @@ export type ApiEnv = AlertsEnv &
   SummaryEnv &
   AuthEnv &
   ModerationEnv &
+  ChatApiEnv &
   ReviewsEnv;
 
 interface Route<S extends z.ZodType> {
@@ -140,13 +153,20 @@ export type RouteContext = AlertsContext &
 export interface ApiOptions {
   /** Outbound fetch for Google and pictures; tests mock it. */
   fetch?: typeof fetch;
-  /** Overrides MODERATION_HANDLERS, for tests. */
+  /** Overrides moderationHandlers(env), for tests. */
   moderationHandlers?: ModerationHandlers;
 }
 
-const route = <S extends z.ZodType>(r: Route<S>) => r;
+/**
+ * At least one limit: an unlimited route is a mistake. A worker test
+ * (limits.test.ts) holds per-user limits to signed-in routes, and per-IP
+ * ones to routes anyone can call.
+ */
+type Limits = { perIpPerHour: number } | { perUserPerHour: number };
 
-const ROUTES = {
+const route = <S extends z.ZodType>(r: Route<S> & Limits): Route<S> => r;
+
+export const ROUTES = {
   "review-summary": route({
     input: ReviewSummaryInputSchema,
     perIpPerHour: 300,
@@ -203,6 +223,7 @@ const ROUTES = {
   "account/delete": route({
     input: AccountDeleteInputSchema,
     perIpPerHour: 30,
+    perUserPerHour: 10,
     alerts: false,
     auth: "user",
     handle: (env, _input, ctx) => deleteAccount(env, ctx),
@@ -228,6 +249,42 @@ const ROUTES = {
     alerts: false,
     auth: "user",
     handle: (env, input, ctx) => pull(env, input, ctx),
+  }),
+  // Chat (V2.md §8.5). Messages go over the socket, /api/chat/socket.
+  "chat/unread": route({
+    input: ChatUnreadInputSchema,
+    perUserPerHour: 1_200,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => unread(env, input, ctx),
+  }),
+  "chat/follow": route({
+    input: ChatFollowInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => follow(env, input, ctx),
+  }),
+  "chat/unfollow": route({
+    input: ChatFollowInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => unfollow(env, input, ctx),
+  }),
+  "chat/mute": route({
+    input: ChatMuteInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => mute(env, input, ctx),
+  }),
+  "chat/members": route({
+    input: ChatMembersInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => members(env, input, ctx),
   }),
   // Terpsicle Reviews (V2.md §7.4). Anonymous to readers: see reviews/api.ts.
   "reviews/list": route({
@@ -313,6 +370,11 @@ const ROUTES = {
   }),
 } as const;
 
+/** A person's counter for one route (`counters.name`, pruned like the rest). */
+export function userLimitKey(userId: string, route: string): string {
+  return `user:${userId}:${route}`;
+}
+
 const LEVELS: readonly FeatureLevel[] = ["off", "read", "on"];
 
 /** Whether REVIEWS_ENABLED is at least `needed` (unset or unknown is "off"). */
@@ -397,7 +459,7 @@ export async function handleApi(
       return reply(apiError("forbidden"));
     if (
       r.perUserPerHour !== undefined &&
-      (await hit(env.DB, `user:${session.user.id}:${name}`, window, now)) >
+      (await hit(env.DB, userLimitKey(session.user.id, name), window, now)) >
         r.perUserPerHour
     )
       return reply(limited());
@@ -417,7 +479,7 @@ export async function handleApi(
     request,
     session,
     ...(options.fetch ? { fetch: options.fetch } : {}),
-    moderationHandlers: options.moderationHandlers ?? MODERATION_HANDLERS,
+    moderationHandlers: options.moderationHandlers ?? moderationHandlers(env),
   });
   return reply(result instanceof Response ? result : json(result));
 }
