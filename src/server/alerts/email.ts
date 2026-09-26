@@ -1,4 +1,4 @@
-// Seat-alert emails: plain text plus simple HTML that reads well in every
+// The seat-alert email: plain text plus simple HTML that reads well in every
 // client (tables, inline styles, no images). Pure, so the test-send script
 // renders exactly what the Worker sends.
 
@@ -40,17 +40,15 @@ export function courseUrl(origin: string, ref: SectionRef): string {
   return `${origin}${SCHEDULE_PATH}?${params}`;
 }
 
-export const confirmUrl = (origin: string, token: string) =>
-  `${origin}/alerts/confirm?token=${encodeURIComponent(token)}`;
-
-export const unsubscribeUrl = (origin: string, token: string) =>
-  `${origin}/alerts/unsubscribe?token=${encodeURIComponent(token)}`;
+/** Where people see and stop their watches. */
+export const watchesUrl = (origin: string) => `${origin}/settings#watching`;
 
 const testudoUrl = (ref: SectionRef) =>
   `https://app.testudo.umd.edu/soc/${ref.termId}/${ref.courseCode.slice(0, 4)}/${ref.courseCode}`;
 
 const label = (ref: SectionRef) => `${ref.courseCode} ${ref.sectionCode}`;
 
+export type EmailBlock = Block;
 type Block =
   | { kind: "p"; text: string }
   | { kind: "muted"; text: string }
@@ -58,7 +56,11 @@ type Block =
   | { kind: "link"; text: string; href: string }
   | { kind: "facts"; rows: [string, string][] };
 
-function layout(preheader: string, blocks: Block[], footer: Block[]): string {
+export function layout(
+  preheader: string,
+  blocks: Block[],
+  footer: Block[],
+): string {
   const font =
     "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
   const render = (b: Block): string => {
@@ -96,79 +98,6 @@ function text(lines: (string | null)[]): string {
   return `${lines.filter((l) => l !== null).join("\n")}\n`;
 }
 
-export function renderConfirmEmail(
-  origin: string,
-  ref: SectionRef,
-  token: string,
-): RenderedEmail {
-  const url = confirmUrl(origin, token);
-  const subject = `Confirm your seat alert for ${label(ref)}`;
-  const intro = `Confirm, and we'll email you when a seat opens in ${label(ref)} (${ref.title}), ${ref.termName}.`;
-  return {
-    subject,
-    text: text([
-      intro,
-      "",
-      `Confirm: ${url}`,
-      "",
-      "The link works for 48 hours. If you didn't ask for this, ignore this email; nothing happens unless you confirm.",
-      "",
-      "Terpsicle · https://terpsicle.com",
-    ]),
-    html: layout(
-      intro,
-      [
-        { kind: "p", text: intro },
-        { kind: "button", text: "Confirm seat alert", href: url },
-        { kind: "muted", text: "The link works for 48 hours." },
-      ],
-      [
-        {
-          kind: "muted",
-          text: "If you didn't ask for this, ignore this email; nothing happens unless you confirm.",
-        },
-      ],
-    ),
-    headers: { "Auto-Submitted": "auto-generated" },
-  };
-}
-
-export function renderAlreadyWatchingEmail(
-  origin: string,
-  ref: SectionRef,
-  manageToken: string,
-): RenderedEmail {
-  const stop = unsubscribeUrl(origin, manageToken);
-  const intro = `You're already watching ${label(ref)} (${ref.title}), ${ref.termName}. We'll email you when a seat opens.`;
-  return {
-    subject: `You're already watching ${label(ref)}`,
-    text: text([
-      intro,
-      "",
-      `Open in Terpsicle: ${courseUrl(origin, ref)}`,
-      `Stop these emails: ${stop}`,
-      "",
-      "Terpsicle · https://terpsicle.com",
-    ]),
-    html: layout(
-      intro,
-      [
-        { kind: "p", text: intro },
-        {
-          kind: "button",
-          text: `Open ${ref.courseCode} in Terpsicle`,
-          href: courseUrl(origin, ref),
-        },
-      ],
-      [{ kind: "link", text: "Stop emails for this section", href: stop }],
-    ),
-    headers: {
-      "Auto-Submitted": "auto-generated",
-      "List-Unsubscribe": `<${stop}>`,
-    },
-  };
-}
-
 export interface SeatCountsForEmail {
   open: number;
   total: number;
@@ -185,13 +114,17 @@ const EASTERN = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
+/**
+ * `stopUrl` is the signed one-click link (RFC 8058) that stops this watch;
+ * null leaves the one-click headers out (no key to sign with).
+ */
 export function renderSeatOpenEmail(
   origin: string,
   ref: SectionRef,
   seats: SeatCountsForEmail,
-  manageToken: string,
+  stopUrl: string | null,
 ): RenderedEmail {
-  const stop = unsubscribeUrl(origin, manageToken);
+  const manage = watchesUrl(origin);
   const open = `${seats.open} of ${seats.total} open`;
   const seatWord = seats.open === 1 ? "A seat" : `${seats.open} seats`;
   const intro = `${seatWord} opened in ${label(ref)} (${ref.title}), ${ref.termName}. Register on Testudo soon; seats go fast.`;
@@ -202,6 +135,13 @@ export function renderSeatOpenEmail(
   if (seats.waitlist) facts.push(["Waitlist", String(seats.waitlist)]);
   if (seats.asOf)
     facts.push(["As of", `${EASTERN.format(new Date(seats.asOf))} ET`]);
+  const headers: Record<string, string> = {
+    "Auto-Submitted": "auto-generated",
+  };
+  if (stopUrl) {
+    headers["List-Unsubscribe"] = `<${stopUrl}>`;
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+  }
   return {
     subject: `${seatWord} opened in ${label(ref)}`,
     text: text([
@@ -212,7 +152,7 @@ export function renderSeatOpenEmail(
       `Open in Terpsicle: ${courseUrl(origin, ref)}`,
       `Testudo: ${testudoUrl(ref)}`,
       "",
-      `Stop alerts for ${label(ref)}: ${stop}`,
+      `You're watching ${label(ref)} for a seat. See or stop your watches: ${manage}`,
       "Terpsicle · https://terpsicle.com",
     ]),
     html: layout(
@@ -230,14 +170,11 @@ export function renderSeatOpenEmail(
       [
         {
           kind: "muted",
-          text: "You asked Terpsicle to email you when a seat opens in this section.",
+          text: `You're watching ${label(ref)} for a seat on Terpsicle.`,
         },
-        { kind: "link", text: `Stop alerts for ${label(ref)}`, href: stop },
+        { kind: "link", text: "See or stop your watches", href: manage },
       ],
     ),
-    headers: {
-      "Auto-Submitted": "auto-generated",
-      "List-Unsubscribe": `<${stop}>`,
-    },
+    headers,
   };
 }

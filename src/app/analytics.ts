@@ -49,8 +49,8 @@ export interface AnalyticsEvents {
   share_link_copied: NoProperties;
   ics_downloaded: { events: number };
   registration_item_checked: NoProperties;
-  seat_alert_requested: NoProperties;
-  seat_alert_stopped: NoProperties;
+  seat_watch_started: { signedInFirst: boolean };
+  seat_watch_stopped: NoProperties;
   first_visit_path_chosen: { path: "build" | "generate" };
   deep_link_opened: { outcome: "ok" | "unknown-term" };
   catalog_loaded: {
@@ -118,7 +118,8 @@ export interface AnalyticsEvents {
       | "undo"
       | "reviews"
       | "chat"
-      | "todo";
+      | "todo"
+      | "seat-watch";
   };
   signin_completed: { firstOnDevice: boolean };
   signin_failed: { reason: SignInError };

@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
 import { renderShell } from "~/app/test-utils";
 import { encodeShare } from "~/core/share";
-import { aSharePayload } from "~/fixtures";
-import { useSeatAlerts } from "~/state/seat-alerts";
+import { resetSeatWatches, watching } from "~/features/alerts/testing";
+import { aMeUser, aSeatWatch, aSharePayload } from "~/fixtures";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
@@ -17,6 +17,7 @@ describe("Courses tab", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.mocked(track).mockClear();
+    resetSeatWatches();
   });
 
   it("lists the plan's courses with section, title, instructor, days and seats", async () => {
@@ -77,19 +78,11 @@ describe("Courses tab", () => {
     await renderPlanTab([panels], "courses");
     const row = await screen.findByTestId("course-row-CMSC351");
     expect(within(row).queryByText("Watching")).toBeNull();
-    await act(() =>
-      useSeatAlerts.getState().put([
-        {
-          termId: TEST_TERM_ID,
-          sectionKey: "CMSC351-0301",
-          email: "terp@umd.edu",
-          status: "active",
-          subscriptionId: null,
-          manageToken: null,
-          createdAt: "2026-09-01T00:00:00.000Z",
-          updatedAt: "2026-09-01T00:00:00.000Z",
-        },
-      ]),
+    act(() =>
+      watching(
+        aMeUser(),
+        aSeatWatch({ termId: TEST_TERM_ID, sectionKey: "CMSC351-0301" }),
+      ),
     );
     expect(
       await within(row).findByTestId("watching-CMSC351-0301"),

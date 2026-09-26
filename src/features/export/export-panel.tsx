@@ -3,6 +3,8 @@ import { CalendarDays, Copy, Link2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { EmptyState, PanelBody, PanelHeader, SectionHeader } from "~/app/panel";
 import { planLabel } from "~/app/plan-label";
+import type { TermId } from "~/core/schema";
+import { WatchingList } from "~/features/alerts/watching-list";
 import { useAcademicCalendar } from "~/state/data-hooks";
 import {
   useActiveTerm,
@@ -11,10 +13,10 @@ import {
   usePlacedSections,
   useTermCatalog,
 } from "~/state/hooks";
+import { useSeatWatches } from "~/state/seat-watches";
 import { WithTooltip } from "~/ui/tooltip";
 import { copySectionCodes, copyShareLink, downloadIcs } from "./actions";
 import { RegistrationChecklist } from "./registration-checklist";
-import { SeatAlertsList } from "./seat-alerts-list";
 
 // The Export tab (SPEC §3.10): everything for registration day and after.
 
@@ -111,9 +113,21 @@ export function ExportPanel() {
           </>
         )}
 
-        <SeatAlertsList termId={termId} />
+        <Watching termId={termId} />
       </PanelBody>
     </div>
+  );
+}
+
+/** The sections you're watching for a seat, when there are any. */
+function Watching({ termId }: { termId: TermId }) {
+  const count = useSeatWatches((s) => s.watches?.length ?? 0);
+  if (count === 0) return null;
+  return (
+    <section aria-label="Watching for a seat">
+      <SectionHeader title="Watching for a seat" count={count} />
+      <WatchingList termId={termId} className="px-4 py-1" />
+    </section>
   );
 }
 

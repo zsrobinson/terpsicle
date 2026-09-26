@@ -1,5 +1,10 @@
-import type { LocalId, Plan, SettingsDoc } from "~/core/schema";
-import { sameJson, withPlan, withSettingsDoc } from "~/core/sync";
+import type { LocalId, Plan, SettingsDoc, TermId } from "~/core/schema";
+import {
+  isUntouchedPlan,
+  sameJson,
+  withPlan,
+  withSettingsDoc,
+} from "~/core/sync";
 import type { Workspace } from "~/state/plan-ops";
 import type { WorkspaceState } from "~/state/workspace-store";
 
@@ -14,6 +19,17 @@ export interface RemoteChange {
   readonly plans?: readonly (readonly [LocalId, Plan | null])[];
   /** The settings doc: blocks, colors, travel and chat plans. */
   readonly settings?: SettingsDoc;
+  /**
+   * The account's plans arrived in these terms (a pull, the first sign-in),
+   * so an untouched plan the app made there on its own goes (V2 §5.3). Sync
+   * storage has already dropped the ones it held, and `known` is every plan
+   * it holds: any other plan here is one the app made while the step ran,
+   * whose write hadn't landed when the step read IndexedDB.
+   */
+  readonly arrived?: {
+    readonly terms: readonly TermId[];
+    readonly known: readonly LocalId[];
+  };
 }
 
 /** The change applied to one version of the workspace (a history step too). */
@@ -33,6 +49,24 @@ export function withRemoteChange<W extends Workspace>(
   }
   if (plans === w.plans && blocks === w.blocks && colors === w.colors) return w;
   return { ...w, plans, blocks, colors };
+}
+
+/**
+ * The plans the app made on its own that sync storage never saw, dropped
+ * from the terms the account's plans arrived in (`RemoteChange.arrived`).
+ * Only the workspace now: the app made them without an undo step.
+ */
+function withUnseenDefaultsDropped<W extends Workspace>(
+  w: W,
+  arrived: RemoteChange["arrived"],
+): W {
+  if (!arrived || arrived.terms.length === 0) return w;
+  const terms = new Set(arrived.terms);
+  const known = new Set(arrived.known);
+  const plans = w.plans.filter(
+    (p) => !terms.has(p.termId) || known.has(p.id) || !isUntouchedPlan(p),
+  );
+  return plans.length === w.plans.length ? w : { ...w, plans };
 }
 
 function sameWorkspace(a: Workspace, b: Workspace): boolean {
@@ -92,7 +126,10 @@ export function applyRemoteChange(
     colors: state.colors,
     activePlanByTerm: state.activePlanByTerm,
   };
-  const workspace = withRemoteChange(current, change);
+  const workspace = withUnseenDefaultsDropped(
+    withRemoteChange(current, change),
+    change.arrived,
+  );
   const settings = change.settings
     ? withSettingsDoc(
         {

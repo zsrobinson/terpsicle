@@ -1,14 +1,8 @@
 import { z } from "zod";
-import {
-  SubscriptionIdSchema,
-  SubscriptionStatusSchema,
-  TokenSchema,
-} from "./api";
 import { SectionSnapshotSchema } from "./catalog";
 import {
   CourseCodeSchema,
   DaysSchema,
-  EmailSchema,
   ENDS_AFTER_START,
   endsAfterStart,
   IsoDateTimeSchema,
@@ -16,7 +10,6 @@ import {
   MinutesSchema,
   RailTabSchema,
   SectionCodeSchema,
-  SectionKeySchema,
   TermIdSchema,
 } from "./primitives";
 import { SchemaFamilySchema } from "./versions";
@@ -202,28 +195,6 @@ export type FourYearPrefs = z.infer<typeof FourYearPrefsSchema>;
 
 // The `settings` table's rows live in settings.ts: one of them (Generate's
 // drafts) needs generate.ts, which imports this file.
-
-// ---------- seat alerts (local mirror) ----------
-
-/** This browser's view of its seat alerts, listed under Export → Seat alerts. */
-export const LocalSeatAlertSchema = z.object({
-  termId: TermIdSchema,
-  sectionKey: SectionKeySchema,
-  /**
-   * The person's own address, kept to show "Watching as …" and prefill the
-   * next bell. Null when the watch was confirmed in this browser but asked for
-   * in another: the confirm page learns the section and token, not the address.
-   */
-  email: EmailSchema.nullable(),
-  status: SubscriptionStatusSchema,
-  /** From confirming in this browser (the alerts inbox); null while pending or when confirmed elsewhere. */
-  subscriptionId: SubscriptionIdSchema.nullable(),
-  /** Lets this browser check status and unsubscribe; null when not issued to this browser. */
-  manageToken: TokenSchema.nullable(),
-  createdAt: IsoDateTimeSchema,
-  updatedAt: IsoDateTimeSchema,
-});
-export type LocalSeatAlert = z.infer<typeof LocalSeatAlertSchema>;
 
 // ---------- data cache ----------
 

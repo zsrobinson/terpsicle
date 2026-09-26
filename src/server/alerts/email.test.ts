@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  renderAlreadyWatchingEmail,
-  renderConfirmEmail,
-  renderSeatOpenEmail,
-  type SectionRef,
-} from "./email";
+import { renderSeatOpenEmail, type SectionRef } from "./email";
 
 const ref: SectionRef = {
   termId: "202701",
@@ -14,27 +9,15 @@ const ref: SectionRef = {
   title: "Algorithms <& friends>",
 };
 const origin = "https://terpsicle.com";
-const token = "t".repeat(43);
+const stop = `${origin}/api/alerts/one-click?u=tstudent&t=202701&s=CMSC351-0101&k=abc`;
 
-describe("alert emails", () => {
-  it("confirmation: a plain-text link, an escaped HTML button, no unsubscribe header", () => {
-    const email = renderConfirmEmail(origin, ref, token);
-    expect(email.subject).toBe("Confirm your seat alert for CMSC351 0101");
-    expect(email.text).toContain(`${origin}/alerts/confirm?token=${token}`);
-    expect(email.html).toContain(
-      `href="${origin}/alerts/confirm?token=${token}"`,
-    );
-    expect(email.html).toContain("Algorithms &lt;&amp; friends&gt;");
-    expect(email.html).not.toContain("<& friends>");
-    expect(email.headers).not.toHaveProperty("List-Unsubscribe");
-  });
-
-  it("seat open: counts, an as-of time in Eastern, links, and List-Unsubscribe without one-click", () => {
+describe("the seat-open email", () => {
+  it("has counts, an as-of time in Eastern, links, and one-click unsubscribe", () => {
     const email = renderSeatOpenEmail(
       origin,
       ref,
       { open: 1, total: 120, waitlist: 4, asOf: "2026-09-25T02:30:00.000Z" },
-      token,
+      stop,
     );
     expect(email.subject).toBe("A seat opened in CMSC351 0101");
     expect(email.text).toContain("Seats: 1 of 120 open");
@@ -46,16 +29,36 @@ describe("alert emails", () => {
     expect(email.text).toContain(
       "https://app.testudo.umd.edu/soc/202701/CMSC/CMSC351",
     );
-    expect(email.headers["List-Unsubscribe"]).toBe(
-      `<${origin}/alerts/unsubscribe?token=${token}>`,
+    expect(email.text).toContain(`${origin}/settings#watching`);
+    expect(email.headers["List-Unsubscribe"]).toBe(`<${stop}>`);
+    expect(email.headers["List-Unsubscribe-Post"]).toBe(
+      "List-Unsubscribe=One-Click",
     );
-    expect(email.headers).not.toHaveProperty("List-Unsubscribe-Post");
     expect(email.headers["Auto-Submitted"]).toBe("auto-generated");
   });
 
-  it("already watching: says so and offers the way out", () => {
-    const email = renderAlreadyWatchingEmail(origin, ref, token);
-    expect(email.subject).toBe("You're already watching CMSC351 0101");
-    expect(email.text).toContain(`${origin}/alerts/unsubscribe?token=${token}`);
+  it("escapes the course title in HTML", () => {
+    const email = renderSeatOpenEmail(
+      origin,
+      ref,
+      { open: 3, total: 120, waitlist: null, asOf: null },
+      stop,
+    );
+    expect(email.subject).toBe("3 seats opened in CMSC351 0101");
+    expect(email.html).toContain("Algorithms &lt;&amp; friends&gt;");
+    expect(email.html).not.toContain("<& friends>");
+    expect(email.html).toContain(`href="${origin}/settings#watching"`);
+    expect(email.text).not.toContain("Waitlist");
+  });
+
+  it("leaves the one-click headers out without a signed link", () => {
+    const email = renderSeatOpenEmail(
+      origin,
+      ref,
+      { open: 1, total: 120, waitlist: null, asOf: null },
+      null,
+    );
+    expect(email.headers).not.toHaveProperty("List-Unsubscribe");
+    expect(email.headers).not.toHaveProperty("List-Unsubscribe-Post");
   });
 });

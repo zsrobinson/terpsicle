@@ -5,11 +5,7 @@ import {
   MustHavesSchema,
   RankBySchema,
 } from "./generate";
-import {
-  FourYearPrefsSchema,
-  LocalSeatAlertSchema,
-  UiPrefsSchema,
-} from "./local";
+import { FourYearPrefsSchema, UiPrefsSchema } from "./local";
 import { TermIdSchema } from "./primitives";
 import { ChatPlansSchema, LocalSyncMetaSchema } from "./sync";
 import { TravelSettingsSchema } from "./travel";
@@ -58,13 +54,5 @@ export const SettingsRowSchema = z.discriminatedUnion("key", [
   z.object({ key: z.literal("fourYear"), value: FourYearPrefsSchema }),
   /** Plan sync's account and pull cursor (DATA.md §5). */
   z.object({ key: z.literal("sync"), value: LocalSyncMetaSchema }),
-  /**
-   * The email-token seat alerts' local mirror: its own table until Dexie v2.
-   * It goes when seat watches move to accounts (V2 §6.5).
-   */
-  z.object({
-    key: z.literal("seatAlerts"),
-    value: z.array(LocalSeatAlertSchema),
-  }),
 ]);
 export type SettingsRow = z.infer<typeof SettingsRowSchema>;

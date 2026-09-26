@@ -87,7 +87,7 @@ export default defineConfig({
     },
     {
       // The real /api router and seat-alert code over local D1 and R2, with a
-      // capturing EMAIL binding (e2e/seat-alerts.spec.ts).
+      // capturing EMAIL binding (e2e/seat-watches.spec.ts).
       command: `pnpm tsx scripts/e2e-alerts-harness.ts ${ALERTS_PORT}`,
       url: `http://localhost:${ALERTS_PORT}${MARKER}`,
       reuseExistingServer: !isCI,

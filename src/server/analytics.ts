@@ -1,3 +1,5 @@
+import type { FeedbackProduct } from "~/core/schema/feedback";
+
 // Server-side PostHog events (cron telemetry). Anonymous by construction: one
 // fixed distinct id, no person profile. See docs/ANALYTICS.md.
 
@@ -44,13 +46,11 @@ export interface ServerEvents {
       | "guard-error";
   };
   summary_capped: { cap: number };
-  // Seat alerts. Never an email address, token or IP, not even hashed.
-  alert_subscribed: {
-    outcome: "confirm-sent" | "already-watching" | "not-sent";
-  };
-  alert_confirmed: { termId: string };
+  // Seat watches. Never who, an address or an IP, not even hashed.
+  alert_watched: { termId: string };
   alert_sent: { termId: string; count: number };
-  alert_unsubscribed: { termId: string };
+  alert_unwatched: { termId: string; via: "app" | "email" };
+  alert_watches_ended: { terms: number; watches: number };
   // Identity. Never an address, name, directory ID, token or IP, not even
   // hashed: the outcome and the domain only (V2.md §11).
   signin_result: {
@@ -60,6 +60,15 @@ export interface ServerEvents {
   };
   // Plan sync: counts only, never who or what (V2.md §11).
   sync_push: { docs: number; fourYearDocs: number; conflicts: number };
+  // Feedback (docs/FEEDBACK.md): what kind arrived, never its words, its
+  // page or who sent it.
+  feedback_received: {
+    kind: "bug" | "idea";
+    product: FeedbackProduct;
+    hasScreenshot: boolean;
+    withContext: boolean;
+    reply: boolean;
+  };
   // Terpsicle Todo's cron (docs/V3.md §6). Counts only: never a feed, a
   // link, a user or an item.
   todo_fetch_run: {

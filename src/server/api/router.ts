@@ -10,10 +10,8 @@ import {
   ChatMembersInputSchema,
   ChatMuteInputSchema,
   ChatUnreadInputSchema,
-  ConfirmInputSchema,
   type FeatureLevel,
   FeatureVarsSchema,
-  ManageInputSchema,
   MeInputSchema,
   type ModerationKind,
   QueueListInputSchema,
@@ -25,11 +23,11 @@ import {
   ReviewSubmitInputSchema,
   ReviewSummaryInputSchema,
   ReviewsMineInputSchema,
+  SeatWatchInputSchema,
+  SeatWatchListInputSchema,
+  type SeatWatchListResult,
+  type SeatWatchResult,
   SignOutInputSchema,
-  StatusInputSchema,
-  type StatusResult,
-  SubscribeInputSchema,
-  type SubscribeResult,
   SYNC_MAX_PUSH_REQUEST_BYTES,
   SyncPullInputSchema,
   SyncPushInputSchema,
@@ -48,6 +46,16 @@ import {
   AdminSamplesInputSchema,
   DecisionListInputSchema,
 } from "~/core/schema/admin";
+import {
+  FEEDBACK_MAX_REQUEST_BYTES,
+  FeedbackDeleteInputSchema,
+  FeedbackListInputSchema,
+  FeedbackPinInputSchema,
+  FeedbackPinsInputSchema,
+  FeedbackSendInputSchema,
+  FeedbackUndoInputSchema,
+  FeedbackUpdateInputSchema,
+} from "~/core/schema/feedback";
 import { listDecisions } from "../admin/decisions";
 import { adminHealth } from "../admin/health";
 import { addSamples } from "../admin/samples";
@@ -55,11 +63,11 @@ import {
   type AlertsContext,
   type AlertsEnv,
   alertsEnabled,
-  confirm,
-  lookup,
-  status,
-  subscribe,
-  unsubscribe,
+  handleOneClick,
+  list as listWatches,
+  ONE_CLICK_ROUTE,
+  unwatch,
+  watch,
 } from "../alerts/service";
 import { APEX_HOST } from "../apex";
 import {
@@ -83,6 +91,15 @@ import {
 } from "../chat/api";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
+import {
+  adminDeleteFeedback,
+  adminListFeedback,
+  adminUpdateFeedback,
+  listPins,
+  pinFeedback,
+  sendFeedback,
+  undoFeedback,
+} from "../feedback/api";
 import {
   listQueue,
   resolveQueueItem,
@@ -146,16 +163,19 @@ interface Route<S extends z.ZodType> {
   alerts: boolean;
   /**
    * The route's own answer while seat alerts are off, sent before rate
-   * limiting: the app asks for status on every load, and an off switch
-   * shouldn't cost a D1 write per page view.
+   * limiting: the app lists watches on every signed-in load, and an off
+   * switch shouldn't cost a D1 write per page view.
    */
   whenOff?: unknown;
   /**
    * Who may call it (V2.md §12). "user" and "admin" need a same-origin
    * request and a session (401 without, 403 for a non-admin), and the
-   * handler gets `ctx.session`. Omitted means "none".
+   * handler gets `ctx.session`. "optional" is for anyone, signed in or not:
+   * it needs a same-origin request (it writes), and hands the handler the
+   * session when there is one, counting `perUserPerHour` then. Omitted
+   * means "none".
    */
-  auth?: "none" | "user" | "admin";
+  auth?: "none" | "optional" | "user" | "admin";
   /**
    * The least REVIEWS_ENABLED this route needs (V2 §7.4): "read" for
    * reading, deleting and reporting, "on" for writing. Below it the route
@@ -200,37 +220,30 @@ export const ROUTES = {
     handle: (env, input, ctx) =>
       getReviewSummary(env, input, { now: ctx.now, waitUntil: ctx.waitUntil }),
   }),
-  "alerts/subscribe": route({
-    input: SubscribeInputSchema,
-    perIpPerHour: 10,
+  // Seat watches (V2.md §6.5). The emails' one-click stop is routed below.
+  "alerts/watch": route({
+    input: SeatWatchInputSchema,
+    perUserPerHour: 120,
     alerts: false,
-    whenOff: { status: "unavailable" } satisfies SubscribeResult,
-    handle: (env, input, ctx) => subscribe(env, input, ctx),
+    whenOff: { status: "unavailable" } satisfies SeatWatchResult,
+    auth: "user",
+    handle: (env, input, ctx) => watch(env, input, ctx),
   }),
-  "alerts/confirm": route({
-    input: ConfirmInputSchema,
-    perIpPerHour: 60,
-    alerts: true,
-    handle: (env, input, ctx) => confirm(env, input, ctx),
-  }),
-  "alerts/lookup": route({
-    input: ManageInputSchema,
-    perIpPerHour: 60,
-    alerts: true,
-    handle: (env, input) => lookup(env, input),
-  }),
-  "alerts/unsubscribe": route({
-    input: ManageInputSchema,
-    perIpPerHour: 60,
-    alerts: true,
-    handle: (env, input, ctx) => unsubscribe(env, input, ctx),
-  }),
-  "alerts/status": route({
-    input: StatusInputSchema,
-    perIpPerHour: 120,
+  "alerts/unwatch": route({
+    input: SeatWatchInputSchema,
+    perUserPerHour: 120,
+    // Stopping works even while alerts are off.
     alerts: false,
-    whenOff: { status: "unavailable" } satisfies StatusResult,
-    handle: (env, input) => status(env, input),
+    auth: "user",
+    handle: (env, input, ctx) => unwatch(env, input, ctx),
+  }),
+  "alerts/list": route({
+    input: SeatWatchListInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    whenOff: { status: "unavailable" } satisfies SeatWatchListResult,
+    auth: "user",
+    handle: (env, input, ctx) => listWatches(env, input, ctx),
   }),
   // Identity (docs/AUTH.md). The sign-in navigations are GETs, routed below.
   me: route({
@@ -415,6 +428,60 @@ export const ROUTES = {
     auth: "user",
     handle: (env, input, ctx) => todoImportFile(env, input, ctx),
   }),
+  // Feedback (docs/FEEDBACK.md). Anyone can send it; who sent it is kept
+  // only when they ask for a reply.
+  "feedback/send": route({
+    input: FeedbackSendInputSchema,
+    perIpPerHour: 12,
+    perUserPerHour: 20,
+    maxBytes: FEEDBACK_MAX_REQUEST_BYTES,
+    alerts: false,
+    auth: "optional",
+    handle: (env, input, ctx) => sendFeedback(env, input, ctx),
+  }),
+  "feedback/undo": route({
+    input: FeedbackUndoInputSchema,
+    perIpPerHour: 30,
+    alerts: false,
+    auth: "optional",
+    handle: (env, input, ctx) => undoFeedback(env, input, ctx),
+  }),
+  "feedback/pin": route({
+    input: FeedbackPinInputSchema,
+    perIpPerHour: 600,
+    maxBytes: FEEDBACK_MAX_REQUEST_BYTES,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => pinFeedback(env, input, ctx),
+  }),
+  "feedback/pins": route({
+    input: FeedbackPinsInputSchema,
+    perIpPerHour: 2_000,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input) => listPins(env, input),
+  }),
+  "admin/feedback/list": route({
+    input: FeedbackListInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input) => adminListFeedback(env, input),
+  }),
+  "admin/feedback/update": route({
+    input: FeedbackUpdateInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => adminUpdateFeedback(env, input, ctx),
+  }),
+  "admin/feedback/delete": route({
+    input: FeedbackDeleteInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => adminDeleteFeedback(env, input, ctx),
+  }),
   // Moderation's admin side (docs/MODERATION.md §6).
   "admin/moderation/queue": route({
     input: QueueListInputSchema,
@@ -491,7 +558,7 @@ function reportsOpen(env: ApiEnv, surface: ModerationKind): boolean {
 
 /**
  * Where links in emails point. Only our own hosts: a forged Host header must
- * never put someone else's domain into a confirmation email.
+ * never put someone else's domain into an email link.
  */
 export function linkOrigin(url: URL): string {
   const host = url.hostname;
@@ -522,6 +589,14 @@ export async function handleApi(
   const r: Route<z.ZodType> | undefined = Object.hasOwn(ROUTES, name)
     ? ROUTES[name as keyof typeof ROUTES]
     : undefined;
+  // A mail provider's one-click unsubscribe: a form POST, not JSON.
+  if (name === ONE_CLICK_ROUTE)
+    return handleOneClick(request, env, {
+      now,
+      origin: linkOrigin(url),
+      waitUntil: (p) => ctx.waitUntil(p),
+      ipHash: () => keyedHash(env.DATA, clientIp(request)),
+    });
   if (!r) return apiError("not-found");
   if (request.method !== "POST") return apiError("method-not-allowed");
   // JSON only: a cross-site form can't send this type without a CORS
@@ -537,9 +612,7 @@ export async function handleApi(
   const window = { seconds: 3_600 };
   const limited = () => {
     const retryAfterSeconds = secondsLeft(window, now);
-    return name === "alerts/subscribe"
-      ? json({ status: "rate-limited", retryAfterSeconds })
-      : apiError("rate-limited", retryAfterSeconds);
+    return apiError("rate-limited", retryAfterSeconds);
   };
   if (r.perIpPerHour !== undefined) {
     const ipHash = await keyedHash(env.DATA, clientIp(request));
@@ -552,6 +625,9 @@ export async function handleApi(
     if (!isSameOrigin(request)) return apiError("forbidden");
     session = await getSession(request, env, now, { refresh: true });
     if (!session) return apiError("unauthorized");
+  } else if (r.auth === "optional") {
+    if (!isSameOrigin(request)) return apiError("forbidden");
+    session = await getSession(request, env, now, { refresh: true });
   }
   // From here on a refreshed session's new cookie goes out with every
   // answer, errors included: the old token stops working a minute later.

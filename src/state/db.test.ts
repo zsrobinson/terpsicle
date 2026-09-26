@@ -1,36 +1,20 @@
 import "fake-indexeddb/auto";
 import Dexie from "dexie";
 import { afterEach, describe, expect, it } from "vitest";
-import type { LocalSeatAlert } from "~/core/schema";
 import { aBlock, aFourYear, aPlan } from "~/fixtures";
 import { DB_V1_STORES, TerpsicleDb } from "./db";
 import { hydrate } from "./persist";
-import {
-  INITIAL_SEAT_ALERTS_STATE,
-  startSeatAlerts,
-  useSeatAlerts,
-} from "./seat-alerts";
 import { resetStores } from "./testing";
 import { useWorkspace } from "./workspace-store";
 
 // Dexie v1 → v2 (plan sync, DATA.md §5): everything a returning visitor has
-// saved comes through, the seat alerts move to a settings row, and the new
-// sync table starts empty, so their first sign-in merges as a first sign-in.
+// saved comes through, the email-token seat alerts retire with their table
+// (V2.md §6.5), and the new sync table starts empty, so their first sign-in
+// merges as a first sign-in.
 
 const NOW = "2026-09-25T12:00:00.000Z";
 let count = 0;
 let name = "";
-
-const watch: LocalSeatAlert = {
-  termId: "202701",
-  sectionKey: "CMSC351-0301",
-  email: "testudo@umd.edu",
-  status: "active",
-  subscriptionId: "s".repeat(22),
-  manageToken: "t".repeat(43),
-  createdAt: NOW,
-  updatedAt: NOW,
-};
 
 /** A database as version 1 of the app left it. */
 async function seedV1(): Promise<void> {
@@ -51,7 +35,11 @@ async function seedV1(): Promise<void> {
       value: { pace: "faster", accessible: true, extraMinutes: 0 },
     },
   ]);
-  await v1.table("seatAlerts").put(watch);
+  await v1.table("seatAlerts").put({
+    termId: "202701",
+    sectionKey: "CMSC351-0301",
+    status: "active",
+  });
   await v1.table("files").put({
     key: "catalog/202701/x.json",
     family: "catalog",
@@ -97,9 +85,7 @@ describe("Dexie v2", () => {
     expect(w.travel.pace).toBe("faster");
     expect(w.chatPlans).toEqual({});
 
-    useSeatAlerts.setState(INITIAL_SEAT_ALERTS_STATE);
-    await startSeatAlerts(db);
-    expect(useSeatAlerts.getState().alerts).toEqual([watch]);
+    expect(await db.table("settings").get("seatAlerts")).toBeUndefined();
     db.close();
   });
 
@@ -114,7 +100,7 @@ describe("Dexie v2", () => {
     const db = new TerpsicleDb(name);
     await db.open();
     expect(await db.plans.count()).toBe(1);
-    expect(await db.settings.get("seatAlerts")).toBeUndefined();
+    expect(await db.table("settings").get("seatAlerts")).toBeUndefined();
     db.close();
   });
 

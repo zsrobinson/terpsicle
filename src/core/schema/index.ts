@@ -24,6 +24,7 @@ export * from "./reviews";
 export * from "./reviews-data";
 export * from "./rows";
 export * from "./schedule-url";
+export * from "./seat-watches";
 export * from "./security";
 export * from "./settings";
 export * from "./share";

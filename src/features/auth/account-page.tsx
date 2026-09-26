@@ -38,12 +38,18 @@ export function AccountPage({
 export function AccountSection({
   title,
   children,
+  id,
 }: {
   title: string;
   children: ReactNode;
+  /** A link target: `/settings#<id>`. */
+  id?: string;
 }) {
   return (
-    <section className="rounded-lg border border-hairline bg-raised p-4">
+    <section
+      id={id}
+      className="scroll-mt-6 rounded-lg border border-hairline bg-raised p-4"
+    >
       <h2 className="mb-3 font-semibold text-base">{title}</h2>
       <div className="space-y-4 text-muted">{children}</div>
     </section>
