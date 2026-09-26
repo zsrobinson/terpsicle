@@ -3,8 +3,10 @@
 // there's no on-screen keyboard or browser toolbar, and WebKit can't be sent
 // a touch drag, so drags are mouse drags (vaul follows either).
 
+import { execFile } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
 import {
   type Browser,
   type BrowserContext,
@@ -29,7 +31,32 @@ export async function playwrightDevice(
       ? { proxy: { server: process.env.HTTPS_PROXY } }
       : {}),
   });
-  return new PlaywrightDevice(engine, browser);
+  const device = new PlaywrightDevice(engine, browser);
+  // Only what the kernel logs from here on counts as this run's evidence.
+  await device.crashEvidence();
+  return device;
+}
+
+/** The kernel's log (CI runners allow `sudo dmesg`), or null. */
+async function kernelLog(): Promise<string[] | null> {
+  const run = promisify(execFile);
+  for (const [command, args] of [
+    ["sudo", ["-n", "dmesg", "--time-format", "iso"]],
+    ["dmesg", ["--time-format", "iso"]],
+  ] as const) {
+    try {
+      const { stdout } = await run(command, [...args], {
+        maxBuffer: 32 * 1024 * 1024,
+      });
+      // Without the empty string after the last newline: counting it made
+      // the next look skip the first new line (the segfault itself).
+      return stdout.split("\n").filter((l) => l.trim());
+    } catch (error) {
+      // Not allowed here; try the next way, or give up.
+      console.error(`  kernel log: ${command} failed: ${error}`);
+    }
+  }
+  return null;
 }
 
 class PlaywrightDevice implements Device {
@@ -38,6 +65,8 @@ class PlaywrightDevice implements Device {
   private page: Page | null = null;
   private cdp: CDPSession | null = null;
   private landscape = false;
+  /** Kernel log lines already seen, so evidence is only what's new. */
+  private kernelSeen: number | null = null;
 
   constructor(
     readonly engine: "webkit" | "chromium",
@@ -166,6 +195,38 @@ class PlaywrightDevice implements Device {
 
   async screenshot(): Promise<Buffer> {
     return this.p.screenshot();
+  }
+
+  async crashEvidence(): Promise<string | null> {
+    const first = this.kernelSeen === null;
+    // The kernel's line can come a moment after Playwright hears of the
+    // crash: look for up to 10 s.
+    for (let i = 0; i < (first ? 1 : 20); i++) {
+      const lines = await kernelLog();
+      if (!lines) return null;
+      if (first) {
+        this.kernelSeen = lines.length;
+        return null;
+      }
+      const fresh = lines.slice(this.kernelSeen ?? 0);
+      if (
+        fresh.some((l) =>
+          /segfault|general protection|killed process|out of memory/i.test(l),
+        )
+      ) {
+        this.kernelSeen = lines.length;
+        // All of it: one report can span lines.
+        console.error(
+          `  ${new Date().toISOString()} kernel log, new:\n${fresh.join("\n")}`,
+        );
+        return fresh.join("\n");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    console.error(
+      `  ${new Date().toISOString()} kernel log: nothing about the crash`,
+    );
+    return null;
   }
 
   async close(): Promise<void> {

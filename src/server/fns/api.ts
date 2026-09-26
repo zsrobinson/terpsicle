@@ -4,18 +4,26 @@
 // of rendering something half-right.
 import type { z } from "zod";
 import {
+  AccountDeleteInputSchema,
+  AccountDeleteResultSchema,
   type ApiError,
   ApiErrorSchema,
   ConfirmInputSchema,
   ConfirmResultSchema,
   LookupResultSchema,
   ManageInputSchema,
+  MeInputSchema,
+  MeResultSchema,
   ReviewSummaryInputSchema,
   ReviewSummaryResultSchema,
+  SignOutInputSchema,
+  SignOutResultSchema,
   StatusInputSchema,
   StatusResultSchema,
   SubscribeInputSchema,
   SubscribeResultSchema,
+  TestSignInInputSchema,
+  TestSignInResultSchema,
   UnsubscribeResultSchema,
 } from "~/core/schema";
 
@@ -76,6 +84,46 @@ async function call<I extends z.ZodType, O extends z.ZodType>(
 }
 
 export const api = {
+  /** Who's signed in, and what's on (docs/AUTH.md). Called on every app load. */
+  me: (options?: ApiOptions) =>
+    call("me", MeInputSchema, MeResultSchema, {}, options),
+  auth: {
+    /** Ends this device's session; plans stay on the device. */
+    signOut: (
+      input: z.input<typeof SignOutInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "auth/sign-out",
+        SignOutInputSchema,
+        SignOutResultSchema,
+        input,
+        options,
+      ),
+    /** Test mode only: sign in as one of TEST_USERS. */
+    testSignIn: (
+      input: z.input<typeof TestSignInInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "auth/test-sign-in",
+        TestSignInInputSchema,
+        TestSignInResultSchema,
+        input,
+        options,
+      ),
+  },
+  account: {
+    /** Signs out everywhere; the account goes after a week unless they sign in. */
+    delete: (options?: ApiOptions) =>
+      call(
+        "account/delete",
+        AccountDeleteInputSchema,
+        AccountDeleteResultSchema,
+        {},
+        options,
+      ),
+  },
   /** The instructor's review summary, or why there isn't one (hide it then). */
   reviewSummary: (
     input: z.input<typeof ReviewSummaryInputSchema>,

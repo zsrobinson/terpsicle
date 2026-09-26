@@ -34,7 +34,9 @@
       "~/ui/*": ["./src/components/ui/*"],
       "~/server/*": ["./src/server/*"],
       "~/jobs/*": ["./src/jobs/*"],
-      "~/worker/*": ["./src/worker/*"]
+      "~/worker/*": ["./src/worker/*"],
+      // Tracked configuration the Worker bundles (config/admins.txt).
+      "~/config/*": ["./config/*"]
     }
   }
 }

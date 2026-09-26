@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { problemCountWords } from "~/core/problems";
+import { AccountButton } from "~/features/auth";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCreditsLabel,
@@ -15,9 +16,9 @@ import { TONE_FILL } from "./emphasis";
 import { ProductMenu } from "./product-menu";
 import { tabById } from "./tabs";
 
-// The top bar (SPEC §2): logo / term / plans on the left, credits and the
-// problem count on the right. The middle (tabs or the shared pill) comes
-// from the shell.
+// The top bar (SPEC §2): logo / term / plans on the left; credits, the
+// problem count and the account button (docs/AUTH.md) on the right. The
+// middle (tabs or the shared pill) comes from the shell.
 
 export function TopBar({
   term,
@@ -56,7 +57,7 @@ export function TopBar({
         <OfflineNote compact={compact} />
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
-        {end}
+        <AccountButton compact={compact} themeToggle={end} />
       </div>
     </header>
   );

@@ -17,7 +17,7 @@ Page scripts (the probe) go over each browser's debugging protocol; every touch 
 
 **In CI** (`.github/workflows/mobile-lab.yml`):
 
-- **Any URL, any engines:** Actions → *Mobile lab* → *Run workflow*. Inputs: `url` (default production), `engines` (`webkit,android,ios`), `scenarios` (ids, comma-separated; empty for all).
+- **Any URL, any engines:** Actions → *Mobile lab* → *Run workflow*. Inputs: `url` (default production), `engines` (`webkit,android,ios`), `scenarios` (ids, comma-separated; empty for all), `repeat` (each scenario this many times, for an intermittent failure; repeats are `<id>-2`, `<id>-3`, …), `video` (off rules the recorder out when chasing a crash).
 - **Nightly:** every engine against https://terpsicle.com.
 - **PRs:** `ci.yml` runs WebKit against the PR's preview after it deploys, when the PR touches `src/app/`, `src/styles.css`, anything named `*drawer*` or the lab itself. Add the **`mobile-lab`** label to a PR to run Android and iOS as well: adding it runs all three at once against the current preview, and later pushes include them.
 
@@ -30,7 +30,7 @@ pnpm tsx scripts/mobile-lab/run.ts --engine chromium --url https://terpsicle.com
 pnpm tsx scripts/mobile-lab/run.ts --engine webkit --url http://localhost:3000 --only keyboard-at-half,rotate
 ```
 
-`--url` names the deployment; the lab opens its scheduler at `/schedule` (a URL with its own path is used as is). `--out <dir>` picks the results folder (default `mobile-lab-results/<time>-<engine>`, git-ignored); `--no-video` skips recordings. `android` needs `adb` with one emulator or phone attached (with USB debugging, Chrome installed, and for an emulator a Google APIs image so Chrome reads its command-line file). `ios` needs a Mac with Xcode, an Appium 3 server with the XCUITest driver (`APPIUM_URL`, default `http://127.0.0.1:4723`) and optionally `IOS_DEVICE`, `IOS_VERSION` or `IOS_UDID`. Don't run `playwright install` in an agent sandbox; use `chromium` there.
+`--url` names the deployment; the lab opens its scheduler at `/schedule` (a URL with its own path is used as is). `--repeat <n>` runs each scenario n times. `--out <dir>` picks the results folder (default `mobile-lab-results/<time>-<engine>`, git-ignored); `--no-video` skips recordings. `android` needs `adb` with one emulator or phone attached (with USB debugging, Chrome installed, and for an emulator a Google APIs image so Chrome reads its command-line file). `ios` needs a Mac with Xcode, an Appium 3 server with the XCUITest driver (`APPIUM_URL`, default `http://127.0.0.1:4723`) and optionally `IOS_DEVICE`, `IOS_VERSION` or `IOS_UDID`. Don't run `playwright install` in an agent sandbox; use `chromium` there.
 
 ## Reading results
 
@@ -52,6 +52,11 @@ A run folder holds:
 - `<scenario>/NN-<step>.jpg`: the whole screen, browser toolbar and keyboard included on `android` and `ios`.
 - `<scenario>/video.mp4` (`.webm` on `webkit`): the scenario's screen recording.
 - `RESULT`: three lines for the index.
+- `browser-log.txt` (`webkit`): WebKit's own output (`DEBUG=pw:browser`).
+- `kernel-log.txt` (`webkit`): the runner's kernel lines about segfaults and OOM kills, and `free -m`: how a crashed page process died.
+- `webcontent-log.txt` (`ios`): the Simulator's log lines from Safari's page process about crashes, memory pressure and jetsam.
+
+Each step also records `memory`: the resident size of the engine's page processes, read with `ps` on the runner (WebKit's `WebKitWebProcess`, Chromium's renderers, the Simulator's `com.apple.WebKit.WebContent`; not on Android). It counts every such process on the machine, so it's only meaningful on a CI runner, not a shared sandbox.
 
 `jq` gets the numbers fast, e.g. every failed check:
 
@@ -69,6 +74,7 @@ Every step checks (`scripts/mobile-lab/checks.ts`):
 | `no-page-errors` | fail | An uncaught error or rejection. |
 | `focused-field-visible` | fail | A focused text field isn't wholly inside the visible band (`visualViewport.offsetTop` to `offsetTop + height`), or something covers it: the keyboard, or a pan that moved it out of view. |
 | `drawer-on-screen` | fail | The drawer's top is off the screen. |
+| `page-process-alive` | fail | The page's process crashed (Playwright's "Target crashed"), with the last actions and page-process memory as evidence. |
 | `rail-tabs-reachable` | fail | In the desktop layout (a phone on its side is over 768px wide), a rail tab is past the bottom of the screen and the rail doesn't scroll. |
 | `page-not-scrolled` | warn | The window scrolled: the page itself moved. |
 | `not-zoomed` | warn | The visual viewport's scale isn't 1 (Safari zooms into small text fields). |
@@ -99,6 +105,33 @@ In order (`scripts/mobile-lab/scenarios.ts`). Each starts with a fresh load.
 | `add-sections` | Open CMSC131, tap Add on a section, then Switch three times. Each tap must take effect the first time. |
 
 To add one, append to `SCENARIOS`: use `lab.tap`, `lab.swipe`, `lab.type`, `lab.hideKeyboard` and `lab.rotate` on `Target`s (a selector, optionally a label), and `lab.step(name, { expect })` after each action.
+
+## Known issue: WebKit's compositor crash
+
+Playwright's WebKit on Linux (the WPE port, `webkit-2359`, WebKit 26.6, `libWPEWebKit-2.0.so.1.12.0`) sometimes crashes its page process. Playwright reports "Target crashed", usually while taking a screenshot, and the runner's kernel logs a segfault in WPE's compositor thread at the same instruction every time:
+
+```
+eadedCompositor[6411]: segfault at 0 ip …0f8a sp … error 4 in libWPEWebKit-2.0.so.1.12.0[60a0f8a,…]
+Code: … 49 89 fe <48> 8b 07 ff 50 40 …   (mov rax,[rdi]; call [rax+0x40]: a virtual call through a null object)
+```
+
+**How often.** On 2026-09-26, 10 of 663 runs of `tabs` crashed with the kernel logging this segfault, about 1 in 65. Two earlier crashes have no kernel log. It happened mostly on the tap from Search to Problems, also on Blocks, Generate, Export and Travel, and never in the other scenarios' ~200 runs. It happened with recording and screenshots on, with recording off, and with both off. It hit production and two PR previews alike.
+
+**Why it isn't the page:**
+- The page process holds a steady ~570 MB, and the runner has ~14.9 GB free.
+- No WebGL is involved: the Travel tab mounts MapLibre only in a connection's details.
+- Safari's page process in the iOS Simulator doesn't use this compositor. Ten runs of `tabs` there showed no crash, and its log showed no memory warning or jetsam (Safari holds ~190–220 MB).
+
+**Upstream.**
+- A likely match, not confirmed without symbols: [WebKit bug 308242](https://bugs.webkit.org/show_bug.cgi?id=308242), "[GTK][WPE] AcceleratedSurface might segfault when createTarget() fails". Its compositor thread dereferences a null render target when a buffer can't be allocated without a GPU, as on a CI runner. It's open and unassigned.
+- Related Playwright reports of random WPE page-process deaths, with different signatures: [microsoft/playwright#42740](https://github.com/microsoft/playwright/issues/42740) (SIGILL) and [#22903](https://github.com/microsoft/playwright/issues/22903) (after screenshots).
+- We haven't filed anything upstream.
+
+**What the lab does.** When a WebKit scenario crashes and the kernel log shows this exact segfault (`isWebkitCompositorCrash` in `checks.ts`):
+- The crashed attempt is kept as `<id>-webkit-crash-<n>`, marked `webkit-compositor-crash` (a warning) with the kernel's lines.
+- The scenario runs again, up to twice. A scenario that crashes a third time fails.
+- So does any crash without this signature, and any crash on Android or iOS, as `page-process-alive`.
+- Reading the kernel log needs `sudo dmesg`, which GitHub's runners allow. Without it, every crash fails.
 
 ## What it can't tell
 

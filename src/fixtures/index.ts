@@ -1,4 +1,5 @@
 // Mock data for `pnpm dev:mock`, unit tests and e2e. See README.md.
+
 export * from "./builders";
 export {
   CANCELLED_SECTION_KEY,
@@ -56,3 +57,4 @@ export {
 export { mockCalendars, mockTermsFile } from "./mock/terms";
 export { hashString, randomInt, seededRandom } from "./random";
 export { median, medianMs } from "./timing";
+export * from "./users";

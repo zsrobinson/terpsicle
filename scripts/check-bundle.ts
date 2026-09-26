@@ -67,9 +67,19 @@ export const ROUTE_BUDGETS: readonly {
   never: readonly { pattern: RegExp; why: string }[];
 }[] = [
   { route: "/schedule", budget: EAGER_BUDGET, never: [] },
-  ...["/", "/reviews/", "/chat/", "/settings/", "/admin/", "/privacy"].map(
-    (route) => ({ route, budget: LANDING_BUDGET, never: LANDING_NEVER_EAGER }),
-  ),
+  ...[
+    "/",
+    "/reviews/",
+    "/chat/",
+    "/settings",
+    "/signin",
+    "/admin/",
+    "/privacy",
+  ].map((route) => ({
+    route,
+    budget: LANDING_BUDGET,
+    never: LANDING_NEVER_EAGER,
+  })),
 ];
 
 /**

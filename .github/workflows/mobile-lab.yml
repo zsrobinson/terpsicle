@@ -25,6 +25,17 @@ on:
       scenarios:
         description: Only these scenario ids, comma-separated (empty for all)
         default: ""
+      repeat:
+        description: Run each scenario this many times (1–20), to catch intermittent failures
+        default: "1"
+      video:
+        description: Record each scenario (off isolates the recorder when chasing a crash)
+        type: boolean
+        default: true
+      screenshots:
+        description: Screenshot each step (off only to test whether screenshots cause a crash)
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       url:
@@ -36,6 +47,9 @@ on:
       scenarios:
         type: string
         default: ""
+      repeat:
+        type: string
+        default: "1"
   schedule:
     - cron: "23 8 * * *"
   pull_request:
@@ -61,6 +75,9 @@ jobs:
       url: ${{ steps.plan.outputs.url }}
       engines: ${{ steps.plan.outputs.engines }}
       scenarios: ${{ steps.plan.outputs.scenarios }}
+      repeat: ${{ steps.plan.outputs.repeat }}
+      video: ${{ steps.plan.outputs.video }}
+      screenshots: ${{ steps.plan.outputs.screenshots }}
     steps:
       - id: plan
         env:
@@ -68,6 +85,9 @@ jobs:
           INPUT_URL: ${{ inputs.url }}
           INPUT_ENGINES: ${{ inputs.engines }}
           INPUT_SCENARIOS: ${{ inputs.scenarios }}
+          INPUT_REPEAT: ${{ inputs.repeat }}
+          INPUT_VIDEO: ${{ inputs.video }}
+          INPUT_SCREENSHOTS: ${{ inputs.screenshots }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           if [ -n "$INPUT_URL" ]; then
@@ -80,6 +100,10 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "engines=$engines" >> "$GITHUB_OUTPUT"
           echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
+          echo "repeat=${INPUT_REPEAT:-1}" >> "$GITHUB_OUTPUT"
+          # Only a dispatch can turn recording off.
+          if [ "$INPUT_VIDEO" = false ]; then echo "video=--no-video" >> "$GITHUB_OUTPUT"; else echo "video=--video" >> "$GITHUB_OUTPUT"; fi
+          if [ "$INPUT_SCREENSHOTS" = false ]; then echo "screenshots=--no-screenshots" >> "$GITHUB_OUTPUT"; else echo "screenshots=--screenshots" >> "$GITHUB_OUTPUT"; fi
           echo "Testing $url on $engines ${scenarios:+(only $scenarios)}"
           # Labeled before the preview is up (a new PR): wait for it.
           if [ "$EVENT" = pull_request ] && [ -z "$INPUT_URL" ]; then
@@ -99,6 +123,9 @@ jobs:
     env:
       URL: ${{ needs.plan.outputs.url }}
       SCENARIOS: ${{ needs.plan.outputs.scenarios }}
+      REPEAT: ${{ needs.plan.outputs.repeat || '1' }}
+      VIDEO: ${{ needs.plan.outputs.video || '--video' }}
+      SCREENSHOTS: ${{ needs.plan.outputs.screenshots || '--screenshots' }}
       SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
@@ -113,8 +140,15 @@ jobs:
         id: lab
         run: |
           set +e
-          pnpm tsx scripts/mobile-lab/run.ts --engine webkit --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"}
+          # WebKit's own output (pw:browser), so a crashed page process leaves
+          # its last words next to the report.
+          mkdir -p "mobile-lab-results/$RUN_NAME"
+          DEBUG=pw:browser pnpm tsx scripts/mobile-lab/run.ts --engine webkit --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"} --repeat "$REPEAT" "$VIDEO" "$SCREENSHOTS" 2> >(tee "mobile-lab-results/$RUN_NAME/browser-log.txt" >&2)
           echo "status=$?" >> "$GITHUB_OUTPUT"
+          # How a page process died, if one did: a segfault or an OOM kill
+          # leaves a kernel line; WebKit ending it itself leaves none.
+          sudo dmesg --time-format iso 2>/dev/null | grep -iE "segfault|general protection|oom|killed process|out of memory|WebKit|WPE" > "mobile-lab-results/$RUN_NAME/kernel-log.txt" || true
+          free -m >> "mobile-lab-results/$RUN_NAME/kernel-log.txt" || true
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -141,6 +175,9 @@ jobs:
     env:
       URL: ${{ needs.plan.outputs.url }}
       SCENARIOS: ${{ needs.plan.outputs.scenarios }}
+      REPEAT: ${{ needs.plan.outputs.repeat || '1' }}
+      VIDEO: ${{ needs.plan.outputs.video || '--video' }}
+      SCREENSHOTS: ${{ needs.plan.outputs.screenshots || '--screenshots' }}
       SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
@@ -172,7 +209,7 @@ jobs:
           ram-size: 4096M
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
-          script: pnpm tsx scripts/mobile-lab/run.ts --engine android --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"} || touch mobile-lab-failed
+          script: pnpm tsx scripts/mobile-lab/run.ts --engine android --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"} --repeat "$REPEAT" "$VIDEO" "$SCREENSHOTS" || touch mobile-lab-failed
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -200,6 +237,9 @@ jobs:
     env:
       URL: ${{ needs.plan.outputs.url }}
       SCENARIOS: ${{ needs.plan.outputs.scenarios }}
+      REPEAT: ${{ needs.plan.outputs.repeat || '1' }}
+      VIDEO: ${{ needs.plan.outputs.video || '--video' }}
+      SCREENSHOTS: ${{ needs.plan.outputs.screenshots || '--screenshots' }}
       SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       IOS_DEVICE: iPhone 16
     steps:
@@ -230,8 +270,12 @@ jobs:
         id: lab
         run: |
           set +e
-          pnpm tsx scripts/mobile-lab/run.ts --engine ios --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"}
+          pnpm tsx scripts/mobile-lab/run.ts --engine ios --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"} --repeat "$REPEAT" "$VIDEO" "$SCREENSHOTS"
           echo "status=$?" >> "$GITHUB_OUTPUT"
+          # Safari's page process: crashes, memory pressure and jetsam kills.
+          xcrun simctl spawn booted log show --last 60m --style compact \
+            --predicate 'process == "com.apple.WebKit.WebContent" AND (eventMessage CONTAINS[c] "crash" OR eventMessage CONTAINS[c] "memory" OR eventMessage CONTAINS[c] "jetsam" OR eventMessage CONTAINS[c] "terminat")' \
+            > "mobile-lab-results/$RUN_NAME/webcontent-log.txt" 2>&1 || true
       - uses: actions/upload-artifact@v7
         if: always()
         with:

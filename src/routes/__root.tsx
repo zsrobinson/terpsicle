@@ -8,6 +8,9 @@ import type { ReactNode } from "react";
 import { loadRecoveryScript } from "~/app/load-recovery";
 import { sidebarWidthInitScript } from "~/app/sidebar-width";
 import { themeInitScript } from "~/app/theme";
+// Not the barrel: its settings page pulls the scheduler's stores into every
+// page (scripts/check-bundle.ts keeps them out of `/`).
+import { AccountBoot } from "~/features/auth/account-boot";
 import { NotFoundPage } from "~/features/site/not-found-page";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
@@ -70,6 +73,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 function RootLayout() {
   return (
     <TooltipProvider>
+      <AccountBoot />
       <Outlet />
       <Toaster />
     </TooltipProvider>
