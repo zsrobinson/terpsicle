@@ -71,8 +71,12 @@ test("/, then search, add a section, Travel and a route map: no CSP violations",
   await page.keyboard.press("/");
   await page.getByRole("combobox", { name: "Search courses" }).fill("engl 101");
   await page.locator('[data-course-result="ENGL101"]').click();
-  await page.getByRole("button", { name: "Add to Plan A" }).click();
-  await expect(page.getByTestId("your-section")).toContainText("Current");
+  await page
+    .getByTestId("sections")
+    .locator('[data-section="0101"]')
+    .getByRole("button", { name: "Add 0101" })
+    .click();
+  await expect(page.getByTestId("your-section")).toContainText("In Plan A");
 
   // The Travel tab, and a connection's route drawn on its map.
   await page.getByRole("button", { name: "Travel", exact: true }).click();
