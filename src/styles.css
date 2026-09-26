@@ -374,6 +374,21 @@
 }
 
 /*
+ * Short screens (a laptop at 400% zoom is 320×256, WCAG 1.4.10): a panel's
+ * own header and fields can fill the drawer, leaving its list no height at
+ * all. There the list keeps a usable minimum and the whole panel scrolls.
+ */
+@media (max-height: 480px) {
+  [data-layer] {
+    overflow-y: auto;
+  }
+  [data-layer] [data-panel-body],
+  [data-layer] [role="listbox"] {
+    min-height: 10rem;
+  }
+}
+
+/*
  * Forced colors (Windows High Contrast, WCAG 1.4.11): the system repaints
  * text, backgrounds and borders and drops box-shadows. What we draw with a
  * fill or a shadow gets a border, an outline or a system color instead, so
@@ -403,7 +418,10 @@
   [data-slot="tooltip-content"],
   [role="tooltip"],
   [data-sonner-toast] {
+    forced-color-adjust: none;
     border: 1px solid CanvasText;
+    background-color: Canvas;
+    color: CanvasText;
   }
   /* Meters and bars say it in words too; the fill still shows here. */
   .forced-fill {
