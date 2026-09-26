@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import { Layers, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "~/ui/button";
@@ -8,24 +7,10 @@ import { chooseFirstVisitPath } from "./actions";
 // "Build your <term> schedule" (SPEC §3.2): two equally weighted ways in,
 // shown on a first visit and whenever a plan is empty. The owner asked for
 // starting from scratch and generating to read as "equally valid paths"
-// (DESIGN §4b): the same card, the same numbered steps, the same primary
-// button. They stack (the owner found two columns too cramped in the
-// sidebar), so the heading says there are two ways, and neither card is
-// styled as the default.
-
-const BUILD_STEPS = [
-  "Find your courses",
-  "Pick sections on the calendar",
-  "Fix anything flagged",
-  "Export for registration",
-] as const;
-
-const GENERATE_STEPS = [
-  "List the courses you need",
-  "Set must-haves (days off, start time)",
-  "Pick from ranked plans",
-  "Export for registration",
-] as const;
+// (DESIGN §4b): the same card, the same primary button, and neither styled
+// as the default. They stack (the owner found two columns too cramped in the
+// sidebar), each with a one-line summary rather than numbered steps, so both
+// buttons fit in the phone drawer at half height (390×844).
 
 export function FirstVisit({ termName }: { termName: string | undefined }) {
   return (
@@ -38,12 +23,12 @@ export function FirstVisit({ termName }: { termName: string | undefined }) {
         Build your {termName ?? "term"} schedule
       </h3>
       <p className="mt-0.5 px-1 text-muted text-sm">
-        There are two ways to start. You can switch anytime.
+        Two ways to start. You can switch anytime.
       </p>
       <div className="mt-3 flex flex-col gap-2">
         <Path
           title="Build it yourself"
-          steps={BUILD_STEPS}
+          summary="Search, pick sections, fix what's flagged."
           action={
             <WithTooltip label="Open Search" shortcut="/">
               <Button
@@ -58,7 +43,7 @@ export function FirstVisit({ termName }: { termName: string | undefined }) {
         />
         <Path
           title="Generate plans"
-          steps={GENERATE_STEPS}
+          summary="Tell it what you need, then pick a plan."
           action={
             <WithTooltip label="Open Generate" shortcut="6">
               <Button
@@ -78,11 +63,11 @@ export function FirstVisit({ termName }: { termName: string | undefined }) {
 
 function Path({
   title,
-  steps,
+  summary,
   action,
 }: {
   title: string;
-  steps: readonly string[];
+  summary: string;
   action: ReactNode;
 }) {
   return (
@@ -91,21 +76,7 @@ function Path({
       className="flex min-w-0 flex-col rounded-lg border border-hairline bg-raised p-3"
     >
       <h4 className="font-semibold text-base">{title}</h4>
-      <ol className="mt-3 mb-3 flex flex-col gap-2">
-        {steps.map((step, i) => (
-          <li key={step} className="flex gap-2 text-sm">
-            <span
-              aria-hidden="true"
-              className={cn(
-                "tnum mt-px flex size-4 shrink-0 items-center justify-center rounded-full bg-hover font-medium text-2xs text-muted",
-              )}
-            >
-              {i + 1}
-            </span>
-            <span className="min-w-0">{step}</span>
-          </li>
-        ))}
-      </ol>
+      <p className="mt-1 mb-3 text-muted text-sm">{summary}</p>
       <div className="mt-auto">{action}</div>
     </fieldset>
   );

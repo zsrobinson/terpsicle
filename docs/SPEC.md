@@ -82,9 +82,9 @@ Nobody should have to touch the app when a new semester appears.
 - The courses in the current plan. Each row shows the dot in the course color, code, section, title, instructor and meeting days, the seats meter, and a warning icon if the course has a problem. A section with a seat watch on says "Watching" with a filled bell.
 - **Bookmarked:** courses you're considering but haven't placed (a bookmark icon). You add a section, not a course; a course is bookmarked from its details.
 - **Course color:** clicking a course's color dot opens a small palette of preset colors. The color is per course and the same in every plan.
-- **First visit:** "Build your <term> schedule" with **two equally weighted paths**, stacked (same size and style; neither is secondary; the heading says "There are two ways to start"):
-  - **Build it yourself:** 1 find your courses → 2 pick sections on the calendar → 3 fix anything flagged → 4 export for registration. Button: **Search for a course**.
-  - **Generate plans:** 1 list the courses you need → 2 set your must-haves (days off, start time, …) → 3 pick from ranked plans → 4 export. Button: **Generate plans**.
+- **First visit:** "Build your <term> schedule" with **two equally weighted paths**, stacked (same size and style; neither is secondary; the line under the heading reads "Two ways to start. You can switch anytime."). Each card is a title, a one-line summary and its button, short enough that both buttons fit in the phone drawer at half height:
+  - **Build it yourself:** "Search, pick sections, fix what's flagged." Button: **Search for a course**.
+  - **Generate plans:** "Tell it what you need, then pick a plan." Button: **Generate plans**.
   - The same two paths appear whenever a plan is empty.
   - v2: first-time visitors at `/` see a marketing page; anyone with saved plans or a session goes straight to the app at `/schedule` (`docs/V2.md` §2).
 
