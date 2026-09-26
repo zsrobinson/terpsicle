@@ -10,7 +10,7 @@ Before you write infrastructure (routing, URL or state sync, lazy loading, cachi
 - **Cloudflare:** Workers, D1, R2, Durable Objects, Cron Triggers, Workers AI and Email.
 - **Libraries:** Radix (through shadcn/ui) for components, Tailwind, zod, Dexie, zustand for app state that isn't URL state, and PostHog.
 
-**Known debt:** the scheduler is one route with a homemade panel registry (`src/app/registry.tsx`, `src/app/lazy-panel.tsx`), zustand drill state and hand-built URL sync. `v2/schedule-routes` replaces them with real nested routes. Don't copy that pattern anywhere new.
+**Known debt:** the scheduler is one route with a homemade panel registry (`src/app/registry.tsx`, `src/app/lazy-panel.tsx`), zustand drill state and hand-built URL sync (`src/app/schedule-url.ts`). `v2/schedule-routes` replaces them with real nested routes. Don't copy that pattern anywhere new.
 
 ## Docs
 - `docs/SPEC.md` (what), `docs/DESIGN.md` (why, and the owner's taste), `docs/BUILD.md` (how), `docs/DATA.md` (R2 layout, schemas, local storage). `docs/V2.md` (accounts, sync, PWA, notifications, Reviews, Chat, moderation, admin) and `docs/V3.md` (Plan, Todo) win where they differ from the older docs.
