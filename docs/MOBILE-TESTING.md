@@ -17,7 +17,7 @@ Page scripts (the probe) go over each browser's debugging protocol; every touch 
 
 **In CI** (`.github/workflows/mobile-lab.yml`):
 
-- **Any URL, any engines:** Actions → *Mobile lab* → *Run workflow*. Inputs: `url` (default production), `engines` (`webkit,android,ios`), `scenarios` (ids, comma-separated; empty for all), `repeat` (each scenario this many times, for an intermittent failure; repeats are `<id>-2`, `<id>-3`, …).
+- **Any URL, any engines:** Actions → *Mobile lab* → *Run workflow*. Inputs: `url` (default production), `engines` (`webkit,android,ios`), `scenarios` (ids, comma-separated; empty for all), `repeat` (each scenario this many times, for an intermittent failure; repeats are `<id>-2`, `<id>-3`, …), `video` (off rules the recorder out when chasing a crash).
 - **Nightly:** every engine against https://terpsicle.com.
 - **PRs:** `ci.yml` runs WebKit against the PR's preview after it deploys, when the PR touches `src/app/`, `src/styles.css`, anything named `*drawer*` or the lab itself. Add the **`mobile-lab`** label to a PR to run Android and iOS as well: adding it runs all three at once against the current preview, and later pushes include them.
 
@@ -52,7 +52,8 @@ A run folder holds:
 - `<scenario>/NN-<step>.jpg`: the whole screen, browser toolbar and keyboard included on `android` and `ios`.
 - `<scenario>/video.mp4` (`.webm` on `webkit`): the scenario's screen recording.
 - `RESULT`: three lines for the index.
-- `browser-log.txt` (`webkit`): WebKit's own output (`DEBUG=pw:browser`), where a crashed page process says why.
+- `browser-log.txt` (`webkit`): WebKit's own output (`DEBUG=pw:browser`).
+- `kernel-log.txt` (`webkit`): the runner's kernel lines about segfaults and OOM kills, and `free -m`: how a crashed page process died.
 - `webcontent-log.txt` (`ios`): the Simulator's log lines from Safari's page process about crashes, memory pressure and jetsam.
 
 Each step also records `memory`: the resident size of the engine's page processes, read with `ps` on the runner (WebKit's `WebKitWebProcess`, Chromium's renderers, the Simulator's `com.apple.WebKit.WebContent`; not on Android). It counts every such process on the machine, so it's only meaningful on a CI runner, not a shared sandbox.
