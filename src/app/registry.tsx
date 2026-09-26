@@ -6,6 +6,7 @@ import {
 } from "react";
 import type { RailTab } from "~/core/schema";
 import type { DrillEntry, DrillKind } from "~/state/drill";
+import type { LazyPanel } from "./lazy-panel";
 
 // Features plug their sidebar panels and drill-in views into the shell here,
 // without touching shell code. Each feature exports `panels` from
@@ -57,6 +58,36 @@ export function definePanels(
   registration: PanelRegistration,
 ): PanelRegistration {
   return registration;
+}
+
+/** A registered component's `preload`, when it's a lazyPanel. */
+function preloadOf(
+  component: object | undefined,
+): (() => Promise<unknown>) | undefined {
+  if (!component || !("preload" in component)) return undefined;
+  return (component as Partial<LazyPanel<object>>).preload;
+}
+
+/**
+ * Starts loading a tab's panel, on intent (hovering or focusing its rail
+ * tab), so it's usually there by the click. Failures surface on render.
+ */
+export function preloadTab(registry: PanelRegistry, tab: RailTab): void {
+  preloadOf(registry.tabs[tab])?.().catch(() => {});
+}
+
+/** The same for a drill-in view, on intent (hovering a travel pill). */
+export function preloadDrill(registry: PanelRegistry, kind: DrillKind): void {
+  preloadOf(registry.drills[kind]?.component)?.().catch(() => {});
+}
+
+/** Loads every lazy panel and drill-in view (idle time, tests). */
+export function preloadAll(registry: PanelRegistry): Promise<unknown> {
+  const components = [
+    ...Object.values(registry.tabs),
+    ...Object.values(registry.drills).map((view) => view?.component),
+  ];
+  return Promise.all(components.map((c) => preloadOf(c)?.()));
 }
 
 /** Merges registrations; a tab or drill kind registered twice is a bug, so it warns. */

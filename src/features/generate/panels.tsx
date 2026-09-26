@@ -1,13 +1,21 @@
+import { lazyModule, lazyPanel } from "~/app/lazy-panel";
 import { definePanels } from "~/app/registry";
-import { GeneratePanel } from "./generate-panel";
-import { ResultDetails, resultName } from "./result-details";
+
+// The form, its results and the generator's worker client load on first use.
+// The drill-in only opens from the results, so its module is loaded by then
+// and its name can read it.
+const views = lazyModule(() =>
+  Promise.all([import("./generate-panel"), import("./result-details")]).then(
+    ([panel, details]) => ({ ...panel, ...details }),
+  ),
+);
 
 export const panels = definePanels({
-  tabs: { generate: GeneratePanel },
+  tabs: { generate: lazyPanel(views, (m) => m.GeneratePanel) },
   drills: {
     "generated-plan": {
-      component: ResultDetails,
-      name: (entry) => resultName(entry.resultId),
+      component: lazyPanel(views, (m) => m.ResultDetails),
+      name: (entry) => views.current?.resultName(entry.resultId) ?? "Plan",
     },
   },
 });

@@ -3,6 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import {
   type ReactNode,
   type RefObject,
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -13,6 +14,7 @@ import { useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
 import { goBack } from "./actions";
 import { PanelSkeleton } from "./panel";
+import { PanelLoadBoundary } from "./panel-load-boundary";
 import { drillViewFor, type PanelRegistry, usePanelRegistry } from "./registry";
 import { useShortcut } from "./shortcuts";
 import { tabById } from "./tabs";
@@ -203,7 +205,16 @@ function TabPanel({
   registry: PanelRegistry;
 }) {
   const Panel = registry.tabs[tab];
-  return Panel ? <Panel /> : <PanelSkeleton title={tabById(tab).label} />;
+  const skeleton = <PanelSkeleton title={tabById(tab).label} />;
+  if (!Panel) return skeleton;
+  // Tabs past the first few load on first use (lazy-panel.tsx).
+  return (
+    <PanelLoadBoundary title={tabById(tab).label}>
+      <Suspense fallback={skeleton}>
+        <Panel />
+      </Suspense>
+    </PanelLoadBoundary>
+  );
 }
 
 function DrillLayer({
@@ -239,7 +250,13 @@ function DrillLayer({
       />
       <div className="flex min-h-0 flex-1 flex-col">
         {View ? (
-          <View entry={entry} />
+          <PanelLoadBoundary title={nameFor(registry, entry)}>
+            <Suspense
+              fallback={<PanelSkeleton title={nameFor(registry, entry)} />}
+            >
+              <View entry={entry} />
+            </Suspense>
+          </PanelLoadBoundary>
         ) : (
           <PanelSkeleton title={nameFor(registry, entry)} />
         )}

@@ -1,6 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
+import type { ComponentType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUi } from "~/state/ui-store";
+import { lazyModule, lazyPanel } from "./lazy-panel";
 import { useFocusRequest } from "./panel";
 import { definePanels } from "./registry";
 import { renderShell } from "./test-utils";
@@ -213,5 +215,61 @@ describe("AppShell", () => {
     const { user } = await renderShell();
     await user.click(screen.getByRole("button", { name: "No problems" }));
     expect(screen.getByRole("heading", { name: "Problems" })).toBeVisible();
+  });
+});
+
+describe("Panels that load on first use", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  type ExportModule = { Panel: ComponentType };
+
+  it("starts loading on hover and shows the skeleton until the panel arrives", async () => {
+    let arrive: (m: ExportModule) => void = () => {};
+    const importer = vi.fn(
+      () => new Promise<ExportModule>((resolve) => (arrive = resolve)),
+    );
+    const panels = definePanels({
+      tabs: { export: lazyPanel(lazyModule(importer), (m) => m.Panel) },
+    });
+    const { user } = await renderShell({ panels: [panels], preload: false });
+    expect(importer).not.toHaveBeenCalled();
+
+    await user.hover(railTab("Export"));
+    expect(importer).toHaveBeenCalledTimes(1);
+    await user.click(railTab("Export"));
+    // The skeleton, under the tab's name.
+    const skeleton = screen.getByRole("heading", { name: "Export" });
+    expect(skeleton.closest("[data-testid=panel-skeleton]")).toBeVisible();
+
+    await act(async () => arrive({ Panel: () => <h2>Export panel</h2> }));
+    expect(
+      await screen.findByRole("heading", { name: "Export panel" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Export" })).toBeNull();
+    expect(importer).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so in the panel, not the whole page, when one can't load", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const panels = definePanels({
+      tabs: {
+        export: lazyPanel(
+          lazyModule<ExportModule>(() =>
+            Promise.reject(new Error("Failed to fetch")),
+          ),
+          (m) => m.Panel,
+        ),
+      },
+    });
+    const { user } = await renderShell({ panels: [panels], preload: false });
+    await user.click(railTab("Export"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load Export. Check your connection, then reload. Your plans are saved.",
+    );
+    expect(screen.getByRole("button", { name: "Reload" })).toBeVisible();
+    expect(rail()).toBeVisible();
+    error.mockRestore();
   });
 });

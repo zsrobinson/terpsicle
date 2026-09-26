@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { TermId } from "~/core/schema";
-import { NO_FILTERS, type SearchFilters, sameFilters } from "~/core/search";
+import { NO_FILTERS, type SearchFilters } from "~/core/search/filters";
+import { sameFilters } from "~/core/search/url";
 import { useUi } from "~/state/ui-store";
 
 // What the person typed and picked in Search, per term, for this visit.

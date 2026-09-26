@@ -117,9 +117,14 @@ export function PrivacyPage() {
           <p>
             Terpsicle uses PostHog to count which parts of the app people use.
             It's anonymous: it isn't linked to your name or account, it sets no
-            cookies, and PostHog never receives your IP address. It records
-            actions like opening a tab or adding a course, never what you type,
-            and never what you write in reviews or chats.
+            cookies, and PostHog never receives your IP address. It sees actions
+            like opening a tab or adding a course, never what you type, and
+            never what you write in reviews or chats. A share link's plan never
+            reaches it: PostHog only learns that a shared plan was opened.
+          </p>
+          <p>
+            Terpsicle doesn't record sessions. Nobody can play back what you did
+            on a page.
           </p>
         </Section>
 

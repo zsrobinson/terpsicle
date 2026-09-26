@@ -11,10 +11,10 @@ import {
   ScheduleSearchSchema,
 } from "~/core/schema";
 import { filterParams, filtersFromParams, sameFilters } from "~/core/search";
-import { useGenerateRun } from "~/features/generate/run-store";
 import { useSearchStore } from "~/features/search/search-store";
 import { useCatalog } from "~/state/catalog-store";
 import type { DrillEntry } from "~/state/drill";
+import { useGenerateRun } from "~/state/generate-run-store";
 import { activePlanId } from "~/state/plan-ops";
 import { type UrlTarget, useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
