@@ -348,9 +348,12 @@ export const SCENARIOS: Scenario[] = [
         await snapTo(lab, "full");
         await lab.tap(SEARCH_BOX);
         await lab.wait(SETTLE);
+        await lab.device.evaluate(
+          "document.querySelector('#search-results')?.scrollTo(0, 0) ?? true",
+        );
         await lab.swipe(
           await lab.pointIn(RESULTS, 0.5, 0.8),
-          { dy: -120 * (i + 1) },
+          { dy: -160 },
           400,
           "scroll",
         );
