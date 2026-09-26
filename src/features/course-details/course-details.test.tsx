@@ -211,7 +211,7 @@ describe("Course details", () => {
     it("switches to a section from the list", async () => {
       const { user } = await renderDetails();
       await user.click(
-        within(row("0401")).getByRole("button", { name: "Switch" }),
+        within(row("0401")).getByRole("button", { name: "Switch to 0401" }),
       );
       expect(
         openPlanNow()?.courses.find((c) => c.courseCode === "CMSC351")

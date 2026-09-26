@@ -76,7 +76,7 @@ export function MiniWeek({
                 <div
                   key={`${i.key}-${i.source.meetingIndex}`}
                   className={cn(
-                    "absolute inset-x-px rounded-[1px]",
+                    "forced-fill absolute inset-x-px rounded-[1px]",
                     mark === "changed" && "ring-1 ring-fg",
                     mark === "conflict" && "ring-1 ring-warn",
                   )}

@@ -217,7 +217,7 @@ export function Bars({ bars }: { bars: readonly GradeBar[] }) {
                   <div
                     data-grade={segment.key}
                     className={cn(
-                      "w-full transition-opacity hover:opacity-80",
+                      "forced-fill w-full transition-opacity hover:opacity-80",
                       bar.letter === "W" || bar.letter === "Other"
                         ? "bg-fg/20"
                         : SHADE[segment.modifier],

@@ -11,6 +11,7 @@ import { openTab, redo, undo } from "./actions";
 import { track } from "./analytics";
 import { CalendarRegion } from "./calendar/calendar-region";
 import { CatalogError, useCatalogFailure } from "./catalog-error";
+import { useDocumentTitle } from "./document-title";
 import { MobileDrawer, PEEK_HEIGHT } from "./mobile-drawer";
 import { PlanTabs } from "./plan-tabs";
 import { Rail } from "./rail";
@@ -47,6 +48,7 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
   const sidebarOpen = useUi((s) => s.sidebarOpen);
 
   useShellShortcuts();
+  useDocumentTitle();
   useDefaultPlan(Boolean(sharedParam));
   useTermData();
   const shared = useSharedLink(sharedParam, onClearShared, mobile);

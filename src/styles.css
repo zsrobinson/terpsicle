@@ -373,6 +373,52 @@
   }
 }
 
+/*
+ * Forced colors (Windows High Contrast, WCAG 1.4.11): the system repaints
+ * text, backgrounds and borders and drops box-shadows. What we draw with a
+ * fill or a shadow gets a border, an outline or a system color instead, so
+ * selected states, meters and chart bars stay visible. Ghosts keep their
+ * dashed border, which forced colors leave alone.
+ */
+@media (forced-colors: active) {
+  /* Pressed, current and selected controls: rail tabs, plan tabs, chips,
+     day toggles, the current section row and a list's highlighted option. */
+  button[aria-pressed="true"],
+  [aria-current]:not([aria-current="false"]):is(button, li, a),
+  [role="option"][aria-selected="true"],
+  [data-state="current"],
+  [data-state="previewed"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  /* The calendar's current course, a previewed plan's changes, the open
+     connection's pill: a ring (a box-shadow) otherwise. */
+  [data-calendar-grid] [data-selected] {
+    border-width: 3px;
+  }
+  [data-verdict][data-selected] > span {
+    border-width: 2px;
+  }
+  /* Tooltips and floating layers are fills with no border. */
+  [data-slot="tooltip-content"],
+  [role="tooltip"],
+  [data-sonner-toast] {
+    border: 1px solid CanvasText;
+  }
+  /* Meters and bars say it in words too; the fill still shows here. */
+  .forced-fill {
+    forced-color-adjust: none;
+    /* Beats a course color set inline. */
+    /* biome-ignore lint/complexity/noImportantStyles: see above */
+    background-color: CanvasText !important;
+  }
+  .forced-track {
+    forced-color-adjust: none;
+    background-color: Canvas;
+    outline: 1px solid CanvasText;
+  }
+}
+
 /* Reduced motion must beat any component animation, hence !important. */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -62,7 +62,9 @@ export function FilterChips({
     onChange(next);
   };
   return (
-    <div className="scroll-thin flex items-center gap-1 overflow-x-auto">
+    // One line wherever it fits; at 320px (400% zoom) the chips wrap
+    // rather than hide off the edge (WCAG 1.4.10).
+    <div className="flex flex-wrap items-center gap-1">
       <MultiChip
         label="Gen-eds"
         tooltip="Only courses that count for these gen-eds"

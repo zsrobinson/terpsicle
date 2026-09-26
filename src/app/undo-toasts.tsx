@@ -1,5 +1,5 @@
 import { Redo2, Undo2 } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspace } from "~/state/workspace-store";
 import { WithTooltip } from "~/ui/tooltip";
@@ -12,13 +12,29 @@ import { modKey } from "./shortcuts";
 
 const TOAST_ID = "workspace-change";
 
+/**
+ * Long enough to read and reach Undo (WCAG 2.2.1), and held open while the
+ * pointer is over it (sonner does that) or focus is on its button (done
+ * here). ⌘Z still undoes after it's gone.
+ */
+export const UNDO_TOAST_MS = 10_000;
+
 export function UndoToasts() {
   const notice = useWorkspace((s) => s.notice);
+  // Held for one notice: a toast that closes with focus on it fires no blur.
+  const [heldFor, setHeldFor] = useState<typeof notice>(null);
+  const held = heldFor !== null && heldFor === notice;
   useEffect(() => {
     if (!notice?.toast) return;
+    const hold = {
+      onFocus: () => setHeldFor(notice),
+      onBlur: () => setHeldFor(null),
+    };
+    const duration = held ? Number.POSITIVE_INFINITY : UNDO_TOAST_MS;
     if (notice.kind === "undo") {
       toast("Undone", {
         id: TOAST_ID,
+        duration,
         description: notice.label,
         action: (
           <ToastAction
@@ -28,12 +44,14 @@ export function UndoToasts() {
             onClick={() => {
               redo();
             }}
+            {...hold}
           />
         ),
       });
     } else {
       toast(notice.label, {
         id: TOAST_ID,
+        duration,
         description: undefined,
         action: (
           <ToastAction
@@ -43,11 +61,12 @@ export function UndoToasts() {
             onClick={() => {
               undo("toast");
             }}
+            {...hold}
           />
         ),
       });
     }
-  }, [notice]);
+  }, [notice, held]);
   return null;
 }
 
@@ -56,17 +75,23 @@ function ToastAction({
   shortcut,
   icon,
   onClick,
+  onFocus,
+  onBlur,
 }: {
   label: string;
   shortcut: string;
   icon: ReactNode;
   onClick: () => void;
+  onFocus: () => void;
+  onBlur: () => void;
 }) {
   return (
     <WithTooltip label={label} shortcut={shortcut}>
       <button
         type="button"
         onClick={onClick}
+        onFocus={onFocus}
+        onBlur={onBlur}
         className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-hairline bg-raised px-2.5 font-medium text-base text-fg transition-colors hover:bg-hover"
       >
         {icon}

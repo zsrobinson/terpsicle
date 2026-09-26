@@ -391,7 +391,11 @@ function SectionList({
         <SeatsFreshness termId={props.termId} />
       </div>
       {many && placed ? (
-        <div className="border-hairline border-y" data-testid="your-section">
+        <ul
+          aria-label="Your section"
+          className="border-hairline border-y"
+          data-testid="your-section"
+        >
           <SectionRow
             {...props}
             section={placed}
@@ -401,7 +405,7 @@ function SectionList({
             whereOnly={false}
             pinned
           />
-        </div>
+        </ul>
       ) : null}
       {byTime && tba ? <GroupNote {...props} name={tba.name} /> : null}
       {shown.length === 0 ? (
@@ -559,34 +563,42 @@ function GroupRows({
   compact,
   ...props
 }: SectionsProps & { group: GroupView; compact: boolean }) {
+  // Lists, so a screen reader says how many sections a group has and can
+  // skip past it.
   if (group.whereOnly)
-    return group.sections.map((s) => (
-      <SectionRow
-        key={s.code}
-        {...props}
-        section={s}
-        rest={s.meetings}
-        underShared={false}
-        compact={compact}
-        whereOnly
-      />
-    ));
+    return (
+      <ul>
+        {group.sections.map((s) => (
+          <SectionRow
+            key={s.code}
+            {...props}
+            section={s}
+            rest={s.meetings}
+            underShared={false}
+            compact={compact}
+            whereOnly
+          />
+        ))}
+      </ul>
+    );
   return factorMeetings(group.sections).map((run) => {
     const shared = run.sections.length > 1 && run.shared.length > 0;
     return (
       <div key={run.sections[0]?.section.code}>
         {shared ? <SharedLine meetings={run.shared} /> : null}
-        {run.sections.map(({ section, rest }) => (
-          <SectionRow
-            key={section.code}
-            {...props}
-            section={section}
-            rest={shared ? rest : section.meetings}
-            underShared={shared}
-            compact={compact}
-            whereOnly={false}
-          />
-        ))}
+        <ul>
+          {run.sections.map(({ section, rest }) => (
+            <SectionRow
+              key={section.code}
+              {...props}
+              section={section}
+              rest={shared ? rest : section.meetings}
+              underShared={shared}
+              compact={compact}
+              whereOnly={false}
+            />
+          ))}
+        </ul>
       </div>
     );
   });
@@ -691,9 +703,16 @@ const SectionRow = memo(function SectionRow({
   ) : readOnly ? null : (
     <WithTooltip
       label={
-        placedCode
-          ? `Replace ${placedCode} with ${section.code}`
-          : `Add ${course.code} ${section.code}`
+        // The row's whole text, too: its truncated times and room are
+        // otherwise only on hover, out of a keyboard's reach.
+        <span className="flex flex-col">
+          <span>
+            {placedCode
+              ? `Replace ${placedCode} with ${section.code}`
+              : `Add ${course.code} ${section.code}`}
+          </span>
+          <span className="opacity-70">{full}</span>
+        </span>
       }
       shortcut={previewed ? "↵" : undefined}
     >
@@ -701,6 +720,10 @@ const SectionRow = memo(function SectionRow({
         variant="outline"
         size="row"
         className="w-14 px-0"
+        // "Switch" alone, 92 times over, says nothing in a list of buttons.
+        aria-label={
+          inPlan ? `Switch to ${section.code}` : `Add ${section.code}`
+        }
         onClick={() => switchSection(course.code, section.code, "list")}
       >
         {inPlan ? "Switch" : "Add"}
@@ -720,6 +743,7 @@ const SectionRow = memo(function SectionRow({
   return (
     <ListRow
       ref={ref}
+      as="li"
       {...(pinned
         ? { "data-pinned-section": section.code }
         : { "data-section": section.code })}

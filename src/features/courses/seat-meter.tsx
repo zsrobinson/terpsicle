@@ -54,10 +54,13 @@ export function SeatMeter({
       {meter && status.filled !== null ? (
         <span
           aria-hidden="true"
-          className="h-1.5 w-12 overflow-hidden rounded-full bg-hover"
+          className="forced-track h-1.5 w-12 overflow-hidden rounded-full bg-hover"
         >
           <span
-            className={cn("block h-full rounded-full", BAR[status.level])}
+            className={cn(
+              "forced-fill block h-full rounded-full",
+              BAR[status.level],
+            )}
             style={{ width: `${Math.round(status.filled * 100)}%` }}
           />
         </span>

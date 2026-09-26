@@ -9,6 +9,9 @@ function Toaster(props: ToasterProps) {
     <Sonner
       theme="system"
       position="bottom-center"
+      // Twice sonner's default, so a message can be read to the end (WCAG
+      // 2.2.1); hovering holds it. Undo toasts set their own (undo-toasts.tsx).
+      duration={8000}
       toastOptions={{
         classNames: {
           toast:
