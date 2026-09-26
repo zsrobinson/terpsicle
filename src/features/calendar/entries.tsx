@@ -201,6 +201,9 @@ export function BusyBlock({
         type="button"
         onClick={() => openTab("blocks", "click")}
         aria-label={blockLabel(entry)}
+        // The label is the person's own words: autocapture skips it
+        // (docs/ANALYTICS.md "Privacy").
+        data-private=""
         {...nav}
         className={cn(
           "stripes absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border bg-panel px-1.5 py-1 text-left transition-colors duration-150",

@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { initAnalytics } from "~/app/analytics";
 import { SettingsPage } from "~/features/auth/settings-account";
 
 // Account settings (V2.md §1.1): your Google name and picture, the email and
@@ -11,5 +13,14 @@ export const Route = createFileRoute("/settings")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: SettingsPage,
+  component: SettingsRoute,
 });
+
+function SettingsRoute() {
+  // Counted like the products' pages; autocapture stays off here
+  // (~/core/analytics).
+  useEffect(() => {
+    void initAnalytics();
+  }, []);
+  return <SettingsPage />;
+}

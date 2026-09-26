@@ -4,8 +4,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
 ## What's tracked
 
-- **Pageviews**, including in-app navigation (`capture_pageview: "history_change"`), with the real path (`/schedule`, …). PostHog loads with the scheduler at `/schedule` (`app_loaded` there too); the marketing page at `/`, `/privacy` and the coming-soon pages don't load it, so they stay light and aren't counted until they do.
-- **Autocapture**: clicks and form submissions on interactive elements, with element text. Input values are never captured.
+- **Pageviews**, including in-app navigation (`capture_pageview: "history_change"`), with a scrubbed URL (see "Privacy"). PostHog loads with the scheduler at `/schedule` (`app_loaded` there too) and with `/settings`; the marketing page at `/`, `/privacy` and the coming-soon pages don't load it, so they stay light and aren't counted until they do.
+- **Autocapture**: clicks and form submissions on interactive elements, with element text. Input values and copied text are never captured, clicks on or inside `data-private` elements are skipped, text or attributes that contain a `data-private` element's text are removed (a button whose label quotes a block's name), and it's off on `/chat`, `/settings`, `/admin`, `/reviews/mine`, `/plan`, `/todo`, `/signin` and `/auth` (`NO_AUTOCAPTURE_ROUTES` in `src/core/analytics/routes.ts`), where named events still count.
 - **Named events** from `track()` in `src/app/analytics.ts`. Every event and its properties is declared in the `AnalyticsEvents` interface there:
 
   | Event | Properties | Why |
@@ -61,7 +61,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
-- **Session recordings**, when enabled in the PostHog project. They're recorded with every input masked (`maskAllInputs`) and the text of any element marked `data-private` masked.
+- **No session recordings.** The owner decided against them (2026-09-26): `posthog.init` sets `disable_session_recording: true` whatever the PostHog project says, nothing calls `startSessionRecording()` (a test in `src/app/analytics.test.ts` checks every source file), and `before_send` drops any recording data (`$snapshot`) anyway. Keep replay off in the PostHog project too.
 - **Server events** from cron jobs and the `/api` endpoints, via `captureServerEvent()` in `src/server/analytics.ts` (declared in `ServerEvents`). They use one fixed id (`terpsicle-worker`) and never describe a person:
 
   | Event | Properties | Why |
@@ -85,13 +85,15 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 - **Anonymous only.** We never call `identify()`, so no person profiles exist (`person_profiles: "identified_only"`). v2 adds accounts, and this doesn't change: signing in never identifies anyone to PostHog, and events never carry a user id, name, email, directory ID or user-written text (`docs/V2.md` §11).
 - **No analytics cookies.** PostHog state lives in `localStorage`, and the `/ingest` proxy strips cookies in both directions (so the v2 session cookie never reaches PostHog).
 - **No IP addresses.** The proxy drops the visitor's IP headers, so PostHog only sees Cloudflare's.
-- **Inputs are masked** in recordings, and anything marked `data-private` is too. Use it for anything a person types or that identifies them.
+- **Mark private text `data-private`**: names, emails, pictures, and anything a person wrote or named themselves (a block's label). Autocapture skips clicks on or inside it, and removes its text from any click event that quotes it. PostHog's own input masking already keeps typed values out.
+- **URLs are scrubbed** before any event leaves the browser (`scrubEvent` in `src/core/analytics/scrub.ts`, PostHog's `before_send`). Every URL and path property (`$current_url`, `$pathname`, `$referrer`, the session-entry and initial ones, `$prev_pageview_pathname`, link hrefs in autocapture) keeps its path and only the search params `tab`, `view`, `term`, `semester`, `step`, `from` and `error`, with short plain values; hashes are dropped. A share link's `?plan=…` (a whole plan, block labels included, DATA.md §8) becomes `?plan=shared`. Chat paths become their route pattern (`/chat/:term/:course/:room`), and their page title is dropped, so Chat events never name a course or section.
+- **No long text in our events.** `before_send` drops any of our own events with a property over 200 characters: a backstop in case typed or pasted text ever gets into one.
 - **Seat-alert emails never reach analytics.** They're stored in D1 for sending alerts and nothing else: never pass one to `track()`, an event property, or a `data-*` attribute autocapture could read, and mark the email field `data-private`.
 - **Only production reports.** Analytics are off unless the page is on `terpsicle.com` with live data, so local dev, `pnpm dev:mock`, tests, e2e and PR previews send nothing. Server events need `POSTHOG_TOKEN`, which only the production Worker has.
 
 ## How it's wired
 
-- **Client:** `src/app/analytics.ts`. `initAnalytics()` lazy-loads `posthog-js` (its own chunk, so disabled environments never download it), with `api_host: "/ingest"` and `ui_host: "https://us.posthog.com"`. `track(event, props)` is typed against `AnalyticsEvents` and queues events until PostHog loads.
+- **Client:** `src/app/analytics.ts`. `initAnalytics()` lazy-loads `posthog-js` (its own chunk, so disabled environments never download it) with `posthogOptions()` (`api_host: "/ingest"`, `ui_host: "https://us.posthog.com"`, and the privacy settings above). `track(event, props)` is typed against `AnalyticsEvents` and queues events until PostHog loads.
 - **Proxy:** `src/server/posthog-proxy.ts`, routed from `src/server/worker.ts`. `/ingest/static/*` goes to `us-assets.i.posthog.com` and everything else under `/ingest/*` to `us.i.posthog.com`. The proxy is first-party, so ad blockers don't drop anonymous analytics.
 - **Token:** the public project token is in `env/.env` (`VITE_POSTHOG_TOKEN`) for the client and in `wrangler.jsonc` `vars.POSTHOG_TOKEN` for the Worker.
 
