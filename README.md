@@ -8,6 +8,9 @@ A fast, clear class scheduler for University of Maryland students. Live at [terp
 - What we're building: [`docs/SPEC.md`](docs/SPEC.md)
 - How we're building it: [`docs/BUILD.md`](docs/BUILD.md), with progress in [`docs/STATUS.md`](docs/STATUS.md)
 - Conventions for contributors and agents: [`CLAUDE.md`](CLAUDE.md)
+- The words we use: [`CONTEXT.md`](CONTEXT.md), the glossary
+- What's been decided and when to revisit it: [`docs/decisions.md`](docs/decisions.md)
+- Agent skills and the reviewer agent: [`.claude/skills/`](.claude/skills) and [`.claude/agents/`](.claude/agents)
 - Analytics and privacy: [`docs/ANALYTICS.md`](docs/ANALYTICS.md)
 - Research and history: [`docs/PLAN.md`](docs/PLAN.md). The UI prototypes behind the spec are in the Bitcamp repo on branch [`claude/loving-volta-dzve8b`](https://github.com/zsrobinson/terpsicle-bitcamp/tree/claude/loving-volta-dzve8b/prototypes/app-shell).
 

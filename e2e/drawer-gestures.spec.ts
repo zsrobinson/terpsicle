@@ -5,30 +5,86 @@ import { expect, type Page, test } from "@playwright/test";
 // (the owner: "dragging down in the slider tries to reload the page").
 // Headless Chromium has no pull-to-refresh, so these check its causes: the
 // page's overscroll settings, and that the drawer, not the browser, takes a
-// pull on a list that's already at its top. Nothing may navigate meanwhile.
+// pull on a list that's already at its top. Nothing may reload or move
+// through history meanwhile.
 
 test.skip(({ isMobile }) => !isMobile, "phone layout");
 
 let errors: string[] = [];
 let navigations: string[] = [];
 
+/** What the page notes about its own history (`watchHistory`). */
+interface HistoryWatch {
+  /** Set once the page has loaded; a reload starts a document without it. */
+  __sameDocument?: true;
+  /** Every URL the app wrote with `pushState`/`replaceState`. */
+  __appUrls?: string[];
+  __popstates?: number;
+}
+
+/**
+ * The app writes its own URL as people move around (`?tab=search`,
+ * `&q=cmsc`: src/app/README.md, "URL state"), and those show up as
+ * navigations too. So rather than "no navigation at all", the page records
+ * the URLs it wrote itself and every `popstate`, before any of its code runs.
+ */
+function watchHistory() {
+  const w = window as unknown as HistoryWatch;
+  w.__appUrls = [];
+  w.__popstates = 0;
+  for (const name of ["pushState", "replaceState"] as const) {
+    const original = history[name].bind(history);
+    history[name] = (
+      state: unknown,
+      unused: string,
+      url?: string | URL | null,
+    ) => {
+      if (url != null) w.__appUrls?.push(new URL(url, location.href).href);
+      original(state, unused, url);
+    };
+  }
+  addEventListener("popstate", () => {
+    w.__popstates = (w.__popstates ?? 0) + 1;
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  await page.addInitScript(watchHistory);
   await page.goto("/schedule");
   await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
   // A first visit opens the drawer to half, on the first-visit guide.
   await expect(drawer(page)).toHaveAttribute("data-snap", "half");
+  await page.evaluate(() => {
+    (window as unknown as HistoryWatch).__sameDocument = true;
+  });
   navigations = [];
   page.on("framenavigated", (frame) => {
     if (frame === page.mainFrame()) navigations.push(frame.url());
   });
 });
 
-test.afterEach(() => {
+test.afterEach(async ({ page }, testInfo) => {
   expect(errors).toEqual([]);
-  // No reload and no history swipe, whatever the gesture.
-  expect(navigations).toEqual([]);
+  // A skipped test (desktop) never opened the page.
+  if (testInfo.expectedStatus === "skipped") return;
+  // No reload and no history swipe, whatever the gesture:
+  // - a reload is a new document, which hasn't been marked;
+  // - a swipe back or forward fires popstate (within the app) or loads
+  //   another document (out of it);
+  // - and every navigation is a URL the app wrote itself, never another.
+  const seen = await page.evaluate(() => {
+    const w = window as unknown as HistoryWatch;
+    return {
+      sameDocument: w.__sameDocument === true,
+      popstates: w.__popstates ?? 0,
+      appUrls: w.__appUrls ?? [],
+    };
+  });
+  expect(seen.sameDocument, "the page reloaded").toBe(true);
+  expect(seen.popstates, "history moved back or forward").toBe(0);
+  expect(navigations.filter((url) => !seen.appUrls.includes(url))).toEqual([]);
 });
 
 const drawer = (page: Page) => page.locator("[data-vaul-drawer]");

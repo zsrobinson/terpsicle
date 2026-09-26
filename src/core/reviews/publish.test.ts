@@ -51,7 +51,7 @@ describe("combineRatings", () => {
     ]);
     expect(combined.rating).toBeNull();
     expect(combined.reviewCount).toBe(0);
-    expect(combinedRatingWords(combined)).toBeNull();
+    expect(combinedRatingWords(combined)).toBe("No reviews yet");
   });
 });
 

@@ -11,6 +11,7 @@ import {
 import { combinedRatingWords, combineRatings } from "~/core/reviews";
 import {
   type Course,
+  type CourseCode,
   type Instructor,
   type PlanetTerpDept,
   planetTerpUrl,
@@ -230,13 +231,14 @@ export function InstructorReviews({
             </div>
           ) : null}
           <div className="mt-2 text-xs text-faint">
-            {summarySourceWords(review.summary)} · <ReadThem slug={pt.slug} />
+            {summarySourceWords(review.summary)} ·{" "}
+            <ReadThem slug={pt.slug} course={course.code} />
           </div>
         </div>
       ) : pt.reviewCount > 0 ? (
         <div className="mt-1 text-xs text-faint">
           {pt.reviewCount} review{pt.reviewCount === 1 ? "" : "s"} on PlanetTerp
-          · <ReadThem slug={pt.slug} />
+          · <ReadThem slug={pt.slug} course={course.code} />
         </div>
       ) : null}
       {freshness && !loading ? (
@@ -263,7 +265,24 @@ export function summarySourceWords(summary: ReviewSummary): string {
   return `Summary of ${n} reviews: ${planetterp} on PlanetTerp, ${terpsicle} on Terpsicle`;
 }
 
-function ReadThem({ slug }: { slug: string }) {
+/**
+ * Where full reviews live: Terpsicle Reviews once it's open here (V2 §7.1),
+ * else PlanetTerp. A plain link, like the product menu's: none of Reviews'
+ * code loads with the scheduler.
+ */
+function ReadThem({ slug, course }: { slug: string; course: CourseCode }) {
+  const reviews = useAccount((s) => s.flags.reviews);
+  if (reviews !== "off")
+    return (
+      <WithTooltip label="All reviews and grades for this instructor">
+        <a
+          href={`/reviews/instructors/${encodeURIComponent(slug)}?course=${course}`}
+          className="underline underline-offset-2 hover:text-fg"
+        >
+          Read reviews
+        </a>
+      </WithTooltip>
+    );
   return (
     <WithTooltip label="Open on PlanetTerp">
       <a

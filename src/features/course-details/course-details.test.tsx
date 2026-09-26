@@ -539,6 +539,27 @@ describe("Course details", () => {
       );
     });
 
+    it("link to Terpsicle Reviews once it's open here", async () => {
+      useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "read" } });
+      try {
+        await renderDetails("CMSC351", "instructors");
+        const jada = await findReviews("Jada Abernathy");
+        await waitFor(() =>
+          expect(
+            within(jada).getByRole("link", { name: "Read reviews" }),
+          ).toHaveAttribute(
+            "href",
+            "/reviews/instructors/abernathy_jada?course=CMSC351",
+          ),
+        );
+        expect(
+          within(jada).queryByRole("link", { name: "read them" }),
+        ).toBeNull();
+      } finally {
+        useAccount.setState({ flags: FLAGS_OFF });
+      }
+    });
+
     it("fall back to the review count when there's no summary", async () => {
       await renderDetails("CMSC351", "instructors");
       // A deep link to "instructors" opens the first instructor's reviews.

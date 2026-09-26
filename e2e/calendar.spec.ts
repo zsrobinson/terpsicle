@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { OPEN_VIEW } from "./sidebar";
 
 // The calendar on `pnpm dev:mock?demo=1` (the fixtures' demo plans): ghosts
 // and switching, drag to block, course colors with undo, travel pills.
@@ -33,9 +34,7 @@ test("open a course, see every section, and switch with a ghost", async ({
   await expect(
     page.getByText("Showing every section of CMSC351. Click one to switch."),
   ).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "Breadcrumb" }),
-  ).toContainText("CMSC351");
+  await expect(page.locator(OPEN_VIEW)).toContainText("CMSC351");
   const ghost = calendar(page)
     .getByRole("button", { name: /^Switch to 0201/ })
     .first();
@@ -116,9 +115,7 @@ test("a travel pill marks the demo's tight connection", async ({ page }) => {
     "Tight: 8 min to get there, 10 min between classes.",
   );
   await pill.click();
-  await expect(
-    page.getByRole("navigation", { name: "Breadcrumb" }),
-  ).toContainText("Connection");
+  await expect(page.locator(OPEN_VIEW)).toContainText("Connection");
 });
 
 test("travel pills step aside while a course's sections show", async ({
