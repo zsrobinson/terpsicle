@@ -474,6 +474,7 @@ export function TravelPill({
   travel,
   selected,
   onOpen,
+  onIntent,
   nav,
 }: {
   pill: Pill;
@@ -483,6 +484,8 @@ export function TravelPill({
   travel: TravelSettings;
   selected: boolean;
   onOpen: (connection: Connection) => void;
+  /** Hovered or focused: connection details are likely next. */
+  onIntent?: () => void;
   nav?: NavProps;
 }) {
   // Color is never the only sign (WCAG 1.4.1): a tight or impossible
@@ -510,6 +513,8 @@ export function TravelPill({
       <button
         type="button"
         onClick={() => onOpen(c)}
+        onPointerEnter={onIntent}
+        onFocus={onIntent}
         data-verdict={c.verdict}
         data-selected={selected ? "" : undefined}
         aria-label={pillLabel(c)}

@@ -7,7 +7,7 @@ import {
   CREDIT_OPTIONS,
   LEVEL_OPTIONS,
   type SearchFilters,
-} from "~/core/search";
+} from "~/core/search/filters";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
