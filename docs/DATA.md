@@ -314,6 +314,11 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | `alerts/lookup` | `ManageInputSchema` `{token}` | `LookupResultSchema` | 60 |
 | `alerts/unsubscribe` | `ManageInputSchema` `{token}` | `UnsubscribeResultSchema` | 60 |
 | `alerts/status` | `StatusInputSchema` `{items: [{subscriptionId, manageToken}]}` (≤ 50) | `StatusResultSchema` | 120 |
+| `admin/moderation/queue` | `QueueListInputSchema` `{status?, limit?}` | `QueueListResultSchema` | 600, admin only |
+| `admin/moderation/resolve` | `ResolveInputSchema` `{id, action, reason, note?}` | `ResolveResultSchema` | 600, admin only |
+| `admin/moderation/undo` | `UndoInputSchema` `{id}` | `ResolveResultSchema` | 600, admin only |
+
+Admin routes answer `404 not-found` to anyone but the admin. Moderation (`moderate()`, the `moderation_decisions` and `moderation_queue` tables, the admin API) is described in `docs/MODERATION.md`.
 
 ### 7.1 Seat alerts (`SPEC.md` §3.12)
 

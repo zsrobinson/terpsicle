@@ -7,11 +7,14 @@ import type { z } from "zod";
 import {
   ConfirmInputSchema,
   ManageInputSchema,
+  QueueListInputSchema,
+  ResolveInputSchema,
   ReviewSummaryInputSchema,
   StatusInputSchema,
   type StatusResult,
   SubscribeInputSchema,
   type SubscribeResult,
+  UndoInputSchema,
 } from "~/core/schema";
 import {
   type AlertsContext,
@@ -26,12 +29,32 @@ import {
 import { APEX_HOST } from "../apex";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
+import {
+  type AdminGuard,
+  denyAllAdmins,
+  listQueue,
+  type ModerationHandlers,
+  resolveQueueItem,
+  undoQueueItem,
+} from "../moderation/admin";
+import type { ModerationEnv } from "../moderation/service";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
 import { apiError, clientIp, json, readInput } from "./http";
 
 export const API_PREFIX = "/api/";
 
-export type ApiEnv = AlertsEnv & SummaryEnv;
+export type ApiEnv = AlertsEnv & SummaryEnv & ModerationEnv;
+
+export interface RouteContext extends AlertsContext {
+  moderationHandlers: ModerationHandlers;
+}
+
+export interface ApiOptions {
+  /** Who may call admin routes. Identity's requireAdmin replaces the stub. */
+  requireAdmin?: AdminGuard;
+  /** How the owner's moderation decisions reach Reviews and Chat. */
+  moderationHandlers?: ModerationHandlers;
+}
 
 interface Route<S extends z.ZodType> {
   input: S;
@@ -45,10 +68,12 @@ interface Route<S extends z.ZodType> {
    * shouldn't cost a D1 write per page view.
    */
   whenOff?: unknown;
+  /** Only the admin may call it; everyone else gets "not-found". */
+  admin?: boolean;
   handle: (
     env: ApiEnv,
     input: z.infer<S>,
-    ctx: AlertsContext,
+    ctx: RouteContext,
   ) => Promise<unknown>;
 }
 
@@ -94,6 +119,35 @@ const ROUTES = {
     whenOff: { status: "unavailable" } satisfies StatusResult,
     handle: (env, input) => status(env, input),
   }),
+  "admin/moderation/queue": route({
+    input: QueueListInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    admin: true,
+    handle: (env, input) => listQueue(env.DB, input),
+  }),
+  "admin/moderation/resolve": route({
+    input: ResolveInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    admin: true,
+    handle: (env, input, ctx) =>
+      resolveQueueItem(env.DB, input, {
+        now: ctx.now,
+        handlers: ctx.moderationHandlers,
+      }),
+  }),
+  "admin/moderation/undo": route({
+    input: UndoInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    admin: true,
+    handle: (env, input, ctx) =>
+      undoQueueItem(env.DB, input, {
+        now: ctx.now,
+        handlers: ctx.moderationHandlers,
+      }),
+  }),
 } as const;
 
 /**
@@ -115,6 +169,7 @@ export async function handleApi(
   env: ApiEnv,
   ctx: Pick<ExecutionContext, "waitUntil">,
   now: Date = new Date(),
+  options: ApiOptions = {},
 ): Promise<Response> {
   const url = new URL(request.url);
   const name = url.pathname.slice(API_PREFIX.length);
@@ -140,12 +195,18 @@ export async function handleApi(
       : apiError("rate-limited", retryAfterSeconds);
   }
 
+  // After the rate limit, so guessing at admin routes costs the same as any
+  // other call; "not-found" so they don't advertise themselves.
+  if (r.admin && !(await (options.requireAdmin ?? denyAllAdmins)(request, env)))
+    return apiError("not-found");
+
   const input = await readInput(request, r.input);
   if (input === null) return apiError("invalid-input");
   const result = await r.handle(env, input, {
     now,
     origin: linkOrigin(url),
     waitUntil: (p) => ctx.waitUntil(p),
+    moderationHandlers: options.moderationHandlers ?? {},
   });
   return json(result);
 }
