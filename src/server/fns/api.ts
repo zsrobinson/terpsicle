@@ -14,8 +14,19 @@ import {
   ManageInputSchema,
   MeInputSchema,
   MeResultSchema,
+  ReportCreateInputSchema,
+  ReportCreateResultSchema,
+  ReviewDeleteInputSchema,
+  ReviewDeleteResultSchema,
+  ReviewEditInputSchema,
+  ReviewListInputSchema,
+  ReviewListResultSchema,
+  ReviewSubmitInputSchema,
   ReviewSummaryInputSchema,
   ReviewSummaryResultSchema,
+  ReviewsMineInputSchema,
+  ReviewsMineResultSchema,
+  ReviewWriteResultSchema,
   SignOutInputSchema,
   SignOutResultSchema,
   StatusInputSchema,
@@ -213,6 +224,78 @@ export const api = {
         "sync/pull",
         SyncPullInputSchema,
         SyncPullResultSchema,
+        input,
+        options,
+      ),
+  },
+  /** Terpsicle Reviews (docs/V2.md §7.4). Reading needs no sign-in. */
+  reviews: {
+    /** A page of an instructor's published reviews, newest first. */
+    list: (
+      input: z.input<typeof ReviewListInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "reviews/list",
+        ReviewListInputSchema,
+        ReviewListResultSchema,
+        input,
+        options,
+      ),
+    /** Checked as it's sent (a few seconds): show "Checking…". */
+    submit: (
+      input: z.input<typeof ReviewSubmitInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "reviews/submit",
+        ReviewSubmitInputSchema,
+        ReviewWriteResultSchema,
+        input,
+        options,
+      ),
+    edit: (
+      input: z.input<typeof ReviewEditInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "reviews/edit",
+        ReviewEditInputSchema,
+        ReviewWriteResultSchema,
+        input,
+        options,
+      ),
+    /** Call after the Undo toast is gone: a delete is final. */
+    delete: (
+      input: z.input<typeof ReviewDeleteInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "reviews/delete",
+        ReviewDeleteInputSchema,
+        ReviewDeleteResultSchema,
+        input,
+        options,
+      ),
+    mine: (options?: ApiOptions) =>
+      call(
+        "reviews/mine",
+        ReviewsMineInputSchema,
+        ReviewsMineResultSchema,
+        {},
+        options,
+      ),
+  },
+  reports: {
+    /** One report per person per item (V2 §9.3). */
+    create: (
+      input: z.input<typeof ReportCreateInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "reports/create",
+        ReportCreateInputSchema,
+        ReportCreateResultSchema,
         input,
         options,
       ),

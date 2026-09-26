@@ -361,6 +361,12 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | `admin/moderation/queue` (`auth: "admin"`) | `QueueListInputSchema` `{status?, limit?}` | `QueueListResultSchema` | 600 |
 | `admin/moderation/resolve` (`auth: "admin"`) | `ResolveInputSchema` `{id, action, reason}` | `ResolveResultSchema` | 600 |
 | `admin/moderation/undo` (`auth: "admin"`) | `UndoInputSchema` `{id}` | `ResolveResultSchema` | 600 |
+| `reviews/list` (`REVIEWS_ENABLED` ≥ `read`) | `ReviewListInputSchema` `{instructorId, course, cursor, limit?}` | `ReviewListResultSchema` `{reviews: PublicReview[], next}` | 1,200 |
+| `reviews/submit` (`auth: "user"`, `on`) | `ReviewSubmitInputSchema` `{instructorId, reviewedName, dept, course, termId, rating, grade, body}` | `ReviewWriteResultSchema` | none; 20 per user |
+| `reviews/edit` (`auth: "user"`, `on`) | `ReviewEditInputSchema` `{reviewId, termId, rating, grade, body}` | `ReviewWriteResultSchema` | none; 30 per user |
+| `reviews/delete` (`auth: "user"`, `read`) | `ReviewDeleteInputSchema` `{reviewId}` | `ReviewDeleteResultSchema` | none; 60 per user |
+| `reviews/mine` (`auth: "user"`, `read`) | `ReviewsMineInputSchema` `{}` | `ReviewsMineResultSchema` `{reviews: MyReview[]}` | none; 300 per user |
+| `reports/create` (`auth: "user"`, `read`) | `ReportCreateInputSchema` `{surface, ref, reason, note}` | `ReportCreateResultSchema`: `reported` · `not-found` · `own` | none; 30 per user |
 
 **Identity** (§7.6, `docs/AUTH.md`) adds the `auth` field to the route table: `"user"` and `"admin"` routes need a same-origin request (`Origin`, and `Sec-Fetch-Site` when sent) and a session, answer `401 unauthorized` or `403 forbidden` otherwise, and get the session's user in `ctx.session`. `ApiErrorSchema` gains `unauthorized` and `forbidden`. Two GET navigations sit beside the table, `/api/auth/google` and `/api/auth/google/callback`, and one Worker route outside `/api`, `/avatars/*`.
 
@@ -531,7 +537,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0005_sync` (landed, §7.7) | `sync_docs` (`user_id`, `kind`, `doc_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `pruned_through`) | Plan sync: one JSON row per doc, per-doc rev compare-and-swap (V2.md §5.2) |
 | `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
 | `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
-| `0008_reviews` | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
+| `0008_reviews` (landed, §7.8) | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
 | `0009_chat` | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
 | `0010_four_year_sync` (v3) | rebuilds `sync_docs` so `kind` also allows `four-year` | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
@@ -565,7 +571,25 @@ The design is `docs/V2.md` §5; the routes are `src/server/sync/api.ts`, the SQL
 - **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live plan stays within 200. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
 - **Deleting an account** removes both tables' rows: explicitly in the purge, and by `ON DELETE CASCADE`.
 
-### 7.8 Terpsicle Todo (landed: `migrations/0011_todo.sql`)
+### 7.8 Reviews (landed: `migrations/0008_reviews.sql`)
+
+The design is `docs/V2.md` §7. Routes: `src/server/reviews/api.ts` (and `reports/create` in `src/server/moderation/reports.ts`); SQL: `src/server/reviews/store.ts`, the only file that reads `reviews.author_id`; schemas: `src/core/schema/reviews.ts`; pure rules (stage 0, limits, bursts, text key, minted ids, words): `src/core/reviews`.
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `instructors` | `id`: the PlanetTerp slug, or a minted `t~` + 10 base32 (`MintedInstructorIdSchema`) | `name` (the Testudo name it was first reviewed under), `planetterp_slug`, `created_at` | `InstructorSlugSchema` accepts both kinds, so summaries and links key on either. |
+| `instructor_names` | `(name_key, dept)` | `instructor_id`, `rule` (`planetterp` · `minted` · `manual`), `updated_at` | Filled at a review's submit. `manual` is the owner's fix and beats PlanetTerp's join. |
+| `reviews` | `id` (16 random bytes, base64url; also the moderation ref) | `author_id` (ON DELETE SET NULL), `instructor_id`, `reviewed_name`, `course`, `term_id`, `rating`, `grade`, `body`, `text_hash`, `status`, `reason`, `pending_edit`, `report_count`, `created_at`, `published_at`, `edited_at`, `updated_at` | One live (`published` · `held` · `hidden`) review per author, instructor and course. |
+
+- **Finding the instructor** (`resolveInstructor`): the given id if the registry or the department's PlanetTerp file knows it; else a `manual` name row; else the PlanetTerp `names` map (recorded as `planetterp`); else an earlier name row; else a minted id (recorded as `minted`).
+- **States.** A new review is `held` while `moderate()` runs (a few seconds), then `published`, `held` (for a person, or a retry) or `rejected`. Readers' reports can make a published review `hidden` (V2 §9.3). The author's delete makes it `deleted`: words cleared at once, the row and its reports removed 30 days later by the daily job, which also clears rejected words 30 days after the decision.
+- **Edits.** A held review's words are replaced and checked again. A published review stays up with its old words while its edit (`pending_edit`: `{termId, rating, grade, body, textHash, state: waiting · rejected, reason}`) is checked; the edit is applied when it passes (then `edited` shows), or turned down. A hidden review, or one with reports waiting for the owner, can't be edited (`under-review`) until the owner decides.
+- **Stage 0** runs before anything is stored: any rule that would hold or remove (a link, contact details, a slur, the length) comes back as `invalid` with its span; so do words already published for the instructor (`duplicate`, by `text_hash`, the SHA-256 of `reviewTextKey(body)`). Flags go on to the models.
+- **Limits:** `users.reviews_blocked_until` (`blocked`); 10 new reviews per author per 7 days, deleted ones included (`limit`, with the wait); a burst (the 24-hour count of new reviews for the instructor past both 5 and 3× its 30-day daily average) holds the review for the owner with reason `burst`.
+- **Later decisions** reach reviews through `MODERATION_HANDLERS.review` (`src/server/reviews/decisions.ts`): approve publishes (applying a waiting edit), remove rejects the review (or only a waiting edit of a published review, unless reports are waiting too), undo puts it back to waiting.
+- **Anonymity** (V2 §7.5): `PublicReview` is strict and has no author; dates are months (America/New_York); the list cursor is a review id, not a time. `reviews/mine` shows your own reviews without an author field. Moderation rows and snapshots never hold the author, and `src/server/reviews/anonymity.test.ts` checks every answer, both moderation tables and the models' input.
+
+### 7.9 Terpsicle Todo (landed: `migrations/0011_todo.sql`)
 
 The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the SQL `src/server/todo/store.ts` (with `TodoFeedRowSchema` and `TodoItemRowSchema`), the fetcher `fetch.ts`, the per-feed write `refresh.ts`, and the cron `src/jobs/todo-feeds.ts`. Inputs, answers and limits are `src/core/schema/todo-api.ts`; the pure pieces (cadence, backoff, the window, file items, test mode's feed) are in `src/core/todo`.
 

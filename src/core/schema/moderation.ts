@@ -23,6 +23,7 @@ export const ReasonSourceSchema = z.enum([
   "policy",
   "system",
   "admin",
+  "reports",
 ]);
 export type ReasonSource = z.infer<typeof ReasonSourceSchema>;
 
@@ -95,6 +96,10 @@ export const ReasonCodeSchema = z.enum([
   // system
   "model-unavailable",
   "daily-cap",
+  /** Reviews: more new reviews of one instructor in a day than usual (V2 §7.4). */
+  "burst",
+  // reports (V2 §9.3)
+  "reported",
   // admin
   "admin",
   "undo",
@@ -117,6 +122,20 @@ export const AdminReasonSchema = z.enum([
 ]);
 export type AdminReason = z.infer<typeof AdminReasonSchema>;
 
+/** Why a reader reported something (V2 §9.3). */
+export const ReportReasonSchema = z.enum([
+  "personal-info",
+  "names-a-student",
+  "hate",
+  "threat",
+  "sexual",
+  "misconduct-claim",
+  "graded-work",
+  "off-topic",
+  "other",
+]);
+export type ReportReason = z.infer<typeof ReportReasonSchema>;
+
 export const ModerationReasonSchema = z.object({
   code: ReasonCodeSchema,
   source: ReasonSourceSchema,
@@ -129,6 +148,8 @@ export const ModerationReasonSchema = z.object({
   score: z.number().min(0).max(1).optional(),
   /** The owner's reason, for admin removals. */
   adminReason: AdminReasonSchema.optional(),
+  /** What readers said, for `reported` reasons: one reason per report reason. */
+  report: ReportReasonSchema.optional(),
 });
 export type ModerationReason = z.infer<typeof ModerationReasonSchema>;
 
@@ -368,3 +389,38 @@ export const ResolveResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("nothing-to-undo") }),
 ]);
 export type ResolveResult = z.infer<typeof ResolveResultSchema>;
+
+// ---------- /api/reports/create (V2 §9.3; Reviews now, Chat later) ----------
+
+/** Characters in a report's optional note. */
+export const REPORT_NOTE_MAX = 300;
+
+export const ReportCreateInputSchema = z.strictObject({
+  surface: ModerationKindSchema,
+  /** The review id, or a chat message's ref. */
+  ref: ModerationTargetIdSchema,
+  reason: ReportReasonSchema,
+  note: z.string().trim().max(REPORT_NOTE_MAX).nullable(),
+});
+export type ReportCreateInput = z.infer<typeof ReportCreateInputSchema>;
+
+export const ReportCreateResultSchema = z.discriminatedUnion("status", [
+  /** Recorded, or already recorded: one report per person per item. */
+  z.object({ status: z.literal("reported") }),
+  /** Nothing readers can see has that ref, or its surface takes no reports yet. */
+  z.object({ status: z.literal("not-found") }),
+  /** The reporter wrote it; they can edit or delete it instead. */
+  z.object({ status: z.literal("own") }),
+]);
+export type ReportCreateResult = z.infer<typeof ReportCreateResultSchema>;
+
+/** A `reports` row. `reporter_id` is read only to count distinct people. */
+export const ReportRowSchema = z.object({
+  surface: ModerationKindSchema,
+  ref: ModerationTargetIdSchema,
+  reporter_id: z.string().min(1),
+  reason: ReportReasonSchema,
+  note: z.string().nullable(),
+  created_at: IsoDateTimeSchema,
+});
+export type ReportRow = z.infer<typeof ReportRowSchema>;

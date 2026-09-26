@@ -2,6 +2,8 @@
 // row read is validated (CLAUDE.md: validate every boundary). SQL lives here
 // and nowhere else. No author identity is ever written: only a surface and
 // a ref.
+
+import type { ReportLike } from "~/core/moderation";
 import {
   type AdminReason,
   type DecidedBy,
@@ -19,6 +21,8 @@ import {
   type QueueItem,
   type QueueSnapshot,
   type QueueStatus,
+  type ReportReason,
+  ReportRowSchema,
   type StoredVerdict,
 } from "~/core/schema";
 import { randomToken } from "../crypto";
@@ -130,6 +134,48 @@ export function upsertQueueItem(
       item.status,
       item.now.toISOString(),
     );
+}
+
+/**
+ * Puts an item in front of the owner: a new `open` row, or the waiting row
+ * (open or retry) turned `open` with `labels` and at least `urgent`. A
+ * waiting row keeps its snapshot, the text its hold was about.
+ */
+export function queueOpenItem(
+  db: D1Database,
+  item: Omit<NewQueueItem, "status">,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO moderation_queue (id, surface, ref, snapshot, labels, urgent, status, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'open', ?7)
+       ON CONFLICT (surface, ref) WHERE status IN ('retry', 'open') DO UPDATE SET
+         labels = excluded.labels, urgent = MAX(urgent, excluded.urgent), status = 'open'`,
+    )
+    .bind(
+      randomToken(16),
+      item.surface,
+      item.ref,
+      JSON.stringify(item.snapshot),
+      JSON.stringify(item.labels),
+      item.urgent ? 1 : 0,
+      item.now.toISOString(),
+    );
+}
+
+/** The item's waiting row (retry or open), if any. */
+export async function getWaitingRow(
+  db: D1Database,
+  surface: ModerationKind,
+  ref: string,
+): Promise<ModerationQueueRow | null> {
+  const row = await db
+    .prepare(
+      "SELECT * FROM moderation_queue WHERE surface = ?1 AND ref = ?2 AND status IN ('retry', 'open')",
+    )
+    .bind(surface, ref)
+    .first();
+  return row ? ModerationQueueRowSchema.parse(row) : null;
 }
 
 /** A newer automatic decision supersedes a waiting hold (an edit that now passes). */
@@ -267,6 +313,56 @@ export async function blankOldSnapshots(
     .bind(cutoff.toISOString())
     .run();
   return result.meta.changes ?? 0;
+}
+
+// ---------- reports (V2 §9.3) ----------
+
+/** Records a report; false when this person had already reported the item. */
+export async function insertReport(
+  db: D1Database,
+  r: {
+    surface: ModerationKind;
+    ref: string;
+    reporterId: string;
+    reason: ReportReason;
+    note: string | null;
+    now: Date;
+  },
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `INSERT INTO reports (surface, ref, reporter_id, reason, note, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT DO NOTHING`,
+    )
+    .bind(r.surface, r.ref, r.reporterId, r.reason, r.note, r.now.toISOString())
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
+/**
+ * The item's reports since the owner last approved it, oldest first: the
+ * ones still waiting for a person. An approval settles earlier reports, so
+ * they don't count toward hiding it again.
+ */
+export async function openReports(
+  db: D1Database,
+  surface: ModerationKind,
+  ref: string,
+): Promise<ReportLike[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM reports
+       WHERE surface = ?1 AND ref = ?2 AND created_at > COALESCE((
+         SELECT MAX(created_at) FROM moderation_decisions
+         WHERE surface = ?1 AND ref = ?2 AND decided_by = 'admin' AND verdict = 'allow'), '')
+       ORDER BY created_at ASC, rowid ASC`,
+    )
+    .bind(surface, ref)
+    .all();
+  return results.map((row) => {
+    const r = ReportRowSchema.parse(row);
+    return { reporterId: r.reporter_id, reason: r.reason };
+  });
 }
 
 /** Every decision for one item, oldest first. */

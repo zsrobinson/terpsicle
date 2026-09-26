@@ -28,7 +28,7 @@ function ContextMenuContent({
       <ContextMenuPrimitive.Content
         data-slot="context-menu-content"
         className={cn(
-          "z-50 min-w-[180px] overflow-y-auto overflow-x-hidden rounded-lg border border-hairline bg-raised p-1 text-fg shadow-pop",
+          "z-50 min-w-[180px] overflow-y-auto overflow-x-hidden border border-keyline bg-raised p-1 text-fg shadow-pop",
           "max-h-(--radix-context-menu-content-available-height) origin-(--radix-context-menu-content-transform-origin)",
           "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=open]:animate-in data-[state=open]:duration-150",
           className,

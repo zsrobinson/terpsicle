@@ -49,9 +49,18 @@ export function needsRetry(reasons: readonly ModerationReason[]): boolean {
   const blocking = reasons.filter((r) => r.action !== "flag");
   return (
     blocking.length > 0 &&
-    blocking.every((r) => r.source === "system" && r.action === "hold")
+    blocking.every((r) => r.action === "hold" && RETRY_CODES.has(r.code))
   );
 }
+
+/**
+ * The failed-check reasons. Other system reasons (a review burst) are for a
+ * person: screening the text again wouldn't change them.
+ */
+const RETRY_CODES: ReadonlySet<ReasonCode> = new Set([
+  "model-unavailable",
+  "daily-cap",
+]);
 
 export const GUARD_CODES: Readonly<Record<GuardCategory, ReasonCode>> = {
   S1: "violence",
