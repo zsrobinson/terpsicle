@@ -49,8 +49,9 @@ async function kernelLog(): Promise<string[] | null> {
         maxBuffer: 32 * 1024 * 1024,
       });
       return stdout.split("\n");
-    } catch {
+    } catch (error) {
       // Not allowed here; try the next way, or give up.
+      console.error(`  kernel log: ${command} failed: ${error}`);
     }
   }
   return null;
@@ -198,6 +199,10 @@ class PlaywrightDevice implements Device {
     const lines = await kernelLog();
     if (!lines) return null;
     const fresh = lines.slice(this.kernelSeen ?? 0);
+    if (this.kernelSeen !== null)
+      console.error(
+        `  kernel log: ${lines.length} lines, ${fresh.length} new since the last look`,
+      );
     this.kernelSeen = lines.length;
     const crashes = fresh.filter((l) =>
       /segfault|general protection|killed process|out of memory/i.test(l),
