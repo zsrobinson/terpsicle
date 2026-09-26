@@ -14,7 +14,7 @@ import { Wordmark } from "./brand/wordmark";
 import { PRODUCTS, type Product, type ProductId } from "./products";
 
 // The product menu, the brand's app switcher (docs/V2.md §1.1, DESIGN.md
-// §7.6): the umbrella and the wordmark, top left, open the three products
+// §7.6): the umbrella and the wordmark, top left, open the products
 // with their marks. The one you're in wears its soft color and a check. No
 // paths, counts or badges: nothing here pulls you into another product.
 // Then the marketing page at `/?stay`, which returning visitors would
@@ -26,6 +26,7 @@ const CURRENT: Record<ProductId, string> = {
     "bg-product-schedule-soft data-highlighted:bg-product-schedule-soft",
   reviews: "bg-product-reviews-soft data-highlighted:bg-product-reviews-soft",
   chat: "bg-product-chat-soft data-highlighted:bg-product-chat-soft",
+  todo: "bg-product-todo-soft data-highlighted:bg-product-todo-soft",
 };
 
 export function ProductMenu({

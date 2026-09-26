@@ -101,6 +101,22 @@ export function PrivacyPage() {
           </p>
         </Section>
 
+        <Section title="Todo">
+          <p>
+            To show your deadlines, we keep your ELMS calendar link on our
+            server, encrypted, and check it about every 20 minutes. We store the
+            assignments and events it lists (titles, courses and due dates) and
+            which ones you've marked done. We don't get your grades, submissions
+            or ELMS password, and we never sign in to ELMS or Gradescope for
+            you. Disconnect any time and we delete the link and everything from
+            it at once.
+          </p>
+          <p>
+            If you add a calendar file, it's read in your browser. Only the
+            deadlines in it are sent to us, never the file itself.
+          </p>
+        </Section>
+
         <Section title="Seat alerts and notifications">
           <p>
             When you watch a full section, Terpsicle tells you by web push and
@@ -131,9 +147,10 @@ export function PrivacyPage() {
         <Section title="Hosting">
           <p>
             Terpsicle runs on Cloudflare, which stores synced plans, reviews,
-            messages, seat watches and notification settings. To limit abuse,
-            Terpsicle counts requests per network using a one-way hash of your
-            IP address, never the address itself.
+            messages, seat watches, notification settings, your ELMS calendar
+            link (encrypted), the deadlines from it and your done marks. To
+            limit abuse, Terpsicle counts requests per network using a one-way
+            hash of your IP address, never the address itself.
           </p>
         </Section>
 
@@ -142,9 +159,10 @@ export function PrivacyPage() {
             You can delete your account in Settings. Terpsicle waits 7 days, in
             case you change your mind (signing in cancels it), then deletes your
             profile and picture, synced plans, notification settings, seat
-            watches and chat messages. Reviews you posted stay up with no name
-            attached; delete them first if you want them gone. Plans saved in
-            your browser stay until you remove them.
+            watches, chat messages, and your ELMS link, deadlines and done
+            marks. Reviews you posted stay up with no name attached; delete them
+            first if you want them gone. Plans saved in your browser stay until
+            you remove them.
           </p>
         </Section>
 

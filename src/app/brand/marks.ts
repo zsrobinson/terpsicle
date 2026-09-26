@@ -1,5 +1,5 @@
-// The four marks (docs/DESIGN.md §7.5), as data: the owner's locked "Pixel
-// star" set. Both the <Mark> component and scripts/build-icons.ts (favicons,
+// The marks (docs/DESIGN.md §7.5), as data: the owner's locked "Pixel star"
+// set, and Todo's from the brand track's hand-off (docs/V3.md §7). Both the <Mark> component and scripts/build-icons.ts (favicons,
 // home-screen icons) draw from here, so swapping a drawing is one edit:
 // replace its shapes in GLYPHS, then run `pnpm tsx scripts/build-icons.ts`.
 //
@@ -7,7 +7,13 @@
 // area is 3…15; boxes fill it, and points may overshoot it by 0.5. Every mark
 // has a primary shape at 100% and a secondary at 70%. No corner radius.
 
-export const MARK_IDS = ["umbrella", "schedule", "reviews", "chat"] as const;
+export const MARK_IDS = [
+  "umbrella",
+  "schedule",
+  "reviews",
+  "chat",
+  "todo",
+] as const;
 export type MarkId = (typeof MARK_IDS)[number];
 
 /** What a layer is painted with; the component and the script pick colors. */
@@ -51,14 +57,23 @@ export const GLYPHS: Record<
     { d: "M3 3H15V11H6V12.5H4.5V14H3Z", opacity: 1 },
     { d: "M10.5 11.5h4.5v3.5h-4.5Z", opacity: 0.7, halo: true },
   ],
+  // Two list rows done, and the third still open (docs/V3.md §7).
+  todo: [
+    { d: "M3 3h3v3h-3ZM8 3h7v3h-7ZM3 7.5h3v3h-3ZM8 7.5h7v3h-7Z", opacity: 1 },
+    { d: "M3 12h3v3h-3ZM8 12h7v3h-7Z", opacity: 0.7 },
+  ],
 };
 
-/** Only the umbrella's paper (or dark) tile needs a line to stand off the page. */
+/**
+ * Tiles that need a line to stand off the page: the umbrella's paper (or
+ * dark) one, and Todo's light yellow (its keyline token hides it on ink).
+ */
 const KEYLINE: Record<MarkId, boolean> = {
   umbrella: true,
   schedule: false,
   reviews: false,
   chat: false,
+  todo: true,
 };
 
 export function glyphOf(id: MarkId): readonly MarkShape[] {
