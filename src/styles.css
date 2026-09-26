@@ -13,7 +13,7 @@
  * Colors are Flexoki by Steph Ango (https://stephango.com/flexoki), MIT
  * License, Copyright (c) 2024 Steph Ango. Each value names its Flexoki step.
  * Ink is paper, black ink and hairlines; product color appears only in the
- * marks and the product menu.
+ * marks, the product menu and the marketing page.
  *
  * shadcn/ui: the compatibility names below (background, primary, card,
  * popover, border, input, ring, destructive, muted-foreground) make generated
@@ -54,7 +54,7 @@
   --color-shared-soft: var(--shared-soft);
   --color-grid: var(--grid);
 
-  /* The three products (the marks, the app switcher). */
+  /* The five products (the marks, the app switcher, the marketing page). */
   --color-product-schedule: var(--product-schedule);
   --color-product-schedule-fg: var(--product-schedule-fg);
   --color-product-schedule-soft: var(--product-schedule-soft);
@@ -64,6 +64,13 @@
   --color-product-chat: var(--product-chat);
   --color-product-chat-fg: var(--product-chat-fg);
   --color-product-chat-soft: var(--product-chat-soft);
+  --color-product-plan: var(--product-plan);
+  --color-product-plan-fg: var(--product-plan-fg);
+  --color-product-plan-soft: var(--product-plan-soft);
+  --color-product-todo: var(--product-todo);
+  --color-product-todo-fg: var(--product-todo-fg);
+  --color-product-todo-soft: var(--product-todo-soft);
+  --color-product-todo-keyline: var(--product-todo-keyline);
   /* The marks' own pieces (src/app/brand/marks.ts). */
   --color-mark-offset: var(--mark-offset);
   --color-umbrella-tile: var(--umbrella-tile);
@@ -206,7 +213,16 @@
   --offset-ink: #100f0f; /* black */
   --offset-ink-filled: #878580; /* base-500 */
 
-  /* Products: the tile is the 600 step in both themes, with a paper glyph. */
+  /*
+   * Products, in color order. The tile is the 600 step in both themes, with a
+   * paper glyph, except where that fails: Plan's green-600 would put paper
+   * at 4.4:1, so its tile is green-700; paper fails on every yellow lighter
+   * than 700, so Todo's is yellow-400 with an ink glyph and, in light only,
+   * an ink keyline (the tile alone is 2.3:1 on paper).
+   *   -soft  the product's fill (50; dark 900)
+   * The marketing page adds -text, -line and -mis in its own stylesheet
+   * (src/features/marketing/marketing.css).
+   */
   --product-schedule: #af3029; /* red-600 */
   --product-schedule-fg: #fffcf0; /* paper */
   --product-schedule-soft: #ffe1d5; /* red-50 */
@@ -216,6 +232,13 @@
   --product-chat: #205ea6; /* blue-600 */
   --product-chat-fg: #fffcf0; /* paper */
   --product-chat-soft: #e1eceb; /* blue-50 */
+  --product-plan: #536907; /* green-700 */
+  --product-plan-fg: #fffcf0; /* paper */
+  --product-plan-soft: #edeecf; /* green-50 */
+  --product-todo: #d0a215; /* yellow-400 */
+  --product-todo-fg: #100f0f; /* black */
+  --product-todo-soft: #faeec6; /* yellow-50 */
+  --product-todo-keyline: #100f0f; /* black */
   /* A product tile's offset. */
   --mark-offset: #100f0f; /* black */
   /* The umbrella: the schedule glyph on a paper tile with an ink keyline. */
@@ -261,6 +284,10 @@
   --product-schedule-soft: #3e1715; /* red-900 */
   --product-reviews-soft: #261c39; /* purple-900 */
   --product-chat-soft: #12253b; /* blue-900 */
+  --product-plan-soft: #252d09; /* green-900 */
+  --product-todo-soft: #3a2d04; /* yellow-900 */
+  /* Unused: the tile is 8.1:1 on black, so the mark draws no keyline here. */
+  --product-todo-keyline: #b7b5ac; /* base-300 */
   --mark-offset: #575653; /* base-700 */
   --umbrella-tile: #282726; /* base-900 */
   --umbrella-glyph: #fffcf0; /* paper */
