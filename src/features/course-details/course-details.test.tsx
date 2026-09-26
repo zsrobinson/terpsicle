@@ -146,10 +146,15 @@ describe("Course details", () => {
         "button",
         { expanded: true, name: /^(Jada|Keiko)/ },
       );
-      expect(headers.map((h) => h.textContent)).toEqual([
-        expect.stringMatching(/^Jada Abernathy4\.6\(88\)$/),
-        expect.stringMatching(/^Keiko Ashdown3\.1\(142\) · GPA 3\.26$/),
-      ]);
+      // "★ 4.6 (88)" on screen, said in words.
+      expect(headers[0]).toHaveTextContent(/4\.6\(88\)$/);
+      expect(headers[0]).toHaveAccessibleName(
+        /^Jada Abernathy ?rated 4\.6 of 5, 88 reviews$/,
+      );
+      expect(headers[1]).toHaveTextContent(/3\.1\(142\) · GPA 3\.26$/);
+      expect(headers[1]).toHaveAccessibleName(
+        /^Keiko Ashdown ?rated 3\.1 of 5, 142 reviews GPA 3\.26$/,
+      );
       expect(rowCodes()).toEqual(["0101", "0201", "0301", "0401"]);
     });
 
