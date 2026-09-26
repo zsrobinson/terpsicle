@@ -3,12 +3,12 @@
 // the panel can be tried and tested before Reviews and Chat send real ones.
 // Everywhere else it answers not-found, like auth/test-sign-in.
 import type {
-  AdminSamplesResult,
   ModerationKind,
   ModerationReason,
   ModerationScores,
   QueueItem,
 } from "~/core/schema";
+import type { AdminSamplesResult } from "~/core/schema/admin";
 import { apiError } from "../api/http";
 import { type AuthEnv, isTestMode } from "../auth/config";
 import { randomToken } from "../crypto";

@@ -1,31 +1,21 @@
-// The browser's typed client for /api/* (the one server module UI code may
-// import). Inputs are checked before sending and answers are validated with
+// The browser's typed client for /api/* (with ./admin-api, the only server
+// modules UI code may import). Inputs are checked before sending and answers are validated with
 // the same schemas the Worker uses, so a mismatch fails loudly here instead
 // of rendering something half-right.
 import type { z } from "zod";
 import {
   AccountDeleteInputSchema,
   AccountDeleteResultSchema,
-  AdminHealthInputSchema,
-  AdminHealthSchema,
-  AdminSamplesInputSchema,
-  AdminSamplesResultSchema,
   type ApiError,
   ApiErrorSchema,
   ConfirmInputSchema,
   ConfirmResultSchema,
-  DecisionListInputSchema,
-  DecisionListResultSchema,
   LookupResultSchema,
   ManageInputSchema,
   MeInputSchema,
   MeResultSchema,
-  QueueListInputSchema,
-  QueueListResultSchema,
   ReportCreateInputSchema,
   ReportCreateResultSchema,
-  ResolveInputSchema,
-  ResolveResultSchema,
   ReviewDeleteInputSchema,
   ReviewDeleteResultSchema,
   ReviewEditInputSchema,
@@ -49,7 +39,6 @@ import {
   SyncPushResultSchema,
   TestSignInInputSchema,
   TestSignInResultSchema,
-  UndoInputSchema,
   UnsubscribeResultSchema,
 } from "~/core/schema";
 
@@ -71,7 +60,8 @@ export interface ApiOptions {
   signal?: AbortSignal;
 }
 
-async function call<I extends z.ZodType, O extends z.ZodType>(
+/** One typed POST to /api/<path>; ./admin-api shares it. */
+export async function call<I extends z.ZodType, O extends z.ZodType>(
   path: string,
   inputSchema: I,
   outputSchema: O,
@@ -236,71 +226,6 @@ export const api = {
         SyncPullInputSchema,
         SyncPullResultSchema,
         input,
-        options,
-      ),
-  },
-  /** The owner's panel (docs/V2.md §10); admins only. */
-  admin: {
-    /** Held items: open (urgent first, then oldest) or recently closed. */
-    queue: (
-      input: z.input<typeof QueueListInputSchema>,
-      options?: ApiOptions,
-    ) =>
-      call(
-        "admin/moderation/queue",
-        QueueListInputSchema,
-        QueueListResultSchema,
-        input,
-        options,
-      ),
-    /** Approves or removes a held item, at once; undo puts it back. */
-    resolve: (
-      input: z.input<typeof ResolveInputSchema>,
-      options?: ApiOptions,
-    ) =>
-      call(
-        "admin/moderation/resolve",
-        ResolveInputSchema,
-        ResolveResultSchema,
-        input,
-        options,
-      ),
-    undo: (input: z.input<typeof UndoInputSchema>, options?: ApiOptions) =>
-      call(
-        "admin/moderation/undo",
-        UndoInputSchema,
-        ResolveResultSchema,
-        input,
-        options,
-      ),
-    /** The decision log, a page at a time, with each day's counts. */
-    decisions: (
-      input: z.input<typeof DecisionListInputSchema>,
-      options?: ApiOptions,
-    ) =>
-      call(
-        "admin/decisions",
-        DecisionListInputSchema,
-        DecisionListResultSchema,
-        input,
-        options,
-      ),
-    /** The numbers on the queue page's header. */
-    health: (options?: ApiOptions) =>
-      call(
-        "admin/health",
-        AdminHealthInputSchema,
-        AdminHealthSchema,
-        {},
-        options,
-      ),
-    /** Test mode only: made-up held items to try the panel on. */
-    samples: (options?: ApiOptions) =>
-      call(
-        "admin/samples",
-        AdminSamplesInputSchema,
-        AdminSamplesResultSchema,
-        {},
         options,
       ),
   },

@@ -7,6 +7,7 @@ import type {
   ModerationKind,
   PolicyLabel,
   ReasonSource,
+  ReportReason,
   StoredVerdict,
 } from "~/core/schema";
 
@@ -44,6 +45,20 @@ export const SOURCE_WORDS: Readonly<Record<ReasonSource, string>> = {
   policy: "policy check",
   system: "system",
   admin: "you",
+  reports: "readers",
+};
+
+/** What a reader said when reporting, after REASON_WORDS.reported. */
+export const REPORT_WORDS: Readonly<Record<ReportReason, string>> = {
+  "personal-info": "personal info",
+  "names-a-student": "names a student",
+  hate: "hate",
+  threat: "a threat",
+  sexual: "sexual content",
+  "misconduct-claim": "a misconduct claim",
+  "graded-work": "shares graded work",
+  "off-topic": "not about the course",
+  other: "something else",
 };
 
 export const ADMIN_REASON_WORDS: Readonly<Record<AdminReason, string>> = {

@@ -114,6 +114,40 @@ describe("markedSegments", () => {
 });
 
 describe("suggestedRemoveReason", () => {
+  it("goes by what readers reported, and puts a reported threat first", () => {
+    expect(
+      suggestedRemoveReason([
+        {
+          code: "reported",
+          source: "reports",
+          action: "flag",
+          report: "names-a-student",
+        },
+      ]),
+    ).toBe("targets-person");
+    expect(
+      suggestedRemoveReason([
+        { code: "spam", source: "policy", action: "hold", score: 0.7 },
+        {
+          code: "reported",
+          source: "reports",
+          action: "flag",
+          report: "threat",
+        },
+      ]),
+    ).toBe("threat");
+    expect(
+      suggestedRemoveReason([
+        {
+          code: "reported",
+          source: "reports",
+          action: "hold",
+          report: "other",
+        },
+      ]),
+    ).toBe("other");
+  });
+
   it("offers the reason that fits what held it", () => {
     expect(suggestedRemoveReason([rule([0, 3])])).toBe("personal-info");
     expect(

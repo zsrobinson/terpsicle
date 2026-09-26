@@ -4,13 +4,13 @@ import {
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { StoredVerdict } from "~/core/schema";
 import {
   AdminHealthSchema,
   AdminSamplesResultSchema,
   type DecisionListResult,
   DecisionListResultSchema,
-  type StoredVerdict,
-} from "~/core/schema";
+} from "~/core/schema/admin";
 import { type ApiEnv, handleApi } from "../api/router";
 import { hit } from "../counters";
 import { CAP_COUNTER, CAP_WINDOW } from "../moderation/service";

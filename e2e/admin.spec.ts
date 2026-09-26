@@ -132,9 +132,12 @@ test("the admin publishes, undoes, removes with a reason, then reads the log", a
   await expect(page.getByText("Back in the queue")).toBeVisible();
   await expect(card(page, review.id)).toBeVisible();
 
-  // Remove, with a reason from the menu.
+  // Remove, with a reason from the list.
   await card(page, spam.id).getByRole("button", { name: "Remove" }).click();
-  await page.getByRole("menuitem", { name: "Spam or an ad" }).click();
+  await card(page, spam.id)
+    .getByRole("group", { name: "Remove because" })
+    .getByRole("button", { name: "Spam or an ad" })
+    .click();
   await expect(card(page, spam.id)).toHaveCount(0);
   await expect(page.getByText("Removed: Spam or an ad")).toBeVisible();
 
@@ -160,8 +163,7 @@ test("the admin publishes, undoes, removes with a reason, then reads the log", a
     .click();
   await expect(page).toHaveURL(/\/admin\/decisions$/);
   await expect(page.getByRole("table")).toBeVisible();
-  await page.getByRole("combobox", { name: "Stage" }).click();
-  await page.getByRole("option", { name: "You" }).click();
+  await page.getByRole("combobox", { name: "Stage" }).selectOption("You");
   await expect(page).toHaveURL(/\/admin\/decisions\?stage=human$/);
   const log = page.getByRole("list", { name: "Decision log" });
   await expect(log.getByText(spam.targetId)).toBeVisible();

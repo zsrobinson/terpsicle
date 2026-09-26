@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiCallError } from "~/server/fns/api";
 
 // The panel's one data hook: load on mount and whenever `key` changes,
-// cancel what's in flight, and reload on demand. The panel is small enough
-// that a cache would be more code than it saves.
+// cancel what's in flight, and reload on demand. A reload keeps showing the
+// old data while it loads; a new key doesn't, since that data answers a
+// different question (another filter's rows under this filter's name). The
+// panel is small enough that a cache would be more code than it saves.
 
 export type Loaded<T> =
   | { state: "loading"; data: T | null }
@@ -22,20 +24,25 @@ export function useLoad<T>(
   // The latest loader, without making every render a new request.
   const loader = useRef(load);
   loader.current = load;
+  // The key the data on screen was loaded for.
+  const shown = useRef(key);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `key` and `round` are what trigger a reload
   useEffect(() => {
     const controller = new AbortController();
-    setLoaded((prev) => ({ state: "loading", data: prev.data }));
+    const same = shown.current === key;
+    setLoaded((prev) => ({ state: "loading", data: same ? prev.data : null }));
     loader.current(controller.signal).then(
       (data) => {
-        if (!controller.signal.aborted) setLoaded({ state: "ready", data });
+        if (controller.signal.aborted) return;
+        shown.current = key;
+        setLoaded({ state: "ready", data });
       },
       (error: unknown) => {
         if (controller.signal.aborted) return;
         setLoaded((prev) => ({
           state: "failed",
-          data: prev.data,
+          data: same ? prev.data : null,
           message: failureWords(error),
         }));
       },

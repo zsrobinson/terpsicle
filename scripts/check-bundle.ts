@@ -57,8 +57,10 @@ export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
 
 /**
  * Gzipped JS + CSS for the admin panel (/admin, /admin/decisions), in bytes:
- * 224 KB when this was set (v2 admin-shell), `/`'s base plus the panel, its
- * menus and select, plus about 10% headroom. Same rule for raising it.
+ * 224 KB when this was set (v2 admin-shell), `/`'s base plus the panel, plus
+ * about 10% headroom; 213 KB once the panel stopped using Radix's menu and
+ * select (sharing them split them out of /schedule's chunk, which cost
+ * /schedule about 5 KB). Same rule for raising it.
  */
 export const ADMIN_BUDGET = 245 * 1024;
 

@@ -4,11 +4,11 @@
 // how long something has waited.
 import type {
   AdminReason,
-  DecisionCursor,
-  DecisionDay,
   ModerationReason,
   ReasonCode,
+  ReportReason,
 } from "../schema";
+import type { DecisionCursor, DecisionDay } from "../schema/admin";
 import { URGENT_CODES } from "./decide";
 
 /** V2 §9.2: keep the human queue under 5% of what's screened. */
@@ -127,6 +127,22 @@ const REMOVE_REASON_FOR: Partial<Record<ReasonCode, AdminReason>> = {
   "off-topic": "off-topic",
 };
 
+/** The same for what readers reported (a `reported` reason's `report`). */
+const REMOVE_REASON_FOR_REPORT: Partial<Record<ReportReason, AdminReason>> = {
+  "personal-info": "personal-info",
+  "names-a-student": "targets-person",
+  hate: "hate",
+  threat: "threat",
+  sexual: "sexual",
+  "misconduct-claim": "misconduct-claim",
+  "graded-work": "academic-integrity",
+  "off-topic": "off-topic",
+};
+
+/** Urgent codes, and a reported threat (reportsAreUrgent's rule). */
+const isUrgent = (r: ModerationReason): boolean =>
+  URGENT_CODES.has(r.code) || r.report === "threat";
+
 /**
  * The removal reason to offer first: the one matching the most severe thing
  * the item was held for (urgent codes first, then in the order given), or
@@ -137,11 +153,13 @@ export function suggestedRemoveReason(
 ): AdminReason {
   const ranked = [...reasons].sort(
     (a, b) =>
-      Number(URGENT_CODES.has(b.code)) - Number(URGENT_CODES.has(a.code)) ||
+      Number(isUrgent(b)) - Number(isUrgent(a)) ||
       ACTION_RANK[b.action] - ACTION_RANK[a.action],
   );
   for (const r of ranked) {
-    const reason = REMOVE_REASON_FOR[r.code];
+    const reason = r.report
+      ? REMOVE_REASON_FOR_REPORT[r.report]
+      : REMOVE_REASON_FOR[r.code];
     if (reason) return reason;
   }
   return "other";

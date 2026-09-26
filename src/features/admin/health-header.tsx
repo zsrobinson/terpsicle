@@ -1,7 +1,7 @@
 import { RotateCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { waitedFor } from "~/core/moderation/admin";
-import type { AdminHealth } from "~/core/schema";
+import type { AdminHealth } from "~/core/schema/admin";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";

@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { HELD_SHARE_TARGET, heldShare } from "~/core/moderation/admin";
 import { REASON_WORDS } from "~/core/moderation/policy-text";
 import {
-  type DecisionDay,
-  type DecisionEntry,
   type DecisionStage,
   DecisionStageSchema,
   type ModerationKind,
@@ -11,15 +9,9 @@ import {
   type StoredVerdict,
   StoredVerdictSchema,
 } from "~/core/schema";
-import { api } from "~/server/fns/api";
+import type { DecisionDay, DecisionEntry } from "~/core/schema/admin";
+import { adminApi } from "~/server/fns/admin-api";
 import { Button } from "~/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/ui/select";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { failureWords, useLoad } from "./use-load";
@@ -44,14 +36,14 @@ export interface DecisionFilters {
   verdict?: StoredVerdict | undefined;
 }
 
-export type DecisionsClient = Pick<typeof api.admin, "decisions">;
+export type DecisionsClient = Pick<typeof adminApi, "decisions">;
 
 const PAGE = 50;
 
 export function DecisionsPage({
   filters,
   onFilters,
-  client = api.admin,
+  client = adminApi,
 }: {
   filters: DecisionFilters;
   onFilters: (next: DecisionFilters) => void;
@@ -195,6 +187,7 @@ export function DecisionsPage({
 
 const ALL = "all";
 
+// A native select, not ~/ui/select: see RemoveMenu in ./queue-page.
 function Filter<T extends string>({
   label,
   hint,
@@ -209,25 +202,29 @@ function Filter<T extends string>({
   onChange: (value: T | undefined) => void;
 }) {
   return (
-    <Select
-      value={value ?? ALL}
-      onValueChange={(v) => onChange(v === ALL ? undefined : (v as T))}
-    >
-      <WithTooltip label={hint}>
-        <SelectTrigger aria-label={label}>
-          <span className="text-muted">{label}:</span>
-          <SelectValue />
-        </SelectTrigger>
-      </WithTooltip>
-      <SelectContent>
-        <SelectItem value={ALL}>All</SelectItem>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <WithTooltip label={hint}>
+      <label className="flex h-7 items-center gap-1.5 rounded-md border border-hairline-strong bg-bg pl-2 text-fg text-sm transition-colors hover:bg-hover">
+        <span className="text-muted">{label}:</span>
+        <select
+          aria-label={label}
+          value={value ?? ALL}
+          onChange={(event) => {
+            const picked = options.find(
+              (o) => o.value === event.currentTarget.value,
+            );
+            onChange(picked?.value);
+          }}
+          className="h-full cursor-pointer rounded-md bg-transparent pr-1 text-fg"
+        >
+          <option value={ALL}>All</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    </WithTooltip>
   );
 }
 

@@ -7,12 +7,12 @@ import {
   fillDays,
   parseDecisionCursor,
 } from "~/core/moderation/admin";
+import type { ModerationDecisionRow } from "~/core/schema";
 import type {
   DecisionEntry,
   DecisionListInput,
   DecisionListResult,
-  ModerationDecisionRow,
-} from "~/core/schema";
+} from "~/core/schema/admin";
 import { decisionDayCounts, listDecisionRows } from "../moderation/store";
 
 const DAY_MS = 86_400_000;

@@ -8,16 +8,15 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { REASON_WORDS } from "~/core/moderation/policy-text";
+import type { MeUser, QueueItem, ResolveResult } from "~/core/schema";
 import type {
   AdminHealth,
   DecisionEntry,
   DecisionListResult,
-  MeUser,
-  QueueItem,
-  ResolveResult,
-} from "~/core/schema";
+} from "~/core/schema/admin";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
-import { api } from "~/server/fns/api";
+import { adminApi } from "~/server/fns/admin-api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { AdminGate } from "./admin-gate";
@@ -196,6 +195,54 @@ describe("the queue", () => {
     ).toBeVisible();
   });
 
+  it("says what readers reported, and a burst, in the shared words", async () => {
+    const client = fakeClient([
+      anItem({
+        text: "Fine class.",
+        reasons: [
+          { code: "burst", source: "system", action: "hold" },
+          {
+            code: "reported",
+            source: "reports",
+            action: "hold",
+            report: "names-a-student",
+          },
+          {
+            code: "reported",
+            source: "reports",
+            action: "flag",
+            report: "off-topic",
+          },
+        ],
+        scores: {},
+      }),
+    ]);
+    const user = userEvent.setup();
+    wrap(
+      <QueuePage
+        view="waiting"
+        onView={() => {}}
+        client={client}
+        now={() => NOW}
+      />,
+    );
+    const card = await screen.findByRole("article");
+    expect(
+      within(card).getByText(REASON_WORDS.burst, { exact: false }),
+    ).toBeVisible();
+    const reported = within(card).getAllByText(/^Reported by readers: /);
+    expect(reported.map((r) => r.textContent)).toEqual([
+      "Reported by readers: names a student",
+      "Reported by readers: not about the course · noted only",
+    ]);
+    // The report's reason picks the removal reason offered first.
+    await user.click(within(card).getByRole("button", { name: /Remove/ }));
+    const reasons = within(card).getByRole("group", { name: "Remove because" });
+    expect(within(reasons).getAllByRole("button")[0]).toHaveTextContent(
+      "Targets a person",
+    );
+  });
+
   it("publishes at once, then Undo in the toast puts it back", async () => {
     const client = fakeClient([anItem()]);
     const user = userEvent.setup();
@@ -236,12 +283,26 @@ describe("the queue", () => {
         now={() => NOW}
       />,
     );
-    await user.click(await screen.findByRole("button", { name: /Remove/ }));
-    const menu = await screen.findByRole("menu");
-    const items = within(menu).getAllByRole("menuitem");
-    expect(items[0]).toHaveTextContent("Personal info");
+    const remove = await screen.findByRole("button", { name: /Remove/ });
+    expect(remove).toHaveAttribute("aria-expanded", "false");
+    await user.click(remove);
+    expect(remove).toHaveAttribute("aria-expanded", "true");
+    const reasons = () => screen.getByRole("group", { name: "Remove because" });
+    expect(within(reasons()).getAllByRole("button")[0]).toHaveTextContent(
+      "Personal info",
+    );
+
+    // Escape closes the list and gives focus back to Remove.
+    await user.tab();
+    expect(reasons()).toContainElement(document.activeElement as HTMLElement);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("group", { name: "Remove because" })).toBeNull();
+    expect(remove).toHaveFocus();
+    expect(client.resolve).not.toHaveBeenCalled();
+
+    await user.click(remove);
     await user.click(
-      within(menu).getByRole("menuitem", { name: "Spam or an ad" }),
+      within(reasons()).getByRole("button", { name: "Spam or an ad" }),
     );
     expect(client.resolve).toHaveBeenCalledWith({
       id: "AAAAAAAAAAAAAAAAAAAAAA",
@@ -363,8 +424,7 @@ describe("the queue", () => {
     );
     const client: AdminClient = {
       ...fakeClient([]),
-      queue: (input, options) =>
-        api.admin.queue(input, { ...options, fetcher }),
+      queue: (input, options) => adminApi.queue(input, { ...options, fetcher }),
     };
     wrap(
       <QueuePage
@@ -467,8 +527,10 @@ describe("the decision log", () => {
     expect(await screen.findByText("older")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Show older" })).toBeNull();
 
-    await user.click(screen.getByRole("combobox", { name: "Stage" }));
-    await user.click(await screen.findByRole("option", { name: "You" }));
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Stage" }),
+      "You",
+    );
     expect(onFilters).toHaveBeenCalledWith({ surface: "chat", stage: "human" });
   });
 });

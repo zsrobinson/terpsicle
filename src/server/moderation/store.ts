@@ -8,8 +8,6 @@ import type { ReportLike } from "~/core/moderation";
 import {
   type AdminReason,
   type DecidedBy,
-  type DecisionDay,
-  DecisionDaySchema,
   type DecisionStage,
   type GuardAnswer,
   IsoDateTimeSchema,
@@ -29,6 +27,7 @@ import {
   ReportRowSchema,
   type StoredVerdict,
 } from "~/core/schema";
+import { type DecisionDay, DecisionDaySchema } from "~/core/schema/admin";
 import { randomToken } from "../crypto";
 
 /** Closed items keep their text this long, for undo and context (V2 §9.4). */

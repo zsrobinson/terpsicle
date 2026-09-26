@@ -6,10 +6,7 @@
 import type { z } from "zod";
 import {
   AccountDeleteInputSchema,
-  AdminHealthInputSchema,
-  AdminSamplesInputSchema,
   ConfirmInputSchema,
-  DecisionListInputSchema,
   type FeatureLevel,
   FeatureVarsSchema,
   ManageInputSchema,
@@ -34,6 +31,11 @@ import {
   TestSignInInputSchema,
   UndoInputSchema,
 } from "~/core/schema";
+import {
+  AdminHealthInputSchema,
+  AdminSamplesInputSchema,
+  DecisionListInputSchema,
+} from "~/core/schema/admin";
 import { listDecisions } from "../admin/decisions";
 import { adminHealth } from "../admin/health";
 import { addSamples } from "../admin/samples";

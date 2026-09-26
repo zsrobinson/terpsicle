@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Trash2, Undo2 } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   markedSegments,
@@ -14,16 +14,8 @@ import type {
   QueueItem,
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
-import { api } from "~/server/fns/api";
+import { adminApi } from "~/server/fns/admin-api";
 import { Button } from "~/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { HealthHeader } from "./health-header";
@@ -34,6 +26,7 @@ import {
   KIND_WORDS,
   percent,
   REMOVE_REASONS,
+  REPORT_WORDS,
   SCORE_WORDS,
   SOURCE_WORDS,
 } from "./words";
@@ -47,7 +40,7 @@ import {
 export type QueueView = "waiting" | "decided";
 
 export type AdminClient = Pick<
-  typeof api.admin,
+  typeof adminApi,
   "queue" | "resolve" | "undo" | "health" | "samples"
 >;
 
@@ -57,7 +50,7 @@ const UNDO_TOAST_MS = 10_000;
 export function QueuePage({
   view,
   onView,
-  client = api.admin,
+  client = adminApi,
   now = () => new Date(),
 }: {
   view: QueueView;
@@ -307,6 +300,18 @@ function ago(iso: string, now: Date): string {
   return waited === "just now" ? waited : `${waited} ago`;
 }
 
+/** "safety check, 82%", "readers, noted only": who found it and how sure. */
+function reasonDetail(r: ModerationReason): string {
+  return [
+    // "Reported by readers: …" already says who.
+    r.source === "reports" ? null : SOURCE_WORDS[r.source],
+    r.score !== undefined ? percent(r.score) : null,
+    r.action === "flag" ? "noted only" : null,
+  ]
+    .filter((part) => part !== null)
+    .join(", ");
+}
+
 /** The reasons worth showing: not the panel's own bookkeeping. */
 function heldFor(item: QueueItem): ModerationReason[] {
   return item.reasons.filter((r) => r.source !== "admin");
@@ -390,12 +395,10 @@ export function QueueCard({
               // biome-ignore lint/suspicious/noArrayIndexKey: reasons can repeat a code; order is fixed
               <li key={i}>
                 {REASON_WORDS[r.code]}
-                <span className="text-muted">
-                  {" "}
-                  · {SOURCE_WORDS[r.source]}
-                  {r.score !== undefined ? `, ${percent(r.score)}` : ""}
-                  {r.action === "flag" ? ", noted only" : ""}
-                </span>
+                {r.report ? `: ${REPORT_WORDS[r.report]}` : ""}
+                {reasonDetail(r) ? (
+                  <span className="text-muted"> · {reasonDetail(r)}</span>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -452,6 +455,8 @@ export function QueueCard({
   );
 }
 
+// An inline list, not a popup menu: Radix's menu and select are shared with
+// /schedule, and sharing them with the panel split them out of its bundle.
 function RemoveMenu({
   suggested,
   disabled,
@@ -461,30 +466,62 @@ function RemoveMenu({
   disabled: boolean;
   onRemove: (reason: AdminReason) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const listId = useId();
   const others = REMOVE_REASONS.filter((r) => r !== suggested);
+  const choice = (reason: AdminReason, suggestion: boolean) => (
+    <WithTooltip key={reason} label="Remove it for this reason. You can undo.">
+      <Button
+        variant={suggestion ? "outline" : "ghost"}
+        size="row"
+        disabled={disabled}
+        onClick={() => onRemove(reason)}
+      >
+        {ADMIN_REASON_WORDS[reason]}
+      </Button>
+    </WithTooltip>
+  );
   return (
-    <DropdownMenu>
+    <>
       <WithTooltip label="Remove it, with a reason. You can undo.">
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" disabled={disabled}>
-            <Trash2 size={14} aria-hidden="true" />
-            Remove
-            <ChevronDown size={12} aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
+        <Button
+          ref={trigger}
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          aria-expanded={open}
+          aria-controls={listId}
+          onClick={() => setOpen((was) => !was)}
+        >
+          <Trash2 size={14} aria-hidden="true" />
+          Remove
+          <ChevronDown
+            size={12}
+            aria-hidden="true"
+            className={open ? "rotate-180" : undefined}
+          />
+        </Button>
       </WithTooltip>
-      <DropdownMenuContent>
-        <DropdownMenuLabel>Remove because</DropdownMenuLabel>
-        <DropdownMenuItem onSelect={() => onRemove(suggested)}>
-          {ADMIN_REASON_WORDS[suggested]}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {others.map((reason) => (
-          <DropdownMenuItem key={reason} onSelect={() => onRemove(reason)}>
-            {ADMIN_REASON_WORDS[reason]}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      {open ? (
+        <fieldset
+          id={listId}
+          aria-label="Remove because"
+          className="flex basis-full flex-wrap items-center gap-1"
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            setOpen(false);
+            trigger.current?.focus();
+          }}
+        >
+          {/* The fieldset's name already says it. */}
+          <span aria-hidden="true" className="mr-1 text-muted text-sm">
+            Remove because
+          </span>
+          {choice(suggested, true)}
+          {others.map((reason) => choice(reason, false))}
+        </fieldset>
+      ) : null}
+    </>
   );
 }

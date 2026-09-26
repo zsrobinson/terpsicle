@@ -1,7 +1,7 @@
 // POST /api/admin/health (V2 §10): the numbers on the queue page's header.
 // Counts only; later PRs add their own (push failures, email sends, Todo's
 // feeds) as new fields.
-import type { AdminHealth } from "~/core/schema";
+import type { AdminHealth } from "~/core/schema/admin";
 import { readCount } from "../counters";
 import {
   CAP_COUNTER,
