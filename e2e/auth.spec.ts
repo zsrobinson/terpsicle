@@ -16,7 +16,7 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-async function open(page: Page, path = "/") {
+async function open(page: Page, path = "/schedule") {
   await page.goto(path);
   await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
 }
@@ -53,7 +53,7 @@ test("sign in as a test person, see the account menu, and sign out", async ({
     .getByRole(isMobile ? "menuitem" : "link", { name: "Sign in (test mode)" })
     .click();
 
-  await expect(page).toHaveURL(/\/auth\/test\?return=%2F$/);
+  await expect(page).toHaveURL(/\/auth\/test\?return=%2Fschedule$/);
   await expect(
     page.getByRole("heading", { name: "Test sign-in" }),
   ).toBeVisible();
@@ -61,7 +61,7 @@ test("sign in as a test person, see the account menu, and sign out", async ({
 
   // Back where we were, signed in, with ?signed-in=1 already stripped.
   await expect(accountButton(page, "Test Student")).toBeVisible();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/schedule$/);
   expect(await sessionCookie(page)).toMatchObject({
     httpOnly: true,
     secure: true,

@@ -12,7 +12,7 @@ import {
 } from "./primitives";
 import { SHARE_PAYLOAD_VERSION } from "./versions";
 
-// The JSON inside a share link: `/?plan=<base64url(deflate-raw(JSON))>`. Codec lives in core/share.
+// The JSON inside a share link: `/schedule?plan=<base64url(deflate-raw(JSON))>`. Codec lives in core/share.
 
 export const SharedBlockSchema = z
   .object({

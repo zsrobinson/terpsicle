@@ -10,6 +10,7 @@ export * from "./grades";
 export * from "./ics";
 export * from "./plans";
 export * from "./problems";
+export * from "./routing";
 export * from "./schema";
 export * from "./search";
 export * from "./seats";

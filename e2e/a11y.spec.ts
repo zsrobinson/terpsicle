@@ -64,7 +64,7 @@ test.describe.configure({ timeout: 120_000 });
 
 let errors: string[] = [];
 
-async function open(page: Page, path = "/?demo=1") {
+async function open(page: Page, path = "/schedule?demo=1") {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(path);
@@ -135,9 +135,17 @@ for (const scheme of ["light", "dark"] as const) {
     test.use({ colorScheme: scheme });
 
     test("first visit", async ({ page }) => {
-      await open(page, "/");
+      await open(page, "/schedule");
       await expect(page.getByTestId("first-visit")).toBeVisible();
       await scan(page, `first visit (${scheme})`);
+    });
+
+    test("pages outside the scheduler", async ({ page }) => {
+      for (const path of ["/", "/privacy", "/reviews", "/schedule/nowhere"]) {
+        await page.goto(path);
+        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+        await scan(page, `${path} (${scheme})`);
+      }
     });
 
     test("every tab", async ({ page, isMobile }) => {
