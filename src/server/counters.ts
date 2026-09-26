@@ -31,6 +31,21 @@ export async function hit(
   return row?.count ?? 1;
 }
 
+/** `name`'s count in the current window, without adding to it. */
+export async function readCount(
+  db: D1Database,
+  name: string,
+  window: Window,
+  now: Date,
+): Promise<number> {
+  const start = windowStart(now, window.seconds).toISOString();
+  const row = await db
+    .prepare("SELECT count FROM counters WHERE name = ?1 AND window_start = ?2")
+    .bind(name, start)
+    .first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
 /** Seconds until the current window ends. */
 export function secondsLeft(window: Window, now: Date): number {
   const end =

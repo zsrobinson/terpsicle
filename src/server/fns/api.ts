@@ -6,14 +6,24 @@ import type { z } from "zod";
 import {
   AccountDeleteInputSchema,
   AccountDeleteResultSchema,
+  AdminHealthInputSchema,
+  AdminHealthSchema,
+  AdminSamplesInputSchema,
+  AdminSamplesResultSchema,
   type ApiError,
   ApiErrorSchema,
   ConfirmInputSchema,
   ConfirmResultSchema,
+  DecisionListInputSchema,
+  DecisionListResultSchema,
   LookupResultSchema,
   ManageInputSchema,
   MeInputSchema,
   MeResultSchema,
+  QueueListInputSchema,
+  QueueListResultSchema,
+  ResolveInputSchema,
+  ResolveResultSchema,
   ReviewSummaryInputSchema,
   ReviewSummaryResultSchema,
   SignOutInputSchema,
@@ -28,6 +38,7 @@ import {
   SyncPushResultSchema,
   TestSignInInputSchema,
   TestSignInResultSchema,
+  UndoInputSchema,
   UnsubscribeResultSchema,
 } from "~/core/schema";
 
@@ -214,6 +225,71 @@ export const api = {
         SyncPullInputSchema,
         SyncPullResultSchema,
         input,
+        options,
+      ),
+  },
+  /** The owner's panel (docs/V2.md §10); admins only. */
+  admin: {
+    /** Held items: open (urgent first, then oldest) or recently closed. */
+    queue: (
+      input: z.input<typeof QueueListInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "admin/moderation/queue",
+        QueueListInputSchema,
+        QueueListResultSchema,
+        input,
+        options,
+      ),
+    /** Approves or removes a held item, at once; undo puts it back. */
+    resolve: (
+      input: z.input<typeof ResolveInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "admin/moderation/resolve",
+        ResolveInputSchema,
+        ResolveResultSchema,
+        input,
+        options,
+      ),
+    undo: (input: z.input<typeof UndoInputSchema>, options?: ApiOptions) =>
+      call(
+        "admin/moderation/undo",
+        UndoInputSchema,
+        ResolveResultSchema,
+        input,
+        options,
+      ),
+    /** The decision log, a page at a time, with each day's counts. */
+    decisions: (
+      input: z.input<typeof DecisionListInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "admin/decisions",
+        DecisionListInputSchema,
+        DecisionListResultSchema,
+        input,
+        options,
+      ),
+    /** The numbers on the queue page's header. */
+    health: (options?: ApiOptions) =>
+      call(
+        "admin/health",
+        AdminHealthInputSchema,
+        AdminHealthSchema,
+        {},
+        options,
+      ),
+    /** Test mode only: made-up held items to try the panel on. */
+    samples: (options?: ApiOptions) =>
+      call(
+        "admin/samples",
+        AdminSamplesInputSchema,
+        AdminSamplesResultSchema,
+        {},
         options,
       ),
   },

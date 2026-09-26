@@ -149,8 +149,18 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
 | `admin/moderation/undo` | `{id}` | `{status: "ok", item}`, `{status: "nothing-to-undo"}` or `{status: "not-found"}` |
 
 - **No confirmation dialogs** (DESIGN §5): approve and remove act at once, and the UI offers **Undo**. Undo reopens the item, held, unless its ref was held again since (an edit), which answers `nothing-to-undo`.
-- These are the routes V2 §10 lists. `v2/admin-shell` builds the panel on them and adds the rest (`admin/decisions`, `admin/health`, `admin/chat/remove`, author actions).
 - **Reaching the feature:** each handler in `MODERATION_HANDLERS` gets `(targetId, "publish" | "remove" | "hold")` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
+- **A handler must treat a `targetId` it doesn't know as done**, not as an error: the author may have deleted the post while it waited, and on test copies the queue holds made-up posts (`admin/samples`, below) whose ids no feature stored. Throwing would leave the owner unable to close the item.
+
+The rest of the panel's API (`src/server/admin/`, V2 §10), also `auth: "admin"`:
+
+| Endpoint | Input | Result |
+|---|---|---|
+| `admin/decisions` | `{surface?, stage?, verdict?, cursor?, limit?: 1–100}` | `{decisions: DecisionEntry[], cursor, days}`. Newest first; pass `cursor` back for the next page (`null` on the last). `days`: the last 14 UTC days of automatic decisions (allowed, held, rejected) for the surface filter, for the held share against the 5% target. Entries carry the reasons, never text, model ids or an author. |
+| `admin/health` | `{}` | `{aiCalls: {today, cap}, retry: {waiting, oldestAt}, queue: {open, urgent, oldestAt}}`. `today` counts model attempts this UTC day, up to the cap (attempts the cap turned away never reached a model). |
+| `admin/samples` | `{}` | Test mode only (previews, `pnpm dev:mock`, e2e; `not-found` elsewhere): puts four made-up held posts in the queue, one urgent, so the panel can be tried before Reviews and Chat send real ones. `{items: QueueItem[]}` |
+
+The panel itself is `src/features/admin/` at `/admin` (the queue, with the health header and a "Decided" view with Undo per item) and `/admin/decisions` (the log, filters in the URL). Held text renders as plain text with each rule's match marked. `admin/chat/remove` and the author actions (V2 §10) come with the features that know a message or an author.
 
 ## 7. Configuration
 

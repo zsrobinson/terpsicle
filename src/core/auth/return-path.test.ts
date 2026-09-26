@@ -3,6 +3,7 @@ import {
   DEFAULT_RETURN,
   safeReturnPath,
   signInErrorPath,
+  signInPagePath,
   signInStartHref,
   withSignedIn,
 } from "./return-path";
@@ -50,6 +51,13 @@ describe("sign-in URLs", () => {
     expect(signInErrorPath("expired", "https://evil.example")).toBe(
       "/signin?error=expired&return=%2Fschedule",
     );
+  });
+
+  it("sends a signed-out visit to /signin, and back afterwards", () => {
+    expect(signInPagePath("/admin/decisions?stage=human")).toBe(
+      "/signin?return=%2Fadmin%2Fdecisions%3Fstage%3Dhuman",
+    );
+    expect(signInPagePath("//evil.example")).toBe("/signin?return=%2Fschedule");
   });
 
   it("marks a finished sign-in", () => {

@@ -28,7 +28,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 | V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Not started |
 | V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | Not started |
 | V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | Not started |
-| V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | Not started |
+| V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | `v2/admin-shell` in review |
 
 **v2 decisions** (details in `docs/V2.md`):
 - **Plan sync is plain server-side storage**, encrypted at rest by Cloudflare, not end-to-end encrypted. The orchestrator's call, flagged for the owner: it lets Chat derive rooms from plans and keeps recovery simple.

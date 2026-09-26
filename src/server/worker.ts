@@ -1,6 +1,8 @@
+import { signInPagePath } from "~/core/auth";
 import { runScheduled } from "~/jobs/index";
 import { APEX_HOST } from "./apex";
 import { API_PREFIX, handleApi } from "./api/router";
+import { type PageAccess, pageAccess } from "./auth/pages";
 import { AVATARS_PREFIX, serveAvatar } from "./auth/pictures";
 import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
@@ -25,6 +27,41 @@ function withHtmlRevalidation(response: Response): Response {
     return response;
   const out = new Response(response.body, response);
   out.headers.set("Cache-Control", "no-cache");
+  return out;
+}
+
+/** A path no route matches: the app answers it with its 404 page. */
+export const NOT_FOUND_PATH = "/__not-found";
+
+/**
+ * A page only some people may load (src/server/auth/pages.ts): the page
+ * itself, a trip through /signin that comes back here, or the app's own
+ * "Page not found" with a 404.
+ */
+async function gatedPage(
+  app: AppHandler,
+  request: Request,
+  access: PageAccess,
+): Promise<Response> {
+  const url = new URL(request.url);
+  if (access === "allow") return app.fetch(request);
+  if (access === "sign-in")
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: new URL(
+          signInPagePath(`${url.pathname}${url.search}`),
+          url.origin,
+        ).href,
+      },
+    });
+  return app.fetch(new Request(new URL(NOT_FOUND_PATH, url.origin), request));
+}
+
+/** The answer depends on who's asking: no shared or browser cache keeps it. */
+function privatePage(response: Response): Response {
+  const out = new Response(response.body, response);
+  out.headers.set("Cache-Control", "private, no-store");
   return out;
 }
 
@@ -88,6 +125,8 @@ export function createWorker(app: AppHandler) {
       }
       const landing = landingRedirect(request);
       if (landing) return landing;
+      const access = await pageAccess(request, env, new Date());
+      if (access) return privatePage(await gatedPage(app, request, access));
       // Every page (`/`, `/schedule`, `/privacy`, …) is a TanStack route; an
       // unknown path gets the app's not-found page.
       return withHtmlRevalidation(await app.fetch(request));
