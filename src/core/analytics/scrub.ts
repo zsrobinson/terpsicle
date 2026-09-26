@@ -44,7 +44,7 @@ const PATH_PATTERNS: readonly { route: string; params: readonly string[] }[] = [
 /** Allowlisted values are short words or ids, never free text. */
 const SAFE_VALUE = /^[\w.-]{1,32}$/;
 
-/** `/chat/202608/CMSC131/s-0101` → `/chat/:term/:course/:room`. */
+/** `/chat/<term>/<course>/<room>` → `/chat/:term/:course/:room`. */
 export function scrubPath(pathname: string): string {
   for (const { route, params } of PATH_PATTERNS) {
     if (!isUnderRoute(pathname, route)) continue;

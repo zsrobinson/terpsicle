@@ -8,7 +8,7 @@ import { SIGNIN_PATH } from "../schema/auth";
  * messages), Settings and sign-in (your name, email and picture), Admin,
  * your own reviews, and Plan and Todo (grades, courses and due dates; V3.md
  * §6). Named events from `track()` still count there. Each covers everything
- * below it (`/chat` covers `/chat/202608/CMSC131/…`).
+ * below it (`/chat` covers `/chat/<term>/<course>/…`).
  */
 export const NO_AUTOCAPTURE_ROUTES = [
   "/chat",
