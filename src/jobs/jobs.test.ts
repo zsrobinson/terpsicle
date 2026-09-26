@@ -5,8 +5,14 @@ import {
   BuildingsFileSchema,
   buildingsKey,
   ChangesFileSchema,
+  COURSE_INDEX_MANIFEST_KEY,
+  CourseIndexDeptSchema,
+  CourseIndexManifestSchema,
+  CourseSearchFileSchema,
   calendarKey,
   changesKey,
+  courseIndexDeptKey,
+  courseSearchKey,
   DeptChunkSchema,
   deptChunkKey,
   GEO_MANIFEST_KEY,
@@ -217,6 +223,55 @@ describe("catalog job", () => {
     const again = await readJson(manifestKey("202701"), ManifestSchema);
     expect(again.catalogCrawledAt).toBe("2026-09-25T18:00:00.000Z");
     expect(again.departments).toEqual(manifest.departments);
+  });
+
+  it("publishes the course index across every term, and rewrites none of it on an unchanged rerun", async () => {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    const manifest = await readJson(
+      COURSE_INDEX_MANIFEST_KEY,
+      CourseIndexManifestSchema,
+    );
+    expect(manifest.departments.map((d) => d.code)).toEqual([
+      "AGNR",
+      "CMSC",
+      "HESI",
+    ]);
+    const cmscHash = manifest.departments[1]?.hash ?? "";
+    const cmsc = await readJson(
+      courseIndexDeptKey("CMSC", cmscHash),
+      CourseIndexDeptSchema,
+    );
+    const phd = cmsc.courses.find((c) => c.code === "CMSC898");
+    expect(phd?.offered).toEqual(["202701", "202612", "202605"]);
+    const search = await readJson(
+      courseSearchKey(manifest.search.hash),
+      CourseSearchFileSchema,
+    );
+    expect(search.courses.find((r) => r[0] === "CMSC351")).toEqual([
+      "CMSC351",
+      "Algorithms",
+      3,
+      3,
+      [],
+    ]);
+
+    const before = (await env.DATA.list({ prefix: "courses/" })).objects.map(
+      (o) => `${o.key}@${o.etag}`,
+    );
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T18:00:00Z"),
+      fetch: fake.fetch,
+    });
+    const after = (await env.DATA.list({ prefix: "courses/" })).objects.map(
+      (o) => `${o.key}@${o.etag}`,
+    );
+    expect(after).toEqual(before);
   });
 
   it("archives a term Testudo drops, and keeps its files", async () => {

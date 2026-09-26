@@ -4,6 +4,9 @@ import {
   BuildingsFileSchema,
   ChangesFileSchema,
   type Course,
+  CourseIndexDeptSchema,
+  CourseIndexManifestSchema,
+  CourseSearchFileSchema,
   DeptChunkSchema,
   FEET_PER_MINUTE_PER_MPH,
   GeoManifestSchema,
@@ -96,6 +99,9 @@ describe("the mock bucket", () => {
         RouteGeometrySchema,
       ],
       [/^calendar\/\d{6}\.json$/, AcademicCalendarSchema],
+      [/^courses\/manifest\.json$/, CourseIndexManifestSchema],
+      [/^courses\/search\.[0-9a-f]{16}\.json$/, CourseSearchFileSchema],
+      [/^courses\/dept\/[A-Z]{4}\.[0-9a-f]{16}\.json$/, CourseIndexDeptSchema],
     ];
     expect(files.size).toBeGreaterThan(100);
     for (const [key, bytes] of files) {
@@ -140,7 +146,36 @@ describe("the mock bucket", () => {
     expect(geo.routes && files.has(`geo/routes.${geo.routes.hash}.bin`)).toBe(
       true,
     );
+    const index = CourseIndexManifestSchema.parse(
+      await mockDataSource.json("courses/manifest.json"),
+    );
+    expect(files.has(`courses/search.${index.search.hash}.json`)).toBe(true);
+    for (const d of index.departments)
+      expect(files.has(`courses/dept/${d.code}.${d.hash}.json`)).toBe(true);
     expect(await mockDataSource.get("catalog/nope.json")).toBeNull();
+  });
+
+  it("indexes every mock course, with the archived term in `offered`", async () => {
+    const index = CourseIndexManifestSchema.parse(
+      await mockDataSource.json("courses/manifest.json"),
+    );
+    const search = CourseSearchFileSchema.parse(
+      await mockDataSource.json(`courses/search.${index.search.hash}.json`),
+    );
+    const codes = new Set(
+      Object.values(mockCatalog).flatMap((chunks) =>
+        chunks.flatMap((c) => c.courses.map((course) => course.code)),
+      ),
+    );
+    expect(search.courses.map((r) => r[0])).toEqual([...codes].sort());
+    const cmsc = index.departments.find((d) => d.code === "CMSC");
+    const file = CourseIndexDeptSchema.parse(
+      await mockDataSource.json(`courses/dept/CMSC.${cmsc?.hash}.json`),
+    );
+    expect(file.courses.find((c) => c.code === "CMSC131")?.offered).toEqual([
+      fixtureTermId,
+      archivedFixtureTermId,
+    ]);
   });
 
   it("encodes the routes binary exactly as DATA.md §4.2 lays it out", () => {

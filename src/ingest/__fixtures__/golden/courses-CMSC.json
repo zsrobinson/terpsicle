@@ -1,0 +1,2074 @@
+{
+ "schemaVersion": 1,
+ "dept": "CMSC",
+ "courses": [
+  {
+   "code": "CMSC115",
+   "title": "Gender, Race and Computing",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [
+    [
+     {
+      "code": "DSSP"
+     }
+    ],
+    [
+     {
+      "code": "DVUP"
+     }
+    ]
+   ],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must not have taken CMSC216 or higher.",
+   "crossListings": [
+    "WGSS115"
+   ],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC125",
+   "title": "Introduction to Computing",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [
+    [
+     {
+      "code": "DSSP"
+     }
+    ]
+   ],
+   "prerequisite": "Must have completed or be concurrently enrolled in MATH115 or higher.",
+   "corequisite": null,
+   "restriction": "Must not be in the Computer Science program; and must not have completed any courses from CMSC131-499; and must not have completed BMGT302, IMDM127 or INST126.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH115"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC131",
+   "title": "Object-Oriented Programming I",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": "MATH140.",
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC132",
+   "title": "Object-Oriented Programming II",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC131 or CMSC133; or must have earned a score of 5 on the A Java AP exam; or must have earned a satisfactory score on the departmental placement exam; and minimum grade of C- in MATH140.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC131",
+      "CMSC133"
+     ],
+     [
+      "MATH140"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC216",
+   "title": "Introduction to Computer Systems",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC132; and minimum grade of C- in MATH141.",
+   "corequisite": null,
+   "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in Engineering: Computer program; or must be in the Computer Science Minor program; and Permission of CMSC - Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC132"
+     ],
+     [
+      "MATH141"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC250",
+   "title": "Discrete Structures",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC131; and minimum grade of C- in MATH141.",
+   "corequisite": null,
+   "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in Engineering: Computer program; or must be in the Computer Science Minor program; and Permissions of CMSC - Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC131"
+     ],
+     [
+      "MATH141"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC250H",
+   "title": "Discrete Structures",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC131; and minimum grade of C- in MATH141.",
+   "corequisite": null,
+   "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in Engineering: Computer program; or must be in the Computer Science Minor program; and Permissions of CMSC - Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC131"
+     ],
+     [
+      "MATH141"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC298A",
+   "title": "Special Topics in Computer Science",
+   "credits": {
+    "min": 1,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC298C",
+   "title": "Special Topics in Computer Science; Career Launch",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC131, INST126 or equivalent",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC131",
+      "INST126"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC298R",
+   "title": "Special Topics in Computer Science; Introduction to Computer Science Research",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC320",
+   "title": "Introduction to Data Science",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC216 and CMSC250.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC216"
+     ],
+     [
+      "CMSC250"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC330",
+   "title": "Organization of Programming Languages",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC250 and CMSC216.",
+   "corequisite": null,
+   "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in the Computer Science Minor program; or must be in Engineering: Computer program; and Permission of CMSC - Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC250"
+     ],
+     [
+      "CMSC216"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC335",
+   "title": "Web Application Development with JavaScript",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC216 and CMSC250.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science Department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC216"
+     ],
+     [
+      "CMSC250"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC250 and CMSC216.",
+   "corequisite": null,
+   "restriction": "Must be in a major within the CMNS-Computer Science department; or must be in Engineering: Computer program; or must be in the Computer Science Minor program; and Permission from the CMSC - Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC250"
+     ],
+     [
+      "CMSC216"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC388A",
+   "title": "Special Topics in Computer Science; Introduction to Web Application Front End Development",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": "CMSC330.",
+   "corequisite": null,
+   "restriction": "permission of department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202612"
+   ]
+  },
+  {
+   "code": "CMSC388B",
+   "title": "Special Topics in Computer Science; Introduction to Web Application Back End Development",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": "CMSC330.",
+   "corequisite": null,
+   "restriction": "permission of department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202612"
+   ]
+  },
+  {
+   "code": "CMSC389A",
+   "title": "Special Topics in Computer Science",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC398B",
+   "title": "Special Topics in Computer Science; Introduction to Go",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": "CMSC216.",
+   "corequisite": null,
+   "restriction": "permission of department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC216"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202612"
+   ]
+  },
+  {
+   "code": "CMSC398C",
+   "title": "Special Topics in Computer Science; Best Practices for Professional Programmers",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC131 or permission of instructor; and permission of CMNS-Computer Science department.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC131"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202612"
+   ]
+  },
+  {
+   "code": "CMSC398O",
+   "title": "Special Topics in Computer Science; Tools for Leveraging Generative AI",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC132. Intermediate Python programming experience and basic familiarity with general APIs and Large Language Models (LLMs) is required. Please contact the instructor if you have any questions about whether you meet these prerequisites.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC132"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202612"
+   ]
+  },
+  {
+   "code": "CMSC401",
+   "title": "Algorithms for Geospatial Computing",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "GEOG276; or a minimum grade of C- in CMSC330 and CMSC351; or permission of instructor.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "GEOG470",
+    "GEOG770"
+   ],
+   "prereqs": {
+    "groups": [
+     [
+      "GEOG276",
+      "CMSC330"
+     ],
+     [
+      "GEOG276",
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC411",
+   "title": "Computer Systems Architecture",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330; or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC412",
+   "title": "Operating Systems",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351; and 1 course with a minimum grade of C- from (CMSC414, CMSC417, CMSC420, CMSC430, CMSC433, CMSC435, ENEE440, ENEE457).",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department; or must be in one of the following programs (Computer Science (Master's); Computer Science (Doctoral)).",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ],
+     [
+      "CMSC414",
+      "CMSC417",
+      "CMSC420",
+      "CMSC430",
+      "CMSC433",
+      "CMSC435",
+      "ENEE440",
+      "ENEE457"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC414",
+   "title": "Computer and Network Security",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351; or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC416",
+   "title": "Introduction to Parallel Computing",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351; or permission of instructor.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [
+    "CMSC616"
+   ],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC417",
+   "title": "Computer Networks",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351"
+     ],
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC420",
+   "title": "Advanced Data Structures",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351"
+     ],
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC421",
+   "title": "Introduction to Artificial Intelligence",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351"
+     ],
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC422",
+   "title": "Introduction to Machine Learning",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC320, CMSC330, and CMSC351; and 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290); and permission of CMNS-Computer Science department.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC320"
+     ],
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ],
+     [
+      "MATH240",
+      "MATH341",
+      "MATH461",
+      "ENEE290"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC423",
+   "title": "Computational Genomics",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351"
+     ],
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC424",
+   "title": "Database Design",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351 and CMSC330; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351"
+     ],
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC425",
+   "title": "Game Programming",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC426",
+   "title": "Computer Vision",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351 and 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290); or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program; or permission of the instructor.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ],
+     [
+      "MATH240",
+      "MATH341",
+      "MATH461",
+      "ENEE290"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC427",
+   "title": "Computer Graphics",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351; 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290).",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ],
+     [
+      "MATH240",
+      "MATH341",
+      "MATH461",
+      "ENEE290"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC430",
+   "title": "Introduction to Compilers",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC433",
+   "title": "Programming Language Technologies and Paradigms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330; or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC434",
+   "title": "Introduction to Human-Computer Interaction",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC435",
+   "title": "Software Engineering",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "1 course with a minimum grade of C- from (CMSC412, CMSC417, CMSC420, CMSC430, CMSC433, ENEE447); and permission of CMNS-Computer Science department.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC412",
+      "CMSC417",
+      "CMSC420",
+      "CMSC430",
+      "CMSC433",
+      "ENEE447"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC436",
+   "title": "Programming Handheld Systems",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351; or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC437",
+   "title": "Introduction to Quantum Software Laboratory",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC457 or PHYS467; and familiarity with basic programming, languages (e.g., Python).",
+   "corequisite": null,
+   "restriction": "Permission of CMNS-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC457",
+      "PHYS467"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC451",
+   "title": "Design and Analysis of Computer Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC452",
+   "title": "Elementary Theory of Computation",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351; and permission of CMNS-Computer Science department. Or must be in the (Computer Science (Doctoral), Computer Science (Master's)) program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC454",
+   "title": "Algorithms for Data Science",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC330 and CMSC351.",
+   "corequisite": null,
+   "restriction": "Permission of CMSC-Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC456",
+   "title": "Cryptography",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Permission of CMNS-Mathematics department.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "MATH456",
+    "ENEE456"
+   ],
+   "prereqs": {
+    "groups": [],
+    "complete": false
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC457",
+   "title": "Introduction to Quantum Computing",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "1 course with a minimum grade of C- from (ENEE290, MATH240, MATH341, MATH461, MATH243); and 1 course with a minimum grade of C- from (CMSC351, PHYS313).",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "PHYS457"
+   ],
+   "prereqs": {
+    "groups": [
+     [
+      "ENEE290",
+      "MATH240",
+      "MATH341",
+      "MATH461",
+      "MATH243"
+     ],
+     [
+      "CMSC351",
+      "PHYS313"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC460",
+   "title": "Computational Methods",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290, MATH243); and 1 course with a minimum grade of C- from (MATH241, MATH340); and 1 course with a minimum grade of C- from (CMSC106, CMSC131); and 1 course with a minimum grade of C- from (MATH246, MATH341, ENEE290, MATH243).",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "AMSC460"
+   ],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH240",
+      "MATH341",
+      "MATH461",
+      "ENEE290",
+      "MATH243"
+     ],
+     [
+      "MATH241",
+      "MATH340"
+     ],
+     [
+      "CMSC106",
+      "CMSC131"
+     ],
+     [
+      "MATH246",
+      "MATH341",
+      "ENEE290",
+      "MATH243"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC466",
+   "title": "Introduction to Numerical Analysis I",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "1 course with a minimum grade of C- from (CMSC106, CMSC131); and minimum grade of C- in MATH410.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "AMSC466"
+   ],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC106",
+      "CMSC131"
+     ],
+     [
+      "MATH410"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC475",
+   "title": "Combinatorics and Graph Theory",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "1 course with a minimum grade of C- from (MATH240, MATH341, MATH461, ENEE290, MATH243); and 1 course with a minimum grade of C- from (MATH241, MATH340); and 1 course with a minimum grade of C- from (MATH310, CMSC250).",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "MATH475"
+   ],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH240",
+      "MATH341",
+      "MATH461",
+      "ENEE290",
+      "MATH243"
+     ],
+     [
+      "MATH241",
+      "MATH340"
+     ],
+     [
+      "MATH310",
+      "CMSC250"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC476",
+   "title": "Capstone in Artificial Intelligence",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC421 or CMSC422; and/or permission of CMNS-Computer Science department; or must be in the Computer Science graduate program.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "CMSC676"
+   ],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC421",
+      "CMSC422"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC477",
+   "title": "Robotics Perception and Planning",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "1 course from (MATH240, MATH243, MATH341, MATH461, ENEE290); and (ENEE467 or CMSC420).",
+   "corequisite": null,
+   "restriction": "Must be in the Robotics and Autonomous Systems minor; and permission of Computer Science department.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH240",
+      "MATH243",
+      "MATH341",
+      "MATH461",
+      "ENEE290"
+     ],
+     [
+      "ENEE467",
+      "CMSC420"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC488A",
+   "title": "Special Topics in Computer Science; Quantum Boot Camp",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": "basic calculus and linear algebra.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": false
+   },
+   "offered": [
+    "202612"
+   ]
+  },
+  {
+   "code": "CMSC498A",
+   "title": "Selected Topics in Computer Science",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202612"
+   ]
+  },
+  {
+   "code": "CMSC498E",
+   "title": "Selected Topics in Computer Science; Robotics",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade C- in CMSC330 and CMSC351 and 1 course with a minimum grade of C- from (MATH240, MATH341, MATH461); and permission of CMNS-Computer Science Department.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC330"
+     ],
+     [
+      "CMSC351"
+     ],
+     [
+      "MATH240",
+      "MATH341",
+      "MATH461"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC498N",
+   "title": "Selected Topics in Computer Science; The Science of Scams",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC498P",
+   "title": "Selected Topics in Computer Science",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC498W",
+   "title": "Selected Topics in Computer Science; Economics and Computation",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351; and permission of CMNS-Computer Science Department.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC498Y",
+   "title": "Selected Topics in Computer Science; Statistical Inference and Machine Learning Methods for Genomics Data",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Minimum grade of C- in CMSC351 and minimum grade of C- in any STAT400-level course; or DATA400; or ENEE324.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC351",
+      "DATA400",
+      "ENEE324"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC499A",
+   "title": "Independent Undergraduate Research",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202612"
+   ]
+  },
+  {
+   "code": "CMSC616",
+   "title": "Foundations of Parallel Computing",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "CMSC411 and CMSC412; or permission of instructor.",
+   "corequisite": null,
+   "restriction": "Must be in the Computer Science or Applied Mathematics and Scientific Computation master's or doctoral programs.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "CMSC411"
+     ],
+     [
+      "CMSC412"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC624",
+   "title": "Database System Architecture and Implementation",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC661",
+   "title": "Scientific Computing II",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "AMSC661"
+   ],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC676",
+   "title": "Capstone in Artificial Intelligence",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "CMSC476"
+   ],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC711",
+   "title": "Computer Networks",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC714",
+   "title": "High Performance Computing Systems",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC734",
+   "title": "Information Visualization",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC756",
+   "title": "Robotics",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in the Computer Science Master's or Doctoral programs.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC764",
+   "title": "Advanced Numerical Optimization",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "MATH410 or equivalent; or permission of instructor.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH410"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC798",
+   "title": "Master's Non-Thesis Research",
+   "credits": {
+    "min": 1,
+    "max": 6
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202612",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC799",
+   "title": "Master's Thesis Research",
+   "credits": {
+    "min": 1,
+    "max": 6
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202612",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC800",
+   "title": "How to Conduct Great Research",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Must be in the Computer Science doctoral program.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC818C",
+   "title": "Advanced Topics in Computer Systems; Verified Systems Programming with Proof Agents",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC818T",
+   "title": "Advanced Topics in Computer Systems; Applied Cryptographic Systems and Privacy Enhancing Technologies",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC818Y",
+   "title": "Advanced Topics in Computer Systems",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC828C",
+   "title": "Advanced Topics in Information Processing; Statistical Pattern Recognition",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "MATH461; or students who have taken courses with comparable content may contact the department; or permission of instructor.",
+   "corequisite": "ENEE620; or permission of instructor. Cross-listed with ENEE633. Credit will be only granted for CMSC828C or ENEE633. Must be in the Computer Science Master's or Doctoral program; or permission of the instructor.",
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH461"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC828D",
+   "title": "Advanced Topics in Information Processing",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC848T",
+   "title": "Selected Topics in Information Processing; Frontiers in Multilingual AI",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC858C",
+   "title": "Advanced Topics in Theory of Computing",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC858Y",
+   "title": "Advanced Topics in Theory of Computing; Quantum Computer Systems",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC878D",
+   "title": "Advanced Topics in Numerical Methods",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "CMSC898",
+   "title": "Pre-Candidacy Research",
+   "credits": {
+    "min": 1,
+    "max": 8
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202612",
+    "202605"
+   ]
+  },
+  {
+   "code": "CMSC899",
+   "title": "Doctoral Dissertation Research",
+   "credits": {
+    "min": 6,
+    "max": 6
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701",
+    "202612",
+    "202605"
+   ]
+  }
+ ]
+}

@@ -189,14 +189,17 @@ export class SchemaVersionError extends DataError {
   }
 }
 
-async function readParsed<S extends z.ZodType>(
+/**
+ * A published file, validated: the envelope first, so a newer format reads
+ * as `SchemaVersionError` (reload), not as broken data.
+ */
+export async function readParsed<S extends z.ZodType>(
   source: DataSource,
   key: string,
   schema: S,
   family: SchemaFamily,
 ): Promise<z.infer<S>> {
   const raw = await source.readJson(key);
-  // The envelope first, so a newer format reads as "reload", not "broken".
   const envelope = WireEnvelopeSchema.safeParse(raw);
   const expected = SCHEMA_VERSIONS[family];
   if (envelope.success && envelope.data.schemaVersion !== expected)

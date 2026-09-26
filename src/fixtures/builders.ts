@@ -16,12 +16,17 @@ import {
   type ConnectionEnd,
   type Course,
   type CourseGrades,
+  type CourseIndexDept,
+  type CourseIndexEntry,
+  type CourseIndexManifest,
+  type CourseSearchFile,
   connectionId,
   courseRoomId,
   DEFAULT_GENERATE_LIMITS,
   DEFAULT_MUST_HAVES,
   DEFAULT_TRAVEL_SETTINGS,
   type DeptChunk,
+  type FeedItem,
   type GenerateRequest,
   GRADE_KEYS,
   type GradeCounts,
@@ -52,6 +57,7 @@ import {
   type Term,
   type TermsFile,
   type TimedMeeting,
+  type TranscriptLine,
   type UntimedMeeting,
 } from "~/core/schema";
 
@@ -272,6 +278,60 @@ export function aManifest(overrides: Partial<Manifest> = {}): Manifest {
       fetchedAt: FIXTURE_NOW,
     },
     changes: { hash: FIXTURE_HASH, count: 1, latestAt: FIXTURE_NOW },
+    ...overrides,
+  };
+}
+
+// ---------- course index ----------
+
+/** CMSC351 as the course index has it: listed in both mock terms. */
+export function aCourseIndexEntry(
+  overrides: Partial<CourseIndexEntry> = {},
+): CourseIndexEntry {
+  return {
+    code: "CMSC351",
+    title: "Algorithms",
+    credits: { min: 3, max: 3 },
+    genEds: [],
+    prerequisite: "Minimum grade of C- in CMSC250 and CMSC216.",
+    corequisite: null,
+    restriction: null,
+    crossListings: [],
+    prereqs: { groups: [["CMSC250"], ["CMSC216"]], complete: true },
+    offered: [fixtureTermId, archivedFixtureTermId],
+    ...overrides,
+  };
+}
+
+export function aCourseIndexDept(
+  overrides: Partial<CourseIndexDept> = {},
+): CourseIndexDept {
+  return {
+    schemaVersion: 1,
+    dept: "CMSC",
+    courses: [aCourseIndexEntry()],
+    ...overrides,
+  };
+}
+
+export function aCourseSearchFile(
+  overrides: Partial<CourseSearchFile> = {},
+): CourseSearchFile {
+  return {
+    schemaVersion: 1,
+    courses: [["CMSC351", "Algorithms", 3, 3, []]],
+    ...overrides,
+  };
+}
+
+export function aCourseIndexManifest(
+  overrides: Partial<CourseIndexManifest> = {},
+): CourseIndexManifest {
+  return {
+    schemaVersion: 1,
+    generatedAt: FIXTURE_NOW,
+    search: { hash: FIXTURE_HASH },
+    departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
     ...overrides,
   };
 }
@@ -653,6 +713,29 @@ export function anUnpublishedCalendar(
   };
 }
 
+// ---------- todo ----------
+
+/** An ELMS assignment as `parseIcs` reads it: CMSC216's Project 2, due 11:59pm on Sep 29. */
+export function aFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
+  return {
+    uid: "event-assignment-4410001",
+    source: "elms",
+    title: "Project 2",
+    courseLabel: "CMSC216-0103: Introduction to Computer Systems",
+    courseCodes: ["CMSC216"],
+    sectionCode: "0103",
+    kind: "assignment",
+    kindFrom: "uid",
+    looksLikeExam: false,
+    gradescope: false,
+    dueAt: "2026-09-30T03:59:00.000Z",
+    dueDate: "2026-09-29",
+    endAt: null,
+    link: "https://elms.umd.edu/courses/1300001/assignments/4410001",
+    ...overrides,
+  };
+}
+
 // ---------- computed contracts ----------
 
 export function aGenerateRequest(
@@ -746,6 +829,30 @@ export function aChatMessage(
     thread: null,
     reactions: {},
     moderation: { state: "visible" },
+    ...overrides,
+  };
+}
+
+// ---------- four-year plan ----------
+
+/** A finished UMD course as `parseTranscript` reads it: CMSC131 in the fall before the fixture term. */
+export function aTranscriptLine(
+  overrides: Partial<TranscriptLine> = {},
+): TranscriptLine {
+  return {
+    term: "202608",
+    code: "CMSC131",
+    title: "OBJECT-ORIENTED PROG I",
+    grade: "A",
+    credits: 4,
+    earned: 4,
+    qualityPoints: 16,
+    genEds: [],
+    via: "umd",
+    equivalentOf: null,
+    equivalentPattern: null,
+    sectionCode: null,
+    inProgress: false,
     ...overrides,
   };
 }
