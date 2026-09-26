@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Route } from "lucide-react";
+import { CircleX, Route, TriangleAlert } from "lucide-react";
 import type { CSSProperties } from "react";
 import { openTab, switchSection } from "~/app/actions";
 import { messageToText } from "~/app/message-text";
@@ -42,6 +42,16 @@ export function laneStyle(
   };
 }
 
+/**
+ * What makes a calendar item one stop of the roving tabindex
+ * (calendar.tsx, keyboard.ts): `tabIndex` 0 on the one Tab lands on.
+ */
+export interface NavProps {
+  "data-nav-key": string;
+  tabIndex: number;
+  "aria-describedby"?: string;
+}
+
 const KIND_WORDS = { discussion: "discussion", lab: "lab" } as const;
 
 /** The width in px a course code needs on one line (10px mono, padding and border). */
@@ -59,11 +69,13 @@ export function ClassBlock({
   open,
   style,
   width = null,
+  nav,
 }: {
   entry: Lane<ClassEntry>;
   height: number;
   /** Its width in px, so a narrow lane can stack the code; null before it's measured. */
   width?: number | null;
+  nav?: NavProps;
   /** Another course's sections are showing. */
   dimmed: boolean;
   /** This course's sections are showing: it's the current one. */
@@ -117,7 +129,11 @@ export function ClassBlock({
         type="button"
         onClick={onOpen}
         data-course={entry.courseCode}
+        // Forced colors drop the ring (a box-shadow); styles.css draws a
+        // thicker border instead.
+        data-selected={selected || changed ? "" : undefined}
         aria-label={classLabel(entry)}
+        {...nav}
         className={cn(
           "absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border py-1 text-left transition-colors duration-150",
           tight ? "px-0.5" : "px-1.5",
@@ -168,8 +184,10 @@ export function BusyBlock({
   dimmed,
   style,
   width = null,
+  nav,
 }: {
   entry: Lane<BlockEntry>;
+  nav?: NavProps;
   height: number;
   dimmed: boolean;
   style: CSSProperties;
@@ -183,6 +201,7 @@ export function BusyBlock({
         type="button"
         onClick={() => openTab("blocks", "click")}
         aria-label={blockLabel(entry)}
+        {...nav}
         className={cn(
           "stripes absolute z-[1] flex flex-col justify-start overflow-hidden rounded-md border bg-panel px-1.5 py-1 text-left transition-colors duration-150",
           // Dimmed with color, not opacity, so its words stay readable.
@@ -221,6 +240,7 @@ export function Ghost({
   readOnly,
   seats,
   style,
+  nav = null,
 }: {
   entry: Lane<GhostEntry>;
   height: number;
@@ -229,6 +249,8 @@ export function Ghost({
   readOnly: boolean;
   seats: SeatsMap | null;
   style: CSSProperties;
+  /** Null for an overlay, which is drawn over its merge and isn't a stop. */
+  nav?: NavProps | null;
 }) {
   const setPreview = useUi((s) => s.setPreviewSection);
   const merged = entry.sectionCodes.length > 1;
@@ -289,12 +311,18 @@ export function Ghost({
       </div>
     );
 
+  // Pointing at a ghost previews it, and so does focusing it: the keyboard
+  // compares sections the way the pointer does.
+  const show = () => setPreview(entry.sectionKey);
+  const hide = () => {
+    if (useUi.getState().previewSection === entry.sectionKey) setPreview(null);
+  };
   const hover = {
-    onPointerEnter: () => setPreview(entry.sectionKey),
-    onPointerLeave: () => {
-      if (useUi.getState().previewSection === entry.sectionKey)
-        setPreview(null);
-    },
+    onPointerEnter: show,
+    onPointerLeave: hide,
+    onFocus: show,
+    onBlur: hide,
+    ...nav,
   };
   const parsed = parseSectionKey(entry.sectionKey);
   if (!parsed) return null;
@@ -302,14 +330,18 @@ export function Ghost({
   if (readOnly)
     return (
       <WithTooltip label="Save a copy to change sections">
-        <div
-          className={className}
+        {/* A button that does nothing, so it can be reached and read. */}
+        <button
+          type="button"
+          aria-disabled="true"
+          aria-label={ghostName(entry, parsed.courseCode, { readOnly: true })}
+          className={cn(className, "cursor-default")}
           style={boxStyle}
           data-ghost={shown}
           {...hover}
         >
           {body}
-        </div>
+        </button>
       </WithTooltip>
     );
 
@@ -415,6 +447,14 @@ export function Ghost({
   );
 }
 
+const VERDICT_ICON = {
+  ok: Route,
+  tight: TriangleAlert,
+  insufficient: CircleX,
+  unknown: Route,
+  "no-route": Route,
+} as const;
+
 const PILL_TONE = {
   ok: "border-hairline text-muted",
   tight: "border-warn/50 text-warn",
@@ -431,6 +471,7 @@ export function TravelPill({
   travel,
   selected,
   onOpen,
+  nav,
 }: {
   pill: Pill;
   top: number;
@@ -439,7 +480,11 @@ export function TravelPill({
   travel: TravelSettings;
   selected: boolean;
   onOpen: (connection: Connection) => void;
+  nav?: NavProps;
 }) {
+  // Color is never the only sign (WCAG 1.4.1): a tight or impossible
+  // connection swaps the route icon for a warning one.
+  const Icon = VERDICT_ICON[pill.connection.verdict];
   const c = pill.connection;
   const math = travelMath(c, travel);
   const words = messageToText(verdictMessage(c));
@@ -463,7 +508,9 @@ export function TravelPill({
         type="button"
         onClick={() => onOpen(c)}
         data-verdict={c.verdict}
+        data-selected={selected ? "" : undefined}
         aria-label={pillLabel(c)}
+        {...nav}
         // The button is a 24px-tall target (WCAG 2.5.8); the pill drawn
         // inside it stays 20px so it doesn't crowd the classes around it.
         className="-translate-x-1/2 -translate-y-1/2 absolute z-20 flex h-6 items-center rounded-full"
@@ -476,7 +523,7 @@ export function TravelPill({
             selected && "ring-2 ring-fg/70",
           )}
         >
-          <Route size={10} aria-hidden="true" />
+          <Icon size={10} aria-hidden="true" />
           {known ? `${c.walkMinutes} min` : null}
         </span>
       </button>

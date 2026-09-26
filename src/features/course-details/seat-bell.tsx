@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Bell, BellDot, BellRing } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { SectionKey, TermId } from "~/core/schema";
 import {
   subscribeMessage,
@@ -14,6 +14,14 @@ import { WithTooltip } from "~/ui/tooltip";
 
 // The bell on a low or full section (SPEC §3.12): enter an email, get one
 // confirmation link, then "Watching". Hidden while seat alerts are off.
+
+/**
+ * The form it replaces had focus (the button just pressed): the answer takes
+ * it, so it's read out and Esc still closes the popover.
+ */
+function focusOnMount(el: HTMLElement | null) {
+  el?.focus();
+}
 
 export function SeatBell({
   termId,
@@ -39,6 +47,7 @@ export function SeatBell({
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(
     null,
   );
+  const errorId = useId();
   if (alert.kind === "unavailable") return null;
 
   const label = sectionKey.replace("-", " ");
@@ -84,7 +93,10 @@ export function SeatBell({
         <PopoverTrigger asChild>
           <button
             type="button"
-            aria-label={tooltip}
+            // A list has many bells: each says which section it's for.
+            aria-label={
+              alert.kind === "watching" ? tooltip : `${tooltip}, ${label}`
+            }
             data-alert={alert.kind}
             className={cn(
               "flex shrink-0 items-center justify-center rounded-md transition-colors hover:bg-hover",
@@ -141,30 +153,33 @@ export function SeatBell({
               </WithTooltip>
             ) : null}
           </div>
-        ) : message ? (
+        ) : message?.ok ? (
           <p
+            ref={focusOnMount}
+            tabIndex={-1}
             role="status"
-            className={cn(
-              "mt-1 text-sm",
-              message.ok ? "text-ok" : "text-error",
-            )}
+            className="mt-1 text-sm text-ok outline-none"
           >
             {message.text}
           </p>
         ) : (
           <form
-            className="mt-2 flex gap-1.5"
+            className="mt-2 flex flex-wrap gap-1.5"
             onSubmit={(event) => {
               event.preventDefault();
               void submit();
             }}
           >
+            {/* A failure keeps the field, says why under it, and ties the
+                two together (WCAG 3.3.1). */}
             <input
               data-private
               type="email"
               required
               autoComplete="email"
               aria-label="Your email"
+              aria-invalid={message ? true : undefined}
+              aria-describedby={message ? errorId : undefined}
               placeholder="you@terpmail.umd.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -175,6 +190,15 @@ export function SeatBell({
                 Email me
               </Button>
             </WithTooltip>
+            {message ? (
+              <p
+                id={errorId}
+                role="status"
+                className="w-full text-sm text-error"
+              >
+                {message.text}
+              </p>
+            ) : null}
           </form>
         )}
         {alert.kind === "none" && !message ? (

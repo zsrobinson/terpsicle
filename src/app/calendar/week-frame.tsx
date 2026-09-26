@@ -121,8 +121,17 @@ export function WeekFrame({
           ref={scrollRef}
           data-calendar-scroll=""
           className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain"
+          // Something focused on the grid scrolls clear of the sticky day
+          // names and of a phone's drawer (WCAG 2.4.11).
+          style={{
+            scrollPaddingTop: DAY_HEADER_HEIGHT + 8,
+            scrollPaddingBottom: bottomInset + 8,
+          }}
         >
+          {/* Each day's column is a group named for its day, so this row
+              would only repeat it. */}
           <div
+            aria-hidden="true"
             className="sticky top-0 z-10 grid border-hairline border-b bg-bg"
             style={{ gridTemplateColumns: columns, height: DAY_HEADER_HEIGHT }}
           >

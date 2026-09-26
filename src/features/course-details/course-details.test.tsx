@@ -335,7 +335,7 @@ describe("Course details", () => {
       const { user } = await renderDetails();
       expect(within(row("0401")).queryByLabelText(/seat opens/)).toBeNull();
       const bell = within(row("0101")).getByRole("button", {
-        name: "Get an email when a seat opens",
+        name: "Get an email when a seat opens, CMSC351 0101",
       });
       expect(bell).toHaveAttribute("data-alert", "none");
       await user.click(bell);
@@ -353,7 +353,7 @@ describe("Course details", () => {
       });
       expect(
         within(row("0101")).getByRole("button", {
-          name: "Check your email to confirm",
+          name: "Check your email to confirm, CMSC351 0101",
         }),
       ).toHaveAttribute("data-alert", "pending");
     });

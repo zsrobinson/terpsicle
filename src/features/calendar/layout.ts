@@ -579,7 +579,7 @@ function consecutive(codes: readonly SectionCode[]): boolean {
  * 0302" for a few that aren't (a range would claim 0103–0301 too), and
  * first–last past three.
  */
-function codeSpan(codes: readonly SectionCode[]): string {
+export function codeSpan(codes: readonly SectionCode[]): string {
   if (codes.length <= 1) return codes[0] ?? "";
   if (codes.length <= 3 && !consecutive(codes)) return codes.join(" · ");
   return `${codes[0]}–${codes[codes.length - 1]}`;
