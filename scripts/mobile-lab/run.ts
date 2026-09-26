@@ -189,7 +189,7 @@ function asCompositorCrash(
   result.id = `${oldId}-webkit-crash-${attemptNo}`;
   renameSync(path.join(out, oldId), path.join(out, result.id));
   if (result.video) result.video = result.video.replace(oldId, result.id);
-  result.note = `WebKit's page process crashed in WPE's compositor thread (${kernel.trim()}): a Linux WebKit bug, not the page (docs/MOBILE-TESTING.md). The scenario ran again as ${oldId}.`;
+  result.note = `WebKit's page process crashed in WPE's compositor thread (${kernel.trim()}): a Linux WebKit bug, not the page (docs/MOBILE-TESTING.md, "Known issue"). The scenario ran again as ${oldId}.`;
   result.error = null;
   for (const step of result.steps) {
     for (const check of step.checks)

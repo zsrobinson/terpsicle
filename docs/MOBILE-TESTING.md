@@ -102,22 +102,32 @@ In order (`scripts/mobile-lab/scenarios.ts`). Each starts with a fresh load.
 
 To add one, append to `SCENARIOS`: use `lab.tap`, `lab.swipe`, `lab.type`, `lab.hideKeyboard` and `lab.rotate` on `Target`s (a selector, optionally a label), and `lab.step(name, { expect })` after each action.
 
-## WebKit's compositor crash
+## Known issue: WebKit's compositor crash
 
-Playwright's WebKit on Linux (the WPE port) sometimes crashes its page process, about once in 30–50 runs of `tabs`, mostly on the tap from one tab to the next. Playwright reports "Target crashed", and the runner's kernel logs a segfault in WPE's compositor thread at the same instruction every time:
+Playwright's WebKit on Linux (the WPE port, `webkit-2359`, WebKit 26.6, `libWPEWebKit-2.0.so.1.12.0`) sometimes crashes its page process. Playwright reports "Target crashed", usually while taking a screenshot, and the runner's kernel logs a segfault in WPE's compositor thread at the same instruction every time:
 
 ```
-eadedCompositor[6411]: segfault at 0 ip …0f8a … error 4 in libWPEWebKit-2.0.so.1.12.0[60a0f8a,…]
-Code: … 48 89 fe <48> 8b 07 ff 50 40 …   (a virtual call through a null object)
+eadedCompositor[6411]: segfault at 0 ip …0f8a sp … error 4 in libWPEWebKit-2.0.so.1.12.0[60a0f8a,…]
+Code: … 49 89 fe <48> 8b 07 ff 50 40 …   (mov rax,[rdi]; call [rax+0x40]: a virtual call through a null object)
 ```
 
-It isn't the page:
+**How often.** On 2026-09-26, 10 of 663 runs of `tabs` crashed with the kernel logging this segfault, about 1 in 65. Two earlier crashes have no kernel log. It happened mostly on the tap from Search to Problems, also on Blocks, Generate, Export and Travel, and never in the other scenarios' ~200 runs. It happened with recording and screenshots on, with recording off, and with both off. It hit production and two PR previews alike.
+
+**Why it isn't the page:**
 - The page process holds a steady ~570 MB, and the runner has ~14.9 GB free.
 - No WebGL is involved: the Travel tab mounts MapLibre only in a connection's details.
-- It happens with recording and screenshots both off.
 - Safari's page process in the iOS Simulator doesn't use this compositor. Ten runs of `tabs` there showed no crash, and its log showed no memory warning or jetsam (Safari holds ~190–220 MB).
 
-So when a WebKit scenario crashes and the kernel log shows this exact segfault, the lab keeps that attempt as `<id>-webkit-crash-<n>`, marked `webkit-compositor-crash` (a warning) with the kernel's lines, and runs the scenario again, up to twice. A scenario that crashes a third time fails. So does any crash without this signature, and any crash on Android or iOS, as `page-process-alive`. Reading the kernel log needs `sudo dmesg`, which GitHub's runners allow. Without it, every crash fails.
+**Upstream.**
+- A likely match, not confirmed without symbols: [WebKit bug 308242](https://bugs.webkit.org/show_bug.cgi?id=308242), "[GTK][WPE] AcceleratedSurface might segfault when createTarget() fails". Its compositor thread dereferences a null render target when a buffer can't be allocated without a GPU, as on a CI runner. It's open and unassigned.
+- Related Playwright reports of random WPE page-process deaths, with different signatures: [microsoft/playwright#42740](https://github.com/microsoft/playwright/issues/42740) (SIGILL) and [#22903](https://github.com/microsoft/playwright/issues/22903) (after screenshots).
+- We haven't filed anything upstream.
+
+**What the lab does.** When a WebKit scenario crashes and the kernel log shows this exact segfault (`isWebkitCompositorCrash` in `checks.ts`):
+- The crashed attempt is kept as `<id>-webkit-crash-<n>`, marked `webkit-compositor-crash` (a warning) with the kernel's lines.
+- The scenario runs again, up to twice. A scenario that crashes a third time fails.
+- So does any crash without this signature, and any crash on Android or iOS, as `page-process-alive`.
+- Reading the kernel log needs `sudo dmesg`, which GitHub's runners allow. Without it, every crash fails.
 
 ## What it can't tell
 
