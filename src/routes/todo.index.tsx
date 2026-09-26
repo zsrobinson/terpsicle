@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { z } from "zod";
-import { initAnalytics, stopSessionRecording } from "~/app/analytics";
+import { initAnalytics } from "~/app/analytics";
 import { IsoDateSchema } from "~/core/schema";
 import { TodoPage, type TodoView } from "~/features/todo";
 
@@ -33,8 +33,6 @@ function TodoRoute() {
   const navigate = useNavigate({ from: "/todo/" });
 
   useEffect(() => {
-    // No session recordings on Todo (V3.md §6).
-    stopSessionRecording();
     void initAnalytics();
   }, []);
 

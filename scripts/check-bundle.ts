@@ -1,6 +1,6 @@
-// The scheduler's eager bundle, held to a budget (BUILD §5: first load
-// < 1.5 MB compressed; regressions fail CI), and the marketing page's, which
-// must stay light. Run after `pnpm build`:
+// Each entry route's eager bundle, reported against a guide size (BUILD §5:
+// first load < 1.5 MB compressed), and the modules that must never load up
+// front, which fail the check. Run after `pnpm build`:
 //
 //   pnpm check:bundle
 //
@@ -16,16 +16,13 @@ import { BUNDLE_GRAPH_FILE, type BundleGraph } from "./bundle-graph";
 import { isMain, ROOT } from "./lib/source-files";
 
 /**
- * Gzipped JS + CSS for /schedule, in bytes: 343 KB when this was set (M8),
- * plus about 10% headroom. Raise it on purpose, in the PR that needs it,
- * never to get a build green.
- *
- * Raised from 380 KB in v3 todo-ui (379.2 → 381.1 KB) with no Todo code in
- * it (the never rule below): Todo shares the sign-in button, course tints and
- * date helpers with the scheduler, so Rollup moved those into shared chunks,
- * each compressed on its own; the stylesheet and the route tree grew too.
+ * Gzipped JS + CSS for /schedule, in bytes: 335 KB when this was set
+ * (perf/schedule-bundle moved the later rail tabs, the phone drawer and the
+ * search index out of the first load), plus about 10 KB headroom. Raise it on
+ * purpose, in the PR that needs it, never to get a build green; first see
+ * whether the new code can load on first use (docs/BUILD.md §5).
  */
-export const EAGER_BUDGET = 384 * 1024;
+export const EAGER_BUDGET = 345 * 1024;
 
 /**
  * Gzipped JS + CSS for / (the marketing page), in bytes: 193 KB when this
@@ -33,13 +30,6 @@ export const EAGER_BUDGET = 384 * 1024;
  * schemas, plus about 10% headroom. Same rule for raising it.
  */
 export const LANDING_BUDGET = 215 * 1024;
-
-/**
- * Gzipped JS + CSS for /todo and /todo/connect, in bytes: 225 KB when this
- * was set (v3 todo-ui), `/`'s 205 KB plus the list, the week and the .ics
- * parser, plus about 10% headroom. Same rule for raising it.
- */
-export const TODO_BUDGET = 248 * 1024;
 
 /** Modules that must only ever load on demand, and why. */
 export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
@@ -54,7 +44,44 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
     why: "the search itself runs in the generator's worker",
   },
   { pattern: /^src\/fixtures\//, why: "fixtures are for mock mode only" },
+  {
+    // Only its status (a tiny store and the top bar's icon) is eager.
+    pattern: /^src\/features\/sync\/(?!status)/,
+    why: "plan sync loads only once someone is signed in",
+  },
 ];
+
+/**
+ * What the scheduler loads on first use rather than up front (docs/BUILD.md
+ * §5): each of these once was eager, and they add up to about 40 KB.
+ */
+export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
+  [
+    {
+      // Their panels.tsx registers them with lazyPanel; everything else in
+      // the folder is the panel's own.
+      pattern:
+        /^src\/features\/(generate|travel|blocks|export)\/(?!panels\.tsx$)/,
+      why: "Generate, Travel, Blocks and Export load when first opened",
+    },
+    { pattern: /^src\/core\/ics\//, why: ".ics export loads with Export" },
+    {
+      pattern: /(^|\/)comlink\//,
+      why: "the generator's worker client loads with Generate",
+    },
+    {
+      pattern: /(^|\/)@radix-ui\/react-select\//,
+      why: "selects are only in Generate and Blocks",
+    },
+    {
+      pattern: /(^|\/)minisearch\/|^src\/core\/search\/search\.ts$/,
+      why: "the text index loads when Search opens (use-course-search)",
+    },
+    {
+      pattern: /(^|\/)vaul\/|^src\/app\/mobile-drawer\.tsx$/,
+      why: "the phone drawer loads on phones only (app-shell)",
+    },
+  ];
 
 /**
  * What must stay out of `/` and the pages around the scheduler: `/` may peek
@@ -66,6 +93,34 @@ export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
     { pattern: /^src\/state\//, why: "the app's stores load with /schedule" },
     { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
   ];
+
+/**
+ * Gzipped JS + CSS for the admin panel (/admin, /admin/decisions), in bytes:
+ * 224 KB when this was set (v2 admin-shell), `/`'s base plus the panel, plus
+ * about 10% headroom; 213 KB once the panel stopped using Radix's menu and
+ * select (sharing them split them out of /schedule's chunk, which cost
+ * /schedule about 5 KB). Same rule for raising it.
+ */
+export const ADMIN_BUDGET = 245 * 1024;
+
+/**
+ * Gzipped JS + CSS for /todo and /todo/connect, in bytes: 225 KB when this
+ * was set (v3 todo-ui), `/`'s base plus the list, the week and the .ics
+ * parser for dropped files, plus about 10% headroom. Same rule for raising it.
+ */
+export const TODO_BUDGET = 248 * 1024;
+
+/** Todo loads with /todo, never with the scheduler. */
+const TODO_NEVER_EAGER = {
+  pattern: /^src\/(features\/todo\/|server\/fns\/todo\.ts$)/,
+  why: "Todo loads with /todo, not the scheduler",
+};
+
+/** The owner's panel loads with /admin, never with anyone else's pages. */
+const ADMIN_NEVER_EAGER = {
+  pattern: /^src\/features\/admin\//,
+  why: "the admin panel loads with /admin",
+};
 
 /**
  * Each entry route (docs/V2.md §1.1), its budget and its extra never-eager
@@ -86,36 +141,28 @@ export const ROUTE_BUDGETS: readonly {
         pattern: /^src\/state\/course-index-store\.ts$/,
         why: "the course index loads with Plan, not the scheduler",
       },
-      {
-        pattern: /^src\/(features\/todo\/|server\/fns\/todo\.ts$)/,
-        why: "Todo loads with /todo, not the scheduler",
-      },
+      ...SCHEDULE_NEVER_EAGER,
+      ADMIN_NEVER_EAGER,
+      TODO_NEVER_EAGER,
     ],
   },
-  {
-    // Terpsicle Todo: `/`'s rules (no Dexie, no scheduler stores; course
-    // colors are a raw IndexedDB read), plus the list, the week and the
-    // browser's .ics parser for dropped files.
-    route: "/todo/",
-    budget: TODO_BUDGET,
-    never: LANDING_NEVER_EAGER,
-  },
-  {
-    route: "/todo/connect",
-    budget: TODO_BUDGET,
-    never: LANDING_NEVER_EAGER,
-  },
-  ...[
-    "/",
-    "/reviews/",
-    "/chat/",
-    "/settings",
-    "/signin",
-    "/admin/",
-    "/privacy",
-  ].map((route) => ({
+  // Todo keeps `/`'s rules: no Dexie and no scheduler stores (course colors
+  // are a raw IndexedDB read).
+  ...["/todo/", "/todo/connect"].map((route) => ({
     route,
-    budget: LANDING_BUDGET,
+    budget: TODO_BUDGET,
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  })),
+  ...["/", "/reviews/", "/chat/", "/settings", "/signin", "/privacy"].map(
+    (route) => ({
+      route,
+      budget: LANDING_BUDGET,
+      never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+    }),
+  ),
+  ...["/admin/", "/admin/decisions"].map((route) => ({
+    route,
+    budget: ADMIN_BUDGET,
     never: LANDING_NEVER_EAGER,
   })),
 ];
@@ -253,9 +300,13 @@ function checkRoute(
   const problems = forbiddenModules(graph, chunks, never).map(
     (p) => `${route}: ${p}`,
   );
+  // The total is reported, not enforced (the owner, 2026-09-26: page size
+  // shouldn't hold up merges). The never-eager rules above still fail: they
+  // catch a whole feature slipping into the first load, which a few KB of
+  // ordinary growth never is.
   if (total > budget)
-    problems.push(
-      `${route}: eager bundle is ${kb(total)}, over the ${kb(budget)} budget: lazy-load something, or raise its budget in scripts/check-bundle.ts on purpose`,
+    console.warn(
+      `note: ${route}'s eager bundle is ${kb(total)}, over its ${kb(budget)} guide. Worth a look for anything that could load on first use.\n`,
     );
   return problems;
 }

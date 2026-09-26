@@ -1,7 +1,9 @@
+import { signInPagePath } from "~/core/auth";
 import { CSP_NONCE_HEADER, CSP_REPORT_PATH } from "~/core/schema";
 import { runScheduled } from "~/jobs/index";
 import { APEX_HOST } from "./apex";
 import { API_PREFIX, handleApi } from "./api/router";
+import { type PageAccess, pageAccess } from "./auth/pages";
 import { AVATARS_PREFIX, serveAvatar } from "./auth/pictures";
 import { CHAT_SOCKET_PATH, openChatSocket } from "./chat/socket";
 import { DATA_PREFIX, serveData } from "./data";
@@ -29,6 +31,45 @@ function withHtmlRevalidation(response: Response): Response {
     return response;
   const out = new Response(response.body, response);
   out.headers.set("Cache-Control", "no-cache");
+  return out;
+}
+
+/** A path no route matches: the app answers it with its 404 page. */
+export const NOT_FOUND_PATH = "/__not-found";
+
+/**
+ * A page only some people may load (src/server/auth/pages.ts): the page
+ * itself, a trip through /signin that comes back here, or the app's own
+ * "Page not found" with a 404. Pages go through `render`, so they get the
+ * CSP nonce and security headers like any other.
+ */
+async function gatedPage(
+  render: (request: Request) => Promise<Response>,
+  request: Request,
+  access: PageAccess,
+): Promise<Response> {
+  const url = new URL(request.url);
+  if (access === "allow") return render(request);
+  if (access === "sign-in")
+    return withSecurityHeaders(
+      new Response(null, {
+        status: 302,
+        headers: {
+          Location: new URL(
+            signInPagePath(`${url.pathname}${url.search}`),
+            url.origin,
+          ).href,
+        },
+      }),
+      request,
+    );
+  return render(new Request(new URL(NOT_FOUND_PATH, url.origin), request));
+}
+
+/** The answer depends on who's asking: no shared or browser cache keeps it. */
+function privatePage(response: Response): Response {
+  const out = new Response(response.body, response);
+  out.headers.set("Cache-Control", "private, no-store");
   return out;
 }
 
@@ -125,8 +166,10 @@ export function createWorker(app: AppHandler) {
         return openChatSocket(request, env, new Date());
       }
       const response = await route(request, env, ctx);
-      return response
-        ? withSecurityHeaders(response, request)
+      if (response) return withSecurityHeaders(response, request);
+      const access = await pageAccess(request, env, new Date());
+      return access
+        ? privatePage(await gatedPage(render, request, access))
         : render(request);
     },
 

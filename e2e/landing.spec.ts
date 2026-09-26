@@ -15,7 +15,10 @@ test.afterEach(() => {
 });
 
 const marketingHeading = (page: Page) =>
-  page.getByRole("heading", { name: "Terpsicle", level: 1 });
+  page.getByRole("heading", {
+    name: "Your semester's a tangle of tabs. Let's straighten it out.",
+    level: 1,
+  });
 /** The scheduler's calendar: on screen on desktop and phones alike. */
 const scheduler = (page: Page) =>
   page.getByRole("region", { name: "Week calendar" });
@@ -30,17 +33,15 @@ async function returning(page: Page): Promise<void> {
 }
 
 /**
- * Flags, across navigations in this tab, any moment the marketing heading
- * was on screen. The check hides the page until it decides, so a redirect
- * must never set it.
+ * Flags, across navigations in this tab, any moment the marketing page was
+ * on screen. The check hides the page until it decides, so a redirect must
+ * never set it.
  */
 function watchForMarketing(): void {
   const check = () => {
     const shown =
       !document.documentElement.hasAttribute("data-landing") &&
-      [...document.querySelectorAll("h1")].some(
-        (h) => h.textContent === "Terpsicle",
-      );
+      document.querySelector("[data-marketing]") !== null;
     if (shown) sessionStorage.setItem("saw-marketing", "1");
   };
   new MutationObserver(check).observe(document, {
@@ -59,7 +60,9 @@ test("a first visit sees the marketing page; after that, / opens the scheduler",
 }) => {
   await page.goto("/");
   await expect(marketingHeading(page)).toBeVisible();
-  await expect(page).toHaveTitle("Terpsicle");
+  await expect(page).toHaveTitle(
+    "Terpsicle: planning tools for your semester at Maryland",
+  );
   // Still shown once the app has hydrated: the check never runs twice.
   await page.waitForLoadState("networkidle");
   await expect(page.locator("html")).not.toHaveAttribute("data-landing");
@@ -138,7 +141,6 @@ test("the logo opens the product menu", async ({ page }) => {
 for (const [path, heading, title] of [
   ["/reviews", "Terpsicle Reviews", "Reviews · Terpsicle"],
   ["/chat", "Terpsicle Chat", "Chat · Terpsicle"],
-  ["/admin", "Admin", "Admin · Terpsicle"],
   ["/privacy", "Privacy", "Privacy · Terpsicle"],
 ] as const) {
   test(`${path} is its own page, outside the scheduler`, async ({ page }) => {
@@ -150,6 +152,23 @@ for (const [path, heading, title] of [
     await expect(page.locator("[data-app-shell]")).toHaveCount(0);
   });
 }
+
+// Admins only (V2 §10): a signed-out visit goes to sign in first. The
+// admin's own page (outside the scheduler) and everyone else's 404 are in
+// e2e/admin.spec.ts.
+test("/admin sends a signed-out visitor to sign in, and back afterwards", async ({
+  page,
+}) => {
+  const response = await page.goto("/admin");
+  await expect(page).toHaveURL(/\/signin\?return=%2Fadmin$/);
+  expect(
+    (await response?.request().redirectedFrom()?.response())?.status(),
+  ).toBe(302);
+  await expect(
+    page.getByRole("heading", { name: "Sign in", level: 1 }),
+  ).toBeVisible();
+  await expect(page.locator("[data-app-shell]")).toHaveCount(0);
+});
 
 test("/privacy shows the contact address in words, never whole", async ({
   page,

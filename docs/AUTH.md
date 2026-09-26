@@ -171,6 +171,8 @@ These never refresh sessions or set cookies. For a GET that only reads (like `/a
 
 `isAdmin(userId, {authTestMode})` in `src/server/auth/admin.ts` is the only check: the id is in the file, or, in test mode only, the user is the fixture `tadmin`. `/api/me` tells the app (`user.isAdmin`), and the account menu shows "Admin" (`/admin`) to admins.
 
+**Admin pages** (`/admin`, `/admin/*`): the Worker decides before the app renders anything (`pageAccess` in `src/server/auth/pages.ts`, a read-only `getSession`). Signed out → `302 /signin?return=<path>`, and back after signing in; signed in but not an admin → the app's own "Page not found" with a real 404, so nothing hints the panel exists; the admin → the page. All three are `private, no-store`. The panel's API routes are `auth: "admin"` regardless.
+
 ## Pictures
 
 Our own copy, never a hot link to Google:
@@ -185,6 +187,7 @@ Google forbids wildcard redirect URIs, and previews live at `pr-<n>-terpsicle.zs
 - `AUTH_TEST_MODE: "true"` is in `wrangler.jsonc`'s `previews.vars`, and `vite.config.ts` sets it for `pnpm dev:mock` (so e2e). A worker test checks production's `vars` never set it.
 - It's on only with the flag **and** a preview or localhost host. On `terpsicle.com` it's off whatever the vars say, and `auth/test-sign-in` answers 404 there.
 - "Sign in" says "Sign in (test mode)" and leads to `/auth/test`, which lists `TEST_USERS` (`tstudent` "Test Student", `tclassmate` "Test Classmate", `tadmin` "Test Admin", the admin). Choosing one calls `POST /api/auth/test-sign-in {userId, return}`, which signs in through the same `signIn` as Google: sessions, `/api/me` and everything after are the real code.
+- End-to-end tests also sign in as throwaway people, `e2e` plus up to 13 letters or digits ("E2E Tester", never an admin; `/auth/test` doesn't list them), through the same route, so parallel tests never share an account's synced plans.
 - What test mode skips (Google's redirect and token exchange) is covered by `src/server/auth/auth.test.ts`, which runs the whole callback against a mocked token endpoint, and by trying it on localhost and production.
 
 **Why not a broker on terpsicle.com** (the callback on terpsicle.com hands a one-time code to the preview): previews run unreviewed PR code, so a broker would hand real Google identities (names, emails, pictures) to any PR, and add a production endpoint that trusts `*.workers.dev`; previews have their own D1, so it would also need a server-to-server redemption API; and CI needs a deterministic sign-in anyway (V2.md §4.6).
@@ -193,9 +196,9 @@ Google forbids wildcard redirect URIs, and previews live at `pr-<n>-terpsicle.zs
 
 ## Signing out and deleting an account
 
-- **Sign out** (`POST /api/auth/sign-out`) deletes this device's session and clears `__Host-session` and `__Host-hint`. Plans stay on the device. It needs our own origin, not a live session, so a stale cookie can always be cleared. "Sign out and remove plans from this device" arrives with plan sync.
+- **Sign out** (`POST /api/auth/sign-out`) deletes this device's session and clears `__Host-session` and `__Host-hint`. Plans stay on the device and stop syncing (the sync state is forgotten, so the next sign-in merges as a first one). It needs our own origin, not a live session, so a stale cookie can always be cleared. **"Sign out and remove plans from this device"** (the account menu and `/settings`, for a shared computer) first pushes every change to the account; if one can't get there (offline), nothing is removed and the person stays signed in. Then it signs out, clears the plans, blocks, colors, travel, chat plans and sync state from IndexedDB and the `terpsicle:returning` flag, and goes to `/` (V2.md §5.3).
 - **Delete account** (`POST /api/account/delete`, `/settings`): no confirmation dialog (DESIGN §5). It sets `status = 'deleting'` and `delete_after` a week out, ends every session, and signs out. Settings says "Your account will be deleted on Saturday, October 3. Sign in before then to keep it." The toast's **Undo** signs back in, which cancels the deletion. The daily job purges accounts past `delete_after`: their pictures, then `users` (identities and sessions go with it). Later PRs add their own data to the purge (V2.md §4.7).
 
 ## Analytics and privacy
 
-PostHog stays anonymous (`docs/ANALYTICS.md`): never `identify()`, and no user id, directory ID, name, email or `sub` in any event. Client events: `signin_started {from}`, `signin_completed {firstOnDevice}`, `signin_failed {reason}`, `signed_out {removedLocal}`, `account_deletion_requested`. Server: `signin_result {outcome, hd}`. Names, emails and avatars in the UI carry `data-private`, so session recordings mask them.
+PostHog stays anonymous (`docs/ANALYTICS.md`): never `identify()`, and no user id, directory ID, name, email or `sub` in any event. Client events: `signin_started {from}`, `signin_completed {firstOnDevice}`, `signin_failed {reason}`, `signed_out {removedLocal}`, `account_deletion_requested`, and plan sync's `sync_first_sign_in {uploaded, renamed, copies}`. Server: `signin_result {outcome, hd}` and `sync_push {docs, conflicts}`. Names, emails and avatars in the UI carry `data-private`, so session recordings mask them.

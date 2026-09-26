@@ -56,14 +56,9 @@ export function useNow(): { now: number; today: IsoDate } {
   return { now, today: newYorkClock(now).date };
 }
 
-/** Where Todo's pages go: the site's frame, kept out of autocapture. */
+/** Where Todo's pages go: the site's frame, wide. */
 export function TodoFrame({ children }: { children: ReactNode }) {
-  return (
-    <SitePage layout="app">
-      {/* ph-no-capture: autocapture would read titles off what's clicked. */}
-      <div className="ph-no-capture">{children}</div>
-    </SitePage>
-  );
+  return <SitePage layout="app">{children}</SitePage>;
 }
 
 export function TodoOff() {

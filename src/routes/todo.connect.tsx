@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { initAnalytics, stopSessionRecording } from "~/app/analytics";
+import { initAnalytics } from "~/app/analytics";
 import { ConnectPage } from "~/features/todo";
 
 // Connect ELMS, see the connection, disconnect, add a calendar file
@@ -18,8 +18,6 @@ export const Route = createFileRoute("/todo/connect")({
 
 function ConnectRoute() {
   useEffect(() => {
-    // No session recordings on Todo (V3.md §6).
-    stopSessionRecording();
     void initAnalytics();
   }, []);
   return <ConnectPage />;
