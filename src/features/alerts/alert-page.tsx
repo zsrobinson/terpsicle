@@ -24,7 +24,7 @@ export function AlertPage({
         <section
           aria-live="polite"
           aria-busy={busy}
-          className="rounded-lg border border-hairline bg-raised p-6 shadow-pop"
+          className="border border-keyline bg-raised p-6 shadow-pop"
         >
           <h1 className="mb-1.5 font-semibold text-lg tracking-tight">
             {title}

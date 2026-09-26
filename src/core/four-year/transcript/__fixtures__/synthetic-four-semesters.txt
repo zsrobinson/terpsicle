@@ -1,0 +1,53 @@
+SYNTHETIC FIXTURE: invented courses and grades, not a real student's transcript.
+Shaped like v1's 2025 format. Replace with a redacted real paste (docs/V3.md §2.10, §10).
+
+Testudo   My Info   Registration   Grades   Log Out
+
+Unofficial Transcript                                   Sam Testudo
+UID XXXXXXXXX                                           sam.testudo@example.edu
+Birth Date: 01/01/2000
+Program: Biological Sciences (CMNS)
+
+Fall 2023
+    BSCI170  PRIN MOLEC & CELL BIOLOGY         A     3.00    3.00   12.00   DSNS
+    BSCI171  PRIN MOLEC & CELL BIO LAB         A-    1.00    1.00    3.70   DSNL
+    CHEM131  CHEMISTRY I-FUND GEN CHEM         B+    3.00    3.00    9.90   DSNS
+    CHEM132  GENERAL CHEMISTRY I LAB           B     1.00    1.00    3.00   DSNL
+    ENGL101  ACADEMIC WRITING                  A     3.00    3.00   12.00   FSAW
+    MATH140  CALCULUS I                        B-    4.00    4.00   10.80   FSMA, FSAR
+    Meth = Reg     Sem: 15.00 crds   GPA 3.43
+    ==========================================================
+
+Spring 2024
+    BSCI160  PRIN OF ECOLOGY & EVOLUTION       A-    3.00    3.00   11.10   DSNS
+    BSCI161  PRIN ECOLOGY & EVOL LAB           A     1.00    1.00    4.00   DSNL
+    CHEM231  ORGANIC CHEMISTRY I               C+    3.00    3.00    6.90
+    CHEM232  ORGANIC CHEMISTRY LAB I           B     1.00    1.00    3.00
+    PSYC100  INTRO TO PSYCHOLOGY               A     3.00    3.00   12.00   DSHS or DSNS
+    COMM107  ORAL COMM PRINC & PRACT           A-    3.00    3.00   11.10   FSOC
+    Meth = Reg     Sem: 14.00 crds   GPA 3.42
+    ==========================================================
+
+Fall 2024
+    BSCI207  PRIN BIOL III-ORGANISMAL          B+    3.00    3.00    9.90
+    CHEM241  ORGANIC CHEMISTRY II              B     3.00    3.00    9.00
+    CHEM242  ORGANIC CHEMISTRY LAB II          A     1.00    1.00    4.00
+    STAT100  ELEMENTARY STATISTICS             A     3.00    3.00   12.00   FSAR, FSMA
+    ANTH260  INTRO SOCIOCULT ANTH & LING       B+    3.00    3.00    9.90   DSHS, DVUP
+    MUSC130  SURVEY OF WESTERN MUSIC           P     3.00    3.00    0.00   DSHU, SCIS
+    Meth = Reg     Sem: 16.00 crds   GPA 3.39
+    ==========================================================
+
+Spring 2025
+    BSCI222  PRINCIPLES OF GENETICS            A-    4.00    4.00   14.80
+    GEOL100  PHYSICAL GEOLOGY                  B     3.00    3.00    9.00   DSNL (if taken with GEOL110) or DSNS
+    GEOL110  PHYSICAL GEOLOGY LAB              A     1.00    1.00    4.00
+    PHYS121  FUNDAMENTALS OF PHYSICS I         F     4.00    0.00    0.00   DSNL
+    HIST200  INTERPRETING AMER HIST I          A     3.00    3.00   12.00   DSHS or DSHU
+    ENGL393  TECHNICAL WRITING                 A     3.00    3.00   12.00   FSPW
+    Meth = Reg     Sem: 18.00 crds   GPA 2.94
+    ==========================================================
+
+    UG Cumulative:  Attempted 63.00   Earned 59.00   GPA 3.27
+
+(c) University of Maryland   Privacy   Accessibility   Web Accessibility

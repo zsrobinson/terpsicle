@@ -1,0 +1,27 @@
+recognized: true
+
+lines:
+{"term":"before","code":"MATH141","title":"AP CALCULUS BC","grade":"P","credits":4,"earned":4,"qualityPoints":null,"genEds":[[{"code":"FSAR"}],[{"code":"FSMA"}]],"via":"ap","equivalentOf":"MATH141","equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"before","code":"MATH140","title":"AP CALCULUS AB","grade":"P","credits":4,"earned":4,"qualityPoints":null,"genEds":[[{"code":"FSAR"}],[{"code":"FSMA"}]],"via":"ap","equivalentOf":"MATH140","equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"before","code":"ENGL101","title":"AP ENGLISH LANG & COMP","grade":"P","credits":3,"earned":3,"qualityPoints":null,"genEds":[[{"code":"FSAW"}]],"via":"ap","equivalentOf":"ENGL101","equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"before","code":"PHYS161","title":"AP PHYSICS C MECHANICS","grade":"P","credits":3,"earned":3,"qualityPoints":null,"genEds":[[{"code":"DSNS"}]],"via":"ap","equivalentOf":"PHYS161","equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"before","code":"PSYC100","title":"AP PSYCHOLOGY","grade":"P","credits":3,"earned":3,"qualityPoints":null,"genEds":[[{"code":"DSHS"},{"code":"DSNS"}]],"via":"ap","equivalentOf":"PSYC100","equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"before","code":null,"title":"AP CHEMISTRY","grade":"P","credits":4,"earned":4,"qualityPoints":null,"genEds":[[{"code":"DSNL"}]],"via":"ap","equivalentOf":null,"equivalentPattern":"CHEM1XX","sectionCode":null,"inProgress":false}
+{"term":"before","code":"SOCY100","title":"INTRO TO SOCIOLOGY","grade":"A","credits":3,"earned":3,"qualityPoints":null,"genEds":[[{"code":"DSHS"}],[{"code":"DVUP"}]],"via":"transfer","equivalentOf":"SOCY100","equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"before","code":null,"title":"WORLD RELIGIONS","grade":"B+","credits":3,"earned":3,"qualityPoints":null,"genEds":[[{"code":"DSHU"}]],"via":"transfer","equivalentOf":null,"equivalentPattern":"RELS1XX","sectionCode":null,"inProgress":false}
+{"term":"before","code":null,"title":"PUBLIC SPEAKING","grade":"B","credits":3,"earned":3,"qualityPoints":null,"genEds":[],"via":"transfer","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"before","code":"MATH115","title":"COLLEGE ALGEBRA","grade":"C-","credits":3,"earned":3,"qualityPoints":null,"genEds":[],"via":"transfer","equivalentOf":"MATH115","equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202408","code":"CMSC131","title":"OBJECT-ORIENTED PROG I","grade":"A-","credits":4,"earned":4,"qualityPoints":14.8,"genEds":[],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202408","code":"MATH240","title":"INTRO TO LINEAR ALGEBRA","grade":"B+","credits":4,"earned":4,"qualityPoints":13.2,"genEds":[],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202408","code":"CMSC100","title":"BITCAMP","grade":"A","credits":1,"earned":1,"qualityPoints":4,"genEds":[],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202408","code":"ARTH200","title":"ART & SOCIETY IN ANCIENT WORLD","grade":"A","credits":3,"earned":3,"qualityPoints":12,"genEds":[[{"code":"DSHU"}],[{"code":"SCIS"}]],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202408","code":"ECON200","title":"PRINCIPLES OF MICRO-ECONOMICS","grade":"B","credits":4,"earned":4,"qualityPoints":12,"genEds":[[{"code":"DSHS"}]],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202412","code":"PHIL140","title":"CONTEMP MORAL ISSUES","grade":"A","credits":3,"earned":3,"qualityPoints":12,"genEds":[[{"code":"DSHU"}]],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202501","code":"CMSC132","title":"OBJECT-ORIENTED PROG II","grade":"B+","credits":4,"earned":4,"qualityPoints":13.2,"genEds":[],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202501","code":"CMSC250","title":"DISCRETE STRUCTURES","grade":"A-","credits":4,"earned":4,"qualityPoints":14.8,"genEds":[],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202501","code":"ENGL393","title":"TECHNICAL WRITING","grade":"A","credits":3,"earned":3,"qualityPoints":12,"genEds":[[{"code":"FSPW"}]],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202501","code":"AASP100","title":"INTRO AFRICAN AMER STUDIES","grade":"A","credits":3,"earned":3,"qualityPoints":12,"genEds":[[{"code":"DSHS"},{"code":"DSHU"}],[{"code":"DVUP"}]],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+{"term":"202505","code":"STAT400","title":"APPLIED PROBABILITY & STATS I","grade":"B","credits":3,"earned":3,"qualityPoints":9,"genEds":[],"via":"umd","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}
+
+skipped:
+{"raw":"AP US HISTORY NC Credit not granted","reason":"no-credit","line":{"term":"before","code":null,"title":"AP US HISTORY","grade":null,"credits":0,"earned":0,"qualityPoints":null,"genEds":[],"via":"ap","equivalentOf":null,"equivalentPattern":null,"sectionCode":null,"inProgress":false}}
