@@ -179,8 +179,9 @@ The v2 brand came from a prototype track: a "Bulletin" paper round, then six var
 | `accent-soft` (the selected row) | `#E0DED3`, between base-100 and 150 | `#2E2D2B`, between base-900 and 850 |
 | `ok` / `warn` / `error` | green-700 / yellow-800 / red-600, on their 50 steps | green-300 / yellow-300 / red-300, on their 900 steps |
 
-- **Product colors:** Terpsicle (the scheduler) red, Reviews purple, Chat blue. `bg-product-<id>` is the 600 step in both themes, `text-product-<id>-fg` paper on it, and `bg-product-<id>-soft` the 50 step (dark: 900).
-- **Where product color goes (Ink: "tint only"):** the marks and the product menu. It is never a button, a heading or a border.
+- **Product colors, in color order:** Terpsicle (the scheduler) red, Reviews purple, Chat blue, Plan green, Todo yellow. `bg-product-<id>` is the 600 step in both themes, `text-product-<id>-fg` paper on it, and `bg-product-<id>-soft` the 50 step (dark: 900). Two exceptions keep the glyph readable: Plan's tile is green-700 (paper is 4.4:1 on green-600), and Todo's is yellow-400 with an ink glyph (8.1:1; paper fails on every yellow lighter than 700).
+- **Where product color goes (Ink: "tint only"):** the marks, the product menu and the marketing page. In the app it is never a button, a heading or a border.
+- **The marketing page** (`/`, Fable's "Detangle") is the brand at full volume, so it goes further than the app: each product's block sits on its soft fill (with the grain), hangs from a rail in its line color, and its heading carries a Riso misprint in the product's lighter step. Those colors are the page's own tokens (`-text`, `-line`, `-mis` per product, in `src/features/marketing/marketing.css`), held to the same contrast test as the palette.
 - **The selected row is neutral,** a half-step past `hover`, so the current item reads stronger than a hovered one. Ink tinted it with the scheduler's soft red, which is also the error fill, and selection must never read as an error.
 - **Course colors** are Flexoki too: fill 100 (dark 900), border and dot 400, text 900 (dark 150). The text is a step darker than Ink's 700/800 because a block's time and room lines are drawn at 70–80% opacity and must still clear 4.5:1. Flexoki has eight hues and red means an error here, so three of the ten course ids are oklab midpoints of neighbors, in Flexoki's widest hue gaps: green (green + cyan), cyan (cyan + blue) and indigo (blue + purple). The ten sit at least 22° apart, and every line of block text clears 4.5:1, placed, ghosted or dimmed.
 
@@ -188,7 +189,7 @@ The v2 brand came from a prototype track: a "Bulletin" paper round, then six var
 
 - **Bricolage Grotesque** for everything but codes, self-hosted (`@fontsource-variable/bricolage-grotesque`, its optical-size cut). The browser picks the optical size from the font size, so 11px rows get the open text drawing and the wordmark the tight display one. Ink sets it at 13px in dense rows too; it held up in the scheduler's lists, so there is no second text face.
 - **Geist Mono** for codes (course, section, building, gen-ed), as before (UX-REVIEW §2.7).
-- The UX-REVIEW §2.1 scale and density are unchanged. Weights: 400 body, 500 labels, 600 titles, codes and buttons. 700 only in the wordmark.
+- The UX-REVIEW §2.1 scale and density are unchanged. Weights: 400 body, 500 labels, 600 titles, codes and buttons. 700 only in the wordmark and the marketing page's display headings, which also have their own sizes (its stylesheet, not the app's scale).
 - **The wordmark:** lowercase "terpsicle", Bricolage 700 at optical size 96, 17px, tracking -0.02em (the `wordmark` utility).
 
 ### 7.3 Shape and elevation
@@ -202,14 +203,14 @@ The v2 brand came from a prototype track: a "Bulletin" paper round, then six var
 
 ### 7.4 Grain
 
-Ink's "subtle" paper grain: a 220px fractal-noise tile, dark specks at 28% on paper, light specks at 20% on ink. It sits on a fixed layer behind the shell's content: it shows on the page's paper and never under text, and anything with its own fill (panels, menus, blocks) stays clean. It's off under `prefers-reduced-transparency`, `prefers-contrast: more`, forced colors and print. On a phone (390×844, 4× CPU throttle) it adds no paint or raster work while scrolling, and the median frame time is unchanged.
+Ink's "subtle" paper grain: a 220px fractal-noise tile, dark specks at 28% on paper, light specks at 20% on ink. It sits on a fixed layer behind the shell's content: it shows on the page's paper and never under text, and anything with its own fill (panels, menus, blocks) stays clean. The marketing page leaves its paper unfilled so the grain shows, and gives each product block's soft fill its own grain layer under its content. It's off under `prefers-reduced-transparency`, `prefers-contrast: more`, forced colors and print. On a phone (390×844, 4× CPU throttle) it adds no paint or raster work while scrolling, and the median frame time is unchanged.
 
 ### 7.5 Marks
 
-Four marks on an 18-unit grid (`src/app/brand/marks.ts`): the **umbrella** (Terpsicle, the family), **Schedule**, **Reviews** and **Chat**.
+Six marks on an 18-unit grid (`src/app/brand/marks.ts`): the **umbrella** (Terpsicle, the family), **Schedule**, **Reviews**, **Chat**, **Plan** and **Todo**. Plan and Todo appear on the marketing page for now; they join the product menu when they launch.
 - Each has a primary shape at 100% and a secondary at 70%, and fills the 12-unit live area. At 16px the 70% shape goes solid.
-- Schedule is two courses side by side, stepped in time. Reviews is a pixel star with a small sparkle. Chat is a bubble with a stepped tail and a reply.
-- **Tiles:** a product's tile is its 600 step with a paper glyph and no keyline. The umbrella is the scheduler's glyph on a neutral tile: paper with an ink keyline (dark: base-900 with a base-300 keyline and a base-600 offset). It is never a black box on a black offset.
+- Schedule is two courses side by side, stepped in time. Reviews is a pixel star with a small sparkle. Chat is a bubble with a stepped tail and a reply. Plan is a two-step staircase (the semesters behind you) and the next step ahead. Todo is two list rows done and a third still open.
+- **Tiles:** a product's tile is its 600 step with a paper glyph and no keyline. The umbrella is the scheduler's glyph on a neutral tile: paper with an ink keyline (dark: base-900 with a base-300 keyline and a base-600 offset). It is never a black box on a black offset. Each mark names its glyph's paint (`GLYPH_PAINT`: paper, ink on Todo's yellow, or the theme's for the umbrella), and its keyline per theme: the umbrella's in both, Todo's in light only, where the yellow tile alone is 2.3:1 on paper.
 - The drawings are data. The owner may refine them: replace the shapes in `GLYPHS`, then run `pnpm tsx scripts/build-icons.ts`, which redraws the favicon (SVG, following the browser's theme, plus a 32px PNG), the 180px home-screen icon and the 192, 512 and maskable 512 app icons in `public/icons/`. A test fails when those files are stale.
 
 ### 7.6 The product menu
