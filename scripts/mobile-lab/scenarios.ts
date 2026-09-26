@@ -6,6 +6,7 @@ import type { Check, Probe } from "./checks";
 import { visibleBand } from "./checks";
 import type { Engine } from "./device";
 import { expectation, type Lab, type Target } from "./lab";
+import { call } from "./page-scripts";
 
 export interface Scenario {
   id: string;
@@ -337,6 +338,48 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "scroll-list-back",
+    title: "Scroll a long list down, then back up: the drawer stays",
+    async run(lab) {
+      await open(lab);
+      await search(lab, "cmsc");
+      await lab.hideKeyboard();
+      await lab.wait(SETTLE);
+      await snapTo(lab, "full");
+      const list = await lab.pointIn(RESULTS, 0.5, 0.75);
+      await lab.swipe(list, { dy: -350 }, 400, "scroll");
+      await lab.wait(SETTLE);
+      const down = await lab.step("scrolled down", { settled: true });
+      const scrolled = down.probe?.searchResults?.scrollTop ?? 0;
+      // Finger down on the scrolled list: the list scrolls back up. On
+      // Android the drawer used to take the first moves and drop to half
+      // or peek when the browser cancelled them.
+      await lab.swipe(
+        await lab.pointIn(RESULTS, 0.5, 0.3),
+        { dy: 250 },
+        400,
+        "scroll",
+      );
+      await lab.wait(SETTLE);
+      await lab.step("scrolled back up", {
+        settled: true,
+        expect: (p) => [
+          expectation(
+            "drawer-stays-while-a-list-scrolls",
+            p.drawer?.snap === "full",
+            `drawer at ${p.drawer?.snap} after scrolling the results back up`,
+          ),
+          expectation(
+            "list-scrolled-back",
+            (p.searchResults?.scrollTop ?? 0) < scrolled,
+            `results scrollTop ${scrolled} → ${p.searchResults?.scrollTop}`,
+            "warn",
+          ),
+        ],
+      });
+    },
+  },
+  {
     id: "calendar-pull",
     title: "Scroll the calendar, then pull down at its top",
     async run(lab) {
@@ -466,6 +509,105 @@ export const SCENARIOS: Scenario[] = [
           ...bottomVisible(p),
         ],
       });
+    },
+  },
+  {
+    id: "open-results",
+    title: "Search, scroll, put the keyboard away and open a result, six times",
+    async run(lab) {
+      await open(lab);
+      await search(lab, "cmsc");
+      for (let i = 0; i < 6; i++) {
+        // What a person does between results: back in the box with the
+        // keyboard, a scroll through the list, Done, then one tap.
+        await snapTo(lab, "full");
+        await lab.tap(SEARCH_BOX);
+        await lab.wait(SETTLE);
+        await lab.device.evaluate(
+          "document.querySelector('#search-results')?.scrollTo(0, 0) ?? true",
+        );
+        await lab.swipe(
+          await lab.pointIn(RESULTS, 0.5, 0.8),
+          { dy: -160 },
+          400,
+          "scroll",
+        );
+        await lab.wait(SETTLE);
+        await lab.hideKeyboard();
+        await lab.wait(SETTLE);
+        // One tap, as a person would; a result that needs a second tap
+        // fails here.
+        await lab.tap({
+          selector: "#search-results [data-course-result]",
+          visible: true,
+        });
+        await lab.wait(1500);
+        const step = await lab.step(`opened a result (${i + 1})`, {
+          expect: (p) => [
+            expectation(
+              "result-opens-on-one-tap",
+              !!p.panel?.heading && p.panel.heading !== "Search",
+              `panel heading "${p.panel?.heading}"`,
+            ),
+          ],
+        });
+        if (step.probe?.panel?.heading === "Search") continue;
+        await lab.tap({
+          selector: 'nav[aria-label="Breadcrumb"] button',
+          text: "Search",
+        });
+        await lab.wait(SETTLE);
+      }
+    },
+  },
+  {
+    id: "add-sections",
+    title: "Add a section from course details, then switch it three times",
+    async run(lab) {
+      await open(lab);
+      await search(lab, "cmsc131");
+      await lab.hideKeyboard();
+      await lab.wait(SETTLE);
+      await lab.tap({ selector: '[data-course-result="CMSC131"]' });
+      await lab.wait(2000);
+      await snapTo(lab, "full");
+      const current = () =>
+        lab.device.evaluate<string | null>(
+          `(() => { const row = [...document.querySelectorAll("[data-section], [data-pinned-section]")].find((r) => r.getAttribute("aria-current") === "true" || [...r.querySelectorAll("span")].some((x) => x.textContent === "Current")); return row ? row.getAttribute("data-section") || row.getAttribute("data-pinned-section") : null; })()`,
+        );
+      for (let i = 0; i < 4; i++) {
+        // The top one on screen: "Added … Undo" covers the screen's foot.
+        const button = {
+          selector:
+            '[data-section] button[aria-label^="Add "], [data-section] button[aria-label^="Switch to "]',
+          visible: true,
+          index: 0,
+        };
+        const label = await lab.device.evaluate<string | null>(
+          call(
+            `(q) => { const all = [...document.querySelectorAll(q.selector)].filter((b) => { const r = b.getBoundingClientRect(); const y = r.y + r.height / 2; const hit = document.elementFromPoint(r.x + r.width / 2, y); return hit && (hit === b || b.contains(hit)); }); const b = all[q.index]; return b ? b.getAttribute("aria-label") : null; }`,
+            button,
+          ),
+        );
+        if (!label) {
+          await lab.step("no section button on screen");
+          break;
+        }
+        const section = label.replace(/^(Add|Switch to) /, "");
+        // One tap, as a person would.
+        await lab.tap(button);
+        await lab.wait(1500);
+        const now = await current();
+        await lab.step(`tapped ${label}`, {
+          expect: () => [
+            expectation(
+              "section-button-works-on-one-tap",
+              now?.endsWith(section) ?? false,
+              `tapped "${label}"; the current section is ${now}`,
+            ),
+          ],
+        });
+      }
     },
   },
 ];

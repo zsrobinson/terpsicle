@@ -216,6 +216,71 @@ test("a scrolled list scrolls under a finger; the drawer stays", async ({
   await expect(drawer(page)).toHaveAttribute("data-snap", "full");
 });
 
+test("scrolling a list back up leaves the drawer where it is", async ({
+  page,
+}) => {
+  // On a phone (the mobile lab's url-bar scenario, Android Chrome), a finger
+  // moving down on a scrolled list reached vaul as a few pointer moves
+  // before the browser took the scroll and cancelled the pointer. vaul
+  // dragged the drawer for those moves, took the pointerout that follows a
+  // cancel for a release, and read it as a flick down: the drawer dropped to
+  // half or peek. Headless Chromium cancels before any move, so this plays
+  // the phone's sequence after a real touch: moves, cancel, pointerout.
+  const results = await searchResults(page);
+  await settle(page);
+  await results.evaluate((el) => el.scrollTo({ top: 600 }));
+  await expect.poll(() => results.evaluate((el) => el.scrollTop)).toBe(600);
+  const box = await results.boundingBox();
+  if (!box) throw new Error("no results");
+  const at = { x: box.x + box.width / 2, y: box.y + 200 };
+
+  const pointerId = page.evaluate(
+    () =>
+      new Promise<number>((resolve) =>
+        addEventListener("pointerdown", (e) => resolve(e.pointerId), {
+          once: true,
+          capture: true,
+        }),
+      ),
+  );
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [at],
+  });
+  await results.evaluate(
+    (el, { id, x, y }) => {
+      const send = (type: string, dy: number) =>
+        el.dispatchEvent(
+          new PointerEvent(type, {
+            pointerId: id,
+            pointerType: "touch",
+            isPrimary: true,
+            bubbles: true,
+            cancelable: true,
+            clientX: x,
+            clientY: y + dy,
+          }),
+        );
+      for (const dy of [6, 14, 26, 40]) send("pointermove", dy);
+      send("pointercancel", 40);
+      send("pointerout", 40);
+    },
+    { id: await pointerId, ...at },
+  );
+  // The browser owns the touch now: it ends without a tap.
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchCancel",
+    touchPoints: [],
+  });
+  await cdp.detach();
+  await settle(page);
+  await expect(drawer(page)).toHaveAttribute("data-snap", "full");
+  expect(
+    await drawer(page).evaluate((el) => el.getBoundingClientRect().top),
+  ).toBeLessThanOrEqual(48 + 1);
+});
+
 test("the calendar scrolls, and a pull at its top goes nowhere", async ({
   page,
 }) => {

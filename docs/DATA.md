@@ -26,6 +26,8 @@ Naming: every schema is `FooSchema` with `type Foo = z.infer<typeof FooSchema>`.
 | Instructor slug | PlanetTerp's slug (`kruskal`). | `InstructorSlugSchema` |
 | Local id | 8–64 URL-safe chars, minted in the browser (plans, blocks). | `LocalIdSchema` |
 | Connection id | `<day>:<fromKey>#<meetingIdx>><toKey>#<meetingIdx>` | `connectionId()` |
+| Directory ID | The lowercased local part of a verified TerpMail or umd.edu address (`zsrobins`). Accounts are keyed on it. | `DirectoryIdSchema` |
+| Chat room id | Course room `<term>:<course>`, section room `<term>:<course>:<section>`, lecture room `<term>:<course>:L:<first section>` (the lowest-numbered section sharing the lecture). Codes only, so a time or room change keeps the id and the history. The course room id is also its `CourseChat` object's name. | `RoomIdSchema`, `courseRoomId()`, `lectureRoomId()`, `sectionRoomId()`, `parseRoomId()`, `courseChatName()` |
 
 ---
 
@@ -292,7 +294,7 @@ The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cac
 
 ## 7. The JSON API and D1
 
-**v2** adds signed-in routes (the route table gains `auth: "none" | "user" | "admin"` and per-user limits), an origin check on authenticated routes, one WebSocket route (`GET /api/chat/socket`), and the tables in §7.4. The seat-alert flow in §7.1 retires (`docs/V2.md` §6.5).
+**v2** adds signed-in routes (the route table gains `auth: "none" | "user" | "admin"` and per-user limits), an origin check on authenticated routes, one WebSocket route (`GET /api/chat/socket`), and the tables in §7.5. The seat-alert flow in §7.1 retires (`docs/V2.md` §6.5).
 
 **The API.** Everything the browser asks the server lives under `POST /api/<name>`:
 - JSON in, JSON out, `Cache-Control: no-store`;
@@ -467,7 +469,16 @@ Server events (`src/server/analytics.ts`, `docs/ANALYTICS.md`):
 
 They carry counts, reasons and term ids only. They never carry an address, token, IP or review text, not even hashed.
 
-### 7.4 v2 tables (D1 `terpsicle`)
+### 7.4 Chat (`src/core/schema/chat.ts`)
+
+Rooms aren't stored: `roomsForCourse(termId, course)` in `core/chat` derives them from the catalog, and a room gets storage only with its first message. One `CourseChat` Durable Object per course per term (named by the course room id) holds every room of that course, and the app keeps one WebSocket per open course.
+
+- **`ChatMessage`:** `id`, `room`, `author` (directory ID, Google name and picture, snapshotted when sent), `text` (trimmed, 1–2,000 chars), `createdAt`, `editedAt`, `replyTo` (the thread's first message; threads are one level deep), `thread` (reply count and last reply time), `reactions` (who reacted, per reaction in the fixed set `REACTIONS`) and `moderation`: `visible`, `held {reason}` (only the author sees it; `checking` · `graded-work` · `flagged` · `reported`) or `removed`.
+- **Client frames** (`ChatClientFrameSchema`, strict): `hello {protocol, rooms}` first, then `history {room, thread, before, limit}`, `send {room, text, replyTo}`, `edit`, `delete`, `react {id, reaction, on}`, `typing {room}` and `read {room, upTo}`. Requests carry a client `req` id.
+- **Server frames** (`ChatServerFrameSchema`): `welcome {you, rooms: [{room, members, unread, writable}]}`, `page {messages (oldest first), more}`, `ack {req, message}` (the message as its author now sees it; null after a delete), `error {req, code, retryAfter}`, `message` (new or changed; replaces the copy with that id), `deleted`, `reactions`, `moderation` (every change to the author; `removed` to everyone who had seen it) and `typing`.
+- `CHAT_PROTOCOL_VERSION` is bumped on a breaking change; an older client's `hello` gets `error {code: "old-client"}` and reloads.
+
+### 7.5 v2 tables (D1 `terpsicle`)
 
 The full SQL, and what each column means, is in `docs/V2.md`; once a migration lands, its file and the row schemas win, and this list follows them. Migration numbers are fixed now so parallel PRs don't collide.
 
