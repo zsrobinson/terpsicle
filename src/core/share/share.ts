@@ -10,8 +10,9 @@ import {
   type SharePayload,
   SharePayloadSchema,
 } from "../schema";
+import { SCHEDULE_PATH } from "../site";
 
-// Share links: `/?plan=<base64url(deflate-raw(json))>` (DATA §8).
+// Share links: `/schedule?plan=<base64url(deflate-raw(json))>` (DATA §8).
 //
 // To keep links short, the JSON inside is a compact array rather than the
 // `SharePayload` object, and it is expanded and validated with
@@ -247,7 +248,7 @@ export function decodeShare(param: string): ShareDecodeResult {
     : { ok: false, error: MALFORMED };
 }
 
-/** `https://terpsicle.com/?plan=…` for the given origin. */
+/** `https://terpsicle.com/schedule?plan=…` for the given origin. */
 export function shareUrl(origin: string, payload: SharePayload): string {
-  return `${origin.replace(/\/+$/, "")}/?${SHARE_PARAM}=${encodeShare(payload)}`;
+  return `${origin.replace(/\/+$/, "")}${SCHEDULE_PATH}?${SHARE_PARAM}=${encodeShare(payload)}`;
 }

@@ -4,7 +4,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
 ## What's tracked
 
-- **Pageviews**, including in-app navigation (`capture_pageview: "history_change"`).
+- **Pageviews**, including in-app navigation (`capture_pageview: "history_change"`), with the real path (`/schedule`, …). PostHog loads with the scheduler at `/schedule` (`app_loaded` there too); the marketing page at `/`, `/privacy` and the coming-soon pages don't load it, so they stay light and aren't counted until they do.
 - **Autocapture**: clicks and form submissions on interactive elements, with element text. Input values are never captured.
 - **Named events** from `track()` in `src/app/analytics.ts`. Every event and its properties is declared in the `AnalyticsEvents` interface there:
 

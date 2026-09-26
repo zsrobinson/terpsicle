@@ -25,7 +25,7 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-async function open(page: Page, path = "/") {
+async function open(page: Page, path = "/schedule") {
   await page.goto(path);
   await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
 }
@@ -148,7 +148,7 @@ test.describe("desktop", () => {
       sections: ["CMSC131-0101"],
     };
     const param = encodeShare(payload);
-    await open(page, `/?plan=${param}`);
+    await open(page, `/schedule?plan=${param}`);
 
     // The pill in the top bar, and the panel names it the same way (not the
     // sharer's name for it, which could read as one of your plans).
@@ -179,7 +179,7 @@ test.describe("desktop", () => {
       termId: "202701",
       sections: ["CMSC351-0101"],
     });
-    await open(page, `/?plan=${param}`);
+    await open(page, `/schedule?plan=${param}`);
     await page.getByRole("button", { name: "Close shared plan" }).click();
     await expect(page).toHaveURL((url) => !url.searchParams.has("plan"));
     await expect(planTabs(page)).toHaveText(["Plan A"]);

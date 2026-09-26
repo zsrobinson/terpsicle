@@ -293,6 +293,13 @@
   html:has([data-app-shell]) body {
     overflow: hidden;
   }
+  /*
+   * `/` while its head script checks for saved plans (src/app/landing.ts):
+   * hidden, so someone headed to the scheduler never sees the marketing page.
+   */
+  :root[data-landing="checking"] body {
+    visibility: hidden;
+  }
   ::selection {
     background: var(--accent-soft);
   }

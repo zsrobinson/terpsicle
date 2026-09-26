@@ -7,7 +7,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 let errors: string[] = [];
 
-async function open(page: Page, path = "/?demo=1") {
+async function open(page: Page, path = "/schedule?demo=1") {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(path);

@@ -9,7 +9,7 @@ let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/?demo=1");
+  await page.goto("/schedule?demo=1");
   await expect(
     calendar(page)
       .getByRole("button", { name: /^CMSC351 0301/ })

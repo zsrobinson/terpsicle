@@ -40,7 +40,7 @@ async function routeApi(page: Page, ip: string) {
 
 /** The demo plans on `dev:mock`, once the calendar has drawn them. */
 async function openApp(page: Page) {
-  await page.goto("/?demo=1");
+  await page.goto("/schedule?demo=1");
   // The test loads the app three times, and a busy machine can be slow.
   await expect(
     page

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LookupResult } from "~/core/schema";
+import { SCHEDULE_PATH } from "~/core/site";
 import { ApiCallError, api } from "~/server/fns/api";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
@@ -127,7 +128,7 @@ export function UnsubscribeAlert({
             </WithTooltip>
             <WithTooltip label="Leave the alert on">
               <Button variant="ghost" asChild>
-                <a href="/">Keep watching</a>
+                <a href={SCHEDULE_PATH}>Keep watching</a>
               </Button>
             </WithTooltip>
           </div>

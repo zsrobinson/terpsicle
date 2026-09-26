@@ -15,7 +15,7 @@ test.afterEach(() => {
 });
 
 async function open(page: Page) {
-  await page.goto("/?demo=1");
+  await page.goto("/schedule?demo=1");
   await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
 }
 

@@ -1,39 +1,19 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect } from "react";
-import { z } from "zod";
-import { initAnalytics, track } from "~/app/analytics";
-import { App } from "~/app/app";
-import { clientConfig } from "~/app/config";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { landingCheckScript, savedWorkInBrowser } from "~/app/landing";
+import { SCHEDULE_PATH } from "~/core/site";
+import { MarketingPage } from "~/features/site/marketing-page";
 
-// `?plan=` carries a shared plan (DATA.md §8). The router may parse a
-// numeric-looking value as a number, so accept both and keep the text.
-const searchSchema = z.object({
-  plan: z
-    .union([z.string(), z.number()])
-    .transform(String)
-    .optional()
-    .catch(undefined),
-});
-
+// The marketing page, server-rendered so it shows without the app's code.
+// Returning visitors skip it: one with a session cookie is redirected by the
+// Worker (src/server/worker.ts); one with saved plans by the head script on
+// a full load, or by `beforeLoad` when the router navigates here.
 export const Route = createFileRoute("/")({
-  // Everything lives in the browser (IndexedDB, web worker); the Worker only
-  // serves the shell (BUILD.md §4).
-  ssr: false,
-  validateSearch: searchSchema,
-  component: IndexPage,
+  head: () => ({
+    scripts: [{ children: landingCheckScript }],
+  }),
+  beforeLoad: async () => {
+    if (await savedWorkInBrowser())
+      throw redirect({ to: SCHEDULE_PATH, replace: true });
+  },
+  component: MarketingPage,
 });
-
-function IndexPage() {
-  const { plan } = Route.useSearch();
-  const navigate = useNavigate({ from: "/" });
-  const clearShared = useCallback(() => {
-    void navigate({ search: {}, replace: true });
-  }, [navigate]);
-
-  useEffect(() => {
-    void initAnalytics();
-    track("app_loaded", { dataSource: clientConfig.dataSource });
-  }, []);
-
-  return <App sharedParam={plan} onClearShared={clearShared} />;
-}

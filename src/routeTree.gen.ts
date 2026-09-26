@@ -10,12 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ScheduleRouteImport } from './routes/schedule'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AlertsConfirmRouteImport } from './routes/alerts.confirm'
 import { Route as AlertsUnsubscribeRouteImport } from './routes/alerts.unsubscribe'
+import { Route as ChatIndexRouteImport } from './routes/chat.index'
+import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScheduleRoute = ScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AlertsConfirmRoute = AlertsConfirmRouteImport.update({
@@ -28,35 +49,102 @@ const AlertsUnsubscribeRoute = AlertsUnsubscribeRouteImport.update({
   path: '/alerts/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatIndexRoute = ChatIndexRouteImport.update({
+  id: '/chat/',
+  path: '/chat/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
+  id: '/reviews/',
+  path: '/reviews/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/schedule': typeof ScheduleRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
+  '/admin/': typeof AdminIndexRoute
+  '/chat/': typeof ChatIndexRoute
+  '/reviews/': typeof ReviewsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/schedule': typeof ScheduleRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
+  '/admin': typeof AdminIndexRoute
+  '/chat': typeof ChatIndexRoute
+  '/reviews': typeof ReviewsIndexRoute
+  '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/schedule': typeof ScheduleRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
+  '/admin/': typeof AdminIndexRoute
+  '/chat/': typeof ChatIndexRoute
+  '/reviews/': typeof ReviewsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/alerts/confirm' | '/alerts/unsubscribe'
+  fullPaths:
+    | '/'
+    | '/privacy'
+    | '/schedule'
+    | '/alerts/confirm'
+    | '/alerts/unsubscribe'
+    | '/admin/'
+    | '/chat/'
+    | '/reviews/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/alerts/confirm' | '/alerts/unsubscribe'
-  id: '__root__' | '/' | '/alerts/confirm' | '/alerts/unsubscribe'
+  to:
+    | '/'
+    | '/privacy'
+    | '/schedule'
+    | '/alerts/confirm'
+    | '/alerts/unsubscribe'
+    | '/admin'
+    | '/chat'
+    | '/reviews'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/privacy'
+    | '/schedule'
+    | '/alerts/confirm'
+    | '/alerts/unsubscribe'
+    | '/admin/'
+    | '/chat/'
+    | '/reviews/'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PrivacyRoute: typeof PrivacyRoute
+  ScheduleRoute: typeof ScheduleRoute
   AlertsConfirmRoute: typeof AlertsConfirmRoute
   AlertsUnsubscribeRoute: typeof AlertsUnsubscribeRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  ChatIndexRoute: typeof ChatIndexRoute
+  ReviewsIndexRoute: typeof ReviewsIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -66,6 +154,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schedule': {
+      id: '/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof ScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/alerts/confirm': {
@@ -82,13 +191,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlertsUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat/': {
+      id: '/chat/'
+      path: '/chat'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof ChatIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reviews/': {
+      id: '/reviews/'
+      path: '/reviews'
+      fullPath: '/reviews/'
+      preLoaderRoute: typeof ReviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PrivacyRoute: PrivacyRoute,
+  ScheduleRoute: ScheduleRoute,
   AlertsConfirmRoute: AlertsConfirmRoute,
   AlertsUnsubscribeRoute: AlertsUnsubscribeRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  ChatIndexRoute: ChatIndexRoute,
+  ReviewsIndexRoute: ReviewsIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

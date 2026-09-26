@@ -19,6 +19,7 @@ import {
   tally,
 } from "./report";
 import { SCENARIOS } from "./scenarios";
+import { schedulerUrl } from "./url";
 
 const ENGINES: Engine[] = ["webkit", "chromium", "android", "ios"];
 
@@ -37,7 +38,8 @@ const { values } = parseArgs({
 const engine = values.engine as Engine;
 if (!ENGINES.includes(engine))
   throw new Error(`--engine must be one of ${ENGINES.join(", ")}`);
-const url = values.url;
+// The deployment's scheduler: `--url https://terpsicle.com` opens /schedule.
+const url = schedulerUrl(values.url);
 const out = path.resolve(
   values.out ??
     `mobile-lab-results/${new Date().toISOString().replace(/[:.]/g, "-")}-${engine}`,

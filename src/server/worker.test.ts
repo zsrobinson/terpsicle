@@ -21,8 +21,31 @@ async function get(url: string, init?: RequestInit) {
 
 describe("fetch", () => {
   it("hands everything else to the app", async () => {
-    const response = await get("https://terpsicle.com/?plan=abc");
+    const response = await get("https://terpsicle.com/schedule?plan=abc");
     expect(await response.text()).toBe("app shell");
+  });
+
+  it("sends someone signed in from / straight to the scheduler", async () => {
+    app.fetch.mockClear();
+    const response = await get("https://terpsicle.com/", {
+      headers: { Cookie: "theme=dark; session=abc" },
+    });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe(
+      "https://terpsicle.com/schedule",
+    );
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(app.fetch).not.toHaveBeenCalled();
+  });
+
+  it("shows / to visitors without a session, and never redirects other pages", async () => {
+    expect(await (await get("https://terpsicle.com/")).text()).toBe(
+      "app shell",
+    );
+    const privacy = await get("https://terpsicle.com/privacy", {
+      headers: { Cookie: "session=abc" },
+    });
+    expect(await privacy.text()).toBe("app shell");
   });
 
   it("tells browsers to revalidate the app's HTML every time", async () => {

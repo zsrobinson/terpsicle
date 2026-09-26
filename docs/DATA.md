@@ -353,7 +353,7 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 - from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`.
 
 **Links in emails:**
-- to the app: `https://terpsicle.com/?term=<id>&course=<code>`. The app should open that course; that's still a UI task;
+- to the app: `https://terpsicle.com/schedule?term=<id>&course=<code>`. The app should open that course; that's still a UI task;
 - to Testudo's page for the course.
 
 API-triggered emails link to the requesting origin only when it's ours (terpsicle.com, this project's preview hosts, localhost), so a forged `Host` can never inject another domain. Cron emails always link to terpsicle.com.
@@ -463,7 +463,7 @@ They carry counts, reasons and term ids only. They never carry an address, token
 
 ## 8. Share links
 
-`/?plan=<base64url(deflate-raw(UTF-8 JSON))>`. The link carries a `SharePayloadSchema` payload:
+`/schedule?plan=<base64url(deflate-raw(UTF-8 JSON))>`. The link carries a `SharePayloadSchema` payload:
 - `v: 1`, `termId`, `name?`;
 - `sections`: section keys in course order;
 - `saved?`: saved-for-later course codes;

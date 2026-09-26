@@ -1,6 +1,7 @@
 // Names for what a seat alert watches, from the ids alone (these pages load
 // without the catalog).
 import { parseSectionKey } from "~/core/schema";
+import { SCHEDULE_PATH } from "~/core/site";
 
 export { termLabel } from "~/core/catalog";
 
@@ -10,10 +11,10 @@ export function sectionLabel(sectionKey: string): string {
   return parsed ? `${parsed.courseCode} ${parsed.sectionCode}` : sectionKey;
 }
 
-/** The app URL that opens this section's course in its term. */
+/** The scheduler URL that opens this section's course in its term. */
 export function courseHref(termId: string, sectionKey: string): string {
   const parsed = parseSectionKey(sectionKey);
   const params = new URLSearchParams({ term: termId });
   if (parsed) params.set("course", parsed.courseCode);
-  return `/?${params}`;
+  return `${SCHEDULE_PATH}?${params}`;
 }
