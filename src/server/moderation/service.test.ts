@@ -9,7 +9,12 @@ import {
   parsePolicyOutput,
 } from "./models";
 import { currentDecision, type ModerationEnv, moderate } from "./service";
-import { decisionsFor, getQueueRow, listQueueRows } from "./store";
+import {
+  decisionsFor,
+  getQueueRow,
+  listQueueRows,
+  listRetryRows,
+} from "./store";
 
 // Each test gets its own UTC day, so the daily-cap counter starts at zero.
 let day = 0;
@@ -102,28 +107,85 @@ describe("moderate", () => {
 
     const [row] = await decisionsFor(env.DB, "review", input.context.targetId);
     expect(row).toMatchObject({
-      decision: "publish",
-      actor: "auto",
+      surface: "review",
+      stage: "model",
+      verdict: "allow",
+      decided_by: "system",
+      guard: { safe: true, categories: [] },
       models: { guard: GUARD_MODEL, policy: POLICY_MODELS.review },
     });
+    expect(row?.latency_ms).toBeGreaterThanOrEqual(0);
     // Moderation stores a reference, never an author.
     expect(Object.keys(row ?? {})).not.toContain("author");
     expect(
       await currentDecision(env.DB, "review", input.context.targetId),
     ).toBe("publish");
     expect(
-      (await listQueueRows(env.DB, "pending", 100)).some(
-        (r) => r.target_id === input.context.targetId,
+      (await listQueueRows(env.DB, "open", 100)).some(
+        (r) => r.ref === input.context.targetId,
       ),
     ).toBe(false);
   });
 
-  it("asks only Llama Guard about a clean chat message", async () => {
+  it("reads every chat message, but acts only on targeting a person when nothing was flagged", async () => {
+    // The small model over-reads contact details and code; the rules own those.
+    const noisy = mockAi({
+      policy: [
+        {
+          academic_integrity: 1,
+          targets_person: 0,
+          personal_info: 1,
+          spam: 1,
+        },
+      ],
+    });
+    const fine = await moderate(
+      testEnv(noisy.ai),
+      chat("study group tonight, text me at 301-555-0199"),
+      { now: nextDay() },
+    );
+    expect(fine.decision).toBe("publish");
+    expect(fine.model).toEqual({
+      guard: GUARD_MODEL,
+      policy: POLICY_MODELS.chat,
+    });
+    expect(modelsCalled(noisy.run).sort()).toEqual(
+      [GUARD_MODEL, POLICY_MODELS.chat].sort(),
+    );
+
+    const mocking = await moderate(
+      testEnv(
+        mockAi({
+          policy: [
+            {
+              academic_integrity: 0,
+              targets_person: 0.9,
+              personal_info: 0,
+              spam: 0,
+            },
+          ],
+        }).ai,
+      ),
+      chat(
+        "did everyone hear Marcus ask if Java is JavaScript, how is he a CS major",
+      ),
+      { now: nextDay() },
+    );
+    expect(mocking.decision).toBe("hold");
+    expect(mocking.reasons).toEqual([
+      { code: "targets-person", source: "policy", action: "hold", score: 0.9 },
+    ]);
+  });
+
+  it("asks only Llama Guard about unflagged chat when chatPolicy is flagged", async () => {
     const { ai, run } = mockAi();
     const result = await moderate(
       testEnv(ai),
       chat("anyone want to study for the midterm tonight?"),
-      { now: nextDay() },
+      {
+        now: nextDay(),
+        config: { ...DEFAULT_MODERATION_CONFIG, chatPolicy: "flagged" },
+      },
     );
     expect(result.decision).toBe("publish");
     expect(result.model).toEqual({ guard: GUARD_MODEL, policy: null });
@@ -146,7 +208,9 @@ describe("moderate", () => {
       chat("hw 3 solutions are posted on ELMS now"),
       { now: nextDay() },
     );
-    expect(modelsCalled(run)).toEqual([GUARD_MODEL, POLICY_MODELS.chat]);
+    expect(modelsCalled(run).sort()).toEqual(
+      [GUARD_MODEL, POLICY_MODELS.chat].sort(),
+    );
     expect(result.decision).toBe("publish");
     expect(result.reasons.map((r) => `${r.code}:${r.action}`)).toEqual([
       "asks-for-answers:flag",
@@ -171,18 +235,22 @@ describe("moderate", () => {
     expect(result.reasons).toEqual([
       { code: "violence", source: "guard", action: "hold", category: "S1" },
     ]);
-    const pending = await listQueueRows(env.DB, "pending", 100);
-    const ids = pending.map((r) => r.target_id);
+    const open = await listQueueRows(env.DB, "open", 100);
+    const ids = open.map((r) => r.ref);
     expect(ids.indexOf(threat.context.targetId)).toBeLessThan(
       ids.indexOf(hate.context.targetId),
     );
-    const queued = pending.find((r) => r.target_id === threat.context.targetId);
+    const queued = open.find((r) => r.ref === threat.context.targetId);
     expect(queued).toMatchObject({
-      kind: "chat",
-      course: "CMSC351",
-      text: threat.text,
+      surface: "chat",
+      snapshot: {
+        text: threat.text,
+        course: "CMSC351",
+        activeAssignments: false,
+        retries: 0,
+      },
       urgent: true,
-      status: "pending",
+      status: "open",
     });
   });
 
@@ -194,6 +262,15 @@ describe("moderate", () => {
     expect(result.decision).toBe("remove");
     expect(result.model).toEqual({ guard: null, policy: null });
     expect(run).not.toHaveBeenCalled();
+    const [row] = await decisionsFor(env.DB, "chat", `msg-${target}`);
+    expect(row).toMatchObject({
+      stage: "rules",
+      verdict: "reject",
+      guard: null,
+      policy: null,
+      models: null,
+      latency_ms: null,
+    });
   });
 
   it("removes clear spam and holds likely academic-integrity problems", async () => {
@@ -287,7 +364,9 @@ describe("moderate", () => {
       },
     });
     expect(hedged.decision).toBe("publish");
-    expect(modelsCalled(slow.run)).toEqual([GUARD_MODEL, GUARD_MODEL]);
+    expect(
+      modelsCalled(slow.run).filter((m) => m === GUARD_MODEL),
+    ).toHaveLength(2);
 
     const flaky = mockAi({
       guard: [
@@ -301,7 +380,9 @@ describe("moderate", () => {
       now: nextDay(),
     });
     expect(retried.decision).toBe("publish");
-    expect(flaky.run).toHaveBeenCalledTimes(2);
+    expect(
+      modelsCalled(flaky.run).filter((m) => m === GUARD_MODEL),
+    ).toHaveLength(2);
   });
 
   it("holds once the daily cap is spent", async () => {
@@ -324,7 +405,26 @@ describe("moderate", () => {
     expect(run).toHaveBeenCalledTimes(3);
   });
 
-  it("clears a pending hold when an edit passes", async () => {
+  it("waits for a retry, not the owner, when only a model failure held it", async () => {
+    const input = review(GOOD_REVIEW);
+    const result = await moderate(
+      testEnv(mockAi({ policy: ["not json"] }).ai),
+      input,
+      { now: nextDay() },
+    );
+    expect(result.decision).toBe("hold");
+    const row = (await listRetryRows(env.DB, 100)).find(
+      (r) => r.ref === input.context.targetId,
+    );
+    expect(row).toMatchObject({ status: "retry", urgent: false });
+    expect(
+      (await listQueueRows(env.DB, "open", 100)).some(
+        (r) => r.ref === input.context.targetId,
+      ),
+    ).toBe(false);
+  });
+
+  it("clears a waiting hold when an edit passes", async () => {
     const input = review(`${GOOD_REVIEW} Call 301-555-0199.`);
     const now = nextDay();
     const held = await moderate(testEnv(mockAi().ai), input, { now });
@@ -335,15 +435,13 @@ describe("moderate", () => {
       { now: new Date(now.getTime() + 60_000) },
     );
     expect(edited.decision).toBe("publish");
-    const pending = await listQueueRows(env.DB, "pending", 100);
-    expect(pending.some((r) => r.target_id === input.context.targetId)).toBe(
-      false,
-    );
+    const open = await listQueueRows(env.DB, "open", 100);
+    expect(open.some((r) => r.ref === input.context.targetId)).toBe(false);
     expect(
       (await decisionsFor(env.DB, "review", input.context.targetId)).map(
-        (d) => d.decision,
+        (d) => d.verdict,
       ),
-    ).toEqual(["hold", "publish"]);
+    ).toEqual(["hold", "allow"]);
     expect(await getQueueRow(env.DB, "nope-nope-nope-nope-nop")).toBeNull();
   });
 

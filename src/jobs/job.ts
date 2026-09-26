@@ -12,7 +12,12 @@ export interface JobContext {
 
 export type Job = (context: JobContext) => Promise<void>;
 
-export type JobName = "seats" | "catalog" | "planetterp" | "calendar-buildings";
+export type JobName =
+  | "seats"
+  | "catalog"
+  | "planetterp"
+  | "calendar-buildings"
+  | "moderation";
 
 /** What a job reports: counts for telemetry, and errors it recovered from. */
 export interface JobReport {

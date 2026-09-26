@@ -54,7 +54,7 @@ async function call(
   );
 }
 
-async function queue(status = "pending"): Promise<QueueItem[]> {
+async function queue(status = "open"): Promise<QueueItem[]> {
   const res = await call("queue", { status });
   return QueueListResultSchema.parse(await res.json()).items;
 }
@@ -73,16 +73,23 @@ describe("admin moderation API", () => {
     }
   });
 
-  it("lists held items with no author, and counts what's pending", async () => {
+  it("lists held items with no author, and counts what's open", async () => {
     const targetId = await holdOne();
     const res = await call("queue", {});
     const body = QueueListResultSchema.parse(await res.json());
-    expect(body.pending).toBeGreaterThanOrEqual(1);
+    expect(body.open).toBeGreaterThanOrEqual(1);
     const item = body.items.find((i) => i.targetId === targetId);
     expect(item).toMatchObject({
       kind: "chat",
-      status: "pending",
-      reasons: [{ code: "hate", source: "guard", action: "hold" }],
+      status: "open",
+      text: `held message ${n}`,
+      resolution: null,
+    });
+    expect(item?.reasons).toContainEqual({
+      code: "hate",
+      source: "guard",
+      action: "hold",
+      category: "S10",
     });
     expect(Object.keys(item ?? {})).not.toContain("author");
   });
@@ -109,18 +116,17 @@ describe("admin moderation API", () => {
     );
     expect(approved).toMatchObject({
       status: "ok",
-      item: { status: "approved", resolutionReason: "fine" },
+      item: {
+        status: "closed",
+        closedAt: NOW.toISOString(),
+        resolution: { decision: "publish", reason: "fine" },
+      },
     });
     const removed = ResolveResultSchema.parse(
       await (
         await call(
           "resolve",
-          {
-            id: toRemove.id,
-            action: "remove",
-            reason: "hate",
-            note: "slur in context",
-          },
+          { id: toRemove.id, action: "remove", reason: "hate" },
           options,
         )
       ).json(),
@@ -128,16 +134,15 @@ describe("admin moderation API", () => {
     expect(removed).toMatchObject({
       status: "ok",
       item: {
-        status: "removed",
-        resolutionReason: "hate",
-        resolutionNote: "slur in context",
+        status: "closed",
+        resolution: { decision: "remove", reason: "hate" },
       },
     });
     expect(handler.mock.calls).toEqual([
       [approveId, "publish"],
       [removeId, "remove"],
     ]);
-    expect((await queue("removed")).map((i) => i.targetId)).toContain(removeId);
+    expect((await queue("closed")).map((i) => i.targetId)).toContain(removeId);
 
     // Undo puts it back, held, and says so to the feature.
     const undone = ResolveResultSchema.parse(
@@ -145,14 +150,18 @@ describe("admin moderation API", () => {
     );
     expect(undone).toMatchObject({
       status: "ok",
-      item: { status: "pending", resolvedAt: null, resolutionReason: null },
+      item: { status: "open", closedAt: null, resolution: null },
     });
     expect(handler).toHaveBeenLastCalledWith(removeId, "hold");
     expect(
       (await decisionsFor(env.DB, "chat", removeId)).map(
-        (d) => `${d.actor}:${d.decision}`,
+        (d) => `${d.decided_by}:${d.stage}:${d.verdict}:${d.reason ?? ""}`,
       ),
-    ).toEqual(["auto:hold", "admin:remove", "admin:hold"]);
+    ).toEqual([
+      "system:model:hold:",
+      "admin:human:remove:hate",
+      "admin:human:hold:",
+    ]);
 
     const again = await call("undo", { id: toRemove.id }, options);
     expect(await again.json()).toEqual({ status: "nothing-to-undo" });
@@ -176,7 +185,21 @@ describe("admin moderation API", () => {
         failing,
       ),
     ).rejects.toThrow("room offline");
-    expect((await itemFor(targetId)).status).toBe("pending");
+    expect((await itemFor(targetId)).status).toBe("open");
+  });
+
+  it("won't undo onto an item that was held again since", async () => {
+    const targetId = await holdOne();
+    const first = await itemFor(targetId);
+    await call("resolve", { id: first.id, action: "approve", reason: "fine" });
+    // The author edits; the edit is held again, as a new open row.
+    await moderate(
+      apiEnv,
+      { kind: "chat", text: "edited and held", context: { targetId } },
+      { now: NOW },
+    );
+    const undo = await call("undo", { id: first.id });
+    expect(await undo.json()).toEqual({ status: "nothing-to-undo" });
   });
 
   it("answers not-found for an unknown item and rejects bad input", async () => {

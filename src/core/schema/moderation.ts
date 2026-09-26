@@ -191,6 +191,8 @@ export const ModerationConfigOverridesSchema = z.strictObject({
     .optional(),
   timeoutMs: z.number().int().min(500).max(30_000).optional(),
   hedgeAfterMs: z.number().int().min(100).max(30_000).optional(),
+  /** "always": the policy model reads every chat message; "flagged": only flagged ones. */
+  chatPolicy: z.enum(["always", "flagged"]).optional(),
   guardActions: z
     .partialRecord(GuardCategorySchema, ModerationActionSchema)
     .optional(),
@@ -208,7 +210,9 @@ export type ModerationConfigOverrides = z.infer<
   typeof ModerationConfigOverridesSchema
 >;
 
-// ---------- D1 rows (migrations/0003_moderation.sql) ----------
+// ---------- D1 rows (migrations/0004_moderation.sql, V2 §9.4) ----------
+// The tables use V2's vocabulary (surface, ref, verdict); the service maps
+// moderate()'s kind, targetId and decision onto them.
 
 /** 16 random bytes, base64url without padding. */
 export const ModerationIdSchema = z
@@ -227,43 +231,88 @@ const jsonColumn = <S extends z.ZodType>(schema: S) =>
     return z.NEVER;
   });
 
-export const ModerationActorSchema = z.enum(["auto", "admin"]);
-export type ModerationActor = z.infer<typeof ModerationActorSchema>;
+export const DecisionStageSchema = z.enum([
+  "rules",
+  "model",
+  "human",
+  "reports",
+]);
+export type DecisionStage = z.infer<typeof DecisionStageSchema>;
+
+/** V2's verdicts. `restore` and `hide` are for reports (Reviews, Chat). */
+export const StoredVerdictSchema = z.enum([
+  "allow",
+  "hold",
+  "reject",
+  "remove",
+  "restore",
+  "hide",
+]);
+export type StoredVerdict = z.infer<typeof StoredVerdictSchema>;
+
+export const DecidedBySchema = z.enum(["system", "admin"]);
+export type DecidedBy = z.infer<typeof DecidedBySchema>;
+
+/** Llama Guard's answer, as stored. */
+export const GuardAnswerSchema = z.object({
+  safe: z.boolean(),
+  categories: z.array(GuardCategorySchema),
+});
+export type GuardAnswer = z.infer<typeof GuardAnswerSchema>;
 
 export const ModerationDecisionRowSchema = z.object({
   id: ModerationIdSchema,
-  kind: ModerationKindSchema,
-  target_id: ModerationTargetIdSchema,
-  decision: ModerationDecisionSchema,
-  actor: ModerationActorSchema,
-  reasons: jsonColumn(z.array(ModerationReasonSchema)),
-  models: jsonColumn(ModerationModelsSchema),
-  scores: jsonColumn(ModerationScoresSchema),
+  surface: ModerationKindSchema,
+  ref: ModerationTargetIdSchema,
+  stage: DecisionStageSchema,
+  verdict: StoredVerdictSchema,
+  labels: jsonColumn(z.array(ModerationReasonSchema)),
+  guard: jsonColumn(GuardAnswerSchema).nullable(),
+  policy: jsonColumn(ModerationScoresSchema).nullable(),
+  models: jsonColumn(ModerationModelsSchema).nullable(),
+  latency_ms: z.number().int().min(0).nullable(),
+  decided_by: DecidedBySchema,
+  reason: AdminReasonSchema.nullable(),
   created_at: IsoDateTimeSchema,
 });
 export type ModerationDecisionRow = z.infer<typeof ModerationDecisionRowSchema>;
 
-export const QueueStatusSchema = z.enum(["pending", "approved", "removed"]);
-export type QueueStatus = z.infer<typeof QueueStatusSchema>;
+/**
+ * `retry`: held only because a model failed or the cap was spent; the cron
+ * screens it again before the owner sees it. `open`: waiting for the owner.
+ */
+export const QueueRowStatusSchema = z.enum(["retry", "open", "closed"]);
+export type QueueRowStatus = z.infer<typeof QueueRowStatusSchema>;
+
+/** What the owner sees, and what a retry screens again. Blanked 30 days after close. */
+export const QueueSnapshotSchema = z.object({
+  text: z.string(),
+  course: CourseCodeSchema.nullable(),
+  activeAssignments: z.boolean(),
+  scores: ModerationScoresSchema,
+  /** Automatic re-screens so far (status `retry`). */
+  retries: z.number().int().min(0),
+});
+export type QueueSnapshot = z.infer<typeof QueueSnapshotSchema>;
 
 export const ModerationQueueRowSchema = z.object({
   id: ModerationIdSchema,
-  kind: ModerationKindSchema,
-  target_id: ModerationTargetIdSchema,
-  course: CourseCodeSchema.nullable(),
-  text: z.string(),
-  reasons: jsonColumn(z.array(ModerationReasonSchema)),
-  scores: jsonColumn(ModerationScoresSchema),
+  surface: ModerationKindSchema,
+  ref: ModerationTargetIdSchema,
+  snapshot: jsonColumn(QueueSnapshotSchema).nullable(),
+  labels: jsonColumn(z.array(ModerationReasonSchema)),
   urgent: z.union([z.literal(0), z.literal(1)]).transform((v) => v === 1),
-  status: QueueStatusSchema,
+  status: QueueRowStatusSchema,
   created_at: IsoDateTimeSchema,
-  resolved_at: IsoDateTimeSchema.nullable(),
-  resolution_reason: AdminReasonSchema.nullable(),
-  resolution_note: z.string().nullable(),
+  closed_at: IsoDateTimeSchema.nullable(),
 });
 export type ModerationQueueRow = z.infer<typeof ModerationQueueRowSchema>;
 
 // ---------- /api/admin/moderation/* ----------
+
+/** The owner's queue shows open and closed items; `retry` never reaches it. */
+export const QueueStatusSchema = z.enum(["open", "closed"]);
+export type QueueStatus = z.infer<typeof QueueStatusSchema>;
 
 /** A held item as the owner sees it. There is no author: moderation never stores one. */
 export const QueueItemSchema = z.object({
@@ -271,28 +320,34 @@ export const QueueItemSchema = z.object({
   kind: ModerationKindSchema,
   targetId: ModerationTargetIdSchema,
   course: CourseCodeSchema.nullable(),
-  text: z.string(),
+  /** Null once blanked, 30 days after the item closed. */
+  text: z.string().nullable(),
   reasons: z.array(ModerationReasonSchema),
   scores: ModerationScoresSchema,
   urgent: z.boolean(),
   status: QueueStatusSchema,
   createdAt: IsoDateTimeSchema,
-  resolvedAt: IsoDateTimeSchema.nullable(),
-  resolutionReason: AdminReasonSchema.nullable(),
-  resolutionNote: z.string().nullable(),
+  closedAt: IsoDateTimeSchema.nullable(),
+  /** The owner's decision, for closed items. */
+  resolution: z
+    .object({
+      decision: z.enum(["publish", "remove"]),
+      reason: AdminReasonSchema.nullable(),
+    })
+    .nullable(),
 });
 export type QueueItem = z.infer<typeof QueueItemSchema>;
 
 export const QueueListInputSchema = z.strictObject({
-  status: QueueStatusSchema.default("pending"),
+  status: QueueStatusSchema.default("open"),
   limit: z.number().int().min(1).max(100).default(50),
 });
 export type QueueListInput = z.infer<typeof QueueListInputSchema>;
 
 export const QueueListResultSchema = z.object({
   items: z.array(QueueItemSchema),
-  /** Pending items in total, for the admin badge. */
-  pending: z.number().int().min(0),
+  /** Open items in total, for the admin badge. */
+  open: z.number().int().min(0),
 });
 export type QueueListResult = z.infer<typeof QueueListResultSchema>;
 
@@ -300,7 +355,6 @@ export const ResolveInputSchema = z.strictObject({
   id: ModerationIdSchema,
   action: z.enum(["approve", "remove"]),
   reason: AdminReasonSchema,
-  note: z.string().trim().max(300).optional(),
 });
 export type ResolveInput = z.infer<typeof ResolveInputSchema>;
 
@@ -310,7 +364,7 @@ export type UndoInput = z.infer<typeof UndoInputSchema>;
 export const ResolveResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("ok"), item: QueueItemSchema }),
   z.object({ status: z.literal("not-found") }),
-  /** Undo on an item that has nothing to undo (still pending). */
+  /** Undo on an item that's still open, or whose ref was held again since. */
   z.object({ status: z.literal("nothing-to-undo") }),
 ]);
 export type ResolveResult = z.infer<typeof ResolveResultSchema>;

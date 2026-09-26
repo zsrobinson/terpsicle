@@ -67,6 +67,10 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
   - `/data`, `/api` and analytics pass through. IndexedDB already holds the data.
   - It's registered in production builds only.
   - To retire it, serve a `/sw.js` that calls `self.registration.unregister()`. Browsers check `/sw.js` on every navigation, so the change spreads on the next visit. Bumping `SERVICE_WORKER_VERSION` drops its caches.
+- **Moderation (V2 §9, `docs/MODERATION.md`):**
+  - Reviews use `@cf/meta/llama-3.3-70b-instruct-fp8-fast` for policy. Chat uses `@cf/meta/llama-3.1-8b-instruct-fp8-fast`, measured on the labeled set on 2026-09-26: chat p95 end to end was 1.4 s over 75 messages, and no `graded-work` case was missed.
+  - Every chat message is read. When nothing flagged the message, only `targets-person` acts on it: letting all the small model's labels act held 4 of 23 good messages.
+  - Model failures retry every 5 minutes before reaching the owner.
 
 ## Known issues
 

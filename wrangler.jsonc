@@ -47,7 +47,7 @@
     "SUMMARIES_DAILY_CAP": "200",
     // Moderation model calls per UTC day, at most (Workers AI cost). Past it,
     // new reviews and chat messages wait for the owner (docs/MODERATION.md).
-    "MODERATION_DAILY_CAP": "5000"
+    "MODERATION_DAILY_CAP": "2000"
   },
   "ai": { "binding": "AI" },
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.

@@ -28,8 +28,29 @@ export function decide(
 export function needsPolicy(
   kind: ModerationKind,
   reasons: readonly ModerationReason[],
+  chatPolicy: ChatPolicy = DEFAULT_CHAT_POLICY,
 ): boolean {
-  return kind === "review" || reasons.some((r) => r.action === "flag");
+  return (
+    kind === "review" ||
+    chatPolicy === "always" ||
+    reasons.some((r) => r.action === "flag")
+  );
+}
+
+/** Whether the policy model reads every chat message, or only flagged ones. */
+export type ChatPolicy = "always" | "flagged";
+export const DEFAULT_CHAT_POLICY: ChatPolicy = "always";
+
+/**
+ * Held only because a check couldn't run (a model failed, or the daily cap
+ * was spent): worth screening again automatically before a person sees it.
+ */
+export function needsRetry(reasons: readonly ModerationReason[]): boolean {
+  const blocking = reasons.filter((r) => r.action !== "flag");
+  return (
+    blocking.length > 0 &&
+    blocking.every((r) => r.source === "system" && r.action === "hold")
+  );
 }
 
 export const GUARD_CODES: Readonly<Record<GuardCategory, ReasonCode>> = {
@@ -123,13 +144,32 @@ export const POLICY_LABELS: Readonly<Record<ModerationKind, PolicyLabel[]>> = {
   chat: ["academic-integrity", "targets-person", "personal-info", "spam"],
 };
 
+/**
+ * The labels whose scores act on this post. A chat message nothing flagged
+ * still gets read (DEFAULT_CHAT_POLICY), but only for targeting a person:
+ * the rules already cover contact details, answers and links there, and on
+ * the eval set the small model's other scores held a quarter of the good
+ * unflagged messages ("text me at …", lecture code, a textbook for sale).
+ */
+export function policyLabelsFor(
+  kind: ModerationKind,
+  reasons: readonly ModerationReason[],
+): readonly PolicyLabel[] {
+  if (kind === "chat" && !reasons.some((r) => r.action === "flag"))
+    return UNFLAGGED_CHAT_LABELS;
+  return POLICY_LABELS[kind];
+}
+
+export const UNFLAGGED_CHAT_LABELS: readonly PolicyLabel[] = ["targets-person"];
+
 export function policyReasons(
   kind: ModerationKind,
   scores: ModerationScores,
   thresholds: PolicyThresholds = DEFAULT_POLICY_THRESHOLDS,
+  labels: readonly PolicyLabel[] = POLICY_LABELS[kind],
 ): ModerationReason[] {
   const reasons: ModerationReason[] = [];
-  for (const label of POLICY_LABELS[kind]) {
+  for (const label of labels) {
     const score = scores[label];
     if (score === undefined) continue;
     const t = thresholds[label];

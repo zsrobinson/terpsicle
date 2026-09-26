@@ -1,5 +1,7 @@
 export { type ContactKind, type FoundContact, findContacts } from "./contact";
 export {
+  type ChatPolicy,
+  DEFAULT_CHAT_POLICY,
   DEFAULT_GUARD_ACTIONS,
   DEFAULT_POLICY_THRESHOLDS,
   decide,
@@ -8,10 +10,13 @@ export {
   guardReasons,
   isUrgent,
   needsPolicy,
+  needsRetry,
   POLICY_LABELS,
   type PolicyThreshold,
   type PolicyThresholds,
+  policyLabelsFor,
   policyReasons,
+  UNFLAGGED_CHAT_LABELS,
   URGENT_CODES,
 } from "./decide";
 export {

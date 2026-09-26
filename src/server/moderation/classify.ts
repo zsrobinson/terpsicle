@@ -5,6 +5,8 @@
 // needed. Pure apart from the model calls, so scripts/moderation-eval.ts runs
 // exactly this against Workers AI over REST.
 import {
+  type ChatPolicy,
+  DEFAULT_CHAT_POLICY,
   DEFAULT_GUARD_ACTIONS,
   DEFAULT_POLICY_THRESHOLDS,
   decide,
@@ -12,10 +14,12 @@ import {
   guardReasons,
   needsPolicy,
   type PolicyThresholds,
+  policyLabelsFor,
   policyReasons,
   precheck,
 } from "~/core/moderation";
 import {
+  type GuardAnswer,
   ModerationConfigOverridesSchema,
   type ModerationInput,
   type ModerationKind,
@@ -44,6 +48,7 @@ export interface ModerationConfig {
   hedgeAfterMs: number;
   guardActions: GuardActions;
   policyThresholds: PolicyThresholds;
+  chatPolicy: ChatPolicy;
 }
 
 export const DEFAULT_MODERATION_CONFIG: ModerationConfig = {
@@ -53,6 +58,7 @@ export const DEFAULT_MODERATION_CONFIG: ModerationConfig = {
   hedgeAfterMs: DEFAULT_HEDGE_AFTER_MS,
   guardActions: DEFAULT_GUARD_ACTIONS,
   policyThresholds: DEFAULT_POLICY_THRESHOLDS,
+  chatPolicy: DEFAULT_CHAT_POLICY,
 };
 
 /** The defaults with MODERATION_CONFIG's overrides; invalid overrides are ignored. */
@@ -85,6 +91,7 @@ export function resolveConfig(raw: string | undefined): ModerationConfig {
     hedgeAfterMs: o.hedgeAfterMs ?? DEFAULT_HEDGE_AFTER_MS,
     guardActions: { ...DEFAULT_GUARD_ACTIONS, ...o.guardActions },
     policyThresholds: { ...DEFAULT_POLICY_THRESHOLDS, ...o.policyThresholds },
+    chatPolicy: o.chatPolicy ?? DEFAULT_CHAT_POLICY,
   };
 }
 
@@ -101,6 +108,14 @@ export interface ClassifyDeps {
   budget: () => Promise<boolean>;
 }
 
+/** The result, plus what the decision log keeps (V2 §9.4). */
+export interface Classified extends ModerationResult {
+  /** Llama Guard's answer; null when it didn't run or didn't answer. */
+  guard: GuardAnswer | null;
+  /** Wall time for the model stages, ms. */
+  latencyMs: number;
+}
+
 /**
  * The decision without touching D1: rules, then the models. Exported for the
  * eval script, which runs it against Workers AI over REST.
@@ -108,17 +123,21 @@ export interface ClassifyDeps {
 export async function classify(
   input: ModerationInput,
   deps: ClassifyDeps,
-): Promise<ModerationResult> {
+): Promise<Classified> {
   const { kind, text, context } = input;
   const { config } = deps;
+  const started = performance.now();
   const reasons = precheck({ kind, text, context });
   const model: ModerationModels = { guard: null, policy: null };
   let scores: ModerationScores = {};
-  const result = (): ModerationResult => ({
+  let guardAnswer: GuardAnswer | null = null;
+  const result = (): Classified => ({
     decision: decide(reasons),
     reasons,
     model,
     scores,
+    guard: guardAnswer,
+    latencyMs: Math.round(performance.now() - started),
   });
   // A slur or a bad length decides it; no model can change that.
   if (decide(reasons) === "remove") return result();
@@ -144,11 +163,15 @@ export async function classify(
       options("policy", config.policyModels[kind]),
     );
 
-  // Reviews always get both, so run them side by side. Chat asks the policy
-  // model only when the rules or Guard flagged something.
-  const policyEarly = kind === "review" ? policed() : null;
+  // When the policy model will read it anyway (every review, chat by
+  // default, or chat the rules flagged), it runs beside Guard. Otherwise it
+  // waits to see whether Guard flags anything.
+  const policyEarly = needsPolicy(kind, reasons, config.chatPolicy)
+    ? policed()
+    : null;
   const guard = await guarded();
-  if (guard.ok)
+  if (guard.ok) {
+    guardAnswer = guard.value;
     reasons.push(
       ...(guard.value.safe
         ? []
@@ -156,13 +179,17 @@ export async function classify(
           ? guardReasons(guard.value.categories, config.guardActions)
           : [{ code: "unsafe", source: "guard", action: "hold" } as const]),
     );
-  else reasons.push(systemHold(guard.failure));
+  } else reasons.push(systemHold(guard.failure));
 
-  if (policyEarly || needsPolicy(kind, reasons)) {
+  if (policyEarly || needsPolicy(kind, reasons, config.chatPolicy)) {
+    // Decided before the policy's own reasons are added.
+    const labels = policyLabelsFor(kind, reasons);
     const policy = await (policyEarly ?? policed());
     if (policy.ok) {
       scores = policy.value;
-      reasons.push(...policyReasons(kind, scores, config.policyThresholds));
+      reasons.push(
+        ...policyReasons(kind, scores, config.policyThresholds, labels),
+      );
     } else reasons.push(systemHold(policy.failure));
   }
   return result();

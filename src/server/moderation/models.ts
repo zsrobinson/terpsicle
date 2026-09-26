@@ -39,8 +39,12 @@ export const POLICY_MODELS: Readonly<Record<ModerationKind, string>> = {
  * 10 s (measured 2026-09, scripts/moderation-eval.ts).
  */
 export const DEFAULT_TIMEOUT_MS = 10_000;
-/** When the first attempt is this slow, a second one races it. */
-export const DEFAULT_HEDGE_AFTER_MS = 2_500;
+/**
+ * When the first attempt is this slow, a second one races it. At 2.5 s, chat
+ * p95 end to end was 2.6–3.1 s; at 1 s it was 0.9–1.2 s (V2 §9.2 wants
+ * under 2 s), for an extra call on the slowest tenth or so.
+ */
+export const DEFAULT_HEDGE_AFTER_MS = 1_000;
 const MAX_ATTEMPTS = 2;
 
 /** Characters sent to a model; the rules already cap posts at 2,000. */

@@ -2,22 +2,24 @@
 // with a reason, and undo (DESIGN §5: undo instead of confirmation dialogs).
 // Items carry no author, so the admin view can't show one.
 import type {
-  ModerationDecision,
-  ModerationKind,
   QueueListInput,
   QueueListResult,
   ResolveInput,
   ResolveResult,
   UndoInput,
 } from "~/core/schema";
+import type { ModerationHandlers } from "./handlers";
 import {
-  countPending,
+  countOpen,
   getQueueRow,
+  hasWaitingRow,
   insertDecision,
   listQueueRows,
   setQueueStatus,
   toQueueItem,
 } from "./store";
+
+export type { ModerationHandler, ModerationHandlers } from "./handlers";
 
 export interface AdminIdentity {
   /** The admin's directory ID, for logs. Never stored with a decision. */
@@ -35,20 +37,6 @@ export type AdminGuard = (
 
 export const denyAllAdmins: AdminGuard = async () => null;
 
-/**
- * How a decision reaches the feature that owns the item: Reviews publishes
- * or hides the review, Chat delivers or deletes the message. Each feature
- * registers one when it lands. Handlers must be idempotent: undo calls them
- * again with "hold".
- */
-export type ModerationHandler = (
-  targetId: string,
-  decision: ModerationDecision,
-) => Promise<void>;
-export type ModerationHandlers = Partial<
-  Record<ModerationKind, ModerationHandler>
->;
-
 export interface AdminDeps {
   now: Date;
   handlers: ModerationHandlers;
@@ -58,11 +46,14 @@ export async function listQueue(
   db: D1Database,
   input: QueueListInput,
 ): Promise<QueueListResult> {
-  const [rows, pending] = await Promise.all([
+  const [rows, open] = await Promise.all([
     listQueueRows(db, input.status, input.limit),
-    countPending(db),
+    countOpen(db),
   ]);
-  return { items: rows.map(toQueueItem), pending };
+  return {
+    items: await Promise.all(rows.map((r) => toQueueItem(db, r))),
+    open,
+  };
 }
 
 export async function resolveQueueItem(
@@ -71,71 +62,67 @@ export async function resolveQueueItem(
   deps: AdminDeps,
 ): Promise<ResolveResult> {
   const row = await getQueueRow(db, input.id);
-  if (!row) return { status: "not-found" };
+  if (!row || row.status === "retry") return { status: "not-found" };
   const decision = input.action === "approve" ? "publish" : "remove";
   // The feature acts first: if it fails, nothing is recorded and the owner
   // can try again.
-  await deps.handlers[row.kind]?.(row.target_id, decision);
+  await deps.handlers[row.surface]?.(row.ref, decision);
   await db.batch([
-    setQueueStatus(
-      db,
-      row.id,
-      input.action === "approve" ? "approved" : "removed",
-      { at: deps.now, reason: input.reason, note: input.note ?? null },
-    ),
+    setQueueStatus(db, row.id, "closed", deps.now),
     insertDecision(db, {
-      kind: row.kind,
-      targetId: row.target_id,
-      decision,
-      actor: "admin",
-      reasons:
-        decision === "remove"
-          ? [
-              {
-                code: "admin",
-                source: "admin",
-                action: "remove",
-                adminReason: input.reason,
-              },
-            ]
-          : [],
-      models: { guard: null, policy: null },
-      scores: {},
+      surface: row.surface,
+      ref: row.ref,
+      stage: "human",
+      verdict: decision === "publish" ? "allow" : "remove",
+      labels: [],
+      guard: null,
+      policy: null,
+      models: null,
+      latencyMs: null,
+      decidedBy: "admin",
+      reason: input.reason,
       now: deps.now,
     }),
   ]);
-  const updated = await getQueueRow(db, row.id);
-  // The row was just read and only updated since; it can't be gone.
-  return updated
-    ? { status: "ok", item: toQueueItem(updated) }
-    : { status: "not-found" };
+  return ok(db, row.id);
 }
 
-/** Puts a resolved item back in the queue, held, as it was before. */
+/** Puts a closed item back in the queue, held, as it was before. */
 export async function undoQueueItem(
   db: D1Database,
   input: UndoInput,
   deps: AdminDeps,
 ): Promise<ResolveResult> {
   const row = await getQueueRow(db, input.id);
-  if (!row) return { status: "not-found" };
-  if (row.status === "pending") return { status: "nothing-to-undo" };
-  await deps.handlers[row.kind]?.(row.target_id, "hold");
+  if (!row || row.status === "retry") return { status: "not-found" };
+  // Still open, or the item was held again since (an edit): nothing to put back.
+  if (row.status !== "closed" || (await hasWaitingRow(db, row)))
+    return { status: "nothing-to-undo" };
+  await deps.handlers[row.surface]?.(row.ref, "hold");
   await db.batch([
-    setQueueStatus(db, row.id, "pending", null),
+    setQueueStatus(db, row.id, "open", null),
     insertDecision(db, {
-      kind: row.kind,
-      targetId: row.target_id,
-      decision: "hold",
-      actor: "admin",
-      reasons: [{ code: "undo", source: "admin", action: "hold" }],
-      models: { guard: null, policy: null },
-      scores: {},
+      surface: row.surface,
+      ref: row.ref,
+      stage: "human",
+      verdict: "hold",
+      labels: [{ code: "undo", source: "admin", action: "hold" }],
+      guard: null,
+      policy: null,
+      models: null,
+      latencyMs: null,
+      decidedBy: "admin",
+      reason: null,
       now: deps.now,
     }),
   ]);
-  const updated = await getQueueRow(db, row.id);
+  return ok(db, row.id);
+}
+
+async function ok(db: D1Database, id: string): Promise<ResolveResult> {
+  const updated = await getQueueRow(db, id);
+  // The row was just read and only updated since; it can't be gone.
   return updated
-    ? { status: "ok", item: toQueueItem(updated) }
+    ? { status: "ok", item: await toQueueItem(db, updated) }
     : { status: "not-found" };
 }

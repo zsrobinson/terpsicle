@@ -7,56 +7,74 @@ import {
 
 const ROW = {
   id: "AAAAAAAAAAAAAAAAAAAAAA",
-  kind: "chat",
-  target_id: "msg-1",
-  decision: "hold",
-  actor: "auto",
-  reasons: JSON.stringify([
+  surface: "chat",
+  ref: "202701:CMSC351:m-1",
+  stage: "model",
+  verdict: "hold",
+  labels: JSON.stringify([
     { code: "phone", source: "rules", action: "hold", span: [4, 16] },
   ]),
+  guard: JSON.stringify({ safe: true, categories: [] }),
+  policy: null,
   models: JSON.stringify({ guard: "@cf/meta/llama-guard-3-8b", policy: null }),
-  scores: "{}",
+  latency_ms: 420,
+  decided_by: "system",
+  reason: null,
   created_at: "2026-10-01T12:00:00.000Z",
 };
 
 describe("moderation rows", () => {
-  it("parses JSON columns into typed values", () => {
+  it("parses JSON columns into typed values, and allows null ones", () => {
     const row = ModerationDecisionRowSchema.parse(ROW);
-    expect(row.reasons[0]?.span).toEqual([4, 16]);
-    expect(row.models.policy).toBeNull();
+    expect(row.labels[0]?.span).toEqual([4, 16]);
+    expect(row.guard).toEqual({ safe: true, categories: [] });
+    expect(row.policy).toBeNull();
+    expect(row.models?.policy).toBeNull();
   });
 
   it("rejects JSON columns that don't parse or don't match", () => {
     expect(
-      ModerationDecisionRowSchema.safeParse({ ...ROW, reasons: "not json" })
+      ModerationDecisionRowSchema.safeParse({ ...ROW, labels: "not json" })
         .success,
     ).toBe(false);
     expect(
       ModerationDecisionRowSchema.safeParse({
         ...ROW,
-        reasons: JSON.stringify([{ code: "nope" }]),
+        labels: JSON.stringify([{ code: "nope" }]),
       }).success,
+    ).toBe(false);
+    expect(
+      ModerationDecisionRowSchema.safeParse({ ...ROW, verdict: "publish" })
+        .success,
     ).toBe(false);
   });
 
-  it("reads the queue's urgent flag as a boolean", () => {
-    const row = ModerationQueueRowSchema.parse({
+  it("reads the queue's snapshot, including a blanked one", () => {
+    const base = {
       id: ROW.id,
-      kind: "review",
-      target_id: "review-1",
-      course: "CMSC351",
-      text: "held text",
-      reasons: "[]",
-      scores: JSON.stringify({ spam: 0.2 }),
+      surface: "review",
+      ref: "review-1",
+      labels: "[]",
       urgent: 1,
-      status: "pending",
+      status: "open",
       created_at: ROW.created_at,
-      resolved_at: null,
-      resolution_reason: null,
-      resolution_note: null,
+      closed_at: null,
+    };
+    const row = ModerationQueueRowSchema.parse({
+      ...base,
+      snapshot: JSON.stringify({
+        text: "held text",
+        course: "CMSC351",
+        activeAssignments: false,
+        scores: { spam: 0.2 },
+        retries: 0,
+      }),
     });
     expect(row.urgent).toBe(true);
-    expect(row.scores).toEqual({ spam: 0.2 });
+    expect(row.snapshot?.scores).toEqual({ spam: 0.2 });
+    expect(
+      ModerationQueueRowSchema.parse({ ...base, snapshot: null }).snapshot,
+    ).toBeNull();
   });
 });
 
@@ -66,10 +84,12 @@ describe("MODERATION_CONFIG overrides", () => {
       ModerationConfigOverridesSchema.parse({
         policyModels: { chat: "@cf/meta/llama-3.1-8b-instruct-fp8-fast" },
         guardActions: { S5: "hold" },
+        chatPolicy: "flagged",
       }),
     ).toEqual({
       policyModels: { chat: "@cf/meta/llama-3.1-8b-instruct-fp8-fast" },
       guardActions: { S5: "hold" },
+      chatPolicy: "flagged",
     });
     expect(
       ModerationConfigOverridesSchema.safeParse({ threshold: 0.5 }).success,

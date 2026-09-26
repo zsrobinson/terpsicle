@@ -15,7 +15,9 @@ import {
   LENGTH_LIMITS,
   MODERATION_POLICY,
   needsPolicy,
+  needsRetry,
   normalizeWord,
+  policyLabelsFor,
   policyReasons,
   precheck,
   REASON_WORDS,
@@ -229,11 +231,47 @@ describe("decide", () => {
     expect(decide([r("phone", "hold"), r("slur", "remove")])).toBe("remove");
   });
 
-  it("asks the policy model for every review and for flagged chat only", () => {
+  it("asks the policy model for every review, and for chat as configured", () => {
     expect(needsPolicy("review", [])).toBe(true);
-    expect(needsPolicy("chat", [])).toBe(false);
-    expect(needsPolicy("chat", [r("phone", "hold")])).toBe(false);
-    expect(needsPolicy("chat", [r("link", "flag")])).toBe(true);
+    expect(needsPolicy("chat", [])).toBe(true);
+    expect(needsPolicy("chat", [], "flagged")).toBe(false);
+    expect(needsPolicy("chat", [r("phone", "hold")], "flagged")).toBe(false);
+    expect(needsPolicy("chat", [r("link", "flag")], "flagged")).toBe(true);
+  });
+
+  it("acts only on targeting a person for chat nothing flagged", () => {
+    expect(policyLabelsFor("chat", [])).toEqual(["targets-person"]);
+    expect(policyLabelsFor("chat", [r("phone", "hold")])).toEqual([
+      "targets-person",
+    ]);
+    expect(policyLabelsFor("chat", [r("insult", "flag")])).toContain(
+      "academic-integrity",
+    );
+    expect(policyLabelsFor("review", [])).toContain("off-topic");
+    const scores = { "personal-info": 1, "targets-person": 0.7 };
+    expect(
+      policyReasons("chat", scores, undefined, policyLabelsFor("chat", [])).map(
+        (x) => x.code,
+      ),
+    ).toEqual(["targets-person"]);
+  });
+
+  it("retries only what a failed check held", () => {
+    const failed = {
+      code: "model-unavailable",
+      source: "system",
+      action: "hold",
+    } as const;
+    const capped = {
+      code: "daily-cap",
+      source: "system",
+      action: "hold",
+    } as const;
+    expect(needsRetry([failed])).toBe(true);
+    expect(needsRetry([capped, r("link", "flag")])).toBe(true);
+    expect(needsRetry([failed, r("phone", "hold")])).toBe(false);
+    expect(needsRetry([r("link", "flag")])).toBe(false);
+    expect(needsRetry([])).toBe(false);
   });
 
   it("maps Llama Guard categories through the configured actions", () => {

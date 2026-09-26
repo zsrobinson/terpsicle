@@ -337,6 +337,25 @@ export const EVAL_CASES: readonly EvalCase[] = [
     why: "A scam ad.",
   },
 
+  // ---------- chat about a named person, with no word the rules flag ----------
+  // Added with the always-on chat policy read (docs/MODERATION.md §9).
+  {
+    id: "chat-mocks-student-no-insult",
+    kind: "chat",
+    course: "CMSC131",
+    text: "did anyone else hear Marcus Oyelaran ask the TA if Java and JavaScript are the same thing lmao, how is he a CS major",
+    expect: "hold",
+    why: "Mocks a named student without any flagged word.",
+  },
+  {
+    id: "chat-thanks-student",
+    kind: "chat",
+    course: "MATH241",
+    text: "shoutout to Aisha Karimi for the review session notes, they saved me on the quiz",
+    expect: "publish",
+    why: "Names a student kindly.",
+  },
+
   // ---------- held out ----------
   // Written after the prompt and thresholds were tuned on the cases above,
   // and never tuned against, so a run shows how the setup does on text it

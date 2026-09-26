@@ -37,6 +37,7 @@ import {
   resolveQueueItem,
   undoQueueItem,
 } from "../moderation/admin";
+import { MODERATION_HANDLERS } from "../moderation/handlers";
 import type { ModerationEnv } from "../moderation/service";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
 import { apiError, clientIp, json, readInput } from "./http";
@@ -206,7 +207,7 @@ export async function handleApi(
     now,
     origin: linkOrigin(url),
     waitUntil: (p) => ctx.waitUntil(p),
-    moderationHandlers: options.moderationHandlers ?? {},
+    moderationHandlers: options.moderationHandlers ?? MODERATION_HANDLERS,
   });
   return json(result);
 }
