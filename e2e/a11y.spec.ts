@@ -207,6 +207,38 @@ for (const scheme of ["light", "dark"] as const) {
       }
     });
 
+    test("the calendar from the keyboard: a focused ghost and its preview", async ({
+      page,
+      isMobile,
+    }) => {
+      test.skip(isMobile, "keyboard on desktop");
+      await open(page);
+      await calendar(page)
+        .getByRole("button", { name: /^CMSC351 0301, Monday/ })
+        .first()
+        .click();
+      await calendar(page).locator("[data-nav-key][tabindex='0']").focus();
+      await page.keyboard.press("ArrowDown");
+      await expect(page.locator(":focus")).toHaveAttribute("data-ghost", /.+/);
+      await scan(page, `focused ghost (${scheme})`);
+      // A merged ghost's popover, opened from the keyboard.
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("/");
+      await page
+        .getByRole("combobox", { name: "Search courses" })
+        .fill("engl 101");
+      await page.locator('[data-course-result="ENGL101"]').click();
+      await calendar(page)
+        .getByRole("button", { name: /sections of ENGL101 to choose from/ })
+        .first()
+        .focus();
+      await page.keyboard.press("Enter");
+      await expect(
+        page.getByRole("dialog", { name: "Sections of ENGL101" }),
+      ).toBeVisible();
+      await scan(page, `merged ghost popover (${scheme})`);
+    });
+
     test("menus and popovers", async ({ page, isMobile }) => {
       await open(page);
       await page
