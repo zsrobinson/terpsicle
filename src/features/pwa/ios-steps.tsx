@@ -82,8 +82,11 @@ export function IosSteps() {
         />{" "}
         in Safari. If you don't see it, tap ••• first.
       </li>
-      <li>Tap Add to Home Screen. You may need to scroll to find it.</li>
-      <li>Tap Add.</li>
+      <li>
+        Tap Add to Home Screen, then Add. You may need to scroll to find it.
+      </li>
+      {/* iOS sends notifications only to the Home Screen app, not this tab. */}
+      <li>Open Terpsicle from your Home Screen.</li>
     </ol>
   );
 }

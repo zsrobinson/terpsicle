@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { deviceLabel } from "~/core/pwa";
 import { PushPayloadSchema } from "~/core/schema";
 import {
   installServiceWorker,
@@ -8,6 +9,7 @@ import {
   type SwCache,
   type SwCaches,
   type SwNotificationOptions,
+  type SwPushSubscription,
   type SwScope,
   type SwWindowClient,
   serviceWorkerScript,
@@ -68,15 +70,24 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
   const opened: string[] = [];
   let windows: SwWindowClient[] = [];
   const skipWaiting = vi.fn(async () => {});
+  const subscribe = vi.fn(
+    async (options: { applicationServerKey: ArrayBuffer }) =>
+      aSubscription("https://push.example/new", options.applicationServerKey),
+  );
   const scope: SwScope = {
     location: { origin: ORIGIN },
     addEventListener: (type: string, listener: Listener) =>
       listeners.set(type, listener),
     skipWaiting,
+    navigator: {
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1",
+    },
     registration: {
       showNotification: async (title, options) => {
         shown.push({ title, options });
       },
+      pushManager: { subscribe },
     },
     clients: {
       claim: async () => {},
@@ -94,7 +105,9 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
     precache: [],
     startUrl: "/schedule",
     icon: "/icons/icon-192.png",
+    badge: "/icons/badge-72.png",
     skipWaitingMessage: "skip-waiting",
+    subscribePath: "/api/push/subscribe",
     ...over,
   };
   installServiceWorker(
@@ -102,6 +115,7 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
     caches,
     (r) => network(r),
     readPushPayload,
+    deviceLabel,
     config,
   );
 
@@ -159,6 +173,11 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
         done: dispatch("notificationclick", { notification: { data, close } }),
       };
     },
+    subscriptionChanged: (event: {
+      oldSubscription: SwPushSubscription | null;
+      newSubscription: SwPushSubscription | null;
+    }) => dispatch("pushsubscriptionchange", event),
+    subscribe,
     shown,
     opened,
     skipWaiting,
@@ -168,6 +187,17 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
     fetchWith: (fn: (request: Request) => Promise<Response>) => {
       network = fn;
     },
+  };
+}
+
+/** A push subscription as the browser reports it. */
+function aSubscription(
+  endpoint: string,
+  key: ArrayBuffer | null = new Uint8Array([4, 1, 2]).buffer,
+): SwPushSubscription {
+  return {
+    options: { applicationServerKey: key },
+    toJSON: () => ({ endpoint, keys: { p256dh: "p256", auth: "secret" } }),
   };
 }
 
@@ -192,27 +222,39 @@ describe("service worker: pages and files", () => {
 
   it("serves the last copy of the page when offline", async () => {
     const sw = setUp();
-    sw.fetchWith(async () => html("the app"));
+    sw.fetchWith(async () => html("the schedule"));
     await sw.request("/schedule", { navigate: true });
     sw.fetchWith(offline);
     expect(
       await (
         await sw.request("/schedule?plan=abc", { navigate: true })
       )?.text(),
-    ).toBe("the app");
-    // A page never loaded online falls back to the app's copy.
-    expect(
-      await (await sw.request("/alerts/confirm", { navigate: true }))?.text(),
-    ).toBe("the app");
+    ).toBe("the schedule");
   });
 
-  it("falls back to the home page's copy when the app page was never loaded", async () => {
+  it("falls back to the page kept most recently, since every path is the same app", async () => {
     const sw = setUp();
-    sw.fetchWith(async () => html("home"));
-    await sw.request("/", { navigate: true });
+    sw.fetchWith(async (r) => html(`app at ${new URL(r.url).pathname}`));
+    await sw.request("/schedule", { navigate: true });
+    await sw.request("/reviews", { navigate: true });
     sw.fetchWith(offline);
     expect(await (await sw.request("/chat", { navigate: true }))?.text()).toBe(
-      "home",
+      "app at /reviews",
+    );
+    // Visiting a page again makes it the newest.
+    sw.fetchWith(async () => html("schedule again"));
+    await sw.request("/schedule", { navigate: true });
+    sw.fetchWith(offline);
+    expect(await (await sw.request("/chat", { navigate: true }))?.text()).toBe(
+      "schedule again",
+    );
+  });
+
+  it("fails like the network when nothing was ever kept", async () => {
+    const sw = setUp();
+    sw.fetchWith(offline);
+    await expect(sw.request("/schedule", { navigate: true })).rejects.toThrow(
+      "Failed to fetch",
     );
   });
 
@@ -285,25 +327,38 @@ describe("service worker: pages and files", () => {
     expect(kept).toEqual([`${ORIGIN}/assets/b.js`, `${ORIGIN}/assets/c.js`]);
   });
 
-  it("never caches the API or data, other sites, or anything but GET", async () => {
+  it("never touches the API, sign-in, pictures, data or analytics, even navigations", async () => {
     const sw = setUp();
-    expect(await sw.request("/api/alerts/status")).toBeUndefined();
-    expect(
-      await sw.request("/api/alerts/status", { navigate: true }),
-    ).toBeUndefined();
-    expect(await sw.request("/data/catalog/terms.json")).toBeUndefined();
+    for (const path of [
+      "/api/alerts/status",
+      "/api/auth/google/callback?code=x",
+      "/auth/test",
+      "/avatars/abc.jpg",
+      "/data/catalog/terms.json",
+      "/ingest",
+      "/ingest/e/",
+    ]) {
+      expect(await sw.request(path), path).toBeUndefined();
+      expect(await sw.request(path, { navigate: true }), path).toBeUndefined();
+    }
+  });
+
+  it("stays out of other sites and anything but GET", async () => {
+    const sw = setUp();
     expect(await sw.request("/", { method: "POST" })).toBeUndefined();
+    // A path that only starts like one of those is still the app.
+    expect(await sw.request("/apiary", { navigate: true })).toBeDefined();
   });
 
   it("drops the previous version's caches when it takes over", async () => {
-    const sw = setUp();
-    await sw.caches.open("terpsicle-pages-v0");
-    await sw.caches.open("terpsicle-shell-v1-old");
-    await sw.caches.open("terpsicle-assets-v1");
+    const sw = setUp({ version: 2 });
+    await sw.caches.open("terpsicle-pages-v1");
+    await sw.caches.open("terpsicle-shell-v2-old");
+    await sw.caches.open("terpsicle-assets-v2");
     await sw.caches.open("someone-else");
     await sw.activate();
     expect(await sw.caches.keys()).toEqual([
-      "terpsicle-assets-v1",
+      "terpsicle-assets-v2",
       "someone-else",
     ]);
   });
@@ -326,22 +381,27 @@ describe("service worker: updates", () => {
   });
 });
 
+const aPush = {
+  v: 1,
+  type: "seat-open",
+  title: "CMSC131 0101 has a seat",
+  body: "Register on Testudo before it's gone.",
+  url: "/schedule?course=CMSC131",
+  tag: "seat:202701:CMSC131-0101",
+};
+
 describe("service worker: push", () => {
   it("shows the payload's title and body, and remembers where to go", async () => {
     const sw = setUp();
-    await sw.push({
-      title: "CMSC131 0101 has a seat",
-      body: "Register on Testudo before it's gone.",
-      url: "/schedule?course=CMSC131",
-      tag: "seat-CMSC131-0101",
-    });
+    await sw.push(aPush);
     expect(sw.shown).toEqual([
       {
         title: "CMSC131 0101 has a seat",
         options: {
           body: "Register on Testudo before it's gone.",
           icon: "/icons/icon-192.png",
-          tag: "seat-CMSC131-0101",
+          badge: "/icons/badge-72.png",
+          tag: "seat:202701:CMSC131-0101",
           data: { url: "/schedule?course=CMSC131" },
         },
       },
@@ -352,31 +412,44 @@ describe("service worker: push", () => {
     const sw = setUp();
     await sw.push(null);
     await sw.push("not json {");
-    await sw.push({ title: "Phish", body: "", url: "https://evil.example" });
-    expect(sw.shown).toHaveLength(3);
+    await sw.push({ ...aPush, url: "https://evil.example" });
+    await sw.push({ ...aPush, v: 2 });
+    expect(sw.shown).toHaveLength(4);
     for (const { title, options } of sw.shown) {
       expect(title).toBe("Terpsicle");
+      expect(options.body).toBe("Open the app for details.");
       expect(options.data.url).toBe("/schedule");
     }
   });
 
   it("reads payloads exactly as PushPayloadSchema does", () => {
     const cases: unknown[] = [
-      { title: "Hi", body: "", url: "/" },
-      { title: "  Hi  ", body: "b", url: "/chat/x?m=1", tag: "t" },
-      { title: "Hi", body: "b", url: "/x", extra: true },
-      { title: "", body: "", url: "/" },
-      { title: "   ", body: "", url: "/" },
-      { title: "x".repeat(121), body: "", url: "/" },
-      { title: "Hi", body: "x".repeat(401), url: "/" },
-      { title: "Hi", body: "", url: "//evil.example" },
-      { title: "Hi", body: "", url: "https://evil.example/" },
-      { title: "Hi", body: "", url: `/${"x".repeat(2048)}` },
-      { title: "Hi", body: "", url: "/", tag: "" },
-      { title: "Hi", body: "", url: "/", tag: "x".repeat(65) },
-      { title: "Hi", body: "", url: "/", tag: 3 },
-      { title: "Hi", url: "/" },
-      { title: 1, body: "", url: "/" },
+      aPush,
+      { ...aPush, title: "  Hi  " },
+      {
+        ...aPush,
+        type: "chat-reply",
+        url: "/chat/202701/CMSC131/section-0303?m=1",
+      },
+      { ...aPush, type: "chat-mention" },
+      { ...aPush, type: "admin-urgent" },
+      { ...aPush, extra: true },
+      { ...aPush, v: 2 },
+      { ...aPush, v: "1" },
+      { ...aPush, type: "chat-digest" },
+      { ...aPush, title: "" },
+      { ...aPush, title: "   " },
+      { ...aPush, title: "x".repeat(121) },
+      { ...aPush, body: "x".repeat(401) },
+      { ...aPush, body: undefined },
+      { ...aPush, url: "//evil.example" },
+      { ...aPush, url: "https://evil.example/" },
+      { ...aPush, url: `/${"x".repeat(2048)}` },
+      { ...aPush, tag: "" },
+      { ...aPush, tag: "x".repeat(65) },
+      { ...aPush, tag: 3 },
+      { ...aPush, tag: undefined },
+      { ...aPush, title: 1 },
       "a string",
       null,
       [],
@@ -387,6 +460,70 @@ describe("service worker: push", () => {
         parsed.success ? parsed.data : null,
       );
     }
+  });
+
+  it("saves a subscription the browser replaced, with the same key", async () => {
+    const sw = setUp();
+    const sent: Request[] = [];
+    sw.fetchWith(async (r) => {
+      sent.push(r);
+      return new Response("{}");
+    });
+    const key = new Uint8Array([4, 9, 9]).buffer;
+    await sw.subscriptionChanged({
+      oldSubscription: aSubscription("https://push.example/old", key),
+      newSubscription: null,
+    });
+    expect(sw.subscribe).toHaveBeenCalledWith({
+      userVisibleOnly: true,
+      applicationServerKey: key,
+    });
+    expect(sent).toHaveLength(1);
+    const [request] = sent;
+    expect(request?.url).toBe(`${ORIGIN}/api/push/subscribe`);
+    expect(request?.method).toBe("POST");
+    expect(request?.headers.get("Content-Type")).toBe("application/json");
+    expect(await request?.json()).toEqual({
+      endpoint: "https://push.example/new",
+      keys: { p256dh: "p256", auth: "secret" },
+      label: "iPhone · Safari",
+    });
+  });
+
+  it("saves the browser's own new subscription as is", async () => {
+    const sw = setUp();
+    const sent: Request[] = [];
+    sw.fetchWith(async (r) => {
+      sent.push(r);
+      return new Response("{}");
+    });
+    await sw.subscriptionChanged({
+      oldSubscription: null,
+      newSubscription: aSubscription("https://push.example/given"),
+    });
+    expect(sw.subscribe).not.toHaveBeenCalled();
+    expect(sent).toHaveLength(1);
+    const body = (await sent[0]?.json()) as { endpoint?: string } | undefined;
+    expect(body?.endpoint).toBe("https://push.example/given");
+  });
+
+  it("leaves it to the app when there's no key to reuse", async () => {
+    const sw = setUp();
+    const sent: Request[] = [];
+    sw.fetchWith(async (r) => {
+      sent.push(r);
+      return new Response("{}");
+    });
+    await sw.subscriptionChanged({
+      oldSubscription: null,
+      newSubscription: null,
+    });
+    await sw.subscriptionChanged({
+      oldSubscription: aSubscription("https://push.example/old", null),
+      newSubscription: null,
+    });
+    expect(sw.subscribe).not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
   });
 });
 

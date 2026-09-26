@@ -5,9 +5,10 @@
 //
 // The source's first <rect> is its tile: the colored square behind the art.
 // Icons that must fill their whole canvas (Android's maskable icon, iOS's
-// home-screen icon, which the OS rounds itself) are drawn from the tile
-// outward, with the tile's color filling the corners. The web app manifest
-// (public/manifest.webmanifest) lists the files written here.
+// Home Screen icon, which the OS rounds itself) are drawn from the tile
+// outward, with the tile's color filling the corners. The notification badge
+// is the art alone, in white. The web app manifest (scripts/pwa-manifest.ts)
+// and the service worker (src/server/service-worker.ts) name these files.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Resvg } from "@resvg/resvg-js";
@@ -21,8 +22,13 @@ export interface IconSpec {
    * `transparent`: the mark as drawn, corners and all (browsers, desktop).
    * `full-bleed`: the tile fills the canvas; `padding` shrinks the art
    * toward the middle (1 = the tile edge to edge).
+   * `badge`: the art without its tile, white on clear (Android's status bar
+   * uses only the alpha).
    */
-  fit: { kind: "transparent" } | { kind: "full-bleed"; padding: number };
+  fit:
+    | { kind: "transparent" }
+    | { kind: "full-bleed"; padding: number }
+    | { kind: "badge" };
 }
 
 /**
@@ -46,6 +52,7 @@ export const ICONS: readonly IconSpec[] = [
     size: 180,
     fit: { kind: "full-bleed", padding: 1 },
   },
+  { file: "icons/badge-72.png", size: 72, fit: { kind: "badge" } },
 ];
 
 interface Box {
@@ -61,6 +68,8 @@ export interface SourceMark {
   tile: Box & { fill: string };
   /** Everything inside <svg>, minus <title>. */
   inner: string;
+  /** `inner` without the tile. */
+  art: string;
 }
 
 function attr(tag: string, name: string): string | undefined {
@@ -104,6 +113,7 @@ export function parseMark(svg: string): SourceMark {
       fill,
     },
     inner,
+    art: inner.replace(rect, ""),
   };
 }
 
@@ -115,6 +125,10 @@ export function iconSvg(mark: SourceMark, spec: IconSpec): string {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${x} ${y} ${width} ${height}">${mark.inner}</svg>`;
   }
   const { tile } = mark;
+  if (fit.kind === "badge") {
+    const white = mark.art.replace(/\sfill="[^"]*"/g, ' fill="#fff"');
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${tile.x} ${tile.y} ${tile.width} ${tile.height}">${white}</svg>`;
+  }
   const side = Math.max(tile.width, tile.height) * fit.padding;
   const x = tile.x + tile.width / 2 - side / 2;
   const y = tile.y + tile.height / 2 - side / 2;

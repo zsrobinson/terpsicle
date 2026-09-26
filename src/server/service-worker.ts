@@ -1,38 +1,48 @@
-import { PWA_START_URL, SW_SKIP_WAITING_MESSAGE } from "~/core/schema";
+import { deviceLabel } from "~/core/pwa";
+import {
+  PUSH_SUBSCRIBE_PATH,
+  PWA_START_URL,
+  SW_SKIP_WAITING_MESSAGE,
+} from "~/core/schema";
 
 // The service worker (served at /sw.js by the Worker): makes Terpsicle an
-// installable app that opens offline, and shows web push notifications.
-// Plans and the catalog already live in IndexedDB; what an offline load
-// lacked was the page itself and its scripts.
+// installable app that opens offline, and shows web push notifications
+// (docs/V2.md §3.2). Plans and the catalog already live in IndexedDB; what
+// an offline load lacked was the page itself and its scripts.
 //
 // - Pages are network-first: online, every load gets the current deploy's
 //   HTML (and a copy is kept); only when the network fails is the last copy
-//   used. So a new deploy is always picked up on the next online load, and
-//   there's no "stuck on an old version" state to escape.
+//   of that page used, else the most recently kept page (every path serves
+//   the same app). So a new deploy is always picked up on the next online
+//   load, and there's no "stuck on an old version" state to escape.
 // - The app shell's hashed build files are precached when a new version
 //   installs (the list comes from the client build: scripts/pwa-precache.ts).
 //   Other build files (/assets/*) never change either, so they're
 //   cache-first, kept as they're fetched (lazy chunks too), oldest dropped
 //   past a cap.
-// - /api is never cached. /data isn't either: IndexedDB already keeps it, and
-//   the manifests are `no-cache` so the app's 60-second poll sees a new
-//   catalog at once; a stale-while-revalidate copy would hide it for a poll
-//   (docs/DATA.md §2.5, §5.1). Analytics pass straight through too.
+// - Never cached, navigations included: /api (answers are per person; the
+//   sign-in redirects are navigations), /auth, /avatars and /ingest. /data
+//   isn't either: IndexedDB already keeps it, and the manifests are
+//   `no-cache` so the app's 60-second poll sees a new catalog at once; a
+//   stale-while-revalidate copy would hide it for a poll (DATA.md §2.5, §5.1).
 // - A new version waits until the app asks it to take over ("Update ready"
 //   → Reload, src/app/service-worker-registration.ts) or every tab closes.
-// - Push: shows the payload (`PushPayloadSchema`); a click focuses a tab
-//   already on its URL or opens one.
+// - Push: shows the payload (`PushPayloadSchema`); a click focuses a window
+//   already on its URL, else takes an open one there, else opens one. A
+//   subscription the browser replaces is saved again.
 //
 // To retire it, serve a /sw.js whose activate handler calls
 // `self.registration.unregister()`; browsers check /sw.js on every
 // navigation (it's served no-cache), so it spreads on the next visit.
 
 /** Bump to drop every cache the previous service worker kept. */
-export const SERVICE_WORKER_VERSION = 1;
+export const SERVICE_WORKER_VERSION = 2;
 /** Build files kept at most; a deploy has a few dozen. */
 export const MAX_CACHED_ASSETS = 400;
 /** Shown with every notification. */
 export const NOTIFICATION_ICON = "/icons/icon-192.png";
+/** Android's status bar icon: white on clear. */
+export const NOTIFICATION_BADGE = "/icons/badge-72.png";
 
 // The parts of the service worker scope this uses, so tests can fake them.
 interface SwEvent {
@@ -52,6 +62,14 @@ interface SwPushEvent extends SwEvent {
 interface SwNotificationClickEvent extends SwEvent {
   notification: { data: unknown; close(): void };
 }
+export interface SwPushSubscription {
+  options?: { applicationServerKey: ArrayBuffer | null };
+  toJSON(): { endpoint?: string; keys?: Record<string, string> };
+}
+interface SwPushSubscriptionChangeEvent extends SwEvent {
+  oldSubscription: SwPushSubscription | null;
+  newSubscription: SwPushSubscription | null;
+}
 export interface SwWindowClient {
   url: string;
   focus(): Promise<unknown>;
@@ -62,6 +80,7 @@ export interface SwNotificationOptions {
   body: string;
   tag?: string;
   icon: string;
+  badge: string;
   data: { url: string };
 }
 export interface SwScope {
@@ -83,12 +102,23 @@ export interface SwScope {
     type: "notificationclick",
     listener: (event: SwNotificationClickEvent) => void,
   ): void;
+  addEventListener(
+    type: "pushsubscriptionchange",
+    listener: (event: SwPushSubscriptionChangeEvent) => void,
+  ): void;
   skipWaiting(): Promise<void>;
+  navigator: { userAgent: string };
   registration: {
     showNotification(
       title: string,
       options: SwNotificationOptions,
     ): Promise<void>;
+    pushManager: {
+      subscribe(options: {
+        userVisibleOnly: true;
+        applicationServerKey: ArrayBuffer;
+      }): Promise<SwPushSubscription>;
+    };
   };
   clients: {
     claim(): Promise<void>;
@@ -120,14 +150,18 @@ export interface ServiceWorkerConfig {
   precache: readonly string[];
   startUrl: string;
   icon: string;
+  badge: string;
   skipWaitingMessage: string;
+  subscribePath: string;
 }
 
 export interface ShownPush {
+  v: 1;
+  type: string;
   title: string;
   body: string;
   url: string;
-  tag?: string;
+  tag: string;
 }
 
 // Stringified into /sw.js (the service worker can't load zod), so it must
@@ -135,17 +169,25 @@ export interface ShownPush {
 // ~/core/schema; service-worker.test.ts holds the two together.
 /** A push payload as sent, or null when it isn't one. */
 export function readPushPayload(raw: unknown): ShownPush | null {
-  if (typeof raw !== "object" || raw === null) return null;
-  const { title, body, url, tag } = raw as Record<string, unknown>;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    return null;
+  const { v, type, title, body, url, tag } = raw as Record<string, unknown>;
+  if (v !== 1) return null;
+  if (
+    type !== "seat-open" &&
+    type !== "chat-mention" &&
+    type !== "chat-reply" &&
+    type !== "admin-urgent"
+  )
+    return null;
   if (typeof title !== "string") return null;
   const cleanTitle = title.trim();
   if (cleanTitle.length < 1 || cleanTitle.length > 120) return null;
   if (typeof body !== "string" || body.length > 400) return null;
   if (typeof url !== "string" || url.length > 2048 || !/^\/(?!\/)/.test(url))
     return null;
-  if (tag === undefined) return { title: cleanTitle, body, url };
   if (typeof tag !== "string" || tag.length < 1 || tag.length > 64) return null;
-  return { title: cleanTitle, body, url, tag };
+  return { v, type, title: cleanTitle, body, url, tag };
 }
 
 // Stringified into /sw.js, so it must be self-contained: no imports, no
@@ -155,9 +197,11 @@ export function installServiceWorker(
   cacheStorage: SwCaches,
   doFetch: (request: Request) => Promise<Response>,
   readPush: (raw: unknown) => ShownPush | null,
+  labelDevice: (userAgent: string) => string,
   config: ServiceWorkerConfig,
 ) {
   const PAGES = `terpsicle-pages-v${config.version}`;
+  const PASS = /^\/(api|auth|avatars|data|ingest)(\/|$)/;
   const ASSETS = `terpsicle-assets-v${config.version}`;
   const SHELL = `terpsicle-shell-v${config.version}-${config.build}`;
   const origin = sw.location.origin;
@@ -212,12 +256,14 @@ export function installServiceWorker(
         await cache.put(key, response.clone());
       return response;
     } catch (error) {
-      // Offline: the last copy of this page, else of the app itself.
-      const saved =
-        (await cache.match(key)) ??
-        (await cache.match(`${origin}${config.startUrl}`)) ??
-        (await cache.match(`${origin}/`));
+      // Offline: the last copy of this page, else the page kept most
+      // recently (a put moves its entry to the end), since every path
+      // serves the same app.
+      const saved = await cache.match(key);
       if (saved) return saved;
+      const newest = (await cache.keys()).at(-1);
+      const fallback = newest ? await cache.match(newest) : undefined;
+      if (fallback) return fallback;
       throw error;
     }
   };
@@ -248,10 +294,8 @@ export function installServiceWorker(
     if (request.method !== "GET") return;
     const url = new URL(request.url);
     if (url.origin !== origin) return;
-    // Never cached: answers must be current, and some are private.
-    if (url.pathname.startsWith("/api/")) return;
-    // IndexedDB keeps it, and its manifests must revalidate (see above).
-    if (url.pathname.startsWith("/data/")) return;
+    // Network only, navigations too (see above).
+    if (PASS.test(url.pathname)) return;
     if (request.mode === "navigate") {
       // The query (?plan=…) doesn't change the page, only what it shows.
       event.respondWith(page(request, `${url.origin}${url.pathname}`));
@@ -269,18 +313,22 @@ export function installServiceWorker(
     }
     // Every push must show something (browsers require it), so a payload we
     // can't read still says where to look.
-    const push = readPush(raw) ?? {
-      title: "Terpsicle",
-      body: "Open Terpsicle to see what's new.",
-      url: config.startUrl,
-    };
+    const push = readPush(raw);
     event.waitUntil(
-      sw.registration.showNotification(push.title, {
-        body: push.body,
-        icon: config.icon,
-        data: { url: push.url },
-        ...(push.tag ? { tag: push.tag } : {}),
-      }),
+      push
+        ? sw.registration.showNotification(push.title, {
+            body: push.body,
+            tag: push.tag,
+            icon: config.icon,
+            badge: config.badge,
+            data: { url: push.url },
+          })
+        : sw.registration.showNotification("Terpsicle", {
+            body: "Open the app for details.",
+            icon: config.icon,
+            badge: config.badge,
+            data: { url: config.startUrl },
+          }),
     );
   });
 
@@ -317,6 +365,40 @@ export function installServiceWorker(
       })(),
     );
   });
+
+  // The browser replaced (or dropped) the push subscription: subscribe again
+  // with the same VAPID key and save it, as the app does (same-origin, so the
+  // session cookie goes along). Without the old key there's nothing to reuse;
+  // the app subscribes again on its next open.
+  sw.addEventListener("pushsubscriptionchange", (event) => {
+    event.waitUntil(
+      (async () => {
+        const key = event.oldSubscription?.options?.applicationServerKey;
+        const next =
+          event.newSubscription ??
+          (key
+            ? await sw.registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: key,
+              })
+            : null);
+        if (!next) return;
+        const { endpoint, keys } = next.toJSON();
+        if (!endpoint || !keys) return;
+        await doFetch(
+          new Request(`${origin}${config.subscribePath}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              endpoint,
+              keys: { p256dh: keys.p256dh, auth: keys.auth },
+              label: labelDevice(sw.navigator.userAgent),
+            }),
+          }),
+        );
+      })(),
+    );
+  });
 }
 
 /** A short, stable name for a precache list (djb2), so each build gets its own cache. */
@@ -336,7 +418,9 @@ export function serviceWorkerScript(precache: readonly string[]): string {
     precache,
     startUrl: PWA_START_URL,
     icon: NOTIFICATION_ICON,
+    badge: NOTIFICATION_BADGE,
     skipWaitingMessage: SW_SKIP_WAITING_MESSAGE,
+    subscribePath: PUSH_SUBSCRIBE_PATH,
   };
-  return `(${installServiceWorker.toString()})(self, caches, (request) => fetch(request), ${readPushPayload.toString()}, ${JSON.stringify(config)});\n`;
+  return `(${installServiceWorker.toString()})(self, caches, (request) => fetch(request), ${readPushPayload.toString()}, ${deviceLabel.toString()}, ${JSON.stringify(config)});\n`;
 }

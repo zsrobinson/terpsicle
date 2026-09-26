@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { InstallAppButton } from "~/features/install/install-entry";
+import { InstallAppButton } from "~/features/pwa/install-entry";
 import { useProblemCounts } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";

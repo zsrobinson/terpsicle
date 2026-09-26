@@ -1,16 +1,15 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { INSTALL_COOLDOWN_DAYS } from "~/core/install";
+import { INSTALL_COOLDOWN_DAYS } from "~/core/pwa";
 import { INSTALL_PROMPT_STORAGE_KEY } from "~/core/schema";
 import { TooltipProvider } from "~/ui/tooltip";
 import { INSTALL_PROMPT_STASH } from "./install-capture";
 import { InstallAppButton, InstallAppSetting } from "./install-entry";
 import { InstallHost } from "./install-host";
-import { resetOfferedInMemory } from "./install-prefs";
 import {
   captureInstallPrompt,
-  offerInstall,
+  requestInstallPrompt,
   useInstall,
 } from "./install-store";
 
@@ -19,7 +18,7 @@ const IPHONE_SAFARI =
 const NOW = new Date("2026-09-26T12:00:00.000Z");
 const days = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 
-/** Chrome's `beforeinstallprompt`, answering the prompt with `outcome`. */
+/** Chromium's `beforeinstallprompt`, answering the prompt with `outcome`. */
 function promptEvent(outcome: "accepted" | "dismissed" = "dismissed") {
   const event = new Event("beforeinstallprompt", { cancelable: true });
   const prompt = vi.fn(async () => {});
@@ -30,28 +29,36 @@ function promptEvent(outcome: "accepted" | "dismissed" = "dismissed") {
   return { event, prompt };
 }
 
-/** A new tab: the per-session limit starts over; localStorage stays. */
+/** A new tab: the once-a-session limit starts over; localStorage stays. */
 function newSession() {
   window.sessionStorage.clear();
-  resetOfferedInMemory();
+  act(() => useInstall.setState({ open: null }));
 }
+
+const savedState = () =>
+  JSON.parse(window.localStorage.getItem(INSTALL_PROMPT_STORAGE_KEY) ?? "null");
 
 let stopCapture = () => {};
 beforeEach(() => {
+  // Only the clock: dismissals are stamped with the time they happen.
+  vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
   useInstall.setState({ deferred: null, installed: false, open: null });
   window.localStorage.clear();
-  newSession();
+  window.sessionStorage.clear();
   stopCapture = captureInstallPrompt();
 });
 afterEach(() => {
   stopCapture();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   delete (window as unknown as Record<string, unknown>)[INSTALL_PROMPT_STASH];
 });
 
 function browserOffersPrompt(outcome?: "accepted" | "dismissed") {
   const prompt = promptEvent(outcome);
-  window.dispatchEvent(prompt.event);
+  act(() => {
+    window.dispatchEvent(prompt.event);
+  });
   return prompt;
 }
 
@@ -68,17 +75,29 @@ const renderHost = () =>
     </TooltipProvider>,
   );
 
-describe("offerInstall", () => {
+/** Asks at a key moment, as another feature would. */
+const ask = (now = NOW) => {
+  let opened = false;
+  act(() => {
+    opened = requestInstallPrompt("alert-on", now);
+  });
+  return opened;
+};
+
+describe("requestInstallPrompt", () => {
   it("does nothing where the app can't be installed", () => {
-    expect(offerInstall("enabled-alerts", NOW)).toBe(false);
+    expect(ask()).toBe(false);
     expect(useInstall.getState().open).toBeNull();
   });
 
   it("keeps the browser's prompt, so the browser shows no bar of its own", () => {
     const { event } = browserOffersPrompt();
     expect(event.defaultPrevented).toBe(true);
-    expect(offerInstall("enabled-alerts", NOW)).toBe(true);
-    expect(useInstall.getState().open).toBe("enabled-alerts");
+    expect(ask()).toBe(true);
+    expect(useInstall.getState().open).toEqual({
+      from: "alert-on",
+      method: "prompt",
+    });
   });
 
   it("takes a prompt the head script caught before the app loaded", () => {
@@ -87,23 +106,19 @@ describe("offerInstall", () => {
     (window as unknown as Record<string, unknown>)[INSTALL_PROMPT_STASH] =
       event;
     stopCapture = captureInstallPrompt();
-    expect(offerInstall("first-sign-in", NOW)).toBe(true);
+    expect(ask()).toBe(true);
   });
 
-  it("offers once a session, then not for 30 days", () => {
+  it("shows once a session", () => {
     browserOffersPrompt();
-    expect(offerInstall("enabled-alerts", NOW)).toBe(true);
+    expect(ask()).toBe(true);
     act(() => useInstall.setState({ open: null }));
-    expect(offerInstall("joined-chat", NOW)).toBe(false);
-
+    expect(requestInstallPrompt("chat-joined", NOW)).toBe(false);
     newSession();
-    expect(offerInstall("joined-chat", days(INSTALL_COOLDOWN_DAYS - 1))).toBe(
-      false,
-    );
-    expect(offerInstall("joined-chat", days(INSTALL_COOLDOWN_DAYS))).toBe(true);
+    expect(ask()).toBe(true);
   });
 
-  it("never offers in the installed app", () => {
+  it("never shows in the installed app", () => {
     browserOffersPrompt();
     vi.spyOn(window, "matchMedia").mockImplementation(
       (query: string) =>
@@ -111,20 +126,15 @@ describe("offerInstall", () => {
           matches: query === "(display-mode: standalone)",
         }) as MediaQueryList,
     );
-    expect(offerInstall("enabled-alerts", NOW)).toBe(false);
+    expect(ask()).toBe(false);
   });
 
-  it("works with storage blocked, once per page load", () => {
+  it("doesn't show when storage is blocked, since it couldn't remember Not now", () => {
     browserOffersPrompt();
     vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
       throw new DOMException("Blocked", "SecurityError");
     });
-    vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => {
-      throw new DOMException("Blocked", "SecurityError");
-    });
-    expect(offerInstall("enabled-alerts", NOW)).toBe(true);
-    act(() => useInstall.setState({ open: null }));
-    expect(offerInstall("enabled-alerts", NOW)).toBe(false);
+    expect(ask()).toBe(false);
   });
 });
 
@@ -133,112 +143,112 @@ describe("the install dialog", () => {
     const user = userEvent.setup();
     const { prompt } = browserOffersPrompt("accepted");
     renderHost();
-    act(() => {
-      offerInstall("enabled-alerts", NOW);
-    });
+    ask();
     const dialog = await screen.findByRole("dialog", {
-      name: "Install Terpsicle",
+      name: "Put Terpsicle on your home screen",
     });
-    expect(dialog).toHaveTextContent(
-      "Get notified when your class chat or a seat alert needs you",
-    );
-    expect(dialog).toHaveTextContent(
-      "Open Terpsicle from your dock or taskbar",
-    );
+    for (const line of [
+      "Get notified when a seat opens or a classmate replies",
+      "Open it from your home screen, like an app",
+      "Use the full screen, without browser bars",
+    ])
+      expect(dialog).toHaveTextContent(line);
+    expect(screen.getByRole("button", { name: "Install" })).toHaveFocus();
     await user.click(screen.getByRole("button", { name: "Install" }));
     expect(prompt).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    // Installed: nothing offers it again, and the entry is gone.
+    // Installed: nothing asks again, the item is gone, and it's no dismissal.
     expect(screen.queryByRole("button", { name: "Install app" })).toBeNull();
+    expect(savedState()).toBeNull();
     newSession();
-    expect(offerInstall("joined-chat", days(365))).toBe(false);
+    expect(ask(days(365))).toBe(false);
   });
 
-  it("remembers Not now for 30 days", async () => {
+  it("counts declining the browser's prompt as a dismissal", async () => {
+    const user = userEvent.setup();
+    browserOffersPrompt("dismissed");
+    renderHost();
+    ask();
+    await user.click(await screen.findByRole("button", { name: "Install" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(savedState()).toEqual({
+      dismissals: 1,
+      lastDismissedAt: NOW.toISOString(),
+    });
+  });
+
+  it(`waits ${INSTALL_COOLDOWN_DAYS} days after Not now, and stops after two`, async () => {
     const user = userEvent.setup();
     browserOffersPrompt();
     renderHost();
-    act(() => {
-      offerInstall("enabled-alerts", NOW);
-    });
+    ask();
     await user.click(await screen.findByRole("button", { name: "Not now" }));
     expect(screen.queryByRole("dialog")).toBeNull();
-    newSession();
-    expect(offerInstall("enabled-alerts", days(1))).toBe(false);
-  });
+    expect(savedState()).toMatchObject({ dismissals: 1 });
 
-  it("remembers Don't ask again for good", async () => {
-    const user = userEvent.setup();
-    browserOffersPrompt();
-    renderHost();
-    act(() => {
-      offerInstall("enabled-alerts", NOW);
-    });
-    await user.click(
-      await screen.findByRole("button", { name: "Don't ask again" }),
-    );
-    expect(
-      JSON.parse(window.localStorage.getItem(INSTALL_PROMPT_STORAGE_KEY) ?? ""),
-    ).toMatchObject({ never: true });
     newSession();
-    expect(offerInstall("enabled-alerts", days(365))).toBe(false);
+    expect(ask(days(INSTALL_COOLDOWN_DAYS - 1))).toBe(false);
+    newSession();
+    vi.setSystemTime(days(INSTALL_COOLDOWN_DAYS));
+    expect(ask(days(INSTALL_COOLDOWN_DAYS))).toBe(true);
+    await user.click(await screen.findByRole("button", { name: "Not now" }));
+    expect(savedState()).toEqual({
+      dismissals: 2,
+      lastDismissedAt: days(INSTALL_COOLDOWN_DAYS).toISOString(),
+    });
+    newSession();
+    expect(ask(days(10 * INSTALL_COOLDOWN_DAYS))).toBe(false);
   });
 
   it("shows Safari's Share → Add to Home Screen steps on iPhone", async () => {
     onIphone();
     renderHost();
-    act(() => {
-      offerInstall("enabled-alerts", NOW);
-    });
+    ask();
     const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveTextContent("Open Terpsicle from your home screen");
-    expect(dialog).toHaveTextContent("Full screen, no browser bars");
     expect(dialog).toHaveTextContent("Tap Add to Home Screen");
+    expect(dialog).toHaveTextContent("Open Terpsicle from your Home Screen");
     expect(screen.queryByRole("button", { name: "Install" })).toBeNull();
-    await userEvent.setup().click(screen.getByRole("button", { name: "Done" }));
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Got it" }));
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(savedState()).toMatchObject({ dismissals: 1 });
   });
 
   it("closes with Esc, as Not now", async () => {
     const user = userEvent.setup();
     browserOffersPrompt();
     renderHost();
-    act(() => {
-      offerInstall("enabled-alerts", NOW);
-    });
+    ask();
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(useInstall.getState().open).toBeNull();
+    expect(savedState()).toMatchObject({ dismissals: 1 });
   });
 });
 
-describe("the Install app entry", () => {
-  it("shows only where installing works", async () => {
+describe("the Install app item", () => {
+  it("shows only where installing works", () => {
     renderHost();
     expect(screen.queryByRole("button", { name: "Install app" })).toBeNull();
-    act(() => {
-      browserOffersPrompt();
-    });
+    browserOffersPrompt();
     expect(
       screen.getByRole("button", { name: "Install app" }),
     ).toBeInTheDocument();
   });
 
-  it("opens the dialog any time, even after Don't ask again", async () => {
+  it("opens the dialog any time, and closing it isn't a dismissal", async () => {
     const user = userEvent.setup();
+    const stopped = { dismissals: 2, lastDismissedAt: NOW.toISOString() };
     window.localStorage.setItem(
       INSTALL_PROMPT_STORAGE_KEY,
-      JSON.stringify({ lastOfferedAt: NOW.toISOString(), never: true }),
+      JSON.stringify(stopped),
     );
     browserOffersPrompt();
     renderHost();
     await user.click(screen.getByRole("button", { name: "Install app" }));
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    // They asked for it: no "Don't ask again".
-    expect(
-      screen.queryByRole("button", { name: "Don't ask again" }),
-    ).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Not now" }));
+    expect(savedState()).toEqual(stopped);
   });
 
   it("says why when this browser can't install", () => {

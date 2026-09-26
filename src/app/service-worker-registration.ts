@@ -2,41 +2,36 @@ import { SW_SKIP_WAITING_MESSAGE } from "~/core/schema";
 import type { ClientConfig } from "./config";
 
 // Registers /sw.js (src/server/service-worker.ts) for the whole site: the
-// installed app, offline loads and push. Production builds only: in dev and
-// mock mode (e2e) a service worker would cache files the dev server changes
-// under it. `localStorage["terpsicle:service-worker"] = "on"` registers it
-// there too, for trying it out (e2e/pwa.spec.ts does).
+// installed app, offline loads and push (V2 §3.2). Only in production builds
+// on terpsicle.com: PR previews don't get one, and in dev and mock mode (e2e)
+// it would cache files the dev server changes under it. `VITE_SW_DEV=1`
+// registers it on localhost too, for push work.
 //
 // A new version waits (the service worker never skips waiting on its own);
 // `onUpdateReady` gets a function that swaps it in and reloads.
 
 export const SERVICE_WORKER_URL = "/sw.js";
-export const SERVICE_WORKER_FLAG_KEY = "terpsicle:service-worker";
+/** The one host with a service worker in production builds. */
+export const SERVICE_WORKER_HOST = "terpsicle.com";
 /** A long-open tab asks for a new version when it comes back, at most this often. */
 export const UPDATE_CHECK_MS = 30 * 60_000;
 
 export function shouldRegisterServiceWorker(
-  mode: string,
-  flag: string | null,
+  config: Pick<ClientConfig, "mode" | "swDev">,
+  hostname: string,
 ): boolean {
-  return mode === "production" || flag === "on";
-}
-
-function readFlag(): string | null {
-  try {
-    return window.localStorage.getItem(SERVICE_WORKER_FLAG_KEY);
-  } catch {
-    return null;
-  }
+  if (config.swDev && hostname === "localhost") return true;
+  return config.mode === "production" && hostname === SERVICE_WORKER_HOST;
 }
 
 export function registerServiceWorker(
-  config: Pick<ClientConfig, "mode">,
+  config: Pick<ClientConfig, "mode" | "swDev">,
   onUpdateReady: (apply: () => void) => void,
   nav: Navigator = navigator,
+  hostname: string = window.location.hostname,
 ): void {
   if (!("serviceWorker" in nav)) return;
-  if (!shouldRegisterServiceWorker(config.mode, readFlag())) return;
+  if (!shouldRegisterServiceWorker(config, hostname)) return;
   const register = () => {
     nav.serviceWorker
       .register(SERVICE_WORKER_URL, { scope: "/" })

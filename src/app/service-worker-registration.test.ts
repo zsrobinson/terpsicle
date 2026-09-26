@@ -1,7 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   registerServiceWorker,
-  SERVICE_WORKER_FLAG_KEY,
   shouldRegisterServiceWorker,
   UPDATE_CHECK_MS,
   watchForUpdates,
@@ -15,36 +14,55 @@ const fakeNavigator = () => {
   };
 };
 
-afterEach(() => {
-  window.localStorage.clear();
-});
+const production = { mode: "production", swDev: false };
 
 describe("registerServiceWorker", () => {
-  it("registers /sw.js for the whole site in production builds", () => {
+  it("registers /sw.js for the whole site on terpsicle.com", () => {
     const { nav, register } = fakeNavigator();
-    registerServiceWorker({ mode: "production" }, () => {}, nav);
+    registerServiceWorker(production, () => {}, nav, "terpsicle.com");
     expect(register).toHaveBeenCalledWith("/sw.js", { scope: "/" });
   });
 
-  it("stays out of dev and mock mode, where files change under it", () => {
-    for (const mode of ["development", "mock", "test"]) {
+  it("stays off PR previews, dev and mock mode", () => {
+    const cases: [string, string][] = [
+      ["production", "pr-12-terpsicle.zsrobinson.workers.dev"],
+      ["production", "localhost"],
+      ["development", "localhost"],
+      ["mock", "localhost"],
+      ["test", "terpsicle.com"],
+    ];
+    for (const [mode, hostname] of cases) {
       const { nav, register } = fakeNavigator();
-      registerServiceWorker({ mode }, () => {}, nav);
-      expect(register).not.toHaveBeenCalled();
+      registerServiceWorker({ mode, swDev: false }, () => {}, nav, hostname);
+      expect(register, `${mode} on ${hostname}`).not.toHaveBeenCalled();
     }
   });
 
-  it("registers in dev and mock mode when the flag is on", () => {
-    window.localStorage.setItem(SERVICE_WORKER_FLAG_KEY, "on");
+  it("registers on localhost with VITE_SW_DEV=1, for push work", () => {
     const { nav, register } = fakeNavigator();
-    registerServiceWorker({ mode: "mock" }, () => {}, nav);
+    registerServiceWorker(
+      { mode: "development", swDev: true },
+      () => {},
+      nav,
+      "localhost",
+    );
     expect(register).toHaveBeenCalled();
-    expect(shouldRegisterServiceWorker("mock", "off")).toBe(false);
+    expect(
+      shouldRegisterServiceWorker(
+        { mode: "development", swDev: true },
+        "pr-12-terpsicle.zsrobinson.workers.dev",
+      ),
+    ).toBe(false);
   });
 
   it("does nothing in browsers without service workers", () => {
     expect(() =>
-      registerServiceWorker({ mode: "production" }, () => {}, {} as Navigator),
+      registerServiceWorker(
+        production,
+        () => {},
+        {} as Navigator,
+        "terpsicle.com",
+      ),
     ).not.toThrow();
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { InstallHost } from "~/features/install/install-host";
+import { InstallHost } from "~/features/pwa/install-host";
 import { clientConfig } from "./config";
 import { registerServiceWorker } from "./service-worker-registration";
 import { showUpdateReady } from "./update-toast";

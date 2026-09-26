@@ -1,13 +1,10 @@
-// The document head's installable-app tags (src/routes/__root.tsx): the web
-// app manifest (public/manifest.webmanifest), iOS's home-screen tags, and
-// the browser's toolbar color in each theme. Icons: `pnpm tsx
-// scripts/icons.ts` rebuilds them from public/favicon.svg.
+import { THEME_COLORS } from "virtual:terpsicle/theme-colors";
 
-/**
- * `--bg` in each theme (src/styles.css). A test holds them to the tokens and
- * to the manifest's colors.
- */
-export const THEME_COLORS = { light: "#fcfcfd", dark: "#0a0a0c" } as const;
+// The document head's installable-app tags (src/routes/__root.tsx, V2 §3.1):
+// the web app manifest, iOS's Home Screen tags, and the browser's toolbar
+// color in each theme. The manifest and these colors are built from the
+// theme tokens in src/styles.css (scripts/pwa-manifest.ts); the icons from
+// public/favicon.svg (`pnpm tsx scripts/icons.ts`).
 
 export const MANIFEST_URL = "/manifest.webmanifest";
 export const APPLE_TOUCH_ICON_URL = "/apple-touch-icon.png";
@@ -23,7 +20,7 @@ export const themeColorMeta = [
 ];
 
 export const pwaMeta = [
-  // iOS: open from the home screen without Safari's bars, named "Terpsicle".
+  // iOS: open from the Home Screen without Safari's bars, named "Terpsicle".
   { name: "apple-mobile-web-app-capable", content: "yes" },
   { name: "mobile-web-app-capable", content: "yes" },
   // "default": the page starts below the status bar, which follows the page

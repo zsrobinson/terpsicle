@@ -4,7 +4,7 @@ import type { PostHog } from "posthog-js";
 import type {
   ConnectionVerdict,
   ExtraMinutes,
-  InstallReason,
+  InstallTrigger,
   Pace,
   ProblemFix,
   ProblemKind,
@@ -90,12 +90,17 @@ export interface AnalyticsEvents {
   travel_how_opened: NoProperties;
   connection_opened: { verdict: ConnectionVerdict };
   route_map_shown: { mode: TravelMode; hasGeometry: boolean };
-  /** `menu`: the "Install app" entry; otherwise the key moment that offered it. */
-  install_prompt_shown: { reason: InstallReason | "menu" };
-  install_prompt_answered: {
-    reason: InstallReason | "menu";
-    answer: "installed" | "declined" | "not-now" | "never" | "done";
+  /** `menu`: the "Install app" item; otherwise the key moment (V2 §3.4). */
+  install_prompt_shown: {
+    trigger: InstallTrigger | "menu";
+    platform: "ios" | "chromium";
   };
+  install_prompt_result: {
+    trigger: InstallTrigger | "menu";
+    platform: "ios" | "chromium";
+    outcome: "installed" | "dismissed";
+  };
+  pwa_installed: NoProperties;
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

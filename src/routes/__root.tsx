@@ -10,7 +10,7 @@ import { Pwa } from "~/app/pwa";
 import { pwaLinks, pwaMeta, themeColorMeta } from "~/app/pwa-head";
 import { sidebarWidthInitScript } from "~/app/sidebar-width";
 import { themeInitScript } from "~/app/theme";
-import { installPromptInitScript } from "~/features/install/install-capture";
+import { installPromptInitScript } from "~/features/pwa/install-capture";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import appCss from "../styles.css?url";

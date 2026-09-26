@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { bundleGraph } from "./scripts/bundle-graph";
 import { CHECKOUT_MARKER_PATH, checkoutId } from "./scripts/e2e-checkout";
+import { pwaManifest } from "./scripts/pwa-manifest";
 import { pwaPrecache } from "./scripts/pwa-precache";
 
 /**
@@ -37,6 +38,9 @@ export default defineConfig(({ command, mode }) => ({
   plugins: [
     // First, so the Worker never sees the marker path.
     checkoutMarker(),
+    // Before the Worker too: the manifest is a file, built from the tokens
+    // (scripts/pwa-manifest.ts).
+    pwaManifest(import.meta.dirname),
     cloudflare({
       viteEnvironment: { name: "ssr" },
       // Remote bindings (Workers AI) need a Cloudflare login and the

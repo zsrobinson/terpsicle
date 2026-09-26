@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { InstallAppMenuItem } from "~/features/install/install-entry";
+import { InstallAppMenuItem } from "~/features/pwa/install-entry";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCatalogPolling } from "~/state/data-hooks";
 import { useActiveTerm, useCurrentPlan } from "~/state/hooks";

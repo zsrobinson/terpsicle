@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ConfirmResult } from "~/core/schema";
-import { offerInstall } from "~/features/install/install-store";
+import { requestInstallPrompt } from "~/features/pwa/install-store";
 import { ApiCallError, api } from "~/server/fns/api";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
@@ -51,7 +51,7 @@ export function ConfirmAlert({
         setState({ kind: "done", result });
         // A seat alert just turned on: the key moment to offer the app,
         // whose notifications can reach the person sooner than email.
-        if (result.status === "confirmed") offerInstall("enabled-alerts");
+        if (result.status === "confirmed") requestInstallPrompt("alert-on");
       })
       .catch((error: unknown) =>
         setState({

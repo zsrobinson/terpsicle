@@ -59,7 +59,7 @@ async function browserOffersInstall(page: Page) {
 }
 
 const installDialog = (page: Page) =>
-  page.getByRole("dialog", { name: "Install Terpsicle" });
+  page.getByRole("dialog", { name: "Put Terpsicle on your home screen" });
 
 test.describe("installable app", () => {
   test("serves the manifest, its icons and the head tags", async ({
@@ -72,17 +72,26 @@ test.describe("installable app", () => {
       "application/manifest+json",
     );
     const manifest = (await response.json()) as {
-      icons: { src: string; sizes: string }[];
+      icons: { src: string; sizes: string; purpose?: string }[];
     };
+    // Built from the tokens by scripts/pwa-manifest.ts.
     expect(manifest).toMatchObject({
+      id: "/",
       name: "Terpsicle",
       start_url: "/schedule",
       scope: "/",
       display: "standalone",
+      theme_color: expect.stringMatching(/^#/),
     });
+    expect(manifest.icons.map((icon) => icon.src)).toEqual([
+      "/icons/icon-192.png",
+      "/icons/icon-512.png",
+      "/icons/icon-maskable-512.png",
+    ]);
     for (const src of [
       ...manifest.icons.map((icon) => icon.src),
       "/apple-touch-icon.png",
+      "/icons/badge-72.png",
     ]) {
       const icon = await request.get(src);
       expect(icon.status(), src).toBe(200);
@@ -131,18 +140,19 @@ test.describe("installable app", () => {
       expect(script).toContain(handler);
   });
 
-  test("the service worker takes over and shows pushes, where registered", async ({
+  test("the service worker takes over and shows pushes", async ({
     page,
     context,
     browserName,
   }) => {
     test.skip(browserName !== "chromium", "pushes are delivered over CDP");
-    // Production registers it; dev and mock mode only with this flag.
-    await page.addInitScript(() =>
-      window.localStorage.setItem("terpsicle:service-worker", "on"),
-    );
     await page.goto("/");
-    await page.evaluate(() => navigator.serviceWorker.ready);
+    // The app registers it only on terpsicle.com (or with VITE_SW_DEV=1);
+    // here the test does, as the app would.
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
+    });
     await page.reload();
     await expect
       .poll(() =>
@@ -163,6 +173,8 @@ test.describe("installable app", () => {
       origin: new URL(page.url()).origin,
       registrationId: await registrations,
       data: JSON.stringify({
+        v: 1,
+        type: "seat-open",
         title: "CMSC131 0101 has a seat",
         body: "Register on Testudo before it's gone.",
         url: "/schedule",
@@ -231,10 +243,10 @@ test.describe("install prompt", () => {
       const dialog = installDialog(page);
       await expect(dialog).toBeVisible();
       await expect(dialog).toContainText(
-        "Open Terpsicle from your home screen",
+        "Open it from your home screen, like an app",
       );
       await expect(dialog).toContainText("Tap Add to Home Screen");
-      await dialog.getByRole("button", { name: "Done" }).click();
+      await dialog.getByRole("button", { name: "Got it" }).click();
       await expect(dialog).toBeHidden();
 
       // The same tab, and then a new one: not again.
@@ -264,11 +276,8 @@ test.describe("install prompt", () => {
     const dialog = installDialog(page);
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText(
-      "Get notified when your class chat or a seat alert needs you",
+      "Get notified when a seat opens or a classmate replies",
     );
-    await expect(
-      dialog.getByRole("button", { name: "Don't ask again" }),
-    ).toBeVisible();
     await dialog.getByRole("button", { name: "Install" }).click();
     await expect(page.locator("html")).toHaveAttribute(
       "data-install-prompted",
@@ -301,10 +310,6 @@ test.describe("install prompt", () => {
     await entry.click();
     const dialog = installDialog(page);
     await expect(dialog).toBeVisible();
-    // Asked for, so there's nothing to stop asking.
-    await expect(
-      dialog.getByRole("button", { name: "Don't ask again" }),
-    ).toHaveCount(0);
     await dialog.getByRole("button", { name: "Not now" }).click();
     await expect(dialog).toBeHidden();
   });

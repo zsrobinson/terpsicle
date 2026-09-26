@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { InstallPromptPrefsSchema, PushPayloadSchema } from "../schema";
+import { InstallPromptStateSchema, PushPayloadSchema } from "../schema";
+import { deviceLabel } from "./device-label";
 import {
-  DEFAULT_INSTALL_PROMPT_PREFS,
+  DEFAULT_INSTALL_PROMPT_STATE,
+  INSTALL_BENEFITS,
   INSTALL_COOLDOWN_DAYS,
   type InstallEnvironment,
-  installBenefits,
-  installDevice,
   installMethod,
+  installPlatform,
   isIosSafari,
-  neverOfferInstall,
-  recordInstallOffer,
+  MAX_INSTALL_DISMISSALS,
+  recordInstallDismissal,
   shouldOfferInstall,
 } from "./install";
 
@@ -27,6 +28,8 @@ const UA = {
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15",
   androidChrome:
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
+  windowsEdge:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
   desktopChrome:
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
   desktopFirefox:
@@ -96,6 +99,11 @@ describe("installMethod", () => {
     expect(isIosSafari(UA.macSafari, 0)).toBe(false);
     expect(isIosSafari(UA.ipadSafari, 5)).toBe(true);
   });
+
+  it("names the platform for analytics", () => {
+    expect(installPlatform("ios-steps")).toBe("ios");
+    expect(installPlatform("prompt")).toBe("chromium");
+  });
 });
 
 describe("shouldOfferInstall", () => {
@@ -104,9 +112,9 @@ describe("shouldOfferInstall", () => {
   ) =>
     shouldOfferInstall({
       method: "prompt",
-      prefs: DEFAULT_INSTALL_PROMPT_PREFS,
+      state: DEFAULT_INSTALL_PROMPT_STATE,
       now: NOW,
-      offeredThisSession: false,
+      shownThisSession: false,
       ...over,
     });
 
@@ -120,70 +128,88 @@ describe("shouldOfferInstall", () => {
   });
 
   it("offers at most once a session", () => {
-    expect(offer({ offeredThisSession: true })).toBe(false);
+    expect(offer({ shownThisSession: true })).toBe(false);
   });
 
-  it(`waits ${INSTALL_COOLDOWN_DAYS} days after the last offer`, () => {
-    const offeredDaysAgo = (days: number) =>
-      offer({ prefs: { lastOfferedAt: daysAgo(days), never: false } });
-    expect(offeredDaysAgo(0)).toBe(false);
-    expect(offeredDaysAgo(INSTALL_COOLDOWN_DAYS - 1)).toBe(false);
-    expect(offeredDaysAgo(INSTALL_COOLDOWN_DAYS)).toBe(true);
-    expect(offeredDaysAgo(90)).toBe(true);
+  it("doesn't offer when storage can't be read", () => {
+    expect(offer({ state: null })).toBe(false);
   });
 
-  it("never offers again after Don't ask again", () => {
-    const never = neverOfferInstall(DEFAULT_INSTALL_PROMPT_PREFS);
-    expect(offer({ prefs: never })).toBe(false);
-    expect(offer({ prefs: { ...never, lastOfferedAt: daysAgo(365) } })).toBe(
-      false,
-    );
+  it(`waits ${INSTALL_COOLDOWN_DAYS} days after a dismissal`, () => {
+    const dismissedDaysAgo = (days: number) =>
+      offer({ state: { dismissals: 1, lastDismissedAt: daysAgo(days) } });
+    expect(dismissedDaysAgo(0)).toBe(false);
+    expect(dismissedDaysAgo(INSTALL_COOLDOWN_DAYS - 1)).toBe(false);
+    expect(dismissedDaysAgo(INSTALL_COOLDOWN_DAYS)).toBe(true);
   });
 
-  it("starts the cooldown when it offers", () => {
-    const prefs = recordInstallOffer(DEFAULT_INSTALL_PROMPT_PREFS, NOW);
-    expect(InstallPromptPrefsSchema.parse(prefs)).toEqual(prefs);
-    expect(offer({ prefs })).toBe(false);
+  it(`stops after ${MAX_INSTALL_DISMISSALS} dismissals`, () => {
+    let state = recordInstallDismissal(DEFAULT_INSTALL_PROMPT_STATE, NOW);
+    expect(InstallPromptStateSchema.parse(state)).toEqual(state);
+    const later = new Date(NOW.getTime() + 365 * 86_400_000);
+    expect(offer({ state, now: later })).toBe(true);
+    state = recordInstallDismissal(state, later);
+    expect(state.dismissals).toBe(MAX_INSTALL_DISMISSALS);
     expect(
-      offer({
-        prefs,
-        now: new Date(NOW.getTime() + INSTALL_COOLDOWN_DAYS * 86_400_000),
-      }),
-    ).toBe(true);
+      offer({ state, now: new Date(later.getTime() + 999 * 86_400_000) }),
+    ).toBe(false);
   });
 
-  it("treats an unreadable date as never offered", () => {
-    expect(offer({ prefs: { lastOfferedAt: "soon", never: false } })).toBe(
+  it("treats an unreadable date as long ago", () => {
+    expect(offer({ state: { dismissals: 1, lastDismissedAt: "soon" } })).toBe(
       true,
     );
   });
 });
 
 describe("install copy", () => {
-  it("names the home screen on phones and the dock on computers", () => {
-    expect(installDevice(UA.iphoneSafari, 5)).toBe("mobile");
-    expect(installDevice(UA.androidChrome, 5)).toBe("mobile");
-    expect(installDevice(UA.desktopChrome, 0)).toBe("desktop");
-    expect(installBenefits("mobile")).toEqual([
-      "Get notified when your class chat or a seat alert needs you",
-      "Open Terpsicle from your home screen",
-      "Full screen, no browser bars",
+  it("says what installing gives you, in the plan's words", () => {
+    expect(INSTALL_BENEFITS).toEqual([
+      "Get notified when a seat opens or a classmate replies",
+      "Open it from your home screen, like an app",
+      "Use the full screen, without browser bars",
     ]);
-    expect(installBenefits("desktop")[1]).toBe(
-      "Open Terpsicle from your dock or taskbar",
-    );
+  });
+});
+
+describe("deviceLabel", () => {
+  it("names the device and browser", () => {
+    expect(deviceLabel(UA.iphoneSafari)).toBe("iPhone · Safari");
+    expect(deviceLabel(UA.iphoneChrome)).toBe("iPhone · Chrome");
+    expect(deviceLabel(UA.ipadSafari, 5)).toBe("iPad · Safari");
+    expect(deviceLabel(UA.macSafari)).toBe("Mac · Safari");
+    expect(deviceLabel(UA.androidChrome)).toBe("Android · Chrome");
+    expect(deviceLabel(UA.windowsEdge)).toBe("Windows · Edge");
+    expect(deviceLabel(UA.desktopFirefox)).toBe("Windows · Firefox");
+    expect(deviceLabel(UA.desktopChrome)).toBe("Linux · Chrome");
+    expect(deviceLabel("curl/8.0")).toBe("Device · Browser");
+  });
+
+  it("stays self-contained, for the service worker", () => {
+    // Stringified and rebuilt, as /sw.js does.
+    const copy = new Function(
+      `return (${deviceLabel.toString()})`,
+    )() as typeof deviceLabel;
+    expect(copy(UA.iphoneSafari)).toBe("iPhone · Safari");
   });
 });
 
 describe("PushPayloadSchema", () => {
-  const ok = { title: "CMSC131 0101 has a seat", body: "", url: "/schedule" };
+  const ok = {
+    v: 1,
+    type: "seat-open",
+    title: "CMSC131 0101 has a seat",
+    body: "",
+    url: "/schedule",
+    tag: "seat:202701:CMSC131-0101",
+  };
 
-  it("takes a title, body, a path on this site and an optional tag", () => {
-    expect(PushPayloadSchema.parse({ ...ok, tag: "seat" })).toEqual({
-      ...ok,
-      tag: "seat",
-    });
-    expect(PushPayloadSchema.safeParse(ok).success).toBe(true);
+  it("takes the plan's fields", () => {
+    expect(PushPayloadSchema.parse(ok)).toEqual(ok);
+    for (const missing of ["v", "type", "title", "url", "tag"]) {
+      const { [missing]: _, ...rest } = ok as Record<string, unknown>;
+      expect(PushPayloadSchema.safeParse(rest).success, missing).toBe(false);
+    }
   });
 
   it("only ever opens Terpsicle", () => {
@@ -197,9 +223,10 @@ describe("PushPayloadSchema", () => {
       expect(PushPayloadSchema.safeParse({ ...ok, url }).success).toBe(false);
   });
 
-  it("needs a title", () => {
+  it("needs a title and a known version", () => {
     expect(PushPayloadSchema.safeParse({ ...ok, title: " " }).success).toBe(
       false,
     );
+    expect(PushPayloadSchema.safeParse({ ...ok, v: 2 }).success).toBe(false);
   });
 });
