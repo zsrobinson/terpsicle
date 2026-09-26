@@ -227,7 +227,7 @@ Little-endian throughout.
 
 Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 
-**v2** bumps it to 2: a `syncRows` table (key `[kind+rowId]`: `rev`, the last acknowledged `base`, `dirty`) and a `sync` settings row (`{userId, head}`) for plan sync, and the `seatAlerts` table is dropped because seat watches move to D1 (`docs/V2.md` §5.3, §6.5). Blocks and course colors gain an optional `updatedAt`.
+**v2** bumps it to 2: a `syncDocs` table (key: the doc key, `plan:<id>` or `settings`; `rev`, `dirty`, `inFlight`), the settings doc's `base`, and a `sync` settings row (`{userId, cursor}`) for plan sync, and the `seatAlerts` table is dropped because seat watches move to D1 (`docs/V2.md` §5.3, §6.5). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
 
 | Table | Primary key, indexes | Row schema |
 |---|---|---|
@@ -493,7 +493,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 |---|---|---|
 | `0003_identity` | `users` (key: directory ID; `email`, `hd`, `name`, `picture_url`, `picture_key`, `status`, `delete_after`, `chat_blocked_until`, `reviews_blocked_until`, …), `user_identities` (Google `sub` → user, with that tenant's `email`, so both a TERPmail and a UMD Gmail address are kept), `sessions` (hashed cookie tokens, 30-day sliding) | Accounts (V2.md §4.4) |
 | `0004_moderation` | `moderation_decisions` (text-free log), `moderation_queue` (the human queue; snapshots blanked 30 days after close), `reports` | The shared moderation service (V2.md §9.4) |
-| `0005_sync` | `sync_rows` (`user_id`, `kind`, `row_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `writer`, `pruned_through`) | Plan sync with compare-and-swap (V2.md §5.2) |
+| `0005_sync` | `sync_docs` (`user_id`, `kind`, `doc_id`, `term_id`, `rev`, `body`, `updated_at`), `sync_heads` (`head`, `pruned_through`) | Plan sync: one JSON row per doc, per-doc rev compare-and-swap (V2.md §5.2) |
 | `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
 | `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |

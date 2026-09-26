@@ -14,5 +14,6 @@ export * from "./schema";
 export * from "./search";
 export * from "./seats";
 export * from "./share";
+export * from "./sync";
 export * from "./time";
 export * from "./travel";

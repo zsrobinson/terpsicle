@@ -10,6 +10,7 @@ One-off objects for tests. Each returns a schema-valid value with defaults taken
 |---|---|
 | Catalog | `aTerm`, `aTermsFile`, `aTimedMeeting` (= `aMeeting`), `anUntimedMeeting` (async online), `aTbaMeeting` (days TBA, with a room), `aSection`, `aCourse`, `aDeptChunk`, `aSeatTuple`, `aSeatsFile`, `aSectionSnapshot`, `snapshotOf(section)`, `aCatalogChange`, `aChangesFile`, `aManifestDepartment`, `aManifest` |
 | Plans | `aPlanCourse`, `aSavedCourse`, `aPlan`, `aBlock`, `aSharePayload` |
+| Plan sync | `aSettingsDoc`, `aPlanSyncDoc` (a tombstone with `body: null`), `aSettingsSyncDoc` |
 | PlanetTerp | `anInstructor`, `someGrades` (by letter), `gradeCountsFrom`, `aGradeRecord`, `someCourseGrades`, `aPlanetTerpDept`, `aReviewSummary` |
 | Geo and travel | `aBuilding`, `aBuildingsFile`, `aRouteGeometry`, `aConnection` |
 | Calendar | `aPublishedCalendar`, `anUnpublishedCalendar` |
