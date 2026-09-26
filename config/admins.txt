@@ -1,0 +1,4 @@
+# Terpsicle's admins: one UMD directory ID per line (docs/AUTH.md, "Admins").
+# Admins moderate reviews and chat and see /admin. Blank lines and # comments
+# are ignored. Built into the Worker, so a change ships with the next deploy.
+robinson

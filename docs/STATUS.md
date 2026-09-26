@@ -32,7 +32,8 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 
 **v2 decisions** (details in `docs/V2.md`):
 - **Plan sync is plain server-side storage**, encrypted at rest by Cloudflare, not end-to-end encrypted. The orchestrator's call, flagged for the owner: it lets Chat derive rooms from plans and keeps recovery simple.
-- **PR previews sign in with a fixed test mode** (`AUTH_TEST_MODE`, fixture identities), not a production broker: previews run unreviewed code and have their own D1, and CI needs a deterministic sign-in anyway.
+- **PR previews sign in with a fixed test mode** (`AUTH_TEST_MODE`, fixture identities), not a production broker: previews run unreviewed code and have their own D1, and CI needs a deterministic sign-in anyway. Cloudflare's version preview URLs, which share the Worker's secrets, were ruled out too: they also share its bindings, so a preview would use production D1 (`docs/AUTH.md`).
+- **Identity** (`v2/identity`, `docs/AUTH.md`): Google sign-in with `hd=*`, `prompt=select_account` and a `login_hint` from a `__Host-hint` cookie; users keyed on the directory ID with both addresses in `user_identities`; name and picture refreshed from Google at every sign-in, pictures cached in R2 `USER_CONTENT` (so `v2/avatars` folded in); sessions refresh daily with a new token; account deletion with a week's grace and the daily purge; admins from `config/admins.txt`. The route table's `auth` field (with the origin check) landed here too, since every later route builds on it.
 - **Seat alerts retire the email-token flow** rather than migrate it; nothing is public, and the only real subscriptions were the owner's deleted test rows.
 - **One Worker** (`terpsicle`) with one Durable Object class (`CourseChat`, one object per course per term), the one exception to BUILD.md §1's no-Durable-Objects rule.
 - **Migrations are pre-numbered** `0003`–`0009` so parallel PRs don't collide.

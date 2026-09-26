@@ -81,10 +81,15 @@ export default defineConfig({
               miniflare: {
                 compatibilityDate: wrangler.compatibility_date,
                 compatibilityFlags: wrangler.compatibility_flags,
-                r2Buckets: ["DATA"],
+                r2Buckets: ["DATA", "USER_CONTENT"],
                 d1Databases: ["DB"],
                 bindings: {
                   TEST_CRONS: wrangler.triggers.crons ?? [],
+                  // Which vars production and previews set (names only).
+                  TEST_VAR_NAMES: {
+                    production: Object.keys(wrangler.vars ?? {}),
+                    previews: Object.keys(wrangler.previews?.vars ?? {}),
+                  },
                   TEST_MIGRATIONS: await readD1Migrations("migrations"),
                 },
               },
