@@ -115,7 +115,9 @@ jobs:
           retention-days: 14
       - name: Publish to the mobile-runs branch
         if: always() && steps.lab.outcome != 'skipped'
-        run: scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME" && echo "Results: ${{ github.server_url }}/${{ github.repository }}/blob/mobile-runs/runs/$RUN_NAME/README.md" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
+          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Result
         if: steps.lab.outputs.status != '0'
         run: |
@@ -164,7 +166,9 @@ jobs:
           retention-days: 14
       - name: Publish to the mobile-runs branch
         if: always() && steps.lab.outcome != 'skipped'
-        run: scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME" && echo "Results: ${{ github.server_url }}/${{ github.repository }}/blob/mobile-runs/runs/$RUN_NAME/README.md" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
+          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Result
         run: |
           if [ -e mobile-lab-failed ]; then
@@ -216,7 +220,9 @@ jobs:
           retention-days: 14
       - name: Publish to the mobile-runs branch
         if: always() && steps.lab.outcome != 'skipped'
-        run: scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME" && echo "Results: ${{ github.server_url }}/${{ github.repository }}/blob/mobile-runs/runs/$RUN_NAME/README.md" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
+          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Result
         if: steps.lab.outputs.status != '0'
         run: |
