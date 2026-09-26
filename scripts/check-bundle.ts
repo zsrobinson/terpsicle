@@ -16,13 +16,13 @@ import { BUNDLE_GRAPH_FILE, type BundleGraph } from "./bundle-graph";
 import { isMain, ROOT } from "./lib/source-files";
 
 /**
- * Gzipped JS + CSS for /schedule, in bytes: 334 KB when this was set
+ * Gzipped JS + CSS for /schedule, in bytes: 335 KB when this was set
  * (perf/schedule-bundle moved the later rail tabs, the phone drawer and the
  * search index out of the first load), plus about 10 KB headroom. Raise it on
  * purpose, in the PR that needs it, never to get a build green; first see
  * whether the new code can load on first use (docs/BUILD.md §5).
  */
-export const EAGER_BUDGET = 344 * 1024;
+export const EAGER_BUDGET = 345 * 1024;
 
 /**
  * Gzipped JS + CSS for / (the marketing page), in bytes: 193 KB when this

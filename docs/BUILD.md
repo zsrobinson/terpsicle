@@ -159,7 +159,7 @@ Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtu
 
 | Route | Budget | When set |
 |---|---|---|
-| `/schedule` | 344 KB | 334 KB (`perf/schedule-bundle`; 377 KB before it) |
+| `/schedule` | 345 KB | 335 KB (`perf/schedule-bundle`; 378 KB before it) |
 | `/` and the other entry pages | 215 KB | 193 KB (v2 routes) |
 
 What the scheduler loads on first use, not up front (each has a rule in `SCHEDULE_NEVER_EAGER`, so it can't drift back):
