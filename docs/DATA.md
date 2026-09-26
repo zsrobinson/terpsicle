@@ -61,7 +61,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `reviews/manifest.json` (v2) | `ReviewsManifestSchema` | `reviews-publish` job (hourly) | fixed |
 | `reviews/dept/<DEPT>.<hash>.json` (v2) | `ReviewsDeptSchema`: Terpsicle-review ratings per instructor id, and the names PlanetTerp's join doesn't cover (§4.6). Never review text | `reviews-publish` job | hashed |
 
-**v2, bucket `terpsicle-user-content`** (binding `USER_CONTENT`; previews use `terpsicle-user-content-preview`): `avatars/<userId>/<hash16>.<ext>`, cached Google profile pictures, served at `/avatars/*` only with a session and never through `/data` (`docs/V2.md` §4.5). The `reviews/` family adds `reviews` to `SCHEMA_VERSIONS`; `ReviewSummarySchema` gains optional `sources` (additive).
+**v2, bucket `terpsicle-user-content`** (binding `USER_CONTENT`; previews use `terpsicle-user-content-preview`): `avatars/<userId>/<hash16>.<ext>`, cached Google profile pictures, served at `/avatars/*` only with a session and never through `/data` (`docs/V2.md` §4.5). `feedback/<yyyy-mm>/<id>.<ext>` and `<id>-element.<ext>`: feedback screenshots, served only to the admin at `/admin/feedback/shot/<id>[/element]` (`docs/FEEDBACK.md`). The `reviews/` family adds `reviews` to `SCHEMA_VERSIONS`; `ReviewSummarySchema` gains optional `sources` (additive).
 
 ### 2.2 Content hashing
 - Hash = SHA-256 of the exact UTF-8 bytes written (`JSON.stringify(value)`, no whitespace), first 16 hex chars.

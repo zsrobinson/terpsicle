@@ -8,6 +8,7 @@ import { type PageAccess, pageAccess } from "./auth/pages";
 import { AVATARS_PREFIX, serveAvatar } from "./auth/pictures";
 import { CHAT_SOCKET_PATH, openChatSocket } from "./chat/socket";
 import { DATA_PREFIX, serveData } from "./data";
+import { FEEDBACK_SHOT_PREFIX, serveFeedbackShot } from "./feedback/shots";
 import { pageContext } from "./pages/context";
 import {
   inlineScriptHashes,
@@ -186,6 +187,10 @@ export function createWorker(
     }
     if (url.pathname.startsWith(AVATARS_PREFIX)) {
       return serveAvatar(request, env, new Date());
+    }
+    if (url.pathname.startsWith(FEEDBACK_SHOT_PREFIX)) {
+      // Before the admin page gate: an image is the admin's or a 404.
+      return serveFeedbackShot(request, env, new Date());
     }
     if (
       url.pathname === POSTHOG_PROXY_PREFIX ||
