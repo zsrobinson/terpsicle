@@ -55,8 +55,11 @@ const calendar = (page: Page) =>
   page.getByRole("region", { name: "Week calendar" });
 
 async function openCourse(page: Page, query: string, code: string) {
-  await page.keyboard.press("/");
-  await page.getByRole("combobox", { name: "Search courses" }).fill(query);
+  const box = page.getByRole("combobox", { name: "Search courses" });
+  // The rail's Search tab, not "/": after signing in, the page comes back
+  // on whatever tab the URL names, with focus wherever the load left it.
+  if (!(await box.isVisible())) await openTab(page, "Search");
+  await box.fill(query);
   await page.locator(`[data-course-result="${code}"]`).click();
   await expect(page.locator(OPEN_VIEW)).toContainText(code);
 }
@@ -115,15 +118,36 @@ test("watch a full section: sign in, watching everywhere, the email, stop and un
   await expect(page.getByText("Sign in to get seat alerts.")).toBeVisible();
   await page.getByRole("link", { name: "Sign in (test mode)" }).click();
   await page.getByRole("button", { name: "Sign in as Test Student" }).click();
-  await expect(page.getByText("Watching CMSC351 0101")).toBeVisible({
-    timeout: 15_000,
-  });
   await expect(
     page
       .getByRole("banner")
       .getByRole("button", { name: "Account: Test Student" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
+  // Nothing more to click: the account now watches it. (Its toast can sit
+  // behind the first sign-in's own messages, so ask the API.)
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const response = await fetch("/api/alerts/list", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          });
+          const list = (await response.json()) as {
+            watches?: { sectionKey: string }[];
+          };
+          return list.watches?.map((w) => w.sectionKey) ?? [];
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual(["CMSC351-0101"]);
 
+  // The first sign-in merges this browser's plans with the account's; wait
+  // for that to settle so it doesn't redraw the sidebar under a click.
+  await expect(
+    page.getByRole("banner").locator("[data-sync-status]"),
+  ).toHaveAttribute("data-sync-status", "saved", { timeout: 15_000 });
   // Watching on the section's row, its calendar block and in Problems,
   // where the full problem is now a note.
   const row = await takeFullSection(page);
