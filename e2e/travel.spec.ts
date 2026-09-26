@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { OPEN_VIEW } from "./sidebar";
 
 // The Travel tab and connection details on `pnpm dev:mock?demo=1`. Mock mode
 // has no map tiles, so the route is drawn without them (an SVG of UMD's real
@@ -55,9 +56,7 @@ test("pace changes the pills; a pill opens its details", async ({ page }) => {
   );
 
   await mondayPill(page).click();
-  await expect(
-    page.getByRole("navigation", { name: "Breadcrumb" }),
-  ).toContainText("Connection");
+  await expect(page.locator(OPEN_VIEW)).toContainText("Connection");
   await expect(page.getByTestId("verdict")).toContainText(
     "Not enough time12 min to get there, 10 min between classes. You'd be about 2 min late.",
   );

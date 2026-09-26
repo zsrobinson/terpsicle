@@ -415,7 +415,7 @@ Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `re
 - from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`.
 
 **Links in emails:**
-- to the app: `https://terpsicle.com/schedule?term=<id>&course=<code>`. The app should open that course; that's still a UI task;
+- to the app: `https://terpsicle.com/schedule?term=<id>&course=<code>`, which opens that course over Courses in that term (`ScheduleSearchSchema`, §8.1);
 - to Testudo's page for the course.
 
 API-triggered emails link to the requesting origin only when it's ours (terpsicle.com, this project's preview hosts, localhost), so a forged `Host` can never inject another domain. Cron emails always link to terpsicle.com.
@@ -666,6 +666,23 @@ At most 40 entries per list, and one entry per course across `sections` and `sav
 - **Save a copy** makes a new plan in `termId` with fresh snapshots from the current catalog. It doesn't import the blocks (yours are per term) or the colors (yours are global).
 - Section keys missing from the catalog show up as cancelled problems in the shared view and are dropped on Save a copy, with a toast that names them.
 - The codec lives in `core/share`. A version the client doesn't know gets a specific error ("This link was made by a newer version of Terpsicle. Reload to open it.").
+
+### 8.1 The scheduler's other params
+
+`/schedule` also carries where you are, validated by `ScheduleSearchSchema` (`core/schema/schedule-url.ts`); which change pushes a history entry is in `src/app/README.md`, "URL state". A bad value is dropped, never an error.
+
+| Param | Value |
+|---|---|
+| `term` | Term id. Omitted until the term list loads. |
+| `planId` | The open plan tab's local id; ignored when it isn't one of this browser's plans. |
+| `tab` | Rail tab (`courses`, `search`, …). The app's own URLs always name it; a link without it (`?term=&course=` from an email) opens over Courses. |
+| `course` · `connection` · `result` | The drill-in: a course code, a connection id, or a generated plan's id (only while that run's results are in memory). |
+| `view=results` | Generate shows its results rather than the form. |
+| `q` | Search's text. |
+| `gened` · `credits` · `level` · `openSeats` · `fits` | Search's filter chips: comma lists (`gened=DSHU,DSNL`, `level=300`) and `1` flags. |
+| `plan` · `demo` | The share link (above), and `pnpm dev:mock`'s demo switch. Kept as opened. |
+
+History entries the app writes carry `ScheduleHistoryStateSchema` in their state: `inApp`, and the label of the view Back returns to.
 
 ---
 

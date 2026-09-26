@@ -141,9 +141,10 @@ describe("Generate", () => {
 
     await user.click(within(list).getAllByRole("button")[0] as HTMLElement);
     expect(
-      within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText(
-        "Option 1",
-      ),
+      screen.getByText("Option 1", { selector: "[aria-current=page]" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Back to Generate" }),
     ).toBeVisible();
     expect(useUi.getState().previewPlan?.label).toBe("Option 1");
     expect(screen.getByText("Previewing Option 1.")).toBeVisible();

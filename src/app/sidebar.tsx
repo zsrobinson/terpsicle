@@ -1,7 +1,6 @@
 import { cn } from "cn";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import {
-  Fragment,
   type ReactNode,
   type RefObject,
   Suspense,
@@ -13,6 +12,7 @@ import type { RailTab } from "~/core/schema";
 import type { DrillEntry } from "~/state/drill";
 import { useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
+import { goBack } from "./actions";
 import { PanelSkeleton } from "./panel";
 import { PanelLoadBoundary } from "./panel-load-boundary";
 import { drillViewFor, type PanelRegistry, usePanelRegistry } from "./registry";
@@ -22,14 +22,14 @@ import { tabById } from "./tabs";
 // One panel at a time, with drill-in views stacked over it (SPEC §2). Every
 // tab panel visited stays mounted (hidden) and so does every drill level
 // under the top one, so going back returns to exactly where you were: scroll
-// position, search text, open groups.
+// position, search text, open groups. A drill-in's header has one Back, the
+// same as the browser's (src/app/README.md, "URL state").
 
 export const SIDEBAR_PANEL_ID = "sidebar-panel";
 
 export function SidebarContent() {
   const tab = useUi((s) => s.tab);
   const stack = useUi((s) => s.stack);
-  const back = useUi((s) => s.back);
   const registry = usePanelRegistry();
   const [visited, setVisited] = useState<readonly RailTab[]>([tab]);
 
@@ -50,7 +50,7 @@ export function SidebarContent() {
       target.blur();
       return true;
     }
-    return back();
+    return goBack();
   });
 
   const shownTabs = visited.includes(tab) ? visited : [...visited, tab];
@@ -78,7 +78,7 @@ export function SidebarContent() {
             .join("/")}
           active={depth === stack.length - 1}
           animate
-          label={crumbFor(registry, entry)}
+          label={nameFor(registry, entry)}
         >
           <DrillLayer
             tab={tab}
@@ -94,7 +94,7 @@ export function SidebarContent() {
 
 /**
  * Keyboard focus follows drill-ins: opening one moves focus into it, and going
- * back (Esc, the breadcrumb) returns focus to whatever opened it, such as the
+ * back (Esc, Back) returns focus to whatever opened it, such as the
  * search result, section row or calendar block. Opening with nothing focused
  * (a restored or deep-linked drill-in) leaves focus alone.
  */
@@ -232,106 +232,104 @@ function DrillLayer({
   if (!entry) return null;
   const view = drillViewFor(registry, entry);
   const View = view?.component;
+  const under = stack[depth - 1];
   return (
     <>
-      <Breadcrumb
-        tab={tab}
-        trail={stack.slice(0, depth + 1)}
+      <BackBar
+        entry={entry}
+        under={
+          under
+            ? {
+                label: nameFor(registry, under),
+                mono: monoFor(registry, under),
+              }
+            : { label: tabById(tab).label, mono: false }
+        }
+        active={depth === stack.length - 1}
         registry={registry}
       />
       <div className="flex min-h-0 flex-1 flex-col">
         {View ? (
-          <PanelLoadBoundary title={crumbFor(registry, entry)}>
+          <PanelLoadBoundary title={nameFor(registry, entry)}>
             <Suspense
-              fallback={<PanelSkeleton title={crumbFor(registry, entry)} />}
+              fallback={<PanelSkeleton title={nameFor(registry, entry)} />}
             >
               <View entry={entry} />
             </Suspense>
           </PanelLoadBoundary>
         ) : (
-          <PanelSkeleton title={crumbFor(registry, entry)} />
+          <PanelSkeleton title={nameFor(registry, entry)} />
         )}
       </div>
     </>
   );
 }
 
-function crumbFor(registry: PanelRegistry, entry: DrillEntry): string {
+/** A drill-in's short name: "CMSC351", "Connection", "Option 3". */
+export function nameFor(registry: PanelRegistry, entry: DrillEntry): string {
   const view = drillViewFor(registry, entry);
-  if (view) return view.crumb(entry);
+  if (view) return view.name(entry);
   if (entry.kind === "course") return entry.courseCode;
   return "Details";
 }
 
-/** "Search › CMSC351": every level but the last is a way back. */
-function Breadcrumb({
-  tab,
-  trail,
+/** Whether a drill-in's name is set in Geist Mono (codes). */
+export function monoFor(registry: PanelRegistry, entry: DrillEntry): boolean {
+  return drillViewFor(registry, entry)?.monoName ?? entry.kind === "course";
+}
+
+/**
+ * "‹ Search   CMSC351": one Back, to wherever you came from (the browser's
+ * Back does the same), labeled with that view's short name, then this view's
+ * name. Going from course to course never builds a trail to aim at.
+ */
+function BackBar({
+  entry,
+  under,
+  active,
   registry,
 }: {
-  tab: RailTab;
-  trail: readonly DrillEntry[];
+  entry: DrillEntry;
+  /** Where Back goes without history to follow: the level under this one. */
+  under: { label: string; mono: boolean };
+  active: boolean;
   registry: PanelRegistry;
 }) {
-  const backTo = useUi((s) => s.backTo);
-  const levels = [
-    { key: tab, label: tabById(tab).label, mono: false },
-    ...trail.map((entry, depth) => ({
-      key: trail
-        .slice(0, depth + 1)
-        .map(drillIdentity)
-        .join("/"),
-      label: crumbFor(registry, entry),
-      mono: drillViewFor(registry, entry)?.monoCrumb ?? entry.kind === "course",
-    })),
-  ];
+  const fromHistory = useUi((s) => (active ? s.historyBack : null));
+  const name = nameFor(registry, entry);
+  const to = fromHistory ?? under;
+  // From one plan's CMSC351 back to another's: "Back", not "CMSC351".
+  const same = to.label === name;
   return (
-    <nav
-      aria-label="Breadcrumb"
-      className="flex h-12 shrink-0 items-center border-hairline border-b px-2"
-    >
-      <ol className="flex min-w-0 items-center gap-1 px-1 text-base">
-        {levels.map((level, i) => {
-          const last = i === levels.length - 1;
-          return (
-            <Fragment key={level.key}>
-              {i > 0 ? (
-                <ChevronRight
-                  size={13}
-                  className="shrink-0 text-faint"
-                  aria-hidden="true"
-                />
-              ) : null}
-              <li className={cn("min-w-0", last && "truncate")}>
-                {last ? (
-                  <span
-                    aria-current="page"
-                    className={cn("font-medium", level.mono && "font-mono")}
-                  >
-                    {level.label}
-                  </span>
-                ) : (
-                  <WithTooltip
-                    label={`Back to ${level.label}`}
-                    shortcut={i === levels.length - 2 ? "Esc" : undefined}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => backTo(i)}
-                      className={cn(
-                        "rounded px-1 text-muted transition-colors hover:bg-hover hover:text-fg",
-                        level.mono && "font-mono",
-                      )}
-                    >
-                      {level.label}
-                    </button>
-                  </WithTooltip>
-                )}
-              </li>
-            </Fragment>
-          );
-        })}
-      </ol>
-    </nav>
+    <div className="flex h-12 shrink-0 items-center gap-2 border-hairline border-b px-2">
+      <WithTooltip label={same ? "Back" : `Back to ${to.label}`} shortcut="Esc">
+        <button
+          type="button"
+          onClick={() => goBack()}
+          className="flex min-w-0 max-w-[60%] shrink-0 items-center gap-0.5 rounded py-1 pr-1.5 pl-0.5 text-base text-muted transition-colors hover:bg-hover hover:text-fg"
+        >
+          <ChevronLeft size={16} className="shrink-0" aria-hidden="true" />
+          {same ? (
+            "Back"
+          ) : (
+            <>
+              <span className="sr-only">Back to </span>
+              <span className={cn("truncate", to.mono && "font-mono")}>
+                {to.label}
+              </span>
+            </>
+          )}
+        </button>
+      </WithTooltip>
+      <span
+        aria-current="page"
+        className={cn(
+          "min-w-0 truncate font-medium text-base",
+          monoFor(registry, entry) && "font-mono",
+        )}
+      >
+        {name}
+      </span>
+    </div>
   );
 }

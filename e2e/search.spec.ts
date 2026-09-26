@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { OPEN_VIEW } from "./sidebar";
 
 // Search and course details on `pnpm dev:mock?demo=1`: hover a result for
 // its ghosts, open it, switch from the section list; filter chips; course
@@ -50,9 +51,7 @@ test.describe("desktop", () => {
     await expect(calendar(page).locator("[data-ghost]").first()).toBeVisible();
 
     await result.click();
-    await expect(
-      page.getByRole("navigation", { name: "Breadcrumb" }),
-    ).toContainText("CMSC351");
+    await expect(page.locator(OPEN_VIEW)).toContainText("CMSC351");
     await expect(
       page.getByRole("heading", { name: "Algorithms" }),
     ).toBeVisible();

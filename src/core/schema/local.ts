@@ -14,6 +14,7 @@ import {
   IsoDateTimeSchema,
   LocalIdSchema,
   MinutesSchema,
+  RailTabSchema,
   SectionCodeSchema,
   SectionKeySchema,
   TermIdSchema,
@@ -110,17 +111,6 @@ export const CourseColorPrefSchema = z.object({
 export type CourseColorPref = z.infer<typeof CourseColorPrefSchema>;
 
 // ---------- UI prefs and settings ----------
-
-export const RailTabSchema = z.enum([
-  "courses",
-  "search",
-  "problems",
-  "travel",
-  "blocks",
-  "generate",
-  "export",
-]);
-export type RailTab = z.infer<typeof RailTabSchema>;
 
 export const CourseDetailsTabSchema = z.enum([
   "instructors",
