@@ -35,6 +35,7 @@ export function App(props: AppShellProps) {
 function useBootstrap(config: ClientConfig) {
   useEffect(() => {
     let cancelled = false;
+    useUi.setState({ restored: false });
     registerServiceWorker(config);
     let persistence: Persistence | undefined;
     let stopReturning: (() => void) | undefined;
@@ -110,6 +111,9 @@ function useBootstrap(config: ClientConfig) {
         );
       }
       applyThemePreference(useUi.getState().theme);
+      // The URL is followed from here on: before, loading saved prefs or the
+      // demo would undo it (schedule-url.ts).
+      if (!cancelled) useUi.setState({ restored: true });
     })();
 
     void (async () => {

@@ -1,6 +1,7 @@
 import path from "node:path";
 import { expect, type Page, test } from "@playwright/test";
 import { alertsHarnessPort } from "../scripts/e2e-checkout";
+import { OPEN_VIEW } from "./sidebar";
 
 // Seat alerts end to end (SPEC §3.12, BUILD §5): the bell on a full section →
 // the confirmation email → the confirm page → "Watching" in the app and in
@@ -54,9 +55,7 @@ async function openCourse(page: Page, query: string, code: string) {
   await page.keyboard.press("/");
   await page.getByRole("combobox", { name: "Search courses" }).fill(query);
   await page.locator(`[data-course-result="${code}"]`).click();
-  await expect(
-    page.getByRole("navigation", { name: "Breadcrumb" }),
-  ).toContainText(code);
+  await expect(page.locator(OPEN_VIEW)).toContainText(code);
 }
 
 async function openExport(page: Page) {

@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { OPEN_VIEW } from "./sidebar";
 
 // Generate on `pnpm dev:mock?demo=1` (SPEC §3.9): list courses, generate,
 // preview a result on the calendar, save two as plans; and when nothing
@@ -59,9 +60,7 @@ test("generate from four courses, preview one, and save two as plans", async ({
   // Clicking a result previews it and drills into its details.
   await results.getByRole("button").first().click();
   await expect(page.getByText("Previewing Option 1.")).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "Breadcrumb" }),
-  ).toContainText("Option 1");
+  await expect(page.locator(OPEN_VIEW)).toContainText("Option 1");
   await expect(
     page.getByText("Changes from Plan A", { exact: true }),
   ).toBeVisible();
