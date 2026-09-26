@@ -9,7 +9,7 @@ import type {
 import { formatDays, formatTime } from "../time";
 
 // Plain words for room labels, details and descriptions (SPEC §3.13), in the
-// Chat canvas's style: "Sadeghian · MWF 11am lecture", "0303 · TuTh 11am
+// Chat canvas's style: "Sadeghian's sections", "0303 · MWF 11am and TuTh 11am
 // discussion", "People in section 0101 of CMSC131, from their plans".
 
 /** "Pedram Sadeghian" → "Sadeghian", "Aaron Kyei-Asare" → "Kyei-Asare". */
@@ -52,8 +52,7 @@ const OWN_KIND: Partial<Record<Meeting["kind"], string>> = {
  * When meetings start, the way people say it: "MWF 11am", "TuTh 9:30am
  * discussion", "Tu 9am discussion and Th 2pm lab". Untimed meetings say so
  * ("online, no set time", "time TBA"); "" for no meetings at all.
- * `kinds: false` leaves out "discussion" and "lab" (a lecture room says
- * "lecture" once, after every time).
+ * `kinds: false` leaves out "discussion" and "lab".
  */
 export function startWords(
   meetings: readonly Meeting[],
@@ -136,12 +135,13 @@ export function courseRoomDescription(
     : everyone;
 }
 
-export function lectureRoomDescription(
+/** "People in Sadeghian's sections of CMSC131 (0301–0305 and 0401), from their plans". */
+export function professorRoomDescription(
   courseCode: CourseCode,
+  who: string,
   codes: string,
-  lecture: string,
 ): string {
-  return `People in sections ${codes} of ${courseCode}, from their plans. They share ${lecture}.`;
+  return `People in ${who}'s sections of ${courseCode} (${codes}), from their plans`;
 }
 
 export function sectionRoomDescription(

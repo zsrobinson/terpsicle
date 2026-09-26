@@ -44,7 +44,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 
 ## UX redesign (owner request, 2026-09-25)
 
-`docs/UX-PRINCIPLES.md` (research) and `docs/UX-REVIEW.md` (audit, plan, before/after). Owner decisions: course details is one page with no tabs (1A); many-section courses group by meeting time (2A); the sidebar is draggable, 320–480px. The design system is enforced by `src/app/design-tokens.test.ts` (type scale, 4px spacing, no raw colors). Rule added to DESIGN.md §5: design for 1, a few and many sections.
+`docs/UX-PRINCIPLES.md` (research) and `docs/UX-REVIEW.md` (audit, plan, before/after). Owner decisions: course details is one page with no tabs (1A); many-section courses group by meeting time (2A, superseded 2026-09-26: one level of grouping, by professor, every row with all its meetings, and Bookmark for the course-level save; SPEC §3.4); the sidebar is draggable, 320–480px. The design system is enforced by `src/app/design-tokens.test.ts` (type scale, 4px spacing, no raw colors). Rule added to DESIGN.md §5: design for 1, a few and many sections.
 
 ## In flight
 

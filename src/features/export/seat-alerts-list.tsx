@@ -1,4 +1,4 @@
-import { BellRing, MailCheck } from "lucide-react";
+import { Bell, MailCheck } from "lucide-react";
 import { useState } from "react";
 import { ListRow, SectionHeader } from "~/app/panel";
 import type { LocalSeatAlert, TermId } from "~/core/schema";
@@ -72,7 +72,12 @@ function AlertRow({
       data-testid={`seat-alert-${alert.sectionKey}`}
       lead={
         watching ? (
-          <BellRing size={13} className="mt-0.5 text-muted" aria-hidden />
+          <Bell
+            size={13}
+            fill="currentColor"
+            className="mt-0.5 text-muted"
+            aria-hidden
+          />
         ) : (
           <MailCheck size={13} className="mt-0.5 text-muted" aria-hidden />
         )

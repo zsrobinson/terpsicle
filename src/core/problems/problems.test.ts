@@ -311,10 +311,16 @@ describe("section problems", () => {
     };
     const full = planProblems(input([course], plan("0101"), { seats }));
     expect(summary(full)).toEqual([
-      ["warning", "full", "CMSC351 0101 is full", "Switch to 0501"],
+      // Full sections stay addable: the fix watches for a seat.
+      ["warning", "full", "CMSC351 0101 is full", "Watch for a seat"],
       ["warning", "restricted", "CMSC351 0101 is restricted", "Switch to 0501"],
     ]);
     expect(words(full[0]?.detail ?? [])).toBe("9 waitlisted.");
+    expect(full[0]?.fix).toEqual({
+      kind: "watch",
+      sectionKey: "CMSC351-0101",
+      label: "Watch for a seat",
+    });
     const low = planProblems(
       input([course], plan("0101"), {
         seats: { "CMSC351-0101": aSeatTuple({ open: 1, total: 30 }) },

@@ -27,7 +27,7 @@ Naming: every schema is `FooSchema` with `type Foo = z.infer<typeof FooSchema>`.
 | Local id | 8–64 URL-safe chars, minted in the browser (plans, blocks). | `LocalIdSchema` |
 | Connection id | `<day>:<fromKey>#<meetingIdx>><toKey>#<meetingIdx>` | `connectionId()` |
 | Directory ID | The lowercased local part of a verified TerpMail or umd.edu address (`zsrobins`). Accounts are keyed on it. | `DirectoryIdSchema` |
-| Chat room id | Course room `<term>:<course>`, section room `<term>:<course>:<section>`, lecture room `<term>:<course>:L:<first section>` (the lowest-numbered section sharing the lecture). Codes only, so a time or room change keeps the id and the history. The course room id is also its `CourseChat` object's name. | `RoomIdSchema`, `courseRoomId()`, `lectureRoomId()`, `sectionRoomId()`, `parseRoomId()`, `courseChatName()` |
+| Chat room id | Course room `<term>:<course>`, section room `<term>:<course>:<section>`, professor room `<term>:<course>:P:<professor>` (`professorSlug`: "pedram-sadeghian", co-instructors joined by `_`, at most 80 chars). Course and section rooms are codes only, so a time or room change keeps the id and the history; a professor's room is named after them. The course room id is also its `CourseChat` object's name. | `RoomIdSchema`, `courseRoomId()`, `professorRoomId()`, `professorSlug()`, `sectionRoomId()`, `parseRoomId()`, `courseChatName()` |
 
 ---
 
@@ -242,7 +242,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 - **Validation:** validate every row on read. An invalid row is skipped and logged, never fatal. A shape change bumps `LOCAL_DB_VERSION` with a Dexie `upgrade()` that migrates rows; plans are never dropped. Files in `files` are validated when fetched and trusted afterwards; a `SCHEMA_VERSIONS` bump clears that family.
 - **Plans:**
   - `courses` is the Courses-tab order, with at most one entry per course.
-  - `sectionCode: null` means saved for later, per plan.
+  - `sectionCode: null` means bookmarked (the UI's word; "saved for later" before 2026-09-26), per plan.
   - A placed course stores `snapshot` (instructors, delivery, meetings, dates) taken when it was placed, or switched, or when a "changed" problem's "Keep new times" fix is applied. `core/catalog` compares it with the live catalog.
   - `order` sorts plan tabs within a term.
 - **Blocks are per term, not per plan.**
@@ -481,7 +481,7 @@ They carry counts, reasons and term ids only. They never carry an address, token
 
 ### 7.4 Chat (`src/core/schema/chat.ts`)
 
-Rooms aren't stored: `roomsForCourse(termId, course)` in `core/chat` derives them from the catalog, and a room gets storage only with its first message. One `CourseChat` Durable Object per course per term (named by the course room id) holds every room of that course, and the app keeps one WebSocket per open course.
+Rooms aren't stored: `roomsForCourse(termId, course)` in `core/chat` derives them from the catalog, and a room gets storage only with its first message. They follow course details' one level of grouping: a course room; with 2+ sections, a room per section; and with more than one professor, a room per named professor between the course and their sections (TBA sections sit under the course room). There are no lecture rooms. One `CourseChat` Durable Object per course per term (named by the course room id) holds every room of that course, and the app keeps one WebSocket per open course.
 
 - **`ChatMessage`:** `id`, `room`, `author` (directory ID, Google name and picture, snapshotted when sent), `text` (trimmed, 1–2,000 chars), `createdAt`, `editedAt`, `replyTo` (the thread's first message; threads are one level deep), `thread` (reply count and last reply time), `reactions` (who reacted, per reaction in the fixed set `REACTIONS`) and `moderation`: `visible`, `held {reason}` (only the author sees it; `checking` · `graded-work` · `flagged` · `reported`) or `removed`.
 - **Client frames** (`ChatClientFrameSchema`, strict): `hello {protocol, rooms}` first, then `history {room, thread, before, limit}`, `send {room, text, replyTo}`, `edit`, `delete`, `react {id, reaction, on}`, `typing {room}` and `read {room, upTo}`. Requests carry a client `req` id.
@@ -568,7 +568,7 @@ These aren't stored, but several workers build against them:
   - `kind` fixes `severity` (`PROBLEM_SEVERITY`); sort by `SEVERITY_ORDER`.
   - `subjects[0]` is what clicking the problem opens.
   - `title` and `detail` are `MessagePart[]`, so codes, times and durations render in mono and can be clicked without parsing strings.
-  - `fix` is either `switch` (offered only when it creates no new problem) or `accept-change` (for `changed`).
+  - `fix` is `switch` (offered only when it creates no new problem), `accept-change` (for `changed`) or `watch` (for `full`: "Watch for a seat"; the UI shows the seat watch's own button and state instead of applying it).
   - `id` is `<kind>:<subject ids>`, stable while the cause lasts.
 - **`FitLabel`:** `fits` · `overlaps {with: course | block}` · `not-enough-time {direction, courseCode}` · `in-plan` · `no-set-times`. "Not enough time after CMSC330" means CMSC330 comes first.
 - **`Connection`:** see §6.

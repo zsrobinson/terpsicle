@@ -50,6 +50,8 @@ export function openProblem(problem: Problem): void {
  * longer applies (the plan or catalog moved on since it was offered).
  */
 export function applyFix(problem: Problem, fix: ProblemFix): boolean {
+  // The seat watch has its own button and flow (`SeatBell`).
+  if (fix.kind === "watch") return false;
   const plan = editablePlan();
   const parsed = parseSectionKey(fix.sectionKey);
   if (!plan || !parsed) return false;

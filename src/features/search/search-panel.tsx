@@ -1,4 +1,4 @@
-import { Search as SearchIcon, X } from "lucide-react";
+import { Bookmark, Search as SearchIcon, X } from "lucide-react";
 import {
   type KeyboardEvent,
   useEffect,
@@ -255,8 +255,17 @@ function ResultList({
 }) {
   const fit = useFitContext();
   const plan = useCurrentPlan()?.plan;
+  // Placed or bookmarked, by course: what each result's trail says.
   const inPlan = useMemo(
-    () => new Set(plan?.courses.map((c) => c.courseCode) ?? []),
+    () =>
+      new Map(
+        plan?.courses.map((c) => [
+          c.courseCode,
+          c.sectionCode === null
+            ? ("bookmarked" as const)
+            : ("placed" as const),
+        ]) ?? [],
+      ),
     [plan],
   );
   const ref = useRef<HTMLDivElement>(null);
@@ -315,7 +324,7 @@ function ResultList({
               index={index}
               course={course}
               fit={fit}
-              inPlan={inPlan.has(course.code)}
+              inPlan={inPlan.get(course.code) ?? null}
               active={index === active}
               onOpen={() => onOpen(index)}
               onHover={() => {
@@ -342,7 +351,7 @@ function ResultRow({
   index: number;
   course: Course;
   fit: FitContext | null;
-  inPlan: boolean;
+  inPlan: "placed" | "bookmarked" | null;
   active: boolean;
   onOpen: () => void;
   onHover: () => void;
@@ -379,7 +388,14 @@ function ResultRow({
       className="absolute inset-x-0 cursor-pointer hover:bg-hover"
       style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
       trail={
-        inPlan ? <span className="text-muted text-xs">In plan</span> : undefined
+        inPlan === "placed" ? (
+          <span className="text-muted text-xs">In plan</span>
+        ) : inPlan === "bookmarked" ? (
+          <span className="flex items-center gap-1 text-muted text-xs">
+            <Bookmark size={11} fill="currentColor" aria-hidden />
+            Bookmarked
+          </span>
+        ) : undefined
       }
     >
       <div className="flex items-baseline gap-2">
@@ -467,8 +483,17 @@ function SearchHints({ onPick }: { onPick: (query: string) => void }) {
         </div>
       }
     >
-      Search by course code, title or instructor, or pick a filter to browse.
-      Hover a result to see its sections on the calendar.
+      Search by course code, title or instructor, or pick a filter to browse.{" "}
+      {/* Only a mouse previews (#48): a finger's tap opens the course. */}
+      <span className="pointer-coarse:hidden" data-testid="search-hint-hover">
+        Hover a result to see its sections on the calendar.
+      </span>
+      <span
+        className="hidden pointer-coarse:inline"
+        data-testid="search-hint-tap"
+      >
+        Tap a result to open it and see its sections.
+      </span>
     </EmptyState>
   );
 }

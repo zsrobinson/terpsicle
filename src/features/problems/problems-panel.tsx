@@ -12,11 +12,14 @@ import { planLabel } from "~/app/plan-label";
 import { countBySeverity, problemCountWords } from "~/core/problems";
 import {
   type Problem,
+  type ProblemFix,
   parseSectionKey,
   SEVERITY_ORDER,
   type Severity,
   type Subject,
+  type TermId,
 } from "~/core/schema";
+import { SeatBell } from "~/features/course-details/seat-bell";
 import { useCurrentPlan, usePlanProblemsState } from "~/state/hooks";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
@@ -84,6 +87,7 @@ export function ProblemsPanel() {
                     <ProblemRow
                       key={p.id}
                       problem={p}
+                      termId={current?.termId ?? null}
                       readOnly={current?.readOnly ?? true}
                     />
                   ))}
@@ -124,9 +128,11 @@ function openLabel(subject: Subject | undefined): string {
 
 function ProblemRow({
   problem,
+  termId,
   readOnly,
 }: {
   problem: Problem;
+  termId: TermId | null;
   readOnly: boolean;
 }) {
   const { fix } = problem;
@@ -155,18 +161,47 @@ function ProblemRow({
         />
       ) : null}
       {fix && !readOnly ? (
-        <WithTooltip label={`${fix.label}. You can undo this.`}>
-          <Button
-            variant="outline"
-            size="row"
-            className="relative z-10 mt-2"
-            onClick={() => applyFix(problem, fix)}
-          >
-            {fix.label}
-          </Button>
-        </WithTooltip>
+        <FixButton problem={problem} fix={fix} termId={termId} />
       ) : null}
     </ListRow>
+  );
+}
+
+/**
+ * A problem's one-click fix. A full section's is the seat watch itself:
+ * "Watch for a seat", then "Watching" with a filled bell, the same bell as
+ * on its row in course details.
+ */
+function FixButton({
+  problem,
+  fix,
+  termId,
+}: {
+  problem: Problem;
+  fix: ProblemFix;
+  termId: TermId | null;
+}) {
+  if (fix.kind === "watch")
+    return termId ? (
+      <div className="relative z-10 mt-2 flex">
+        <SeatBell
+          termId={termId}
+          sectionKey={fix.sectionKey}
+          variant="button"
+        />
+      </div>
+    ) : null;
+  return (
+    <WithTooltip label={`${fix.label}. You can undo this.`}>
+      <Button
+        variant="outline"
+        size="row"
+        className="relative z-10 mt-2"
+        onClick={() => applyFix(problem, fix)}
+      >
+        {fix.label}
+      </Button>
+    </WithTooltip>
   );
 }
 

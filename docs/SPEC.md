@@ -77,8 +77,8 @@ Nobody should have to touch the app when a new semester appears.
 - A new plan can start empty, as a copy of the current one, or from the generator.
 
 ### 3.2 Courses tab (formerly "Plan")
-- The courses in the current plan. Each row shows the dot in the course color, code, section, title, instructor and meeting days, the seats meter, and a warning icon if the course has a problem.
-- **Saved for later:** courses you're considering but haven't placed.
+- The courses in the current plan. Each row shows the dot in the course color, code, section, title, instructor and meeting days, the seats meter, and a warning icon if the course has a problem. A section with a seat watch on says "Watching" with a filled bell.
+- **Bookmarked:** courses you're considering but haven't placed (a bookmark icon). You add a section, not a course; a course is bookmarked from its details.
 - **Course color:** clicking a course's color dot opens a small palette of preset colors. The color is per course and the same in every plan.
 - **First visit:** "Build your <term> schedule" with **two equally weighted paths** side by side (same size and style; neither is secondary):
   - **Build it yourself:** 1 find your courses → 2 pick sections on the calendar → 3 fix anything flagged → 4 export for registration. Button: **Search for a course**.
@@ -105,21 +105,24 @@ Nobody should have to touch the app when a new semester appears.
 - **Drag to block time:** drag on an empty part of the grid; a small popup asks for a label, with presets (Lunch, Work, Gym, Club). This is discoverable through a hover tooltip on empty grid space and the Blocks tab, never through text under the calendar.
 
 ### 3.4 Course details (drill-in)
-- **Header:** code, credits, gen-eds, title; Remove from plan / Save for later.
-- **Sections, grouped by instructor:**
+- **Header:** code, credits, gen-eds, title; **Bookmark** (bookmark icon) for a course not in the plan, "Bookmarked" once it is, and Remove from plan / Bookmark instead for a placed one.
+- **One section list for every course,** whether it has one section or ninety: a one-section course shows the same row as any other (owner, 2026-09-26).
+- **One level of grouping, by professor,** and only when there's more than one (TBA sections next to a named professor are a group too). Section codes already say which sections share a lecture, so there's no lecture layer.
   - The group header shows the instructor, rating (review count) and average GPA in this course. Groups can be collapsed.
-  - Sections keep **section-number order** (no re-sorting by instructor name).
+  - With one professor there's no header, just a line saying who teaches (with rating, GPA and Reviews), or "Testudo hasn't named instructors for these sections yet."
+  - Rows are sorted by **section code** within a group; groups come in the order of their lowest code (no re-sorting by instructor name).
   - The "Sections" label shows how many fit ("Sections · 2 fit").
 - **Each section row:**
   - code;
-  - meeting days, times and buildings;
-  - **fit label in words:** Fits · Overlaps ENGL393 · Not enough time after CMSC330 · In your plan · No set times;
-  - seats as a **meter plus words** ("12 of 36 open", "2 left", "Full · 9 waitlisted");
+  - **every meeting** on its own line: its kind (Lec, Dis, Lab), days, times, building and room. Never "the lecture once in a header, the discussion in the row";
+  - **fit label in words:** Fits · Overlaps ENGL393 · Not enough time after CMSC330 · In Plan A · No set times;
+  - seat words ("12 of 36 open", "2 left", "Full · 9 waitlisted"), with the meter on hover;
   - restriction notes in amber;
-  - a Switch/Add button;
-  - a bell on low or full sections (§3.9).
+  - one **icon button** with a tooltip: plus adds the section, arrows switch the plan's section to it, and the plan's own shows a check (a minus on hover) that takes it back out, undoably;
+  - a bell on low or full sections (§3.12): "Watch for a seat", then "Watching" with a filled bell.
 
-  Sections that don't fit stay in place, with their label.
+  Sections that don't fit stay in place, with their label. **Full sections can be added** like any other; the plan then shows the "full" problem, whose fix is to watch for a seat (§3.6).
+- **Many sections** (over 20) add the plan's own section pinned under the Sections bar; "Only fits" appears from 9 sections.
 - **Seat freshness:** "Seats as of 2 min ago" above the section list.
 - **Tabs:**
   - **Instructors:** a card per instructor with rating, reviews count, average GPA and % A/B in this course, the LLM review summary with theme tags, and a link to PlanetTerp.
@@ -135,7 +138,7 @@ Nobody should have to touch the app when a new semester appears.
   - Open seats;
   - Level ▾ (100–800).
 - **Results:** a list of courses showing code, credits, gen-ed tags, title, and "4 sections · 2 fit your plan".
-  - Hover a result to see its sections as ghosts on the calendar.
+  - Hover a result (with a mouse) to see its sections as ghosts on the calendar. On a touch screen a tap opens it instead, and the empty state says "Tap a result to open it and see its sections."
   - Click to open course details.
   - Sections are never listed in the results.
 
@@ -152,6 +155,7 @@ Nobody should have to touch the app when a new semester appears.
   - restricted section.
 - **Info:** online with no set times; instructor TBA.
 - Each problem opens the related course or connection. It also offers a one-click fix ("Switch to 0205") when a section fixes it without creating new problems.
+- A full section's fix is **"Watch for a seat"** (bell icon), not a switch: full sections stay a choice. Once on, the problem says "Watching" with a filled bell, as the section's row and the Courses tab do. (v2: the watch needs sign-in, and signing in is part of the fix when signed out; `docs/V2.md` §6.5.)
 
 ### 3.7 Travel
 - The **Travel** tab:
@@ -201,7 +205,7 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
 ### 3.12 Seat alerts (light auth; not a launch blocker)
 
 **v2:** seat alerts become a signed-in feature, delivered by push and email by default, with no email to type and no confirmation link. The email-token flow below retires, and stopping a watch uses Undo instead of a confirmation (`docs/V2.md` §6.5). The rest of this section describes v1.
-- A bell on low or full sections → enter an email → one confirmation link → "Watching".
+- A bell on low or full sections ("Watch for a seat") → enter an email → one confirmation link → "Watching" (a filled bell). The owner calls the feature **Seat watch**.
 - Deduplicated per email and section: signing up twice says "You're already watching this".
 - Alert emails have a one-click unsubscribe that asks for confirmation. Watching sections are listed in Export ("Seat alerts").
 - It ships when it's end-to-end tested, and not before.
