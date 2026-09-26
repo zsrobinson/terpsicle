@@ -210,6 +210,9 @@ describe("Export tab", () => {
             status: "pending",
             subscriptionId: null,
             manageToken: null,
+            // Asked just now: a pending request's link lasts 48 hours of
+            // the real clock, which the fixed dates above ran out of.
+            updatedAt: new Date().toISOString(),
           },
         ]),
       );
