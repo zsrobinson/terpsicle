@@ -1,5 +1,6 @@
 // The shared data contract. Prose version: docs/DATA.md.
 export * from "./api";
+export * from "./auth";
 export * from "./calendar";
 export * from "./catalog";
 export * from "./chat";

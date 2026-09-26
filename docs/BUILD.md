@@ -117,7 +117,7 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 | `src/app`, `src/features`, `src/state`, `src/worker` | `core`, `components/ui`, React stack | `ingest`, `jobs`, `server` (except typed server-fn imports), `cloudflare:*` |
 | `src/fixtures` | `core` | everything else |
 
-Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtures`, `~/ui` (→ `components/ui`).
+Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtures`, `~/ui` (→ `components/ui`), and `~/config/*` (→ the root `config/`, tracked settings the Worker bundles, like `config/admins.txt`).
 
 ---
 

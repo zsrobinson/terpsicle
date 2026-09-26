@@ -1,6 +1,7 @@
 import { runScheduled } from "~/jobs/index";
 import { APEX_HOST } from "./apex";
 import { API_PREFIX, handleApi } from "./api/router";
+import { AVATARS_PREFIX, serveAvatar } from "./auth/pictures";
 import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
 import { SERVICE_WORKER_JS } from "./service-worker";
@@ -53,6 +54,9 @@ export function createWorker(app: AppHandler) {
       }
       if (url.pathname.startsWith(API_PREFIX)) {
         return handleApi(request, env, ctx);
+      }
+      if (url.pathname.startsWith(AVATARS_PREFIX)) {
+        return serveAvatar(request, env, new Date());
       }
       if (
         url.pathname === POSTHOG_PROXY_PREFIX ||
