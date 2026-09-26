@@ -320,6 +320,9 @@ test.describe("forced colors", () => {
     // A focused ghost shows the focus ring.
     await calendar(page).locator("[data-nav-key][tabindex='0']").focus();
     await page.keyboard.press("ArrowDown");
+    await expect(focused(page)).toHaveAttribute("data-ghost", /.+/);
+    // After its 150ms fade-in: mid-animation Chrome reports a thinner ring.
+    await page.waitForTimeout(300);
     const ring = await style(focused(page), ["outline-style", "outline-width"]);
     expect(ring["outline-style"]).toBe("solid");
     expect(Number.parseFloat(ring["outline-width"] ?? "0")).toBeGreaterThan(1);
