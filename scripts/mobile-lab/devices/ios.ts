@@ -116,7 +116,7 @@ class WebDriver {
 
 export async function iosDevice(): Promise<Device> {
   const base = process.env.APPIUM_URL ?? "http://127.0.0.1:4723";
-  const driver = await WebDriver.start(base, {
+  const capabilities = {
     platformName: "iOS",
     browserName: "Safari",
     "appium:automationName": "XCUITest",
@@ -139,7 +139,17 @@ export async function iosDevice(): Promise<Device> {
           "appium:prebuiltWDAPath": process.env.WDA_PATH,
         }
       : {}),
-  });
+  };
+  // The Simulator sometimes misses its first WebDriverAgent launch.
+  let driver: WebDriver | null = null;
+  for (let attempt = 1; !driver; attempt++) {
+    try {
+      driver = await WebDriver.start(base, capabilities);
+    } catch (error) {
+      if (attempt >= 3) throw error;
+      console.error(`Appium session attempt ${attempt} failed: ${error}`);
+    }
+  }
   const phone = new SimulatorSafari(driver);
   await phone.setUp();
   return phone;

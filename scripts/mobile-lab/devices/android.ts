@@ -74,6 +74,11 @@ class AndroidChrome implements Device {
     await this.shell(
       `pm grant ${CHROME} android.permission.POST_NOTIFICATIONS`,
     ).catch(() => "");
+    await this.launch();
+  }
+
+  private async launch(): Promise<void> {
+    await this.context?.close().catch(() => undefined);
     this.context = await this.device.launchBrowser();
     this.page = this.context.pages()[0] ?? (await this.context.newPage());
   }
@@ -98,7 +103,14 @@ class AndroidChrome implements Device {
     this.mapping = null;
     await this.rotate("portrait");
     if (video) await this.startRecording(`${video}.mp4`);
-    await this.p.goto(url);
+    // A slow emulator can lose Chrome between scenarios: start it again.
+    if (!this.page || this.page.isClosed()) await this.launch();
+    try {
+      await this.p.goto(url);
+    } catch {
+      await this.launch();
+      await this.p.goto(url);
+    }
     await this.dismissDialogs();
   }
 
