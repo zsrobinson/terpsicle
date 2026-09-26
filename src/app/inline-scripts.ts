@@ -1,6 +1,6 @@
 import { returningCheckScript } from "~/features/marketing/returning";
-import { installPromptInitScript } from "~/features/pwa/install-prompt-script";
 import { tangleScript } from "~/features/marketing/tangle-script";
+import { installPromptInitScript } from "~/features/pwa/install-prompt-script";
 import { loadRecoveryScript } from "./load-recovery";
 import { sidebarWidthInitScript } from "./sidebar-width";
 import { themeInitScript } from "./theme";

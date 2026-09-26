@@ -77,12 +77,14 @@ test("the hero tangles first, then straightens into five rails that end in the p
     const last = d.split("C").at(-1)?.trim().split(" ").slice(-2) ?? [];
     expect(last).toHaveLength(2);
   }
-  // Plan and Todo say they're coming, and link only within the page.
+  // Plan says it's coming and links nowhere; Todo is out.
   await expect(page.locator("section#plan")).toContainText("Coming soon");
-  await expect(page.locator("section#todo")).toContainText("Coming soon");
-  await expect(
-    page.getByRole("link", { name: /^View (plan|todos?)/ }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "View plan" })).toHaveCount(0);
+  await expect(page.locator("section#todo")).not.toContainText("Coming soon");
+  await expect(page.getByRole("link", { name: "View todos" })).toHaveAttribute(
+    "href",
+    "/todo",
+  );
 
   // Replay tangles it again and straightens it once more.
   await page.getByRole("button", { name: "Replay" }).click();
