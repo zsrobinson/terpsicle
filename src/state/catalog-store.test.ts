@@ -25,7 +25,12 @@ import {
 import { type CatalogEvent, useCatalog } from "./catalog-store";
 import { createMemoryCache, SCHEMA_VERSIONS_KEY } from "./data-cache";
 import { useCatalogPolling, useSeatsFreshness } from "./data-hooks";
-import { createDataReader, DataError, type DataSource } from "./data-source";
+import {
+  createDataReader,
+  DataError,
+  type DataSource,
+  type ReadPriority,
+} from "./data-source";
 import { resetStores } from "./testing";
 
 // The catalog store against a fake server and an in-memory cache: what it
@@ -36,15 +41,24 @@ const hash = (n: number) => n.toString(16).padStart(16, "0");
 const ACTIVE = fixtureTermId;
 const ARCHIVED = archivedFixtureTermId;
 
-/** A fake /data: published files by key, the keys read, and an off switch. */
+/**
+ * A fake /data: published files by key, the keys read (with their fetch
+ * priority), an off switch, and a hold on chosen files, to answer late.
+ */
 function aServer() {
   const files = new Map<string, unknown>();
   const reads: string[] = [];
+  const priorities = new Map<string, ReadPriority | undefined>();
   let offline = false;
+  let holding: ((key: string) => boolean) | null = null;
+  const held = new Map<string, () => void>();
   const source: DataSource = {
     kind: "live",
-    async readJson(key) {
+    async readJson(key, options) {
       reads.push(key);
+      priorities.set(key, options?.priority);
+      if (holding?.(key))
+        await new Promise<void>((resolve) => held.set(key, resolve));
       if (offline) throw new DataError(key, "network", "offline");
       if (!files.has(key)) throw new DataError(key, "missing", "missing");
       return structuredClone(files.get(key));
@@ -71,10 +85,27 @@ function aServer() {
   return {
     files,
     reads,
+    priorities,
     source,
     setOffline: (value: boolean) => {
       offline = value;
     },
+    /** Reads of matching keys wait for `release` from now on. */
+    hold: (match: (key: string) => boolean) => {
+      holding = match;
+    },
+    /** Answers the held reads of matching keys (all by default), and stops holding them. */
+    release: (match: (key: string) => boolean = () => true) => {
+      const before = holding;
+      holding = before ? (key) => before(key) && !match(key) : null;
+      for (const [key, resume] of held)
+        if (match(key)) {
+          held.delete(key);
+          resume();
+        }
+    },
+    /** Keys whose reads are waiting. */
+    waiting: () => [...held.keys()],
     /** The keys read since the last call. */
     take: () => reads.splice(0),
     /**
@@ -213,6 +244,102 @@ describe("first load", () => {
     expect(events).toEqual([
       expect.objectContaining({ fromCache: true, deptsFetched: 0 }),
     ]);
+  });
+});
+
+describe("what's on screen first", () => {
+  const isDept = (key: string) => key.includes("/dept/");
+  const deptReads = () => server.take().filter(isDept);
+  const t = () => useCatalog.getState().byTerm[ACTIVE];
+
+  beforeEach(async () => {
+    open(server, cache);
+    await useCatalog.getState().loadTerms();
+    server.take();
+  });
+
+  it("fetches a department asked for before the rest, even when the whole term was asked for first", async () => {
+    const term = useCatalog.getState().ensureTerm(ACTIVE);
+    const course = useCatalog.getState().ensureDepts(ACTIVE, ["MATH"]);
+    await Promise.all([term, course]);
+
+    const depts = deptReads();
+    expect(depts[0]).toBe(deptChunkKey(ACTIVE, "MATH", hash(2)));
+    // Each department once, though both asked for MATH.
+    expect(depts.sort()).toEqual(
+      [
+        deptChunkKey(ACTIVE, "CMSC", hash(1)),
+        deptChunkKey(ACTIVE, "ENGL", hash(3)),
+        deptChunkKey(ACTIVE, "MATH", hash(2)),
+      ].sort(),
+    );
+    // The background load leaves the network to what's on screen.
+    expect(server.priorities.get(deptChunkKey(ACTIVE, "MATH", hash(2)))).toBe(
+      "auto",
+    );
+    expect(server.priorities.get(deptChunkKey(ACTIVE, "CMSC", hash(1)))).toBe(
+      "low",
+    );
+  });
+
+  it("shows a department as soon as it arrives, while the rest still load", async () => {
+    server.hold((key) => isDept(key) && !key.includes("/MATH."));
+    const term = useCatalog.getState().ensureTerm(ACTIVE);
+    await useCatalog.getState().ensureDepts(ACTIVE, ["MATH"]);
+    await vi.waitFor(() => expect(server.waiting()).toHaveLength(2));
+
+    expect(titles(ACTIVE)).toEqual(["MATH v2"]);
+    expect(t()?.depts.MATH).toBe("ready");
+    expect(t()?.seats).not.toBeNull();
+    expect(t()?.complete).toBe(false);
+    expect(t()?.settled).toBe(false);
+
+    server.release();
+    await term;
+    expect(titles(ACTIVE)).toEqual(["CMSC v1", "ENGL v3", "MATH v2"]);
+    expect(t()?.complete).toBe(true);
+    expect(t()?.settled).toBe(true);
+  });
+
+  it("fetches a department asked for during the background load at once, not in its turn", async () => {
+    // More departments than the background load fetches at a time.
+    const code = (i: number) =>
+      `QA${String.fromCharCode(65 + Math.floor(i / 26), 65 + (i % 26))}`;
+    const many = Object.fromEntries(
+      Array.from({ length: 40 }, (_, i) => [code(i), i + 10]),
+    );
+    server.publish(ACTIVE, many);
+    server.hold(isDept);
+    const term = useCatalog.getState().ensureTerm(ACTIVE);
+    await vi.waitFor(() => expect(server.waiting().length).toBeGreaterThan(0));
+    const started = server.waiting().length;
+    expect(started).toBeLessThan(40);
+    server.take();
+
+    const last = deptChunkKey(ACTIVE, code(39), hash(49));
+    const course = useCatalog.getState().ensureDepts(ACTIVE, [code(39)]);
+    await vi.waitFor(() => expect(server.waiting()).toContain(last));
+    expect(deptReads()).toEqual([last]);
+    server.release((key) => key === last);
+    await course;
+
+    expect(titles(ACTIVE)).toEqual([`${code(39)} v49`]);
+    expect(t()?.complete).toBe(false);
+
+    server.release();
+    await term;
+    expect(t()?.complete).toBe(true);
+    // It wasn't fetched a second time in its turn.
+    expect(deptReads()).not.toContain(last);
+  });
+
+  it("settles when a department fails, so search doesn't wait forever", async () => {
+    server.files.delete(deptChunkKey(ACTIVE, "ENGL", hash(3)));
+    await useCatalog.getState().ensureTerm(ACTIVE);
+
+    expect(t()?.depts.ENGL).toBe("error");
+    expect(t()?.complete).toBe(false);
+    expect(t()?.settled).toBe(true);
   });
 });
 
