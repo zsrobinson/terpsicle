@@ -18,7 +18,6 @@ import {
   type PlanCourse,
   PlanSchema,
   type SettingsDoc,
-  type SyncDoc,
 } from "../schema";
 import {
   mergeSettings,
@@ -34,6 +33,7 @@ import {
   docKeyOf,
   parseDocKey,
   planDocKey,
+  type ScheduleSyncDoc,
   type SyncedTables,
   settingsDocOf,
   withSettingsDoc,
@@ -134,7 +134,7 @@ const settingsArb: fc.Arbitrary<SettingsDoc> = fc
     }),
   );
 
-const serverDocs: fc.Arbitrary<SyncDoc[]> = fc
+const serverDocs: fc.Arbitrary<ScheduleSyncDoc[]> = fc
   .tuple(
     plans(SERVER_IDS),
     fc.subarray(SERVER_IDS),
@@ -142,7 +142,7 @@ const serverDocs: fc.Arbitrary<SyncDoc[]> = fc
   )
   .map(([live, dead, settings]) => {
     let rev = 0;
-    const docs: SyncDoc[] = live.map((body) =>
+    const docs: ScheduleSyncDoc[] = live.map((body) =>
       aPlanSyncDoc({ body, rev: ++rev }),
     );
     for (const id of dead)
@@ -187,7 +187,7 @@ function shuffled<T>(items: readonly T[], seed: number): T[] {
 }
 
 describe("the first sign-in", () => {
-  const union = (local: SyncedTables, server: readonly SyncDoc[]) =>
+  const union = (local: SyncedTables, server: readonly ScheduleSyncDoc[]) =>
     firstSignInUnion({
       local,
       server,
@@ -480,14 +480,14 @@ describe("the sync flags", () => {
 // ---------- two devices and a model server ----------
 
 class ModelServer {
-  readonly docs = new Map<DocKey, SyncDoc>();
+  readonly docs = new Map<DocKey, ScheduleSyncDoc>();
   private head = 0;
 
   push(
     key: DocKey,
     base: number,
     body: Plan | SettingsDoc | null,
-  ): { ok: true; rev: number } | { ok: false; doc: SyncDoc } {
+  ): { ok: true; rev: number } | { ok: false; doc: ScheduleSyncDoc } {
     const current = this.docs.get(key);
     if (current && current.rev !== base) return { ok: false, doc: current };
     if (!current && base !== 0) throw new Error(`no doc ${key} at rev ${base}`);
@@ -502,7 +502,7 @@ class ModelServer {
     return { ok: true, rev };
   }
 
-  pull(since: number): { docs: SyncDoc[]; cursor: number } {
+  pull(since: number): { docs: ScheduleSyncDoc[]; cursor: number } {
     const docs = [...this.docs.values()]
       .filter((d) => d.rev > since)
       .sort((a, b) => a.rev - b.rev);

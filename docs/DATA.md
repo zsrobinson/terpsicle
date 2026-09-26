@@ -545,7 +545,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` (landed, §7.8) | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
 | `0009_chat` (landed, §7.9) | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
-| `0010_four_year_sync` (v3) | rebuilds `sync_docs` so `kind` also allows `four-year` | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
+| `0010_four_year_sync` (landed, §7.7) | rebuilds `sync_docs` so `kind` also allows `four-year` (with tombstones) | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
@@ -565,16 +565,19 @@ How it works, and how to use it from other routes: `docs/AUTH.md`. Rows are vali
 - **Deletion:** `account/delete` sets `status = 'deleting'` and `delete_after` a week out and ends every session; signing in before then sets `active` again. The daily job (`7 13 * * *`, `src/jobs/daily.ts`) deletes the pictures, then the rows, of accounts past `delete_after`, and expired sessions.
 - **Admins** aren't a table: `config/admins.txt`, bundled into the Worker.
 
-### 7.7 Plan sync (landed: `migrations/0005_sync.sql`)
+### 7.7 Plan sync (landed: `migrations/0005_sync.sql`, `0010_four_year_sync.sql`)
 
 The design is `docs/V2.md` §5; the routes are `src/server/sync/api.ts`, the SQL `src/server/sync/store.ts`, and the input, result and row schemas (with the limits) `src/core/schema/sync-api.ts`. Rows are read with `SyncDocRowSchema` and turned into docs by `syncDocFromRow`, which checks them against `SyncDocSchema`.
 
 | Table | Key | Columns | Notes |
 |---|---|---|---|
-| `sync_docs` | `(user_id, kind, doc_id)` | `term_id`, `rev`, `deleted`, `body` (JSON), `updated_at` | One row per plan doc and one `settings` row per user. `rev` is unique per user (`sync_docs_since`), and a save always takes a new one. A deleted plan is a tombstone (`deleted = 1`, `body` NULL, `term_id` kept) until the daily job prunes it 30 days after `updated_at`. |
+| `sync_docs` | `(user_id, kind, doc_id)` | `term_id`, `rev`, `deleted`, `body` (JSON), `updated_at` | `kind` is `plan`, `settings` or `four-year`: one row per plan doc, one per four-year doc (Terpsicle Plan, V3.md §2.4) and one `settings` row per user. `rev` is unique per user (`sync_docs_since`), and a save always takes a new one. A deleted plan or four-year doc is a tombstone (`deleted = 1`, `body` NULL; a plan's keeps its `term_id`) until the daily job prunes it 30 days after `updated_at`. `term_id` is NULL for settings and four-year docs. |
 | `sync_heads` | `user_id` | `head`, `pruned_through` | `head` is the last rev handed out; `pruned_through` the highest pruned tombstone's rev. A pull from below it (but above 0), or from above `head`, gets `reset`. |
 
-- **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live plan stays within 200. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
+- **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live doc stays within its kind's cap: 200 plans (`SYNC_MAX_PLANS`), 20 four-year docs (`SYNC_MAX_FOUR_YEAR_DOCS`); past it the doc's result is `too-many-plans`. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
+- **Four-year docs** are saved whole and never read by the server: sync checks only that the body is a JSON object whose `id` is the doc's (`FourYearSyncBodySchema`) and the 64 KiB body limit every kind has. The device validates the full doc (`FourYearDocSchema`) when it reads one. Grades live in the body (V3.md §2.5), so nothing else on the server may parse it. While `PLAN_ENABLED` isn't `"true"`, a push carrying a four-year doc answers `unavailable` and saves nothing.
+- **Unknown kinds:** `SyncPullResultSchema` drops a pulled doc whose `kind` this build doesn't know instead of failing the page, and the scheduler's engine skips four-year docs (`isScheduleDoc`), so adding a kind never breaks an older tab. Such a tab still moves its cursor past the doc; Plan's Dexie upgrade resets the cursor to 0 once, so it pulls them after all (V3.md §2.4).
+- **Migration 0010** rebuilds `sync_docs` (SQLite can't alter a `CHECK`): create `sync_docs_new`, copy every row, drop, rename, recreate `sync_docs_since` and `sync_docs_tombstones`, under `PRAGMA defer_foreign_keys = on`. Nothing references `sync_docs`. `src/server/sync/migration.test.ts` rebuilds a 0005-shaped table with rows and checks they, and the indexes, come through unchanged.
 - **Deleting an account** removes both tables' rows: explicitly in the purge, and by `ON DELETE CASCADE`.
 - **Chat membership:** after the batch, a push that saved anything rewrites the person's `chat_members` for the terms it touched (§7.9).
 

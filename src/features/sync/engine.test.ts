@@ -322,6 +322,34 @@ describe("pulling", () => {
     expect(b.names()).toContain("Spring");
   });
 
+  it("leaves Terpsicle Plan's four-year docs to their own engine", async () => {
+    const a = track(await syncedDevice("a", server));
+    a.edit((t) => ({ ...t, plans: [planA] }));
+    await a.settle();
+    const fourYear = { id: planA.id, name: "My plan" };
+    server.push({
+      docs: [
+        { kind: "four-year", id: fourYear.id, baseRev: 0, body: fourYear },
+      ],
+    });
+    // Same id as a plan, different kind: the plan and its flags stay put,
+    // and the cursor moves past the four-year doc.
+    const before = a.storage.snapshot;
+    await a.engine.sync();
+    expect(a.tables).toEqual(before.tables);
+    expect(a.flags).toEqual(before.sync.docs);
+    expect(a.storage.snapshot.sync.cursor).toBe(server.head);
+
+    // A new device joining the account skips it too.
+    const b = track(new Device("b", server));
+    await b.engine.start();
+    expect(b.tables.plans).toEqual([planA]);
+    expect(Object.keys(b.flags).sort()).toEqual([
+      planDocKey(planA.id),
+      SETTINGS_DOC_KEY,
+    ]);
+  });
+
   it("pulls on the interval, and page by page", async () => {
     const a = track(await syncedDevice("a", server));
     const b = track(await syncedDevice("b", server));
