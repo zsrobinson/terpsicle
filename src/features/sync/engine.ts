@@ -603,7 +603,7 @@ export class SyncEngine {
   private show(
     change: RemoteChange,
     keys: readonly DocKey[],
-    arrived?: { docs: readonly SyncDoc[]; after: SyncSnapshot },
+    arrived?: { docs: readonly ScheduleSyncDoc[]; after: SyncSnapshot },
   ): void {
     const plans = (change.plans ?? []).filter(
       ([id]) => !this.pending.has(planDocKey(id)),
@@ -644,11 +644,12 @@ export class SyncEngine {
         return;
       }
       const pending = new Set(this.pending.keys());
+      const docs = page.docs.filter(isScheduleDoc);
       const { before, after } = await this.o.storage.update((s) =>
-        applyPulled(s, page.docs.filter(isScheduleDoc), page.cursor, pending),
+        applyPulled(s, docs, page.cursor, pending),
       );
       const { change, keys } = changeBetween(before.tables, after.tables);
-      this.show(change, keys, { docs: page.docs, after });
+      this.show(change, keys, { docs, after });
       since = page.cursor;
       if (!page.more) return;
     }
