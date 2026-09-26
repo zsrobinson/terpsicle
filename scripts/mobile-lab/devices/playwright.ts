@@ -199,10 +199,9 @@ class PlaywrightDevice implements Device {
     const lines = await kernelLog();
     if (!lines) return null;
     const fresh = lines.slice(this.kernelSeen ?? 0);
-    if (this.kernelSeen !== null)
-      console.error(
-        `  kernel log: ${lines.length} lines, ${fresh.length} new since the last look`,
-      );
+    console.error(
+      `  kernel log: ${lines.length} lines, ${fresh.length} new since the last look`,
+    );
     this.kernelSeen = lines.length;
     const crashes = fresh.filter((l) =>
       /segfault|general protection|killed process|out of memory/i.test(l),
