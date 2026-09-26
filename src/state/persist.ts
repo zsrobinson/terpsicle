@@ -7,8 +7,9 @@ import {
   type SettingsRow,
   SettingsRowSchema,
   type UiPrefs,
+  validRows,
 } from "~/core/schema";
-import { type TerpsicleDb, validRows } from "./db";
+import { diffById, type TerpsicleDb } from "./db";
 import { restorableTarget } from "./drill";
 import { useGenerateDrafts } from "./generate-drafts";
 import type { Workspace } from "./plan-ops";
@@ -40,6 +41,7 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
   const travel =
     rows.find((r) => r.key === "travel")?.value ?? DEFAULT_TRAVEL_SETTINGS;
   const drafts = rows.find((r) => r.key === "generate")?.value ?? {};
+  const chatPlans = rows.find((r) => r.key === "chatPlans")?.value ?? {};
 
   useWorkspace.setState({
     plans: validRows("plans", PlanSchema, plans),
@@ -52,6 +54,7 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
     ),
     activePlanByTerm: ui.activePlanByTerm,
     travel,
+    chatPlans,
     hydrated: true,
     past: [],
     future: [],
@@ -75,19 +78,6 @@ export function hydrateEmpty(): void {
   useWorkspace.setState({ hydrated: true });
 }
 
-/** Rows to put and keys to delete between two versions of a table. */
-export function diffById<T>(
-  prev: readonly T[],
-  next: readonly T[],
-  key: (row: T) => string,
-): { put: T[]; remove: string[] } {
-  const before = new Map(prev.map((row) => [key(row), row]));
-  const put = next.filter((row) => before.get(key(row)) !== row);
-  const nextKeys = new Set(next.map(key));
-  const remove = [...before.keys()].filter((k) => !nextKeys.has(k));
-  return { put, remove };
-}
-
 function uiRow(): SettingsRow {
   const ui = useUi.getState();
   return {
@@ -107,6 +97,11 @@ export interface Persistence {
   stop: () => void;
   /** Resolves when every write queued so far has landed. */
   flushed: () => Promise<void>;
+  /**
+   * Queues a write after every store change written so far. Plan sync marks
+   * a doc dirty this way, so the flag never lands before the doc it marks.
+   */
+  enqueue: (write: () => Promise<unknown>) => void;
 }
 
 /**
@@ -178,6 +173,10 @@ export function startPersisting(
       const travel = next.travel;
       enqueue(() => db.settings.put({ key: "travel", value: travel }));
     }
+    if (next.chatPlans !== prev.chatPlans) {
+      const chatPlans = next.chatPlans;
+      enqueue(() => db.settings.put({ key: "chatPlans", value: chatPlans }));
+    }
     if (w.activePlanByTerm !== p.activePlanByTerm) writeUiIfChanged();
   });
   const stopUi = useUi.subscribe(writeUiIfChanged);
@@ -194,5 +193,6 @@ export function startPersisting(
       stopDrafts();
     },
     flushed: () => queue.then(() => undefined),
+    enqueue,
   };
 }

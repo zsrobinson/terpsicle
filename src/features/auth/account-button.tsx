@@ -1,9 +1,10 @@
-import { LogIn, LogOut, Settings, ShieldCheck } from "lucide-react";
+import { LogIn, LogOut, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { track } from "~/app/analytics";
 import { ThemeMenuItems } from "~/app/theme-toggle";
 import { SIGN_IN_PITCH, signInStartHref } from "~/core/auth";
 import { type MeUser, SIGN_IN_START_PATH } from "~/core/schema";
+import { SyncStatusLine } from "~/features/sync/status-view";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +15,7 @@ import {
 } from "~/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
-import { useAccount } from "./account-store";
+import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
 import { currentPath, SignInPanel } from "./sign-in-panel";
 
@@ -146,10 +147,16 @@ function SignInItems() {
   );
 }
 
-/** Who's signed in, then Settings, Admin (admins) and Sign out. */
+/** Who's signed in, then Settings, Admin (admins) and the two sign-outs. */
 function AccountItems({ user }: { user: MeUser }) {
   const signOut = useAccount((s) => s.signOut);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const run = (removeLocal: boolean) => {
+    setFailed(null);
+    signOut({ removeLocal })
+      .then(() => track("signed_out", { removedLocal: removeLocal }))
+      .catch((error: unknown) => setFailed(signOutFailure(error)));
+  };
   return (
     <>
       <DropdownMenuLabel className="flex items-center gap-2 py-2">
@@ -169,6 +176,7 @@ function AccountItems({ user }: { user: MeUser }) {
           </span>
         </span>
       </DropdownMenuLabel>
+      <SyncStatusLine />
       <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
         <a href="/settings">
@@ -188,19 +196,30 @@ function AccountItems({ user }: { user: MeUser }) {
         <DropdownMenuItem
           onSelect={(event) => {
             event.preventDefault();
-            setFailed(false);
-            signOut()
-              .then(() => track("signed_out", { removedLocal: false }))
-              .catch(() => setFailed(true));
+            run(false);
           }}
         >
           <LogOut aria-hidden="true" className="text-muted" />
           Sign out
         </DropdownMenuItem>
       </WithTooltip>
+      <WithTooltip label={REMOVE_TOOLTIP} side="left">
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            run(true);
+          }}
+        >
+          <Trash2 aria-hidden="true" className="text-muted" />
+          Sign out and remove plans from this device
+        </DropdownMenuItem>
+      </WithTooltip>
       {failed ? (
-        <p role="status" className="px-2 py-1.5 text-muted text-sm">
-          Couldn't sign out. Check your connection and try again.
+        <p
+          role="status"
+          className="max-w-[240px] px-2 py-1.5 text-muted text-sm"
+        >
+          {failed}
         </p>
       ) : null}
     </>

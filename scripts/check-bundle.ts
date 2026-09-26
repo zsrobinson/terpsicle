@@ -42,6 +42,11 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
     why: "the search itself runs in the generator's worker",
   },
   { pattern: /^src\/fixtures\//, why: "fixtures are for mock mode only" },
+  {
+    // Only its status (a tiny store and the top bar's icon) is eager.
+    pattern: /^src\/features\/sync\/(?!status)/,
+    why: "plan sync loads only once someone is signed in",
+  },
 ];
 
 /**

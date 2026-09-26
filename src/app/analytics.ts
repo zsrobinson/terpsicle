@@ -96,6 +96,8 @@ export interface AnalyticsEvents {
   signin_failed: { reason: SignInError };
   signed_out: { removedLocal: boolean };
   account_deletion_requested: NoProperties;
+  // Plan sync (V2.md §11): counts only, never plan names or courses.
+  sync_first_sign_in: { uploaded: number; renamed: number; copies: number };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

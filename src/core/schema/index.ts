@@ -12,6 +12,7 @@ export * from "./moderation";
 export * from "./planetterp";
 export * from "./primitives";
 export * from "./problems";
+export * from "./rows";
 export * from "./settings";
 export * from "./share";
 export * from "./sync";

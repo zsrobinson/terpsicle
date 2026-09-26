@@ -1,14 +1,9 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { aBlock } from "~/fixtures";
-import { TerpsicleDb } from "./db";
+import { diffById, TerpsicleDb } from "./db";
 import { EMPTY_DRAFT, useGenerateDrafts } from "./generate-drafts";
-import {
-  diffById,
-  hydrate,
-  type Persistence,
-  startPersisting,
-} from "./persist";
+import { hydrate, type Persistence, startPersisting } from "./persist";
 import { resetStores } from "./testing";
 import { useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";
@@ -55,7 +50,7 @@ describe("persistence", () => {
       blocks: ["id", "termId"],
       courseColors: ["courseCode"],
       settings: ["key"],
-      seatAlerts: ["[termId+sectionKey]", "termId"],
+      syncDocs: ["key"],
       manifests: ["key"],
       files: ["key", "family", "termId"],
     });
@@ -74,7 +69,7 @@ describe("persistence", () => {
     });
   });
 
-  it("round-trips plans, blocks, colors, travel and UI prefs", async () => {
+  it("round-trips plans, blocks, colors, travel, chat plans and UI prefs", async () => {
     const w = useWorkspace.getState();
     w.dispatch(
       { type: "plan/create", id: "planAAAA", termId: SPRING, now: NOW },
@@ -90,6 +85,7 @@ describe("persistence", () => {
       colors: { CMSC351: "violet" },
     }));
     w.setTravel({ pace: "faster", accessible: true });
+    w.setChatPlan(SPRING, "planBBBB");
     w.activatePlan(SPRING, "planAAAA");
     const ui = useUi.getState();
     ui.clickTab("travel");
@@ -114,6 +110,7 @@ describe("persistence", () => {
       accessible: true,
       extraMinutes: 0,
     });
+    expect(after.chatPlans).toEqual({ [SPRING]: "planBBBB" });
     expect(after.activePlanByTerm).toEqual({ [SPRING]: "planAAAA" });
     // Undo history is per visit.
     expect(after.past).toEqual([]);

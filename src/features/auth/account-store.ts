@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Flags, MeUser } from "~/core/schema";
+import { SYNC_RESET_KEY } from "~/features/sync/status";
 import { api } from "~/server/fns/api";
 
 // Who's signed in, as the app sees it (docs/AUTH.md). Loaded once per page
@@ -17,7 +18,12 @@ export interface AccountState {
   deleteAfter: string | null;
 
   load: () => Promise<void>;
-  signOut: () => Promise<void>;
+  /**
+   * Ends the session. Plans stay on the device unless `removeLocal` (a
+   * shared computer), which first makes sure the account has every change
+   * and throws `UnsavedChangesError` (from ~/features/sync) if it can't.
+   */
+  signOut: (options?: { removeLocal?: boolean }) => Promise<void>;
   /** Schedules deletion and signs out; returns when the account goes. */
   deleteAccount: () => Promise<string>;
 }
@@ -41,7 +47,36 @@ export function setAccountClient(next: AccountClient): void {
   client = next;
 }
 
-export const useAccount = create<AccountState>()((set) => ({
+/** "Sign out and remove plans from this device" is for a shared computer (V2.md §4.7). */
+export const REMOVE_TOOLTIP =
+  "For a shared computer: signs out and clears your plans from this browser. They stay on your account.";
+
+/** Why a sign-out didn't go through, in words for the person. */
+export function signOutFailure(error: unknown): string {
+  return error instanceof Error && error.name === "UnsavedChangesError"
+    ? "Your latest changes haven't reached your account yet, so nothing was removed. Try again once you're online."
+    : "Couldn't sign out. Check your connection and try again.";
+}
+
+/** Plan sync's part of signing out (~/features/sync/sign-out). */
+export interface SignOutHooks {
+  beforeSignOut: (o: {
+    removeLocal: boolean;
+    userId: string | null;
+  }) => Promise<void>;
+  afterSignOut: (o: { removeLocal: boolean }) => Promise<void>;
+}
+
+// Loaded only when someone signs out: it brings IndexedDB and the engine.
+let signOutHooks = (): Promise<SignOutHooks> =>
+  import("~/features/sync/sign-out");
+
+/** Test hook: plan sync's sign-out steps. */
+export function setSignOutHooks(next: () => Promise<SignOutHooks>): void {
+  signOutHooks = next;
+}
+
+export const useAccount = create<AccountState>()((set, get) => ({
   status: "loading",
   flags: FLAGS_OFF,
   user: null,
@@ -62,9 +97,24 @@ export const useAccount = create<AccountState>()((set) => ({
     }
   },
 
-  signOut: async () => {
-    await client.auth.signOut({ removeLocal: false });
+  signOut: async (options) => {
+    const removeLocal = options?.removeLocal ?? false;
+    const userId = get().user?.id ?? null;
+    // Removing needs the sync steps first; a plain sign-out doesn't wait on
+    // loading them (or fail when that fails offline).
+    const hooks = removeLocal ? await signOutHooks() : null;
+    await hooks?.beforeSignOut({ removeLocal, userId });
+    await client.auth.signOut({ removeLocal });
+    try {
+      // The next engine start forgets this account's sync state even if
+      // the step below never runs.
+      localStorage.setItem(SYNC_RESET_KEY, "1");
+    } catch {
+      // Storage blocked: afterSignOut clears it directly.
+    }
     set({ status: "signed-out", user: null });
+    const after = hooks ?? (await signOutHooks().catch(() => null));
+    await after?.afterSignOut({ removeLocal }).catch(console.error);
   },
 
   deleteAccount: async () => {

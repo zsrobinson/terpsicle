@@ -52,6 +52,8 @@ export interface ServerEvents {
     outcome: string;
     hd?: string;
   };
+  // Plan sync: counts only, never who or what (V2.md §11).
+  sync_push: { docs: number; conflicts: number };
 }
 export type ServerEvent = keyof ServerEvents;
 

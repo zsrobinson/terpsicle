@@ -34,6 +34,15 @@ export const TEST_USERS: readonly TestUser[] = [
   testUser("tadmin", "Test Admin", true),
 ];
 
+/**
+ * Throwaway people for end-to-end tests (`e2e` and up to 13 more letters or
+ * digits), so parallel tests never share an account's synced plans. Test mode
+ * only, like the rest; `/auth/test` doesn't list them.
+ */
+export const E2E_USER_PATTERN = /^e2e[a-z0-9]{1,13}$/;
+
 export function findTestUser(id: string): TestUser | undefined {
-  return TEST_USERS.find((u) => u.identity.directoryId === id);
+  const listed = TEST_USERS.find((u) => u.identity.directoryId === id);
+  if (listed) return listed;
+  return E2E_USER_PATTERN.test(id) ? testUser(id, "E2E Tester") : undefined;
 }

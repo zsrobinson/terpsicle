@@ -40,6 +40,9 @@ export const ROUTES_BINARY_VERSION = 1;
 /** Share-link payload version (`v` field). */
 export const SHARE_PAYLOAD_VERSION = 1;
 
-/** Dexie database. Bump with an upgrade function whenever a table's shape changes. */
+/**
+ * Dexie database. Bump with an upgrade function whenever a table's shape
+ * changes. 2: plan sync's `syncDocs`; `seatAlerts` moved to a settings row.
+ */
 export const LOCAL_DB_NAME = "terpsicle";
-export const LOCAL_DB_VERSION = 1;
+export const LOCAL_DB_VERSION = 2;

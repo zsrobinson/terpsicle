@@ -9,12 +9,14 @@ import type {
   SyncPushInput,
   SyncPushResult,
 } from "~/core/schema";
+import { captureServerEvent } from "../analytics";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
 import { pullDocs, pushDocs } from "./store";
 
 export interface SyncEnv {
   DB: D1Database;
+  POSTHOG_TOKEN?: string;
 }
 
 export async function push(
@@ -25,7 +27,19 @@ export async function push(
   // The router guarantees a session for `auth: "user"` routes.
   const user = ctx.session?.user;
   if (!user) return apiError("unauthorized");
-  return { results: await pushDocs(env.DB, user.id, input.docs, ctx.now) };
+  const results = await pushDocs(env.DB, user.id, input.docs, ctx.now);
+  ctx.waitUntil(
+    captureServerEvent(
+      env,
+      "sync_push",
+      {
+        docs: results.length,
+        conflicts: results.filter((r) => r.status === "conflict").length,
+      },
+      { now: ctx.now, ...(ctx.fetch ? { fetcher: ctx.fetch } : {}) },
+    ),
+  );
+  return { results };
 }
 
 export async function pull(
