@@ -69,6 +69,7 @@ Every step checks (`scripts/mobile-lab/checks.ts`):
 | `no-page-errors` | fail | An uncaught error or rejection. |
 | `focused-field-visible` | fail | A focused text field isn't wholly inside the visible band (`visualViewport.offsetTop` to `offsetTop + height`), or something covers it: the keyboard, or a pan that moved it out of view. |
 | `drawer-on-screen` | fail | The drawer's top is off the screen. |
+| `rail-tabs-reachable` | fail | In the desktop layout (a phone on its side is over 768px wide), a rail tab is past the bottom of the screen and the rail doesn't scroll. |
 | `page-not-scrolled` | warn | The window scrolled: the page itself moved. |
 | `not-zoomed` | warn | The visual viewport's scale isn't 1 (Safari zooms into small text fields). |
 | `no-horizontal-overflow` | warn | The document is wider than the screen. |
