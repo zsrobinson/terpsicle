@@ -25,7 +25,20 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      // The umbrella mark (pnpm tsx scripts/build-icons.ts). The SVG follows
+      // the browser's theme; the PNG is for browsers without SVG favicons.
+      { rel: "icon", href: "/icons/favicon.svg", type: "image/svg+xml" },
+      {
+        rel: "icon",
+        href: "/icons/favicon-32.png",
+        type: "image/png",
+        sizes: "32x32",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+      },
     ],
   }),
   shellComponent: RootDocument,

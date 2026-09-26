@@ -69,7 +69,7 @@ function SelectContent({
           onCloseAutoFocus?.(event);
         }}
         className={cn(
-          "z-50 min-w-(--radix-select-trigger-width) overflow-y-auto overflow-x-hidden rounded-lg border border-hairline bg-raised p-1 text-fg shadow-pop",
+          "z-50 min-w-(--radix-select-trigger-width) overflow-y-auto overflow-x-hidden border border-keyline bg-raised p-1 text-fg shadow-pop",
           "max-h-(--radix-select-content-available-height) origin-(--radix-select-content-transform-origin)",
           "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=open]:animate-in data-[state=open]:duration-150",
           className,

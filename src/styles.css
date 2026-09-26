@@ -1,13 +1,19 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource-variable/geist";
+/* Bricolage's optical-size cut, so 11px rows get the open text drawing and
+   the wordmark the tight display one (the default instance is opsz 96). */
+@import "@fontsource-variable/bricolage-grotesque/opsz.css";
 @import "@fontsource-variable/geist-mono";
 
 /*
- * Design tokens. Components use only these (`bg-panel`, `text-muted`,
- * `border-hairline`, …), never raw colors, so both themes work everywhere.
- * Values follow reference/prototype/src/styles.css with the black/white
- * accent the review chose (SPEC.md §3.13). UMD red is `logo` and nothing else.
+ * Design tokens: the "Ink" brand (docs/DESIGN.md §7). Components use only
+ * these (`bg-panel`, `text-muted`, `border-keyline`, …), never raw colors, so
+ * both themes work everywhere.
+ *
+ * Colors are Flexoki by Steph Ango (https://stephango.com/flexoki), MIT
+ * License, Copyright (c) 2024 Steph Ango. Each value names its Flexoki step.
+ * Ink is paper, black ink and hairlines; product color appears only in the
+ * marks, the app switcher and the selected row's soft fill.
  *
  * shadcn/ui: the compatibility names below (background, primary, card,
  * popover, border, input, ring, destructive, muted-foreground) make generated
@@ -21,8 +27,8 @@
 
 @theme inline {
   --font-sans:
-    "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    sans-serif;
+    "Bricolage Grotesque Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
   --color-bg: var(--bg);
@@ -31,6 +37,7 @@
   --color-hover: var(--hover);
   --color-hairline: var(--hairline);
   --color-hairline-strong: var(--hairline-strong);
+  --color-keyline: var(--keyline);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
@@ -45,9 +52,24 @@
   --color-error-soft: var(--error-soft);
   --color-shared: var(--shared);
   --color-shared-soft: var(--shared-soft);
-  --color-logo: var(--logo);
-  --color-logo-fg: var(--logo-fg);
   --color-grid: var(--grid);
+
+  /* The three products (the marks, the app switcher). */
+  --color-product-schedule: var(--product-schedule);
+  --color-product-schedule-fg: var(--product-schedule-fg);
+  --color-product-schedule-soft: var(--product-schedule-soft);
+  --color-product-reviews: var(--product-reviews);
+  --color-product-reviews-fg: var(--product-reviews-fg);
+  --color-product-reviews-soft: var(--product-reviews-soft);
+  --color-product-chat: var(--product-chat);
+  --color-product-chat-fg: var(--product-chat-fg);
+  --color-product-chat-soft: var(--product-chat-soft);
+  /* The marks' own pieces (src/app/brand/marks.ts). */
+  --color-mark-offset: var(--mark-offset);
+  --color-umbrella-tile: var(--umbrella-tile);
+  --color-umbrella-glyph: var(--umbrella-glyph);
+  --color-umbrella-keyline: var(--umbrella-keyline);
+  --color-umbrella-offset: var(--umbrella-offset);
 
   /* shadcn/ui compatibility */
   --color-background: var(--bg);
@@ -64,20 +86,57 @@
   --color-destructive: var(--error);
   --color-border: var(--hairline);
   --color-input: var(--hairline-strong);
-  --color-ring: var(--faint);
+  --color-ring: var(--fg);
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --shadow-pop: var(--shadow);
+  /*
+   * Offset shadows, never blurred: a hard copy of the box, down and right,
+   * in the offset ink. Tailwind's own shadow steps map onto them, so
+   * `shadow-xs` on a small chip is a 1px offset and nothing is soft.
+   *   shadow-offset         buttons, cards (2px)
+   *   shadow-offset-filled  an ink-filled button: its offset is gray, since
+   *                         a black box never gets a black offset (owner)
+   *   shadow-pop            menus, popovers, toasts (3px)
+   *   shadow-drawer         the phone drawer's top edge
+   */
+  --shadow-offset: var(--offset) var(--offset) 0 var(--offset-ink);
+  --shadow-offset-filled: var(--offset) var(--offset) 0 var(--offset-ink-filled);
+  --shadow-pop: calc(var(--offset) + 1px) calc(var(--offset) + 1px) 0
+    var(--offset-ink);
+  --shadow-drawer: 0 calc(-1 * var(--offset)) 0 var(--offset-ink);
+  --shadow-2xs: 1px 1px 0 var(--offset-ink);
+  --shadow-xs: 1px 1px 0 var(--offset-ink);
+  --shadow-sm: var(--offset) var(--offset) 0 var(--offset-ink);
+  --shadow-md: var(--offset) var(--offset) 0 var(--offset-ink);
+  --shadow-lg: calc(var(--offset) + 1px) calc(var(--offset) + 1px) 0
+    var(--offset-ink);
+  --shadow-xl: calc(var(--offset) + 1px) calc(var(--offset) + 1px) 0
+    var(--offset-ink);
+  --shadow-2xl: calc(var(--offset) + 1px) calc(var(--offset) + 1px) 0
+    var(--offset-ink);
+}
+
+/*
+ * Square corners, everywhere: every radius step is 0, so `rounded-md` and
+ * friends draw a square box. `rounded-full` stays round, for things that are
+ * circles by meaning (the course dot, the switch's knob).
+ */
+@theme {
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
 }
 
 /*
  * The type scale (docs/UX-REVIEW.md §2.1): six steps, replacing per-component
  * `text-[12.5px]` values. These override Tailwind's default xs…xl, so
  * `text-sm` here is 12px, not 14px. Weights: 400 body, 500 labels and names,
- * 600 titles and codes (`font-medium`, `font-semibold`); nothing bolder.
+ * 600 titles, codes and buttons (`font-medium`, `font-semibold`); 700 only in
+ * the wordmark.
  *
  *   text-2xs   10/13  calendar blocks, rail labels, badges only
  *   text-xs    11/14  meta: counts, freshness, footnotes, chips
@@ -106,156 +165,190 @@
 
 :root {
   color-scheme: light;
-  --bg: #fcfcfd;
-  --panel: #f7f7f9;
-  --raised: #ffffff;
-  --hover: #efeff2;
-  --hairline: #e6e6ea;
-  --hairline-strong: #d4d4da;
-  --fg: #18181b;
+  --bg: #fffcf0; /* paper */
+  --panel: #f2f0e5; /* base-50 */
+  --raised: #fffcf0; /* paper */
+  --hover: #e6e4d9; /* base-100 */
+  --hairline: #cecdc3; /* base-200 */
+  --hairline-strong: #b7b5ac; /* base-300 */
+  /* The ink line around cards, menus and buttons. */
+  --keyline: #100f0f; /* black */
+  --fg: #100f0f; /* black */
   /*
    * WCAG AA: muted, faint and the semantic colors are text, so each clears
    * 4.5:1 on bg, panel, raised, hover, accent-soft (the selected row) and
-   * its own soft fill. Faint stays a step lighter than muted, and muted a
-   * step lighter than fg.
+   * its own soft fill (src/app/design-tokens.test.ts checks). Faint stays a
+   * step lighter than muted, and muted a step lighter than fg.
    */
-  --muted: #5f5f69;
-  --faint: #6a6a75;
-  --accent: #18181b;
-  --accent-fg: #ffffff;
-  --accent-soft: color-mix(in oklab, #18181b 7%, transparent);
-  --ok: #0f7a37;
-  --ok-soft: rgb(22 163 74 / 0.1);
-  --warn: #965a07;
-  --warn-soft: rgb(217 119 6 / 0.12);
-  --error: #c81e1e;
-  --error-soft: rgb(220 38 38 / 0.1);
-  /* The shared-link pill: the owner asked for the prototype's light red there. */
-  --shared: #c0132c;
-  --shared-soft: rgb(226 24 51 / 0.08);
-  --logo: #e21833;
-  --logo-fg: #ffffff;
-  --grid: rgb(24 24 27 / 0.05);
-  --shadow: 0 8px 30px rgb(24 24 27 / 0.12), 0 0 0 1px rgb(24 24 27 / 0.06);
+  --muted: #575653; /* base-700 */
+  /* Ink's base-600 is 4.0:1 on hover; this is a quarter-step darker. */
+  --faint: #656460; /* between base-600 and base-700 */
+  --accent: #100f0f; /* black */
+  --accent-fg: #fffcf0; /* paper */
+  /* The selected row wears the scheduler's soft red (Ink: "tint only"). */
+  --accent-soft: var(--product-schedule-soft);
+  --ok: #536907; /* green-700 */
+  --ok-soft: #edeecf; /* green-50 */
+  --warn: #664d01; /* yellow-800 */
+  --warn-soft: #faeec6; /* yellow-50 */
+  --error: #af3029; /* red-600 */
+  --error-soft: #ffe1d5; /* red-50 */
+  /* The shared-link pill: the owner asked for a light red there. */
+  --shared: #af3029; /* red-600 */
+  --shared-soft: #ffe1d5; /* red-50 */
+  --grid: #e6e4d9; /* base-100 */
+
+  /* Offsets: 2px of ink; an ink-filled box takes a gray one instead. */
+  --offset: 2px;
+  --offset-ink: #100f0f; /* black */
+  --offset-ink-filled: #878580; /* base-500 */
+
+  /* Products: the tile is the 600 step in both themes, with a paper glyph. */
+  --product-schedule: #af3029; /* red-600 */
+  --product-schedule-fg: #fffcf0; /* paper */
+  --product-schedule-soft: #ffe1d5; /* red-50 */
+  --product-reviews: #5e409d; /* purple-600 */
+  --product-reviews-fg: #fffcf0; /* paper */
+  --product-reviews-soft: #f0eaec; /* purple-50 */
+  --product-chat: #205ea6; /* blue-600 */
+  --product-chat-fg: #fffcf0; /* paper */
+  --product-chat-soft: #e1eceb; /* blue-50 */
+  /* A product tile's offset. */
+  --mark-offset: #100f0f; /* black */
+  /* The umbrella: the schedule glyph on a paper tile with an ink keyline. */
+  --umbrella-tile: #fffcf0; /* paper */
+  --umbrella-glyph: #100f0f; /* black */
+  --umbrella-keyline: #100f0f; /* black */
+  --umbrella-offset: #100f0f; /* black */
+
+  /* Paper grain (Ink's "subtle"): dark specks on paper. */
+  --grain-opacity: 0.28;
+  --grain-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.06 0 0 0 0 0.06 0 0 0 0 0.06 0 0 0 0.22 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .dark {
   color-scheme: dark;
-  --bg: #0a0a0c;
-  --panel: #111114;
-  --raised: #17171b;
-  --hover: #1d1d22;
-  --hairline: #25252b;
-  --hairline-strong: #34343c;
-  --fg: #ededef;
-  --muted: #9a9aa4;
-  --faint: #85858f;
-  --accent: #ededef;
-  --accent-fg: #0a0a0c;
-  --accent-soft: color-mix(in oklab, #ededef 9%, transparent);
-  --ok: #3ecf7a;
-  --ok-soft: rgb(62 207 122 / 0.14);
-  --warn: #f5a524;
-  --warn-soft: rgb(245 165 36 / 0.14);
-  --error: #ff5c5c;
-  --error-soft: rgb(255 92 92 / 0.15);
-  --shared: #ff6b7a;
-  --shared-soft: rgb(255 77 94 / 0.14);
-  --logo: #e21833;
-  --logo-fg: #ffffff;
-  --grid: rgb(255 255 255 / 0.045);
-  --shadow: 0 8px 30px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --bg: #100f0f; /* black */
+  --panel: #1c1b1a; /* base-950 */
+  --raised: #1c1b1a; /* base-950 */
+  --hover: #282726; /* base-900 */
+  --hairline: #343331; /* base-850 */
+  --hairline-strong: #575653; /* base-700 */
+  --keyline: #b7b5ac; /* base-300 */
+  --fg: #fffcf0; /* paper */
+  --muted: #b7b5ac; /* base-300 */
+  --faint: #9f9d96; /* base-400 */
+  --accent: #fffcf0; /* paper */
+  --accent-fg: #100f0f; /* black */
+  --accent-soft: var(--product-schedule-soft);
+  --ok: #a0af54; /* green-300 */
+  --ok-soft: #252d09; /* green-900 */
+  --warn: #dfb431; /* yellow-300 */
+  --warn-soft: #3a2d04; /* yellow-900 */
+  --error: #e8705f; /* red-300 */
+  --error-soft: #3e1715; /* red-900 */
+  --shared: #e8705f; /* red-300 */
+  --shared-soft: #3e1715; /* red-900 */
+  --grid: #282726; /* base-900 */
+
+  /* A light box never gets a light offset: dark gray under everything. */
+  --offset-ink: #575653; /* base-700 */
+  --offset-ink-filled: #575653; /* base-700 */
+
+  --product-schedule-soft: #3e1715; /* red-900 */
+  --product-reviews-soft: #261c39; /* purple-900 */
+  --product-chat-soft: #12253b; /* blue-900 */
+  --mark-offset: #575653; /* base-700 */
+  --umbrella-tile: #282726; /* base-900 */
+  --umbrella-glyph: #fffcf0; /* paper */
+  --umbrella-keyline: #b7b5ac; /* base-300 */
+  --umbrella-offset: #6f6e69; /* base-600 */
+
+  /* Light specks on ink. */
+  --grain-opacity: 0.2;
+  --grain-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 0.99 0 0 0 0 0.94 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /*
  * Course tints, one set per COURSE_COLORS id (src/core/schema/local.ts):
- * soft fill, border, text and the list dot. Same hues as the prototype.
- * Names match `courseColorTokens()` in ~/core/color.
+ * soft fill, border, text and the list dot. Names match
+ * `courseColorTokens()` in ~/core/color. Flexoki steps: the fill is 100
+ * (dark: 900), the border and dot 400, as in Ink. The text is 900 (dark:
+ * 150), a step past Ink's, because a block's time and room lines are drawn
+ * at 70–80% opacity and must still clear 4.5:1.
+ * Flexoki has eight hues and red means an error here, so three ids are the
+ * oklab midpoint of two neighbors, placed in Flexoki's widest hue gaps; the
+ * ten sit at least 22° of hue apart.
+ *   orange  orange          teal    cyan
+ *   amber   yellow          cyan    cyan + blue
+ *   lime    green           blue    blue
+ *   green   green + cyan    indigo  blue + purple
+ *   violet  purple          pink    magenta
  */
 :root {
-  --course-blue-bg: oklch(0.955 0.032 250);
-  --course-blue-border: oklch(0.78 0.09 250);
-  --course-blue-fg: oklch(0.36 0.1 250);
-  --course-blue-dot: oklch(0.62 0.15 250);
-  --course-green-bg: oklch(0.955 0.032 155);
-  --course-green-border: oklch(0.78 0.09 155);
-  --course-green-fg: oklch(0.36 0.1 155);
-  --course-green-dot: oklch(0.62 0.15 155);
-  --course-amber-bg: oklch(0.955 0.032 70);
-  --course-amber-border: oklch(0.78 0.09 70);
-  --course-amber-fg: oklch(0.36 0.1 70);
-  --course-amber-dot: oklch(0.62 0.15 70);
-  --course-violet-bg: oklch(0.955 0.032 305);
-  --course-violet-border: oklch(0.78 0.09 305);
-  --course-violet-fg: oklch(0.36 0.1 305);
-  --course-violet-dot: oklch(0.62 0.15 305);
-  --course-cyan-bg: oklch(0.955 0.032 200);
-  --course-cyan-border: oklch(0.78 0.09 200);
-  --course-cyan-fg: oklch(0.36 0.1 200);
-  --course-cyan-dot: oklch(0.62 0.15 200);
-  --course-pink-bg: oklch(0.955 0.032 345);
-  --course-pink-border: oklch(0.78 0.09 345);
-  --course-pink-fg: oklch(0.36 0.1 345);
-  --course-pink-dot: oklch(0.62 0.15 345);
-  --course-lime-bg: oklch(0.955 0.032 110);
-  --course-lime-border: oklch(0.78 0.09 110);
-  --course-lime-fg: oklch(0.36 0.1 110);
-  --course-lime-dot: oklch(0.62 0.15 110);
-  --course-indigo-bg: oklch(0.955 0.032 280);
-  --course-indigo-border: oklch(0.78 0.09 280);
-  --course-indigo-fg: oklch(0.36 0.1 280);
-  --course-indigo-dot: oklch(0.62 0.15 280);
-  --course-orange-bg: oklch(0.955 0.032 45);
-  --course-orange-border: oklch(0.78 0.09 45);
-  --course-orange-fg: oklch(0.36 0.1 45);
-  --course-orange-dot: oklch(0.62 0.15 45);
-  --course-teal-bg: oklch(0.955 0.032 180);
-  --course-teal-border: oklch(0.78 0.09 180);
-  --course-teal-fg: oklch(0.36 0.1 180);
-  --course-teal-dot: oklch(0.62 0.15 180);
+  --course-orange-bg: #fed3af;
+  --course-orange-border: #da702c;
+  --course-orange-fg: #40200d;
+  --course-orange-dot: #da702c;
+  --course-amber-bg: #f6e2a0;
+  --course-amber-border: #d0a215;
+  --course-amber-fg: #3a2d04;
+  --course-amber-dot: #d0a215;
+  --course-lime-bg: #dde2b2;
+  --course-lime-border: #879a39;
+  --course-lime-fg: #252d09;
+  --course-lime-dot: #879a39;
+  --course-green-bg: #cee5c6;
+  --course-green-border: #68a373;
+  --course-green-fg: #1d2e1d;
+  --course-green-dot: #68a373;
+  --course-teal-bg: #bfe8d9;
+  --course-teal-border: #3aa99f;
+  --course-teal-fg: #122f2c;
+  --course-teal-dot: #3aa99f;
+  --course-cyan-bg: #c3e3e1;
+  --course-cyan-border: #3e98af;
+  --course-cyan-fg: #122a34;
+  --course-cyan-dot: #3e98af;
+  --course-blue-bg: #c6dde8;
+  --course-blue-border: #4385be;
+  --course-blue-fg: #12253b;
+  --course-blue-dot: #4385be;
+  --course-indigo-bg: #d4dbe9;
+  --course-indigo-border: #6c82c3;
+  --course-indigo-fg: #1e213a;
+  --course-indigo-dot: #6c82c3;
+  --course-violet-bg: #e2d9e9;
+  --course-violet-border: #8b7ec8;
+  --course-violet-fg: #261c39;
+  --course-violet-dot: #8b7ec8;
+  --course-pink-bg: #fccfda;
+  --course-pink-border: #ce5d97;
+  --course-pink-fg: #39172b;
+  --course-pink-dot: #ce5d97;
 }
 
 .dark {
-  --course-blue-bg: oklch(0.29 0.05 250);
-  --course-blue-border: oklch(0.46 0.09 250);
-  --course-blue-fg: oklch(0.9 0.07 250);
-  --course-blue-dot: oklch(0.72 0.14 250);
-  --course-green-bg: oklch(0.29 0.05 155);
-  --course-green-border: oklch(0.46 0.09 155);
-  --course-green-fg: oklch(0.9 0.07 155);
-  --course-green-dot: oklch(0.72 0.14 155);
-  --course-amber-bg: oklch(0.29 0.05 70);
-  --course-amber-border: oklch(0.46 0.09 70);
-  --course-amber-fg: oklch(0.9 0.07 70);
-  --course-amber-dot: oklch(0.72 0.14 70);
-  --course-violet-bg: oklch(0.29 0.05 305);
-  --course-violet-border: oklch(0.46 0.09 305);
-  --course-violet-fg: oklch(0.9 0.07 305);
-  --course-violet-dot: oklch(0.72 0.14 305);
-  --course-cyan-bg: oklch(0.29 0.05 200);
-  --course-cyan-border: oklch(0.46 0.09 200);
-  --course-cyan-fg: oklch(0.9 0.07 200);
-  --course-cyan-dot: oklch(0.72 0.14 200);
-  --course-pink-bg: oklch(0.29 0.05 345);
-  --course-pink-border: oklch(0.46 0.09 345);
-  --course-pink-fg: oklch(0.9 0.07 345);
-  --course-pink-dot: oklch(0.72 0.14 345);
-  --course-lime-bg: oklch(0.29 0.05 110);
-  --course-lime-border: oklch(0.46 0.09 110);
-  --course-lime-fg: oklch(0.9 0.07 110);
-  --course-lime-dot: oklch(0.72 0.14 110);
-  --course-indigo-bg: oklch(0.29 0.05 280);
-  --course-indigo-border: oklch(0.46 0.09 280);
-  --course-indigo-fg: oklch(0.9 0.07 280);
-  --course-indigo-dot: oklch(0.72 0.14 280);
-  --course-orange-bg: oklch(0.29 0.05 45);
-  --course-orange-border: oklch(0.46 0.09 45);
-  --course-orange-fg: oklch(0.9 0.07 45);
-  --course-orange-dot: oklch(0.72 0.14 45);
-  --course-teal-bg: oklch(0.29 0.05 180);
-  --course-teal-border: oklch(0.46 0.09 180);
-  --course-teal-fg: oklch(0.9 0.07 180);
-  --course-teal-dot: oklch(0.72 0.14 180);
+  --course-orange-bg: #40200d;
+  --course-orange-fg: #fcc192;
+  --course-amber-bg: #3a2d04;
+  --course-amber-fg: #f1d67e;
+  --course-lime-bg: #252d09;
+  --course-lime-fg: #cdd597;
+  --course-green-bg: #1d2e1d;
+  --course-green-fg: #b9dab4;
+  --course-teal-bg: #122f2c;
+  --course-teal-fg: #a2dece;
+  --course-cyan-bg: #122a34;
+  --course-cyan-fg: #a7d7d8;
+  --course-blue-bg: #12253b;
+  --course-blue-fg: #abcfe2;
+  --course-indigo-bg: #1e213a;
+  --course-indigo-fg: #c0cde4;
+  --course-violet-bg: #261c39;
+  --course-violet-fg: #d3cae6;
+  --course-pink-bg: #39172b;
+  --course-pink-fg: #f9b9cf;
 }
 
 @layer base {
@@ -285,6 +378,33 @@
     -webkit-font-smoothing: antialiased;
   }
   /*
+   * Paper grain. A fixed layer of 220px fractal noise, painted over the
+   * page's paper and under everything on it: the shell is its own stacking
+   * context, so z-index -1 lands between the shell's background and its
+   * children. Text never sits under the grain, and anything with its own fill
+   * (panels, menus, blocks) stays clean paper, as in the Ink prototype. It's
+   * one composited layer that never repaints, so scrolling doesn't pay for it.
+   */
+  body,
+  [data-app-shell] {
+    isolation: isolate;
+  }
+  body::before,
+  [data-app-shell]::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--grain-image);
+    background-size: 220px 220px;
+    opacity: var(--grain-opacity);
+  }
+  /* The shell's paper is opaque, so the body's layer would never show. */
+  html:has([data-app-shell]) body::before {
+    content: none;
+  }
+  /*
    * The app fills the viewport and only its calendar and panels scroll, so
    * the page itself can't scroll or rubber-band under the phone drawer. The
    * seat-alert pages are ordinary pages and keep scrolling.
@@ -296,16 +416,40 @@
   ::selection {
     background: var(--accent-soft);
   }
+  /* Ink's focus ring: a solid 2px ink line, square like everything else. */
   :focus-visible {
-    outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+    outline: 2px solid var(--fg);
     outline-offset: 1px;
+  }
+}
+
+/* No grain for anyone who asked for plain, high-contrast or print output. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more),
+  (forced-colors: active), print {
+  body::before,
+  [data-app-shell]::before {
+    content: none;
   }
 }
 
 /* The focus ring, for a box whose field inside draws none (the search box). */
 @utility focus-outline {
-  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline: 2px solid var(--fg);
   outline-offset: 1px;
+}
+
+/*
+ * The wordmark: Bricolage at its display optical size, bold and tight. A
+ * logotype, not a step of the type scale, so it has its own size.
+ */
+@utility wordmark {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 20px;
+  font-weight: 700;
+  font-variation-settings: "opsz" 96;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 @utility tnum {

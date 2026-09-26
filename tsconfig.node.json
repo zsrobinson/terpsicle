@@ -20,7 +20,9 @@
     // test email send). They use only fetch and zod, so Node types suffice.
     "src/server/summaries/prompt.ts",
     "src/server/summaries/planetterp-api.ts",
-    "src/server/alerts/email.ts"
+    "src/server/alerts/email.ts",
+    "src/app/brand/marks.ts",
+    "src/app/brand/css-tokens.ts"
   ],
   // The seat-alert e2e harness is a Worker: tsconfig.worker.json checks it.
   "exclude": ["e2e/alerts-harness"]

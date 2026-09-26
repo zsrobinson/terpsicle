@@ -100,6 +100,8 @@ The alternatives are (a) keep 360px, (b) 400px on wide screens, or (c) user-resi
 
 ## 2. App-wide system (do first)
 
+> **Now in the Ink brand** (2026-09-26, `docs/DESIGN.md` §7). The scale, spacing, panel anatomy and row pattern below are unchanged; the brand changed the face (Bricolage Grotesque, codes still Geist Mono), the palette (Flexoki paper and ink), the corners (square), and elevation (hard offsets and ink keylines, §2.9).
+
 ### 2.1 Type scale
 
 Today: 12 sizes (`text-[9px]` … `text-[15px]`, most often 12.5, 11.5, 12 and 11), set per component. Replace them with named Tailwind steps defined in `src/styles.css` (`@theme`). Tailwind 4 turns `--text-*` into `text-*` utilities. These override Tailwind's default `xs`/`sm`/`base`/`lg`/`xl`, and no component uses those defaults today.
@@ -114,7 +116,8 @@ Today: 12 sizes (`text-[9px]` … `text-[15px]`, most often 12.5, 11.5, 12 and 1
 | `text-xl` | 18 / 24 | 600 | Only the first-visit headline. |
 
 - **Mapping for the sweep:** 9, 9.5, 10 and 10.5 → `2xs` (calendar/rail/badges) or `xs` (elsewhere); 11 → `xs`; 11.5 and 12 → `sm`; 12.5, 13 and 13.5 → `base`; 14 and 15 → `lg`.
-- **Weights:** 400 body, 500 labels/names/active tabs, 600 titles and codes. No 700.
+- **Weights:** 400 body, 500 labels/names/active tabs, 600 titles, codes and buttons. 700 only in the wordmark.
+- **Face:** Bricolage Grotesque with automatic optical sizing, so small text gets its open text drawing (DESIGN §7.2). Codes are Geist Mono (§2.7).
 - **Guard:** once every package has swept its files, add `src/app/design-tokens.test.ts`, which fails on `text-[<n>px]` in `src/**/*.tsx` (outside tests).
 
 ### 2.2 Spacing and rhythm
@@ -206,14 +209,15 @@ Every list (courses, results, sections, problems, connections, checklist, genera
 
 - **Text:** `fg` for what the row is, `muted` for supporting facts, `faint` only for footnotes, disabled states and placeholders.
 - **Status colors** (`ok`, `warn`, `error`) go only on status words and their meters: fit labels, seats low or full, problem severity, travel verdicts. Never on counts, headings or decoration. "4 fit" in the Sections header stays muted; the green goes on each row's "Fits".
-- **One filled (accent) button per view:** the primary action. Everything else is outline or ghost.
-- **Course colors** only on the course dot and calendar blocks.
+- **One filled (accent) button per view:** the primary action, in ink. Everything else is outline (paper, ink border, offset) or ghost (flat).
+- **Product color** (the scheduler red, Reviews purple, Chat blue) goes only on the marks, the product menu and the selected row's soft fill (`accent-soft`). Never on buttons, headings or borders.
+- **Course colors** only on the course dot and calendar blocks: Flexoki fills, 400-step borders and dots (DESIGN §7.1).
 - **Sparkles** only on the LLM review summary (unchanged).
 
 ### 2.6 Dividers and grouping
 
 - The weakest grouping that works (P2): spacing, then a hairline, then a fill (`bg-panel` group headers), then a border (cards).
-- **Cards** (`rounded-lg border`) only for standalone objects: the two first-visit paths, an instructor's review block, the route map and the travel verdict box.
+- **Cards** (square, `border`; an ink `border-keyline` with `shadow-offset` when it floats or can be pressed) only for standalone objects: the two first-visit paths, an instructor's review block, the route map and the travel verdict box.
 - **Lists are never in cards.** Convert:
   - `travel-panel.tsx` connection items;
   - `fix-list.tsx`;
@@ -233,6 +237,14 @@ Every list (courses, results, sections, problems, connections, checklist, genera
 - The panel header or breadcrumb is always outside the scroll (already true).
 - At most two sticky levels inside `PanelBody`: a `SectionHeader` bar at `top-0`, and a `GroupHeader` at `top-9`.
 - A panel's primary action is in `PanelFooter` (sticky bottom), not a sticky bar in the middle of a form.
+
+### 2.9 Shape, elevation and grain (Ink)
+
+- **Square corners.** Every `rounded-*` step is 0; `rounded-full` is only for round things (dots, the switch knob).
+- **Hairlines inside, keylines around.** Rows, headers and panel edges use `hairline`. What floats above the page (menus, popovers, toasts, the phone drawer) has a 1px ink `keyline` and a hard offset: `shadow-pop` (3px), `shadow-drawer` on the drawer's top edge.
+- **Buttons** carry the offset (`shadow-offset`, 2px; `shadow-offset-filled`, gray, on the ink button). Hover changes the fill; a press moves the button into its shadow; focus is a 2px ink ring; disabled loses the offset. Ghost and link buttons are flat.
+- **No blur anywhere.** Tailwind's `shadow-xs`…`2xl` are offsets too.
+- **Grain** is a fixed layer behind the shell's content, so it shows on the page's paper and never under text or on filled surfaces. It turns off for reduced transparency, more contrast, forced colors and print.
 
 ---
 
