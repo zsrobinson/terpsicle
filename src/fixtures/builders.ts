@@ -22,6 +22,7 @@ import {
   DEFAULT_MUST_HAVES,
   DEFAULT_TRAVEL_SETTINGS,
   type DeptChunk,
+  type FeedItem,
   type GenerateRequest,
   GRADE_KEYS,
   type GradeCounts,
@@ -648,6 +649,29 @@ export function anUnpublishedCalendar(
     termId: archivedFixtureTermId,
     source: "https://provost.umd.edu/calendar.md",
     fetchedAt: FIXTURE_NOW,
+    ...overrides,
+  };
+}
+
+// ---------- todo ----------
+
+/** An ELMS assignment as `parseIcs` reads it: CMSC216's Project 2, due 11:59pm on Sep 29. */
+export function aFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
+  return {
+    uid: "event-assignment-4410001",
+    source: "elms",
+    title: "Project 2",
+    courseLabel: "CMSC216-0103: Introduction to Computer Systems",
+    courseCodes: ["CMSC216"],
+    sectionCode: "0103",
+    kind: "assignment",
+    kindFrom: "uid",
+    looksLikeExam: false,
+    gradescope: false,
+    dueAt: "2026-09-30T03:59:00.000Z",
+    dueDate: "2026-09-29",
+    endAt: null,
+    link: "https://elms.umd.edu/courses/1300001/assignments/4410001",
     ...overrides,
   };
 }
