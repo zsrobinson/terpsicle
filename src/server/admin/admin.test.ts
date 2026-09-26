@@ -4,7 +4,7 @@ import {
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { StoredVerdict } from "~/core/schema";
+import { CSP_NONCE_HEADER, type StoredVerdict } from "~/core/schema";
 import {
   AdminHealthSchema,
   AdminSamplesResultSchema,
@@ -355,6 +355,22 @@ describe("the admin pages", () => {
       `${ORIGIN}/signin?return=%2Fadmin%2Fdecisions%3Fstage%3Dhuman`,
     );
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("carry the security headers, and the app gets a CSP nonce", async () => {
+    app.fetch.mockClear();
+    for (const [path, who] of [
+      ["/admin", "admin"],
+      ["/admin", "student"],
+      ["/admin", "nobody"],
+    ] as const) {
+      const response = await open(path, who);
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    }
+    // The page and the 404 page were rendered; the sign-in trip wasn't.
+    expect(app.fetch).toHaveBeenCalledTimes(2);
+    for (const [request] of app.fetch.mock.calls)
+      expect(request.headers.get(CSP_NONCE_HEADER)).toMatch(/\S/);
   });
 
   it("leave every other page alone", async () => {
