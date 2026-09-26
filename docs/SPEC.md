@@ -6,11 +6,13 @@ Decisions come from three prototype rounds (`prototypes/app-shell` on branch `cl
 
 **v2 (2026-09-26):** the owner added Google sign-in, plan sync, Terpsicle Reviews (`/reviews`) and Terpsicle Chat (`/chat`), and moved the scheduler to `/schedule`. `docs/V2.md` is the plan; where it and this spec differ, V2.md wins. The lines marked "v2" below changed.
 
+**v3 (2026-09-26, evening):** Terpsicle Plan (`/plan`, a four-year planner) and Terpsicle Todo (`/todo`, deadlines from ELMS) join the suite. The five products, in color order: Schedule (red), Reviews (purple), Chat (blue), Plan (green), Todo (yellow). `docs/V3.md` is their plan and wins over this spec where they differ. The lines marked "v3" below changed.
+
 ---
 
 ## 1. What it is
 
-A class scheduler for University of Maryland students. It's fast and clear, and gets out of the way. It covers building a schedule and nothing else: no degree audit and nothing major-specific.
+A class scheduler for University of Maryland students. It's fast and clear, and gets out of the way. It covers building a schedule and nothing else: no degree audit and nothing major-specific. (v3: Terpsicle Plan adds the four-year view, with credits, GenEd progress and prerequisite order, and still no degree audit and nothing major-specific; `docs/V3.md` §2.)
 
 **Principles**
 1. **One home for each kind of information, and one way to open things.** Clicking a course *anywhere* opens the same course details.
@@ -18,7 +20,7 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
 3. **Honest, not naggy.** Problems are listed where you can find them, but people mid-decision aren't yelled at. For example, two courses you're choosing between may overlap on purpose.
 4. **Built for poking around.** People use it a few times a semester, so every control must be obvious on first sight, with light keyboard shortcuts on top.
 5. **Words before charts.** A chart only appears where it's clearer than a sentence.
-6. **Local-first; an account is optional (v2).** Everything in the scheduler works signed out, in the browser. Signing in with a UMD Google account syncs plans between devices and unlocks Chat, writing reviews and seat alerts. terpsicle.com sets a cookie only once someone signs in, and signing out removes it. Server-side user data is what `docs/V2.md` lists: the account (Google name and picture, UMD email, directory ID), synced plans, seat watches, notification settings, reviews and chat messages.
+6. **Local-first; an account is optional (v2).** Everything in the scheduler works signed out, in the browser. Signing in with a UMD Google account syncs plans between devices and unlocks Chat, writing reviews and seat alerts. terpsicle.com sets a cookie only once someone signs in, and signing out removes it. Server-side user data is what `docs/V2.md` lists: the account (Google name and picture, UMD email, directory ID), synced plans, seat watches, notification settings, reviews and chat messages. v3 adds synced four-year plans (with any grades the person imported) and, for Todo, the encrypted ELMS calendar link, the deadlines it lists and done marks (`docs/V3.md` §5).
 7. **AI only on the backend, and only where it's clearly better.** No chatbot and no natural-language input (Terpsicle Chat is people talking to each other). v2: models are used only for review summaries, their small generated chips, and moderation. The sparkles icon marks LLM output, and only LLM output.
 
 **Not in the first release:** final exams, comparing plans side by side (future), image export, credit-limit warnings (the limit depends on major), and hiding courses from search. (v2: accounts and plan sync are in; `docs/V2.md` §4–5.)
@@ -221,6 +223,7 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
 - **Tooltips on everything interactive.** Shortcuts appear in tooltips: `/` search, `1`–`7` tabs, `↑`/`↓` preview section, `↵` switch, `Esc` back/close, `⌘Z` undo.
 - **Remember** the open tab and drilled-in item between visits (per browser).
 - **Microcopy:** plain words, active voice, specific errors. The review summary is the only place the sparkles icon appears.
+- **Contractions (v3, owner):** copy uses contractions everywhere, in the app and on marketing pages: "it's", "you'll", "don't", "we'll", "isn't". The product should feel a little personal. Write "Nothing's due tomorrow", not "Nothing is due tomorrow"; "We couldn't read that link", not "The link could not be read".
 
 ---
 
@@ -235,5 +238,7 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
 | Term dates, breaks, holidays | `provost.umd.edu/calendar.md` | For .ics. |
 | Review summaries | **Workers AI** (the Worker's `AI` binding, no external API key), generated **on demand** on the first open of an instructor, then cached in R2 | Regenerated only when new reviews arrive; hidden if generation fails. |
 | Accounts, synced plans, seat watches, reviews written on Terpsicle, chat messages (v2) | D1, and the `CourseChat` Durable Object for messages | `docs/V2.md`; tables in `DATA.md` §7.5. |
+| Every course across known terms, with GenEd codes and parsed prerequisites (v3, Plan) | The catalog job, from the terms' department files | R2 `courses/` family (`docs/V3.md` §2.2). |
+| Deadlines and exams (v3, Todo) | The student's ELMS calendar feed (`.ics`), fetched by a cron about every 20 minutes | Stored in D1, link encrypted (`docs/V3.md` §3). Never an ELMS or Gradescope password. |
 
 No Jupiterp data. No final exam data.
