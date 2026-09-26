@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetStores } from "./testing";
-import { useUi } from "./ui-store";
+import { MOUNTED_DRILLS, stackFollowing, useUi } from "./ui-store";
 
 const ui = () => useUi.getState();
 
@@ -40,7 +40,7 @@ describe("rail clicks", () => {
 describe("drill-in stack", () => {
   beforeEach(resetStores);
 
-  it("stacks views, goes back one at a time, and to a breadcrumb", () => {
+  it("stacks views, closes one at a time, and down to the tab", () => {
     ui().drill({ kind: "course", courseCode: "CMSC351" });
     ui().drill({ kind: "connection", connectionId: "M:a>b" });
     ui().drill({ kind: "course", courseCode: "CMSC330" });
@@ -75,5 +75,85 @@ describe("drill-in stack", () => {
     expect(ui().collapsedGroups).toEqual(["CMSC351|A. Moreno"]);
     ui().toggleGroup("CMSC351|A. Moreno");
     expect(ui().collapsedGroups).toEqual([]);
+  });
+});
+
+describe("history", () => {
+  beforeEach(resetStores);
+  const a = { kind: "course", courseCode: "CMSC351" } as const;
+  const b = { kind: "course", courseCode: "CMSC330" } as const;
+  const conn = { kind: "connection", connectionId: "M:a>b" } as const;
+
+  it("counts every move, so each gets its own history entry", () => {
+    const moves = () => ui().navSeq;
+    ui().openTab("search");
+    expect(moves()).toBe(1);
+    ui().drill(a);
+    ui().drill(b);
+    ui().back();
+    ui().backTo(0);
+    ui().setLastTermId("202608");
+    expect(moves()).toBe(6);
+    // Opening what's already open, a details sub-tab, collapsing: no move.
+    ui().drill(a);
+    ui().drill({ ...a, tab: "grades" });
+    ui().replaceDrill({ ...a, tab: "about" });
+    ui().clickTab("search");
+    ui().clickTab("search");
+    expect(ui().sidebarOpen).toBe(false);
+    expect(moves()).toBe(8);
+  });
+
+  it("keeps a bounded number of views mounted", () => {
+    for (let i = 0; i < MOUNTED_DRILLS + 3; i++)
+      ui().drill({ kind: "course", courseCode: `CMSC${100 + i}` });
+    expect(ui().stack).toHaveLength(MOUNTED_DRILLS);
+    expect(ui().stack.at(-1)).toEqual({
+      kind: "course",
+      courseCode: `CMSC${100 + MOUNTED_DRILLS + 2}`,
+    });
+  });
+
+  it("Back returns to a view still mounted; Forward stacks it again", () => {
+    expect(stackFollowing([a, b], a, "back")).toEqual([a]);
+    expect(stackFollowing([a, b], null, "back")).toEqual([]);
+    expect(stackFollowing([a], b, "forward")).toEqual([a, b]);
+    // After a reload nothing is mounted under it: just that view.
+    expect(stackFollowing([b], a, "back")).toEqual([a]);
+    expect(stackFollowing([a], conn, "other")).toEqual([conn]);
+  });
+
+  it("the same view keeps its entry, and so its details sub-tab", () => {
+    const stack = [{ ...a, tab: "grades" } as const];
+    expect(stackFollowing(stack, a, "back")).toBe(stack);
+  });
+
+  it("following a URL shows it without counting a move", () => {
+    ui().openTab("search");
+    ui().followUrl({
+      tab: "search",
+      drill: a,
+      lastTermId: null,
+      direction: "other",
+    });
+    expect(ui().stack).toEqual([a]);
+    expect(ui().navSeq).toBe(1);
+    ui().clickTab("search");
+    ui().clickTab("search");
+    expect(ui().sidebarOpen).toBe(false);
+    // A place the URL names is one you can see.
+    ui().followUrl({
+      tab: "courses",
+      drill: b,
+      lastTermId: "202608",
+      direction: "back",
+    });
+    expect(ui()).toMatchObject({
+      tab: "courses",
+      stack: [b],
+      lastTermId: "202608",
+      sidebarOpen: true,
+    });
+    expect(ui().navSeq).toBe(2);
   });
 });

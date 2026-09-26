@@ -14,7 +14,7 @@ export const panels = definePanels({
   drills: {
     connection: {
       component: lazyPanel(views, (m) => m.ConnectionDetails),
-      crumb: () => "Connection",
+      name: () => "Connection",
     },
   },
 });

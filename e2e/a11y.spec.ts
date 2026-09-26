@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { scan } from "./axe";
+import { OPEN_VIEW } from "./sidebar";
 
 // WCAG 2.2 AA with axe on `pnpm dev:mock?demo=1`: every tab and drill-in, in
 // both themes, on desktop and (the `mobile` project) a phone with the
@@ -263,9 +264,7 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(results.getByRole("listitem").first()).toBeVisible();
       await scan(page, `generate results (${scheme})`);
       await results.getByRole("button").first().click();
-      await expect(
-        page.getByRole("navigation", { name: "Breadcrumb" }),
-      ).toContainText("Option 1");
+      await expect(page.locator(OPEN_VIEW)).toContainText("Option 1");
       await scan(page, `generated plan details (${scheme})`);
     });
   });

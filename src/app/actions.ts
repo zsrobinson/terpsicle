@@ -104,8 +104,10 @@ export function deletePlan(planId: LocalId): void {
   track("plan_deleted", {});
 }
 
+/** A plan tab: a place of its own in history, so Back returns to the last one. */
 export function openPlan(termId: TermId, planId: LocalId): void {
   useWorkspace.getState().activatePlan(termId, planId);
+  useUi.getState().markNavigation();
 }
 
 /** `+` → Generate plans…: generating makes new plans, so it has its own tab (SPEC §3.9). */
@@ -127,6 +129,40 @@ export function openTab(tab: RailTab, via: "click" | "shortcut"): void {
   if (ui.tab === tab && ui.sidebarOpen && ui.stack.length === 0) return;
   ui.openTab(tab);
   track("tab_opened", { tab, via });
+}
+
+/** The router's Back, while the URL sync runs (`schedule-url.ts`). */
+let historyBack: (() => void) | null = null;
+/** Until then, a Back already sent to the browser hasn't landed yet. */
+let backLandsBy = 0;
+
+/**
+ * Back from a drill-in (its Back button, `Esc`): the browser's own Back when
+ * the view before is one of ours, so the two are one thing and Forward
+ * returns; otherwise (the app's first entry, or no URL in tests) the view
+ * closes. False when there's nothing to go back from.
+ */
+export function goBack(): boolean {
+  const ui = useUi.getState();
+  if (ui.stack.length === 0) return false;
+  if (!ui.historyBack || !historyBack) return ui.back();
+  // A second Esc before the first lands would go back twice, maybe out of
+  // the app. The URL sync calls `backLanded` when it does.
+  if (performance.now() < backLandsBy) return true;
+  backLandsBy = performance.now() + 1000;
+  historyBack();
+  return true;
+}
+
+/** The URL sync hands over the router's Back while it runs (null when it stops). */
+export function setHistoryBack(back: (() => void) | null): void {
+  historyBack = back;
+  backLandsBy = 0;
+}
+
+/** The browser moved to another entry: Back can be sent again. */
+export function backLanded(): void {
+  backLandsBy = 0;
 }
 
 /** A click on a rail tab: opens, goes back to the tab's root, or collapses (SPEC §2). */

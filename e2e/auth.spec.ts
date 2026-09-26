@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { OPEN_VIEW } from "./sidebar";
 
 // Identity in test mode (docs/AUTH.md, V2.md §4.6): `pnpm dev:mock` runs the
 // Worker with AUTH_TEST_MODE on localhost, so "Sign in" leads to /auth/test's
@@ -35,7 +36,13 @@ test("sign in as a test person, see the account menu, and sign out", async ({
   page,
   isMobile,
 }) => {
-  await open(page);
+  // Somewhere in particular (a course open over Courses), so the sign-in has
+  // a view to come back to.
+  await open(page, "/schedule?course=CMSC351");
+  await expect(page).toHaveURL(/tab=courses&course=CMSC351/);
+  await expect(page.locator(OPEN_VIEW)).toHaveText("CMSC351");
+  const here = new URL(page.url());
+  const view = `${here.pathname}${here.search}`;
   // Signed out, Terpsicle sets no cookie at all.
   expect(await page.context().cookies()).toEqual([]);
 
@@ -53,15 +60,23 @@ test("sign in as a test person, see the account menu, and sign out", async ({
     .getByRole(isMobile ? "menuitem" : "link", { name: "Sign in (test mode)" })
     .click();
 
-  await expect(page).toHaveURL(/\/auth\/test\?return=%2Fschedule$/);
+  // The return is the scheduler with its query: the view to come back to.
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/auth/test" && url.searchParams.get("return") === view,
+  );
   await expect(
     page.getByRole("heading", { name: "Test sign-in" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Sign in as Test Student" }).click();
 
-  // Back where we were, signed in, with ?signed-in=1 already stripped.
+  // Back where we were, on the same view, signed in, with ?signed-in=1
+  // already stripped.
   await expect(accountButton(page, "Test Student")).toBeVisible();
-  await expect(page).toHaveURL(/\/schedule$/);
+  await expect(page).toHaveURL(
+    (url) => `${url.pathname}${url.search}` === view,
+  );
+  await expect(page.locator(OPEN_VIEW)).toHaveText("CMSC351");
   expect(await sessionCookie(page)).toMatchObject({
     httpOnly: true,
     secure: true,

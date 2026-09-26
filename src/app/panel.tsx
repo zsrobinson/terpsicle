@@ -8,7 +8,7 @@ import { WithTooltip } from "~/ui/tooltip";
 
 // The anatomy every sidebar panel shares (docs/UX-REVIEW.md §2.3):
 //
-//   PanelHeader (48px, or the breadcrumb in a drill-in), outside the scroll
+//   PanelHeader (48px, or the Back bar in a drill-in), outside the scroll
 //   PanelBody: the one scroll area
 //     SectionHeader "bar": sticky at top-0, "Sections  3 of 14 fit  …"
 //       GroupHeader: sticky under the bar, collapsible ("▾ Grace Kowalczyk …")

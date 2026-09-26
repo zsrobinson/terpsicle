@@ -36,7 +36,7 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
 │Courses│  sidebar panel           │  calendar (Mon–Fri, +Sat only when needed)  │
 │Search │  (one tab at a time;     │                                             │
 │Problems│  drills in to details   │                                             │
-│Travel │  with a breadcrumb)      │                                             │
+│Travel │  with one Back)          │                                             │
 │Blocks │                          │                                             │
 │Generate│                         │                                             │
 │Export │                          │                                             │
@@ -49,7 +49,8 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
   - The active plan tab has a ▾ menu: Rename, Duplicate, Delete. Double-click to rename.
   - `+` opens: **Empty plan**, **Copy of <current>**, **Generate plans…**.
 - **Rail:** icons with text labels: Courses, Search, Problems, Travel, Blocks, Generate, Export. Clicking the active tab again **collapses the sidebar** (click any tab to reopen). There is no separate collapse button.
-- **Sidebar:** one panel at a time. Opening details (a course, a connection, a generated plan) **drills in** over the current tab, with a **breadcrumb** header ("Search › CMSC351"). `Esc` or the breadcrumb goes back to exactly where you were.
+- **Sidebar:** one panel at a time. Opening details (a course, a connection, a generated plan) **drills in** over the current tab, under **one Back** ("‹ Search  CMSC351", v2): a chevron and the short name of the view you came from, never a trail of crumbs, even going from course to course. Back, `Esc` and the browser's Back are the same thing, and return to exactly where you were.
+- **URL (v2):** the scheduler's URL says where you are (term, plan, tab, open course, Search's text and filters), so reload, Back/Forward and a copied link land on the same view. Going somewhere adds a history entry; typing doesn't. The table is in `src/app/README.md`, "URL state".
 - **Calendar:** always visible on desktop, and it **stretches to fill the screen**. Hour height is computed from the available height, so the plan's hours fit without scrolling; it only scrolls when the window is too short for a readable minimum (~36px per hour). Nothing sits below the grid (no tips or footers).
 - **Mobile:** the same shell. The sidebar becomes a **bottom drawer** with snap points (peek / half / full), and the rail becomes the drawer's tab strip. The calendar stays a week grid. There are no bespoke mobile screens, so new features only need to work in the sidebar.
 

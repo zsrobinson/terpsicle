@@ -24,10 +24,13 @@ export interface DrillViewProps<K extends DrillKind> {
 
 export interface DrillView<K extends DrillKind> {
   component: ComponentType<DrillViewProps<K>>;
-  /** The breadcrumb for this level: "CMSC351", "Connection". */
-  crumb: (entry: DrillEntryOf<K>) => string;
-  /** Set the crumb in Geist Mono (codes). */
-  monoCrumb?: boolean;
+  /**
+   * The view's short name: "CMSC351", "Connection". It titles the view, and
+   * labels Back on whatever opens next ("‹ CMSC351").
+   */
+  name: (entry: DrillEntryOf<K>) => string;
+  /** Set the name in Geist Mono (codes). */
+  monoName?: boolean;
 }
 
 export type DrillViews = { [K in DrillKind]?: DrillView<K> };
@@ -39,7 +42,7 @@ export interface PanelRegistration {
   drills?: DrillViews;
   /**
    * Components the shell mounts once, rendering nothing, for app-wide work a
-   * feature owns: following a deep link, syncing seat alerts on startup.
+   * feature owns, such as syncing seat alerts on startup.
    */
   effects?: readonly ComponentType[];
 }

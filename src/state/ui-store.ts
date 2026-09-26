@@ -17,6 +17,11 @@ import { type DrillEntry, sameDrillSubject } from "./drill";
 // stack, theme and term. The persisted part is `UiPrefs` (DATA.md §5; the
 // active plan per term lives in the workspace store with the plans). The
 // drill stack is remembered as its top entry, when that's restorable.
+//
+// Where you are is also in the URL (src/app/README.md, "URL state"):
+// `src/app/schedule-url.ts` writes these fields to it and follows it back.
+// Actions that go somewhere bump `navSeq`, so that write adds a history
+// entry; anything else replaces the current one.
 
 export type DrawerSnap = "peek" | "half" | "full";
 
@@ -39,6 +44,22 @@ export interface UiState {
   focusRequest: FocusRequest | null;
   /** Mobile bottom drawer position (not persisted). */
   drawerSnap: DrawerSnap;
+  /**
+   * Counts moves someone made (a tab, a drill-in, Back, a term): each one
+   * becomes its own browser history entry. Not persisted.
+   */
+  navSeq: number;
+  /**
+   * Local state (plans, prefs, the demo) has loaded, so the URL can be
+   * followed without being undone. Not persisted.
+   */
+  restored: boolean;
+  /**
+   * The view the browser's Back returns to, when it's one of ours: its
+   * short name labels the sidebar's Back ("‹ Search"). Null on the first
+   * entry, or without a URL (tests). Not persisted.
+   */
+  historyBack: { label: string; mono: boolean } | null;
   /**
    * Whether the person has opened a tab, drilled in or gone back since the
    * page loaded (not persisted). See `restoreNavigation`.
@@ -74,10 +95,18 @@ export interface UiState {
   drill: (entry: DrillEntry) => void;
   /** Replaces the innermost view (e.g. switching a course's details sub-tab). */
   replaceDrill: (entry: DrillEntry) => void;
-  /** Back one level (`Esc`). Returns false when already at the tab's root. */
+  /**
+   * Closes the top view, showing the one under it. A new place, so it
+   * pushes; the Back control and `Esc` use `goBack` (`~/app/actions`), which
+   * returns through history instead. False when already at the tab's root.
+   */
   back: () => boolean;
-  /** Back to a breadcrumb level: 0 is the tab itself. */
+  /** Closes views down to `depth`: 0 is the tab itself. */
   backTo: (depth: number) => void;
+  /** Counts the next URL change as a move (see `navSeq`). */
+  markNavigation: () => void;
+  /** Shows what a URL entry says (Back, Forward, a link), without pushing. */
+  followUrl: (target: UrlTarget) => void;
   setTheme: (theme: Theme) => void;
   setLastTermId: (termId: TermId) => void;
   toggleGroup: (key: string) => void;
@@ -97,6 +126,15 @@ export interface PlanPreview {
   label: string;
 }
 
+/** Where a URL entry says the sidebar is. */
+export interface UrlTarget {
+  tab: RailTab;
+  drill: DrillEntry | null;
+  lastTermId: TermId | null;
+  /** Back and Forward keep the views they return to mounted (scroll, text). */
+  direction: "back" | "forward" | "other";
+}
+
 /** What a rail click did, for analytics. */
 export type RailClick = "opened" | "collapsed" | "back-to-root";
 
@@ -112,6 +150,9 @@ export const INITIAL_UI_STATE = {
   sidebarWidth: DEFAULT_UI_PREFS.sidebarWidth,
   focusRequest: null,
   drawerSnap: "peek",
+  navSeq: 0,
+  restored: false,
+  historyBack: null,
   navigated: false,
   hoverCourse: null,
   previewSection: null,
@@ -123,29 +164,42 @@ export const useUi = create<UiState>()((set, get) => ({
 
   clickTab: (tab) => {
     const s = get();
+    const navSeq = s.navSeq + 1;
     if (tab !== s.tab || !s.sidebarOpen) {
-      set({ tab, sidebarOpen: true, stack: [], navigated: true });
+      set({ tab, sidebarOpen: true, stack: [], navigated: true, navSeq });
       return "opened";
     }
     if (s.stack.length > 0) {
-      set({ stack: [], navigated: true });
+      set({ stack: [], navigated: true, navSeq });
       return "back-to-root";
     }
     set({ sidebarOpen: false, navigated: true });
     return "collapsed";
   },
 
-  openTab: (tab) => set({ tab, sidebarOpen: true, stack: [], navigated: true }),
+  openTab: (tab) =>
+    set({
+      tab,
+      sidebarOpen: true,
+      stack: [],
+      navigated: true,
+      navSeq: get().navSeq + 1,
+    }),
 
   drill: (entry) => {
-    const { stack } = get();
+    const { stack, navSeq } = get();
     const top = stack.at(-1);
     if (top && sameDrillSubject(top, entry)) {
       if (top !== entry) set({ stack: [...stack.slice(0, -1), entry] });
       set({ sidebarOpen: true, navigated: true });
       return;
     }
-    set({ stack: [...stack, entry], sidebarOpen: true, navigated: true });
+    set({
+      stack: mountable([...stack, entry]),
+      sidebarOpen: true,
+      navigated: true,
+      navSeq: navSeq + 1,
+    });
   },
 
   replaceDrill: (entry) => {
@@ -154,9 +208,9 @@ export const useUi = create<UiState>()((set, get) => ({
   },
 
   back: () => {
-    const { stack } = get();
+    const { stack, navSeq } = get();
     if (stack.length === 0) return false;
-    set({ stack: stack.slice(0, -1), navigated: true });
+    set({ stack: stack.slice(0, -1), navigated: true, navSeq: navSeq + 1 });
     return true;
   },
 
@@ -164,10 +218,35 @@ export const useUi = create<UiState>()((set, get) => ({
     set({
       stack: get().stack.slice(0, Math.max(0, depth)),
       navigated: true,
+      navSeq: get().navSeq + 1,
     }),
 
+  markNavigation: () => set({ navSeq: get().navSeq + 1 }),
+
+  followUrl: ({ tab, drill, lastTermId, direction }) => {
+    const s = get();
+    // Another tab or term: the views over the old one don't apply.
+    const stack =
+      tab !== s.tab || lastTermId !== s.lastTermId
+        ? drill
+          ? [drill]
+          : []
+        : stackFollowing(s.stack, drill, direction);
+    if (tab === s.tab && lastTermId === s.lastTermId && stack === s.stack)
+      return;
+    set({
+      tab,
+      stack,
+      lastTermId,
+      // A place the URL names is one you can see.
+      sidebarOpen: true,
+      navigated: true,
+    });
+  },
+
   setTheme: (theme) => set({ theme }),
-  setLastTermId: (lastTermId) => set({ lastTermId, stack: [] }),
+  setLastTermId: (lastTermId) =>
+    set({ lastTermId, stack: [], navSeq: get().navSeq + 1 }),
   toggleGroup: (key) => {
     const groups = get().collapsedGroups;
     // A malformed key would fail the whole prefs row on the next load.
@@ -192,6 +271,41 @@ export const useUi = create<UiState>()((set, get) => ({
   },
   setPreviewPlan: (previewPlan) => set({ previewPlan }),
 }));
+
+/**
+ * Drill-in levels kept mounted under the top one, so Back finds them as they
+ * were. Past this, the oldest are dropped (they reopen fresh).
+ */
+export const MOUNTED_DRILLS = 6;
+
+function mountable(stack: readonly DrillEntry[]): readonly DrillEntry[] {
+  return stack.length > MOUNTED_DRILLS ? stack.slice(-MOUNTED_DRILLS) : stack;
+}
+
+/**
+ * The drill-in stack after following a URL entry to `target` within the same
+ * tab: Back returns to a level still mounted (the views above it close),
+ * Forward stacks the view again, anything else shows just that view. The
+ * same subject keeps its entry, and so its details sub-tab.
+ */
+export function stackFollowing(
+  stack: readonly DrillEntry[],
+  target: DrillEntry | null,
+  direction: UrlTarget["direction"],
+): readonly DrillEntry[] {
+  if (!target) return stack.length === 0 ? stack : [];
+  const top = stack.at(-1);
+  if (top && sameDrillSubject(top, target)) return stack;
+  if (direction === "back") {
+    for (let i = stack.length - 2; i >= 0; i--) {
+      const level = stack[i];
+      if (level && sameDrillSubject(level, target))
+        return stack.slice(0, i + 1);
+    }
+  }
+  if (direction === "forward") return mountable([...stack, target]);
+  return [target];
+}
 
 /** Where the sidebar is: its tab, whether it shows, and the drill-in stack. */
 export type Navigation = Pick<UiState, "tab" | "sidebarOpen" | "stack">;

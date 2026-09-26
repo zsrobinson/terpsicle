@@ -210,7 +210,7 @@ function useScrollToGhosts(
 /** Clicking a course anywhere opens its details; clicking it again closes them. */
 function openCourse(courseCode: CourseCode) {
   const ui = useUi.getState();
-  if (selectOpenCourse(ui) === courseCode) ui.back();
+  if (selectOpenCourse(ui) === courseCode) ui.backTo(0);
   else ui.drill({ kind: "course", courseCode });
 }
 

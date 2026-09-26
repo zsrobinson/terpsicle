@@ -56,12 +56,12 @@ test("Enter on a search result opens its details; Esc returns to the search box"
   await expect(page.locator('[data-course-result="CMSC351"]')).toBeVisible();
   await box.press("Enter");
   await expect(drillIn(page, "CMSC351")).toBeFocused();
-  // Tab moves on into the details, starting at the breadcrumb.
+  // Tab moves on into the details, starting at Back.
   await page.keyboard.press("Tab");
   await expect(
-    drillIn(page, "CMSC351").getByRole("button", { name: "Search" }),
+    drillIn(page, "CMSC351").getByRole("button", { name: "Back to Search" }),
   ).toBeFocused();
-  // The first Esc dismisses the breadcrumb's tooltip (WCAG 1.4.13); the
+  // The first Esc dismisses Back's tooltip (WCAG 1.4.13); the
   // next goes back.
   await expect(page.getByRole("tooltip")).toBeVisible();
   await page.keyboard.press("Escape");
