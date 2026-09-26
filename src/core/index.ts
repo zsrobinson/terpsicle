@@ -1,5 +1,6 @@
 // Public entry for `~/core`: every domain module. Import from a module path
 // (`~/core/fit`) when you only need one; see README.md for the index.
+export * from "./auth";
 export * from "./catalog";
 export * from "./chat";
 export * from "./color";

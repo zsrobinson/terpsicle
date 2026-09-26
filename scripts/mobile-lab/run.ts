@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import { isWebkitCompositorCrash } from "./checks";
 import type { Device, Engine } from "./device";
 import { Lab } from "./lab";
 import { shrinkVideo } from "./media";
@@ -30,7 +31,11 @@ const { values } = parseArgs({
     out: { type: "string" },
     only: { type: "string" },
     video: { type: "boolean", default: true },
+    // Off only when chasing a crash that screenshots might cause.
+    screenshots: { type: "boolean", default: true },
     source: { type: "string" },
+    // Each scenario this many times in a row: for flaky failures.
+    repeat: { type: "string", default: "1" },
   },
 });
 
@@ -43,10 +48,17 @@ const out = path.resolve(
     `mobile-lab-results/${new Date().toISOString().replace(/[:.]/g, "-")}-${engine}`,
 );
 const only = values.only?.split(",").map((s) => s.trim());
-const scenarios = only
-  ? SCENARIOS.filter((s) => only.includes(s.id))
-  : SCENARIOS;
-if (scenarios.length === 0) throw new Error(`no scenarios match ${only}`);
+const chosen = only ? SCENARIOS.filter((s) => only.includes(s.id)) : SCENARIOS;
+if (chosen.length === 0) throw new Error(`no scenarios match ${only}`);
+const repeat = Math.max(1, Math.min(20, Number(values.repeat) || 1));
+// Repeats get their own ids (and folders): tabs, tabs-2, tabs-3, ...
+const scenarios = chosen.flatMap((s) =>
+  Array.from({ length: repeat }, (_, i) =>
+    i === 0
+      ? s
+      : { ...s, id: `${s.id}-${i + 1}`, title: `${s.title} (run ${i + 1})` },
+  ),
+);
 
 async function device(): Promise<Device> {
   switch (engine) {
@@ -118,13 +130,17 @@ function save(): void {
 }
 
 console.log(`${run.device}\n${url} → ${out}`);
-for (const scenario of scenarios) {
-  const dir = path.join(out, scenario.id);
+async function attempt(
+  scenario: (typeof scenarios)[number],
+  id: string,
+  record: boolean,
+): Promise<{ result: ScenarioResult; crashed: boolean }> {
+  const dir = path.join(out, id);
   mkdirSync(dir, { recursive: true });
   const t0 = Date.now();
-  const lab = new Lab(phone, url, dir);
+  const lab = new Lab(phone, url, dir, values.screenshots);
   const result: ScenarioResult = {
-    id: scenario.id,
+    id,
     title: scenario.title,
     ms: 0,
     video: null,
@@ -132,17 +148,13 @@ for (const scenario of scenarios) {
     skipped: scenario.skip?.(engine) ?? null,
     steps: lab.steps,
   };
-  run.scenarios.push(result);
-  if (result.skipped) {
-    console.log(`${scenario.id}: skipped (${result.skipped})`);
-    continue;
-  }
+  if (result.skipped) return { result, crashed: false };
   try {
-    await phone.begin(url, values.video ? path.join(dir, "video") : null);
+    await phone.begin(url, record ? path.join(dir, "video") : null);
     await scenario.run(lab);
   } catch (error) {
     result.error = error instanceof Error ? error.message : String(error);
-    console.error(`  ${scenario.id}: ${result.error}`);
+    console.error(`  ${id}: ${result.error}`);
     try {
       await lab.failure(error);
     } catch {
@@ -155,16 +167,72 @@ for (const scenario of scenarios) {
       const name = `video${path.extname(video)}`;
       renameSync(video, path.join(dir, name));
       shrinkVideo(path.join(dir, name));
-      result.video = `${scenario.id}/${name}`;
+      result.video = `${id}/${name}`;
     }
   } catch (error) {
-    console.error(`  ${scenario.id}: stopping the recording failed: ${error}`);
+    console.error(`  ${id}: stopping the recording failed: ${error}`);
   }
   result.ms = Date.now() - t0;
-  const t = tally([result]);
-  console.log(
-    `${scenario.id}: ${lab.steps.length} steps, ${t.failed} failed, ${t.warnings} warnings, ${t.errors} errors (${Math.round(result.ms / 1000)} s)`,
+  const crashed = lab.steps.some((s) =>
+    s.checks.some((c) => c.id === "page-process-alive" && !c.ok),
   );
+  return { result, crashed };
+}
+
+/** Keeps a compositor-crashed attempt as evidence, as warnings. */
+function asCompositorCrash(
+  result: ScenarioResult,
+  kernel: string,
+  attemptNo: number,
+): void {
+  const oldId = result.id;
+  result.id = `${oldId}-webkit-crash-${attemptNo}`;
+  renameSync(path.join(out, oldId), path.join(out, result.id));
+  if (result.video) result.video = result.video.replace(oldId, result.id);
+  result.note = `WebKit's page process crashed in WPE's compositor thread (${kernel.trim()}): a Linux WebKit bug, not the page (docs/MOBILE-TESTING.md, "Known issue"). The scenario ran again as ${oldId}.`;
+  result.error = null;
+  for (const step of result.steps) {
+    for (const check of step.checks)
+      if (check.id === "page-process-alive") {
+        check.id = "webkit-compositor-crash";
+        check.severity = "warn";
+        check.detail = `${check.detail}; kernel: ${kernel.trim()}`;
+      }
+    if (step.error) {
+      step.checks.push({
+        id: "webkit-compositor-crash",
+        ok: false,
+        severity: "warn",
+        detail: step.error,
+      });
+      delete step.error;
+    }
+  }
+}
+
+for (const scenario of scenarios) {
+  let { result, crashed } = await attempt(scenario, scenario.id, values.video);
+  // WPE's compositor crash, up to twice: a page that sets it off every
+  // time still fails.
+  for (let n = 1; n <= 2 && crashed && engine === "webkit"; n++) {
+    const kernel = await phone.crashEvidence?.();
+    if (!kernel || !isWebkitCompositorCrash(kernel)) break;
+    asCompositorCrash(result, kernel, n);
+    run.scenarios.push(result);
+    console.error(
+      `  ${scenario.id}: WebKit compositor crash; running it again`,
+    );
+    ({ result, crashed } = await attempt(scenario, scenario.id, values.video));
+  }
+  run.scenarios.push(result);
+  if (result.skipped)
+    console.log(`${scenario.id}: skipped (${result.skipped})`);
+  else {
+    const t = tally([result]);
+    console.log(
+      `${scenario.id}: ${result.steps.length} steps, ${t.failed} failed, ${t.warnings} warnings, ${t.errors} errors (${Math.round(result.ms / 1000)} s)`,
+    );
+  }
   save();
 }
 await phone.close().catch(() => undefined);
