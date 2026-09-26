@@ -47,7 +47,7 @@ function withCookies(response: Response, cookies: string[]): Response {
 export async function me(
   env: AuthEnv,
   ctx: IdentityRouteContext,
-  options: { seatAlerts: boolean },
+  options: { seatAlerts: boolean; todo: boolean },
 ): Promise<Response> {
   const flags = appFlags(env, new URL(ctx.request.url), options);
   const session = await getSession(ctx.request, env, ctx.now, {

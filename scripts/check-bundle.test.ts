@@ -5,6 +5,7 @@ import {
   forbiddenModules,
   forbiddenText,
   linkedCss,
+  SCHEDULE_NEVER_EAGER,
 } from "./check-bundle";
 
 const chunk = (
@@ -61,6 +62,39 @@ describe("bundle check", () => {
       ),
     };
     expect(forbiddenModules(worker, ["assets/r.js"])).toHaveLength(2);
+  });
+
+  it("keeps the scheduler's lazy tabs, drawer and search index out of its first load", () => {
+    const eager: BundleGraph = {
+      "assets/s.js": chunk(
+        [],
+        [
+          "src/features/generate/panels.tsx",
+          "src/features/travel/panels.tsx",
+          "src/features/search/search-panel.tsx",
+          "src/core/search/filters.ts",
+          "src/app/drawer-heights.ts",
+          "src/features/generate/generate-panel.tsx",
+          "src/features/export/export-panel.tsx",
+          "src/core/ics/ics.ts",
+          "src/core/search/search.ts",
+          "node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",
+          "src/app/mobile-drawer.tsx",
+        ],
+      ),
+    };
+    expect(
+      forbiddenModules(eager, ["assets/s.js"], SCHEDULE_NEVER_EAGER).map(
+        (p) => p.split(" (")[0],
+      ),
+    ).toEqual([
+      "assets/s.js: src/features/generate/generate-panel.tsx",
+      "assets/s.js: src/features/export/export-panel.tsx",
+      "assets/s.js: src/core/ics/ics.ts",
+      "assets/s.js: src/core/search/search.ts",
+      "assets/s.js: node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",
+      "assets/s.js: src/app/mobile-drawer.tsx",
+    ]);
   });
 
   it("finds stylesheets linked from the document head", () => {

@@ -21,6 +21,7 @@ const result = (
   id: [...sections].sort().join(","),
   sections,
   skipped,
+  filled: [],
   score: 1,
   breakdown: {
     compact: 1,

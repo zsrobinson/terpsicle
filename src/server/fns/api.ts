@@ -1,5 +1,5 @@
-// The browser's typed client for /api/* (the one server module UI code may
-// import). Inputs are checked before sending and answers are validated with
+// The browser's typed client for /api/* (with ./admin-api, the only server
+// modules UI code may import). Inputs are checked before sending and answers are validated with
 // the same schemas the Worker uses, so a mismatch fails loudly here instead
 // of rendering something half-right.
 import type { z } from "zod";
@@ -60,7 +60,8 @@ export interface ApiOptions {
   signal?: AbortSignal;
 }
 
-async function call<I extends z.ZodType, O extends z.ZodType>(
+/** One typed POST to /api/<path>; ./admin-api shares it. */
+export async function call<I extends z.ZodType, O extends z.ZodType>(
   path: string,
   inputSchema: I,
   outputSchema: O,

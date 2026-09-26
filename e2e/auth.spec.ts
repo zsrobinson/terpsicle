@@ -74,7 +74,7 @@ test("sign in as a test person, see the account menu, and sign out", async ({
   await expect(menu.getByText("tstudent@terpmail.umd.edu")).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Settings" })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Admin" })).toHaveCount(0);
-  await menu.getByRole("menuitem", { name: "Sign out" }).click();
+  await menu.getByRole("menuitem", { name: "Sign out", exact: true }).click();
 
   await expect(signInButton(page)).toBeVisible();
   expect(await sessionCookie(page)).toBeUndefined();

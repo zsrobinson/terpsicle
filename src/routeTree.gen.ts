@@ -15,6 +15,7 @@ import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminDecisionsRouteImport } from './routes/admin.decisions'
 import { Route as AlertsConfirmRouteImport } from './routes/alerts.confirm'
 import { Route as AlertsUnsubscribeRouteImport } from './routes/alerts.unsubscribe'
 import { Route as AuthTestRouteImport } from './routes/auth/test'
@@ -53,6 +54,11 @@ const SigninRoute = SigninRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDecisionsRoute = AdminDecisionsRouteImport.update({
+  id: '/admin/decisions',
+  path: '/admin/decisions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AlertsConfirmRoute = AlertsConfirmRouteImport.update({
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
+  '/admin/decisions': typeof AdminDecisionsRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
+  '/admin/decisions': typeof AdminDecisionsRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
+  '/admin/decisions': typeof AdminDecisionsRoute
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/signin'
+    | '/admin/decisions'
     | '/alerts/confirm'
     | '/alerts/unsubscribe'
     | '/auth/test'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/signin'
+    | '/admin/decisions'
     | '/alerts/confirm'
     | '/alerts/unsubscribe'
     | '/auth/test'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/signin'
+    | '/admin/decisions'
     | '/alerts/confirm'
     | '/alerts/unsubscribe'
     | '/auth/test'
@@ -213,6 +225,7 @@ export interface RootRouteChildren {
   ScheduleRoute: typeof ScheduleRoute
   SettingsRoute: typeof SettingsRoute
   SigninRoute: typeof SigninRoute
+  AdminDecisionsRoute: typeof AdminDecisionsRoute
   AlertsConfirmRoute: typeof AlertsConfirmRoute
   AlertsUnsubscribeRoute: typeof AlertsUnsubscribeRoute
   AuthTestRoute: typeof AuthTestRoute
@@ -267,6 +280,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/decisions': {
+      id: '/admin/decisions'
+      path: '/admin/decisions'
+      fullPath: '/admin/decisions'
+      preLoaderRoute: typeof AdminDecisionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/alerts/confirm': {
@@ -341,6 +361,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScheduleRoute: ScheduleRoute,
   SettingsRoute: SettingsRoute,
   SigninRoute: SigninRoute,
+  AdminDecisionsRoute: AdminDecisionsRoute,
   AlertsConfirmRoute: AlertsConfirmRoute,
   AlertsUnsubscribeRoute: AlertsUnsubscribeRoute,
   AuthTestRoute: AuthTestRoute,

@@ -1,0 +1,83 @@
+name: Playwright browser
+description: >-
+  One Playwright browser and the system packages `playwright install
+  --with-deps` would add, with both cached. Run after ./.github/actions/setup.
+inputs:
+  browser:
+    description: chromium, webkit or firefox
+    default: chromium
+  only-shell:
+    description: For chromium, only the headless shell (what headless runs use), not the full browser.
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - id: version
+      shell: bash
+      run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}-${{ inputs.browser }}${{ inputs.only-shell == 'true' && '-shell' || '' }}
+
+    # A no-op on a cache hit: it checks the expected build is there.
+    - name: Download ${{ inputs.browser }}
+      shell: bash
+      env:
+        BROWSER: ${{ inputs.browser }}
+        ONLY_SHELL: ${{ inputs.only-shell }}
+      run: |
+        if [ "$ONLY_SHELL" = true ]; then
+          pnpm exec playwright install --only-shell "$BROWSER"
+        else
+          pnpm exec playwright install "$BROWSER"
+        fi
+
+    # `install-deps` runs apt-get update and install, about 15 s, though the
+    # runner image lacks only a few of its packages (fonts, for Chromium).
+    # The dry run simulates that install and lists what it would add.
+    - name: Which system packages are missing
+      id: deps
+      shell: bash
+      env:
+        BROWSER: ${{ inputs.browser }}
+      run: |
+        if out="$(pnpm exec playwright install-deps --dry-run "$BROWSER")"; then
+          echo "$out"
+          echo "missing=" >> "$GITHUB_OUTPUT"
+        else
+          echo "$out"
+          missing="$(printf '%s\n' "$out" | sed -n 's/^  \([a-z0-9][a-z0-9.+-]*\)$/\1/p' | sort | tr '\n' ' ')"
+          echo "missing=$missing" >> "$GITHUB_OUTPUT"
+          # The packages depend on the runner image as well as the list.
+          echo "key=$(printf '%s %s %s' "$ImageOS" "$ImageVersion" "$missing" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+        fi
+
+    # The .debs a full install-deps downloaded on this runner image.
+    - if: steps.deps.outputs.missing != ''
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/playwright-debs
+        key: playwright-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}-${{ inputs.browser }}-${{ steps.deps.outputs.key }}
+
+    - if: steps.deps.outputs.missing != ''
+      name: Install the missing system packages
+      shell: bash
+      env:
+        BROWSER: ${{ inputs.browser }}
+      run: |
+        debs="$HOME/.cache/playwright-debs"
+        # The cached .debs in one dpkg call, then the dry run again to prove
+        # nothing is missing. Anything short of that gets the full install.
+        if compgen -G "$debs/*.deb" > /dev/null &&
+          sudo dpkg -i "$debs"/*.deb > /dev/null &&
+          pnpm exec playwright install-deps --dry-run "$BROWSER"; then
+          echo "Installed from the cached packages."
+          exit 0
+        fi
+        sudo rm -f /var/cache/apt/archives/*.deb
+        pnpm exec playwright install-deps "$BROWSER"
+        mkdir -p "$debs"
+        rm -f "$debs"/*.deb
+        cp /var/cache/apt/archives/*.deb "$debs"/ || echo "apt kept no packages to cache."

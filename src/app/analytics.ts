@@ -17,6 +17,7 @@ import type {
   TermStatus,
   Theme,
   TravelMode,
+  Wildcard,
 } from "~/core/schema";
 import { type ClientConfig, clientConfig, type DataSource } from "./config";
 
@@ -61,7 +62,10 @@ export interface AnalyticsEvents {
     reason: "missing" | "network" | "invalid" | "newer-data";
   };
   generate_run: {
+    /** Courses listed by code (a wildcard's matches aren't counted). */
     courses: number;
+    /** Each wildcard's kind, one entry per wildcard item. */
+    wildcards: Wildcard["kind"][];
     /** The must-haves that narrowed the search, by name. */
     mustHaves: Relaxable[];
     rankBy: RankBy["preset"];
@@ -100,6 +104,8 @@ export interface AnalyticsEvents {
   signin_failed: { reason: SignInError };
   signed_out: { removedLocal: boolean };
   account_deletion_requested: NoProperties;
+  // Plan sync (V2.md §11): counts only, never plan names or courses.
+  sync_first_sign_in: { uploaded: number; renamed: number; copies: number };
   // Reviews (V2.md §11). Never a review, instructor or course on writing events.
   reviews_page_viewed: { page: "home" | "instructor" | "course" };
   review_form_opened: NoProperties;
@@ -145,23 +151,14 @@ export async function initAnalytics(
   if (!token) return;
 
   pending = [];
-  const { default: posthog } = await import("posthog-js");
-  posthog.init(token, {
-    api_host: "/ingest",
-    ui_host: "https://us.posthog.com",
-    // We never call identify(), so every visitor stays anonymous.
-    person_profiles: "identified_only",
-    // No cookies; the /ingest proxy strips them anyway.
-    persistence: "localStorage",
-    capture_pageview: "history_change",
-    autocapture: true,
-    // We don't run surveys; don't download their code.
-    disable_surveys: true,
-    session_recording: {
-      maskAllInputs: true,
-      maskTextSelector: "[data-private]",
-    },
-  });
+  // Both chunks load only here, so the privacy rules add nothing to the
+  // pages' eager bundles.
+  const [{ default: posthog }, { posthogOptions, pagePrivateText }] =
+    await Promise.all([import("posthog-js"), import("./posthog-options")]);
+  posthog.init(
+    token,
+    posthogOptions(() => pagePrivateText()),
+  );
   client = posthog;
   for (const { event, properties } of pending)
     client.capture(event, properties);

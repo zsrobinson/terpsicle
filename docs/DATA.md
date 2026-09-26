@@ -243,17 +243,17 @@ Little-endian throughout.
 
 ## 5. Browser state (IndexedDB via Dexie)
 
-Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
+Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 2.
 
-**v2** bumps it to 2: a `syncDocs` table (key: the doc key, `plan:<id>` or `settings`; `rev`, `dirty`, `inFlight`), the settings doc's `base`, and a `sync` settings row (`{userId, cursor}`) for plan sync, and the `seatAlerts` table is dropped because seat watches move to D1 (`docs/V2.md` §5.3, §6.5). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
+**Version 2** (plan sync, landed with `v2/sync-engine`; `src/state/db.ts`): a `syncDocs` table for each doc's sync flags (the settings doc's row also keeps `base`, its body as last saved or pulled), and a `sync` settings row (`{userId, cursor}`). The `seatAlerts` table is dropped: until seat watches move to D1 (`docs/V2.md` §6.5), the email-token alerts' local mirror lives in the `seatAlerts` settings row, and `upgradeToV2` moves existing rows there. Nothing else changes shape, so plans, blocks, colors, settings and the data cache come through untouched (`src/state/db.test.ts` upgrades a v1 database). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
 
 | Table | Primary key, indexes | Row schema |
 |---|---|---|
 | `plans` | `id`, `termId` | `PlanSchema` |
 | `blocks` | `id`, `termId` | `BlockSchema` |
 | `courseColors` | `courseCode` | `CourseColorPrefSchema` |
-| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`; results are never stored) |
-| `seatAlerts` | `[termId+sectionKey]`, `termId` | `LocalSeatAlertSchema` |
+| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor; `seatAlerts` → `LocalSeatAlert[]`) |
+| `syncDocs` | `key` (`plan:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
 | `manifests` | `key` (the R2 key) | `CachedManifestSchema` |
 | `files` | `key` (the R2 key), `family`, `termId` | `CachedFileSchema` |
 
@@ -271,7 +271,8 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 - **Course colors are global:** one color per course code, the same in every plan and term (SPEC §3.2). A course with no row gets a color when first added to a plan (the palette color least used in that plan), and that color is written to `courseColors` so it stays stable. `COURSE_COLORS` are palette ids; the UI maps each to light and dark tints. Only append to that list.
 - **UI prefs:** open tab, sidebar open, drill target (course with its details tab, or a connection; generated results aren't restorable), theme, last term, active plan per term, and collapsed instructor groups (`<course>|<instructor name>`).
 - **Not persisted:** the undo stack, hover/preview state, search text, and generator results.
-- **Seat alerts (local mirror):** the person's own email is kept so the UI can say "Watching as…" and prefill the next bell. `subscriptionId` and `manageToken` arrive when this browser follows the confirmation link (the confirm page leaves them in the alerts inbox, §7.1); until then the entry is `pending` with both null.
+- **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors` and the `travel` and `chatPlans` rows.
+- **Seat alerts (local mirror, the `seatAlerts` settings row):** the person's own email is kept so the UI can say "Watching as…" and prefill the next bell. `subscriptionId` and `manageToken` arrive when this browser follows the confirmation link (the confirm page leaves them in the alerts inbox, §7.1); until then the entry is `pending` with both null.
   - `email` is null when the watch was confirmed in this browser but asked for in another: the confirm page learns the section and token, never the address.
   - On startup the app (`src/features/alerts/sync.ts`) moves inbox entries into the table and clears the inbox, then refreshes every row that has a manage token with `alerts/status`. Rows the server reports `unsubscribed` or `unknown` are dropped. That call, sent even with no rows, also tells the app whether seat alerts are on: `unavailable` hides every seat-alert control.
   - The Export tab lists the rows. **Stop watching** asks first (the one confirmation in the app, SPEC §3.12), then calls `alerts/unsubscribe` with the row's manage token. A row with no token (confirmed on another device) points to the stop link in any alert email.
@@ -397,7 +398,7 @@ Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `re
    - The app keeps a pending request for 48 h (the link's life), with a "Send again" button; after that the bell offers a fresh start.
 2. **Confirm.** The page at `/alerts/confirm` calls `alerts/confirm`:
    - `confirmed` makes the watch `active` and returns a **manage token**. Holding the emailed token proves the address, so the browser that followed the link keeps it;
-   - the page leaves `{termId, sectionKey, subscriptionId, manageToken, status}` in `localStorage["terpsicle:alerts-inbox"]` (`src/features/alerts/inbox.ts`). The state layer moves it into Dexie `seatAlerts` and clears the inbox;
+   - the page leaves `{termId, sectionKey, subscriptionId, manageToken, status}` in `localStorage["terpsicle:alerts-inbox"]` (`src/features/alerts/inbox.ts`). The state layer moves it into the Dexie `seatAlerts` settings row and clears the inbox;
    - `last_open` is set from the current seats file, so only a reopening after confirmation emails.
 3. **Alert.** The seats cron calls `notifySeatChanges(env, before, after, {now})` (`src/server/alerts/notify.ts`) after publishing a term's seats file. For each `active` subscription in that term whose section has counts, it sends "A seat opened" when all of these hold:
    - the section had 0 open seats before (the previous file, or else `last_open`);
@@ -623,6 +624,21 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 **Sending:** check (can read the room, `CHAT_ENABLED` is `on`, the term isn't over, the room is listed, no admin block, the limits) → store as `checking` and ack → `moderate()` (kind `chat`, target `<termId>:<courseCode>:<messageId>`) → `visible` (broadcast), `held` (author only; `graded-work` or `flagged`), `removed` (author only), or still `checking` when only a failed model call held it (moderation's cron retries and calls Chat's handler). An edit is screened again, and classmates get `moderation {removed}` for the old text until the new one is visible. If `moderate()` throws, the object's alarm takes moderation's latest decision about that text, or screens it again, two minutes later.
 
 **Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs` and `chat_author_courses` rows (`notifications` join them with `v2/chat-notify`). `chat_members` stays: it describes people.
+
+### 7.10 Terpsicle Todo (landed: `migrations/0011_todo.sql`)
+
+The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the SQL `src/server/todo/store.ts` (with `TodoFeedRowSchema` and `TodoItemRowSchema`), the fetcher `fetch.ts`, the per-feed write `refresh.ts`, and the cron `src/jobs/todo-feeds.ts`. Inputs, answers and limits are `src/core/schema/todo-api.ts`; the pure pieces (cadence, backoff, the window, file items, test mode's feed) are in `src/core/todo`.
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `todo_feeds` | `(user_id, source)` | `url_enc`, `status` (`active` · `paused` · `broken`), `created_at`, `next_fetch_at`, `last_fetch_at`, `last_success_at`, `failure_count`, `last_error` (a code), `gone_strikes`, `gone_at`, `etag`, `last_modified`, `content_hash`, `item_count`, `last_opened_at` | One ELMS feed per person. `url_enc` is the link sealed with AES-256-GCM, `v1.<keyId>.<iv>.<ciphertext>`, bound to `todo-feed:<userId>:<source>`; only `src/server/todo/crypto.ts` and `fetch.ts` touch it (`scripts/check-imports.ts`), and store.ts reads rows by naming every other column. `gone_strikes` / `gone_at` count 401/403/404/410 answers in a row at least an hour apart; the third sets `broken`. |
+| `todo_items` | `(user_id, uid)` | `source` (`elms` · `file`), `title`, `course_label`, `course_code`, `section_code`, `kind`, `exam`, `gradescope`, `due_at`, `due_date`, `link`, `first_seen_at`, `updated_at` | Only `due_date` from 30 days ago to a year ahead, at most 1,500 feed items and 1,000 file items. A fetch is two statements whatever the size (`json_each`): an upsert that writes only changed rows, and a delete of the source's items that left. A feed item replaces a file item with its UID; a file item never replaces a feed item. No descriptions. |
+| `todo_done` | `(user_id, uid)` | `done_at` | Apart from items, so a refetch or a reconnect keeps them. |
+
+- **Disconnecting** deletes the feed row, its `elms` items and every done mark not on a remaining file item, in one batch.
+- **The daily job** deletes items due more than 30 days ago, and done marks over 30 days old whose item is gone (we don't record when an item left the feed, so the mark's age stands in).
+- **Deleting an account** removes all three by `ON DELETE CASCADE`.
+
 ---
 
 ## 8. Share links
@@ -666,15 +682,17 @@ These aren't stored, but several workers build against them:
 - **`Connection`:** see §6.
 - **Generator:**
   - `GenerateRequest`:
-    - `items`: `course {required}` or `pick {count, courses}`, each course optionally limited to some sections;
+    - `items`: `course {required}`, `pick {count, courses}`, each course optionally limited to some sections, or `wildcard {wildcard, required, count}` (`WildcardSchema`: `{kind: "pattern", pattern: "CMSC4XX"}` or `{kind: "gen-ed", code: "DSHS"}`; `count` different courses from its set, 1–6);
     - `mustHaves`: `DEFAULT_MUST_HAVES` has travel time on and blocks respected;
     - `rankBy`: a preset factor, or `custom` with a 0–1 weight for every `RankFactor`;
     - the term's `blocks`, `travel` and `limits` (`DEFAULT_GENERATE_LIMITS`: best 200, 500k steps).
   - `GenerateResult`:
     - `results`: each result's `sections` has one representative (the lowest-numbered) per included course, and `equivalents.byCourse` lists the time-identical alternatives (so "×3 equivalent" is `equivalents.count`);
     - `truncated` for "showing the best 200";
-    - `relaxations`: each has a `patch` to apply and an `unlockCount`;
-    - `nearMisses`: each has its `conflicts`.
+    - each result's `filled` names the course it took for each wildcard (`{wildcard: "CMSC4XX", courseCode}`; wildcard ids are the pattern or `gen-ed:DSHS`);
+    - `relaxations`: each has a `patch` to apply and an `unlockCount` (`makeWildcardOptional` for a required wildcard);
+    - `nearMisses`: each has its `conflicts`;
+    - `wildcards`: per wildcard item, how many courses `matched`, how many `fit` the must-haves and required courses, and how many were `tried` (at most 40 section groups each).
 
 ---
 
