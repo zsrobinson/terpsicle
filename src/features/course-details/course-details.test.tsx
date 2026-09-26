@@ -146,10 +146,15 @@ describe("Course details", () => {
         "button",
         { expanded: true, name: /^(Jada|Keiko)/ },
       );
-      expect(headers.map((h) => h.textContent)).toEqual([
-        expect.stringMatching(/^Jada Abernathy4\.6\(88\)$/),
-        expect.stringMatching(/^Keiko Ashdown3\.1\(142\) · GPA 3\.26$/),
-      ]);
+      // "★ 4.6 (88)" on screen, said in words.
+      expect(headers[0]).toHaveTextContent(/4\.6\(88\)$/);
+      expect(headers[0]).toHaveAccessibleName(
+        /^Jada Abernathy ?rated 4\.6 of 5, 88 reviews$/,
+      );
+      expect(headers[1]).toHaveTextContent(/3\.1\(142\) · GPA 3\.26$/);
+      expect(headers[1]).toHaveAccessibleName(
+        /^Keiko Ashdown ?rated 3\.1 of 5, 142 reviews GPA 3\.26$/,
+      );
       expect(rowCodes()).toEqual(["0101", "0201", "0301", "0401"]);
     });
 
@@ -211,7 +216,7 @@ describe("Course details", () => {
     it("switches to a section from the list", async () => {
       const { user } = await renderDetails();
       await user.click(
-        within(row("0401")).getByRole("button", { name: "Switch" }),
+        within(row("0401")).getByRole("button", { name: "Switch to 0401" }),
       );
       expect(
         openPlanNow()?.courses.find((c) => c.courseCode === "CMSC351")
@@ -335,7 +340,7 @@ describe("Course details", () => {
       const { user } = await renderDetails();
       expect(within(row("0401")).queryByLabelText(/seat opens/)).toBeNull();
       const bell = within(row("0101")).getByRole("button", {
-        name: "Get an email when a seat opens",
+        name: "Get an email when a seat opens, CMSC351 0101",
       });
       expect(bell).toHaveAttribute("data-alert", "none");
       await user.click(bell);
@@ -353,7 +358,7 @@ describe("Course details", () => {
       });
       expect(
         within(row("0101")).getByRole("button", {
-          name: "Check your email to confirm",
+          name: "Check your email to confirm, CMSC351 0101",
         }),
       ).toHaveAttribute("data-alert", "pending");
     });

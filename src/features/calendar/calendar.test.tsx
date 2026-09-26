@@ -75,7 +75,7 @@ describe("calendar", () => {
     );
     const pill = calendar.querySelector('[data-verdict="tight"]');
     expect(pill).toHaveTextContent("8 min");
-    expect(pill).toHaveAccessibleName(/^8 minute walk, tight\. ESJ to CSI/);
+    expect(pill).toHaveAccessibleName(/^8 min walk, tight\. ESJ to CSI/);
   });
 
   it("draws a previewed plan's own travel pills", async () => {

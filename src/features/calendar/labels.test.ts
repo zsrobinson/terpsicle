@@ -83,13 +83,32 @@ describe("calendar labels", () => {
         "CMSC351",
       ),
     ).toBe(
-      "2 sections of CMSC351 to choose from, Wednesday 2pm to 2:50pm: pick one",
+      "0201–0202, 2 sections of CMSC351 to choose from: Wednesday 2pm to 2:50pm, overlaps MATH140. Pick one.",
+    );
+    expect(
+      ghostName(
+        {
+          ...ghost,
+          sectionCodes: ["0201", "0202", "0203", "0204"],
+          full: true,
+          overlaps: false,
+        },
+        "CMSC351",
+      ),
+    ).toBe(
+      "0201–0204, 4 sections of CMSC351 to choose from: Wednesday 2pm to 2:50pm, all full. Pick one.",
+    );
+  });
+
+  it("says a shared plan's ghosts can't be switched to", () => {
+    expect(ghostName(ghost, "CMSC351", { readOnly: true })).toBe(
+      "0201, another section of CMSC351: Wednesday 2pm to 2:50pm, Jada Abernathy, overlaps MATH140. Save a copy to change sections.",
     );
   });
 
   it("names a travel pill by its walk and verdict", () => {
     expect(pillLabel(aConnection())).toBe(
-      "8 minute walk, tight. ESJ to CSI, 10 minutes between classes.",
+      "8 min walk, tight. ESJ to CSI, 10 minutes between classes.",
     );
     expect(
       pillLabel(aConnection({ walkMinutes: null, verdict: "unknown" })),

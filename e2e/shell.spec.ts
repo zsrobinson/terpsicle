@@ -165,7 +165,8 @@ test.describe("desktop", () => {
 
     await page.getByRole("button", { name: "Save a copy" }).click();
     await expect(page).toHaveURL((url) => !url.searchParams.has("plan"));
-    await expect(page.getByText("Shared plan")).toHaveCount(0);
+    // The pill and the heading, not the toast ("Saved a copy of the shared plan").
+    await expect(page.getByText("Shared plan", { exact: true })).toHaveCount(0);
     await expect(planTabs(page)).toHaveText(["Alex's summer"]);
     await expect(
       page.getByRole("button", { name: /Summer 2026/ }),

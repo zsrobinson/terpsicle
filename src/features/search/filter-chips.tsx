@@ -62,7 +62,10 @@ export function FilterChips({
     onChange(next);
   };
   return (
-    <div className="scroll-thin flex items-center gap-1 overflow-x-auto">
+    // One line in the sidebar (it scrolls sideways, and Tab brings each chip
+    // into view). On a phone-width screen, which is also a laptop at 400%
+    // zoom, they wrap rather than hide off the edge (WCAG 1.4.10).
+    <div className="scroll-thin flex items-center gap-1 overflow-x-auto max-[400px]:flex-wrap max-[400px]:overflow-x-visible">
       <MultiChip
         label="Gen-eds"
         tooltip="Only courses that count for these gen-eds"

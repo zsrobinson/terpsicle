@@ -61,10 +61,16 @@ export function InstructorMeta({
         <span className="inline-flex items-center gap-0.5">
           <Star
             size={11}
-            aria-label="Rated"
+            aria-hidden="true"
             className="fill-current text-warn"
           />
-          <span className="text-fg">{rating.rating}</span>({pt?.reviewCount})
+          {/* "★ 4.2 (61)" on screen; "rated 4.2 of 5, 61 reviews" read out. */}
+          <span className="sr-only">
+            {` rated ${rating.rating} of 5, ${pt?.reviewCount} reviews`}
+          </span>
+          <span aria-hidden="true">
+            <span className="text-fg">{rating.rating}</span>({pt?.reviewCount})
+          </span>
         </span>
       ) : null}
       {rating?.rating && gpa !== null ? <MetaSep /> : null}
@@ -156,7 +162,8 @@ export function InstructorReviews({
           <p className="mt-1 text-muted leading-5">
             <Sparkles
               size={11}
-              aria-label="Written by AI from reviews"
+              role="img"
+              aria-label="AI summary"
               className="-mt-0.5 mr-1 inline text-fg"
             />
             {review.summary.summary}

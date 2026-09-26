@@ -52,6 +52,9 @@ export function PanelHeader({
   );
 }
 
+/** At most two sticky levels inside a PanelBody: a bar, then a group header. */
+const STICKY_LEVELS = 2;
+
 /** The scrolling part of a panel, under its header. */
 export function PanelBody({
   className,
@@ -68,6 +71,13 @@ export function PanelBody({
         "scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-y-contain",
         className,
       )}
+      // A row focused while scrolling stops clear of the sticky Sections bar
+      // and group header above it (two 36px levels), never under them
+      // (WCAG 2.4.11).
+      style={{
+        scrollPaddingTop: STICKY_LEVELS * 36 + 4,
+        scrollPaddingBottom: 4,
+      }}
     >
       {children}
     </div>
@@ -106,10 +116,12 @@ export function SectionHeader({
           className,
         )}
       >
-        <span>
-          {title}
+        {/* A heading, so a screen reader can jump between a form's parts
+            ("Courses", "Must have", "Rank by") like between panels. */}
+        <span className="flex items-baseline gap-1.5">
+          <h3 className="font-medium">{title}</h3>
           {count !== undefined ? (
-            <span className="tnum ml-1.5 font-normal">{count}</span>
+            <span className="tnum font-normal">{count}</span>
           ) : null}
         </span>
         {right}
@@ -317,10 +329,15 @@ export function PanelFooter({
 
 /** " · " between facts on one line, in a tertiary color. */
 export function MetaSep() {
+  // The spaces stay outside the hidden dot, so a screen reader still hears
+  // two words ("FC01 Helena"), not one ("FC01Helena").
   return (
-    <span aria-hidden="true" className="text-faint">
-      {" · "}
-    </span>
+    <>
+      {" "}
+      <span aria-hidden="true" className="text-faint">
+        ·
+      </span>{" "}
+    </>
   );
 }
 

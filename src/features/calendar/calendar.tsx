@@ -1,5 +1,8 @@
 import { cn } from "cn";
 import {
+  type FocusEvent as ReactFocusEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useEffect,
@@ -23,7 +26,17 @@ import type { SeatsMap } from "~/core/seats";
 import { DAY_LONG_NAMES } from "~/core/time";
 import { useTravel } from "~/state/hooks";
 import { selectOpenCourse, useUi } from "~/state/ui-store";
-import { BusyBlock, ClassBlock, Ghost, laneStyle, TravelPill } from "./entries";
+import { Kbd } from "~/ui/kbd";
+import { quietTooltips } from "~/ui/tooltip";
+import {
+  BusyBlock,
+  ClassBlock,
+  Ghost,
+  laneStyle,
+  type NavProps,
+  TravelPill,
+} from "./entries";
+import { moveFocus, NAV_KEYS, type NavItem, tabStop } from "./keyboard";
 import {
   type CalendarModel,
   ghostLanesFor,
@@ -51,6 +64,7 @@ import { type CalendarView, useCalendarModel } from "./use-calendar-model";
 // Layout is computed in layout.ts; this file draws it and handles input.
 
 const WEEKDAYS: readonly Day[] = ["M", "Tu", "W", "Th", "F"];
+const EMPTY_WEEK = "Empty week: nothing on the calendar yet";
 
 export function Calendar() {
   const view = useCalendarModel();
@@ -67,8 +81,16 @@ export function Calendar() {
 
   if (!model || !current)
     return (
-      <WeekFrame days={WEEKDAYS} startMinute={8 * 60} endMinute={17 * 60} />
+      <WeekFrame
+        days={WEEKDAYS}
+        startMinute={8 * 60}
+        endMinute={17 * 60}
+        emptyLabel={EMPTY_WEEK}
+      />
     );
+  const empty = model.columns.every(
+    (c) => c.entries.length === 0 && c.ghosts.length === 0,
+  );
 
   const ghostColor = model.ghost?.color ?? null;
 
@@ -78,6 +100,7 @@ export function Calendar() {
       startMinute={model.startMinute}
       endMinute={model.endMinute}
       bottomInset={bottomInset}
+      emptyLabel={empty ? EMPTY_WEEK : undefined}
       top={
         <>
           {view.previewing ? (
@@ -198,14 +221,15 @@ function openConnection(connection: Connection) {
 function useGhostKeys({ model, current, ghostsFromOpenCourse }: CalendarView) {
   const enabled =
     ghostsFromOpenCourse && Boolean(model?.ghost) && !current?.readOnly;
-  // Menus, lists and popups use the arrows and Enter themselves. A focused
-  // calendar block doesn't: the preview wins, and preventing the default
-  // keeps Enter from also clicking it.
+  // Menus, lists and popups use the arrows and Enter themselves, and so does
+  // the calendar: there the arrows move between classes and ghosts (focusing
+  // a ghost previews it), and Enter presses what's focused. Anywhere else
+  // (the course's own details, most often), ↑/↓/↵ step through the sections.
   const notOnAControl = (event: KeyboardEvent) =>
     !(
       event.target instanceof Element &&
       event.target.closest(
-        "[role=menu],[role=listbox],[role=dialog],[role=tablist],[data-slot=popover-content]",
+        "[role=menu],[role=listbox],[role=dialog],[role=tablist],[data-slot=popover-content],[data-calendar-grid]",
       )
     );
   useShortcut(
@@ -312,6 +336,10 @@ function Grid({
   const [pending, setPending] = useState<BlockDraft | null>(null);
   const [hint, setHint] = useState<{ x: number; y: number } | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [remembered, setRemembered] = useState<NavItem | null>(null);
+  const [learned, setLearned] = useState(false);
+  /** The calendar item that has focus, while one does. */
+  const focused = useRef<Element | null>(null);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -425,10 +453,105 @@ function Grid({
     right: 3,
   });
 
+  // The keyboard (keyboard.ts): one Tab stop, arrows between everything.
+  const days = columns.map((column, col) => ({
+    column,
+    col,
+    pills: placePills(
+      pillsWhileComparing(column.pills, ghostCourse),
+      layout,
+      colWidth,
+    ),
+  }));
+  const navItems: NavItem[] = days.flatMap(({ column, col, pills }) => [
+    ...column.entries.map((e) => ({
+      key: `c:${e.key}`,
+      col,
+      start: e.start,
+      lane: e.lane,
+    })),
+    ...column.ghosts
+      .filter((g) => !g.overlay)
+      .map((g) => ({ key: `g:${g.key}`, col, start: g.start, lane: g.lane })),
+    ...pills.map(({ pill }) => ({
+      key: `p:${column.day}:${pill.key}`,
+      col,
+      start: pill.at,
+    })),
+  ]);
+  const stop = tabStop(
+    navItems,
+    remembered?.key ?? null,
+    days.flatMap(({ column }) =>
+      column.entries
+        .filter((e) => e.kind === "class" && e.courseCode === ghostCourse)
+        .map((e) => `c:${e.key}`),
+    ),
+    remembered,
+  );
+  const nav = (key: string): NavProps => ({
+    "data-nav-key": key,
+    tabIndex: key === stop ? 0 : -1,
+    // Said once, as focus first arrives, until the arrows have been used.
+    ...(key === stop && !learned ? { "aria-describedby": KEYS_ID } : {}),
+  });
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const move = NAV_KEYS[event.key];
+    if (!move || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.shiftKey) return;
+    const from =
+      event.target instanceof Element
+        ? event.target.closest("[data-nav-key]")?.getAttribute("data-nav-key")
+        : null;
+    if (!from) return;
+    // At the edge of a day or the week too: the arrows stay the calendar's
+    // (no page scroll, no section preview) while focus is on it.
+    event.preventDefault();
+    const next = moveFocus(navItems, from, move);
+    if (!next) return;
+    setLearned(true);
+    ref.current
+      ?.querySelector<HTMLElement>(`[data-nav-key="${CSS.escape(next)}"]`)
+      ?.focus();
+  };
+  const onFocus = (event: ReactFocusEvent<HTMLDivElement>) => {
+    const key = event.target
+      .closest("[data-nav-key]")
+      ?.getAttribute("data-nav-key");
+    if (key) {
+      setRemembered(navItems.find((i) => i.key === key) ?? null);
+      focused.current = event.target;
+    }
+  };
+  const onBlur = (event: ReactFocusEvent<HTMLDivElement>) => {
+    // Leaving for somewhere else. A focused ghost that's switched to is
+    // removed instead, which fires no blur: the effect below catches that.
+    if (event.relatedTarget) focused.current = null;
+  };
+  // Switching to a ghost replaces it with the class it becomes. Focus would
+  // fall to the page; it goes to the course's new class instead (WCAG 2.4.3).
+  useEffect(() => {
+    const was = focused.current;
+    if (!was || was.isConnected || !stop) return;
+    focused.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    // No tooltip over the class that just appeared: it would hide it, and
+    // take the next Esc.
+    quietTooltips();
+    ref.current
+      ?.querySelector<HTMLElement>(`[data-nav-key="${CSS.escape(stop)}"]`)
+      ?.focus({ preventScroll: true });
+  });
+
   return (
+    // Key and focus events bubble up from the buttons inside (the roving
+    // tabindex); the wrapper itself is never focused or pressed.
+    // biome-ignore lint/a11y/noStaticElementInteractions: see above
     <div
       ref={ref}
       role="presentation"
+      data-calendar-grid=""
       className={cn("absolute inset-0 flex", canDrag && "cursor-crosshair")}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -438,103 +561,136 @@ function Grid({
         clearTimeout(hintTimer.current);
         setHint(null);
       }}
+      onKeyDown={onKeyDown}
+      onFocus={onFocus}
+      onBlur={onBlur}
     >
-      {columns.map((column) => (
-        // Screen readers hear which day they're in as they move through.
-        // biome-ignore lint/a11y/useSemanticElements: a day isn't a form, so not a <fieldset>
-        <div
-          key={column.day}
-          role="group"
-          aria-label={DAY_LONG_NAMES[column.day]}
-          data-empty=""
-          data-day={column.day}
-          className="relative h-full min-w-0 flex-1"
-        >
-          {column.entries.map((entry) => {
-            const style = laneStyle(entry, layout.yOf);
-            const height = layout.yOf(entry.end) - layout.yOf(entry.start);
-            if (entry.kind === "block")
-              return (
+      <p id={KEYS_ID} className="sr-only">
+        Arrow keys move around the calendar: left and right change the day, up
+        and down go through the day. To block off time, use the Blocks tab.
+      </p>
+      {days.map(({ column, pills }) => {
+        // Reading order is time order, so a screen reader hears "STAT400,
+        // 8 min walk, CMSC351" the way the day goes.
+        const things: { start: number; lane: number; node: ReactNode }[] = [];
+        for (const entry of column.entries) {
+          const style = laneStyle(entry, layout.yOf);
+          const height = layout.yOf(entry.end) - layout.yOf(entry.start);
+          const width = colWidth > 0 ? colWidth / entry.lanes - 4 : null;
+          things.push({
+            start: entry.start,
+            lane: entry.lane,
+            node:
+              entry.kind === "block" ? (
                 <BusyBlock
                   key={entry.key}
                   entry={entry}
                   height={height}
                   dimmed={ghostCourse !== null}
                   style={style}
-                  width={colWidth > 0 ? colWidth / entry.lanes - 4 : null}
+                  width={width}
+                  nav={nav(`c:${entry.key}`)}
                 />
-              );
-            return (
-              <ClassBlock
-                key={entry.key}
-                entry={entry}
-                height={height}
-                dimmed={
-                  ghostCourse !== null && entry.courseCode !== ghostCourse
-                }
-                selected={ghostCourse === entry.courseCode}
-                changed={changed?.has(entry.sectionKey) ?? false}
-                open={openCode === entry.courseCode}
-                onOpen={() => openCourse(entry.courseCode)}
-                style={style}
-                width={colWidth > 0 ? colWidth / entry.lanes - 4 : null}
+              ) : (
+                <ClassBlock
+                  key={entry.key}
+                  entry={entry}
+                  height={height}
+                  dimmed={
+                    ghostCourse !== null && entry.courseCode !== ghostCourse
+                  }
+                  selected={ghostCourse === entry.courseCode}
+                  changed={changed?.has(entry.sectionKey) ?? false}
+                  open={openCode === entry.courseCode}
+                  onOpen={() => openCourse(entry.courseCode)}
+                  style={style}
+                  width={width}
+                  nav={nav(`c:${entry.key}`)}
+                />
+              ),
+          });
+        }
+        for (const ghost of column.ghosts)
+          things.push({
+            start: ghost.start,
+            lane: ghost.lane,
+            node: (
+              <Ghost
+                key={ghost.key}
+                entry={ghost}
+                height={layout.yOf(ghost.end) - layout.yOf(ghost.start)}
+                width={colWidth > 0 ? colWidth / ghost.lanes - 4 : null}
+                readOnly={readOnly}
+                seats={seats}
+                style={laneStyle(ghost, layout.yOf)}
+                nav={ghost.overlay ? null : nav(`g:${ghost.key}`)}
               />
-            );
-          })}
-          {column.ghosts.map((ghost) => (
-            <Ghost
-              key={ghost.key}
-              entry={ghost}
-              height={layout.yOf(ghost.end) - layout.yOf(ghost.start)}
-              width={colWidth > 0 ? colWidth / ghost.lanes - 4 : null}
-              readOnly={readOnly}
-              seats={seats}
-              style={laneStyle(ghost, layout.yOf)}
-            />
-          ))}
-          {placePills(
-            pillsWhileComparing(column.pills, ghostCourse),
-            layout,
-            colWidth,
-          ).map(({ pill, top, x }) => (
-            <TravelPill
-              key={pill.key}
-              pill={pill}
-              top={top}
-              x={x}
-              travel={travel}
-              selected={
-                stackTop?.kind === "connection" &&
-                stackTop.connectionId === pill.connection.id
-              }
-              onOpen={openConnection}
-            />
-          ))}
-          {draft?.days.includes(column.day) ? (
-            <DraftOutline style={draftBox(draft.start, draft.end)} />
-          ) : null}
-          {pending && pending.days[0] === column.day ? (
-            <NewBlockPopover
-              draft={pending}
-              anchorStyle={{
-                ...draftBox(pending.start, pending.end),
-                // Anchor at the last dragged column, so the popup sits beside it.
-                right: -(pending.days.length - 1) * colWidth - 3,
-              }}
-              onDone={() => setPending(null)}
-            />
-          ) : null}
-        </div>
-      ))}
+            ),
+          });
+        for (const { pill, top, x } of pills)
+          things.push({
+            start: pill.at,
+            lane: 0,
+            node: (
+              <TravelPill
+                key={pill.key}
+                pill={pill}
+                top={top}
+                x={x}
+                travel={travel}
+                selected={
+                  stackTop?.kind === "connection" &&
+                  stackTop.connectionId === pill.connection.id
+                }
+                onOpen={openConnection}
+                nav={nav(`p:${column.day}:${pill.key}`)}
+              />
+            ),
+          });
+        things.sort((a, b) => a.start - b.start || a.lane - b.lane);
+        return (
+          // Screen readers hear which day they're in as they move through.
+          // biome-ignore lint/a11y/useSemanticElements: a day isn't a form, so not a <fieldset>
+          <div
+            key={column.day}
+            role="group"
+            aria-label={DAY_LONG_NAMES[column.day]}
+            data-empty=""
+            data-day={column.day}
+            className="relative h-full min-w-0 flex-1"
+          >
+            {things.map((thing) => thing.node)}
+            {draft?.days.includes(column.day) ? (
+              <DraftOutline style={draftBox(draft.start, draft.end)} />
+            ) : null}
+            {pending && pending.days[0] === column.day ? (
+              <NewBlockPopover
+                draft={pending}
+                anchorStyle={{
+                  ...draftBox(pending.start, pending.end),
+                  // Anchor at the last dragged column, so the popup sits beside it.
+                  right: -(pending.days.length - 1) * colWidth - 3,
+                }}
+                onDone={() => setPending(null)}
+              />
+            ) : null}
+          </div>
+        );
+      })}
       {hint ? (
         <div
           role="tooltip"
-          className="pointer-events-none absolute z-40 rounded-md bg-fg px-2 py-1 text-bg text-sm"
+          className="pointer-events-none absolute z-40 flex items-center gap-1.5 rounded-md border border-transparent bg-fg px-2 py-1 text-bg text-sm"
           style={{ left: hint.x + 12, top: hint.y + 14 }}
         >
-          Drag to block off time
+          {/* The keyboard's way in is the Blocks tab (WCAG 2.5.7). */}
+          Drag to block off time, or add one in Blocks
+          <Kbd>5</Kbd>
         </div>
       ) : null}
     </div>
   );
 }
+
+/** The calendar's keys, described to a screen reader as focus first arrives. */
+const KEYS_ID = "calendar-keys";

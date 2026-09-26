@@ -48,6 +48,12 @@ export interface WeekFrameProps {
    * (a phone's drawer at half), so every hour can scroll above it.
    */
   bottomInset?: number;
+  /**
+   * Names the scroll area and makes it a Tab stop, for a week with nothing
+   * on it to focus: a phone can still scroll it from the keyboard (WCAG
+   * 2.1.1). A week with classes is reached through them.
+   */
+  emptyLabel?: string;
   className?: string;
 }
 
@@ -75,6 +81,7 @@ export function WeekFrame({
   top,
   children,
   bottomInset = 0,
+  emptyLabel,
   className,
 }: WeekFrameProps) {
   const start = Math.floor(startMinute / 60) * 60;
@@ -120,9 +127,21 @@ export function WeekFrame({
         <div
           ref={scrollRef}
           data-calendar-scroll=""
+          {...(emptyLabel
+            ? { tabIndex: 0, role: "group", "aria-label": emptyLabel }
+            : {})}
           className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain"
+          // Something focused on the grid scrolls clear of the sticky day
+          // names and of a phone's drawer (WCAG 2.4.11).
+          style={{
+            scrollPaddingTop: DAY_HEADER_HEIGHT + 8,
+            scrollPaddingBottom: bottomInset + 8,
+          }}
         >
+          {/* Each day's column is a group named for its day, so this row
+              would only repeat it. */}
           <div
+            aria-hidden="true"
             className="sticky top-0 z-10 grid border-hairline border-b bg-bg"
             style={{ gridTemplateColumns: columns, height: DAY_HEADER_HEIGHT }}
           >

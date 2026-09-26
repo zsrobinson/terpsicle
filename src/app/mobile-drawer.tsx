@@ -30,6 +30,12 @@ function useViewportHeight(): number {
 }
 
 /**
+ * Under this height (a laptop at 400% zoom is 256px), half the screen can't
+ * show a panel under the drawer's tabs, so "half" opens it all the way.
+ */
+const SHORT_VIEWPORT = 480;
+
+/**
  * How much of the screen's bottom the on-screen keyboard covers. Phones
  * shrink the visual viewport for it and leave the layout (`innerHeight`,
  * `dvh`) alone, so the drawer, sized to the layout, runs on under it.
@@ -78,10 +84,11 @@ function isTextEntry(el: EventTarget | null): boolean {
 }
 
 export function snapHeights(viewport: number): Record<DrawerSnap, number> {
+  const full = viewport - TOP_BAR_HEIGHT;
   return {
     peek: PEEK_HEIGHT,
-    half: Math.round(viewport * 0.5),
-    full: viewport - TOP_BAR_HEIGHT,
+    half: viewport < SHORT_VIEWPORT ? full : Math.round(viewport * 0.5),
+    full,
   };
 }
 
