@@ -15,15 +15,32 @@ const CURRENT: Record<ProductId, string> = {
   schedule: "aria-[current=page]:bg-product-schedule-soft",
   reviews: "aria-[current=page]:bg-product-reviews-soft",
   chat: "aria-[current=page]:bg-product-chat-soft",
+  todo: "aria-[current=page]:bg-product-todo-soft",
+};
+
+/**
+ * How a page sits under the header:
+ * - `note`: a narrow column a little way down (`/`, coming soon, `/privacy`);
+ * - `reading`: a product's pages to read, from the top (Reviews);
+ * - `app`: a product's own tool, wide, from the top (Todo's list and week).
+ */
+export type SiteLayout = "note" | "reading" | "app";
+
+const MAIN: Record<SiteLayout, string> = {
+  note: "max-w-[560px] pt-[12vh]",
+  reading: "max-w-[720px] pt-6",
+  app: "max-w-[1120px] pt-4",
 };
 
 export function SitePage({
   children,
-  layout = "page",
+  layout = "note",
+  actions,
 }: {
   children: ReactNode;
-  /** `app`: a wider column from the top, for a product's own pages (Todo). */
-  layout?: "page" | "app";
+  layout?: SiteLayout;
+  /** The right end of the header, after the products (Reviews' account link). */
+  actions?: ReactNode;
 }) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
@@ -34,34 +51,34 @@ export function SitePage({
             <Logo />
           </a>
         </WithTooltip>
-        {/* The product menu's links, flat: these pages stay light (no menu code). */}
-        {/* Tighter on phones, so all three fit beside the logo at 390px. */}
-        <nav aria-label="Products" className="flex items-center sm:gap-1">
-          {PRODUCTS.map((p) => (
-            <WithTooltip key={p.to} label={p.view}>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className={`max-sm:px-1.5 aria-[current=page]:text-fg ${CURRENT[p.id]}`}
-              >
-                <Link to={p.to} activeProps={{ "aria-current": "page" }}>
-                  {/* size-4: the button shrinks unsized icons. */}
-                  <Mark id={p.id} size={16} className="size-4" />
-                  {p.label}
-                </Link>
-              </Button>
-            </WithTooltip>
-          ))}
-        </nav>
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* The product menu's links, flat: these pages stay light (no menu code). */}
+          <nav aria-label="Products" className="flex items-center sm:gap-1">
+            {PRODUCTS.map((p) => (
+              <WithTooltip key={p.to} label={p.view}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className={`max-sm:px-1.5 aria-[current=page]:text-fg ${CURRENT[p.id]}`}
+                >
+                  <Link to={p.to} activeProps={{ "aria-current": "page" }}>
+                    {/* size-4: the button shrinks unsized icons. */}
+                    <Mark id={p.id} size={16} className="size-4" />
+                    {/* Phones name only the product you're on: every mark
+                        and one name fit beside the logo at 390px. */}
+                    <span className="max-sm:not-in-aria-[current=page]:sr-only">
+                      {p.label}
+                    </span>
+                  </Link>
+                </Button>
+              </WithTooltip>
+            ))}
+          </nav>
+          {actions}
+        </div>
       </header>
-      <main
-        className={
-          layout === "app"
-            ? "mx-auto w-full max-w-[1120px] flex-1 px-4 pt-4 pb-8"
-            : "mx-auto w-full max-w-[560px] flex-1 px-4 pt-[12vh] pb-8"
-        }
-      >
+      <main className={`mx-auto w-full flex-1 px-4 pb-8 ${MAIN[layout]}`}>
         {children}
       </main>
       <footer className="flex h-12 shrink-0 items-center gap-4 px-4 text-muted text-sm">

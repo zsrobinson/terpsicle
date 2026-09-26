@@ -280,7 +280,7 @@ describe("the palette", () => {
   });
 
   it("keeps the marks' glyphs readable on their tiles, and the menu's text on product fills", () => {
-    const products = ["schedule", "reviews", "chat"];
+    const products = ["schedule", "reviews", "chat", "todo"];
     expect(
       lowContrast(
         [
@@ -316,6 +316,7 @@ describe("the palette", () => {
         [
           ["keyline", "bg"],
           ["umbrella-keyline", "bg"],
+          ["product-todo-keyline", "bg"],
         ],
         3,
       ),

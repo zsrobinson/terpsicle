@@ -95,6 +95,30 @@ export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
   ];
 
 /**
+ * Gzipped JS + CSS for each Terpsicle Reviews page, in bytes: 246 KB for
+ * an instructor or course page when this was set (v2/reviews-ui; the home
+ * page 218 KB), plus about 10% headroom. `/`'s React and router, plus the
+ * review form with stage 0's rules, the grade bars and the published-data
+ * reader. Same rule for raising it.
+ */
+export const REVIEWS_BUDGET = 270 * 1024;
+
+/**
+ * Reviews reads published files through the data layer's reader
+ * (`src/state/data-source.ts`, which reaches the fixtures only in mock
+ * builds) and nothing else of the scheduler's: no Dexie, no stores.
+ */
+export const REVIEWS_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
+  [
+    { pattern: /(^|\/)dexie\//, why: "only the scheduler opens Dexie" },
+    {
+      pattern: /^src\/state\/(?!data-source\.ts$)/,
+      why: "the app's stores load with /schedule",
+    },
+    { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
+  ];
+
+/**
  * Gzipped JS + CSS for the admin panel (/admin, /admin/decisions), in bytes:
  * 224 KB when this was set (v2 admin-shell), `/`'s base plus the panel, plus
  * about 10% headroom; 213 KB once the panel stopped using Radix's menu and
@@ -153,13 +177,22 @@ export const ROUTE_BUDGETS: readonly {
     budget: TODO_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
   })),
-  ...["/", "/reviews/", "/chat/", "/settings", "/signin", "/privacy"].map(
-    (route) => ({
-      route,
-      budget: LANDING_BUDGET,
-      never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
-    }),
-  ),
+  ...["/", "/chat/", "/settings", "/signin", "/privacy"].map((route) => ({
+    route,
+    budget: LANDING_BUDGET,
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  })),
+  ...[
+    "/reviews/",
+    "/reviews/instructors/$id",
+    "/reviews/courses/$code",
+    "/reviews/mine",
+    "/reviews/policy",
+  ].map((route) => ({
+    route,
+    budget: REVIEWS_BUDGET,
+    never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  })),
   ...["/admin/", "/admin/decisions"].map((route) => ({
     route,
     budget: ADMIN_BUDGET,

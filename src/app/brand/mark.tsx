@@ -45,10 +45,22 @@ const PAINT: Record<
     keyline: { fill: "fill-keyline", stroke: "stroke-keyline" },
     offset: { fill: "fill-mark-offset", stroke: "stroke-mark-offset" },
   },
+  todo: {
+    tile: { fill: "fill-product-todo", stroke: "stroke-product-todo" },
+    glyph: {
+      fill: "fill-product-todo-fg",
+      stroke: "stroke-product-todo-fg",
+    },
+    keyline: {
+      fill: "fill-product-todo-keyline",
+      stroke: "stroke-product-todo-keyline",
+    },
+    offset: { fill: "fill-mark-offset", stroke: "stroke-mark-offset" },
+  },
 };
 
 /**
- * One of the four marks at `size` px. With a `label` it's an image with that
+ * One of the marks at `size` px. With a `label` it's an image with that
  * name; without one it's decoration beside words that already say it.
  */
 export function Mark({
