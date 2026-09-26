@@ -138,7 +138,8 @@ function BlockRow({
 }) {
   const main = (
     <>
-      <span className="block truncate font-medium text-base">
+      {/* The person's own words (docs/ANALYTICS.md "Privacy"). */}
+      <span data-private="" className="block truncate font-medium text-base">
         {block.label}
       </span>
       <span className="tnum block text-muted text-sm">{blockWhen(block)}</span>
@@ -160,6 +161,9 @@ function BlockRow({
             <button
               type="button"
               aria-label={`Remove ${block.label}`}
+              // Its label quotes the block's: autocapture skips it
+              // (docs/ANALYTICS.md "Privacy").
+              data-private=""
               onClick={() => removeBlock(block.id)}
               // Above the row's edit button, which covers the whole row.
               className="relative z-10 flex size-6 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg"
@@ -177,6 +181,7 @@ function BlockRow({
           <button
             type="button"
             aria-label={`Edit ${block.label}`}
+            data-private=""
             onClick={onEdit}
             className="block w-full text-left after:absolute after:inset-0"
           >

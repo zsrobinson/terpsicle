@@ -54,6 +54,18 @@ export interface ServerEvents {
   };
   // Plan sync: counts only, never who or what (V2.md §11).
   sync_push: { docs: number; conflicts: number };
+  // Terpsicle Todo's cron (docs/V3.md §6). Counts only: never a feed, a
+  // link, a user or an item.
+  todo_fetch_run: {
+    due: number;
+    fetched: number;
+    notModified: number;
+    unchanged: number;
+    failed: number;
+    broken: number;
+    paused: number;
+    durationMs: number;
+  };
 }
 export type ServerEvent = keyof ServerEvents;
 
