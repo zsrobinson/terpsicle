@@ -121,6 +121,20 @@ test("a tapped field is already at the top when the keyboard opens", async ({
   await expect(drawer(page)).toHaveAttribute("data-snap", "full");
 });
 
+test("a scroll of the page is undone", async ({ page }) => {
+  // iOS Safari scrolls even an overflow: hidden page to bring a focused
+  // field above the keyboard, measuring the field where it was tapped; the
+  // drawer then carried the field up and the scroll took it off the screen
+  // (the mobile lab's keyboard-at-half on iOS). Headless Chromium has no
+  // keyboard to make the page taller than the screen, so a tall body stands
+  // in for it, and a script scroll for Safari's.
+  await page.evaluate(() => {
+    document.body.style.height = "2000px";
+    window.scrollTo(0, 214);
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+});
+
 test("the keyboard alone doesn't move the drawer", async ({ page }) => {
   await expect(drawer(page)).toHaveAttribute("data-snap", "half");
   await keyboard(page, KEYBOARD);

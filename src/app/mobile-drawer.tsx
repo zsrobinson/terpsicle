@@ -119,6 +119,7 @@ export function MobileDrawer() {
   const heights = snapHeights(viewport);
   const keyboard = useKeyboardInset();
   useCalendarStaysVisible(depth);
+  usePageStaysPut();
   const points = [
     `${heights.peek}px`,
     `${heights.half}px`,
@@ -364,6 +365,26 @@ function tapTab(tab: RailTab): void {
   }
   openTab(tab, "click");
   if (useUi.getState().drawerSnap === "peek") ui.setDrawerSnap("half");
+}
+
+/**
+ * The app fills the screen and never scrolls as a page (styles.css), but
+ * iOS Safari scrolls it anyway to bring a focused field above the keyboard,
+ * measuring where the field was when it was tapped. A field tapped low in
+ * the drawer then rose with it to the top, and the scroll carried it (and
+ * the drawer's header) off the top of the screen: "you're no longer able to
+ * see where you're typing" (the mobile lab's keyboard-at-half on iOS). The
+ * drawer has already put the field where the keyboard can't cover it, so
+ * any scroll of the page is undone.
+ */
+function usePageStaysPut() {
+  useEffect(() => {
+    const undo = () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+    };
+    addEventListener("scroll", undo);
+    return () => removeEventListener("scroll", undo);
+  }, []);
 }
 
 /**
