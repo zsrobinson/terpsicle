@@ -79,6 +79,10 @@ test("the admin publishes, undoes, removes with a reason, then reads the log", a
 }) => {
   await signInAs(page, "Test Admin", "/admin");
   await expect(page).toHaveURL(/\/admin$/);
+  // Its own page, outside the scheduler's shell.
+  await expect(page).toHaveTitle("Admin · Terpsicle");
+  await expect(page.getByRole("navigation", { name: "Admin" })).toBeVisible();
+  await expect(page.locator("[data-app-shell]")).toHaveCount(0);
   const health = page.getByRole("region", { name: "Health" });
   await expect(health.getByText("AI calls today")).toBeVisible();
   await expect(health.getByText(/ of 2,000$/)).toBeVisible();
