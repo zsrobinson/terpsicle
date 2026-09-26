@@ -230,6 +230,6 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
 | Walking distances **and route geometries** (standard + accessible) | UMD GIS DynamicRouting (`gis.umd.edu`), precomputed per building pair | Built by a resumable cron job (or a script if Workers can't reach UMD's token server), stored in R2. OSRM/OSM is the fallback for distances only. |
 | Term dates, breaks, holidays | `provost.umd.edu/calendar.md` | For .ics. |
 | Review summaries | **Workers AI** (the Worker's `AI` binding, no external API key), generated **on demand** on the first open of an instructor, then cached in R2 | Regenerated only when new reviews arrive; hidden if generation fails. |
-| Accounts, synced plans, seat watches, reviews written on Terpsicle, chat messages (v2) | D1, and the `CourseChat` Durable Object for messages | `docs/V2.md`; tables in `DATA.md` §7.4. |
+| Accounts, synced plans, seat watches, reviews written on Terpsicle, chat messages (v2) | D1, and the `CourseChat` Durable Object for messages | `docs/V2.md`; tables in `DATA.md` §7.5. |
 
 No Jupiterp data. No final exam data.
