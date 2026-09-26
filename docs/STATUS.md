@@ -24,7 +24,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 |---|---|---|
 | V0: Plan | `v2/plan` | In review |
 | V1: Foundations | `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation` | In flight |
-| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | `v2/sync-merge` in review |
+| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | `v2/sync-merge`, `v2/sync-api` in review |
 | V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Not started |
 | V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | Not started |
 | V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | Not started |
@@ -32,7 +32,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 
 **v2 decisions** (details in `docs/V2.md`):
 - **Plan sync is plain server-side storage**, encrypted at rest by Cloudflare, not end-to-end encrypted. The orchestrator's call, flagged for the owner: it lets Chat derive rooms from plans and keeps recovery simple.
-- **Plan sync is not a sync engine:** one doc per plan plus one settings doc, saved whole with per-doc rev compare-and-swap. A conflicting plan is never merged; the person gets both, the local one as "<name> (copy)". The core (`src/core/sync`) is in `v2/sync-merge`.
+- **Plan sync is not a sync engine:** one doc per plan plus one settings doc, saved whole with per-doc rev compare-and-swap. A conflicting plan is never merged; the person gets both, the local one as "<name> (copy)". The core (`src/core/sync`) is in `v2/sync-merge`; the D1 tables and `sync/push`, `sync/pull` in `v2/sync-api` (`DATA.md` §7.7).
 - **PR previews sign in with a fixed test mode** (`AUTH_TEST_MODE`, fixture identities), not a production broker: previews run unreviewed code and have their own D1, and CI needs a deterministic sign-in anyway. Cloudflare's version preview URLs, which share the Worker's secrets, were ruled out too: they also share its bindings, so a preview would use production D1 (`docs/AUTH.md`).
 - **Identity** (`v2/identity`, `docs/AUTH.md`): Google sign-in with `hd=*`, `prompt=select_account` and a `login_hint` from a `__Host-hint` cookie; users keyed on the directory ID with both addresses in `user_identities`; name and picture refreshed from Google at every sign-in, pictures cached in R2 `USER_CONTENT` (so `v2/avatars` folded in); sessions refresh daily with a new token; account deletion with a week's grace and the daily purge; admins from `config/admins.txt`. The route table's `auth` field (with the origin check) landed here too, since every later route builds on it.
 - **Seat alerts retire the email-token flow** rather than migrate it; nothing is public, and the only real subscriptions were the owner's deleted test rows.
@@ -42,14 +42,41 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 
 **Owner actions** (`docs/V2.md` §14): the Google OAuth client is done (External, published, scopes `openid email profile`, redirect `https://terpsicle.com/api/auth/google/callback` plus localhost; `GOOGLE_CLIENT_ID` in vars, `GOOGLE_CLIENT_SECRET` set on the Worker). `AUTH_SECRET` and `VAPID_*` are set and the `terpsicle-user-content` buckets exist. Admins are the git-tracked `config/admins.txt` (first entry `robinson`, the owner), bundled at build time, so they need no owner action. Later: brand verification once `/privacy` is live, a sign-in trial with a TERPmail and a UMD Gmail account, confirming the sync decision, and emailing PlanetTerp about review text.
 
+## v3: Terpsicle Plan and Terpsicle Todo (owner decisions, 2026-09-26, evening)
+
+Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, green), a four-year planner, and **Terpsicle Todo** (`/todo`, yellow), deadlines from ELMS. The five products are ordered by color everywhere: Schedule, Reviews, Chat, Plan, Todo. The plan, with its tables, routes, cron and PR order, is `docs/V3.md`; its §11 lists the PRs by wave.
+
+| Milestone | PRs (`docs/V3.md` §11) | State |
+|---|---|---|
+| W0: Plan | `v3/plan` | In review |
+| W1: Parsers, index, brand | `v3/course-index`, `v3/transcript-parser`, `v3/ics-parser`, `v3/brand` | Not started (the parsers wait on owner fixtures) |
+| W2: Core and APIs | `v3/four-year-core`, `v3/four-year-sync-api`, `v3/todo-api` | Not started |
+| W3: UIs | `v3/plan-ui`, `v3/todo-ui` | Not started |
+| W4: Sync, import, templates, handoff, reminder | `v3/four-year-sync`, `v3/transcript-import`, `v3/templates`, `v3/schedule-handoff`, `v3/todo-notify` | Not started |
+| W5: Links and e2e | `v3/cross-links`, `v3/e2e` | Not started |
+
+**v3 decisions** (details in `docs/V3.md`):
+- **Plan's first release has no degree requirements:** credits, GenEd progress from Testudo's codes, prerequisite problems as information, transcript paste import, sample templates (Computer Science first) and "View schedule". Reading requirements from the catalog with a model is a later phase (§9.1).
+- **A four-year plan is a third sync doc kind** (`four-year`), local-first and signed-out like the scheduler; `0010_four_year_sync` rebuilds `sync_docs` for the new `kind`. Clients skip doc kinds they don't know, and the upgrade resets the sync cursor once.
+- **Grades stay private:** only in the four-year doc's `grades` map (browser, and our server when signed in), never in events, logs, links, pushes or anything another person sees.
+- **Transcript import is a pure core parser** with golden tests on redacted real pastes; the paste never leaves the browser.
+- **Wildcards** (`CMSC4XX`, `ARTTXXX`, "any DSHS") are placeholder blocks, using the shared matcher from `v2/wildcards`.
+- **Todo uses the ELMS calendar feed**, stored on the server encrypted (AES-GCM, key `TODO_FEED_KEY` in Worker secrets) so reminders work with the app closed; fetched every 20 minutes (6 h for idle feeds, paused after 120 days), with exponential backoff and a `broken` state for revoked links. The link is never logged.
+- **Gradescope:** no student API, and scraping is forbidden, so never a password or a gradescope.com fetch. Gradescope work linked in ELMS comes through the feed (tagged); a student-exported `.ics` can be dropped in as a fallback.
+- **One new notification type, `todo-due`**, the owner's approved exception to "no more types": push only, 6pm New York the day before, at most one a day, off until ELMS is connected.
+- **Copy uses contractions** everywhere (SPEC §3.13).
+
+**v3 owner actions** (`docs/V3.md` §10): a fresh, privately shared unofficial-transcript paste; a real ELMS feed recorded with `scripts/record-ics-fixture.ts` (and confirming the Calendar Feed link and its host at UMD); confirming that grades sync with the four-year plan. The orchestrator sets `TODO_FEED_KEY`.
+
 ## UX redesign (owner request, 2026-09-25)
 
-`docs/UX-PRINCIPLES.md` (research) and `docs/UX-REVIEW.md` (audit, plan, before/after). Owner decisions: course details is one page with no tabs (1A); many-section courses group by meeting time (2A); the sidebar is draggable, 320–480px. The design system is enforced by `src/app/design-tokens.test.ts` (type scale, 4px spacing, no raw colors). Rule added to DESIGN.md §5: design for 1, a few and many sections.
+`docs/UX-PRINCIPLES.md` (research) and `docs/UX-REVIEW.md` (audit, plan, before/after). Owner decisions: course details is one page with no tabs (1A); many-section courses group by meeting time (2A, superseded 2026-09-26: one level of grouping, by professor, every row with all its meetings, and Bookmark for the course-level save; SPEC §3.4); the sidebar is draggable, 320–480px. The design system is enforced by `src/app/design-tokens.test.ts` (type scale, 4px spacing, no raw colors). Rule added to DESIGN.md §5: design for 1, a few and many sections.
 
 ## In flight
 
 - `m8/qa-3`: post-redesign regression on production.
 - v2 wave 1: `v2/plan`, `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation`.
+- `v3/plan`: the plan for Terpsicle Plan and Terpsicle Todo (`docs/V3.md`).
 
 ## Decisions
 
@@ -98,6 +125,10 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
   - To retire it, serve a `/sw.js` that calls `self.registration.unregister()`. Browsers check `/sw.js` on every navigation, so the change spreads on the next visit. Bumping `SERVICE_WORKER_VERSION` (now 2) drops its caches.
 - **Installable app** (`v2/pwa`): the manifest is built from the theme tokens (`scripts/pwa-manifest.ts`: the dev server answers `/manifest.webmanifest`, the build writes it, and the head's two `theme-color` tags read the same tokens). Icons, including the notification badge, are rebuilt from `public/favicon.svg` by `pnpm tsx scripts/icons.ts` (the SVG's first `<rect>` is the tile that full-bleed icons extend). `e2e/pwa.spec.ts` runs Chrome's own installability check (`Page.getInstallabilityErrors`, what Lighthouse reports) in a real profile, since incognito can't install.
 - **Install prompt** (`v2/pwa`): `requestInstallPrompt(trigger)` from `~/features/pwa/install-store`, with V2.md §3.4's rules. `alert-on` is wired to today's seat-alert confirm page until `v2/seat-watches` moves it to the bell. "Install app" is in the account menu (and the phone menu), and for people who haven't signed in at the foot of the rail (the theme menu on phones); `InstallAppSetting` is ready for `/settings/notifications`.
+- **Moderation (V2 §9, `docs/MODERATION.md`):**
+  - Reviews use `@cf/meta/llama-3.3-70b-instruct-fp8-fast` for policy. Chat uses `@cf/meta/llama-3.1-8b-instruct-fp8-fast`, measured on the labeled set on 2026-09-26: chat p95 end to end was 1.4 s over 75 messages, and no `graded-work` case was missed.
+  - Every chat message is read. When nothing flagged the message, only `targets-person` acts on it: letting all the small model's labels act held 4 of 23 good messages.
+  - Model failures retry every 5 minutes before reaching the owner.
 
 ## Known issues
 

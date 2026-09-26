@@ -27,7 +27,7 @@ Naming: every schema is `FooSchema` with `type Foo = z.infer<typeof FooSchema>`.
 | Local id | 8–64 URL-safe chars, minted in the browser (plans, blocks). | `LocalIdSchema` |
 | Connection id | `<day>:<fromKey>#<meetingIdx>><toKey>#<meetingIdx>` | `connectionId()` |
 | Directory ID | The lowercased local part of a verified TerpMail or umd.edu address (`zsrobins`). Accounts are keyed on it. | `DirectoryIdSchema` |
-| Chat room id | Course room `<term>:<course>`, section room `<term>:<course>:<section>`, lecture room `<term>:<course>:L:<first section>` (the lowest-numbered section sharing the lecture). Codes only, so a time or room change keeps the id and the history. The course room id is also its `CourseChat` object's name. | `RoomIdSchema`, `courseRoomId()`, `lectureRoomId()`, `sectionRoomId()`, `parseRoomId()`, `courseChatName()` |
+| Chat room id | Course room `<term>:<course>`, section room `<term>:<course>:<section>`, professor room `<term>:<course>:P:<professor>` (`professorSlug`: "pedram-sadeghian", co-instructors joined by `_`, at most 80 chars). Course and section rooms are codes only, so a time or room change keeps the id and the history; a professor's room is named after them. The course room id is also its `CourseChat` object's name. | `RoomIdSchema`, `courseRoomId()`, `professorRoomId()`, `professorSlug()`, `sectionRoomId()`, `parseRoomId()`, `courseChatName()` |
 
 ---
 
@@ -242,7 +242,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 - **Validation:** validate every row on read. An invalid row is skipped and logged, never fatal. A shape change bumps `LOCAL_DB_VERSION` with a Dexie `upgrade()` that migrates rows; plans are never dropped. Files in `files` are validated when fetched and trusted afterwards; a `SCHEMA_VERSIONS` bump clears that family.
 - **Plans:**
   - `courses` is the Courses-tab order, with at most one entry per course.
-  - `sectionCode: null` means saved for later, per plan.
+  - `sectionCode: null` means bookmarked (the UI's word; "saved for later" before 2026-09-26), per plan.
   - A placed course stores `snapshot` (instructors, delivery, meetings, dates) taken when it was placed, or switched, or when a "changed" problem's "Keep new times" fix is applied. `core/catalog` compares it with the live catalog.
   - `order` sorts plan tabs within a term.
 - **Blocks are per term, not per plan.**
@@ -320,7 +320,8 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 
 **Every request:**
 - must be `POST` with `Content-Type: application/json`. A cross-site form can't send that type without a CORS preflight, which is never granted;
-- is rate-limited per IP per hour, keyed by an HMAC of `CF-Connecting-IP`. The HMAC key lives only in R2 (`_jobs/keys/hmac.json`, made on first use) and the IP is never stored.
+- is rate-limited per IP per hour, keyed by an HMAC of `CF-Connecting-IP`. The HMAC key lives only in R2 (`_jobs/keys/hmac.json`, made on first use) and the IP is never stored. Signed-in routes may instead (or also) set `perUserPerHour`, keyed `user:<id>:<route>`, checked after the session and before the body is read;
+- has a body of at most 16 KiB unless its route sets `maxBytes` (only `sync/push` does).
 
 | Endpoint | Input | Result | Per IP per hour |
 |---|---|---|---|
@@ -334,8 +335,15 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | `auth/sign-out` | `SignOutInputSchema` `{removeLocal?}` | `{status: "signed-out"}`, and clears the cookies | 30 |
 | `account/delete` (`auth: "user"`) | `AccountDeleteInputSchema` `{}` | `AccountDeleteResultSchema` `{status: "deleting", deleteAfter}` | 30 |
 | `auth/test-sign-in` (test mode only; 404 elsewhere) | `TestSignInInputSchema` `{userId, return?}` | `TestSignInResultSchema` | 60 |
+| `sync/push` (`auth: "user"`) | `SyncPushInputSchema` `{docs: [{kind, id, baseRev, body}]}` (≤ 50, each body ≤ 64 KiB) | `SyncPushResultSchema` `{results}`: per doc `ok` (with `rev`), `conflict` (with the server's `doc`, or null) or `too-many-plans` | none; 1,200 per user |
+| `sync/pull` (`auth: "user"`) | `SyncPullInputSchema` `{since}` | `SyncPullResultSchema`: `ok` (`cursor`, `docs`, `more`) or `reset` | none; 600 per user |
+| `admin/moderation/queue` (`auth: "admin"`) | `QueueListInputSchema` `{status?, limit?}` | `QueueListResultSchema` | 600 |
+| `admin/moderation/resolve` (`auth: "admin"`) | `ResolveInputSchema` `{id, action, reason}` | `ResolveResultSchema` | 600 |
+| `admin/moderation/undo` (`auth: "admin"`) | `UndoInputSchema` `{id}` | `ResolveResultSchema` | 600 |
 
 **Identity** (§7.6, `docs/AUTH.md`) adds the `auth` field to the route table: `"user"` and `"admin"` routes need a same-origin request (`Origin`, and `Sec-Fetch-Site` when sent) and a session, answer `401 unauthorized` or `403 forbidden` otherwise, and get the session's user in `ctx.session`. `ApiErrorSchema` gains `unauthorized` and `forbidden`. Two GET navigations sit beside the table, `/api/auth/google` and `/api/auth/google/callback`, and one Worker route outside `/api`, `/avatars/*`.
+
+Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `reports` tables in `0004_moderation`, the retry cron, the admin API) is described in `docs/MODERATION.md`.
 
 ### 7.1 Seat alerts (`SPEC.md` §3.12)
 
@@ -484,7 +492,7 @@ They carry counts, reasons and term ids only. They never carry an address, token
 
 ### 7.4 Chat (`src/core/schema/chat.ts`)
 
-Rooms aren't stored: `roomsForCourse(termId, course)` in `core/chat` derives them from the catalog, and a room gets storage only with its first message. One `CourseChat` Durable Object per course per term (named by the course room id) holds every room of that course, and the app keeps one WebSocket per open course.
+Rooms aren't stored: `roomsForCourse(termId, course)` in `core/chat` derives them from the catalog, and a room gets storage only with its first message. They follow course details' one level of grouping: a course room; with 2+ sections, a room per section; and with more than one professor, a room per named professor between the course and their sections (TBA sections sit under the course room). There are no lecture rooms. One `CourseChat` Durable Object per course per term (named by the course room id) holds every room of that course, and the app keeps one WebSocket per open course.
 
 - **`ChatMessage`:** `id`, `room`, `author` (directory ID, Google name and picture, snapshotted when sent), `text` (trimmed, 1–2,000 chars), `createdAt`, `editedAt`, `replyTo` (the thread's first message; threads are one level deep), `thread` (reply count and last reply time), `reactions` (who reacted, per reaction in the fixed set `REACTIONS`) and `moderation`: `visible`, `held {reason}` (only the author sees it; `checking` · `graded-work` · `flagged` · `reported`) or `removed`.
 - **Client frames** (`ChatClientFrameSchema`, strict): `hello {protocol, rooms}` first, then `history {room, thread, before, limit}`, `send {room, text, replyTo}`, `edit`, `delete`, `react {id, reaction, on}`, `typing {room}` and `read {room, upTo}`. Requests carry a client `req` id.
@@ -499,11 +507,13 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 |---|---|---|
 | `0003_identity` | `users` (key: directory ID; `email`, `hd`, `name`, `picture_url`, `picture_key`, `status`, `delete_after`, `chat_blocked_until`, `reviews_blocked_until`, …), `user_identities` (Google `sub` → user, with that tenant's `email`, so both a TERPmail and a UMD Gmail address are kept), `sessions` (hashed cookie tokens, 30-day sliding) | Accounts (V2.md §4.4) |
 | `0004_moderation` | `moderation_decisions` (text-free log), `moderation_queue` (the human queue; snapshots blanked 30 days after close), `reports` | The shared moderation service (V2.md §9.4) |
-| `0005_sync` | `sync_docs` (`user_id`, `kind`, `doc_id`, `term_id`, `rev`, `body`, `updated_at`), `sync_heads` (`head`, `pruned_through`) | Plan sync: one JSON row per doc, per-doc rev compare-and-swap (V2.md §5.2) |
+| `0005_sync` (landed, §7.7) | `sync_docs` (`user_id`, `kind`, `doc_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `pruned_through`) | Plan sync: one JSON row per doc, per-doc rev compare-and-swap (V2.md §5.2) |
 | `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
 | `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
 | `0009_chat` | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
+| `0010_four_year_sync` (v3) | rebuilds `sync_docs` so `kind` also allows `four-year` | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
+| `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -521,6 +531,18 @@ How it works, and how to use it from other routes: `docs/AUTH.md`. Rows are vali
 - **Pictures:** R2 `USER_CONTENT` (`terpsicle-user-content`; previews `terpsicle-user-content-preview`) at `avatars/<userId>/<hash16>.<ext>`, fetched at 96 px when Google's URL changes, JPEG, PNG or WebP under 200 KB. `users.picture_key` is that key and `/<key>` its URL; only signed-in people get it.
 - **Deletion:** `account/delete` sets `status = 'deleting'` and `delete_after` a week out and ends every session; signing in before then sets `active` again. The daily job (`7 13 * * *`, `src/jobs/daily.ts`) deletes the pictures, then the rows, of accounts past `delete_after`, and expired sessions.
 - **Admins** aren't a table: `config/admins.txt`, bundled into the Worker.
+
+### 7.7 Plan sync (landed: `migrations/0005_sync.sql`)
+
+The design is `docs/V2.md` §5; the routes are `src/server/sync/api.ts`, the SQL `src/server/sync/store.ts`, and the input, result and row schemas (with the limits) `src/core/schema/sync-api.ts`. Rows are read with `SyncDocRowSchema` and turned into docs by `syncDocFromRow`, which checks them against `SyncDocSchema`.
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `sync_docs` | `(user_id, kind, doc_id)` | `term_id`, `rev`, `deleted`, `body` (JSON), `updated_at` | One row per plan doc and one `settings` row per user. `rev` is unique per user (`sync_docs_since`), and a save always takes a new one. A deleted plan is a tombstone (`deleted = 1`, `body` NULL, `term_id` kept) until the daily job prunes it 30 days after `updated_at`. |
+| `sync_heads` | `user_id` | `head`, `pruned_through` | `head` is the last rev handed out; `pruned_through` the highest pruned tombstone's rev. A pull from below it (but above 0), or from above `head`, gets `reset`. |
+
+- **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live plan stays within 200. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
+- **Deleting an account** removes both tables' rows: explicitly in the purge, and by `ON DELETE CASCADE`.
 
 ---
 
@@ -559,7 +581,7 @@ These aren't stored, but several workers build against them:
   - `kind` fixes `severity` (`PROBLEM_SEVERITY`); sort by `SEVERITY_ORDER`.
   - `subjects[0]` is what clicking the problem opens.
   - `title` and `detail` are `MessagePart[]`, so codes, times and durations render in mono and can be clicked without parsing strings.
-  - `fix` is either `switch` (offered only when it creates no new problem) or `accept-change` (for `changed`).
+  - `fix` is `switch` (offered only when it creates no new problem), `accept-change` (for `changed`) or `watch` (for `full`: "Watch for a seat"; the UI shows the seat watch's own button and state instead of applying it).
   - `id` is `<kind>:<subject ids>`, stable while the cause lasts.
 - **`FitLabel`:** `fits` · `overlaps {with: course | block}` · `not-enough-time {direction, courseCode}` · `in-plan` · `no-set-times`. "Not enough time after CMSC330" means CMSC330 comes first.
 - **`Connection`:** see §6.

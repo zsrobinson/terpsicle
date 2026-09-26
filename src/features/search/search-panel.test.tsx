@@ -53,6 +53,17 @@ describe("Search tab", () => {
     expect(
       screen.getByText(/^Search by course code, title or instructor/),
     ).toBeInTheDocument();
+    // Hover previews with a mouse; a finger's tap opens the course (#48).
+    expect(screen.getByTestId("search-hint-hover")).toHaveClass(
+      "pointer-coarse:hidden",
+    );
+    expect(screen.getByTestId("search-hint-tap")).toHaveTextContent(
+      "Tap a result to open it and see its sections.",
+    );
+    expect(screen.getByTestId("search-hint-tap")).toHaveClass(
+      "hidden",
+      "pointer-coarse:inline",
+    );
     await user.click(screen.getByRole("button", { name: "cmsc 351" }));
     expect(results()[0]).toBe("CMSC351");
   });

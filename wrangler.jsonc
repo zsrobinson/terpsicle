@@ -56,10 +56,13 @@
     // "false" is the off switch. Admins are config/admins.txt, not a var.
     "SIGN_IN_ENABLED": "true",
     // The OAuth client's id (public).
-    "GOOGLE_CLIENT_ID": "",
+    "GOOGLE_CLIENT_ID": "124652787090-o5hrmm196hl8hiamnu2elm2e7ab8f0re.apps.googleusercontent.com",
     // Where Google may send people back: <origin>/api/auth/google/callback
     // must be a registered redirect URI for each one.
-    "GOOGLE_REDIRECT_ORIGINS": "https://terpsicle.com"
+    "GOOGLE_REDIRECT_ORIGINS": "https://terpsicle.com",
+    // Moderation model calls per UTC day, at most (Workers AI cost). Past it,
+    // new reviews and chat messages wait for the owner (docs/MODERATION.md).
+    "MODERATION_DAILY_CAP": "2000"
   },
   "ai": { "binding": "AI" },
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.

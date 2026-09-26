@@ -27,7 +27,7 @@ export function openCourse(courseCode: CourseCode): void {
   useUi.getState().drill({ kind: "course", courseCode });
 }
 
-/** Removes a course (placed or saved) from the open plan. Undoable. */
+/** Removes a course (placed or bookmarked) from the open plan. Undoable. */
 export function removeCourse(
   courseCode: CourseCode,
   via: "menu" | "details",
@@ -44,8 +44,8 @@ export function removeCourse(
   return true;
 }
 
-/** Takes a placed course off the calendar and keeps it under "Saved for later". Undoable. */
-export function saveCourseForLater(
+/** Takes a placed course off the calendar and keeps it bookmarked. Undoable. */
+export function bookmarkInstead(
   courseCode: CourseCode,
   via: "menu" | "details",
 ): boolean {
@@ -59,7 +59,7 @@ export function saveCourseForLater(
       courseCode,
       now: nowIso(),
     },
-    `Saved ${courseCode} for later`,
+    `Bookmarked ${courseCode}`,
   );
   track("course_saved_for_later", { via });
   return true;

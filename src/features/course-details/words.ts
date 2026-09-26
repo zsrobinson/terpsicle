@@ -4,11 +4,9 @@ import type {
   GenEdGroup,
   Meeting,
   Minutes,
-  SeatCounts,
   Section,
 } from "~/core/schema";
 import { GEN_ED_LABELS } from "~/core/schema";
-import { seatLevel } from "~/core/seats";
 import { formatDays, formatTime } from "~/core/time";
 
 // Words for course details (SPEC §3.4): fit labels, meetings, delivery and
@@ -28,31 +26,6 @@ export function fitWords(label: FitLabel): string {
     case "not-enough-time":
       return `Not enough time ${label.direction} ${label.courseCode}`;
   }
-}
-
-/** One word or two, for compact rows; the full words go in the row's tooltip. */
-export function shortFitWords(label: FitLabel): string {
-  switch (label.kind) {
-    case "fits":
-      return "Fits";
-    case "in-plan":
-      return "Current";
-    case "no-set-times":
-      return "No times";
-    case "overlaps":
-      return "Overlaps";
-    case "not-enough-time":
-      return "Too tight";
-  }
-}
-
-/** "Full", "2 left", "9 open": seats in a compact row. */
-export function shortSeatWords(counts: SeatCounts | null): string {
-  if (counts === null) return "Unknown";
-  const level = seatLevel(counts);
-  if (level === "full") return "Full";
-  if (level === "low") return `${counts.open} left`;
-  return `${counts.open} open`;
 }
 
 /** Calm tones: a label informs a choice, it doesn't alarm (DESIGN §5). */
@@ -117,36 +90,27 @@ export function meetingWords(
     .join(" ");
 }
 
+/** "Lec", "Dis", "Lab": a meeting's kind at the start of its line, and in full for the tooltip. */
+export function meetingKindWords(kind: Meeting["kind"]): {
+  short: string;
+  long: string;
+} {
+  switch (kind) {
+    case "lecture":
+      return { short: "Lec", long: "Lecture" };
+    case "discussion":
+      return { short: "Dis", long: "Discussion" };
+    case "lab":
+      return { short: "Lab", long: "Lab" };
+    case "other":
+      return { short: "Mtg", long: "Meeting" };
+  }
+}
+
 /** Every meeting, " · " between. Empty rows say to ask the department. */
 export function sectionMeetingWords(section: Section): string {
   if (section.meetings.length === 0) return "Contact the department for times";
   return section.meetings.map((m) => meetingWords(m)).join(" · ");
-}
-
-/**
- * When, for one-line rows: every meeting's days and times, no rooms, never
- * "+1" ("MWF 9–9:50am · Th 2–2:50pm").
- */
-export function compactMeetingWords(meetings: readonly Meeting[]): string {
-  const timed = meetings.filter((m) => m.timed);
-  if (timed.length === 0)
-    return meetings.some((m) => m.online) ? "Online" : "Times TBA";
-  return timed
-    .map((m) => meetingWords(m, { kind: false, place: false }))
-    .join(" · ");
-}
-
-/** The words for a row's own meetings, after its run's shared line ("All meet …"). */
-export function restMeetingWords(
-  rest: readonly Meeting[],
-  { underShared, compact }: { underShared: boolean; compact: boolean },
-): string {
-  if (rest.length === 0)
-    return underShared
-      ? "No other meetings"
-      : "Contact the department for times";
-  if (compact) return compactMeetingWords(rest);
-  return rest.map((m) => meetingWords(m, { kind: !underShared })).join(" · ");
 }
 
 /** A chip next to the section code, or null for in-person sections. */

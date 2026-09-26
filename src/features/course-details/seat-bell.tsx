@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Bell, BellDot, BellRing } from "lucide-react";
+import { Bell, BellDot } from "lucide-react";
 import { useId, useState } from "react";
 import type { SectionKey, TermId } from "~/core/schema";
 import {
@@ -12,8 +12,12 @@ import { Button } from "~/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 
-// The bell on a low or full section (SPEC §3.12): enter an email, get one
-// confirmation link, then "Watching". Hidden while seat alerts are off.
+// Seat watch (SPEC §3.12): "Watch for a seat" (a bell) on a low or full
+// section, "Watching" (a filled bell) once it's on. Today's email alerts
+// back it: enter an email, get one confirmation link, then "Watching".
+// The same bell sits on the section row and, as a labelled button, in the
+// full section's problem. Hidden while seat alerts are off.
+// TODO(v2/seat-watches): signed-in watches replace the email step.
 
 /**
  * The form it replaces had focus (the button just pressed): the answer takes
@@ -28,6 +32,7 @@ export function SeatBell({
   sectionKey,
   compact = false,
   full = true,
+  variant = "icon",
 }: {
   termId: TermId;
   sectionKey: SectionKey;
@@ -38,6 +43,8 @@ export function SeatBell({
    * section's bell says it'll email if the section fills and then reopens.
    */
   full?: boolean;
+  /** `button`: the bell and its words ("Watch for a seat", "Watching"), for the problem's fix. */
+  variant?: "icon" | "button";
 }) {
   const alert = useSeatAlert(termId, sectionKey);
   const lastEmail = useLastSeatAlertEmail();
@@ -57,14 +64,23 @@ export function SeatBell({
       : alert.kind === "pending"
         ? "Check your email to confirm"
         : full
-          ? "Get an email when a seat opens"
-          : "Get an email if it fills and a seat opens again";
-  const Icon =
+          ? "Watch for a seat: get an email when one opens"
+          : "Watch for a seat: get an email if it fills and one opens again";
+  const words =
     alert.kind === "watching"
-      ? BellRing
+      ? "Watching"
       : alert.kind === "pending"
-        ? BellDot
-        : Bell;
+        ? "Check your email"
+        : "Watch for a seat";
+  const Icon = alert.kind === "pending" ? BellDot : Bell;
+  const icon = (
+    <Icon
+      size={14}
+      aria-hidden="true"
+      // Watching is the filled bell.
+      fill={alert.kind === "watching" ? "currentColor" : "none"}
+    />
+  );
 
   const submit = async (address = email || lastEmail || "") => {
     setBusy(true);
@@ -91,21 +107,33 @@ export function SeatBell({
     >
       <WithTooltip label={tooltip}>
         <PopoverTrigger asChild>
-          <button
-            type="button"
-            // A list has many bells: each says which section it's for.
-            aria-label={
-              alert.kind === "watching" ? tooltip : `${tooltip}, ${label}`
-            }
-            data-alert={alert.kind}
-            className={cn(
-              "flex shrink-0 items-center justify-center rounded-md transition-colors hover:bg-hover",
-              compact ? "size-6" : "size-7",
-              alert.kind === "none" ? "text-muted hover:text-fg" : "text-fg",
-            )}
-          >
-            <Icon size={14} aria-hidden="true" />
-          </button>
+          {variant === "button" ? (
+            <Button
+              variant="outline"
+              size="row"
+              data-alert={alert.kind}
+              aria-label={`${words}, ${label}`}
+            >
+              {icon}
+              {words}
+            </Button>
+          ) : (
+            <button
+              type="button"
+              // A list has many bells: each says which section it's for.
+              aria-label={
+                alert.kind === "watching" ? tooltip : `${tooltip}, ${label}`
+              }
+              data-alert={alert.kind}
+              className={cn(
+                "flex shrink-0 items-center justify-center rounded-md transition-colors hover:bg-hover",
+                compact ? "size-6" : "size-7",
+                alert.kind === "none" ? "text-muted hover:text-fg" : "text-fg",
+              )}
+            >
+              {icon}
+            </button>
+          )}
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent

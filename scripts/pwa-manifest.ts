@@ -77,8 +77,20 @@ export function pwaManifest(root: string): Plugin {
     },
     load(id) {
       if (id !== RESOLVED) return undefined;
-      this.addWatchFile(stylesPath);
+      // No addWatchFile(styles.css): that makes the stylesheet a CSS node
+      // under the root route in dev, and TanStack Start's dev SSR styles then
+      // collect it with every file Tailwind scanned, the prototype's CSS in
+      // reference/ included (its dark accent is red; axe caught the page
+      // repainting from it). hotUpdate below keeps the colors fresh instead.
       return `export const THEME_COLORS = ${JSON.stringify(colors())};\n`;
+    },
+    hotUpdate({ file }) {
+      if (path.resolve(file) !== stylesPath) return;
+      // A token edit: the next load reads the new colors. The stylesheet's
+      // own update goes ahead as usual.
+      const graph = this.environment.moduleGraph;
+      const colorsModule = graph.getModuleById(RESOLVED);
+      if (colorsModule) graph.invalidateModule(colorsModule);
     },
     configureServer(server) {
       server.middlewares.use(`/${MANIFEST_FILE}`, (_req, res) => {
