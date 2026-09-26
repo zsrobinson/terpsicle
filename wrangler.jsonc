@@ -75,7 +75,11 @@
     // Terpsicle Chat: "off" refuses sockets and chat/* routes, "read" lets
     // people read but not send, "on". Off until its e2e and the owner's
     // trial pass (docs/V2.md §15).
-    "CHAT_ENABLED": "off"
+    "CHAT_ENABLED": "off",
+    // Terpsicle Reviews: off | read | on (docs/V2.md §7.4). "off" answers
+    // every reviews/* route with "unavailable"; "read" lists, deletes and
+    // reports but takes no new words. Off until the e2e and the owner's trial.
+    "REVIEWS_ENABLED": "off"
   },
   "ai": { "binding": "AI" },
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.
@@ -109,7 +113,8 @@
   "previews": {
     "vars": {
       "AUTH_TEST_MODE": "true",
-      "CHAT_ENABLED": "on"
+      "CHAT_ENABLED": "on",
+      "REVIEWS_ENABLED": "on"
     },
     "durable_objects": {
       "bindings": [{ "name": "COURSE_CHAT", "class_name": "CourseChat" }]

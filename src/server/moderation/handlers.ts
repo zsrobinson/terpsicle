@@ -4,16 +4,26 @@
 import type { ModerationReason } from "~/core/schema";
 import type { CourseChatNamespace } from "../chat/course-chat";
 import { chatModerationHandler } from "../chat/moderation-handler";
+import { applyReviewDecision } from "../reviews/decisions";
+
+export interface HandlerContext {
+  db: D1Database;
+  now: Date;
+  /**
+   * Why: the retry's reasons, or the owner's (`admin` with their reason on
+   * a removal, `undo` on an undo). Empty for an approval.
+   */
+  reasons: readonly ModerationReason[];
+}
 
 /**
  * Called with the item's new state. Must be idempotent: undo calls it again
  * with "hold", and a retry that fails partway runs it again next time.
- * `ctx.reasons`, when given, says why (v2/reviews-api passes them).
  */
 export type ModerationHandler = (
   targetId: string,
   decision: "publish" | "hold" | "remove",
-  ctx?: { reasons?: readonly ModerationReason[] },
+  ctx: HandlerContext,
 ) => Promise<void>;
 
 export type ModerationHandlers = Partial<
@@ -27,14 +37,16 @@ export interface ModerationHandlerEnv {
 }
 
 /**
- * The live handlers, for this Worker's bindings. Reviews adds its own here
- * when it lands; until then, features read an item's state with
- * currentDecision().
+ * The live handlers, for this Worker's bindings: Reviews' works on D1 alone,
+ * Chat's reaches the message's CourseChat object through `COURSE_CHAT`.
  */
 export function moderationHandlers(
   env: ModerationHandlerEnv,
 ): ModerationHandlers {
-  return env.COURSE_CHAT
-    ? { chat: chatModerationHandler(env.COURSE_CHAT) }
-    : {};
+  return {
+    review: applyReviewDecision,
+    ...(env.COURSE_CHAT
+      ? { chat: chatModerationHandler(env.COURSE_CHAT) }
+      : {}),
+  };
 }

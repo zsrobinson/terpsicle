@@ -47,7 +47,9 @@ What the caller does with each decision:
 - **"What's allowed":** `MODERATION_POLICY.review` and `MODERATION_POLICY.chat` hold the text for the panel next to each composer.
 - **Edits:** call `moderate()` again with the same `targetId`. A waiting hold is replaced (held again with the new text, or cleared when the edit passes).
 - **The current state** of an item, including a later decision by a retry or the owner: `currentDecision(db, kind, targetId)`.
-- **Later decisions** (a retry that passes, or the owner) reach the feature through a `ModerationHandler`, from `moderationHandlers(env)` in `src/server/moderation/handlers.ts`: Chat's (through the `COURSE_CHAT` binding) is there; Reviews adds its own when it lands. `latestDecision(db, kind, targetId)` also returns the reasons and time, so a feature can tell a hold waiting for a retry from one waiting for the owner.
+- **Later decisions** (a retry that passes, or the owner) reach the feature through a `ModerationHandler`, called as `(targetId, decision, {db, now, reasons})`: `reasons` are the retry's, or the owner's (`admin` with their `adminReason` on a removal, `undo` on an undo; empty on an approval). They come from `moderationHandlers(env)` in `src/server/moderation/handlers.ts`: Reviews' (`src/server/reviews/decisions.ts`) and Chat's, which reaches the message's `CourseChat` object through the `COURSE_CHAT` binding. `latestDecision(db, kind, targetId)` also returns the reasons and time, so a feature can tell a hold waiting for a retry from one waiting for the owner.
+- **Sending something to the owner for a reason that isn't the text** (a report, a burst of reviews): `queueForOwner(env, {kind, targetId, text, course, reasons, urgent}, {now, decision?})`. A waiting item keeps its place and snapshot, gains the reasons and becomes `open` (a retry can't clear it); `decision` also logs a `reports:hide` or `rules:hold`. `withdrawFromQueue(db, kind, targetId)` takes out an item its author deleted.
+- **Reports:** `POST /api/reports/create` (§6).
 
 ## 2. The pipeline
 
@@ -65,7 +67,7 @@ Each reason carries an action: `flag`, `hold` or `remove`. The decision is the m
 - if the retry finds a real problem, it goes to the owner at once;
 - if the check keeps failing, it goes to the owner after `MAX_RETRIES` (2) retries, so within about 10 minutes.
 
-The first retry comes within 5 minutes, as V2 §9.2 asks for chat; reviews get the same treatment.
+The first retry comes within 5 minutes, as V2 §9.2 asks for chat; reviews get the same treatment. Only `model-unavailable` and `daily-cap` count as "held only for a failed check" (`needsRetry`): Reviews' `burst` is also a `system` reason, but it's for a person.
 
 **Hedging.** Workers AI usually answers in well under a second, but a few percent of Llama Guard calls take 5–10 s (measured 2026-09-26: 2 of 12 sequential calls). So each stage starts a second attempt when the first fails or hasn't answered after **1 s**, and takes whichever answers first. A stage gives up after 10 s in all. In the first eval run, a plain 5 s timeout lost 5 of 35 Guard calls; with the hedge, none have been lost since (about 700 posts). Chat p95 end to end was 2.6–3.1 s with a 2.5 s hedge and 0.9–1.4 s with 1 s (§8).
 
@@ -137,7 +139,7 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
   - Status is `retry` (waiting for the cron; not in V2 §9.4, added for the retry rule), `open` (the owner's) or `closed`.
   - One waiting row per ref. A ref held again after it closed gets a new row.
   - **The snapshot is blanked 30 days after the item closes**, by the same cron. After that the owner still sees the labels and decision, not the text.
-- `reports` (V2 §9.3): the table only. `reports/create` and the hide-on-reports rule land with Reviews (V2 §15, `v2/reviews-api`).
+- `reports` (V2 §9.3): one row per person per item (`reporter_id` is only ever counted, never shown). See "Reports" below.
 - **No table stores an author**, only a surface and ref. The admin view can't show who wrote something, even by accident. Reviews keeps its author in its own table.
 
 **Endpoints** (`POST /api/admin/moderation/*`, 600 per IP per hour), all `auth: "admin"` in the route table: a same-origin request with an admin session (`config/admins.txt`, `docs/AUTH.md`), else `401 unauthorized` signed out or `403 forbidden`.
@@ -150,7 +152,14 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
 
 - **No confirmation dialogs** (DESIGN §5): approve and remove act at once, and the UI offers **Undo**. Undo reopens the item, held, unless its ref was held again since (an edit), which answers `nothing-to-undo`.
 - These are the routes V2 §10 lists. `v2/admin-shell` builds the panel on them and adds the rest (`admin/decisions`, `admin/health`, `admin/chat/remove`, author actions).
-- **Reaching the feature:** each handler from `moderationHandlers(env)` gets `(targetId, "publish" | "remove" | "hold")` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
+- **Reaching the feature:** each handler from `moderationHandlers(env)` gets `(targetId, "publish" | "remove" | "hold", {db, now, reasons})` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
+
+**Reports** (V2 §9.3): `POST /api/reports/create {surface, ref, reason, note | null}`, `auth: "user"`, 30 per person per hour, in `src/server/moderation/reports.ts`.
+- Reasons: `personal-info`, `names-a-student`, `hate`, `threat`, `sexual`, `misconduct-claim`, `graded-work`, `off-topic`, `other`; a note of at most 300 characters.
+- Answers `reported` (also when this person already reported it: one report per person per item), `not-found` (nothing readers can see, or a surface that takes no reports yet: Chat adds its `ReportTarget` to `REPORT_TARGETS` when it lands), or `own` (you wrote it).
+- Every report puts the item in the owner's queue (`queueForOwner`) with one `reported` label per report reason (`{code: "reported", source: "reports", report}`). The labels only flag it, unless the reports **hide** it: 3 different people, or 1 report of `threat`, `personal-info` or `names-a-student` (`shouldHide` in `src/core/moderation/reports.ts`). Hiding logs `reports:hide` and makes the labels holds. A reported threat is urgent.
+- Only reports since the owner last **approved** the item count, so an approval settles them. The pure rules are in `src/core/moderation/reports.ts`; the reporter's id never reaches the queue.
+- `REVIEWS_ENABLED` gates the route (`read` or `on`) while reviews are the only surface.
 
 ## 7. Configuration
 
@@ -220,5 +229,5 @@ Reading every message adds little latency, because the policy model runs beside 
 - **Scores near 0.5 wobble.** One harsh-but-fair review flipped between publish and hold across runs. That costs the owner a click, not a wrong publish.
 - **Decision rows are kept.** V2 says a year; nothing prunes them yet (it's the daily job's, V2 §13).
 - **V2 §9 and §10 describe this API** (`moderate()`, per-label scores, `admin/moderation/*`) and point here for details.
-- **Reports:** the table exists; `reports/create`, one report per user per item, and hiding after 3 reports (or 1 for a threat, personal info or a named student) land with `v2/reviews-api`.
+- **Reports** landed with `v2/reviews-api` (§6). Chat reports wait for `v2/chat-do`'s `ReportTarget`.
 - **Analytics:** no moderation events yet. When added, they carry counts and reason codes only, never text (`docs/ANALYTICS.md`).

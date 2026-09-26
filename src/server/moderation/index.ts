@@ -5,6 +5,7 @@ export {
   type ModerationConfig,
 } from "./classify";
 export {
+  type HandlerContext,
   type ModerationHandler,
   type ModerationHandlerEnv,
   type ModerationHandlers,
@@ -16,4 +17,7 @@ export {
   latestDecision,
   type ModerationEnv,
   moderate,
+  type OwnerItem,
+  queueForOwner,
+  withdrawFromQueue,
 } from "./service";

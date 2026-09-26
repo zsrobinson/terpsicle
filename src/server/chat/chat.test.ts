@@ -26,6 +26,7 @@ import {
   courseRoomId,
   deptChunkKey,
   type ModerationInput,
+  type ModerationReason,
   type ModerationResult,
   manifestKey,
   type Plan,
@@ -106,6 +107,13 @@ async function putCatalog(calendar: AcademicCalendar = calendarEndingIn(60)) {
 }
 
 // ---------- moderation, stood in for ----------
+
+/** The context moderation calls a handler with (MODERATION.md §6). */
+const decided = (reasons: ModerationReason[] = []) => ({
+  db: env.DB,
+  now: new Date(),
+  reasons,
+});
 
 const clean = (decision: ModerationResult["decision"]): ModerationResult => ({
   decision,
@@ -677,7 +685,7 @@ describe("sending", () => {
 
     // The owner approves (admin/moderation/resolve calls Chat's handler).
     const chat = moderationHandlers(env).chat;
-    await chat?.(chatTargetId(TERM, COURSE, id), "publish");
+    await chat?.(chatTargetId(TERM, COURSE, id), "publish", decided());
     expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
       {
         moderation: { state: "visible" },
@@ -687,9 +695,13 @@ describe("sending", () => {
       (await b.client.next("message", (f) => f.message.id === id)).message.text,
     ).toBe("here you go [hold]");
     // Idempotent: the same decision again tells nobody anything.
-    await chat?.(chatTargetId(TERM, COURSE, id), "publish");
+    await chat?.(chatTargetId(TERM, COURSE, id), "publish", decided());
     // Undo puts it back on hold: classmates drop it.
-    await chat?.(chatTargetId(TERM, COURSE, id), "hold");
+    await chat?.(
+      chatTargetId(TERM, COURSE, id),
+      "hold",
+      decided([{ code: "undo", source: "admin", action: "hold" }]),
+    );
     expect(await b.client.next("moderation", (f) => f.id === id)).toMatchObject(
       { moderation: { state: "removed" } },
     );
@@ -714,9 +726,7 @@ describe("sending", () => {
     await moderationHandlers(env).chat?.(
       chatTargetId(TERM, COURSE, id),
       "hold",
-      {
-        reasons: [{ code: "shares-answers", source: "rules", action: "hold" }],
-      },
+      decided([{ code: "shares-answers", source: "rules", action: "hold" }]),
     );
     expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
       {
@@ -779,6 +789,7 @@ describe("sending", () => {
     await moderationHandlers(env).chat?.(
       chatTargetId(TERM, COURSE, id),
       "publish",
+      decided(),
     );
     await b.client.next("message", (f) => f.message.id === id);
   });
