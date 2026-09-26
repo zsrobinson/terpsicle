@@ -5,6 +5,7 @@
 import { z } from "zod";
 import {
   RevSchema,
+  SYNC_MAX_FOUR_YEAR_DOCS,
   SYNC_MAX_PLANS,
   SYNC_PULL_PAGE,
   SYNC_TOMBSTONE_DAYS,
@@ -23,9 +24,17 @@ const HeadSchema = z.object({ head: RevSchema, pruned_through: RevSchema });
 
 const DOC_COLUMNS = "kind, doc_id, rev, deleted, body, updated_at";
 
+/** Live docs of each kind an account may hold; there's one settings doc. */
+const CAPS = {
+  plan: SYNC_MAX_PLANS,
+  "four-year": SYNC_MAX_FOUR_YEAR_DOCS,
+  settings: 1,
+} as const satisfies Record<SyncPushDoc["kind"], number>;
+
 /**
  * Whether a doc may be saved: its stored rev (0 when there's no row) is the
- * push's base, and it wouldn't be a new live plan past SYNC_MAX_PLANS.
+ * push's base, and it wouldn't be a new live doc past its kind's cap (CAPS:
+ * SYNC_MAX_PLANS plans, SYNC_MAX_FOUR_YEAR_DOCS four-year plans).
  * Params: ?1 user, ?2 kind, ?3 doc id, ?4 base rev, ?5 deleted, ?6 the cap.
  */
 const MAY_SAVE = `
@@ -34,14 +43,14 @@ const MAY_SAVE = `
     0
   ) = ?4
   AND (
-    ?5 = 1 OR ?2 <> 'plan'
+    ?5 = 1 OR ?2 = 'settings'
     OR EXISTS (
       SELECT 1 FROM sync_docs
-      WHERE user_id = ?1 AND kind = 'plan' AND doc_id = ?3 AND deleted = 0
+      WHERE user_id = ?1 AND kind = ?2 AND doc_id = ?3 AND deleted = 0
     )
     OR (
       SELECT COUNT(*) FROM sync_docs
-      WHERE user_id = ?1 AND kind = 'plan' AND deleted = 0
+      WHERE user_id = ?1 AND kind = ?2 AND deleted = 0
     ) < ?6
   )`;
 
@@ -92,7 +101,7 @@ export async function pushDocs(
       doc.id,
       doc.baseRev,
       deleted,
-      SYNC_MAX_PLANS,
+      CAPS[doc.kind],
     ];
     const termId = doc.kind === "plan" && doc.body ? doc.body.termId : null;
     const body = doc.body === null ? null : JSON.stringify(doc.body);
@@ -121,7 +130,7 @@ export async function pushDocs(
         status: "conflict",
         doc: stored ? syncDocFromRow(stored) : null,
       };
-    // The base matched, so only the plan cap can have stopped it.
+    // The base matched, so only its kind's cap can have stopped it.
     return { ...ref, status: "too-many-plans" };
   });
 }

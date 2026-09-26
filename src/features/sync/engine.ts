@@ -4,10 +4,8 @@ import {
   type Plan,
   type SettingsDoc,
   SYNC_MAX_PUSH_DOCS,
-  type SyncDoc,
   type SyncPullInput,
   type SyncPullResult,
-  type SyncPushDoc,
   type SyncPushDocResult,
   SyncPushDocSchema,
   type SyncPushInput,
@@ -22,6 +20,7 @@ import {
   docsToPush,
   firstSignInUnion,
   hasUnsaved,
+  isScheduleDoc,
   isUntouchedPlan,
   mergeSettings,
   parseDocKey,
@@ -29,6 +28,8 @@ import {
   planSyncReducer,
   plansAfterConflict,
   resolvePlanConflict,
+  type SchedulePushDoc,
+  type ScheduleSyncDoc,
   SETTINGS_DOC_KEY,
   type SyncedTables,
   sameJson,
@@ -150,7 +151,7 @@ function withFlagsRemoved(
  */
 export function withCleanDocsPulled(
   s: SyncSnapshot,
-  server: readonly SyncDoc[],
+  server: readonly ScheduleSyncDoc[],
 ): SyncedTables {
   let tables = s.tables;
   for (const doc of server) {
@@ -181,7 +182,7 @@ export function recoverInFlight(s: SyncSnapshot): SyncSnapshot {
  */
 export function applyPulled(
   s: SyncSnapshot,
-  docs: readonly SyncDoc[],
+  docs: readonly ScheduleSyncDoc[],
   cursor: number,
   pending: ReadonlySet<DocKey>,
 ): SyncSnapshot {
@@ -255,10 +256,10 @@ export function startPush(
   skip: ReadonlySet<DocKey>,
 ): {
   next: SyncSnapshot;
-  docs: SyncPushDoc[];
+  docs: SchedulePushDoc[];
   rejected: DocKey[];
 } {
-  const docs: SyncPushDoc[] = [];
+  const docs: SchedulePushDoc[] = [];
   const rejected: DocKey[] = [];
   const unneeded: DocKey[] = [];
   for (const key of docsToPush(s.sync)) {
@@ -275,7 +276,8 @@ export function startPush(
         ? { kind: "plan", id: parsed.id, baseRev, body }
         : { kind: "settings", id: SETTINGS_DOC_KEY, baseRev, body },
     );
-    if (!doc.success) {
+    // A schedule key always parses to a plan or settings doc.
+    if (!doc.success || doc.data.kind === "four-year") {
       rejected.push(key);
       continue;
     }
@@ -301,7 +303,7 @@ export interface PushOutcome {
 /** The server's answers to a push, applied: saved revs, conflicts settled. */
 export function applyPushResults(
   s: SyncSnapshot,
-  sent: readonly SyncPushDoc[],
+  sent: readonly SchedulePushDoc[],
   results: readonly SyncPushDocResult[],
   ids: { newId: () => LocalId; now: IsoDateTime },
 ): PushOutcome {
@@ -312,7 +314,9 @@ export function applyPushResults(
   const full: DocKey[] = [];
   const answered = new Set<DocKey>();
   for (const result of results) {
-    const key = docKeyOf(result);
+    // This engine never pushes a four-year doc, so it has none to settle.
+    if (result.kind === "four-year") continue;
+    const key = docKeyOf({ kind: result.kind, id: result.id });
     const doc = sent.find((d) => docKeyOf(d) === key);
     if (!doc || answered.has(key)) continue;
     answered.add(key);
@@ -641,7 +645,7 @@ export class SyncEngine {
       }
       const pending = new Set(this.pending.keys());
       const { before, after } = await this.o.storage.update((s) =>
-        applyPulled(s, page.docs, page.cursor, pending),
+        applyPulled(s, page.docs.filter(isScheduleDoc), page.cursor, pending),
       );
       const { change, keys } = changeBetween(before.tables, after.tables);
       this.show(change, keys, { docs: page.docs, after });
@@ -654,7 +658,7 @@ export class SyncEngine {
     // Bounded: each round saves something, but another device racing this
     // one could keep a conflict going; the next sync picks up the rest.
     for (let round = 0; round < 10; round++) {
-      let sent: SyncPushDoc[] = [];
+      let sent: SchedulePushDoc[] = [];
       await this.o.storage.update((s) => {
         const picked = startPush(s, new Set([...this.capped, ...this.refused]));
         for (const key of picked.rejected) {
@@ -707,12 +711,12 @@ export class SyncEngine {
    */
   private async joinAccount(reset: boolean): Promise<void> {
     await this.o.flushed();
-    const server: SyncDoc[] = [];
+    const server: ScheduleSyncDoc[] = [];
     let cursor = 0;
     for (;;) {
       const page = await this.o.client.pull({ since: cursor });
       if (page.status === "reset") throw new ApiCallError("bad-response");
-      server.push(...page.docs);
+      server.push(...page.docs.filter(isScheduleDoc));
       cursor = page.cursor;
       if (!page.more) break;
     }
