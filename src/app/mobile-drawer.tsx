@@ -112,14 +112,26 @@ export function MobileDrawer() {
       modal={false}
       dismissible={false}
       snapPoints={points}
+      // vaul takes a drag down from the point just below `fadeFromIndex`
+      // (by default, half) as fading its overlay out, and when the drawer
+      // can't be dismissed it then doesn't follow the finger at all, only
+      // snapping once it lifts. There's no overlay (the drawer isn't modal),
+      // so start the fade at the first point and every drag follows.
+      fadeFromIndex={0}
       activeSnapPoint={points[["peek", "half", "full"].indexOf(snap)] ?? null}
       setActiveSnapPoint={(point) => setSnap(snapOf(point))}
     >
       <Drawer.Portal>
         <Drawer.Content
+          ref={claimPullDown}
           aria-describedby={undefined}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-snap={snap}
+          // vaul makes the drawer `touch-action: none` so a finger drags it
+          // rather than panning the page. That also stopped a pinch zooming
+          // the page over it; allow that back. (Safari may not know the
+          // value and keep `none`.)
+          style={{ touchAction: "pinch-zoom" }}
           className="fixed inset-x-0 bottom-0 z-40 flex h-dvh flex-col rounded-t-xl border border-hairline border-b-0 bg-bg shadow-pop outline-none"
         >
           <Drawer.Title className="sr-only">Sidebar</Drawer.Title>
@@ -139,6 +151,62 @@ export function MobileDrawer() {
       </Drawer.Portal>
     </Drawer.Root>
   );
+}
+
+/**
+ * A finger pulling down on a list that's already at its top lowers the
+ * drawer, as a mouse drag does. Left to the browser, that pull is a scroll:
+ * it cancels vaul's pointer, so the drawer stays put, and with nothing left
+ * to scroll it ran on into the page and pulled it to refresh. Cancelling the
+ * drag's first move keeps it with the drawer; after that the browser keeps
+ * whatever it was given. A drag up, a list scrolled down, a mostly sideways
+ * drag and a second finger (pinch-zoom) all stay the browser's.
+ */
+function claimPullDown(drawer: HTMLDivElement | null) {
+  if (!drawer) return;
+  let start: { x: number; y: number } | null = null;
+  let claimed: boolean | null = null;
+  const onStart = (event: TouchEvent) => {
+    const touch = event.touches[0];
+    start =
+      event.touches.length === 1 && touch
+        ? { x: touch.clientX, y: touch.clientY }
+        : null;
+    claimed = null;
+  };
+  const onMove = (event: TouchEvent) => {
+    const touch = event.touches[0];
+    if (!start || event.touches.length !== 1 || !touch) {
+      start = null;
+      return;
+    }
+    if (claimed === null) {
+      const dy = touch.clientY - start.y;
+      const dx = touch.clientX - start.x;
+      if (dy === 0 && dx === 0) return;
+      claimed = dy > Math.abs(dx) && pullsDrawer(event.target, drawer);
+    }
+    if (claimed && event.cancelable) event.preventDefault();
+  };
+  // Non-passive: only a cancelled touchmove keeps the browser from scrolling.
+  drawer.addEventListener("touchstart", onStart, { passive: true });
+  drawer.addEventListener("touchmove", onMove, { passive: false });
+  return () => {
+    drawer.removeEventListener("touchstart", onStart);
+    drawer.removeEventListener("touchmove", onMove);
+  };
+}
+
+/** vaul's own rule: a pull drags the drawer unless something is scrolled. */
+function pullsDrawer(target: EventTarget | null, drawer: HTMLElement): boolean {
+  if (!(target instanceof Element) || target.closest("[data-vaul-no-drag]"))
+    return false;
+  let el: Element | null = target;
+  while (el && el !== drawer) {
+    if (el.scrollTop > 0) return false;
+    el = el.parentElement;
+  }
+  return true;
 }
 
 const NEXT_SNAP: Record<DrawerSnap, DrawerSnap> = {

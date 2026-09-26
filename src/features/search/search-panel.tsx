@@ -297,7 +297,7 @@ function ResultList({
       id="search-results"
       role="listbox"
       aria-label={`${courses.length} ${courses.length === 1 ? "course" : "courses"}`}
-      className="scroll-thin relative min-h-0 flex-1 overflow-y-auto"
+      className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
       onScroll={(e) =>
         setView({
           top: e.currentTarget.scrollTop,

@@ -267,6 +267,13 @@
   html,
   body {
     height: 100%;
+    /*
+     * A drag that reaches the page must end there. On phones, a pull past
+     * the top of the drawer's list or the calendar reached the page and
+     * pulled it to refresh (Chrome, iOS Safari 18+). The scrollers also
+     * contain their own ends (`overscroll-y-contain`); this is the backstop.
+     */
+    overscroll-behavior: none;
   }
   body {
     background: var(--bg);
@@ -276,6 +283,15 @@
     font-size: 13px;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
+  }
+  /*
+   * The app fills the viewport and only its calendar and panels scroll, so
+   * the page itself can't scroll or rubber-band under the phone drawer. The
+   * seat-alert pages are ordinary pages and keep scrolling.
+   */
+  html:has([data-app-shell]),
+  html:has([data-app-shell]) body {
+    overflow: hidden;
   }
   ::selection {
     background: var(--accent-soft);
