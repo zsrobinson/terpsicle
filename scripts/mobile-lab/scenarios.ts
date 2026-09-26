@@ -337,6 +337,48 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "scroll-list-back",
+    title: "Scroll a long list down, then back up: the drawer stays",
+    async run(lab) {
+      await open(lab);
+      await search(lab, "cmsc");
+      await lab.hideKeyboard();
+      await lab.wait(SETTLE);
+      await snapTo(lab, "full");
+      const list = await lab.pointIn(RESULTS, 0.5, 0.75);
+      await lab.swipe(list, { dy: -350 }, 400, "scroll");
+      await lab.wait(SETTLE);
+      const down = await lab.step("scrolled down", { settled: true });
+      const scrolled = down.probe?.searchResults?.scrollTop ?? 0;
+      // Finger down on the scrolled list: the list scrolls back up. On
+      // Android the drawer used to take the first moves and drop to half
+      // or peek when the browser cancelled them.
+      await lab.swipe(
+        await lab.pointIn(RESULTS, 0.5, 0.3),
+        { dy: 250 },
+        400,
+        "scroll",
+      );
+      await lab.wait(SETTLE);
+      await lab.step("scrolled back up", {
+        settled: true,
+        expect: (p) => [
+          expectation(
+            "drawer-stays-while-a-list-scrolls",
+            p.drawer?.snap === "full",
+            `drawer at ${p.drawer?.snap} after scrolling the results back up`,
+          ),
+          expectation(
+            "list-scrolled-back",
+            (p.searchResults?.scrollTop ?? 0) < scrolled,
+            `results scrollTop ${scrolled} → ${p.searchResults?.scrollTop}`,
+            "warn",
+          ),
+        ],
+      });
+    },
+  },
+  {
     id: "calendar-pull",
     title: "Scroll the calendar, then pull down at its top",
     async run(lab) {
