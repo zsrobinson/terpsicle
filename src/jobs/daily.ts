@@ -1,3 +1,4 @@
+import { endPastTermWatches } from "~/server/alerts/service";
 import { deletePictures } from "~/server/auth/pictures";
 import { accountsDueForPurge, purgeAccounts } from "~/server/auth/store";
 import { pruneFeedback } from "~/server/feedback/store";
@@ -17,7 +18,8 @@ import { type Job, runJob } from "./job";
  * undo tokens after 10 minutes, screenshots after 180 days or 30 after
  * closing, items after a year or once the owner's delete can't be undone.
  * A purged author's reviews stay up without one
- * (`reviews.author_id` is ON DELETE SET NULL).
+ * (`reviews.author_id` is ON DELETE SET NULL). Seat watches end once their
+ * term is no longer active (V2.md §6.5).
  * Later PRs add the chat digest, the moderation digest, and the rest of an
  * account's data to the purge (V2.md §4.7).
  */
@@ -31,6 +33,7 @@ export const runDailyJob: Job = async (context) => {
     const tombstonesPruned = await pruneTombstones(env.DB, now);
     const reviews = await pruneReviews(env.DB, now);
     const todo = await pruneTodo(env.DB, now);
+    const watches = await endPastTermWatches(env);
     const feedback = await pruneFeedback(env.DB, env.USER_CONTENT, now);
     return {
       counts: {
@@ -41,6 +44,7 @@ export const runDailyJob: Job = async (context) => {
         deletedReviewsRemoved: reviews.removed,
         todoItemsPruned: todo.items,
         todoDoneMarksPruned: todo.doneMarks,
+        seatWatchesEnded: watches.watches,
         feedbackUndoCleared: feedback.undoCleared,
         feedbackShotsExpired: feedback.shotsExpired,
         feedbackRemoved: feedback.removed,

@@ -77,6 +77,7 @@ export function problemWords(
     case "few-seats":
     case "no-set-times":
     case "instructor-tba":
+    case "watching":
       return null;
   }
 }

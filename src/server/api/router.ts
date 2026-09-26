@@ -10,10 +10,8 @@ import {
   ChatMembersInputSchema,
   ChatMuteInputSchema,
   ChatUnreadInputSchema,
-  ConfirmInputSchema,
   type FeatureLevel,
   FeatureVarsSchema,
-  ManageInputSchema,
   MeInputSchema,
   type ModerationKind,
   QueueListInputSchema,
@@ -25,11 +23,11 @@ import {
   ReviewSubmitInputSchema,
   ReviewSummaryInputSchema,
   ReviewsMineInputSchema,
+  SeatWatchInputSchema,
+  SeatWatchListInputSchema,
+  type SeatWatchListResult,
+  type SeatWatchResult,
   SignOutInputSchema,
-  StatusInputSchema,
-  type StatusResult,
-  SubscribeInputSchema,
-  type SubscribeResult,
   SYNC_MAX_PUSH_REQUEST_BYTES,
   SyncPullInputSchema,
   SyncPushInputSchema,
@@ -65,11 +63,11 @@ import {
   type AlertsContext,
   type AlertsEnv,
   alertsEnabled,
-  confirm,
-  lookup,
-  status,
-  subscribe,
-  unsubscribe,
+  handleOneClick,
+  list as listWatches,
+  ONE_CLICK_ROUTE,
+  unwatch,
+  watch,
 } from "../alerts/service";
 import { APEX_HOST } from "../apex";
 import {
@@ -165,8 +163,8 @@ interface Route<S extends z.ZodType> {
   alerts: boolean;
   /**
    * The route's own answer while seat alerts are off, sent before rate
-   * limiting: the app asks for status on every load, and an off switch
-   * shouldn't cost a D1 write per page view.
+   * limiting: the app lists watches on every signed-in load, and an off
+   * switch shouldn't cost a D1 write per page view.
    */
   whenOff?: unknown;
   /**
@@ -222,37 +220,30 @@ export const ROUTES = {
     handle: (env, input, ctx) =>
       getReviewSummary(env, input, { now: ctx.now, waitUntil: ctx.waitUntil }),
   }),
-  "alerts/subscribe": route({
-    input: SubscribeInputSchema,
-    perIpPerHour: 10,
+  // Seat watches (V2.md §6.5). The emails' one-click stop is routed below.
+  "alerts/watch": route({
+    input: SeatWatchInputSchema,
+    perUserPerHour: 120,
     alerts: false,
-    whenOff: { status: "unavailable" } satisfies SubscribeResult,
-    handle: (env, input, ctx) => subscribe(env, input, ctx),
+    whenOff: { status: "unavailable" } satisfies SeatWatchResult,
+    auth: "user",
+    handle: (env, input, ctx) => watch(env, input, ctx),
   }),
-  "alerts/confirm": route({
-    input: ConfirmInputSchema,
-    perIpPerHour: 60,
-    alerts: true,
-    handle: (env, input, ctx) => confirm(env, input, ctx),
-  }),
-  "alerts/lookup": route({
-    input: ManageInputSchema,
-    perIpPerHour: 60,
-    alerts: true,
-    handle: (env, input) => lookup(env, input),
-  }),
-  "alerts/unsubscribe": route({
-    input: ManageInputSchema,
-    perIpPerHour: 60,
-    alerts: true,
-    handle: (env, input, ctx) => unsubscribe(env, input, ctx),
-  }),
-  "alerts/status": route({
-    input: StatusInputSchema,
-    perIpPerHour: 120,
+  "alerts/unwatch": route({
+    input: SeatWatchInputSchema,
+    perUserPerHour: 120,
+    // Stopping works even while alerts are off.
     alerts: false,
-    whenOff: { status: "unavailable" } satisfies StatusResult,
-    handle: (env, input) => status(env, input),
+    auth: "user",
+    handle: (env, input, ctx) => unwatch(env, input, ctx),
+  }),
+  "alerts/list": route({
+    input: SeatWatchListInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    whenOff: { status: "unavailable" } satisfies SeatWatchListResult,
+    auth: "user",
+    handle: (env, input, ctx) => listWatches(env, input, ctx),
   }),
   // Identity (docs/AUTH.md). The sign-in navigations are GETs, routed below.
   me: route({
@@ -567,7 +558,7 @@ function reportsOpen(env: ApiEnv, surface: ModerationKind): boolean {
 
 /**
  * Where links in emails point. Only our own hosts: a forged Host header must
- * never put someone else's domain into a confirmation email.
+ * never put someone else's domain into an email link.
  */
 export function linkOrigin(url: URL): string {
   const host = url.hostname;
@@ -598,6 +589,14 @@ export async function handleApi(
   const r: Route<z.ZodType> | undefined = Object.hasOwn(ROUTES, name)
     ? ROUTES[name as keyof typeof ROUTES]
     : undefined;
+  // A mail provider's one-click unsubscribe: a form POST, not JSON.
+  if (name === ONE_CLICK_ROUTE)
+    return handleOneClick(request, env, {
+      now,
+      origin: linkOrigin(url),
+      waitUntil: (p) => ctx.waitUntil(p),
+      ipHash: () => keyedHash(env.DATA, clientIp(request)),
+    });
   if (!r) return apiError("not-found");
   if (request.method !== "POST") return apiError("method-not-allowed");
   // JSON only: a cross-site form can't send this type without a CORS
@@ -613,9 +612,7 @@ export async function handleApi(
   const window = { seconds: 3_600 };
   const limited = () => {
     const retryAfterSeconds = secondsLeft(window, now);
-    return name === "alerts/subscribe"
-      ? json({ status: "rate-limited", retryAfterSeconds })
-      : apiError("rate-limited", retryAfterSeconds);
+    return apiError("rate-limited", retryAfterSeconds);
   };
   if (r.perIpPerHour !== undefined) {
     const ipHash = await keyedHash(env.DATA, clientIp(request));

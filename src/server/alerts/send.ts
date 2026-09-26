@@ -1,13 +1,13 @@
-// One path for every alert email: claim the dedupe key, send through the
-// Email Service binding, record the outcome in `email_sends`.
-import type { EmailKind } from "~/core/schema";
+// One path for every seat-alert email: claim the dedupe key, send through
+// the Email Service binding, record the outcome in `seat_alert_sends`.
 import { ALERTS_FROM, type RenderedEmail } from "./email";
 import { claimSend, finishSend } from "./store";
 
 export interface SendArgs {
   to: string;
-  subscriptionId: string;
-  kind: EmailKind;
+  userId: string;
+  termId: string;
+  sectionKey: string;
   dedupeKey: string;
   email: RenderedEmail;
   now: Date;
@@ -19,9 +19,9 @@ export async function sendAlertEmail(
   args: SendArgs,
 ): Promise<boolean> {
   const id = await claimSend(env.DB, {
-    email: args.to,
-    subscriptionId: args.subscriptionId,
-    kind: args.kind,
+    userId: args.userId,
+    termId: args.termId,
+    sectionKey: args.sectionKey,
     dedupeKey: args.dedupeKey,
     sentAt: args.now.toISOString(),
   });
@@ -44,7 +44,7 @@ export async function sendAlertEmail(
     const code = (error as { code?: unknown }).code;
     console.warn({
       email: "send failed",
-      kind: args.kind,
+      kind: "seat-open",
       code: String(code ?? ""),
       error: String(error),
     });

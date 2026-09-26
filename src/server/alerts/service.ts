@@ -1,43 +1,37 @@
-// Seat-alert endpoints: subscribe, confirm, lookup, unsubscribe, status
-// (SPEC §3.12, DATA.md §7.1). The flag and per-IP limits are checked by the
-// router; these functions assume both passed.
+// Seat watches (SPEC §3.12, V2.md §6.5, DATA.md §7.1): the signed-in
+// `alerts/watch|unwatch|list` routes, the one-click stop link in alert
+// emails, and ending watches once their term is over. The router checks the
+// session and the per-person limits; these functions assume both passed.
 import {
-  type ConfirmInput,
-  type ConfirmResult,
-  type LookupResult,
-  type ManageInput,
   ManifestSchema,
   manifestKey,
+  parseSectionKey,
+  SEAT_WATCH_MAX_PER_USER,
   SeatsFileSchema,
-  type StatusInput,
-  type StatusResult,
-  type SubscribeInput,
-  type SubscribeResult,
+  type SeatUnwatchResult,
+  type SeatWatchInput,
+  type SeatWatchListInput,
+  type SeatWatchListResult,
+  type SeatWatchResult,
   seatsKey,
-  type UnsubscribeResult,
+  seatWatchFromRow,
+  TERMS_KEY,
+  TermsFileSchema,
 } from "~/core/schema";
 import { captureServerEvent } from "../analytics";
+import type { Session } from "../auth/session";
 import { hit } from "../counters";
-import { randomToken, sha256Hex } from "../crypto";
+import { keyedHash } from "../crypto";
 import { catalogReader, type WatchedSection } from "./catalog";
+import type { SectionRef } from "./email";
 import {
-  renderAlreadyWatchingEmail,
-  renderConfirmEmail,
-  type SectionRef,
-} from "./email";
-import { sendAlertEmail } from "./send";
-import {
-  activate,
-  countSends,
-  deactivate,
-  findSubscription,
-  findToken,
-  getSubscription,
-  insertSubscription,
-  insertToken,
-  lastSendAt,
-  setPending,
-  spendToken,
+  countWatches,
+  deleteTermWatches,
+  deleteWatch,
+  getWatch,
+  insertWatch,
+  listWatches,
+  watchedTerms,
 } from "./store";
 
 export interface AlertsEnv {
@@ -58,23 +52,14 @@ export interface AlertsContext {
   waitUntil?: (promise: Promise<unknown>) => void;
 }
 
-/** Limits (DATA.md §7.1). */
+/** Limits (DATA.md §7.1). Watches per person: SEAT_WATCH_MAX_PER_USER. */
 export const ALERT_LIMITS = {
-  confirmTtlMs: 48 * 3_600_000,
-  /** Confirmation and "already watching" emails per address per day. */
-  signupEmailsPerAddressPerDay: 5,
-  /** Minimum gap between signup emails for one subscription. */
-  signupEmailGapMs: 10 * 60_000,
-  /**
-   * Signup emails across everyone per UTC day: a backstop for abuse spread
-   * over many networks and addresses, to protect terpsicle.com's sending
-   * reputation. Far above real use.
-   */
-  signupEmailsPerDay: 300,
-  /** Seat-open emails per address per day. */
-  alertsPerAddressPerDay: 20,
-  /** Minimum gap between seat-open emails for one subscription. */
+  /** Seat-open alerts per person per day. */
+  alertsPerUserPerDay: 20,
+  /** Minimum gap between seat-open alerts for one watch. */
   alertCooldownMs: 30 * 60_000,
+  /** One-click stops per IP per hour (mail providers call these). */
+  oneClickPerIpPerHour: 60,
 } as const;
 
 export function alertsEnabled(
@@ -91,29 +76,6 @@ export function sectionRef(found: WatchedSection): SectionRef {
     sectionCode: found.section.code,
     title: found.course.title,
   };
-}
-
-/** Mints a token, stores only its hash, returns the token. */
-export async function issueToken(
-  db: D1Database,
-  subscriptionId: string,
-  purpose: "confirm" | "manage",
-  now: Date,
-): Promise<{ token: string; hash: string }> {
-  const token = randomToken(32);
-  const hash = await sha256Hex(token);
-  await insertToken(db, {
-    token_hash: hash,
-    subscription_id: subscriptionId,
-    purpose,
-    created_at: now.toISOString(),
-    expires_at:
-      purpose === "confirm"
-        ? new Date(now.getTime() + ALERT_LIMITS.confirmTtlMs).toISOString()
-        : null,
-    used_at: null,
-  });
-  return { token, hash };
 }
 
 /** Open seats for a section right now, from the published seats file. */
@@ -136,197 +98,188 @@ export async function currentOpenSeats(
   return seats?.success ? (seats.data.seats[sectionKey]?.[0] ?? null) : null;
 }
 
-export async function subscribe(
+type UserContext = AlertsContext & { session: Session | null };
+
+/** The router only calls these with a session (`auth: "user"`). */
+function userId(ctx: UserContext): string {
+  if (!ctx.session) throw new Error("seat watches need a session");
+  return ctx.session.user.id;
+}
+
+export async function watch(
   env: AlertsEnv,
-  input: SubscribeInput,
-  ctx: AlertsContext,
-): Promise<SubscribeResult> {
+  input: SeatWatchInput,
+  ctx: UserContext,
+): Promise<SeatWatchResult> {
   if (!alertsEnabled(env)) return { status: "unavailable" };
+  const user = userId(ctx);
+  const existing = await getWatch(env.DB, user, input.termId, input.sectionKey);
+  if (existing)
+    return { status: "watching", watch: seatWatchFromRow(existing) };
+
   const found = await catalogReader(env.DATA)(input.termId, input.sectionKey);
   if (found?.term.status !== "active") return { status: "unknown-section" };
+  if ((await countWatches(env.DB, user)) >= SEAT_WATCH_MAX_PER_USER)
+    return { status: "too-many", max: SEAT_WATCH_MAX_PER_USER };
 
-  const email = input.email.trim().toLowerCase();
-  const nowIso = ctx.now.toISOString();
-  let subscription = await findSubscription(
-    env.DB,
-    email,
-    input.termId,
-    input.sectionKey,
-  );
-  if (!subscription) {
-    await insertSubscription(env.DB, {
-      id: randomToken(16),
-      email,
-      term_id: input.termId,
-      section_key: input.sectionKey,
-      created_at: nowIso,
-    }).catch(() => undefined); // A concurrent request inserted it first.
-    subscription = await findSubscription(
-      env.DB,
-      email,
-      input.termId,
-      input.sectionKey,
-    );
-    if (!subscription) throw new Error("subscription insert failed");
-  } else if (subscription.status === "unsubscribed") {
-    await setPending(env.DB, subscription.id);
-  }
-  const watching = subscription.status === "active";
-  const kind = watching ? "already-watching" : "confirm";
-
-  // Per-address limits skip the email but never change the answer, so the
-  // API can't be used to learn about someone's address.
-  const since = new Date(ctx.now.getTime() - 86_400_000).toISOString();
-  const sentToday = await countSends(
-    env.DB,
-    email,
-    ["confirm", "already-watching"],
-    since,
-  );
-  const last = await lastSendAt(env.DB, subscription.id, [kind]);
-  const tooSoon =
-    last !== null &&
-    ctx.now.getTime() - Date.parse(last) < ALERT_LIMITS.signupEmailGapMs;
-  let outcome: "confirm-sent" | "already-watching" | "not-sent" = "not-sent";
-  if (
-    sentToday < ALERT_LIMITS.signupEmailsPerAddressPerDay &&
-    !tooSoon &&
-    (await hit(env.DB, "signup-emails", { seconds: 86_400 }, ctx.now)) <=
-      ALERT_LIMITS.signupEmailsPerDay
-  ) {
-    const ref = sectionRef(found);
-    const issued = await issueToken(
-      env.DB,
-      subscription.id,
-      watching ? "manage" : "confirm",
-      ctx.now,
-    );
-    const rendered = watching
-      ? renderAlreadyWatchingEmail(ctx.origin, ref, issued.token)
-      : renderConfirmEmail(ctx.origin, ref, issued.token);
-    const sent = await sendAlertEmail(env, {
-      to: email,
-      subscriptionId: subscription.id,
-      kind,
-      dedupeKey: `${kind}:${subscription.id}:${issued.hash.slice(0, 16)}`,
-      email: rendered,
-      now: ctx.now,
-    });
-    if (sent) outcome = watching ? "already-watching" : "confirm-sent";
-  }
-  ctx.waitUntil?.(captureServerEvent(env, "alert_subscribed", { outcome }));
-  return { status: "check-email" };
-}
-
-export async function confirm(
-  env: AlertsEnv,
-  input: ConfirmInput,
-  ctx: AlertsContext,
-): Promise<ConfirmResult> {
-  const hash = await sha256Hex(input.token);
-  const token = await findToken(env.DB, hash, "confirm");
-  const subscription = token
-    ? await getSubscription(env.DB, token.subscription_id)
-    : null;
-  if (!token || !subscription) return { status: "invalid-token" };
-  const place = {
-    termId: subscription.term_id,
-    sectionKey: subscription.section_key,
-  };
-  if (token.used_at !== null) {
-    return subscription.status === "active"
-      ? { status: "already-confirmed", ...place }
-      : { status: "invalid-token" };
-  }
-  if (token.expires_at !== null && token.expires_at < ctx.now.toISOString()) {
-    return { status: "invalid-token" };
-  }
-  if (!(await spendToken(env.DB, hash, ctx.now.toISOString()))) {
-    return { status: "already-confirmed", ...place };
-  }
   // Start from today's count, so only a reopening after now sends an email.
-  const open = await currentOpenSeats(
-    env.DATA,
-    subscription.term_id,
-    subscription.section_key,
-  );
-  await activate(env.DB, subscription.id, ctx.now.toISOString(), open);
-  const manage = await issueToken(env.DB, subscription.id, "manage", ctx.now);
-  ctx.waitUntil?.(
-    captureServerEvent(env, "alert_confirmed", {
-      termId: subscription.term_id,
-    }),
-  );
-  return {
-    status: "confirmed",
-    ...place,
-    subscriptionId: subscription.id,
-    manageToken: manage.token,
-  };
-}
-
-async function subscriptionForManageToken(env: AlertsEnv, token: string) {
-  const row = await findToken(env.DB, await sha256Hex(token), "manage");
-  return row ? getSubscription(env.DB, row.subscription_id) : null;
-}
-
-export async function lookup(
-  env: AlertsEnv,
-  input: ManageInput,
-): Promise<LookupResult> {
-  const subscription = await subscriptionForManageToken(env, input.token);
-  if (!subscription) return { status: "invalid-token" };
-  return {
-    status: "found",
-    termId: subscription.term_id,
-    sectionKey: subscription.section_key,
-    subscriptionStatus: subscription.status,
-  };
-}
-
-export async function unsubscribe(
-  env: AlertsEnv,
-  input: ManageInput,
-  ctx: AlertsContext,
-): Promise<UnsubscribeResult> {
-  const subscription = await subscriptionForManageToken(env, input.token);
-  if (!subscription) return { status: "invalid-token" };
-  if (subscription.status !== "unsubscribed") {
-    await deactivate(env.DB, subscription.id, ctx.now.toISOString());
+  const open = await currentOpenSeats(env.DATA, input.termId, input.sectionKey);
+  const inserted = await insertWatch(env.DB, {
+    user_id: user,
+    term_id: input.termId,
+    section_key: input.sectionKey,
+    created_at: ctx.now.toISOString(),
+    last_open: open,
+  });
+  const row = await getWatch(env.DB, user, input.termId, input.sectionKey);
+  if (!row) throw new Error("seat watch insert failed");
+  if (inserted)
     ctx.waitUntil?.(
-      captureServerEvent(env, "alert_unsubscribed", {
-        termId: subscription.term_id,
+      captureServerEvent(env, "alert_watched", { termId: input.termId }),
+    );
+  return { status: "watching", watch: seatWatchFromRow(row) };
+}
+
+export async function unwatch(
+  env: AlertsEnv,
+  input: SeatWatchInput,
+  ctx: UserContext,
+): Promise<SeatUnwatchResult> {
+  const user = userId(ctx);
+  if (await getWatch(env.DB, user, input.termId, input.sectionKey)) {
+    await deleteWatch(env.DB, user, input.termId, input.sectionKey);
+    ctx.waitUntil?.(
+      captureServerEvent(env, "alert_unwatched", {
+        termId: input.termId,
+        via: "app",
       }),
     );
   }
+  return { status: "stopped" };
+}
+
+export async function list(
+  env: AlertsEnv,
+  input: SeatWatchListInput,
+  ctx: UserContext,
+): Promise<SeatWatchListResult> {
+  if (!alertsEnabled(env)) return { status: "unavailable" };
+  const rows = await listWatches(env.DB, userId(ctx), input.termId);
   return {
-    status: "unsubscribed",
-    termId: subscription.term_id,
-    sectionKey: subscription.section_key,
+    status: "ok",
+    watches: rows.slice(0, SEAT_WATCH_MAX_PER_USER).map(seatWatchFromRow),
   };
 }
 
-export async function status(
-  env: AlertsEnv,
-  input: StatusInput,
-): Promise<StatusResult> {
-  if (!alertsEnabled(env)) return { status: "unavailable" };
-  const items = await Promise.all(
-    input.items.map(async (item) => {
-      const token = await findToken(
-        env.DB,
-        await sha256Hex(item.manageToken),
-        "manage",
-      );
-      const subscription =
-        token && token.subscription_id === item.subscriptionId
-          ? await getSubscription(env.DB, token.subscription_id)
-          : null;
-      return {
-        subscriptionId: item.subscriptionId,
-        status: subscription ? subscription.status : ("unknown" as const),
-      };
-    }),
+// ---------- the one-click stop link (RFC 8058) ----------
+
+/** The path mail providers POST to, outside the JSON route table. */
+export const ONE_CLICK_ROUTE = "alerts/one-click";
+
+const oneClickSubject = (user: string, termId: string, sectionKey: string) =>
+  `seat-watch-stop:${user}:${termId}:${sectionKey}`;
+
+/**
+ * A link that stops one watch, signed with the Worker's own HMAC key
+ * (`keyedHash`, kept in R2), so it can't be forged for someone else's.
+ */
+export async function oneClickStopUrl(
+  bucket: R2Bucket,
+  origin: string,
+  watch: { userId: string; termId: string; sectionKey: string },
+): Promise<string> {
+  const key = await keyedHash(
+    bucket,
+    oneClickSubject(watch.userId, watch.termId, watch.sectionKey),
   );
-  return { status: "ok", items };
+  const params = new URLSearchParams({
+    u: watch.userId,
+    t: watch.termId,
+    s: watch.sectionKey,
+    k: key,
+  });
+  return `${origin}/api/${ONE_CLICK_ROUTE}?${params}`;
+}
+
+/** Constant-time compare of two hex strings. */
+function sameHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
+ * `POST /api/alerts/one-click?u&t&s&k`: a mail provider's one-click
+ * unsubscribe (body `List-Unsubscribe=One-Click`) stops that one watch. A
+ * GET (a person, or a link scanner) changes nothing and goes to the watch
+ * list in Settings, where stopping has Undo.
+ */
+export async function handleOneClick(
+  request: Request,
+  env: AlertsEnv,
+  ctx: AlertsContext & { ipHash: () => Promise<string> },
+): Promise<Response> {
+  const url = new URL(request.url);
+  if (request.method === "GET")
+    return Response.redirect(`${ctx.origin}/settings#watching`, 303);
+  if (request.method !== "POST")
+    return new Response(null, { status: 405, headers: { Allow: "GET, POST" } });
+  const count = await hit(
+    env.DB,
+    `${ONE_CLICK_ROUTE}:${await ctx.ipHash()}`,
+    { seconds: 3_600 },
+    ctx.now,
+  );
+  if (count > ALERT_LIMITS.oneClickPerIpPerHour)
+    return new Response("Too many requests", { status: 429 });
+  const user = url.searchParams.get("u") ?? "";
+  const termId = url.searchParams.get("t") ?? "";
+  const sectionKey = url.searchParams.get("s") ?? "";
+  const key = url.searchParams.get("k") ?? "";
+  const expected = await keyedHash(
+    env.DATA,
+    oneClickSubject(user, termId, sectionKey),
+  );
+  if (!parseSectionKey(sectionKey) || !sameHex(key, expected))
+    return new Response("This link isn't valid.", { status: 400 });
+  if (await getWatch(env.DB, user, termId, sectionKey)) {
+    await deleteWatch(env.DB, user, termId, sectionKey);
+    ctx.waitUntil?.(
+      captureServerEvent(env, "alert_unwatched", { termId, via: "email" }),
+    );
+  }
+  return new Response("Stopped. No more emails about this section.", {
+    status: 200,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
+
+// ---------- the end of a term ----------
+
+/**
+ * Ends watches whose term is no longer active (archived or gone from the
+ * term list): seats stop updating then, so nothing could ever reopen. Does
+ * nothing when the term list can't be read.
+ */
+export async function endPastTermWatches(
+  env: Pick<AlertsEnv, "DB" | "DATA" | "POSTHOG_TOKEN">,
+  options: { waitUntil?: (promise: Promise<unknown>) => void } = {},
+): Promise<{ terms: number; watches: number }> {
+  const object = await env.DATA.get(TERMS_KEY);
+  const terms = object ? TermsFileSchema.safeParse(await object.json()) : null;
+  if (!terms?.success) return { terms: 0, watches: 0 };
+  const active = new Set(
+    terms.data.terms.filter((t) => t.status === "active").map((t) => t.id),
+  );
+  const ended = (await watchedTerms(env.DB)).filter((t) => !active.has(t));
+  const watches = await deleteTermWatches(env.DB, ended);
+  if (watches > 0)
+    options.waitUntil?.(
+      captureServerEvent(env, "alert_watches_ended", {
+        terms: ended.length,
+        watches,
+      }),
+    );
+  return { terms: ended.length, watches };
 }

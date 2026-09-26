@@ -1,4 +1,4 @@
-// Names for what a seat alert watches, from the ids alone (these pages load
+// Names for what a seat watch is on, from the ids alone (Settings loads
 // without the catalog).
 
 import { SCHEDULE_PATH } from "~/core/routing";

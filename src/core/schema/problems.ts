@@ -23,6 +23,8 @@ export const ProblemKindSchema = z.enum([
   "restricted",
   "no-set-times",
   "instructor-tba",
+  /** A full section the person watches: its "full" problem, taken care of. */
+  "watching",
 ]);
 export type ProblemKind = z.infer<typeof ProblemKindSchema>;
 
@@ -38,6 +40,7 @@ export const PROBLEM_SEVERITY = {
   restricted: "warning",
   "no-set-times": "info",
   "instructor-tba": "info",
+  watching: "info",
 } as const satisfies Record<ProblemKind, Severity>;
 
 export const SEVERITY_ORDER = [
