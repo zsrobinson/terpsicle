@@ -106,7 +106,7 @@ test("connection details draw the route on campus tiles", async ({
     termId: term.id,
     sections: [a.key, b.key],
   });
-  await page.goto(`/?plan=${param}`);
+  await page.goto(`/schedule?plan=${param}`);
   await page.getByRole("button", { name: "Travel", exact: true }).click();
   await page
     .getByRole("button", { name: new RegExp(`^${a.course} to ${b.course}`) })

@@ -36,17 +36,21 @@ export function apiError(
   return response;
 }
 
+/** The largest request body a route reads unless it says otherwise. */
+export const DEFAULT_MAX_INPUT_BYTES = 16_384;
+
 /** Parses the JSON body with `schema`, or returns null (bad JSON, too big, or invalid). */
 export async function readInput<S extends z.ZodType>(
   request: Request,
   schema: S,
+  maxBytes = DEFAULT_MAX_INPUT_BYTES,
 ): Promise<z.infer<S> | null> {
   const length = Number(request.headers.get("Content-Length") ?? "0");
-  if (length > 16_384) return null;
+  if (length > maxBytes) return null;
   let body: unknown;
   try {
     const text = await request.text();
-    if (text.length > 16_384) return null;
+    if (text.length > maxBytes) return null;
     body = JSON.parse(text);
   } catch {
     return null;

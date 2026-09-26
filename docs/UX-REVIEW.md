@@ -210,7 +210,8 @@ Every list (courses, results, sections, problems, connections, checklist, genera
 - **Text:** `fg` for what the row is, `muted` for supporting facts, `faint` only for footnotes, disabled states and placeholders.
 - **Status colors** (`ok`, `warn`, `error`) go only on status words and their meters: fit labels, seats low or full, problem severity, travel verdicts. Never on counts, headings or decoration. "4 fit" in the Sections header stays muted; the green goes on each row's "Fits".
 - **One filled (accent) button per view:** the primary action, in ink. Everything else is outline (paper, ink border, offset) or ghost (flat).
-- **Product color** (the scheduler red, Reviews purple, Chat blue) goes only on the marks, the product menu and the selected row's soft fill (`accent-soft`). Never on buttons, headings or borders.
+- **Product color** (the scheduler red, Reviews purple, Chat blue) goes only on the marks and the product menu. Never on buttons, headings or borders.
+- **The selected row** (`accent-soft`) is a neutral a half-step past `hover`, never the error's red.
 - **Course colors** only on the course dot and calendar blocks: Flexoki fills, 400-step borders and dots (DESIGN §7.1).
 - **Sparkles** only on the LLM review summary (unchanged).
 

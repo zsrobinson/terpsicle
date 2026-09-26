@@ -88,7 +88,7 @@ test("the default term's real courses load, then come from the cache", async ({
 
   const first = await measure(page);
   const started = Date.now();
-  await page.goto(`/?plan=${param}`);
+  await page.goto(`/schedule?plan=${param}`);
   await expect(page.getByText(term.name).first()).toBeVisible();
   const calendar = page.getByRole("region", { name: "Week calendar" });
   await expect(
@@ -166,3 +166,17 @@ function savedKeys(): Promise<string[]> {
     };
   });
 }
+
+test("/ shows the marketing page to a first visit, and /privacy loads", async ({
+  page,
+}) => {
+  // Google's OAuth consent screen links to /privacy and checks that it loads.
+  await page.goto("/");
+  await expect(
+    page.getByRole("link", { name: "Open the scheduler" }),
+  ).toBeVisible();
+  await page.goto("/privacy");
+  await expect(
+    page.getByRole("heading", { name: "Privacy", level: 1 }),
+  ).toBeVisible();
+});

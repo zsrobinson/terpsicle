@@ -227,7 +227,7 @@ Little-endian throughout.
 
 Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 
-**v2** bumps it to 2: a `syncRows` table (key `[kind+rowId]`: `rev`, the last acknowledged `base`, `dirty`) and a `sync` settings row (`{userId, head}`) for plan sync, and the `seatAlerts` table is dropped because seat watches move to D1 (`docs/V2.md` §5.3, §6.5). Blocks and course colors gain an optional `updatedAt`.
+**v2** bumps it to 2: a `syncDocs` table (key: the doc key, `plan:<id>` or `settings`; `rev`, `dirty`, `inFlight`), the settings doc's `base`, and a `sync` settings row (`{userId, cursor}`) for plan sync, and the `seatAlerts` table is dropped because seat watches move to D1 (`docs/V2.md` §5.3, §6.5). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
 
 | Table | Primary key, indexes | Row schema |
 |---|---|---|
@@ -314,7 +314,8 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 
 **Every request:**
 - must be `POST` with `Content-Type: application/json`. A cross-site form can't send that type without a CORS preflight, which is never granted;
-- is rate-limited per IP per hour, keyed by an HMAC of `CF-Connecting-IP`. The HMAC key lives only in R2 (`_jobs/keys/hmac.json`, made on first use) and the IP is never stored.
+- is rate-limited per IP per hour, keyed by an HMAC of `CF-Connecting-IP`. The HMAC key lives only in R2 (`_jobs/keys/hmac.json`, made on first use) and the IP is never stored. Signed-in routes may instead (or also) set `perUserPerHour`, keyed `user:<id>:<route>`, checked after the session and before the body is read;
+- has a body of at most 16 KiB unless its route sets `maxBytes` (only `sync/push` does).
 
 | Endpoint | Input | Result | Per IP per hour |
 |---|---|---|---|
@@ -328,6 +329,8 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | `auth/sign-out` | `SignOutInputSchema` `{removeLocal?}` | `{status: "signed-out"}`, and clears the cookies | 30 |
 | `account/delete` (`auth: "user"`) | `AccountDeleteInputSchema` `{}` | `AccountDeleteResultSchema` `{status: "deleting", deleteAfter}` | 30 |
 | `auth/test-sign-in` (test mode only; 404 elsewhere) | `TestSignInInputSchema` `{userId, return?}` | `TestSignInResultSchema` | 60 |
+| `sync/push` (`auth: "user"`) | `SyncPushInputSchema` `{docs: [{kind, id, baseRev, body}]}` (≤ 50, each body ≤ 64 KiB) | `SyncPushResultSchema` `{results}`: per doc `ok` (with `rev`), `conflict` (with the server's `doc`, or null) or `too-many-plans` | none; 1,200 per user |
+| `sync/pull` (`auth: "user"`) | `SyncPullInputSchema` `{since}` | `SyncPullResultSchema`: `ok` (`cursor`, `docs`, `more`) or `reset` | none; 600 per user |
 
 **Identity** (§7.6, `docs/AUTH.md`) adds the `auth` field to the route table: `"user"` and `"admin"` routes need a same-origin request (`Origin`, and `Sec-Fetch-Site` when sent) and a session, answer `401 unauthorized` or `403 forbidden` otherwise, and get the session's user in `ctx.session`. `ApiErrorSchema` gains `unauthorized` and `forbidden`. Two GET navigations sit beside the table, `/api/auth/google` and `/api/auth/google/callback`, and one Worker route outside `/api`, `/avatars/*`.
 
@@ -369,7 +372,7 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 - from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`.
 
 **Links in emails:**
-- to the app: `https://terpsicle.com/?term=<id>&course=<code>`. The app should open that course; that's still a UI task;
+- to the app: `https://terpsicle.com/schedule?term=<id>&course=<code>`. The app should open that course; that's still a UI task;
 - to Testudo's page for the course.
 
 API-triggered emails link to the requesting origin only when it's ours (terpsicle.com, this project's preview hosts, localhost), so a forged `Host` can never inject another domain. Cron emails always link to terpsicle.com.
@@ -493,7 +496,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 |---|---|---|
 | `0003_identity` | `users` (key: directory ID; `email`, `hd`, `name`, `picture_url`, `picture_key`, `status`, `delete_after`, `chat_blocked_until`, `reviews_blocked_until`, …), `user_identities` (Google `sub` → user, with that tenant's `email`, so both a TERPmail and a UMD Gmail address are kept), `sessions` (hashed cookie tokens, 30-day sliding) | Accounts (V2.md §4.4) |
 | `0004_moderation` | `moderation_decisions` (text-free log), `moderation_queue` (the human queue; snapshots blanked 30 days after close), `reports` | The shared moderation service (V2.md §9.4) |
-| `0005_sync` | `sync_rows` (`user_id`, `kind`, `row_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `writer`, `pruned_through`) | Plan sync with compare-and-swap (V2.md §5.2) |
+| `0005_sync` (landed, §7.7) | `sync_docs` (`user_id`, `kind`, `doc_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `pruned_through`) | Plan sync: one JSON row per doc, per-doc rev compare-and-swap (V2.md §5.2) |
 | `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
 | `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
@@ -516,11 +519,23 @@ How it works, and how to use it from other routes: `docs/AUTH.md`. Rows are vali
 - **Deletion:** `account/delete` sets `status = 'deleting'` and `delete_after` a week out and ends every session; signing in before then sets `active` again. The daily job (`7 13 * * *`, `src/jobs/daily.ts`) deletes the pictures, then the rows, of accounts past `delete_after`, and expired sessions.
 - **Admins** aren't a table: `config/admins.txt`, bundled into the Worker.
 
+### 7.7 Plan sync (landed: `migrations/0005_sync.sql`)
+
+The design is `docs/V2.md` §5; the routes are `src/server/sync/api.ts`, the SQL `src/server/sync/store.ts`, and the input, result and row schemas (with the limits) `src/core/schema/sync-api.ts`. Rows are read with `SyncDocRowSchema` and turned into docs by `syncDocFromRow`, which checks them against `SyncDocSchema`.
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `sync_docs` | `(user_id, kind, doc_id)` | `term_id`, `rev`, `deleted`, `body` (JSON), `updated_at` | One row per plan doc and one `settings` row per user. `rev` is unique per user (`sync_docs_since`), and a save always takes a new one. A deleted plan is a tombstone (`deleted = 1`, `body` NULL, `term_id` kept) until the daily job prunes it 30 days after `updated_at`. |
+| `sync_heads` | `user_id` | `head`, `pruned_through` | `head` is the last rev handed out; `pruned_through` the highest pruned tombstone's rev. A pull from below it (but above 0), or from above `head`, gets `reset`. |
+
+- **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live plan stays within 200. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
+- **Deleting an account** removes both tables' rows: explicitly in the purge, and by `ON DELETE CASCADE`.
+
 ---
 
 ## 8. Share links
 
-`/?plan=<base64url(deflate-raw(UTF-8 JSON))>` (v2: `/schedule?plan=…`, since the scheduler moves to `/schedule`; old links needn't keep working). The link carries a `SharePayloadSchema` payload:
+`/schedule?plan=<base64url(deflate-raw(UTF-8 JSON))>`. The link carries a `SharePayloadSchema` payload:
 - `v: 1`, `termId`, `name?`;
 - `sections`: section keys in course order;
 - `saved?`: saved-for-later course codes;

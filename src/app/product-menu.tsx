@@ -1,9 +1,11 @@
 import { cn } from "cn";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { STAY_PARAM } from "~/core/routing";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
 import { WithTooltip } from "~/ui/tooltip";
@@ -15,7 +17,9 @@ import { PRODUCTS, type Product, type ProductId } from "./products";
 // §7.6): the umbrella and the wordmark, top left, open the three products
 // with their marks. The one you're in wears its soft color and a check. No
 // paths, counts or badges: nothing here pulls you into another product.
-// Plain links: the shell also renders outside a router (tests).
+// Then the marketing page at `/?stay`, which returning visitors would
+// otherwise skip. Plain links: the shell also renders outside a router
+// (tests), and `/`'s head script needs a full load to see ?stay.
 
 const CURRENT: Record<ProductId, string> = {
   schedule:
@@ -62,6 +66,12 @@ export function ProductMenu({
             current={product.id === current}
           />
         ))}
+        <DropdownMenuSeparator />
+        <WithTooltip label="What Terpsicle is, for first visits" side="right">
+          <DropdownMenuItem asChild>
+            <a href={`/?${STAY_PARAM}`}>About Terpsicle</a>
+          </DropdownMenuItem>
+        </WithTooltip>
       </DropdownMenuContent>
     </DropdownMenu>
   );

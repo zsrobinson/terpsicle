@@ -10,7 +10,7 @@ vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 
 describe("deep links", () => {
   afterEach(() => {
-    window.history.replaceState(null, "", "/");
+    window.history.replaceState(null, "", "/schedule");
   });
 
   it("reads ?term=&course= and ignores anything malformed", () => {
@@ -26,8 +26,10 @@ describe("deep links", () => {
 
   it("drops only its own params", () => {
     expect(
-      withoutDeepLink("https://terpsicle.com/?term=202701&course=CMSC351&x=1"),
-    ).toBe("/?x=1");
+      withoutDeepLink(
+        "https://terpsicle.com/schedule?term=202701&course=CMSC351&x=1",
+      ),
+    ).toBe("/schedule?x=1");
   });
 
   it("switches term and opens the course; an unknown term does nothing", () => {
@@ -46,7 +48,7 @@ describe("deep links", () => {
     window.history.replaceState(
       null,
       "",
-      `/?term=${archivedFixtureTermId}&course=CMSC131`,
+      `/schedule?term=${archivedFixtureTermId}&course=CMSC131`,
     );
     await act(async () => {
       await renderShell({ panels: [panels] });

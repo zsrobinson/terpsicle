@@ -1,11 +1,12 @@
-// The app route's eager bundle, held to a budget (BUILD §5: first load
-// < 1.5 MB compressed; regressions fail CI). Run after `pnpm build`:
+// The scheduler's eager bundle, held to a budget (BUILD §5: first load
+// < 1.5 MB compressed; regressions fail CI), and the marketing page's, which
+// must stay light. Run after `pnpm build`:
 //
 //   pnpm check:bundle
 //
-// "Eager" is what a visit to / loads before any interaction: the client
-// entry, the / route's chunks TanStack Start preloads, everything they import
-// statically, and their CSS. Lazy chunks (the route map, PostHog, mock
+// "Eager" is what a visit to a route loads before any interaction: the
+// client entry, the route's chunks TanStack Start preloads, everything they
+// import statically, and their CSS. Lazy chunks (the route map, PostHog, mock
 // fixtures) don't count, and some modules must never be eager at all.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -15,11 +16,18 @@ import { BUNDLE_GRAPH_FILE, type BundleGraph } from "./bundle-graph";
 import { isMain, ROOT } from "./lib/source-files";
 
 /**
- * Gzipped JS + CSS for /, in bytes: 343 KB when this was set (M8), plus about
- * 10% headroom. Raise it on purpose, in the PR that needs it, never to get
- * a build green.
+ * Gzipped JS + CSS for /schedule, in bytes: 343 KB when this was set (M8),
+ * plus about 10% headroom. Raise it on purpose, in the PR that needs it,
+ * never to get a build green.
  */
 export const EAGER_BUDGET = 380 * 1024;
+
+/**
+ * Gzipped JS + CSS for / (the marketing page), in bytes: 193 KB when this
+ * was set (v2 routes), mostly React, the router and the route tree's search
+ * schemas, plus about 10% headroom. Same rule for raising it.
+ */
+export const LANDING_BUDGET = 215 * 1024;
 
 /** Modules that must only ever load on demand, and why. */
 export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
@@ -35,6 +43,71 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
   },
   { pattern: /^src\/fixtures\//, why: "fixtures are for mock mode only" },
 ];
+
+/**
+ * What must stay out of `/` and the pages around the scheduler: `/` may peek
+ * at IndexedDB, nothing more.
+ */
+export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
+  [
+    { pattern: /(^|\/)dexie\//, why: "only the scheduler opens Dexie" },
+    { pattern: /^src\/state\//, why: "the app's stores load with /schedule" },
+    { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
+  ];
+
+/**
+ * Each entry route (docs/V2.md §1.1), its budget and its extra never-eager
+ * rules. The pages other tracks fill in start on `/`'s budget and rules, so
+ * none of them pulls in the scheduler; the PR that builds one gives it its
+ * own budget.
+ */
+export const ROUTE_BUDGETS: readonly {
+  route: string;
+  budget: number;
+  never: readonly { pattern: RegExp; why: string }[];
+}[] = [
+  { route: "/schedule", budget: EAGER_BUDGET, never: [] },
+  ...[
+    "/",
+    "/reviews/",
+    "/chat/",
+    "/settings",
+    "/signin",
+    "/admin/",
+    "/privacy",
+  ].map((route) => ({
+    route,
+    budget: LANDING_BUDGET,
+    never: LANDING_NEVER_EAGER,
+  })),
+];
+
+/**
+ * Text that must never be in the build: the contact address stays away from
+ * scrapers (src/features/site/contact-email.tsx). Joined here so this file
+ * doesn't hold it either.
+ */
+export const NEVER_IN_BUILD: readonly string[] = [
+  ["admin", "terpsicle.com"].join("@"),
+];
+
+/** "file: contains …" for each build file that holds forbidden text. */
+export function forbiddenText(
+  files: readonly { file: string; text: string }[],
+): string[] {
+  return files.flatMap(({ file, text }) =>
+    NEVER_IN_BUILD.filter((t) => text.includes(t)).map(
+      (t) => `${file}: contains "${t}"`,
+    ),
+  );
+}
+
+/** Every file under `dir`, recursively, relative to ROOT. */
+function filesUnder(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => path.relative(ROOT, path.join(e.parentPath, e.name)));
+}
 
 /** Chunks loaded with `starts`, following static imports only. */
 export function eagerChunks(
@@ -55,12 +128,14 @@ export function eagerChunks(
 export function forbiddenModules(
   graph: BundleGraph,
   chunks: readonly string[],
+  extra: readonly { pattern: RegExp; why: string }[] = [],
 ): string[] {
+  const rules = [...NEVER_EAGER, ...extra];
   return chunks.flatMap((file) =>
     (graph[file]?.modules ?? []).flatMap((module) =>
-      NEVER_EAGER.filter((rule) => rule.pattern.test(module)).map(
-        (rule) => `${file}: ${module} (${rule.why})`,
-      ),
+      rules
+        .filter((rule) => rule.pattern.test(module))
+        .map((rule) => `${file}: ${module} (${rule.why})`),
     ),
   );
 }
@@ -91,19 +166,17 @@ async function routeManifest(): Promise<RouteManifest> {
 
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`;
 
-async function main() {
-  const graphFile = path.join(ROOT, BUNDLE_GRAPH_FILE);
-  if (!existsSync(graphFile)) {
-    console.error(`${BUNDLE_GRAPH_FILE} is missing. Run pnpm build first.`);
-    process.exitCode = 1;
-    return;
-  }
-  const graph = JSON.parse(readFileSync(graphFile, "utf8")) as BundleGraph;
+/** Prints one route's eager files; returns its problems. */
+function checkRoute(
+  graph: BundleGraph,
+  routes: RouteManifest["routes"],
+  { route, budget, never }: (typeof ROUTE_BUDGETS)[number],
+): string[] {
   const client = path.join(ROOT, "dist/client");
-  const { routes } = await routeManifest();
+  if (!routes[route]) return [`${route}: not in the route manifest`];
   const preloads = [
     ...(routes.__root__?.preloads ?? []),
-    ...(routes["/"]?.preloads ?? []),
+    ...(routes[route]?.preloads ?? []),
   ].map((url) => url.replace(/^\//, ""));
   const entries = Object.keys(graph).filter((f) => graph[f]?.isEntry);
   const chunks = eagerChunks(graph, [...entries, ...preloads]);
@@ -127,7 +200,7 @@ async function main() {
   const total = rows.reduce((n, r) => n + r.gzip, 0);
 
   const width = Math.max(...rows.map((r) => r.file.length), 5);
-  console.log(`Eager JS and CSS for / (gzip -9)\n`);
+  console.log(`Eager JS and CSS for ${route} (gzip -9)\n`);
   console.log(
     `${"File".padEnd(width)}  ${"Raw".padStart(10)}  ${"Gzip".padStart(10)}`,
   );
@@ -136,14 +209,37 @@ async function main() {
       `${r.file.padEnd(width)}  ${kb(r.raw).padStart(10)}  ${kb(r.gzip).padStart(10)}`,
     );
   console.log(
-    `${"Total".padEnd(width)}  ${"".padStart(10)}  ${kb(total).padStart(10)}  (budget ${kb(EAGER_BUDGET)})\n`,
+    `${"Total".padEnd(width)}  ${"".padStart(10)}  ${kb(total).padStart(10)}  (budget ${kb(budget)})\n`,
   );
 
-  const problems = forbiddenModules(graph, chunks);
-  if (total > EAGER_BUDGET)
+  const problems = forbiddenModules(graph, chunks, never).map(
+    (p) => `${route}: ${p}`,
+  );
+  if (total > budget)
     problems.push(
-      `eager bundle is ${kb(total)}, over the ${kb(EAGER_BUDGET)} budget: lazy-load something, or raise EAGER_BUDGET in scripts/check-bundle.ts on purpose`,
+      `${route}: eager bundle is ${kb(total)}, over the ${kb(budget)} budget: lazy-load something, or raise its budget in scripts/check-bundle.ts on purpose`,
     );
+  return problems;
+}
+
+async function main() {
+  const graphFile = path.join(ROOT, BUNDLE_GRAPH_FILE);
+  if (!existsSync(graphFile)) {
+    console.error(`${BUNDLE_GRAPH_FILE} is missing. Run pnpm build first.`);
+    process.exitCode = 1;
+    return;
+  }
+  const graph = JSON.parse(readFileSync(graphFile, "utf8")) as BundleGraph;
+  const { routes } = await routeManifest();
+  const problems = [
+    ...ROUTE_BUDGETS.flatMap((r) => checkRoute(graph, routes, r)),
+    ...forbiddenText(
+      filesUnder(path.join(ROOT, "dist")).map((file) => ({
+        file,
+        text: readFileSync(path.join(ROOT, file), "latin1"),
+      })),
+    ),
+  ];
   if (problems.length > 0) {
     console.error(`bundle: ${problems.length} problem(s)`);
     for (const p of problems) console.error(`  ${p}`);

@@ -71,7 +71,7 @@ Browser
   - Seats are a separate file, polled every 60 s while the tab is visible.
   - A `schemaVersion` bump forces a full refetch.
 - **Plans store a snapshot** of their sections' meetings. `core/catalog/diffPlanAgainstCatalog` turns catalog changes into "moved / cancelled" problems.
-- **Share links:** `/?plan=<base64url(deflate(json))>`, versioned, with the codec in core.
+- **Share links:** `/schedule?plan=<base64url(deflate(json))>`, versioned, with the codec in core.
 - **Travel data:** `geo/routes.<hash>.bin` holds distances (feet) per building pair, standard and accessible. Geometries live in `geo/route/<from>-<to>-<mode>.json` and are fetched only when a connection's map is opened. Tiles are a College Park PMTiles extract, `geo/tiles.pmtiles`.
 
 ---
@@ -87,7 +87,7 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 ├── reference/                  prototype + v1 snippets: read-only, excluded from build/lint/tests
 ├── src/
 │   ├── server.ts               Worker entry: { fetch, scheduled }
-│   ├── routes/                 TanStack file routes (index; share handled via search params)
+│   ├── routes/                 TanStack file routes: / (marketing), /schedule (the app; share and deep links are search params), stubs, /privacy, /alerts/*
 │   ├── app/                    shell: top bar, rail, sidebar + drill-in, mobile drawer, calendar
 │   ├── features/<name>/        courses, search, course-details, problems, travel, blocks, generate, export, share
 │   ├── components/ui/          shadcn components
@@ -127,7 +127,7 @@ Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtu
 |---|---|
 | Language/runtime | TypeScript `strict` (plus `noUncheckedIndexedAccess`), ESM, Node 22 for scripts |
 | Package manager | pnpm |
-| App | TanStack Start (React 19) with `@cloudflare/vite-plugin`, custom server entry. The app route is client-rendered (`ssr: false`); the Worker mostly serves assets and data. |
+| App | TanStack Start (React 19) with `@cloudflare/vite-plugin`, custom server entry. The scheduler (`/schedule`) is client-rendered (`ssr: false`); the marketing page at `/` and the other static pages are server-rendered. The Worker mostly serves assets and data. `/` sends returning visitors straight to `/schedule` (`docs/V2.md` §2: the session cookie in `src/server/routing.ts`, the returning flag and saved plans in `src/features/marketing/returning.ts`). |
 | UI | Tailwind 4, shadcn/ui (Radix), lucide, Geist + Geist Mono, `vaul` (mobile drawer), `sonner` (toasts) |
 | State | Zustand, Dexie; undo is a snapshot stack in the plans store (pure reducer in `core/plans`) |
 | Validation | zod 4 at every boundary |

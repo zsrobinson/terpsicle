@@ -15,6 +15,9 @@ import {
   type StatusResult,
   SubscribeInputSchema,
   type SubscribeResult,
+  SYNC_MAX_PUSH_REQUEST_BYTES,
+  SyncPullInputSchema,
+  SyncPushInputSchema,
   TestSignInInputSchema,
 } from "~/core/schema";
 import {
@@ -42,7 +45,14 @@ import { getSession } from "../auth/session";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
-import { apiError, clientIp, json, readInput } from "./http";
+import { pull, push } from "../sync/api";
+import {
+  apiError,
+  clientIp,
+  DEFAULT_MAX_INPUT_BYTES,
+  json,
+  readInput,
+} from "./http";
 
 export const API_PREFIX = "/api/";
 
@@ -50,8 +60,15 @@ export type ApiEnv = AlertsEnv & SummaryEnv & AuthEnv;
 
 interface Route<S extends z.ZodType> {
   input: S;
-  /** Requests per IP per hour. */
-  perIpPerHour: number;
+  /** Requests per IP per hour; omitted for signed-in routes limited per user. */
+  perIpPerHour?: number;
+  /**
+   * Requests per signed-in person per hour (V2.md §12), for `auth: "user" |
+   * "admin"` routes. Checked after the session and before the body is read.
+   */
+  perUserPerHour?: number;
+  /** The largest request body read, in bytes (DEFAULT_MAX_INPUT_BYTES). */
+  maxBytes?: number;
   /** Seat-alert routes answer "unavailable" while the flag is off. */
   alerts: boolean;
   /**
@@ -145,6 +162,22 @@ const ROUTES = {
     alerts: false,
     handle: (env, input, ctx) => testSignIn(env, input, ctx),
   }),
+  // Plan sync (V2.md §5.3).
+  "sync/push": route({
+    input: SyncPushInputSchema,
+    perUserPerHour: 1_200,
+    maxBytes: SYNC_MAX_PUSH_REQUEST_BYTES,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => push(env, input, ctx),
+  }),
+  "sync/pull": route({
+    input: SyncPullInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => pull(env, input, ctx),
+  }),
 } as const;
 
 /**
@@ -191,26 +224,50 @@ export async function handleApi(
   if (r.whenOff !== undefined && !alertsEnabled(env)) return json(r.whenOff);
   if (r.alerts && !alertsEnabled(env)) return apiError("unavailable");
 
-  const ipHash = await keyedHash(env.DATA, clientIp(request));
   const window = { seconds: 3_600 };
-  if ((await hit(env.DB, `${name}:${ipHash}`, window, now)) > r.perIpPerHour) {
+  const limited = () => {
     const retryAfterSeconds = secondsLeft(window, now);
     return name === "alerts/subscribe"
       ? json({ status: "rate-limited", retryAfterSeconds })
       : apiError("rate-limited", retryAfterSeconds);
+  };
+  if (r.perIpPerHour !== undefined) {
+    const ipHash = await keyedHash(env.DATA, clientIp(request));
+    if ((await hit(env.DB, `${name}:${ipHash}`, window, now)) > r.perIpPerHour)
+      return limited();
   }
-
-  const input = await readInput(request, r.input);
-  if (input === null) return apiError("invalid-input");
 
   let session: RouteContext["session"] = null;
   if (r.auth === "user" || r.auth === "admin") {
     if (!isSameOrigin(request)) return apiError("forbidden");
     session = await getSession(request, env, now, { refresh: true });
     if (!session) return apiError("unauthorized");
-    if (r.auth === "admin" && !session.user.isAdmin)
-      return apiError("forbidden");
   }
+  // From here on a refreshed session's new cookie goes out with every
+  // answer, errors included: the old token stops working a minute later.
+  const reply = (response: Response): Response => {
+    if (session?.setCookie)
+      response.headers.append("Set-Cookie", session.setCookie);
+    return response;
+  };
+  if (session) {
+    if (r.auth === "admin" && !session.user.isAdmin)
+      return reply(apiError("forbidden"));
+    if (
+      r.perUserPerHour !== undefined &&
+      (await hit(env.DB, `user:${session.user.id}:${name}`, window, now)) >
+        r.perUserPerHour
+    )
+      return reply(limited());
+  }
+
+  const input = await readInput(
+    request,
+    r.input,
+    r.maxBytes ?? DEFAULT_MAX_INPUT_BYTES,
+  );
+  if (input === null) return reply(apiError("invalid-input"));
+
   const result = await r.handle(env, input, {
     now,
     origin: linkOrigin(url),
@@ -219,8 +276,5 @@ export async function handleApi(
     session,
     ...(options.fetch ? { fetch: options.fetch } : {}),
   });
-  const response = result instanceof Response ? result : json(result);
-  if (session?.setCookie)
-    response.headers.append("Set-Cookie", session.setCookie);
-  return response;
+  return reply(result instanceof Response ? result : json(result));
 }

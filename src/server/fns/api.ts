@@ -22,6 +22,10 @@ import {
   StatusResultSchema,
   SubscribeInputSchema,
   SubscribeResultSchema,
+  SyncPullInputSchema,
+  SyncPullResultSchema,
+  SyncPushInputSchema,
+  SyncPushResultSchema,
   TestSignInInputSchema,
   TestSignInResultSchema,
   UnsubscribeResultSchema,
@@ -188,6 +192,27 @@ export const api = {
         "alerts/status",
         StatusInputSchema,
         StatusResultSchema,
+        input,
+        options,
+      ),
+  },
+  /** Plan sync (docs/V2.md §5.3); signed in only. */
+  sync: {
+    /** Saves docs, each only if the server's rev is still its `baseRev`. */
+    push: (input: z.input<typeof SyncPushInputSchema>, options?: ApiOptions) =>
+      call(
+        "sync/push",
+        SyncPushInputSchema,
+        SyncPushResultSchema,
+        input,
+        options,
+      ),
+    /** One page of docs saved since `since`; pull again while `more`. */
+    pull: (input: z.input<typeof SyncPullInputSchema>, options?: ApiOptions) =>
+      call(
+        "sync/pull",
+        SyncPullInputSchema,
+        SyncPullResultSchema,
         input,
         options,
       ),

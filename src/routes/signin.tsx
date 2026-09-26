@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { SignInErrorSchema } from "~/core/schema";
-import { SignInPage } from "~/features/auth";
+import { SignInPage } from "~/features/auth/signin-page";
 
 // Where sign-in errors land (V2.md §1.1), and test mode's sign-in.
 export const Route = createFileRoute("/signin")({

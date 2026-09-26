@@ -24,7 +24,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 |---|---|---|
 | V0: Plan | `v2/plan` | In review |
 | V1: Foundations | `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation` | In flight |
-| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | Not started |
+| V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | `v2/sync-merge`, `v2/sync-api` in review |
 | V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Not started |
 | V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | Not started |
 | V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | Not started |
@@ -32,6 +32,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 
 **v2 decisions** (details in `docs/V2.md`):
 - **Plan sync is plain server-side storage**, encrypted at rest by Cloudflare, not end-to-end encrypted. The orchestrator's call, flagged for the owner: it lets Chat derive rooms from plans and keeps recovery simple.
+- **Plan sync is not a sync engine:** one doc per plan plus one settings doc, saved whole with per-doc rev compare-and-swap. A conflicting plan is never merged; the person gets both, the local one as "<name> (copy)". The core (`src/core/sync`) is in `v2/sync-merge`; the D1 tables and `sync/push`, `sync/pull` in `v2/sync-api` (`DATA.md` §7.7).
 - **PR previews sign in with a fixed test mode** (`AUTH_TEST_MODE`, fixture identities), not a production broker: previews run unreviewed code and have their own D1, and CI needs a deterministic sign-in anyway. Cloudflare's version preview URLs, which share the Worker's secrets, were ruled out too: they also share its bindings, so a preview would use production D1 (`docs/AUTH.md`).
 - **Identity** (`v2/identity`, `docs/AUTH.md`): Google sign-in with `hd=*`, `prompt=select_account` and a `login_hint` from a `__Host-hint` cookie; users keyed on the directory ID with both addresses in `user_identities`; name and picture refreshed from Google at every sign-in, pictures cached in R2 `USER_CONTENT` (so `v2/avatars` folded in); sessions refresh daily with a new token; account deletion with a week's grace and the daily purge; admins from `config/admins.txt`. The route table's `auth` field (with the origin check) landed here too, since every later route builds on it.
 - **Seat alerts retire the email-token flow** rather than migrate it; nothing is public, and the only real subscriptions were the owner's deleted test rows.

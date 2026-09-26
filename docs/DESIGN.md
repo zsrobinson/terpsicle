@@ -140,10 +140,10 @@ Use these when the spec is silent:
 - **Don't prefill or over-model.** Blocks are just labeled time. Don't add fields people didn't ask for.
 - **Honest numbers.** Show the math behind estimates. Never draw something that implies a simpler calculation than the one we did (a straight route line, for example).
 - **Sparkles icon only for LLM output.** Generation is algorithms and gets no sparkles.
-- **No marketing page.** People land straight in the app.
+- **Returning people land straight in the app.** A marketing page at `/` greets first visits only; anyone with saved plans or a session goes to `/schedule` (`docs/V2.md` §2).
 - **Nothing to babysit.** Terms, buildings and routes are discovered from the data. A new semester needs no code change.
 - **Make each feature excellent rather than adding more.** The owner cut finals, compare, image export and NL input to keep what remains excellent.
-- **Ink, quietly.** The brand (§7) is paper, black ink and hard offsets. Keylines and offsets mark what you can press or what floats above the page; rows, lists and headers stay hairline-quiet. Product color is a tint, never an alarm. Where `docs/V2.md` differs from this list (a marketing page at `/`; seat alerts without the confirmation), V2.md wins.
+- **Ink, quietly.** The brand (§7) is paper, black ink and hard offsets. Keylines and offsets mark what you can press or what floats above the page; rows, lists and headers stay hairline-quiet. Product color is a tint, never an alarm. Where `docs/V2.md` differs from this list (seat alerts without the confirmation), V2.md wins.
 
 ---
 
@@ -174,12 +174,14 @@ The v2 brand came from a prototype track: a "Bulletin" paper round, then six var
 | `keyline` (ink line) | black | base-300 |
 | `fg` | black | paper |
 | `muted` | base-700 | base-300 |
-| `faint` | `#656460`, between base-600 and 700 (Ink's base-600 is 4.0:1 on `hover`) | base-400 |
+| `faint` | `#605F5C`, between base-600 and 700 (Ink's base-600 is 4.0:1 on `hover`) | base-400 |
 | `accent` | black | paper |
+| `accent-soft` (the selected row) | `#E0DED3`, between base-100 and 150 | `#2E2D2B`, between base-900 and 850 |
 | `ok` / `warn` / `error` | green-700 / yellow-800 / red-600, on their 50 steps | green-300 / yellow-300 / red-300, on their 900 steps |
 
 - **Product colors:** Terpsicle (the scheduler) red, Reviews purple, Chat blue. `bg-product-<id>` is the 600 step in both themes, `text-product-<id>-fg` paper on it, and `bg-product-<id>-soft` the 50 step (dark: 900).
-- **Where product color goes (Ink: "tint only"):** the marks, the product menu, and the selected row's soft fill (`accent-soft` is the scheduler's soft red). It is never a button, a heading or a border.
+- **Where product color goes (Ink: "tint only"):** the marks and the product menu. It is never a button, a heading or a border.
+- **The selected row is neutral,** a half-step past `hover`, so the current item reads stronger than a hovered one. Ink tinted it with the scheduler's soft red, which is also the error fill, and selection must never read as an error.
 - **Course colors** are Flexoki too: fill 100 (dark 900), border and dot 400, text 900 (dark 150). The text is a step darker than Ink's 700/800 because a block's time and room lines are drawn at 70–80% opacity and must still clear 4.5:1. Flexoki has eight hues and red means an error here, so three of the ten course ids are oklab midpoints of neighbors, in Flexoki's widest hue gaps: green (green + cyan), cyan (cyan + blue) and indigo (blue + purple). The ten sit at least 22° apart, and every line of block text clears 4.5:1, placed, ghosted or dimmed.
 
 ### 7.2 Type

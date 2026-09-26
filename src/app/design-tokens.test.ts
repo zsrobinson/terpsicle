@@ -299,6 +299,17 @@ describe("the palette", () => {
     ).toEqual([]);
   });
 
+  it("never lets the selected row look like an error or a hover", () => {
+    for (const mode of MODES) {
+      const t = THEMES[mode];
+      expect(t["accent-soft"], mode).not.toBe(t["error-soft"]);
+      expect(t["accent-soft"], mode).not.toBe(t.hover);
+      // Neutral: no more chroma than Flexoki's grays.
+      const [, a, b] = oklab(t["accent-soft"] ?? "");
+      expect(Math.hypot(a, b), mode).toBeLessThan(0.02);
+    }
+  });
+
   it("draws keylines and offsets that stand off the page (3:1)", () => {
     expect(
       lowContrast(

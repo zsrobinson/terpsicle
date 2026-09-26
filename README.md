@@ -22,7 +22,7 @@ Node 22 and pnpm 10.
 | Command | What it does |
 |---|---|
 | `pnpm i` | Install |
-| `pnpm dev:mock` | Run the app on fixtures, fully offline (http://localhost:3000) |
+| `pnpm dev:mock` | Run the app on fixtures, fully offline (http://localhost:3000/schedule; add `?demo=1` for the demo plans) |
 | `pnpm dev` | Run the app on live data from terpsicle.com |
 | `pnpm check` | Typecheck, lint (with import boundaries and the term-id check), all unit tests. Run before every commit. |
 | `pnpm test` / `pnpm test:watch` | Unit tests; add `--project core` (or `ingest`, `ui`, `worker`, `scripts`) for one project |
@@ -30,7 +30,7 @@ Node 22 and pnpm 10.
 | `pnpm test:e2e:live` | Playwright on real data against a deployment: `LIVE_URL=<url> pnpm test:e2e:live` |
 | `pnpm fix` | Format and apply safe lint fixes |
 | `pnpm build` | Production build |
-| `pnpm check:bundle` | After `pnpm build`: the eager JS and CSS for `/` against its budget, and nothing that must stay lazy (MapLibre, the generator, fixtures) in it |
+| `pnpm check:bundle` | After `pnpm build`: the eager JS and CSS for `/schedule` and for `/` against their budgets, and nothing that must stay lazy (MapLibre, the generator, fixtures; Dexie and the app on `/`) in them |
 | `pnpm deploy` | Build, migrate D1 and deploy (CI does this on every push to `main`) |
 | `pnpm cf-typegen` | Regenerate `worker-configuration.d.ts` after changing `wrangler.jsonc` |
 
@@ -48,7 +48,7 @@ Node 22 and pnpm 10.
 BUILD §5's budgets fail CI when they regress:
 
 - search keystroke, generator and seats-job CPU: the `perf` Vitest project (in `pnpm check`), medians of several runs;
-- the eager bundle for `/`: `pnpm check:bundle`;
+- the eager bundles for `/schedule` and `/`: `pnpm check:bundle`;
 - the first visit's transfer on real data: `e2e/live/preview.spec.ts`, against each PR's preview.
 
 ## License

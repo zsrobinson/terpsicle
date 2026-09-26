@@ -1,3 +1,4 @@
+import { SCHEDULE_PATH } from "~/core/routing";
 import type { MarkId } from "./brand/marks";
 
 // The three products (docs/V2.md §1), for the product menu and the pages
@@ -9,7 +10,7 @@ export type ProductId = Exclude<MarkId, "umbrella">;
 export const PRODUCTS = [
   {
     id: "schedule",
-    to: "/schedule",
+    to: SCHEDULE_PATH,
     label: "Schedule",
     hint: "Plan your classes",
     view: "View schedule",

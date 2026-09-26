@@ -40,7 +40,9 @@ describe("alert emails", () => {
     expect(email.text).toContain("Seats: 1 of 120 open");
     expect(email.text).toContain("Waitlist: 4");
     expect(email.text).toContain("As of: Sep 24, 10:30 PM ET");
-    expect(email.text).toContain(`${origin}/?term=202701&course=CMSC351`);
+    expect(email.text).toContain(
+      `${origin}/schedule?term=202701&course=CMSC351`,
+    );
     expect(email.text).toContain(
       "https://app.testudo.umd.edu/soc/202701/CMSC/CMSC351",
     );

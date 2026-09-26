@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { BundleGraph } from "./bundle-graph";
-import { eagerChunks, forbiddenModules, linkedCss } from "./check-bundle";
+import {
+  eagerChunks,
+  forbiddenModules,
+  forbiddenText,
+  linkedCss,
+} from "./check-bundle";
 
 const chunk = (
   imports: string[],
@@ -64,5 +69,17 @@ describe("bundle check", () => {
         'var tl=`/assets/styles-OUuNVhgb.css`,x=["assets/live-route-map-B8.css"]',
       ),
     ).toEqual(["assets/styles-OUuNVhgb.css"]);
+  });
+});
+
+describe("text kept out of the build", () => {
+  it("names each file that holds the contact address", () => {
+    const address = ["admin", "terpsicle.com"].join("@");
+    expect(
+      forbiddenText([
+        { file: "dist/client/assets/a.js", text: `x="mailto:${address}"` },
+        { file: "dist/client/assets/b.js", text: "admin [at] terpsicle.com" },
+      ]),
+    ).toEqual([`dist/client/assets/a.js: contains "${address}"`]);
   });
 });

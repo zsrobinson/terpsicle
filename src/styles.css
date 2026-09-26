@@ -13,7 +13,7 @@
  * Colors are Flexoki by Steph Ango (https://stephango.com/flexoki), MIT
  * License, Copyright (c) 2024 Steph Ango. Each value names its Flexoki step.
  * Ink is paper, black ink and hairlines; product color appears only in the
- * marks, the app switcher and the selected row's soft fill.
+ * marks and the product menu.
  *
  * shadcn/ui: the compatibility names below (background, primary, card,
  * popover, border, input, ring, destructive, muted-foreground) make generated
@@ -181,12 +181,15 @@
    * step lighter than muted, and muted a step lighter than fg.
    */
   --muted: #575653; /* base-700 */
-  /* Ink's base-600 is 4.0:1 on hover; this is a quarter-step darker. */
-  --faint: #656460; /* between base-600 and base-700 */
+  /* Ink's base-600 is 4.0:1 on hover; this clears 4.5:1 on the selected row. */
+  --faint: #605f5c; /* between base-600 and base-700 */
   --accent: #100f0f; /* black */
   --accent-fg: #fffcf0; /* paper */
-  /* The selected row wears the scheduler's soft red (Ink: "tint only"). */
-  --accent-soft: var(--product-schedule-soft);
+  /*
+   * The selected row: a neutral a half-step past hover, so the current item
+   * reads stronger than a hovered one and never like an error's red fill.
+   */
+  --accent-soft: #e0ded3; /* between base-100 and base-150 */
   --ok: #536907; /* green-700 */
   --ok-soft: #edeecf; /* green-50 */
   --warn: #664d01; /* yellow-800 */
@@ -240,7 +243,7 @@
   --faint: #9f9d96; /* base-400 */
   --accent: #fffcf0; /* paper */
   --accent-fg: #100f0f; /* black */
-  --accent-soft: var(--product-schedule-soft);
+  --accent-soft: #2e2d2b; /* between base-900 and base-850 */
   --ok: #a0af54; /* green-300 */
   --ok-soft: #252d09; /* green-900 */
   --warn: #dfb431; /* yellow-300 */
@@ -412,6 +415,13 @@
   html:has([data-app-shell]),
   html:has([data-app-shell]) body {
     overflow: hidden;
+  }
+  /*
+   * `/` while its head script checks for saved plans (src/features/marketing/returning.ts):
+   * hidden, so someone headed to the scheduler never sees the marketing page.
+   */
+  :root[data-landing="checking"] body {
+    visibility: hidden;
   }
   ::selection {
     background: var(--accent-soft);

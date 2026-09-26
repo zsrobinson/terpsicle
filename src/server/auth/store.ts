@@ -224,8 +224,8 @@ export async function accountsDueForPurge(
 }
 
 /**
- * Deletes accounts whose week of grace has ended, with their identities and
- * sessions, then expired sessions. Returns the counts. (Their pictures are
+ * Deletes accounts whose week of grace has ended, with their identities,
+ * sessions and synced docs, then expired sessions. Returns the counts. (Their pictures are
  * in R2: the daily job deletes those first.)
  */
 export async function purgeAccounts(
@@ -237,11 +237,13 @@ export async function purgeAccounts(
   // so nothing of an account outlives it even where foreign keys are off.
   const due =
     "SELECT id FROM users WHERE status = 'deleting' AND delete_after <= ?1";
-  const [, , accounts, sessions] = await db.batch([
+  const [, , , , accounts, sessions] = await db.batch([
     db.prepare(`DELETE FROM sessions WHERE user_id IN (${due})`).bind(at),
     db
       .prepare(`DELETE FROM user_identities WHERE user_id IN (${due})`)
       .bind(at),
+    db.prepare(`DELETE FROM sync_docs WHERE user_id IN (${due})`).bind(at),
+    db.prepare(`DELETE FROM sync_heads WHERE user_id IN (${due})`).bind(at),
     db
       .prepare(
         "DELETE FROM users WHERE status = 'deleting' AND delete_after <= ?1",
