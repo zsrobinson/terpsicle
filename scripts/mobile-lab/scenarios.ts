@@ -552,9 +552,11 @@ export const SCENARIOS: Scenario[] = [
           ],
         });
         if (step.probe?.panel?.heading === "Search") continue;
+        // The panel's one Back button ("Back to Search"; v2/navigation).
         await lab.tap({
-          selector: 'nav[aria-label="Breadcrumb"] button',
-          text: "Search",
+          selector: "[data-vaul-drawer] [data-layer][data-active] button",
+          text: "Back to Search",
+          visible: true,
         });
         await lab.wait(SETTLE);
       }

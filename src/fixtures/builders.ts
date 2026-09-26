@@ -62,6 +62,12 @@ import {
   type TranscriptLine,
   type UntimedMeeting,
 } from "~/core/schema";
+import type {
+  FourYearCourseEntry,
+  FourYearCreditEntry,
+  FourYearDoc,
+  FourYearWildcardEntry,
+} from "~/core/schema/four-year";
 
 /** Term id of the mock catalog's active, default term (Spring 2027). */
 export const fixtureTermId = "202701";
@@ -889,6 +895,69 @@ export function aTranscriptLine(
     equivalentPattern: null,
     sectionCode: null,
     inProgress: false,
+    ...overrides,
+  };
+}
+
+/** Terpsicle Plan's four-year doc: an empty "My plan" from Fall 2026, the fall before the fixture term. */
+export function aFourYear(overrides: Partial<FourYearDoc> = {}): FourYearDoc {
+  return {
+    id: "fouryear_fixture_a",
+    name: "My plan",
+    firstTermId: "202608",
+    entries: [],
+    grades: {},
+    template: null,
+    createdAt: FIXTURE_NOW,
+    updatedAt: FIXTURE_NOW,
+    ...overrides,
+  };
+}
+
+/** A typed course block: CMSC351 in the fixture term. */
+export function aFourYearEntry(
+  overrides: Partial<FourYearCourseEntry> = {},
+): FourYearCourseEntry {
+  return {
+    kind: "course",
+    id: "entry_fixture_1",
+    term: fixtureTermId,
+    code: "CMSC351",
+    credits: null,
+    genEdChoices: {},
+    source: "typed",
+    transcript: null,
+    ...overrides,
+  };
+}
+
+/** A placeholder block: CMSC4XX, 3 credits, in the fixture term. */
+export function aFourYearWildcardEntry(
+  overrides: Partial<FourYearWildcardEntry> = {},
+): FourYearWildcardEntry {
+  return {
+    kind: "wildcard",
+    id: "entry_fixture_w",
+    term: fixtureTermId,
+    wildcard: { kind: "pattern", pattern: "CMSC4XX" },
+    credits: 3,
+    source: "typed",
+    ...overrides,
+  };
+}
+
+/** Transfer credit with no UMD course: "CHEM 1XX, 4 credits", before UMD. */
+export function aFourYearCreditEntry(
+  overrides: Partial<FourYearCreditEntry> = {},
+): FourYearCreditEntry {
+  return {
+    kind: "credit",
+    id: "entry_fixture_c",
+    term: "before",
+    title: "GENERAL CHEMISTRY",
+    credits: 4,
+    genEds: [],
+    source: "transcript",
     ...overrides,
   };
 }
