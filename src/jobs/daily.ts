@@ -2,6 +2,7 @@ import { deletePictures } from "~/server/auth/pictures";
 import { accountsDueForPurge, purgeAccounts } from "~/server/auth/store";
 import { pruneReviews } from "~/server/reviews/store";
 import { pruneTombstones } from "~/server/sync/store";
+import { pruneTodo } from "~/server/todo/store";
 import { type Job, runJob } from "./job";
 
 /**
@@ -10,7 +11,8 @@ import { type Job, runJob } from "./job";
  * pictures in R2, then their rows, identities, sessions and synced docs),
  * expired sessions, deleted plans' tombstones 30 days on (V2.md §5.2), and
  * reviews' words: rejected ones cleared and deleted rows removed 30 days on
- * (V2.md §7.3). A purged author's reviews stay up without one
+ * (V2.md §7.3), and Todo items due over 30 days ago with their stale done
+ * marks (V3.md §3.4). A purged author's reviews stay up without one
  * (`reviews.author_id` is ON DELETE SET NULL).
  * Later PRs add the chat digest, the moderation digest, and the rest of an
  * account's data to the purge (V2.md §4.7).
@@ -24,6 +26,7 @@ export const runDailyJob: Job = async (context) => {
     const purged = await purgeAccounts(env.DB, now);
     const tombstonesPruned = await pruneTombstones(env.DB, now);
     const reviews = await pruneReviews(env.DB, now);
+    const todo = await pruneTodo(env.DB, now);
     return {
       counts: {
         accountsPurged: purged.accounts,
@@ -31,6 +34,8 @@ export const runDailyJob: Job = async (context) => {
         tombstonesPruned,
         rejectedReviewsBlanked: reviews.blanked,
         deletedReviewsRemoved: reviews.removed,
+        todoItemsPruned: todo.items,
+        todoDoneMarksPruned: todo.doneMarks,
       },
       errors: [],
     };

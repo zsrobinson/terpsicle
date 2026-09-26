@@ -2,6 +2,8 @@
 // the feature that owns the item: Reviews publishes or hides the review,
 // Chat delivers or deletes the message.
 import type { ModerationReason } from "~/core/schema";
+import type { CourseChatNamespace } from "../chat/course-chat";
+import { chatModerationHandler } from "../chat/moderation-handler";
 import { applyReviewDecision } from "../reviews/decisions";
 
 export interface HandlerContext {
@@ -16,7 +18,10 @@ export interface HandlerContext {
 
 /**
  * Called with the item's new state. Must be idempotent: undo calls it again
- * with "hold", and a retry that fails partway runs it again next time.
+ * with "hold", and a retry that fails partway runs it again next time. An
+ * unknown `targetId` is done, not an error: the author may have deleted the
+ * post while it waited, and test copies queue made-up posts
+ * (src/server/admin/samples.ts) that no feature stored.
  */
 export type ModerationHandler = (
   targetId: string,
@@ -28,7 +33,23 @@ export type ModerationHandlers = Partial<
   Record<"review" | "chat", ModerationHandler>
 >;
 
-/** The live handlers. Chat adds its own when it lands. */
-export const MODERATION_HANDLERS: ModerationHandlers = {
-  review: applyReviewDecision,
-};
+/** The bindings handlers reach their feature through. */
+export interface ModerationHandlerEnv {
+  /** Chat's objects; absent in harnesses that don't run Chat. */
+  COURSE_CHAT?: CourseChatNamespace;
+}
+
+/**
+ * The live handlers, for this Worker's bindings: Reviews' works on D1 alone,
+ * Chat's reaches the message's CourseChat object through `COURSE_CHAT`.
+ */
+export function moderationHandlers(
+  env: ModerationHandlerEnv,
+): ModerationHandlers {
+  return {
+    review: applyReviewDecision,
+    ...(env.COURSE_CHAT
+      ? { chat: chatModerationHandler(env.COURSE_CHAT) }
+      : {}),
+  };
+}

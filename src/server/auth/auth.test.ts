@@ -530,6 +530,7 @@ describe("sessions", () => {
         reviews: "off",
         seatAlerts: false,
         push: false,
+        todo: false,
         authTestMode: false,
       },
     });

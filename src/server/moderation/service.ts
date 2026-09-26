@@ -22,7 +22,11 @@ import {
   type ModerationConfig,
   resolveConfig,
 } from "./classify";
-import { MODERATION_HANDLERS, type ModerationHandlers } from "./handlers";
+import {
+  type ModerationHandlerEnv,
+  type ModerationHandlers,
+  moderationHandlers,
+} from "./handlers";
 import {
   autoVerdict,
   blankOldSnapshots,
@@ -39,7 +43,7 @@ import {
   upsertQueueItem,
 } from "./store";
 
-export interface ModerationEnv {
+export interface ModerationEnv extends ModerationHandlerEnv {
   DB: D1Database;
   AI: Ai;
   /** Model calls per UTC day, at most (Workers AI cost). */
@@ -50,7 +54,16 @@ export interface ModerationEnv {
 
 /** V2 §13. Every attempt counts, hedges and retries included. */
 export const DEFAULT_DAILY_CAP = 2_000;
-const CAP_COUNTER = "moderation";
+/** The `counters` row that counts model attempts per UTC day. */
+export const CAP_COUNTER = "moderation";
+export const CAP_WINDOW = { seconds: 86_400 };
+
+/** MODERATION_DAILY_CAP, or the default when it's unset or not a number. */
+export function dailyCap(env: Pick<ModerationEnv, "MODERATION_DAILY_CAP">) {
+  return (
+    Number(env.MODERATION_DAILY_CAP ?? DEFAULT_DAILY_CAP) || DEFAULT_DAILY_CAP
+  );
+}
 
 /**
  * Automatic re-screens before a failed check goes to the owner. The cron
@@ -68,15 +81,14 @@ export interface ModerationDeps {
 }
 
 function classifier(env: ModerationEnv, deps: ModerationDeps) {
-  const cap =
-    Number(env.MODERATION_DAILY_CAP ?? DEFAULT_DAILY_CAP) || DEFAULT_DAILY_CAP;
+  const cap = dailyCap(env);
   const config = deps.config ?? resolveConfig(env.MODERATION_CONFIG);
   return (input: ModerationInput) =>
     classify(input, {
       ai: env.AI,
       config,
       budget: async () =>
-        (await hit(env.DB, CAP_COUNTER, { seconds: 86_400 }, deps.now)) <= cap,
+        (await hit(env.DB, CAP_COUNTER, CAP_WINDOW, deps.now)) <= cap,
     });
 }
 
@@ -260,7 +272,7 @@ export async function retryHeld(
   env: ModerationEnv,
   deps: ModerationDeps & { handlers?: ModerationHandlers },
 ): Promise<RetryReport> {
-  const handlers = deps.handlers ?? MODERATION_HANDLERS;
+  const handlers = deps.handlers ?? moderationHandlers(env);
   const report: RetryReport = {
     retried: 0,
     published: 0,
@@ -345,7 +357,30 @@ export async function currentDecision(
   kind: ModerationKind,
   targetId: string,
 ): Promise<ModerationDecision | null> {
+  return (await latestDecision(db, kind, targetId))?.decision ?? null;
+}
+
+/**
+ * The latest decision with its reasons, so a feature can tell a hold that
+ * waits for a retry (`needsRetry`) from one that waits for the owner.
+ */
+export async function latestDecision(
+  db: D1Database,
+  kind: ModerationKind,
+  targetId: string,
+): Promise<{
+  decision: ModerationDecision;
+  reasons: ModerationReason[];
+  /** When it was decided, ISO: an edit after it hasn't been screened. */
+  decidedAt: string;
+} | null> {
   const decisions = await decisionsFor(db, kind, targetId);
   const latest = decisions.at(-1);
-  return latest ? decisionOf(latest.verdict) : null;
+  return latest
+    ? {
+        decision: decisionOf(latest.verdict),
+        reasons: latest.labels,
+        decidedAt: latest.created_at,
+      }
+    : null;
 }

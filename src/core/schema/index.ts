@@ -1,11 +1,13 @@
-// The shared data contract. Prose version: docs/DATA.md.
-// Not here: `./four-year` (Plan's doc), imported by path so its zod schemas stay
-// out of every product's eager bundle (zod objects don't tree-shake).
+// The shared data contract. Prose version: docs/DATA.md. Two families stay
+// out of this barrel, since every page loads it and zod objects don't
+// tree-shake: the admin panel's schemas (import ~/core/schema/admin) and
+// Plan's four-year doc (import ~/core/schema/four-year).
 export * from "./api";
 export * from "./auth";
 export * from "./calendar";
 export * from "./catalog";
 export * from "./chat";
+export * from "./chat-api";
 export * from "./course-index";
 export * from "./generate";
 export * from "./geo";
@@ -17,10 +19,13 @@ export * from "./planetterp";
 export * from "./primitives";
 export * from "./problems";
 export * from "./reviews";
+export * from "./rows";
+export * from "./security";
 export * from "./settings";
 export * from "./share";
 export * from "./sync";
 export * from "./sync-api";
+export * from "./todo-api";
 export * from "./transcript";
 export * from "./travel";
 export * from "./versions";

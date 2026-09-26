@@ -6,6 +6,12 @@ name: CI
 # Listening to every branch push as well ran each PR commit twice. Deploy
 # (deploy.yml) runs check and build on main but not the bundle budget or
 # e2e, so main keeps its own run here.
+#
+# The work runs as parallel jobs: typecheck, lint and build in one, unit
+# tests in two, e2e in four shards. "Check, build, e2e" waits for them all
+# and is the one check to require. The preview deploys once the unit tests
+# pass, beside e2e. A PR that only touches docs (docs/**, *.md at the root)
+# skips e2e and the preview; everything else runs everything.
 on:
   pull_request:
   push:
@@ -20,17 +26,86 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Keep in step with the matrix in `e2e`.
+  E2E_SHARDS: 4
+  # How many tests each e2e shard gets, in order. Playwright cuts the list
+  # (desktop, then mobile, each by file name) into runs of equal count, which
+  # gave the first shard every desktop a11y test (the slowest) and the last
+  # the phone project's skipped desktop tests. These counts even out the
+  # time; re-tune them from the "e2e report" job's times when one shard runs
+  # long. PWTEST_SHARD_WEIGHTS is Playwright's own but undocumented: if it
+  # goes away, the split is even again and every test still runs.
+  E2E_SHARD_WEIGHTS: "22:55:46:85"
+
 jobs:
-  check:
-    name: Check, build, e2e
+  changes:
+    name: Changed paths
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+      mobile: ${{ steps.files.outputs.mobile }}
+    steps:
+      - id: files
+        uses: actions/github-script@v9
+        with:
+          script: |
+            if (context.eventName !== "pull_request") {
+              core.setOutput("code", "true");
+              core.setOutput("mobile", "false");
+              return;
+            }
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: context.issue.number,
+            });
+            // Nothing the app, the tests or the build reads. A rename counts
+            // its old path too: moving code into docs/ removes code.
+            const docs = /^(docs\/|[^/]+\.md$)/;
+            const paths = files.flatMap((f) => [f.filename, f.previous_filename ?? f.filename]);
+            // The API lists at most 3000 files; past that, assume code.
+            const code = files.length >= 3000 || paths.some((p) => !docs.test(p));
+            // Phone behavior on real engines (mobile-lab below).
+            const mobile = /^(src\/app\/|src\/styles\.css$|scripts\/mobile-lab\/|\.github\/workflows\/mobile-lab\.yml$)|drawer/;
+            core.setOutput("code", String(code));
+            core.setOutput("mobile", String(files.some((f) => mobile.test(f.filename))));
+            core.notice(code ? "Code changed: the full run." : "Docs only: e2e and the preview are skipped.");
+
+  # `pnpm check` is typecheck, lint and unit tests; they run here and in
+  # `unit` side by side.
+  static:
+    name: Typecheck, lint, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
-      - name: Typecheck, lint, unit tests
-        run: pnpm check
+      # ci.yml runs the parts of these scripts as separate jobs.
+      - name: CI runs all of pnpm check
+        run: |
+          node -e '
+            const { scripts } = require("./package.json");
+            const expected = {
+              check: "pnpm typecheck && pnpm lint && pnpm test:unit",
+              "test:unit": "pnpm test:coverage && vitest run --project \"!core\"",
+            };
+            for (const [name, value] of Object.entries(expected)) {
+              if (scripts[name] !== value) {
+                console.log(`::error::The ${name} script in package.json changed. ci.yml runs its parts as separate jobs: update both.`);
+                process.exitCode = 1;
+              }
+            }
+          '
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
 
       - name: Build
         run: pnpm build
@@ -43,27 +118,117 @@ jobs:
       - name: Route tree is committed and current
         run: git diff --exit-code -- src/routeTree.gen.ts || (echo "::error::src/routeTree.gen.ts is stale. Run pnpm build (or pnpm dev) and commit it." && exit 1)
 
-      - name: Install Chromium for Playwright
-        run: pnpm exec playwright install --with-deps chromium
+  # `pnpm test:unit` on two runners: core with coverage (which must see all
+  # of core at once) and half the other projects' files, then the other
+  # half. Each half runs its perf files last, with the runner to themselves.
+  unit:
+    name: Unit tests (${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: core, with coverage
+        if: matrix.shard == 1
+        run: pnpm test:coverage
+      - name: Every other project, half the files
+        run: pnpm vitest run --project "!core" --shard=${{ matrix.shard }}/2
 
+  e2e:
+    name: e2e (${{ matrix.shard }}/4)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # Let every shard finish, so one run reports every failure.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/playwright
+        with:
+          only-shell: "true"
+
+      # Two workers, Playwright's default on four cores. Three made the
+      # a11y-heavy shard slower (the dev server and axe share the CPU) and a
+      # test flaky.
       - name: e2e (against pnpm dev:mock)
-        run: pnpm test:e2e
+        env:
+          PWTEST_SHARD_WEIGHTS: ${{ env.E2E_SHARD_WEIGHTS }}
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ env.E2E_SHARDS }} --reporter=github,blob
 
+      # e2e-report merges the shards into one report.
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: blob-report
+          retention-days: 1
+
+  e2e-report:
+    name: e2e report
+    needs: e2e
+    if: ${{ !cancelled() && (needs.e2e.result == 'success' || needs.e2e.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+      # Every test with its time, and the HTML report with traces of failures.
+      - name: Merge the shards' reports
+        run: pnpm exec playwright merge-reports --reporter=list,html all-blob-reports
       - name: Upload Playwright report
-        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: |
-            playwright-report
-            test-results
+          path: playwright-report
           retention-days: 14
+
+  check:
+    # Branch protection requires this name: keep it.
+    name: Check, build, e2e
+    needs: [changes, static, unit, e2e]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        env:
+          CODE: ${{ needs.changes.outputs.code }}
+          CHANGES: ${{ needs.changes.result }}
+          STATIC: ${{ needs.static.result }}
+          UNIT: ${{ needs.unit.result }}
+          E2E: ${{ needs.e2e.result }}
+        run: |
+          echo "Changed paths: $CHANGES (code: $CODE)"
+          echo "Typecheck, lint, build: $STATIC"
+          echo "Unit tests: $UNIT"
+          echo "e2e: $E2E"
+          [ "$CHANGES" = success ] && [ "$STATIC" = success ] && [ "$UNIT" = success ] || exit 1
+          # e2e may be skipped only for a docs-only change.
+          [ "$E2E" = success ] || { [ "$E2E" = skipped ] && [ "$CODE" = false ]; }
 
   preview:
     name: Preview deploy
-    needs: check
+    # Not after e2e: a preview is its own Worker, and waiting for e2e only
+    # made the preview later. It does wait for the unit tests (the worker
+    # project applies every migration) before migrating the shared previews
+    # database.
+    needs: [changes, static, unit]
     # Secrets aren't available to forks.
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -116,8 +281,9 @@ jobs:
           exit 1
 
       # The preview reads production R2: real courses must load and cache.
-      - name: Install Chromium for Playwright
-        run: pnpm exec playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with:
+          only-shell: "true"
 
       - name: Real data on the preview (Playwright)
         env:
@@ -146,31 +312,10 @@ jobs:
   # touch the app shell, the styles or the lab itself: WebKit with an
   # iPhone's viewport on every such PR; the `mobile-lab` label adds the
   # Android emulator and the iOS Simulator.
-  mobile-changes:
-    name: Mobile paths changed?
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      touched: ${{ steps.files.outputs.result }}
-    steps:
-      - id: files
-        uses: actions/github-script@v9
-        with:
-          result-encoding: string
-          script: |
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              ...context.repo,
-              pull_number: context.issue.number,
-            });
-            const mobile = /^(src\/app\/|src\/styles\.css$|scripts\/mobile-lab\/|\.github\/workflows\/mobile-lab\.yml$)|drawer/;
-            return String(files.some((f) => mobile.test(f.filename)));
-
   mobile-lab:
     name: Mobile lab
-    needs: [preview, mobile-changes]
-    if: needs.mobile-changes.outputs.touched == 'true' || contains(github.event.pull_request.labels.*.name, 'mobile-lab')
+    needs: [preview, changes]
+    if: needs.changes.outputs.mobile == 'true' || contains(github.event.pull_request.labels.*.name, 'mobile-lab')
     permissions:
       contents: write
     uses: ./.github/workflows/mobile-lab.yml

@@ -16,11 +16,13 @@ import { BUNDLE_GRAPH_FILE, type BundleGraph } from "./bundle-graph";
 import { isMain, ROOT } from "./lib/source-files";
 
 /**
- * Gzipped JS + CSS for /schedule, in bytes: 343 KB when this was set (M8),
- * plus about 10% headroom. Raise it on purpose, in the PR that needs it,
- * never to get a build green.
+ * Gzipped JS + CSS for /schedule, in bytes: 335 KB when this was set
+ * (perf/schedule-bundle moved the later rail tabs, the phone drawer and the
+ * search index out of the first load), plus about 10 KB headroom. Raise it on
+ * purpose, in the PR that needs it, never to get a build green; first see
+ * whether the new code can load on first use (docs/BUILD.md §5).
  */
-export const EAGER_BUDGET = 380 * 1024;
+export const EAGER_BUDGET = 345 * 1024;
 
 /**
  * Gzipped JS + CSS for / (the marketing page), in bytes: 193 KB when this
@@ -42,7 +44,44 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
     why: "the search itself runs in the generator's worker",
   },
   { pattern: /^src\/fixtures\//, why: "fixtures are for mock mode only" },
+  {
+    // Only its status (a tiny store and the top bar's icon) is eager.
+    pattern: /^src\/features\/sync\/(?!status)/,
+    why: "plan sync loads only once someone is signed in",
+  },
 ];
+
+/**
+ * What the scheduler loads on first use rather than up front (docs/BUILD.md
+ * §5): each of these once was eager, and they add up to about 40 KB.
+ */
+export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
+  [
+    {
+      // Their panels.tsx registers them with lazyPanel; everything else in
+      // the folder is the panel's own.
+      pattern:
+        /^src\/features\/(generate|travel|blocks|export)\/(?!panels\.tsx$)/,
+      why: "Generate, Travel, Blocks and Export load when first opened",
+    },
+    { pattern: /^src\/core\/ics\//, why: ".ics export loads with Export" },
+    {
+      pattern: /(^|\/)comlink\//,
+      why: "the generator's worker client loads with Generate",
+    },
+    {
+      pattern: /(^|\/)@radix-ui\/react-select\//,
+      why: "selects are only in Generate and Blocks",
+    },
+    {
+      pattern: /(^|\/)minisearch\/|^src\/core\/search\/search\.ts$/,
+      why: "the text index loads when Search opens (use-course-search)",
+    },
+    {
+      pattern: /(^|\/)vaul\/|^src\/app\/mobile-drawer\.tsx$/,
+      why: "the phone drawer loads on phones only (app-shell)",
+    },
+  ];
 
 /**
  * What must stay out of `/` and the pages around the scheduler: `/` may peek
@@ -54,6 +93,21 @@ export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
     { pattern: /^src\/state\//, why: "the app's stores load with /schedule" },
     { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
   ];
+
+/**
+ * Gzipped JS + CSS for the admin panel (/admin, /admin/decisions), in bytes:
+ * 224 KB when this was set (v2 admin-shell), `/`'s base plus the panel, plus
+ * about 10% headroom; 213 KB once the panel stopped using Radix's menu and
+ * select (sharing them split them out of /schedule's chunk, which cost
+ * /schedule about 5 KB). Same rule for raising it.
+ */
+export const ADMIN_BUDGET = 245 * 1024;
+
+/** The owner's panel loads with /admin, never with anyone else's pages. */
+const ADMIN_NEVER_EAGER = {
+  pattern: /^src\/features\/admin\//,
+  why: "the admin panel loads with /admin",
+};
 
 /**
  * Each entry route (docs/V2.md §1.1), its budget and its extra never-eager
@@ -74,19 +128,20 @@ export const ROUTE_BUDGETS: readonly {
         pattern: /^src\/state\/course-index-store\.ts$/,
         why: "the course index loads with Plan, not the scheduler",
       },
+      ...SCHEDULE_NEVER_EAGER,
+      ADMIN_NEVER_EAGER,
     ],
   },
-  ...[
-    "/",
-    "/reviews/",
-    "/chat/",
-    "/settings",
-    "/signin",
-    "/admin/",
-    "/privacy",
-  ].map((route) => ({
+  ...["/", "/reviews/", "/chat/", "/settings", "/signin", "/privacy"].map(
+    (route) => ({
+      route,
+      budget: LANDING_BUDGET,
+      never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+    }),
+  ),
+  ...["/admin/", "/admin/decisions"].map((route) => ({
     route,
-    budget: LANDING_BUDGET,
+    budget: ADMIN_BUDGET,
     never: LANDING_NEVER_EAGER,
   })),
 ];

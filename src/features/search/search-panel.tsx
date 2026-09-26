@@ -12,14 +12,18 @@ import { TONE_TEXT } from "~/app/emphasis";
 import { EmptyState, ListRow, MetaSep, useFocusRequest } from "~/app/panel";
 import type { FitContext } from "~/core/fit";
 import type { Course } from "~/core/schema";
+// Not the ~/core/search barrel: it carries the text index, which loads
+// on its own (use-course-search).
 import {
   isFiltering,
   NO_FILTERS,
+  type SearchFilters,
+} from "~/core/search/filters";
+import {
   resultFitWords,
   resultSummary,
-  type SearchFilters,
   sectionCountWords,
-} from "~/core/search";
+} from "~/core/search/summary";
 import { openCourse } from "~/features/courses/actions";
 import { useActiveTerm, useCurrentPlan, useFitContext } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
