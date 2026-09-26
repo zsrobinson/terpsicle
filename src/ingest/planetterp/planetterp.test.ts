@@ -151,9 +151,7 @@ describe("fetching grades", () => {
       kept: false,
     });
     const fresh = summarizeGrades(rows().slice(0, 3));
-    expect(mergeCourseGrades(stored, fresh, now).state.byProfessor).toBe(
-      fresh,
-    );
+    expect(mergeCourseGrades(stored, fresh, now).state.byProfessor).toBe(fresh);
   });
 
   function rows() {

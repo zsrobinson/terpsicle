@@ -131,9 +131,7 @@ function fakeInternet(): Fake {
         ? `${SOC}/${sections[1]}/sections/${sections[2]}`
         : url;
       if (url.startsWith("https://planetterp.com/api/v1/professors")) {
-        return fake.professors(
-          Number(new URL(url).searchParams.get("offset")),
-        );
+        return fake.professors(Number(new URL(url).searchParams.get("offset")));
       }
       if (url.startsWith("https://planetterp.com/api/v1/grades")) {
         return fake.grades(new URL(url).searchParams.get("course") ?? "");
@@ -422,8 +420,7 @@ describe("planetterp job", () => {
     const reviewsBefore = await env.DATA.get(planetTerpReviewsKey("kruskal"));
 
     fake.professors = professors;
-    const events: { event: string; properties: Record<string, unknown> }[] =
-      [];
+    const events: { event: string; properties: Record<string, unknown> }[] = [];
     const run = runPlanetTerpJob({
       // Telemetry on, so the failure event reaches the fake PostHog below.
       env: { ...env, POSTHOG_TOKEN: "test-token" as Env["POSTHOG_TOKEN"] },
