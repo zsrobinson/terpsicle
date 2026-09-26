@@ -52,6 +52,10 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `calendar/<term>.json` | `AcademicCalendarSchema` | calendar job (weekly) | fixed |
 | `summaries/<slug>.json` | `ReviewSummarySchema` | `POST /api/review-summary` (§7.2) | fixed, **not served** |
 | `_jobs/…` | owned by M2, §2.6 | jobs (baselines, rotation state, reports) | **not served** |
+| `reviews/manifest.json` (v2) | `ReviewsManifestSchema` | `reviews-publish` job (hourly) | fixed |
+| `reviews/dept/<DEPT>.<hash>.json` (v2) | `ReviewsDeptSchema`: Terpsicle-review ratings per instructor id, and names of minted instructors. Never review text | `reviews-publish` job | hashed |
+
+**v2, bucket `terpsicle-user-content`** (binding `USER_CONTENT`; previews use `terpsicle-user-content-preview`): `avatars/<userId>/<hash16>.<ext>`, cached Google profile pictures, served at `/avatars/*` only with a session and never through `/data` (`docs/V2.md` §4.5). The `reviews/` family adds `reviews` to `SCHEMA_VERSIONS`; `ReviewSummarySchema` gains optional `sources` (additive).
 
 ### 2.2 Content hashing
 - Hash = SHA-256 of the exact UTF-8 bytes written (`JSON.stringify(value)`, no whitespace), first 16 hex chars.
@@ -221,6 +225,8 @@ Little-endian throughout.
 
 Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 
+**v2** bumps it to 2: a `syncRows` table (key `[kind+rowId]`: `rev`, the last acknowledged `base`, `dirty`) and a `sync` settings row (`{userId, head}`) for plan sync, and the `seatAlerts` table is dropped because seat watches move to D1 (`docs/V2.md` §5.3, §6.5). Blocks and course colors gain an optional `updatedAt`.
+
 | Table | Primary key, indexes | Row schema |
 |---|---|---|
 | `plans` | `id`, `termId` | `PlanSchema` |
@@ -285,6 +291,8 @@ The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cac
 ---
 
 ## 7. The JSON API and D1
+
+**v2** adds signed-in routes (the route table gains `auth: "none" | "user" | "admin"` and per-user limits), an origin check on authenticated routes, one WebSocket route (`GET /api/chat/socket`), and the tables in §7.4. The seat-alert flow in §7.1 retires (`docs/V2.md` §6.5).
 
 **The API.** Everything the browser asks the server lives under `POST /api/<name>`:
 - JSON in, JSON out, `Cache-Control: no-store`;
@@ -459,11 +467,27 @@ Server events (`src/server/analytics.ts`, `docs/ANALYTICS.md`):
 
 They carry counts, reasons and term ids only. They never carry an address, token, IP or review text, not even hashed.
 
+### 7.4 v2 tables (D1 `terpsicle`)
+
+The full SQL, and what each column means, is in `docs/V2.md`; once a migration lands, its file and the row schemas win, and this list follows them. Migration numbers are fixed now so parallel PRs don't collide.
+
+| Migration | Tables | Holds |
+|---|---|---|
+| `0003_identity` | `users` (key: directory ID; `email`, `hd`, `name`, `picture_url`, `picture_key`, `status`, `delete_after`, `chat_blocked_until`, `reviews_blocked_until`, …), `user_identities` (Google `sub` → user), `sessions` (hashed cookie tokens, 30-day sliding) | Accounts (V2.md §4.4) |
+| `0004_moderation` | `moderation_decisions` (text-free log), `moderation_queue` (the human queue; snapshots blanked 30 days after close), `reports` | The shared moderation service (V2.md §9.4) |
+| `0005_sync` | `sync_rows` (`user_id`, `kind`, `row_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `writer`, `pruned_through`) | Plan sync with compare-and-swap (V2.md §5.2) |
+| `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
+| `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
+| `0008_reviews` | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
+| `0009_chat` | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
+
+`counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
+
 ---
 
 ## 8. Share links
 
-`/?plan=<base64url(deflate-raw(UTF-8 JSON))>`. The link carries a `SharePayloadSchema` payload:
+`/?plan=<base64url(deflate-raw(UTF-8 JSON))>` (v2: `/schedule?plan=…`, since the scheduler moves to `/schedule`; old links needn't keep working). The link carries a `SharePayloadSchema` payload:
 - `v: 1`, `termId`, `name?`;
 - `sections`: section keys in course order;
 - `saved?`: saved-for-later course codes;
