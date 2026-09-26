@@ -42,6 +42,10 @@ import {
   TranscriptLineSchema,
 } from "~/core/schema";
 import {
+  FourYearDocSchema,
+  FourYearEntrySchema,
+} from "~/core/schema/four-year";
+import {
   aBlock,
   aBuilding,
   aBuildingsFile,
@@ -56,6 +60,10 @@ import {
   aCourseSearchFile,
   aDeptChunk,
   aFeedItem,
+  aFourYear,
+  aFourYearCreditEntry,
+  aFourYearEntry,
+  aFourYearWildcardEntry,
   aGenerateRequest,
   aGradeRecord,
   aManifest,
@@ -142,6 +150,21 @@ describe("builders return schema-valid objects by default", () => {
     ["aChatMessage", ChatMessageSchema, aChatMessage()],
     ["aReviewSubmitInput", ReviewSubmitInputSchema, aReviewSubmitInput()],
     ["aTranscriptLine", TranscriptLineSchema, aTranscriptLine()],
+    [
+      "aFourYear",
+      FourYearDocSchema,
+      aFourYear({
+        entries: [
+          aFourYearCreditEntry(),
+          aFourYearEntry(),
+          aFourYearWildcardEntry(),
+        ],
+        grades: { [aFourYearEntry().id]: "A" },
+      }),
+    ],
+    ["aFourYearEntry", FourYearEntrySchema, aFourYearEntry()],
+    ["aFourYearWildcardEntry", FourYearEntrySchema, aFourYearWildcardEntry()],
+    ["aFourYearCreditEntry", FourYearEntrySchema, aFourYearCreditEntry()],
   ];
   it.each(cases)("%s", (_, schema, value) => {
     expect(schema.safeParse(value).success).toBe(true);

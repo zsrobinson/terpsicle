@@ -1,4 +1,6 @@
 // The shared data contract. Prose version: docs/DATA.md.
+// Not here: `./four-year` (Plan's doc), imported by path so its zod schemas stay
+// out of every product's eager bundle (zod objects don't tree-shake).
 export * from "./api";
 export * from "./auth";
 export * from "./calendar";
