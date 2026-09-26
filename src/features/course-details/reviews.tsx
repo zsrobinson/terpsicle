@@ -146,7 +146,8 @@ export function InstructorReviews({
           <p className="mt-1 text-muted leading-5">
             <Sparkles
               size={11}
-              aria-label="Written by AI from reviews"
+              role="img"
+              aria-label="AI summary"
               className="-mt-0.5 mr-1 inline text-fg"
             />
             {review.summary.summary}

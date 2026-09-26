@@ -122,6 +122,15 @@ export function GeneratePanel() {
         title="Generate"
         sub="Every combination of sections, ranked"
       />
+      <p role="status" className="sr-only">
+        {busy
+          ? "Generating plans…"
+          : done
+            ? done.result.results.length === 0
+              ? "No plans fit."
+              : `Found ${done.result.results.length === 1 ? "1 plan" : `${done.result.results.length} plans`}.`
+            : ""}
+      </p>
       <PanelBody>
         <div ref={topRef} />
         {shared ? (
@@ -234,7 +243,9 @@ export function GeneratePanel() {
                   Stop
                 </Button>
               </WithTooltip>
-              <span role="status" className="tnum truncate text-muted text-sm">
+              {/* Not a live region: it changes many times a second. The
+                  start and the end are announced once, at the panel's top. */}
+              <span className="tnum truncate text-muted text-sm">
                 {mine.kind === "running" && mine.steps > 0
                   ? `Checked ${mine.steps.toLocaleString()} combinations…`
                   : "Generating…"}

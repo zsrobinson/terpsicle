@@ -97,7 +97,14 @@ function Details({
   // Stable, so 92 memoized rows don't all re-render when one thing changes.
   const jumpToGrades = useCallback(() => {
     track("course_details_tab", { tab: "grades" });
-    gradesRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+    // CSS can't stop a scripted smooth scroll: ask (WCAG 2.3.3).
+    const still = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    gradesRef.current?.scrollIntoView?.({
+      block: "start",
+      behavior: still ? "auto" : "smooth",
+    });
   }, []);
   const toggleReviews = useCallback((name: string) => {
     setOpenReviews((open) => {
