@@ -54,6 +54,14 @@ export {
 } from "./policy-text";
 export { type PrecheckInput, precheck } from "./precheck";
 export {
+  HIDE_AT_ONCE,
+  HIDE_AT_REPORTERS,
+  type ReportLike,
+  reportReasons,
+  reportsAreUrgent,
+  shouldHide,
+} from "./reports";
+export {
   BLOCKED_WORDS,
   findBlockedWords,
   INSULTS,

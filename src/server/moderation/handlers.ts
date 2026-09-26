@@ -1,6 +1,18 @@
 // How a decision made later (by the owner, or by an automatic retry) reaches
 // the feature that owns the item: Reviews publishes or hides the review,
 // Chat delivers or deletes the message.
+import type { ModerationReason } from "~/core/schema";
+import { applyReviewDecision } from "../reviews/decisions";
+
+export interface HandlerContext {
+  db: D1Database;
+  now: Date;
+  /**
+   * Why: the retry's reasons, or the owner's (`admin` with their reason on
+   * a removal, `undo` on an undo). Empty for an approval.
+   */
+  reasons: readonly ModerationReason[];
+}
 
 /**
  * Called with the item's new state. Must be idempotent: undo calls it again
@@ -12,14 +24,14 @@
 export type ModerationHandler = (
   targetId: string,
   decision: "publish" | "hold" | "remove",
+  ctx: HandlerContext,
 ) => Promise<void>;
 
 export type ModerationHandlers = Partial<
   Record<"review" | "chat", ModerationHandler>
 >;
 
-/**
- * The live handlers. Reviews and Chat each add theirs here when they land;
- * until then, features read an item's state with currentDecision().
- */
-export const MODERATION_HANDLERS: ModerationHandlers = {};
+/** The live handlers. Chat adds its own when it lands. */
+export const MODERATION_HANDLERS: ModerationHandlers = {
+  review: applyReviewDecision,
+};
