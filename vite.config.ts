@@ -5,6 +5,8 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { bundleGraph } from "./scripts/bundle-graph";
 import { CHECKOUT_MARKER_PATH, checkoutId } from "./scripts/e2e-checkout";
+import { pwaManifest } from "./scripts/pwa-manifest";
+import { pwaPrecache } from "./scripts/pwa-precache";
 
 /**
  * Answers `GET /__checkout/<id>` with 200 only for this checkout's id, so
@@ -36,6 +38,9 @@ export default defineConfig(({ command, mode }) => ({
   plugins: [
     // First, so the Worker never sees the marker path.
     checkoutMarker(),
+    // Before the Worker too: the manifest is a file, built from the tokens
+    // (scripts/pwa-manifest.ts).
+    pwaManifest(import.meta.dirname),
     cloudflare({
       viteEnvironment: { name: "ssr" },
       // Remote bindings (Workers AI) need a Cloudflare login and the
@@ -61,5 +66,7 @@ export default defineConfig(({ command, mode }) => ({
     react(),
     // dist/bundle-graph.json for scripts/check-bundle.ts.
     bundleGraph(import.meta.dirname),
+    // The service worker's precache list, from the client build (scripts/pwa-precache.ts).
+    pwaPrecache(import.meta.dirname),
   ],
 }));

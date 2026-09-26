@@ -9,6 +9,8 @@ const clientEnvSchema = z.object({
   VITE_DATA_SOURCE: z.enum(["mock", "live"]).default("live"),
   VITE_DATA_BASE_URL: z.string().min(1).default("/data"),
   VITE_POSTHOG_TOKEN: z.string().min(1).optional(),
+  /** "1" registers the service worker on localhost too, for push work (V2 §3.2). */
+  VITE_SW_DEV: z.enum(["0", "1"]).optional(),
 });
 
 export type DataSource = "mock" | "live";
@@ -20,6 +22,8 @@ export interface ClientConfig {
   /** Where published data lives: `/data` in production. */
   dataBaseUrl: string;
   posthogToken: string | undefined;
+  /** Register the service worker on localhost (`VITE_SW_DEV=1`). */
+  swDev: boolean;
 }
 
 export function parseClientConfig(env: unknown): ClientConfig {
@@ -35,6 +39,7 @@ export function parseClientConfig(env: unknown): ClientConfig {
     dataSource: parsed.VITE_DATA_SOURCE,
     dataBaseUrl: parsed.VITE_DATA_BASE_URL,
     posthogToken: parsed.VITE_POSTHOG_TOKEN,
+    swDev: parsed.VITE_SW_DEV === "1",
   };
 }
 

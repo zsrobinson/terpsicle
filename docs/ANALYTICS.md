@@ -45,6 +45,9 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `travel_how_opened` | | Whether people want to see how estimates are made ("How?"). |
   | `connection_opened` | `verdict` | How often people look into a connection, and which kinds (tight, not enough time, fine). Counted once its verdict is known, from any way in: a pill, the Travel list, Problems. |
   | `route_map_shown` | `mode`, `hasGeometry` | How often a connection has a route to draw, per mode: missing geometry hides the map. |
+  | `install_prompt_shown` | `trigger`: `first-sign-in` · `chat-joined` · `alert-on` · `menu`; `platform`: `ios` · `chromium` | How often the install prompt opens, and at which key moment (or from the "Install app" item). |
+  | `install_prompt_result` | `trigger`, `platform`, `outcome`: `installed` · `dismissed` | Whether the prompt earns its place or annoys: mostly `dismissed` means it's asked at the wrong moments. |
+  | `pwa_installed` | | Installs from any way in, the browser's own menu included (`appinstalled`). |
 
   | `search_performed` | `queryLength`, `results`, `filtered` | Whether search finds things (how often zero results), and how long queries are. Debounced; the text itself is never sent. |
   | `search_filter_changed` | `filter` | Which filter chips earn their place on the line. |

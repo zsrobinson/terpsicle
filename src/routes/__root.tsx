@@ -6,11 +6,14 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { loadRecoveryScript } from "~/app/load-recovery";
+import { Pwa } from "~/app/pwa";
+import { pwaLinks, pwaMeta, themeColorMeta } from "~/app/pwa-head";
 import { sidebarWidthInitScript } from "~/app/sidebar-width";
 import { themeInitScript } from "~/app/theme";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { AccountBoot } from "~/features/auth/account-boot";
+import { installPromptInitScript } from "~/features/pwa/install-capture";
 import { NotFoundPage } from "~/features/site/not-found-page";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
@@ -26,6 +29,7 @@ export const Route = createRootRoute({
         name: "description",
         content: "A fast, clear class scheduler for UMD students.",
       },
+      ...pwaMeta,
       // Link previews (Messages, Slack, Discord). Pages set their own title;
       // these stay the site's name and line.
       { property: "og:site_name", content: "Terpsicle" },
@@ -53,6 +57,7 @@ export const Route = createRootRoute({
         href: "/icons/apple-touch-icon.png",
         sizes: "180x180",
       },
+      ...pwaLinks,
     ],
   }),
   shellComponent: RootDocument,
@@ -73,6 +78,16 @@ function RootDocument({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: sidebarWidthInitScript }} />
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; it must listen before the app's scripts load */}
         <script dangerouslySetInnerHTML={{ __html: loadRecoveryScript }} />
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant script; Chrome's install prompt can fire before the app's scripts load */}
+        <script dangerouslySetInnerHTML={{ __html: installPromptInitScript }} />
+        {themeColorMeta.map(({ content, media }) => (
+          <meta
+            key={media}
+            name="theme-color"
+            content={content}
+            media={media}
+          />
+        ))}
         <HeadContent />
       </head>
       <body>
@@ -89,6 +104,7 @@ function RootLayout() {
       <AccountBoot />
       <Outlet />
       <Toaster />
+      <Pwa />
     </TooltipProvider>
   );
 }

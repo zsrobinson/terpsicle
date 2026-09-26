@@ -302,6 +302,12 @@ The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cac
 4. Unlike the catalog, the cached manifest may list department files the browser doesn't have yet. What's cached is always listed by it. A cached manifest more than a day old can name files the server has deleted; a file that's missing waits for the session's manifest check and loads the new hash.
 5. There's no polling: the index changes at most every 6 h.
 
+### 5.3 The installable app (service worker, install prompt, push)
+V2.md §3 is the plan; this is what the browser keeps.
+- **Service worker** (`/sw.js`, `src/server/service-worker.ts`): one for the whole site. Cache Storage holds pages (`terpsicle-pages-v<n>`, network-first), build files as they're fetched (`terpsicle-assets-v<n>`), and the app shell precached at install (`terpsicle-shell-v<n>-<build>`). It never caches `/api`, `/auth`, `/avatars`, `/data` or `/ingest`, navigations included: IndexedDB already keeps the data, and the manifests must revalidate (§2.5, §5.1).
+- **Install prompt** (`src/features/pwa`): `localStorage["terpsicle:install-prompt"]` holds `InstallPromptStateSchema` (`{dismissals, lastDismissedAt}`); `sessionStorage["terpsicle:install-shown"]` marks a tab where the prompt already opened. `requestInstallPrompt(trigger)` opens it only where installing works, never in the installed app, at most once per session, not within 90 days of a dismissal, and never after two. Closing it any way but installing is a dismissal, except when it was opened from the "Install app" item. Storage that can't be read means "don't show".
+- **Push payload** (`PushPayloadSchema`): `{v: 1, type, title, body, url, tag}`. `url` is a path on this site; a click focuses a window already there, else takes an open one there, else opens one. A newer notification with the same `tag` replaces the older one. The service worker repeats the schema's checks by hand (it can't load zod) and shows "Terpsicle: Open the app for details." for a payload it can't read.
+
 ---
 
 ## 6. Travel math (`core/travel`)

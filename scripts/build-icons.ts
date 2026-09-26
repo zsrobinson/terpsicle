@@ -5,8 +5,9 @@
 //   pnpm tsx scripts/build-icons.ts
 //
 // Writes public/icons/: the favicon (SVG, following the viewer's theme, and a
-// 32px PNG), the iOS home-screen icon (180), and the web app icons (192, 512,
-// and a maskable 512 whose glyph sits inside Android's 80% safe circle).
+// 32px PNG), the iOS home-screen icon (180), the web app icons (192, 512,
+// and a maskable 512 whose glyph sits inside Android's 80% safe circle), and
+// the notification badge (72).
 // scripts/build-icons.test.ts fails when these files are out of date.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -62,6 +63,38 @@ export const PNG_ICONS: readonly IconFile[] = [
   },
 ];
 
+/**
+ * Android's status-bar icon for a notification (src/server/service-worker.ts):
+ * the glyph alone, white on clear, since only its alpha is used.
+ */
+export const BADGE: IconFile = {
+  file: `${ICON_DIR}/badge-72.png`,
+  size: 72,
+  variant: "bleed",
+  drawAt: 72,
+};
+
+const BADGE_COLORS: Record<MarkRole, string> = {
+  tile: "none",
+  glyph: "#ffffff",
+  keyline: "none",
+  offset: "none",
+};
+
+export function badgeSvg(): string {
+  return markSvg("umbrella", BADGE.drawAt, BADGE_COLORS, {
+    variant: BADGE.variant,
+  });
+}
+
+export function badgePng(): Buffer {
+  return new Resvg(badgeSvg(), {
+    fitTo: { mode: "width", value: BADGE.size },
+  })
+    .render()
+    .asPng();
+}
+
 /** The umbrella's paints in one theme. */
 function umbrellaColors(tokens: TokenTable): Record<MarkRole, string> {
   const pick = (name: string) => {
@@ -114,8 +147,9 @@ function main() {
   writeFileSync(path.join(ROOT, "public", FAVICON_SVG), faviconSvg());
   for (const icon of PNG_ICONS)
     writeFileSync(path.join(ROOT, "public", icon.file), iconPng(icon));
+  writeFileSync(path.join(ROOT, "public", BADGE.file), badgePng());
   console.log(
-    `Wrote ${[FAVICON_SVG, ...PNG_ICONS.map((i) => i.file)].join(", ")}`,
+    `Wrote ${[FAVICON_SVG, ...PNG_ICONS.map((i) => i.file), BADGE.file].join(", ")}`,
   );
 }
 

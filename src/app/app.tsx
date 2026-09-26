@@ -18,7 +18,6 @@ import { useWorkspace } from "~/state/workspace-store";
 import { trackCatalogEvent } from "./actions";
 import { AppShell, type AppShellProps } from "./app-shell";
 import { type ClientConfig, clientConfig } from "./config";
-import { registerServiceWorker } from "./service-worker-registration";
 import { applyThemePreference } from "./theme";
 
 /** The app: loads local state and the catalog, then shows the shell. */
@@ -30,7 +29,6 @@ export function App(props: AppShellProps) {
 function useBootstrap(config: ClientConfig) {
   useEffect(() => {
     let cancelled = false;
-    registerServiceWorker(config);
     let persistence: Persistence | undefined;
     let stopReturning: (() => void) | undefined;
     const db = new TerpsicleDb();
