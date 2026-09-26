@@ -10,7 +10,7 @@ let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/?demo=1");
+  await page.goto("/schedule?demo=1");
   // The first load compiles the app and reads every department of the mock
   // term; with several workers on one dev server that can take a while.
   await expect(

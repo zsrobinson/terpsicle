@@ -24,7 +24,7 @@ test("the service worker takes over and shows pushes", async ({
   browserName,
 }) => {
   test.skip(browserName !== "chromium", "pushes are delivered over CDP");
-  await page.goto("/");
+  await page.goto("/schedule");
   // The app registers it only on terpsicle.com (or with VITE_SW_DEV=1);
   // here the test does, as the app would.
   await page.evaluate(async () => {

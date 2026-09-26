@@ -52,6 +52,12 @@ export default defineConfig(({ command, mode }) => ({
           ? (worker) => {
               // Mutated rather than returned: returned config is deep-merged.
               delete worker.vars?.POSTHOG_TOKEN;
+              // Mock mode (and so e2e) signs in with the fake Google, which
+              // the Worker only honors on localhost (docs/AUTH.md).
+              if (mode === "mock") {
+                worker.vars ??= {};
+                worker.vars.AUTH_TEST_MODE = "true";
+              }
             }
           : undefined,
     }),

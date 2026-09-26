@@ -22,7 +22,7 @@ const calendar = (page: Page) =>
   page.getByRole("region", { name: "Week calendar" });
 
 async function openDemo(page: Page) {
-  await page.goto("/?demo=1");
+  await page.goto("/schedule?demo=1");
   await expect(
     calendar(page)
       .getByRole("button", { name: /^CMSC351 0301/ })
@@ -38,7 +38,7 @@ async function openTab(page: Page, name: string) {
 }
 
 test("first visit shows two equal ways to start", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/schedule");
   const guide = page.getByTestId("first-visit");
   await expect(
     guide.getByRole("heading", { name: "Build your Spring 2027 schedule" }),
@@ -167,6 +167,7 @@ test.describe("export", () => {
     await page.getByRole("button", { name: /Copy share link/ }).click();
     await expect(page.getByText("Copied the share link")).toBeVisible();
     const link = await page.evaluate(() => navigator.clipboard.readText());
+    expect(new URL(link).pathname).toBe("/schedule");
     expect(new URL(link).searchParams.has("plan")).toBe(true);
 
     await page.goto(link);
@@ -193,7 +194,7 @@ test.describe("export", () => {
 test("a seat-alert email's link opens that course in its term", async ({
   page,
 }) => {
-  await page.goto("/?term=202605&course=CMSC131");
+  await page.goto("/schedule?term=202605&course=CMSC131");
   await expect(
     page.getByRole("navigation", { name: "Breadcrumb" }),
   ).toContainText("CMSC131");

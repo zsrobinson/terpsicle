@@ -103,11 +103,16 @@ jobs:
         env:
           URL: ${{ steps.preview.outputs.url }}
         run: |
+          # The marketing page, the scheduler, and the privacy page Google's
+          # sign-in consent screen links to.
+          base="${URL%/}"
           for i in 1 2 3 4 5; do
-            curl -fsS -o /dev/null "$URL" && exit 0
+            curl -fsS -o /dev/null "$base/" &&
+              curl -fsS -o /dev/null "$base/schedule" &&
+              curl -fsS -o /dev/null "$base/privacy" && exit 0
             sleep 5
           done
-          echo "::error::Preview at $URL didn't answer 200"
+          echo "::error::Preview at $URL didn't answer 200 for /, /schedule and /privacy"
           exit 1
 
       # The preview reads production R2: real courses must load and cache.
@@ -126,7 +131,7 @@ jobs:
         with:
           script: |
             const marker = "<!-- terpsicle-preview -->";
-            const body = `${marker}\n**Preview:** ${process.env.URL}\n\nBuilt from ${context.payload.pull_request.head.sha.slice(0, 7)}. Crons don't run on previews; /data reads production R2.`;
+            const body = `${marker}\n**Preview:** ${process.env.URL} (the scheduler: ${process.env.URL.replace(/\/+$/, "")}/schedule)\n\nBuilt from ${context.payload.pull_request.head.sha.slice(0, 7)}. Crons don't run on previews; /data reads production R2.`;
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });

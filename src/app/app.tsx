@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { markReturning } from "~/features/marketing/returning";
 import { useCatalog } from "~/state/catalog-store";
 import { createDexieCache } from "~/state/data-cache";
 import { createDataReader, createDataSource } from "~/state/data-source";
@@ -13,6 +14,7 @@ import {
 } from "~/state/persist";
 import { startSeatAlerts, startSeatAlertsInMemory } from "~/state/seat-alerts";
 import { useUi } from "~/state/ui-store";
+import { useWorkspace } from "~/state/workspace-store";
 import { trackCatalogEvent } from "./actions";
 import { AppShell, type AppShellProps } from "./app-shell";
 import { type ClientConfig, clientConfig } from "./config";
@@ -28,6 +30,7 @@ function useBootstrap(config: ClientConfig) {
   useEffect(() => {
     let cancelled = false;
     let persistence: Persistence | undefined;
+    let stopReturning: (() => void) | undefined;
     const db = new TerpsicleDb();
     // Apart from plans: a broken alerts table mustn't block the schedule.
     startSeatAlerts(db).catch((error: unknown) => {
@@ -47,6 +50,11 @@ function useBootstrap(config: ClientConfig) {
             "Couldn't save your last change. Your browser's storage may be full.",
             { id: "storage-write" },
           );
+        });
+        // `/` skips the marketing page once this browser holds a plan.
+        markReturning(useWorkspace.getState().plans.length);
+        stopReturning = useWorkspace.subscribe((next, prev) => {
+          if (next.plans !== prev.plans) markReturning(next.plans.length);
         });
         if (demoRequested(window.location.search)) await loadDemoState();
       } catch (error) {
@@ -79,6 +87,7 @@ function useBootstrap(config: ClientConfig) {
     return () => {
       cancelled = true;
       persistence?.stop();
+      stopReturning?.();
       db.close();
     };
   }, [config]);

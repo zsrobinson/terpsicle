@@ -10,7 +10,11 @@ import { Pwa } from "~/app/pwa";
 import { pwaLinks, pwaMeta, themeColorMeta } from "~/app/pwa-head";
 import { sidebarWidthInitScript } from "~/app/sidebar-width";
 import { themeInitScript } from "~/app/theme";
+// Not the barrel: its settings page pulls the scheduler's stores into every
+// page (scripts/check-bundle.ts keeps them out of `/`).
+import { AccountBoot } from "~/features/auth/account-boot";
 import { installPromptInitScript } from "~/features/pwa/install-capture";
+import { NotFoundPage } from "~/features/site/not-found-page";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import appCss from "../styles.css?url";
@@ -26,6 +30,16 @@ export const Route = createRootRoute({
         content: "A fast, clear class scheduler for UMD students.",
       },
       ...pwaMeta,
+      // Link previews (Messages, Slack, Discord). Pages set their own title;
+      // these stay the site's name and line.
+      { property: "og:site_name", content: "Terpsicle" },
+      { property: "og:type", content: "website" },
+      { property: "og:title", content: "Terpsicle" },
+      {
+        property: "og:description",
+        content: "A fast, clear class scheduler for UMD students.",
+      },
+      { name: "twitter:card", content: "summary" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -35,10 +49,12 @@ export const Route = createRootRoute({
   }),
   shellComponent: RootDocument,
   component: RootLayout,
+  notFoundComponent: NotFoundPage,
 });
 
 // The HTML shell is server-rendered (theme before first paint, fonts, CSS);
-// the app route itself renders only in the browser (`ssr: false`).
+// the scheduler renders only in the browser (`ssr: false`), while `/` and the
+// other static pages render on the server too.
 function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -72,6 +88,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 function RootLayout() {
   return (
     <TooltipProvider>
+      <AccountBoot />
       <Outlet />
       <Toaster />
       <Pwa />

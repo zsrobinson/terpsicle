@@ -9,10 +9,11 @@ import {
 } from "./install-store";
 
 // "Install app", always available and quiet (V2 §3.4): it opens the same
-// dialog as the key moments, whatever the cooldown. The account menu and
-// /settings/notifications are its homes once they exist; until then it sits
-// at the foot of the scheduler's rail (the theme menu on phones). Each piece
-// renders nothing where installing doesn't work or already happened.
+// dialog as the key moments, whatever the cooldown. It's in the account menu
+// (the phone menu too), and for people who haven't signed in, at the foot of
+// the scheduler's rail (the theme menu on phones). `InstallAppSetting` is
+// for /settings/notifications. Each piece renders nothing where installing
+// doesn't work or already happened.
 
 const HINT = "Put Terpsicle on your home screen";
 

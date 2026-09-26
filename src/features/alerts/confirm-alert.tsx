@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { SCHEDULE_PATH } from "~/core/routing";
 import type { ConfirmResult } from "~/core/schema";
 import { requestInstallPrompt } from "~/features/pwa/install-store";
 import { ApiCallError, api } from "~/server/fns/api";
@@ -85,7 +86,7 @@ export function ConfirmAlert({
           Confirmation links work once, for 48 hours. To watch the section,
           click the bell next to it in Terpsicle and enter your email again.
         </p>
-        <OpenApp href="/" label="Open Terpsicle" />
+        <OpenApp href={SCHEDULE_PATH} label="Open Terpsicle" />
       </AlertPage>
     );
   }

@@ -158,7 +158,7 @@ describe("seat alerts, end to end", () => {
     expect(alert?.subject).toBe("3 seats opened in CMSC351 0101");
     expect(alert?.text).toContain("Seats: 3 of 120 open");
     expect(alert?.text).toContain(
-      `https://terpsicle.com/?term=${fixtureTermId}&course=CMSC351`,
+      `https://terpsicle.com/schedule?term=${fixtureTermId}&course=CMSC351`,
     );
     expect(alert?.html).toContain("CMSC351 0101");
     expect(alert?.headers?.["List-Unsubscribe"]).toMatch(

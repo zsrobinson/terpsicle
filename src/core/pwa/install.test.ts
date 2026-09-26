@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { InstallPromptStateSchema, PushPayloadSchema } from "../schema";
+import { SCHEDULE_PATH } from "../routing";
+import {
+  InstallPromptStateSchema,
+  PushPayloadSchema,
+  PWA_START_URL,
+} from "../schema";
 import { deviceLabel } from "./device-label";
 import {
   DEFAULT_INSTALL_PROMPT_STATE,
@@ -228,5 +233,11 @@ describe("PushPayloadSchema", () => {
       false,
     );
     expect(PushPayloadSchema.safeParse({ ...ok, v: 2 }).success).toBe(false);
+  });
+});
+
+describe("PWA_START_URL", () => {
+  it("opens the installed app on the scheduler", () => {
+    expect(PWA_START_URL).toBe(SCHEDULE_PATH);
   });
 });

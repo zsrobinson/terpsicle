@@ -5,13 +5,17 @@
 // rate limits), and keep Worker-only types out of the app's TS program.
 import type { z } from "zod";
 import {
+  AccountDeleteInputSchema,
   ConfirmInputSchema,
   ManageInputSchema,
+  MeInputSchema,
   ReviewSummaryInputSchema,
+  SignOutInputSchema,
   StatusInputSchema,
   type StatusResult,
   SubscribeInputSchema,
   type SubscribeResult,
+  TestSignInInputSchema,
 } from "~/core/schema";
 import {
   type AlertsContext,
@@ -24,6 +28,17 @@ import {
   unsubscribe,
 } from "../alerts/service";
 import { APEX_HOST } from "../apex";
+import {
+  deleteAccount,
+  type IdentityRouteContext,
+  me,
+  signOut,
+  testSignIn,
+} from "../auth/api";
+import type { AuthEnv } from "../auth/config";
+import { handleFlow, isFlowRoute } from "../auth/flow";
+import { isSameOrigin } from "../auth/guard";
+import { getSession } from "../auth/session";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
@@ -31,7 +46,7 @@ import { apiError, clientIp, json, readInput } from "./http";
 
 export const API_PREFIX = "/api/";
 
-export type ApiEnv = AlertsEnv & SummaryEnv;
+export type ApiEnv = AlertsEnv & SummaryEnv & AuthEnv;
 
 interface Route<S extends z.ZodType> {
   input: S;
@@ -45,12 +60,21 @@ interface Route<S extends z.ZodType> {
    * shouldn't cost a D1 write per page view.
    */
   whenOff?: unknown;
+  /**
+   * Who may call it (V2.md §12). "user" and "admin" need a same-origin
+   * request and a session (401 without, 403 for a non-admin), and the
+   * handler gets `ctx.session`. Omitted means "none".
+   */
+  auth?: "none" | "user" | "admin";
+  /** A plain value is sent as JSON; a Response (to set cookies) as is. */
   handle: (
     env: ApiEnv,
     input: z.infer<S>,
-    ctx: AlertsContext,
+    ctx: RouteContext,
   ) => Promise<unknown>;
 }
+
+export type RouteContext = AlertsContext & IdentityRouteContext;
 
 const route = <S extends z.ZodType>(r: Route<S>) => r;
 
@@ -94,6 +118,33 @@ const ROUTES = {
     whenOff: { status: "unavailable" } satisfies StatusResult,
     handle: (env, input) => status(env, input),
   }),
+  // Identity (docs/AUTH.md). The sign-in navigations are GETs, routed below.
+  me: route({
+    input: MeInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    handle: (env, _input, ctx) =>
+      me(env, ctx, { seatAlerts: alertsEnabled(env) }),
+  }),
+  "auth/sign-out": route({
+    input: SignOutInputSchema,
+    perIpPerHour: 30,
+    alerts: false,
+    handle: (env, _input, ctx) => signOut(env, ctx),
+  }),
+  "account/delete": route({
+    input: AccountDeleteInputSchema,
+    perIpPerHour: 30,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => deleteAccount(env, ctx),
+  }),
+  "auth/test-sign-in": route({
+    input: TestSignInInputSchema,
+    perIpPerHour: 60,
+    alerts: false,
+    handle: (env, input, ctx) => testSignIn(env, input, ctx),
+  }),
 } as const;
 
 /**
@@ -115,9 +166,18 @@ export async function handleApi(
   env: ApiEnv,
   ctx: Pick<ExecutionContext, "waitUntil">,
   now: Date = new Date(),
+  /** Outbound fetch for Google and pictures; tests mock it. */
+  options: { fetch?: typeof fetch } = {},
 ): Promise<Response> {
   const url = new URL(request.url);
   const name = url.pathname.slice(API_PREFIX.length);
+  // The sign-in navigations: GETs that redirect, not JSON POSTs.
+  if (isFlowRoute(name))
+    return handleFlow(request, env, {
+      now,
+      waitUntil: (p) => ctx.waitUntil(p),
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+    });
   const r: Route<z.ZodType> | undefined = Object.hasOwn(ROUTES, name)
     ? ROUTES[name as keyof typeof ROUTES]
     : undefined;
@@ -142,10 +202,25 @@ export async function handleApi(
 
   const input = await readInput(request, r.input);
   if (input === null) return apiError("invalid-input");
+
+  let session: RouteContext["session"] = null;
+  if (r.auth === "user" || r.auth === "admin") {
+    if (!isSameOrigin(request)) return apiError("forbidden");
+    session = await getSession(request, env, now, { refresh: true });
+    if (!session) return apiError("unauthorized");
+    if (r.auth === "admin" && !session.user.isAdmin)
+      return apiError("forbidden");
+  }
   const result = await r.handle(env, input, {
     now,
     origin: linkOrigin(url),
     waitUntil: (p) => ctx.waitUntil(p),
+    request,
+    session,
+    ...(options.fetch ? { fetch: options.fetch } : {}),
   });
-  return json(result);
+  const response = result instanceof Response ? result : json(result);
+  if (session?.setCookie)
+    response.headers.append("Set-Cookie", session.setCookie);
+  return response;
 }

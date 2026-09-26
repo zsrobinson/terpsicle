@@ -98,6 +98,12 @@ test.describe("installable app", () => {
       expect(icon.headers()["content-type"], src).toBe("image/png");
     }
 
+    // The installed app opens here: it must be the scheduler, not a 404.
+    const start = await request.get("/schedule");
+    expect(start.status()).toBe(200);
+    expect(start.headers()["content-type"]).toContain("text/html");
+
+    // Every page links the manifest, the landing page included (V2 §3.1).
     await page.goto("/");
     const head = page.locator("head");
     await expect(head.locator('link[rel="manifest"]')).toHaveAttribute(
@@ -237,13 +243,16 @@ test.describe("install prompt", () => {
     page,
     isMobile,
   }) => {
-    await page.goto("/");
+    await page.goto("/schedule");
     await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
     const entry = isMobile
       ? page.getByRole("menuitem", { name: "Install app" })
       : page.getByRole("button", { name: "Install app" });
+    // Phones have one menu for the account and the theme: signed out (with
+    // sign-in on, as in mock mode) its button is "Sign in". Desktop has the
+    // icon at the foot of the rail.
     const openMenu = async () => {
-      if (isMobile) await page.getByRole("button", { name: "Theme" }).click();
+      if (isMobile) await page.getByRole("button", { name: "Sign in" }).click();
     };
 
     // Chrome hasn't offered to install: nothing to show.

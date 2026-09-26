@@ -39,7 +39,7 @@ describe("confirm page", () => {
     expect(screen.getByText("CMSC351 0101")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Open in Terpsicle" }),
-    ).toHaveAttribute("href", "/?term=202701&course=CMSC351");
+    ).toHaveAttribute("href", "/schedule?term=202701&course=CMSC351");
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(readAlertsInbox()).toEqual([
       {
@@ -132,7 +132,7 @@ describe("labels", () => {
     expect(termLabel("202612")).toBe("Winter 2027");
     expect(termLabel("202608")).toBe("Fall 2026");
     expect(courseHref("202701", "CMSC351-0101")).toBe(
-      "/?term=202701&course=CMSC351",
+      "/schedule?term=202701&course=CMSC351",
     );
   });
 });

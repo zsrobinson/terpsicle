@@ -11,6 +11,7 @@ import type {
   RailTab,
   RankBy,
   Relaxable,
+  SignInError,
   TermId,
   TermStatus,
   Theme,
@@ -101,6 +102,12 @@ export interface AnalyticsEvents {
     outcome: "installed" | "dismissed";
   };
   pwa_installed: NoProperties;
+  // Identity (V2.md §11). Never the user, their name, email or directory ID.
+  signin_started: { from: "topbar" | "settings" | "signin-page" | "undo" };
+  signin_completed: { firstOnDevice: boolean };
+  signin_failed: { reason: SignInError };
+  signed_out: { removedLocal: boolean };
+  account_deletion_requested: NoProperties;
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

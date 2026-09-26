@@ -211,12 +211,14 @@ describe("service worker: pages and files", () => {
   it("always loads pages from the network while online, so a new deploy shows at once", async () => {
     const sw = setUp();
     sw.fetchWith(async () => html("deploy 1"));
-    expect(await (await sw.request("/", { navigate: true }))?.text()).toBe(
-      "deploy 1",
-    );
+    expect(
+      await (await sw.request("/schedule", { navigate: true }))?.text(),
+    ).toBe("deploy 1");
     sw.fetchWith(async () => html("deploy 2"));
     expect(
-      await (await sw.request("/?plan=abc", { navigate: true }))?.text(),
+      await (
+        await sw.request("/schedule?plan=abc", { navigate: true })
+      )?.text(),
     ).toBe("deploy 2");
   });
 
@@ -230,23 +232,35 @@ describe("service worker: pages and files", () => {
         await sw.request("/schedule?plan=abc", { navigate: true })
       )?.text(),
     ).toBe("the schedule");
+    // A page never loaded online falls back to the scheduler's copy.
+    expect(
+      await (await sw.request("/alerts/confirm", { navigate: true }))?.text(),
+    ).toBe("the schedule");
   });
 
-  it("falls back to the page kept most recently, since every path is the same app", async () => {
+  it("else falls back to the page kept most recently, since every path is the same app", async () => {
     const sw = setUp();
     sw.fetchWith(async (r) => html(`app at ${new URL(r.url).pathname}`));
+    await sw.request("/reviews", { navigate: true });
+    await sw.request("/", { navigate: true });
+    sw.fetchWith(offline);
+    expect(await (await sw.request("/chat", { navigate: true }))?.text()).toBe(
+      "app at /",
+    );
+    // Visiting a page again makes it the newest.
+    sw.fetchWith(async () => html("reviews again"));
+    await sw.request("/reviews", { navigate: true });
+    sw.fetchWith(offline);
+    expect(await (await sw.request("/chat", { navigate: true }))?.text()).toBe(
+      "reviews again",
+    );
+    // The scheduler's copy wins once there is one.
+    sw.fetchWith(async () => html("the schedule"));
     await sw.request("/schedule", { navigate: true });
     await sw.request("/reviews", { navigate: true });
     sw.fetchWith(offline);
     expect(await (await sw.request("/chat", { navigate: true }))?.text()).toBe(
-      "app at /reviews",
-    );
-    // Visiting a page again makes it the newest.
-    sw.fetchWith(async () => html("schedule again"));
-    await sw.request("/schedule", { navigate: true });
-    sw.fetchWith(offline);
-    expect(await (await sw.request("/chat", { navigate: true }))?.text()).toBe(
-      "schedule again",
+      "the schedule",
     );
   });
 

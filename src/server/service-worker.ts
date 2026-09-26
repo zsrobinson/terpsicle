@@ -256,10 +256,12 @@ export function installServiceWorker(
         await cache.put(key, response.clone());
       return response;
     } catch (error) {
-      // Offline: the last copy of this page, else the page kept most
-      // recently (a put moves its entry to the end), since every path
-      // serves the same app.
-      const saved = await cache.match(key);
+      // Offline: the last copy of this page, else the scheduler's (the
+      // installed app's start page), else the page kept most recently (a put
+      // moves its entry to the end), since every path serves the same app.
+      const saved =
+        (await cache.match(key)) ??
+        (await cache.match(`${origin}${config.startUrl}`));
       if (saved) return saved;
       const newest = (await cache.keys()).at(-1);
       const fallback = newest ? await cache.match(newest) : undefined;
