@@ -17,6 +17,7 @@ import {
   toVisual,
   type Viewport,
 } from "./device";
+import { pageProcessMemory } from "./host-memory";
 import { saveImage } from "./media";
 import { call, FIND, INSTALL, PROBE } from "./page-scripts";
 
@@ -44,6 +45,8 @@ export interface Step {
   t: number;
   screenshot: string | null;
   keyboard: boolean | null;
+  /** The engine's page processes on the host (webkit, chromium, ios). */
+  memory?: { processes: number; rssMb: number; largestMb: number } | null;
   actions: Action[];
   checks: Check[];
   probe: Probe | null;
@@ -225,6 +228,7 @@ export class Lab {
             `${String(index).padStart(2, "0")}-${slug(name)}`,
           ),
         );
+      step.memory = await pageProcessMemory(this.device.engine);
       step.keyboard = await this.device.keyboardShown();
       const probe = await this.device.evaluate<Probe | null>(PROBE);
       if (!probe || typeof probe.innerHeight !== "number")
@@ -260,8 +264,25 @@ export class Lab {
 
   /** A step for a scenario that threw, with whatever the screen shows. */
   async failure(error: unknown): Promise<void> {
+    const message = error instanceof Error ? error.message : String(error);
     const step = await this.step("error");
-    step.error = error instanceof Error ? error.message : String(error);
+    step.error = message;
+    // The page's process died (Playwright: "Target crashed"; a page that
+    // reloaded by itself shows as no-reload instead). Always a failure: the
+    // person would have lost the page.
+    if (/target crashed|page crashed|renderer.*(crash|gone)/i.test(message))
+      step.checks.push({
+        id: "page-process-alive",
+        ok: false,
+        severity: "fail",
+        detail: `the page's process crashed after: ${
+          this.steps
+            .flatMap((s) => s.actions)
+            .slice(-3)
+            .map((a) => `${a.type} ${JSON.stringify(a.detail)}`)
+            .join("; ") || "nothing"
+        }${step.memory ? `; page processes ${step.memory.rssMb} MB` : ""}`,
+      });
   }
 }
 

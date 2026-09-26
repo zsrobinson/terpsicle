@@ -17,7 +17,7 @@ Page scripts (the probe) go over each browser's debugging protocol; every touch 
 
 **In CI** (`.github/workflows/mobile-lab.yml`):
 
-- **Any URL, any engines:** Actions → *Mobile lab* → *Run workflow*. Inputs: `url` (default production), `engines` (`webkit,android,ios`), `scenarios` (ids, comma-separated; empty for all).
+- **Any URL, any engines:** Actions → *Mobile lab* → *Run workflow*. Inputs: `url` (default production), `engines` (`webkit,android,ios`), `scenarios` (ids, comma-separated; empty for all), `repeat` (each scenario this many times, for an intermittent failure; repeats are `<id>-2`, `<id>-3`, …).
 - **Nightly:** every engine against https://terpsicle.com.
 - **PRs:** `ci.yml` runs WebKit against the PR's preview after it deploys, when the PR touches `src/app/`, `src/styles.css`, anything named `*drawer*` or the lab itself. Add the **`mobile-lab`** label to a PR to run Android and iOS as well: adding it runs all three at once against the current preview, and later pushes include them.
 
@@ -30,7 +30,7 @@ pnpm tsx scripts/mobile-lab/run.ts --engine chromium --url https://terpsicle.com
 pnpm tsx scripts/mobile-lab/run.ts --engine webkit --url http://localhost:3000 --only keyboard-at-half,rotate
 ```
 
-`--out <dir>` picks the results folder (default `mobile-lab-results/<time>-<engine>`, git-ignored); `--no-video` skips recordings. `android` needs `adb` with one emulator or phone attached (with USB debugging, Chrome installed, and for an emulator a Google APIs image so Chrome reads its command-line file). `ios` needs a Mac with Xcode, an Appium 3 server with the XCUITest driver (`APPIUM_URL`, default `http://127.0.0.1:4723`) and optionally `IOS_DEVICE`, `IOS_VERSION` or `IOS_UDID`. Don't run `playwright install` in an agent sandbox; use `chromium` there.
+`--repeat <n>` runs each scenario n times. `--out <dir>` picks the results folder (default `mobile-lab-results/<time>-<engine>`, git-ignored); `--no-video` skips recordings. `android` needs `adb` with one emulator or phone attached (with USB debugging, Chrome installed, and for an emulator a Google APIs image so Chrome reads its command-line file). `ios` needs a Mac with Xcode, an Appium 3 server with the XCUITest driver (`APPIUM_URL`, default `http://127.0.0.1:4723`) and optionally `IOS_DEVICE`, `IOS_VERSION` or `IOS_UDID`. Don't run `playwright install` in an agent sandbox; use `chromium` there.
 
 ## Reading results
 
@@ -52,6 +52,10 @@ A run folder holds:
 - `<scenario>/NN-<step>.jpg`: the whole screen, browser toolbar and keyboard included on `android` and `ios`.
 - `<scenario>/video.mp4` (`.webm` on `webkit`): the scenario's screen recording.
 - `RESULT`: three lines for the index.
+- `browser-log.txt` (`webkit`): WebKit's own output (`DEBUG=pw:browser`), where a crashed page process says why.
+- `webcontent-log.txt` (`ios`): the Simulator's log lines from Safari's page process about crashes, memory pressure and jetsam.
+
+Each step also records `memory`: the resident size of the engine's page processes, read with `ps` on the runner (WebKit's `WebKitWebProcess`, Chromium's renderers, the Simulator's `com.apple.WebKit.WebContent`; not on Android). It counts every such process on the machine, so it's only meaningful on a CI runner, not a shared sandbox.
 
 `jq` gets the numbers fast, e.g. every failed check:
 
@@ -69,6 +73,7 @@ Every step checks (`scripts/mobile-lab/checks.ts`):
 | `no-page-errors` | fail | An uncaught error or rejection. |
 | `focused-field-visible` | fail | A focused text field isn't wholly inside the visible band (`visualViewport.offsetTop` to `offsetTop + height`), or something covers it: the keyboard, or a pan that moved it out of view. |
 | `drawer-on-screen` | fail | The drawer's top is off the screen. |
+| `page-process-alive` | fail | The page's process crashed (Playwright's "Target crashed"), with the last actions and page-process memory as evidence. |
 | `page-not-scrolled` | warn | The window scrolled: the page itself moved. |
 | `not-zoomed` | warn | The visual viewport's scale isn't 1 (Safari zooms into small text fields). |
 | `no-horizontal-overflow` | warn | The document is wider than the screen. |

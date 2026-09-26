@@ -31,6 +31,8 @@ const { values } = parseArgs({
     only: { type: "string" },
     video: { type: "boolean", default: true },
     source: { type: "string" },
+    // Each scenario this many times in a row: for flaky failures.
+    repeat: { type: "string", default: "1" },
   },
 });
 
@@ -43,10 +45,17 @@ const out = path.resolve(
     `mobile-lab-results/${new Date().toISOString().replace(/[:.]/g, "-")}-${engine}`,
 );
 const only = values.only?.split(",").map((s) => s.trim());
-const scenarios = only
-  ? SCENARIOS.filter((s) => only.includes(s.id))
-  : SCENARIOS;
-if (scenarios.length === 0) throw new Error(`no scenarios match ${only}`);
+const chosen = only ? SCENARIOS.filter((s) => only.includes(s.id)) : SCENARIOS;
+if (chosen.length === 0) throw new Error(`no scenarios match ${only}`);
+const repeat = Math.max(1, Math.min(20, Number(values.repeat) || 1));
+// Repeats get their own ids (and folders): tabs, tabs-2, tabs-3, ...
+const scenarios = chosen.flatMap((s) =>
+  Array.from({ length: repeat }, (_, i) =>
+    i === 0
+      ? s
+      : { ...s, id: `${s.id}-${i + 1}`, title: `${s.title} (run ${i + 1})` },
+  ),
+);
 
 async function device(): Promise<Device> {
   switch (engine) {

@@ -90,6 +90,10 @@ function glance(step: Step): string[] {
     );
   if (step.keyboard !== null)
     lines.push(`keyboard ${step.keyboard ? "up" : "down"}`);
+  if (step.memory)
+    lines.push(
+      `page processes ${step.memory.rssMb} MB (${step.memory.processes}, largest ${step.memory.largestMb} MB)`,
+    );
   if (p.activeElement)
     lines.push(
       `focus ${p.activeElement.describe}` +
