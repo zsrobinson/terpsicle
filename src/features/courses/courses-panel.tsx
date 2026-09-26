@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import {
+  Bell,
   Bookmark,
   BookmarkPlus,
   Ellipsis,
@@ -23,9 +24,12 @@ import type {
   CourseColor,
   PlanCourse,
   Problem,
+  SectionKey,
+  TermId,
 } from "~/core/schema";
 import { parseSectionKey, sectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
+import { useSeatAlert } from "~/features/alerts/seat-alerts";
 import {
   useActiveTerm,
   useCreditsLabel,
@@ -49,7 +53,7 @@ import {
 } from "~/ui/dropdown-menu";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { openCourse, removeCourse, saveCourseForLater } from "./actions";
+import { bookmarkInstead, openCourse, removeCourse } from "./actions";
 import { CourseColorPicker } from "./color-picker";
 import { FirstVisit } from "./first-visit";
 import { mostSevere, problemWords, severityTone } from "./problem-words";
@@ -57,7 +61,7 @@ import { SeatMeter } from "./seat-meter";
 import { sectionLine } from "./section-words";
 
 // The Courses tab (SPEC §3.2): the plan's courses with their sections, seats
-// and problems, then what's saved for later. An empty plan shows the two ways
+// and problems, then what's bookmarked. An empty plan shows the two ways
 // to start instead.
 
 export function CoursesPanel() {
@@ -79,7 +83,7 @@ export function CoursesPanel() {
 
   const { plan, readOnly, colors } = current;
   const placed = plan.courses.filter((c) => c.sectionCode !== null);
-  const saved = plan.courses.filter((c) => c.sectionCode === null);
+  const bookmarked = plan.courses.filter((c) => c.sectionCode === null);
   const count = `${placed.length} ${placed.length === 1 ? "course" : "courses"}`;
   const seats = catalog?.seats?.seats ?? null;
   const index = catalog?.index;
@@ -100,6 +104,7 @@ export function CoursesPanel() {
               <PlacedRow
                 key={entry.courseCode}
                 entry={entry}
+                termId={plan.termId}
                 index={index}
                 seats={seats}
                 color={colors[entry.courseCode] ?? "blue"}
@@ -109,18 +114,18 @@ export function CoursesPanel() {
             ))}
           </ul>
         ) : null}
-        {/* A shared plan can't save anything, so it gets no "save one" hint. */}
-        {saved.length > 0 || (placed.length > 0 && !readOnly) ? (
+        {/* A shared plan can't bookmark anything, so it gets no "bookmark one" hint. */}
+        {bookmarked.length > 0 || (placed.length > 0 && !readOnly) ? (
           <>
             <SectionHeader
               variant="label"
-              title="Saved for later"
-              count={saved.length > 0 ? saved.length : undefined}
+              title="Bookmarked"
+              count={bookmarked.length > 0 ? bookmarked.length : undefined}
             />
-            {saved.length > 0 ? (
-              <ul aria-label="Saved for later" className="pb-3">
-                {saved.map((entry) => (
-                  <SavedRow
+            {bookmarked.length > 0 ? (
+              <ul aria-label="Bookmarked" className="pb-3">
+                {bookmarked.map((entry) => (
+                  <BookmarkRow
                     key={entry.courseCode}
                     courseCode={entry.courseCode}
                     title={index?.courses.get(entry.courseCode)?.title}
@@ -130,8 +135,8 @@ export function CoursesPanel() {
               </ul>
             ) : (
               <EmptyState className="pt-0 text-faint">
-                Courses you're considering but haven't placed show up here. Save
-                one from its details.
+                Courses you're considering but haven't placed show up here.
+                Bookmark one from its details.
               </EmptyState>
             )}
           </>
@@ -163,6 +168,7 @@ function problemsByCourse(
 
 function PlacedRow({
   entry,
+  termId,
   index,
   seats,
   color,
@@ -170,6 +176,7 @@ function PlacedRow({
   readOnly,
 }: {
   entry: PlanCourse;
+  termId: TermId;
   index: CatalogIndex | undefined;
   seats: SeatsMap | null;
   color: CourseColor;
@@ -232,6 +239,7 @@ function PlacedRow({
           <span className="flex items-baseline gap-2">
             <span className="ident font-semibold text-base">{courseCode}</span>
             <span className="ident text-muted text-sm">{sectionCode}</span>
+            <WatchingMark termId={termId} sectionKey={key} />
             {problems ? (
               <span className="sr-only">
                 {`${problems.length} ${problems.length === 1 ? "problem" : "problems"}`}
@@ -280,7 +288,28 @@ function PlacedRow({
   );
 }
 
-function SavedRow({
+/** A filled bell beside the section code while its seat watch is on. */
+function WatchingMark({
+  termId,
+  sectionKey: key,
+}: {
+  termId: TermId;
+  sectionKey: SectionKey;
+}) {
+  const alert = useSeatAlert(termId, key);
+  if (alert.kind !== "watching") return null;
+  return (
+    <span
+      className="flex items-center gap-1 self-center text-muted text-xs"
+      data-testid={`watching-${key}`}
+    >
+      <Bell size={11} fill="currentColor" aria-hidden />
+      Watching
+    </span>
+  );
+}
+
+function BookmarkRow({
   courseCode,
   title,
   readOnly,
@@ -294,7 +323,12 @@ function SavedRow({
       density="compact"
       className="group hover:bg-hover has-[button[data-state=open]]:bg-hover"
       lead={
-        <Bookmark size={12} className="mx-px shrink-0 text-muted" aria-hidden />
+        <Bookmark
+          size={12}
+          fill="currentColor"
+          className="mx-px shrink-0 text-muted"
+          aria-hidden
+        />
       }
       trail={
         readOnly ? undefined : (
@@ -346,11 +380,11 @@ function menuActions(courseCode: CourseCode, placed: boolean): MenuAction[] {
     ...(placed
       ? [
           {
-            key: "save",
-            label: "Save for later",
+            key: "bookmark",
+            label: "Bookmark instead",
             icon: BookmarkPlus,
             run: () => {
-              saveCourseForLater(courseCode, "menu");
+              bookmarkInstead(courseCode, "menu");
             },
           },
         ]

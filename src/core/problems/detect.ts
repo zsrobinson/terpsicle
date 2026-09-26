@@ -292,8 +292,8 @@ function sectionProblems(ref: SectionRef, seats: SeatsMap | null): Detected[] {
   const counts = seatCounts(seats, key);
   const level = seatLevel(counts);
   if (counts && level === "full")
-    out.push(
-      make(
+    out.push({
+      ...make(
         "full",
         subjects,
         [section(key), text(" is full")],
@@ -309,7 +309,10 @@ function sectionProblems(ref: SectionRef, seats: SeatsMap | null): Detected[] {
         code,
         [code],
       ),
-    );
+      // A full section is still a choice (seats open up): the remedy is to
+      // watch it, not to switch away (SPEC §3.6).
+      presetFix: { kind: "watch", sectionKey: key, label: "Watch for a seat" },
+    });
   else if (counts && level === "low")
     out.push(
       make(

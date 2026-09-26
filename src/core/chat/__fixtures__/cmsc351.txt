@@ -1,8 +1,10 @@
-CMSC351 · everyone  —  4 sections  [202608:CMSC351]
+CMSC351 · everyone  —  4 sections · 2 professors  [202608:CMSC351]
   Everyone in CMSC351 this term
 # Ting Jiang · 2 sections  {CMSC351|Ting Jiang}
-  0101 · MWF 10am  —  IRB 0324  [202608:CMSC351:0101]
-  0201 · MWF 2pm  —  IRB 0324  [202608:CMSC351:0201]
+  Jiang's sections  —  2 sections · 0101 and 0201  [202608:CMSC351:P:ting-jiang]
+    0101 · MWF 10am  —  IRB 0324  [202608:CMSC351:0101]
+    0201 · MWF 2pm  —  IRB 0324  [202608:CMSC351:0201]
 # Clyde Kruskal · 2 sections  {CMSC351|Clyde Kruskal}
-  0301 · MWF 11am  —  CSI 1115  [202608:CMSC351:0301]
-  0401 · MWF 12pm  —  CSI 1115  [202608:CMSC351:0401]
+  Kruskal's sections  —  2 sections · 0301 and 0401  [202608:CMSC351:P:clyde-kruskal]
+    0301 · MWF 11am  —  CSI 1115  [202608:CMSC351:0301]
+    0401 · MWF 12pm  —  CSI 1115  [202608:CMSC351:0401]

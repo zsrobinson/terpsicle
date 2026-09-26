@@ -23,7 +23,7 @@ import { Sections } from "./sections";
 
 // Course details (SPEC §3.4; UX review §3.4, the owner's option A): one page,
 // no tabs. The title, then the facts that could rule the course out, then
-// sections grouped by instructor (rating, GPA and "Reviews" in each group's
+// sections grouped by professor (rating, GPA and "Reviews" in each group's
 // header, where the choice is made), then one course-wide Grades section,
 // a click away from the sticky Sections bar. Opened the one way
 // (`openCourse`), from anywhere.
@@ -151,6 +151,7 @@ function Details({
         termId={termId}
         placedCode={entry?.sectionCode ?? null}
         inPlan={Boolean(entry)}
+        planName={current?.plan.name ?? "your plan"}
         readOnly={readOnly}
         fit={fit}
         seats={seats}

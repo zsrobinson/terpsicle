@@ -7,28 +7,24 @@ import {
   aTimedMeeting,
 } from "~/fixtures";
 import {
-  compactMeetingWords,
   compactTimeRange,
   deliveryWords,
   fitTone,
   fitWords,
   genEdGroupWords,
+  meetingKindWords,
   meetingWords,
   permissionWords,
-  restMeetingWords,
   sectionMeetingWords,
-  shortFitWords,
-  shortSeatWords,
 } from "./words";
 
-const LABELS: readonly [FitLabel, string, string, string][] = [
-  [{ kind: "fits" }, "Fits", "Fits", "ok"],
-  [{ kind: "in-plan" }, "In your plan", "Current", "plain"],
-  [{ kind: "no-set-times" }, "No set times", "No times", "muted"],
+const LABELS: readonly [FitLabel, string, string][] = [
+  [{ kind: "fits" }, "Fits", "ok"],
+  [{ kind: "in-plan" }, "In your plan", "plain"],
+  [{ kind: "no-set-times" }, "No set times", "muted"],
   [
     { kind: "overlaps", with: { kind: "course", courseCode: "ENGL393" } },
     "Overlaps ENGL393",
-    "Overlaps",
     "warn",
   ],
   [
@@ -37,7 +33,6 @@ const LABELS: readonly [FitLabel, string, string, string][] = [
       with: { kind: "block", blockId: "work", label: "Work" },
     },
     "Overlaps Work",
-    "Overlaps",
     "warn",
   ],
   [
@@ -47,31 +42,14 @@ const LABELS: readonly [FitLabel, string, string, string][] = [
       courseCode: "CMSC330",
     },
     "Not enough time after CMSC330",
-    "Too tight",
     "warn",
   ],
 ];
 
 describe("fit labels", () => {
-  it.each(LABELS)("%o reads %s", (label, full, short, tone) => {
+  it.each(LABELS)("%o reads %s", (label, full, tone) => {
     expect(fitWords(label)).toBe(full);
-    expect(shortFitWords(label)).toBe(short);
     expect(fitTone(label)).toBe(tone);
-  });
-});
-
-describe("shortSeatWords", () => {
-  it("says full, how many are left, or how many are open", () => {
-    expect(
-      shortSeatWords({ open: 0, total: 30, waitlist: 9, holdfile: null }),
-    ).toBe("Full");
-    expect(
-      shortSeatWords({ open: 2, total: 30, waitlist: 0, holdfile: null }),
-    ).toBe("2 left");
-    expect(
-      shortSeatWords({ open: 12, total: 36, waitlist: 0, holdfile: null }),
-    ).toBe("12 open");
-    expect(shortSeatWords(null)).toBe("Unknown");
   });
 });
 
@@ -131,39 +109,13 @@ describe("meeting words", () => {
     );
   });
 
-  it("says every meeting's days and times in one-line rows, never +1", () => {
-    expect(compactMeetingWords(aSection().meetings)).toBe("MWF 10–10:50am");
+  it("labels each meeting's kind compactly", () => {
     expect(
-      compactMeetingWords([
-        aTimedMeeting(),
-        aTimedMeeting({ days: ["Th"], kind: "discussion" }),
-      ]),
-    ).toBe("MWF 10–10:50am · Th 10–10:50am");
-    expect(compactMeetingWords([anUntimedMeeting()])).toBe("Online");
-    expect(compactMeetingWords([aTbaMeeting()])).toBe("Times TBA");
-  });
-
-  it("words a row's own meetings under a shared line", () => {
-    const discussion = aTimedMeeting({
-      days: ["F"],
-      start: 540,
-      end: 590,
-      kind: "discussion",
-      building: "CSI",
-      room: "1122",
-    });
-    expect(
-      restMeetingWords([discussion], { underShared: true, compact: false }),
-    ).toBe("F 9–9:50am CSI 1122");
-    expect(
-      restMeetingWords([discussion], { underShared: false, compact: false }),
-    ).toBe("F 9–9:50am CSI 1122 discussion");
-    expect(
-      restMeetingWords([discussion], { underShared: true, compact: true }),
-    ).toBe("F 9–9:50am");
-    expect(restMeetingWords([], { underShared: true, compact: false })).toBe(
-      "No other meetings",
-    );
+      (["lecture", "discussion", "lab", "other"] as const).map(
+        (k) => meetingKindWords(k).short,
+      ),
+    ).toEqual(["Lec", "Dis", "Lab", "Mtg"]);
+    expect(meetingKindWords("discussion").long).toBe("Discussion");
   });
 });
 

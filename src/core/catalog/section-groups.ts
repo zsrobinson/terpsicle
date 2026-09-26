@@ -2,13 +2,11 @@ import type {
   Course,
   CourseCode,
   InstructorName,
-  Meeting,
   Section,
   SectionCode,
 } from "../schema";
-import { sameMeeting } from "./plan-diff";
 
-// How course details and the calendar group a course's sections (SPEC §3.3–3.4).
+// How course details, Chat and the calendar group a course's sections (SPEC §3.3–3.4).
 
 // ---------- time-identical groups (calendar ghosts) ----------
 
@@ -75,28 +73,36 @@ export function capGhosts<T>(
   return { shown: groups.slice(0, cap), overflow: groups.slice(cap) };
 }
 
-// ---------- instructor groups (course details) ----------
+// ---------- instructor groups (course details, Chat) ----------
 
 export type InstructorGroup = {
   /** Instructor names joined with ", "; "" for TBA. Used in collapsed-group keys. */
   readonly name: string;
   /** Empty for TBA. */
   readonly instructors: readonly InstructorName[];
-  /** Section-number order. */
+  /** Sorted by section code. */
   readonly sections: readonly Section[];
 };
 
+/** Section codes in order: "0101" < "0201" < "FC01" (Testudo's own order). */
+export function bySectionCode(a: Section, b: Section): number {
+  return a.code < b.code ? -1 : a.code > b.code ? 1 : 0;
+}
+
 /**
- * Sections grouped by who teaches them. Groups come in the order their first
- * section appears and sections keep section-number order: never re-sorted by
- * name (SPEC §3.4).
+ * Sections grouped by who teaches them: the one level of grouping course
+ * details and Chat have (SPEC §3.4). Sections are sorted by code, and groups
+ * come in the order of their lowest section code: never re-sorted by name.
+ * Section codes already say which sections go together (0301–0305 share a
+ * lecture), so there's no second level. With one group, lists show no
+ * group header (`hasGroupHeaders`).
  */
 export function groupSectionsByInstructor(course: Course): InstructorGroup[] {
   const groups = new Map<
     string,
     { instructors: InstructorName[]; sections: Section[] }
   >();
-  for (const section of course.sections) {
+  for (const section of [...course.sections].sort(bySectionCode)) {
     const name = section.instructors.join(", ");
     const group = groups.get(name);
     if (group) group.sections.push(section);
@@ -109,6 +115,11 @@ export function groupSectionsByInstructor(course: Course): InstructorGroup[] {
   return [...groups].map(([name, g]) => ({ name, ...g }));
 }
 
+/** Group headers only when there's more than one professor (or TBA next to one). */
+export function hasGroupHeaders(groups: readonly InstructorGroup[]): boolean {
+  return groups.length > 1;
+}
+
 /** The `UiPrefs.collapsedGroups` entry for an instructor group. */
 export function collapsedGroupKey(
   courseCode: CourseCode,
@@ -117,12 +128,12 @@ export function collapsedGroupKey(
   return `${courseCode}|${group.name}`;
 }
 
-// ---------- section count (course details, search results) ----------
+// ---------- section count (course details, Chat) ----------
 
 /**
- * How many sections a course has, as the UI treats it (DESIGN §5: design for
- * 1, a few, and many): one reads as "this is the class", a few get full rows,
- * many get one-line rows, "Only fits" and the plan's own section pinned.
+ * How many sections a course has (DESIGN §5: design for 1, a few, and many).
+ * Every course gets the same rows; many adds the plan's own section pinned
+ * on top and Chat's groups starting collapsed.
  */
 export type SectionCountSize = "one" | "few" | "many";
 
@@ -134,87 +145,4 @@ export const ONLY_FITS_FROM = 9;
 export function sectionCountSize(count: number): SectionCountSize {
   if (count <= 1) return "one";
   return count > MANY_SECTIONS ? "many" : "few";
-}
-
-// ---------- shared meetings (course details rows) ----------
-
-/** A section, and the meetings it has beyond its run's shared ones. */
-export type FactoredSection = {
-  readonly section: Section;
-  /** In the section's own order. Empty when it has nothing but the shared meetings. */
-  readonly rest: readonly Meeting[];
-};
-
-/**
- * Sections in a row that share some meetings: "All meet TuTh 9:30–10:45am
- * IRB 0324", then each section's discussion or lab.
- */
-export type MeetingRun = {
-  /** What every section in the run has (in the first section's order); empty when nothing is shared. */
-  readonly shared: readonly Meeting[];
-  readonly sections: readonly FactoredSection[];
-};
-
-const OWN_KINDS: ReadonlySet<Meeting["kind"]> = new Set(["discussion", "lab"]);
-
-/**
- * The section's lecture-like meetings (not discussions or labs) as one key.
- * Sections with the same key share a lecture, so they share a line.
- */
-export function lectureKey(section: Section): string {
-  return section.meetings
-    .filter((m) => !OWN_KINDS.has(m.kind))
-    .map((m) =>
-      [
-        m.kind,
-        m.timed ? `${m.days.join("")}@${m.start}-${m.end}` : "untimed",
-        m.online ? "online" : `${m.building ?? ""} ${m.room ?? ""}`,
-      ].join("|"),
-    )
-    .join(",");
-}
-
-/** Meetings every one of `sections` has, in the first section's order. */
-export function sharedMeetings(sections: readonly Section[]): Meeting[] {
-  const [first, ...others] = sections;
-  if (!first || others.length === 0) return [];
-  return first.meetings.filter((m) =>
-    others.every((s) => s.meetings.some((o) => sameMeeting(m, o))),
-  );
-}
-
-function run(sections: readonly Section[]): MeetingRun {
-  const shared = sharedMeetings(sections);
-  return {
-    shared,
-    sections: sections.map((section) => ({
-      section,
-      rest: section.meetings.filter(
-        (m) => !shared.some((x) => sameMeeting(m, x)),
-      ),
-    })),
-  };
-}
-
-/**
- * A group's sections, factored so each row shows only what differs (UX
- * review §3.4). When every section shares a meeting, that's one run. When
- * they split across lectures (one instructor teaching at 2pm and 3:30pm),
- * each run of sections with the same lecture gets its own shared line.
- * Section order never changes (SPEC §3.4): runs are consecutive, so a
- * lecture that comes back later starts a new run.
- */
-export function factorMeetings(sections: readonly Section[]): MeetingRun[] {
-  if (sections.length === 0) return [];
-  if (sections.length === 1 || sharedMeetings(sections).length > 0)
-    return [run(sections)];
-  const runs: Section[][] = [];
-  for (const section of sections) {
-    const last = runs.at(-1);
-    const head = last?.[0];
-    if (last && head && lectureKey(head) === lectureKey(section))
-      last.push(section);
-    else runs.push([section]);
-  }
-  return runs.map(run);
 }
