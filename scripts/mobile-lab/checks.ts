@@ -133,11 +133,14 @@ export function stepChecks(p: Probe, ctx: StepContext): Check[] {
     detail: string,
   ) => checks.push({ id, ok, severity, detail });
 
+  // A reload drops the recorder and moves timeOrigin; WebKit can report the
+  // same origin a millisecond apart, so that alone isn't one.
+  const sameLoad = p.installed && Math.abs(p.timeOrigin - ctx.timeOrigin) < 5;
   add(
     "no-reload",
-    p.installed && p.timeOrigin === ctx.timeOrigin,
+    sameLoad,
     "fail",
-    p.installed && p.timeOrigin === ctx.timeOrigin
+    sameLoad
       ? "same page load"
       : `the page reloaded or navigated (timeOrigin ${ctx.timeOrigin} → ${p.timeOrigin})`,
   );

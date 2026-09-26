@@ -60,6 +60,9 @@ describe("stepChecks", () => {
 
   it("catches a reload", () => {
     expect(failed(aProbe({ timeOrigin: 2000 }))).toContain("no-reload");
+    expect(failed(aProbe({ installed: false }))).toContain("no-reload");
+    // WebKit's timeOrigin can wobble by a millisecond within one load.
+    expect(failed(aProbe({ timeOrigin: 1001 }))).not.toContain("no-reload");
   });
 
   it("catches a focused field the keyboard or a pan hid", () => {
