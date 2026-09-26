@@ -15,6 +15,7 @@ import type {
   TermStatus,
   Theme,
   TravelMode,
+  Wildcard,
 } from "~/core/schema";
 import { type ClientConfig, clientConfig, type DataSource } from "./config";
 
@@ -59,7 +60,10 @@ export interface AnalyticsEvents {
     reason: "missing" | "network" | "invalid" | "newer-data";
   };
   generate_run: {
+    /** Courses listed by code (a wildcard's matches aren't counted). */
     courses: number;
+    /** Each wildcard's kind, one entry per wildcard item. */
+    wildcards: Wildcard["kind"][];
     /** The must-haves that narrowed the search, by name. */
     mustHaves: Relaxable[];
     rankBy: RankBy["preset"];

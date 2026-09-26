@@ -4,6 +4,7 @@ import type {
   RankBy,
   ScoreBreakdown,
   TravelSettings,
+  WildcardId,
 } from "../schema";
 import { sparseIntersects } from "../time/slots";
 import { itemsOverlap, type MeetingItem } from "../time/week";
@@ -31,12 +32,37 @@ export type VarRole =
   | { readonly kind: "pick"; readonly group: number };
 
 export type SolveVar = {
+  /** The course, or for a wildcard its id ("CMSC4XX"). */
   readonly courseCode: CourseCode;
+  /** Set for a wildcard: its groups span many courses. */
+  readonly wildcard: WildcardId | null;
+  /**
+   * Vars with the same twin key are interchangeable (one wildcard asking
+   * for two courses). The search takes their courses in code order only, so
+   * each plan is found once rather than once per ordering.
+   */
+  readonly twin: string | null;
   readonly groups: readonly SectionGroup[];
   readonly role: VarRole;
-  /** null when the course isn't in the catalog (it can only be skipped). */
+  /**
+   * null when the course isn't in the catalog, or a wildcard matches
+   * nothing: it can only be skipped. A wildcard's is the range across its
+   * courses; each group counts its own course's credits.
+   */
   readonly credits: Credits | null;
 };
+
+/** For each var, the nearest earlier var with the same twin key, or -1. */
+export function twinsBefore(vars: readonly SolveVar[]): Int32Array {
+  const out = new Int32Array(vars.length).fill(-1);
+  const last = new Map<string, number>();
+  vars.forEach((v, k) => {
+    if (v.twin === null) return;
+    out[k] = last.get(v.twin) ?? -1;
+    last.set(v.twin, k);
+  });
+  return out;
+}
 
 export type SolveProgress = { readonly steps: number; readonly found: number };
 
@@ -276,6 +302,12 @@ export function solve(problem: SolveProblem): SolveOutcome {
   for (let i = 0; i < all.length; i++) {
     for (let j = i + 1; j < all.length; j++) {
       if (varOf[i] === varOf[j]) continue;
+      // A course goes in a plan once, whichever wildcards could take it.
+      if (
+        (all[i] as SectionGroup).course.code ===
+        (all[j] as SectionGroup).course.code
+      )
+        continue;
       if (
         !compatible(
           all[i] as SectionGroup,
@@ -297,6 +329,7 @@ export function solve(problem: SolveProblem): SolveOutcome {
   const requiredAfter = vars.map((_, k) =>
     vars.flatMap((v, m) => (m > k && v.role.kind === "required" ? [m] : [])),
   );
+  const twinBefore = twinsBefore(vars);
 
   const top = new TopK(Math.max(1, problem.maxResults));
   const tally = new ScoreTally();
@@ -377,13 +410,18 @@ export function solve(problem: SolveProblem): SolveOutcome {
     const pick = v.role.kind === "pick" ? v.role.group : -1;
     if (pick >= 0) pickLeft[pick] = (pickLeft[pick] ?? 0) - 1;
 
+    // A twin comes after the one before it: included only if that one is,
+    // and with a course later in code order.
+    const twin = twinBefore[depth] as number;
+    const after = twin >= 0 ? choices[twin] : undefined;
     const canInclude =
       v.credits !== null &&
+      after !== null &&
       (pick < 0 ||
         (pickCounts[pick] ?? 0) < (problem.picks[pick]?.count ?? 0)) &&
       (maxCredits === null || creditsLow + v.credits.min <= maxCredits);
     const last = depth === n - 1;
-    if (canInclude && v.credits) {
+    if (canInclude) {
       for (
         let i = lo[depth] as number;
         i < (hi[depth] as number) && !stopped;
@@ -391,6 +429,11 @@ export function solve(problem: SolveProblem): SolveOutcome {
       ) {
         if (!hasBit(bits, i)) continue;
         const g = all[i] as SectionGroup;
+        // Each group counts its own course's credits: a wildcard's differ.
+        const credits = g.course.credits;
+        if (maxCredits !== null && creditsLow + credits.min > maxCredits)
+          continue;
+        if (after && g.course.code <= after.course.code) continue;
         if (last) {
           // The last course: each choice is a finished plan. Scoring it in
           // place skips a call, a bitset and a viability check per plan,
@@ -399,11 +442,11 @@ export function solve(problem: SolveProblem): SolveOutcome {
           if (pick >= 0) pickCounts[pick] = (pickCounts[pick] ?? 0) + 1;
           choices[depth] = g;
           tally.add(g);
-          creditsHigh += v.credits.max;
+          creditsHigh += credits.max;
           included++;
           leaf();
           included--;
-          creditsHigh -= v.credits.max;
+          creditsHigh -= credits.max;
           tally.remove(g);
           choices[depth] = null;
           if (pick >= 0) pickCounts[pick] = (pickCounts[pick] ?? 0) - 1;
@@ -415,15 +458,15 @@ export function solve(problem: SolveProblem): SolveOutcome {
         if (!viable(depth, next)) continue;
         choices[depth] = g;
         tally.add(g);
-        creditsLow += v.credits.min;
-        creditsHigh += v.credits.max;
+        creditsLow += credits.min;
+        creditsHigh += credits.max;
         included++;
         if (pick >= 0) pickCounts[pick] = (pickCounts[pick] ?? 0) + 1;
         visit(depth + 1);
         if (pick >= 0) pickCounts[pick] = (pickCounts[pick] ?? 0) - 1;
         included--;
-        creditsHigh -= v.credits.max;
-        creditsLow -= v.credits.min;
+        creditsHigh -= credits.max;
+        creditsLow -= credits.min;
         tally.remove(g);
         choices[depth] = null;
       }
