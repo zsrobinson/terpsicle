@@ -1,89 +1,36 @@
-import { create } from "zustand";
 import { track } from "~/app/analytics";
 import {
-  type InstallMethod,
-  installMethod,
   installPlatform,
   recordInstallDismissal,
   shouldOfferInstall,
 } from "~/core/pwa";
 import type { InstallTrigger } from "~/core/schema";
 import { takeStashedInstallPrompt } from "./install-capture";
+import { readInstallState, writeInstallState } from "./install-prefs";
+import { wasShownThisSession } from "./install-session";
 import {
-  markShownThisSession,
-  readInstallState,
-  wasShownThisSession,
-  writeInstallState,
-} from "./install-prefs";
+  type BeforeInstallPromptEvent,
+  currentInstallMethod,
+  show,
+  useInstall,
+} from "./install-state";
 
-// The install prompt's state and its public trigger, `requestInstallPrompt`
-// (V2 §3.4). Chromium hands us its install prompt as a `beforeinstallprompt`
-// event, which we keep (so it shows no bar of its own) and replay from our
-// dialog's Install button. iOS has no such event; the dialog shows the
-// Share → Add to Home Screen steps instead.
+// The install prompt's public trigger, `requestInstallPrompt` (V2 §3.4), and
+// the dialog's actions. Chromium hands us its install prompt as a
+// `beforeinstallprompt` event, which we keep (so it shows no bar of its own)
+// and replay from our dialog's Install button. iOS has no such event; the
+// dialog shows the Share → Add to Home Screen steps instead. The state
+// itself: install-state.ts.
 
-/** Chromium's install prompt event (not in TypeScript's DOM types). */
-export interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  readonly userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-/** Why the dialog is open: a key moment, or the "Install app" menu item. */
-export type InstallOpenedFrom = InstallTrigger | "menu";
-
-interface InstallState {
-  /** The browser's install prompt, kept until used (it works once). */
-  deferred: BeforeInstallPromptEvent | null;
-  /** Installed from this tab (`appinstalled`); the tab itself stays a browser tab. */
-  installed: boolean;
-  open: { from: InstallOpenedFrom; method: InstallMethod } | null;
-}
-
-export const useInstall = create<InstallState>(() => ({
-  deferred: null,
-  installed: false,
-  open: null,
-}));
-
-const DISPLAY_MODES = [
-  "standalone",
-  "fullscreen",
-  "minimal-ui",
-  "window-controls-overlay",
-];
-
-/** Running as the installed app (any display mode but a browser tab). */
-export function isStandalone(win: Window = window): boolean {
-  const iosStandalone = (win.navigator as Navigator & { standalone?: boolean })
-    .standalone;
-  return (
-    iosStandalone === true ||
-    DISPLAY_MODES.some(
-      (mode) => win.matchMedia?.(`(display-mode: ${mode})`).matches === true,
-    )
-  );
-}
-
-/** How this browser can install the app right now, or null. */
-export function currentInstallMethod(
-  state: Pick<InstallState, "deferred" | "installed"> = useInstall.getState(),
-  win: Window = window,
-): InstallMethod | null {
-  if (state.installed) return null;
-  return installMethod({
-    userAgent: win.navigator.userAgent,
-    maxTouchPoints: win.navigator.maxTouchPoints ?? 0,
-    standalone: isStandalone(win),
-    canPrompt: state.deferred !== null,
-  });
-}
-
-/** For the "Install app" item: re-renders when the browser offers a prompt. */
-export function useInstallMethod(): InstallMethod | null {
-  const deferred = useInstall((s) => s.deferred);
-  const installed = useInstall((s) => s.installed);
-  return currentInstallMethod({ deferred, installed });
-}
+export {
+  type BeforeInstallPromptEvent,
+  currentInstallMethod,
+  type InstallOpenedFrom,
+  isStandalone,
+  openInstallPrompt,
+  useInstall,
+  useInstallMethod,
+} from "./install-state";
 
 /**
  * Keeps the browser's install prompt for our dialog, including one the head
@@ -109,15 +56,6 @@ export function captureInstallPrompt(win: Window = window): () => void {
     win.removeEventListener("beforeinstallprompt", onPrompt);
     win.removeEventListener("appinstalled", onInstalled);
   };
-}
-
-function show(from: InstallOpenedFrom, method: InstallMethod): void {
-  markShownThisSession();
-  useInstall.setState({ open: { from, method } });
-  track("install_prompt_shown", {
-    trigger: from,
-    platform: installPlatform(method),
-  });
 }
 
 /**
@@ -150,13 +88,6 @@ export function requestInstallPrompt(
   if (!offer || method === null) return false;
   show(trigger, method);
   return true;
-}
-
-/** The "Install app" menu item: opens the dialog whenever installing works. */
-export function openInstallPrompt(): void {
-  const method = currentInstallMethod();
-  if (method === null) return;
-  show("menu", method);
 }
 
 function finish(outcome: "installed" | "dismissed", now: Date): void {

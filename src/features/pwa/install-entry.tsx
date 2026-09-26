@@ -6,7 +6,7 @@ import {
   isStandalone,
   openInstallPrompt,
   useInstallMethod,
-} from "./install-store";
+} from "./install-state";
 
 // "Install app", always available and quiet (V2 §3.4): it opens the same
 // dialog as the key moments, whatever the cooldown. It's in the account menu

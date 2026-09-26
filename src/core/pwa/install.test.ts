@@ -7,17 +7,19 @@ import {
 } from "../schema";
 import { deviceLabel } from "./device-label";
 import {
-  DEFAULT_INSTALL_PROMPT_STATE,
-  INSTALL_BENEFITS,
-  INSTALL_COOLDOWN_DAYS,
   type InstallEnvironment,
   installMethod,
   installPlatform,
   isIosSafari,
+} from "./install";
+import {
+  DEFAULT_INSTALL_PROMPT_STATE,
+  INSTALL_BENEFITS,
+  INSTALL_COOLDOWN_DAYS,
   MAX_INSTALL_DISMISSALS,
   recordInstallDismissal,
   shouldOfferInstall,
-} from "./install";
+} from "./install-policy";
 
 const UA = {
   iphoneSafari:

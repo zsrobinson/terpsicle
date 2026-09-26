@@ -6,12 +6,10 @@ import {
 } from "~/core/schema";
 
 // What this browser remembers about the install prompt (V2 §3.4, DATA.md
-// §5.2): dismissals in localStorage, and "already shown" for this tab in
-// sessionStorage. Storage can be blocked (private modes, cookie settings);
-// then the prompt stays away, since we couldn't remember a "Not now".
-
-/** sessionStorage: set once the prompt has opened in this tab. */
-export const INSTALL_SHOWN_SESSION_KEY = "terpsicle:install-shown";
+// §5.2): dismissals in localStorage ("already shown" for this tab is in
+// install-session.ts). Storage can be blocked (private modes, cookie
+// settings); then the prompt stays away, since we couldn't remember a
+// "Not now".
 
 /** The saved state, the default if nothing (or nothing valid) is saved, or null if storage is blocked. */
 export function readInstallState(): InstallPromptState | null {
@@ -38,22 +36,5 @@ export function writeInstallState(state: InstallPromptState): void {
     );
   } catch {
     // Full or blocked: nothing more to do, and reading fails the same way.
-  }
-}
-
-/** Whether the prompt opened in this tab already; null if storage is blocked. */
-export function wasShownThisSession(): boolean | null {
-  try {
-    return window.sessionStorage.getItem(INSTALL_SHOWN_SESSION_KEY) === "1";
-  } catch {
-    return null;
-  }
-}
-
-export function markShownThisSession(): void {
-  try {
-    window.sessionStorage.setItem(INSTALL_SHOWN_SESSION_KEY, "1");
-  } catch {
-    // Blocked: then wasShownThisSession() is null, which also means "don't show".
   }
 }
