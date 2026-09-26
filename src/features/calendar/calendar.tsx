@@ -64,6 +64,7 @@ import { type CalendarView, useCalendarModel } from "./use-calendar-model";
 // Layout is computed in layout.ts; this file draws it and handles input.
 
 const WEEKDAYS: readonly Day[] = ["M", "Tu", "W", "Th", "F"];
+const EMPTY_WEEK = "Empty week: nothing on the calendar yet";
 
 export function Calendar() {
   const view = useCalendarModel();
@@ -80,8 +81,16 @@ export function Calendar() {
 
   if (!model || !current)
     return (
-      <WeekFrame days={WEEKDAYS} startMinute={8 * 60} endMinute={17 * 60} />
+      <WeekFrame
+        days={WEEKDAYS}
+        startMinute={8 * 60}
+        endMinute={17 * 60}
+        emptyLabel={EMPTY_WEEK}
+      />
     );
+  const empty = model.columns.every(
+    (c) => c.entries.length === 0 && c.ghosts.length === 0,
+  );
 
   const ghostColor = model.ghost?.color ?? null;
 
@@ -91,6 +100,7 @@ export function Calendar() {
       startMinute={model.startMinute}
       endMinute={model.endMinute}
       bottomInset={bottomInset}
+      emptyLabel={empty ? EMPTY_WEEK : undefined}
       top={
         <>
           {view.previewing ? (
