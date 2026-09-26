@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COURSE_COLORS } from "~/core/schema";
 import { readTokens, type Theme } from "./brand/css-tokens";
+import { GLYPH_PAINT, hasKeyline, MARK_IDS } from "./brand/marks";
 
 // The design system as a test (docs/UX-REVIEW.md §2): every UI file uses the
 // type scale, the spacing rhythm and the color tokens, so a panel built next
@@ -162,8 +163,20 @@ const STYLES =
       eager: true,
     }),
   )[0] ?? "";
-const THEMES = readTokens(STYLES);
+// The marketing page keeps its own product tokens (-text, -line, -mis) in its
+// route stylesheet; they're held to the same rules.
+const MARKETING =
+  Object.values(
+    import.meta.glob<string>("/src/features/marketing/marketing.css", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    }),
+  )[0] ?? "";
+const THEMES = readTokens(`${STYLES}\n${MARKETING}`);
 const MODES: Theme[] = ["light", "dark"];
+/** The five products, in color order. */
+const PRODUCTS = MARK_IDS.filter((id) => id !== "umbrella");
 
 function hex(value: string | undefined): [number, number, number] {
   const m = /^#([0-9a-f]{6})$/i.exec(value ?? "");
@@ -280,21 +293,79 @@ describe("the palette", () => {
   });
 
   it("keeps the marks' glyphs readable on their tiles, and the menu's text on product fills", () => {
-    const products = ["schedule", "reviews", "chat"];
     expect(
       lowContrast(
         [
           ["umbrella-glyph", "umbrella-tile"],
-          ...products.map((p): [string, string] => [
+          ...PRODUCTS.map((p): [string, string] => [
             `product-${p}-fg`,
             `product-${p}`,
           ]),
-          ...products.flatMap((p): [string, string][] => [
+          ...PRODUCTS.flatMap((p): [string, string][] => [
             ["fg", `product-${p}-soft`],
             ["muted", `product-${p}-soft`],
           ]),
         ],
         4.5,
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps a mark's 70% shape at 3:1 on its tile", () => {
+    const low = MODES.flatMap((mode) => {
+      const t = THEMES[mode];
+      return PRODUCTS.flatMap((p) => {
+        const tile = t[`product-${p}`] ?? "";
+        const ratio = contrast(
+          over(t[`product-${p}-fg`] ?? "", 0.7, tile),
+          tile,
+        );
+        return ratio < 3 ? [`${mode} ${p} ${ratio.toFixed(2)}`] : [];
+      });
+    });
+    expect(low).toEqual([]);
+  });
+
+  it("paints each glyph as marks.ts says: paper, or ink on Todo's yellow", () => {
+    for (const mode of MODES) {
+      const t = THEMES[mode];
+      for (const p of PRODUCTS) {
+        const paint = GLYPH_PAINT[p] === "ink" ? "#100f0f" : "#fffcf0";
+        expect(t[`product-${p}-fg`]?.toLowerCase(), `${mode} ${p}`).toBe(paint);
+      }
+    }
+  });
+
+  it("gives a tile that doesn't stand off paper a keyline, in light", () => {
+    // In dark, every tile sits on the base-700 offset, which carries its edge.
+    const t = THEMES.light;
+    for (const p of PRODUCTS) {
+      const edge = contrast(t[`product-${p}`] ?? "", t.bg ?? "");
+      if (edge >= 3) continue;
+      expect(hasKeyline(p, "light"), `${p} tile ${edge.toFixed(2)}`).toBe(true);
+      expect(
+        contrast(t[`product-${p}-keyline`] ?? "", t.bg ?? ""),
+      ).toBeGreaterThanOrEqual(3);
+    }
+    // Todo's is the one: its keyline is light-only (DESIGN.md §7.5).
+    expect(hasKeyline("todo", "light")).toBe(true);
+    expect(hasKeyline("todo", "dark")).toBe(false);
+  });
+
+  it("keeps product-colored words readable, and the marketing lines visible", () => {
+    expect(
+      lowContrast(
+        PRODUCTS.flatMap((p): [string, string][] => [
+          [`product-${p}-text`, "bg"],
+          [`product-${p}-text`, `product-${p}-soft`],
+        ]),
+        4.5,
+      ),
+    ).toEqual([]);
+    expect(
+      lowContrast(
+        PRODUCTS.map((p): [string, string] => [`product-${p}-line`, "bg"]),
+        3,
       ),
     ).toEqual([]);
   });
