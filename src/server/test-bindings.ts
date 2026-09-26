@@ -5,10 +5,15 @@ import { env } from "cloudflare:workers";
 
 interface TestBindings {
   TEST_CRONS: string[];
+  TEST_VAR_NAMES: { production: string[]; previews: string[] };
   TEST_MIGRATIONS: D1Migration[];
 }
 
 export function testBindings() {
   const bindings = env as unknown as TestBindings;
-  return { crons: bindings.TEST_CRONS, migrations: bindings.TEST_MIGRATIONS };
+  return {
+    crons: bindings.TEST_CRONS,
+    migrations: bindings.TEST_MIGRATIONS,
+    varNames: bindings.TEST_VAR_NAMES,
+  };
 }

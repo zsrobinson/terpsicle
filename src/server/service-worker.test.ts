@@ -100,24 +100,28 @@ describe("service worker", () => {
   it("always loads pages from the network while online, so a new deploy shows at once", async () => {
     const sw = setUp();
     sw.fetchWith(async () => html("deploy 1"));
-    expect(await (await sw.request("/", { navigate: true }))?.text()).toBe(
-      "deploy 1",
-    );
+    expect(
+      await (await sw.request("/schedule", { navigate: true }))?.text(),
+    ).toBe("deploy 1");
     sw.fetchWith(async () => html("deploy 2"));
     expect(
-      await (await sw.request("/?plan=abc", { navigate: true }))?.text(),
+      await (
+        await sw.request("/schedule?plan=abc", { navigate: true })
+      )?.text(),
     ).toBe("deploy 2");
   });
 
   it("serves the last copy of the page when offline", async () => {
     const sw = setUp();
     sw.fetchWith(async () => html("the app"));
-    await sw.request("/", { navigate: true });
+    await sw.request("/schedule", { navigate: true });
     sw.fetchWith(offline);
     expect(
-      await (await sw.request("/?plan=abc", { navigate: true }))?.text(),
+      await (
+        await sw.request("/schedule?plan=abc", { navigate: true })
+      )?.text(),
     ).toBe("the app");
-    // A page never loaded online falls back to the home page's copy.
+    // A page never loaded online falls back to the scheduler's copy.
     expect(
       await (await sw.request("/alerts/confirm", { navigate: true }))?.text(),
     ).toBe("the app");

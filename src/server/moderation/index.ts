@@ -1,9 +1,5 @@
 // What Reviews and Chat use. docs/MODERATION.md is the guide.
-export {
-  type AdminGuard,
-  type AdminIdentity,
-  denyAllAdmins,
-} from "./admin";
+export { listQueue, resolveQueueItem, undoQueueItem } from "./admin";
 export {
   DEFAULT_MODERATION_CONFIG,
   type ModerationConfig,

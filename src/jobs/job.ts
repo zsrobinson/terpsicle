@@ -17,6 +17,7 @@ export type JobName =
   | "catalog"
   | "planetterp"
   | "calendar-buildings"
+  | "daily"
   | "moderation";
 
 /** What a job reports: counts for telemetry, and errors it recovered from. */

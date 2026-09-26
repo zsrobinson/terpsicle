@@ -4,7 +4,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
 ## What's tracked
 
-- **Pageviews**, including in-app navigation (`capture_pageview: "history_change"`).
+- **Pageviews**, including in-app navigation (`capture_pageview: "history_change"`), with the real path (`/schedule`, …). PostHog loads with the scheduler at `/schedule` (`app_loaded` there too); the marketing page at `/`, `/privacy` and the coming-soon pages don't load it, so they stay light and aren't counted until they do.
 - **Autocapture**: clicks and form submissions on interactive elements, with element text. Input values are never captured.
 - **Named events** from `track()` in `src/app/analytics.ts`. Every event and its properties is declared in the `AnalyticsEvents` interface there:
 
@@ -53,6 +53,12 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
   | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
 
+  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. |
+  | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
+  | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
+  | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option gets used (always `false` until plan sync). |
+  | `account_deletion_requested` | | How often people delete their account. |
+
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
 - **Session recordings**, when enabled in the PostHog project. They're recorded with every input masked (`maskAllInputs`) and the text of any element marked `data-private` masked.
@@ -70,8 +76,9 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `alert_confirmed` | `termId` | How many signups confirm. |
   | `alert_sent` | `termId`, `count` | Alert volume per seats run. |
   | `alert_unsubscribed` | `termId` | Whether alerts are wanted. |
+  | `signin_result` | `outcome` (`signed-in`, a `SignInError` code, or `sub-conflict`), `hd` (the domain only, on success) | Server-side truth for sign-in success and failure, including failures the browser never reports, and the TERPmail versus UMD Gmail split. |
 
-  Seat-alert events never carry an address, token or IP, not even hashed: a count per term is all we need.
+  Seat-alert events never carry an address, token or IP, not even hashed: a count per term is all we need. Identity events carry no user id, directory ID, name, email or `sub`: the domain is the most specific thing they say.
 
 ## Privacy
 

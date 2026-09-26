@@ -40,22 +40,36 @@ export function ThemeToggle({ side }: { side: "right" | "bottom" }) {
         </DropdownMenuTrigger>
       </WithTooltip>
       <DropdownMenuContent side={side} align="end" className="min-w-[150px]">
-        <DropdownMenuLabel>Theme</DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={theme}
-          onValueChange={(value) => {
-            const parsed = ThemeSchema.safeParse(value);
-            if (parsed.success) setTheme(parsed.data);
-          }}
-        >
-          {OPTIONS.map(({ theme: t, label, icon: OptionIcon }) => (
-            <DropdownMenuRadioItem key={t} value={t}>
-              <OptionIcon className="text-muted" aria-hidden="true" />
-              {label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+        <ThemeMenuItems />
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * The theme choices, for any dropdown menu. On phones with sign-in on, they
+ * live in the account menu instead of their own button, so the top bar
+ * keeps room for the plan's name.
+ */
+export function ThemeMenuItems() {
+  const theme = useUi((s) => s.theme);
+  return (
+    <>
+      <DropdownMenuLabel>Theme</DropdownMenuLabel>
+      <DropdownMenuRadioGroup
+        value={theme}
+        onValueChange={(value) => {
+          const parsed = ThemeSchema.safeParse(value);
+          if (parsed.success) setTheme(parsed.data);
+        }}
+      >
+        {OPTIONS.map(({ theme: t, label, icon: OptionIcon }) => (
+          <DropdownMenuRadioItem key={t} value={t}>
+            <OptionIcon className="text-muted" aria-hidden="true" />
+            {label}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </>
   );
 }

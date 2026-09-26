@@ -10,7 +10,7 @@ import { newLocalId, nowIso } from "./ids";
 import { useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";
 
-// The shared-link view (SPEC §3.11): a plan from `/?plan=…`, shown read-only
+// The shared-link view (SPEC §3.11): a plan from `/schedule?plan=…`, shown read-only
 // in place of the person's own plan tabs. Nothing of theirs changes until
 // "Save a copy". The codec is core's (`~/core/share`).
 

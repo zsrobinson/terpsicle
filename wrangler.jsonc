@@ -26,7 +26,12 @@
     { "pattern": "www.terpsicle.com", "custom_domain": true }
   ],
 
-  "r2_buckets": [{ "binding": "DATA", "bucket_name": "terpsicle-data" }],
+  "r2_buckets": [
+    { "binding": "DATA", "bucket_name": "terpsicle-data" },
+    // Cached Google profile pictures (docs/AUTH.md, "Pictures"), served at
+    // /avatars/* with a session only, never through /data.
+    { "binding": "USER_CONTENT", "bucket_name": "terpsicle-user-content" }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -45,6 +50,16 @@
     "SEAT_ALERTS_ENABLED": "true",
     // Review summaries generated per UTC day, at most (Workers AI cost).
     "SUMMARIES_DAILY_CAP": "200",
+    // Sign in with Google (docs/AUTH.md). It's on only with all of these
+    // plus the secrets GOOGLE_CLIENT_SECRET and AUTH_SECRET; until then the
+    // app hides sign-in and the start lands on /signin?error=unavailable.
+    // "false" is the off switch. Admins are config/admins.txt, not a var.
+    "SIGN_IN_ENABLED": "true",
+    // The OAuth client's id (public).
+    "GOOGLE_CLIENT_ID": "",
+    // Where Google may send people back: <origin>/api/auth/google/callback
+    // must be a registered redirect URI for each one.
+    "GOOGLE_REDIRECT_ORIGINS": "https://terpsicle.com",
     // Moderation model calls per UTC day, at most (Workers AI cost). Past it,
     // new reviews and chat messages wait for the owner (docs/MODERATION.md).
     "MODERATION_DAILY_CAP": "2000"
@@ -59,7 +74,8 @@
       "*/5 * * * *", // seats
       "0 */6 * * *", // catalog
       "17 5 * * *", // planetterp
-      "23 6 * * 1" // calendar + buildings
+      "23 6 * * 1", // calendar + buildings
+      "7 13 * * *" // daily: account purge, expired sessions
       // Routes run from GitHub Actions (.github/workflows/routes.yml): a
       // Worker can't fetch UMD's routing token (maps.umd.edu answers 526).
     ]
@@ -69,8 +85,22 @@
   // the production data bucket, which is only ever written by crons, and get
   // their own D1 database so preview code can't touch real subscriptions.
   // No send_email binding: previews must never email real people.
+  // Previews don't inherit vars. They sign in with test mode, never Google
+  // (Google allows no wildcard redirect URIs, and a real identity must never
+  // reach unreviewed PR code): /auth/test lists the TEST_USERS fixtures,
+  // and tadmin is the admin. The Worker refuses test mode on terpsicle.com
+  // whatever the vars say (docs/AUTH.md, "Test mode").
   "previews": {
-    "r2_buckets": [{ "binding": "DATA", "bucket_name": "terpsicle-data" }],
+    "vars": {
+      "AUTH_TEST_MODE": "true"
+    },
+    "r2_buckets": [
+      { "binding": "DATA", "bucket_name": "terpsicle-data" },
+      {
+        "binding": "USER_CONTENT",
+        "bucket_name": "terpsicle-user-content-preview"
+      }
+    ],
     "d1_databases": [
       {
         "binding": "DB",

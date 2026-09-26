@@ -165,15 +165,13 @@ export type Email = z.infer<typeof EmailSchema>;
 
 /**
  * A UMD directory ID: the local part of a verified TerpMail or umd.edu
- * address, lowercased ("zsrobins"). Accounts are keyed on it, not on Google's
- * `sub` alone.
+ * address, lowercased ("zsrobins"), and `users.id`. Accounts are keyed on
+ * it, not on Google's `sub` alone. 2–16 letters and digits (V2.md §4.2),
+ * which also rules out `first.last` aliases and `+tags`.
  */
 export const DirectoryIdSchema = z
   .string()
-  .regex(
-    /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/,
-    "Expected a directory ID like zsrobins",
-  );
+  .regex(/^[a-z0-9]{2,16}$/, "Expected a directory ID like zsrobins");
 export type DirectoryId = z.infer<typeof DirectoryIdSchema>;
 
 /** A local id we mint (plans, blocks): 8–64 URL-safe chars. */

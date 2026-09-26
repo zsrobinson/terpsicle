@@ -43,6 +43,10 @@ export const ApiErrorSchema = z.object({
     "unavailable",
     "not-found",
     "method-not-allowed",
+    /** No session, or it expired: sign in again. */
+    "unauthorized",
+    /** Signed in, but not allowed (an admin-only route). */
+    "forbidden",
   ]),
   /** Set with "rate-limited". */
   retryAfterSeconds: z.number().int().min(1).optional(),

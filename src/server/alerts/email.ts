@@ -2,6 +2,8 @@
 // client (tables, inline styles, no images). Pure, so the test-send script
 // renders exactly what the Worker sends.
 
+import { SCHEDULE_PATH } from "~/core/routing";
+
 export const ALERTS_FROM = {
   email: "alerts@terpsicle.com",
   name: "Terpsicle",
@@ -29,13 +31,13 @@ const escapeHtml = (s: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-/** The app URL that opens this course in this term (the app reads `term` and `course`). */
+/** The scheduler URL that opens this course in this term (it reads `term` and `course`). */
 export function courseUrl(origin: string, ref: SectionRef): string {
   const params = new URLSearchParams({
     term: ref.termId,
     course: ref.courseCode,
   });
-  return `${origin}/?${params}`;
+  return `${origin}${SCHEDULE_PATH}?${params}`;
 }
 
 export const confirmUrl = (origin: string, token: string) =>

@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { problemCountWords } from "~/core/problems";
+import { AccountButton } from "~/features/auth";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCreditsLabel,
@@ -12,12 +13,12 @@ import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
 import { TONE_FILL } from "./emphasis";
-import { Logo } from "./logo";
+import { ProductMenu } from "./product-menu";
 import { tabById } from "./tabs";
 
-// The top bar (SPEC §2): logo / term / plans on the left, credits and the
-// problem count on the right. The middle (tabs or the shared pill) comes
-// from the shell.
+// The top bar (SPEC §2): logo / term / plans on the left; credits, the
+// problem count and the account button (docs/AUTH.md) on the right. The
+// middle (tabs or the shared pill) comes from the shell.
 
 export function TopBar({
   term,
@@ -41,7 +42,7 @@ export function TopBar({
     >
       {/* The page's one h1: panels and the calendar sit under it as h2s. */}
       <h1 className="flex shrink-0">
-        <Logo compact={compact} />
+        <ProductMenu compact={compact} />
       </h1>
       {compact ? null : <Slash className="ml-2" />}
       {term}
@@ -56,7 +57,7 @@ export function TopBar({
         <OfflineNote compact={compact} />
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
-        {end}
+        <AccountButton compact={compact} themeToggle={end} />
       </div>
     </header>
   );

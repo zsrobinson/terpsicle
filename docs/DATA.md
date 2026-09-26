@@ -227,7 +227,7 @@ Little-endian throughout.
 
 Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 1.
 
-**v2** bumps it to 2: a `syncRows` table (key `[kind+rowId]`: `rev`, the last acknowledged `base`, `dirty`) and a `sync` settings row (`{userId, head}`) for plan sync, and the `seatAlerts` table is dropped because seat watches move to D1 (`docs/V2.md` §5.3, §6.5). Blocks and course colors gain an optional `updatedAt`.
+**v2** bumps it to 2: a `syncDocs` table (key: the doc key, `plan:<id>` or `settings`; `rev`, `dirty`, `inFlight`), the settings doc's `base`, and a `sync` settings row (`{userId, cursor}`) for plan sync, and the `seatAlerts` table is dropped because seat watches move to D1 (`docs/V2.md` §5.3, §6.5). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
 
 | Table | Primary key, indexes | Row schema |
 |---|---|---|
@@ -324,11 +324,17 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | `alerts/lookup` | `ManageInputSchema` `{token}` | `LookupResultSchema` | 60 |
 | `alerts/unsubscribe` | `ManageInputSchema` `{token}` | `UnsubscribeResultSchema` | 60 |
 | `alerts/status` | `StatusInputSchema` `{items: [{subscriptionId, manageToken}]}` (≤ 50) | `StatusResultSchema` | 120 |
-| `admin/moderation/queue` | `QueueListInputSchema` `{status?, limit?}` | `QueueListResultSchema` | 600, admin only |
-| `admin/moderation/resolve` | `ResolveInputSchema` `{id, action, reason}` | `ResolveResultSchema` | 600, admin only |
-| `admin/moderation/undo` | `UndoInputSchema` `{id}` | `ResolveResultSchema` | 600, admin only |
+| `me` | `MeInputSchema` `{}` | `MeResultSchema`: `signed-out` or `signed-in` (with `user`), and `flags` | 600 |
+| `auth/sign-out` | `SignOutInputSchema` `{removeLocal?}` | `{status: "signed-out"}`, and clears the cookies | 30 |
+| `account/delete` (`auth: "user"`) | `AccountDeleteInputSchema` `{}` | `AccountDeleteResultSchema` `{status: "deleting", deleteAfter}` | 30 |
+| `auth/test-sign-in` (test mode only; 404 elsewhere) | `TestSignInInputSchema` `{userId, return?}` | `TestSignInResultSchema` | 60 |
+| `admin/moderation/queue` (`auth: "admin"`) | `QueueListInputSchema` `{status?, limit?}` | `QueueListResultSchema` | 600 |
+| `admin/moderation/resolve` (`auth: "admin"`) | `ResolveInputSchema` `{id, action, reason}` | `ResolveResultSchema` | 600 |
+| `admin/moderation/undo` (`auth: "admin"`) | `UndoInputSchema` `{id}` | `ResolveResultSchema` | 600 |
 
-Admin routes answer `404 not-found` to anyone but the admin. Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `reports` tables in `0004_moderation`, the retry cron, the admin API) is described in `docs/MODERATION.md`.
+**Identity** (§7.6, `docs/AUTH.md`) adds the `auth` field to the route table: `"user"` and `"admin"` routes need a same-origin request (`Origin`, and `Sec-Fetch-Site` when sent) and a session, answer `401 unauthorized` or `403 forbidden` otherwise, and get the session's user in `ctx.session`. `ApiErrorSchema` gains `unauthorized` and `forbidden`. Two GET navigations sit beside the table, `/api/auth/google` and `/api/auth/google/callback`, and one Worker route outside `/api`, `/avatars/*`.
+
+Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `reports` tables in `0004_moderation`, the retry cron, the admin API) is described in `docs/MODERATION.md`.
 
 ### 7.1 Seat alerts (`SPEC.md` §3.12)
 
@@ -368,7 +374,7 @@ Admin routes answer `404 not-found` to anyone but the admin. Moderation (`modera
 - from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`.
 
 **Links in emails:**
-- to the app: `https://terpsicle.com/?term=<id>&course=<code>`. The app should open that course; that's still a UI task;
+- to the app: `https://terpsicle.com/schedule?term=<id>&course=<code>`. The app should open that course; that's still a UI task;
 - to Testudo's page for the course.
 
 API-triggered emails link to the requesting origin only when it's ours (terpsicle.com, this project's preview hosts, localhost), so a forged `Host` can never inject another domain. Cron emails always link to terpsicle.com.
@@ -470,7 +476,8 @@ CREATE TABLE counters (
 
 Server events (`src/server/analytics.ts`, `docs/ANALYTICS.md`):
 - summaries: `summary_generated`, `summary_cached`, `summary_failed`, `summary_capped`;
-- seat alerts: `alert_subscribed`, `alert_confirmed`, `alert_sent`, `alert_unsubscribed`.
+- seat alerts: `alert_subscribed`, `alert_confirmed`, `alert_sent`, `alert_unsubscribed`;
+- identity: `signin_result` (`outcome`, and `hd` on success).
 
 They carry counts, reasons and term ids only. They never carry an address, token, IP or review text, not even hashed.
 
@@ -491,7 +498,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 |---|---|---|
 | `0003_identity` | `users` (key: directory ID; `email`, `hd`, `name`, `picture_url`, `picture_key`, `status`, `delete_after`, `chat_blocked_until`, `reviews_blocked_until`, …), `user_identities` (Google `sub` → user, with that tenant's `email`, so both a TERPmail and a UMD Gmail address are kept), `sessions` (hashed cookie tokens, 30-day sliding) | Accounts (V2.md §4.4) |
 | `0004_moderation` | `moderation_decisions` (text-free log), `moderation_queue` (the human queue; snapshots blanked 30 days after close), `reports` | The shared moderation service (V2.md §9.4) |
-| `0005_sync` | `sync_rows` (`user_id`, `kind`, `row_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `writer`, `pruned_through`) | Plan sync with compare-and-swap (V2.md §5.2) |
+| `0005_sync` | `sync_docs` (`user_id`, `kind`, `doc_id`, `term_id`, `rev`, `body`, `updated_at`), `sync_heads` (`head`, `pruned_through`) | Plan sync: one JSON row per doc, per-doc rev compare-and-swap (V2.md §5.2) |
 | `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
 | `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
@@ -499,11 +506,26 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
+### 7.6 Identity (landed: `migrations/0003_identity.sql`)
+
+How it works, and how to use it from other routes: `docs/AUTH.md`. Rows are validated on read with `UserRowSchema`, `UserIdentityRowSchema` and `SessionRowSchema` (`src/server/auth/store.ts`).
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `users` | `id`: the directory ID (`DirectoryIdSchema`, `^[a-z0-9]{2,16}$`) | `email` and `hd` (the address used last), `name`, `picture_url` (Google's), `picture_key` (our copy in R2), `status` (`active` · `deleting`), `delete_after`, `chat_blocked_until`, `reviews_blocked_until`, `created_at`, `last_sign_in_at` | `terp@terpmail.umd.edu` and `terp@umd.edu` are one row, `terp`. Name, picture and email are overwritten at every sign-in; nothing edits them in Terpsicle. Other tables reference `users (id) ON DELETE CASCADE`. |
+| `user_identities` | `(provider, sub)` | `hd`, `email` (that tenant's address), `user_id`, `created_at` | One per Google account the person has used, so both of a student worker's addresses are kept. A `sub` already tied to another directory ID is refused. |
+| `sessions` | `id_hash`: hex SHA-256 of the cookie's token | `user_id`, `created_at`, `last_seen_at`, `expires_at` | 30 days after the last refresh. A session seen over a day ago gets a new token (`POST /api/me`, and routes with `auth`); the replaced one works for one more minute. |
+
+- **Cookies** (all `__Host-`, `Secure; HttpOnly; SameSite=Lax; Path=/`): `__Host-session` (32 random bytes, 30 days, set only at sign-in), `__Host-oauth` (the signed Google round trip, 10 minutes) and `__Host-hint` (the address last signed in with, for Google's `login_hint`; cleared at sign-out and deletion).
+- **Pictures:** R2 `USER_CONTENT` (`terpsicle-user-content`; previews `terpsicle-user-content-preview`) at `avatars/<userId>/<hash16>.<ext>`, fetched at 96 px when Google's URL changes, JPEG, PNG or WebP under 200 KB. `users.picture_key` is that key and `/<key>` its URL; only signed-in people get it.
+- **Deletion:** `account/delete` sets `status = 'deleting'` and `delete_after` a week out and ends every session; signing in before then sets `active` again. The daily job (`7 13 * * *`, `src/jobs/daily.ts`) deletes the pictures, then the rows, of accounts past `delete_after`, and expired sessions.
+- **Admins** aren't a table: `config/admins.txt`, bundled into the Worker.
+
 ---
 
 ## 8. Share links
 
-`/?plan=<base64url(deflate-raw(UTF-8 JSON))>` (v2: `/schedule?plan=…`, since the scheduler moves to `/schedule`; old links needn't keep working). The link carries a `SharePayloadSchema` payload:
+`/schedule?plan=<base64url(deflate-raw(UTF-8 JSON))>`. The link carries a `SharePayloadSchema` payload:
 - `v: 1`, `termId`, `name?`;
 - `sections`: section keys in course order;
 - `saved?`: saved-for-later course codes;

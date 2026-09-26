@@ -21,8 +21,42 @@ async function get(url: string, init?: RequestInit) {
 
 describe("fetch", () => {
   it("hands everything else to the app", async () => {
-    const response = await get("https://terpsicle.com/?plan=abc");
+    const response = await get("https://terpsicle.com/schedule?plan=abc");
     expect(await response.text()).toBe("app shell");
+  });
+
+  it("sends someone signed in from / straight to the scheduler", async () => {
+    app.fetch.mockClear();
+    const response = await get("https://terpsicle.com/", {
+      headers: { Cookie: "theme=dark; __Host-session=abc" },
+    });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe(
+      "https://terpsicle.com/schedule",
+    );
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(app.fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps the query on the way to the scheduler", async () => {
+    const response = await get("https://terpsicle.com/?utm_source=flyer", {
+      headers: { Cookie: "__Host-session=abc" },
+    });
+    expect(response.headers.get("Location")).toBe(
+      "https://terpsicle.com/schedule?utm_source=flyer",
+    );
+  });
+
+  it("shows / without a session or with ?stay, and never redirects other pages", async () => {
+    expect(await (await get("https://terpsicle.com/")).text()).toBe(
+      "app shell",
+    );
+    const signedIn = { headers: { Cookie: "__Host-session=abc" } };
+    const privacy = await get("https://terpsicle.com/privacy", signedIn);
+    expect(await privacy.text()).toBe("app shell");
+    // `/?stay` is the marketing page for everyone ("About Terpsicle").
+    const stay = await get("https://terpsicle.com/?stay", signedIn);
+    expect(await stay.text()).toBe("app shell");
   });
 
   it("tells browsers to revalidate the app's HTML every time", async () => {

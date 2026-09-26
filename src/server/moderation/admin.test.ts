@@ -1,12 +1,12 @@
 import { env } from "cloudflare:workers";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   type QueueItem,
   QueueListResultSchema,
   ResolveResultSchema,
 } from "~/core/schema";
 import { type ApiEnv, type ApiOptions, handleApi } from "../api/router";
-import type { AdminGuard, ModerationHandler } from "./admin";
+import type { ModerationHandler } from "./handlers";
 import { GUARD_MODEL } from "./models";
 import { moderate } from "./service";
 import { decisionsFor } from "./store";
@@ -21,8 +21,54 @@ const heldAi = {
   ),
 } as unknown as Ai;
 
-const apiEnv: ApiEnv = { ...env, AI: heldAi };
-const owner: AdminGuard = async () => ({ directoryId: "owner" });
+// Identity's test mode (docs/AUTH.md): `tadmin` is an admin, `tstudent` isn't.
+const ORIGIN = "http://localhost:3000";
+const apiEnv: ApiEnv = {
+  ...env,
+  AI: heldAi,
+  SIGN_IN_ENABLED: "true",
+  AUTH_TEST_MODE: "true",
+  AUTH_SECRET: "test-auth-secret-0123456789abcdefghijklmnopq",
+};
+
+type Who = "admin" | "student" | "nobody";
+const cookies = new Map<Who, string>();
+
+function post(path: string, body: unknown, cookie = ""): Request {
+  return new Request(`${ORIGIN}/api/${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: ORIGIN,
+      "Sec-Fetch-Site": "same-origin",
+      Cookie: cookie,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Signs in through the real test-mode route and keeps the session cookie. */
+async function signIn(who: Who, userId: string): Promise<void> {
+  const response = await handleApi(
+    post("auth/test-sign-in", { userId }),
+    apiEnv,
+    { waitUntil: () => undefined },
+    NOW,
+  );
+  expect(response.status).toBe(200);
+  cookies.set(
+    who,
+    response.headers
+      .getSetCookie()
+      .map((line) => line.split(";")[0])
+      .join("; "),
+  );
+}
+
+beforeAll(async () => {
+  await signIn("admin", "tadmin");
+  await signIn("student", "tstudent");
+});
 
 let n = 0;
 async function holdOne(): Promise<string> {
@@ -39,14 +85,11 @@ async function holdOne(): Promise<string> {
 async function call(
   name: string,
   body: unknown,
-  options: ApiOptions = { requireAdmin: owner },
+  options: ApiOptions = {},
+  who: Who = "admin",
 ): Promise<Response> {
   return handleApi(
-    new Request(`https://terpsicle.com/api/admin/moderation/${name}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }),
+    post(`admin/moderation/${name}`, body, cookies.get(who) ?? ""),
     apiEnv,
     { waitUntil: () => undefined },
     NOW,
@@ -66,11 +109,10 @@ async function itemFor(targetId: string): Promise<QueueItem> {
 }
 
 describe("admin moderation API", () => {
-  it("is hidden from everyone but the admin, and from everyone until identity lands", async () => {
-    for (const options of [{}, { requireAdmin: async () => null }]) {
-      const res = await call("queue", {}, options);
-      expect(res.status).toBe(404);
-    }
+  it("answers only the admin: 401 signed out, 403 for anyone else", async () => {
+    expect((await call("queue", {}, {}, "nobody")).status).toBe(401);
+    expect((await call("queue", {}, {}, "student")).status).toBe(403);
+    expect((await call("queue", {}, {}, "admin")).status).toBe(200);
   });
 
   it("lists held items with no author, and counts what's open", async () => {
@@ -96,10 +138,7 @@ describe("admin moderation API", () => {
 
   it("approves and removes with a reason, tells the owning feature, and undoes", async () => {
     const handler = vi.fn<ModerationHandler>(async () => undefined);
-    const options: ApiOptions = {
-      requireAdmin: owner,
-      moderationHandlers: { chat: handler },
-    };
+    const options: ApiOptions = { moderationHandlers: { chat: handler } };
     const approveId = await holdOne();
     const removeId = await holdOne();
     const toApprove = await itemFor(approveId);
@@ -171,7 +210,6 @@ describe("admin moderation API", () => {
     const targetId = await holdOne();
     const item = await itemFor(targetId);
     const failing: ApiOptions = {
-      requireAdmin: owner,
       moderationHandlers: {
         chat: async () => {
           throw new Error("room offline");

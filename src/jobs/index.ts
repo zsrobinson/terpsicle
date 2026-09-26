@@ -1,5 +1,6 @@
 import { runCalendarBuildingsJob } from "./calendar-buildings";
 import { runCatalogJob } from "./catalog";
+import { runDailyJob } from "./daily";
 import type { Job, JobName } from "./job";
 import { runModerationJob } from "./moderation";
 import { runPlanetTerpJob } from "./planetterp";
@@ -14,6 +15,7 @@ export const CRON_JOBS: Readonly<Record<string, { name: JobName; run: Job }>> =
     "0 */6 * * *": { name: "catalog", run: runCatalogJob },
     "17 5 * * *": { name: "planetterp", run: runPlanetTerpJob },
     "23 6 * * 1": { name: "calendar-buildings", run: runCalendarBuildingsJob },
+    "7 13 * * *": { name: "daily", run: runDailyJob },
   };
 
 /**

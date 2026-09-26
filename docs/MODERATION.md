@@ -140,7 +140,7 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
 - `reports` (V2 §9.3): the table only. `reports/create` and the hide-on-reports rule land with Reviews (V2 §15, `v2/reviews-api`).
 - **No table stores an author**, only a surface and ref. The admin view can't show who wrote something, even by accident. Reviews keeps its author in its own table.
 
-**Endpoints** (`POST /api/admin/moderation/*`, 600 per IP per hour). Callers who aren't the admin get `404 not-found`, so the routes don't advertise themselves.
+**Endpoints** (`POST /api/admin/moderation/*`, 600 per IP per hour), all `auth: "admin"` in the route table: a same-origin request with an admin session (`config/admins.txt`, `docs/AUTH.md`), else `401 unauthorized` signed out or `403 forbidden`.
 
 | Endpoint | Input | Result |
 |---|---|---|
@@ -150,7 +150,6 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
 
 - **No confirmation dialogs** (DESIGN §5): approve and remove act at once, and the UI offers **Undo**. Undo reopens the item, held, unless its ref was held again since (an edit), which answers `nothing-to-undo`.
 - These are the routes V2 §10 lists. `v2/admin-shell` builds the panel on them and adds the rest (`admin/decisions`, `admin/health`, `admin/chat/remove`, author actions).
-- **Who is the admin:** `handleApi(…, {requireAdmin})` takes an `AdminGuard`. Until Identity's `requireAdmin` (Google sign-in plus the admin allowlist) is merged, the default `denyAllAdmins` lets nobody in. Wiring it is one line in `src/server/worker.ts`.
 - **Reaching the feature:** each handler in `MODERATION_HANDLERS` gets `(targetId, "publish" | "remove" | "hold")` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
 
 ## 7. Configuration

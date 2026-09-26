@@ -5,15 +5,19 @@
 // rate limits), and keep Worker-only types out of the app's TS program.
 import type { z } from "zod";
 import {
+  AccountDeleteInputSchema,
   ConfirmInputSchema,
   ManageInputSchema,
+  MeInputSchema,
   QueueListInputSchema,
   ResolveInputSchema,
   ReviewSummaryInputSchema,
+  SignOutInputSchema,
   StatusInputSchema,
   type StatusResult,
   SubscribeInputSchema,
   type SubscribeResult,
+  TestSignInInputSchema,
   UndoInputSchema,
 } from "~/core/schema";
 import {
@@ -27,35 +31,35 @@ import {
   unsubscribe,
 } from "../alerts/service";
 import { APEX_HOST } from "../apex";
+import {
+  deleteAccount,
+  type IdentityRouteContext,
+  me,
+  signOut,
+  testSignIn,
+} from "../auth/api";
+import type { AuthEnv } from "../auth/config";
+import { handleFlow, isFlowRoute } from "../auth/flow";
+import { isSameOrigin } from "../auth/guard";
+import { getSession } from "../auth/session";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import {
-  type AdminGuard,
-  denyAllAdmins,
   listQueue,
-  type ModerationHandlers,
   resolveQueueItem,
   undoQueueItem,
 } from "../moderation/admin";
-import { MODERATION_HANDLERS } from "../moderation/handlers";
+import {
+  MODERATION_HANDLERS,
+  type ModerationHandlers,
+} from "../moderation/handlers";
 import type { ModerationEnv } from "../moderation/service";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
 import { apiError, clientIp, json, readInput } from "./http";
 
 export const API_PREFIX = "/api/";
 
-export type ApiEnv = AlertsEnv & SummaryEnv & ModerationEnv;
-
-export interface RouteContext extends AlertsContext {
-  moderationHandlers: ModerationHandlers;
-}
-
-export interface ApiOptions {
-  /** Who may call admin routes. Identity's requireAdmin replaces the stub. */
-  requireAdmin?: AdminGuard;
-  /** How the owner's moderation decisions reach Reviews and Chat. */
-  moderationHandlers?: ModerationHandlers;
-}
+export type ApiEnv = AlertsEnv & SummaryEnv & AuthEnv & ModerationEnv;
 
 interface Route<S extends z.ZodType> {
   input: S;
@@ -69,13 +73,31 @@ interface Route<S extends z.ZodType> {
    * shouldn't cost a D1 write per page view.
    */
   whenOff?: unknown;
-  /** Only the admin may call it; everyone else gets "not-found". */
-  admin?: boolean;
+  /**
+   * Who may call it (V2.md §12). "user" and "admin" need a same-origin
+   * request and a session (401 without, 403 for a non-admin), and the
+   * handler gets `ctx.session`. Omitted means "none".
+   */
+  auth?: "none" | "user" | "admin";
+  /** A plain value is sent as JSON; a Response (to set cookies) as is. */
   handle: (
     env: ApiEnv,
     input: z.infer<S>,
     ctx: RouteContext,
   ) => Promise<unknown>;
+}
+
+export type RouteContext = AlertsContext &
+  IdentityRouteContext & {
+    /** How the owner's moderation decisions reach Reviews and Chat. */
+    moderationHandlers: ModerationHandlers;
+  };
+
+export interface ApiOptions {
+  /** Outbound fetch for Google and pictures; tests mock it. */
+  fetch?: typeof fetch;
+  /** Overrides MODERATION_HANDLERS, for tests. */
+  moderationHandlers?: ModerationHandlers;
 }
 
 const route = <S extends z.ZodType>(r: Route<S>) => r;
@@ -120,18 +142,46 @@ const ROUTES = {
     whenOff: { status: "unavailable" } satisfies StatusResult,
     handle: (env, input) => status(env, input),
   }),
+  // Identity (docs/AUTH.md). The sign-in navigations are GETs, routed below.
+  me: route({
+    input: MeInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    handle: (env, _input, ctx) =>
+      me(env, ctx, { seatAlerts: alertsEnabled(env) }),
+  }),
+  "auth/sign-out": route({
+    input: SignOutInputSchema,
+    perIpPerHour: 30,
+    alerts: false,
+    handle: (env, _input, ctx) => signOut(env, ctx),
+  }),
+  "account/delete": route({
+    input: AccountDeleteInputSchema,
+    perIpPerHour: 30,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => deleteAccount(env, ctx),
+  }),
+  "auth/test-sign-in": route({
+    input: TestSignInInputSchema,
+    perIpPerHour: 60,
+    alerts: false,
+    handle: (env, input, ctx) => testSignIn(env, input, ctx),
+  }),
+  // Moderation's admin side (docs/MODERATION.md §6).
   "admin/moderation/queue": route({
     input: QueueListInputSchema,
     perIpPerHour: 600,
     alerts: false,
-    admin: true,
+    auth: "admin",
     handle: (env, input) => listQueue(env.DB, input),
   }),
   "admin/moderation/resolve": route({
     input: ResolveInputSchema,
     perIpPerHour: 600,
     alerts: false,
-    admin: true,
+    auth: "admin",
     handle: (env, input, ctx) =>
       resolveQueueItem(env.DB, input, {
         now: ctx.now,
@@ -142,7 +192,7 @@ const ROUTES = {
     input: UndoInputSchema,
     perIpPerHour: 600,
     alerts: false,
-    admin: true,
+    auth: "admin",
     handle: (env, input, ctx) =>
       undoQueueItem(env.DB, input, {
         now: ctx.now,
@@ -174,6 +224,13 @@ export async function handleApi(
 ): Promise<Response> {
   const url = new URL(request.url);
   const name = url.pathname.slice(API_PREFIX.length);
+  // The sign-in navigations: GETs that redirect, not JSON POSTs.
+  if (isFlowRoute(name))
+    return handleFlow(request, env, {
+      now,
+      waitUntil: (p) => ctx.waitUntil(p),
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+    });
   const r: Route<z.ZodType> | undefined = Object.hasOwn(ROUTES, name)
     ? ROUTES[name as keyof typeof ROUTES]
     : undefined;
@@ -196,18 +253,28 @@ export async function handleApi(
       : apiError("rate-limited", retryAfterSeconds);
   }
 
-  // After the rate limit, so guessing at admin routes costs the same as any
-  // other call; "not-found" so they don't advertise themselves.
-  if (r.admin && !(await (options.requireAdmin ?? denyAllAdmins)(request, env)))
-    return apiError("not-found");
-
   const input = await readInput(request, r.input);
   if (input === null) return apiError("invalid-input");
+
+  let session: RouteContext["session"] = null;
+  if (r.auth === "user" || r.auth === "admin") {
+    if (!isSameOrigin(request)) return apiError("forbidden");
+    session = await getSession(request, env, now, { refresh: true });
+    if (!session) return apiError("unauthorized");
+    if (r.auth === "admin" && !session.user.isAdmin)
+      return apiError("forbidden");
+  }
   const result = await r.handle(env, input, {
     now,
     origin: linkOrigin(url),
     waitUntil: (p) => ctx.waitUntil(p),
+    request,
+    session,
+    ...(options.fetch ? { fetch: options.fetch } : {}),
     moderationHandlers: options.moderationHandlers ?? MODERATION_HANDLERS,
   });
-  return json(result);
+  const response = result instanceof Response ? result : json(result);
+  if (session?.setCookie)
+    response.headers.append("Set-Cookie", session.setCookie);
+  return response;
 }

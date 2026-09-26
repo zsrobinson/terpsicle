@@ -1,6 +1,7 @@
 // The owner's side of moderation: list held items, approve or remove them
 // with a reason, and undo (DESIGN §5: undo instead of confirmation dialogs).
-// Items carry no author, so the admin view can't show one.
+// Items carry no author, so the admin view can't show one. The routes are
+// `auth: "admin"` in src/server/api/router.ts (identity's session check).
 import type {
   QueueListInput,
   QueueListResult,
@@ -20,22 +21,6 @@ import {
 } from "./store";
 
 export type { ModerationHandler, ModerationHandlers } from "./handlers";
-
-export interface AdminIdentity {
-  /** The admin's directory ID, for logs. Never stored with a decision. */
-  directoryId: string;
-}
-
-/**
- * Who may use /api/admin/*. Identity's `requireAdmin` (Google sign-in plus
- * the admin allowlist) plugs in here; until it lands, nobody may.
- */
-export type AdminGuard = (
-  request: Request,
-  env: unknown,
-) => Promise<AdminIdentity | null>;
-
-export const denyAllAdmins: AdminGuard = async () => null;
 
 export interface AdminDeps {
   now: Date;

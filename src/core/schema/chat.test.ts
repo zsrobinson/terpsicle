@@ -67,10 +67,21 @@ describe("room ids", () => {
 });
 
 describe("DirectoryIdSchema", () => {
-  it("takes a lowercase email local part", () => {
-    for (const ok of ["zsrobins", "jdoe12", "first.last", "a"])
+  // V2.md §4.2: the local part matches ^[a-z0-9]{2,16}$.
+  it("takes a lowercase email local part of 2–16 letters and digits", () => {
+    for (const ok of ["zsrobins", "jdoe12", "ab", "a234567890123456"])
       expect(DirectoryIdSchema.safeParse(ok).success, ok).toBe(true);
-    for (const bad of ["ZSROBINS", "z s", "a@b", ".dot", "dash-", ""])
+    for (const bad of [
+      "ZSROBINS",
+      "z s",
+      "a@b",
+      ".dot",
+      "dash-",
+      "first.last",
+      "a",
+      "a2345678901234567",
+      "",
+    ])
       expect(DirectoryIdSchema.safeParse(bad).success, bad).toBe(false);
   });
 });
