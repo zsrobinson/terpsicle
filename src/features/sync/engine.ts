@@ -591,8 +591,16 @@ export class SyncEngine {
     );
   }
 
-  /** Shows a change from the account, except where this tab has unsaved edits. */
-  private show(change: RemoteChange, keys: readonly DocKey[]): void {
+  /**
+   * Shows a change from the account, except where this tab has unsaved
+   * edits. `arrived` is what a pull or the first sign-in wrote to storage:
+   * the account's plans came in `docs`, and `after` is storage now.
+   */
+  private show(
+    change: RemoteChange,
+    keys: readonly DocKey[],
+    arrived?: { docs: readonly SyncDoc[]; after: SyncSnapshot },
+  ): void {
     const plans = (change.plans ?? []).filter(
       ([id]) => !this.pending.has(planDocKey(id)),
     );
@@ -600,9 +608,27 @@ export class SyncEngine {
       change.settings && !this.pending.has(SETTINGS_DOC_KEY)
         ? change.settings
         : undefined;
-    if (plans.length === 0 && !settings) return;
-    this.o.apply({ plans, ...(settings ? { settings } : {}) });
-    this.o.changed?.(keys);
+    const terms = new Set(
+      (arrived?.docs ?? []).flatMap((d) =>
+        d.kind === "plan" && d.body ? [d.body.termId] : [],
+      ),
+    );
+    if (plans.length === 0 && !settings && terms.size === 0) return;
+    // The store can hold a plan storage hasn't seen: the app made it (its
+    // default "Plan A") while this step ran, and its write is still queued.
+    const known = [
+      ...(arrived?.after.tables.plans.map((p) => p.id) ?? []),
+      ...[...this.pending.keys()].flatMap((key) => {
+        const parsed = parseDocKey(key);
+        return parsed.kind === "plan" ? [parsed.id] : [];
+      }),
+    ];
+    this.o.apply({
+      plans,
+      ...(settings ? { settings } : {}),
+      ...(terms.size > 0 ? { arrived: { terms: [...terms], known } } : {}),
+    });
+    if (plans.length > 0 || settings) this.o.changed?.(keys);
   }
 
   private async pull(from: number): Promise<void> {
@@ -618,7 +644,7 @@ export class SyncEngine {
         applyPulled(s, page.docs, page.cursor, pending),
       );
       const { change, keys } = changeBetween(before.tables, after.tables);
-      this.show(change, keys);
+      this.show(change, keys, { docs: page.docs, after });
       since = page.cursor;
       if (!page.more) return;
     }
@@ -727,7 +753,7 @@ export class SyncEngine {
       };
     });
     const { change, keys } = changeBetween(before.tables, after.tables);
-    this.show(change, keys);
+    this.show(change, keys, { docs: server, after });
     if (notice) this.o.notify(notice);
   }
 }
