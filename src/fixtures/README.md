@@ -13,6 +13,7 @@ One-off objects for tests. Each returns a schema-valid value with defaults taken
 | Plans | `aPlanCourse`, `aSavedCourse`, `aPlan`, `aBlock`, `aSharePayload` |
 | Plan sync | `aSettingsDoc`, `aPlanSyncDoc` (a tombstone with `body: null`), `aSettingsSyncDoc` |
 | PlanetTerp | `anInstructor`, `someGrades` (by letter), `gradeCountsFrom`, `aGradeRecord`, `someCourseGrades`, `aPlanetTerpDept`, `aReviewSummary` |
+| Terpsicle reviews | `aReviewsDept`, `aReviewsManifest` |
 | Geo and travel | `aBuilding`, `aBuildingsFile`, `aRouteGeometry`, `aConnection` |
 | Calendar | `aPublishedCalendar`, `anUnpublishedCalendar` |
 | Computed | `aGenerateRequest`, `aProblem` |
@@ -34,6 +35,7 @@ Don't hand-roll these objects in tests (CLAUDE.md).
 - **Generated:**
   - open seats, seeded by section key, keeping Testudo's real totals and waitlist/holdfile shape; `PINNED_SEATS` fixes the demo's seat states;
   - PlanetTerp ratings and grade distributions (CMSC351's course totals are the real sums);
+  - Terpsicle review numbers (`mock/reviews.ts`) for five PlanetTerp instructors and two minted ones PlanetTerp doesn't know, published as `reviews/` by the job's own `buildReviewsDepts` (no review text);
   - estimated distances for building pairs the recon didn't measure (centroid distance × 1.05, accessible × 1.085).
 - **Changes:** `CMSC320-0301` is cancelled (removed from the catalog) and `AAAS100-0501` moved.
 - **Demo state** (`mock/plans.ts`):

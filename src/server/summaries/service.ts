@@ -1,6 +1,9 @@
 // POST /api/review-summary: a cached summary from R2, or one generated on the
-// first request after an instructor gets new reviews (DATA.md §7.2).
+// first request after an instructor gets new reviews (DATA.md §7.2). It
+// reads PlanetTerp's reviews and our published ones (V2 §7.6).
+import { createdMonth } from "~/core/reviews";
 import {
+  FeatureVarsSchema,
   type Instructor,
   JOBS_PREFIX,
   planetTerpReviewsKey,
@@ -13,10 +16,22 @@ import {
 } from "~/core/schema";
 import { captureServerEvent } from "../analytics";
 import { hit } from "../counters";
+import {
+  DEFAULT_HEDGE_AFTER_MS,
+  DEFAULT_TIMEOUT_MS,
+  GUARD_MODEL,
+  runGuard,
+} from "../moderation/models";
 import { readPlanetTerpDept } from "../planetterp";
+import {
+  getInstructor,
+  publishedForSummary,
+  publishedStats,
+} from "../reviews/store";
 import { fetchPlanetTerpReviews } from "./planetterp-api";
 import {
   buildSummaryMessages,
+  MAX_REVIEWS,
   type ModelSummary,
   type PromptReview,
   parseModelOutput,
@@ -30,6 +45,8 @@ export interface SummaryEnv {
   AI: Ai;
   SUMMARIES_DAILY_CAP?: string;
   POSTHOG_TOKEN?: string;
+  /** Our reviews count toward summaries once Reviews is at least readable. */
+  REVIEWS_ENABLED?: string;
 }
 
 export interface SummaryDeps {
@@ -63,11 +80,71 @@ export async function findInstructor(
   return file?.instructors[slug] ?? null;
 }
 
-/** Fresh when it saw at least as many reviews, and the newest one. */
+/**
+ * Who a summary is about: PlanetTerp's record (if it has one) and our
+ * published reviews, with the combined count and newest review that decide
+ * freshness. Our newest is rounded to its month, as readers see it (V2
+ * §7.5), since a summary's `latestReviewAt` reaches the browser.
+ */
+interface Subject {
+  slug: string;
+  name: string;
+  planetTerp: Instructor | null;
+  terpsicleCount: number;
+  reviewCount: number;
+  latestReviewAt: string | null;
+}
+
+const monthStart = (iso: string) => `${createdMonth(iso)}-01T00:00:00.000Z`;
+const newest = (times: readonly (string | null | undefined)[]) =>
+  times
+    .filter((t): t is string => typeof t === "string")
+    .map((t) => new Date(t).toISOString())
+    .sort()
+    .pop() ?? null;
+
+async function findSubject(
+  env: SummaryEnv,
+  slug: string,
+  course: string,
+): Promise<Subject | "unknown-instructor" | "no-reviews"> {
+  const planetTerp = await findInstructor(env.DATA, slug, course);
+  const ours =
+    FeatureVarsSchema.parse(env).REVIEWS_ENABLED === "off"
+      ? { count: 0, latestPublishedAt: null }
+      : await publishedStats(env.DB, slug);
+  if (!planetTerp && ours.count === 0)
+    return (await getInstructor(env.DB, slug).catch(() => null))
+      ? "no-reviews"
+      : "unknown-instructor";
+  const reviewCount = (planetTerp?.reviewCount ?? 0) + ours.count;
+  if (reviewCount === 0) return "no-reviews";
+  const name =
+    planetTerp?.name ?? (await getInstructor(env.DB, slug))?.name ?? slug;
+  return {
+    slug,
+    name,
+    planetTerp,
+    terpsicleCount: ours.count,
+    reviewCount,
+    latestReviewAt: newest([
+      planetTerp?.latestReviewAt,
+      ours.latestPublishedAt ? monthStart(ours.latestPublishedAt) : null,
+    ]),
+  };
+}
+
+/**
+ * Fresh when it saw at least as many reviews, and the newest one, and
+ * exactly as many of ours: a review of ours taken down makes it stale, so
+ * the summary never keeps describing words readers can no longer see.
+ */
 export function isFresh(
   summary: ReviewSummary,
-  instructor: Instructor,
+  instructor: Pick<Instructor, "reviewCount" | "latestReviewAt">,
+  terpsicleCount = 0,
 ): boolean {
+  if ((summary.sources?.terpsicle ?? 0) !== terpsicleCount) return false;
   if (summary.basedOnReviewCount < instructor.reviewCount) return false;
   if (instructor.latestReviewAt === null) return true;
   return (
@@ -208,9 +285,44 @@ async function reviewsFor(
   return professor.reviews;
 }
 
+/** Our published reviews, newest first, as the prompt takes them. */
+async function terpsicleReviews(
+  env: SummaryEnv,
+  subject: Subject,
+): Promise<PromptReview[]> {
+  if (subject.terpsicleCount === 0) return [];
+  const rows = await publishedForSummary(env.DB, subject.slug, MAX_REVIEWS);
+  return rows.map((r) => ({
+    course: r.course,
+    text: r.body,
+    rating: r.rating,
+    created: r.createdAt,
+  }));
+}
+
+/**
+ * Llama Guard on the summary before it's stored (V2 §7.6), for S5
+ * (defamation) above all: the model restates what reviews say about a real
+ * person. Anything unsafe, and any failure to check, isn't shown.
+ */
+async function guardSummary(
+  ai: Ai,
+  text: string,
+): Promise<"safe" | "unsafe" | "failed"> {
+  const verdict = await runGuard(ai, text, {
+    model: GUARD_MODEL,
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+    hedgeAfterMs: DEFAULT_HEDGE_AFTER_MS,
+    // The daily summary cap already counted this generation.
+    mayAttempt: async () => true,
+  });
+  if (!verdict.ok) return "failed";
+  return verdict.value.safe ? "safe" : "unsafe";
+}
+
 async function generate(
   env: SummaryEnv,
-  instructor: Instructor,
+  subject: Subject,
   deps: SummaryDeps,
 ): Promise<ReviewSummaryResult> {
   const { now } = deps;
@@ -226,47 +338,56 @@ async function generate(
     return unavailable("daily-limit");
   }
 
-  const reviews = await reviewsFor(env.DATA, instructor, deps);
-  if (reviews === null) {
+  const pt = subject.planetTerp;
+  const theirs =
+    pt && pt.reviewCount > 0 ? await reviewsFor(env.DATA, pt, deps) : [];
+  if (theirs === null) {
     track("summary_failed", { reason: "planetterp" });
     return unavailable("failed");
   }
+  const ours = await terpsicleReviews(env, subject);
+  // The newest 40 of both, within the character budget (pickReviews).
+  const reviews = [...theirs, ...ours];
   if (reviews.length === 0) return unavailable("no-reviews");
 
   const started = Date.now();
   const result = await runModel(env.AI, (note) =>
-    buildSummaryMessages(instructor.name, reviews, note),
+    buildSummaryMessages(subject.name, reviews, note),
   );
   if (!result.ok) {
     track("summary_failed", { reason: result.reason });
     return unavailable("failed");
   }
-  const newest = reviews.reduce<string | null>(
-    (max, r) => (max === null || r.created > max ? r.created : max),
-    null,
-  );
+  const planetterp = Math.max(theirs.length, pt?.reviewCount ?? 0);
   const candidate = ReviewSummarySchema.safeParse({
     schemaVersion: 1,
-    slug: instructor.slug,
+    slug: subject.slug,
     summary: result.value.summary,
     themes: result.value.themes,
-    basedOnReviewCount: Math.max(reviews.length, instructor.reviewCount),
-    latestReviewAt:
-      [newest, instructor.latestReviewAt]
-        .filter((t): t is string => t !== null)
-        .map((t) => new Date(t).toISOString())
-        .sort()
-        .pop() ?? null,
+    basedOnReviewCount: planetterp + subject.terpsicleCount,
+    // Ours only by month (see Subject); PlanetTerp's as they are.
+    latestReviewAt: newest([
+      ...theirs.map((r) => r.created),
+      subject.latestReviewAt,
+    ]),
     generatedAt: now.toISOString(),
     model: SUMMARY_MODEL,
+    sources: { planetterp, terpsicle: subject.terpsicleCount },
   });
   if (!candidate.success) {
     track("summary_failed", { reason: "model-output" });
     return unavailable("failed");
   }
+  const guard = await guardSummary(env.AI, candidate.data.summary);
+  if (guard !== "safe") {
+    track("summary_failed", {
+      reason: guard === "unsafe" ? "unsafe" : "guard-error",
+    });
+    return unavailable("failed");
+  }
   try {
     await env.DATA.put(
-      summaryKey(instructor.slug),
+      summaryKey(subject.slug),
       JSON.stringify(candidate.data),
       {
         httpMetadata: { contentType: "application/json; charset=utf-8" },
@@ -290,12 +411,13 @@ export async function getReviewSummary(
   input: ReviewSummaryInput,
   deps: SummaryDeps,
 ): Promise<ReviewSummaryResult> {
-  const instructor = await findInstructor(env.DATA, input.slug, input.course);
-  if (!instructor) return unavailable("unknown-instructor");
-  if (instructor.reviewCount === 0) return unavailable("no-reviews");
+  const subject = await findSubject(env, input.slug, input.course);
+  if (typeof subject === "string") return unavailable(subject);
+  const fresh = (summary: ReviewSummary) =>
+    isFresh(summary, subject, subject.terpsicleCount);
 
   const cached = await readSummary(env.DATA, input.slug);
-  if (cached && isFresh(cached, instructor)) {
+  if (cached && fresh(cached)) {
     const ageDays = Math.floor(
       (deps.now.getTime() - Date.parse(cached.generatedAt)) / 86_400_000,
     );
@@ -313,13 +435,12 @@ export async function getReviewSummary(
       while (Date.now() < deadline) {
         await sleep(deps.pollMs ?? 1_000);
         const landed = await readSummary(env.DATA, input.slug);
-        if (landed && isFresh(landed, instructor))
-          return { status: "ok", summary: landed };
+        if (landed && fresh(landed)) return { status: "ok", summary: landed };
       }
       return unavailable("busy");
     }
     try {
-      return await generate(env, instructor, deps);
+      return await generate(env, subject, deps);
     } finally {
       await env.DATA.delete(lockKey(input.slug));
     }

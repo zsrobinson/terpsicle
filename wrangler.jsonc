@@ -106,6 +106,7 @@
       "0 */6 * * *", // catalog
       "17 5 * * *", // planetterp
       "23 6 * * 1", // calendar + buildings
+      "37 * * * *", // reviews-publish: Terpsicle reviews' numbers to R2
       "7 13 * * *", // daily: account purge, expired sessions, Todo pruning
       "3,23,43 * * * *" // todo feeds
       // Routes run from GitHub Actions (.github/workflows/routes.yml): a

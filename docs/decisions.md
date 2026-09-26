@@ -178,6 +178,11 @@ Revisit if: people don't find reviews from the scheduler.
 PlanetTerp numbers show with credit; storing their review text waits until PlanetTerp agrees.
 Revisit if: PlanetTerp agrees.
 
+### Published review numbers carry a month, never a time or text
+2026-09-26 · agent · one feature
+R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. Summaries count our newest review by month for the same reason, and go stale when our published count changes.
+Revisit if: readers need finer freshness than a month.
+
 ## Chat
 
 ### Real names, pre-made rooms
