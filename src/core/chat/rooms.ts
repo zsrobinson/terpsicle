@@ -1,23 +1,19 @@
 import type { CatalogIndex } from "../catalog/catalog-index";
-import { sameMeeting } from "../catalog/plan-diff";
 import {
+  bySectionCode,
   collapsedGroupKey,
   groupSectionsByInstructor,
-  groupSectionsByTime,
-  type InstructorGroup,
-  lectureKey,
+  hasGroupHeaders,
   type SectionCountSize,
   sectionCountSize,
-  sharedMeetings,
 } from "../catalog/section-groups";
 import {
   type Course,
   type CourseCode,
   courseRoomId,
   type InstructorName,
-  lectureRoomId,
-  type Meeting,
   type Plan,
+  professorRoomId,
   type RoomId,
   type RoomKind,
   type Section,
@@ -30,8 +26,8 @@ import {
   courseRoomDescription,
   dotJoin,
   instructorsWords,
-  lectureRoomDescription,
   placeWords,
+  professorRoomDescription,
   rangeWords,
   sectionCodesWords,
   sectionRoomDescription,
@@ -40,59 +36,53 @@ import {
 
 // Chat's rooms, derived from the catalog (Chat canvas, Structure board). Nobody
 // creates a room and nothing is stored for one until its first message, so a
-// course's chat looks exactly like its section list in course details:
+// course's chat looks exactly like its section list in course details, with
+// one level of grouping (V2.md §8.1):
 // 1. every course has a course room, and with one section that's the only room;
 // 2. with two or more sections, every section gets a room;
-// 3. lecture rooms sit between them only when a lecture is shared by 2+
-//    sections and the course has 2+ lectures (one shared lecture: the course
-//    room is the lecture room);
-// 4. the list groups rooms like course details: by instructor in section
-//    order, or by meeting time when one group would hold every section of a
-//    many-section course.
+// 3. with more than one professor, each named professor gets a room between
+//    the course and their sections. TBA sections sit right under the course.
 
 export type Room = {
   readonly id: RoomId;
   readonly kind: RoomKind;
   readonly termId: TermId;
   readonly courseCode: CourseCode;
-  /** Whose room it is: every section for the course room, the sharing sections for a lecture room, one for a section room. Section order. */
+  /** Whose room it is: every section for the course room, the professor's for a professor room, one for a section room. Section-code order. */
   readonly sectionCodes: readonly SectionCode[];
-  /** The room above it: the course room, or a section's lecture room. null for the course room. */
+  /** The room above it: the course room, or a section's professor room. null for the course room. */
   readonly parent: RoomId | null;
-  /** The part set in mono: the course code, the section code, or null for a lecture room. */
+  /** The part set in mono: the course code, the section code, or null for a professor room. */
   readonly code: string | null;
-  /** The words after the code: "everyone", "TuTh 11am discussion", "Sadeghian · MWF 11am lecture". Empty when the code says it all. */
+  /** The words after the code: "everyone", "MWF 10am and Tu 8am discussion", "Sadeghian's sections". Empty when the code says it all. */
   readonly words: string;
-  /** `code` and `words`, " · " between: "0303 · TuTh 11am discussion". */
+  /** `code` and `words`, " · " between: "0303 · MWF 11am and TuTh 11am discussion". */
   readonly label: string;
-  /** The second line: where it meets, and for a lecture room which sections share it ("IRB 0324 · 0301–0305"). May be empty. */
+  /** The second line: where it meets, or for a professor room how many sections ("IRB 0324, CSI 1121", "10 sections"). May be empty. */
   readonly detail: string;
   /** Who's in it, in a sentence: "People in section 0101 of CMSC131, from their plans". */
   readonly description: string;
 };
 
-/** A row in the room list, and the section rooms indented under it (only under a lecture room). */
+/** A row in the room list, and the section rooms indented under it (only under a professor room). */
 export type RoomNode = {
   readonly room: Room;
   readonly children: readonly Room[];
 };
 
-/** A list heading (not a room), as course details groups sections. */
+/** A list heading (not a room), as course details groups sections: one per professor. */
 export type RoomGroup = {
-  /** Course details' group key: `CMSC131|Pedram Sadeghian`, `ENGL101|time|<signature>`, `ENGL101|time|none`. */
+  /** Course details' group key: `CMSC131|Pedram Sadeghian`, `CMSC131|` for TBA. */
   readonly key: string;
-  readonly by: "instructor" | "time";
-  /** "Pedram Sadeghian", "Instructor TBA", "MWF 10am", "No set times". */
+  /** "Pedram Sadeghian", "Instructor TBA". */
   readonly title: string;
-  /** "2 lectures · 10 sections", "MWF 10am lecture · 4 sections", "6 sections". */
+  /** "10 sections". */
   readonly summary: string;
-  /** The group's instructors; empty for TBA and for time groups. */
+  /** Empty for TBA. */
   readonly instructors: readonly InstructorName[];
-  /**
-   * In section order of each row's first section. A lecture shared across
-   * two groups (rare) is listed in the first; its sections in the other
-   * group are rows of their own, still with the lecture as `parent`.
-   */
+  /** False when the course has one professor: like course details, the list shows no heading. */
+  readonly heading: boolean;
+  /** The professor's room with their sections under it, or (one professor, or TBA) the section rooms themselves. */
   readonly nodes: readonly RoomNode[];
 };
 
@@ -102,9 +92,9 @@ export type RoomTree = {
   /** One, a few or many sections (DESIGN §5). Past `MANY_SECTIONS`, groups start collapsed and yours are pinned. */
   readonly size: SectionCountSize;
   readonly course: Room;
-  /** In section order of each lecture's first section. */
-  readonly lectures: readonly Room[];
-  /** Section order; empty for a one-section course. */
+  /** In group order; empty with one professor. */
+  readonly professors: readonly Room[];
+  /** Section-code order; empty for a one-section course. */
   readonly sections: readonly Room[];
   /** Empty for a one-section course. */
   readonly groups: readonly RoomGroup[];
@@ -113,99 +103,14 @@ export type RoomTree = {
   readonly byId: ReadonlyMap<RoomId, Room>;
 };
 
-const isLectureLike = (m: Meeting) =>
-  m.kind !== "discussion" && m.kind !== "lab";
-
-/**
- * Many sections that would all land in one instructor group group by meeting
- * time instead, like course details (ENGL101: 92 sections, all TBA).
- */
-export function groupsRoomsByTime(
-  course: Course,
-  byInstructor: readonly InstructorGroup[] = groupSectionsByInstructor(course),
-): boolean {
-  return (
-    sectionCountSize(course.sections.length) === "many" &&
-    byInstructor.length === 1
-  );
-}
-
-type Lecture = {
-  readonly room: Room;
-  readonly shared: readonly Meeting[];
-  /** `startWords` of the lecture meetings, with "lecture": "MWF 11am lecture". */
-  readonly when: string;
-};
-
-function lectures(
-  termId: TermId,
-  course: Course,
-  order: readonly SectionCode[],
-): Map<SectionCode, Lecture> {
-  const byKey = new Map<string, Section[]>();
-  for (const section of course.sections) {
-    const key = lectureKey(section);
-    const list = byKey.get(key);
-    if (list) list.push(section);
-    else byKey.set(key, [section]);
-  }
-  const bySection = new Map<SectionCode, Lecture>();
-  // One lecture for the whole course: the course room is the lecture room.
-  if (byKey.size < 2) return bySection;
-  for (const sections of byKey.values()) {
-    const [first] = sections;
-    if (!first || sections.length < 2) continue;
-    const meetings = first.meetings.filter(isLectureLike);
-    // Async online sections share an "untimed online" key, and sections with
-    // only discussions share "": neither is a lecture anyone attends together.
-    if (!meetings.some((m) => m.timed)) continue;
-    const codes = sections.map((s) => s.code);
-    const who = instructorsWords(commonInstructors(sections));
-    const when = `${startWords(meetings, { kinds: false })} lecture`;
-    const room: Room = {
-      id: lectureRoomId(termId, course.code, first.code),
-      kind: "lecture",
-      termId,
-      courseCode: course.code,
-      sectionCodes: codes,
-      parent: courseRoomId(termId, course.code),
-      code: null,
-      words: dotJoin(who, when),
-      label: dotJoin(who, when),
-      detail: dotJoin(placeWords(meetings), sectionCodesWords(codes, order)),
-      description: lectureRoomDescription(
-        course.code,
-        sectionCodesWords(codes, order),
-        who ? `${who}'s ${when}` : `the ${when}`,
-      ),
-    };
-    const lecture = { room, shared: sharedMeetings(sections), when };
-    for (const code of codes) bySection.set(code, lecture);
-  }
-  return bySection;
-}
-
-/** Instructors every one of `sections` lists, in the first section's order. */
-function commonInstructors(sections: readonly Section[]): InstructorName[] {
-  const [first, ...others] = sections;
-  if (!first) return [];
-  return first.instructors.filter((name) =>
-    others.every((s) => s.instructors.includes(name)),
-  );
-}
-
 function sectionRoom(
   termId: TermId,
   course: Course,
   section: Section,
   parent: RoomId,
-  shared: readonly Meeting[],
 ): Room {
-  // Like course details' rows: a meeting the room above already names isn't repeated.
-  const rest = section.meetings.filter(
-    (m) => !shared.some((s) => sameMeeting(m, s)),
-  );
-  const words = startWords(rest);
+  // Every meeting, like course details' rows: nothing above says them.
+  const words = startWords(section.meetings);
   return {
     id: sectionRoomId(termId, course.code, section.code),
     kind: "section",
@@ -216,61 +121,22 @@ function sectionRoom(
     code: section.code,
     words,
     label: dotJoin(section.code, words),
-    detail: placeWords(rest),
+    detail: placeWords(section.meetings),
     description: sectionRoomDescription(course.code, section.code),
   };
-}
-
-function nodesFor(
-  sections: readonly Section[],
-  roomOf: ReadonlyMap<SectionCode, Room>,
-  lectureOf: ReadonlyMap<SectionCode, Lecture>,
-  listed: Set<RoomId>,
-): RoomNode[] {
-  const nodes: { room: Room; children: Room[] }[] = [];
-  const here = new Map<RoomId, Room[]>();
-  for (const section of sections) {
-    const room = roomOf.get(section.code);
-    if (!room) continue;
-    const lecture = lectureOf.get(section.code)?.room;
-    const siblings = lecture ? here.get(lecture.id) : undefined;
-    if (siblings) siblings.push(room);
-    else if (lecture && !listed.has(lecture.id)) {
-      const children = [room];
-      listed.add(lecture.id);
-      here.set(lecture.id, children);
-      nodes.push({ room: lecture, children });
-    } else nodes.push({ room, children: [] });
-  }
-  return nodes;
-}
-
-function groupSummary(
-  nodes: readonly RoomNode[],
-  sectionCount: number,
-  lectureOf: ReadonlyMap<SectionCode, Lecture>,
-): string {
-  const sections = countWords(sectionCount, "section");
-  const lectureNodes = nodes.filter((n) => n.room.kind === "lecture");
-  const [only] = lectureNodes;
-  if (lectureNodes.length > 1)
-    return dotJoin(countWords(lectureNodes.length, "lecture"), sections);
-  if (only && only.children.length === sectionCount) {
-    const code = only.room.sectionCodes[0];
-    const when = code === undefined ? "" : (lectureOf.get(code)?.when ?? "");
-    return dotJoin(when, sections);
-  }
-  return sections;
 }
 
 function build(termId: TermId, course: Course): RoomTree {
   const n = course.sections.length;
   const size = sectionCountSize(n);
-  const order = course.sections.map((s) => s.code);
+  const ordered = [...course.sections].sort(bySectionCode);
+  const order = ordered.map((s) => s.code);
   const courseId = courseRoomId(termId, course.code);
-  const lectureOf = lectures(termId, course, order);
-  const lectureCount = new Set([...lectureOf.values()].map((l) => l.room.id))
-    .size;
+  const groups = groupSectionsByInstructor(course);
+  const headed = hasGroupHeaders(groups);
+  const professorCount = headed
+    ? groups.filter((g) => g.instructors.length > 0).length
+    : 0;
   const one = n <= 1;
   const courseRoom: Room = {
     id: courseId,
@@ -286,7 +152,7 @@ function build(termId: TermId, course: Course): RoomTree {
       ? oneSectionDetail(course.sections[0])
       : dotJoin(
           countWords(n, "section"),
-          lectureCount > 0 ? countWords(lectureCount, "lecture") : "",
+          professorCount > 0 ? countWords(professorCount, "professor") : "",
         ),
     description: courseRoomDescription(course.code, n),
   };
@@ -296,106 +162,71 @@ function build(termId: TermId, course: Course): RoomTree {
       courseCode: course.code,
       size,
       course: courseRoom,
-      lectures: [],
+      professors: [],
       sections: [],
       groups: [],
       rooms: [courseRoom],
       byId: new Map([[courseId, courseRoom]]),
     };
 
-  // With one lecture for every section, that lecture is said in the course room.
-  const courseShared = sharedMeetings(course.sections);
-  const sections = course.sections.map((section) => {
-    const lecture = lectureOf.get(section.code);
-    return lecture
-      ? sectionRoom(termId, course, section, lecture.room.id, lecture.shared)
-      : sectionRoom(termId, course, section, courseId, courseShared);
-  });
-  const roomOf = new Map(sections.map((r, i) => [order[i] ?? "", r]));
-
-  const listed = new Set<RoomId>();
-  const group = (
-    g: Omit<RoomGroup, "nodes" | "summary">,
-    members: readonly Section[],
-  ): RoomGroup => {
-    const nodes = nodesFor(members, roomOf, lectureOf, listed);
-    return {
-      ...g,
-      summary: groupSummary(nodes, members.length, lectureOf),
-      nodes,
-    };
-  };
-
-  const byInstructor = groupSectionsByInstructor(course);
-  const groups: RoomGroup[] = [];
-  if (groupsRoomsByTime(course, byInstructor)) {
-    for (const t of groupSectionsByTime(course)) {
-      const first = t.sections[0];
-      groups.push(
-        group(
-          {
-            key: `${course.code}|time|${t.signature}`,
-            by: "time",
-            title: first
-              ? startWords(
-                  first.meetings.filter((m) => m.timed),
-                  {
-                    kinds: false,
-                  },
-                )
-              : "",
-            instructors: [],
-          },
-          t.sections,
-        ),
-      );
-    }
-    const untimed = course.sections.filter(
-      (s) => !s.meetings.some((m) => m.timed),
+  const professors: Room[] = [];
+  const roomGroups: RoomGroup[] = groups.map((g) => {
+    const codes = g.sections.map((s) => s.code);
+    const who = instructorsWords(g.instructors);
+    // One professor: the course room is theirs. TBA: nobody to gather around.
+    const professor: Room | null =
+      headed && g.instructors.length > 0
+        ? {
+            id: professorRoomId(termId, course.code, g.instructors),
+            kind: "professor",
+            termId,
+            courseCode: course.code,
+            sectionCodes: codes,
+            parent: courseId,
+            code: null,
+            words: `${who}'s sections`,
+            label: `${who}'s sections`,
+            detail: dotJoin(
+              countWords(codes.length, "section"),
+              sectionCodesWords(codes, order),
+            ),
+            description: professorRoomDescription(
+              course.code,
+              who,
+              sectionCodesWords(codes, order),
+            ),
+          }
+        : null;
+    const sectionRooms = g.sections.map((s) =>
+      sectionRoom(termId, course, s, professor?.id ?? courseId),
     );
-    if (untimed.length > 0)
-      groups.push(
-        group(
-          {
-            key: `${course.code}|time|none`,
-            by: "time",
-            title: "No set times",
-            instructors: [],
-          },
-          untimed,
-        ),
-      );
-  } else {
-    for (const g of byInstructor)
-      groups.push(
-        group(
-          {
-            key: collapsedGroupKey(course.code, g),
-            by: "instructor",
-            title: g.name || "Instructor TBA",
-            instructors: g.instructors,
-          },
-          g.sections,
-        ),
-      );
-  }
+    if (professor) professors.push(professor);
+    return {
+      key: collapsedGroupKey(course.code, g),
+      title: g.name || "Instructor TBA",
+      summary: countWords(codes.length, "section"),
+      instructors: g.instructors,
+      heading: headed,
+      nodes: professor
+        ? [{ room: professor, children: sectionRooms }]
+        : sectionRooms.map((room) => ({ room, children: [] })),
+    };
+  });
 
   const rooms: Room[] = [courseRoom];
-  for (const g of groups)
+  for (const g of roomGroups)
     for (const node of g.nodes) rooms.push(node.room, ...node.children);
-  const lectureRooms = [
-    ...new Map(
-      [...lectureOf.values()].map((l) => [l.room.id, l.room]),
-    ).values(),
-  ];
+  const sections = rooms
+    .filter((r) => r.kind === "section")
+    .sort((a, b) => order.indexOf(a.code ?? "") - order.indexOf(b.code ?? ""));
   return {
     termId,
     courseCode: course.code,
     size,
     course: courseRoom,
-    lectures: lectureRooms,
+    professors,
     sections,
-    groups,
+    groups: roomGroups,
     rooms,
     byId: new Map(rooms.map((r) => [r.id, r])),
   };
@@ -431,7 +262,7 @@ export function roomsForCourse(termId: TermId, course: Course): RoomTree {
 
 /**
  * The rooms a section's people are in, widest first: the course room, then
- * the section's lecture room and its own room when the course has them.
+ * the section's professor room and its own room when the course has them.
  * Just the course room for a code the course doesn't list.
  */
 export function roomsForSection(
@@ -452,8 +283,8 @@ export function roomsForSection(
 
 /**
  * A plan's rooms, in plan order: for each placed section, its course room,
- * lecture room and section room. Saved-for-later courses have none. A
- * section the catalog no longer lists (cancelled) keeps its course room.
+ * professor room and section room. Bookmarked courses have none. A section
+ * the catalog no longer lists (cancelled) keeps its course room.
  */
 export function myRooms(plan: Plan, index: CatalogIndex): Room[] {
   if (plan.termId !== index.termId) return [];

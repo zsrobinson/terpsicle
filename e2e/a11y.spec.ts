@@ -172,7 +172,7 @@ for (const scheme of ["light", "dark"] as const) {
       await scan(page, `course details: sections and ghosts (${scheme})`);
       await page
         .locator('[data-section="0101"]')
-        .getByRole("button", { name: "Get an email when a seat opens" })
+        .getByRole("button", { name: /^Watch for a seat/ })
         .click();
       await expect(
         page.getByRole("textbox", { name: "Your email" }),

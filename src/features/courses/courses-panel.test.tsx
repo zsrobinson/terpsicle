@@ -4,6 +4,8 @@ import { track } from "~/app/analytics";
 import { renderShell } from "~/app/test-utils";
 import { encodeShare } from "~/core/share";
 import { aSharePayload } from "~/fixtures";
+import { useSeatAlerts } from "~/state/seat-alerts";
+import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { panels } from "./panels";
@@ -59,9 +61,9 @@ describe("Courses tab", () => {
     expect(words).not.toHaveClass("text-warn");
   });
 
-  it("lists saved-for-later courses; clicking one opens its details", async () => {
+  it("lists bookmarked courses; clicking one opens its details", async () => {
     const { user } = await renderPlanTab([panels], "courses");
-    const saved = await screen.findByRole("list", { name: "Saved for later" });
+    const saved = await screen.findByRole("list", { name: "Bookmarked" });
     const musc = within(saved).getByRole("button", { name: /^MUSC130/ });
     expect(musc).toHaveTextContent("Survey of Western Music Literature");
     await user.click(musc);
@@ -69,6 +71,29 @@ describe("Courses tab", () => {
       kind: "course",
       courseCode: "MUSC130",
     });
+  });
+
+  it("says Watching, with a filled bell, on a section with a seat watch", async () => {
+    await renderPlanTab([panels], "courses");
+    const row = await screen.findByTestId("course-row-CMSC351");
+    expect(within(row).queryByText("Watching")).toBeNull();
+    await act(() =>
+      useSeatAlerts.getState().put([
+        {
+          termId: TEST_TERM_ID,
+          sectionKey: "CMSC351-0301",
+          email: "terp@umd.edu",
+          status: "active",
+          subscriptionId: null,
+          manageToken: null,
+          createdAt: "2026-09-01T00:00:00.000Z",
+          updatedAt: "2026-09-01T00:00:00.000Z",
+        },
+      ]),
+    );
+    expect(
+      await within(row).findByTestId("watching-CMSC351-0301"),
+    ).toHaveTextContent("Watching");
   });
 
   it("clicking a course opens its details", async () => {
@@ -102,33 +127,34 @@ describe("Courses tab", () => {
     );
   });
 
-  it("saves a placed course for later", async () => {
+  it("bookmarks a placed course instead, off the calendar", async () => {
     const { user } = await renderPlanTab([panels], "courses");
     await user.click(
       await screen.findByRole("button", { name: "Actions for STAT400" }),
     );
     await user.click(
-      await screen.findByRole("menuitem", { name: "Save for later" }),
+      await screen.findByRole("menuitem", { name: "Bookmark instead" }),
     );
     const entry = openPlanNow()?.courses.find(
       (c) => c.courseCode === "STAT400",
     );
     expect(entry?.sectionCode).toBeNull();
-    const saved = screen.getByRole("list", { name: "Saved for later" });
+    const saved = screen.getByRole("list", { name: "Bookmarked" });
     expect(within(saved).getByText("STAT400")).toBeInTheDocument();
+    expect(await screen.findByText("Bookmarked STAT400")).toBeVisible();
     expect(track).toHaveBeenCalledWith("course_saved_for_later", {
       via: "menu",
     });
   });
 
-  it("offers no saved-for-later hint in a shared plan, which can't save", async () => {
+  it("offers no bookmark hint in a shared plan, which can't bookmark", async () => {
     await renderShell({
       panels: [panels],
       sharedParam: encodeShare(aSharePayload({ sections: ["CMSC351-0101"] })),
     });
     expect(await screen.findByTestId("course-row-CMSC351")).toBeInTheDocument();
-    expect(screen.queryByText("Saved for later")).toBeNull();
-    expect(screen.queryByText(/Save one from its details/)).toBeNull();
+    expect(screen.queryByText("Bookmarked")).toBeNull();
+    expect(screen.queryByText(/Bookmark one from its details/)).toBeNull();
   });
 
   describe("first visit", () => {
@@ -193,9 +219,9 @@ describe("Courses tab", () => {
         });
       });
       expect(await screen.findByTestId("first-visit")).toBeInTheDocument();
-      // Saved courses stay listed under the guide.
+      // Bookmarked courses stay listed under the guide.
       expect(
-        screen.getByRole("list", { name: "Saved for later" }),
+        screen.getByRole("list", { name: "Bookmarked" }),
       ).toBeInTheDocument();
     });
   });

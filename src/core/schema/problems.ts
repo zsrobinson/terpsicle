@@ -91,6 +91,17 @@ export const ProblemFixSchema = z.discriminatedUnion("kind", [
     sectionKey: SectionKeySchema,
     label: z.string().min(1),
   }),
+  /**
+   * For "full": watch the section for a seat ("Watch for a seat"). Full
+   * sections can be added (a seat may open), so the fix keeps the section
+   * and watches it instead of switching away. The UI shows the seat watch's
+   * state ("Watching") in its place once it's on.
+   */
+  z.object({
+    kind: z.literal("watch"),
+    sectionKey: SectionKeySchema,
+    label: z.string().min(1),
+  }),
 ]);
 export type ProblemFix = z.infer<typeof ProblemFixSchema>;
 

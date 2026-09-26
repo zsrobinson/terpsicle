@@ -66,7 +66,7 @@ test.describe("desktop", () => {
         .getByRole("button", { name: /^CMSC351 0401/ })
         .first(),
     ).toBeVisible();
-    await expect(row).toContainText("Current");
+    await expect(row).toContainText("In Plan A");
   });
 
   test("hovering results never moves the calendar", async ({ page }) => {
@@ -145,20 +145,35 @@ test.describe("desktop", () => {
     await page.keyboard.press("/");
     await searchBox(page).fill("cmsc 401");
     await page.locator('[data-course-result="CMSC401"]').click();
+    // One section: the same row as any other course, with a plus to add it.
     const sections = page.getByTestId("sections");
-    await expect(sections).toContainText("One section");
-    await expect(sections).toContainText("TuTh 12:30–1:45pm ESJ 1309");
-    await expect(sections.getByRole("button", { name: "Add" })).toHaveCount(0);
+    const only = sections.locator('[data-section="0101"]');
+    await expect(only).toContainText("TuTh 12:30–1:45pm");
+    await expect(only).toContainText("ESJ 1309");
+    await only.getByRole("button", { name: "Add 0101" }).click();
+    await expect(only).toContainText("In Plan A");
+    await expect(
+      only.getByRole("button", { name: "Remove 0101 from Plan A" }),
+    ).toBeVisible();
 
+    // Many: one list (nobody's named yet), your section pinned on top.
     await page.keyboard.press("/");
     await searchBox(page).fill("engl 101");
     await page.locator('[data-course-result="ENGL101"]').click();
-    await page.getByRole("button", { name: "Add to Plan A" }).click();
-    await expect(page.getByTestId("your-section")).toContainText("Current");
-    await page.getByRole("button", { name: "Only fits" }).click();
     await expect(
-      page.getByRole("button", { name: /^MWF 10–10:50am/ }),
-    ).toHaveCount(0);
+      sections.getByText(
+        "Testudo hasn't named instructors for these sections yet.",
+      ),
+    ).toBeVisible();
+    await sections
+      .locator('[data-section="0101"]')
+      .getByRole("button", { name: "Add 0101" })
+      .click();
+    await expect(page.getByTestId("your-section")).toContainText("In Plan A");
+    const rows = sections.locator("[data-section]");
+    const before = await rows.count();
+    await page.getByRole("button", { name: "Only fits" }).click();
+    await expect.poll(() => rows.count()).toBeLessThan(before);
   });
 });
 
@@ -169,6 +184,9 @@ test.describe("phone", () => {
   test("search and open a course in the drawer", async ({ page }) => {
     const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
     await tabs.getByRole("button", { name: "Search" }).tap();
+    // A finger taps to open; only a mouse hovers to preview.
+    await expect(page.getByTestId("search-hint-tap")).toBeVisible();
+    await expect(page.getByTestId("search-hint-hover")).toBeHidden();
     await searchBox(page).fill("cmsc 351");
     await page.locator('[data-course-result="CMSC351"]').tap();
 

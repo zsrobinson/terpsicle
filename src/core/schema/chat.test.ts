@@ -9,8 +9,9 @@ import {
   courseChatName,
   courseRoomId,
   DirectoryIdSchema,
-  lectureRoomId,
   parseRoomId,
+  professorRoomId,
+  professorSlug,
   RoomIdSchema,
   sectionRoomId,
 } from "./index";
@@ -18,11 +19,13 @@ import {
 describe("room ids", () => {
   it("build, validate and parse back", () => {
     const course = courseRoomId("202608", "CMSC131");
-    const lecture = lectureRoomId("202608", "CMSC131", "0301");
+    const professor = professorRoomId("202608", "CMSC131", [
+      "Pedram Sadeghian",
+    ]);
     const section = sectionRoomId("202608", "CMSC131", "0303");
-    expect([course, lecture, section]).toEqual([
+    expect([course, professor, section]).toEqual([
       "202608:CMSC131",
-      "202608:CMSC131:L:0301",
+      "202608:CMSC131:P:pedram-sadeghian",
       "202608:CMSC131:0303",
     ]);
     expect(parseRoomId(course)).toEqual({
@@ -30,16 +33,33 @@ describe("room ids", () => {
       courseCode: "CMSC131",
       kind: "course",
       sectionCode: null,
+      professor: null,
     });
-    expect(parseRoomId(lecture)).toMatchObject({
-      kind: "lecture",
-      sectionCode: "0301",
+    expect(parseRoomId(professor)).toMatchObject({
+      kind: "professor",
+      sectionCode: null,
+      professor: "pedram-sadeghian",
     });
     expect(parseRoomId(section)).toMatchObject({
       kind: "section",
       sectionCode: "0303",
+      professor: null,
     });
     expect(parseRoomId("202608:CMSC131:FC01")?.sectionCode).toBe("FC01");
+  });
+
+  it("name professors plainly, co-instructors together", () => {
+    expect(professorSlug(["José Núñez-O'Brien"])).toBe("jose-nunez-o-brien");
+    expect(professorSlug(["Hannah (Toyin) Adeyemi"])).toBe(
+      "hannah-toyin-adeyemi",
+    );
+    expect(professorSlug(["Ada Brandt", "Lee Moss"])).toBe(
+      "ada-brandt_lee-moss",
+    );
+    const many = Array.from({ length: 9 }, (_, i) => `Person Number${i}`);
+    const id = professorRoomId("202608", "CMSC131", many);
+    expect(RoomIdSchema.safeParse(id).success, id).toBe(true);
+    expect(professorSlug(many).length).toBeLessThanOrEqual(80);
   });
 
   it("reject anything else", () => {
@@ -49,10 +69,13 @@ describe("room ids", () => {
       "202608:cmsc131",
       "202608-CMSC131",
       "202608:CMSC131:",
-      "202608:CMSC131:L:",
+      "202608:CMSC131:P:",
+      "202608:CMSC131:L:0301",
+      "202608:CMSC131:P:Pedram",
+      "202608:CMSC131:P:ada-",
       "202608:CMSC131:X:0101",
       "202608:CMSC131:0101:0102",
-      "202608:CMSC131:L:0101:x",
+      "202608:CMSC131:P:ada:x",
     ]) {
       expect(RoomIdSchema.safeParse(bad).success, bad).toBe(false);
       expect(parseRoomId(bad), bad).toBeNull();
@@ -60,7 +83,9 @@ describe("room ids", () => {
   });
 
   it("map every room to its course's object", () => {
-    expect(courseChatName("202608:CMSC131:L:0301")).toBe("202608:CMSC131");
+    expect(courseChatName("202608:CMSC131:P:pedram-sadeghian")).toBe(
+      "202608:CMSC131",
+    );
     expect(courseChatName("202608:CMSC131:0303")).toBe("202608:CMSC131");
     expect(courseChatName("202608:CMSC131")).toBe("202608:CMSC131");
   });

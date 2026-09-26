@@ -1,19 +1,18 @@
-import { Bookmark, BookmarkCheck, Plus, Trash2 } from "lucide-react";
+import { Bookmark, BookmarkCheck, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { sectionFits } from "~/core/fit";
 import type { Course, CourseColor } from "~/core/schema";
 import { dotStyle } from "~/features/calendar/tint";
 import {
+  bookmarkInstead,
   openCourse,
   removeCourse,
-  saveCourseForLater,
 } from "~/features/courses/actions";
 import { CourseColorPicker } from "~/features/courses/color-picker";
-import { type CurrentPlan, useFitContext } from "~/state/hooks";
+import type { CurrentPlan } from "~/state/hooks";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { AboutMore } from "./about";
-import { addToPlan, saveNewCourseForLater } from "./actions";
+import { bookmarkCourse } from "./actions";
 import { permissionWords } from "./words";
 
 // The top of course details (UX review §3.4): who the course is, then the
@@ -134,6 +133,11 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/**
+ * Course-level actions (SPEC §3.4). You add a section, not a course: that's
+ * each row's button. The header bookmarks a course you're weighing, and
+ * takes it back out.
+ */
 function Actions({
   course,
   current,
@@ -141,47 +145,48 @@ function Actions({
   course: Course;
   current: CurrentPlan;
 }) {
-  const fit = useFitContext();
   const entry = current.plan.courses.find((c) => c.courseCode === course.code);
   const name = current.plan.name;
-  const first =
-    (fit && course.sections.find((s) => sectionFits(fit, course, s))) ??
-    course.sections[0];
-  const add = first ? (
-    <WithTooltip
-      label={
-        course.sections.length === 1
-          ? `Adds section ${first.code}, the only one`
-          : `Adds section ${first.code}${fit && sectionFits(fit, course, first) ? ", the first that fits" : ""}; switch on the calendar`
-      }
-    >
-      <Button size="sm" onClick={() => addToPlan(course, first.code)}>
-        <Plus aria-hidden="true" />
-        Add to {name}
-      </Button>
-    </WithTooltip>
-  ) : null;
 
   if (!entry)
     return (
       <div className="mt-3 flex flex-wrap gap-2">
-        {add}
-        <WithTooltip label="Keep it in Courses without picking a section">
+        <WithTooltip
+          label={`Keep ${course.code} in Courses without picking a section`}
+        >
           <Button
             variant="outline"
             size="sm"
-            onClick={() => saveNewCourseForLater(course.code)}
+            onClick={() => bookmarkCourse(course.code)}
           >
             <Bookmark aria-hidden="true" />
-            Save for later
+            Bookmark
           </Button>
         </WithTooltip>
       </div>
     );
+  if (!entry.sectionCode)
+    return (
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <WithTooltip
+          label="Remove the bookmark. You can undo this"
+          shortcut="⌘Z"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            aria-pressed="true"
+            onClick={() => removeCourse(course.code, "details")}
+          >
+            <BookmarkCheck aria-hidden="true" />
+            Bookmarked
+          </Button>
+        </WithTooltip>
+        <span className="text-sm text-muted">Pick a section below</span>
+      </div>
+    );
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
-      {/* Saved for later with one section: there's no list to pick from. */}
-      {!entry.sectionCode && course.sections.length === 1 ? add : null}
       <WithTooltip label="You can undo this" shortcut="⌘Z">
         <Button
           variant="outline"
@@ -192,23 +197,18 @@ function Actions({
           Remove from {name}
         </Button>
       </WithTooltip>
-      {entry.sectionCode ? (
-        <WithTooltip label="Take it off the calendar and keep it in Courses">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => saveCourseForLater(course.code, "details")}
-          >
-            <Bookmark aria-hidden="true" />
-            Save for later
-          </Button>
-        </WithTooltip>
-      ) : course.sections.length > 1 ? (
-        <span className="flex items-center gap-1 text-sm text-muted">
-          <BookmarkCheck size={13} aria-hidden="true" />
-          Saved for later: pick a section below
-        </span>
-      ) : null}
+      <WithTooltip
+        label={`Take ${entry.sectionCode} off the calendar and keep ${course.code} bookmarked`}
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => bookmarkInstead(course.code, "details")}
+        >
+          <Bookmark aria-hidden="true" />
+          Bookmark instead
+        </Button>
+      </WithTooltip>
     </div>
   );
 }

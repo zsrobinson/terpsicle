@@ -6,7 +6,7 @@ Terpsicle targets **WCAG 2.2 AA** on desktop and phone, in both themes. This pag
 
 ### Structure and names
 - **Landmarks:** a banner (the top bar), the rail's "Sidebar tabs" navigation, the "Sidebar" (complementary), and `main` (the calendar, a "Week calendar" region). Two skip links come first: "Skip to calendar" and "Skip to sidebar".
-- **Headings:** one `h1` (the logo), an `h2` per panel ("Plan A", "Search", a course's title in its details), and an `h3` per section ("Sections", "Grades", "Saved for later", "Must have").
+- **Headings:** one `h1` (the logo), an `h2` per panel ("Plan A", "Search", a course's title in its details), and an `h3` per section ("Sections", "Grades", "Bookmarked", "Must have").
 - **Lists:** courses, search results (a listbox), each group of sections in course details, problems, connections, generated plans and the registration checklist.
 - **Names that say which one.** In a list of 92 sections, each button says its section: "Add 0101", "Switch to 0205", "Get an email when a seat opens, ENGL101 0205". Each name starts with the words on screen, so voice control works (WCAG 2.5.3).
 - **States:** `aria-pressed` on the rail tabs, filter chips and day toggles; `aria-expanded` on groups and disclosures; `aria-current` on the open plan, the current section and the breadcrumb's last crumb; `aria-selected` on the highlighted search result.
@@ -91,7 +91,7 @@ About 15 minutes per reader. Use `?demo=1` on a local `pnpm dev:mock`, or real d
 
 ### VoiceOver on macOS (Safari)
 1. `⌘F5` to start VoiceOver. Load the page. Expect the title "Plan A · Spring 2027 · Terpsicle".
-2. `VO+U` → Landmarks: banner, Sidebar tabs, Sidebar, main. Headings: "Terpsicle" (1), "Plan A" (2), "Saved for later" (3).
+2. `VO+U` → Landmarks: banner, Sidebar tabs, Sidebar, main. Headings: "Terpsicle" (1), "Plan A" (2), "Bookmarked" (3).
 3. `Tab` once: "Skip to calendar, link". `Enter`, then `Tab`: the first class, its full name, then the arrow-key description.
 4. `↓` through Monday: each class, then "8 min walk, tight…" between them. `→` to Tuesday. `End`, `Home`.
 5. On a class, `Enter`: the course's details open ("CMSC351, region"); the title becomes "CMSC351 · Terpsicle".

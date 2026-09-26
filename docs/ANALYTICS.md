@@ -26,7 +26,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `course_color_changed` | | Whether anyone recolors courses (a "just for fun" feature worth keeping only if used). |
   | `first_visit_path_chosen` | `path`: `build` · `generate` | Which of the two equal first-visit paths people take (SPEC §3.2; DESIGN §4b calls them "equally valid"). |
   | `course_removed` | `via`: `menu` · `details` | How much people prune, and whether the Courses row menu is found. |
-  | `course_saved_for_later` | `via`: `menu` · `details` | Whether "Saved for later" earns its place. |
+  | `course_saved_for_later` | `via`: `menu` · `details` | Whether bookmarking a course ("Bookmark", "Bookmark instead"; "Saved for later" until 2026-09-26, same event) earns its place. |
   | `problem_opened` | `kind` | Which problems people look into. |
   | `problem_fix_applied` | `kind` (`switch` · `accept-change`), `problem` | Whether one-click fixes get used, and for which problems. |
   | `export_codes_copied` | `count` | How many plans reach registration. |
