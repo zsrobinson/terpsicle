@@ -38,6 +38,7 @@ import {
   PROBLEM_SEVERITY,
   type Problem,
   type Review,
+  type ReviewSubmitInput,
   type ReviewSummary,
   type RouteGeometry,
   type SeatsFile,
@@ -696,6 +697,25 @@ export function aProblem(overrides: Partial<Problem> = {}): Problem {
       sectionKey: "CMSC351-0201",
       label: "Switch to 0201",
     },
+    ...overrides,
+  };
+}
+
+// ---------- Terpsicle Reviews ----------
+
+/** A clean review of Ada Brandt (the PlanetTerp fixture's "brandt") in CMSC351. */
+export function aReviewSubmitInput(
+  overrides: Partial<ReviewSubmitInput> = {},
+): ReviewSubmitInput {
+  return {
+    instructorId: null,
+    reviewedName: "Ada Brandt",
+    dept: "CMSC",
+    course: "CMSC351",
+    termId: "202601",
+    rating: 4,
+    grade: "A-",
+    body: "Lectures were clear and the problem sets matched the exams. Office hours were worth it.",
     ...overrides,
   };
 }

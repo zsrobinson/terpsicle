@@ -22,6 +22,7 @@ import {
   PlanetTerpDeptSchema,
   PlanSchema,
   ProblemSchema,
+  ReviewSubmitInputSchema,
   ReviewSummarySchema,
   RouteGeometrySchema,
   SeatsFileSchema,
@@ -56,6 +57,7 @@ import {
   aPlanSyncDoc,
   aProblem,
   aPublishedCalendar,
+  aReviewSubmitInput,
   aReviewSummary,
   aRouteGeometry,
   aSavedCourse,
@@ -121,6 +123,7 @@ describe("builders return schema-valid objects by default", () => {
     ["aProblem", ProblemSchema, aProblem()],
     ["aChatAuthor", ChatAuthorSchema, aChatAuthor()],
     ["aChatMessage", ChatMessageSchema, aChatMessage()],
+    ["aReviewSubmitInput", ReviewSubmitInputSchema, aReviewSubmitInput()],
   ];
   it.each(cases)("%s", (_, schema, value) => {
     expect(schema.safeParse(value).success).toBe(true);

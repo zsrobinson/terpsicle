@@ -3,10 +3,6 @@
 import {
   type Instructor,
   JOBS_PREFIX,
-  PLANETTERP_MANIFEST_KEY,
-  PlanetTerpDeptSchema,
-  PlanetTerpManifestSchema,
-  planetTerpDeptKey,
   planetTerpReviewsKey,
   type ReviewSummary,
   type ReviewSummaryInput,
@@ -17,6 +13,7 @@ import {
 } from "~/core/schema";
 import { captureServerEvent } from "../analytics";
 import { hit } from "../counters";
+import { readPlanetTerpDept } from "../planetterp";
 import { fetchPlanetTerpReviews } from "./planetterp-api";
 import {
   buildSummaryMessages,
@@ -62,20 +59,8 @@ export async function findInstructor(
   slug: string,
   course: string,
 ): Promise<Instructor | null> {
-  const manifestObject = await bucket.get(PLANETTERP_MANIFEST_KEY);
-  if (!manifestObject) return null;
-  const manifest = PlanetTerpManifestSchema.safeParse(
-    await manifestObject.json(),
-  );
-  const dept = course.slice(0, 4);
-  const entry = manifest.success
-    ? manifest.data.departments.find((d) => d.code === dept)
-    : undefined;
-  if (!entry) return null;
-  const deptObject = await bucket.get(planetTerpDeptKey(dept, entry.hash));
-  if (!deptObject) return null;
-  const file = PlanetTerpDeptSchema.safeParse(await deptObject.json());
-  return file.success ? (file.data.instructors[slug] ?? null) : null;
+  const file = await readPlanetTerpDept(bucket, course.slice(0, 4));
+  return file?.instructors[slug] ?? null;
 }
 
 /** Fresh when it saw at least as many reviews, and the newest one. */

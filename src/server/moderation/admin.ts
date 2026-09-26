@@ -51,7 +51,21 @@ export async function resolveQueueItem(
   const decision = input.action === "approve" ? "publish" : "remove";
   // The feature acts first: if it fails, nothing is recorded and the owner
   // can try again.
-  await deps.handlers[row.surface]?.(row.ref, decision);
+  await deps.handlers[row.surface]?.(row.ref, decision, {
+    db,
+    now: deps.now,
+    reasons:
+      decision === "remove"
+        ? [
+            {
+              code: "admin",
+              source: "admin",
+              action: "remove",
+              adminReason: input.reason,
+            },
+          ]
+        : [],
+  });
   await db.batch([
     setQueueStatus(db, row.id, "closed", deps.now),
     insertDecision(db, {
@@ -83,7 +97,12 @@ export async function undoQueueItem(
   // Still open, or the item was held again since (an edit): nothing to put back.
   if (row.status !== "closed" || (await hasWaitingRow(db, row)))
     return { status: "nothing-to-undo" };
-  await deps.handlers[row.surface]?.(row.ref, "hold");
+  const undo = { code: "undo", source: "admin", action: "hold" } as const;
+  await deps.handlers[row.surface]?.(row.ref, "hold", {
+    db,
+    now: deps.now,
+    reasons: [undo],
+  });
   await db.batch([
     setQueueStatus(db, row.id, "open", null),
     insertDecision(db, {
@@ -91,7 +110,7 @@ export async function undoQueueItem(
       ref: row.ref,
       stage: "human",
       verdict: "hold",
-      labels: [{ code: "undo", source: "admin", action: "hold" }],
+      labels: [undo],
       guard: null,
       policy: null,
       models: null,
