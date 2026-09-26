@@ -4,6 +4,8 @@
 
 export type Engine = "webkit" | "chromium" | "android" | "ios";
 
+export type SwipeIntent = "drag" | "scroll";
+
 export interface Point {
   x: number;
   y: number;
@@ -35,8 +37,12 @@ export interface Device {
   navigate(url: string): Promise<void>;
   /** A tap at a point in the visual viewport, in CSS pixels. */
   tap(at: Point): Promise<void>;
-  /** One finger from `from` to `to` over `ms`, in visual-viewport CSS px. */
-  swipe(from: Point, to: Point, ms: number): Promise<void>;
+  /**
+   * One finger from `from` to `to` over `ms`, in visual-viewport CSS px.
+   * `intent` only matters where there's no real finger: a "scroll" is sent
+   * as a wheel, a "drag" as a pointer drag.
+   */
+  swipe(from: Point, to: Point, ms: number, intent: SwipeIntent): Promise<void>;
   /** Types into whatever has focus, through the keyboard. */
   type(text: string): Promise<void>;
   /** Whether the on-screen keyboard is up (null: can't tell). */

@@ -64,6 +64,11 @@ class AndroidChrome implements Device {
     // Rotation under our control, starting upright.
     await this.shell("settings put system accelerometer_rotation 0");
     await this.shell("settings put system user_rotation 0");
+    // Android 13+ asks whether Chrome may notify, over the page, on first
+    // run. Answer it ahead of time so no dialog eats the first taps.
+    await this.shell(
+      `pm grant ${CHROME} android.permission.POST_NOTIFICATIONS`,
+    ).catch(() => "");
     this.context = await this.device.launchBrowser();
     this.page = this.context.pages()[0] ?? (await this.context.newPage());
   }
@@ -89,6 +94,47 @@ class AndroidChrome implements Device {
     await this.shell("settings put system user_rotation 0");
     if (video) await this.startRecording(`${video}.mp4`);
     await this.p.goto(url);
+    await this.dismissDialogs();
+  }
+
+  /**
+   * Closes whatever Chrome or Android put over the page (first-run cards,
+   * permission and "sign in" prompts) by tapping its dismiss button.
+   * Returns whether it found one.
+   */
+  private async dismissDialogs(): Promise<boolean> {
+    const dump = await this.shell(
+      "uiautomator dump /sdcard/mobile-lab-ui.xml >/dev/null && cat /sdcard/mobile-lab-ui.xml",
+    ).catch(() => "");
+    const labels = [
+      "No thanks",
+      "No, thanks",
+      "Don’t allow",
+      "Don't allow",
+      "Not now",
+      "Got it",
+      "Dismiss",
+    ];
+    for (const label of labels) {
+      const node = dump.match(
+        new RegExp(
+          `text="${label}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`,
+        ),
+      );
+      if (!node) continue;
+      const [x1, y1, x2, y2] = node.slice(1).map(Number) as [
+        number,
+        number,
+        number,
+        number,
+      ];
+      await this.shell(
+        `input tap ${Math.round((x1 + x2) / 2)} ${Math.round((y1 + y2) / 2)}`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return true;
+    }
+    return false;
   }
 
   private async startRecording(file: string): Promise<void> {
@@ -161,7 +207,7 @@ class AndroidChrome implements Device {
    * where it felt it. The page's origin on the screen moves with Chrome's
    * toolbar and the rotation, so this runs again after either could move.
    */
-  private async calibrate(): Promise<ScreenMapping> {
+  private async calibrate(retry = true): Promise<ScreenMapping> {
     const { width, height } = await this.screenSize();
     const dpr = await this.evaluate<number>("devicePixelRatio");
     const at = { x: Math.round(width / 2), y: Math.round(height * 0.45) };
@@ -174,7 +220,11 @@ class AndroidChrome implements Device {
       await new Promise((resolve) => setTimeout(resolve, 100));
       seen = await this.evaluate(READ_CALIBRATION);
     }
-    if (!seen) throw new Error("the calibration tap never reached the page");
+    if (!seen) {
+      // Something over the page took the tap: clear it and try once more.
+      if (retry && (await this.dismissDialogs())) return this.calibrate(false);
+      throw new Error("the calibration tap never reached the page");
+    }
     this.mapping = calibrate(at, seen, dpr);
     return this.mapping;
   }

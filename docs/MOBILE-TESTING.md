@@ -28,7 +28,7 @@ pnpm tsx scripts/mobile-lab/run.ts --engine chromium --url https://terpsicle.com
 pnpm tsx scripts/mobile-lab/run.ts --engine webkit --url http://localhost:3000 --only keyboard-at-half,rotate
 ```
 
-`--out <dir>` picks the results folder (default `mobile-lab-results/<time>-<engine>`, git-ignored); `--no-video` skips recordings. `android` needs `adb` with one emulator or phone attached (with USB debugging, Chrome installed, and for an emulator a Google APIs image so Chrome reads its command-line file). `ios` needs a Mac with Xcode, an Appium 2 server with the XCUITest driver (`APPIUM_URL`, default `http://127.0.0.1:4723`) and optionally `IOS_DEVICE`, `IOS_VERSION` or `IOS_UDID`. Don't run `playwright install` in an agent sandbox; use `chromium` there.
+`--out <dir>` picks the results folder (default `mobile-lab-results/<time>-<engine>`, git-ignored); `--no-video` skips recordings. `android` needs `adb` with one emulator or phone attached (with USB debugging, Chrome installed, and for an emulator a Google APIs image so Chrome reads its command-line file). `ios` needs a Mac with Xcode, an Appium 3 server with the XCUITest driver (`APPIUM_URL`, default `http://127.0.0.1:4723`) and optionally `IOS_DEVICE`, `IOS_VERSION` or `IOS_UDID`. Don't run `playwright install` in an agent sandbox; use `chromium` there.
 
 ## Reading results
 

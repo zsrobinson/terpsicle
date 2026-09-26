@@ -11,7 +11,13 @@ import {
   stepChecks,
   traceChecks,
 } from "./checks";
-import { type Device, type Point, toVisual, type Viewport } from "./device";
+import {
+  type Device,
+  type Point,
+  type SwipeIntent,
+  toVisual,
+  type Viewport,
+} from "./device";
 import { call, FIND, INSTALL, PROBE } from "./page-scripts";
 
 /** An element on the page: a CSS selector, optionally narrowed by label. */
@@ -161,6 +167,7 @@ export class Lab {
     from: Target | Point,
     by: { dx?: number; dy: number },
     ms = 400,
+    intent: SwipeIntent = "drag",
   ): Promise<void> {
     const start = isPoint(from) ? from : await this.pointIn(from);
     const end = { x: start.x + (by.dx ?? 0), y: start.y + by.dy };
@@ -169,8 +176,9 @@ export class Lab {
       start: rounded(start),
       end: rounded(end),
       ms,
+      intent,
     });
-    await this.device.swipe(start, end, ms);
+    await this.device.swipe(start, end, ms, intent);
   }
 
   async type(text: string): Promise<void> {

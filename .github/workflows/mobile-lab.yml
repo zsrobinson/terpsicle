@@ -192,7 +192,7 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Install Appium and the XCUITest driver
         run: |
-          npm install -g appium@2
+          npm install -g appium@3
           appium driver install xcuitest
       # The software keyboard, as on a phone: no Mac keyboard attached.
       - name: Disconnect the Simulator's hardware keyboard

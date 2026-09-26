@@ -308,10 +308,11 @@ class SimulatorSafari implements Device {
   async keyboardShown(): Promise<boolean | null> {
     await this.use("native");
     try {
-      return await this.driver.send<boolean>(
-        "GET",
-        "/appium/device/is_keyboard_shown",
-      );
+      const keyboards = await this.driver.send<unknown[]>("POST", "/elements", {
+        using: "class name",
+        value: "XCUIElementTypeKeyboard",
+      });
+      return keyboards.length > 0;
     } catch {
       return null;
     }
@@ -320,7 +321,7 @@ class SimulatorSafari implements Device {
   async hideKeyboard(): Promise<void> {
     if (!(await this.keyboardShown())) return;
     await this.use("native");
-    // Safari's keyboard bar has Done; a person taps that.
+    // Safari's bar over the keyboard has Done; a person taps that.
     try {
       const done = await this.driver.send<Record<string, string>>(
         "POST",
@@ -333,7 +334,10 @@ class SimulatorSafari implements Device {
         {},
       );
     } catch {
-      await this.driver.send("POST", "/appium/device/hide_keyboard", {});
+      await this.driver.send("POST", "/execute/sync", {
+        script: "mobile: hideKeyboard",
+        args: [{}],
+      });
     }
   }
 

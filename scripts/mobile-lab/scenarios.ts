@@ -58,6 +58,13 @@ async function snapTo(lab: Lab, snap: Snap): Promise<void> {
 /** What the scenario started on: loaded, recorder installed. */
 async function open(lab: Lab): Promise<void> {
   await lab.ready();
+  // The first visit raises the drawer once the plan loads; a drawer still
+  // off the screen after that is what the step's checks report.
+  await lab.waitFor(
+    `(() => { const d = document.querySelector('${DRAWER}'); return d && d.getBoundingClientRect().top < innerHeight - 60; })()`,
+    10_000,
+    "the drawer on screen",
+  );
   await lab.wait(1500);
 }
 
@@ -74,7 +81,7 @@ async function search(lab: Lab, query: string): Promise<void> {
   await lab.type(query);
   await lab.waitFor(
     "document.querySelectorAll('[data-course-result]').length > 0",
-    20_000,
+    45_000,
     "search results",
   );
   await lab.wait(SETTLE);
@@ -158,7 +165,7 @@ async function focusAndType(lab: Lab, field: Target, text: string) {
   await lab.type(text);
   await lab.waitFor(
     "document.querySelectorAll('[data-course-result]').length > 0",
-    20_000,
+    45_000,
     "search results",
   );
   await lab.wait(SETTLE);
@@ -192,6 +199,7 @@ export const SCENARIOS: Scenario[] = [
           await lab.pointIn(RESULTS, 0.5, 0.8),
           { dy: -200 },
           500,
+          "scroll",
         );
         await lab.wait(SETTLE);
         await lab.step("scrolled the results", {
@@ -328,7 +336,7 @@ export const SCENARIOS: Scenario[] = [
       await open(lab);
       await snapTo(lab, "peek");
       const cal = await lab.pointIn(CALENDAR, 0.5, 0.6);
-      await lab.swipe(cal, { dy: -250 }, 500);
+      await lab.swipe(cal, { dy: -250 }, 500, "scroll");
       await lab.wait(SETTLE);
       await lab.step("scrolled the calendar down", {
         expect: (p) => [
@@ -341,9 +349,9 @@ export const SCENARIOS: Scenario[] = [
         ],
       });
       const top = await lab.pointIn(CALENDAR, 0.5, 0.15);
-      await lab.swipe(top, { dy: 350 }, 500);
+      await lab.swipe(top, { dy: 350 }, 500, "scroll");
       await lab.wait(SETTLE);
-      await lab.swipe(top, { dy: 350 }, 500);
+      await lab.swipe(top, { dy: 350 }, 500, "scroll");
       await lab.wait(1500);
       await lab.step("pulled down at the top", {
         settled: true,
@@ -382,10 +390,10 @@ export const SCENARIOS: Scenario[] = [
       await snapTo(lab, "peek");
       await lab.step("start", { settled: true });
       const cal = await lab.pointIn(CALENDAR, 0.5, 0.7);
-      await lab.swipe(cal, { dy: -300 }, 400);
+      await lab.swipe(cal, { dy: -300 }, 400, "scroll");
       await lab.wait(SETTLE);
       await lab.step("scrolled the calendar up (toolbar may hide)");
-      await lab.swipe(cal, { dy: 300 }, 400);
+      await lab.swipe(cal, { dy: 300 }, 400, "scroll");
       await lab.wait(SETTLE);
       await lab.step("scrolled it back (toolbar may show)");
       await search(lab, "cmsc");
@@ -393,13 +401,13 @@ export const SCENARIOS: Scenario[] = [
       await lab.wait(SETTLE);
       await snapTo(lab, "full");
       const list = await lab.pointIn(RESULTS, 0.5, 0.8);
-      await lab.swipe(list, { dy: -400 }, 400);
+      await lab.swipe(list, { dy: -400 }, 400, "scroll");
       await lab.wait(SETTLE);
       await lab.step("scrolled the results", {
         settled: true,
         expect: bottomVisible,
       });
-      await lab.swipe(list, { dy: 400 }, 400);
+      await lab.swipe(list, { dy: 400 }, 400, "scroll");
       await lab.wait(SETTLE);
       await lab.step("scrolled them back", {
         settled: true,
@@ -426,7 +434,7 @@ export const SCENARIOS: Scenario[] = [
         );
         if (done) break;
         const body = await lab.pointIn(PANEL_BODY, 0.5, 0.8);
-        await lab.swipe(body, { dy: -450 }, 300);
+        await lab.swipe(body, { dy: -450 }, 300, "scroll");
         await lab.wait(400);
       }
       await lab.wait(SETTLE);

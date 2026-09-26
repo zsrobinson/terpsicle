@@ -14,7 +14,7 @@ import {
   type Page,
   webkit,
 } from "@playwright/test";
-import type { Device, Point } from "../device";
+import type { Device, Point, SwipeIntent } from "../device";
 
 const PHONE = "iPhone 15";
 
@@ -92,7 +92,12 @@ class PlaywrightDevice implements Device {
     await this.p.touchscreen.tap(at.x, at.y);
   }
 
-  async swipe(from: Point, to: Point, ms: number): Promise<void> {
+  async swipe(
+    from: Point,
+    to: Point,
+    ms: number,
+    intent: SwipeIntent,
+  ): Promise<void> {
     const steps = Math.max(8, Math.round(ms / 16));
     const at = (i: number) => ({
       x: from.x + ((to.x - from.x) * i) / steps,
@@ -114,7 +119,14 @@ class PlaywrightDevice implements Device {
       await send("touchEnd", []);
       return;
     }
+    // WebKit takes no touch drags from Playwright. A scroll is a wheel (a
+    // mouse drag on the calendar would draw a block); a drag is a mouse drag,
+    // which vaul follows as it does a finger.
     await this.p.mouse.move(from.x, from.y);
+    if (intent === "scroll") {
+      await this.p.mouse.wheel(from.x - to.x, from.y - to.y);
+      return;
+    }
     await this.p.mouse.down();
     for (let i = 1; i <= steps; i++) {
       await this.p.mouse.move(at(i).x, at(i).y);
