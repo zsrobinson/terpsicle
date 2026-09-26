@@ -1,0 +1,4 @@
+[Sat Sep 26 15:14:38 2026] eadedCompositor[11127]: segfault at 0 ip 00007fbc6f0a0f8a sp 00007fbae65f98f0 error 4 in libWPEWebKit-2.0.so.1.12.0[60a0f8a,7fbc69808000+5edd000] likely on CPU 2 (core 1, socket 0)
+               total        used        free      shared  buff/cache   available
+Mem:           15989        1097       10186          47        5099       14892
+Swap:           3071           0        3071
