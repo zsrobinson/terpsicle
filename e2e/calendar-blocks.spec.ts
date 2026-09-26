@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
-// How blocks read on the demo plan (`/?demo=1`), on desktop and phones:
+// How blocks read on the demo plan (`/schedule?demo=1`), on desktop and phones:
 // labels at the top of tall blocks, and course codes that never give way.
 
 let errors: string[] = [];
