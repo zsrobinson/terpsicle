@@ -34,14 +34,13 @@ function Row({ problem }: { problem: FourYearProblem }) {
       : doc.entries.find((e) => e.id === subject?.entryId)?.term;
   return (
     <li className="space-y-1 border-hairline border-b px-4 py-2">
-      <WithTooltip label="Show it in the plan">
+      <WithTooltip label="Show it in your semesters">
         <button
           type="button"
           onClick={() => {
             track("four_year_problem_opened", { kind: problem.kind });
             // The phone shows one semester: switch to the problem's.
-            if (term !== undefined)
-              nav.go({ semester: term }, { replace: true });
+            if (term !== undefined) nav.go({ semester: term });
             requestAnimationFrame(() => reveal(problem));
           }}
           className="flex w-full items-start gap-2 text-left font-medium hover:underline"

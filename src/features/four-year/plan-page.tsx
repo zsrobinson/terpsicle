@@ -64,7 +64,7 @@ function Shortcuts({ nav }: { nav: PlanNav }) {
   });
   useShortcut({ key: "Escape" }, () => {
     if (!nav.search.course) return false;
-    nav.go({ course: undefined });
+    nav.back({ course: undefined });
     return true;
   });
   return null;

@@ -6,6 +6,7 @@ import { isUnknownCourse } from "~/core/four-year/course-lookup";
 import { entryCredits } from "~/core/four-year/credits";
 import type { GenEdPick } from "~/core/four-year/gen-ed";
 import {
+  entriesInTerm,
   fourYearTermLabel,
   isSemester,
   nextSemester,
@@ -134,6 +135,9 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
           .filter(({ group }) => group.length > 1)
       : [];
   const picks = genEds.picks.get(entry.id) ?? [];
+  // Reordering within a semester, for the keyboard and touch (drag does it too).
+  const siblings = entriesInTerm(doc, entry.term);
+  const at = siblings.findIndex((e) => e.id === entry.id);
   const summaryOf = (t: FourYearTerm) => {
     const s = summaries.get(t);
     return s ? `${s.credits} cr` : "";
@@ -156,7 +160,7 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
         {entry.kind === "course" ? (
           <DropdownMenuItem
             className={MENU_ITEM}
-            onSelect={() => nav.go({ course: entry.code })}
+            onSelect={() => nav.go({ course: entry.code }, { drill: true })}
           >
             About {entry.code}
           </DropdownMenuItem>
@@ -170,11 +174,28 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
                 wildcard: entry.id,
                 semester: entry.term,
                 course: undefined,
+                q: undefined,
               });
               focusSearch();
             }}
           >
             Pick a course
+          </DropdownMenuItem>
+        ) : null}
+        {at > 0 ? (
+          <DropdownMenuItem
+            className={MENU_ITEM}
+            onSelect={() => moveEntry(doc, entry, entry.term, "menu", at - 1)}
+          >
+            Move up
+          </DropdownMenuItem>
+        ) : null}
+        {at >= 0 && at < siblings.length - 1 ? (
+          <DropdownMenuItem
+            className={MENU_ITEM}
+            onSelect={() => moveEntry(doc, entry, entry.term, "menu", at + 1)}
+          >
+            Move down
           </DropdownMenuItem>
         ) : null}
         {targets.columns.length > 0 ? (
@@ -396,7 +417,7 @@ export function EntryBlock({
           </span>
         </span>
         <span className="block truncate text-muted text-sm">
-          Transfer credit
+          AP or transfer credit
         </span>
       </>
     );
@@ -413,9 +434,6 @@ export function EntryBlock({
       data-entry-id={entry.id}
       draggable
       onDragStart={onDragStart}
-      aria-label={
-        problems.length > 0 ? `${entryName(entry)}, has a problem` : undefined
-      }
       className={cn(
         "group flex items-start gap-1 border bg-raised transition-colors",
         entry.kind === "wildcard"
@@ -438,7 +456,8 @@ export function EntryBlock({
             type="button"
             onClick={() => {
               if (entry.kind === "course") {
-                nav.go({ course: open ? undefined : entry.code });
+                if (open) nav.back({ course: undefined });
+                else nav.go({ course: entry.code }, { drill: true });
                 return;
               }
               nav.go({
@@ -446,6 +465,7 @@ export function EntryBlock({
                 wildcard: entry.id,
                 semester: entry.term,
                 course: undefined,
+                q: undefined,
               });
               focusSearch();
             }}
@@ -455,6 +475,9 @@ export function EntryBlock({
             )}
           >
             {main}
+            {problems.length > 0 ? (
+              <span className="sr-only">, has a problem (see Problems)</span>
+            ) : null}
             {entry.kind === "course" ? (
               <Chips picks={genEds.picks.get(entry.id) ?? []} />
             ) : null}

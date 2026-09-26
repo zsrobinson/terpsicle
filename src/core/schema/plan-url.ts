@@ -34,5 +34,7 @@ export const PlanSearchSchema = z.object({
   wildcard: param(LocalIdSchema),
   /** Search narrowed to one GenEd ("Find a course"). */
   gened: param(GenEdCodeSchema),
+  /** What's typed in Search; written with `replace` as you type. */
+  q: param(z.string().max(100)),
 });
 export type PlanSearch = z.infer<typeof PlanSearchSchema>;

@@ -61,7 +61,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
             variant="ghost"
             size="sm"
             className="h-11 md:h-7"
-            onClick={() => nav.go({ course: undefined })}
+            onClick={() => nav.back({ course: undefined })}
           >
             <ArrowLeft aria-hidden="true" />
             Back
@@ -114,7 +114,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
 
         <dl className="space-y-3">
           {placed.length > 0 ? (
-            <Fact label="In your plan">
+            <Fact label="In your four-year plan">
               {placed.map((e) => fourYearTermLabel(e.term)).join(", ")}
             </Fact>
           ) : null}

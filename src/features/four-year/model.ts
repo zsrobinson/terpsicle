@@ -84,14 +84,23 @@ export function usePlanModel(
   }, [doc, today, lookup, calendars, latestTermId, picked]);
 }
 
+export type PlanNavOptions = {
+  /** For typing and other transient changes; otherwise Back undoes it. */
+  readonly replace?: boolean;
+  /** Opens something the in-app Back closes (a course in the side panel). */
+  readonly drill?: boolean;
+};
+
 /** The page's URL state, and how to change it. */
 export type PlanNav = {
   readonly search: PlanSearch;
-  /** Push a step Back can undo; `replace` for small, transient changes. */
-  readonly go: (
-    patch: Partial<PlanSearch>,
-    options?: { replace?: boolean },
-  ) => void;
+  readonly go: (patch: Partial<PlanSearch>, options?: PlanNavOptions) => void;
+  /**
+   * The in-app Back: the browser's Back when what it closes was opened in
+   * the app, so the two are one thing (decisions.md, "Back and Forward undo
+   * navigation"); else, after a link straight to it, `patch` in place.
+   */
+  readonly back: (patch: Partial<PlanSearch>) => void;
 };
 
 const NavContext = createContext<PlanNav | null>(null);

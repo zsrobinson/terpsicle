@@ -7,6 +7,7 @@ import {
   LOCAL_DB_NAME,
   LOCAL_DB_VERSION,
   type LocalSyncDoc,
+  LocalSyncMetaSchema,
   type Plan,
   type SettingsRow,
 } from "~/core/schema";
@@ -58,14 +59,14 @@ const V3_CHANGES = { fourYear: "id" } as const;
 export async function upgradeToV3(tx: Transaction): Promise<void> {
   const settings = tx.table("settings");
   const row: unknown = await settings.get("sync");
-  if (
-    typeof row === "object" &&
-    row !== null &&
-    "value" in row &&
-    typeof row.value === "object" &&
-    row.value !== null
-  )
-    await settings.put({ key: "sync", value: { ...row.value, cursor: 0 } });
+  const meta = LocalSyncMetaSchema.safeParse(
+    typeof row === "object" && row !== null && "value" in row
+      ? row.value
+      : undefined,
+  );
+  // No sync row (signed out) or one that doesn't read: nothing to reset.
+  if (meta.success)
+    await settings.put({ key: "sync", value: { ...meta.data, cursor: 0 } });
 }
 
 export class TerpsicleDb extends Dexie {

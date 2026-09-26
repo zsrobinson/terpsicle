@@ -8,10 +8,21 @@ import {
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Dexie from "dexie";
-import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LOCAL_DB_NAME, type PlanSearch } from "~/core/schema";
+import { isApple } from "~/app/shortcuts";
+import { LOCAL_DB_NAME } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
+import {
+  resetFourYearStart,
+  startFourYear,
+  useFourYearFacts,
+} from "~/features/four-year/data";
+import {
+  INITIAL_FOUR_YEAR_STORE,
+  useFourYear,
+  validDocs,
+  whenSaved,
+} from "~/features/four-year/store";
 import {
   aFourYear,
   aFourYearEntry,
@@ -26,14 +37,7 @@ import { createBucketDataSource } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
-import { resetFourYearStart, startFourYear, useFourYearFacts } from "./data";
-import { PlanPage } from "./plan-page";
-import {
-  INITIAL_FOUR_YEAR_STORE,
-  useFourYear,
-  validDocs,
-  whenSaved,
-} from "./store";
+import { Route } from "./plan";
 
 // /plan on the fixtures' course index and a fake IndexedDB. 2026-09-26 is in
 // Fall 2026, so a plan from Fall 2025 has two done semesters and one in
@@ -41,27 +45,21 @@ import {
 
 const NOW = "2026-09-26T16:00:00.000Z";
 
-/** The route's URL state, kept in React state as the router would. */
-function Harness({ initial }: { initial: PlanSearch }) {
-  const [search, setSearch] = useState<PlanSearch>(initial);
-  return (
-    <PlanPage
-      nav={{
-        search,
-        go: (patch) => setSearch((prev) => ({ ...prev, ...patch })),
-      }}
-    />
-  );
-}
+let router: ReturnType<typeof createRouter>;
 
-function renderPlan(initial: PlanSearch = {}) {
+/** The real `/plan` route (its search schema, push and replace, Back) on a memory history. */
+function renderPlan(initial = "/plan") {
   // Before the page's own call, which then shares this start.
   void startFourYear({ source: createBucketDataSource(mockDataSource) });
-  const router = createRouter({
-    routeTree: createRootRoute({
-      component: () => <Harness initial={initial} />,
-    }),
-    history: createMemoryHistory({ initialEntries: ["/plan"] }),
+  const root = createRootRoute();
+  const plan = Route.update({
+    id: "/plan",
+    path: "/plan",
+    getParentRoute: () => root,
+  } as never);
+  router = createRouter({
+    routeTree: root.addChildren([plan]),
+    history: createMemoryHistory({ initialEntries: [initial] }),
   });
   render(
     <TooltipProvider delayDuration={0}>
@@ -194,7 +192,7 @@ describe("a saved plan", () => {
 
   it("adds a placeholder for a pattern, then picks a course for it", async () => {
     await seed(PLAN);
-    const user = renderPlan({ tab: "search", semester: "202801" });
+    const user = renderPlan("/plan?tab=search&semester=202801");
     const box = await screen.findByRole("searchbox", {
       name: "Search courses",
     });
@@ -230,8 +228,7 @@ describe("a saved plan", () => {
     expect(within(column("Fall 2027")).getByText("CMSC351")).toBeVisible();
     expect(within(column("Spring 2027")).queryByText("CMSC351")).toBeNull();
 
-    await user.keyboard("{Control>}z{/Control}");
-    await user.keyboard("{Meta>}z{/Meta}");
+    await user.keyboard(isApple ? "{Meta>}z{/Meta}" : "{Control>}z{/Control}");
     await waitFor(() =>
       expect(within(column("Spring 2027")).getByText("CMSC351")).toBeVisible(),
     );
@@ -293,15 +290,82 @@ describe("a saved plan", () => {
       }),
     );
     const user = renderPlan();
-    await user.click(await screen.findByRole("tab", { name: /Problems/ }));
+    await user.click(await screen.findByRole("button", { name: /^Problems/ }));
     expect(
       await screen.findByRole("button", { name: "CMSC999 isn't in Testudo" }),
     ).toBeVisible();
     expect(
-      within(column("Spring 2027")).getByRole("listitem", {
-        name: "CMSC999, has a problem",
+      within(column("Spring 2027")).getByRole("button", {
+        name: /^CMSC999.*has a problem/,
       }),
     ).toBeVisible();
+  });
+});
+
+describe("reordering", () => {
+  it("moves a block up within its semester from the menu", async () => {
+    await seed(
+      aFourYear({
+        firstTermId: "202508",
+        entries: [
+          aFourYearEntry({ id: "entry_cmsc351", term: "202701", code: "CMSC351" }),
+          aFourYearEntry({ id: "entry_cmsc420", term: "202701", code: "CMSC420" }),
+        ],
+      }),
+    );
+    const user = renderPlan();
+    await user.click(
+      await screen.findByRole("button", { name: "CMSC420 options" }),
+    );
+    expect(screen.queryByRole("menuitem", { name: "Move down" })).toBeNull();
+    await user.click(await screen.findByRole("menuitem", { name: "Move up" }));
+    const codes = within(column("Spring 2027"))
+      .getAllByRole("button", { name: /options$/ })
+      .map((b) => b.getAttribute("aria-label"));
+    expect(codes).toEqual(["CMSC420 options", "CMSC351 options"]);
+  });
+});
+
+describe("the URL", () => {
+  it("keeps the search in it, and Back from a course lands on the same results", async () => {
+    await seed(PLAN);
+    const user = renderPlan("/plan?tab=search");
+    const box = await screen.findByRole("searchbox", {
+      name: "Search courses",
+    });
+    await user.type(box, "cmsc42");
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ q: "cmsc42" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^CMSC420 3 cr/ }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "CMSC420" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ q: "cmsc42" }),
+    );
+    expect(router.state.location.search).not.toHaveProperty("course");
+    expect(
+      await screen.findByRole("searchbox", { name: "Search courses" }),
+    ).toHaveValue("cmsc42");
+    // The in-app Back went back: Forward reopens the course.
+    router.history.forward();
+    expect(
+      await screen.findByRole("heading", { name: "CMSC420" }),
+    ).toBeVisible();
+  });
+
+  it("closes a course opened by a link in place", async () => {
+    await seed(PLAN);
+    const user = renderPlan("/plan?course=CMSC351");
+    await user.click(await screen.findByRole("button", { name: "Back" }));
+    await waitFor(() =>
+      expect(router.state.location.search).not.toHaveProperty("course"),
+    );
+    expect(router.state.location.pathname).toBe("/plan");
   });
 });
 

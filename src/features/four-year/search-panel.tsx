@@ -34,12 +34,14 @@ export const SEARCH_INPUT_ID = "plan-search";
  * course" and `/` do, and so does opening the tab. Changing the semester
  * from the phone's strip doesn't, so the keyboard doesn't pop up for it.
  */
-export const useSearchFocus = create<{ asked: number }>()(() => ({
-  asked: 0,
-}));
+export const useSearchFocus = create<{
+  asked: number;
+  /** Where Search was opened from, for `four_year_course_added`. */
+  via: "search" | "column";
+}>()(() => ({ asked: 0, via: "search" }));
 
-export function focusSearch(): void {
-  useSearchFocus.setState((s) => ({ asked: s.asked + 1 }));
+export function focusSearch(via: "search" | "column" = "search"): void {
+  useSearchFocus.setState((s) => ({ asked: s.asked + 1, via }));
 }
 
 function ResultRow({
@@ -64,7 +66,7 @@ function ResultRow({
       <WithTooltip label={`About ${code}`}>
         <button
           type="button"
-          onClick={() => nav.go({ course: code })}
+          onClick={() => nav.go({ course: code }, { drill: true })}
           className="min-w-0 flex-1 px-4 py-1.5 text-left hover:bg-hover"
         >
           <span className="flex items-baseline gap-2">
@@ -104,7 +106,21 @@ function ResultRow({
 export function SearchPanel() {
   const { doc, target } = useModel();
   const nav = usePlanNav();
-  const [query, setQuery] = useState("");
+  // The URL keeps the query (`?q=`, replaced as you type) so Back from a
+  // course lands on the same results; this mirrors it so typing never waits.
+  const urlQuery = nav.search.q ?? "";
+  const [query, setQuery] = useState(urlQuery);
+  const written = useRef(urlQuery);
+  useEffect(() => {
+    if (urlQuery === written.current) return;
+    written.current = urlQuery;
+    setQuery(urlQuery);
+  }, [urlQuery]);
+  const type = (next: string) => {
+    setQuery(next);
+    written.current = next;
+    nav.go({ q: next === "" ? undefined : next }, { replace: true });
+  };
   const input = useRef<HTMLInputElement>(null);
   const rows = useCourseIndex((s) => s.search);
   const state = useCourseIndex((s) => s.searchState);
@@ -121,13 +137,6 @@ export function SearchPanel() {
   const resolving =
     placeholderEntry?.kind === "wildcard" ? placeholderEntry : null;
   const genEd = resolving ? null : (nav.search.gened ?? null);
-
-  // A new scope starts a new search.
-  const scope = `${nav.search.semester}|${resolving?.id}|${genEd}`;
-  useEffect(() => {
-    void scope;
-    setQuery("");
-  }, [scope]);
 
   const asked = useSearchFocus((s) => s.asked);
   useEffect(() => {
@@ -168,17 +177,19 @@ export function SearchPanel() {
         <label htmlFor={SEARCH_INPUT_ID} className="sr-only">
           Search courses
         </label>
-        <input
-          ref={input}
-          id={SEARCH_INPUT_ID}
-          type="search"
-          autoComplete="off"
-          spellCheck={false}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="CMSC351, a title, CMSC4XX or DSHS"
-          className="h-11 w-full border border-hairline-strong bg-raised px-2.5 text-base outline-none placeholder:text-faint focus-visible:border-fg md:h-8"
-        />
+        <WithTooltip label="Search every course in Testudo" shortcut="/">
+          <input
+            ref={input}
+            id={SEARCH_INPUT_ID}
+            type="search"
+            autoComplete="off"
+            spellCheck={false}
+            value={query}
+            onChange={(event) => type(event.target.value)}
+            placeholder="CMSC351, a title, CMSC4XX or DSHS"
+            className="h-11 w-full border border-hairline-strong bg-raised px-2.5 text-base outline-none placeholder:text-faint focus-visible:border-fg md:h-8"
+          />
+        </WithTooltip>
         <p className="flex min-h-6 items-center gap-2 text-muted text-sm">
           <span className="min-w-0 flex-1">
             {scopeLine ?? (
@@ -196,10 +207,11 @@ export function SearchPanel() {
                 aria-label="Search every course"
                 className="size-11 md:size-6"
                 onClick={() =>
-                  nav.go(
-                    { wildcard: undefined, gened: undefined },
-                    { replace: true },
-                  )
+                  nav.go({
+                    wildcard: undefined,
+                    gened: undefined,
+                    q: undefined,
+                  })
                 }
               >
                 <X aria-hidden="true" />
@@ -232,7 +244,7 @@ export function SearchPanel() {
               className="h-11 md:h-6"
               onClick={() => {
                 addPlaceholder(doc, offer, target);
-                setQuery("");
+                type("");
               }}
             >
               <Plus aria-hidden="true" />
@@ -282,7 +294,7 @@ export function SearchPanel() {
                   actionLabel={`Use ${row[0]} for ${entryName(resolving)}`}
                   onAct={() => {
                     void pickForPlaceholder(resolving.id, row[0]);
-                    nav.go({ wildcard: undefined }, { replace: true });
+                    nav.go({ wildcard: undefined, q: undefined });
                   }}
                 />
               ) : (
@@ -296,7 +308,7 @@ export function SearchPanel() {
                       doc,
                       row[0],
                       target,
-                      nav.search.semester ? "column" : "search",
+                      useSearchFocus.getState().via,
                     )
                   }
                 />

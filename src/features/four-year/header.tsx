@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Redo2, Undo2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { modKey } from "~/app/shortcuts";
 import { firstTermChoices, fourYearTermLabel } from "~/core/four-year/terms";
 import { canRedo, canUndo } from "~/core/plans/history";
@@ -42,7 +42,11 @@ function RenameField({
   onDone: () => void;
 }) {
   const [value, setValue] = useState(doc.name);
+  // Escape unmounts the field, and a blur can still follow: finish once.
+  const finished = useRef(false);
   const finish = (save: boolean) => {
+    if (finished.current) return;
+    finished.current = true;
     if (save) renameDoc(doc, value);
     onDone();
   };
@@ -71,7 +75,7 @@ function DocMenu({ onRename }: { onRename: () => void }) {
   const setActive = useFourYear((s) => s.setActive);
   return (
     <DropdownMenu>
-      <WithTooltip label="Switch, rename, copy or delete this plan">
+      <WithTooltip label="Switch, rename, copy or delete this four-year plan">
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -88,7 +92,7 @@ function DocMenu({ onRename }: { onRename: () => void }) {
       <DropdownMenuContent className="w-[240px]">
         {docs.length > 1 ? (
           <>
-            <DropdownMenuLabel>Your plans</DropdownMenuLabel>
+            <DropdownMenuLabel>Your four-year plans</DropdownMenuLabel>
             {docs.map((d) => (
               <DropdownMenuItem
                 key={d.id}
@@ -115,7 +119,7 @@ function DocMenu({ onRename }: { onRename: () => void }) {
           className={MENU_ITEM}
           onSelect={() => newDoc(doc.firstTermId)}
         >
-          New plan
+          New four-year plan
         </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className={MENU_ITEM}>
@@ -188,11 +192,14 @@ export function PlanHeader() {
   return (
     <header className="flex min-h-11 items-center gap-2">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        {renaming ? (
-          <RenameField doc={doc} onDone={() => setRenaming(false)} />
-        ) : (
-          <DocMenu onRename={() => setRenaming(true)} />
-        )}
+        {/* The page's heading is the plan's name; its menu hangs off it. */}
+        <h1 className="flex min-w-0">
+          {renaming ? (
+            <RenameField doc={doc} onDone={() => setRenaming(false)} />
+          ) : (
+            <DocMenu onRename={() => setRenaming(true)} />
+          )}
+        </h1>
         <WithTooltip
           label={
             storageFailed

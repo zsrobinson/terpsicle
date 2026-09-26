@@ -83,6 +83,20 @@ export function validDocs(rows: readonly unknown[]): FourYearDoc[] {
   return docs.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+/**
+ * History spans every doc: an undo that changes another doc than the open
+ * one opens that doc, so the step is never invisible.
+ */
+function followChange(
+  before: FourYearState,
+  after: FourYearState,
+  activeId: LocalId | null,
+): { activeId?: LocalId } {
+  const open = activeDoc({ history: { present: before }, activeId });
+  const changed = after.docs.find((d) => !before.docs.includes(d));
+  return changed && changed.id !== open?.id ? { activeId: changed.id } : {};
+}
+
 export const INITIAL_FOUR_YEAR_STORE = {
   phase: "loading",
   history: createHistory(EMPTY_FOUR_YEAR_STATE),
@@ -186,9 +200,11 @@ export const useFourYear = create<FourYearStore>()((set, get) => {
       const { history } = get();
       if (!canUndo(history)) return;
       const label = labels.get(history.present);
+      const next = undo(history);
       set({
-        history: undo(history),
+        history: next,
         notice: notice("undo", label ?? "Your last change"),
+        ...followChange(history.present, next.present, get().activeId),
       });
       save();
     },
@@ -201,6 +217,7 @@ export const useFourYear = create<FourYearStore>()((set, get) => {
       set({
         history: next,
         notice: notice("redo", label ?? "Your last change"),
+        ...followChange(history.present, next.present, get().activeId),
       });
       save();
     },
@@ -208,9 +225,10 @@ export const useFourYear = create<FourYearStore>()((set, get) => {
 });
 
 /** The open doc: the chosen one, else the first; null when there's none. */
-export function activeDoc(
-  state: Pick<FourYearStore, "history" | "activeId">,
-): FourYearDoc | null {
+export function activeDoc(state: {
+  readonly history: { readonly present: FourYearState };
+  readonly activeId: LocalId | null;
+}): FourYearDoc | null {
   const { docs } = state.history.present;
   return docs.find((d) => d.id === state.activeId) ?? docs[0] ?? null;
 }

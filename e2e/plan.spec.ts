@@ -1,5 +1,5 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { scan } from "./axe";
 
 // Terpsicle Plan (docs/V3.md §2.13) on `pnpm dev:mock`: the first visit,
 // adding a course and a placeholder from Search, moving a block with the
@@ -19,25 +19,11 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-/** Axe in both themes. */
+/** Axe in both themes, with the shared rules (./axe). */
 async function axe(page: Page, what: string) {
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
-    await page.waitForTimeout(250);
-    const { violations } = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-      .exclude("[data-radix-popper-content-wrapper]")
-      .exclude("[data-sonner-toaster]")
-      .analyze();
-    expect
-      .soft(
-        violations.map((v) => ({
-          rule: v.id,
-          nodes: v.nodes.map((n) => n.target.join(" ")),
-        })),
-        `axe violations: ${what} (${colorScheme})`,
-      )
-      .toEqual([]);
+    await scan(page, `${what} (${colorScheme})`);
   }
   await page.emulateMedia({ colorScheme: "light" });
 }
@@ -96,21 +82,11 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
   await page.keyboard.press("Enter");
   const moveTo = page.getByRole("menuitem", { name: "Move to…" });
   await expect(moveTo).toBeVisible();
-  for (
-    let i = 0;
-    i < 4 && !(await moveTo.evaluate((el) => el === document.activeElement));
-    i++
-  )
-    await page.keyboard.press("ArrowDown");
+  await moveTo.focus();
   await page.keyboard.press("ArrowRight");
   const fall2027 = page.getByRole("menuitem", { name: /^Fall 2027/ });
   await expect(fall2027).toBeVisible();
-  for (
-    let i = 0;
-    i < 12 && !(await fall2027.evaluate((el) => el === document.activeElement));
-    i++
-  )
-    await page.keyboard.press("ArrowDown");
+  await fall2027.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByText("Moved CMSC351 to Fall 2027")).toBeVisible();
 

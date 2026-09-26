@@ -60,7 +60,7 @@ export function newDoc(firstTermId: TermId): void {
   if (
     dispatch(
       { type: "create", id: newLocalId(), firstTermId, now: nowIso() },
-      "Started a new plan",
+      "Started a new four-year plan",
     )
   )
     track("four_year_created", { source: "empty" });
@@ -189,7 +189,7 @@ export function moveEntry(
       now: nowIso(),
     },
     entry.term === term
-      ? `Moved ${entryName(entry)}`
+      ? `Moved ${entryName(entry)} within ${fourYearTermLabel(term)}`
       : `Moved ${entryName(entry)} to ${fourYearTermLabel(term)}`,
   );
   if (moved) track("four_year_course_moved", { via });

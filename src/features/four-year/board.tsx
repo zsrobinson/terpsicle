@@ -88,7 +88,7 @@ function AddButton({
   const nav = usePlanNav();
   const label = `Add a course to ${fourYearTermLabel(term)}`;
   return (
-    <WithTooltip label={label} shortcut="/">
+    <WithTooltip label={label}>
       <Button
         variant="ghost"
         size="sm"
@@ -99,8 +99,10 @@ function AddButton({
             semester: term,
             course: undefined,
             wildcard: undefined,
+            gened: undefined,
+            q: undefined,
           });
-          focusSearch();
+          focusSearch("column");
         }}
         className={cn(
           "h-11 w-full justify-start px-2 font-medium text-muted md:h-7",
@@ -118,9 +120,12 @@ function AddButton({
 export function TermColumn({
   term,
   className,
+  heading: Heading = "h3",
 }: {
   term: FourYearTerm;
   className?: string;
+  /** h3 under a year's heading on desktop; h2 alone on a phone. */
+  heading?: "h2" | "h3";
 }) {
   const { doc, statusOf, summaries } = useModel();
   const nav = usePlanNav();
@@ -144,9 +149,9 @@ export function TermColumn({
       )}
     >
       <header className="flex items-baseline gap-2 px-2 pt-2 pb-1.5">
-        <h3 id={id} className="font-semibold">
+        <Heading id={id} className="font-semibold">
           {fourYearTermLabel(term)}
-        </h3>
+        </Heading>
         <span className="text-muted text-xs">{STATUS_WORDS[status]}</span>
         <span className="tnum ml-auto text-muted text-xs">
           {summary && summary.entries > 0 ? columnLabel(summary) : null}
@@ -188,9 +193,9 @@ function BeforeRow() {
       )}
     >
       <header className="flex items-baseline gap-2 px-2 pt-2 pb-1.5">
-        <h3 id="term-before" className="font-semibold">
+        <h2 id="term-before" className="font-semibold">
           Before UMD
-        </h3>
+        </h2>
         <span className="text-muted text-xs">AP and transfer credit</span>
         <span className="tnum ml-auto text-muted text-xs">
           {summary && summary.entries > 0 ? columnLabel(summary) : null}
@@ -284,9 +289,7 @@ export function PhoneBoard({ selected }: { selected: FourYearTerm }) {
                     type="button"
                     data-strip-term={term}
                     aria-current={current ? "true" : undefined}
-                    onClick={() =>
-                      nav.go({ semester: term }, { replace: true })
-                    }
+                    onClick={() => nav.go({ semester: term })}
                     className={cn(
                       "flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border px-3 text-sm",
                       current
@@ -308,7 +311,11 @@ export function PhoneBoard({ selected }: { selected: FourYearTerm }) {
           })}
         </ul>
       </nav>
-      {selected === "before" ? <BeforeRow /> : <TermColumn term={selected} />}
+      {selected === "before" ? (
+        <BeforeRow />
+      ) : (
+        <TermColumn term={selected} heading="h2" />
+      )}
     </div>
   );
 }

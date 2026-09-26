@@ -199,7 +199,7 @@ Revisit if: the owner starts the requirements work.
 
 ### Plan is listed once PLAN_ENABLED is on
 2026-09-26 · agent · one feature
-`/plan` works for anyone who opens it, since it needs no server, but the product menu and the site header list Plan only when `PLAN_ENABLED` is on (or while you're in it). The manifest's shortcut and `/`'s returning path to `/plan` wait for the flag, since both are static.
+`/plan` works for anyone who opens it, since it needs no server, but the product menu and the site header list Plan only when `PLAN_ENABLED` is on (or while you're in it). The flag waits, unlike "Ship it"'s screens-land rule, because it also opens four-year sync pushes, which V3 §11 turns on after `v3/four-year-sync`, `v3/e2e` and the owner's trial. The manifest's shortcut and `/`'s returning path to `/plan` wait with it, since both are static.
 Revisit if: Plan turns on in production; then list it always and add the shortcut.
 
 ### Gradescope, honestly

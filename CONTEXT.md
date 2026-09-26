@@ -254,7 +254,7 @@ A PR's own deployment at `pr-<n>-terpsicle.zsrobinson.workers.dev`, with its own
 Sign-in with fixture people (Test Student, Test Classmate, Test Admin) instead of Google, only on previews and localhost.
 
 **Flag**:
-A product's on switch in production (`REVIEWS_ENABLED`, `CHAT_ENABLED`, `TODO_ENABLED`).
+A product's on switch in production (`REVIEWS_ENABLED`, `CHAT_ENABLED`, `TODO_ENABLED`, `PLAN_ENABLED`).
 
 **Load rule**:
 How much an agent may run locally: `tsc` once, biome on changed files, the relevant tests with one worker. CI is the verdict.

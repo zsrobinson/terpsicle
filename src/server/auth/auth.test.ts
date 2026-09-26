@@ -10,7 +10,7 @@ import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
 import { testBindings } from "../test-bindings";
 import { ADMINS_FILE, isAdmin } from "./admin";
-import { isTestMode, signInMode } from "./config";
+import { appFlags, isTestMode, signInMode } from "./config";
 import { GOOGLE_TOKEN_URL } from "./google";
 import { requireAdmin, requireUser } from "./guard";
 import { s256 } from "./pkce";
@@ -515,6 +515,20 @@ describe("pictures", () => {
       status: "signed-in",
       user: { avatarUrl: null },
     });
+  });
+});
+
+describe("flags", () => {
+  it("lists Plan only when PLAN_ENABLED is true", () => {
+    const url = new URL("https://terpsicle.com/api/me");
+    const others = { seatAlerts: false, todo: false };
+    expect(appFlags({ PLAN_ENABLED: "true" } as never, url, others).plan).toBe(
+      true,
+    );
+    expect(appFlags({ PLAN_ENABLED: "false" } as never, url, others).plan).toBe(
+      false,
+    );
+    expect(appFlags({} as never, url, others).plan).toBe(false);
   });
 });
 

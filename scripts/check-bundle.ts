@@ -172,11 +172,13 @@ const PLAN_ROUTE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
     pattern: /^src\/features\/(calendar|courses|course-details|search)\//,
     why: "the scheduler's panels load with /schedule",
   },
-  // Term status reads a date helper from ~/core/ics; the rest of .ics
+  // Term status reads one date helper from ~/core/ics; the rest of .ics
   // export stays out, as for the scheduler.
-  ...SCHEDULE_NEVER_EAGER.filter(
-    (r) => !r.pattern.test("src/core/ics/dates.ts"),
-  ),
+  {
+    pattern: /^src\/core\/ics\/(?!dates\.ts$)/,
+    why: ".ics export loads with Export",
+  },
+  ...SCHEDULE_NEVER_EAGER.filter((r) => !r.pattern.test("src/core/ics/x.ts")),
 ];
 
 /** The owner's panel loads with /admin, never with anyone else's pages. */

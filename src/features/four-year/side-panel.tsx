@@ -99,11 +99,9 @@ export function SidePanel({
           <CreditsSummary />
         </div>
       ) : null}
-      <div
-        role="tablist"
-        aria-label="Panel"
-        className="flex border-hairline border-b"
-      >
+      {/* Plain buttons, not ARIA tabs: each is its own URL state (`?tab=`), a
+          stop for Tab like any link, and marked current like one. */}
+      <nav aria-label="Panel" className="flex border-hairline border-b">
         {TABS.map((t) => (
           <WithTooltip
             key={t.tab}
@@ -112,10 +110,7 @@ export function SidePanel({
           >
             <button
               type="button"
-              role="tab"
-              id={`plan-tab-${t.tab}`}
-              aria-selected={tab === t.tab && !course}
-              aria-controls="plan-tabpanel"
+              aria-current={tab === t.tab && !course ? "true" : undefined}
               onClick={() => {
                 nav.go({
                   tab: t.tab === "gened" ? undefined : t.tab,
@@ -139,12 +134,11 @@ export function SidePanel({
             </button>
           </WithTooltip>
         ))}
-      </div>
-      <div
-        id="plan-tabpanel"
-        role="tabpanel"
-        aria-labelledby={course ? undefined : `plan-tab-${tab}`}
-        aria-label={course ? `About ${course}` : undefined}
+      </nav>
+      <section
+        aria-label={
+          course ? `About ${course}` : TABS.find((t) => t.tab === tab)?.tip
+        }
         className="scroll-thin min-h-0 flex-1 overflow-y-auto"
       >
         {course ? (
@@ -156,7 +150,7 @@ export function SidePanel({
         ) : (
           <GenEdPanel />
         )}
-      </div>
+      </section>
       <p className="border-hairline border-t px-4 py-2 text-muted text-xs">
         Terpsicle doesn't check your major's requirements.{" "}
         <WithTooltip label="UMD's degree audit, in a new tab">

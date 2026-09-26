@@ -74,6 +74,7 @@ function Row({ p }: { p: GenEdProgress }) {
                 gened: code,
                 wildcard: undefined,
                 course: undefined,
+                q: undefined,
               });
               focusSearch();
             }}
@@ -97,9 +98,9 @@ export function GenEdPanel() {
       </p>
       {GROUPS.map((group) => (
         <section key={group} aria-label={group}>
-          <h3 className="px-4 pt-3 pb-0.5 font-medium text-muted text-xs">
+          <h2 className="px-4 pt-3 pb-0.5 font-medium text-muted text-xs">
             {group}
-          </h3>
+          </h2>
           <ul>
             {genEds.progress
               .filter((p) => p.requirement.group === group)
