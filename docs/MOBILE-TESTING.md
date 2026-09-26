@@ -74,7 +74,7 @@ Every step checks (`scripts/mobile-lab/checks.ts`):
 | `no-horizontal-overflow` | warn | The document is wider than the screen. |
 | `drawer-rests-at-snap` | warn | At rest, the drawer's top isn't where its snap puts it. |
 | `drawer-moves-one-way` | warn | Within one step the drawer reversed direction more than once (a flash or jump). |
-| `focused-field-never-above-view` | warn | In any frame the focused field was above the visible band. |
+| `focused-field-never-above-view` | fail | In any frame the focused field was above the visible band. |
 
 Scenarios add their own (`results-visible`, `list-bottom-on-screen`, `drawer-follows-finger`, …). A `fail` fails the run; a `warn` shows in the report.
 

@@ -83,6 +83,24 @@ function isTextEntry(el: EventTarget | null): boolean {
   );
 }
 
+/**
+ * Puts the drawer at full now, skipping vaul's half-second slide, then
+ * records the snap. Reading the layout commits the jump before vaul sets its
+ * transition, so vaul's own move to the same place has nothing to animate.
+ * The transform is vaul's for a snap point `innerHeight - TOP_BAR_HEIGHT`
+ * tall: its offset from the top.
+ */
+function raiseAtOnce(inside: HTMLElement, setSnap: (snap: DrawerSnap) => void) {
+  if (useUi.getState().drawerSnap === "full") return;
+  const drawer = inside.closest<HTMLElement>("[data-vaul-drawer]");
+  if (drawer) {
+    drawer.style.transition = "none";
+    drawer.style.transform = `translate3d(0, ${TOP_BAR_HEIGHT}px, 0)`;
+    drawer.getBoundingClientRect();
+  }
+  setSnap("full");
+}
+
 export function snapHeights(viewport: number): Record<DrawerSnap, number> {
   const full = viewport - TOP_BAR_HEIGHT;
   return {
@@ -120,9 +138,12 @@ export function MobileDrawer() {
 
   // At peek only the search box shows: typing there put the results below
   // the screen's edge. Anything focused inside raises a resting drawer. A
-  // field a finger taps goes all the way up at once: the keyboard is coming,
-  // and iPhones pan the page to a field the keyboard would cover, measuring
-  // where it is now rather than where the drawer is headed.
+  // field a finger taps goes all the way up at once, with no slide: the
+  // keyboard is coming, and phones pan the page to bring a field the
+  // keyboard would cover into view, measuring where it is when the keyboard
+  // opens. Mid-slide, that was still low on the screen; the drawer then
+  // carried the field up and out of the panned view, so what was typed
+  // couldn't be seen (docs/MOBILE-TESTING.md, keyboard-at-half).
   const raiseOnFocus = useCallback(
     (el: HTMLDivElement | null) => {
       if (!el) return;
@@ -131,7 +152,7 @@ export function MobileDrawer() {
           isTextEntry(event.target) &&
           matchMedia("(pointer: coarse)").matches
         )
-          setSnap("full");
+          raiseAtOnce(el, setSnap);
         else if (useUi.getState().drawerSnap === "peek") setSnap("half");
       };
       el.addEventListener("focusin", raise);
@@ -152,7 +173,7 @@ export function MobileDrawer() {
       isTextEntry(focused) &&
       content.current?.contains(focused)
     )
-      setSnap("full");
+      raiseAtOnce(content.current, setSnap);
   }, [keyboard, setSnap]);
 
   // An empty plan's calendar has nothing on it, and the Courses tab has the

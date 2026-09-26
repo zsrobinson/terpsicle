@@ -83,6 +83,44 @@ test("typing a search with the keyboard up shows the results above it", async ({
   await expect(drawer(page)).toHaveAttribute("data-snap", "full");
 });
 
+test("a tapped field is already at the top when the keyboard opens", async ({
+  page,
+}) => {
+  // The owner: "the keyboard pushing up the content of the page … you're no
+  // longer able to see where you're typing". Tapped at half, the field used
+  // to ride vaul's half-second slide up to full. The keyboard opened
+  // mid-slide, the phone panned the page to the field where it was then, and
+  // the drawer carried it on up, out of the panned view (the mobile lab's
+  // keyboard-at-half on Android Chrome). Now it jumps: right after the tap,
+  // the drawer is at full and the field under the tab strip.
+  await tabs(page).getByRole("button", { name: "Search" }).tap();
+  const grabber = drawer(page).getByRole("button", { name: /the panel$/ });
+  for (
+    let i = 0;
+    i < 3 && (await drawer(page).getAttribute("data-snap")) !== "half";
+    i++
+  ) {
+    await grabber.tap();
+    await page.waitForTimeout(600);
+  }
+  await expect(drawer(page)).toHaveAttribute("data-snap", "half");
+  await page.waitForTimeout(600);
+
+  const box = page.getByRole("combobox", { name: "Search courses" });
+  await box.tap();
+  const at = await page.evaluate(() => ({
+    drawer: document
+      .querySelector("[data-vaul-drawer]")
+      ?.getBoundingClientRect().top,
+    field: document
+      .querySelector('[aria-label="Search courses"]')
+      ?.getBoundingClientRect().top,
+  }));
+  expect(at.drawer).toBeLessThanOrEqual(48 + 1);
+  expect(at.field).toBeLessThan(200);
+  await expect(drawer(page)).toHaveAttribute("data-snap", "full");
+});
+
 test("the keyboard alone doesn't move the drawer", async ({ page }) => {
   await expect(drawer(page)).toHaveAttribute("data-snap", "half");
   await keyboard(page, KEYBOARD);
