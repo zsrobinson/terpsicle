@@ -19,8 +19,13 @@ import { isMain, ROOT } from "./lib/source-files";
  * Gzipped JS + CSS for /schedule, in bytes: 343 KB when this was set (M8),
  * plus about 10% headroom. Raise it on purpose, in the PR that needs it,
  * never to get a build green.
+ *
+ * Raised from 380 KB in v3 todo-ui (379.2 → 381.1 KB) with no Todo code in
+ * it (the never rule below): Todo shares the sign-in button, course tints and
+ * date helpers with the scheduler, so Rollup moved those into shared chunks,
+ * each compressed on its own; the stylesheet and the route tree grew too.
  */
-export const EAGER_BUDGET = 380 * 1024;
+export const EAGER_BUDGET = 384 * 1024;
 
 /**
  * Gzipped JS + CSS for / (the marketing page), in bytes: 193 KB when this
@@ -28,6 +33,13 @@ export const EAGER_BUDGET = 380 * 1024;
  * schemas, plus about 10% headroom. Same rule for raising it.
  */
 export const LANDING_BUDGET = 215 * 1024;
+
+/**
+ * Gzipped JS + CSS for /todo and /todo/connect, in bytes: 225 KB when this
+ * was set (v3 todo-ui), `/`'s 205 KB plus the list, the week and the .ics
+ * parser, plus about 10% headroom. Same rule for raising it.
+ */
+export const TODO_BUDGET = 248 * 1024;
 
 /** Modules that must only ever load on demand, and why. */
 export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
@@ -74,7 +86,24 @@ export const ROUTE_BUDGETS: readonly {
         pattern: /^src\/state\/course-index-store\.ts$/,
         why: "the course index loads with Plan, not the scheduler",
       },
+      {
+        pattern: /^src\/(features\/todo\/|server\/fns\/todo\.ts$)/,
+        why: "Todo loads with /todo, not the scheduler",
+      },
     ],
+  },
+  {
+    // Terpsicle Todo: `/`'s rules (no Dexie, no scheduler stores; course
+    // colors are a raw IndexedDB read), plus the list, the week and the
+    // browser's .ics parser for dropped files.
+    route: "/todo/",
+    budget: TODO_BUDGET,
+    never: LANDING_NEVER_EAGER,
+  },
+  {
+    route: "/todo/connect",
+    budget: TODO_BUDGET,
+    never: LANDING_NEVER_EAGER,
   },
   ...[
     "/",

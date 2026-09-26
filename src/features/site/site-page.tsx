@@ -8,7 +8,7 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 
 // The frame for pages outside the scheduler (`/`, the coming-soon pages,
-// `/privacy`, not found): the product menu, one column, and a footer.
+// `/privacy`, not found, Todo): the product menu, one column, and a footer.
 
 /** The product you're on wears its soft color, as in the product menu. */
 const CURRENT: Record<ProductId, string> = {
@@ -17,10 +17,17 @@ const CURRENT: Record<ProductId, string> = {
   chat: "aria-[current=page]:bg-product-chat-soft",
 };
 
-export function SitePage({ children }: { children: ReactNode }) {
+export function SitePage({
+  children,
+  layout = "page",
+}: {
+  children: ReactNode;
+  /** `app`: a wider column from the top, for a product's own pages (Todo). */
+  layout?: "page" | "app";
+}) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-4 px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4">
         <WithTooltip label="About Terpsicle">
           {/* ?stay: returning visitors would otherwise skip to the scheduler. */}
           <a href={`/?${STAY_PARAM}`} className="flex">
@@ -28,14 +35,15 @@ export function SitePage({ children }: { children: ReactNode }) {
           </a>
         </WithTooltip>
         {/* The product menu's links, flat: these pages stay light (no menu code). */}
-        <nav aria-label="Products" className="flex items-center gap-1">
+        {/* Tighter on phones, so all three fit beside the logo at 390px. */}
+        <nav aria-label="Products" className="flex items-center sm:gap-1">
           {PRODUCTS.map((p) => (
             <WithTooltip key={p.to} label={p.view}>
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
-                className={`aria-[current=page]:text-fg ${CURRENT[p.id]}`}
+                className={`max-sm:px-1.5 aria-[current=page]:text-fg ${CURRENT[p.id]}`}
               >
                 <Link to={p.to} activeProps={{ "aria-current": "page" }}>
                   {/* size-4: the button shrinks unsized icons. */}
@@ -47,7 +55,13 @@ export function SitePage({ children }: { children: ReactNode }) {
           ))}
         </nav>
       </header>
-      <main className="mx-auto w-full max-w-[560px] flex-1 px-4 pt-[12vh] pb-8">
+      <main
+        className={
+          layout === "app"
+            ? "mx-auto w-full max-w-[1120px] flex-1 px-4 pt-4 pb-8"
+            : "mx-auto w-full max-w-[560px] flex-1 px-4 pt-[12vh] pb-8"
+        }
+      >
         {children}
       </main>
       <footer className="flex h-12 shrink-0 items-center gap-4 px-4 text-muted text-sm">

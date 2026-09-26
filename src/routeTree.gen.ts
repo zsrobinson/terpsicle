@@ -20,6 +20,8 @@ import { Route as AlertsUnsubscribeRouteImport } from './routes/alerts.unsubscri
 import { Route as AuthTestRouteImport } from './routes/auth/test'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
+import { Route as TodoIndexRouteImport } from './routes/todo.index'
+import { Route as TodoConnectRouteImport } from './routes/todo.connect'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +78,16 @@ const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
   path: '/reviews/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TodoIndexRoute = TodoIndexRouteImport.update({
+  id: '/todo/',
+  path: '/todo/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TodoConnectRoute = TodoConnectRouteImport.update({
+  id: '/todo/connect',
+  path: '/todo/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -86,9 +98,11 @@ export interface FileRoutesByFullPath {
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
+  '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
+  '/todo/': typeof TodoIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -99,9 +113,11 @@ export interface FileRoutesByTo {
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
+  '/todo/connect': typeof TodoConnectRoute
   '/admin': typeof AdminIndexRoute
   '/chat': typeof ChatIndexRoute
   '/reviews': typeof ReviewsIndexRoute
+  '/todo': typeof TodoIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,9 +129,11 @@ export interface FileRoutesById {
   '/alerts/confirm': typeof AlertsConfirmRoute
   '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
+  '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
+  '/todo/': typeof TodoIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -128,9 +146,11 @@ export interface FileRouteTypes {
     | '/alerts/confirm'
     | '/alerts/unsubscribe'
     | '/auth/test'
+    | '/todo/connect'
     | '/admin/'
     | '/chat/'
     | '/reviews/'
+    | '/todo/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -141,9 +161,11 @@ export interface FileRouteTypes {
     | '/alerts/confirm'
     | '/alerts/unsubscribe'
     | '/auth/test'
+    | '/todo/connect'
     | '/admin'
     | '/chat'
     | '/reviews'
+    | '/todo'
   id:
     | '__root__'
     | '/'
@@ -154,9 +176,11 @@ export interface FileRouteTypes {
     | '/alerts/confirm'
     | '/alerts/unsubscribe'
     | '/auth/test'
+    | '/todo/connect'
     | '/admin/'
     | '/chat/'
     | '/reviews/'
+    | '/todo/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -168,9 +192,11 @@ export interface RootRouteChildren {
   AlertsConfirmRoute: typeof AlertsConfirmRoute
   AlertsUnsubscribeRoute: typeof AlertsUnsubscribeRoute
   AuthTestRoute: typeof AuthTestRoute
+  TodoConnectRoute: typeof TodoConnectRoute
   AdminIndexRoute: typeof AdminIndexRoute
   ChatIndexRoute: typeof ChatIndexRoute
   ReviewsIndexRoute: typeof ReviewsIndexRoute
+  TodoIndexRoute: typeof TodoIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +278,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/todo/': {
+      id: '/todo/'
+      path: '/todo'
+      fullPath: '/todo/'
+      preLoaderRoute: typeof TodoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/todo/connect': {
+      id: '/todo/connect'
+      path: '/todo/connect'
+      fullPath: '/todo/connect'
+      preLoaderRoute: typeof TodoConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -264,9 +304,11 @@ const rootRouteChildren: RootRouteChildren = {
   AlertsConfirmRoute: AlertsConfirmRoute,
   AlertsUnsubscribeRoute: AlertsUnsubscribeRoute,
   AuthTestRoute: AuthTestRoute,
+  TodoConnectRoute: TodoConnectRoute,
   AdminIndexRoute: AdminIndexRoute,
   ChatIndexRoute: ChatIndexRoute,
   ReviewsIndexRoute: ReviewsIndexRoute,
+  TodoIndexRoute: TodoIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

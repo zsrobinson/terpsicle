@@ -17,6 +17,7 @@ One-off objects for tests. Each returns a schema-valid value with defaults taken
 | Calendar | `aPublishedCalendar`, `anUnpublishedCalendar` |
 | Computed | `aGenerateRequest`, `aProblem` |
 | Chat | `aChatAuthor`, `aChatMessage` |
+| Todo | `aFeedItem`, `aTodoItem`, `aTodoFeedState` |
 
 Don't hand-roll these objects in tests (CLAUDE.md).
 

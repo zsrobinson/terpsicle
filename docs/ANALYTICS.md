@@ -53,15 +53,22 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
   | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
 
-  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. |
+  | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `todo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option gets used (always `false` until plan sync). |
   | `account_deletion_requested` | | How often people delete their account. |
+  | `todo_connect_result` | `outcome` (`connected`, `invalid-link`, `unreachable`, `not-a-calendar`) | Where connecting ELMS fails. |
+  | `todo_disconnected` | | Churn: sent once Disconnect's Undo is gone. |
+  | `todo_item_checked` | `done`, `via` (`list`, `week`) | Whether checking things off is the habit. |
+  | `todo_view_changed` | `view` (`day`, `course`, `week`) | Which views earn their place. |
+  | `todo_file_imported` | `items`, `skipped` (counts) | Whether the Gradescope fallback (a dropped `.ics`) is used. |
+
+  Todo's events never carry an item's title, course, date or link, nor anything from the feed. Its pages set `ph-no-capture` so autocapture reads nothing on them, and titles are `data-private`.
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
-- **Session recordings**, when enabled in the PostHog project. They're recorded with every input masked (`maskAllInputs`) and the text of any element marked `data-private` masked.
+- **Session recordings**, when enabled in the PostHog project, and never on `/todo` (`stopSessionRecording()`, docs/V3.md §6). They're recorded with every input masked (`maskAllInputs`) and the text of any element marked `data-private` masked.
 - **Server events** from cron jobs and the `/api` endpoints, via `captureServerEvent()` in `src/server/analytics.ts` (declared in `ServerEvents`). They use one fixed id (`terpsicle-worker`) and never describe a person:
 
   | Event | Properties | Why |

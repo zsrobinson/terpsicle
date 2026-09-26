@@ -60,7 +60,8 @@ export interface ApiOptions {
   signal?: AbortSignal;
 }
 
-async function call<I extends z.ZodType, O extends z.ZodType>(
+/** One POST to /api/<path>, checked both ways. For the other modules in ~/server/fns. */
+export async function call<I extends z.ZodType, O extends z.ZodType>(
   path: string,
   inputSchema: I,
   outputSchema: O,

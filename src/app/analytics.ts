@@ -91,11 +91,22 @@ export interface AnalyticsEvents {
   connection_opened: { verdict: ConnectionVerdict };
   route_map_shown: { mode: TravelMode; hasGeometry: boolean };
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
-  signin_started: { from: "topbar" | "settings" | "signin-page" | "undo" };
+  signin_started: {
+    from: "topbar" | "settings" | "signin-page" | "undo" | "todo";
+  };
   signin_completed: { firstOnDevice: boolean };
   signin_failed: { reason: SignInError };
   signed_out: { removedLocal: boolean };
   account_deletion_requested: NoProperties;
+  // Terpsicle Todo (V3.md §6). Never a title, course, date or anything from
+  // the feed: outcomes and counts only.
+  todo_connect_result: {
+    outcome: "connected" | "invalid-link" | "unreachable" | "not-a-calendar";
+  };
+  todo_disconnected: NoProperties;
+  todo_item_checked: { done: boolean; via: "list" | "week" };
+  todo_view_changed: { view: "day" | "course" | "week" };
+  todo_file_imported: { items: number; skipped: number };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 
@@ -122,6 +133,17 @@ type Pending = { event: AnalyticsEvent; properties: object };
 
 let client: PostHog | undefined;
 let pending: Pending[] | undefined;
+let recordingOff = false;
+
+/**
+ * Keeps session recording off for the rest of this page (V3.md §6: never on
+ * `/plan` or `/todo`). Call before `initAnalytics`; a recording already
+ * running from another page stops.
+ */
+export function stopSessionRecording(): void {
+  recordingOff = true;
+  client?.stopSessionRecording();
+}
 
 /**
  * Loads PostHog (its own chunk, so disabled environments never download it)
@@ -148,6 +170,7 @@ export async function initAnalytics(
     autocapture: true,
     // We don't run surveys; don't download their code.
     disable_surveys: true,
+    disable_session_recording: recordingOff,
     session_recording: {
       maskAllInputs: true,
       maskTextSelector: "[data-private]",
