@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import { SCHEDULE_PATH } from "~/core/routing";
 import type { LookupResult } from "~/core/schema";
-import { SCHEDULE_PATH } from "~/core/site";
 import { ApiCallError, api } from "~/server/fns/api";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";

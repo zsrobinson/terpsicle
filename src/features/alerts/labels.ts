@@ -1,7 +1,8 @@
 // Names for what a seat alert watches, from the ids alone (these pages load
 // without the catalog).
+
+import { SCHEDULE_PATH } from "~/core/routing";
 import { parseSectionKey } from "~/core/schema";
-import { SCHEDULE_PATH } from "~/core/site";
 
 export { termLabel } from "~/core/catalog";
 

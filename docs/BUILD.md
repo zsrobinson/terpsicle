@@ -127,7 +127,7 @@ Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtu
 |---|---|
 | Language/runtime | TypeScript `strict` (plus `noUncheckedIndexedAccess`), ESM, Node 22 for scripts |
 | Package manager | pnpm |
-| App | TanStack Start (React 19) with `@cloudflare/vite-plugin`, custom server entry. The scheduler (`/schedule`) is client-rendered (`ssr: false`); the marketing page at `/` and the other static pages are server-rendered. The Worker mostly serves assets and data. `/` sends anyone with a session cookie (Worker) or saved plans (a head script, `src/app/landing.ts`) straight to `/schedule`. |
+| App | TanStack Start (React 19) with `@cloudflare/vite-plugin`, custom server entry. The scheduler (`/schedule`) is client-rendered (`ssr: false`); the marketing page at `/` and the other static pages are server-rendered. The Worker mostly serves assets and data. `/` sends returning visitors straight to `/schedule` (`docs/V2.md` §2: the session cookie in `src/server/routing.ts`, the returning flag and saved plans in `src/features/marketing/returning.ts`). |
 | UI | Tailwind 4, shadcn/ui (Radix), lucide, Geist + Geist Mono, `vaul` (mobile drawer), `sonner` (toasts) |
 | State | Zustand, Dexie; undo is a snapshot stack in the plans store (pure reducer in `core/plans`) |
 | Validation | zod 4 at every boundary |

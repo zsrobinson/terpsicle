@@ -44,19 +44,33 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
   { pattern: /^src\/fixtures\//, why: "fixtures are for mock mode only" },
 ];
 
-/** What must stay out of `/`: it may peek at IndexedDB, nothing more. */
+/**
+ * What must stay out of `/` and the pages around the scheduler: `/` may peek
+ * at IndexedDB, nothing more.
+ */
 export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
   [
-    { pattern: /(^|\/)dexie\//, why: "/ reads IndexedDB without Dexie" },
+    { pattern: /(^|\/)dexie\//, why: "only the scheduler opens Dexie" },
     { pattern: /^src\/state\//, why: "the app's stores load with /schedule" },
     { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
   ];
 
-/** Each checked route, its budget and its extra never-eager rules. */
-export const ROUTE_BUDGETS = [
+/**
+ * Each entry route (docs/V2.md §1.1), its budget and its extra never-eager
+ * rules. The pages other tracks fill in start on `/`'s budget and rules, so
+ * none of them pulls in the scheduler; the PR that builds one gives it its
+ * own budget.
+ */
+export const ROUTE_BUDGETS: readonly {
+  route: string;
+  budget: number;
+  never: readonly { pattern: RegExp; why: string }[];
+}[] = [
   { route: "/schedule", budget: EAGER_BUDGET, never: [] },
-  { route: "/", budget: LANDING_BUDGET, never: LANDING_NEVER_EAGER },
-] as const;
+  ...["/", "/reviews/", "/chat/", "/settings/", "/admin/", "/privacy"].map(
+    (route) => ({ route, budget: LANDING_BUDGET, never: LANDING_NEVER_EAGER }),
+  ),
+];
 
 /** Chunks loaded with `starts`, following static imports only. */
 export function eagerChunks(

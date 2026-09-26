@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { SitePage } from "./site-page";
 
-// `/privacy`: Google's OAuth consent screen links here, so it must load and
-// say plainly what Terpsicle does. A draft for the owner to review; keep it
-// true to the app (docs/SPEC.md, the v2 decisions), with nothing added that
-// isn't.
+// `/privacy`: Google's OAuth consent screen links here, and brand
+// verification checks that it loads (docs/V2.md §14). A draft for the owner
+// to review. Keep it true to the app as built and planned (docs/V2.md, the
+// owner's decisions), with nothing added that isn't.
 
-/** Where people write to about their data; the owner hasn't picked one yet. */
+/** Where people write about their data; the owner hasn't picked one yet. */
 const CONTACT_EMAIL = "[OWNER CONTACT EMAIL]";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -52,30 +52,37 @@ export function PrivacyPage() {
 
         <Section title="Signing in">
           <p>
-            The scheduler works without an account. To sign in, you use a Google
-            account at umd.edu or terpmail.umd.edu. Google gives Terpsicle your
-            name, your UMD email address and your profile picture, and your
+            The scheduler works without an account. To sign in, you use your UMD
+            Google account (umd.edu or terpmail.umd.edu). Google gives Terpsicle
+            your name, your UMD email address and your profile picture. Your
             directory ID (the part of your email before the @) identifies your
-            account.
+            account. Terpsicle keeps its own copy of your picture and shows it
+            only to people who are signed in.
           </p>
           <p>
-            Once you sign in, your plans sync to your account so they follow you
-            to other devices. Terpsicle sets one cookie to keep you signed in,
-            and no other cookies.
+            Once you sign in, your plans sync to your account, so they follow
+            you to your other devices. Synced plans are stored on Terpsicle's
+            servers, encrypted at rest. Terpsicle sets one cookie to keep you
+            signed in, and no other cookies.
+          </p>
+          <p>
+            If Google says your organization blocked Terpsicle, UMD's Google
+            settings stopped it.
           </p>
         </Section>
 
         <Section title="Reviews">
           <p>
             Anyone can read reviews. Writing one needs a sign-in, which shows
-            you're a UMD student. Readers never see who wrote a review, but
+            you have a UMD account. Readers never see who wrote a review, but
             Terpsicle stores the author to prevent abuse, such as one person
             posting many reviews.
           </p>
           <p>
             An automated moderation model (Meta's Llama models, run by
-            Cloudflare) checks each review before it's published. If it flags
-            one, Terpsicle's moderator reads it without seeing who wrote it.
+            Cloudflare) checks each review before it's published. If it isn't
+            sure, Terpsicle's moderator reads the review without seeing who
+            wrote it.
           </p>
         </Section>
 
@@ -83,20 +90,22 @@ export function PrivacyPage() {
           <p>
             Class chats show your real name and Google profile picture to the
             other students in the room. Messages are stored so the room keeps
-            its history. The same kind of moderation model checks messages, and
+            its history. The same kind of moderation model checks messages and
             holds ones that break the rules, such as answers to graded work, for
-            the moderator to review.
+            the moderator to review. A term's rooms become read-only 10 days
+            after classes end, and are deleted 60 days after that.
           </p>
         </Section>
 
         <Section title="Seat alerts and notifications">
           <p>
-            Seat alerts and chat notifications reach you by email and, if you
-            allow it, by web push. Terpsicle keeps your email address and your
-            browser's push subscription to send them, and nothing more. Push
-            messages pass through your browser maker's push service. The
-            notification settings page lets you choose which ones you get and
-            how, and every seat-alert email has a link to stop it.
+            When you watch a full section, Terpsicle tells you by web push and
+            email once a seat opens; chat notifications work the same way. To
+            send them, Terpsicle keeps your seat watches, your email address,
+            your browser's push subscription and your notification settings.
+            Push messages pass through your browser maker's push service. The
+            notification settings page lets you turn each kind on or off, for
+            push and email separately.
           </p>
         </Section>
 
@@ -105,14 +114,15 @@ export function PrivacyPage() {
             Terpsicle uses PostHog to count which parts of the app people use.
             It's anonymous: it isn't linked to your name or account, it sets no
             cookies, and PostHog never receives your IP address. It records
-            actions like opening a tab or adding a course, never what you type.
+            actions like opening a tab or adding a course, never what you type,
+            and never what you write in reviews or chats.
           </p>
         </Section>
 
         <Section title="Hosting">
           <p>
             Terpsicle runs on Cloudflare, which stores synced plans, reviews,
-            messages and alert subscriptions, encrypted at rest. To limit abuse,
+            messages, seat watches and notification settings. To limit abuse,
             Terpsicle counts requests per network using a one-way hash of your
             IP address, never the address itself.
           </p>
@@ -120,10 +130,12 @@ export function PrivacyPage() {
 
         <Section title="Deleting your account">
           <p>
-            You can delete your account at any time. That removes your profile,
-            synced plans, notification settings and alert subscriptions. Reviews
-            and messages you posted are removed too. Plans saved in your browser
-            stay until you clear them.
+            You can delete your account in Settings. Terpsicle waits 7 days, in
+            case you change your mind (signing in cancels it), then deletes your
+            profile and picture, synced plans, notification settings, seat
+            watches and chat messages. Reviews you posted stay up with no name
+            attached; delete them first if you want them gone. Plans saved in
+            your browser stay until you remove them.
           </p>
         </Section>
 

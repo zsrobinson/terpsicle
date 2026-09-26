@@ -1,4 +1,5 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from "fflate";
+import { SCHEDULE_PATH } from "../routing";
 import {
   COURSE_COLORS,
   type CourseCode,
@@ -10,7 +11,6 @@ import {
   type SharePayload,
   SharePayloadSchema,
 } from "../schema";
-import { SCHEDULE_PATH } from "../site";
 
 // Share links: `/schedule?plan=<base64url(deflate-raw(json))>` (DATA §8).
 //

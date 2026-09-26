@@ -1,8 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
 
-// `/` and the pages around the scheduler (the owner's v2 decisions): first
-// visits see the marketing page; anyone with saved plans or a session goes
-// straight to /schedule, without the marketing page showing first.
+// `/` and the pages around the scheduler (docs/V2.md §1–§2): first visits
+// see the marketing page; anyone with a saved plan or a session goes straight
+// to /schedule without the marketing page showing first; `/?stay` always
+// shows it.
 
 let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
@@ -15,36 +16,23 @@ test.afterEach(() => {
 
 const marketingHeading = (page: Page) =>
   page.getByRole("heading", { name: "Terpsicle", level: 1 });
+/** The scheduler's calendar: on screen on desktop and phones alike. */
+const scheduler = (page: Page) =>
+  page.getByRole("region", { name: "Week calendar" });
 
-/** Plans in the app's database that hold a course. */
-function plansWithCourses(): Promise<number> {
-  return new Promise((resolve) => {
-    const request = indexedDB.open("terpsicle");
-    request.onerror = () => resolve(0);
-    request.onsuccess = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains("plans")) {
-        db.close();
-        resolve(0);
-        return;
-      }
-      const all = db.transaction("plans").objectStore("plans").getAll();
-      all.onsuccess = () => {
-        db.close();
-        resolve(
-          (all.result as { courses: unknown[] }[]).filter(
-            (p) => p.courses.length > 0,
-          ).length,
-        );
-      };
-    };
-  });
+/** Resolves once the scheduler has saved its first plan and set the flag. */
+async function returning(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem("terpsicle:returning")),
+    )
+    .toBe("1");
 }
 
 /**
  * Flags, across navigations in this tab, any moment the marketing heading
- * was on screen. The landing check hides the page until it decides, so a
- * redirect must never set it.
+ * was on screen. The check hides the page until it decides, so a redirect
+ * must never set it.
  */
 function watchForMarketing(): void {
   const check = () => {
@@ -62,50 +50,85 @@ function watchForMarketing(): void {
   });
 }
 
-test("a first visit shows the marketing page, which opens the scheduler", async ({
+async function sawMarketing(page: Page): Promise<boolean> {
+  return page.evaluate(() => sessionStorage.getItem("saw-marketing") === "1");
+}
+
+test("a first visit sees the marketing page; after that, / opens the scheduler", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(marketingHeading(page)).toBeVisible();
-  await expect(page).toHaveURL(/\/$/);
   await expect(page).toHaveTitle("Terpsicle");
 
-  await page.getByRole("link", { name: "Open Terpsicle" }).click();
+  await page.getByRole("link", { name: "Open the scheduler" }).click();
   await expect(page).toHaveURL(/\/schedule$/);
-  await expect(page.getByTestId("first-visit")).toBeVisible();
+  await expect(scheduler(page)).toBeVisible();
+  // The scheduler saved a plan and set the returning flag.
+  await returning(page);
 
-  // Opening the scheduler saves an empty plan: that isn't saved work yet.
-  await page.goto("/");
-  await expect(marketingHeading(page)).toBeVisible();
+  await page.addInitScript(watchForMarketing);
+  await page.goto("/?utm_source=flyer");
+  await expect(page).toHaveURL(/\/schedule\?utm_source=flyer$/);
+  await expect(scheduler(page)).toBeVisible();
+  expect(await sawMarketing(page)).toBe(false);
 });
 
-test("after adding a course, / goes straight to the scheduler", async ({
+test("without the returning flag, saved plans still skip the marketing page", async ({
   page,
 }) => {
-  await page.goto("/schedule?term=202701&course=CMSC351");
-  await page.getByRole("button", { name: "Add to Plan A" }).click();
-  await expect.poll(() => page.evaluate(plansWithCourses)).toBe(1);
+  await page.goto("/schedule");
+  await returning(page);
+  await page.evaluate(() => localStorage.removeItem("terpsicle:returning"));
 
   await page.addInitScript(watchForMarketing);
   await page.goto("/");
   await expect(page).toHaveURL(/\/schedule$/);
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+  await expect(scheduler(page)).toBeVisible();
+  expect(await sawMarketing(page)).toBe(false);
+  // Counting plans put the flag back for next time.
   expect(
-    await page.evaluate(() => sessionStorage.getItem("saw-marketing")),
-  ).toBeNull();
+    await page.evaluate(() => localStorage.getItem("terpsicle:returning")),
+  ).toBe("1");
 });
 
-test("a session cookie goes straight to the scheduler", async ({
-  page,
-  context,
-  baseURL,
-}) => {
-  await context.addCookies([
-    { name: "session", value: "e2e", url: baseURL ?? "" },
-  ]);
+/**
+ * Sends a session cookie with every request. `__Host-` cookies need HTTPS
+ * to be stored, and the dev server is plain HTTP; the Worker only checks
+ * that the header carries one.
+ */
+async function signIn(page: Page): Promise<void> {
+  await page.context().setExtraHTTPHeaders({ Cookie: "__Host-session=e2e" });
+}
+
+test("a session cookie goes straight to the scheduler", async ({ page }) => {
+  await signIn(page);
   const response = await page.goto("/");
   expect(response?.url()).toMatch(/\/schedule$/);
-  await expect(page.getByTestId("first-visit")).toBeVisible();
+  await expect(scheduler(page)).toBeVisible();
+});
+
+test("/?stay shows the marketing page, even to someone returning", async ({
+  page,
+}) => {
+  await page.goto("/schedule");
+  await returning(page);
+  await signIn(page);
+  await page.goto("/?stay");
+  await expect(marketingHeading(page)).toBeVisible();
+  await expect(page).toHaveURL(/\/\?stay$/);
+});
+
+test("the logo opens the product menu", async ({ page }) => {
+  await page.goto("/schedule");
+  await page.getByRole("button", { name: "Terpsicle" }).click();
+  const menu = page.getByRole("menu");
+  for (const name of [/^Schedule/, /^Reviews/, /^Chat/, /^About Terpsicle/])
+    await expect(menu.getByRole("menuitem", { name })).toBeVisible();
+  await menu.getByRole("menuitem", { name: /^Reviews/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Terpsicle Reviews", level: 1 }),
+  ).toBeVisible();
 });
 
 for (const [path, heading, title] of [
@@ -131,6 +154,6 @@ test("an unknown path says so and offers the scheduler", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Page not found", level: 1 }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Open Terpsicle" }).click();
+  await page.getByRole("link", { name: "Open the scheduler" }).click();
   await expect(page).toHaveURL(/\/schedule$/);
 });

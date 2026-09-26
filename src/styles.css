@@ -294,7 +294,7 @@
     overflow: hidden;
   }
   /*
-   * `/` while its head script checks for saved plans (src/app/landing.ts):
+   * `/` while its head script checks for saved plans (src/features/marketing/returning.ts):
    * hidden, so someone headed to the scheduler never sees the marketing page.
    */
   :root[data-landing="checking"] body {

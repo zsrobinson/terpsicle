@@ -5,7 +5,7 @@ import { initAnalytics, track } from "~/app/analytics";
 import { App } from "~/app/app";
 import { clientConfig } from "~/app/config";
 
-// The scheduler (`SCHEDULE_PATH` in ~/core/site). `?plan=` carries a shared
+// The scheduler (`SCHEDULE_PATH` in ~/core/routing). `?plan=` carries a shared
 // plan (DATA.md §8). The router may parse a numeric-looking value as a
 // number, so accept both and keep the text.
 const searchSchema = z.object({

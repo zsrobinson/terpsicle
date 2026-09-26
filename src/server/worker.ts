@@ -1,9 +1,9 @@
-import { hasSessionCookie, SCHEDULE_PATH } from "~/core/site";
 import { runScheduled } from "~/jobs/index";
 import { APEX_HOST } from "./apex";
 import { API_PREFIX, handleApi } from "./api/router";
 import { DATA_PREFIX, serveData } from "./data";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
+import { landingRedirect } from "./routing";
 import { SERVICE_WORKER_JS } from "./service-worker";
 
 const WWW_HOST = `www.${APEX_HOST}`;
@@ -25,24 +25,6 @@ function withHtmlRevalidation(response: Response): Response {
   const out = new Response(response.body, response);
   out.headers.set("Cache-Control", "no-cache");
   return out;
-}
-
-/**
- * `/` for someone signed in: straight to the scheduler, before any HTML, so
- * the marketing page never flashes. (Saved plans are checked in the browser:
- * src/app/landing.ts.) Never cached: the answer depends on the cookie.
- */
-function landingRedirect(request: Request, url: URL): Response | null {
-  if (url.pathname !== "/" || !["GET", "HEAD"].includes(request.method))
-    return null;
-  if (!hasSessionCookie(request.headers.get("Cookie"))) return null;
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: new URL(SCHEDULE_PATH, url.origin).href,
-      "Cache-Control": "no-store",
-    },
-  });
 }
 
 /** The TanStack Start request handler (or a stand-in in tests). */
@@ -100,7 +82,7 @@ export function createWorker(app: AppHandler) {
           headers: { "Cache-Control": "no-store" },
         });
       }
-      const landing = landingRedirect(request, url);
+      const landing = landingRedirect(request);
       if (landing) return landing;
       // Every page (`/`, `/schedule`, `/privacy`, …) is a TanStack route; an
       // unknown path gets the app's not-found page.

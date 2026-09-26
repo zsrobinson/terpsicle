@@ -95,7 +95,7 @@ export function installServiceWorker(
       return response;
     } catch (error) {
       // Offline: the last copy of this page, or of the scheduler's
-      // (`SCHEDULE_PATH` in ~/core/site; this function can't import it).
+      // (`SCHEDULE_PATH` in ~/core/routing; this function can't import it).
       const saved =
         (await cache.match(key)) ??
         (await cache.match(`${sw.location.origin}/schedule`));

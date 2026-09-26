@@ -2,7 +2,7 @@
 // client (tables, inline styles, no images). Pure, so the test-send script
 // renders exactly what the Worker sends.
 
-import { SCHEDULE_PATH } from "~/core/site";
+import { SCHEDULE_PATH } from "~/core/routing";
 
 export const ALERTS_FROM = {
   email: "alerts@terpsicle.com",

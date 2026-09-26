@@ -12,7 +12,7 @@ import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
 import { TONE_FILL } from "./emphasis";
-import { Logo } from "./logo";
+import { ProductMenu } from "./product-menu";
 import { tabById } from "./tabs";
 
 // The top bar (SPEC §2): logo / term / plans on the left, credits and the
@@ -41,7 +41,7 @@ export function TopBar({
     >
       {/* The page's one h1: panels and the calendar sit under it as h2s. */}
       <h1 className="flex shrink-0">
-        <Logo compact={compact} />
+        <ProductMenu compact={compact} />
       </h1>
       {compact ? null : <Slash className="ml-2" />}
       {term}
