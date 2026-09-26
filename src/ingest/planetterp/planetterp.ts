@@ -135,7 +135,20 @@ export interface PlanetTerpOptions {
   log: Logger;
   /** Grade requests per run; courses never fetched go first, then the stalest. */
   gradeRequests?: number;
+  /**
+   * Keep review text in the private store (DATA.md §2.6). Off until the
+   * owner decides whether we may keep PlanetTerp's reviewers' writing.
+   */
+  keepReviewText?: boolean;
 }
+
+/** Drops review text: nothing is stored when keeping it is off. */
+const DISCARD_REVIEWS: ReviewKeeper = {
+  async keep() {},
+  async finish() {
+    return { written: 0, kept: 0 };
+  },
+};
 
 export interface PlanetTerpResult {
   professors: number;
@@ -183,7 +196,9 @@ export async function runPlanetTerp(
   // The professor list, checked against the last good run before anything
   // is published: an empty or truncated list that parses must not replace
   // good data (DATA.md §4.1).
-  const keeper = await createReviewKeeper(store, log);
+  const keeper = options.keepReviewText
+    ? await createReviewKeeper(store, log)
+    : DISCARD_REVIEWS;
   let professors: ProfessorSummary[];
   let reviewFilesWritten = 0;
   try {

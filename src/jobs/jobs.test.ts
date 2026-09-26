@@ -45,7 +45,7 @@ import buildingPopup from "~/ingest/__fixtures__/soc/buildings/SHM-2102.html?raw
 import socIndex from "~/ingest/__fixtures__/soc/index.html?raw";
 import { runCalendarBuildingsJob } from "./calendar-buildings";
 import { runCatalogJob } from "./catalog";
-import { runPlanetTerpJob } from "./planetterp";
+import { keepsReviewText, runPlanetTerpJob } from "./planetterp";
 import { runSeatsJob } from "./seats";
 
 // Cron handlers against a fake internet built from the saved pages in
@@ -343,7 +343,10 @@ describe("seats job", () => {
 });
 
 describe("planetterp job", () => {
-  it("joins Testudo names to slugs and publishes grades per department", async () => {
+  /** Keeping review text is off unless the var says so (`keepsReviewText`). */
+  const keepingText = { ...env, PLANETTERP_KEEP_REVIEW_TEXT: "true" };
+
+  it("keeps no review text unless it's turned on", async () => {
     const fake = fakeInternet();
     await runCatalogJob({
       env,
@@ -352,6 +355,23 @@ describe("planetterp job", () => {
     });
     await runPlanetTerpJob({
       env,
+      now: at("2026-09-26T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+    expect(await env.DATA.get(planetTerpReviewsKey("kruskal"))).toBeNull();
+    expect(keepsReviewText({})).toBe(false);
+    expect(keepsReviewText({ PLANETTERP_KEEP_REVIEW_TEXT: "true" })).toBe(true);
+  });
+
+  it("joins Testudo names to slugs and publishes grades per department", async () => {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    await runPlanetTerpJob({
+      env: keepingText,
       now: at("2026-09-26T05:17:00Z"),
       fetch: fake.fetch,
     });
@@ -409,7 +429,7 @@ describe("planetterp job", () => {
       fetch: fake.fetch,
     });
     await runPlanetTerpJob({
-      env,
+      env: keepingText,
       now: at("2026-09-26T05:17:00Z"),
       fetch: fake.fetch,
     });
@@ -423,7 +443,10 @@ describe("planetterp job", () => {
     const events: { event: string; properties: Record<string, unknown> }[] = [];
     const run = runPlanetTerpJob({
       // Telemetry on, so the failure event reaches the fake PostHog below.
-      env: { ...env, POSTHOG_TOKEN: "test-token" as Env["POSTHOG_TOKEN"] },
+      env: {
+        ...keepingText,
+        POSTHOG_TOKEN: "test-token" as Env["POSTHOG_TOKEN"],
+      },
       now: at(brokenAt),
       fetch: async (input, init) => {
         if (String(input).startsWith("https://us.i.posthog.com/")) {

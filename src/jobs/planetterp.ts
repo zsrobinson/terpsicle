@@ -9,6 +9,18 @@ import { createR2BlobStore } from "./r2-blob-store";
 export const NIGHTLY_GRADE_REQUESTS = 700;
 
 /**
+ * Whether the job keeps PlanetTerp's review text privately for summaries.
+ * Off unless `PLANETTERP_KEEP_REVIEW_TEXT` is "true": it's PlanetTerp's
+ * reviewers' writing, and keeping it waits on the owner's call (and
+ * PlanetTerp's OK). Summaries fetch it live meanwhile.
+ */
+export function keepsReviewText(env: {
+  PLANETTERP_KEEP_REVIEW_TEXT?: string;
+}): boolean {
+  return env.PLANETTERP_KEEP_REVIEW_TEXT === "true";
+}
+
+/**
  * PlanetTerp ratings, review metadata and grade distributions (daily). When
  * PlanetTerp answers with an empty or truncated list, `runPlanetTerp` keeps
  * the last good files, marks the source stale and throws a
@@ -28,6 +40,7 @@ export const runPlanetTerpJob: Job = async (context) => {
       now: context.now,
       log: jobLog,
       gradeRequests: NIGHTLY_GRADE_REQUESTS,
+      keepReviewText: keepsReviewText(context.env),
     });
     const counts: Record<string, number> = {
       ...totals,
