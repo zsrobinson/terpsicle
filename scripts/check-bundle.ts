@@ -1,6 +1,6 @@
-// The scheduler's eager bundle, held to a budget (BUILD §5: first load
-// < 1.5 MB compressed; regressions fail CI), and the marketing page's, which
-// must stay light. Run after `pnpm build`:
+// Each entry route's eager bundle, reported against a guide size (BUILD §5:
+// first load < 1.5 MB compressed), and the modules that must never load up
+// front, which fail the check. Run after `pnpm build`:
 //
 //   pnpm check:bundle
 //
@@ -279,9 +279,13 @@ function checkRoute(
   const problems = forbiddenModules(graph, chunks, never).map(
     (p) => `${route}: ${p}`,
   );
+  // The total is reported, not enforced (the owner, 2026-09-26: page size
+  // shouldn't hold up merges). The never-eager rules above still fail: they
+  // catch a whole feature slipping into the first load, which a few KB of
+  // ordinary growth never is.
   if (total > budget)
-    problems.push(
-      `${route}: eager bundle is ${kb(total)}, over the ${kb(budget)} budget: lazy-load something, or raise its budget in scripts/check-bundle.ts on purpose`,
+    console.warn(
+      `note: ${route}'s eager bundle is ${kb(total)}, over its ${kb(budget)} guide. Worth a look for anything that could load on first use.\n`,
     );
   return problems;
 }
