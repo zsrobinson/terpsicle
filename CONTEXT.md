@@ -82,6 +82,10 @@ The icon that marks LLM output, and only LLM output. Generate's results are algo
 What someone sends from the feedback sheet: "Report a bug" or "Suggest a feature". The owner's own notes on a page are **pinned notes**.
 _Avoid_: report (that's moderation's word)
 
+**Activity log**:
+The last ~50 things someone did in the app (pages by route pattern, app events, errors, failed requests), kept in the page's memory and sent only with feedback when "Include what I was doing" is on.
+_Avoid_: session recording, replay, telemetry
+
 **Pinned note**:
 An admin's note on one element of a page, left with the feedback sheet's "Pin a note" and shown as a numbered dot on that route, to admins only. Stored as feedback of kind `review` (a review of a deployment).
 _Avoid_: review note, comment (in the UI: "review" is Reviews' word)

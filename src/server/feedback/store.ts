@@ -3,6 +3,8 @@
 import { retentionCutoffs } from "~/core/feedback";
 import {
   CLOSED_FEEDBACK_STATUSES,
+  type FeedbackContext,
+  FeedbackContextSchema,
   type FeedbackElement,
   FeedbackElementSchema,
   type FeedbackGroup,
@@ -11,6 +13,8 @@ import {
   type FeedbackListInput,
   type FeedbackProduct,
   type FeedbackStatus,
+  type PinContext,
+  PinContextSchema,
 } from "~/core/schema/feedback";
 
 export interface FeedbackRow {
@@ -131,6 +135,20 @@ function parseJson(text: string | null): unknown {
   }
 }
 
+/** A stored context, checked against its kind's schema; null if it isn't one. */
+function parseContext(
+  kind: FeedbackKind,
+  text: string | null,
+): FeedbackContext | PinContext | null {
+  const json = parseJson(text);
+  if (json === null) return null;
+  const parsed =
+    kind === "review"
+      ? PinContextSchema.safeParse(json)
+      : FeedbackContextSchema.safeParse(json);
+  return parsed.success ? parsed.data : null;
+}
+
 function parseElement(text: string | null): FeedbackElement | null {
   const parsed = FeedbackElementSchema.safeParse(parseJson(text));
   return parsed.success ? parsed.data : null;
@@ -147,7 +165,7 @@ export function toItem(row: FeedbackRow): FeedbackItem {
     expected: row.expected,
     hasScreenshot: row.screenshot_key !== null,
     hasElementShot: row.element_shot_key !== null,
-    context: parseJson(row.context),
+    context: parseContext(row.kind, row.context),
     element: parseElement(row.element),
     host: row.host,
     reply: row.kind !== "review" && row.user_id !== null,
@@ -412,11 +430,14 @@ export async function pruneFeedback(
         db.prepare("DELETE FROM feedback WHERE id = ?1").bind(r.id),
       ),
     );
-  // Groups nothing points at any more.
+  // Groups nothing has pointed at for a day (a new group gets its items
+  // right after it's made).
   await db
     .prepare(
-      "DELETE FROM feedback_groups WHERE id NOT IN (SELECT group_id FROM feedback WHERE group_id IS NOT NULL)",
+      `DELETE FROM feedback_groups WHERE updated_at < ?1
+         AND id NOT IN (SELECT group_id FROM feedback WHERE group_id IS NOT NULL)`,
     )
+    .bind(new Date(now.getTime() - 86_400_000).toISOString())
     .run();
 
   return {

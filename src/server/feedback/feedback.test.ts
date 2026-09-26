@@ -249,6 +249,52 @@ describe("feedback/send", () => {
   });
 });
 
+describe("feedback/send's limits and sessions", () => {
+  it("allows 20 an hour per signed-in person, whatever the network", async () => {
+    for (let i = 0; i < 20; i++) await send(bug, "student", `192.0.2.${i}`);
+    const response = await call("feedback/send", bug, {
+      who: "student",
+      ip: "192.0.2.99",
+    });
+    expect(response.status).toBe(429);
+  });
+
+  it("takes feedback from someone whose session has gone, without a 401", async () => {
+    cookies.set("nobody", "__Host-session=not-a-real-session");
+    try {
+      const { id } = await send({ ...bug, reply: true });
+      expect((await row(id))?.user_id).toBeNull();
+    } finally {
+      cookies.delete("nobody");
+    }
+  });
+
+  it("scrubs routes and redacts links in the context it stores", async () => {
+    const { id } = await send({
+      ...bug,
+      context: {
+        ...bug.context,
+        route: "/schedule?plan=eyJzIjpbXX0",
+        actions: [
+          { type: "nav", at: 1, route: "/chat/202608/CMSC131/0101" },
+          {
+            type: "error",
+            at: 2,
+            name: "Error",
+            message:
+              "fetch https://umd.instructure.com/feeds/calendars/user_x.ics failed",
+            stack: null,
+          },
+        ],
+      },
+    });
+    const stored = JSON.parse((await row(id))?.context ?? "{}");
+    expect(stored.route).toBe("/schedule?plan=shared");
+    expect(stored.actions[0].route).toBe("/chat/:term/:course/:room");
+    expect(stored.actions[1].message).toBe("fetch [link] failed");
+  });
+});
+
 describe("feedback/undo", () => {
   it("removes the item and its screenshot within 10 minutes", async () => {
     const { id, undoToken } = await send();
@@ -320,6 +366,17 @@ describe("pinned notes", () => {
     );
     await call("feedback/pin", { ...pin, path: "/reviews" }, { who: "admin" });
     await send({ ...bug, path: "/schedule" });
+    tick(1_000);
+    const spam = FeedbackSendResultSchema.parse(
+      await (
+        await call("feedback/pin", { ...pin, text: "Spam" }, { who: "admin" })
+      ).json(),
+    );
+    await call(
+      "admin/feedback/update",
+      { id: spam.id, status: "spam" },
+      { who: "admin" },
+    );
     const response = await call(
       "feedback/pins",
       { pathname: "/schedule" },
@@ -408,7 +465,7 @@ describe("the admin inbox", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({
       to: "tstudent@terpmail.umd.edu",
-      subject: "We fixed what you reported",
+      subject: "We fixed the bug you told us about",
       from: { email: "alerts@terpsicle.com", name: "Terpsicle" },
     });
     expect(sent[0]?.text).toContain("The section didn't add.");
@@ -416,6 +473,45 @@ describe("the admin inbox", () => {
     expect(reopened).toMatchObject({ item: { status: "new", closedAt: null } });
     await update({ status: "fixed" });
     expect(sent).toHaveLength(1);
+  });
+
+  it("words the email for an idea", async () => {
+    const { expected: _, ...idea } = bug;
+    const { id } = await send(
+      { ...idea, kind: "idea", reply: true },
+      "student",
+    );
+    await call(
+      "admin/feedback/update",
+      { id, status: "fixed" },
+      { who: "admin" },
+    );
+    expect(sent[0]?.subject).toBe("Your idea is in Terpsicle");
+  });
+
+  it("never emails from a preview, or someone deleting their account", async () => {
+    const preview = await send({ ...bug, reply: true }, "student");
+    const withoutEmail: ApiEnv = { ...apiEnv, EMAIL: undefined };
+    const response = await handleApi(
+      request(
+        "admin/feedback/update",
+        { id: preview.id, status: "fixed" },
+        { who: "admin" },
+      ),
+      withoutEmail,
+      { waitUntil: () => undefined },
+      now(),
+    );
+    expect(await response.json()).toMatchObject({ emailed: false });
+    const leaving = await send({ ...bug, reply: true }, "student");
+    await call("account/delete", {}, { who: "student" });
+    const marked = await call(
+      "admin/feedback/update",
+      { id: leaving.id, status: "fixed" },
+      { who: "admin" },
+    );
+    expect(await marked.json()).toMatchObject({ emailed: false });
+    expect(sent).toHaveLength(0);
   });
 
   it("doesn't email someone who didn't ask", async () => {
@@ -487,7 +583,7 @@ describe("screenshots", () => {
       expect(response.headers.get("Cache-Control")).toBe("private, no-store");
       expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
       expect(response.headers.get("Content-Security-Policy")).toBe(
-        "default-src 'none'",
+        "default-src 'none'; sandbox",
       );
       expect(new Uint8Array(await response.arrayBuffer())[1]).toBe(0x50);
     }

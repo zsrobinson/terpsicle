@@ -2,3 +2,4 @@
 export * from "./image";
 export * from "./path";
 export * from "./retention";
+export * from "./sanitize";

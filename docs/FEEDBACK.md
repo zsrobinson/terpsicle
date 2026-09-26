@@ -6,7 +6,7 @@ How people tell us what's broken or missing, and how the owner leaves notes on a
 
 The feedback sheet has two kinds, picked first: **Report a bug** ("What happened?", and an optional "What did you expect?") and **Suggest a feature** ("What would help?"). Two checkboxes, on by default:
 
-- **Include what I was doing** adds the context (`FeedbackContextSchema` in `src/core/schema/feedback.ts`): the app version, browser, screen and window size, online state, theme, the route pattern, the person's current plan (courses, sections, bookmarks, block labels), their settings, and the activity log, the last ~50 app actions: route changes (pattern only), app events (what `track()` sends), errors with their stacks, and failed API calls (method, route, status; never a body). The log lives in the page's memory and leaves only when someone sends a report.
+- **Include what I was doing** adds the context (`FeedbackContextSchema` in `src/core/schema/feedback.ts`): the app version, browser, screen and window size, online state, theme, the route pattern, the person's current plan (courses, sections, bookmarks, block labels), their settings, and the activity log, the last ~50 app actions: route changes (pattern only), app events (what `track()` sends), errors with their stacks, and failed API calls (method, route, status; never a body). The log lives in the page's memory and leaves only when someone sends feedback. Routes are scrubbed like analytics and anything shaped like a link or token in its text is redacted (`sanitizeContext`), in the browser and again in the Worker.
 - **Include a screenshot** adds one image of the page. Every `data-private` element (names, pictures, other people's words, block labels) is painted over before the image exists.
 
 Signed-in people also get **You can reply by email**, off by default. Only then is their user id stored with the item, so marking it Fixed can email them once.
@@ -31,7 +31,7 @@ Admins get a third mode in the sheet, **Pin a note**: hover outlines elements, a
 | `feedback/pin`, `feedback/pins {pathname}` | admin | |
 | `admin/feedback/list`, `admin/feedback/update`, `admin/feedback/delete` | admin | |
 
-Marking an item Fixed emails the person once, from the seat-alert address, when they asked for a reply (never on previews, which have no `EMAIL` binding). A delete is soft for 10 seconds so the toast's Undo works (`restore: true`), then it's gone with its images. The server event `feedback_received` carries the kind, product and which boxes were on, never the words.
+Marking an item Fixed emails the person once, from the seat-alert address, when they asked for a reply (never on previews, which have no `EMAIL` binding). A delete is soft for 10 seconds so the toast's Undo works (`restore: true`); after that the item is hidden for good and removed with its images by the next delete or the daily job, whichever comes first. The server event `feedback_received` carries the kind, product and which boxes were on, never the words.
 
 ## Retention
 

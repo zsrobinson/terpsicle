@@ -9,7 +9,7 @@
 //   admin/feedback/update  admin: status, note, group; Fixed emails a reply
 //   admin/feedback/delete  admin: soft for 10 seconds, for Undo
 //
-// Who sent an item is stored only when they asked for a reply (and for the
+// Who sent feedback is stored only when they asked for a reply (and for the
 // owner's own notes), and never leaves the Worker: the inbox gets `reply`.
 import {
   checkImage,
@@ -17,6 +17,7 @@ import {
   feedbackImageKey,
   feedbackPath,
   pathnameOf,
+  sanitizeContext,
 } from "~/core/feedback";
 import {
   FEEDBACK_IMAGE_MAX_BYTES,
@@ -70,7 +71,7 @@ export interface FeedbackEnv {
   POSTHOG_TOKEN?: string;
 }
 
-export type FeedbackContext = Pick<
+export type FeedbackRouteContext = Pick<
   IdentityRouteContext,
   "now" | "request" | "session" | "waitUntil"
 > & {
@@ -135,7 +136,7 @@ const hostOf = (request: Request) => new URL(request.url).hostname;
 export async function sendFeedback(
   env: FeedbackEnv,
   input: FeedbackSendInput,
-  ctx: FeedbackContext,
+  ctx: FeedbackRouteContext,
 ): Promise<FeedbackSendResult | Response> {
   const id = randomToken(16);
   const shots = checkShots(id, ctx.now, { screenshot: input.screenshot });
@@ -144,7 +145,6 @@ export async function sendFeedback(
   const undoToken = randomToken(32);
   // Who sent it, only when they asked for a reply and are signed in.
   const userId = input.reply ? (ctx.session?.user.id ?? null) : null;
-  await putShots(bucket, [shots.screenshot]);
   await insertFeedback(env.DB, {
     id,
     kind: input.kind,
@@ -154,13 +154,18 @@ export async function sendFeedback(
     expected: input.expected ?? null,
     screenshot_key: bucket ? (shots.screenshot?.key ?? null) : null,
     element_shot_key: null,
-    context: input.context ? JSON.stringify(input.context) : null,
+    context: input.context
+      ? JSON.stringify(sanitizeContext(input.context))
+      : null,
     element: null,
     host: hostOf(ctx.request),
     user_id: userId,
     undo_hash: await sha256Hex(undoToken),
     created_at: ctx.now.toISOString(),
   });
+  // After the row: a failed put leaves a row without its image (the inbox
+  // shows it missing), never an image no row points at.
+  await putShots(bucket, [shots.screenshot]);
   ctx.waitUntil?.(
     captureServerEvent(
       env,
@@ -191,7 +196,7 @@ async function removeItem(env: FeedbackEnv, row: FeedbackRow): Promise<void> {
 export async function undoFeedback(
   env: FeedbackEnv,
   input: FeedbackUndoInput,
-  ctx: FeedbackContext,
+  ctx: FeedbackRouteContext,
 ): Promise<FeedbackUndoResult> {
   const row = await getFeedback(env.DB, input.id);
   const hash = await sha256Hex(input.undoToken);
@@ -208,7 +213,7 @@ export async function undoFeedback(
 export async function pinFeedback(
   env: FeedbackEnv,
   input: FeedbackPinInput,
-  ctx: FeedbackContext,
+  ctx: FeedbackRouteContext,
 ): Promise<FeedbackPinResult | Response> {
   const id = randomToken(16);
   const shots = checkShots(id, ctx.now, {
@@ -218,7 +223,6 @@ export async function pinFeedback(
   if (!shots) return apiError("invalid-input");
   const bucket = env.USER_CONTENT;
   const undoToken = randomToken(32);
-  await putShots(bucket, [shots.screenshot, shots.element]);
   await insertFeedback(env.DB, {
     id,
     kind: "review",
@@ -235,6 +239,7 @@ export async function pinFeedback(
     undo_hash: await sha256Hex(undoToken),
     created_at: ctx.now.toISOString(),
   });
+  await putShots(bucket, [shots.screenshot, shots.element]);
   return { id, undoToken };
 }
 
@@ -283,7 +288,7 @@ export async function adminListFeedback(
 async function sendFixedEmail(
   env: FeedbackEnv,
   row: FeedbackRow,
-  ctx: FeedbackContext,
+  ctx: FeedbackRouteContext,
 ): Promise<boolean> {
   if (!env.EMAIL || row.kind === "review" || !row.user_id || row.replied_at)
     return false;
@@ -315,7 +320,7 @@ async function sendFixedEmail(
 export async function adminUpdateFeedback(
   env: FeedbackEnv,
   input: FeedbackUpdateInput,
-  ctx: FeedbackContext,
+  ctx: FeedbackRouteContext,
 ): Promise<FeedbackUpdateResult> {
   const before = await getFeedback(env.DB, input.id);
   if (!before) return { status: "gone" };
@@ -340,7 +345,7 @@ export async function adminUpdateFeedback(
 export async function adminDeleteFeedback(
   env: FeedbackEnv,
   input: FeedbackDeleteInput,
-  ctx: FeedbackContext,
+  ctx: FeedbackRouteContext,
 ): Promise<FeedbackDeleteResult> {
   const status = await setDeleted(env.DB, input.id, !input.restore, ctx.now);
   // Earlier deletes whose Undo has passed go for good now.

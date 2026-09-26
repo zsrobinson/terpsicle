@@ -1,5 +1,5 @@
 // The one email feedback sends: a short note when the owner marks someone's
-// report Fixed, only when they turned on "You can reply by email". From the
+// bug or idea Fixed, only when they turned on "You can reply by email". From the
 // same address as seat alerts.
 import type { FeedbackKind, FeedbackProduct } from "~/core/schema/feedback";
 import { layout, type RenderedEmail } from "../alerts/email";
@@ -29,7 +29,7 @@ export function renderFixedEmail(
   const idea = item.kind === "idea";
   const subject = idea
     ? "Your idea is in Terpsicle"
-    : "We fixed what you reported";
+    : "We fixed the bug you told us about";
   const intro = idea
     ? `Thanks for your suggestion for ${where}. It's in Terpsicle now.`
     : `Thanks for telling us about a problem in ${where}. It's fixed now.`;

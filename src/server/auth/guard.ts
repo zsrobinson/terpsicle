@@ -3,7 +3,8 @@
 //
 // 1. JSON routes in src/server/api/router.ts declare `auth: "user"` or
 //    `auth: "admin"`; the router checks the origin and session and hands the
-//    handler `ctx.session.user`. Prefer this.
+//    handler `ctx.session.user`. Prefer this. `auth: "optional"` checks the
+//    origin and hands over the session when there is one, never a 401.
 // 2. Anything else (a WebSocket upgrade, a Worker route outside the table):
 //
 //      const auth = await requireUser(request, env, now);

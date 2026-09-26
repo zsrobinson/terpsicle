@@ -1,3 +1,5 @@
+import type { FeedbackProduct } from "~/core/schema/feedback";
+
 // Server-side PostHog events (cron telemetry). Anonymous by construction: one
 // fixed distinct id, no person profile. See docs/ANALYTICS.md.
 
@@ -64,7 +66,7 @@ export interface ServerEvents {
   // page or who sent it.
   feedback_received: {
     kind: "bug" | "idea";
-    product: string;
+    product: FeedbackProduct;
     hasScreenshot: boolean;
     withContext: boolean;
     reply: boolean;

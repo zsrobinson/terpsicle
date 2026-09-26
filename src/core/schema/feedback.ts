@@ -6,10 +6,12 @@ import { IsoDateTimeSchema } from "./primitives";
 // (import ~/core/schema/feedback): the sheet is lazy, and zod objects don't
 // tree-shake.
 //
-// Never in here, by construction: secrets (the ELMS feed link, tokens, push
-// endpoints, share-link payloads), other people's words, transcript grades.
-// The context's fields are short structured values, not free text, except
-// the person's own block labels and the error messages the app raised.
+// Never meant to hold: secrets (the ELMS feed link, tokens, push endpoints,
+// share-link payloads), other people's words, transcript grades. The
+// context's fields are short structured values, apart from the person's own
+// block labels and the error messages the app raised; `sanitizeContext`
+// (~/core/feedback) scrubs routes and redacts link- and token-shaped text
+// in the browser and again in the Worker.
 
 export const FeedbackKindSchema = z.enum(["bug", "idea", "review"]);
 export type FeedbackKind = z.infer<typeof FeedbackKindSchema>;
@@ -322,7 +324,10 @@ export type FeedbackPinsInput = z.infer<typeof FeedbackPinsInputSchema>;
 
 export const PinSchema = z.strictObject({
   id: FeedbackIdSchema,
-  /** 1, 2, 3 … in the order they were left on this route. */
+  /**
+   * 1, 2, 3 … in the order they were left on this route. Spam isn't
+   * listed, so marking one spam renumbers the ones after it.
+   */
   number: z.number().int().min(1),
   text: z.string(),
   status: FeedbackStatusSchema,
@@ -350,7 +355,8 @@ export const FeedbackItemSchema = z.strictObject({
   hasScreenshot: z.boolean(),
   /** Served at /admin/feedback/shot/<id>/element. */
   hasElementShot: z.boolean(),
-  context: z.unknown().nullable(),
+  /** "What I was doing" for bug and idea; the page's state for a pinned note. */
+  context: z.union([FeedbackContextSchema, PinContextSchema]).nullable(),
   element: FeedbackElementSchema.nullable(),
   host: z.string(),
   reply: z.boolean(),
