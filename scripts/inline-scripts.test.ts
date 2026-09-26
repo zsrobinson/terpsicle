@@ -74,12 +74,16 @@ describe("inline scripts in src/", () => {
       if (rel === "src/app/inline-script.tsx") continue;
       if (/<script[^>]*dangerouslySetInnerHTML/.test(text))
         problems.push(`${rel}: <script dangerouslySetInnerHTML>`);
-      // A route's head() script: `scripts: [{ children: … }]`.
-      for (const match of text.matchAll(
-        /scripts:\s*\[[^\]]*children:\s*([\w.]+)/g,
-      ))
-        if (!match[1]?.startsWith("INLINE_SCRIPTS."))
+      // A route's head() scripts: `scripts: [{ children: … }, …]`. A JSON-LD
+      // data block (`type: "application/ld+json"`) is never run, so the CSP
+      // doesn't govern it and it needs no hash.
+      for (const list of text.matchAll(/scripts:\s*\[([^\]]*)\]/g))
+        for (const entry of (list[1] ?? "").split(/}\s*,/)) {
+          const match = /children:\s*([\w.]+)/.exec(entry);
+          if (!match?.[1] || match[1].startsWith("INLINE_SCRIPTS.")) continue;
+          if (/type:\s*"application\/ld\+json"/.test(entry)) continue;
           problems.push(`${rel}: head() script with children ${match[1]}`);
+        }
     }
     expect(problems).toEqual([]);
   });

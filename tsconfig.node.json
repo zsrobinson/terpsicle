@@ -24,6 +24,10 @@
     // The marks and the token reader (scripts/build-icons.ts).
     "src/app/brand/marks.ts",
     "src/app/brand/css-tokens.ts",
+    // The hero's geometry and the page's link-preview facts
+    // (scripts/build-og-image.ts).
+    "src/features/marketing/tangle.ts",
+    "src/features/marketing/meta.ts",
     // The moderation pipeline and its eval set (scripts/moderation-eval.ts).
     "src/server/moderation/classify.ts",
     "src/server/moderation/models.ts",

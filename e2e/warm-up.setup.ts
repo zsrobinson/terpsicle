@@ -18,6 +18,9 @@ test("the dev server has compiled the scheduler and the marketing page", async (
   ).toBeVisible({ timeout: 60_000 });
   await page.goto("/?stay");
   await expect(
-    page.getByRole("heading", { name: "Terpsicle", level: 1 }),
+    page.getByRole("heading", {
+      name: "Your semester's a tangle of tabs. Let's straighten it out.",
+      level: 1,
+    }),
   ).toBeVisible({ timeout: 60_000 });
 });
