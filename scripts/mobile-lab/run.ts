@@ -10,6 +10,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import type { Device, Engine } from "./device";
 import { Lab } from "./lab";
+import { shrinkVideo } from "./media";
 import {
   markdown,
   passed,
@@ -153,6 +154,7 @@ for (const scenario of scenarios) {
     if (video && existsSync(video)) {
       const name = `video${path.extname(video)}`;
       renameSync(video, path.join(dir, name));
+      shrinkVideo(path.join(dir, name));
       result.video = `${scenario.id}/${name}`;
     }
   } catch (error) {

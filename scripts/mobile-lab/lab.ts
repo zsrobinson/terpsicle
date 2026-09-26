@@ -1,8 +1,7 @@
 // A scenario's view of the phone: find things on the page, touch them, and
 // record a step (screenshot + probe + checks) after each action.
 
-import { spawnSync } from "node:child_process";
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import {
   type Check,
@@ -18,6 +17,7 @@ import {
   toVisual,
   type Viewport,
 } from "./device";
+import { saveImage } from "./media";
 import { call, FIND, INSTALL, PROBE } from "./page-scripts";
 
 /** An element on the page: a CSS selector, optionally narrowed by label. */
@@ -293,40 +293,4 @@ export function slug(s: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 48);
-}
-
-const FFMPEG = process.env.MOBILE_LAB_FFMPEG ?? "ffmpeg";
-let ffmpegWorks: boolean | null = null;
-
-/**
- * Saves a PNG screenshot, as a JPEG at most 720px wide when ffmpeg is there
- * (a tenth of the size, so a run's pictures stay cheap to keep in git).
- * Returns the file's name.
- */
-export function saveImage(png: Buffer, base: string): string {
-  const pngPath = `${base}.png`;
-  writeFileSync(pngPath, png);
-  if (ffmpegWorks === false) return path.basename(pngPath);
-  const jpgPath = `${base}.jpg`;
-  const result = spawnSync(
-    FFMPEG,
-    [
-      "-y",
-      "-loglevel",
-      "error",
-      "-i",
-      pngPath,
-      "-vf",
-      "scale='min(720,iw)':-2",
-      "-q:v",
-      "4",
-      `${jpgPath}.tmp.jpg`,
-    ],
-    { stdio: "ignore" },
-  );
-  ffmpegWorks = result.status === 0;
-  if (!ffmpegWorks) return path.basename(pngPath);
-  renameSync(`${jpgPath}.tmp.jpg`, jpgPath);
-  rmSync(pngPath);
-  return path.basename(jpgPath);
 }
