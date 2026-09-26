@@ -338,24 +338,33 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: "open-results",
-    title: "Open five search results in a row, going back each time",
+    title: "Search, scroll, put the keyboard away and open a result, six times",
     async run(lab) {
       await open(lab);
       await search(lab, "cmsc");
-      await lab.hideKeyboard();
-      await lab.wait(SETTLE);
-      for (let i = 0; i < 5; i++) {
-        // Opening a course lowers the drawer; back up, where five show.
+      for (let i = 0; i < 6; i++) {
+        // What a person does between results: back in the box with the
+        // keyboard, a scroll through the list, Done, then one tap.
         await snapTo(lab, "full");
-        // One tap each, as a person would; a result that needs a second
-        // tap fails here.
+        await lab.tap(SEARCH_BOX);
+        await lab.wait(SETTLE);
+        await lab.swipe(
+          await lab.pointIn(RESULTS, 0.5, 0.8),
+          { dy: -120 * (i + 1) },
+          400,
+          "scroll",
+        );
+        await lab.wait(SETTLE);
+        await lab.hideKeyboard();
+        await lab.wait(SETTLE);
+        // One tap, as a person would; a result that needs a second tap
+        // fails here.
         await lab.tap({
           selector: "#search-results [data-course-result]",
           visible: true,
-          index: i,
         });
         await lab.wait(1500);
-        const step = await lab.step(`tapped result ${i + 1}`, {
+        const step = await lab.step(`opened a result (${i + 1})`, {
           expect: (p) => [
             expectation(
               "result-opens-on-one-tap",
