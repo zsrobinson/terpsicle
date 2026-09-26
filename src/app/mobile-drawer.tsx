@@ -6,17 +6,15 @@ import { useCurrentPlan } from "~/state/hooks";
 import { type DrawerSnap, useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
+import { PEEK_HEIGHT, snapHeights, TOP_BAR_HEIGHT } from "./drawer-heights";
 import { ProblemBadge } from "./rail";
+import { preloadTab, usePanelRegistry } from "./registry";
 import { SIDEBAR_PANEL_ID, SidebarContent } from "./sidebar";
 import { TABS, type Tab } from "./tabs";
 
 // Phones (SPEC §2): the same sidebar, in a bottom drawer that rests at peek,
 // half or full height. The rail becomes the drawer's tab strip. No bespoke
 // mobile screens, so features only have to work in the sidebar.
-
-/** Handle + tab strip + the panel's header line. */
-export const PEEK_HEIGHT = 124;
-const TOP_BAR_HEIGHT = 48;
 
 function useViewportHeight(): number {
   return useSyncExternalStore(
@@ -28,12 +26,6 @@ function useViewportHeight(): number {
     () => 800,
   );
 }
-
-/**
- * Under this height (a laptop at 400% zoom is 256px), half the screen can't
- * show a panel under the drawer's tabs, so "half" opens it all the way.
- */
-const SHORT_VIEWPORT = 480;
 
 /**
  * How much of the screen's bottom the on-screen keyboard covers. Phones
@@ -99,15 +91,6 @@ function raiseAtOnce(inside: HTMLElement, setSnap: (snap: DrawerSnap) => void) {
     drawer.getBoundingClientRect();
   }
   setSnap("full");
-}
-
-export function snapHeights(viewport: number): Record<DrawerSnap, number> {
-  const full = viewport - TOP_BAR_HEIGHT;
-  return {
-    peek: PEEK_HEIGHT,
-    half: viewport < SHORT_VIEWPORT ? full : Math.round(viewport * 0.5),
-    full,
-  };
 }
 
 export function MobileDrawer() {
@@ -495,12 +478,17 @@ function DrawerTabs() {
 
 function DrawerTab({ tab, selected }: { tab: Tab; selected: boolean }) {
   const Icon = tab.icon;
+  const registry = usePanelRegistry();
+  // A touch fires pointerdown well before the tap's click.
+  const preload = () => preloadTab(registry, tab.id);
   return (
     <WithTooltip label={tab.label} shortcut={tab.shortcut} side="top">
       <button
         type="button"
         aria-pressed={selected}
         onClick={() => tapTab(tab.id)}
+        onPointerDown={preload}
+        onFocus={preload}
         className={cn(
           "relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg py-1.5 transition-colors",
           // The rail's selected look: a soft fill, no ring or shadow.

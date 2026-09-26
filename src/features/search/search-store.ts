@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { TermId } from "~/core/schema";
-import { NO_FILTERS, type SearchFilters } from "~/core/search";
+import { NO_FILTERS, type SearchFilters } from "~/core/search/filters";
 
 // What the person typed and picked in Search, per term, for this visit.
 // Switching tabs or terms and coming back finds it as it was (SPEC §3.13);

@@ -155,6 +155,21 @@ Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtu
 | e2e (Playwright on `dev:mock`) | first visit → search → hover ghosts → open course → switch via ghost → fix a problem → export codes; generate → save 2 plans; share link → save a copy; drag a block; travel pace change updates pills; undo; mobile drawer at 390px | all green in CI |
 | Performance | generator (7 courses × 20 sections) < 200 ms; search keystroke < 16 ms; first load < 1.5 MB compressed; each cron within its CPU limit on a recorded full term | regressions fail CI |
 
+**Bundle budgets.** `pnpm check:bundle` (`scripts/check-bundle.ts`, after `pnpm build`) totals each entry route's eager JS and CSS, gzip -9, and fails over budget or when a module that must load on demand is eager:
+
+| Route | Budget | When set |
+|---|---|---|
+| `/schedule` | 344 KB | 334 KB (`perf/schedule-bundle`; 377 KB before it) |
+| `/` and the other entry pages | 215 KB | 193 KB (v2 routes) |
+
+What the scheduler loads on first use, not up front (each has a rule in `SCHEDULE_NEVER_EAGER`, so it can't drift back):
+- **Travel, Blocks, Generate and Export**, with the `connection` and `generated-plan` drill-ins and what only they use (the generator's Comlink client, `.ics`, Radix Select). Their `panels.tsx` registers them with `lazyPanel` (`src/app/lazy-panel.tsx`). Hovering or focusing a rail tab (a touch on a drawer tab, hovering a travel pill) starts the load, so it's usually there by the click; until then the panel's skeleton shows, and a chunk that can't load says so in the panel, with Reload. Courses, Search and Problems stay eager: they're the first view.
+- **The phone drawer** (vaul). `app-shell.tsx` loads it only at the phone width, starting as soon as the app's code runs, so it arrives alongside the data; a resting edge holds its place meanwhile. Its sizes live in `drawer-heights.ts` for the shell and the calendar.
+- **MiniSearch.** `use-course-search.ts` loads the text index when Search first opens. Eager code imports `~/core/search/filters` and `~/core/search/summary`, never the `~/core/search` barrel, which would pull it back in.
+- MapLibre, the generator's worker and the mock fixtures, as before (`NEVER_EAGER`).
+
+A new tab or drill-in that isn't the first view should register with `lazyPanel` too. Raise a budget only on purpose, in the PR that needs it.
+
 **Fixtures** (`src/fixtures`) cover a realistic mock term of 60+ courses. Take shapes from `reference/prototype/src/data.ts`, expanded to include:
 - **two or more terms** (one active, one archived) so term switching and archiving are tested;
 - a many-section course like CMSC131;
