@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { expectedDrawerTop, type Probe, reversals, stepChecks } from "./checks";
+import {
+  expectedDrawerTop,
+  type Frame,
+  type Probe,
+  reversals,
+  stepChecks,
+  traceChecks,
+} from "./checks";
 import { calibrate, toScreen, toVisual } from "./device";
 
 function aProbe(overrides: Partial<Probe> = {}): Probe {
@@ -114,6 +121,33 @@ describe("stepChecks", () => {
     if (moved.drawer?.rect) moved.drawer.rect.y = 300;
     expect(failed(moved)).toContain("drawer-rests-at-snap");
     expect(failed(moved, false)).not.toContain("drawer-rests-at-snap");
+  });
+});
+
+describe("traceChecks", () => {
+  // [t, drawerTop, snap, innerHeight, vvHeight, vvOffsetTop, vvScale, scrollY, focusedTop]
+  it("fails when the focused field left the panned view, even for a frame", () => {
+    // Android Chrome on production: the keyboard opened with the field low
+    // at half, Chrome panned 258px, and the drawer carried the field to 133.
+    const frames: Frame[] = [
+      [13522, 391, "half", 783, 783, 0, 1, 0, 476],
+      [15290, 391, "full", 783, 471, 0, 1, 0, 476],
+      [17991, 391, "full", 783, 471, 32, 1, 0, 476],
+      [18121, 48, "full", 783, 471, 32, 1, 0, 133],
+      [18394, 48, "full", 783, 471, 258, 1, 0, 133],
+    ];
+    const check = traceChecks(frames).find(
+      (c) => c.id === "focused-field-never-above-view",
+    );
+    expect(check).toMatchObject({ ok: false, severity: "fail" });
+  });
+
+  it("passes a field that stays in view", () => {
+    const frames: Frame[] = [
+      [100, 48, "full", 783, 783, 0, 1, 0, 133],
+      [300, 48, "full", 783, 471, 0, 1, 0, 133],
+    ];
+    expect(traceChecks(frames).filter((c) => !c.ok)).toEqual([]);
   });
 });
 
