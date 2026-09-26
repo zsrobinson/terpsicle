@@ -185,6 +185,13 @@ _Avoid_: lecture room
 **Chat plan**:
 The synced plan a term's rooms come from ("Rooms from Plan A ▾").
 
+**Join**:
+Keeping a course room in your chat list when the course isn't in your chat plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it.
+_Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
+
+**Room rules**:
+The three lines a course's chat shows the first time you open it, and in room info.
+
 ## Moderation
 
 **Moderation**:

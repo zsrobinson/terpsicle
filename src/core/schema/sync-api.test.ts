@@ -77,6 +77,51 @@ describe("SyncPushInputSchema", () => {
     expect(syncBodyBytes("é")).toBe(4); // two quotes and two bytes
   });
 
+  it("takes four-year docs and their deletes, under the doc's id", () => {
+    const body = { id: "fy_fixture_a", name: "My plan", grades: {} };
+    const input = {
+      docs: [
+        { kind: "four-year", id: body.id, baseRev: 0, body },
+        { kind: "four-year", id: "fy_fixture_b", baseRev: 4, body: null },
+      ],
+    };
+    expect(SyncPushInputSchema.parse(input)).toEqual(input);
+    for (const bad of [
+      { ...body, id: "fy_fixture_c" },
+      { name: "no id" },
+      [body],
+      "My plan",
+    ])
+      expect(
+        SyncPushInputSchema.safeParse({
+          docs: [{ kind: "four-year", id: body.id, baseRev: 0, body: bad }],
+        }).success,
+      ).toBe(false);
+    // The same id as a plan is another doc.
+    expect(
+      SyncPushInputSchema.safeParse({
+        docs: [planDoc("fy_fixture_a"), input.docs[0]],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("caps a four-year body at SYNC_MAX_BODY_BYTES too", () => {
+    const doc = (name: string) => ({
+      kind: "four-year",
+      id: "fy_fixture_a",
+      baseRev: 0,
+      body: { id: "fy_fixture_a", name },
+    });
+    const room = SYNC_MAX_BODY_BYTES - syncBodyBytes(doc("").body);
+    expect(
+      SyncPushInputSchema.safeParse({ docs: [doc("x".repeat(room))] }).success,
+    ).toBe(true);
+    expect(
+      SyncPushInputSchema.safeParse({ docs: [doc("x".repeat(room + 1))] })
+        .success,
+    ).toBe(false);
+  });
+
   it("rejects unknown keys on the envelope", () => {
     const extra = { docs: [planDoc()], force: true };
     expect(SyncPushInputSchema.safeParse(extra).success).toBe(false);
@@ -96,6 +141,35 @@ describe("SyncPullResultSchema", () => {
     expect(SyncPullResultSchema.parse({ status: "reset" }).status).toBe(
       "reset",
     );
+  });
+
+  it("skips a doc of a kind it doesn't know, but not a broken known one", () => {
+    const fourYear = {
+      kind: "four-year",
+      id: "fy_fixture_a",
+      rev: 2,
+      updatedAt: "2026-09-25T12:00:00.000Z",
+      body: { id: "fy_fixture_a", name: "My plan" },
+    };
+    const page = (docs: unknown[]) => ({
+      status: "ok",
+      cursor: 3,
+      docs,
+      more: false,
+    });
+    const later = { ...fourYear, kind: "todo-list", rev: 3 };
+    expect(
+      SyncPullResultSchema.parse(page([aPlanSyncDoc(), fourYear, later])),
+    ).toEqual(page([aPlanSyncDoc(), fourYear]));
+    expect(
+      SyncPullResultSchema.safeParse(
+        page([{ ...fourYear, body: { id: "fy_fixture_b" } }]),
+      ).success,
+    ).toBe(false);
+    expect(
+      SyncPullResultSchema.safeParse(page([{ ...fourYear, kind: undefined }]))
+        .success,
+    ).toBe(false);
   });
 });
 

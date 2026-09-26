@@ -305,6 +305,12 @@ The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cac
 4. Unlike the catalog, the cached manifest may list department files the browser doesn't have yet. What's cached is always listed by it. A cached manifest more than a day old can name files the server has deleted; a file that's missing waits for the session's manifest check and loads the new hash.
 5. There's no polling: the index changes at most every 6 h.
 
+### 5.3 The installable app (service worker, install prompt, push)
+V2.md §3 is the plan; this is what the browser keeps.
+- **Service worker** (`/sw.js`, `src/server/service-worker.ts`): one for the whole site. Cache Storage holds pages (`terpsicle-pages-v<n>`, network-first), build files as they're fetched (`terpsicle-assets-v<n>`), and the app shell precached at install (`terpsicle-shell-v<n>-<build>`). It never caches `/api`, `/auth`, `/avatars`, `/data` or `/ingest`, navigations included: IndexedDB already keeps the data, and the manifests must revalidate (§2.5, §5.1).
+- **Install prompt** (`src/features/pwa`): `localStorage["terpsicle:install-prompt"]` holds `InstallPromptStateSchema` (`{dismissals, lastDismissedAt}`); `sessionStorage["terpsicle:install-shown"]` marks a tab where the prompt already opened. `requestInstallPrompt(trigger)` opens it only where installing works, never in the installed app, at most once per session, not within 90 days of a dismissal, and never after two. Closing it any way but installing is a dismissal, except when it was opened from the "Install app" item. Storage that can't be read means "don't show".
+- **Push payload** (`PushPayloadSchema`): `{v: 1, type, title, body, url, tag}`. `url` is a path on this site; a click focuses a window already there, else takes an open one there, else opens one. A newer notification with the same `tag` replaces the older one. The service worker repeats the schema's checks by hand (it can't load zod) and shows "Terpsicle: Open the app for details." for a payload it can't read.
+
 ---
 
 ## 6. Travel math (`core/travel`)
@@ -547,7 +553,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` (landed, §7.8) | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
 | `0009_chat` (landed, §7.9) | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
-| `0010_four_year_sync` (v3) | rebuilds `sync_docs` so `kind` also allows `four-year` | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
+| `0010_four_year_sync` (landed, §7.7) | rebuilds `sync_docs` so `kind` also allows `four-year` (with tombstones) | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
@@ -567,16 +573,19 @@ How it works, and how to use it from other routes: `docs/AUTH.md`. Rows are vali
 - **Deletion:** `account/delete` sets `status = 'deleting'` and `delete_after` a week out and ends every session; signing in before then sets `active` again. The daily job (`7 13 * * *`, `src/jobs/daily.ts`) deletes the pictures, then the rows, of accounts past `delete_after`, and expired sessions.
 - **Admins** aren't a table: `config/admins.txt`, bundled into the Worker.
 
-### 7.7 Plan sync (landed: `migrations/0005_sync.sql`)
+### 7.7 Plan sync (landed: `migrations/0005_sync.sql`, `0010_four_year_sync.sql`)
 
 The design is `docs/V2.md` §5; the routes are `src/server/sync/api.ts`, the SQL `src/server/sync/store.ts`, and the input, result and row schemas (with the limits) `src/core/schema/sync-api.ts`. Rows are read with `SyncDocRowSchema` and turned into docs by `syncDocFromRow`, which checks them against `SyncDocSchema`.
 
 | Table | Key | Columns | Notes |
 |---|---|---|---|
-| `sync_docs` | `(user_id, kind, doc_id)` | `term_id`, `rev`, `deleted`, `body` (JSON), `updated_at` | One row per plan doc and one `settings` row per user. `rev` is unique per user (`sync_docs_since`), and a save always takes a new one. A deleted plan is a tombstone (`deleted = 1`, `body` NULL, `term_id` kept) until the daily job prunes it 30 days after `updated_at`. |
+| `sync_docs` | `(user_id, kind, doc_id)` | `term_id`, `rev`, `deleted`, `body` (JSON), `updated_at` | `kind` is `plan`, `settings` or `four-year`: one row per plan doc, one per four-year doc (Terpsicle Plan, V3.md §2.4) and one `settings` row per user. `rev` is unique per user (`sync_docs_since`), and a save always takes a new one. A deleted plan or four-year doc is a tombstone (`deleted = 1`, `body` NULL; a plan's keeps its `term_id`) until the daily job prunes it 30 days after `updated_at`. `term_id` is NULL for settings and four-year docs. |
 | `sync_heads` | `user_id` | `head`, `pruned_through` | `head` is the last rev handed out; `pruned_through` the highest pruned tombstone's rev. A pull from below it (but above 0), or from above `head`, gets `reset`. |
 
-- **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live plan stays within 200. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
+- **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live doc stays within its kind's cap: 200 plans (`SYNC_MAX_PLANS`), 20 four-year docs (`SYNC_MAX_FOUR_YEAR_DOCS`); past it the doc's result is `too-many-plans`. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
+- **Four-year docs** are saved whole and never read by the server past validation. The shared input schema checks that the body is a JSON object whose `id` is the doc's (`FourYearSyncBodySchema`) and the 64 KiB body limit every kind has; `sync/push` then checks the whole doc against `FourYearDocSchema` (`invalid-input`, nothing saved). The full schema stays out of the `~/core/schema` barrel, so the device checks it again when it reads a body. Grades live in the body (V3.md §2.5), so nothing else on the server may parse it. While `PLAN_ENABLED` isn't `"true"`, a push carrying a four-year doc answers `unavailable` and saves nothing.
+- **Unknown kinds:** `SyncPullResultSchema` drops a pulled doc whose `kind` this build doesn't know instead of failing the page, and the scheduler's engine skips four-year docs (`isScheduleDoc`), so adding a kind never breaks an older tab. Such a tab still moves its cursor past the doc; Plan's Dexie upgrade resets the cursor to 0 once, so it pulls them after all (V3.md §2.4).
+- **Migration 0010** rebuilds `sync_docs` (SQLite can't alter a `CHECK`): create `sync_docs_new`, copy every row, drop, rename, recreate `sync_docs_since` and `sync_docs_tombstones`, under `PRAGMA defer_foreign_keys = on`. Nothing references `sync_docs`. `src/server/sync/migration.test.ts` rebuilds a 0005-shaped table with rows and checks they, and the indexes, come through unchanged.
 - **Deleting an account** removes both tables' rows: explicitly in the purge, and by `ON DELETE CASCADE`.
 - **Chat membership:** after the batch, a push that saved anything rewrites the person's `chat_members` for the terms it touched (§7.9).
 
@@ -624,6 +633,10 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 **The socket.** `GET /api/chat/socket?term=<termId>&course=<code>` with `Upgrade: websocket`: `503` while `CHAT_ENABLED` is `off`, `426` without the upgrade, `403` cross-origin, `401` signed out, `400` for a bad query, `429` past 600 sockets per person per hour, `404` for a term or course the catalog doesn't have. The object gets `X-Terpsicle-User`, `-Term`, `-Course` and `-Chat` (`on` or `read`) and trusts them: only the Worker can reach it. Keepalive `ping` gets `pong` without waking it. Close codes: `4001` the rooms turned read-only, `4002` the course's chat was deleted, `4003` sign in again; the app reconnects (or not) and the new `welcome` says the rest.
 
 **Sending:** check (can read the room, `CHAT_ENABLED` is `on`, the term isn't over, the room is listed, no admin block, the limits) → store as `checking` and ack → `moderate()` (kind `chat`, target `<termId>:<courseCode>:<messageId>`) → `visible` (broadcast), `held` (author only; `graded-work` or `flagged`), `removed` (author only), or still `checking` when only a failed model call held it (moderation's cron retries and calls Chat's handler). An edit is screened again, and classmates get `moderation {removed}` for the old text until the new one is visible. If `moderate()` throws, the object's alarm takes moderation's latest decision about that text, or screens it again, two minutes later.
+
+**Reports** (`v2/chat-ui`): `reports/create` with `surface: "chat"` and the message's ref goes to its object (`src/server/chat/report-target.ts`, MODERATION.md §6). Reports that reach the hiding weight hold the message for its author only (`held`, `held_reason: reported`); the owner's approve shows it again.
+
+**Mock mode** (`pnpm dev:mock`, e2e): `scripts/seed-mock-data.ts` puts the mock bucket into local R2 before Vite starts, so the object reads the same catalog the app does, and the Vite config sets `CHAT_ENABLED: "on"` and `MODERATION_OFFLINE: "true"`: with `AUTH_TEST_MODE` on, moderation calls offline stand-ins for the models (`src/server/moderation/offline-models.ts`: Guard says safe, the policy model scores 0), so only the rules hold anything.
 
 **Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs` and `chat_author_courses` rows (`notifications` join them with `v2/chat-notify`). `chat_members` stays: it describes people.
 

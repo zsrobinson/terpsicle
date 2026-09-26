@@ -24,7 +24,7 @@ export function ReviewsFrame({
     if (page) track("reviews_page_viewed", { page });
   }, [page]);
   return (
-    <SitePage wide actions={<AccountLink />}>
+    <SitePage layout="reading" actions={<AccountLink />}>
       {children}
     </SitePage>
   );

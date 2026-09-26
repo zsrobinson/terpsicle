@@ -7,6 +7,7 @@ import { findTestUser } from "~/core/auth";
 import {
   type Plan,
   SYNC_MAX_BODY_BYTES,
+  SYNC_MAX_FOUR_YEAR_DOCS,
   SYNC_MAX_PLANS,
   SYNC_MAX_PUSH_DOCS,
   SYNC_PULL_PAGE,
@@ -18,7 +19,14 @@ import {
   SyncPushResultSchema,
   syncBodyBytes,
 } from "~/core/schema";
-import { aPlan, aPlanCourse, aSettingsDoc } from "~/fixtures";
+import type { FourYearDoc } from "~/core/schema/four-year";
+import {
+  aFourYear,
+  aFourYearEntry,
+  aPlan,
+  aPlanCourse,
+  aSettingsDoc,
+} from "~/fixtures";
 import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
@@ -29,9 +37,12 @@ const DAY = 86_400_000;
 
 let clock = Date.parse("2026-10-01T15:00:00.000Z");
 const now = () => new Date(clock);
+/** PLAN_ENABLED for the next requests (V3 §2.4); production starts at "false". */
+let planEnabled = "true";
 
 beforeEach(async () => {
   clock = Date.parse("2026-10-01T15:00:00.000Z");
+  planEnabled = "true";
   await env.DB.batch(
     ["sync_docs", "sync_heads", "counters", "sessions", "users"].map((t) =>
       env.DB.prepare(`DELETE FROM ${t}`),
@@ -68,7 +79,7 @@ class Device {
           ...headers,
         },
       }),
-      env as ApiEnv,
+      { ...env, PLAN_ENABLED: planEnabled } as ApiEnv,
       { waitUntil: () => {} },
       now(),
     );
@@ -121,6 +132,31 @@ const saveSettings = (baseRev = 0): SyncPushDoc => ({
   id: "settings",
   baseRev,
   body: aSettingsDoc(),
+});
+
+const fourYearId = (n: number) => `fy_${String(n).padStart(4, "0")}_test`;
+
+/** A four-year doc with a graded course: grades travel in the body (V3 §2.5). */
+const aFourYearBody = (id: string, overrides: Partial<FourYearDoc> = {}) =>
+  aFourYear({
+    id,
+    entries: [aFourYearEntry()],
+    grades: { [aFourYearEntry().id]: "A" },
+    ...overrides,
+  });
+
+const saveFourYear = (body: FourYearDoc, baseRev = 0): SyncPushDoc => ({
+  kind: "four-year",
+  id: body.id,
+  baseRev,
+  body,
+});
+
+const deleteFourYear = (id: string, baseRev: number): SyncPushDoc => ({
+  kind: "four-year",
+  id,
+  baseRev,
+  body: null,
 });
 
 const count = async (sql: string, ...params: unknown[]) =>
@@ -254,6 +290,217 @@ describe("sync/push", () => {
       docs: [{ kind: "settings", id: "settings", baseRev: 0, body: null }],
     });
     expect(response.status).toBe(400);
+  });
+});
+
+describe("four-year docs", () => {
+  it("saves, pulls and deletes them beside plans, with no term", async () => {
+    const phone = await signIn("tstudent");
+    const body = aFourYearBody(fourYearId(1));
+    // A plan can share the id: docs are keyed by kind too.
+    const plan = aPlan({ id: fourYearId(1) });
+    expect(
+      (await phone.push(saveFourYear(body), savePlan(plan), saveSettings()))
+        .results,
+    ).toEqual([
+      { kind: "four-year", id: body.id, status: "ok", rev: 1 },
+      { kind: "plan", id: plan.id, status: "ok", rev: 2 },
+      { kind: "settings", id: "settings", status: "ok", rev: 3 },
+    ]);
+    const renamed = { ...body, name: "If I switch to Math" };
+    expect((await phone.push(saveFourYear(renamed, 1))).results).toEqual([
+      { kind: "four-year", id: body.id, status: "ok", rev: 4 },
+    ]);
+
+    // Stored whole, grades and all, and never given a term.
+    const laptop = await signIn("tstudent");
+    const pulled = await laptop.pullAll();
+    expect(pulled.docs.map((d) => [d.kind, d.rev])).toEqual([
+      ["plan", 2],
+      ["settings", 3],
+      ["four-year", 4],
+    ]);
+    expect(pulled.docs.at(-1)).toEqual({
+      kind: "four-year",
+      id: body.id,
+      rev: 4,
+      updatedAt: now().toISOString(),
+      body: renamed,
+    });
+    expect(
+      await env.DB.prepare(
+        "SELECT term_id FROM sync_docs WHERE kind = 'four-year'",
+      ).first("term_id"),
+    ).toBeNull();
+
+    // Deleted as a tombstone, which pulls like a plan's.
+    expect((await laptop.push(deleteFourYear(body.id, 4))).results).toEqual([
+      { kind: "four-year", id: body.id, status: "ok", rev: 5 },
+    ]);
+    expect((await phone.pullAll(4)).docs).toEqual([
+      {
+        kind: "four-year",
+        id: body.id,
+        rev: 5,
+        updatedAt: now().toISOString(),
+        body: null,
+      },
+    ]);
+  });
+
+  it("answers a stale save with the server's version, to keep both", async () => {
+    const phone = await signIn("tstudent");
+    const laptop = await signIn("tstudent");
+    const body = aFourYearBody(fourYearId(1));
+    await phone.push(saveFourYear(body));
+    const phones = { ...body, name: "Phone's" };
+    await phone.push(saveFourYear(phones, 1));
+
+    // The laptop's edit on rev 1 doesn't overwrite: it gets rev 2 back and
+    // keeps its own as "My plan (copy)" (V3 §2.4).
+    const stale = await laptop.push(
+      saveFourYear({ ...body, name: "Laptop's" }, 1),
+    );
+    expect(stale.results).toEqual([
+      {
+        kind: "four-year",
+        id: body.id,
+        status: "conflict",
+        doc: {
+          kind: "four-year",
+          id: body.id,
+          rev: 2,
+          updatedAt: now().toISOString(),
+          body: phones,
+        },
+      },
+    ]);
+    const copy = aFourYearBody(fourYearId(2), { name: "My plan (copy)" });
+    expect((await laptop.push(saveFourYear(copy))).results[0]).toMatchObject({
+      status: "ok",
+      rev: 3,
+    });
+    // "New" when it isn't is a conflict too.
+    expect((await laptop.push(saveFourYear(body, 0))).results[0]?.status).toBe(
+      "conflict",
+    );
+    const { docs } = await phone.pullAll();
+    expect(docs.map((d) => d.body && "name" in d.body && d.body.name)).toEqual([
+      "Phone's",
+      "My plan (copy)",
+    ]);
+  });
+
+  it("refuses a body under another id, or that isn't a four-year doc", async () => {
+    const phone = await signIn("tstudent");
+    const id = fourYearId(1);
+    for (const body of [
+      aFourYearBody(fourYearId(2)),
+      { ...aFourYearBody(id), name: "" },
+      { ...aFourYearBody(id), grades: { [aFourYearEntry().id]: "A++" } },
+      { id },
+      [],
+      "plan",
+    ]) {
+      const response = await phone.request("/api/sync/push", {
+        docs: [{ kind: "four-year", id, baseRev: 0, body }],
+      });
+      expect(response.status).toBe(400);
+    }
+    expect(await count("SELECT count(*) AS n FROM sync_docs")).toBe(0);
+  });
+
+  it("caps each body at SYNC_MAX_BODY_BYTES", async () => {
+    const phone = await signIn("tstudent");
+    const id = fourYearId(1);
+    // Grades are the one part of the doc without a count limit.
+    const graded = (n: number) =>
+      aFourYearBody(id, {
+        grades: Object.fromEntries(
+          Array.from({ length: n }, (_, i) => [
+            `entry_${String(i).padStart(6, "0")}`,
+            "A",
+          ]),
+        ),
+      });
+    const per = syncBodyBytes(graded(2)) - syncBodyBytes(graded(1));
+    const n =
+      Math.floor((SYNC_MAX_BODY_BYTES - syncBodyBytes(graded(1))) / per) + 1;
+    expect(syncBodyBytes(graded(n))).toBeLessThanOrEqual(SYNC_MAX_BODY_BYTES);
+    expect(syncBodyBytes(graded(n + 1))).toBeGreaterThan(SYNC_MAX_BODY_BYTES);
+    const over = await phone.request("/api/sync/push", {
+      docs: [saveFourYear(graded(n + 1))],
+    });
+    expect(over.status).toBe(400);
+    expect((await phone.push(saveFourYear(graded(n)))).results).toEqual([
+      { kind: "four-year", id, status: "ok", rev: 1 },
+    ]);
+  });
+
+  it(`keeps an account to ${SYNC_MAX_FOUR_YEAR_DOCS} four-year plans, apart from plans`, async () => {
+    const phone = await signIn("tstudent");
+    await phone.push(
+      ...Array.from({ length: SYNC_MAX_FOUR_YEAR_DOCS }, (_, i) =>
+        saveFourYear(aFourYearBody(fourYearId(i))),
+      ),
+    );
+    const extra = aFourYearBody(fourYearId(9999));
+    const full = await phone.push(
+      saveFourYear(extra),
+      saveFourYear({ ...aFourYearBody(fourYearId(0)), name: "Edited" }, 1),
+      savePlan(aPlan({ id: planId(1) })),
+    );
+    expect(full.results).toMatchObject([
+      { id: extra.id, status: "too-many-plans" },
+      { id: fourYearId(0), status: "ok" },
+      { id: planId(1), status: "ok" },
+    ]);
+    // Deleting one makes room, and a tombstone doesn't count.
+    await phone.push(deleteFourYear(fourYearId(1), 2));
+    expect((await phone.push(saveFourYear(extra))).results[0]?.status).toBe(
+      "ok",
+    );
+    expect(
+      await count(
+        "SELECT count(*) AS n FROM sync_docs WHERE kind = 'four-year' AND deleted = 0",
+      ),
+    ).toBe(SYNC_MAX_FOUR_YEAR_DOCS);
+  });
+
+  it("is unavailable until PLAN_ENABLED is on, and saves nothing of the push", async () => {
+    const phone = await signIn("tstudent");
+    for (const value of ["false", ""]) {
+      planEnabled = value;
+      const response = await phone.request("/api/sync/push", {
+        docs: [saveSettings(), saveFourYear(aFourYearBody(fourYearId(1)))],
+      });
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "unavailable" });
+    }
+    expect(await count("SELECT count(*) AS n FROM sync_docs")).toBe(0);
+    // Plans and settings still sync meanwhile.
+    expect((await phone.push(saveSettings())).results[0]?.status).toBe("ok");
+    expect((await phone.pull(0)).status).toBe("ok");
+  });
+
+  it("goes with the daily job's pruning and the deleted account", async () => {
+    const phone = await signIn("tstudent");
+    const body = aFourYearBody(fourYearId(1));
+    await phone.push(
+      saveFourYear(body),
+      saveFourYear(aFourYearBody(fourYearId(2))),
+    );
+    await phone.push(deleteFourYear(body.id, 1));
+    clock += 30 * DAY + 1;
+    await runDailyJob({ env: env as Env, now: now() });
+    expect(
+      (await env.DB.prepare("SELECT doc_id FROM sync_docs ORDER BY rev").all())
+        .results,
+    ).toEqual([{ doc_id: fourYearId(2) }]);
+
+    await markDeleting(env.DB, "tstudent", now());
+    await runDailyJob({ env: env as Env, now: new Date(clock + 7 * DAY) });
+    expect(await count("SELECT count(*) AS n FROM sync_docs")).toBe(0);
   });
 });
 

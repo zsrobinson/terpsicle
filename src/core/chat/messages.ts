@@ -1,11 +1,13 @@
 import { needsRetry } from "../moderation/decide";
-import type {
-  ChatMessageId,
-  HeldReason,
-  Moderation,
-  ModerationDecision,
-  ModerationReason,
-  ReasonCode,
+import {
+  type ChatMessageId,
+  type HeldReason,
+  type Moderation,
+  type ModerationDecision,
+  type ModerationReason,
+  parseRoomId,
+  type ReasonCode,
+  type RoomId,
 } from "../schema";
 
 // Message ids, and what a moderation decision means for a chat message
@@ -77,4 +79,13 @@ export function chatModeration(
     ? "graded-work"
     : "flagged";
   return { state: "held", reason };
+}
+
+/**
+ * What moderation and reports call a message: `<termId>:<courseCode>:<id>`
+ * (the course comes from its room). Null for a room id that isn't one.
+ */
+export function chatMessageRef(room: RoomId, id: ChatMessageId): string | null {
+  const parsed = parseRoomId(room);
+  return parsed ? `${parsed.termId}:${parsed.courseCode}:${id}` : null;
 }

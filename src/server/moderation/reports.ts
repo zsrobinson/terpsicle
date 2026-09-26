@@ -11,11 +11,13 @@ import type {
 } from "~/core/schema";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
+import { chatReportTarget } from "../chat/report-target";
 import { reviewReportTarget } from "../reviews/report-target";
+import type { ModerationHandlerEnv } from "./handlers";
 import { type ModerationEnv, queueForOwner } from "./service";
 import { insertReport, openReports } from "./store";
 
-/** How reports reach the item they're about. Chat adds its own when it lands. */
+/** How reports reach the item they're about. */
 export interface ReportTarget {
   /** The item, if readers can see it (or just could). */
   find(
@@ -40,6 +42,16 @@ export interface ReportTarget {
 export type ReportTargets = Partial<Record<ModerationKind, ReportTarget>>;
 
 export const REPORT_TARGETS: ReportTargets = { review: reviewReportTarget };
+
+/**
+ * The live targets, for this Worker's bindings: Reviews' works on D1 alone,
+ * Chat's reaches the message's CourseChat object through `COURSE_CHAT`.
+ */
+export function reportTargets(env: ModerationHandlerEnv): ReportTargets {
+  return env.COURSE_CHAT
+    ? { ...REPORT_TARGETS, chat: chatReportTarget(env.COURSE_CHAT) }
+    : REPORT_TARGETS;
+}
 
 export async function createReport(
   env: Pick<ModerationEnv, "DB">,

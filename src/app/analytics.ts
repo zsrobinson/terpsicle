@@ -4,6 +4,7 @@ import type { PostHog } from "posthog-js";
 import type {
   ConnectionVerdict,
   ExtraMinutes,
+  InstallTrigger,
   ModerationKind,
   Pace,
   ProblemFix,
@@ -96,9 +97,27 @@ export interface AnalyticsEvents {
   travel_how_opened: NoProperties;
   connection_opened: { verdict: ConnectionVerdict };
   route_map_shown: { mode: TravelMode; hasGeometry: boolean };
+  /** `menu`: the "Install app" item; otherwise the key moment (V2 §3.4). */
+  install_prompt_shown: {
+    trigger: InstallTrigger | "menu";
+    platform: "ios" | "chromium";
+  };
+  install_prompt_result: {
+    trigger: InstallTrigger | "menu";
+    platform: "ios" | "chromium";
+    outcome: "installed" | "dismissed";
+  };
+  pwa_installed: NoProperties;
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
   signin_started: {
-    from: "topbar" | "settings" | "signin-page" | "undo" | "reviews";
+    from:
+      | "topbar"
+      | "settings"
+      | "signin-page"
+      | "undo"
+      | "reviews"
+      | "chat"
+      | "todo";
   };
   signin_completed: { firstOnDevice: boolean };
   signin_failed: { reason: SignInError };
@@ -111,6 +130,15 @@ export interface AnalyticsEvents {
   review_form_opened: NoProperties;
   review_submitted: { outcome: "published" | "held" | "rejected" };
   report_created: { surface: ModerationKind; reason: ReportReason };
+  // Terpsicle Todo (V3.md §6). Never a title, course, date or anything from
+  // the feed: outcomes and counts only.
+  todo_connect_result: {
+    outcome: "connected" | "invalid-link" | "unreachable" | "not-a-calendar";
+  };
+  todo_disconnected: NoProperties;
+  todo_item_checked: { done: boolean; via: "list" | "week" };
+  todo_view_changed: { view: "day" | "course" | "week" };
+  todo_file_imported: { items: number; skipped: number };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

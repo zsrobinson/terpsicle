@@ -10,10 +10,11 @@ import { TravelSettingsSchema } from "./travel";
 
 // Plan sync (docs/V2.md §5): what a signed-in person's data looks like on the
 // server. The unit of sync is a document, saved whole with the `rev` it was
-// based on: one per plan, plus one settings doc per user. The mapping to and
-// from the Dexie tables is `~/core/sync`.
+// based on: one per plan, one per four-year plan (docs/V3.md §2.4), plus one
+// settings doc per user. The mapping to and from the Dexie tables is
+// `~/core/sync`.
 
-export const SYNC_DOC_KINDS = ["plan", "settings"] as const;
+export const SYNC_DOC_KINDS = ["plan", "settings", "four-year"] as const;
 export const SyncDocKindSchema = z.enum(SYNC_DOC_KINDS);
 export type SyncDocKind = z.infer<typeof SyncDocKindSchema>;
 
@@ -55,7 +56,21 @@ export const SettingsDocSchema = z.object({
 });
 export type SettingsDoc = z.infer<typeof SettingsDocSchema>;
 
-/** A stored doc as the server returns it. A plan with `body: null` is a tombstone. */
+/**
+ * A four-year doc's body as the shared sync schemas check it: a JSON object
+ * with the doc's id, under the push's size limit like every kind. The full
+ * `FourYearDocSchema` stays out of this barrel (every page loads it; see
+ * ./index.ts), so the Worker checks it on push (src/server/sync/api.ts) and
+ * the device when it reads a body. Nothing on the server reads the body past
+ * that (V3 §2.4–2.5: grades live in it).
+ */
+export const FourYearSyncBodySchema = z.looseObject({ id: LocalIdSchema });
+export type FourYearSyncBody = z.infer<typeof FourYearSyncBodySchema>;
+
+/**
+ * A stored doc as the server returns it. A plan or four-year doc with
+ * `body: null` is a tombstone.
+ */
 export const SyncDocSchema = z.discriminatedUnion("kind", [
   z
     .object({
@@ -77,10 +92,23 @@ export const SyncDocSchema = z.discriminatedUnion("kind", [
     updatedAt: IsoDateTimeSchema,
     body: SettingsDocSchema,
   }),
+  z
+    .object({
+      kind: z.literal("four-year"),
+      id: LocalIdSchema,
+      rev: RevSchema.min(1),
+      updatedAt: IsoDateTimeSchema,
+      body: FourYearSyncBodySchema.nullable(),
+    })
+    .refine((d) => d.body === null || d.body.id === d.id, {
+      message: "A four-year doc's body must have the doc's id",
+      path: ["body", "id"],
+    }),
 ]);
 export type SyncDoc = z.infer<typeof SyncDocSchema>;
 export type PlanSyncDoc = Extract<SyncDoc, { kind: "plan" }>;
 export type SettingsSyncDoc = Extract<SyncDoc, { kind: "settings" }>;
+export type FourYearSyncDoc = Extract<SyncDoc, { kind: "four-year" }>;
 
 // ---------- on the device (Dexie v2, DATA.md §5) ----------
 

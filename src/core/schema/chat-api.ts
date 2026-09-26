@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { ChatAuthorSchema, parseRoomId, RoomIdSchema } from "./chat";
+import {
+  ChatAuthorSchema,
+  ChatMessageIdSchema,
+  parseRoomId,
+  RoomIdSchema,
+} from "./chat";
 import {
   CourseCodeSchema,
   IsoDateTimeSchema,
@@ -8,6 +13,48 @@ import {
 
 // Chat's JSON routes (docs/V2.md §8.5), all `auth: "user"`, and the socket
 // route's query. Messages themselves travel over the socket (./chat).
+
+// ---------- /chat's search params ----------
+
+/**
+ * Where you are in Chat, so a room has a link and the back button walks
+ * back out: the list, a course's rooms, a room, a thread. `join=1` (from the
+ * scheduler's "Join CMSC351 chat") follows the course once you're signed in.
+ */
+export const ChatSearchSchema = z.object({
+  term: TermIdSchema.optional().catch(undefined),
+  course: CourseCodeSchema.optional().catch(undefined),
+  room: RoomIdSchema.optional().catch(undefined),
+  thread: ChatMessageIdSchema.optional().catch(undefined),
+  // The router may parse "1" as a number.
+  join: z
+    .union([z.literal(1), z.literal("1")])
+    .transform(() => 1 as const)
+    .optional()
+    .catch(undefined),
+});
+export type ChatView = z.infer<typeof ChatSearchSchema>;
+
+/** `/chat?…` for a view: links from the scheduler, and sign-in's way back. */
+export function chatHref(view: ChatView): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(view))
+    if (value !== undefined) params.set(key, String(value));
+  const query = params.toString();
+  return query ? `/chat?${query}` : "/chat";
+}
+
+// ---------- what Chat keeps in the browser (localStorage) ----------
+
+/** Course rooms joined from this browser, per term (the server has them too). */
+export const ChatJoinedStoreSchema = z.record(
+  TermIdSchema,
+  z.array(CourseCodeSchema),
+);
+export type ChatJoinedStore = z.infer<typeof ChatJoinedStoreSchema>;
+
+/** Courses whose room rules this browser has seen. */
+export const ChatRulesSeenStoreSchema = z.array(CourseCodeSchema);
 
 // ---------- GET /api/chat/socket ----------
 

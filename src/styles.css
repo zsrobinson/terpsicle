@@ -54,7 +54,7 @@
   --color-shared-soft: var(--shared-soft);
   --color-grid: var(--grid);
 
-  /* The three products (the marks, the app switcher). */
+  /* The products (the marks, the app switcher). */
   --color-product-schedule: var(--product-schedule);
   --color-product-schedule-fg: var(--product-schedule-fg);
   --color-product-schedule-soft: var(--product-schedule-soft);
@@ -64,6 +64,10 @@
   --color-product-chat: var(--product-chat);
   --color-product-chat-fg: var(--product-chat-fg);
   --color-product-chat-soft: var(--product-chat-soft);
+  --color-product-todo: var(--product-todo);
+  --color-product-todo-fg: var(--product-todo-fg);
+  --color-product-todo-soft: var(--product-todo-soft);
+  --color-product-todo-keyline: var(--product-todo-keyline);
   /* The marks' own pieces (src/app/brand/marks.ts). */
   --color-mark-offset: var(--mark-offset);
   --color-umbrella-tile: var(--umbrella-tile);
@@ -216,6 +220,12 @@
   --product-chat: #205ea6; /* blue-600 */
   --product-chat-fg: #fffcf0; /* paper */
   --product-chat-soft: #e1eceb; /* blue-50 */
+  /* Todo's tile is yellow-400, too light for paper: an ink glyph, and an ink
+     keyline in light only, since the tile alone is 2.31 against paper. */
+  --product-todo: #d0a215; /* yellow-400 */
+  --product-todo-fg: #100f0f; /* black */
+  --product-todo-soft: #faeec6; /* yellow-50 */
+  --product-todo-keyline: #100f0f; /* black */
   /* A product tile's offset. */
   --mark-offset: #100f0f; /* black */
   /* The umbrella: the schedule glyph on a paper tile with an ink keyline. */
@@ -261,6 +271,9 @@
   --product-schedule-soft: #3e1715; /* red-900 */
   --product-reviews-soft: #261c39; /* purple-900 */
   --product-chat-soft: #12253b; /* blue-900 */
+  --product-todo-soft: #3a2d04; /* yellow-900 */
+  /* No keyline on ink: the tile's own color hides it. */
+  --product-todo-keyline: var(--product-todo);
   --mark-offset: #575653; /* base-700 */
   --umbrella-tile: #282726; /* base-900 */
   --umbrella-glyph: #fffcf0; /* paper */

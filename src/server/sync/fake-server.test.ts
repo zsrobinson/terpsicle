@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { findTestUser } from "~/core/auth";
 import {
   type Plan,
+  SYNC_MAX_FOUR_YEAR_DOCS,
   type SyncPullResult,
   SyncPullResultSchema,
   type SyncPushDoc,
@@ -16,6 +17,7 @@ import {
 } from "~/core/schema";
 import {
   aBlock,
+  aFourYear,
   aPlan,
   aSavedCourse,
   aSettingsDoc,
@@ -67,7 +69,7 @@ class Pair {
           Cookie: this.cookie,
         },
       }),
-      env as ApiEnv,
+      { ...env, PLAN_ENABLED: "true" } as ApiEnv,
       { waitUntil: () => {} },
       now(),
     );
@@ -144,6 +146,34 @@ describe("FakeSyncServer", () => {
     await pair.push([{ kind: "plan", id: plan.id, baseRev: 0, body: plan }]);
     // Ahead of the account: reset.
     await pair.pull(99);
+  });
+
+  it("treats four-year docs alike: revs, conflicts, tombstones and the cap", async () => {
+    const pair = new Pair();
+    await pair.signIn();
+    const fourYear = (n: number, baseRev = 0, name = "My plan") => ({
+      kind: "four-year" as const,
+      id: `fy_${String(n).padStart(4, "0")}_fake`,
+      baseRev,
+      body: aFourYear({ id: `fy_${String(n).padStart(4, "0")}_fake`, name }),
+    });
+    await pair.push(
+      Array.from({ length: SYNC_MAX_FOUR_YEAR_DOCS }, (_, i) => fourYear(i)),
+    );
+    // Past the cap, a stale base, an edit, and a plan beside them.
+    const plan = aPlan({ id: PLAN_IDS[0] });
+    await pair.push([
+      fourYear(99),
+      fourYear(0, 0),
+      fourYear(1, 2, "Renamed"),
+      { kind: "plan", id: plan.id, baseRev: 0, body: plan },
+    ]);
+    await pair.push([{ ...fourYear(2, 3), body: null }]);
+    await pair.push([fourYear(99)]);
+    await pair.pull(0);
+    clock += 31 * DAY;
+    await pair.prune();
+    await pair.pull(0);
   });
 
   it("stays alike through random pushes and pulls from three devices", async () => {

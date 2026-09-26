@@ -17,7 +17,9 @@ export type SignInFrom =
   | "settings"
   | "signin-page"
   | "undo"
-  | "reviews";
+  | "reviews"
+  | "chat"
+  | "todo";
 
 /** Where a sign-in should come back to: this page. */
 export function currentPath(): string {

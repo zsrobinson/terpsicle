@@ -1,5 +1,7 @@
 // Worker entry (wrangler.jsonc `main`). Routing lives in src/server/worker.ts
 // so it can be tested without TanStack Start's build-time modules.
+
+import { PRECACHE } from "virtual:terpsicle/precache";
 import app from "@tanstack/react-start/server-entry";
 import type { PageRequestContext } from "~/core/routing";
 import { createWorker } from "~/server/worker";
@@ -12,6 +14,6 @@ declare module "@tanstack/react-router" {
   }
 }
 
-export default createWorker(app);
+export default createWorker(app, { precache: PRECACHE });
 // Chat's Durable Object class (wrangler.jsonc `durable_objects`).
 export { CourseChat } from "~/server/chat/course-chat";

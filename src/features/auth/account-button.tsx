@@ -4,6 +4,7 @@ import { track } from "~/app/analytics";
 import { ThemeMenuItems } from "~/app/theme-toggle";
 import { SIGN_IN_PITCH, signInStartHref } from "~/core/auth";
 import { type MeUser, SIGN_IN_START_PATH } from "~/core/schema";
+import { InstallAppMenuItem } from "~/features/pwa/install-entry";
 import { SyncStatusLine } from "~/features/sync/status-view";
 import {
   DropdownMenu,
@@ -86,6 +87,7 @@ function AccountMenu({ user }: { user: MeUser }) {
       </WithTooltip>
       <DropdownMenuContent align="end" className="w-[240px]">
         <AccountItems user={user} />
+        <InstallAppMenuItem />
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -118,6 +120,7 @@ function PhoneMenu() {
         {user ? <AccountItems user={user} /> : <SignInItems />}
         <DropdownMenuSeparator />
         <ThemeMenuItems />
+        <InstallAppMenuItem />
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -152,9 +152,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      # The full browser as well as the headless shell: e2e/pwa-push.spec.ts
+      # needs notifications, which the shell doesn't have. Both are cached.
       - uses: ./.github/actions/playwright
-        with:
-          only-shell: "true"
 
       # Two workers, Playwright's default on four cores. Three made the
       # a11y-heavy shard slower (the dev server and axe share the CPU) and a

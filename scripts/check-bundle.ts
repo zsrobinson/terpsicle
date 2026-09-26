@@ -31,6 +31,14 @@ export const EAGER_BUDGET = 345 * 1024;
  */
 export const LANDING_BUDGET = 215 * 1024;
 
+/**
+ * Gzipped JS + CSS for /chat/, in bytes: 279 KB when this was set (v2 chat
+ * UI), plus about 10% headroom. That's `/`'s 208 KB, Radix's popover, menu,
+ * select and dialog with vaul, and Chat itself; never the scheduler's
+ * stores. Same rule for raising it.
+ */
+export const CHAT_BUDGET = 307 * 1024;
+
 /** Modules that must only ever load on demand, and why. */
 export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
   { pattern: /(^|\/)maplibre-gl\//, why: "MapLibre loads with the route map" },
@@ -127,6 +135,19 @@ export const REVIEWS_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
  */
 export const ADMIN_BUDGET = 245 * 1024;
 
+/**
+ * Gzipped JS + CSS for /todo and /todo/connect, in bytes: 225 KB when this
+ * was set (v3 todo-ui), `/`'s base plus the list, the week and the .ics
+ * parser for dropped files, plus about 10% headroom. Same rule for raising it.
+ */
+export const TODO_BUDGET = 248 * 1024;
+
+/** Todo loads with /todo, never with the scheduler. */
+const TODO_NEVER_EAGER = {
+  pattern: /^src\/(features\/todo\/|server\/fns\/todo\.ts$)/,
+  why: "Todo loads with /todo, not the scheduler",
+};
+
 /** The owner's panel loads with /admin, never with anyone else's pages. */
 const ADMIN_NEVER_EAGER = {
   pattern: /^src\/features\/admin\//,
@@ -154,9 +175,26 @@ export const ROUTE_BUDGETS: readonly {
       },
       ...SCHEDULE_NEVER_EAGER,
       ADMIN_NEVER_EAGER,
+      TODO_NEVER_EAGER,
+      {
+        pattern: /^src\/(features|core)\/chat\//,
+        why: "course details loads Chat's way in on demand, only while Chat is on",
+      },
     ],
   },
-  ...["/", "/chat/", "/settings", "/signin", "/privacy"].map((route) => ({
+  {
+    route: "/chat/",
+    budget: CHAT_BUDGET,
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  },
+  // Todo keeps `/`'s rules: no Dexie and no scheduler stores (course colors
+  // are a raw IndexedDB read).
+  ...["/todo/", "/todo/connect"].map((route) => ({
+    route,
+    budget: TODO_BUDGET,
+    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],
+  })),
+  ...["/", "/settings", "/signin", "/privacy"].map((route) => ({
     route,
     budget: LANDING_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER],

@@ -200,6 +200,16 @@ Revisit if: rooms feel empty or noisy.
 `CourseChat` holds a course's messages and sockets; it's the one Durable Object class we run.
 Revisit if: a course's traffic outgrows one object.
 
+### Chat reads the server's plans, not the device's
+2026-09-26 · agent · one feature
+`/chat` gets your rooms from your synced plans (`sync/pull`) and the catalog from `/data`, never from the scheduler's stores, because the server grants rooms from synced plans and `/chat` stays light. A plan that hasn't synced yet has no rooms.
+Revisit if: people expect rooms before their plan syncs.
+
+### Mock mode runs Chat with stand-in models
+2026-09-26 · agent · one feature
+`pnpm dev:mock` seeds local R2 with the mock catalog and screens chat with offline stand-ins for the models (`MODERATION_OFFLINE`, test mode only), so e2e can run two people against the real socket. Only the rules hold anything there.
+Revisit if: e2e needs to cover a model's own verdict.
+
 ## Plan and Todo
 
 ### Plan and Todo, requirements later

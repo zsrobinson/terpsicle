@@ -1,0 +1,182 @@
+import { cn } from "cn";
+import { ExternalLink } from "lucide-react";
+import type { ReactNode } from "react";
+import type { CourseCode, CourseColor, TodoItem } from "~/core/schema";
+import { dueTimeLabel, isElmsUrl } from "~/core/todo";
+import { tintStyle } from "~/features/calendar/tint";
+import { WithTooltip } from "~/ui/tooltip";
+
+// One deadline (docs/V3.md §3.9): a checkbox, the title, its course (tinted
+// with the scheduler's color), the due time, where it came from, the
+// Gradescope and Exam tags, and a link to it in ELMS. Titles and course names
+// come from professors and ELMS: plain text only, and `data-private`.
+
+/** Said once, under the first Gradescope item and on the connect page (V3 §3.7). */
+export const GRADESCOPE_EXTENSIONS_NOTE =
+  "Extensions you get in Gradescope don't show up in ELMS. Check Gradescope for your own due date.";
+
+/** A 44px target on phones, a compact one with a pointer. */
+const TARGET = "flex size-11 shrink-0 items-center justify-center md:size-8";
+
+export function TodoCheckbox({
+  title,
+  done,
+  onToggle,
+  disabled = false,
+  className,
+}: {
+  title: string;
+  done: boolean;
+  onToggle?: () => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  // The label is the target (44px on phones); the box inside is the control.
+  return (
+    <label
+      className={cn(TARGET, disabled ? null : "cursor-pointer", className)}
+    >
+      <WithTooltip label={done ? "Mark as not done" : "Mark done"}>
+        <input
+          type="checkbox"
+          checked={done}
+          disabled={disabled}
+          aria-label={`Done: ${title}`}
+          onChange={() => onToggle?.()}
+          className="size-4 shrink-0 cursor-pointer accent-accent disabled:cursor-default"
+        />
+      </WithTooltip>
+    </label>
+  );
+}
+
+/** The course, tinted when there's a code; the ELMS course name, neutral, when there isn't. */
+export function CourseTag({
+  code,
+  label,
+  color,
+}: {
+  code: CourseCode | null;
+  label: string | null;
+  color: CourseColor | null;
+}) {
+  if (code !== null && color !== null)
+    return (
+      <span
+        style={tintStyle(color)}
+        className="ident shrink-0 border px-1 font-medium text-xs"
+      >
+        {code}
+      </span>
+    );
+  if (code !== null)
+    return <span className="ident shrink-0 font-medium text-xs">{code}</span>;
+  if (label === null) return null;
+  return (
+    <span
+      data-private=""
+      className="min-w-0 max-w-[16rem] truncate bg-hover px-1 text-xs"
+    >
+      {label}
+    </span>
+  );
+}
+
+function Tag({
+  children,
+  dashed = false,
+}: {
+  children: ReactNode;
+  dashed?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "shrink-0 border border-hairline-strong px-1 text-fg text-xs",
+        dashed && "border-dashed",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function TodoItemRow({
+  item,
+  done,
+  course,
+  color,
+  when,
+  note,
+  onToggle,
+  preview = false,
+  showCourse = true,
+}: {
+  item: TodoItem;
+  done: boolean;
+  /** The code it's filed under (re-matched against the person's plans). */
+  course: CourseCode | null;
+  color: CourseColor | null;
+  /** The due words; defaults to the time alone ("11:59pm"). */
+  when?: string;
+  /** A quiet line under the item. */
+  note?: string;
+  onToggle?: () => void;
+  /** The front door's sample: nothing to press. */
+  preview?: boolean;
+  /** Off under a course's own heading. */
+  showCourse?: boolean;
+}) {
+  const link = item.link !== null && isElmsUrl(item.link) ? item.link : null;
+  return (
+    <li
+      data-testid="todo-item"
+      className="flex items-start gap-1 border-hairline border-b last:border-b-0 md:gap-2"
+    >
+      <TodoCheckbox
+        title={item.title}
+        done={done}
+        onToggle={onToggle}
+        disabled={preview}
+        className="-ml-3 md:-ml-1.5"
+      />
+      <div className="min-w-0 flex-1 py-3 md:py-1.5">
+        <p
+          data-private=""
+          className={cn(
+            "break-words text-base",
+            done ? "text-muted line-through" : "text-fg",
+          )}
+        >
+          {item.title}
+        </p>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted text-sm">
+          {showCourse ? (
+            <CourseTag code={course} label={item.courseLabel} color={color} />
+          ) : null}
+          <span className="tnum">{when ?? dueTimeLabel(item)}</span>
+          <span>{item.source === "elms" ? "From ELMS" : "From a file"}</span>
+          {item.gradescope ? <Tag>Gradescope</Tag> : null}
+          {item.exam ? <Tag dashed>Exam</Tag> : null}
+        </p>
+        {note ? <p className="mt-1 text-muted text-sm">{note}</p> : null}
+      </div>
+      {link && !preview ? (
+        <WithTooltip label="Open in ELMS">
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${item.title} in ELMS`}
+            className={cn(
+              TARGET,
+              "-mr-3 text-muted transition-colors hover:bg-hover hover:text-fg md:-mr-1.5",
+            )}
+          >
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+        </WithTooltip>
+      ) : null}
+    </li>
+  );
+}
