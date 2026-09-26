@@ -1,5 +1,5 @@
-// The marks (docs/DESIGN.md §7.5), as data: the owner's locked "Pixel star"
-// set, and Todo's from the brand track's hand-off (docs/V3.md §7). Both the <Mark> component and scripts/build-icons.ts (favicons,
+// The six marks (docs/DESIGN.md §7.5), as data: the owner's locked "Pixel
+// star" set, plus Plan and Todo from the future-directions round. Both the <Mark> component and scripts/build-icons.ts (favicons,
 // home-screen icons) draw from here, so swapping a drawing is one edit:
 // replace its shapes in GLYPHS, then run `pnpm tsx scripts/build-icons.ts`.
 //
@@ -7,11 +7,13 @@
 // area is 3…15; boxes fill it, and points may overshoot it by 0.5. Every mark
 // has a primary shape at 100% and a secondary at 70%. No corner radius.
 
+/** The umbrella, then the products in color order: red to yellow. */
 export const MARK_IDS = [
   "umbrella",
   "schedule",
   "reviews",
   "chat",
+  "plan",
   "todo",
 ] as const;
 export type MarkId = (typeof MARK_IDS)[number];
@@ -57,24 +59,53 @@ export const GLYPHS: Record<
     { d: "M3 3H15V11H6V12.5H4.5V14H3Z", opacity: 1 },
     { d: "M10.5 11.5h4.5v3.5h-4.5Z", opacity: 0.7, halo: true },
   ],
-  // Two list rows done, and the third still open (docs/V3.md §7).
+  // A two-step staircase (the semesters behind you) and the next step ahead.
+  // They touch at y=7 and never overlap, so no halo.
+  plan: [
+    { d: "M3 15V11H7V7H15V15Z", opacity: 1 },
+    { d: "M11 3h4v4h-4Z", opacity: 0.7 },
+  ],
+  // Two list rows done, a box and a bar each, and a third still open.
   todo: [
     { d: "M3 3h3v3h-3ZM8 3h7v3h-7ZM3 7.5h3v3h-3ZM8 7.5h7v3h-7Z", opacity: 1 },
     { d: "M3 12h3v3h-3ZM8 12h7v3h-7Z", opacity: 0.7 },
   ],
 };
 
+export type MarkTheme = "light" | "dark";
+
 /**
- * Tiles that need a line to stand off the page: the umbrella's paper (or
- * dark) one, and Todo's light yellow (its keyline token hides it on ink).
+ * What each glyph is painted with. Paper on every product tile but Todo's:
+ * paper fails 4.5:1 on any yellow lighter than 700, so Todo's yellow-400
+ * tile takes an ink glyph (8.1:1). The umbrella's follows the theme.
  */
-const KEYLINE: Record<MarkId, boolean> = {
-  umbrella: true,
-  schedule: false,
-  reviews: false,
-  chat: false,
-  todo: true,
+export const GLYPH_PAINT: Record<MarkId, "paper" | "ink" | "theme"> = {
+  umbrella: "theme",
+  schedule: "paper",
+  reviews: "paper",
+  chat: "paper",
+  plan: "paper",
+  todo: "ink",
 };
+
+/**
+ * The themes in which a tile needs a 1px line to stand off the page: the
+ * umbrella's paper (or dark) tile in both, and Todo's yellow in light only,
+ * where the tile alone is 2.3:1 on paper (in dark it's 8.1:1).
+ */
+const KEYLINE: Record<MarkId, readonly MarkTheme[]> = {
+  umbrella: ["light", "dark"],
+  schedule: [],
+  reviews: [],
+  chat: [],
+  plan: [],
+  todo: ["light"],
+};
+
+/** Whether `id` draws its keyline in `theme`. */
+export function hasKeyline(id: MarkId, theme: MarkTheme): boolean {
+  return KEYLINE[id].includes(theme);
+}
 
 export function glyphOf(id: MarkId): readonly MarkShape[] {
   return GLYPHS[id === "umbrella" ? "schedule" : id];
@@ -89,6 +120,8 @@ export type MarkLayer =
       y: number;
       size: number;
       width: number;
+      /** Drawn only in this theme; in both when absent. */
+      only?: MarkTheme;
     }
   | { kind: "halo"; role: MarkRole; d: string; width: number }
   | { kind: "path"; role: MarkRole; d: string; opacity: number };
@@ -113,11 +146,16 @@ const MASKABLE_SPAN = 22.5;
  * The layers of a mark drawn at `size` CSS pixels. The offset and keyline are
  * set in pixels (2px and 1px), so they're converted to grid units per size.
  * At 16px and under, 70% shapes go solid: a tint that small reads as mud.
+ *
+ * With a `theme`, only that theme's layers (a file has one theme). Without
+ * one, a keyline only one theme draws is marked `only`, for a page that
+ * switches themes with CSS.
  */
 export function drawMark(
   id: MarkId,
   size: number,
   variant: MarkVariant = "page",
+  theme?: MarkTheme,
 ): MarkDrawing {
   const small = size <= 16;
   const layers: MarkLayer[] = [];
@@ -145,8 +183,12 @@ export function drawMark(
   } else {
     if (variant === "bleed") viewBox = "1 1 16 16";
     layers.push({ kind: "rect", role: "tile", x: 1, y: 1, size: 16 });
-    if (KEYLINE[id]) {
+    const themes = KEYLINE[id].filter(
+      (t) => theme === undefined || t === theme,
+    );
+    if (themes.length > 0) {
       const width = Math.max(0.5, 18 / size);
+      const [onlyIn] = themes;
       layers.push({
         kind: "outline",
         role: "keyline",
@@ -154,6 +196,7 @@ export function drawMark(
         y: 1 + width / 2,
         size: 16 - width,
         width,
+        ...(themes.length === 1 && theme === undefined ? { only: onlyIn } : {}),
       });
     }
   }
@@ -182,9 +225,15 @@ export function markSvg(
     variant = "page",
     title,
     style,
-  }: { variant?: MarkVariant; title?: string; style?: string } = {},
+    theme,
+  }: {
+    variant?: MarkVariant;
+    title?: string;
+    style?: string;
+    theme?: MarkTheme;
+  } = {},
 ): string {
-  const { viewBox, layers } = drawMark(id, size, variant);
+  const { viewBox, layers } = drawMark(id, size, variant, theme);
   const body = layers.map((layer) => layerSvg(layer, colors[layer.role]));
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${viewBox}">`,

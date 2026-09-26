@@ -9,7 +9,8 @@ import {
   instructorHead,
   type PageHead,
   pageHead,
-  sitemapIndexXml,
+  SITE_ORIGIN,
+  SITEMAP_MAX_URLS,
   sitemapXml,
   suggestCourses,
   suggestInstructors,
@@ -227,9 +228,9 @@ describe("instructorHead", () => {
 
 describe("sitemaps", () => {
   it("lists absolute, escaped URLs", () => {
-    const xml = sitemapXml([
+    const xml = sitemapXml(SITE_ORIGIN, [
       { path: "/reviews" },
-      { path: "/reviews/instructors/t~a&b", lastmod: "2026-09-01" },
+      { path: "/reviews/instructors/t~a&b", lastModified: "2026-09-01" },
     ]);
     expect(xml).toContain("<loc>https://terpsicle.com/reviews</loc>");
     expect(xml).toContain(
@@ -237,10 +238,14 @@ describe("sitemaps", () => {
     );
   });
 
-  it("indexes the sitemap files", () => {
-    expect(sitemapIndexXml([{ path: "/sitemaps/reviews.xml" }])).toContain(
-      "<sitemap><loc>https://terpsicle.com/sitemaps/reviews.xml</loc></sitemap>",
-    );
+  it("holds at most 50,000 URLs", () => {
+    const entries = Array.from({ length: SITEMAP_MAX_URLS + 1 }, (_, i) => ({
+      path: `/reviews/courses/C${i}`,
+    }));
+    expect(() => sitemapXml(SITE_ORIGIN, entries)).toThrow();
+    expect(() =>
+      sitemapXml(SITE_ORIGIN, entries.slice(0, SITEMAP_MAX_URLS)),
+    ).not.toThrow();
   });
 });
 

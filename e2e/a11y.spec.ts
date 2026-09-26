@@ -92,6 +92,19 @@ for (const scheme of ["light", "dark"] as const) {
       for (const path of ["/", "/privacy", "/reviews", "/schedule/nowhere"]) {
         await page.goto(path);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+        if (path === "/") {
+          // The hero's marks fade in as the detangle settles; axe reads a
+          // mark mid-fade as low contrast, so wait for them to land.
+          await expect(page.locator("[data-tangle]")).toHaveAttribute(
+            "data-tangle",
+            "done",
+            { timeout: 10_000 },
+          );
+          for (const end of await page
+            .locator("[data-tangle] .mk-end:visible")
+            .all())
+            await expect(end).toHaveCSS("opacity", "1", { timeout: 5000 });
+        }
         await scan(page, `${path} (${scheme})`);
       }
     });

@@ -19,8 +19,8 @@ import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
 import { landingRedirect } from "./routing";
 import { handleCspReport } from "./security/csp-report";
 import { cspNonce, withSecurityHeaders } from "./security/headers";
+import { serveSeoFile } from "./seo/routes";
 import { serviceWorkerScript } from "./service-worker";
-import { serveSitemap } from "./sitemap";
 
 const WWW_HOST = `www.${APEX_HOST}`;
 /** Vite's hashed build output (dist/client/assets). */
@@ -203,8 +203,6 @@ export function createWorker(
         },
       });
     }
-    const sitemap = await serveSitemap(request, env);
-    if (sitemap) return sitemap;
     if (url.pathname.startsWith(ASSETS_PREFIX)) {
       // Built files are served before the Worker runs, so one that reaches
       // here doesn't exist in this version: a tab or HTML from an older
@@ -216,6 +214,8 @@ export function createWorker(
         headers: { "Cache-Control": "no-store" },
       });
     }
+    const seo = await serveSeoFile(request, env);
+    if (seo) return seo;
     const landing = landingRedirect(request);
     if (landing) return landing;
     // Every page (`/`, `/schedule`, `/privacy`, …) is a TanStack route; an

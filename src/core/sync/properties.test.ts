@@ -696,7 +696,63 @@ const stepArb: fc.Arbitrary<Step> = fc.oneof(
     ),
 );
 
+/**
+ * Plans with work that hadn't reached the server when the devices went
+ * quiet. A dirty plan the account already holds as it is here (another
+ * device made the same edit and saved it) isn't unsaved: the server's
+ * version is simply taken (`resolvePlanConflict`), so a delete made after
+ * that save may remove it, as it removes the saved one.
+ */
+function unsavedWork(d: Device): Plan[] {
+  return d.tables.plans.filter((p) => {
+    if (!d.sync.docs[planDocKey(p.id)]?.dirty) return false;
+    const held = d.server.docs.get(planDocKey(p.id));
+    return !(
+      held?.kind === "plan" &&
+      held.body !== null &&
+      samePlanContent(held.body, p)
+    );
+  });
+}
+
 describe("two devices syncing through the server", () => {
+  it("lets a delete remove a plan whose unsaved edit the account already holds", () => {
+    const server = new ModelServer();
+    const [a, b] = [new Device("dev0", server), new Device("dev1", server)];
+    const id = "dev1_plan_000";
+    b.edit({ type: "plan/create", id, termId: SPRING, now: NOW });
+    b.edit({
+      type: "course/add",
+      planId: id,
+      courseCode: "STAT400",
+      section: null,
+      now: NOW,
+    });
+    b.push();
+    a.pull();
+    // Both devices remove the course; only the second has saved it when it
+    // deletes the plan, knowing that version.
+    const remove: PlanAction = {
+      type: "course/remove",
+      planId: id,
+      courseCode: "STAT400",
+      now: NOW,
+    };
+    b.edit(remove);
+    b.push();
+    a.edit(remove);
+    b.edit({ type: "plan/delete", planId: id });
+    expect(a.sync.docs[planDocKey(id)]?.dirty).toBe(true);
+    expect(unsavedWork(a)).toEqual([]);
+
+    a.push();
+    b.push();
+    a.pull();
+    expect(server.livePlans()).toEqual([]);
+    expect(a.tables.plans).toEqual([]);
+    expect(hasUnsaved(a.sync) || hasUnsaved(b.sync)).toBe(false);
+  });
+
   it("end up with the same plans and never drop unsaved work", () => {
     fc.assert(
       fc.property(
@@ -716,10 +772,7 @@ describe("two devices syncing through the server", () => {
             else d.pull();
           }
 
-          // Work that hadn't reached the server when the devices went quiet.
-          const unsavedPlans = devices.flatMap((d) =>
-            d.tables.plans.filter((p) => d.sync.docs[planDocKey(p.id)]?.dirty),
-          );
+          const unsavedPlans = devices.flatMap(unsavedWork);
           const unsavedBlocks = devices.flatMap((d) =>
             d.sync.docs.settings?.dirty ? d.tables.blocks.map((b) => b.id) : [],
           );
