@@ -16,8 +16,6 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminDecisionsRouteImport } from './routes/admin.decisions'
-import { Route as AlertsConfirmRouteImport } from './routes/alerts.confirm'
-import { Route as AlertsUnsubscribeRouteImport } from './routes/alerts.unsubscribe'
 import { Route as AuthTestRouteImport } from './routes/auth/test'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
@@ -57,16 +55,6 @@ const AdminDecisionsRoute = AdminDecisionsRouteImport.update({
   path: '/admin/decisions',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AlertsConfirmRoute = AlertsConfirmRouteImport.update({
-  id: '/alerts/confirm',
-  path: '/alerts/confirm',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AlertsUnsubscribeRoute = AlertsUnsubscribeRouteImport.update({
-  id: '/alerts/unsubscribe',
-  path: '/alerts/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthTestRoute = AuthTestRouteImport.update({
   id: '/auth/test',
   path: '/auth/test',
@@ -90,8 +78,6 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
-  '/alerts/confirm': typeof AlertsConfirmRoute
-  '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
@@ -104,8 +90,6 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
-  '/alerts/confirm': typeof AlertsConfirmRoute
-  '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
   '/admin': typeof AdminIndexRoute
   '/chat': typeof ChatIndexRoute
@@ -119,8 +103,6 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
-  '/alerts/confirm': typeof AlertsConfirmRoute
-  '/alerts/unsubscribe': typeof AlertsUnsubscribeRoute
   '/auth/test': typeof AuthTestRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
@@ -135,8 +117,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signin'
     | '/admin/decisions'
-    | '/alerts/confirm'
-    | '/alerts/unsubscribe'
     | '/auth/test'
     | '/admin/'
     | '/chat/'
@@ -149,8 +129,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signin'
     | '/admin/decisions'
-    | '/alerts/confirm'
-    | '/alerts/unsubscribe'
     | '/auth/test'
     | '/admin'
     | '/chat'
@@ -163,8 +141,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signin'
     | '/admin/decisions'
-    | '/alerts/confirm'
-    | '/alerts/unsubscribe'
     | '/auth/test'
     | '/admin/'
     | '/chat/'
@@ -178,8 +154,6 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SigninRoute: typeof SigninRoute
   AdminDecisionsRoute: typeof AdminDecisionsRoute
-  AlertsConfirmRoute: typeof AlertsConfirmRoute
-  AlertsUnsubscribeRoute: typeof AlertsUnsubscribeRoute
   AuthTestRoute: typeof AuthTestRoute
   AdminIndexRoute: typeof AdminIndexRoute
   ChatIndexRoute: typeof ChatIndexRoute
@@ -237,20 +211,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDecisionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/alerts/confirm': {
-      id: '/alerts/confirm'
-      path: '/alerts/confirm'
-      fullPath: '/alerts/confirm'
-      preLoaderRoute: typeof AlertsConfirmRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/alerts/unsubscribe': {
-      id: '/alerts/unsubscribe'
-      path: '/alerts/unsubscribe'
-      fullPath: '/alerts/unsubscribe'
-      preLoaderRoute: typeof AlertsUnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth/test': {
       id: '/auth/test'
       path: '/auth/test'
@@ -282,8 +242,6 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SigninRoute: SigninRoute,
   AdminDecisionsRoute: AdminDecisionsRoute,
-  AlertsConfirmRoute: AlertsConfirmRoute,
-  AlertsUnsubscribeRoute: AlertsUnsubscribeRoute,
   AuthTestRoute: AuthTestRoute,
   AdminIndexRoute: AdminIndexRoute,
   ChatIndexRoute: ChatIndexRoute,

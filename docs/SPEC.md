@@ -75,7 +75,7 @@ Nobody should have to touch the app when a new semester appears.
 ### 3.1 Plans
 - Many named plans per term, stored locally (IndexedDB).
 - Tabs in the top bar (they overflow into a menu past ~5).
-- Every change is undoable (`⌘Z` and an Undo button in the pop-up message), so there are no confirmation dialogs anywhere except unsubscribing from seat alerts (§3.9).
+- Every change is undoable (`⌘Z` and an Undo button in the pop-up message), so there are no confirmation dialogs anywhere. Stopping a seat watch has Undo too (§3.12).
 - A new plan can start empty, as a copy of the current one, or from the generator.
 
 ### 3.2 Courses tab (formerly "Plan")
@@ -157,7 +157,7 @@ Nobody should have to touch the app when a new semester appears.
   - restricted section.
 - **Info:** online with no set times; instructor TBA.
 - Each problem opens the related course or connection. It also offers a one-click fix ("Switch to 0205") when a section fixes it without creating new problems.
-- A full section's fix is **"Watch for a seat"** (bell icon), not a switch: full sections stay a choice. Once on, the problem says "Watching" with a filled bell, as the section's row and the Courses tab do. (v2: the watch needs sign-in, and signing in is part of the fix when signed out; `docs/V2.md` §6.5.)
+- A full section's fix is **"Watch for a seat"** (bell icon), not a switch: full sections stay a choice. Once on, the watch takes care of it: the problem becomes a note, "Watching for a seat in CMSC351 0101", whose button says "Watching" with a filled bell (and stops it, with Undo), as the section's row and the Courses tab do. The watch needs sign-in, and signing in is part of the fix when signed out (§3.12).
 
 ### 3.7 Travel
 - The **Travel** tab:
@@ -213,13 +213,17 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
 - Nothing about you changes until you click Save a copy. ✕ returns to your plans.
 - There are no names (we don't know who shared it).
 
-### 3.12 Seat alerts (light auth; not a launch blocker)
+### 3.12 Seat alerts ("Watch for a seat", signed in)
 
-**v2:** seat alerts become a signed-in feature, delivered by push and email by default, with no email to type and no confirmation link. The email-token flow below retires, and stopping a watch uses Undo instead of a confirmation (`docs/V2.md` §6.5). The rest of this section describes v1.
-- A bell on low or full sections ("Watch for a seat") → enter an email → one confirmation link → "Watching" (a filled bell). The owner calls the feature **Seat watch**.
-- Deduplicated per email and section: signing up twice says "You're already watching this".
-- Alert emails have a one-click unsubscribe that asks for confirmation. Watching sections are listed in Export ("Seat alerts").
-- It ships when it's end-to-end tested, and not before.
+Seat alerts are a signed-in feature (`docs/V2.md` §6.5). The owner calls it **Seat watch**; the words people see are **"Watch for a seat"** and, once on, **"Watching"**.
+- **Where:** a bell on low or full sections in course details, and the full-section problem's fix (§3.6). Full sections can be added like any other.
+- **Signed in:** one click starts the watch, with Undo in the toast ("Watching CMSC351 0101. We'll email you when a seat opens."). No email to type, no confirmation link.
+- **Signed out:** the bell opens a small sign-in sheet ("Sign in to get seat alerts."). The app remembers the section for this tab and turns the watch on when the person comes back signed in.
+- **Watching shows everywhere the section does:** a filled bell and "Watching" on its row in course details and in the Courses tab; a small bell on its calendar block, with "Watching for a seat" in the tooltip; and in Problems, where the full problem becomes a note, "Watching for a seat in CMSC351 0101" (it's taken care of, so it no longer counts as a problem).
+- **The Watching list:** Settings → "Watching for a seat" (`/settings#watching`, "Watching for a seat" in the account menu), and in Export while there are any. Stop is immediate, with Undo. No confirmation dialogs anywhere.
+- **When a seat opens:** an email from `alerts@terpsicle.com` when a full section reopens, at most once per 30 minutes per watch and 20 a day per person. Web push joins when `v2/push` lands. The email's one-click unsubscribe (RFC 8058) stops that watch; its links go to the course and to the Watching list.
+- **Limits:** 30 watches per person. Watches end when their term does.
+- It ships when it's end-to-end tested, and not before (`e2e/seat-watches.spec.ts`).
 
 ### 3.13 Look & feel
 - **Theme:** Tailwind 4 + shadcn/ui (Radix), Geist Sans and Geist Mono (codes, times, numbers).

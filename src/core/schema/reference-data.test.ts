@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  ReviewSummaryResultSchema,
-  SubscribeInputSchema,
-  SubscribeResultSchema,
-} from "./api";
+import { ReviewSummaryResultSchema } from "./api";
 import { AcademicCalendarSchema } from "./calendar";
 import {
   BuildingsFileSchema,
@@ -27,6 +23,12 @@ import {
   PlanetTerpDeptSchema,
   PlanetTerpManifestSchema,
 } from "./planetterp";
+import {
+  SEAT_WATCH_MAX_PER_USER,
+  SeatWatchInputSchema,
+  SeatWatchListResultSchema,
+  SeatWatchResultSchema,
+} from "./seat-watches";
 
 const TERM = "202701";
 const NOW = "2026-09-25T14:00:00.000Z";
@@ -189,35 +191,41 @@ describe("academic calendar", () => {
 
 describe("server fn contracts", () => {
   it("rejects unknown input keys", () => {
-    const input = {
-      email: "testudo@umd.edu",
-      termId: TERM,
-      sectionKey: "CMSC351-0101",
-    };
-    expect(SubscribeInputSchema.safeParse(input).success).toBe(true);
+    const input = { termId: TERM, sectionKey: "CMSC351-0101" };
+    expect(SeatWatchInputSchema.safeParse(input).success).toBe(true);
+    // Who watches comes from the session, never the body.
     expect(
-      SubscribeInputSchema.safeParse({ ...input, admin: true }).success,
+      SeatWatchInputSchema.safeParse({ ...input, userId: "someone" }).success,
     ).toBe(false);
     expect(
-      SubscribeInputSchema.safeParse({ ...input, email: "not an email" })
+      SeatWatchInputSchema.safeParse({ ...input, sectionKey: "CMSC351" })
         .success,
     ).toBe(false);
   });
 
-  it("covers every subscribe and summary outcome", () => {
-    expect(
-      SubscribeResultSchema.safeParse({ status: "check-email" }).success,
-    ).toBe(true);
-    // The subscribe answer never carries a token: it would reveal whether
-    // the address already had a watch.
-    const leaky = {
-      status: "check-email",
-      subscriptionId: "A".repeat(22),
-      manageToken: "b".repeat(43),
+  it("covers every watch and summary outcome", () => {
+    const watch = {
+      termId: TERM,
+      sectionKey: "CMSC351-0101",
+      createdAt: "2026-09-25T14:00:00.000Z",
+      lastNotifiedAt: null,
     };
-    expect(SubscribeResultSchema.parse(leaky)).toEqual({
-      status: "check-email",
-    });
+    for (const result of [
+      { status: "watching", watch },
+      { status: "unknown-section" },
+      { status: "too-many", max: SEAT_WATCH_MAX_PER_USER },
+      { status: "unavailable" },
+    ])
+      expect(SeatWatchResultSchema.safeParse(result).success).toBe(true);
+    expect(
+      SeatWatchListResultSchema.safeParse({
+        status: "ok",
+        watches: Array.from(
+          { length: SEAT_WATCH_MAX_PER_USER + 1 },
+          () => watch,
+        ),
+      }).success,
+    ).toBe(false);
     expect(
       ReviewSummaryResultSchema.safeParse({
         status: "unavailable",

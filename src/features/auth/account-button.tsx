@@ -1,4 +1,11 @@
-import { LogIn, LogOut, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  Bell,
+  LogIn,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { track } from "~/app/analytics";
 import { ThemeMenuItems } from "~/app/theme-toggle";
@@ -150,6 +157,7 @@ function SignInItems() {
 /** Who's signed in, then Settings, Admin (admins) and the two sign-outs. */
 function AccountItems({ user }: { user: MeUser }) {
   const signOut = useAccount((s) => s.signOut);
+  const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   const [failed, setFailed] = useState<string | null>(null);
   const run = (removeLocal: boolean) => {
     setFailed(null);
@@ -184,6 +192,19 @@ function AccountItems({ user }: { user: MeUser }) {
           Settings
         </a>
       </DropdownMenuItem>
+      {seatAlerts ? (
+        <WithTooltip
+          label="The sections you're watching for a seat"
+          side="left"
+        >
+          <DropdownMenuItem asChild>
+            <a href="/settings#watching">
+              <Bell aria-hidden="true" className="text-muted" />
+              Watching for a seat
+            </a>
+          </DropdownMenuItem>
+        </WithTooltip>
+      ) : null}
       {user.isAdmin ? (
         <DropdownMenuItem asChild>
           <a href="/admin">

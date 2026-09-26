@@ -19,6 +19,7 @@ export * from "./primitives";
 export * from "./problems";
 export * from "./reviews";
 export * from "./rows";
+export * from "./seat-watches";
 export * from "./security";
 export * from "./settings";
 export * from "./share";

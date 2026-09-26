@@ -4,9 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
 import { decodeShare, SHARE_PARAM } from "~/core/share";
+import {
+  fakeSeatWatchesClient,
+  resetSeatWatches,
+  watching,
+} from "~/features/alerts/testing";
 import { renderPlanTab } from "~/features/courses/testing";
-import { fixtureTermId } from "~/fixtures";
-import { useSeatAlerts } from "~/state/seat-alerts";
+import { aMeUser, aSeatWatch, fixtureTermId } from "~/fixtures";
 import { panels } from "./panels";
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
@@ -27,6 +31,7 @@ describe("Export tab", () => {
     vi.mocked(track).mockClear();
     writeText.mockReset().mockResolvedValue(undefined);
     toast.dismiss();
+    resetSeatWatches();
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -178,111 +183,58 @@ describe("Export tab", () => {
     });
   });
 
-  describe("seat alerts", () => {
-    const TOKEN = "A".repeat(43);
-    const watch = {
-      termId: fixtureTermId,
-      sectionKey: "CMSC351-0301",
-      email: "testudo@umd.edu",
-      status: "active" as const,
-      subscriptionId: "B".repeat(22),
-      manageToken: TOKEN,
-      createdAt: "2026-09-24T12:00:00.000Z",
-      updatedAt: "2026-09-24T12:00:00.000Z",
-    };
+  describe("watching for a seat", () => {
+    const here = aSeatWatch({ sectionKey: "CMSC351-0301" });
+    const otherTerm = aSeatWatch({
+      termId: "202608",
+      sectionKey: "ENGL393-0101",
+      lastNotifiedAt: "2026-09-25T14:00:00.000Z",
+    });
 
-    it("lists watches, and stopping one asks first", async () => {
-      const fetchMock = vi.fn(async () =>
-        Response.json({
-          status: "unsubscribed",
-          termId: fixtureTermId,
-          sectionKey: "CMSC351-0301",
-        }),
-      );
-      vi.stubGlobal("fetch", fetchMock);
+    it("lists watches; Stop is immediate, with Undo", async () => {
+      const client = fakeSeatWatchesClient([here, otherTerm]);
       const { user } = await renderPlanTab([panels], "export");
-      await act(() =>
-        useSeatAlerts.getState().put([
-          watch,
-          {
-            ...watch,
-            sectionKey: "ENGL393-0101",
-            status: "pending",
-            subscriptionId: null,
-            manageToken: null,
-            // Asked just now: a pending request's link lasts 48 hours of
-            // the real clock, which the fixed dates above ran out of.
-            updatedAt: new Date().toISOString(),
-          },
-        ]),
-      );
-      const list = await screen.findByRole("region", { name: "Seat alerts" });
-      const row = within(list).getByTestId("seat-alert-CMSC351-0301");
-      expect(row).toHaveTextContent("Watching");
-      expect(
-        within(list).getByTestId("seat-alert-ENGL393-0101"),
-      ).toHaveTextContent("Check your email");
-
-      await user.click(
-        within(row).getByRole("button", { name: "Stop watching" }),
-      );
-      // Nothing happens until confirmed; Keep backs out.
-      expect(fetchMock).not.toHaveBeenCalled();
-      await user.click(within(row).getByRole("button", { name: "Keep" }));
-      expect(within(row).queryByRole("button", { name: "Keep" })).toBeNull();
-
-      await user.click(
-        within(row).getByRole("button", { name: "Stop watching" }),
-      );
-      const confirm = within(row).getByRole("group", {
-        name: "Stop watching CMSC351 0301?",
+      act(() => watching(aMeUser(), here, otherTerm));
+      const list = await screen.findByRole("region", {
+        name: "Watching for a seat",
       });
-      await user.click(
-        within(confirm).getByRole("button", { name: "Stop watching" }),
-      );
+      const row = within(list).getByTestId("seat-watch-CMSC351-0301");
+      expect(row).toHaveTextContent("Watching · Since Sep 24");
+      // Another term's watch says which term.
+      expect(
+        within(list).getByTestId("seat-watch-ENGL393-0101"),
+      ).toHaveTextContent(/Fall 2026.*Last email Sep 25/);
+
+      await user.click(within(row).getByRole("button", { name: "Stop" }));
       await waitFor(() =>
-        expect(screen.queryByTestId("seat-alert-CMSC351-0301")).toBeNull(),
+        expect(screen.queryByTestId("seat-watch-CMSC351-0301")).toBeNull(),
       );
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/alerts/unsubscribe",
-        expect.objectContaining({ body: JSON.stringify({ token: TOKEN }) }),
-      );
-      expect(track).toHaveBeenCalledWith("seat_alert_stopped", {});
-      vi.unstubAllGlobals();
-    });
-
-    it("points watches confirmed elsewhere to the email's stop link", async () => {
-      const { user } = await renderPlanTab([panels], "export");
-      await act(() =>
-        useSeatAlerts
-          .getState()
-          .put([
-            { ...watch, email: null, subscriptionId: null, manageToken: null },
-          ]),
-      );
-      const row = await screen.findByTestId("seat-alert-CMSC351-0301");
-      await user.click(
-        within(row).getByRole("button", { name: "Stop watching" }),
-      );
-      await user.click(
-        within(
-          within(row).getByRole("group", { name: /Stop watching/ }),
-        ).getByRole("button", { name: "Stop watching" }),
-      );
-      expect(
-        await within(row).findByText(
-          /use the stop link in any seat-alert email/,
-        ),
-      ).toBeVisible();
-    });
-
-    it("hides the list when seat alerts are off", async () => {
-      await renderPlanTab([panels], "export");
-      await act(async () => {
-        await useSeatAlerts.getState().put([watch]);
-        useSeatAlerts.getState().setAvailability("unavailable");
+      expect(client.unwatch).toHaveBeenCalledWith({
+        termId: fixtureTermId,
+        sectionKey: "CMSC351-0301",
       });
-      expect(screen.queryByRole("region", { name: "Seat alerts" })).toBeNull();
+      expect(track).toHaveBeenCalledWith("seat_watch_stopped", {});
+      // No dialog: Undo in the toast brings it back.
+      await user.click(await screen.findByRole("button", { name: "Undo" }));
+      expect(
+        await screen.findByTestId("seat-watch-CMSC351-0301"),
+      ).toBeInTheDocument();
+      expect(client.watch).toHaveBeenCalledWith({
+        termId: fixtureTermId,
+        sectionKey: "CMSC351-0301",
+      });
+    });
+
+    it("hides the list with no watches, signed out, or while seat alerts are off", async () => {
+      await renderPlanTab([panels], "export");
+      act(() => watching(aMeUser()));
+      expect(
+        screen.queryByRole("region", { name: "Watching for a seat" }),
+      ).toBeNull();
+      act(() => resetSeatWatches());
+      expect(
+        screen.queryByRole("region", { name: "Watching for a seat" }),
+      ).toBeNull();
     });
   });
 });

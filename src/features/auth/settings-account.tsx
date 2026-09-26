@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import { signInStartHref } from "~/core/auth";
@@ -17,6 +17,13 @@ export const GOOGLE_PROFILE_URL = "https://myaccount.google.com/personal-info";
 
 const SETTINGS_PATH = "/settings";
 
+// Signed-in only, so the page's first load doesn't carry it.
+const SeatWatches = lazy(() =>
+  import("~/features/alerts/settings-section").then((m) => ({
+    default: m.SeatWatchesSection,
+  })),
+);
+
 /** "Saturday, October 3" in the reader's time zone. */
 export function deletionDay(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -26,14 +33,23 @@ export function deletionDay(iso: string): string {
   });
 }
 
-/** `/settings`: the account section (V2.md §1.1). Notifications come later. */
+/**
+ * `/settings`: the account (V2.md §1.1) and the sections you're watching for
+ * a seat (#watching, from the account menu). Notifications come later.
+ */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
+  const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   return (
     <AccountPage title="Settings" busy={status === "loading"}>
       <AccountSection title="Account">
         <AccountDetails />
       </AccountSection>
+      {status === "signed-in" && seatAlerts ? (
+        <Suspense fallback={null}>
+          <SeatWatches />
+        </Suspense>
+      ) : null}
     </AccountPage>
   );
 }

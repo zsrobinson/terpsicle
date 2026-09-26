@@ -35,6 +35,7 @@ import {
   type Instructor,
   type Manifest,
   type ManifestDepartment,
+  type MeUser,
   type Plan,
   type PlanCourse,
   type PlanetTerpDept,
@@ -48,6 +49,7 @@ import {
   type RouteGeometry,
   type SeatsFile,
   type SeatTuple,
+  type SeatWatch,
   type Section,
   type SectionSnapshot,
   type SettingsDoc,
@@ -780,6 +782,30 @@ export function aProblem(overrides: Partial<Problem> = {}): Problem {
       sectionKey: "CMSC351-0201",
       label: "Switch to 0201",
     },
+    ...overrides,
+  };
+}
+
+/** tstudent, signed in (what POST /api/me answers). */
+export function aMeUser(overrides: Partial<MeUser> = {}): MeUser {
+  return {
+    id: "tstudent",
+    name: "Test Student",
+    email: "tstudent@terpmail.umd.edu",
+    avatarUrl: null,
+    isAdmin: false,
+    createdAt: "2026-09-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+/** A watch on CMSC351 0101 (full in the mock seats), with no alert yet. */
+export function aSeatWatch(overrides: Partial<SeatWatch> = {}): SeatWatch {
+  return {
+    termId: fixtureTermId,
+    sectionKey: "CMSC351-0101",
+    createdAt: "2026-09-24T14:00:00.000Z",
+    lastNotifiedAt: null,
     ...overrides,
   };
 }

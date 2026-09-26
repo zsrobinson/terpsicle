@@ -12,7 +12,12 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { useAccount } from "./account-store";
 
-export type SignInFrom = "topbar" | "settings" | "signin-page" | "undo";
+export type SignInFrom =
+  | "topbar"
+  | "settings"
+  | "signin-page"
+  | "undo"
+  | "seat-watch";
 
 /** Where a sign-in should come back to: this page. */
 export function currentPath(): string {
@@ -34,13 +39,19 @@ const buttonClass =
 export function GoogleButton({
   returnTo,
   from,
+  onStart,
 }: {
   returnTo: string;
   from: SignInFrom;
+  /** Runs as the sign-in starts, before the page leaves. */
+  onStart?: () => void;
 }) {
   const testMode = useAccount((s) => s.flags.authTestMode);
   const href = signInStartHref(SIGN_IN_START_PATH, returnTo);
-  const onClick = () => track("signin_started", { from });
+  const onClick = () => {
+    onStart?.();
+    track("signin_started", { from });
+  };
   if (testMode)
     return (
       <WithTooltip label="Pick a test person instead of a Google account">

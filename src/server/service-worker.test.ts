@@ -123,7 +123,7 @@ describe("service worker", () => {
     ).toBe("the app");
     // A page never loaded online falls back to the scheduler's copy.
     expect(
-      await (await sw.request("/alerts/confirm", { navigate: true }))?.text(),
+      await (await sw.request("/settings", { navigate: true }))?.text(),
     ).toBe("the app");
   });
 
@@ -167,7 +167,7 @@ describe("service worker", () => {
   it("stays out of data, API calls, other sites and anything but GET", async () => {
     const sw = setUp();
     expect(await sw.request("/data/catalog/terms.json")).toBeUndefined();
-    expect(await sw.request("/api/alerts/subscribe")).toBeUndefined();
+    expect(await sw.request("/api/alerts/list")).toBeUndefined();
     expect(await sw.request("/", { method: "POST" })).toBeUndefined();
   });
 
