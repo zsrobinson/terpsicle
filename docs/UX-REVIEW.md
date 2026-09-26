@@ -80,7 +80,7 @@ The options as presented follow. There were only three, each with screenshots fr
 - **B · Tabs at the top.** The smallest change: Sections / Instructors / Grades / About as tabs under the header, with Sections the default. It fixes "tabs at the bottom" but still hides instructor info and prerequisites behind a tab while you choose.
 - **C · Everything in place.** Like A, but the course-wide grade sentence joins the facts under the title, and grade bars move inside each instructor's "Reviews" disclosure (per-instructor grades). No sections below the list at all.
 
-**Decision 2: many sections with no instructor grouping** (ENGL101: 92 sections, all "Instructor TBA") (§3.5). *Recommend grouping by time.* **Decided: group by time.**
+**Decision 2: many sections with no instructor grouping** (ENGL101: 92 sections, all "Instructor TBA") (§3.5). *Recommend grouping by time.* **Decided: group by time.** *Superseded 2026-09-26: one list, sorted by section code, with every meeting on each row (SPEC §3.4).*
 
 | Flat, one line per section | Grouped by meeting time (recommended) |
 |---|---|
@@ -296,6 +296,9 @@ The primary task is to **pick a section of this course that fits, from an instru
 
 ### 3.4 Recommended spec (A)
 
+> **Superseded by the owner, 2026-09-26** (SPEC §3.4): one section list for every course (a one-section course gets the same row as any other), one level of grouping, by professor and only when there's more than one, and every row shows all of its meetings. No shared-lecture lines, no grouping by time, and a per-row icon button to add a section; the course-level "save for later" is now **Bookmark**. "Only fits" (from 9) and the pinned "Your section" (many) stay.
+
+
 ```
 ┌ Breadcrumb: Search › CMSC330 ──────────────────────────────────┐ 48, outside scroll
 │ ● CMSC330  3 credits  DSNL                                     │ base/600 mono · sm muted · xs mono chips
@@ -344,6 +347,9 @@ The primary task is to **pick a section of this course that fits, from an instru
 - [ ] Both themes, and all text on the §2.1 scale.
 
 ### 3.5 At 1, a few, and many sections
+
+> **Superseded by the owner, 2026-09-26** (SPEC §3.4): one section list for every course (a one-section course gets the same row as any other), one level of grouping, by professor and only when there's more than one, and every row shows all of its meetings. No shared-lecture lines, no grouping by time, and a per-row icon button to add a section; the course-level "save for later" is now **Bookmark**. "Only fits" (from 9) and the pinned "Your section" (many) stay.
+
 
 | | 1 section (SOCY411, CMSC401) | A few, 2–20 (CMSC351, CMSC330, STAT400, MATH140) | Many, over 20 (ENGL101 92; MATH/CMSC intro in fall) |
 |---|---|---|---|

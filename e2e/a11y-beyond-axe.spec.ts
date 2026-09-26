@@ -170,9 +170,7 @@ test.describe("desktop", () => {
     await open(page);
     await openCourse(page, "engl 101", "ENGL101");
     const body = activeLayer(page).locator("[data-panel-body]");
-    await activeLayer(page)
-      .getByRole("button", { name: "Save for later" })
-      .focus();
+    await activeLayer(page).getByRole("button", { name: "Bookmark" }).focus();
     let checked = 0;
     for (let i = 0; i < 60; i++) {
       await page.keyboard.press("Tab");

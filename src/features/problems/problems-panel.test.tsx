@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { demoPlanB, fixtureTermId } from "~/fixtures";
@@ -93,6 +94,21 @@ describe("Problems tab", () => {
     });
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(await screen.findByTestId("problem-overlap")).toBeInTheDocument();
+  });
+
+  it("offers to watch a full section for a seat, rather than switch away", async () => {
+    await renderPlanTab([panels], "problems");
+    // CMSC351 0101 is full (the demo's pinned seats); full sections can be added.
+    act(() => {
+      switchSection("CMSC351", "0101", "list");
+    });
+    const full = await screen.findByTestId("problem-full");
+    expect(full).toHaveTextContent("CMSC351 0101 is full");
+    const watch = within(full).getByRole("button", {
+      name: "Watch for a seat, CMSC351 0101",
+    });
+    expect(watch).toHaveAttribute("data-alert", "none");
+    expect(within(full).queryByRole("button", { name: /^Switch / })).toBeNull();
   });
 
   it("says so when there's nothing to fix", async () => {

@@ -49,7 +49,7 @@ Use the pieces in `panel.tsx` so every panel matches the prototype:
 
 - `PanelHeader({ title, sub?, right? })`: the 48px header ("Plan A / 5 courses · 16 credits").
 - `PanelBody`: the scroll area under the header.
-- `PanelLabel`: a small section label ("Saved for later").
+- `PanelLabel`: a small section label ("Bookmarked").
 - `useFocusRequest(tab)`: a ref the shell focuses on request; `/` focuses Search's field with `useFocusRequest<HTMLInputElement>("search")`.
 
 Panels and drill levels stay mounted while hidden, so going back (`Esc` or the breadcrumb) returns to exactly where the person was: scroll position, typed text, open groups. Don't reset local state on mount.
@@ -102,7 +102,7 @@ User actions that should be counted go through `actions.ts`, which records the a
 
 ## Courses, problems and seat alerts
 
-Open a course the one way: `openCourse(code)` from `~/features/courses/actions` (a `course` drill). The same file has `removeCourse(code, via)` and `saveCourseForLater(code, via)` (`via` = `"details"` from course details), each one undoable commit with its toast and event, and `editablePlan()` (the open plan, or null in a shared view). `~/features/problems/actions` has `applyFix(problem, fix)` and `openSubject(subject)`; `LinkedMessage` (`~/features/problems/linked-message`) renders a core `Message` with its courses and blocks as links.
+Open a course the one way: `openCourse(code)` from `~/features/courses/actions` (a `course` drill). The same file has `removeCourse(code, via)` and `bookmarkInstead(code, via)` (take a placed course off the calendar and keep it bookmarked; `via` = `"details"` from course details), each one undoable commit with its toast and event, and `editablePlan()` (the open plan, or null in a shared view). `~/features/problems/actions` has `applyFix(problem, fix)` and `openSubject(subject)`; `LinkedMessage` (`~/features/problems/linked-message`) renders a core `Message` with its courses and blocks as links.
 
 Seat alerts (`~/features/alerts/seat-alerts`, backed by the `useSeatAlerts` store in `~/state/seat-alerts` and Dexie `seatAlerts`):
 
@@ -128,7 +128,7 @@ Each is behind a small hook, so where the work happens can change without touchi
 | `useReviewSummary(slug, course)` (`~/features/course-details/use-review-summary`) | The LLM summary: `loading`, `shown` or `hidden` (every "unavailable" and every failure hides it; "busy" is asked once more after 4 s). One request per instructor per visit. |
 | `SeatBell` (`~/features/course-details/seat-bell`) | The bell for a low or full section, over `useSeatAlert`/`subscribeSeatAlert`. |
 
-Course details is one page (UX review §3.4, option A): header facts, then sections shaped by `sectionCountSize` (one / few / many, `~/core/catalog`), with `factorMeetings` saying a group's shared lecture once, then one course-wide Grades section. A drill's `tab` means "take me there": `grades` scrolls to Grades, `about` opens "More about this course", `instructors` opens the first instructor's Reviews.
+Course details is one page (UX review §3.4, option A): header facts, then sections shaped by `sectionCountSize` (one / few / many, `~/core/catalog`), grouped by professor when there's more than one (`groupSectionsByInstructor`), every row showing all of its meetings and one icon button (add, switch, or take it back out), then one course-wide Grades section. A drill's `tab` means "take me there": `grades` scrolls to Grades, `about` opens "More about this course", `instructors` opens the first instructor's Reviews.
 
 ## Travel and the route map
 

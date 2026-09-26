@@ -17,12 +17,17 @@
     "src/core",
     "src/fixtures",
     // Pure server modules that scripts reuse (the summary prompt trial, the
-    // test email send). They use only fetch and zod, so Node types suffice.
+    // test email send, the moderation eval). They use only fetch and zod, so Node types suffice.
     "src/server/summaries/prompt.ts",
     "src/server/summaries/planetterp-api.ts",
     "src/server/alerts/email.ts",
+    // The marks and the token reader (scripts/build-icons.ts).
     "src/app/brand/marks.ts",
-    "src/app/brand/css-tokens.ts"
+    "src/app/brand/css-tokens.ts",
+    // The moderation pipeline and its eval set (scripts/moderation-eval.ts).
+    "src/server/moderation/classify.ts",
+    "src/server/moderation/models.ts",
+    "src/server/moderation/eval/cases.ts"
   ],
   // The seat-alert e2e harness is a Worker: tsconfig.worker.json checks it.
   "exclude": ["e2e/alerts-harness"]

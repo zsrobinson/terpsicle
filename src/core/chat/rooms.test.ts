@@ -22,7 +22,6 @@ import {
   type Section,
 } from "../schema";
 import {
-  groupsRoomsByTime,
   myRooms,
   type Room,
   type RoomTree,
@@ -198,7 +197,7 @@ function outline(tree: RoomTree): string {
     `${"  ".repeat(depth)}${r.label}${r.detail ? `  —  ${r.detail}` : ""}  [${r.id}]`;
   const lines = [room(tree.course, 0), `  ${tree.course.description}`];
   for (const g of tree.groups) {
-    lines.push(`# ${g.title} · ${g.summary}  {${g.key}}`);
+    if (g.heading) lines.push(`# ${g.title} · ${g.summary}  {${g.key}}`);
     for (const node of g.nodes) {
       lines.push(room(node.room, 1));
       for (const child of node.children) lines.push(room(child, 2));
@@ -223,173 +222,160 @@ describe("roomsForCourse: the canvas's four courses", () => {
     await expect(outline(tree)).toMatchFileSnapshot("__fixtures__/socy411.txt");
   });
 
-  it("has no lecture layer when no two sections share a lecture (CMSC351)", async () => {
+  it("gives each of two professors a room over their sections (CMSC351)", async () => {
     const tree = roomsForCourse(TERM, cmsc351);
-    expect(tree.lectures).toEqual([]);
-    expect(tree.rooms).toHaveLength(1 + 4);
-    expect(tree.groups.map((g) => g.title)).toEqual([
-      "Ting Jiang",
-      "Clyde Kruskal",
+    expect(tree.rooms).toHaveLength(1 + 2 + 4);
+    expect(tree.course.detail).toBe("4 sections · 2 professors");
+    expect(tree.groups.map((g) => [g.title, g.summary, g.heading])).toEqual([
+      ["Ting Jiang", "2 sections", true],
+      ["Clyde Kruskal", "2 sections", true],
     ]);
-    expect(tree.sections.map((r) => r.label)).toEqual([
-      "0101 · MWF 10am",
-      "0201 · MWF 2pm",
-      "0301 · MWF 11am",
-      "0401 · MWF 12pm",
+    expect(tree.professors.map((r) => [r.id, r.label, r.detail])).toEqual([
+      [
+        "202608:CMSC351:P:ting-jiang",
+        "Jiang's sections",
+        "2 sections · 0101 and 0201",
+      ],
+      [
+        "202608:CMSC351:P:clyde-kruskal",
+        "Kruskal's sections",
+        "2 sections · 0301 and 0401",
+      ],
     ]);
-    expect(tree.sections.every((r) => r.parent === tree.course.id)).toBe(true);
+    expect(tree.sections.map((r) => [r.label, r.parent])).toEqual([
+      ["0101 · MWF 10am", "202608:CMSC351:P:ting-jiang"],
+      ["0201 · MWF 2pm", "202608:CMSC351:P:ting-jiang"],
+      ["0301 · MWF 11am", "202608:CMSC351:P:clyde-kruskal"],
+      ["0401 · MWF 12pm", "202608:CMSC351:P:clyde-kruskal"],
+    ]);
+    expect(tree.professors[0]?.description).toBe(
+      "People in Jiang's sections of CMSC351 (0101 and 0201), from their plans",
+    );
     await expect(outline(tree)).toMatchFileSnapshot("__fixtures__/cmsc351.txt");
   });
 
-  it("puts lecture rooms between the course and its discussions (CMSC131)", async () => {
+  it("has one level under the course: professors, then sections with every meeting (CMSC131)", async () => {
     const tree = roomsForCourse(TERM, cmsc131);
-    expect(tree.rooms).toHaveLength(1 + 5 + 20);
-    expect(tree.course.detail).toBe("20 sections · 5 lectures");
-    expect(tree.lectures.map((r) => r.label)).toEqual([
-      "Gonzalez · MWF 10am lecture",
-      "Burkhauser · MWF 1pm lecture",
-      "Sadeghian · MWF 11am lecture",
-      "Sadeghian · MWF 12pm lecture",
-      "Kyei-Asare · TuTh 6pm lecture",
+    expect(tree.rooms).toHaveLength(1 + 4 + 20);
+    expect(tree.course.detail).toBe("20 sections · 4 professors");
+    expect(tree.professors.map((r) => r.label)).toEqual([
+      "Gonzalez's sections",
+      "Burkhauser's sections",
+      "Sadeghian's sections",
+      "Kyei-Asare's sections",
     ]);
     const sadeghian = tree.groups[2];
     expect(sadeghian?.title).toBe("Pedram Sadeghian");
-    expect(sadeghian?.summary).toBe("2 lectures · 10 sections");
-    expect(tree.groups[0]?.summary).toBe("MWF 10am lecture · 4 sections");
-    const eleven = sadeghian?.nodes[0];
-    expect(eleven?.room).toMatchObject({
-      id: "202608:CMSC131:L:0301",
-      detail: "IRB 0324 · 0301–0305",
-      description:
-        "People in sections 0301–0305 of CMSC131, from their plans. They share Sadeghian's MWF 11am lecture.",
+    expect(sadeghian?.summary).toBe("10 sections");
+    const [node] = sadeghian?.nodes ?? [];
+    expect(node?.room).toMatchObject({
+      id: "202608:CMSC131:P:pedram-sadeghian",
+      kind: "professor",
+      detail: "10 sections · 0301–0405",
     });
-    // The lecture is said once, in its room; each section names only its own discussion.
-    expect(eleven?.children.map((r) => r.label)).toEqual([
-      "0301 · TuTh 9:30am discussion",
-      "0302 · TuTh 9:30am discussion",
-      "0303 · TuTh 11am discussion",
-      "0304 · TuTh 11am discussion",
-      "0305 · TuTh 12:30pm discussion",
+    // No lecture layer: each section says its lecture and its discussion.
+    expect(node?.children.slice(0, 3).map((r) => r.label)).toEqual([
+      "0301 · MWF 11am and TuTh 9:30am discussion",
+      "0302 · MWF 11am and TuTh 9:30am discussion",
+      "0303 · MWF 11am and TuTh 11am discussion",
     ]);
-    expect(eleven?.children[2]).toMatchObject({
+    expect(node?.children[2]).toMatchObject({
       id: "202608:CMSC131:0303",
-      parent: "202608:CMSC131:L:0301",
-      detail: "CSI 1121",
+      parent: "202608:CMSC131:P:pedram-sadeghian",
+      detail: "IRB 0324, CSI 1121",
       description: "People in section 0303 of CMSC131, from their plans",
     });
     await expect(outline(tree)).toMatchFileSnapshot("__fixtures__/cmsc131.txt");
   });
 
-  it("groups many TBA sections by meeting time, with no middle layer (ENGL101)", async () => {
+  it("lists many TBA sections flat under the course, with no heading (ENGL101)", async () => {
     const tree = roomsForCourse(TERM, engl101);
     expect(engl101.sections).toHaveLength(92);
     expect(tree.size).toBe("many");
-    expect(tree.lectures).toEqual([]);
+    expect(tree.professors).toEqual([]);
     expect(tree.rooms).toHaveLength(93);
-    expect(tree.groups.every((g) => g.by === "time")).toBe(true);
-    expect(tree.groups.slice(0, 3).map((g) => [g.title, g.summary])).toEqual([
-      ["MWF 8am", "1 section"],
-      ["MWF 9am", "5 sections"],
-      ["MWF 10am", "6 sections"],
+    expect(tree.groups.map((g) => [g.title, g.heading])).toEqual([
+      ["Instructor TBA", false],
     ]);
-    const last = tree.groups.at(-1);
-    expect(last?.title).toBe("No set times");
-    expect(last?.nodes.map((n) => n.room.label)).toEqual([
-      "0506 · online, no set time",
-      "0507 · online, no set time",
-    ]);
+    expect(tree.sections.every((r) => r.parent === tree.course.id)).toBe(true);
     expect(tree.sections[2]).toMatchObject({
       label: "0103 · MWF 9am",
       detail: "TWS 1641",
     });
+    expect(
+      tree.sections.filter((r) => r.words === "online, no set time"),
+    ).toHaveLength(2);
     await expect(outline(tree)).toMatchFileSnapshot("__fixtures__/engl101.txt");
   });
 });
 
 describe("roomsForCourse: edge cases", () => {
-  it("makes the course room the lecture room when every section shares one lecture", () => {
-    const shared = lecture(MWF, 600);
+  it("gives one professor no room of their own: the course room is theirs", () => {
     const tree = roomsForCourse(
       TERM,
       aCourse({
-        sections: lectureSections("01", "Ada Brandt", shared, [
+        sections: lectureSections("01", "Ada Brandt", lecture(MWF, 600), [
           [["Tu"], 540, "2120"],
           [["Tu"], 600, "2120"],
           [["Th"], 540, "2120"],
         ]),
       }),
     );
-    expect(tree.lectures).toEqual([]);
+    expect(tree.professors).toEqual([]);
+    expect(tree.course.detail).toBe("3 sections");
     expect(tree.sections.map((r) => r.label)).toEqual([
-      "0101 · Tu 9am discussion",
-      "0102 · Tu 10am discussion",
-      "0103 · Th 9am discussion",
+      "0101 · MWF 10am and Tu 9am discussion",
+      "0102 · MWF 10am and Tu 10am discussion",
+      "0103 · MWF 10am and Th 9am discussion",
     ]);
-    expect(tree.groups[0]?.summary).toBe("3 sections");
+    expect(tree.groups.map((g) => [g.summary, g.heading])).toEqual([
+      ["3 sections", false],
+    ]);
   });
 
-  it("never makes async online sections a lecture room, though they share a key", () => {
+  it("puts TBA sections next to a professor straight under the course", () => {
     const tree = roomsForCourse(
       TERM,
       aCourse({
         sections: [
           section("0101", ["Ada Brandt"], [lecture(MWF, 600)]),
-          section("0102", ["Ada Brandt"], [lecture(MWF, 600)]),
-          section("0201", ["Ada Brandt"], [anUntimedMeeting()]),
-          section("0202", ["Ada Brandt"], [anUntimedMeeting()]),
-          section("0203", ["Ada Brandt"], [anUntimedMeeting()]),
+          section("0201", [], [lecture(MWF, 780)]),
+          section("0102", ["Ada Brandt"], [lecture(MWF, 660)]),
         ],
       }),
     );
-    expect(tree.lectures.map((r) => r.id)).toEqual(["202608:CMSC351:L:0101"]);
-    expect(tree.sections.slice(2).map((r) => r.parent)).toEqual([
-      "202608:CMSC351",
-      "202608:CMSC351",
-      "202608:CMSC351",
+    expect(tree.groups.map((g) => [g.title, g.heading])).toEqual([
+      ["Ada Brandt", true],
+      ["Instructor TBA", true],
     ]);
+    expect(tree.professors.map((r) => r.sectionCodes)).toEqual([
+      ["0101", "0102"],
+    ]);
+    expect(tree.rooms.map((r) => [r.id, r.parent])).toEqual([
+      ["202608:CMSC351", null],
+      ["202608:CMSC351:P:ada-brandt", "202608:CMSC351"],
+      ["202608:CMSC351:0101", "202608:CMSC351:P:ada-brandt"],
+      ["202608:CMSC351:0102", "202608:CMSC351:P:ada-brandt"],
+      ["202608:CMSC351:0201", "202608:CMSC351"],
+    ]);
+    expect(tree.course.detail).toBe("3 sections · 1 professor");
   });
 
-  it("lists a lecture shared across instructor groups once, and keeps every section in its group", () => {
-    const shared = lecture(TUTH, 570);
+  it("sorts sections by code, whatever order the catalog lists them in", () => {
     const tree = roomsForCourse(
       TERM,
       aCourse({
         sections: [
-          section(
-            "0101",
-            ["Ada Brandt"],
-            [shared, discussion(["M"], 600, "1")],
-          ),
-          section("0102", ["Lee Moss"], [shared, discussion(["W"], 600, "1")]),
-          section("0201", ["Ada Brandt"], [lecture(MWF, 780)]),
+          section("0102", [], [lecture(MWF, 600)]),
+          section("0101", [], [lecture(MWF, 660)]),
         ],
       }),
     );
-    const [brandt, moss] = tree.groups;
-    expect(brandt?.nodes.map((n) => n.room.label)).toEqual([
-      "TuTh 9:30am lecture",
-      "0201 · MWF 1pm",
-    ]);
-    expect(brandt?.nodes[0]?.children.map((r) => r.id)).toEqual([
-      "202608:CMSC351:0101",
-    ]);
-    // Nobody teaches both, so the lecture room names nobody.
-    expect(tree.lectures[0]?.description).toBe(
-      "People in sections 0101 and 0102 of CMSC351, from their plans. They share the TuTh 9:30am lecture.",
-    );
-    expect(moss?.nodes.map((n) => [n.room.id, n.room.parent])).toEqual([
-      ["202608:CMSC351:0102", "202608:CMSC351:L:0101"],
-    ]);
-    expect(tree.rooms.map((r) => r.id)).toEqual([
-      "202608:CMSC351",
-      "202608:CMSC351:L:0101",
-      "202608:CMSC351:0101",
-      "202608:CMSC351:0201",
-      "202608:CMSC351:0102",
-    ]);
+    expect(tree.sections.map((r) => r.code)).toEqual(["0101", "0102"]);
+    expect(tree.course.sectionCodes).toEqual(["0101", "0102"]);
   });
 
-  it("names a section by all its meetings when it shares nothing, and says so when it has none", () => {
+  it("names a section by all its meetings, and says so when it has none", () => {
     const tree = roomsForCourse(
       TERM,
       aCourse({
@@ -408,7 +394,7 @@ describe("roomsForCourse: edge cases", () => {
     expect(tree.groups.map((g) => g.title)).toEqual(["Instructor TBA"]);
   });
 
-  it("groups by instructor, not time, when many sections have 2+ instructors", () => {
+  it("groups many sections by professor, one level deep", () => {
     const course = aCourse({
       sections: Array.from({ length: MANY_SECTIONS + 1 }, (_, i) =>
         section(
@@ -418,18 +404,20 @@ describe("roomsForCourse: edge cases", () => {
         ),
       ),
     });
-    expect(groupsRoomsByTime(course)).toBe(false);
-    expect(roomsForCourse(TERM, course).groups.map((g) => g.by)).toEqual([
-      "instructor",
-      "instructor",
-    ]);
-    expect(groupsRoomsByTime(engl101)).toBe(true);
-    expect(groupsRoomsByTime(cmsc131)).toBe(false);
+    const tree = roomsForCourse(TERM, course);
+    expect(tree.groups.map((g) => g.title)).toEqual(["Ada Brandt", "Lee Moss"]);
+    expect(
+      tree.rooms.every((r) =>
+        r.kind === "section"
+          ? tree.byId.get(r.parent ?? "")?.kind === "professor"
+          : true,
+      ),
+    ).toBe(true);
   });
 });
 
 describe("room ids", () => {
-  it("are built from codes, so a time or room change keeps them (and renames the room)", () => {
+  it("are built from codes and names, so a time or room change keeps them (and renames the room)", () => {
     const before = roomsForCourse(TERM, cmsc131);
     const moved = aCourse({
       ...cmsc131,
@@ -447,10 +435,10 @@ describe("room ids", () => {
     });
     const after = roomsForCourse(TERM, moved);
     expect(after.rooms.map((r) => r.id)).toEqual(before.rooms.map((r) => r.id));
-    expect(after.byId.get("202608:CMSC131:L:0301")?.label).toBe(
-      "Sadeghian · MWF 11:30am lecture",
-    );
-    expect(after.byId.get("202608:CMSC131:0303")?.detail).toBe("CSI 0115");
+    expect(after.byId.get("202608:CMSC131:0303")).toMatchObject({
+      label: "0303 · MWF 11:30am and TuTh 11am discussion",
+      detail: "ESJ 0224, CSI 0115",
+    });
   });
 
   it("don't shift when a section is added", () => {
@@ -466,7 +454,7 @@ describe("room ids", () => {
     const ids = new Set(after.rooms.map((r) => r.id));
     expect(before.rooms.every((r) => ids.has(r.id))).toBe(true);
     expect(after.byId.get("202608:CMSC131:0306")?.parent).toBe(
-      "202608:CMSC131:L:0301",
+      "202608:CMSC131:P:pedram-sadeghian",
     );
   });
 
@@ -477,7 +465,7 @@ describe("room ids", () => {
       const ids = tree.rooms.map((r) => r.id);
       expect(new Set(ids).size).toBe(ids.length);
       for (const r of tree.rooms) {
-        expect(RoomIdSchema.safeParse(r.id).success).toBe(true);
+        expect(RoomIdSchema.safeParse(r.id).success, r.id).toBe(true);
         expect(parseRoomId(r.id)).toMatchObject({
           termId: fixtureTermId,
           courseCode: course.code,
@@ -489,7 +477,7 @@ describe("room ids", () => {
 });
 
 describe("roomsForCourse over the whole mock catalog", () => {
-  it("lists every section once, under a parent that exists", () => {
+  it("lists every section once, under a parent that exists, one level below the course at most", () => {
     for (const course of mockCourses()) {
       const tree = roomsForCourse(fixtureTermId, course);
       const n = course.sections.length;
@@ -498,17 +486,21 @@ describe("roomsForCourse over the whole mock catalog", () => {
         continue;
       }
       expect(tree.sections).toHaveLength(n);
-      expect(tree.rooms).toHaveLength(1 + tree.lectures.length + n);
+      expect(tree.rooms).toHaveLength(1 + tree.professors.length + n);
       const listed = tree.groups.flatMap((g) =>
         g.nodes.flatMap((node) => [node.room, ...node.children]),
       );
       expect(listed).toEqual(tree.rooms.slice(1));
       for (const r of tree.rooms.slice(1)) {
-        expect(r.parent && tree.byId.get(r.parent), r.id).toBeTruthy();
+        const parent = r.parent ? tree.byId.get(r.parent) : undefined;
+        expect(parent, r.id).toBeTruthy();
+        expect(parent?.parent ?? null, r.id).toBe(
+          parent?.kind === "course" ? null : tree.course.id,
+        );
         expect(r.label, r.id).not.toMatch(/ · $|^ · /);
       }
-      for (const l of tree.lectures)
-        expect(l.sectionCodes.length, l.id).toBeGreaterThan(1);
+      for (const p of tree.professors)
+        expect(p.sectionCodes.length, p.id).toBeGreaterThan(0);
     }
   });
 
@@ -522,12 +514,12 @@ describe("roomsForSection and myRooms", () => {
     const tree = roomsForCourse(TERM, cmsc131);
     expect(roomsForSection(tree, "0303").map((r) => r.label)).toEqual([
       "CMSC131 · everyone",
-      "Sadeghian · MWF 11am lecture",
-      "0303 · TuTh 11am discussion",
+      "Sadeghian's sections",
+      "0303 · MWF 11am and TuTh 11am discussion",
     ]);
     expect(
-      roomsForSection(roomsForCourse(TERM, cmsc351), "0201").map((r) => r.id),
-    ).toEqual(["202608:CMSC351", "202608:CMSC351:0201"]);
+      roomsForSection(roomsForCourse(TERM, engl101), "0201").map((r) => r.id),
+    ).toEqual(["202608:ENGL101", "202608:ENGL101:0201"]);
     expect(roomsForSection(roomsForCourse(TERM, socy411), "0101")).toEqual([
       roomsForCourse(TERM, socy411).course,
     ]);
@@ -554,7 +546,7 @@ describe("roomsForSection and myRooms", () => {
     expect(myRooms(plan, index).map((r) => r.id)).toEqual([
       "202701:SOCY411",
       "202701:CMSC131",
-      "202701:CMSC131:L:0301",
+      "202701:CMSC131:P:pedram-sadeghian",
       "202701:CMSC131:0303",
       "202701:ENGL101",
     ]);

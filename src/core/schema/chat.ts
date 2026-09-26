@@ -15,33 +15,59 @@ import {
 
 /**
  * `<term>:<course>` for the course room, `<term>:<course>:<section>` for a
- * section room and `<term>:<course>:L:<section>` for a lecture room, named
- * after the lowest-numbered section that shares the lecture. Built from codes
- * only, so a room keeps its id (and its history) when its time or place
- * changes. The course room's id is also the `CourseChat` object's name.
+ * section room and `<term>:<course>:P:<professor>` for a professor's room
+ * (`professorSlug`: "pedram-sadeghian", co-instructors joined by "_"). Section
+ * and course rooms are built from codes, so they keep their id (and their
+ * history) when a time or place changes; a professor's room is theirs, so
+ * it's named after them. The course room's id is also the `CourseChat`
+ * object's name.
  */
 export const RoomIdSchema = z
   .string()
   .regex(
-    /^\d{4}(?:01|05|08|12):[A-Z]{4}\d{3}[A-Z]?(?::(?:L:)?[A-Z0-9]{4})?$/,
+    /^\d{4}(?:01|05|08|12):[A-Z]{4}\d{3}[A-Z]?(?::(?:[A-Z0-9]{4}|P:[a-z0-9]+(?:[-_][a-z0-9]+)*))?$/,
     "Expected a room id like YYYYMM:CMSC131:0101",
   );
 export type RoomId = z.infer<typeof RoomIdSchema>;
 
-export const RoomKindSchema = z.enum(["course", "lecture", "section"]);
+export const RoomKindSchema = z.enum(["course", "professor", "section"]);
 export type RoomKind = z.infer<typeof RoomKindSchema>;
+
+/** Longest professor slug, so a room id stays short with many co-instructors. */
+const PROFESSOR_SLUG_MAX = 80;
+
+/**
+ * A professor room's name in its id: "Pedram Sadeghian" → "pedram-sadeghian",
+ * "José Núñez" → "jose-nunez", co-instructors "ada-brandt_lee-moss".
+ */
+export function professorSlug(instructors: readonly string[]): string {
+  const slug = instructors
+    .map((name) =>
+      name
+        .normalize("NFKD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, ""),
+    )
+    .filter(Boolean)
+    .join("_")
+    .slice(0, PROFESSOR_SLUG_MAX);
+  // A cut can end on a separator; the id's grammar doesn't allow one there.
+  return slug.replace(/[-_]+$/, "");
+}
 
 export function courseRoomId(termId: TermId, courseCode: CourseCode): RoomId {
   return `${termId}:${courseCode}`;
 }
 
-/** `firstSection` is the lowest-numbered section that shares the lecture. */
-export function lectureRoomId(
+/** `instructors` as the sections list them; they must name someone (TBA has no room). */
+export function professorRoomId(
   termId: TermId,
   courseCode: CourseCode,
-  firstSection: SectionCode,
+  instructors: readonly string[],
 ): RoomId {
-  return `${termId}:${courseCode}:L:${firstSection}`;
+  return `${termId}:${courseCode}:P:${professorSlug(instructors)}`;
 }
 
 export function sectionRoomId(
@@ -56,19 +82,20 @@ export type ParsedRoomId = {
   readonly termId: TermId;
   readonly courseCode: CourseCode;
   readonly kind: RoomKind;
-  /** The section room's section, or the lecture room's first section; null for the course room. */
+  /** The section room's section; null otherwise. */
   readonly sectionCode: SectionCode | null;
+  /** The professor room's `professorSlug`; null otherwise. */
+  readonly professor: string | null;
 };
 
 /** Splits a room id; null when it isn't one. */
 export function parseRoomId(id: string): ParsedRoomId | null {
   if (!RoomIdSchema.safeParse(id).success) return null;
   const [termId = "", courseCode = "", a, b] = id.split(":");
-  if (a === undefined)
-    return { termId, courseCode, kind: "course", sectionCode: null };
-  if (b === undefined)
-    return { termId, courseCode, kind: "section", sectionCode: a };
-  return { termId, courseCode, kind: "lecture", sectionCode: b };
+  const base = { termId, courseCode, sectionCode: null, professor: null };
+  if (a === undefined) return { ...base, kind: "course" };
+  if (b === undefined) return { ...base, kind: "section", sectionCode: a };
+  return { ...base, kind: "professor", professor: b };
 }
 
 /** The `CourseChat` object a room lives in: one per course per term. */
@@ -269,7 +296,7 @@ export const ChatErrorCodeSchema = z.enum([
   "old-client",
   /** Not signed in, or the session ended. */
   "signed-out",
-  /** Lecture and section rooms need the section in one of your plans. */
+  /** Professor and section rooms need one of their sections in one of your plans. */
   "not-a-member",
   /** The term is over. */
   "read-only",

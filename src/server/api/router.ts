@@ -9,6 +9,8 @@ import {
   ConfirmInputSchema,
   ManageInputSchema,
   MeInputSchema,
+  QueueListInputSchema,
+  ResolveInputSchema,
   ReviewSummaryInputSchema,
   SignOutInputSchema,
   StatusInputSchema,
@@ -19,6 +21,7 @@ import {
   SyncPullInputSchema,
   SyncPushInputSchema,
   TestSignInInputSchema,
+  UndoInputSchema,
 } from "~/core/schema";
 import {
   type AlertsContext,
@@ -44,6 +47,16 @@ import { isSameOrigin } from "../auth/guard";
 import { getSession } from "../auth/session";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
+import {
+  listQueue,
+  resolveQueueItem,
+  undoQueueItem,
+} from "../moderation/admin";
+import {
+  MODERATION_HANDLERS,
+  type ModerationHandlers,
+} from "../moderation/handlers";
+import type { ModerationEnv } from "../moderation/service";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
 import { pull, push } from "../sync/api";
 import {
@@ -56,7 +69,7 @@ import {
 
 export const API_PREFIX = "/api/";
 
-export type ApiEnv = AlertsEnv & SummaryEnv & AuthEnv;
+export type ApiEnv = AlertsEnv & SummaryEnv & AuthEnv & ModerationEnv;
 
 interface Route<S extends z.ZodType> {
   input: S;
@@ -91,7 +104,18 @@ interface Route<S extends z.ZodType> {
   ) => Promise<unknown>;
 }
 
-export type RouteContext = AlertsContext & IdentityRouteContext;
+export type RouteContext = AlertsContext &
+  IdentityRouteContext & {
+    /** How the owner's moderation decisions reach Reviews and Chat. */
+    moderationHandlers: ModerationHandlers;
+  };
+
+export interface ApiOptions {
+  /** Outbound fetch for Google and pictures; tests mock it. */
+  fetch?: typeof fetch;
+  /** Overrides MODERATION_HANDLERS, for tests. */
+  moderationHandlers?: ModerationHandlers;
+}
 
 const route = <S extends z.ZodType>(r: Route<S>) => r;
 
@@ -178,6 +202,36 @@ const ROUTES = {
     auth: "user",
     handle: (env, input, ctx) => pull(env, input, ctx),
   }),
+  // Moderation's admin side (docs/MODERATION.md §6).
+  "admin/moderation/queue": route({
+    input: QueueListInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input) => listQueue(env.DB, input),
+  }),
+  "admin/moderation/resolve": route({
+    input: ResolveInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) =>
+      resolveQueueItem(env.DB, input, {
+        now: ctx.now,
+        handlers: ctx.moderationHandlers,
+      }),
+  }),
+  "admin/moderation/undo": route({
+    input: UndoInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) =>
+      undoQueueItem(env.DB, input, {
+        now: ctx.now,
+        handlers: ctx.moderationHandlers,
+      }),
+  }),
 } as const;
 
 /**
@@ -199,8 +253,7 @@ export async function handleApi(
   env: ApiEnv,
   ctx: Pick<ExecutionContext, "waitUntil">,
   now: Date = new Date(),
-  /** Outbound fetch for Google and pictures; tests mock it. */
-  options: { fetch?: typeof fetch } = {},
+  options: ApiOptions = {},
 ): Promise<Response> {
   const url = new URL(request.url);
   const name = url.pathname.slice(API_PREFIX.length);
@@ -275,6 +328,7 @@ export async function handleApi(
     request,
     session,
     ...(options.fetch ? { fetch: options.fetch } : {}),
+    moderationHandlers: options.moderationHandlers ?? MODERATION_HANDLERS,
   });
   return reply(result instanceof Response ? result : json(result));
 }

@@ -147,7 +147,7 @@ export function SectionHeader({
 }
 
 /**
- * A small section label ("Saved for later"): `SectionHeader variant="label"`.
+ * A small section label ("Bookmarked"): `SectionHeader variant="label"`.
  * Kept so panels migrate on their own schedule.
  */
 export function PanelLabel({

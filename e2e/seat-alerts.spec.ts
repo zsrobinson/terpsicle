@@ -92,14 +92,12 @@ test("bell → confirm → Watching → alert → stop, with Export in step", as
       )
     ).json()) as Sent[];
 
-  // The bell on a full section: one email field, one confirmation link.
+  // "Watch for a seat" on a full section: one email field, one confirmation link.
   await openApp(page);
   await openCourse(page, "cmsc 351", "CMSC351");
   const row = page.locator('[data-section="0101"]');
   await expect(row).toContainText("Full");
-  await row
-    .getByRole("button", { name: "Get an email when a seat opens" })
-    .click();
+  await row.getByRole("button", { name: /^Watch for a seat/ }).click();
   await page.getByRole("textbox", { name: "Your email" }).fill(email);
   await page.getByRole("button", { name: "Email me" }).click();
   await expect(page.getByRole("status")).toHaveText(
