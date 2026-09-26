@@ -231,10 +231,13 @@ class SimulatorSafari implements Device {
 
   async evaluate<T>(expression: string): Promise<T> {
     await this.use("web");
-    return this.driver.send<T>("POST", "/execute/sync", {
-      script: `return ${expression};`,
-      args: [],
-    });
+    // As a string: Safari's remote automation drops parts of richer values.
+    const json = await this.driver.send<string | null>(
+      "POST",
+      "/execute/sync",
+      { script: `return JSON.stringify(${expression});`, args: [] },
+    );
+    return (json === null || json === undefined ? null : JSON.parse(json)) as T;
   }
 
   async navigate(url: string): Promise<void> {
@@ -250,29 +253,33 @@ class SimulatorSafari implements Device {
     );
   }
 
-  private async touch(points: Point[], ms: number): Promise<void> {
+  /** A tap at a screen point, through XCTest. */
+  private async press(at: Point): Promise<void> {
     await this.use("native");
-    const [first, ...rest] = points;
-    if (!first) return;
-    const actions: Record<string, unknown>[] = [
-      { type: "pointerMove", duration: 0, x: first.x, y: first.y },
-      { type: "pointerDown", button: 0 },
-      { type: "pause", duration: 60 },
-      ...rest.map((p) => ({
-        type: "pointerMove",
-        duration: Math.round(ms / rest.length),
-        x: p.x,
-        y: p.y,
-      })),
-      { type: "pointerUp", button: 0 },
-    ];
-    await this.driver.send("POST", "/actions", {
-      actions: [
+    await this.driver.send("POST", "/execute/sync", {
+      script: "mobile: tap",
+      args: [{ x: at.x, y: at.y }],
+    });
+  }
+
+  /**
+   * A drag at a steady speed, through XCTest. The press before it is short
+   * enough not to read as a long press (which selects text).
+   */
+  private async drag(from: Point, to: Point, ms: number): Promise<void> {
+    await this.use("native");
+    const distance = Math.hypot(to.x - from.x, to.y - from.y);
+    await this.driver.send("POST", "/execute/sync", {
+      script: "mobile: dragFromToWithVelocity",
+      args: [
         {
-          type: "pointer",
-          id: "finger",
-          parameters: { pointerType: "touch" },
-          actions,
+          fromX: from.x,
+          fromY: from.y,
+          toX: to.x,
+          toY: to.y,
+          pressDuration: 0.05,
+          holdDuration: 0.05,
+          velocity: Math.max(100, (distance / Math.max(ms, 1)) * 1000),
         },
       ],
     });
@@ -283,7 +290,7 @@ class SimulatorSafari implements Device {
     const { width, height } = await this.screenSize();
     const at = { x: Math.round(width / 2), y: Math.round(height * 0.45) };
     await this.evaluate(ARM_CALIBRATION);
-    await this.touch([at], 0);
+    await this.press(at);
     let seen:
       | (Point & { offsetTop: number; offsetLeft: number; scale: number })
       | null = null;
@@ -304,18 +311,15 @@ class SimulatorSafari implements Device {
   }
 
   async tap(at: Point): Promise<void> {
-    await this.touch([await this.screenPoint(at)], 0);
+    await this.press(await this.screenPoint(at));
   }
 
   async swipe(from: Point, to: Point, ms: number): Promise<void> {
-    const a = await this.screenPoint(from);
-    const b = await this.screenPoint(to);
-    const steps = 8;
-    const points = Array.from({ length: steps + 1 }, (_, i) => ({
-      x: Math.round(a.x + ((b.x - a.x) * i) / steps),
-      y: Math.round(a.y + ((b.y - a.y) * i) / steps),
-    }));
-    await this.touch(points, ms);
+    await this.drag(
+      await this.screenPoint(from),
+      await this.screenPoint(to),
+      ms,
+    );
   }
 
   async type(text: string): Promise<void> {
