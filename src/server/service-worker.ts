@@ -1,5 +1,7 @@
 import { deviceLabel } from "~/core/pwa";
 import {
+  NOTIFICATION_BADGE,
+  NOTIFICATION_ICON,
   PUSH_SUBSCRIBE_PATH,
   PWA_START_URL,
   SW_SKIP_WAITING_MESSAGE,
@@ -39,10 +41,6 @@ import {
 export const SERVICE_WORKER_VERSION = 2;
 /** Build files kept at most; a deploy has a few dozen. */
 export const MAX_CACHED_ASSETS = 400;
-/** Shown with every notification. */
-export const NOTIFICATION_ICON = "/icons/icon-192.png";
-/** Android's status bar icon: white on clear. */
-export const NOTIFICATION_BADGE = "/icons/badge-72.png";
 
 // The parts of the service worker scope this uses, so tests can fake them.
 interface SwEvent {

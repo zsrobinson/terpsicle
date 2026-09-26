@@ -1,13 +1,15 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Plugin } from "vite";
+// Relative, not `~/`: vite.config.ts loads this before any alias exists.
+import { readTokens } from "../src/app/brand/css-tokens";
 
-// The web app manifest (docs/V2.md §3.1), built from the theme tokens so a
+// The web app manifest (docs/V2.md §3.1), built from the Ink tokens so a
 // brand refresh changes one place: src/styles.css. The build writes
 // dist/client/manifest.webmanifest, the dev server answers
 // /manifest.webmanifest, and the document head's theme colors come from the
 // same tokens (`virtual:terpsicle/theme-colors`, src/app/pwa-head.ts).
-// Icons: scripts/icons.ts.
+// Icons: scripts/build-icons.ts, from src/app/brand/marks.ts.
 
 export const MANIFEST_FILE = "manifest.webmanifest";
 export const THEME_COLORS_MODULE = "virtual:terpsicle/theme-colors";
@@ -19,18 +21,15 @@ export interface ThemeColors {
   dark: string;
 }
 
-/** `--bg` in the light (`:root`) and dark (`.dark`) token blocks. */
+/** The page background (`--bg`) in each theme, as the app paints it. */
 export function themeColors(css: string): ThemeColors {
-  const bg = (selector: string) => {
-    const start = css.search(
-      new RegExp(`^${selector.replace(".", "\\.")} \\{`, "m"),
-    );
-    const block = start < 0 ? "" : css.slice(start, css.indexOf("}", start));
-    const value = /--bg:\s*([^;]+);/.exec(block)?.[1]?.trim();
-    if (!value) throw new Error(`${STYLES} has no --bg in ${selector} {…}`);
+  const themes = readTokens(css);
+  const bg = (theme: "light" | "dark") => {
+    const value = themes[theme].bg;
+    if (!value) throw new Error(`${STYLES} has no --bg in the ${theme} theme`);
     return value;
   };
-  return { light: bg(":root"), dark: bg(".dark") };
+  return { light: bg("light"), dark: bg("dark") };
 }
 
 export function webManifest(colors: ThemeColors) {
@@ -48,6 +47,8 @@ export function webManifest(colors: ThemeColors) {
     // system theme.
     background_color: colors.light,
     theme_color: colors.light,
+    // Drawn by scripts/build-icons.ts; scripts/pwa.test.ts holds the two
+    // lists together.
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

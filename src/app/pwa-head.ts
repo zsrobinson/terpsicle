@@ -4,10 +4,9 @@ import { THEME_COLORS } from "virtual:terpsicle/theme-colors";
 // the web app manifest, iOS's Home Screen tags, and the browser's toolbar
 // color in each theme. The manifest and these colors are built from the
 // theme tokens in src/styles.css (scripts/pwa-manifest.ts); the icons from
-// public/favicon.svg (`pnpm tsx scripts/icons.ts`).
+// the umbrella mark (`pnpm tsx scripts/build-icons.ts`).
 
 export const MANIFEST_URL = "/manifest.webmanifest";
-export const APPLE_TOUCH_ICON_URL = "/apple-touch-icon.png";
 
 /**
  * The browser's toolbar color, per system theme. Rendered straight into the
@@ -29,7 +28,5 @@ export const pwaMeta = [
   { name: "apple-mobile-web-app-title", content: "Terpsicle" },
 ];
 
-export const pwaLinks = [
-  { rel: "manifest", href: MANIFEST_URL },
-  { rel: "apple-touch-icon", href: APPLE_TOUCH_ICON_URL, sizes: "180x180" },
-];
+// The apple-touch icon is linked with the favicons (src/routes/__root.tsx).
+export const pwaLinks = [{ rel: "manifest", href: MANIFEST_URL }];

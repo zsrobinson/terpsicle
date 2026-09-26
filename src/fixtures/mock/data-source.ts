@@ -3,10 +3,21 @@
 // serves these under /data/*, so the data layer runs the same code path
 // against mock and live data.
 import {
+  buildCourseIndexDept,
+  buildCourseSearchFile,
+  courseIndexTermOrder,
+  courseSearchRow,
+} from "~/core/catalog";
+import {
   buildingsKey,
   type ChangesFile,
+  COURSE_INDEX_MANIFEST_KEY,
+  type CourseIndexManifest,
+  type CourseSearchRow,
   calendarKey,
   changesKey,
+  courseIndexDeptKey,
+  courseSearchKey,
   deptChunkKey,
   GEO_MANIFEST_KEY,
   type GeoManifest,
@@ -120,6 +131,38 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     };
     put(manifestKey(termId), jsonBytes(manifest));
   }
+
+  // The course index, built by the same code the catalog job runs.
+  const order = courseIndexTermOrder(mockTermsFile.terms);
+  const indexDepts = [
+    ...new Set(Object.values(mockCatalog).flatMap((c) => c.map((d) => d.dept))),
+  ].sort();
+  const indexDepartments: CourseIndexManifest["departments"] = [];
+  const searchRows: CourseSearchRow[] = [];
+  for (const dept of indexDepts) {
+    const file = buildCourseIndexDept(
+      dept,
+      order.flatMap((termId) =>
+        (mockCatalog[termId] ?? [])
+          .filter((chunk) => chunk.dept === dept)
+          .map((chunk) => ({ termId, courses: chunk.courses })),
+      ),
+    );
+    indexDepartments.push({
+      code: dept,
+      hash: await putHashed((h) => courseIndexDeptKey(dept, h), file),
+    });
+    searchRows.push(...file.courses.map(courseSearchRow));
+  }
+  const courseIndexManifest: CourseIndexManifest = {
+    schemaVersion: 1,
+    generatedAt: "2026-09-25T06:00:00.000Z",
+    search: {
+      hash: await putHashed(courseSearchKey, buildCourseSearchFile(searchRows)),
+    },
+    departments: indexDepartments,
+  };
+  put(COURSE_INDEX_MANIFEST_KEY, jsonBytes(courseIndexManifest));
 
   const ptDepartments: PlanetTerpManifest["departments"] = [];
   for (const dept of mockPlanetTerpDepts)

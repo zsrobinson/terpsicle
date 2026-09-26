@@ -90,7 +90,7 @@ test.describe("installable app", () => {
     ]);
     for (const src of [
       ...manifest.icons.map((icon) => icon.src),
-      "/apple-touch-icon.png",
+      "/icons/apple-touch-icon.png",
       "/icons/badge-72.png",
     ]) {
       const icon = await request.get(src);
@@ -112,7 +112,7 @@ test.describe("installable app", () => {
     );
     await expect(head.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
       "href",
-      "/apple-touch-icon.png",
+      "/icons/apple-touch-icon.png",
     );
     await expect(
       head.locator('meta[name="apple-mobile-web-app-capable"]'),

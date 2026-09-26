@@ -38,7 +38,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 - **Seat alerts retire the email-token flow** rather than migrate it; nothing is public, and the only real subscriptions were the owner's deleted test rows.
 - **One Worker** (`terpsicle`) with one Durable Object class (`CourseChat`, one object per course per term), the one exception to BUILD.md §1's no-Durable-Objects rule.
 - **Migrations are pre-numbered** `0003`–`0009` so parallel PRs don't collide.
-- **Brand refresh** (Bulletin paper, Flexoki, Bricolage Grotesque) waits for the owner's sign-off; engineering keeps today's tokens.
+- **Brand: Ink** (owner-locked 2026-09-26; `v2/brand`, docs/DESIGN.md §7): Flexoki paper and ink, Bricolage Grotesque with Geist Mono for codes, square corners, hard offsets on buttons and floating layers, a subtle paper grain, and the Pixel star marks. The marks are data in `src/app/brand/marks.ts`, and `scripts/build-icons.ts` redraws every icon file from them. The product menu is the brand's app switcher.
 
 **Owner actions** (`docs/V2.md` §14): the Google OAuth client is done (External, published, scopes `openid email profile`, redirect `https://terpsicle.com/api/auth/google/callback` plus localhost; `GOOGLE_CLIENT_ID` in vars, `GOOGLE_CLIENT_SECRET` set on the Worker). `AUTH_SECRET` and `VAPID_*` are set and the `terpsicle-user-content` buckets exist. Admins are the git-tracked `config/admins.txt` (first entry `robinson`, the owner), bundled at build time, so they need no owner action. Later: brand verification once `/privacy` is live, a sign-in trial with a TERPmail and a UMD Gmail account, confirming the sync decision, and emailing PlanetTerp about review text.
 
@@ -76,6 +76,7 @@ Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, gre
 
 - `m8/qa-3`: post-redesign regression on production.
 - v2 wave 1: `v2/plan`, `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation`.
+- `v2/brand`: the Ink brand in the app (tokens, type, buttons, grain, marks, icons, product menu).
 - `v3/plan`: the plan for Terpsicle Plan and Terpsicle Todo (`docs/V3.md`).
 
 ## Decisions
@@ -123,7 +124,7 @@ Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, gre
   - Push: shows `PushPayloadSchema` payloads with the badge; a click focuses a window on the URL, else navigates an open one, else opens a window. `pushsubscriptionchange` re-subscribes with the old VAPID key and posts to `/api/push/subscribe`.
   - Registered on every page in production builds on terpsicle.com only (not previews), and on localhost with `VITE_SW_DEV=1`. e2e registers it by hand.
   - To retire it, serve a `/sw.js` that calls `self.registration.unregister()`. Browsers check `/sw.js` on every navigation, so the change spreads on the next visit. Bumping `SERVICE_WORKER_VERSION` (now 2) drops its caches.
-- **Installable app** (`v2/pwa`): the manifest is built from the theme tokens (`scripts/pwa-manifest.ts`: the dev server answers `/manifest.webmanifest`, the build writes it, and the head's two `theme-color` tags read the same tokens). Icons, including the notification badge, are rebuilt from `public/favicon.svg` by `pnpm tsx scripts/icons.ts` (the SVG's first `<rect>` is the tile that full-bleed icons extend). `e2e/pwa.spec.ts` runs Chrome's own installability check (`Page.getInstallabilityErrors`, what Lighthouse reports) in a real profile, since incognito can't install.
+- **Installable app** (`v2/pwa`): the manifest is built from the theme tokens (`scripts/pwa-manifest.ts`: the dev server answers `/manifest.webmanifest`, the build writes it, and the head's two `theme-color` tags read the same tokens). Icons are the brand's (`pnpm tsx scripts/build-icons.ts`, from `src/app/brand/marks.ts`), and it also draws the notification badge (`/icons/badge-72.png`, white on clear). The manifest's colors are the Ink `--bg` tokens, read with `src/app/brand/css-tokens.ts`. `e2e/pwa.spec.ts` runs Chrome's own installability check (`Page.getInstallabilityErrors`, what Lighthouse reports) in a real profile, since incognito can't install.
 - **Install prompt** (`v2/pwa`): `requestInstallPrompt(trigger)` from `~/features/pwa/install-store`, with V2.md §3.4's rules. `alert-on` is wired to today's seat-alert confirm page until `v2/seat-watches` moves it to the bell. "Install app" is in the account menu (and the phone menu), and for people who haven't signed in at the foot of the rail (the theme menu on phones); `InstallAppSetting` is ready for `/settings/notifications`.
 - **Moderation (V2 §9, `docs/MODERATION.md`):**
   - Reviews use `@cf/meta/llama-3.3-70b-instruct-fp8-fast` for policy. Chat uses `@cf/meta/llama-3.1-8b-instruct-fp8-fast`, measured on the labeled set on 2026-09-26: chat p95 end to end was 1.4 s over 75 messages, and no `graded-work` case was missed.

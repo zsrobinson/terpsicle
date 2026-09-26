@@ -1,0 +1,41 @@
+SYNTHETIC FIXTURE: invented courses and grades, not a real student's transcript.
+Shaped like v1's 2025 format. Replace with a redacted real paste (docs/V3.md §2.10, §10).
+
+Unofficial Transcript                                   Sam Testudo
+UID XXXXXXXXX                                           sam.testudo@example.edu
+Birth Date: 01/01/2000
+Program: Computer Science (CMNS)
+
+Transfer Credit
+    AP CALCULUS AB                    P     MATH140   4.00   FSAR, FSMA
+    AP US HISTORY                     NC                     Credit not granted
+
+Fall 2025
+    CMSC131  OBJECT-ORIENTED PROG I           A-    4.00    4.00   14.80
+    MATH141  CALCULUS II                      B+    4.00    4.00   13.20
+    ENGL101  ACADEMIC WRITING                 A     3.00    3.00   12.00   FSAW
+    UNIV100  THE STUDENT IN THE UNIV          A     1.00    1.00    4.00
+    HIST200  INTERPRETING AMER HIST I         B     3.00    3.00    9.00   DSHS or DSHU
+    Meth = Reg     Sem: 15.00 crds   GPA 3.55
+    ==========================================================
+
+Spring 2026
+    CMSC132  OBJECT-ORIENTED PROG II          B+    4.00    4.00   13.20
+    CMSC250  DISCRETE STRUCTURES              A-    4.00    4.00   14.80
+    COMM107  ORAL COMM PRINC & PRACT          A     3.00    3.00   12.00   FSOC
+    PSYC100  INTRO TO PSYCHOLOGY              B     3.00    3.00    9.00   DSHS or DSNS
+    ANTH260  INTRO SOCIOCULT ANTH & LING      A-    3.00    3.00   11.10   DSHS, DVUP
+    KNES157  RUNNING FOR FITNESS              W     1.00    0.00    0.00
+    CMSC389  SPECIAL TOPICS IN CS             I     1.00    0.00    0.00
+    Meth = Reg     Sem: 17.00 crds   GPA 3.61
+    ==========================================================
+
+Fall 2026
+    CMSC216  0103  INTRO COMPUTER SYSTEMS           4.00
+    MATH240  0201  INTRO LINEAR ALGEBRA             4.00
+    GEOL100  0101  PHYSICAL GEOLOGY                 3.00   DSNL (if taken with GEOL110) or DSNS
+    GEOL110  0104  PHYSICAL GEOLOGY LAB             1.00
+    PHIL140  0301  CONTEMP MORAL ISSUES             3.00   DSHU
+    BMGT110  0101  INTRO TO BUSINESS         D      3.00
+    MUSC205  0102  HISTORY OF POPULAR MUSIC  W      3.00   DSHU or DSSP, DVUP
+    CMSC330  0101  ORGANIZATION OF PROG LANG        3.00   SEE ADVISOR

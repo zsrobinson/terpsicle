@@ -79,3 +79,8 @@ export const SW_SKIP_WAITING_MESSAGE = "skip-waiting";
  * notification without a usable link goes.
  */
 export const PWA_START_URL = "/schedule";
+
+/** Shown with every notification (scripts/build-icons.ts draws it). */
+export const NOTIFICATION_ICON = "/icons/icon-192.png";
+/** Android's status-bar icon: white on clear (scripts/build-icons.ts). */
+export const NOTIFICATION_BADGE = "/icons/badge-72.png";
