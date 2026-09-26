@@ -698,6 +698,7 @@ These aren't stored, but several workers build against them:
   - `title` and `detail` are `MessagePart[]`, so codes, times and durations render in mono and can be clicked without parsing strings.
   - `fix` is `switch` (offered only when it creates no new problem), `accept-change` (for `changed`) or `watch` (for `full`: "Watch for a seat"; the UI shows the seat watch's own button and state instead of applying it).
   - `id` is `<kind>:<subject ids>`, stable while the cause lasts.
+- **`FourYearProblem`** (Plan, `src/core/schema/four-year.ts`): the same shape as `Problem`, with `kind` in `prereq-order` · `light-semester` · `repeated-course` · `unknown-course` (warning) · `not-offered-lately` (the rest info, `FOUR_YEAR_PROBLEM_SEVERITY`); `subjects` are `entry {entryId}` or `term {term}`; `fix` is `move {entryId, term}` or `remove {entryId}`, offered only when applying it adds no problem. `id` is `<kind>:<subject ids>`.
 - **`FitLabel`:** `fits` · `overlaps {with: course | block}` · `not-enough-time {direction, courseCode}` · `in-plan` · `no-set-times`. "Not enough time after CMSC330" means CMSC330 comes first.
 - **`Connection`:** see §6.
 - **Generator:**
