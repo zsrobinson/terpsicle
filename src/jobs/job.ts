@@ -19,7 +19,8 @@ export type JobName =
   | "calendar-buildings"
   | "daily"
   | "moderation"
-  | "todo-feeds";
+  | "todo-feeds"
+  | "reviews-publish";
 
 /** What a job reports: counts for telemetry, and errors it recovered from. */
 export interface JobReport {

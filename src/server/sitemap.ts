@@ -1,7 +1,8 @@
-// /sitemap.xml and its parts, built from what's published: the course index
-// for course pages, the PlanetTerp index for instructor pages, and our own
-// minted instructors that have a published review. Workers Cache keeps each
-// for an hour (the files behind them change nightly at most).
+// /sitemap.xml: the site's pages (SITE_PAGES), then Reviews' public ones,
+// built from what's published: the course index for course pages, the
+// PlanetTerp index for instructor pages, and our own minted instructors that
+// have a published review. Workers Cache keeps it for an hour (the files
+// behind it change nightly at most). robots.txt names it (seo/routes.ts).
 
 import type { PublishedFiles } from "~/core/routing";
 import {
@@ -18,27 +19,19 @@ import {
 import {
   coursePath,
   instructorPath,
+  SITE_PAGES,
+  SITEMAP_MAX_URLS,
   type SitemapEntry,
-  sitemapIndexXml,
   sitemapXml,
 } from "~/core/seo";
+import { APEX_HOST } from "./apex";
 import { r2PublishedFiles } from "./pages/context";
 import { mintedWithReviews } from "./reviews/store";
 
 export const SITEMAP_PATH = "/sitemap.xml";
-export const SITEMAPS_PREFIX = "/sitemaps/";
 
-/** Pages that are the same for everyone and worth finding. */
-const PAGES: readonly string[] = [
-  "/",
-  "/schedule",
-  "/reviews",
-  "/reviews/policy",
-  "/privacy",
-];
-
-const PARTS = ["pages", "courses", "instructors"] as const;
-type Part = (typeof PARTS)[number];
+/** Reviews' pages that are the same for everyone, beside SITE_PAGES. */
+const REVIEWS_PAGES: readonly SitemapEntry[] = [{ path: "/reviews/policy" }];
 
 async function parsed<T>(
   files: PublishedFiles,
@@ -86,41 +79,40 @@ async function instructorEntries(
   return ids.map((id) => ({ path: instructorPath(id) }));
 }
 
-function xml(body: string, request: Request): Response {
-  return new Response(request.method === "HEAD" ? null : body, {
-    headers: {
-      "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control":
-        "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
-    },
-  });
-}
-
-/** `GET /sitemap.xml` and `GET /sitemaps/<part>.xml`; null for anything else. */
+/** `GET /sitemap.xml`; null for anything else. */
 export async function serveSitemap(
   request: Request,
   env: Pick<Env, "DATA" | "DB" | "REVIEWS_ENABLED">,
 ): Promise<Response | null> {
-  const { pathname } = new URL(request.url);
-  const part = PARTS.find((p) => pathname === `${SITEMAPS_PREFIX}${p}.xml`);
-  if (pathname !== SITEMAP_PATH && !part) return null;
+  if (new URL(request.url).pathname !== SITEMAP_PATH) return null;
   if (request.method !== "GET" && request.method !== "HEAD")
     return new Response(`${request.method} isn't supported here.`, {
       status: 405,
       headers: { Allow: "GET, HEAD", "Content-Type": "text/plain" },
     });
-  if (!part)
-    return xml(
-      sitemapIndexXml(
-        PARTS.map((p) => ({ path: `${SITEMAPS_PREFIX}${p}.xml` })),
-      ),
-      request,
-    );
   const files = r2PublishedFiles(env.DATA);
-  const entries: Record<Part, () => Promise<SitemapEntry[]>> = {
-    pages: async () => PAGES.map((path) => ({ path })),
-    courses: () => courseEntries(files),
-    instructors: () => instructorEntries(env, files),
-  };
-  return xml(sitemapXml(await entries[part]()), request);
+  const [courses, instructors] = await Promise.all([
+    courseEntries(files),
+    instructorEntries(env, files),
+  ]);
+  // One file while it fits: UMD has well under 50,000 courses and
+  // instructors together. Past that, the site's own pages still come first.
+  const entries = [
+    ...SITE_PAGES,
+    ...REVIEWS_PAGES,
+    ...courses,
+    ...instructors,
+  ].slice(0, SITEMAP_MAX_URLS);
+  return new Response(
+    request.method === "HEAD"
+      ? null
+      : sitemapXml(`https://${APEX_HOST}`, entries),
+    {
+      headers: {
+        "Content-Type": "application/xml; charset=utf-8",
+        "Cache-Control":
+          "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    },
+  );
 }

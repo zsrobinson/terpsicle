@@ -9,8 +9,6 @@ import {
   instructorHead,
   type PageHead,
   pageHead,
-  sitemapIndexXml,
-  sitemapXml,
   suggestCourses,
   suggestInstructors,
 } from "./index";
@@ -221,25 +219,6 @@ describe("instructorHead", () => {
     });
     expect(content(meta(head, "description"))).toBe(
       "Clyde Kruskal at UMD: no student reviews yet.",
-    );
-  });
-});
-
-describe("sitemaps", () => {
-  it("lists absolute, escaped URLs", () => {
-    const xml = sitemapXml([
-      { path: "/reviews" },
-      { path: "/reviews/instructors/t~a&b", lastmod: "2026-09-01" },
-    ]);
-    expect(xml).toContain("<loc>https://terpsicle.com/reviews</loc>");
-    expect(xml).toContain(
-      "<url><loc>https://terpsicle.com/reviews/instructors/t~a&amp;b</loc><lastmod>2026-09-01</lastmod></url>",
-    );
-  });
-
-  it("indexes the sitemap files", () => {
-    expect(sitemapIndexXml([{ path: "/sitemaps/reviews.xml" }])).toContain(
-      "<sitemap><loc>https://terpsicle.com/sitemaps/reviews.xml</loc></sitemap>",
     );
   });
 });

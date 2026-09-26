@@ -49,30 +49,31 @@ beforeEach(async () => {
 });
 
 describe("sitemap", () => {
-  it("indexes its parts, cached at the edge for an hour", async () => {
+  it("lists the site's pages, then every course and instructor, cached for an hour", async () => {
     const response = await get("/sitemap.xml");
     expect(response.headers.get("Content-Type")).toBe(
       "application/xml; charset=utf-8",
     );
     expect(response.headers.get("Cache-Control")).toContain("s-maxage=3600");
-    const xml = await response.text();
-    for (const part of ["pages", "courses", "instructors"])
-      expect(xml).toContain(
-        `<loc>https://terpsicle.com/sitemaps/${part}.xml</loc>`,
-      );
-  });
-
-  it("lists every course in the course index", async () => {
-    const xml = await (await get("/sitemaps/courses.xml")).text();
+    const locs = [
+      ...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g),
+    ].map((m) => m[1]);
+    expect(locs.slice(0, 5)).toEqual([
+      "https://terpsicle.com/",
+      "https://terpsicle.com/schedule",
+      "https://terpsicle.com/reviews",
+      "https://terpsicle.com/privacy",
+      "https://terpsicle.com/reviews/policy",
+    ]);
     for (const [code] of aCourseSearchFile().courses)
-      expect(xml).toContain(
-        `<loc>https://terpsicle.com/reviews/courses/${code}</loc>`,
-      );
+      expect(locs).toContain(`https://terpsicle.com/reviews/courses/${code}`);
+    expect(locs).toContain("https://terpsicle.com/reviews/instructors/kruskal");
+    expect(locs).not.toContain("https://terpsicle.com/reviews/mine");
   });
 
-  it("lists every instructor PlanetTerp's index knows", async () => {
+  it("leaves minted instructors out while Reviews is off, and other paths alone", async () => {
     const xml = await (
-      await get("/sitemaps/instructors.xml", {
+      await get("/sitemap.xml", {
         ...env,
         // Env types each var as its wrangler.jsonc value.
         REVIEWS_ENABLED: "off",
@@ -81,12 +82,6 @@ describe("sitemap", () => {
     expect(xml).toContain(
       "<loc>https://terpsicle.com/reviews/instructors/kruskal</loc>",
     );
-  });
-
-  it("lists the public pages, and leaves other paths alone", async () => {
-    const xml = await (await get("/sitemaps/pages.xml")).text();
-    expect(xml).toContain("<loc>https://terpsicle.com/reviews</loc>");
-    expect(xml).not.toContain("/reviews/mine");
     expect(
       await serveSitemap(
         new Request("https://terpsicle.com/sitemaps/other.xml"),

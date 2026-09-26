@@ -19,6 +19,7 @@ import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
 import { landingRedirect } from "./routing";
 import { handleCspReport } from "./security/csp-report";
 import { cspNonce, withSecurityHeaders } from "./security/headers";
+import { serveSeoFile } from "./seo/routes";
 import { serviceWorkerScript } from "./service-worker";
 import { serveSitemap } from "./sitemap";
 
@@ -216,6 +217,8 @@ export function createWorker(
         headers: { "Cache-Control": "no-store" },
       });
     }
+    const seo = serveSeoFile(request);
+    if (seo) return seo;
     const landing = landingRedirect(request);
     if (landing) return landing;
     // Every page (`/`, `/schedule`, `/privacy`, …) is a TanStack route; an

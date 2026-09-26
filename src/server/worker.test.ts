@@ -90,6 +90,28 @@ describe("fetch", () => {
     expect(app.fetch).not.toHaveBeenCalled();
   });
 
+  it("serves robots.txt and the sitemap itself, cached for a day", async () => {
+    app.fetch.mockClear();
+    const robots = await get("https://terpsicle.com/robots.txt");
+    expect(robots.status).toBe(200);
+    expect(robots.headers.get("Content-Type")).toContain("text/plain");
+    expect(robots.headers.get("Cache-Control")).toBe("public, max-age=86400");
+    const text = await robots.text();
+    expect(text).toContain("Disallow: /api/");
+    expect(text).toContain("Sitemap: https://terpsicle.com/sitemap.xml");
+    const sitemap = await get("https://terpsicle.com/sitemap.xml");
+    expect(sitemap.headers.get("Content-Type")).toContain("application/xml");
+    expect(await sitemap.text()).toContain(
+      "<loc>https://terpsicle.com/schedule</loc>",
+    );
+    expect(app.fetch).not.toHaveBeenCalled();
+  });
+
+  it("asks crawlers to skip a preview host entirely", async () => {
+    const robots = await get("https://pr-12-terpsicle.workers.dev/robots.txt");
+    expect(await robots.text()).toBe("User-agent: *\nDisallow: /\n");
+  });
+
   it("301s www to the apex, keeping path and query", async () => {
     const response = await get("https://www.terpsicle.com/x?plan=abc");
     expect(response.status).toBe(301);

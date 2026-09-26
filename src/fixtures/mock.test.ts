@@ -18,6 +18,8 @@ import {
   PlanetTerpManifestSchema,
   PlanSchema,
   ReviewSummarySchema,
+  ReviewsDeptSchema,
+  ReviewsManifestSchema,
   ROUTES_HEADER_BYTES,
   ROUTES_MAGIC,
   ROUTES_NO_ROUTE,
@@ -104,6 +106,8 @@ describe("the mock bucket", () => {
       [/^courses\/manifest\.json$/, CourseIndexManifestSchema],
       [/^courses\/search\.[0-9a-f]{16}\.json$/, CourseSearchFileSchema],
       [/^courses\/dept\/[A-Z]{4}\.[0-9a-f]{16}\.json$/, CourseIndexDeptSchema],
+      [/^reviews\/manifest\.json$/, ReviewsManifestSchema],
+      [/^reviews\/dept\/[A-Z]{4}\.[0-9a-f]{16}\.json$/, ReviewsDeptSchema],
     ];
     expect(files.size).toBeGreaterThan(100);
     for (const [key, bytes] of files) {

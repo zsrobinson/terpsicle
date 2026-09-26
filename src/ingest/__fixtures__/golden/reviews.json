@@ -1,0 +1,98 @@
+{
+ "manifest": {
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-01T12:37:00.000Z",
+  "departments": [
+   {
+    "code": "ANTH",
+    "hash": "c8ab60b5d237932a"
+   },
+   {
+    "code": "CMSC",
+    "hash": "43693607b968ca33"
+   },
+   {
+    "code": "MATH",
+    "hash": "edb6fbe7d860a082"
+   },
+   {
+    "code": "STAT",
+    "hash": "acf70391105c708e"
+   }
+  ]
+ },
+ "files": {
+  "reviews/dept/ANTH.c8ab60b5d237932a.json": {
+   "schemaVersion": 1,
+   "dept": "ANTH",
+   "instructors": {
+    "t~beu244tbxy": {
+     "rating": 4,
+     "reviewCount": 3,
+     "latestReviewMonth": "2026-08"
+    }
+   },
+   "names": {
+    "zane kowalczyk": "t~beu244tbxy"
+   }
+  },
+  "reviews/dept/CMSC.43693607b968ca33.json": {
+   "schemaVersion": 1,
+   "dept": "CMSC",
+   "instructors": {
+    "abernathy_jada": {
+     "rating": 3.33,
+     "reviewCount": 9,
+     "latestReviewMonth": "2026-09"
+    },
+    "ashdown_keiko": {
+     "rating": 4,
+     "reviewCount": 6,
+     "latestReviewMonth": "2026-08"
+    },
+    "kowalczyk": {
+     "rating": 3,
+     "reviewCount": 2,
+     "latestReviewMonth": "2026-09"
+    },
+    "t~fpywwo43mm": {
+     "rating": 2,
+     "reviewCount": 3,
+     "latestReviewMonth": "2026-08"
+    }
+   },
+   "names": {
+    "nils varga": "t~fpywwo43mm"
+   }
+  },
+  "reviews/dept/MATH.edb6fbe7d860a082.json": {
+   "schemaVersion": 1,
+   "dept": "MATH",
+   "instructors": {
+    "adeyemi": {
+     "rating": 3.46,
+     "reviewCount": 13,
+     "latestReviewMonth": "2026-09"
+    }
+   },
+   "names": {}
+  },
+  "reviews/dept/STAT.acf70391105c708e.json": {
+   "schemaVersion": 1,
+   "dept": "STAT",
+   "instructors": {
+    "adeyemi": {
+     "rating": 3.46,
+     "reviewCount": 13,
+     "latestReviewMonth": "2026-09"
+    },
+    "haddad": {
+     "rating": 3,
+     "reviewCount": 4,
+     "latestReviewMonth": "2026-09"
+    }
+   },
+   "names": {}
+  }
+ }
+}

@@ -1,0 +1,322 @@
+/*
+ * The marketing page at `/` (src/features/marketing). Linked from the
+ * route's head beside the app's stylesheet, so the server-rendered page is
+ * styled before any script runs. Only what the page alone needs: its type
+ * steps, the hero's drawing, and its motion. Colors are the tokens in
+ * src/styles.css.
+ *
+ * Motion moves transform, opacity and (in the inline script) SVG path data,
+ * and all of it waits for `prefers-reduced-motion: no-preference`. Reduced
+ * motion, and a page whose scripts never run, get the end state: straight
+ * rails ending in the marks, over a faint ghost of the tangle.
+ */
+
+.mk-page {
+  --mk-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --mk-settle: cubic-bezier(0.34, 1.3, 0.64, 1);
+  --mk-pad: 24px;
+}
+@media (max-width: 767px) {
+  .mk-page {
+    --mk-pad: 16px;
+  }
+}
+/* One column for everything: 1200px wide at most, with the page's gutter. */
+.mk-wrap {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: var(--mk-pad);
+}
+
+/* ---------- Type: the page's own steps past the app's six ---------- */
+
+.mk-display {
+  font-weight: 700;
+  font-variation-settings: "opsz" 96;
+  text-wrap: balance;
+}
+.mk-h1 {
+  font-size: clamp(36px, 4vw, 58px);
+  line-height: 1.02;
+  letter-spacing: -0.024em;
+}
+.mk-h2 {
+  font-size: clamp(26px, 2.5vw, 34px);
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+}
+.mk-lead {
+  max-width: 52ch;
+  font-size: 17px;
+  line-height: 26px;
+  text-wrap: pretty;
+}
+@media (max-width: 767px) {
+  .mk-lead {
+    font-size: 16px;
+    line-height: 24px;
+  }
+}
+.mk-body {
+  max-width: 56ch;
+  font-size: 15px;
+  line-height: 24px;
+  text-wrap: pretty;
+}
+/* The hero's button, a size up from the app's. */
+.mk-cta {
+  height: 40px;
+  padding-inline: 16px;
+  font-size: 15px;
+}
+/* A text link: a hairline underline that darkens on hover. */
+.mk-link {
+  text-decoration-line: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.mk-link:hover {
+  text-decoration-color: currentColor;
+}
+
+/* A sample's one big number: the rating. */
+.mk-number {
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Layout: the page's own rhythm, past the app's 4px steps ---------- */
+
+.mk-hero {
+  padding-block: 32px 40px;
+}
+.mk-hero-grid {
+  display: grid;
+  gap: 40px;
+}
+.mk-section {
+  padding-block: 56px;
+}
+.mk-block-grid {
+  display: grid;
+  align-items: center;
+  gap: 40px;
+}
+@media (min-width: 768px) {
+  .mk-hero {
+    padding-block: 48px 56px;
+  }
+}
+@media (min-width: 1024px) {
+  .mk-section {
+    padding-block: 80px;
+  }
+  .mk-block-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 64px;
+  }
+}
+@media (min-width: 1280px) {
+  .mk-hero {
+    padding-block: 72px 80px;
+  }
+  .mk-hero-grid {
+    grid-template-columns: minmax(0, 9fr) minmax(0, 11fr);
+    align-items: center;
+    gap: 48px;
+  }
+}
+
+/* ---------- Grain on a filled section ---------- */
+
+/* The page's grain sits behind the page's content, so a section with its
+   own fill carries its own, under its content (DESIGN.md §7.4). */
+.mk-grain {
+  position: relative;
+  isolation: isolate;
+}
+.mk-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--grain-image);
+  background-size: 220px 220px;
+  opacity: var(--grain-opacity);
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more),
+  (forced-colors: active), print {
+  .mk-grain::before {
+    content: none;
+  }
+}
+
+/* ---------- The misprint: a second impression, offset, that settles ---------- */
+
+.mk-mis {
+  position: relative;
+  display: inline-block;
+  text-wrap: balance;
+}
+.mk-mis-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+}
+.mk-mis-text {
+  position: relative;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk-mis-layer {
+    animation: mk-mis-settle 1s var(--mk-spring) 0.15s both;
+  }
+}
+@keyframes mk-mis-settle {
+  from {
+    opacity: 0.5;
+    transform: translate(4px, 3px);
+  }
+  to {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+/* ---------- The hero's drawing ---------- */
+
+/* Two drawings, wide and tall, switched here so the server never guesses
+   the screen. */
+.mk-figure-wide {
+  display: none;
+}
+.mk-figure-tall {
+  display: block;
+}
+@media (min-width: 1280px) {
+  .mk-figure-wide {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 20px;
+  }
+  .mk-figure-tall {
+    display: none;
+  }
+}
+.mk-canvas {
+  position: relative;
+}
+.mk-canvas svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.mk-canvas path {
+  fill: none;
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* The viewBox stretches to the width; lines keep their weight. */
+  vector-effect: non-scaling-stroke;
+}
+.mk-canvas .mk-ghost {
+  display: none;
+  stroke: var(--hairline-strong);
+  stroke-width: 2px;
+  stroke-dasharray: 3 6;
+}
+/* Each label sits on a slip of paper, so a line passing under it never runs
+   through the words. */
+.mk-label {
+  position: absolute;
+  left: 0;
+  padding-inline: 4px;
+  margin-left: -4px;
+  background: var(--bg);
+  white-space: nowrap;
+  line-height: 16px;
+}
+
+/* The marks at the rails' ends. While the inline script plays the detangle
+   they wait out of sight, then slide in one after another as it settles
+   (the script sets data-tangle). Without it, or with reduced motion, they
+   simply stand there. */
+.mk-end {
+  transition:
+    opacity 0.3s ease-out calc(45ms * var(--i, 0)),
+    transform 0.45s var(--mk-spring) calc(45ms * var(--i, 0));
+}
+[data-tangle="playing"] .mk-end {
+  opacity: 0;
+  transform: translate(var(--mk-end-from, -10px 0));
+  transition: none;
+}
+.mk-figure-tall .mk-end {
+  --mk-end-from: 0 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-canvas .mk-ghost {
+    display: inline;
+  }
+  .mk-replay {
+    display: none;
+  }
+}
+
+/* ---------- Small motions inside the samples ---------- */
+
+/* The chat keeps its newest messages; the oldest fade out at the top. */
+.mk-chat-log {
+  mask-image: linear-gradient(to bottom, transparent, #000 28px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk-arrive {
+    animation: mk-arrive 0.4s var(--mk-settle) both;
+  }
+  .mk-pop {
+    animation: mk-pop 0.3s var(--mk-settle) both;
+  }
+  .mk-dot {
+    animation: mk-dot 1s ease-in-out infinite;
+  }
+  .mk-dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .mk-dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  .mk-grow {
+    transition: width 0.5s var(--mk-spring);
+  }
+}
+@keyframes mk-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes mk-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+@keyframes mk-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
