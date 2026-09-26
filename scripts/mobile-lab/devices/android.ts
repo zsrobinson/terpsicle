@@ -80,7 +80,11 @@ class AndroidChrome implements Device {
   private async launch(): Promise<void> {
     await this.context?.close().catch(() => undefined);
     this.context = await this.device.launchBrowser();
-    this.page = this.context.pages()[0] ?? (await this.context.newPage());
+    // Chrome can come back with an older tab in front of ours: keep one tab,
+    // so the screen shows the page the scripts run in.
+    const [page, ...others] = this.context.pages();
+    this.page = page ?? (await this.context.newPage());
+    for (const other of others) await other.close().catch(() => undefined);
   }
 
   async describe(): Promise<string> {
@@ -105,6 +109,7 @@ class AndroidChrome implements Device {
     if (video) await this.startRecording(`${video}.mp4`);
     // A slow emulator can lose Chrome between scenarios: start it again.
     if (!this.page || this.page.isClosed()) await this.launch();
+    await this.p.bringToFront();
     try {
       await this.p.goto(url);
     } catch {
