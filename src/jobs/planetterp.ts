@@ -14,10 +14,14 @@ export const NIGHTLY_GRADE_REQUESTS = 700;
  * reviewers' writing, and keeping it waits on the owner's call (and
  * PlanetTerp's OK). Summaries fetch it live meanwhile.
  */
-export function keepsReviewText(env: {
-  PLANETTERP_KEEP_REVIEW_TEXT?: string;
-}): boolean {
-  return env.PLANETTERP_KEEP_REVIEW_TEXT === "true";
+export function keepsReviewText(
+  env: Env | { PLANETTERP_KEEP_REVIEW_TEXT?: string },
+): boolean {
+  // Not a wrangler var (so not on `Env`) until someone turns it on.
+  return (
+    "PLANETTERP_KEEP_REVIEW_TEXT" in env &&
+    env.PLANETTERP_KEEP_REVIEW_TEXT === "true"
+  );
 }
 
 /**
