@@ -322,33 +322,42 @@ class SimulatorSafari implements Device {
     );
   }
 
+  /** The id of an element found by `using`/`value`, or null. */
+  private async element(using: string, value: string): Promise<string | null> {
+    try {
+      const found = await this.driver.send<Record<string, string>>(
+        "POST",
+        "/element",
+        { using, value },
+      );
+      return Object.values(found)[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async click(id: string): Promise<void> {
+    await this.driver.send("POST", `/element/${id}/click`, {});
+  }
+
   async type(text: string): Promise<void> {
     await this.use("native");
     for (const char of text) {
-      // A tap on the software keyboard's key.
-      try {
-        const key = await this.driver.send<Record<string, string>>(
-          "POST",
-          "/element",
-          { using: "accessibility id", value: char },
+      // A tap on the software keyboard's key, switching between its letters
+      // and numbers planes (the "123"/"ABC" key) when the key isn't showing.
+      let key = await this.element("accessibility id", char);
+      if (!key) {
+        const plane = await this.element(
+          "-ios predicate string",
+          'type == "XCUIElementTypeKey" AND (name == "more" OR name CONTAINS[c] "numbers" OR name CONTAINS[c] "letters")',
         );
-        const id = Object.values(key)[0];
-        await this.driver.send("POST", `/element/${id}/click`, {});
-      } catch {
-        // No such key on screen (another layout): type it into the field.
-        const field = await this.driver.send<Record<string, string>>(
-          "POST",
-          "/element",
-          { using: "-ios predicate string", value: "hasKeyboardFocus == 1" },
-        );
-        await this.driver.send(
-          "POST",
-          `/element/${Object.values(field)[0]}/value`,
-          {
-            text: char,
-          },
-        );
+        if (plane) {
+          await this.click(plane);
+          key = await this.element("accessibility id", char);
+        }
       }
+      if (!key) throw new Error(`no "${char}" key on the keyboard`);
+      await this.click(key);
     }
   }
 

@@ -347,10 +347,13 @@ export const SCENARIOS: Scenario[] = [
       await lab.wait(SETTLE);
       await lab.step("scrolled the calendar down", {
         expect: (p) => [
+          // (A calendar that fits has nothing to scroll.)
           expectation(
             "calendar-scrolled",
-            (p.calendar?.scrollTop ?? 0) > 0,
-            `calendar scrollTop ${p.calendar?.scrollTop}`,
+            !p.calendar ||
+              p.calendar.scrollHeight <= p.calendar.clientHeight ||
+              p.calendar.scrollTop > 0,
+            `calendar scrollTop ${p.calendar?.scrollTop} of ${p.calendar?.scrollHeight} (${p.calendar?.clientHeight} tall)`,
             "warn",
           ),
         ],
