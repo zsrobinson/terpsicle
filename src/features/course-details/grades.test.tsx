@@ -89,4 +89,16 @@ describe("Grades", () => {
       screen.getByText("PlanetTerp has no grades for CMSC999 yet."),
     ).toBeInTheDocument();
   });
+
+  it("says the file didn't load, rather than that there are no grades", () => {
+    render(
+      <TooltipProvider>
+        <Grades course={course} planetTerp={null} loading={false} failed />
+      </TooltipProvider>,
+    );
+    expect(
+      screen.getByText(/Couldn't load grades from PlanetTerp/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/has no grades/)).toBeNull();
+  });
 });

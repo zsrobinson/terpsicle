@@ -425,7 +425,8 @@ describe("planetterp job", () => {
     const events: { event: string; properties: Record<string, unknown> }[] =
       [];
     const run = runPlanetTerpJob({
-      env: { ...env, POSTHOG_TOKEN: "test-token" },
+      // Telemetry on, so the failure event reaches the fake PostHog below.
+      env: { ...env, POSTHOG_TOKEN: "test-token" as Env["POSTHOG_TOKEN"] },
       now: at(brokenAt),
       fetch: async (input, init) => {
         if (String(input).startsWith("https://us.i.posthog.com/")) {

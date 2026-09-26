@@ -10,7 +10,11 @@ import {
   mergeCourseGrades,
   summarizeGrades,
 } from "./planetterp";
-import { createReviewKeeper, normalizeReviews } from "./reviews";
+import {
+  createReviewKeeper,
+  normalizeReviews,
+  type ReviewApi,
+} from "./reviews";
 import {
   implausibleReason,
   statusAfterFailure,
@@ -210,7 +214,7 @@ describe("stored review text", () => {
 
   it("writes changed files only, and never replaces reviews with fewer", async () => {
     const store = createMemoryBlobStore();
-    const keep = async (reviews: unknown[]) => {
+    const keep = async (reviews: ReviewApi[]) => {
       const keeper = await createReviewKeeper(store, silentLogger);
       await keeper.keep([{ slug: "kruskal", name: "Clyde Kruskal", reviews }]);
       return keeper.finish();

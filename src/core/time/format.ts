@@ -124,6 +124,12 @@ export function formatShortDate(date: IsoDate): string {
   return `${MONTHS[(m ?? 1) - 1] ?? ""} ${d ?? ""}`;
 }
 
+/** "Apr 2026", from an ISO date or date-time (its UTC month: close enough for "since"). */
+export function formatMonthYear(iso: string): string {
+  const [y, m] = iso.split("-").map(Number);
+  return `${MONTHS[(m ?? 1) - 1] ?? ""} ${y ?? ""}`;
+}
+
 /** "Mar 22–May 10" */
 export function formatDateSpan(span: DateSpan): string {
   return `${formatShortDate(span.start)}–${formatShortDate(span.end)}`;

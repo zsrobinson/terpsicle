@@ -86,7 +86,7 @@ The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys
 | `calendar/<term>.json` | `max-age=3600` | 1 h |
 | `geo/route/*.json` | `max-age=86400` | 1 day |
 | `geo/tiles.pmtiles` | `max-age=604800`, Range requests | 1 week |
-| `summaries/*`, `_jobs/*`, anything else | 404 | — |
+| `summaries/*`, `_jobs/*` (including the stored PlanetTerp review text), anything else | 404 | — |
 
 ### 2.6 Job state (`_jobs/`, not served)
 The jobs' memory between runs. Everything here can be rebuilt by running the job again, so a file that fails validation is ignored rather than fatal.
@@ -97,8 +97,11 @@ The jobs' memory between runs. Everything here can be rebuilt by running the job
 | `_jobs/catalog/<term>/orphans.json` | catalog | when each unreferenced hashed file was first seen, for the 24 h garbage-collection grace |
 | `_jobs/catalog/building-rooms.json` | catalog | every building code seen, with one room, for the buildings job's popup lookups |
 | `_jobs/buildings/discovered.json` | buildings | codes joined (or not) since the checked-in seed, with why; failures retry after 30 days |
-| `_jobs/planetterp/grades.json` | PlanetTerp | per course, grades summed per PlanetTerp professor name, and when they were fetched (the rotation order) |
+| `_jobs/planetterp/grades.json` | PlanetTerp | per course, grades summed per PlanetTerp professor name, and when they were fetched (the rotation order). A course's rows are never replaced by an empty answer (§4.1) |
 | `_jobs/planetterp/unmatched.json` | PlanetTerp | Testudo instructor names with no PlanetTerp match, and how many names each matching rule joined |
+| `_jobs/planetterp/state.json` | PlanetTerp | the last run's verdict (`status`, `reason`, `lastRunAt`) and the last good run's `lastSuccessAt`, professor and review totals (the baseline for the sanity floors, §4.1), `latestReviewAt` and `gradesThrough` |
+| `_jobs/planetterp/reviews/<slug>.json` | PlanetTerp | `StoredReviewsSchema`: the review text the nightly list pull already downloads, so summaries can be regenerated if PlanetTerp goes away (§7.2). **A private cache, never served or republished**: it's PlanetTerp's users' writing, and we only feed it to the summary model. Never shrinks: an empty or shorter list keeps the stored file (so a review PlanetTerp deletes stays until the file is deleted) |
+| `_jobs/planetterp/reviews-index.json` | PlanetTerp | per slug, the stored file's hash and review count, so a run writes only files that changed (at most `MAX_REVIEW_WRITES` a run) |
 | `_jobs/routes/state.json` | routes script | feet per building-number pair and mode, entrance hashes per building, and which geometry files exist |
 
 ---
@@ -157,7 +160,16 @@ The file keeps a rolling 30-day window, newest first. Plans don't depend on it f
 
   The join (`src/ingest/planetterp/names.ts`) tries, in order: exact name; the hand-checked `aliases.json`; names equal once accents, apostrophes, punctuation, spacing, parentheticals and suffixes are ignored; then nicknames, extra middle names or surname parts, shortened given names and initials. Those last four need course evidence (two shared courses, or one that few PlanetTerp people taught or from someone who mostly teaches in the instructor's departments), never take the slug of someone teaching under that exact name, and match nobody on a tie. A wrong rating is worse than none.
 - PlanetTerp grade rows carry section numbers that aren't always zero-padded (`"501"`); we only store per-course and per-instructor sums, so sections never reach our files.
-- **Reviews** (`ReviewSchema`) are only the review-summary fn's input: `{course, text, rating, expectedGrade, created}`. They have no id, so (slug, `created`) identifies one; `expectedGrade` is free text ("A-", "P", "95", "") and is never parsed.
+- **Never replace good data with empty data.** PlanetTerp looks unmaintained (reviews stopped in May 2026, grades end in Spring 2025), so the job assumes it can fail in ways that still parse:
+  - **Sanity floors** (`src/ingest/planetterp/source.ts`). A run whose professor list is empty, or has more than 10% fewer professors or reviews than the last good run (`_jobs/planetterp/state.json`), is a source failure. So is a list that doesn't arrive at all. The job then publishes nothing new: the department files and the manifest's `departments` stay as they were, the manifest's `source.status` becomes `stale` (`gone` after 30 days without a good run), the reason goes in the job state, and the cron reports `cron_job_failed` with the reason as `firstError` (`docs/ANALYTICS.md`).
+  - **Grades never go from something to nothing.** `/grades` answers 400 `{"error":"course not found"}` for a course it doesn't know; only that 400 means "no grades", and any other error keeps the stored rows. An empty answer for a course that had rows keeps the old rows too; only a course with no stored rows may stay empty.
+- **`source`** in `planetterp/manifest.json` (`PlanetTerpSourceSchema`) is `{status, lastSuccessAt, gradesThrough, latestReviewAt}`. It was added without a version bump (§2.3: an optional field; older clients strip it, and manifests without it read as "unknown"). `status`:
+  - `ok`: the last run was good and PlanetTerp has published a review in the last six weeks;
+  - `stale`: the last run was a source failure, or PlanetTerp has published no review for six weeks (its ratings are frozen);
+  - `gone`: no good run for 30 days.
+
+  The client reads it through `useInstructors(dept).source` (and `usePlanetTerpStatus`). The Grades header says what grades cover ("through Spring 2025, from PlanetTerp", from `gradesThrough`), and the Reviews disclosure adds one quiet line when `status` isn't `ok` ("PlanetTerp hasn't updated since May 2026"). No banner (`DESIGN.md` §5). A department file that fails to load says so ("Couldn't load grades from PlanetTerp…"), never "PlanetTerp has no grades".
+- **Reviews** (`ReviewSchema`) are only the review-summary fn's input: `{course, text, rating, expectedGrade, created}`. They have no id, so (slug, `created`) identifies one; `expectedGrade` is free text ("A-", "P", "95", "") and is never parsed. The job keeps them in `_jobs/planetterp/reviews/` (§2.6), a private cache we never serve or republish.
 
   An instructor who teaches in two departments appears in both files.
 - **`GradeCounts`** is a 15-tuple in `GRADE_KEYS` order (`A+ A A- B+ B B- C+ C C- D+ D D- F W Other`).
@@ -420,7 +432,7 @@ CREATE TABLE counters (
    - **One generation at a time.** Concurrent requests in one isolate share one promise. Across isolates, a lock object `_jobs/summary-locks/<slug>.json` is taken with a create-only R2 put (`etagDoesNotMatch: "*"`). A lock older than its 60 s TTL is taken over with an etag-conditional put.
    - **Losers wait.** They poll R2 for up to 20 s for the new summary, then answer `busy`.
 4. **Enforce the daily cap.** A D1 counter `summaries` per UTC day is checked against `SUMMARIES_DAILY_CAP` (a var, 200). Past it → `daily-limit`.
-5. **Get the reviews.** They come from PlanetTerp `/professor?name=…&reviews=true`. The result is used only if its slug matches: names collide, so a mismatch is `failed` rather than the wrong person's reviews.
+5. **Get the reviews.** First from the PlanetTerp job's private copy, `_jobs/planetterp/reviews/<slug>.json` (§2.6), when it holds at least the instructor's `reviewCount`. Otherwise live from PlanetTerp `/professor?name=…&reviews=true`, used only if its slug matches: names collide, so a mismatch falls back to the stored copy, or is `failed` rather than the wrong person's reviews. When PlanetTerp is down or gone, a stored copy that's behind is still used, so summaries can be regenerated without PlanetTerp.
 6. **Run the model** (`src/server/summaries/prompt.ts`).
    - **Input:** the 40 newest reviews, at most 18k characters, each stripped of `<`, `>` and links, inside one `<reviews>` fence. The system prompt says the reviews are data and any instructions inside them must be ignored.
    - **Output:** JSON mode with a schema, then `ModelSummarySchema`:
