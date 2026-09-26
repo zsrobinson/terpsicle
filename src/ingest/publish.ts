@@ -188,3 +188,39 @@ export async function updatePointer<S extends z.ZodType>(
   }
   throw new ManifestConflictError(key, attempts);
 }
+
+/** Hashed files no manifest references are deleted once they've been orphaned this long. */
+export const ORPHAN_GRACE_MS = 24 * 3600 * 1000;
+
+const HASHED_KEY = /\.[0-9a-f]{16}\.json$/;
+
+/**
+ * Deletes the hashed files under `prefix` that nothing references and that
+ * have been orphaned for at least `ORPHAN_GRACE_MS` (DATA.md §2.4), so a
+ * client mid-diff never loses a file. `firstSeen` is when each orphan was
+ * first noticed (job state, since BlobStore has no upload times); the result
+ * is the map to keep for the next run.
+ */
+export async function deleteOrphans(
+  store: BlobStore,
+  prefix: string,
+  referenced: ReadonlySet<string>,
+  firstSeen: Readonly<Record<string, string>>,
+  now: Date,
+): Promise<{ deleted: number; firstSeen: Record<string, string> }> {
+  const keys = (await store.list(prefix)).filter(
+    (k) => HASHED_KEY.test(k) && !referenced.has(k),
+  );
+  const next: Record<string, string> = {};
+  let deleted = 0;
+  for (const key of keys) {
+    const since = firstSeen[key] ?? now.toISOString();
+    if (now.getTime() - Date.parse(since) >= ORPHAN_GRACE_MS) {
+      await store.delete(key);
+      deleted++;
+    } else {
+      next[key] = since;
+    }
+  }
+  return { deleted, firstSeen: next };
+}

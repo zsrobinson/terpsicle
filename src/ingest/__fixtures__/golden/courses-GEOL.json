@@ -1,0 +1,922 @@
+{
+ "schemaVersion": 1,
+ "dept": "GEOL",
+ "courses": [
+  {
+   "code": "GEOL100",
+   "title": "Physical Geology",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [
+    [
+     {
+      "code": "DSNL",
+      "condition": "if taken with GEOL110"
+     },
+     {
+      "code": "DSNS"
+     }
+    ]
+   ],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL102",
+   "title": "Historical Geology",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "GEOL120 or GEOL100; and GEOL110. Or permission of CMNS-Geology department.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "GEOL120",
+      "GEOL100"
+     ],
+     [
+      "GEOL110"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL110",
+   "title": "Physical Geology Laboratory",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": "Must have completed or be concurrently enrolled in GEOL120 or GEOL100.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "GEOL120",
+      "GEOL100"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL120",
+   "title": "Environmental Geology",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [
+    [
+     {
+      "code": "DSNL",
+      "condition": "if taken with GEOL110"
+     },
+     {
+      "code": "DSNS"
+     }
+    ]
+   ],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL123",
+   "title": "Causes and Consequences of Global Change",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [
+    [
+     {
+      "code": "DSNS"
+     }
+    ],
+    [
+     {
+      "code": "SCIS"
+     }
+    ]
+   ],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "AOSC123"
+   ],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL125",
+   "title": "Wicked Problems and Solutions in Climate Change",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "AOSC125"
+   ],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL204",
+   "title": "Dinosaurs, Early Humans, Ancestors, and Evolution; The Fossil Record of Vanished Worlds of the Prehistoric Past",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [
+    [
+     {
+      "code": "DSNS"
+     }
+    ],
+    [
+     {
+      "code": "SCIS"
+     }
+    ]
+   ],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL322",
+   "title": "Mineralogy",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "GEOL120 or GEOL100; and GEOL110. And (CHEM131 or CHEM135) and (CHEM132 or CHEM136).",
+   "corequisite": null,
+   "restriction": "Permission of instructor is required for non-degree seeking students.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "GEOL120",
+      "GEOL100"
+     ],
+     [
+      "GEOL110"
+     ],
+     [
+      "CHEM131",
+      "CHEM135"
+     ],
+     [
+      "CHEM132",
+      "CHEM136"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL340",
+   "title": "Geomorphology",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "GEOL120 or GEOL100.",
+   "corequisite": null,
+   "restriction": "Permission of instructor is required of non-degree seeking students.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "GEOL120",
+      "GEOL100"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL393",
+   "title": "Geology Senior Thesis I: Proposal",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "PHYS141 or PHYS161; and MATH141; and (CHEM131 or CHEM135) and (CHEM132 or CHEM136); and must have completed at least two upper-level geology courses and be concurrently enrolled in a third.",
+   "corequisite": null,
+   "restriction": "Junior standing or higher; and must be in Geology program.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "PHYS141",
+      "PHYS161"
+     ],
+     [
+      "MATH141"
+     ],
+     [
+      "CHEM131",
+      "CHEM135"
+     ],
+     [
+      "CHEM132",
+      "CHEM136"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL394",
+   "title": "Geology Senior Thesis II: Research",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [
+    [
+     {
+      "code": "DSSP"
+     }
+    ]
+   ],
+   "prerequisite": "GEOL393; and must have completed at least three upper level GEOL courses.",
+   "corequisite": null,
+   "restriction": "Must be in Geology program; and junior standing or higher.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "GEOL393"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL435",
+   "title": "Environmental Geochemistry",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "MATH115 and (GEOL436 or GEOL444).",
+   "corequisite": null,
+   "restriction": "Nondegree-seeking students require the permission of the instructor.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH115"
+     ],
+     [
+      "GEOL436",
+      "GEOL444"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL437",
+   "title": "Global Climate Change: Past and Present",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "MATH115 or MATH140; and (GEOL100 or GEOL120); and (CHEM131 or CHEM135); and (CHEM132 or CHEM136).",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [
+    "AOSC437",
+    "GEOL637",
+    "AOSC685"
+   ],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH115",
+      "MATH140"
+     ],
+     [
+      "GEOL100",
+      "GEOL120"
+     ],
+     [
+      "CHEM131",
+      "CHEM135"
+     ],
+     [
+      "CHEM132",
+      "CHEM136"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL443",
+   "title": "Petrology",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "Must have completed or be concurrently enrolled in GEOL423.",
+   "corequisite": null,
+   "restriction": "Non-degree-seeking students require the permission of the instructor.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "GEOL423"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL445",
+   "title": "High Temperature Geochemistry",
+   "credits": {
+    "min": 4,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": "MATH115 and GEOL322.",
+   "corequisite": null,
+   "restriction": "Non-degree-seeking students require the permission of the instructor.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH115"
+     ],
+     [
+      "GEOL322"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL447",
+   "title": "Observational Geophysics",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "MATH141; and (PHYS141, PHYS161, or PHYS171).",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH141"
+     ],
+     [
+      "PHYS141",
+      "PHYS161",
+      "PHYS171"
+     ]
+    ],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL457",
+   "title": "Seismology",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "MATH141; and (GEOL120 or GEOL100); and GEOL110; or permission of CMNS-Geology department.",
+   "corequisite": null,
+   "restriction": "Non-degree-seeking students require the permission of the instructor.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH141"
+     ],
+     [
+      "GEOL120",
+      "GEOL100"
+     ],
+     [
+      "GEOL110"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL488",
+   "title": "Geology Colloquium; Geology Colloquium",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL497",
+   "title": "Recent Advances: Geology",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Must have completed at least 2 upper-level GEOL courses.",
+   "corequisite": "GEOL393; and a third upper-level geology course.",
+   "restriction": "Must be in Geology program; and GPA of 3.0 or better in both overall and in all courses required for the major; and senior standing; and to be taken as late as possible in the program.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL497H",
+   "title": "Recent Advances: Geology",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Must have completed at least 2 upper-level GEOL courses.",
+   "corequisite": "GEOL393; and a third upper-level geology course.",
+   "restriction": "Must be in Geology program; and GPA of 3.0 or better in both overall and in all courses required for the major; and senior standing; and to be taken as late as possible in the program.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL499",
+   "title": "Special Problems in Geology",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL615",
+   "title": "Planetary Habitability and Surface Chemistry",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "GEOL445; or permission of instructor.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "GEOL445"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL635",
+   "title": "Environmental Geochemistry",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Nondegree-seeking students require the permission of the instructor.",
+   "crossListings": [
+    "GEOL435"
+   ],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL647",
+   "title": "Observational Geophysics",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL654",
+   "title": "Fluvial Geomorphology Seminar",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Non-degree-seeking students require the permission of the instructor.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL656",
+   "title": "Engineering and Environmental Geology",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Non-degree-seeking students require the permission of the instructor.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL657",
+   "title": "Seismic Wave Propagation",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": "Non-degree-seeking students require the permission of the instructor.",
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL680",
+   "title": "Geodynamics",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "Permission of instructor.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL683",
+   "title": "Cosmochemistry",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL688",
+   "title": "Geology Colloquium; Geology Colloquium",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL789M",
+   "title": "Recent Advances in Geology; Special Topics; Classification and Machine Learning in the Geosciences",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": "MATH240 or equivalent; or permission of CMNS-Geology department; Some experience in computer programming; Non-degree-seeking students require the permission of the instructor.",
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [
+     [
+      "MATH240"
+     ]
+    ],
+    "complete": false
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL789R",
+   "title": "Recent Advances in Geology; Geoscience Communication",
+   "credits": {
+    "min": 2,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL789Y",
+   "title": "Recent Advances in Geology; Co-Evolution of Life and Envrionment from Archean to Present",
+   "credits": {
+    "min": 2,
+    "max": 4
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL798",
+   "title": "Seminar in Geology",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL799",
+   "title": "Master's Thesis Research",
+   "credits": {
+    "min": 1,
+    "max": 6
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL898",
+   "title": "Pre-Candidacy Research",
+   "credits": {
+    "min": 1,
+    "max": 8
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  },
+  {
+   "code": "GEOL899",
+   "title": "Doctoral Dissertation Research",
+   "credits": {
+    "min": 6,
+    "max": 6
+   },
+   "genEds": [],
+   "prerequisite": null,
+   "corequisite": null,
+   "restriction": null,
+   "crossListings": [],
+   "prereqs": {
+    "groups": [],
+    "complete": true
+   },
+   "offered": [
+    "202701"
+   ]
+  }
+ ]
+}

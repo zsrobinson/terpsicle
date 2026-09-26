@@ -25,6 +25,12 @@ export const seatsKey = (termId: TermId, hash: ContentHash): string =>
 export const changesKey = (termId: TermId, hash: ContentHash): string =>
   `catalog/${termId}/changes.${hash}.json`;
 
+export const COURSE_INDEX_MANIFEST_KEY = "courses/manifest.json";
+export const courseSearchKey = (hash: ContentHash): string =>
+  `courses/search.${hash}.json`;
+export const courseIndexDeptKey = (dept: DeptCode, hash: ContentHash): string =>
+  `courses/dept/${dept}.${hash}.json`;
+
 export const PLANETTERP_MANIFEST_KEY = "planetterp/manifest.json";
 export const planetTerpDeptKey = (dept: DeptCode, hash: ContentHash): string =>
   `planetterp/dept/${dept}.${hash}.json`;
