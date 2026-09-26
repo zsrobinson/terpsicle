@@ -115,6 +115,8 @@ export const REASON_WORDS: Readonly<Record<ReasonCode, string>> = {
   "off-topic": "Not about the course",
   "model-unavailable": "The automatic check didn't finish",
   "daily-cap": "The automatic check hit its daily limit",
+  burst: "More new reviews of this instructor today than usual",
+  reported: "Reported by readers",
   admin: "Decided by a moderator",
   undo: "A moderator's decision was undone",
 };

@@ -38,7 +38,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 - **Seat alerts retire the email-token flow** rather than migrate it; nothing is public, and the only real subscriptions were the owner's deleted test rows.
 - **One Worker** (`terpsicle`) with one Durable Object class (`CourseChat`, one object per course per term), the one exception to BUILD.md §1's no-Durable-Objects rule.
 - **Migrations are pre-numbered** `0003`–`0009` so parallel PRs don't collide.
-- **Brand refresh** (Bulletin paper, Flexoki, Bricolage Grotesque) waits for the owner's sign-off; engineering keeps today's tokens.
+- **Brand: Ink** (owner-locked 2026-09-26; `v2/brand`, docs/DESIGN.md §7): Flexoki paper and ink, Bricolage Grotesque with Geist Mono for codes, square corners, hard offsets on buttons and floating layers, a subtle paper grain, and the Pixel star marks. The marks are data in `src/app/brand/marks.ts`, and `scripts/build-icons.ts` redraws every icon file from them. The product menu is the brand's app switcher.
 - **Wildcards in Generate** (`v2/wildcards`, owner request): `CMSC4XX`, `ARTTXXX` and gen-ed codes (`DSHS`) as "pick one course from this set", with the matcher in `src/core/catalog/wildcard.ts` for the four-year planner to reuse. Interpretations, flagged for the owner:
   - suffix letters match (`CMSC4XX` includes CMSC498A and honors "H" courses);
   - a conditional gen-ed ("DSNL if taken with GEOL110") doesn't count; a choice ("DSHS or DSHU") counts for each code;
@@ -83,6 +83,7 @@ Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, gre
 
 - `m8/qa-3`: post-redesign regression on production.
 - v2 wave 1: `v2/plan`, `v2/routes`, `v2/identity`, `v2/pwa`, `v2/chat-rooms`, `v2/moderation`.
+- `v2/brand`: the Ink brand in the app (tokens, type, buttons, grain, marks, icons, product menu).
 - `v3/plan`: the plan for Terpsicle Plan and Terpsicle Todo (`docs/V3.md`).
 
 ## Decisions

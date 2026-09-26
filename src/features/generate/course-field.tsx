@@ -210,7 +210,7 @@ export function CourseField({
           id={listId}
           role="listbox"
           aria-label="Suggested courses"
-          className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-hairline bg-raised py-1 shadow-pop"
+          className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden border border-keyline bg-raised py-1 shadow-pop"
         >
           {suggestions.map((s, i) => (
             <div

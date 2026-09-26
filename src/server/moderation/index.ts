@@ -5,6 +5,7 @@ export {
   type ModerationConfig,
 } from "./classify";
 export {
+  type HandlerContext,
   MODERATION_HANDLERS,
   type ModerationHandler,
   type ModerationHandlers,
@@ -14,4 +15,7 @@ export {
   DEFAULT_DAILY_CAP,
   type ModerationEnv,
   moderate,
+  type OwnerItem,
+  queueForOwner,
+  withdrawFromQueue,
 } from "./service";
