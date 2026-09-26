@@ -25,14 +25,20 @@ export default defineConfig({
       },
       {
         // Timing budgets (BUILD.md §5). Kept out of "core" so they never run
-        // under coverage instrumentation, which slows code several times over,
-        // and run after every other project so they get the CPU to themselves.
+        // under coverage instrumentation, which slows code several times over.
+        // They run after every other project (groupOrder) and one file at a
+        // time (fileParallelism), so each budget has the CPU to itself. CPU
+        // time still grows when other files share the cores (hyperthreads,
+        // caches, memory bandwidth): with the four perf files side by side,
+        // `pnpm check` on a 4-core runner measured the 7×20 generator at
+        // 199–258 ms, against 75–150 ms in CI's shards on the same code.
         extends: true,
         test: {
           name: "perf",
           environment: "node",
           include: ["src/**/*.perf.test.ts"],
           sequence: { groupOrder: 1 },
+          fileParallelism: false,
           // Budgets are medians of several runs (src/fixtures/timing.ts).
           testTimeout: 60_000,
         },
