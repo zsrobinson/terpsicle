@@ -6,10 +6,12 @@
 // sees them. API and flow: docs/MODERATION.md.
 import { isUrgent, needsRetry } from "~/core/moderation";
 import {
+  type CourseCode,
   type ModerationDecision,
   type ModerationInput,
   ModerationInputSchema,
   type ModerationKind,
+  type ModerationReason,
   type ModerationResult,
   type QueueSnapshot,
 } from "~/core/schema";
@@ -20,7 +22,11 @@ import {
   type ModerationConfig,
   resolveConfig,
 } from "./classify";
-import { MODERATION_HANDLERS, type ModerationHandlers } from "./handlers";
+import {
+  type ModerationHandlerEnv,
+  type ModerationHandlers,
+  moderationHandlers,
+} from "./handlers";
 import {
   autoVerdict,
   blankOldSnapshots,
@@ -28,14 +34,16 @@ import {
   decisionsFor,
   deleteQueueRow,
   dropWaitingQueueItem,
+  getWaitingRow,
   insertDecision,
   listRetryRows,
+  queueOpenItem,
   setQueueStatus,
   updateRetryRow,
   upsertQueueItem,
 } from "./store";
 
-export interface ModerationEnv {
+export interface ModerationEnv extends ModerationHandlerEnv {
   DB: D1Database;
   AI: Ai;
   /** Model calls per UTC day, at most (Workers AI cost). */
@@ -144,6 +152,97 @@ export async function moderate(
   return publicResult(c);
 }
 
+/** Something a feature sends to the owner without a model deciding it. */
+export interface OwnerItem {
+  kind: ModerationKind;
+  targetId: string;
+  /** What readers see (or would see): the snapshot for a new queue row. */
+  text: string;
+  course: CourseCode | null;
+  /** Why: `reported` from reports, `burst` from Reviews' limits. */
+  reasons: readonly ModerationReason[];
+  urgent: boolean;
+}
+
+const reasonKey = (r: ModerationReason) =>
+  `${r.code}|${r.source}|${r.report ?? ""}|${r.category ?? ""}`;
+
+/** Old labels with new ones added; a newer label replaces its same-kind twin. */
+function mergeReasons(
+  old: readonly ModerationReason[],
+  added: readonly ModerationReason[],
+): ModerationReason[] {
+  const merged = new Map(old.map((r) => [reasonKey(r), r]));
+  for (const r of added) merged.set(reasonKey(r), r);
+  return [...merged.values()];
+}
+
+/**
+ * Puts an item in the owner's queue for a reason that isn't the text's:
+ * readers reported it (V2 §9.3), or Reviews saw a burst (V2 §7.4). An item
+ * already waiting keeps its place and snapshot, gains the reasons, and
+ * becomes the owner's (a retry wouldn't answer a report). `decision` also
+ * logs what the feature did: `hide` when reports took it down, `hold` for a
+ * burst. Like moderate(), nothing here names an author.
+ */
+export async function queueForOwner(
+  env: Pick<ModerationEnv, "DB">,
+  item: OwnerItem,
+  deps: {
+    now: Date;
+    decision?: { stage: "rules" | "reports"; verdict: "hold" | "hide" };
+  },
+): Promise<void> {
+  const waiting = await getWaitingRow(env.DB, item.kind, item.targetId);
+  const labels = mergeReasons(waiting?.labels ?? [], item.reasons);
+  const statements = [
+    queueOpenItem(env.DB, {
+      surface: item.kind,
+      ref: item.targetId,
+      snapshot: {
+        text: item.text,
+        course: item.course,
+        activeAssignments: false,
+        scores: {},
+        retries: 0,
+      },
+      labels,
+      urgent: item.urgent || isUrgent(item.reasons),
+      now: deps.now,
+    }),
+  ];
+  if (deps.decision)
+    statements.push(
+      insertDecision(env.DB, {
+        surface: item.kind,
+        ref: item.targetId,
+        stage: deps.decision.stage,
+        verdict: deps.decision.verdict,
+        labels: item.reasons,
+        guard: null,
+        policy: null,
+        models: null,
+        latencyMs: null,
+        decidedBy: "system",
+        reason: null,
+        now: deps.now,
+      }),
+    );
+  await env.DB.batch(statements);
+}
+
+/**
+ * Takes an item out of the queue because it's gone (its author deleted it).
+ * The decision log keeps its history.
+ */
+export async function withdrawFromQueue(
+  db: D1Database,
+  kind: ModerationKind,
+  targetId: string,
+): Promise<void> {
+  await dropWaitingQueueItem(db, kind, targetId).run();
+}
+
 export interface RetryReport {
   retried: number;
   published: number;
@@ -165,7 +264,7 @@ export async function retryHeld(
   env: ModerationEnv,
   deps: ModerationDeps & { handlers?: ModerationHandlers },
 ): Promise<RetryReport> {
-  const handlers = deps.handlers ?? MODERATION_HANDLERS;
+  const handlers = deps.handlers ?? moderationHandlers(env);
   const report: RetryReport = {
     retried: 0,
     published: 0,
@@ -196,7 +295,11 @@ export async function retryHeld(
     });
     if (c.decision !== "hold") {
       try {
-        await handlers[row.surface]?.(row.ref, c.decision);
+        await handlers[row.surface]?.(row.ref, c.decision, {
+          db: env.DB,
+          now: deps.now,
+          reasons: c.reasons,
+        });
       } catch (error) {
         console.warn({
           moderation: "retry handler error",
@@ -246,7 +349,30 @@ export async function currentDecision(
   kind: ModerationKind,
   targetId: string,
 ): Promise<ModerationDecision | null> {
+  return (await latestDecision(db, kind, targetId))?.decision ?? null;
+}
+
+/**
+ * The latest decision with its reasons, so a feature can tell a hold that
+ * waits for a retry (`needsRetry`) from one that waits for the owner.
+ */
+export async function latestDecision(
+  db: D1Database,
+  kind: ModerationKind,
+  targetId: string,
+): Promise<{
+  decision: ModerationDecision;
+  reasons: ModerationReason[];
+  /** When it was decided, ISO: an edit after it hasn't been screened. */
+  decidedAt: string;
+} | null> {
   const decisions = await decisionsFor(db, kind, targetId);
   const latest = decisions.at(-1);
-  return latest ? decisionOf(latest.verdict) : null;
+  return latest
+    ? {
+        decision: decisionOf(latest.verdict),
+        reasons: latest.labels,
+        decidedAt: latest.created_at,
+      }
+    : null;
 }

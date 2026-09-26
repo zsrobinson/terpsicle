@@ -6,12 +6,24 @@
 import type { z } from "zod";
 import {
   AccountDeleteInputSchema,
+  ChatFollowInputSchema,
+  ChatMembersInputSchema,
+  ChatMuteInputSchema,
+  ChatUnreadInputSchema,
   ConfirmInputSchema,
+  type FeatureLevel,
+  FeatureVarsSchema,
   ManageInputSchema,
   MeInputSchema,
   QueueListInputSchema,
+  ReportCreateInputSchema,
   ResolveInputSchema,
+  ReviewDeleteInputSchema,
+  ReviewEditInputSchema,
+  ReviewListInputSchema,
+  ReviewSubmitInputSchema,
   ReviewSummaryInputSchema,
+  ReviewsMineInputSchema,
   SignOutInputSchema,
   StatusInputSchema,
   type StatusResult,
@@ -45,6 +57,14 @@ import type { AuthEnv } from "../auth/config";
 import { handleFlow, isFlowRoute } from "../auth/flow";
 import { isSameOrigin } from "../auth/guard";
 import { getSession } from "../auth/session";
+import {
+  type ChatApiEnv,
+  follow,
+  members,
+  mute,
+  unfollow,
+  unread,
+} from "../chat/api";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import {
@@ -53,10 +73,19 @@ import {
   undoQueueItem,
 } from "../moderation/admin";
 import {
-  MODERATION_HANDLERS,
   type ModerationHandlers,
+  moderationHandlers,
 } from "../moderation/handlers";
+import { createReport } from "../moderation/reports";
 import type { ModerationEnv } from "../moderation/service";
+import {
+  deleteReview,
+  editReview,
+  listReviews,
+  myReviews,
+  type ReviewsEnv,
+  submitReview,
+} from "../reviews/api";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
 import { pull, push } from "../sync/api";
 import {
@@ -69,7 +98,12 @@ import {
 
 export const API_PREFIX = "/api/";
 
-export type ApiEnv = AlertsEnv & SummaryEnv & AuthEnv & ModerationEnv;
+export type ApiEnv = AlertsEnv &
+  SummaryEnv &
+  AuthEnv &
+  ModerationEnv &
+  ChatApiEnv &
+  ReviewsEnv;
 
 interface Route<S extends z.ZodType> {
   input: S;
@@ -96,6 +130,12 @@ interface Route<S extends z.ZodType> {
    * handler gets `ctx.session`. Omitted means "none".
    */
   auth?: "none" | "user" | "admin";
+  /**
+   * The least REVIEWS_ENABLED this route needs (V2 §7.4): "read" for
+   * reading, deleting and reporting, "on" for writing. Below it the route
+   * answers `unavailable`, before any rate limiting.
+   */
+  reviews?: Exclude<FeatureLevel, "off">;
   /** A plain value is sent as JSON; a Response (to set cookies) as is. */
   handle: (
     env: ApiEnv,
@@ -113,7 +153,7 @@ export type RouteContext = AlertsContext &
 export interface ApiOptions {
   /** Outbound fetch for Google and pictures; tests mock it. */
   fetch?: typeof fetch;
-  /** Overrides MODERATION_HANDLERS, for tests. */
+  /** Overrides moderationHandlers(env), for tests. */
   moderationHandlers?: ModerationHandlers;
 }
 
@@ -202,6 +242,94 @@ const ROUTES = {
     auth: "user",
     handle: (env, input, ctx) => pull(env, input, ctx),
   }),
+  // Chat (V2.md §8.5). Messages go over the socket, /api/chat/socket.
+  "chat/unread": route({
+    input: ChatUnreadInputSchema,
+    perUserPerHour: 1_200,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => unread(env, input, ctx),
+  }),
+  "chat/follow": route({
+    input: ChatFollowInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => follow(env, input, ctx),
+  }),
+  "chat/unfollow": route({
+    input: ChatFollowInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => unfollow(env, input, ctx),
+  }),
+  "chat/mute": route({
+    input: ChatMuteInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => mute(env, input, ctx),
+  }),
+  "chat/members": route({
+    input: ChatMembersInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => members(env, input, ctx),
+  }),
+  // Terpsicle Reviews (V2.md §7.4). Anonymous to readers: see reviews/api.ts.
+  "reviews/list": route({
+    input: ReviewListInputSchema,
+    perIpPerHour: 1_200,
+    alerts: false,
+    reviews: "read",
+    handle: (env, input) => listReviews(env, input),
+  }),
+  "reviews/submit": route({
+    input: ReviewSubmitInputSchema,
+    // Each one costs two model calls; ten new reviews a week is the real limit.
+    perUserPerHour: 20,
+    alerts: false,
+    auth: "user",
+    reviews: "on",
+    handle: (env, input, ctx) => submitReview(env, input, ctx),
+  }),
+  "reviews/edit": route({
+    input: ReviewEditInputSchema,
+    perUserPerHour: 30,
+    alerts: false,
+    auth: "user",
+    reviews: "on",
+    handle: (env, input, ctx) => editReview(env, input, ctx),
+  }),
+  "reviews/delete": route({
+    input: ReviewDeleteInputSchema,
+    perUserPerHour: 60,
+    alerts: false,
+    auth: "user",
+    // Taking your own words down works even while writing is off.
+    reviews: "read",
+    handle: (env, input, ctx) => deleteReview(env, input, ctx),
+  }),
+  "reviews/mine": route({
+    input: ReviewsMineInputSchema,
+    perUserPerHour: 300,
+    alerts: false,
+    auth: "user",
+    reviews: "read",
+    handle: (env, _input, ctx) => myReviews(env, ctx),
+  }),
+  // Shared with Chat (V2.md §9.3); only reviews take reports so far, so it
+  // follows Reviews' switch until Chat lands.
+  "reports/create": route({
+    input: ReportCreateInputSchema,
+    perUserPerHour: 30,
+    alerts: false,
+    auth: "user",
+    reviews: "read",
+    handle: (env, input, ctx) => createReport(env, input, ctx),
+  }),
   // Moderation's admin side (docs/MODERATION.md §6).
   "admin/moderation/queue": route({
     input: QueueListInputSchema,
@@ -233,6 +361,14 @@ const ROUTES = {
       }),
   }),
 } as const;
+
+const LEVELS: readonly FeatureLevel[] = ["off", "read", "on"];
+
+/** Whether REVIEWS_ENABLED is at least `needed` (unset or unknown is "off"). */
+function reviewsAllow(env: ApiEnv, needed: FeatureLevel): boolean {
+  const level = FeatureVarsSchema.parse(env).REVIEWS_ENABLED;
+  return LEVELS.indexOf(level) >= LEVELS.indexOf(needed);
+}
 
 /**
  * Where links in emails point. Only our own hosts: a forged Host header must
@@ -276,6 +412,8 @@ export async function handleApi(
   }
   if (r.whenOff !== undefined && !alertsEnabled(env)) return json(r.whenOff);
   if (r.alerts && !alertsEnabled(env)) return apiError("unavailable");
+  if (r.reviews && !reviewsAllow(env, r.reviews))
+    return apiError("unavailable");
 
   const window = { seconds: 3_600 };
   const limited = () => {
@@ -328,7 +466,7 @@ export async function handleApi(
     request,
     session,
     ...(options.fetch ? { fetch: options.fetch } : {}),
-    moderationHandlers: options.moderationHandlers ?? MODERATION_HANDLERS,
+    moderationHandlers: options.moderationHandlers ?? moderationHandlers(env),
   });
   return reply(result instanceof Response ? result : json(result));
 }
