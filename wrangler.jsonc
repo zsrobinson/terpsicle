@@ -62,7 +62,15 @@
     "GOOGLE_REDIRECT_ORIGINS": "https://terpsicle.com",
     // Moderation model calls per UTC day, at most (Workers AI cost). Past it,
     // new reviews and chat messages wait for the owner (docs/MODERATION.md).
-    "MODERATION_DAILY_CAP": "2000"
+    "MODERATION_DAILY_CAP": "2000",
+    // Terpsicle Todo (docs/V3.md §3). "on" also needs the secret
+    // TODO_FEED_KEY (32 random bytes, base64url) on this Worker; without it
+    // every /api/todo/* answers "unavailable". To rotate the key: set the new
+    // one as TODO_FEED_KEY with a new TODO_FEED_KEY_ID, and the old one as
+    // TODO_FEED_KEY_PREVIOUS with TODO_FEED_KEY_PREVIOUS_ID (a var); once no
+    // row names the old id, remove both (docs/V3.md §3.3).
+    "TODO_ENABLED": "off",
+    "TODO_FEED_KEY_ID": "k1"
   },
   "ai": { "binding": "AI" },
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.
@@ -75,7 +83,8 @@
       "0 */6 * * *", // catalog
       "17 5 * * *", // planetterp
       "23 6 * * 1", // calendar + buildings
-      "7 13 * * *" // daily: account purge, expired sessions
+      "7 13 * * *", // daily: account purge, expired sessions, Todo pruning
+      "3,23,43 * * * *" // todo feeds
       // Routes run from GitHub Actions (.github/workflows/routes.yml): a
       // Worker can't fetch UMD's routing token (maps.umd.edu answers 526).
     ]
@@ -91,8 +100,11 @@
   // and tadmin is the admin. The Worker refuses test mode on terpsicle.com
   // whatever the vars say (docs/AUTH.md, "Test mode").
   "previews": {
+    // Todo on previews runs in test mode: a fixed key and the fixture feed,
+    // never TODO_FEED_KEY or a real ELMS link.
     "vars": {
-      "AUTH_TEST_MODE": "true"
+      "AUTH_TEST_MODE": "true",
+      "TODO_ENABLED": "on"
     },
     "r2_buckets": [
       { "binding": "DATA", "bucket_name": "terpsicle-data" },

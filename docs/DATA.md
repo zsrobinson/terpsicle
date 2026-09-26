@@ -565,6 +565,20 @@ The design is `docs/V2.md` §5; the routes are `src/server/sync/api.ts`, the SQL
 - **Saving** is one D1 batch per push (a transaction): per doc, read the stored row, then `head + 1` and the upsert, both only if the stored rev (0 for no row) is the push's `baseRev` and a new live plan stays within 200. No row and a non-zero base (a pruned tombstone) is a conflict with `doc: null`.
 - **Deleting an account** removes both tables' rows: explicitly in the purge, and by `ON DELETE CASCADE`.
 
+### 7.8 Terpsicle Todo (landed: `migrations/0011_todo.sql`)
+
+The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the SQL `src/server/todo/store.ts` (with `TodoFeedRowSchema` and `TodoItemRowSchema`), the fetcher `fetch.ts`, the per-feed write `refresh.ts`, and the cron `src/jobs/todo-feeds.ts`. Inputs, answers and limits are `src/core/schema/todo-api.ts`; the pure pieces (cadence, backoff, the window, file items, test mode's feed) are in `src/core/todo`.
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `todo_feeds` | `(user_id, source)` | `url_enc`, `status` (`active` · `paused` · `broken`), `created_at`, `next_fetch_at`, `last_fetch_at`, `last_success_at`, `failure_count`, `last_error` (a code), `gone_strikes`, `gone_at`, `etag`, `last_modified`, `content_hash`, `item_count`, `last_opened_at` | One ELMS feed per person. `url_enc` is the link sealed with AES-256-GCM, `v1.<keyId>.<iv>.<ciphertext>`, bound to `todo-feed:<userId>:<source>`; only `src/server/todo/crypto.ts` and `fetch.ts` touch it (`scripts/check-imports.ts`), and store.ts reads rows by naming every other column. `gone_strikes` / `gone_at` count 401/403/404/410 answers in a row at least an hour apart; the third sets `broken`. |
+| `todo_items` | `(user_id, uid)` | `source` (`elms` · `file`), `title`, `course_label`, `course_code`, `section_code`, `kind`, `exam`, `gradescope`, `due_at`, `due_date`, `link`, `first_seen_at`, `updated_at` | Only `due_date` from 30 days ago to a year ahead, at most 1,500 feed items and 1,000 file items. A fetch is two statements whatever the size (`json_each`): an upsert that writes only changed rows, and a delete of the source's items that left. A feed item replaces a file item with its UID; a file item never replaces a feed item. No descriptions. |
+| `todo_done` | `(user_id, uid)` | `done_at` | Apart from items, so a refetch or a reconnect keeps them. |
+
+- **Disconnecting** deletes the feed row, its `elms` items and every done mark not on a remaining file item, in one batch.
+- **The daily job** deletes items due more than 30 days ago, and done marks over 30 days old whose item is gone (we don't record when an item left the feed, so the mark's age stands in).
+- **Deleting an account** removes all three by `ON DELETE CASCADE`.
+
 ---
 
 ## 8. Share links

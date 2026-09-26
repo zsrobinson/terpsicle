@@ -124,6 +124,8 @@ export const FlagsSchema = z.object({
   reviews: FeatureLevelSchema,
   seatAlerts: z.boolean(),
   push: z.boolean(),
+  /** Terpsicle Todo works here (TODO_ENABLED, and the feed key or test mode). */
+  todo: z.boolean(),
   /** Test mode: Sign in goes to /auth/test's fixture people, not Google. */
   authTestMode: z.boolean(),
 });

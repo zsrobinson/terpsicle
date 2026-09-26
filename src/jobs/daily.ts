@@ -1,13 +1,15 @@
 import { deletePictures } from "~/server/auth/pictures";
 import { accountsDueForPurge, purgeAccounts } from "~/server/auth/store";
 import { pruneTombstones } from "~/server/sync/store";
+import { pruneTodo } from "~/server/todo/store";
 import { type Job, runJob } from "./job";
 
 /**
  * The daily housekeeping job (V2.md §13, `7 13 * * *`). Today: purges
  * accounts whose week of grace after "Delete account" has ended (their
  * pictures in R2, then their rows, identities, sessions and synced docs),
- * expired sessions, and deleted plans' tombstones 30 days on (V2.md §5.2).
+ * expired sessions, deleted plans' tombstones 30 days on (V2.md §5.2), and
+ * Todo items due over 30 days ago with their stale done marks (V3.md §3.4).
  * Later PRs add the chat digest, the moderation digest, and the rest of an
  * account's data to the purge (V2.md §4.7).
  */
@@ -19,11 +21,14 @@ export const runDailyJob: Job = async (context) => {
     for (const userId of due) await deletePictures(env.USER_CONTENT, userId);
     const purged = await purgeAccounts(env.DB, now);
     const tombstonesPruned = await pruneTombstones(env.DB, now);
+    const todo = await pruneTodo(env.DB, now);
     return {
       counts: {
         accountsPurged: purged.accounts,
         sessionsExpired: purged.sessions,
         tombstonesPruned,
+        todoItemsPruned: todo.items,
+        todoDoneMarksPruned: todo.doneMarks,
       },
       errors: [],
     };

@@ -52,6 +52,8 @@ export default defineConfig(({ command, mode }) => ({
               if (mode === "mock") {
                 worker.vars ??= {};
                 worker.vars.AUTH_TEST_MODE = "true";
+                // Todo in test mode: the fixed key and the fixture feed.
+                worker.vars.TODO_ENABLED = "on";
               }
             }
           : undefined,
