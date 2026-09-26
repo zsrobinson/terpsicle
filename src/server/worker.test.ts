@@ -4,12 +4,16 @@ import {
   waitOnExecutionContext,
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
+import { INLINE_SCRIPT_HASHES } from "virtual:terpsicle/inline-script-hashes";
 import { describe, expect, it, vi } from "vitest";
+import { CSP_NONCE_HEADER } from "~/core/schema";
 import { CRON_JOBS, UnknownCronError } from "~/jobs/index";
 import { testBindings } from "./test-bindings";
 import { createWorker } from "./worker";
 
-const app = { fetch: vi.fn(async () => new Response("app shell")) };
+const app = {
+  fetch: vi.fn(async (_request: Request) => new Response("app shell")),
+};
 const worker = createWorker(app);
 
 async function get(url: string, init?: RequestInit) {
@@ -92,6 +96,106 @@ describe("fetch", () => {
     expect(response.headers.get("Location")).toBe(
       "https://terpsicle.com/x?plan=abc",
     );
+  });
+});
+
+describe("security headers (V2.md §12)", () => {
+  const html = () =>
+    new Response("<!doctype html>", {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  const nonceOf = (policy: string | null) =>
+    /'nonce-([^']+)'/.exec(policy ?? "")?.[1];
+
+  it("send every page a report-only CSP, with the nonce the app rendered", async () => {
+    app.fetch.mockClear();
+    app.fetch.mockResolvedValueOnce(html());
+    const response = await get("https://terpsicle.com/", {
+      // A client can't choose the nonce.
+      headers: { [CSP_NONCE_HEADER]: "chosen-by-client" },
+    });
+    const policy = response.headers.get("Content-Security-Policy-Report-Only");
+    expect(response.headers.get("Content-Security-Policy")).toBeNull();
+    const nonce = nonceOf(policy);
+    expect(nonce).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+    const seen = app.fetch.mock.calls[0]?.[0];
+    expect(seen?.headers.get(CSP_NONCE_HEADER)).toBe(nonce);
+    for (const hash of INLINE_SCRIPT_HASHES) expect(policy).toContain(hash);
+    expect(policy).toContain(
+      "report-uri https://terpsicle.com/api/csp-report; report-to csp",
+    );
+    expect(response.headers.get("Reporting-Endpoints")).toBe(
+      'csp="https://terpsicle.com/api/csp-report"',
+    );
+    expect(Object.fromEntries(response.headers)).toMatchObject({
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
+      "cross-origin-opener-policy": "same-origin",
+      "strict-transport-security": "max-age=31536000",
+      "cache-control": "no-cache",
+    });
+    expect(await response.text()).toBe("<!doctype html>");
+  });
+
+  it("make a fresh nonce for every page", async () => {
+    app.fetch.mockResolvedValueOnce(html()).mockResolvedValueOnce(html());
+    const a = await get("https://terpsicle.com/");
+    const b = await get("https://terpsicle.com/");
+    expect(
+      nonceOf(a.headers.get("Content-Security-Policy-Report-Only")),
+    ).not.toBe(nonceOf(b.headers.get("Content-Security-Policy-Report-Only")));
+  });
+
+  it("send API answers the headers for any response, but no CSP", async () => {
+    const response = await get("https://terpsicle.com/api/me", {
+      method: "POST",
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("application/json");
+    expect(Object.fromEntries(response.headers)).toMatchObject({
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "strict-transport-security": "max-age=31536000",
+    });
+    expect(response.headers.has("Content-Security-Policy-Report-Only")).toBe(
+      false,
+    );
+    const missing = await get("https://terpsicle.com/api/nope", {
+      method: "POST",
+    });
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+
+  it("reach redirects and the service worker too", async () => {
+    const redirect = await get("https://www.terpsicle.com/x");
+    expect(redirect.status).toBe(301);
+    expect(redirect.headers.get("Strict-Transport-Security")).toBe(
+      "max-age=31536000",
+    );
+    const sw = await get("https://terpsicle.com/sw.js");
+    expect(sw.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+
+  it("never send HSTS over plain HTTP (local dev)", async () => {
+    app.fetch.mockResolvedValueOnce(html());
+    const response = await get("http://localhost:3000/");
+    expect(response.headers.has("Strict-Transport-Security")).toBe(false);
+    expect(response.headers.get("Reporting-Endpoints")).toBe(
+      'csp="http://localhost:3000/api/csp-report"',
+    );
+  });
+
+  it("take CSP reports at /api/csp-report", async () => {
+    const response = await get("https://terpsicle.com/api/csp-report", {
+      method: "POST",
+      body: JSON.stringify({ "csp-report": { "blocked-uri": "eval" } }),
+      headers: { "Content-Type": "application/csp-report" },
+    });
+    expect(response.status).toBe(204);
   });
 });
 
