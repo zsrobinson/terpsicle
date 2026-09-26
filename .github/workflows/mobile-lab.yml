@@ -78,7 +78,7 @@ jobs:
           elif [ "$EVENT" = pull_request ]; then
             url="https://pr-$PR-terpsicle.zsrobinson.workers.dev"; engines=webkit,android,ios; scenarios=
           elif [ "$EVENT" = push ]; then
-            url=https://terpsicle.com; engines=android,ios; scenarios=open-results
+            url=https://terpsicle.com; engines=android,ios; scenarios=add-sections
           else
             url=https://terpsicle.com; engines=webkit,android,ios; scenarios=
           fi
