@@ -31,6 +31,7 @@ import {
   CourseCodeSchema,
   DirectoryIdSchema,
   type Moderation,
+  type ModerationReason,
   parseRoomId,
   type RoomId,
   TermIdSchema,
@@ -565,9 +566,14 @@ export class CourseChat extends DurableObject<Env> {
     courseCode: string;
     messageId: string;
     decision: "publish" | "hold" | "remove";
+    /** Why, when moderation says (a retry's reasons); none from the owner's approve. */
+    reasons?: readonly ModerationReason[];
   }): Promise<void> {
     this.#bind(target.termId, target.courseCode);
-    await this.#apply(target.messageId, chatModeration(target.decision, []));
+    await this.#apply(
+      target.messageId,
+      chatModeration(target.decision, target.reasons ?? []),
+    );
   }
 
   /**

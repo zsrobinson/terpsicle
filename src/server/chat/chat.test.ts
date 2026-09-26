@@ -703,6 +703,28 @@ describe("sending", () => {
     expect(b.client.pending("moderation")).toEqual([]);
   });
 
+  it("says why a later hold holds, when moderation passes its reasons", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(
+      courseRoom,
+      "is the exam curved [retry]",
+    );
+    const id = ack.message?.id ?? "";
+    await moderationHandlers(env).chat?.(
+      chatTargetId(TERM, COURSE, id),
+      "hold",
+      {
+        reasons: [{ code: "shares-answers", source: "rules", action: "hold" }],
+      },
+    );
+    expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      {
+        moderation: { state: "held", reason: "graded-work" },
+      },
+    );
+  });
+
   it("removes, and tells only the author", async () => {
     const { student, classmate } = await twoPeople();
     const a = await student.join([courseRoom]);

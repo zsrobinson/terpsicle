@@ -1,17 +1,19 @@
 // How a decision made later (by the owner, or by an automatic retry) reaches
 // the feature that owns the item: Reviews publishes or hides the review,
 // Chat delivers or deletes the message.
-
+import type { ModerationReason } from "~/core/schema";
 import type { CourseChatNamespace } from "../chat/course-chat";
 import { chatModerationHandler } from "../chat/moderation-handler";
 
 /**
  * Called with the item's new state. Must be idempotent: undo calls it again
  * with "hold", and a retry that fails partway runs it again next time.
+ * `ctx.reasons`, when given, says why (v2/reviews-api passes them).
  */
 export type ModerationHandler = (
   targetId: string,
   decision: "publish" | "hold" | "remove",
+  ctx?: { reasons?: readonly ModerationReason[] },
 ) => Promise<void>;
 
 export type ModerationHandlers = Partial<

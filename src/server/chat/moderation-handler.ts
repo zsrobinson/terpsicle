@@ -5,6 +5,7 @@ import {
   ChatMessageIdSchema,
   CourseCodeSchema,
   courseRoomId,
+  type ModerationReason,
   TermIdSchema,
 } from "~/core/schema";
 import type { CourseChatNamespace } from "./course-chat";
@@ -37,10 +38,16 @@ export function parseChatTargetId(
   };
 }
 
+/**
+ * Chat's handler. The optional third argument matches the handler context
+ * v2/reviews-api adds (`{db, now, reasons}`): with reasons, a hold says why
+ * (graded work or flagged) instead of just "flagged".
+ */
 export function chatModerationHandler(namespace: CourseChatNamespace) {
   return async (
     targetId: string,
     decision: "publish" | "hold" | "remove",
+    ctx?: { reasons?: readonly ModerationReason[] },
   ): Promise<void> => {
     const target = parseChatTargetId(targetId);
     // Not one of ours (a malformed ref): nothing to deliver.
@@ -48,6 +55,10 @@ export function chatModerationHandler(namespace: CourseChatNamespace) {
     const stub = namespace.get(
       namespace.idFromName(courseRoomId(target.termId, target.courseCode)),
     );
-    await stub.applyDecision({ ...target, decision });
+    await stub.applyDecision({
+      ...target,
+      decision,
+      ...(ctx?.reasons ? { reasons: [...ctx.reasons] } : {}),
+    });
   };
 }
