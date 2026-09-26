@@ -40,10 +40,6 @@ on:
     - cron: "23 8 * * *"
   pull_request:
     types: [labeled]
-  # TEMPORARY (remove before merge): lets the tooling PR run every engine
-  # against production before the workflow is on main for workflow_dispatch.
-  push:
-    branches: [m8/mobile-device-lab]
 
 concurrency:
   group: mobile-lab-${{ github.event.pull_request.number || github.run_id }}-${{ github.event_name }}
