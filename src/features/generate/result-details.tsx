@@ -42,8 +42,8 @@ function useResult(resultId: string) {
   }, [status, resultId]);
 }
 
-/** The breadcrumb: "Option 3". */
-export function resultCrumb(resultId: string): string {
+/** Its name, on its Back button and the next view's: "Option 3". */
+export function resultName(resultId: string): string {
   const { status } = useGenerateRun.getState();
   if (status.kind !== "done") return "Plan";
   const i = status.result.results.findIndex((r) => r.id === resultId);

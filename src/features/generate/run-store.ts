@@ -13,6 +13,7 @@ import {
   type TermId,
 } from "~/core/schema";
 import { deptOf, useCatalog } from "~/state/catalog-store";
+import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import {
   defaultGenerator,
@@ -74,7 +75,12 @@ export const useGenerateRun = create<GenerateRunState>()((set, get) => ({
     });
   },
   clearSelected: () => set({ selected: [] }),
-  setView: (view) => set({ view }),
+  setView: (view) => {
+    if (get().view === view) return;
+    set({ view });
+    // Results and the form are two places: Back returns to the other.
+    useUi.getState().markNavigation();
+  },
 }));
 
 let generator: Generator | null = null;
@@ -175,6 +181,8 @@ export async function runGenerate(
       status: { kind: "done", request, result, durationMs },
       view: "results",
     });
+    // The results are a place of their own: Back returns to the form.
+    if (isCurrent()) useUi.getState().markNavigation();
     track("generate_run", {
       courses: input.courses.length,
       mustHaves: activeMustHaves(request.mustHaves, request.blocks.length > 0),

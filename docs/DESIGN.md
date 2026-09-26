@@ -84,7 +84,7 @@ All four variants used the Workbench layout. They differed only in where course 
 | Comparing plans | None | "note this as a future feature, but i don't feel like it's necessary rn and the UX is a bit tricky." |
 | First tab name | **Courses** | |
 | Rail | Icon + label | "i definitely prefer this but it kind of reminds me of slack, which isn't good. for some reason apps that have this icon and rail thing with the grounded thing around it alaways seem to suck. maybe ours won't. i think this is *fine* for now. the text labels are very necessary i think, since most users are coming in blind." |
-| Drill-in header | **Breadcrumb** | |
+| Drill-in header | ~~Breadcrumb~~ **One Back** (2026-09-26) | "idk if i love the breadcrumbs because you have to think about pressing 'courses' instead of just 'back' which i'd prefer." |
 | Collapsible sidebar | Yes | "even simplier then an extra collapse button at the bottom, just allow the user to click the same icon again to hide it." |
 | Block content | Code, time, room | |
 | Colors | Soft tints | "should also allow for the user to change the color of the course just for fun, maybe just as simple as clicking on the color circle icon in the courses views and it having a little tooltip to select from a good amount of predefined colors." |

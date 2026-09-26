@@ -187,3 +187,15 @@ export const ENDS_AFTER_START = {
   message: "end must be after start",
   path: ["end"],
 };
+
+/** The scheduler's sidebar tabs, in rail order (SPEC §2). */
+export const RailTabSchema = z.enum([
+  "courses",
+  "search",
+  "problems",
+  "travel",
+  "blocks",
+  "generate",
+  "export",
+]);
+export type RailTab = z.infer<typeof RailTabSchema>;

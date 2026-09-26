@@ -7,7 +7,7 @@ export const panels = definePanels({
   drills: {
     connection: {
       component: ConnectionDetails,
-      crumb: () => "Connection",
+      name: () => "Connection",
     },
   },
 });

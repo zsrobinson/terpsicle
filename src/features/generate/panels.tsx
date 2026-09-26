@@ -1,13 +1,13 @@
 import { definePanels } from "~/app/registry";
 import { GeneratePanel } from "./generate-panel";
-import { ResultDetails, resultCrumb } from "./result-details";
+import { ResultDetails, resultName } from "./result-details";
 
 export const panels = definePanels({
   tabs: { generate: GeneratePanel },
   drills: {
     "generated-plan": {
       component: ResultDetails,
-      crumb: (entry) => resultCrumb(entry.resultId),
+      name: (entry) => resultName(entry.resultId),
     },
   },
 });

@@ -17,7 +17,7 @@ export function documentTitle({
   plan,
   term,
 }: {
-  /** The open drill-in's crumb ("CMSC351", "Option 1"). */
+  /** The open drill-in's name ("CMSC351", "Option 1"). */
   drill?: string | null;
   plan?: string | null;
   term?: string | null;
@@ -32,7 +32,7 @@ export function useDocumentTitle(): void {
   const current = useCurrentPlan();
   const { term } = useActiveTerm();
   const drill = top
-    ? (drillViewFor(registry, top)?.crumb(top) ??
+    ? (drillViewFor(registry, top)?.name(top) ??
       (top.kind === "course" ? top.courseCode : null))
     : null;
   const title = documentTitle({

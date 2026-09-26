@@ -21,8 +21,8 @@ export const panels = definePanels({
   drills: {
     course: {
       component: CourseDetails, // gets { entry: { kind: "course", courseCode, tab? } }
-      crumb: (entry) => entry.courseCode, // "Search › CMSC351"
-      monoCrumb: true,
+      name: (entry) => entry.courseCode, // its title, and "‹ CMSC351" on Back from the next view
+      monoName: true,
     },
   },
 });
@@ -41,7 +41,7 @@ export const panels = definePanels({
   ```
 
   Only `course` and `connection` are restored on the next visit (`UiPrefs.drill`). Other kinds last for the session.
-- **Effects:** `effects: [Component]` mounts components that render nothing, once, for app-wide work a feature owns (the `?term=&course=` deep link in `courses`, the seat-alert sync in `alerts`). `FeatureEffects` in the shell renders them.
+- **Effects:** `effects: [Component]` mounts components that render nothing, once, for app-wide work a feature owns (the seat-alert sync in `alerts`). `FeatureEffects` in the shell renders them.
 
 ## Build a panel
 
@@ -52,7 +52,7 @@ Use the pieces in `panel.tsx` so every panel matches the prototype:
 - `PanelLabel`: a small section label ("Bookmarked").
 - `useFocusRequest(tab)`: a ref the shell focuses on request; `/` focuses Search's field with `useFocusRequest<HTMLInputElement>("search")`.
 
-Panels and drill levels stay mounted while hidden, so going back (`Esc` or the breadcrumb) returns to exactly where the person was: scroll position, typed text, open groups. Don't reset local state on mount.
+Panels and drill levels stay mounted while hidden, so going back (Back, `Esc` or the browser's Back) returns to exactly where the person was: scroll position, typed text, open groups. Don't reset local state on mount.
 
 ## Read and change state
 
@@ -85,7 +85,7 @@ Published data beyond the term catalog, in `~/state/data-hooks`. Each hook start
 Stores (Zustand) for everything else:
 
 - `useWorkspace` (`~/state/workspace-store`): plans, blocks, course colors, travel settings and the open plan per term. Change the workspace only through `commit(label, recipe, { toast? })` or `dispatch(action, label)`; both keep undo history, and `label` ("Removed CMSC351 from Plan A") becomes the Undo toast. Use `{ toast: false }` for quiet edits (renames). `setTravel` saves settings without history.
-- `useUi` (`~/state/ui-store`): `drill(entry)`, `replaceDrill(entry)`, `back()`, `backTo(depth)`, `openTab(tab)`, `requestFocus(tab)`, `toggleGroup(key)`, the drawer's snap, and the calendar fields below.
+- `useUi` (`~/state/ui-store`): `drill(entry)`, `replaceDrill(entry)`, `back()` and `backTo(depth)` (close views: a new place, so they push), `openTab(tab)`, `markNavigation()`, `requestFocus(tab)`, `toggleGroup(key)`, the drawer's snap, and the calendar fields below. For the person's Back, call `goBack()` from `./actions` (see "URL state").
 - `useCatalog` (`~/state/catalog-store`): terms; per term (`byTerm[termId]`) the `manifest`, `seats`, `changes` (the changes file; `usePlanProblems` already feeds it to core) and a core `CatalogIndex`; the campus map; `instructors` and `calendars`. `ensureTerm(termId, first?)` loads every department, `first` ones first (the shell does this for the term on screen, with the plan's departments first), `ensureDepts(termId, depts)` a few, `ensureCampus()` the buildings and routes files, `refreshTerm(termId)` revalidates, and `retry()` tries a failed load again.
   - How loading works (`DATA.md` §5.1): everything is read from the IndexedDB cache first, so a repeat visit starts instantly, and then revalidated against the server. The manifest is diffed with core's `diffManifest`, so only departments whose hash changed are fetched, and files the manifest no longer lists are evicted. A file that fails validation keeps the previous one. The same path runs in mock mode (cache keys prefixed `mock:`).
   - `byTerm[termId].manifestSource` is `"cache"` or `"network"`; `checkedAt` is when the server last confirmed it.
@@ -158,6 +158,46 @@ On desktop the sidebar's right edge drags between 320 and 480px (`SidebarResizeH
 - A localStorage mirror and a head script (`sidebar-width.ts`) set it before first paint, like the theme.
 - Panels shouldn't assume 360px: truncate by content, not by a fixed width.
 
+## URL state
+
+Where you are lives in `/schedule`'s search params, so reload, Back and Forward, and a copied link all land on the same view. `schedule-url.ts` keeps them in step with the stores: a store change is written to the URL (`useScheduleUrl`, mounted by the route), and a move through history is followed back into the stores. The params are typed by the route's `validateSearch` (`ScheduleSearchSchema` in `~/core/schema/schedule-url`; listed in `DATA.md` §8.1), and `historyMode` in `~/core/routing/history` decides push or replace.
+
+- **Push** when someone went somewhere: every action that does bumps `useUi`'s `navSeq` (`drill`, `openTab`, `clickTab`, `back`, `backTo`, `setLastTermId`) or calls `markNavigation()` (a plan tab, a filter chip, Generate's results). The same URL is never pushed twice.
+- **Replace** for everything else: typing, and whatever the app corrects on its own (a plan that was deleted, a term that loaded, a result that's gone after a reload).
+- **Back is one thing.** The sidebar's Back, `Esc` and the browser's Back all go to the previous entry (`goBack()` in `actions.ts` calls `history.back()` when that entry is the app's). Each entry the app writes stores the short name of the view before it (`name` in a drill registration, or the tab's label), which labels Back: "‹ Search", "‹ CMSC351", or just "‹ Back" when it's the same view in another plan. Going from course to course pushes each course, so Back retraces them, but there's never a trail to aim at.
+- **The first entry is a base view.** A link straight to a drill-in (a seat-alert email's `?term=&course=`, a shared URL, a reload in a new tab) gets the tab's own view put under it, so Back from the course stays in the app.
+- **The URL wins** over saved prefs and `?demo=1`: it's followed once they've loaded. A plain `/schedule` shows what was saved (the open tab and course, SPEC §3.13) and writes it to the URL.
+- Views going back stay mounted (scroll, typed text): Back finds its level in the stack; Forward stacks it again. At most `MOUNTED_DRILLS` levels stay mounted.
+
+Every piece of scheduler UI state, and where it lives:
+
+| State | In the URL | History | Why |
+|---|---|---|---|
+| Term on screen | `term` | push | Switching terms is going somewhere. |
+| Open plan tab | `planId` | push; replace when an edit moves it (new, copied, deleted, undo) | A tab is a place; edits are undone with ⌘Z, not Back. |
+| Rail tab | `tab` | push | |
+| Course details | `course` | push (opening the open course again: none) | The owner's "back to where I came from". |
+| Connection details | `connection` | push | |
+| A generated plan's details | `result` | push | Dropped (replace) after a reload: results aren't saved. |
+| Generate's results vs its form | `view=results` | push | A finished run, and Edit, are places. |
+| Search's text | `q` | replace | Back skips every keystroke. |
+| Search's filter chips | `gened`, `credits`, `level`, `openSeats`, `fits` | push | Back undoes a chip. |
+| Closing a view (the open course's block clicked again, the rail's tab while drilled in, Save as new plan, a travel fix) | the view under it | push | Back reopens it. |
+| Shared plan | `plan` | as opened; ✕ and Save a copy replace it away | DATA.md §8. |
+| Demo switch (`pnpm dev:mock`) | `demo` | kept on every entry | |
+| A section's details | not yet a view | push, as `section`, once it is one | So Back closes it like any other. |
+| Course details' sub-tab jump (`grades`, `about`, `instructors`) | no | | A scroll target on arrival, not a place. |
+| Sidebar collapsed, its width, theme, collapsed instructor groups | no | | Layout preferences, saved in `UiPrefs`. |
+| Drawer height (phones) | no | | Layout, and the drawer raises itself for a drill-in. |
+| Hover ghosts, ↑/↓ section preview, Generate's plan preview | no | | Transient: the previewed result's `result` is the place. |
+| Menus, popovers, tooltips, dialogs, the color picker, the new-block popup | no | | |
+| Drag to block time | no | | |
+| Toasts (Undo) | no | | Undo is ⌘Z, never Back. |
+| Disclosures inside a view ("More about this course", reviews, "Only fits", "Show" section numbers) | no | | Kept while the view is mounted. |
+| Generate's form (courses, must-haves, rank by) | no | | A draft being filled in: saved per term (`generate` settings row). |
+| Ticked results ("Save 3 plans"), Export's checklist ticks | no | | |
+| Focus | no | | Follows drill-ins (`useDrillFocus`). |
+
 ## Keyboard
 
 `shortcuts.ts` has `useShortcut(chords, handler)`. Handlers return `true` when they act; that key then stops there. Shortcuts never fire while typing in a field (except chords marked `whileTyping`). Effects run child-first, so a feature's handler gets a key before the shell's.
@@ -166,7 +206,7 @@ On desktop the sidebar's right edge drags between 320 and 480px (`SidebarResizeH
 |---|---|---|
 | `/` | Search, and focus its field | shell |
 | `1`–`7` | Rail tabs | shell |
-| `Esc` | Back one drill level; in a field, leave the field | sidebar |
+| `Esc` | Back (the same as the browser's, see "URL state"); in a field, leave the field | sidebar |
 | `⌘Z` / `Ctrl+Z`, `⇧⌘Z` / `Ctrl+Y` | Undo, redo | shell |
 | `↑` `↓` `↵` | Preview the open course's sections on the calendar, and switch to the preview (focus anywhere but the calendar) | calendar |
 | `←` `→` `↑` `↓` `Home` `End` | With focus on the calendar: move between its classes, blocks, ghosts and pills (a roving tabindex, `keyboard.ts`); focusing a ghost previews it | calendar |

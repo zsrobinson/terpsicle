@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { OPEN_VIEW } from "./sidebar";
 
 // The draggable sidebar (owner decision 3, docs/UX-REVIEW.md §1.2): drag its
 // edge between 320 and 480px, the calendar takes the rest, the width is
@@ -135,8 +136,6 @@ test("on a phone, course details lower a full drawer to half, so the ghosts show
   while ((await drawer.getAttribute("data-snap")) !== "full")
     await page.getByRole("button", { name: "Raise the panel" }).click();
   await page.getByTestId("course-row-CMSC351").click();
-  await expect(
-    page.getByRole("navigation", { name: "Breadcrumb" }),
-  ).toContainText("CMSC351");
+  await expect(page.locator(OPEN_VIEW)).toContainText("CMSC351");
   await expect(drawer).toHaveAttribute("data-snap", "half");
 });

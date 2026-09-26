@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import { OPEN_VIEW } from "./sidebar";
 
 // Courses, Problems, Blocks and Export on `pnpm dev:mock` (M4 part B): the
 // first-visit paths, remove with undo, a one-click fix, a block from the
@@ -195,9 +196,17 @@ test("a seat-alert email's link opens that course in its term", async ({
   page,
 }) => {
   await page.goto("/schedule?term=202605&course=CMSC131");
-  await expect(
-    page.getByRole("navigation", { name: "Breadcrumb" }),
-  ).toContainText("CMSC131");
+  await expect(page.locator(OPEN_VIEW)).toContainText("CMSC131");
   await expect(page.getByRole("button", { name: /Summer 2026/ })).toBeVisible();
-  await expect(page).toHaveURL((url) => !url.searchParams.has("term"));
+  // The link stays as the page's address, now naming the tab too; Back goes
+  // to the term's Courses, not out of the app.
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get("term") === "202605" &&
+      url.searchParams.get("course") === "CMSC131" &&
+      url.searchParams.get("tab") === "courses",
+  );
+  await page.getByRole("button", { name: "Back to Courses" }).click();
+  await expect(page.locator(OPEN_VIEW)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Summer 2026/ })).toBeVisible();
 });
