@@ -13,9 +13,10 @@ export function gradesSourceWords(gradesThrough: TermId | null): string {
 }
 
 /**
- * One quiet line when PlanetTerp has stopped updating ("PlanetTerp hasn't
- * updated since Apr 2026"), or null when it's current or we can't tell.
- * Information, not an alarm (DESIGN §5).
+ * One quiet line when PlanetTerp has stopped updating ("No new PlanetTerp
+ * reviews since Apr 2026"), or null when it's current or we can't tell.
+ * Information, not an alarm (DESIGN §5). When its newest review is known,
+ * name that: professors and grades may still update while reviews are frozen.
  */
 export function planetTerpFreshnessWords(
   source: PlanetTerpSource | null | undefined,
@@ -26,8 +27,9 @@ export function planetTerpFreshnessWords(
       ? `PlanetTerp hasn't answered since ${formatMonthYear(source.lastSuccessAt)}, so these are its last numbers`
       : "PlanetTerp isn't answering, so these are its last numbers";
   }
-  const since = source.latestReviewAt ?? source.lastSuccessAt;
-  return since
-    ? `PlanetTerp hasn't updated since ${formatMonthYear(since)}`
+  if (source.latestReviewAt)
+    return `No new PlanetTerp reviews since ${formatMonthYear(source.latestReviewAt)}`;
+  return source.lastSuccessAt
+    ? `PlanetTerp hasn't updated since ${formatMonthYear(source.lastSuccessAt)}`
     : "PlanetTerp hasn't updated recently";
 }

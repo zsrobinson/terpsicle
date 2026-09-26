@@ -28,7 +28,7 @@ describe("PlanetTerp freshness words", () => {
           latestReviewAt: "2026-04-29T15:02:11.000Z",
         }),
       ),
-    ).toBe("PlanetTerp hasn't updated since Apr 2026");
+    ).toBe("No new PlanetTerp reviews since Apr 2026");
     expect(
       planetTerpFreshnessWords(
         aPlanetTerpSource({

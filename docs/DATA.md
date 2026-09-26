@@ -168,7 +168,7 @@ The file keeps a rolling 30-day window, newest first. Plans don't depend on it f
   - `stale`: the last run was a source failure, or PlanetTerp has published no review for six weeks (its ratings are frozen);
   - `gone`: no good run for 30 days.
 
-  The client reads it through `useInstructors(dept).source` (and `usePlanetTerpStatus`). The Grades header says what grades cover ("through Spring 2025, from PlanetTerp", from `gradesThrough`), and the Reviews disclosure adds one quiet line when `status` isn't `ok` ("PlanetTerp hasn't updated since May 2026"). No banner (`DESIGN.md` §5). A department file that fails to load says so ("Couldn't load grades from PlanetTerp…"), never "PlanetTerp has no grades".
+  The client reads it through `useInstructors(dept).source` (and `usePlanetTerpStatus`). The Grades header says what grades cover ("through Spring 2025, from PlanetTerp", from `gradesThrough`), and the Reviews disclosure adds one quiet line when `status` isn't `ok` ("No new PlanetTerp reviews since Apr 2026", or "PlanetTerp hasn't updated since …" when there's no newest review to name). No banner (`DESIGN.md` §5). A department file that fails to load says so ("Couldn't load grades from PlanetTerp…"), never "PlanetTerp has no grades".
 - **Reviews** (`ReviewSchema`) are only the review-summary fn's input: `{course, text, rating, expectedGrade, created}`. They have no id, so (slug, `created`) identifies one; `expectedGrade` is free text ("A-", "P", "95", "") and is never parsed. The job keeps them in `_jobs/planetterp/reviews/` (§2.6), a private cache we never serve or republish.
 
   An instructor who teaches in two departments appears in both files.

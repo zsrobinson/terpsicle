@@ -431,7 +431,7 @@ describe("Course details", () => {
       const jada = await findReviews("Jada Abernathy");
       await waitFor(() =>
         expect(within(jada).getByTestId("pt-freshness")).toHaveTextContent(
-          "PlanetTerp hasn't updated since May 2026",
+          "No new PlanetTerp reviews since May 2026",
         ),
       );
       // A plain line, not an alert or a banner (DESIGN §5).
