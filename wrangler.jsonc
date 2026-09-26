@@ -78,15 +78,17 @@
     "CHAT_ENABLED": "off",
     // Terpsicle Reviews: off | read | on (docs/V2.md §7.4). "off" answers
     // every reviews/* route with "unavailable"; "read" lists, deletes and
-    // reports but takes no new words. Off until the e2e and the owner's trial.
-    "REVIEWS_ENABLED": "off",
+    // reports but takes no new words. On since the Reviews UI (#85) shipped
+    // (the owner, 2026-09-26: ship each product when its screens land).
+    "REVIEWS_ENABLED": "on",
     // Terpsicle Todo (docs/V3.md §3). "on" also needs the secret
     // TODO_FEED_KEY (32 random bytes, base64url) on this Worker; without it
     // every /api/todo/* answers "unavailable". To rotate the key: set the new
     // one as TODO_FEED_KEY with a new TODO_FEED_KEY_ID, and the old one as
     // TODO_FEED_KEY_PREVIOUS with TODO_FEED_KEY_PREVIOUS_ID (a var); once no
-    // row names the old id, remove both (docs/V3.md §3.3).
-    "TODO_ENABLED": "off",
+    // row names the old id, remove both (docs/V3.md §3.3). On with the Todo
+    // UI (#86); TODO_FEED_KEY is set.
+    "TODO_ENABLED": "on",
     "TODO_FEED_KEY_ID": "k1"
   },
   "ai": { "binding": "AI" },
