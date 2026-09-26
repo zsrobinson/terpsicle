@@ -182,11 +182,13 @@ test("turn on notifications, send a test, see it, remove the device", async ({
 
     const section = page.getByRole("main");
     await expect(section.getByText("What to send")).toBeVisible();
-    // Types stay quiet until their features send.
-    const seatPush = section.getByRole("switch", {
-      name: "Seat openings: Notification",
-    });
-    await expect(seatPush).toHaveAttribute("aria-disabled", "true");
+    // Seat openings send; types whose features don't yet stay quiet.
+    await expect(
+      section.getByRole("switch", { name: "Seat openings: Notification" }),
+    ).toHaveAttribute("aria-checked", "true");
+    await expect(
+      section.getByRole("switch", { name: "Mentions in Chat: Notification" }),
+    ).toHaveAttribute("aria-disabled", "true");
     await expect(
       section.getByText("Notifications are off here."),
     ).toBeVisible();

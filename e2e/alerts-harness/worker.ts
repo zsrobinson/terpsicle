@@ -1,7 +1,8 @@
-// The seat-alert e2e's server (e2e/seat-alerts.spec.ts): the real /api
+// The seat-watch e2e's server (e2e/seat-watches.spec.ts): the real /api
 // router and notifySeatChanges over local D1 (real migrations) and R2 (the
-// mock catalog), with the flag on and an EMAIL binding that keeps what it's
-// given. Test-only hooks live here and nowhere in the deployed Worker.
+// mock catalog), with the flag on, test-mode sign-in, and an EMAIL binding
+// that keeps what it's given. Test-only hooks live here and nowhere in the
+// deployed Worker.
 import { buildMockDataFiles, mockSeats } from "~/fixtures";
 import { notifySeatChanges } from "~/server/alerts/notify";
 import { type ApiEnv, handleApi } from "~/server/api/router";
@@ -37,6 +38,8 @@ function apiEnv(env: HarnessEnv): ApiEnv {
     DATA: env.DATA,
     EMAIL: email,
     SEAT_ALERTS_ENABLED: "true",
+    // Sign in as a test person (loopback hosts only, docs/AUTH.md).
+    AUTH_TEST_MODE: "true",
     // Summaries aren't part of this harness.
     AI: { run: async () => ({}) } as unknown as Ai,
   };
@@ -56,6 +59,16 @@ export default {
     if (url.pathname === "/__test/seed") {
       for (const [key, bytes] of await buildMockDataFiles())
         if (key.startsWith("catalog/")) await env.DATA.put(key, bytes);
+      return Response.json({ ok: true });
+    }
+    if (url.pathname === "/__test/reset") {
+      // A fresh start for a rerun against a reused harness.
+      sent.length = 0;
+      await env.DB.batch(
+        ["seat_watches", "seat_alert_sends", "counters"].map((t) =>
+          env.DB.prepare(`DELETE FROM ${t}`),
+        ),
+      );
       return Response.json({ ok: true });
     }
     if (url.pathname === "/__test/emails") {

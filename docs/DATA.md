@@ -58,7 +58,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `summaries/<slug>.json` | `ReviewSummarySchema` | `POST /api/review-summary` (§7.2) | fixed, **not served** |
 | `_jobs/…` | owned by M2, §2.6 | jobs (baselines, rotation state, reports) | **not served** |
 | `reviews/manifest.json` (v2) | `ReviewsManifestSchema` | `reviews-publish` job (hourly) | fixed |
-| `reviews/dept/<DEPT>.<hash>.json` (v2) | `ReviewsDeptSchema`: Terpsicle-review ratings per instructor id, and names of minted instructors. Never review text | `reviews-publish` job | hashed |
+| `reviews/dept/<DEPT>.<hash>.json` (v2) | `ReviewsDeptSchema`: Terpsicle-review ratings per instructor id, and the names PlanetTerp's join doesn't cover (§4.6). Never review text | `reviews-publish` job | hashed |
 
 **v2, bucket `terpsicle-user-content`** (binding `USER_CONTENT`; previews use `terpsicle-user-content-preview`): `avatars/<userId>/<hash16>.<ext>`, cached Google profile pictures, served at `/avatars/*` only with a session and never through `/data` (`docs/V2.md` §4.5). The `reviews/` family adds `reviews` to `SCHEMA_VERSIONS`; `ReviewSummarySchema` gains optional `sources` (additive).
 
@@ -69,7 +69,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 - A hashed key is never overwritten with different bytes.
 
 ### 2.3 Schema versions
-- `SCHEMA_VERSIONS` has one integer per family: `catalog`, `planetterp`, `geo`, `calendar`, `summaries`, and (v3) `courses`. Every JSON file has `schemaVersion: <literal>`. The routes binary has its own header version (`ROUTES_BINARY_VERSION`); share links have `v` (`SHARE_PAYLOAD_VERSION`).
+- `SCHEMA_VERSIONS` has one integer per family: `catalog`, `planetterp`, `geo`, `calendar`, `summaries`, (v3) `courses` and (v2) `reviews`. Every JSON file has `schemaVersion: <literal>`. The routes binary has its own header version (`ROUTES_BINARY_VERSION`); share links have `v` (`SHARE_PAYLOAD_VERSION`).
 - **Readers strip unknown keys** (plain `z.object`). So adding an optional field is not a bump: older clients ignore it. Bump only for breaking changes: a field removed, renamed, retyped, made required, or its meaning changed.
 - Clients parse `WireEnvelopeSchema` first:
   - data version > client's → the open tab is stale; keep using the cache and reload the app at the next visibility change;
@@ -82,7 +82,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 - Write order: every new hashed file first, the manifest last. A manifest never points at a file that doesn't exist yet.
 - **Two jobs write `catalog/<term>/manifest.json`** (catalog: `departments`, `catalogCrawledAt`; seats: `seats`, `changes`). Each does read → change only its own fields → set `generatedAt` → `put` with `onlyIf: { etagMatches }`; on a failed precondition it re-reads and retries (up to 5 times). `geo/manifest.json` follows the same rule (buildings job vs routes script).
 - Department chunks include section fields (meetings, instructors, notes), so a section change seen by the seats job rewrites that department's chunk in the same run as the `changes` entry that reports it. The catalog and the changes file never disagree for longer than one run.
-- Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working. It does the same under `courses/`.
+- Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working. It does the same under `courses/`, and the reviews-publish job under `reviews/`.
 
 ### 2.5 Serving `/data/*`
 The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys.ts`). A `null` policy means 404. Every response carries an ETag, and `If-None-Match` gets a 304.
@@ -91,7 +91,7 @@ The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys
 |---|---|---|
 | hashed (`*.<16hex>.json\|bin`) | `public, max-age=31536000, immutable` | 1 year |
 | `catalog/terms.json`, `catalog/<term>/manifest.json` | `public, no-cache` (revalidate with ETag) | 60 s |
-| `planetterp/manifest.json`, `geo/manifest.json`, `courses/manifest.json` | `public, no-cache` | 1 h |
+| `planetterp/manifest.json`, `geo/manifest.json`, `courses/manifest.json`, `reviews/manifest.json` | `public, no-cache` | 1 h |
 | `calendar/<term>.json` | `max-age=3600` | 1 h |
 | `geo/route/*.json` | `max-age=86400` | 1 day |
 | `geo/tiles.pmtiles` | `max-age=604800`, Range requests | 1 week |
@@ -105,6 +105,7 @@ The jobs' memory between runs. Everything here can be rebuilt by running the job
 | `_jobs/seats/<term>/baseline.json` | seats | Testudo's last seats stamp, the last full refresh time, each department's chunk hash and course list, and every section's `SectionSnapshot` (the diff base for `changes`) |
 | `_jobs/catalog/<term>/orphans.json` | catalog | when each unreferenced hashed file was first seen, for the 24 h garbage-collection grace |
 | `_jobs/catalog/building-rooms.json` | catalog | every building code seen, with one room, for the buildings job's popup lookups |
+| `_jobs/reviews/state.json` | reviews-publish | when each unreferenced `reviews/` file was first seen, for the 24 h grace |
 | `_jobs/courses/state.json` | catalog | per department, the `<term>:<chunk hash>` list its course-index file was built from (an unchanged list skips the rebuild), and when each unreferenced `courses/` file was first seen |
 | `_jobs/buildings/discovered.json` | buildings | codes joined (or not) since the checked-in seed, with why; failures retry after 30 days |
 | `_jobs/planetterp/grades.json` | PlanetTerp | per course, grades summed per PlanetTerp professor name, and when they were fetched (the rotation order). A course's rows are never replaced by an empty answer (§4.1) |
@@ -239,20 +240,31 @@ Little-endian throughout.
 - `published` has `classesStart`, `classesEnd` (last day of classes, not exams) and `noClasses` (named inclusive date ranges: breaks and holidays).
 - `not-published` is a real state: .ics export then says the dates aren't published yet.
 
+### 4.6 Terpsicle review numbers (v2, `reviews/`)
+
+The hourly `reviews-publish` job (`37 * * * *`, `src/jobs/reviews-publish.ts`) publishes the numbers of published Terpsicle reviews, so course details can combine them with PlanetTerp's (`docs/V2.md` §7.6). Review **text is never here**: hashed files are immutable for a year, and taking a review down must be instant, so words come only from `reviews/list`.
+- **Source:** D1, read in two queries (`publishedReviewFacts`, `publishableNameFacts` in `src/server/reviews/store.ts`): every published review's instructor, course, rating and `published_at`, and the `minted` and `manual` rows of `instructor_names`. No words, no author. Both finish before anything is written, so a D1 error leaves R2 as it was.
+- **Build** (`buildReviewsDepts`, `src/core/reviews/publish.ts`, pure): one file per department with something in it. `instructors` maps an instructor id (PlanetTerp slug or minted `t~` id) to `{rating, reviewCount, latestReviewMonth}` over **all** their published reviews, like PlanetTerp's per-instructor numbers; an instructor appears in every department they have a published review in (by the course code's first four letters) or a name in. `rating` is the mean to two decimals.
+- **`latestReviewMonth`** is `YYYY-MM` (America/New_York), not a time: an exact publish time next to an instructor would undo the month rounding readers see (V2 §7.5).
+- **`names`** maps `instructorNameKey(testudoName)` to an id, for what PlanetTerp's `names` can't say: the owner's corrections (`manual`), and minted instructors' names once they have a published review (a name alone would tell that someone tried to review them). The client reads a `manual` entry (a PlanetTerp slug) over PlanetTerp's join, and a minted one only where PlanetTerp's join has no match (`terpsicleInstructor`, `src/state/reviews-store.ts`).
+- **Publishing** (`publishReviews`, `src/ingest/reviews.ts`) follows §2: each file is validated and written only when its bytes changed; the manifest last, rewritten only when a department's hash changed (so `generatedAt` is when the numbers last changed); files it no longer lists are deleted after 24 h (`_jobs/reviews/state.json`). A department left with nothing is dropped from the manifest; an empty department file is never written. With no published review at all, the manifest lists no departments. A manifest of another schema version is replaced.
+- **Mock mode** publishes `src/fixtures/mock/reviews.ts` (five PlanetTerp instructors and two minted ones) with the same `buildReviewsDepts`; `src/ingest/__fixtures__/golden/reviews.json` is its output.
+- The client combines the two sources with `combineRatings` (`src/core/reviews/combine.ts`): `rating = Σ(rating_s × count_s) / Σ count_s`, `reviewCount = Σ count_s`, and the rating's tooltip gives the parts ("4.2 from 61 reviews: 4.1 from 48 on PlanetTerp, 4.6 from 13 on Terpsicle"). Only while `REVIEWS_ENABLED` isn't `off`; grade distributions stay PlanetTerp's.
+
 ---
 
 ## 5. Browser state (IndexedDB via Dexie)
 
 Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 2.
 
-**Version 2** (plan sync, landed with `v2/sync-engine`; `src/state/db.ts`): a `syncDocs` table for each doc's sync flags (the settings doc's row also keeps `base`, its body as last saved or pulled), and a `sync` settings row (`{userId, cursor}`). The `seatAlerts` table is dropped: until seat watches move to D1 (`docs/V2.md` §6.5), the email-token alerts' local mirror lives in the `seatAlerts` settings row, and `upgradeToV2` moves existing rows there. Nothing else changes shape, so plans, blocks, colors, settings and the data cache come through untouched (`src/state/db.test.ts` upgrades a v1 database). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
+**Version 2** (plan sync, landed with `v2/sync-engine`; `src/state/db.ts`): a `syncDocs` table for each doc's sync flags (the settings doc's row also keeps `base`, its body as last saved or pulled), and a `sync` settings row (`{userId, cursor}`). The `seatAlerts` table is dropped with the email-token alerts it mirrored: seat watches live on the account in D1 (§7.1). An earlier build moved its rows to a `seatAlerts` settings row, which the app deletes on start. Nothing else changes shape, so plans, blocks, colors, settings and the data cache come through untouched (`src/state/db.test.ts` upgrades a v1 database). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
 
 | Table | Primary key, indexes | Row schema |
 |---|---|---|
 | `plans` | `id`, `termId` | `PlanSchema` |
 | `blocks` | `id`, `termId` | `BlockSchema` |
 | `courseColors` | `courseCode` | `CourseColorPrefSchema` |
-| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor; `seatAlerts` → `LocalSeatAlert[]`) |
+| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor) |
 | `syncDocs` | `key` (`plan:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
 | `manifests` | `key` (the R2 key) | `CachedManifestSchema` |
 | `files` | `key` (the R2 key), `family`, `termId` | `CachedFileSchema` |
@@ -272,10 +284,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 2.
 - **UI prefs:** open tab, sidebar open, drill target (course with its details tab, or a connection; generated results aren't restorable), theme, last term, active plan per term, and collapsed instructor groups (`<course>|<instructor name>`).
 - **Not persisted:** the undo stack, hover/preview state, search text, and generator results.
 - **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors` and the `travel` and `chatPlans` rows.
-- **Seat alerts (local mirror, the `seatAlerts` settings row):** the person's own email is kept so the UI can say "Watching as…" and prefill the next bell. `subscriptionId` and `manageToken` arrive when this browser follows the confirmation link (the confirm page leaves them in the alerts inbox, §7.1); until then the entry is `pending` with both null.
-  - `email` is null when the watch was confirmed in this browser but asked for in another: the confirm page learns the section and token, never the address.
-  - On startup the app (`src/features/alerts/sync.ts`) moves inbox entries into the table and clears the inbox, then refreshes every row that has a manage token with `alerts/status`. Rows the server reports `unsubscribed` or `unknown` are dropped. That call, sent even with no rows, also tells the app whether seat alerts are on: `unavailable` hides every seat-alert control.
-  - The Export tab lists the rows. **Stop watching** asks first (the one confirmation in the app, SPEC §3.12), then calls `alerts/unsubscribe` with the row's manage token. A row with no token (confirmed on another device) points to the stop link in any alert email.
+- **Seat watches** aren't kept in the browser: they're the signed-in person's, in D1 (§7.1), and the app holds the list in memory (`src/state/seat-watches.ts`). The one thing kept locally is a watch asked for while signed out, in `sessionStorage["terpsicle:pending-watch"]` (`{termId, sectionKey, at}`, zod-checked, 30 minutes), so the watch starts when the person comes back signed in to that tab.
 
 ### 5.1 Client catalog flow
 1. Fetch `catalog/terms.json` (ETag revalidation). Pick the term.
@@ -308,6 +317,10 @@ V2.md §3 is the plan; this is what the browser keeps.
 - **Service worker** (`/sw.js`, `src/server/service-worker.ts`): one for the whole site. Cache Storage holds pages (`terpsicle-pages-v<n>`, network-first), build files as they're fetched (`terpsicle-assets-v<n>`), and the app shell precached at install (`terpsicle-shell-v<n>-<build>`). It never caches `/api`, `/auth`, `/avatars`, `/data` or `/ingest`, navigations included: IndexedDB already keeps the data, and the manifests must revalidate (§2.5, §5.1).
 - **Install prompt** (`src/features/pwa`): `localStorage["terpsicle:install-prompt"]` holds `InstallPromptStateSchema` (`{dismissals, lastDismissedAt}`); `sessionStorage["terpsicle:install-shown"]` marks a tab where the prompt already opened. `requestInstallPrompt(trigger)` opens it only where installing works, never in the installed app, at most once per session, not within 90 days of a dismissal, and never after two. Closing it any way but installing is a dismissal, except when it was opened from the "Install app" item. Storage that can't be read means "don't show".
 - **Push payload** (`PushPayloadSchema`): `{v: 1, type, title, body, url, tag}`. `url` is a path on this site; a click focuses a window already there, else takes an open one there, else opens one. A newer notification with the same `tag` replaces the older one. The service worker repeats the schema's checks by hand (it can't load zod) and shows "Terpsicle: Open the app for details." for a payload it can't read.
+
+### 5.4 Client review numbers flow (v2)
+
+`src/state/reviews-store.ts` (`useReviewNumbers`) follows §5.2 for `reviews/`: `ensureDepts(depts)` shows the cached manifest at once and checks the server's once per session, reads department files by hash from the cache or the network (validated, `family: "reviews"`), treats a department the manifest doesn't list as ready and empty, and on a missing file waits for the session's manifest check and tries the new hash. `refresh()` refetches only loaded files whose hash changed, then stores the manifest and drops unlisted files in one transaction. `app.tsx` connects it beside the catalog; course details read it through `useTerpsicleReviews(dept, enabled)`, and the reviews pages can use the same store. A manifest or file that can't load leaves PlanetTerp's numbers on their own.
 
 ---
 
@@ -354,11 +367,9 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 | Endpoint | Input | Result | Per IP per hour |
 |---|---|---|---|
 | `review-summary` | `ReviewSummaryInputSchema` `{slug, course}` | `ReviewSummaryResultSchema` | 300 |
-| `alerts/subscribe` | `SubscribeInputSchema` `{email, termId, sectionKey}` | `SubscribeResultSchema` | 10 |
-| `alerts/confirm` | `ConfirmInputSchema` `{token}` | `ConfirmResultSchema` | 60 |
-| `alerts/lookup` | `ManageInputSchema` `{token}` | `LookupResultSchema` | 60 |
-| `alerts/unsubscribe` | `ManageInputSchema` `{token}` | `UnsubscribeResultSchema` | 60 |
-| `alerts/status` | `StatusInputSchema` `{items: [{subscriptionId, manageToken}]}` (≤ 50) | `StatusResultSchema` | 120 |
+| `alerts/watch` (`auth: "user"`) | `SeatWatchInputSchema` `{termId, sectionKey}` | `SeatWatchResultSchema`: `watching` (with the `watch`; idempotent), `unknown-section`, `too-many` (past 30) or `unavailable` | none; 120 per user |
+| `alerts/unwatch` (`auth: "user"`) | `SeatWatchInputSchema` `{termId, sectionKey}` | `{status: "stopped"}` (idempotent; works while the flag is off) | none; 120 per user |
+| `alerts/list` (`auth: "user"`) | `SeatWatchListInputSchema` `{termId?}` | `SeatWatchListResultSchema`: `ok` (`watches`, newest first) or `unavailable` | none; 600 per user |
 | `me` | `MeInputSchema` `{}` | `MeResultSchema`: `signed-out` or `signed-in` (with `user`), and `flags` | 600 |
 | `auth/sign-out` | `SignOutInputSchema` `{removeLocal?}` | `{status: "signed-out"}`, and clears the cookies | 30 |
 | `account/delete` (`auth: "user"`) | `AccountDeleteInputSchema` `{}` | `AccountDeleteResultSchema` `{status: "deleting", deleteAfter}` | 30 |
@@ -383,131 +394,91 @@ Expected outcomes come back as `200` with a result union (`status: …`). Bad in
 
 Moderation (`moderate()`, the `moderation_decisions`, `moderation_queue` and `reports` tables in `0004_moderation`, the retry cron, the admin API) is described in `docs/MODERATION.md`.
 
-### 7.1 Seat alerts (`SPEC.md` §3.12)
+### 7.1 Seat watches (`SPEC.md` §3.12, `docs/V2.md` §6.5)
 
-**Flag.** Everything is behind `SEAT_ALERTS_ENABLED` (a `wrangler.jsonc` var, `"true"` since the end-to-end tests passed; `"false"` is the off switch):
-- while it's off, or where there's no `EMAIL` binding (previews never have one), `alerts/subscribe` and `alerts/status` answer `{status: "unavailable"}` (the app then hides the bell);
-- the other alert endpoints answer `503 unavailable`;
-- `notifySeatChanges` does nothing.
+A signed-in person watches a section; the seats cron emails them when it reopens. The email-token flow (subscribe, confirmation link, manage tokens, the `/alerts/*` pages) retired with `0007_seat_watches`, which dropped its tables rather than migrating them (nothing was public; STATUS.md).
+
+**Flag.** `SEAT_ALERTS_ENABLED` (a `wrangler.jsonc` var, `"true"`; `"false"` is the off switch):
+- while it's off, or where there's no `EMAIL` binding (previews never have one), `alerts/watch` and `alerts/list` answer `{status: "unavailable"}` before any rate limiting, `/api/me`'s `flags.seatAlerts` is false (the app then hides every bell and list), and `notifySeatChanges` does nothing;
+- `alerts/unwatch` works either way: stopping is always allowed;
 - `EMAIL_SUBJECT_PREFIX` (a var, unset in production) is prepended to every alert subject, e.g. `[Test] ` for a trial run.
 
-**Tokens and ids:**
-- Tokens are 32 random bytes in base64url (43 characters). Only their hex SHA-256 is stored, in `alert_tokens`.
-- Subscription ids are 16 random bytes (22 characters).
-- Addresses are trimmed and lowercased by the input schema.
-
-**Flow:**
-1. **Subscribe.** The answer is always `check-email`, whether the address is new, pending, already watching or unsubscribed, so the API never reveals who watches what. The email says which:
-   - new, pending or unsubscribed: a confirmation link, `/alerts/confirm?token=…`. It expires after 48 h and works once;
-   - already watching: "You're already watching CMSC351 0101", with a stop link. This is how the spec's "You're already watching this" reaches the person without leaking it to anyone else.
-   - The app shows "You're already watching this" itself when its own local list has the watch.
-   - The app keeps a pending request for 48 h (the link's life), with a "Send again" button; after that the bell offers a fresh start.
-2. **Confirm.** The page at `/alerts/confirm` calls `alerts/confirm`:
-   - `confirmed` makes the watch `active` and returns a **manage token**. Holding the emailed token proves the address, so the browser that followed the link keeps it;
-   - the page leaves `{termId, sectionKey, subscriptionId, manageToken, status}` in `localStorage["terpsicle:alerts-inbox"]` (`src/features/alerts/inbox.ts`). The state layer moves it into the Dexie `seatAlerts` settings row and clears the inbox;
-   - `last_open` is set from the current seats file, so only a reopening after confirmation emails.
-3. **Alert.** The seats cron calls `notifySeatChanges(env, before, after, {now})` (`src/server/alerts/notify.ts`) after publishing a term's seats file. For each `active` subscription in that term whose section has counts, it sends "A seat opened" when all of these hold:
+**Flow** (`src/server/alerts/`):
+1. **Watch.** `alerts/watch` checks the section exists in an active term (the published catalog in R2), counts the person's watches (at most `SEAT_WATCH_MAX_PER_USER`, 30, across terms), and inserts the row with `last_open` from the current seats file, so only a reopening after now emails. Watching twice answers the same watch.
+2. **Alert.** The seats cron calls `notifySeatChanges(env, before, after, {now})` (`notify.ts`) after publishing a term's seats file. For each watch in that term whose person is `active` and whose section has counts, it sends "A seat opened" (or "3 seats opened") to the account's address (`users.email`, the one used last) when all of these hold:
    - the section had 0 open seats before (the previous file, or else `last_open`);
    - it has more than 0 now;
-   - there was no alert for this subscription in the last 30 min;
-   - the address got fewer than 20 alerts in 24 h.
+   - there was no alert for this watch in the last 30 min;
+   - the person got fewer than 20 alerts in 24 h (`seat_alert_sends`).
 
-   It records `last_open`, `last_checked_at` and `last_notified_*`, and prunes old counters and expired confirm tokens.
-4. **Unsubscribe.** It takes two steps, per the spec: `alerts/lookup` shows "Stop seat alerts?" on `/alerts/unsubscribe`, and only the button calls `alerts/unsubscribe` (idempotent). Every alert email carries a fresh manage token in its stop link and its `List-Unsubscribe` header. That header points at the confirming page. There's deliberately no `List-Unsubscribe-Post`: one-click would skip the confirmation.
-5. **Status.** `alerts/status` refreshes the browser's local list with its manage tokens. A token that doesn't match the id reads `unknown`.
+   It records `last_open`, `last_checked_at` and `last_notified_*`, and prunes counters and week-old send rows. Web push joins here once `v2/push` lands (V2.md §6.4).
+3. **Stop.** In the app: `alerts/unwatch`, from the bell, the problem's button, or the Watching list, with Undo (no confirmation, DESIGN §5). From the email: its one-click unsubscribe (below).
+4. **The end of a term.** The daily job (`endPastTermWatches`) deletes watches whose term isn't `active` in `terms.json` any more (archived or gone): seats stop updating then. Deleting an account deletes its watches (`ON DELETE CASCADE`).
 
-**Emails** (`src/server/alerts/email.ts`, all three kinds):
-- plain text plus simple table-based HTML, and `Auto-Submitted: auto-generated`;
-- from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`.
+**The email** (`email.ts`): plain text plus simple table-based HTML, `Auto-Submitted: auto-generated`, from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`. It has the counts, Testudo's as-of time in Eastern, a link that opens the course (`/schedule?term=<id>&course=<code>`, which opens it over Courses in that term; `ScheduleSearchSchema`, §8.1), Testudo's page, and "See or stop your watches" (`/settings#watching`). Cron emails always link to terpsicle.com.
 
-**Links in emails:**
-- to the app: `https://terpsicle.com/schedule?term=<id>&course=<code>`, which opens that course over Courses in that term (`ScheduleSearchSchema`, §8.1);
-- to Testudo's page for the course.
+**One-click unsubscribe** (RFC 8058): `List-Unsubscribe: <https://terpsicle.com/api/alerts/one-click?u&t&s&k>` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. `k` is an HMAC of the user, term and section under the Worker's own key (`keyedHash`, the R2 key that also hashes IPs), so a link stops only that one watch and can't be made for anyone else's. The route sits outside the JSON table (mail providers POST a form):
+- `POST` stops the watch (idempotent) and answers a plain "Stopped";
+- `GET` (a person, or a link scanner) changes nothing and redirects to `/settings#watching`, where Stop has Undo;
+- a bad key is `400`; at most 60 per IP per hour.
 
-API-triggered emails link to the requesting origin only when it's ours (terpsicle.com, this project's preview hosts, localhost), so a forged `Host` can never inject another domain. Cron emails always link to terpsicle.com.
+**Dedupe.** `seat_alert_sends.dedupe_key` is unique, so a retried cron sends nothing twice: `seat-open:<userId>:<term>:<section>:<seats asOf, or the 30-min window>:email` (V2.md §6.5's key).
 
-**Limits:**
-- at most 5 signup emails (confirmation or "already watching") per address per 24 h, and at most one per subscription per 10 min. Hitting either limit skips the email but keeps the answer `check-email`, so limits can't reveal anything;
-- at most 300 signup emails in total per UTC day (`signup-emails` counter), a backstop against abuse spread over many networks and addresses. Past it, the answer is still `check-email`;
-- at most 20 alerts per address per 24 h, and a 30-min cooldown per subscription;
-- the per-IP limits in the table above.
-
-**Dedupe.** `email_sends.dedupe_key` is unique, so a retried cron sends nothing twice. The keys are:
-- `confirm:<id>:<16 hex of token hash>`;
-- `already-watching:<id>:<…>`;
-- `seat-open:<id>:<seats asOf, or the 30-min window>`.
-
-**Migration** (`migrations/0002_seat_alerts.sql`, applied by `deploy.yml` to production and by ci.yml's preview job to `terpsicle-preview` via `wrangler.preview-d1.jsonc`):
+**Migration** (`migrations/0007_seat_watches.sql`, applied by `deploy.yml` to production and by ci.yml's preview job to `terpsicle-preview`):
 
 ```sql
-CREATE TABLE alert_subscriptions (
-  id                 TEXT PRIMARY KEY,          -- 16 random bytes, base64url
-  email              TEXT NOT NULL,             -- trimmed, lowercased
-  term_id            TEXT NOT NULL,
-  section_key        TEXT NOT NULL,             -- e.g. CMSC351-0101
-  status             TEXT NOT NULL CHECK (status IN ('pending', 'active', 'unsubscribed')),
-  created_at         TEXT NOT NULL,             -- ISO UTC
-  confirmed_at       TEXT,
-  unsubscribed_at    TEXT,
-  last_open          INTEGER,                   -- open seats at the last check
-  last_checked_at    TEXT,
-  last_notified_at   TEXT,
-  last_notified_open INTEGER,
-  UNIQUE (email, term_id, section_key)
-);
-CREATE INDEX alert_subscriptions_active ON alert_subscriptions (term_id, section_key) WHERE status = 'active';
+DROP TABLE alert_tokens;
+DROP TABLE email_sends;
+DROP TABLE alert_subscriptions;
 
-CREATE TABLE alert_tokens (
-  token_hash      TEXT PRIMARY KEY,             -- hex SHA-256
-  subscription_id TEXT NOT NULL REFERENCES alert_subscriptions (id) ON DELETE CASCADE,
-  purpose         TEXT NOT NULL CHECK (purpose IN ('confirm', 'manage')),
-  created_at      TEXT NOT NULL,
-  expires_at      TEXT,                         -- confirm tokens: +48 h
-  used_at         TEXT                          -- confirm tokens: once
+CREATE TABLE seat_watches (
+  user_id             TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  term_id             TEXT NOT NULL,
+  section_key         TEXT NOT NULL,          -- e.g. CMSC351-0101
+  created_at          TEXT NOT NULL,
+  last_open           INTEGER,                -- open seats at the last check
+  last_checked_at     TEXT,
+  last_notified_at    TEXT,
+  last_notified_open  INTEGER,
+  PRIMARY KEY (user_id, term_id, section_key)
 );
-CREATE INDEX alert_tokens_by_subscription ON alert_tokens (subscription_id, purpose);
+CREATE INDEX seat_watches_by_section ON seat_watches (term_id, section_key);
 
-CREATE TABLE email_sends (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  email           TEXT NOT NULL,
-  subscription_id TEXT REFERENCES alert_subscriptions (id) ON DELETE SET NULL,
-  kind            TEXT NOT NULL CHECK (kind IN ('confirm', 'already-watching', 'seat-open')),
-  dedupe_key      TEXT NOT NULL UNIQUE,
-  status          TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
-  provider_id     TEXT,                         -- Email Service message id
-  sent_at         TEXT NOT NULL
+CREATE TABLE seat_alert_sends (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  term_id      TEXT NOT NULL,
+  section_key  TEXT NOT NULL,
+  channel      TEXT NOT NULL CHECK (channel IN ('email')),
+  dedupe_key   TEXT NOT NULL UNIQUE,
+  status       TEXT NOT NULL CHECK (status IN ('sent', 'failed')),
+  provider_id  TEXT,
+  sent_at      TEXT NOT NULL
 );
-CREATE INDEX email_sends_by_email ON email_sends (email, kind, sent_at);
-
--- Fixed-window counters: per-IP limits (keyed hash) and the summary cap.
-CREATE TABLE counters (
-  name         TEXT NOT NULL,
-  window_start TEXT NOT NULL,
-  count        INTEGER NOT NULL,
-  PRIMARY KEY (name, window_start)
-);
+CREATE INDEX seat_alert_sends_by_user ON seat_alert_sends (user_id, sent_at);
 ```
 
-`AlertSubscriptionRowSchema`, `AlertTokenRowSchema` and `EmailSendRowSchema` validate rows on read (`src/server/alerts/store.ts`).
+`seat_alert_sends` holds the alert emails in place of V2.md's `notification_deliveries`; since `v2/push`, each reopen's push is a `notification_deliveries` row (`…:push`), the email is sent only while the person's `seatOpen.email` setting is on, and the daily cap counts the busier channel (§7.11). `counters` (from `0002_seat_alerts`) stays: per-IP and per-user limits and the summary cap. `SeatWatchRowSchema` validates rows on read (`src/server/alerts/store.ts`).
 
 ### 7.2 Review summaries
 
-`review-summary` takes `{slug, course}` and returns `ReviewSummaryResultSchema` (`src/server/summaries/`).
+`review-summary` takes `{slug, course}` and returns `ReviewSummaryResultSchema` (`src/server/summaries/`). `slug` is any instructor id, so a minted instructor (`t~…`) with Terpsicle reviews gets a summary too.
 
-1. **Find the instructor.** The course's department names the PlanetTerp file that holds the instructor's `reviewCount` and `latestReviewAt`: `planetterp/manifest.json` → `planetterp/dept/<DEPT>.<hash>.json`. Missing → `unknown-instructor`; no reviews → `no-reviews`.
-2. **Serve the cache.** `summaries/<slug>.json` is used when it's fresh: `basedOnReviewCount ≥ reviewCount` and its `latestReviewAt` is at least the instructor's. The summary covers all of an instructor's reviews, so one file per instructor serves every course.
+1. **Find the instructor.** The course's department names the PlanetTerp file that holds the instructor's `reviewCount` and `latestReviewAt`: `planetterp/manifest.json` → `planetterp/dept/<DEPT>.<hash>.json`. While `REVIEWS_ENABLED` isn't `off`, our published reviews of the same id count too (D1 `publishedStats`): the combined `reviewCount` is the sum, and the combined newest is the later of PlanetTerp's and the month of ours (ours by month only, since a summary's `latestReviewAt` reaches the browser). Neither source knows the id → `unknown-instructor` (unless the `instructors` registry does: `no-reviews`); no reviews → `no-reviews`.
+2. **Serve the cache.** `summaries/<slug>.json` is used when it's fresh: `basedOnReviewCount ≥ reviewCount`, its `latestReviewAt` is at least the instructor's, and `sources.terpsicle` (0 when absent) equals our published count, so a review of ours taken down makes it stale. The summary covers all of an instructor's reviews, so one file per instructor serves every course.
 3. **Otherwise, generate once.**
    - **One generation at a time.** Concurrent requests in one isolate share one promise. Across isolates, a lock object `_jobs/summary-locks/<slug>.json` is taken with a create-only R2 put (`etagDoesNotMatch: "*"`). A lock older than its 60 s TTL is taken over with an etag-conditional put.
    - **Losers wait.** They poll R2 for up to 20 s for the new summary, then answer `busy`.
 4. **Enforce the daily cap.** A D1 counter `summaries` per UTC day is checked against `SUMMARIES_DAILY_CAP` (a var, 200). Past it → `daily-limit`.
-5. **Get the reviews.** First from the PlanetTerp job's private copy, `_jobs/planetterp/reviews/<slug>.json` (§2.6), when it holds at least the instructor's `reviewCount`. Otherwise live from PlanetTerp `/professor?name=…&reviews=true`, used only if its slug matches: names collide, so a mismatch falls back to the stored copy, or is `failed` rather than the wrong person's reviews. When PlanetTerp is down or gone, a stored copy that's behind is still used, so summaries can be regenerated without PlanetTerp.
+5. **Get the reviews.** Ours: the newest 40 published ones from D1 (`publishedForSummary`). PlanetTerp's (only when its file counts some): first from the PlanetTerp job's private copy, `_jobs/planetterp/reviews/<slug>.json` (§2.6), when it holds at least the instructor's `reviewCount`. Otherwise live from PlanetTerp `/professor?name=…&reviews=true`, used only if its slug matches: names collide, so a mismatch falls back to the stored copy, or is `failed` rather than the wrong person's reviews. When PlanetTerp is down or gone, a stored copy that's behind is still used, so summaries can be regenerated without PlanetTerp.
 6. **Run the model** (`src/server/summaries/prompt.ts`).
-   - **Input:** the 40 newest reviews, at most 18k characters, each stripped of `<`, `>` and links, inside one `<reviews>` fence. The system prompt says the reviews are data and any instructions inside them must be ignored.
+   - **Input:** the 40 newest reviews of both sources together, at most 18k characters, each stripped of `<`, `>` and links, inside one `<reviews>` fence. The system prompt says the reviews are data and any instructions inside them must be ignored.
    - **Output:** JSON mode with a schema, then `ModelSummarySchema`:
      - a summary of 20–600 characters and at most about 75 words, with no links, addresses or markup;
      - 2–4 themes of 1–4 lowercase words, each with a sentiment.
    - **Retries:** invalid output gets one retry that names the problem; a second failure is `failed`. Nothing that fails validation is stored or shown.
-7. **Store and return** the `ReviewSummary`. The UI hides the summary for every `unavailable` reason, and the summary is the only thing shown with the sparkles icon.
+7. **Check it with Llama Guard** (`@cf/meta/llama-guard-3-8b`, the moderation service's `runGuard`), for S5 (defamation) above all, since the summary restates what reviews say about a real person. Any unsafe verdict, or a check that fails, is `failed`: nothing is stored or shown (`summary_failed` with `unsafe` or `guard-error`).
+8. **Store and return** the `ReviewSummary`, with `sources: {planetterp, terpsicle}` (how many reviews of each it covers; optional and additive, so older summaries without it read as PlanetTerp's only). The UI's footer names both ("Summary of 61 reviews: 48 on PlanetTerp, 13 on Terpsicle"). The UI hides the summary for every `unavailable` reason, and the summary is the only thing shown with the sparkles icon.
 
 **Model: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`**, from the live Workers AI catalog on 2026-09-25.
 - **Why this one:**
@@ -523,7 +494,7 @@ CREATE TABLE counters (
 
 Server events (`src/server/analytics.ts`, `docs/ANALYTICS.md`):
 - summaries: `summary_generated`, `summary_cached`, `summary_failed`, `summary_capped`;
-- seat alerts: `alert_subscribed`, `alert_confirmed`, `alert_sent`, `alert_unsubscribed`;
+- seat watches: `alert_watched`, `alert_sent`, `alert_unwatched` (`via`: `app` or `email`), `alert_watches_ended`;
 - identity: `signin_result` (`outcome`, and `hd` on success).
 
 They carry counts, reasons and term ids only. They never carry an address, token, IP or review text, not even hashed.
@@ -548,7 +519,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0004_moderation` | `moderation_decisions` (text-free log), `moderation_queue` (the human queue; snapshots blanked 30 days after close), `reports` | The shared moderation service (V2.md §9.4) |
 | `0005_sync` (landed, §7.7) | `sync_docs` (`user_id`, `kind`, `doc_id`, `term_id`, `rev`, `deleted`, `body`, `updated_at`), `sync_heads` (`head`, `pruned_through`) | Plan sync: one JSON row per doc, per-doc rev compare-and-swap (V2.md §5.2) |
 | `0006_notifications` | `notification_settings`, `push_subscriptions` (one per device, unique `endpoint`), `notifications` (chat mentions and replies), `notification_deliveries` (every push and email, unique `dedupe_key`) | Notifications (V2.md §6.3) |
-| `0007_seat_watches` | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
+| `0007_seat_watches` (landed, §7.1) | `seat_watches` (`user_id`, `term_id`, `section_key`, last-seen and last-notified fields), `seat_alert_sends` (dedupe and the daily cap, until `notification_deliveries`); drops `alert_subscriptions`, `alert_tokens`, `email_sends` | Signed-in seat alerts (V2.md §6.5) |
 | `0008_reviews` (landed, §7.8) | `instructors`, `instructor_names`, `reviews` (with `author_id`, never exposed to readers or moderation) | Terpsicle Reviews (V2.md §7.3) |
 | `0009_chat` (landed, §7.9) | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
 | `0010_four_year_sync` (landed, §7.7) | rebuilds `sync_docs` so `kind` also allows `four-year` (with tombstones) | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
@@ -603,6 +574,7 @@ The design is `docs/V2.md` §7. Routes: `src/server/reviews/api.ts` (and `report
 - **Stage 0** runs before anything is stored: any rule that would hold or remove (a link, contact details, a slur, the length) comes back as `invalid` with its span; so do words already published for the instructor (`duplicate`, by `text_hash`, the SHA-256 of `reviewTextKey(body)`). Flags go on to the models.
 - **Limits:** `users.reviews_blocked_until` (`blocked`); 10 new reviews per author per 7 days, deleted ones included (`limit`, with the wait); a burst (the 24-hour count of new reviews for the instructor past both 5 and 3× its 30-day daily average) holds the review for the owner with reason `burst`.
 - **Later decisions** reach reviews through `MODERATION_HANDLERS.review` (`src/server/reviews/decisions.ts`): approve publishes (applying a waiting edit), remove rejects the review (or only a waiting edit of a published review, unless reports are waiting too), undo puts it back to waiting.
+- **Published numbers:** the hourly `reviews-publish` job copies published reviews' ratings (never their words) to R2 `reviews/` (§4.6).
 - **Anonymity** (V2 §7.5): `PublicReview` is strict and has no author; dates are months (America/New_York); the list cursor is a review id, not a time. `reviews/mine` shows your own reviews without an author field. Moderation rows and snapshots never hold the author, and `src/server/reviews/anonymity.test.ts` checks every answer, both moderation tables and the models' input.
 
 
@@ -721,6 +693,7 @@ These aren't stored, but several workers build against them:
   - `subjects[0]` is what clicking the problem opens.
   - `title` and `detail` are `MessagePart[]`, so codes, times and durations render in mono and can be clicked without parsing strings.
   - `fix` is `switch` (offered only when it creates no new problem), `accept-change` (for `changed`) or `watch` (for `full`: "Watch for a seat"; the UI shows the seat watch's own button and state instead of applying it).
+  - A `full` problem on a section the signed-in person watches becomes kind `watching` (info), "Watching for a seat in CMSC351 0101", keeping its `watch` fix (`withWatches` in `src/core/problems`, applied by `usePlanProblemsState`). It's taken care of, so it counts as a note, not a problem.
   - `id` is `<kind>:<subject ids>`, stable while the cause lasts.
 - **`FourYearProblem`** (Plan, `src/core/schema/four-year.ts`): the same shape as `Problem`, with `kind` in `prereq-order` · `light-semester` · `repeated-course` · `unknown-course` (warning) · `not-offered-lately` (the rest info, `FOUR_YEAR_PROBLEM_SEVERITY`); `subjects` are `entry {entryId}` or `term {term}`; `fix` is `move {entryId, term}` or `remove {entryId}`, offered only when applying it adds no problem. `id` is `<kind>:<subject ids>`.
 - **`FitLabel`:** `fits` · `overlaps {with: course | block}` · `not-enough-time {direction, courseCode}` · `in-plan` · `no-set-times`. "Not enough time after CMSC330" means CMSC330 comes first.

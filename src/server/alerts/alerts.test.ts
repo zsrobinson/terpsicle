@@ -1,22 +1,46 @@
-// End to end through the real router, D1 and R2 (BUILD.md §5: seat alerts are
-// tested this way before SEAT_ALERTS_ENABLED turns on). Email goes to a mock
-// EMAIL binding; links are read back out of the sent messages.
+// Seat watches end to end through the real router, D1 and R2 (BUILD.md §5):
+// watch, list and stop as a signed-in person; the seats cron's email when a
+// watched section reopens, with its dedupe, cooldown and daily cap; the
+// emails' one-click stop; and the daily job ending past terms' watches.
+// Email goes to a mock EMAIL binding.
 import { env } from "cloudflare:workers";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { findTestUser } from "~/core/auth";
 import {
+  decryptPushPayload,
+  exportPublicKey,
+  generateKeyPair,
+  toBase64url,
+} from "~/core/push";
+import {
+  SEAT_WATCH_MAX_PER_USER,
   type SeatsFile,
-  SubscriptionIdSchema,
-  TokenSchema,
+  SeatUnwatchResultSchema,
+  SeatWatchListResultSchema,
+  SeatWatchResultSchema,
+  TERMS_KEY,
+  TermsFileSchema,
 } from "~/core/schema";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "~/core/schema/notifications";
 import {
   archivedFixtureTermId,
   buildMockDataFiles,
   fixtureTermId,
   mockSeats,
 } from "~/fixtures";
+import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
-import { api } from "../fns/api";
+import { startSession } from "../auth/session";
+import { upsertUser } from "../auth/store";
+import { writeSettings } from "../notifications/store";
+import { TEST_VAPID_KEYS } from "../push/config";
+import { saveSubscription } from "../push/store";
 import { notifySeatChanges } from "./notify";
+import { endPastTermWatches, oneClickStopUrl } from "./service";
+
+const ORIGIN = "https://terpsicle.com";
+const SECTION = "CMSC351-0101"; // Full in the mock seats: [0, 120, 14, null].
+const OTHER = "AAAS100-0101"; // Full too.
 
 type Sent = {
   to: string;
@@ -26,7 +50,7 @@ type Sent = {
   headers?: Record<string, string>;
 };
 
-function mockEmail() {
+function makeEnv(overrides: Partial<ApiEnv> = {}) {
   const sent: Sent[] = [];
   const binding = {
     send: vi.fn(async (message: Sent) => {
@@ -34,567 +58,494 @@ function mockEmail() {
       return { messageId: `msg-${sent.length}` };
     }),
   };
-  return { sent, binding: binding as unknown as SendEmail };
-}
-
-function makeEnv(overrides: Partial<ApiEnv> = {}) {
-  const email = mockEmail();
   const testEnv: ApiEnv = {
     ...env,
     SEAT_ALERTS_ENABLED: "true",
-    EMAIL: email.binding,
+    EMAIL: binding as unknown as SendEmail,
     ...overrides,
   };
-  return { testEnv, sent: email.sent };
+  return { testEnv, sent };
 }
 
 let clock = Date.parse("2026-10-01T15:00:00.000Z");
+const now = () => new Date(clock);
 const tick = (minutes: number) => {
   clock += minutes * 60_000;
 };
 
-/** The typed browser client, wired straight into the Worker's router. */
-function client(testEnv: ApiEnv, ip = "203.0.113.7") {
-  const fetcher: typeof fetch = async (input, init) =>
-    handleApi(
-      new Request(`https://terpsicle.com${String(input)}`, {
-        ...init,
-        headers: { ...init?.headers, "CF-Connecting-IP": ip },
-      }),
-      testEnv,
-      { waitUntil: () => undefined },
-      new Date(clock),
-    );
-  return { fetcher };
-}
-
-const tokenFrom = (message: Sent | undefined, path: string) => {
-  const match = message?.text.match(
-    new RegExp(`${path}\\?token=([A-Za-z0-9_-]+)`),
-  );
-  return TokenSchema.parse(match?.[1]);
-};
-
 beforeAll(async () => {
   // The mock catalog, exactly as the jobs would publish it.
-  for (const [key, bytes] of await buildMockDataFiles()) {
+  for (const [key, bytes] of await buildMockDataFiles())
     if (key.startsWith("catalog/")) await env.DATA.put(key, bytes);
-  }
 });
 
-const SECTION = "CMSC351-0101"; // Full in the mock seats: [0, 120, 14, null].
+beforeEach(async () => {
+  clock = Date.parse("2026-10-01T15:00:00.000Z");
+  await env.DB.batch(
+    [
+      "seat_watches",
+      "seat_alert_sends",
+      "notification_deliveries",
+      "notification_settings",
+      "push_subscriptions",
+      "counters",
+      "sessions",
+      "users",
+    ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
+  );
+});
 
-describe("seat alerts, end to end", () => {
-  it("subscribe → dedupe → confirm → notify → unsubscribe with confirmation", async () => {
-    const { testEnv, sent } = makeEnv();
-    const opts = client(testEnv);
-    const input = {
-      email: "  Testudo@UMD.edu ",
-      termId: fixtureTermId,
-      sectionKey: SECTION,
-    };
-
-    // Subscribe: one confirmation email with a link into the app.
-    expect(await api.alerts.subscribe(input, opts)).toEqual({
-      status: "check-email",
-    });
-    expect(sent).toHaveLength(1);
-    expect(sent[0]?.to).toBe("testudo@umd.edu");
-    expect(sent[0]?.subject).toBe("Confirm your seat alert for CMSC351 0101");
-    const confirmToken = tokenFrom(sent[0], "/alerts/confirm");
-
-    // Subscribing again right away: same answer, no second email.
-    expect(await api.alerts.subscribe(input, opts)).toEqual({
-      status: "check-email",
-    });
-    expect(sent).toHaveLength(1);
-
-    // Confirm: now active, and this browser gets a manage token.
-    tick(1);
-    const confirmed = await api.alerts.confirm({ token: confirmToken }, opts);
-    if (confirmed.status !== "confirmed") throw new Error(confirmed.status);
-    expect(confirmed).toMatchObject({
-      termId: fixtureTermId,
-      sectionKey: SECTION,
-    });
-    SubscriptionIdSchema.parse(confirmed.subscriptionId);
-    const { subscriptionId, manageToken } = confirmed;
-    expect(await api.alerts.confirm({ token: confirmToken }, opts)).toEqual({
-      status: "already-confirmed",
-      termId: fixtureTermId,
-      sectionKey: SECTION,
-    });
-    expect(
-      await api.alerts.status(
-        { items: [{ subscriptionId, manageToken }] },
-        opts,
-      ),
-    ).toEqual({ status: "ok", items: [{ subscriptionId, status: "active" }] });
-
-    // Signing up again later: the email (not the API) says "already watching".
-    tick(15);
-    expect(await api.alerts.subscribe(input, opts)).toEqual({
-      status: "check-email",
-    });
-    expect(sent).toHaveLength(2);
-    expect(sent[1]?.subject).toBe("You're already watching CMSC351 0101");
-    expect(sent[1]?.headers?.["List-Unsubscribe"]).toMatch(
-      /^<https:\/\/terpsicle\.com\/alerts\/unsubscribe\?token=/,
-    );
-
-    // The seats cron: the full section reopens → one alert email.
-    const before: SeatsFile = mockSeats;
-    const after: SeatsFile = {
-      ...mockSeats,
-      asOf: "2026-10-01T15:30:00.000Z",
-      seats: { ...mockSeats.seats, [SECTION]: [3, 120, 11, null] },
-    };
-    tick(10);
-    const result = await notifySeatChanges(testEnv, before, after, {
-      now: new Date(clock),
-    });
-    expect(result.sent).toBe(1);
-    const alert = sent[2];
-    expect(alert?.subject).toBe("3 seats opened in CMSC351 0101");
-    expect(alert?.text).toContain("Seats: 3 of 120 open");
-    expect(alert?.text).toContain(
-      `https://terpsicle.com/schedule?term=${fixtureTermId}&course=CMSC351`,
-    );
-    expect(alert?.html).toContain("CMSC351 0101");
-    expect(alert?.headers?.["List-Unsubscribe"]).toMatch(
-      /^<https:\/\/terpsicle\.com\/alerts\/unsubscribe\?token=/,
-    );
-    expect(alert?.headers).not.toHaveProperty("List-Unsubscribe-Post");
-
-    // A retried cron run with the same snapshot sends nothing more.
-    expect(
-      (
-        await notifySeatChanges(testEnv, before, after, {
-          now: new Date(clock),
-        })
-      ).sent,
-    ).toBe(0);
-    // Refills and reopens within the cooldown: still nothing.
-    const full = {
-      ...after,
-      seats: { ...after.seats, [SECTION]: [0, 120, 12, null] },
-    } satisfies SeatsFile;
-    await notifySeatChanges(testEnv, after, full, { now: new Date(clock) });
-    tick(5);
-    const again = { ...after, asOf: "2026-10-01T15:40:00.000Z" };
-    expect(
-      (await notifySeatChanges(testEnv, full, again, { now: new Date(clock) }))
-        .sent,
-    ).toBe(0);
-    expect(sent).toHaveLength(3);
-
-    // Unsubscribe from the alert's link: look up first, then confirm.
-    const stopToken = tokenFrom(alert, "/alerts/unsubscribe");
-    expect(await api.alerts.lookup({ token: stopToken }, opts)).toEqual({
-      status: "found",
-      termId: fixtureTermId,
-      sectionKey: SECTION,
-      subscriptionStatus: "active",
-    });
-    expect(await api.alerts.unsubscribe({ token: stopToken }, opts)).toEqual({
-      status: "unsubscribed",
-      termId: fixtureTermId,
-      sectionKey: SECTION,
-    });
-    // Idempotent, and the browser's own token sees it too.
-    expect(
-      (await api.alerts.unsubscribe({ token: stopToken }, opts)).status,
-    ).toBe("unsubscribed");
-    expect(
-      await api.alerts.status(
-        { items: [{ subscriptionId, manageToken }] },
-        opts,
-      ),
-    ).toEqual({
-      status: "ok",
-      items: [{ subscriptionId, status: "unsubscribed" }],
-    });
-
-    // No more alerts after unsubscribing, even past the cooldown.
-    tick(60);
-    const reopened = { ...after, asOf: "2026-10-01T17:00:00.000Z" };
-    expect(
-      (
-        await notifySeatChanges(testEnv, full, reopened, {
-          now: new Date(clock),
-        })
-      ).sent,
-    ).toBe(0);
-    expect(sent).toHaveLength(3);
-  });
-
-  it("gives the same answer for new, pending and watching addresses", async () => {
-    const { testEnv, sent } = makeEnv();
-    const opts = client(testEnv, "198.51.100.20");
-    const answers = [];
-    for (const email of ["new@umd.edu", "new@umd.edu", "other@umd.edu"]) {
-      answers.push(
-        await api.alerts.subscribe(
-          { email, termId: fixtureTermId, sectionKey: "CMSC131-0101" },
-          opts,
-        ),
-      );
-    }
-    expect(new Set(answers.map((a) => JSON.stringify(a)))).toEqual(
-      new Set([JSON.stringify({ status: "check-email" })]),
-    );
-    expect(sent.map((m) => m.to)).toEqual(["new@umd.edu", "other@umd.edu"]);
-  });
-
-  it("stores only token hashes and a lowercase address", async () => {
-    const { testEnv, sent } = makeEnv();
-    const opts = client(testEnv, "198.51.100.21");
-    await api.alerts.subscribe(
-      {
-        email: "Hash@UMD.edu",
-        termId: fixtureTermId,
-        sectionKey: "CMSC131-0102",
-      },
-      opts,
-    );
-    const token = tokenFrom(sent[0], "/alerts/confirm");
-    const tables = await env.DB.prepare("SELECT * FROM alert_tokens").all();
-    expect(JSON.stringify(tables.results)).not.toContain(token);
-    const sub = await env.DB.prepare(
-      "SELECT email FROM alert_subscriptions WHERE section_key = 'CMSC131-0102'",
-    ).first<{ email: string }>();
-    expect(sub?.email).toBe("hash@umd.edu");
-    const counters = await env.DB.prepare("SELECT name FROM counters").all<{
-      name: string;
-    }>();
-    expect(JSON.stringify(counters.results)).not.toContain("198.51.100.21");
-  });
-
-  it("rejects unknown sections, archived terms and bad input", async () => {
-    const { testEnv, sent } = makeEnv();
-    const opts = client(testEnv, "198.51.100.22");
-    expect(
-      await api.alerts.subscribe(
-        {
-          email: "a@umd.edu",
-          termId: fixtureTermId,
-          sectionKey: "CMSC351-9999",
-        },
-        opts,
-      ),
-    ).toEqual({ status: "unknown-section" });
-    const bad = await handleApi(
-      new Request("https://terpsicle.com/api/alerts/subscribe", {
+/** A signed-in browser for one of TEST_USERS. */
+async function signIn(userId: string, testEnv: ApiEnv) {
+  const user = findTestUser(userId);
+  if (!user) throw new Error(`no test user ${userId}`);
+  await upsertUser(env.DB, user.identity, now());
+  const cookie = (await startSession(env.DB, userId, now())).split(";")[0];
+  const request = (path: string, body: unknown, headers = {}) =>
+    handleApi(
+      new Request(`${ORIGIN}/api/${path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: "a@umd.edu",
-          termId: fixtureTermId,
-          sectionKey: SECTION,
-          extra: 1,
-        }),
-      }),
-      testEnv,
-      { waitUntil: () => undefined },
-    );
-    expect(bad.status).toBe(400);
-    const formPost = await handleApi(
-      new Request("https://terpsicle.com/api/alerts/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          email: "a@umd.edu",
-          termId: fixtureTermId,
-          sectionKey: SECTION,
-        }),
-      }),
-      testEnv,
-      { waitUntil: () => undefined },
-    );
-    expect(formPost.status).toBe(400);
-    expect(sent).toHaveLength(0);
-    expect(await api.alerts.confirm({ token: "x".repeat(43) }, opts)).toEqual({
-      status: "invalid-token",
-    });
-    expect(await api.alerts.lookup({ token: "y".repeat(43) }, opts)).toEqual({
-      status: "invalid-token",
-    });
-  });
-
-  it("expires confirmation links after 48 hours", async () => {
-    const { testEnv, sent } = makeEnv();
-    const opts = client(testEnv, "198.51.100.23");
-    await api.alerts.subscribe(
-      {
-        email: "late@umd.edu",
-        termId: fixtureTermId,
-        sectionKey: "CMSC131-0103",
-      },
-      opts,
-    );
-    const token = tokenFrom(sent[0], "/alerts/confirm");
-    tick(49 * 60);
-    expect(await api.alerts.confirm({ token }, opts)).toEqual({
-      status: "invalid-token",
-    });
-  });
-
-  it("rate-limits subscribes per IP without storing the IP", async () => {
-    const { testEnv } = makeEnv();
-    const opts = client(testEnv, "192.0.2.99");
-    const results = [];
-    for (let i = 0; i < 11; i++) {
-      results.push(
-        await api.alerts.subscribe(
-          {
-            email: `r${i}@umd.edu`,
-            termId: fixtureTermId,
-            sectionKey: "CMSC131-0104",
-          },
-          opts,
-        ),
-      );
-    }
-    expect(results.slice(0, 10).every((r) => r.status === "check-email")).toBe(
-      true,
-    );
-    expect(results[10]?.status).toBe("rate-limited");
-    // Other endpoints report it as an API error.
-    const status = await handleApi(
-      new Request("https://terpsicle.com/api/nope", { method: "POST" }),
-      testEnv,
-      { waitUntil: () => undefined },
-    );
-    expect(status.status).toBe(404);
-  });
-
-  it("stays off behind the flag, and on previews without EMAIL", async () => {
-    const off = makeEnv({ SEAT_ALERTS_ENABLED: "false" });
-    const input = {
-      email: "x@umd.edu",
-      termId: fixtureTermId,
-      sectionKey: SECTION,
-    };
-    expect(await api.alerts.subscribe(input, client(off.testEnv))).toEqual({
-      status: "unavailable",
-    });
-    await expect(
-      api.alerts.lookup({ token: "z".repeat(43) }, client(off.testEnv)),
-    ).rejects.toMatchObject({
-      reason: "unavailable",
-    });
-    // The app asks for status on every load: a plain answer, not a 503.
-    expect(await api.alerts.status({ items: [] }, client(off.testEnv))).toEqual(
-      { status: "unavailable" },
-    );
-    // ...answered before rate limiting, so it never counts against anyone.
-    const counted = async () =>
-      (
-        await off.testEnv.DB.prepare(
-          "SELECT COALESCE(SUM(count), 0) AS n FROM counters WHERE name LIKE 'alerts/status:%'",
-        ).first<{ n: number }>()
-      )?.n;
-    const before = await counted();
-    const statuses = await Promise.all(
-      Array.from({ length: 125 }, () =>
-        api.alerts.status({ items: [] }, client(off.testEnv)),
-      ),
-    );
-    expect(statuses.every((s) => s.status === "unavailable")).toBe(true);
-    expect(await counted()).toBe(before);
-    const preview = makeEnv({ EMAIL: undefined });
-    expect(await api.alerts.subscribe(input, client(preview.testEnv))).toEqual({
-      status: "unavailable",
-    });
-    expect(
-      await notifySeatChanges(off.testEnv, mockSeats, mockSeats, {
-        now: new Date(clock),
-      }),
-    ).toEqual({ checked: 0, sent: 0, skipped: "disabled" });
-    expect(off.sent).toHaveLength(0);
-    expect(preview.sent).toHaveLength(0);
-  });
-
-  it("never lets a forged Host header into email links", async () => {
-    const { testEnv, sent } = makeEnv();
-    await handleApi(
-      new Request("https://evil.example/api/alerts/subscribe", {
-        method: "POST",
+        body: JSON.stringify(body),
         headers: {
           "Content-Type": "application/json",
-          "CF-Connecting-IP": "198.51.100.30",
+          Origin: ORIGIN,
+          "Sec-Fetch-Site": "same-origin",
+          Cookie: cookie ?? "",
+          ...headers,
         },
-        body: JSON.stringify({
-          email: "host@umd.edu",
-          termId: fixtureTermId,
-          sectionKey: "CMSC131-0105",
-        }),
       }),
       testEnv,
-      { waitUntil: () => undefined },
-      new Date(clock),
+      { waitUntil: () => {} },
+      now(),
     );
-    expect(sent[0]?.text).toContain(
-      "https://terpsicle.com/alerts/confirm?token=",
+  return {
+    request,
+    watch: async (sectionKey: string, termId = fixtureTermId) =>
+      SeatWatchResultSchema.parse(
+        await (await request("alerts/watch", { termId, sectionKey })).json(),
+      ),
+    unwatch: async (sectionKey: string, termId = fixtureTermId) =>
+      SeatUnwatchResultSchema.parse(
+        await (await request("alerts/unwatch", { termId, sectionKey })).json(),
+      ),
+    list: async (input: { termId?: string } = {}) =>
+      SeatWatchListResultSchema.parse(
+        await (await request("alerts/list", input)).json(),
+      ),
+  };
+}
+
+/** A seats run where `sectionKey` goes from full to `open` seats. */
+function reopen(sectionKey: string, open: number, asOf: string): SeatsFile {
+  const total = mockSeats.seats[sectionKey]?.[1] ?? open;
+  return {
+    ...mockSeats,
+    asOf,
+    seats: { ...mockSeats.seats, [sectionKey]: [open, total, 0, null] },
+  };
+}
+
+const run = (testEnv: ApiEnv, before: SeatsFile, after: SeatsFile) =>
+  notifySeatChanges(testEnv, before, after, { now: now() });
+
+describe("seat watches", () => {
+  it("watch → list → reopen emails once → stop, all as the signed-in person", async () => {
+    const { testEnv, sent } = makeEnv();
+    const student = await signIn("tstudent", testEnv);
+
+    const on = await student.watch(SECTION);
+    expect(on).toMatchObject({
+      status: "watching",
+      watch: {
+        termId: fixtureTermId,
+        sectionKey: SECTION,
+        lastNotifiedAt: null,
+      },
+    });
+    // Idempotent: the same watch back.
+    expect(await student.watch(SECTION)).toEqual(on);
+    expect(await student.list()).toEqual({
+      status: "ok",
+      watches: [on.status === "watching" ? on.watch : null],
+    });
+
+    // The section reopens: one email, to the account's address.
+    const after = reopen(SECTION, 3, "2026-10-01T15:05:00.000Z");
+    expect(await run(testEnv, mockSeats, after)).toEqual({
+      checked: 1,
+      sent: 1,
+    });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.to).toBe("tstudent@terpmail.umd.edu");
+    expect(sent[0]?.subject).toBe("3 seats opened in CMSC351 0101");
+    expect(sent[0]?.text).toContain(`${ORIGIN}/settings#watching`);
+    expect(sent[0]?.headers?.["List-Unsubscribe-Post"]).toBe(
+      "List-Unsubscribe=One-Click",
     );
-    expect(sent[0]?.text).not.toContain("evil.example");
+    // A retried cron run with the same snapshot sends nothing more.
+    expect(await run(testEnv, mockSeats, after)).toMatchObject({ sent: 0 });
+    const listed = await student.list();
+    expect(listed.status === "ok" && listed.watches[0]?.lastNotifiedAt).toBe(
+      now().toISOString(),
+    );
+
+    expect(await student.unwatch(SECTION)).toEqual({ status: "stopped" });
+    expect(await student.unwatch(SECTION)).toEqual({ status: "stopped" });
+    expect(await student.list()).toEqual({ status: "ok", watches: [] });
+    tick(60);
+    expect(
+      await run(testEnv, mockSeats, reopen(SECTION, 5, now().toISOString())),
+    ).toEqual({ checked: 0, sent: 0 });
+  });
+
+  it("keeps each person's watches their own", async () => {
+    const { testEnv, sent } = makeEnv();
+    const student = await signIn("tstudent", testEnv);
+    const classmate = await signIn("tclassmate", testEnv);
+    await student.watch(SECTION);
+    await classmate.watch(OTHER);
+    const mine = await student.list();
+    expect(
+      mine.status === "ok" && mine.watches.map((w) => w.sectionKey),
+    ).toEqual([SECTION]);
+    // Stopping someone else's section changes nothing for them.
+    await student.unwatch(OTHER);
+    const theirs = await classmate.list();
+    expect(theirs.status === "ok" && theirs.watches).toHaveLength(1);
+
+    await run(testEnv, mockSeats, reopen(OTHER, 1, now().toISOString()));
+    expect(sent.map((m) => m.to)).toEqual(["tclassmate@terpmail.umd.edu"]);
+  });
+
+  it("only emails when a full section reopens, with a cooldown and a daily cap", async () => {
+    const { testEnv, sent } = makeEnv();
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+
+    // Open to open: nothing.
+    const open3 = reopen(SECTION, 3, "2026-10-01T15:05:00.000Z");
+    expect(await run(testEnv, open3, open3)).toMatchObject({ sent: 0 });
+    // Full → open: sent; full again and open again inside 30 min: cooldown.
+    await run(
+      testEnv,
+      mockSeats,
+      reopen(SECTION, 2, "2026-10-01T15:06:00.000Z"),
+    );
+    tick(10);
+    await run(
+      testEnv,
+      mockSeats,
+      reopen(SECTION, 2, "2026-10-01T15:16:00.000Z"),
+    );
+    expect(sent).toHaveLength(1);
+    tick(31);
+    await run(
+      testEnv,
+      mockSeats,
+      reopen(SECTION, 1, "2026-10-01T15:47:00.000Z"),
+    );
+    expect(sent).toHaveLength(2);
+    expect(sent[1]?.subject).toBe("A seat opened in CMSC351 0101");
+
+    // 20 a day per person, whatever they watch.
+    for (let i = 0; i < 18; i++)
+      await env.DB.prepare(
+        `INSERT INTO seat_alert_sends (user_id, term_id, section_key, channel, dedupe_key, status, sent_at)
+         VALUES ('tstudent', ?1, ?2, 'email', ?3, 'sent', ?4)`,
+      )
+        .bind(fixtureTermId, OTHER, `filler-${i}`, now().toISOString())
+        .run();
+    tick(31);
+    await run(
+      testEnv,
+      mockSeats,
+      reopen(SECTION, 1, "2026-10-01T16:20:00.000Z"),
+    );
+    expect(sent).toHaveLength(2);
+  });
+
+  it("starts from today's count, so a section that's open when watched waits to fill and reopen", async () => {
+    const { testEnv, sent } = makeEnv();
+    const student = await signIn("tstudent", testEnv);
+    // CMSC351-0101 is full in the published seats; with no previous file
+    // the watch's own last count (0) is the "before".
+    await student.watch(SECTION);
+    await notifySeatChanges(
+      testEnv,
+      null,
+      reopen(SECTION, 4, now().toISOString()),
+      { now: now() },
+    );
+    expect(sent).toHaveLength(1);
+  });
+
+  it("refuses unknown sections, archived terms and more than the limit", async () => {
+    const { testEnv } = makeEnv();
+    const student = await signIn("tstudent", testEnv);
+    expect(await student.watch("CMSC351-9999")).toEqual({
+      status: "unknown-section",
+    });
+    expect(await student.watch(SECTION, archivedFixtureTermId)).toEqual({
+      status: "unknown-section",
+    });
+    const bad = await student.request("alerts/watch", {
+      termId: fixtureTermId,
+      sectionKey: SECTION,
+      userId: "tclassmate",
+    });
+    expect(bad.status).toBe(400);
+
+    const full = Object.entries(mockSeats.seats)
+      .filter(([, s]) => s[0] === 0)
+      .map(([key]) => key);
+    const results = [];
+    for (const key of full.slice(0, SEAT_WATCH_MAX_PER_USER + 1))
+      results.push((await student.watch(key)).status);
+    expect(results.slice(0, SEAT_WATCH_MAX_PER_USER)).not.toContain("too-many");
+    expect(results.at(-1)).toBe("too-many");
+  });
+
+  it("needs a signed-in, same-origin request", async () => {
+    const { testEnv } = makeEnv();
+    const signedOut = await handleApi(
+      new Request(`${ORIGIN}/api/alerts/watch`, {
+        method: "POST",
+        body: JSON.stringify({ termId: fixtureTermId, sectionKey: SECTION }),
+        headers: { "Content-Type": "application/json", Origin: ORIGIN },
+      }),
+      testEnv,
+      { waitUntil: () => {} },
+      now(),
+    );
+    expect(signedOut.status).toBe(401);
+    const student = await signIn("tstudent", testEnv);
+    const crossSite = await student.request(
+      "alerts/watch",
+      { termId: fixtureTermId, sectionKey: SECTION },
+      { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" },
+    );
+    expect(crossSite.status).toBe(403);
+  });
+
+  it("answers unavailable while the flag is off or without EMAIL, and still stops", async () => {
+    for (const overrides of [
+      { SEAT_ALERTS_ENABLED: "false" },
+      { EMAIL: undefined },
+    ]) {
+      const { testEnv, sent } = makeEnv(overrides);
+      const student = await signIn("tstudent", testEnv);
+      expect(await student.watch(SECTION)).toEqual({ status: "unavailable" });
+      expect(await student.list()).toEqual({ status: "unavailable" });
+      expect(await student.unwatch(SECTION)).toEqual({ status: "stopped" });
+      expect(
+        await run(testEnv, mockSeats, reopen(SECTION, 3, now().toISOString())),
+      ).toEqual({ checked: 0, sent: 0, skipped: "disabled" });
+      expect(sent).toHaveLength(0);
+    }
   });
 });
 
-describe("seat alerts, abuse and safety", () => {
-  const today = () => new Date(clock).toISOString().slice(0, 10);
-  let ipSeq = 0;
-  const freshIp = () => `198.18.0.${++ipSeq}`;
-  const subscribeAs = (testEnv: ApiEnv, email: string, sectionKey: string) =>
-    api.alerts.subscribe(
-      { email, termId: fixtureTermId, sectionKey },
-      client(testEnv, freshIp()),
-    );
-
-  it("caps signup emails per address per day, without changing the answer", async () => {
-    const { testEnv, sent } = makeEnv();
-    const sections = [
-      "CMSC132-0101",
-      "CMSC132-0102",
-      "CMSC132-0103",
-      "CMSC132-0201",
-      "CMSC132-0105",
-      "CMSC132-0106",
-    ];
-    const answers = [];
-    for (const s of sections)
-      answers.push(await subscribeAs(testEnv, "busy@umd.edu", s));
-    expect(answers.every((a) => a.status === "check-email")).toBe(true);
-    expect(sent.filter((m) => m.to === "busy@umd.edu")).toHaveLength(5);
-  });
-
-  it("stops signup emails at the global daily backstop", async () => {
-    const { testEnv, sent } = makeEnv();
-    await env.DB.prepare(
-      `INSERT INTO counters (name, window_start, count) VALUES ('signup-emails', ?1, 300)
-       ON CONFLICT (name, window_start) DO UPDATE SET count = 300`,
-    )
-      .bind(`${today()}T00:00:00.000Z`)
-      .run();
-    expect(
-      await subscribeAs(testEnv, "global@umd.edu", "CMSC216-0101"),
-    ).toEqual({ status: "check-email" });
-    expect(sent).toHaveLength(0);
-    await env.DB.prepare(
-      "DELETE FROM counters WHERE name = 'signup-emails'",
-    ).run();
-  });
-
-  it("keeps confirm and manage tokens apart, and status tied to its subscription", async () => {
-    const { testEnv, sent } = makeEnv();
-    const opts = client(testEnv, freshIp());
-    await api.alerts.subscribe(
-      {
-        email: "tokens@umd.edu",
-        termId: fixtureTermId,
-        sectionKey: "CMSC216-0102",
-      },
-      opts,
-    );
-    const confirmToken = tokenFrom(sent[0], "/alerts/confirm");
-    // A confirm token can't look up or stop a watch.
-    expect(await api.alerts.lookup({ token: confirmToken }, opts)).toEqual({
-      status: "invalid-token",
+describe("seat watches by push (V2.md §6.5)", () => {
+  /** A device of tstudent's with push on, and what its push service got. */
+  async function aDevice() {
+    const pair = await generateKeyPair("ECDH", true);
+    const uaPublic = await exportPublicKey(pair.publicKey);
+    const authSecret = crypto.getRandomValues(new Uint8Array(16));
+    await saveSubscription(env.DB, {
+      userId: "tstudent",
+      endpoint: "https://fcm.googleapis.com/fcm/send/phone",
+      p256dh: toBase64url(uaPublic),
+      auth: toBase64url(authSecret),
+      label: "iPhone · Safari",
+      now: now(),
     });
-    expect(await api.alerts.unsubscribe({ token: confirmToken }, opts)).toEqual(
+    const received: unknown[] = [];
+    const fetcher: typeof fetch = async (input, init) => {
+      const body = new Uint8Array(await new Request(input, init).arrayBuffer());
+      const plain = await decryptPushPayload({
+        body,
+        uaPrivate: pair.privateKey,
+        uaPublic,
+        authSecret,
+      });
+      received.push(plain && JSON.parse(new TextDecoder().decode(plain)));
+      return new Response(null, { status: 201 });
+    };
+    return { received, fetcher };
+  }
+
+  const pushEnv = () =>
+    makeEnv({
+      PUSH_ENABLED: "true",
+      VAPID_PUBLIC_KEY: TEST_VAPID_KEYS.publicKey,
+      VAPID_PRIVATE_KEY: TEST_VAPID_KEYS.privateKey,
+    } as Partial<ApiEnv>);
+
+  it("pushes to the person's devices as well as emailing, once per reopen", async () => {
+    const { testEnv, sent } = pushEnv();
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+    const phone = await aDevice();
+    const after = reopen(SECTION, 3, "2026-10-01T15:05:00.000Z");
+    const go = () =>
+      notifySeatChanges(testEnv, mockSeats, after, {
+        now: now(),
+        fetch: phone.fetcher,
+      });
+    expect(await go()).toEqual({ checked: 1, sent: 1 });
+    expect(sent).toHaveLength(1);
+    expect(phone.received).toEqual([
       {
-        status: "invalid-token",
+        v: 1,
+        type: "seat-open",
+        title: "A seat opened in CMSC351 0101",
+        body: "3 of 120 open. Register on Testudo before it's gone.",
+        url: `/schedule?term=${fixtureTermId}&course=CMSC351`,
+        tag: `seat:${fixtureTermId}:${SECTION}`,
       },
+    ]);
+    // A retried run sends neither again.
+    expect(await go()).toMatchObject({ sent: 0 });
+    expect(phone.received).toHaveLength(1);
+    expect(sent).toHaveLength(1);
+  });
+
+  it("follows the person's settings: push only, or nothing", async () => {
+    const { testEnv, sent } = pushEnv();
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+    const phone = await aDevice();
+    await writeSettings(
+      env.DB,
+      "tstudent",
+      {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        seatOpen: { push: true, email: false },
+      },
+      now(),
     );
-    const confirmed = await api.alerts.confirm({ token: confirmToken }, opts);
-    if (confirmed.status !== "confirmed") throw new Error(confirmed.status);
-    // A manage token can't confirm, or unlock another subscription's status.
-    expect(
-      await api.alerts.confirm({ token: confirmed.manageToken }, opts),
-    ).toEqual({ status: "invalid-token" });
-    const stranger = "A".repeat(22);
-    expect(
-      await api.alerts.status(
-        {
-          items: [
-            { subscriptionId: stranger, manageToken: confirmed.manageToken },
-          ],
+    const run = (asOf: string) =>
+      notifySeatChanges(testEnv, mockSeats, reopen(SECTION, 2, asOf), {
+        now: now(),
+        fetch: phone.fetcher,
+      });
+    expect(await run(now().toISOString())).toMatchObject({ sent: 1 });
+    expect(sent).toEqual([]);
+    expect(phone.received).toHaveLength(1);
+
+    tick(60);
+    await writeSettings(
+      env.DB,
+      "tstudent",
+      {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        seatOpen: { push: false, email: false },
+      },
+      now(),
+    );
+    expect(await run(now().toISOString())).toMatchObject({ sent: 0 });
+    expect(sent).toEqual([]);
+    expect(phone.received).toHaveLength(1);
+  });
+});
+
+describe("the one-click stop link", () => {
+  const post = (url: string, testEnv: ApiEnv, method = "POST") =>
+    handleApi(
+      new Request(url, {
+        method,
+        body: method === "POST" ? "List-Unsubscribe=One-Click" : undefined,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "CF-Connecting-IP": "203.0.113.9",
         },
-        opts,
-      ),
-    ).toEqual({
-      status: "ok",
-      items: [{ subscriptionId: stranger, status: "unknown" }],
-    });
-  });
-
-  it("marks trial emails with a subject prefix when one is set", async () => {
-    const { testEnv, sent } = makeEnv({ EMAIL_SUBJECT_PREFIX: "[Test] " });
-    await subscribeAs(testEnv, "trial@umd.edu", "CMSC216-0103");
-    expect(sent[0]?.subject).toBe(
-      "[Test] Confirm your seat alert for CMSC216 0103",
+      }),
+      testEnv,
+      { waitUntil: () => {} },
+      now(),
     );
-  });
 
-  it("refuses archived terms", async () => {
+  it("stops that one watch on POST, and never on GET", async () => {
     const { testEnv, sent } = makeEnv();
-    const archived = await api.alerts.subscribe(
-      {
-        email: "old@umd.edu",
-        termId: archivedFixtureTermId,
-        sectionKey: "CMSC131-0101",
-      },
-      client(testEnv, freshIp()),
-    );
-    expect(archived).toEqual({ status: "unknown-section" });
-    expect(sent).toHaveLength(0);
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+    await student.watch(OTHER);
+    await run(testEnv, mockSeats, reopen(SECTION, 1, now().toISOString()));
+    const header = sent[0]?.headers?.["List-Unsubscribe"] ?? "";
+    const url = header.slice(1, -1);
+    expect(url).toMatch(/^https:\/\/terpsicle\.com\/api\/alerts\/one-click\?/);
+
+    // A link scanner's GET goes to Settings and changes nothing.
+    const get = await post(url, testEnv, "GET");
+    expect(get.status).toBe(303);
+    expect(get.headers.get("Location")).toBe(`${ORIGIN}/settings#watching`);
+    expect((await student.list()).status === "ok").toBe(true);
+    let listed = await student.list();
+    expect(listed.status === "ok" && listed.watches).toHaveLength(2);
+
+    expect((await post(url, testEnv)).status).toBe(200);
+    listed = await student.list();
+    expect(
+      listed.status === "ok" && listed.watches.map((w) => w.sectionKey),
+    ).toEqual([OTHER]);
+    // Again: still fine.
+    expect((await post(url, testEnv)).status).toBe(200);
   });
 
-  it("never emails unconfirmed watchers, and caps alerts per address per day", async () => {
-    const { testEnv, sent } = makeEnv();
-    const opts = client(testEnv, freshIp());
-    // Pending only: never alerted.
-    await api.alerts.subscribe(
-      {
-        email: "pending@umd.edu",
-        termId: fixtureTermId,
-        sectionKey: "STAT400-0301",
-      },
-      opts,
-    );
-    // Confirmed, but already at today's 20 alerts.
-    await api.alerts.subscribe(
-      {
-        email: "capped@umd.edu",
-        termId: fixtureTermId,
-        sectionKey: "STAT400-0301",
-      },
-      opts,
-    );
-    const confirmEmail = sent.find((m) => m.to === "capped@umd.edu");
-    const confirmed = await api.alerts.confirm(
-      { token: tokenFrom(confirmEmail, "/alerts/confirm") },
-      opts,
-    );
-    expect(confirmed.status).toBe("confirmed");
-    for (let i = 0; i < 20; i++) {
-      await env.DB.prepare(
-        `INSERT INTO email_sends (email, kind, dedupe_key, status, sent_at)
-         VALUES ('capped@umd.edu', 'seat-open', ?1, 'sent', ?2)`,
-      )
-        .bind(`cap-test-${i}`, new Date(clock).toISOString())
-        .run();
-    }
-    const before = sent.length;
-    const after = {
-      ...mockSeats,
-      asOf: new Date(clock).toISOString(),
-      seats: { ...mockSeats.seats, "STAT400-0301": [4, 60, 0, null] },
-    } satisfies SeatsFile;
-    const result = await notifySeatChanges(testEnv, mockSeats, after, {
-      now: new Date(clock),
+  it("refuses a link for someone else's watch", async () => {
+    const { testEnv } = makeEnv();
+    const student = await signIn("tstudent", testEnv);
+    const classmate = await signIn("tclassmate", testEnv);
+    await classmate.watch(SECTION);
+    const mine = await oneClickStopUrl(testEnv.DATA, ORIGIN, {
+      userId: "tstudent",
+      termId: fixtureTermId,
+      sectionKey: SECTION,
     });
-    expect(result.sent).toBe(0);
-    expect(sent).toHaveLength(before);
+    const forged = mine.replace("u=tstudent", "u=tclassmate");
+    expect((await post(forged, testEnv)).status).toBe(400);
+    const theirs = await classmate.list();
+    expect(theirs.status === "ok" && theirs.watches).toHaveLength(1);
+    expect((await student.list()).status).toBe("ok");
+  });
+});
+
+describe("the end of a term", () => {
+  it("ends watches whose term is no longer active, and keeps the rest", async () => {
+    const { testEnv } = makeEnv();
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+    // A watch from a term that has since been archived.
+    await env.DB.prepare(
+      `INSERT INTO seat_watches (user_id, term_id, section_key, created_at)
+       VALUES ('tstudent', ?1, ?2, ?3)`,
+    )
+      .bind(archivedFixtureTermId, SECTION, now().toISOString())
+      .run();
+    const terms = TermsFileSchema.parse(
+      await (await env.DATA.get(TERMS_KEY))?.json(),
+    );
+    expect(
+      terms.terms.find((t) => t.id === archivedFixtureTermId)?.status,
+    ).toBe("archived");
+
+    expect(await endPastTermWatches(testEnv)).toEqual({
+      terms: 1,
+      watches: 1,
+    });
+    const listed = await student.list();
+    expect(
+      listed.status === "ok" && listed.watches.map((w) => w.termId),
+    ).toEqual([fixtureTermId]);
+    // The daily job runs it.
+    await env.DB.prepare(
+      `INSERT INTO seat_watches (user_id, term_id, section_key, created_at)
+       VALUES ('tstudent', ?1, ?2, ?3)`,
+    )
+      .bind(archivedFixtureTermId, OTHER, now().toISOString())
+      .run();
+    await runDailyJob({ env: env as Env, now: now() });
+    const after = await student.list();
+    expect(after.status === "ok" && after.watches).toHaveLength(1);
   });
 });

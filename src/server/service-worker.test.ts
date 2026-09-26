@@ -234,7 +234,7 @@ describe("service worker: pages and files", () => {
     ).toBe("the schedule");
     // A page never loaded online falls back to the scheduler's copy.
     expect(
-      await (await sw.request("/alerts/confirm", { navigate: true }))?.text(),
+      await (await sw.request("/settings", { navigate: true }))?.text(),
     ).toBe("the schedule");
   });
 
@@ -370,7 +370,7 @@ describe("service worker: pages and files", () => {
   it("never touches the API, sign-in, pictures, data or analytics, even navigations", async () => {
     const sw = setUp();
     for (const path of [
-      "/api/alerts/status",
+      "/api/alerts/list",
       "/api/auth/google/callback?code=x",
       "/auth/test",
       "/avatars/abc.jpg",

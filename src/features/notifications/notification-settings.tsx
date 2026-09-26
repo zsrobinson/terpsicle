@@ -50,7 +50,7 @@ export const TYPE_ROWS: readonly TypeRow[] = [
     type: "seat-open",
     title: "Seat openings",
     detail: "When a section you're watching gets an open seat.",
-    sending: false,
+    sending: true,
   },
   {
     type: "chat-mention",

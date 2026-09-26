@@ -8,10 +8,6 @@ import {
   AccountDeleteResultSchema,
   type ApiError,
   ApiErrorSchema,
-  ConfirmInputSchema,
-  ConfirmResultSchema,
-  LookupResultSchema,
-  ManageInputSchema,
   MeInputSchema,
   MeResultSchema,
   ReportCreateInputSchema,
@@ -27,19 +23,19 @@ import {
   ReviewsMineInputSchema,
   ReviewsMineResultSchema,
   ReviewWriteResultSchema,
+  SeatUnwatchResultSchema,
+  SeatWatchInputSchema,
+  SeatWatchListInputSchema,
+  SeatWatchListResultSchema,
+  SeatWatchResultSchema,
   SignOutInputSchema,
   SignOutResultSchema,
-  StatusInputSchema,
-  StatusResultSchema,
-  SubscribeInputSchema,
-  SubscribeResultSchema,
   SyncPullInputSchema,
   SyncPullResultSchema,
   SyncPushInputSchema,
   SyncPushResultSchema,
   TestSignInInputSchema,
   TestSignInResultSchema,
-  UnsubscribeResultSchema,
 } from "~/core/schema";
 
 /** Why a call failed: an API error, no network, or an answer we don't understand. */
@@ -152,58 +148,41 @@ export const api = {
       input,
       options,
     ),
+  /** Seat watches (V2.md §6.5); signed in only. */
   alerts: {
-    /** Always "check-email" on success; the email says what happened. */
-    subscribe: (
-      input: z.input<typeof SubscribeInputSchema>,
+    /** Idempotent: "watching" whether it was on already or not. */
+    watch: (
+      input: z.input<typeof SeatWatchInputSchema>,
       options?: ApiOptions,
     ) =>
       call(
-        "alerts/subscribe",
-        SubscribeInputSchema,
-        SubscribeResultSchema,
+        "alerts/watch",
+        SeatWatchInputSchema,
+        SeatWatchResultSchema,
         input,
         options,
       ),
-    /** From /alerts/confirm?token=…; "confirmed" carries this browser's manage token. */
-    confirm: (
-      input: z.input<typeof ConfirmInputSchema>,
+    /** Idempotent: "stopped" whether it was on or not. */
+    unwatch: (
+      input: z.input<typeof SeatWatchInputSchema>,
       options?: ApiOptions,
     ) =>
       call(
-        "alerts/confirm",
-        ConfirmInputSchema,
-        ConfirmResultSchema,
+        "alerts/unwatch",
+        SeatWatchInputSchema,
+        SeatUnwatchResultSchema,
         input,
         options,
       ),
-    /** Step 1 of unsubscribing: what would stop. */
-    lookup: (input: z.input<typeof ManageInputSchema>, options?: ApiOptions) =>
-      call(
-        "alerts/lookup",
-        ManageInputSchema,
-        LookupResultSchema,
-        input,
-        options,
-      ),
-    /** Step 2, after the person confirms. */
-    unsubscribe: (
-      input: z.input<typeof ManageInputSchema>,
+    /** Every watch, newest first; "unavailable" while seat alerts are off. */
+    list: (
+      input: z.input<typeof SeatWatchListInputSchema> = {},
       options?: ApiOptions,
     ) =>
       call(
-        "alerts/unsubscribe",
-        ManageInputSchema,
-        UnsubscribeResultSchema,
-        input,
-        options,
-      ),
-    /** Refreshes this browser's local list of watches. */
-    status: (input: z.input<typeof StatusInputSchema>, options?: ApiOptions) =>
-      call(
-        "alerts/status",
-        StatusInputSchema,
-        StatusResultSchema,
+        "alerts/list",
+        SeatWatchListInputSchema,
+        SeatWatchListResultSchema,
         input,
         options,
       ),

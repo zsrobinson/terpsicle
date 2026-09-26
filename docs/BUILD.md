@@ -45,6 +45,7 @@ Cloudflare Worker "terpsicle"  (one deployable: src/server.ts)
 │                   sections → per-dept chunks + manifest; archive terms Testudo dropped │
 │   17 5 * * *      PlanetTerp: ratings, reviews metadata, grades                        │
 │   23 6 * * 1      academic calendar; buildings join                                   │
+│   37 * * * *      reviews-publish: published reviews' numbers (D1) → reviews/ in R2   │
 │   routes: not a cron; GitHub Actions runs scripts/build-routes.ts weekly (below)    │
 │ bindings: R2 DATA (terpsicle-data) · D1 DB (terpsicle) · AI (Workers AI) · secrets     │
 └─────────────────────────────────────────────────────────────────────────────────────┘

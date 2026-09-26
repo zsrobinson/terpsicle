@@ -1,14 +1,29 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import {
+  fakeSeatWatchesClient,
+  resetSeatWatches,
+  seatAlertsAccount,
+  watching,
+} from "~/features/alerts/testing";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { openCourse } from "~/features/courses/actions";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { panels as searchPanels } from "~/features/search/panels";
-import { aReviewSummary } from "~/fixtures";
+import {
+  aMeUser,
+  aReviewSummary,
+  aSeatWatch,
+  mockDataSource,
+} from "~/fixtures";
 import { api } from "~/server/fns/api";
 import { useCatalog } from "~/state/catalog-store";
-import { useSeatAlerts } from "~/state/seat-alerts";
+import { createBucketDataSource } from "~/state/data-source";
+import {
+  INITIAL_REVIEW_NUMBERS_STATE,
+  useReviewNumbers,
+} from "~/state/reviews-store";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { panels } from "./panels";
@@ -22,7 +37,6 @@ vi.mock("~/server/fns/api", async (importOriginal) => {
     api: {
       ...actual.api,
       reviewSummary: vi.fn(),
-      alerts: { ...actual.api.alerts, subscribe: vi.fn() },
     },
   };
 });
@@ -53,6 +67,15 @@ const rowCodes = () =>
 const sectionsBar = () =>
   within(screen.getByTestId("sections")).getByText("Sections").parentElement;
 
+/** The toast that says `text`, to press its own Undo. */
+const toastSaying = async (text: string) => {
+  const found = (await screen.findByText(text)).closest<HTMLElement>(
+    "[data-sonner-toast]",
+  );
+  if (!found) throw new Error(`No toast says ${text}`);
+  return found;
+};
+
 const findReviews = (name: string) =>
   waitFor(() => {
     const block = document.querySelector<HTMLElement>(
@@ -71,7 +94,9 @@ describe("Course details", () => {
       status: "unavailable",
       reason: "failed",
     });
-    vi.mocked(api.alerts.subscribe).mockReset();
+    resetSeatWatches();
+    seatAlertsAccount(aMeUser());
+    fakeSeatWatchesClient();
     forgetReviewSummaries();
   });
 
@@ -156,6 +181,34 @@ describe("Course details", () => {
         /^Keiko Ashdown ?rated 3\.1 of 5, 142 reviews GPA 3\.26$/,
       );
       expect(rowCodes()).toEqual(["0101", "0201", "0301", "0401"]);
+    });
+
+    it("combines PlanetTerp's rating with Terpsicle's once Reviews is readable", async () => {
+      useReviewNumbers
+        .getState()
+        .connect(createBucketDataSource(mockDataSource));
+      useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "read" } });
+      try {
+        const { user } = await renderDetails();
+        const jada = within(screen.getByTestId("sections")).getByRole(
+          "button",
+          { expanded: true, name: /^Jada/ },
+        );
+        // 88 on PlanetTerp at 4.6, and the mock's 9 on Terpsicle at 3.33.
+        await waitFor(() => expect(jada).toHaveTextContent(/4\.5\(97\)$/));
+        expect(jada).toHaveAccessibleName(
+          /^Jada Abernathy ?rated 4\.5 of 5, 97 reviews$/,
+        );
+        await user.hover(within(jada).getByText("4.5"));
+        expect(
+          await screen.findByRole("tooltip", {
+            name: "4.5 from 97 reviews: 4.6 from 88 on PlanetTerp, 3.3 from 9 on Terpsicle",
+          }),
+        ).toBeInTheDocument();
+      } finally {
+        useAccount.setState({ flags: FLAGS_OFF });
+        useReviewNumbers.setState(INITIAL_REVIEW_NUMBERS_STATE);
+      }
     });
 
     it("collapses a group, and remembers it", async () => {
@@ -325,7 +378,7 @@ describe("Course details", () => {
       ).toBe("0101");
       expect(
         within(row("0101")).getByRole("button", {
-          name: "Watch for a seat: get an email when one opens, CMSC351 0101",
+          name: "Watch for a seat: we'll email you when one opens, CMSC351 0101",
         }),
       ).toBeInTheDocument();
     });
@@ -392,68 +445,100 @@ describe("Course details", () => {
     expect(screen.queryByText(/fits your plan\.$/)).toBeNull();
   });
 
-  describe("seat-alert bell", () => {
+  describe("seat-watch bell", () => {
     it("hides while seat alerts are off", async () => {
       await renderDetails();
       expect(document.querySelector("[data-alert]")).not.toBeNull();
-      act(() => useSeatAlerts.getState().setAvailability("unavailable"));
+      act(() => resetSeatWatches());
       expect(document.querySelector("[data-alert]")).toBeNull();
     });
 
-    it("rings only on low or full sections, and sends a confirmation", async () => {
-      vi.mocked(api.alerts.subscribe).mockResolvedValue({
-        status: "check-email",
-      });
+    it("rings only on low or full sections; one click watches, with Undo", async () => {
+      const client = fakeSeatWatchesClient();
       const { user } = await renderDetails();
       expect(within(row("0401")).queryByLabelText(/seat opens/)).toBeNull();
       const bell = within(row("0101")).getByRole("button", {
-        name: "Watch for a seat: get an email when one opens, CMSC351 0101",
+        name: "Watch for a seat: we'll email you when one opens, CMSC351 0101",
       });
       expect(bell).toHaveAttribute("data-alert", "none");
       await user.click(bell);
-      const email = await screen.findByRole("textbox", { name: "Your email" });
-      expect(email).toHaveAttribute("data-private");
-      await user.type(email, "terp@umd.edu");
-      await user.click(screen.getByRole("button", { name: "Email me" }));
-      expect(await screen.findByRole("status")).toHaveTextContent(
-        "Check your email. Click the link there to start watching.",
-      );
-      expect(api.alerts.subscribe).toHaveBeenCalledWith({
-        email: "terp@umd.edu",
+      expect(client.watch).toHaveBeenCalledWith({
         termId: TEST_TERM_ID,
         sectionKey: "CMSC351-0101",
       });
-      expect(
-        within(row("0101")).getByRole("button", {
-          name: "Check your email to confirm, CMSC351 0101",
+      const on = await within(row("0101")).findByRole("button", {
+        name: /^Watching CMSC351 0101/,
+      });
+      expect(on).toHaveAttribute("data-alert", "watching");
+      expect(on).toHaveAttribute("aria-pressed", "true");
+      expect(row("0101")).toHaveTextContent("Watching");
+      const shown = await toastSaying("Watching CMSC351 0101");
+      expect(shown).toHaveTextContent("We'll email you when a seat opens.");
+      expect(track).toHaveBeenCalledWith("seat_watch_started", {
+        signedInFirst: false,
+      });
+
+      // Undo in the toast stops it again.
+      await user.click(within(shown).getByRole("button", { name: "Undo" }));
+      await waitFor(() =>
+        expect(client.unwatch).toHaveBeenCalledWith({
+          termId: TEST_TERM_ID,
+          sectionKey: "CMSC351-0101",
         }),
-      ).toHaveAttribute("data-alert", "pending");
+      );
+      expect(
+        await within(row("0101")).findByRole("button", {
+          name: /^Watch for a seat/,
+        }),
+      ).toHaveAttribute("data-alert", "none");
     });
 
-    it("shows watching, and says so again when asked twice", async () => {
+    it("shows watching, and one click stops it, with Undo", async () => {
+      const client = fakeSeatWatchesClient([aSeatWatch()]);
       const { user } = await renderDetails();
-      await act(() =>
-        useSeatAlerts.getState().put([
-          {
-            termId: TEST_TERM_ID,
-            sectionKey: "CMSC351-0101",
-            email: "terp@umd.edu",
-            status: "active",
-            subscriptionId: null,
-            manageToken: null,
-            createdAt: "2026-09-01T00:00:00.000Z",
-            updatedAt: "2026-09-01T00:00:00.000Z",
-          },
-        ]),
-      );
+      act(() => watching(aMeUser(), aSeatWatch()));
       const bell = within(row("0101")).getByRole("button", {
         name: /^Watching CMSC351 0101/,
       });
       expect(bell).toHaveAttribute("data-alert", "watching");
       await user.click(bell);
+      expect(client.unwatch).toHaveBeenCalled();
+      const stopped = await toastSaying("Stopped watching CMSC351 0101");
+      await user.click(within(stopped).getByRole("button", { name: "Undo" }));
       expect(
-        await screen.findByText(/You're watching this as terp@umd.edu/),
+        await within(row("0101")).findByRole("button", {
+          name: /^Watching CMSC351 0101/,
+        }),
       ).toBeInTheDocument();
+    });
+
+    it("signed out, offers sign-in and remembers the section for after", async () => {
+      seatAlertsAccount(null);
+      const client = fakeSeatWatchesClient();
+      const { user } = await renderDetails();
+      await user.click(
+        within(row("0101")).getByRole("button", {
+          name: /^Watch for a seat.*CMSC351 0101$/,
+        }),
+      );
+      expect(
+        await screen.findByText("Sign in to get seat alerts.", {
+          exact: false,
+        }),
+      ).toBeVisible();
+      const signIn = screen.getByRole("link", { name: /Sign in/ });
+      expect(signIn.getAttribute("href")).toMatch(
+        /^\/api\/auth\/google\?return=/,
+      );
+      signIn.addEventListener("click", (e) => e.preventDefault());
+      await user.click(signIn);
+      expect(
+        JSON.parse(sessionStorage.getItem("terpsicle:pending-watch") ?? "{}"),
+      ).toMatchObject({
+        termId: TEST_TERM_ID,
+        sectionKey: "CMSC351-0101",
+      });
+      expect(client.watch).not.toHaveBeenCalled();
     });
   });
 
@@ -486,6 +571,24 @@ describe("Course details", () => {
       expect(track).toHaveBeenCalledWith("course_details_tab", {
         tab: "instructors",
       });
+    });
+
+    it("say how many reviews from each source a summary read", async () => {
+      vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
+        status: "ok",
+        summary: aReviewSummary({
+          slug,
+          basedOnReviewCount: 97,
+          sources: { planetterp: 88, terpsicle: 9 },
+        }),
+      }));
+      await renderDetails("CMSC351", "instructors");
+      const jada = await findReviews("Jada Abernathy");
+      await waitFor(() =>
+        expect(jada).toHaveTextContent(
+          "Summary of 97 reviews: 88 on PlanetTerp, 9 on Terpsicle",
+        ),
+      );
     });
 
     it("link to Terpsicle Reviews once it's open here", async () => {

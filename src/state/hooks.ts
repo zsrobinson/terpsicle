@@ -10,7 +10,7 @@ import {
 import { resolveCourseColors } from "~/core/color";
 import { buildFitContext, type FitContext } from "~/core/fit";
 import { creditsLabel, planCredits } from "~/core/plans";
-import { countBySeverity, planProblems } from "~/core/problems";
+import { countBySeverity, planProblems, withWatches } from "~/core/problems";
 import type {
   Block,
   ChangesFile,
@@ -30,6 +30,7 @@ import { sharedViewPlan } from "~/core/share";
 import { type CampusMap, planConnections } from "~/core/travel";
 import { type TermCatalog, useCatalog } from "./catalog-store";
 import { activePlanId, plansInTerm } from "./plan-ops";
+import { useWatchedSections } from "./seat-watches";
 import { useShare } from "./share-store";
 import { useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";
@@ -326,6 +327,8 @@ export function usePlanProblemsState(): PlanProblemsState {
   const current = useCurrentPlan();
   const catalog = useTermCatalog(current?.termId ?? null);
   const { travel, campus } = useTravel();
+  // A watched full section is a note, not a problem (withWatches).
+  const watched = useWatchedSections(current?.termId ?? null);
   // Memoized on the result's inputs, so consumers get a stable object.
   const inputs = (() => {
     if (!current) return null;
@@ -341,7 +344,7 @@ export function usePlanProblemsState(): PlanProblemsState {
       return "checking" as const;
     return deptSet([...pending].sort().join(","));
   })();
-  const problems =
+  const detected =
     inputs && typeof inputs !== "string" && current && catalog
       ? problemsFor(
           current.plan,
@@ -354,6 +357,13 @@ export function usePlanProblemsState(): PlanProblemsState {
           inputs,
         )
       : NO_PROBLEMS;
+  const problems = useMemo(
+    () =>
+      current?.readOnly || detected === NO_PROBLEMS
+        ? detected
+        : withWatches(detected, watched),
+    [detected, watched, current?.readOnly],
+  );
   return useMemo(
     () =>
       inputs === "checking"

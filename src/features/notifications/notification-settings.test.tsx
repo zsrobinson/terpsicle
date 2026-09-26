@@ -71,17 +71,47 @@ beforeEach(() => {
 });
 
 describe("NotificationSettingsSection", () => {
-  it("lists every type, quiet until its feature sends", async () => {
-    renderSection();
+  it("lists every type; seat openings switch and save, the rest stay quiet", async () => {
+    api.setSettings.mockResolvedValue({
+      settings: DEFAULT_NOTIFICATION_SETTINGS,
+    });
+    const user = renderSection();
     for (const row of TYPE_ROWS)
       expect(await screen.findByText(row.title)).toBeInTheDocument();
-    const seat = screen.getByRole("switch", {
-      name: "Seat openings: Notification",
+    const seatEmail = screen.getByRole("switch", {
+      name: "Seat openings: Email",
     });
-    expect(seat).toHaveAttribute("aria-disabled", "true");
-    expect(seat).toHaveAttribute("aria-checked", "false");
-    await userEvent.setup().click(seat);
-    expect(api.setSettings).not.toHaveBeenCalled();
+    expect(seatEmail).toHaveAttribute("aria-checked", "true");
+    await user.click(seatEmail);
+    expect(seatEmail).toHaveAttribute("aria-checked", "false");
+    expect(api.setSettings).toHaveBeenCalledWith({
+      settings: {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        seatOpen: { push: true, email: false },
+      },
+    });
+    const mention = screen.getByRole("switch", {
+      name: "Mentions in Chat: Notification",
+    });
+    expect(mention).toHaveAttribute("aria-disabled", "true");
+    expect(mention).toHaveAttribute("aria-checked", "false");
+    await user.click(mention);
+    expect(api.setSettings).toHaveBeenCalledOnce();
+  });
+
+  it("puts a switch back when saving fails", async () => {
+    api.setSettings.mockRejectedValue(new Error("offline"));
+    const user = renderSection();
+    const seatEmail = await screen.findByRole("switch", {
+      name: "Seat openings: Email",
+    });
+    await user.click(seatEmail);
+    await waitFor(() =>
+      expect(seatEmail).toHaveAttribute("aria-checked", "true"),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "That didn't go through.",
+    );
   });
 
   it("turns notifications on here, then lists this device", async () => {

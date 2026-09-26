@@ -35,6 +35,7 @@ import {
   type Instructor,
   type Manifest,
   type ManifestDepartment,
+  type MeUser,
   type MyReview,
   type Plan,
   type PlanCourse,
@@ -48,9 +49,12 @@ import {
   type Review,
   type ReviewSubmitInput,
   type ReviewSummary,
+  type ReviewsDept,
+  type ReviewsManifest,
   type RouteGeometry,
   type SeatsFile,
   type SeatTuple,
+  type SeatWatch,
   type Section,
   type SectionSnapshot,
   type SettingsDoc,
@@ -619,6 +623,33 @@ export function aReviewSummary(
   };
 }
 
+// ---------- Terpsicle reviews' numbers ----------
+
+export function aReviewsDept(
+  overrides: Partial<ReviewsDept> = {},
+): ReviewsDept {
+  return {
+    schemaVersion: 1,
+    dept: "CMSC",
+    instructors: {
+      brandt: { rating: 4.6, reviewCount: 13, latestReviewMonth: "2026-09" },
+    },
+    names: {},
+    ...overrides,
+  };
+}
+
+export function aReviewsManifest(
+  overrides: Partial<ReviewsManifest> = {},
+): ReviewsManifest {
+  return {
+    schemaVersion: 1,
+    generatedAt: FIXTURE_NOW,
+    departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
+    ...overrides,
+  };
+}
+
 // ---------- geo and travel ----------
 
 export function aBuilding(overrides: Partial<Building> = {}): Building {
@@ -839,6 +870,30 @@ export function aProblem(overrides: Partial<Problem> = {}): Problem {
       sectionKey: "CMSC351-0201",
       label: "Switch to 0201",
     },
+    ...overrides,
+  };
+}
+
+/** tstudent, signed in (what POST /api/me answers). */
+export function aMeUser(overrides: Partial<MeUser> = {}): MeUser {
+  return {
+    id: "tstudent",
+    name: "Test Student",
+    email: "tstudent@terpmail.umd.edu",
+    avatarUrl: null,
+    isAdmin: false,
+    createdAt: "2026-09-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+/** A watch on CMSC351 0101 (full in the mock seats), with no alert yet. */
+export function aSeatWatch(overrides: Partial<SeatWatch> = {}): SeatWatch {
+  return {
+    termId: fixtureTermId,
+    sectionKey: "CMSC351-0101",
+    createdAt: "2026-09-24T14:00:00.000Z",
+    lastNotifiedAt: null,
     ...overrides,
   };
 }

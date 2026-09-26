@@ -1,3 +1,4 @@
+import { endPastTermWatches } from "~/server/alerts/service";
 import { deletePictures } from "~/server/auth/pictures";
 import { accountsDueForPurge, purgeAccounts } from "~/server/auth/store";
 import { pruneDeliveries } from "~/server/notifications/store";
@@ -15,7 +16,8 @@ import { type Job, runJob } from "./job";
  * (V2.md §7.3), and Todo items due over 30 days ago with their stale done
  * marks (V3.md §3.4), and notification deliveries after 90 days. A purged
  * author's reviews stay up without one (`reviews.author_id` is ON DELETE
- * SET NULL).
+ * SET NULL). Seat watches end once their term is no longer active (V2.md
+ * §6.5).
  * Later PRs add the chat digest, the moderation digest, and the rest of an
  * account's data to the purge (V2.md §4.7).
  */
@@ -30,6 +32,7 @@ export const runDailyJob: Job = async (context) => {
     const reviews = await pruneReviews(env.DB, now);
     const todo = await pruneTodo(env.DB, now);
     const deliveriesPruned = await pruneDeliveries(env.DB, now);
+    const watches = await endPastTermWatches(env);
     return {
       counts: {
         accountsPurged: purged.accounts,
@@ -40,6 +43,7 @@ export const runDailyJob: Job = async (context) => {
         todoItemsPruned: todo.items,
         todoDoneMarksPruned: todo.doneMarks,
         deliveriesPruned,
+        seatWatchesEnded: watches.watches,
       },
       errors: [],
     };

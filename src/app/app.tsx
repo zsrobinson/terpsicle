@@ -16,7 +16,7 @@ import {
   type Persistence,
   startPersisting,
 } from "~/state/persist";
-import { startSeatAlerts, startSeatAlertsInMemory } from "~/state/seat-alerts";
+import { useReviewNumbers } from "~/state/reviews-store";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { trackCatalogEvent } from "./actions";
@@ -40,13 +40,11 @@ function useBootstrap(config: ClientConfig) {
     let stopAccount: (() => void) | undefined;
     let sync: typeof import("~/features/sync/boot") | undefined;
     const db = new TerpsicleDb();
-    // Apart from plans: a broken alerts table mustn't block the schedule.
-    startSeatAlerts(db).catch((error: unknown) => {
-      // Closed by our own cleanup (a remount): the next mount has it.
-      if (cancelled) return;
-      console.error(error);
-      startSeatAlertsInMemory();
-    });
+    // The email-token seat alerts' old local list: seat watches live on the
+    // account now (V2.md §6.5).
+    db.table("settings")
+      .delete("seatAlerts")
+      .catch(() => {});
 
     void (async () => {
       try {
@@ -123,6 +121,10 @@ function useBootstrap(config: ClientConfig) {
       catalog.setReader(createDataReader(source), {
         cache: createDexieCache(db, source.kind === "mock" ? "mock:" : ""),
         onEvent: trackCatalogEvent,
+      });
+      // Terpsicle reviews' numbers, loaded per department on first use.
+      useReviewNumbers.getState().connect(source, {
+        cache: createDexieCache(db, source.kind === "mock" ? "mock:" : ""),
       });
       // A failure shows in place of the calendar, with a retry (catalog-error.tsx).
       await catalog.loadTerms();

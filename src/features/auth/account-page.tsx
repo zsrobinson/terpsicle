@@ -38,15 +38,19 @@ export function AccountPage({
 export function AccountSection({
   title,
   children,
+  id,
 }: {
   title: string;
   children: ReactNode;
+  /** A link target: `/settings#<id>`. */
+  id?: string;
 }) {
   const headingId = useId();
   return (
     <section
+      id={id}
       aria-labelledby={headingId}
-      className="rounded-lg border border-hairline bg-raised p-4"
+      className="scroll-mt-6 rounded-lg border border-hairline bg-raised p-4"
     >
       <h2 id={headingId} className="mb-3 font-semibold text-base">
         {title}

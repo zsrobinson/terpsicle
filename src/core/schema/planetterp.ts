@@ -216,5 +216,15 @@ export const ReviewSummarySchema = z.object({
   generatedAt: IsoDateTimeSchema,
   /** Workers AI model id used. */
   model: z.string().min(1).max(120),
+  /**
+   * How many reviews came from each source (V2 §7.6). Added without a
+   * version bump (DATA.md §2.3); a summary without it read only PlanetTerp.
+   */
+  sources: z
+    .object({
+      planetterp: z.number().int().min(0),
+      terpsicle: z.number().int().min(0),
+    })
+    .optional(),
 });
 export type ReviewSummary = z.infer<typeof ReviewSummarySchema>;

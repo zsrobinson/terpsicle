@@ -17,6 +17,7 @@ import {
 } from "~/fixtures";
 import { type ApiEnv, handleApi } from "../api/router";
 import { api } from "../fns/api";
+import { GUARD_MODEL } from "../moderation/models";
 import { getReviewSummary, isFresh, type SummaryEnv } from "./service";
 
 const NOW = new Date("2026-10-01T15:00:00.000Z");
@@ -65,13 +66,76 @@ function planetTerp(slug: string, name: string, count = 3) {
   );
 }
 
-function mockAi(...responses: unknown[]) {
-  const run = vi.fn(async () => ({ response: responses.shift() ?? GOOD }));
-  return { run, ai: { run } as unknown as Ai };
+/**
+ * An AI binding: Llama Guard answers `guard` (safe unless told otherwise),
+ * and `run`, the summary model's calls, answers the rest.
+ */
+function withGuard(
+  run: (model: string, input: unknown) => Promise<unknown>,
+  guard: unknown = { safe: true },
+) {
+  const checks = vi.fn(async (_model: string, _input: unknown) => ({
+    response: guard,
+  }));
+  const ai = {
+    run: (model: string, input: unknown) =>
+      model === GUARD_MODEL ? checks(model, input) : run(model, input),
+  } as unknown as Ai;
+  return { ai, checks };
 }
 
-function testEnv(ai: Ai, cap?: string): SummaryEnv {
-  return { ...env, AI: ai, ...(cap ? { SUMMARIES_DAILY_CAP: cap } : {}) };
+function mockAi(...responses: unknown[]) {
+  const run = vi.fn(async (_model: string, _input: unknown) => ({
+    response: responses.shift() ?? GOOD,
+  }));
+  return { run, ...withGuard(run) };
+}
+
+function testEnv(
+  ai: Ai,
+  cap?: string,
+  reviews: "off" | "read" | "on" = "off",
+): SummaryEnv {
+  return {
+    ...env,
+    AI: ai,
+    REVIEWS_ENABLED: reviews,
+    ...(cap ? { SUMMARIES_DAILY_CAP: cap } : {}),
+  };
+}
+
+let reviewNumber = 0;
+/** A review of ours in D1 (V2 §7.3), published unless `status` says otherwise. */
+async function addReview(
+  instructorId: string,
+  fields: { body?: string; status?: string; publishedAt?: string } = {},
+) {
+  const id = `sum-review-${String(++reviewNumber).padStart(11, "0")}`;
+  const at = fields.publishedAt ?? "2026-09-20T18:30:00.000Z";
+  await env.DB.prepare(
+    `INSERT INTO reviews (id, author_id, instructor_id, reviewed_name, course, term_id,
+       rating, grade, body, text_hash, status, created_at, published_at, updated_at)
+     VALUES (?1, NULL, ?2, 'Some Name', 'TEST101', NULL, 5, NULL, ?3, ?4, ?5, ?6, ?6, ?6)`,
+  )
+    .bind(
+      id,
+      instructorId,
+      fields.body ??
+        `Terpsicle review ${reviewNumber}: office hours help a lot.`,
+      "0".repeat(64),
+      fields.status ?? "published",
+      at,
+    )
+    .run();
+  return id;
+}
+
+async function addInstructor(id: string, name: string, slug: string | null) {
+  await env.DB.prepare(
+    "INSERT INTO instructors (id, name, planetterp_slug, created_at) VALUES (?1, ?2, ?3, ?4)",
+  )
+    .bind(id, name, slug, "2026-09-01T00:00:00.000Z")
+    .run();
 }
 
 describe("review summaries", () => {
@@ -359,7 +423,7 @@ describe("review summaries", () => {
       await gate;
       return { response: GOOD };
     });
-    const ai = { run } as unknown as Ai;
+    const { ai } = withGuard(run);
     const deps = { now: NOW, fetcher: planetTerp("popular", "Popular Prof") };
     const input = { slug: "popular", course: "TEST101" };
     const all = Promise.all(
@@ -439,6 +503,149 @@ describe("review summaries", () => {
     );
     expect(a.status).toBe("ok");
     expect(b).toEqual({ status: "unavailable", reason: "daily-limit" });
+  });
+
+  it("summarizes our published reviews with PlanetTerp's, and says how many of each", async () => {
+    await publishInstructors(
+      anInstructor({
+        slug: "mixed_one",
+        name: "Mixed One",
+        reviewCount: 3,
+        latestReviewAt: "2026-04-15T12:00:00.000Z",
+      }),
+    );
+    await addInstructor("mixed_one", "Mixed One", "mixed_one");
+    await addReview("mixed_one", { body: "OURS-A clear and kind." });
+    await addReview("mixed_one", { body: "OURS-B fair exams." });
+    await addReview("mixed_one", { body: "OURS-C held.", status: "held" });
+    const { ai, run, checks } = mockAi();
+    const result = await getReviewSummary(
+      testEnv(ai, undefined, "read"),
+      { slug: "mixed_one", course: "TEST101" },
+      { now: NOW, fetcher: planetTerp("mixed_one", "Mixed One") },
+    );
+    if (result.status !== "ok") throw new Error(result.reason);
+    expect(result.summary).toMatchObject({
+      basedOnReviewCount: 5,
+      sources: { planetterp: 3, terpsicle: 2 },
+      // Ours count by month only (V2 §7.5): September, not the 20th at 18:30.
+      latestReviewAt: "2026-09-01T00:00:00.000Z",
+    });
+    const prompt = JSON.stringify(run.mock.calls[0]);
+    expect(prompt).toContain("OURS-A");
+    expect(prompt).toContain("Review 2:");
+    expect(prompt).not.toContain("OURS-C");
+    // The summary went through Llama Guard before it was stored.
+    expect(JSON.stringify(checks.mock.calls[0])).toContain(GOOD.summary);
+  });
+
+  it("summarizes an instructor PlanetTerp doesn't know from our reviews alone", async () => {
+    await addInstructor("t~summary234", "Pat Quill", null);
+    await addReview("t~summary234");
+    const { ai } = mockAi();
+    const fetcher = planetTerp("quill", "Pat Quill");
+    const result = await getReviewSummary(
+      testEnv(ai, undefined, "on"),
+      { slug: "t~summary234", course: "TEST101" },
+      { now: NOW, fetcher },
+    );
+    expect(result.status === "ok" && result.summary.sources).toEqual({
+      planetterp: 0,
+      terpsicle: 1,
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+
+    // Known to us, but nothing published: no reviews, not unknown.
+    await addInstructor("t~summary999", "Sam Held", null);
+    await addReview("t~summary999", { status: "held" });
+    expect(
+      await getReviewSummary(
+        testEnv(ai, undefined, "on"),
+        { slug: "t~summary999", course: "TEST101" },
+        { now: NOW, fetcher },
+      ),
+    ).toEqual({ status: "unavailable", reason: "no-reviews" });
+  });
+
+  it("goes stale when one of our reviews is taken down", async () => {
+    await publishInstructors(
+      anInstructor({
+        slug: "taken_down",
+        name: "Taken Down",
+        reviewCount: 3,
+        latestReviewAt: "2026-04-15T12:00:00.000Z",
+      }),
+    );
+    await addInstructor("taken_down", "Taken Down", "taken_down");
+    const id = await addReview("taken_down");
+    await addReview("taken_down");
+    const deps = { now: NOW, fetcher: planetTerp("taken_down", "Taken Down") };
+    const input = { slug: "taken_down", course: "TEST101" };
+    const { ai, run } = mockAi();
+    await getReviewSummary(testEnv(ai, undefined, "read"), input, deps);
+    await getReviewSummary(testEnv(ai, undefined, "read"), input, deps);
+    expect(run).toHaveBeenCalledTimes(1);
+
+    await env.DB.prepare("UPDATE reviews SET status = 'hidden' WHERE id = ?1")
+      .bind(id)
+      .run();
+    const again = await getReviewSummary(
+      testEnv(ai, undefined, "read"),
+      input,
+      deps,
+    );
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(again.status === "ok" && again.summary.sources).toEqual({
+      planetterp: 3,
+      terpsicle: 1,
+    });
+  });
+
+  it("leaves our reviews out while Reviews is off", async () => {
+    await publishInstructors(
+      anInstructor({ slug: "off_one", name: "Off One", reviewCount: 3 }),
+    );
+    await addInstructor("off_one", "Off One", "off_one");
+    await addReview("off_one", { body: "OURS-OFF should not be read." });
+    const { ai, run } = mockAi();
+    const result = await getReviewSummary(
+      testEnv(ai),
+      { slug: "off_one", course: "TEST101" },
+      { now: NOW, fetcher: planetTerp("off_one", "Off One") },
+    );
+    expect(result.status === "ok" && result.summary.basedOnReviewCount).toBe(3);
+    expect(JSON.stringify(run.mock.calls[0])).not.toContain("OURS-OFF");
+  });
+
+  it("never stores or shows a summary Llama Guard flags, or one it couldn't check", async () => {
+    await publishInstructors(
+      anInstructor({ slug: "flagged", name: "Flagged One", reviewCount: 3 }),
+      anInstructor({
+        slug: "unchecked",
+        name: "Unchecked One",
+        reviewCount: 3,
+      }),
+    );
+    const run = vi.fn(async () => ({ response: GOOD }));
+    const flagged = withGuard(run, { safe: false, categories: ["S5"] });
+    expect(
+      await getReviewSummary(
+        testEnv(flagged.ai),
+        { slug: "flagged", course: "TEST101" },
+        { now: NOW, fetcher: planetTerp("flagged", "Flagged One") },
+      ),
+    ).toEqual({ status: "unavailable", reason: "failed" });
+    expect(await env.DATA.get(summaryKey("flagged"))).toBeNull();
+
+    const garbled = withGuard(run, "not a verdict");
+    expect(
+      await getReviewSummary(
+        testEnv(garbled.ai),
+        { slug: "unchecked", course: "TEST101" },
+        { now: NOW, fetcher: planetTerp("unchecked", "Unchecked One") },
+      ),
+    ).toEqual({ status: "unavailable", reason: "failed" });
+    expect(await env.DATA.get(summaryKey("unchecked"))).toBeNull();
   });
 
   it("is reachable through the typed client and the router", async () => {

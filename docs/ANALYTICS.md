@@ -33,7 +33,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `share_link_copied` | | Whether sharing is used. |
   | `ics_downloaded` | `events` | Whether calendar export is worth keeping. |
   | `registration_item_checked` | | Whether the checklist is used on registration day. |
-  | `seat_alert_requested` / `seat_alert_stopped` | | Seat-alert demand from the app's side (the server counts confirmations and sends). Never the address. |
+  | `seat_watch_started` / `seat_watch_stopped` | `signedInFirst` (on start: the watch was asked for signed out and began after sign-in) | Seat-watch demand from the app's side, and how many people sign in for it (the server counts watches and sends). Never who or which section. |
   | `deep_link_opened` | `outcome`: `ok` · `unknown-term` | How often seat-alert emails bring people back, and whether their terms still exist. |
   | `catalog_loaded` | `termId`, `fromCache`, `deptsFetched`, `ms` (until every department is in) | Whether the IndexedDB cache and manifest diffing keep repeat visits fast (BUILD §5), and how long a first visit waits for the whole catalog. |
   | `catalog_load_failed` | `termId` (null when the terms list failed), `reason`: `missing` · `network` · `invalid` · `newer-data` | Visits that saw the "couldn't load" state instead of a calendar, and which failure caused it. |
@@ -87,12 +87,12 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `cron_job_failed` | `job`, `durationMs`, `error`; when a source answered with data we won't publish (PlanetTerp's list came back empty or more than 10% short, DATA.md §4.1), also `firstError` (the specific reason) and `counts` (what this run saw against the last good run) | Runs that gave up (Cloudflare marks the cron failed too), and sources that are breaking while the last good data stays up. |
   | `summary_generated` | `model`, `durationMs`, `reviews`, `attempts` | Workers AI cost and latency; how often the first answer fails validation. |
   | `summary_cached` | `ageDays` | How often summaries come from R2, and how old they get. |
-  | `summary_failed` | `reason` (`model-output`, `model-error`, `planetterp`, `storage`) | Which dependency fails. |
+  | `summary_failed` | `reason` (`model-output`, `model-error`, `planetterp`, `storage`; `unsafe` when Llama Guard flags the summary, `guard-error` when the check itself failed) | Which dependency fails. |
   | `summary_capped` | `cap` | Whether the daily cap is too low. |
-  | `alert_subscribed` | `outcome` (`confirm-sent`, `already-watching`, `not-sent`) | Signups, and how often limits skip an email. |
-  | `alert_confirmed` | `termId` | How many signups confirm. |
+  | `alert_watched` | `termId` | New seat watches. |
   | `alert_sent` | `termId`, `count` | Alert volume per seats run. |
-  | `alert_unsubscribed` | `termId` | Whether alerts are wanted. |
+  | `alert_unwatched` | `termId`, `via` (`app`, `email`) | Whether alerts are wanted, and how often the email's one-click stop is used. |
+  | `alert_watches_ended` | `terms`, `watches` | Watches the daily job ended with their term. |
   | `signin_result` | `outcome` (`signed-in`, a `SignInError` code, or `sub-conflict`), `hd` (the domain only, on success) | Server-side truth for sign-in success and failure, including failures the browser never reports, and the TERPmail versus UMD Gmail split. |
   | `sync_push` | `docs`, `fourYearDocs`, `conflicts` | Plan sync's load (and how much of it is Terpsicle Plan's four-year plans) and how often two devices change the same doc (a conflict makes a "(copy)" plan). Counts only. |
   | `todo_fetch_run` | `due`, `fetched`, `notModified`, `unchanged`, `failed`, `broken`, `paused`, `durationMs` | Terpsicle Todo's feed cadence and failure rates. Counts only: never a feed, link, person or item. |

@@ -143,10 +143,11 @@ for (const scheme of ["light", "dark"] as const) {
         .locator('[data-section="0101"]')
         .getByRole("button", { name: /^Watch for a seat/ })
         .click();
+      // Signed out, the bell offers sign-in (V2.md §6.5).
       await expect(
-        page.getByRole("textbox", { name: "Your email" }),
+        page.getByRole("link", { name: "Sign in (test mode)" }),
       ).toBeVisible();
-      await scan(page, `seat alert popover (${scheme})`);
+      await scan(page, `seat watch popover (${scheme})`);
       await page.keyboard.press("Escape");
       // One page: the description, reviews and grades open in place.
       await page
