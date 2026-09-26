@@ -51,6 +51,13 @@ export const summaryKey = (slug: InstructorSlug): string =>
 /** Job state (resume cursors, last crawl snapshots). Never served. */
 export const JOBS_PREFIX = "_jobs/";
 
+/**
+ * Review text kept for summaries (DATA.md §2.6). Under `_jobs/`, so
+ * `dataCachePolicy` never serves it.
+ */
+export const planetTerpReviewsKey = (slug: InstructorSlug): string =>
+  `${JOBS_PREFIX}planetterp/reviews/${slug}.json`;
+
 export const planetTerpUrl = (slug: InstructorSlug): string =>
   `https://planetterp.com/professor/${encodeURIComponent(slug)}`;
 

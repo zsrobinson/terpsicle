@@ -14,6 +14,7 @@ import {
   PLANETTERP_MANIFEST_KEY,
   PlanetTerpDeptSchema,
   PlanetTerpManifestSchema,
+  type PlanetTerpSource,
   planetTerpDeptKey,
   SCHEMA_VERSIONS,
   TERMS_KEY,
@@ -26,6 +27,7 @@ import {
   type Logger,
   readJson,
   readJsonOrNull,
+  SourceFailureError,
   updatePointer,
   writeHashed,
   writeJson,
@@ -33,6 +35,19 @@ import {
 import { activeTermIds } from "../soc/terms";
 import aliasFile from "./aliases.json";
 import { createNameMatcher, MATCH_RULES, type MatchRule } from "./names";
+import {
+  createReviewKeeper,
+  ReviewApiSchema,
+  type ReviewKeeper,
+} from "./reviews";
+import {
+  implausibleReason,
+  SOURCE_STATE_KEY,
+  type SourceState,
+  SourceStateSchema,
+  statusAfterFailure,
+  statusAfterSuccess,
+} from "./source";
 
 // The PlanetTerp job (daily; RESEARCH.md §5.5): every professor with review
 // metadata (147 list pages), grade distributions for catalog courses on a
@@ -46,10 +61,6 @@ const PAGE_SIZE = 100;
 const CONCURRENCY = 3;
 
 // ---------- API shapes (validated at the boundary) ----------
-
-const ReviewApiSchema = z.object({
-  created: z.string(),
-});
 
 const ProfessorApiSchema = z.object({
   name: z.string().min(1),
@@ -124,7 +135,20 @@ export interface PlanetTerpOptions {
   log: Logger;
   /** Grade requests per run; courses never fetched go first, then the stalest. */
   gradeRequests?: number;
+  /**
+   * Keep review text in the private store (DATA.md §2.6). Off until the
+   * owner decides whether we may keep PlanetTerp's reviewers' writing.
+   */
+  keepReviewText?: boolean;
 }
+
+/** Drops review text: nothing is stored when keeping it is off. */
+const DISCARD_REVIEWS: ReviewKeeper = {
+  async keep() {},
+  async finish() {
+    return { written: 0, kept: 0 };
+  },
+};
 
 export interface PlanetTerpResult {
   professors: number;
@@ -132,12 +156,18 @@ export interface PlanetTerpResult {
   departments: number;
   written: number;
   gradeRequests: number;
+  /** Courses whose fetch came back empty, so their stored grades were kept. */
+  gradesKept: number;
   coursesWithGrades: number;
   testudoNames: number;
   unmatchedNames: number;
+  /** Review files written to the private store this run. */
+  reviewFilesWritten: number;
   /** Testudo names matched by each rule. */
   matchedBy: Record<MatchRule, number>;
   latestReviewAt: string | null;
+  /** What the manifest now says about PlanetTerp. */
+  source: PlanetTerpSource;
   errors: string[];
 }
 
@@ -156,18 +186,35 @@ export async function runPlanetTerp(
   const { http, store, now, log } = options;
   const errors: string[] = [];
   const catalog = await loadCatalog(store, log);
+  const lastState = await readJsonOrNull(
+    store,
+    SOURCE_STATE_KEY,
+    SourceStateSchema,
+    log,
+  );
 
-  const professors = await fetchProfessors(http);
+  // The professor list, checked against the last good run before anything
+  // is published: an empty or truncated list that parses must not replace
+  // good data (DATA.md §4.1).
+  const keeper = options.keepReviewText
+    ? await createReviewKeeper(store, log)
+    : DISCARD_REVIEWS;
+  let professors: ProfessorSummary[];
+  let reviewFilesWritten = 0;
+  try {
+    professors = await fetchProfessors(http, keeper);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw await sourceFailure(store, log, now, lastState, reason, {});
+  } finally {
+    reviewFilesWritten = (await keeper.finish()).written;
+  }
   const bySlug = new Map<string, Instructor & { courses: Set<string> }>();
   let reviews = 0;
   let latestReviewAt: string | null = null;
   for (const p of professors) {
-    const created = p.reviews
-      .map((r) => Date.parse(r.created))
-      .filter((t) => Number.isFinite(t));
-    const latest =
-      created.length > 0 ? new Date(Math.max(...created)).toISOString() : null;
-    reviews += p.reviews.length;
+    const latest = p.latestReviewAt;
+    reviews += p.reviewCount;
     if (latest && (!latestReviewAt || latest > latestReviewAt))
       latestReviewAt = latest;
     const rating =
@@ -181,9 +228,21 @@ export async function runPlanetTerp(
       name: p.name,
       type: p.type,
       rating,
-      reviewCount: p.reviews.length,
+      reviewCount: p.reviewCount,
       latestReviewAt: latest,
       courses: new Set(p.courses),
+    });
+  }
+  const implausible = implausibleReason(
+    { professors: professors.length, reviews },
+    lastState?.lastSuccessAt ? lastState : null,
+  );
+  if (implausible) {
+    throw await sourceFailure(store, log, now, lastState, implausible, {
+      professors: professors.length,
+      reviews,
+      previousProfessors: lastState?.professors ?? 0,
+      previousReviews: lastState?.reviews ?? 0,
     });
   }
 
@@ -222,13 +281,17 @@ export async function runPlanetTerp(
     )
     .slice(0, options.gradeRequests ?? 700);
   let gradeRequests = 0;
+  let gradesKept = 0;
   await mapLimit(queue, CONCURRENCY, async ({ code }) => {
     gradeRequests++;
     try {
-      grades.courses[code] = {
-        fetchedAt: now.toISOString(),
-        byProfessor: summarizeGrades(await fetchGrades(http, code)),
-      };
+      const next = mergeCourseGrades(
+        grades.courses[code],
+        summarizeGrades((await fetchGrades(http, code)) ?? []),
+        now,
+      );
+      if (next.kept) gradesKept++;
+      grades.courses[code] = next.state;
     } catch (error) {
       errors.push(
         `grades ${code}: ${error instanceof Error ? error.message : String(error)}`,
@@ -314,6 +377,13 @@ export async function runPlanetTerp(
     }
   }
 
+  const { status, reason } = statusAfterSuccess(latestReviewAt, now);
+  const source: PlanetTerpSource = {
+    status,
+    lastSuccessAt: now.toISOString(),
+    gradesThrough,
+    latestReviewAt,
+  };
   await updatePointer(
     store,
     PLANETTERP_MANIFEST_KEY,
@@ -323,6 +393,7 @@ export async function runPlanetTerp(
       generatedAt: now.toISOString(),
       gradesThrough,
       departments,
+      source,
     }),
   );
   await writeJson(store, UNMATCHED_KEY, {
@@ -331,6 +402,16 @@ export async function runPlanetTerp(
     names: unmatched,
     matchedBy,
   });
+  await writeJson(store, SOURCE_STATE_KEY, {
+    status,
+    reason,
+    lastRunAt: now.toISOString(),
+    lastSuccessAt: now.toISOString(),
+    professors: professors.length,
+    reviews,
+    latestReviewAt,
+    gradesThrough,
+  } satisfies SourceState);
 
   return {
     professors: professors.length,
@@ -338,13 +419,95 @@ export async function runPlanetTerp(
     departments: departments.length,
     written,
     gradeRequests,
+    gradesKept,
     coursesWithGrades,
     testudoNames: slugForTestudo.size,
     unmatchedNames: unmatched.length,
+    reviewFilesWritten,
     matchedBy,
     latestReviewAt,
+    source,
     errors,
   };
+}
+
+/**
+ * Records that PlanetTerp failed: the job state and the manifest's `source`
+ * say `stale` (or `gone` after weeks), and nothing else is touched, so the
+ * last good department files stay published. Returns the error to throw.
+ */
+async function sourceFailure(
+  store: BlobStore,
+  log: Logger,
+  now: Date,
+  last: SourceState | null,
+  reason: string,
+  counts: Record<string, number>,
+): Promise<SourceFailureError> {
+  log.error("PlanetTerp failed; kept the last good files", { reason });
+  let lastSuccessAt = last?.lastSuccessAt ?? null;
+  try {
+    await updatePointer(
+      store,
+      PLANETTERP_MANIFEST_KEY,
+      PlanetTerpManifestSchema,
+      (current) => {
+        if (!current) return null;
+        // Manifests from before job state existed were only written by good
+        // runs, so their generatedAt is the last success.
+        lastSuccessAt ??=
+          current.source?.lastSuccessAt ?? current.generatedAt ?? null;
+        return {
+          // generatedAt stays: the files it points at are that old.
+          ...current,
+          source: {
+            status: statusAfterFailure(lastSuccessAt, now),
+            lastSuccessAt,
+            gradesThrough: current.gradesThrough,
+            latestReviewAt:
+              last?.latestReviewAt ?? current.source?.latestReviewAt ?? null,
+          },
+        };
+      },
+    );
+  } catch (error) {
+    // The manifest is unreadable or busy: the failure itself still counts.
+    log.error("Couldn't mark the PlanetTerp manifest stale", {
+      error: String(error),
+    });
+  }
+  await writeJson(store, SOURCE_STATE_KEY, {
+    status: statusAfterFailure(lastSuccessAt, now),
+    reason,
+    lastRunAt: now.toISOString(),
+    lastSuccessAt,
+    professors: last?.professors ?? 0,
+    reviews: last?.reviews ?? 0,
+    latestReviewAt: last?.latestReviewAt ?? null,
+    gradesThrough: last?.gradesThrough ?? null,
+  } satisfies SourceState);
+  return new SourceFailureError("PlanetTerp", reason, counts);
+}
+
+/**
+ * A course's stored grades after a fetch. Grades never go from something to
+ * nothing: an empty answer for a course that had rows is PlanetTerp losing
+ * data, not the course losing its history, so the old rows stay (and the
+ * course still moves to the back of the rotation).
+ */
+export function mergeCourseGrades(
+  previous: GradesState["courses"][string] | undefined,
+  fetched: GradesState["courses"][string]["byProfessor"],
+  now: Date,
+): { state: GradesState["courses"][string]; kept: boolean } {
+  const fetchedAt = now.toISOString();
+  if (
+    Object.keys(fetched).length === 0 &&
+    previous &&
+    Object.keys(previous.byProfessor).length > 0
+  )
+    return { state: { ...previous, fetchedAt }, kept: true };
+  return { state: { fetchedAt, byProfessor: fetched }, kept: false };
 }
 
 function sortRecord<T>(record: Record<string, T>): Record<string, T> {
@@ -401,9 +564,39 @@ async function loadCatalog(
   return index;
 }
 
-async function fetchProfessors(http: HttpClient) {
+/** A listed professor with the review text dropped once it's stored. */
+type ProfessorSummary = Omit<z.infer<typeof ProfessorApiSchema>, "reviews"> & {
+  reviewCount: number;
+  latestReviewAt: string | null;
+};
+
+function summarizeProfessor(
+  p: z.infer<typeof ProfessorApiSchema>,
+): ProfessorSummary {
+  const { reviews, ...rest } = p;
+  const created = reviews
+    .map((r) => Date.parse(r.created))
+    .filter((t) => Number.isFinite(t));
+  return {
+    ...rest,
+    reviewCount: reviews.length,
+    latestReviewAt:
+      created.length > 0 ? new Date(Math.max(...created)).toISOString() : null,
+  };
+}
+
+/**
+ * Every listed professor, paging until a short page. Each batch's review
+ * text goes to the private store and is then dropped, so the 37 MB of text
+ * is never in memory at once. Whether the list is plausible is the caller's
+ * check: a short page early looks the same as the end.
+ */
+async function fetchProfessors(
+  http: HttpClient,
+  keeper: ReviewKeeper,
+): Promise<ProfessorSummary[]> {
   const PageSchema = z.array(ProfessorApiSchema);
-  const all: z.infer<typeof ProfessorApiSchema>[] = [];
+  const all: ProfessorSummary[] = [];
   for (let offset = 0; ; offset += PAGE_SIZE * CONCURRENCY) {
     const pages = await mapLimit(
       Array.from({ length: CONCURRENCY }, (_, i) => offset + i * PAGE_SIZE),
@@ -420,24 +613,35 @@ async function fetchProfessors(http: HttpClient) {
         return parsed.data;
       },
     );
-    for (const page of pages) all.push(...page);
+    const batch = pages.flat();
+    await keeper.keep(batch);
+    for (const p of batch) all.push(summarizeProfessor(p));
     if (pages.some((p) => p.length < PAGE_SIZE)) break;
   }
   return all;
 }
 
-async function fetchGrades(
+/**
+ * A course's grade rows, or null when PlanetTerp has never heard of the
+ * course (its 400 "course not found"). Any other failure throws, so the
+ * caller keeps what it had.
+ */
+export async function fetchGrades(
   http: HttpClient,
   course: string,
-): Promise<GradeRowApi[]> {
+): Promise<GradeRowApi[] | null> {
   let raw: unknown;
   try {
     raw = await http.json(
       `${PLANETTERP_API}/grades?course=${encodeURIComponent(course)}`,
     );
   } catch (error) {
-    // PlanetTerp answers 400 "course not found" for courses it has never seen.
-    if (error instanceof HttpError && error.status === 400) return [];
+    if (
+      error instanceof HttpError &&
+      error.status === 400 &&
+      /course not found/i.test(error.detail)
+    )
+      return null;
     throw error;
   }
   const parsed = z.array(GradeRowApiSchema).safeParse(raw);

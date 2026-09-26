@@ -1,5 +1,6 @@
-// Reviews come straight from PlanetTerp when a summary is generated: we keep
-// only counts in R2, and the text is needed once per summary.
+// Reviews live from PlanetTerp: the fallback when the PlanetTerp job's
+// private copy (`_jobs/planetterp/reviews/`, DATA.md §2.6) is missing or
+// behind the instructor's review count.
 import { z } from "zod";
 import type { PromptReview } from "./prompt";
 

@@ -128,6 +128,22 @@ export async function writeJson(
   await store.put(key, toJsonBytes(value), { contentType: JSON_TYPE });
 }
 
+/**
+ * A source answered with data we won't publish (empty, truncated, or not
+ * there at all), so the last good files stay. Jobs report it as
+ * `cron_job_failed` with the reason as `firstError` (docs/ANALYTICS.md).
+ */
+export class SourceFailureError extends Error {
+  constructor(
+    readonly source: string,
+    readonly reason: string,
+    readonly counts: Record<string, number>,
+  ) {
+    super(`${source} looks broken, so the last good data was kept: ${reason}`);
+    this.name = "SourceFailureError";
+  }
+}
+
 export class ManifestConflictError extends Error {
   constructor(key: string, attempts: number) {
     super(

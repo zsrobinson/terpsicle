@@ -25,6 +25,8 @@ import realGrades from "./derived/planetterp-grades.json";
 
 /** Newest semester in the mock grade data, as in PlanetTerp today. */
 export const MOCK_GRADES_THROUGH = "202501";
+/** PlanetTerp's newest review, as in real life: intake stopped in May 2026. */
+export const MOCK_LATEST_REVIEW_AT = "2026-05-01T14:00:00.000Z";
 
 /** The prototype's instructors, pinned so the demo reads the same every time. */
 const PINNED: Readonly<
@@ -102,7 +104,7 @@ function instructorFor(name: string, slug: string): Instructor {
   // Reviews stopped arriving on 2026-05-01 (RESEARCH §5.5), so they're all older.
   const daysBack = randomInt(rand, 0, 700);
   const latest = new Date(
-    Date.UTC(2026, 4, 1, 14, 0, 0) - daysBack * 86_400_000,
+    Date.parse(MOCK_LATEST_REVIEW_AT) - daysBack * 86_400_000,
   );
   return {
     slug,

@@ -28,6 +28,7 @@ import {
   type PlanetTerpDept,
   type PlanetTerpManifest,
   PlanetTerpManifestSchema,
+  type PlanetTerpSource,
   planetTerpDeptKey,
   type RouteGeometry,
   routesKey,
@@ -116,6 +117,11 @@ export interface CatalogState {
   /** PlanetTerp files by department (ratings, grades, the name join). */
   instructors: Readonly<Partial<Record<DeptCode, PlanetTerpDept>>>;
   instructorsState: Readonly<Partial<Record<DeptCode, LoadState>>>;
+  /**
+   * How current PlanetTerp is, from its manifest (DATA.md §4.1); null until
+   * the manifest loads, or when it predates the `source` block.
+   */
+  planetTerpSource: PlanetTerpSource | null;
   /** Academic calendars by term (.ics export). */
   calendars: Readonly<Partial<Record<TermId, AcademicCalendar>>>;
   calendarsState: Readonly<Partial<Record<TermId, LoadState>>>;
@@ -206,6 +212,7 @@ export const INITIAL_CATALOG_STATE = {
   campusState: "idle",
   instructors: {},
   instructorsState: {},
+  planetTerpSource: null,
   calendars: {},
   calendarsState: {},
   network: "online",
@@ -615,6 +622,8 @@ export const useCatalog = create<CatalogState>()((set, get) => {
           parseWith<PlanetTerpManifest>(PlanetTerpManifestSchema, "planetterp"),
           () => reader.planetTerpManifest(),
           (m) => {
+            // Cached first, then revalidated: the newest word on freshness wins.
+            set({ planetTerpSource: m.source ?? null });
             if (!settled) {
               settled = true;
               resolve(m);

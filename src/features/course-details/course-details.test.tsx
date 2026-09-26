@@ -425,6 +425,38 @@ describe("Course details", () => {
       );
       expect(jada).not.toHaveTextContent("Summary of");
     });
+
+    it("say quietly when PlanetTerp has stopped updating", async () => {
+      await renderDetails("CMSC351", "instructors");
+      const jada = await findReviews("Jada Abernathy");
+      await waitFor(() =>
+        expect(within(jada).getByTestId("pt-freshness")).toHaveTextContent(
+          "No new PlanetTerp reviews since May 2026",
+        ),
+      );
+      // A plain line, not an alert or a banner (DESIGN §5).
+      expect(within(jada).queryByRole("alert")).toBeNull();
+      expect(within(jada).getByTestId("pt-freshness")).toHaveClass(
+        "text-faint",
+      );
+    });
+
+    it("say the file didn't load, rather than that PlanetTerp has nothing", async () => {
+      await renderDetails("CMSC351", "instructors");
+      await findReviews("Jada Abernathy");
+      act(() =>
+        useCatalog.setState((s) => ({
+          instructors: {},
+          instructorsState: { ...s.instructorsState, CMSC: "error" },
+        })),
+      );
+      const jada = await findReviews("Jada Abernathy");
+      expect(jada).toHaveTextContent("Couldn't load reviews from PlanetTerp");
+      expect(jada).not.toHaveTextContent("nothing on this instructor");
+      expect(screen.getByTestId("grades")).toHaveTextContent(
+        "Couldn't load grades from PlanetTerp",
+      );
+    });
   });
 
   describe("grades", () => {
@@ -439,6 +471,11 @@ describe("Course details", () => {
       ).toBeTruthy();
       expect(await within(grades).findByTestId("grade-bars")).toBeVisible();
       expect(grades).toHaveTextContent(/got an A or B/);
+      // Honest about coverage: PlanetTerp's grades stop at a semester.
+      expect(
+        within(grades).getByText("through Spring 2025, from PlanetTerp"),
+      ).toBeInTheDocument();
+      expect(grades).not.toHaveTextContent("every past semester");
       await user.click(screen.getByRole("button", { name: "Grades ↓" }));
       expect(scrolled).toHaveBeenCalled();
       expect(track).toHaveBeenCalledWith("course_details_tab", {

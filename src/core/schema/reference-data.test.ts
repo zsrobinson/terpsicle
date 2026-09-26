@@ -16,11 +16,17 @@ import {
   deptChunkKey,
   instructorNameKey,
   manifestKey,
+  planetTerpReviewsKey,
   routeGeometryKey,
   seatsKey,
   TERMS_KEY,
 } from "./keys";
-import { GRADE_KEYS, GRADE_POINTS, PlanetTerpDeptSchema } from "./planetterp";
+import {
+  GRADE_KEYS,
+  GRADE_POINTS,
+  PlanetTerpDeptSchema,
+  PlanetTerpManifestSchema,
+} from "./planetterp";
 
 const TERM = "202701";
 const NOW = "2026-09-25T14:00:00.000Z";
@@ -122,6 +128,32 @@ describe("planetterp", () => {
     };
     expect(PlanetTerpDeptSchema.safeParse(short).success).toBe(false);
   });
+
+  it("reads manifests with and without the source block", () => {
+    const manifest = {
+      schemaVersion: 1,
+      generatedAt: NOW,
+      gradesThrough: "202501",
+      departments: [{ code: "CMSC", hash: HASH }],
+    };
+    // Written before the block existed: still valid, no version bump.
+    expect(PlanetTerpManifestSchema.parse(manifest).source).toBeUndefined();
+    const source = {
+      status: "stale",
+      lastSuccessAt: NOW,
+      gradesThrough: "202501",
+      latestReviewAt: "2026-04-29T12:00:00.000Z",
+    };
+    expect(
+      PlanetTerpManifestSchema.parse({ ...manifest, source }).source,
+    ).toEqual(source);
+    expect(
+      PlanetTerpManifestSchema.safeParse({
+        ...manifest,
+        source: { ...source, status: "sleeping" },
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("academic calendar", () => {
@@ -219,6 +251,10 @@ describe("R2 keys", () => {
     expect(dataCachePolicy(TERMS_KEY)?.edgeTtlSeconds).toBe(60);
     expect(dataCachePolicy("_jobs/routes-progress.json")).toBeNull();
     expect(dataCachePolicy("summaries/kruskal.json")).toBeNull();
+    expect(planetTerpReviewsKey("kruskal")).toBe(
+      "_jobs/planetterp/reviews/kruskal.json",
+    );
+    expect(dataCachePolicy(planetTerpReviewsKey("kruskal"))).toBeNull();
   });
 
   it("normalizes instructor names for the PlanetTerp join", () => {

@@ -4,6 +4,7 @@ import { PanelBody, SectionHeader } from "~/app/panel";
 import type { DrillViewProps } from "~/app/registry";
 import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
+import { gradesSourceWords } from "~/core/grades";
 import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
 import { deptOf } from "~/state/catalog-store";
 import { useInstructors } from "~/state/data-hooks";
@@ -161,13 +162,14 @@ function Details({
         <SectionHeader
           sticky
           title="Grades"
-          count="every past semester, from PlanetTerp"
+          count={gradesSourceWords(planetTerp.source?.gradesThrough ?? null)}
         />
         <div className="px-4 pt-3">
           <Grades
             course={course}
             planetTerp={planetTerp.data}
             loading={ptLoading}
+            failed={planetTerp.state === "error"}
           />
         </div>
       </section>

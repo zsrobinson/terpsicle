@@ -4,6 +4,7 @@ import {
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import { planetTerpReviewsKey } from "~/core/schema";
 import { parseRange, serveData } from "./data";
 
 // /data/* (DATA.md §2.5): policy from dataCachePolicy, ETags, Range for tiles.
@@ -73,14 +74,21 @@ describe("cache policy", () => {
   it("never serves job state or summaries, even when they exist", async () => {
     await env.DATA.put("_jobs/seats/202701/baseline.json", "{}");
     await env.DATA.put("summaries/kruskal.json", "{}");
+    // PlanetTerp review text is a private cache for summaries, not republished.
+    await env.DATA.put(planetTerpReviewsKey("kruskal"), "{}");
     for (const key of [
       "_jobs/seats/202701/baseline.json",
       "summaries/kruskal.json",
+      planetTerpReviewsKey("kruskal"),
     ]) {
       const response = await get(`/data/${key}`);
       expect(response.status).toBe(404);
       expect(await response.text()).toBe(`No data file at /data/${key}.`);
     }
+    // Percent-encoding the prefix doesn't get around it.
+    expect(
+      (await get("/data/%5Fjobs/planetterp/reviews/kruskal.json")).status,
+    ).toBe(404);
   });
 
   it("404s in plain text when the object is missing", async () => {
