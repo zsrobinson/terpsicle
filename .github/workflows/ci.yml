@@ -28,6 +28,14 @@ permissions:
 env:
   # Keep in step with the matrix in `e2e`.
   E2E_SHARDS: 4
+  # How many tests each e2e shard gets, in order. Playwright cuts the list
+  # (desktop, then mobile, each by file name) into runs of equal count, which
+  # gave the first shard every desktop a11y test (the slowest) and the last
+  # the phone project's skipped desktop tests. These counts even out the
+  # time; re-tune them from the "e2e report" job's times when one shard runs
+  # long. PWTEST_SHARD_WEIGHTS is Playwright's own but undocumented: if it
+  # goes away, the split is even again and every test still runs.
+  E2E_SHARD_WEIGHTS: "24:56:42:86"
 
 jobs:
   changes:
@@ -151,6 +159,8 @@ jobs:
       # a11y-heavy shard slower (the dev server and axe share the CPU) and a
       # test flaky.
       - name: e2e (against pnpm dev:mock)
+        env:
+          PWTEST_SHARD_WEIGHTS: ${{ env.E2E_SHARD_WEIGHTS }}
         run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ env.E2E_SHARDS }} --reporter=github,blob
 
       # e2e-report merges the shards into one report.
