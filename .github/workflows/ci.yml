@@ -75,13 +75,22 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
+      # ci.yml runs the parts of these scripts as separate jobs.
       - name: CI runs all of pnpm check
         run: |
-          check="$(node -p 'require("./package.json").scripts.check')"
-          if [ "$check" != "pnpm typecheck && pnpm lint && pnpm test:unit" ]; then
-            echo "::error::package.json's check script changed ($check). ci.yml runs its parts as separate jobs; update both."
-            exit 1
-          fi
+          node -e '
+            const { scripts } = require("./package.json");
+            const expected = {
+              check: "pnpm typecheck && pnpm lint && pnpm test:unit",
+              "test:unit": "pnpm test:coverage && vitest run --project \"!core\"",
+            };
+            for (const [name, value] of Object.entries(expected)) {
+              if (scripts[name] !== value) {
+                console.log(`::error::The ${name} script in package.json changed. ci.yml runs its parts as separate jobs: update both.`);
+                process.exitCode = 1;
+              }
+            }
+          '
 
       - name: Typecheck
         run: pnpm typecheck
@@ -100,17 +109,25 @@ jobs:
       - name: Route tree is committed and current
         run: git diff --exit-code -- src/routeTree.gen.ts || (echo "::error::src/routeTree.gen.ts is stale. Run pnpm build (or pnpm dev) and commit it." && exit 1)
 
+  # `pnpm test:unit` on two runners: core with coverage (which must see all
+  # of core at once) and half the other projects' files, then the other
+  # half. Each half runs its perf files last, with the runner to themselves.
   unit:
-    name: Unit tests
+    name: Unit tests (${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      # Every Vitest project, as in `pnpm check`; perf runs last in the
-      # runner's CPU on its own.
-      - name: Unit tests
-        run: pnpm test:unit
+      - name: core, with coverage
+        if: matrix.shard == 1
+        run: pnpm test:coverage
+      - name: Every other project, half the files
+        run: pnpm vitest run --project "!core" --shard=${{ matrix.shard }}/2
 
   e2e:
     name: e2e (${{ matrix.shard }}/4)
@@ -130,10 +147,11 @@ jobs:
         with:
           only-shell: "true"
 
-      # Three workers on the runner's four cores: the fourth is the dev
-      # server's.
+      # Two workers, Playwright's default on four cores. Three made the
+      # a11y-heavy shard slower (the dev server and axe share the CPU) and a
+      # test flaky.
       - name: e2e (against pnpm dev:mock)
-        run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ env.E2E_SHARDS }} --workers=3 --reporter=github,blob
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/${{ env.E2E_SHARDS }} --reporter=github,blob
 
       # e2e-report merges the shards into one report.
       - uses: actions/upload-artifact@v7
