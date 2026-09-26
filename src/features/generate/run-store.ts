@@ -1,18 +1,24 @@
-import { create } from "zustand";
 import { track } from "~/app/analytics";
+import { matchesWildcard, wildcardDept } from "~/core/catalog";
 import {
   activeMustHaves,
   draftCourseCodes,
   requestItems,
 } from "~/core/generate/draft";
+import { ranksByQuality } from "~/core/generate/score";
 import {
   DEFAULT_GENERATE_LIMITS,
   type GenerateDraft,
   type GenerateRequest,
-  type GenerateResult,
   type TermId,
 } from "~/core/schema";
 import { deptOf, useCatalog } from "~/state/catalog-store";
+import {
+  type GenerateRunState,
+  INITIAL_RUN_STATE,
+  useGenerateRun,
+} from "~/state/generate-run-store";
+import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import {
   defaultGenerator,
@@ -25,57 +31,13 @@ import {
 // the worker, keep the result. Results aren't persisted (the drafts are);
 // they're quick to recompute and the catalog may have moved on.
 
-export type RunStatus =
-  | { kind: "idle" }
-  /** Loading the courses, seats, routes and ratings the request needs. */
-  | { kind: "loading" }
-  | { kind: "running"; steps: number; found: number }
-  | {
-      kind: "done";
-      request: GenerateRequest;
-      result: GenerateResult;
-      durationMs: number;
-    }
-  | { kind: "error"; message: string };
-
-/**
- * What the tab shows: the form, or the latest results under a one-line
- * summary of what was asked (UX-REVIEW §4.8). A finished run shows its
- * results; "Edit" goes back to the form.
- */
-export type GenerateView = "form" | "results";
-
-export interface GenerateRunState {
-  termId: TermId | null;
-  status: RunStatus;
-  view: GenerateView;
-  /** Result ids ticked for "Save N plans". */
-  selected: readonly string[];
-  toggleSelected: (resultId: string) => void;
-  clearSelected: () => void;
-  setView: (view: GenerateView) => void;
-}
-
-export const INITIAL_RUN_STATE = {
-  termId: null,
-  status: { kind: "idle" },
-  view: "form",
-  selected: [],
-} satisfies Partial<GenerateRunState>;
-
-export const useGenerateRun = create<GenerateRunState>()((set, get) => ({
-  ...INITIAL_RUN_STATE,
-  toggleSelected: (resultId) => {
-    const { selected } = get();
-    set({
-      selected: selected.includes(resultId)
-        ? selected.filter((id) => id !== resultId)
-        : [...selected, resultId],
-    });
-  },
-  clearSelected: () => set({ selected: [] }),
-  setView: (view) => set({ view }),
-}));
+export {
+  type GenerateRunState,
+  type GenerateView,
+  INITIAL_RUN_STATE,
+  type RunStatus,
+  useGenerateRun,
+} from "~/state/generate-run-store";
 
 let generator: Generator | null = null;
 /** Tests run the search in-process. */
@@ -105,31 +67,53 @@ export function buildRequest(
 
 async function gatherInput(request: GenerateRequest): Promise<GenerateInput> {
   const codes = draftCourseCodes(request.items);
-  const depts = [...new Set(codes.map(deptOf))];
+  const wildcards = request.items.flatMap((i) =>
+    i.kind === "wildcard" ? [i.wildcard] : [],
+  );
+  // A pattern needs its department; a gen-ed can match in any of them.
+  const patternDepts = wildcards.flatMap((w) => wildcardDept(w) ?? []);
+  const wholeTerm = wildcards.some((w) => wildcardDept(w) === null);
+  const depts = [...new Set([...codes.map(deptOf), ...patternDepts])];
   const catalog = useCatalog.getState();
   // PlanetTerp files are extras: a department that fails to load is unrated,
   // which ranking treats as neutral.
   await Promise.all([
-    catalog.ensureDepts(request.termId, depts),
+    wholeTerm
+      ? catalog.ensureTerm(request.termId, depts)
+      : catalog.ensureDepts(request.termId, depts),
     request.mustHaves.enoughTravelTime ? catalog.ensureCampus() : null,
     ...depts.map((d) => catalog.ensureInstructors(d)),
   ]);
-  const { byTerm, campus, instructors } = useCatalog.getState();
-  const ratings = depts.flatMap((d) => {
-    const file = instructors[d];
-    return file ? [file] : [];
-  });
-  const term = byTerm[request.termId];
+  const term = useCatalog.getState().byTerm[request.termId];
   if (!term || term.manifestState === "error")
     throw new Error(
       "Couldn't load this term's courses. Check your connection and try again.",
     );
-  const courses = codes.flatMap((code) => {
+  const listed = codes.flatMap((code) => {
     const course = term.index.courses.get(code);
     return course ? [course] : [];
   });
+  const options = [...term.index.courses.values()].filter(
+    (c) =>
+      c.sections.length > 0 &&
+      !codes.includes(c.code) &&
+      wildcards.some((w) => matchesWildcard(w, c)),
+  );
+  // A gen-ed can span dozens of departments' PlanetTerp files. They're
+  // fetched only when the ranking is by ratings or GPAs; otherwise those
+  // options rank as unrated, which is neutral.
+  const rated = new Set(depts);
+  if (wholeTerm && ranksByQuality(request.rankBy)) {
+    for (const c of options) rated.add(deptOf(c.code));
+    await Promise.all([...rated].map((d) => catalog.ensureInstructors(d)));
+  }
+  const { campus, instructors } = useCatalog.getState();
+  const ratings = [...rated].flatMap((d) => {
+    const file = instructors[d];
+    return file ? [file] : [];
+  });
   return {
-    courses,
+    courses: [...listed, ...options],
     seats: term.seats?.seats ?? null,
     campus,
     ratings,
@@ -175,8 +159,13 @@ export async function runGenerate(
       status: { kind: "done", request, result, durationMs },
       view: "results",
     });
+    // The results are a place of their own: Back returns to the form.
+    if (isCurrent()) useUi.getState().markNavigation();
     track("generate_run", {
-      courses: input.courses.length,
+      courses: draftCourseCodes(request.items).length,
+      wildcards: request.items.flatMap((i) =>
+        i.kind === "wildcard" ? [i.wildcard.kind] : [],
+      ),
       mustHaves: activeMustHaves(request.mustHaves, request.blocks.length > 0),
       rankBy: request.rankBy.preset,
       results: result.results.length,

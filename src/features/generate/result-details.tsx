@@ -3,6 +3,7 @@ import { track } from "~/app/analytics";
 import { MessageText } from "~/app/message-text";
 import { ListRow, PanelBody, PanelFooter, SectionHeader } from "~/app/panel";
 import type { DrillViewProps } from "~/app/registry";
+import { wildcardFromId, wildcardLabel } from "~/core/catalog";
 import { changesFrom, type PlanChange } from "~/core/generate/result-plan";
 import { planProblems } from "~/core/problems";
 import type { Plan, SectionKey } from "~/core/schema";
@@ -42,8 +43,8 @@ function useResult(resultId: string) {
   }, [status, resultId]);
 }
 
-/** The breadcrumb: "Option 3". */
-export function resultCrumb(resultId: string): string {
+/** Its name, on its Back button and the next view's: "Option 3". */
+export function resultName(resultId: string): string {
   const { status } = useGenerateRun.getState();
   if (status.kind !== "done") return "Plan";
   const i = status.result.results.findIndex((r) => r.id === resultId);
@@ -279,6 +280,34 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
             />
           ))}
         </ul>
+
+        {result.filled.length > 0 ? (
+          <>
+            <SectionHeader title="Picked for your wildcards" />
+            <ul aria-label="Picked for your wildcards">
+              {result.filled.map((f) => {
+                const wildcard = wildcardFromId(f.wildcard);
+                const title = catalog.index.courses.get(f.courseCode)?.title;
+                return (
+                  <ListRow
+                    as="li"
+                    key={f.courseCode}
+                    className="text-base"
+                    lead={<Code code={f.courseCode} />}
+                  >
+                    <div className="truncate" title={title}>
+                      <span className="text-muted">for </span>
+                      {wildcard ? wildcardLabel(wildcard) : f.wildcard}
+                      {title ? (
+                        <span className="text-muted"> · {title}</span>
+                      ) : null}
+                    </div>
+                  </ListRow>
+                );
+              })}
+            </ul>
+          </>
+        ) : null}
 
         {problems.length > 0 ? (
           <>

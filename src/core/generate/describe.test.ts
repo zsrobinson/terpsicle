@@ -142,6 +142,7 @@ describe("merging results with the same week", () => {
       id: sections.join(","),
       sections,
       skipped: [],
+      filled: [],
       score: 1,
       breakdown: {
         compact: 1,

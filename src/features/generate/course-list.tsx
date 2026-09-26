@@ -1,13 +1,26 @@
 import { cn } from "cn";
-import { Minus, Plus, X } from "lucide-react";
+import { Asterisk, Minus, Plus, X } from "lucide-react";
 import { type Ref, useMemo } from "react";
-import type { CatalogIndex } from "~/core/catalog";
+import {
+  type CatalogIndex,
+  noMatchesMessage,
+  sameWildcard,
+  wildcardCourses,
+  wildcardId,
+  wildcardLabel,
+  wildcardNoun,
+} from "~/core/catalog";
 import { defaultCourseColor, resolveCourseColors } from "~/core/color";
-import { draftCourseCodes } from "~/core/generate/draft";
+import {
+  addWildcard,
+  draftCourseCodes,
+  removeWildcard,
+} from "~/core/generate/draft";
 import type {
   CourseCode,
   CourseColor,
   GenerateDraftItem,
+  GenWildcardItem,
   Plan,
 } from "~/core/schema";
 import { dotStyle } from "~/features/calendar/tint";
@@ -68,7 +81,7 @@ export function CourseList({
         index={index}
         exclude={listed}
         label="Add a course"
-        placeholder="Add a course: CMSC351, or words from the title"
+        placeholder="Add CMSC351, CMSC4XX, DSHS, or title words"
         inputRef={inputRef}
         onAdd={(courseCode) =>
           setItems((xs) => [
@@ -76,11 +89,42 @@ export function CourseList({
             { kind: "course", courseCode, required: true },
           ])
         }
+        wildcards={{
+          onAdd: (wildcard) => setItems((xs) => addWildcard(xs, wildcard)),
+          complete,
+          termName,
+        }}
       />
-      {items.some((i) => i.kind === "course") ? (
+      {items.some((i) => i.kind !== "pick") ? (
         <ul aria-label="Courses" className="flex flex-wrap gap-1">
           {items.map((item) =>
-            item.kind === "course" ? (
+            item.kind === "wildcard" ? (
+              <WildcardChip
+                key={wildcardId(item.wildcard)}
+                item={item}
+                matches={
+                  complete && index
+                    ? wildcardCourses(index.courses.values(), item.wildcard, {
+                        exclude: listed,
+                      }).length
+                    : null
+                }
+                termName={termName}
+                onToggle={() =>
+                  setItems((xs) =>
+                    xs.map((x) =>
+                      x.kind === "wildcard" &&
+                      sameWildcard(x.wildcard, item.wildcard)
+                        ? { ...x, required: !x.required }
+                        : x,
+                    ),
+                  )
+                }
+                onRemove={() =>
+                  setItems((xs) => removeWildcard(xs, item.wildcard))
+                }
+              />
+            ) : item.kind === "course" ? (
               <CourseChip
                 key={item.courseCode}
                 courseCode={item.courseCode}
@@ -255,6 +299,100 @@ function CourseChip({
             required === false
               ? "border-hairline-strong border-dashed"
               : "border-hairline-strong bg-hover",
+          )}
+        >
+          <X className="size-3" />
+        </button>
+      </WithTooltip>
+    </li>
+  );
+}
+
+/** How a wildcard chip explains itself: what it asks for, from how many. */
+function wildcardStatus(
+  item: GenWildcardItem,
+  matches: number | null,
+  termName: string,
+): { text: string; missing: boolean } {
+  const noun = (n: number) => wildcardNoun(item.wildcard, n);
+  if (matches === 0)
+    return { text: noMatchesMessage(item.wildcard, termName), missing: true };
+  if (matches !== null && matches < item.count)
+    return {
+      text: `There ${matches === 1 ? "is" : "are"} only ${matches} ${noun(matches)} in ${termName}, fewer than the ${item.count} you asked for.`,
+      missing: false,
+    };
+  const many = item.count === 1 ? "one" : `${item.count}`;
+  const which =
+    matches === 1
+      ? `the one ${noun(1)}`
+      : matches === null
+        ? `${many} ${noun(item.count)}`
+        : `${many} of ${matches} ${noun(matches)}`;
+  return {
+    text: item.required
+      ? `Required: every plan includes ${which}. Click to make it optional.`
+      : `Optional: ${which}, added when it fits. Click to make it required.`,
+    missing: false,
+  };
+}
+
+function WildcardChip({
+  item,
+  matches,
+  termName,
+  onToggle,
+  onRemove,
+}: {
+  item: GenWildcardItem;
+  /** Courses it can pick this term; null until the whole term has loaded. */
+  matches: number | null;
+  termName: string;
+  onToggle: () => void;
+  onRemove: () => void;
+}) {
+  const label = wildcardLabel(item.wildcard);
+  const status = wildcardStatus(item, matches, termName);
+  const border = item.required
+    ? "border-hairline-strong bg-hover"
+    : "border-hairline-strong border-dashed";
+  const removeLabel =
+    item.count > 1
+      ? `Remove one ${wildcardNoun(item.wildcard, 1)}`
+      : `Remove ${label}`;
+  return (
+    <li
+      className="flex"
+      data-testid={`gen-wildcard-${wildcardId(item.wildcard)}`}
+    >
+      <WithTooltip label={status.text}>
+        <button
+          type="button"
+          aria-pressed={item.required}
+          aria-label={`${label}${item.count > 1 ? ` ×${item.count}` : ""}, ${item.required ? "required" : "optional"}`}
+          onClick={onToggle}
+          className={cn(
+            "flex h-7 items-center gap-1.5 rounded-l-md border border-r-0 pr-1 pl-2 text-sm hover:border-fg/40",
+            border,
+            item.required ? "font-semibold" : "text-muted",
+            status.missing && "text-faint line-through",
+          )}
+        >
+          <Asterisk className="size-3 shrink-0 text-faint" aria-hidden />
+          {label}
+          {item.count > 1 ? (
+            <span className="tnum font-normal text-muted">×{item.count}</span>
+          ) : null}
+        </button>
+      </WithTooltip>
+      <WithTooltip label={removeLabel}>
+        <button
+          type="button"
+          aria-label={removeLabel}
+          onClick={onRemove}
+          className={cn(
+            "flex h-7 w-6 items-center justify-center rounded-r-md border border-l-0 text-faint hover:text-fg",
+            border,
           )}
         >
           <X className="size-3" />

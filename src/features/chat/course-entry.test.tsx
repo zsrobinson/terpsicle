@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FIXTURE_NOW, fixtureTermId } from "~/fixtures";
+import { chatApi } from "~/server/fns/chat-api";
 import { TooltipProvider } from "~/ui/tooltip";
 import { FLAGS_OFF, useAccount } from "../auth/account-store";
-import { chatApi } from "./chat-api";
 import { CourseChatEntry } from "./course-entry";
 
 afterEach(() => {

@@ -2,6 +2,7 @@ import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 import { unstable_readConfig } from "wrangler";
+import { inlineScripts } from "./scripts/inline-scripts.ts";
 
 // Vitest 4.1, not 5: @cloudflare/vitest-plugin supports ^4.1 only.
 // Tests live next to the code they test (`foo.ts` → `foo.test.ts`); the folder
@@ -9,6 +10,8 @@ import { unstable_readConfig } from "wrangler";
 export default defineConfig({
   envDir: "env",
   resolve: { tsconfigPaths: true },
+  // The same head-script modules the app and Worker build with (vite.config.ts).
+  plugins: [inlineScripts(import.meta.dirname)],
   test: {
     projects: [
       {

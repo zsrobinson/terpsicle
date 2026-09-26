@@ -12,7 +12,7 @@ export function initials(name: string): string {
 /**
  * Someone's Google picture (our cached copy), or their initials when there
  * isn't one or it fails to load. Decorative: the name is always next to it.
- * `data-private` keeps it out of session recordings (V2.md §11).
+ * `data-private` keeps it out of analytics (docs/ANALYTICS.md "Privacy").
  */
 export function Avatar({
   name,

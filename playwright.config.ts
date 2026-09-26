@@ -52,10 +52,22 @@ export default defineConfig({
     ...(executablePath ? { launchOptions: { executablePath } } : {}),
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    {
+      // Compiles the app on a fresh dev server before any test waits on it
+      // (e2e/warm-up.setup.ts). Each CI shard runs it once.
+      name: "warm-up",
+      testMatch: "warm-up.setup.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "desktop",
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["warm-up"],
+    },
     {
       // SPEC.md §2: the same shell on phones, sidebar as a bottom drawer.
       name: "mobile",
+      dependencies: ["warm-up"],
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 390, height: 844 },

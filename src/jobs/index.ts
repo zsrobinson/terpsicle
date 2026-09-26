@@ -5,6 +5,7 @@ import type { Job, JobName } from "./job";
 import { runModerationJob } from "./moderation";
 import { runPlanetTerpJob } from "./planetterp";
 import { runSeatsJob } from "./seats";
+import { runTodoFeedsJob } from "./todo-feeds";
 
 // One entry per cron in wrangler.jsonc `triggers.crons`; a worker test fails
 // if the two drift. Schedules and CPU budgets: BUILD.md §2. Routes aren't a
@@ -16,6 +17,7 @@ export const CRON_JOBS: Readonly<Record<string, { name: JobName; run: Job }>> =
     "17 5 * * *": { name: "planetterp", run: runPlanetTerpJob },
     "23 6 * * 1": { name: "calendar-buildings", run: runCalendarBuildingsJob },
     "7 13 * * *": { name: "daily", run: runDailyJob },
+    "3,23,43 * * * *": { name: "todo-feeds", run: runTodoFeedsJob },
   };
 
 /**

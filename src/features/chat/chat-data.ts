@@ -16,7 +16,7 @@ import {
   TermsFileSchema,
 } from "~/core/schema";
 import type { api } from "~/server/fns/api";
-import type { chatApi } from "./chat-api";
+import type { chatApi } from "~/server/fns/chat-api";
 
 // What the chat list reads, without the scheduler's stores (so /chat stays
 // light): the terms and the courses it shows, straight from published data

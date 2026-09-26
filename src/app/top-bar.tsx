@@ -5,6 +5,7 @@ import { problemCountWords } from "~/core/problems";
 // Not the barrel: it re-exports the account pages, which would then load
 // with the scheduler.
 import { AccountButton } from "~/features/auth/account-button";
+import { SyncStatusIcon } from "~/features/sync/status-view";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCreditsLabel,
@@ -59,6 +60,7 @@ export function TopBar({
         <OfflineNote compact={compact} />
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
+        {compact ? null : <SyncStatusIcon />}
         <AccountButton compact={compact} themeToggle={end} />
       </div>
     </header>

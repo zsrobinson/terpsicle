@@ -5,17 +5,18 @@ import {
   chatListCourseCodes,
   chatPlanFor,
 } from "~/core/chat";
-import type {
-  ChatUnreadRoom,
-  Course,
-  CourseCode,
-  Plan,
-  RoomId,
-  Term,
-  TermId,
+import {
+  ChatJoinedStoreSchema,
+  type ChatUnreadRoom,
+  type Course,
+  type CourseCode,
+  type Plan,
+  type RoomId,
+  type Term,
+  type TermId,
 } from "~/core/schema";
 import { api } from "~/server/fns/api";
-import { chatApi } from "./chat-api";
+import { chatApi } from "~/server/fns/chat-api";
 import {
   type ChatApi,
   type ChatData,
@@ -37,14 +38,10 @@ const FOLLOWS_KEY = "terpsicle:chat-follows";
 
 function readFollows(): Record<TermId, CourseCode[]> {
   try {
-    const raw = localStorage.getItem(FOLLOWS_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : {};
-    if (typeof parsed !== "object" || parsed === null) return {};
-    const out: Record<TermId, CourseCode[]> = {};
-    for (const [term, codes] of Object.entries(parsed))
-      if (Array.isArray(codes))
-        out[term] = codes.filter((c): c is string => typeof c === "string");
-    return out;
+    const parsed = ChatJoinedStoreSchema.safeParse(
+      JSON.parse(localStorage.getItem(FOLLOWS_KEY) ?? "{}"),
+    );
+    return parsed.success ? parsed.data : {};
   } catch {
     return {};
   }

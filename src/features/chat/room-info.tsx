@@ -3,10 +3,10 @@ import { useEffect, useState } from "react";
 import { chatPlanFor, peopleWords, type Room } from "~/core/chat";
 import type { ChatAuthor, CourseCode, TermId } from "~/core/schema";
 import { Avatar } from "~/features/auth/avatar";
+import { chatApi } from "~/server/fns/chat-api";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { chatApi } from "./chat-api";
 import { isMuted, useChatHome } from "./chat-home";
 import { showNote, showUndo } from "./undo";
 

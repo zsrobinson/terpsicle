@@ -81,3 +81,38 @@ export const SyncDocSchema = z.discriminatedUnion("kind", [
 export type SyncDoc = z.infer<typeof SyncDocSchema>;
 export type PlanSyncDoc = Extract<SyncDoc, { kind: "plan" }>;
 export type SettingsSyncDoc = Extract<SyncDoc, { kind: "settings" }>;
+
+// ---------- on the device (Dexie v2, DATA.md §5) ----------
+
+/** A doc's name on the device: `plan:<id>` or `settings` (`DocKey` in ~/core/sync). */
+export const DocKeySchema = z.union([
+  z.literal(SETTINGS_DOC_ID),
+  z.templateLiteral(["plan:", LocalIdSchema]),
+]);
+
+/**
+ * A `syncDocs` row: one doc's sync flags on this device (`DocSync` in
+ * ~/core/sync). The settings doc's row also keeps `base`, its body as last
+ * saved or pulled, which settles a conflict per key (V2 §5.4).
+ */
+export const LocalSyncDocSchema = z.object({
+  key: DocKeySchema,
+  /** The server rev this device's version is based on; 0 = never saved. */
+  rev: RevSchema,
+  dirty: z.boolean(),
+  /** Made dirty again on load: a push the page never heard back from. */
+  inFlight: z.boolean(),
+  base: SettingsDocSchema.nullable().optional(),
+});
+export type LocalSyncDoc = z.infer<typeof LocalSyncDocSchema>;
+
+/**
+ * The `sync` settings row: whose account this device's sync state belongs
+ * to, and where its pulls continue. A different (or no) user at sign-in
+ * means a first sign-in on this device (V2 §5.4).
+ */
+export const LocalSyncMetaSchema = z.object({
+  userId: z.string().min(1),
+  cursor: RevSchema,
+});
+export type LocalSyncMeta = z.infer<typeof LocalSyncMetaSchema>;

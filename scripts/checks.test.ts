@@ -61,3 +61,27 @@ describe("findImportProblems", () => {
     expect(findImportProblems("src/server/x.ts", text)).toEqual([]);
   });
 });
+
+describe("the sealed feed link rule", () => {
+  const text =
+    'db.prepare("SELECT url_enc FROM todo_feeds");\nawait openFeedLink(keys, owner, sealed);';
+
+  it("flags url_enc and openFeedLink outside crypto.ts and fetch.ts", () => {
+    expect(findImportProblems("src/server/todo/store.ts", text)).toEqual([
+      'src/server/todo/store.ts:1:20  "url_enc": only src/server/todo/crypto.ts and src/server/todo/fetch.ts may touch the sealed feed link (docs/V3.md §5.1)',
+      'src/server/todo/store.ts:2:7  "openFeedLink": only src/server/todo/crypto.ts and src/server/todo/fetch.ts may touch the sealed feed link (docs/V3.md §5.1)',
+    ]);
+    expect(findImportProblems("src/jobs/todo-feeds.ts", text)).toHaveLength(2);
+  });
+
+  it("allows them in crypto.ts, fetch.ts, tests and comments", () => {
+    expect(findImportProblems("src/server/todo/crypto.ts", text)).toEqual([]);
+    expect(findImportProblems("src/server/todo/fetch.ts", text)).toEqual([]);
+    expect(findImportProblems("src/server/todo/todo.test.ts", text)).toEqual(
+      [],
+    );
+    expect(
+      findImportProblems("src/server/todo/store.ts", "// never url_enc"),
+    ).toEqual([]);
+  });
+});

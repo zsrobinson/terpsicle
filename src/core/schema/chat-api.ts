@@ -44,6 +44,18 @@ export function chatHref(view: ChatView): string {
   return query ? `/chat?${query}` : "/chat";
 }
 
+// ---------- what Chat keeps in the browser (localStorage) ----------
+
+/** Course rooms joined from this browser, per term (the server has them too). */
+export const ChatJoinedStoreSchema = z.record(
+  TermIdSchema,
+  z.array(CourseCodeSchema),
+);
+export type ChatJoinedStore = z.infer<typeof ChatJoinedStoreSchema>;
+
+/** Courses whose room rules this browser has seen. */
+export const ChatRulesSeenStoreSchema = z.array(CourseCodeSchema);
+
 // ---------- GET /api/chat/socket ----------
 
 /** `?term=<termId>&course=<code>`: which course's object to open. */

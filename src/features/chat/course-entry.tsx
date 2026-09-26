@@ -8,9 +8,9 @@ import {
   type TermId,
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
+import { chatApi } from "~/server/fns/chat-api";
 import { buttonVariants } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { chatApi } from "./chat-api";
 
 // The way into a course's chat from the scheduler's course details
 // (V2.md §8.2): "Join CMSC351 chat · 42 people". Loaded on demand, and only

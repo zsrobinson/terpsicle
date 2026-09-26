@@ -1,5 +1,5 @@
-// The browser's typed client for /api/* (the one server module UI code may
-// import). Inputs are checked before sending and answers are validated with
+// The browser's typed client for /api/* (with ./admin-api, the only server
+// modules UI code may import). Inputs are checked before sending and answers are validated with
 // the same schemas the Worker uses, so a mismatch fails loudly here instead
 // of rendering something half-right.
 import type { z } from "zod";
@@ -60,11 +60,8 @@ export interface ApiOptions {
   signal?: AbortSignal;
 }
 
-/**
- * One typed call. Features with their own routes (Chat) build their clients
- * on it, so the routes only some pages use stay out of every page's bundle.
- */
-export async function callApi<I extends z.ZodType, O extends z.ZodType>(
+/** One typed POST to /api/<path>; ./admin-api shares it. */
+export async function call<I extends z.ZodType, O extends z.ZodType>(
   path: string,
   inputSchema: I,
   outputSchema: O,
@@ -105,14 +102,14 @@ export async function callApi<I extends z.ZodType, O extends z.ZodType>(
 export const api = {
   /** Who's signed in, and what's on (docs/AUTH.md). Called on every app load. */
   me: (options?: ApiOptions) =>
-    callApi("me", MeInputSchema, MeResultSchema, {}, options),
+    call("me", MeInputSchema, MeResultSchema, {}, options),
   auth: {
     /** Ends this device's session; plans stay on the device. */
     signOut: (
       input: z.input<typeof SignOutInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "auth/sign-out",
         SignOutInputSchema,
         SignOutResultSchema,
@@ -124,7 +121,7 @@ export const api = {
       input: z.input<typeof TestSignInInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "auth/test-sign-in",
         TestSignInInputSchema,
         TestSignInResultSchema,
@@ -135,7 +132,7 @@ export const api = {
   account: {
     /** Signs out everywhere; the account goes after a week unless they sign in. */
     delete: (options?: ApiOptions) =>
-      callApi(
+      call(
         "account/delete",
         AccountDeleteInputSchema,
         AccountDeleteResultSchema,
@@ -148,7 +145,7 @@ export const api = {
     input: z.input<typeof ReviewSummaryInputSchema>,
     options?: ApiOptions,
   ) =>
-    callApi(
+    call(
       "review-summary",
       ReviewSummaryInputSchema,
       ReviewSummaryResultSchema,
@@ -161,7 +158,7 @@ export const api = {
       input: z.input<typeof SubscribeInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "alerts/subscribe",
         SubscribeInputSchema,
         SubscribeResultSchema,
@@ -173,7 +170,7 @@ export const api = {
       input: z.input<typeof ConfirmInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "alerts/confirm",
         ConfirmInputSchema,
         ConfirmResultSchema,
@@ -182,7 +179,7 @@ export const api = {
       ),
     /** Step 1 of unsubscribing: what would stop. */
     lookup: (input: z.input<typeof ManageInputSchema>, options?: ApiOptions) =>
-      callApi(
+      call(
         "alerts/lookup",
         ManageInputSchema,
         LookupResultSchema,
@@ -194,7 +191,7 @@ export const api = {
       input: z.input<typeof ManageInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "alerts/unsubscribe",
         ManageInputSchema,
         UnsubscribeResultSchema,
@@ -203,7 +200,7 @@ export const api = {
       ),
     /** Refreshes this browser's local list of watches. */
     status: (input: z.input<typeof StatusInputSchema>, options?: ApiOptions) =>
-      callApi(
+      call(
         "alerts/status",
         StatusInputSchema,
         StatusResultSchema,
@@ -215,7 +212,7 @@ export const api = {
   sync: {
     /** Saves docs, each only if the server's rev is still its `baseRev`. */
     push: (input: z.input<typeof SyncPushInputSchema>, options?: ApiOptions) =>
-      callApi(
+      call(
         "sync/push",
         SyncPushInputSchema,
         SyncPushResultSchema,
@@ -224,7 +221,7 @@ export const api = {
       ),
     /** One page of docs saved since `since`; pull again while `more`. */
     pull: (input: z.input<typeof SyncPullInputSchema>, options?: ApiOptions) =>
-      callApi(
+      call(
         "sync/pull",
         SyncPullInputSchema,
         SyncPullResultSchema,
@@ -239,7 +236,7 @@ export const api = {
       input: z.input<typeof ReviewListInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "reviews/list",
         ReviewListInputSchema,
         ReviewListResultSchema,
@@ -251,7 +248,7 @@ export const api = {
       input: z.input<typeof ReviewSubmitInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "reviews/submit",
         ReviewSubmitInputSchema,
         ReviewWriteResultSchema,
@@ -262,7 +259,7 @@ export const api = {
       input: z.input<typeof ReviewEditInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "reviews/edit",
         ReviewEditInputSchema,
         ReviewWriteResultSchema,
@@ -274,7 +271,7 @@ export const api = {
       input: z.input<typeof ReviewDeleteInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "reviews/delete",
         ReviewDeleteInputSchema,
         ReviewDeleteResultSchema,
@@ -282,7 +279,7 @@ export const api = {
         options,
       ),
     mine: (options?: ApiOptions) =>
-      callApi(
+      call(
         "reviews/mine",
         ReviewsMineInputSchema,
         ReviewsMineResultSchema,
@@ -296,7 +293,7 @@ export const api = {
       input: z.input<typeof ReportCreateInputSchema>,
       options?: ApiOptions,
     ) =>
-      callApi(
+      call(
         "reports/create",
         ReportCreateInputSchema,
         ReportCreateResultSchema,

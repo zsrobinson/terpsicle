@@ -34,8 +34,23 @@ import {
   SyncPullInputSchema,
   SyncPushInputSchema,
   TestSignInInputSchema,
+  TODO_IMPORT_MAX_BYTES,
+  TodoConnectInputSchema,
+  TodoDisconnectInputSchema,
+  TodoDoneInputSchema,
+  TodoImportFileInputSchema,
+  TodoListInputSchema,
+  TodoRefreshInputSchema,
   UndoInputSchema,
 } from "~/core/schema";
+import {
+  AdminHealthInputSchema,
+  AdminSamplesInputSchema,
+  DecisionListInputSchema,
+} from "~/core/schema/admin";
+import { listDecisions } from "../admin/decisions";
+import { adminHealth } from "../admin/health";
+import { addSamples } from "../admin/samples";
 import {
   type AlertsContext,
   type AlertsEnv,
@@ -54,7 +69,7 @@ import {
   signOut,
   testSignIn,
 } from "../auth/api";
-import type { AuthEnv } from "../auth/config";
+import { type AuthEnv, isTestMode } from "../auth/config";
 import { handleFlow, isFlowRoute } from "../auth/flow";
 import { isSameOrigin } from "../auth/guard";
 import { getSession } from "../auth/session";
@@ -89,6 +104,15 @@ import {
 } from "../reviews/api";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
 import { pull, push } from "../sync/api";
+import { type TodoEnv, todoAvailable } from "../todo/config";
+import {
+  connect as todoConnect,
+  disconnect as todoDisconnect,
+  done as todoDone,
+  importFile as todoImportFile,
+  list as todoList,
+  refresh as todoRefresh,
+} from "../todo/service";
 import {
   apiError,
   clientIp,
@@ -104,7 +128,8 @@ export type ApiEnv = AlertsEnv &
   AuthEnv &
   ModerationEnv &
   ChatApiEnv &
-  ReviewsEnv;
+  ReviewsEnv &
+  TodoEnv;
 
 interface Route<S extends z.ZodType> {
   input: S;
@@ -158,9 +183,16 @@ export interface ApiOptions {
   moderationHandlers?: ModerationHandlers;
 }
 
-const route = <S extends z.ZodType>(r: Route<S>) => r;
+/**
+ * At least one limit: an unlimited route is a mistake. A worker test
+ * (limits.test.ts) holds per-user limits to signed-in routes, and per-IP
+ * ones to routes anyone can call.
+ */
+type Limits = { perIpPerHour: number } | { perUserPerHour: number };
 
-const ROUTES = {
+const route = <S extends z.ZodType>(r: Route<S> & Limits): Route<S> => r;
+
+export const ROUTES = {
   "review-summary": route({
     input: ReviewSummaryInputSchema,
     perIpPerHour: 300,
@@ -206,7 +238,10 @@ const ROUTES = {
     perIpPerHour: 600,
     alerts: false,
     handle: (env, _input, ctx) =>
-      me(env, ctx, { seatAlerts: alertsEnabled(env) }),
+      me(env, ctx, {
+        seatAlerts: alertsEnabled(env),
+        todo: todoAvailable(env, isTestMode(env, new URL(ctx.request.url))),
+      }),
   }),
   "auth/sign-out": route({
     input: SignOutInputSchema,
@@ -217,6 +252,7 @@ const ROUTES = {
   "account/delete": route({
     input: AccountDeleteInputSchema,
     perIpPerHour: 30,
+    perUserPerHour: 10,
     alerts: false,
     auth: "user",
     handle: (env, _input, ctx) => deleteAccount(env, ctx),
@@ -333,6 +369,52 @@ const ROUTES = {
         ? createReport(env, input, ctx, reportTargets(env))
         : apiError("unavailable"),
   }),
+  // Terpsicle Todo (docs/V3.md §3.8). Each answers "unavailable" while
+  // TODO_ENABLED is off or the feed key is missing (outside test mode).
+  "todo/connect": route({
+    input: TodoConnectInputSchema,
+    perIpPerHour: 30,
+    perUserPerHour: 10,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => todoConnect(env, input, ctx),
+  }),
+  "todo/disconnect": route({
+    input: TodoDisconnectInputSchema,
+    perUserPerHour: 30,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => todoDisconnect(env, ctx),
+  }),
+  "todo/list": route({
+    input: TodoListInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => todoList(env, input, ctx),
+  }),
+  "todo/done": route({
+    input: TodoDoneInputSchema,
+    perUserPerHour: 1_200,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => todoDone(env, input, ctx),
+  }),
+  "todo/refresh": route({
+    input: TodoRefreshInputSchema,
+    perUserPerHour: 30,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => todoRefresh(env, ctx),
+  }),
+  "todo/import-file": route({
+    input: TodoImportFileInputSchema,
+    perUserPerHour: 20,
+    maxBytes: TODO_IMPORT_MAX_BYTES,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => todoImportFile(env, input, ctx),
+  }),
   // Moderation's admin side (docs/MODERATION.md §6).
   "admin/moderation/queue": route({
     input: QueueListInputSchema,
@@ -363,7 +445,34 @@ const ROUTES = {
         handlers: ctx.moderationHandlers,
       }),
   }),
+  // The rest of the admin panel (V2 §10, src/server/admin).
+  "admin/decisions": route({
+    input: DecisionListInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => listDecisions(env.DB, input, ctx.now),
+  }),
+  "admin/health": route({
+    input: AdminHealthInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, _input, ctx) => adminHealth(env, ctx.now),
+  }),
+  "admin/samples": route({
+    input: AdminSamplesInputSchema,
+    perIpPerHour: 60,
+    alerts: false,
+    auth: "admin",
+    handle: (env, _input, ctx) => addSamples(env, ctx),
+  }),
 } as const;
+
+/** A person's counter for one route (`counters.name`, pruned like the rest). */
+export function userLimitKey(userId: string, route: string): string {
+  return `user:${userId}:${route}`;
+}
 
 const LEVELS: readonly FeatureLevel[] = ["off", "read", "on"];
 
@@ -456,7 +565,7 @@ export async function handleApi(
       return reply(apiError("forbidden"));
     if (
       r.perUserPerHour !== undefined &&
-      (await hit(env.DB, `user:${session.user.id}:${name}`, window, now)) >
+      (await hit(env.DB, userLimitKey(session.user.id, name), window, now)) >
         r.perUserPerHour
     )
       return reply(limited());

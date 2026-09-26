@@ -18,7 +18,8 @@ export type JobName =
   | "planetterp"
   | "calendar-buildings"
   | "daily"
-  | "moderation";
+  | "moderation"
+  | "todo-feeds";
 
 /** What a job reports: counts for telemetry, and errors it recovered from. */
 export interface JobReport {

@@ -22,7 +22,12 @@ import {
   typingIn,
   typingWords,
 } from "~/core/chat";
-import type { ChatMessageId, ChatRoomState, CourseCode } from "~/core/schema";
+import {
+  type ChatMessageId,
+  type ChatRoomState,
+  ChatRulesSeenStoreSchema,
+  type CourseCode,
+} from "~/core/schema";
 import { api } from "~/server/fns/api";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
@@ -43,24 +48,27 @@ import { CHAT_UNDO_MS, showNote, showUndo, useNow } from "./undo";
 /** Rules shown once per course, the first time you open its chat. */
 const RULES_SEEN_KEY = "terpsicle:chat-rules-seen";
 
-function rulesSeen(courseCode: CourseCode): boolean {
+function readRulesSeen(): CourseCode[] {
   try {
-    const seen: unknown = JSON.parse(
-      localStorage.getItem(RULES_SEEN_KEY) ?? "[]",
+    const parsed = ChatRulesSeenStoreSchema.safeParse(
+      JSON.parse(localStorage.getItem(RULES_SEEN_KEY) ?? "[]"),
     );
-    return Array.isArray(seen) && seen.includes(courseCode);
+    return parsed.success ? parsed.data : [];
   } catch {
-    return false;
+    return [];
   }
+}
+
+function rulesSeen(courseCode: CourseCode): boolean {
+  return readRulesSeen().includes(courseCode);
 }
 
 function markRulesSeen(courseCode: CourseCode): void {
   try {
-    const seen: unknown = JSON.parse(
-      localStorage.getItem(RULES_SEEN_KEY) ?? "[]",
+    localStorage.setItem(
+      RULES_SEEN_KEY,
+      JSON.stringify([...new Set([...readRulesSeen(), courseCode])]),
     );
-    const list = Array.isArray(seen) ? seen : [];
-    localStorage.setItem(RULES_SEEN_KEY, JSON.stringify([...list, courseCode]));
   } catch {
     // Storage blocked: the rules show again next time, which is fine.
   }

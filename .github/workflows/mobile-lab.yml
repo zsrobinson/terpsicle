@@ -130,7 +130,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - run: pnpm exec playwright install --with-deps webkit
+      - uses: ./.github/actions/playwright
+        with:
+          browser: webkit
       # Screenshots as small JPEGs and recordings at 360px (scripts/mobile-lab/media.ts).
       - name: Install ffmpeg
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg

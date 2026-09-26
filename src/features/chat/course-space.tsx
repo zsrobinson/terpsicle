@@ -275,7 +275,7 @@ function FollowButton({ courseCode }: { courseCode: CourseCode }) {
           setBusy(false);
           if (result === "too-many")
             showNote(
-              "You're following 100 courses this term. Leave one to join another.",
+              "You've joined 100 courses' chats this term. Leave one to join another.",
             );
           else if (result === "failed")
             showNote("We couldn't join. Try again.");

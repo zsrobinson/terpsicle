@@ -9,11 +9,12 @@ import {
   ChatUnfollowResultSchema,
   ChatUnreadInputSchema,
   ChatUnreadResultSchema,
-} from "~/core/schema";
-import { type ApiOptions, callApi } from "~/server/fns/api";
+} from "~/core/schema/chat-api";
+import { type ApiOptions, call } from "./api";
 
-// Chat's JSON routes (docs/V2.md §8.5), signed in only; messages go over the
-// socket (./socket). Its own client, so pages without Chat don't carry it.
+// Chat's client (docs/V2.md §8.5; signed in only), apart from ./api so pages
+// without Chat never load its schemas. Messages go over the socket
+// (src/features/chat/socket.ts).
 
 export const chatApi = {
   /** Your rooms that have messages, with unread counts. Wakes no objects. */
@@ -21,7 +22,7 @@ export const chatApi = {
     input: z.input<typeof ChatUnreadInputSchema>,
     options?: ApiOptions,
   ) =>
-    callApi(
+    call(
       "chat/unread",
       ChatUnreadInputSchema,
       ChatUnreadResultSchema,
@@ -33,7 +34,7 @@ export const chatApi = {
     input: z.input<typeof ChatFollowInputSchema>,
     options?: ApiOptions,
   ) =>
-    callApi(
+    call(
       "chat/follow",
       ChatFollowInputSchema,
       ChatFollowResultSchema,
@@ -44,7 +45,7 @@ export const chatApi = {
     input: z.input<typeof ChatFollowInputSchema>,
     options?: ApiOptions,
   ) =>
-    callApi(
+    call(
       "chat/unfollow",
       ChatFollowInputSchema,
       ChatUnfollowResultSchema,
@@ -52,7 +53,7 @@ export const chatApi = {
       options,
     ),
   mute: (input: z.input<typeof ChatMuteInputSchema>, options?: ApiOptions) =>
-    callApi(
+    call(
       "chat/mute",
       ChatMuteInputSchema,
       ChatMuteResultSchema,
@@ -64,7 +65,7 @@ export const chatApi = {
     input: z.input<typeof ChatMembersInputSchema>,
     options?: ApiOptions,
   ) =>
-    callApi(
+    call(
       "chat/members",
       ChatMembersInputSchema,
       ChatMembersResultSchema,
