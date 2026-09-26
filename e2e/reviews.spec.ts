@@ -251,8 +251,10 @@ for (const scheme of ["light", "dark"] as const)
     await page.emulateMedia({ colorScheme: scheme });
     for (const path of [
       "/reviews",
+      "/reviews?q=CMSC",
       "/reviews/courses/CMSC351",
       INSTRUCTOR,
+      "/reviews/instructors/keiko-ashdown",
       "/reviews/policy",
     ]) {
       await page.goto(path);

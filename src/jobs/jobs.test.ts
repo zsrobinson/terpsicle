@@ -21,8 +21,10 @@ import {
   manifestKey,
   PLANETTERP_MANIFEST_KEY,
   PlanetTerpDeptSchema,
+  PlanetTerpIndexSchema,
   PlanetTerpManifestSchema,
   planetTerpDeptKey,
+  planetTerpIndexKey,
   planetTerpReviewsKey,
   SeatsFileSchema,
   StoredReviewsSchema,
@@ -454,6 +456,19 @@ describe("planetterp job", () => {
     expect(grades?.all?.latestTermId).toBe("202501");
     expect(grades?.byInstructor.kruskal?.semesters).toBeGreaterThan(1);
     expect(file.courses.CMSC131).toEqual({ all: null, byInstructor: {} });
+
+    // The index finds instructors without a department, and ranks what's
+    // offered now by students.
+    const index = await readJson(
+      planetTerpIndexKey(manifest.index?.hash ?? ""),
+      PlanetTerpIndexSchema,
+    );
+    expect(index.instructors.kruskal).toEqual(["Clyde Kruskal", ["CMSC"]]);
+    expect(index.mostTaken[0]).toEqual([
+      "CMSC351",
+      "Algorithms",
+      expect.any(Number),
+    ]);
 
     // The manifest says how current PlanetTerp is. The fixture's newest
     // review is from April, months before this run: stale, not broken.

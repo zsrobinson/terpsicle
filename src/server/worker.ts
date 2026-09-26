@@ -1,4 +1,5 @@
 import { signInPagePath } from "~/core/auth";
+import type { PageRequestContext } from "~/core/routing";
 import { CSP_NONCE_HEADER, CSP_REPORT_PATH } from "~/core/schema";
 import { runScheduled } from "~/jobs/index";
 import { APEX_HOST } from "./apex";
@@ -7,11 +8,19 @@ import { type PageAccess, pageAccess } from "./auth/pages";
 import { AVATARS_PREFIX, serveAvatar } from "./auth/pictures";
 import { CHAT_SOCKET_PATH, openChatSocket } from "./chat/socket";
 import { DATA_PREFIX, serveData } from "./data";
+import { pageContext } from "./pages/context";
+import {
+  inlineScriptHashes,
+  pageCaching,
+  SHARED_PAGE_CACHE_CONTROL,
+  SIGNED_IN_PAGE_CACHE_CONTROL,
+} from "./pages/shared-pages";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
 import { landingRedirect } from "./routing";
 import { handleCspReport } from "./security/csp-report";
 import { cspNonce, withSecurityHeaders } from "./security/headers";
 import { SERVICE_WORKER_JS } from "./service-worker";
+import { serveSitemap } from "./sitemap";
 
 const WWW_HOST = `www.${APEX_HOST}`;
 /** Vite's hashed build output (dist/client/assets). */
@@ -26,11 +35,18 @@ export const SERVICE_WORKER_PATH = "/sw.js";
  * an older deploy points at scripts that are gone: a blank page.
  */
 function withHtmlRevalidation(response: Response): Response {
-  const type = response.headers.get("Content-Type") ?? "";
-  if (!type.startsWith("text/html") || response.headers.has("Cache-Control"))
+  if (!isHtml(response) || response.headers.has("Cache-Control"))
     return response;
+  return withCacheControl(response, "no-cache");
+}
+
+function isHtml(response: Response): boolean {
+  return (response.headers.get("Content-Type") ?? "").startsWith("text/html");
+}
+
+function withCacheControl(response: Response, value: string): Response {
   const out = new Response(response.body, response);
-  out.headers.set("Cache-Control", "no-cache");
+  out.headers.set("Cache-Control", value);
   return out;
 }
 
@@ -75,7 +91,10 @@ function privatePage(response: Response): Response {
 
 /** The TanStack Start request handler (or a stand-in in tests). */
 export interface AppHandler {
-  fetch(request: Request): Response | Promise<Response>;
+  fetch(
+    request: Request,
+    options?: { context?: PageRequestContext },
+  ): Response | Promise<Response>;
 }
 
 /**
@@ -83,16 +102,55 @@ export interface AppHandler {
  * stub so they don't need TanStack Start's build-time virtual modules.
  */
 export function createWorker(app: AppHandler) {
-  /** A page from the app, with a fresh CSP nonce for its inline scripts. */
-  async function render(request: Request): Promise<Response> {
+  /**
+   * A page from the app. Most get a fresh CSP nonce for their inline
+   * scripts; a page that's the same for everyone is cached at the edge
+   * instead, so its policy lists its scripts' hashes (shared-pages.ts).
+   */
+  async function render(request: Request, env: Env): Promise<Response> {
+    const caching = pageCaching(request);
+    const context = { context: pageContext(env) };
+    if (caching === "shared") {
+      // The app marks its own scripts with this render's nonce; the policy
+      // names their hashes instead, since everyone gets the cached copy.
+      const nonce = cspNonce();
+      const headers = new Headers(request.headers);
+      headers.set(CSP_NONCE_HEADER, nonce);
+      const response = await app.fetch(
+        new Request(request, { headers }),
+        context,
+      );
+      if (!isHtml(response)) return withSecurityHeaders(response, request);
+      const html = await response.text();
+      const out = new Response(
+        request.method === "HEAD" ? null : html,
+        response,
+      );
+      // A page and its "not found" are the same for everyone; an error isn't
+      // worth keeping.
+      out.headers.set(
+        "Cache-Control",
+        response.status === 200 || response.status === 404
+          ? SHARED_PAGE_CACHE_CONTROL
+          : "no-cache",
+      );
+      return withSecurityHeaders(out, request, {
+        scriptHashes: await inlineScriptHashes(html, nonce),
+      });
+    }
     const nonce = cspNonce();
     const headers = new Headers(request.headers);
     // Always ours: a client-sent value is replaced, never trusted.
     headers.set(CSP_NONCE_HEADER, nonce);
-    const response = await app.fetch(new Request(request, { headers }));
-    return withSecurityHeaders(withHtmlRevalidation(response), request, {
-      nonce,
-    });
+    const response = await app.fetch(
+      new Request(request, { headers }),
+      context,
+    );
+    const out =
+      caching === "private" && isHtml(response)
+        ? withCacheControl(response, SIGNED_IN_PAGE_CACHE_CONTROL)
+        : withHtmlRevalidation(response);
+    return withSecurityHeaders(out, request, { nonce });
   }
 
   /** The Worker's own routes; null for a page, which the app renders. */
@@ -135,6 +193,8 @@ export function createWorker(app: AppHandler) {
         },
       });
     }
+    const sitemap = await serveSitemap(request, env);
+    if (sitemap) return sitemap;
     if (url.pathname.startsWith(ASSETS_PREFIX)) {
       // Built files are served before the Worker runs, so one that reaches
       // here doesn't exist in this version: a tab or HTML from an older
@@ -168,9 +228,10 @@ export function createWorker(app: AppHandler) {
       const response = await route(request, env, ctx);
       if (response) return withSecurityHeaders(response, request);
       const access = await pageAccess(request, env, new Date());
+      const renderHere = (r: Request) => render(r, env);
       return access
-        ? privatePage(await gatedPage(render, request, access))
-        : render(request);
+        ? privatePage(await gatedPage(renderHere, request, access))
+        : render(request, env);
     },
 
     async scheduled(

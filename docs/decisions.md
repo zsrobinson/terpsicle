@@ -114,6 +114,11 @@ Revisit if: server functions gain those, or the table gets in the way.
 Bundle totals are reported, not enforced; the never-eager rules (modules that must stay lazy) still fail CI.
 Revisit if: first loads get noticeably slow.
 
+### Public pages are cached at the edge, with hashed scripts
+2026-09-26 · agent · app-wide
+Pages whose HTML is the same for everyone (the public Reviews pages today) go out `s-maxage=600, stale-while-revalidate=86400` and Workers Cache keeps them, keyed by Worker version; signed-in requests are never stored. A cached page can't share a CSP nonce, so its policy lists its inline scripts' hashes instead.
+Revisit if: a public page starts to depend on who's asking.
+
 ### Static pages don't pull in the app
 2026-09-26 · agent · app-wide
 `/`, `/privacy` and similar pages link to `/signin` rather than rendering the account button, and import auth modules directly, never through the `~/features/auth` barrel.
@@ -172,6 +177,11 @@ Revisit if: never on its own.
 2026-09-26 · owner · one feature
 The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`.
 Revisit if: people don't find reviews from the scheduler.
+
+### Search markup never borrows PlanetTerp's ratings
+2026-09-26 · agent · one feature
+JSON-LD `aggregateRating` appears only on course pages and only from Terpsicle's own published reviews: Google forbids ratings aggregated from other sites, and Person isn't a review-snippet type. Instructor pages carry Person and BreadcrumbList markup only, and `?course=` views canonicalize to the instructor's page.
+Revisit if: PlanetTerp agrees to let us use its ratings, or Google's rules change.
 
 ### PlanetTerp text stays off
 2026-09-26 · owner · one feature

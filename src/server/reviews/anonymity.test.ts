@@ -233,6 +233,7 @@ describe("anonymity payloads (V2 §7.5)", () => {
       ...listInput,
       instructorId: "brandt",
     });
+    await record("recent", null, "reviews/recent", { limit: 12 });
     await record("delete", author, "reviews/delete", { reviewId: published });
 
     expect(seen.length).toBeGreaterThan(15);

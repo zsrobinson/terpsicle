@@ -26,6 +26,9 @@ function param<T extends z.ZodType<unknown, string>>(schema: T) {
   return Text.pipe(schema).optional().catch(undefined);
 }
 
+/** `param` for other routes' search schemas (reviews-url.ts). */
+export const searchParam = param;
+
 /** `a,b,c`, dropped whole when any item isn't valid. Split with `listItems`. */
 function list(item: z.ZodType) {
   return z

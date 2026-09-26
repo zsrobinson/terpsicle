@@ -11,6 +11,7 @@ import {
   ResolveResultSchema,
   ReviewListResultSchema,
   ReviewsMineResultSchema,
+  ReviewsRecentResultSchema,
   ReviewWriteResultSchema,
 } from "~/core/schema";
 import {
@@ -24,6 +25,7 @@ import { handleApi } from "../api/router";
 import { markDeleting } from "../auth/store";
 import { retryHeld } from "../moderation/service";
 import { decisionsFor } from "../moderation/store";
+import { reviewsServerData } from "./public";
 import {
   advance,
   ai,
@@ -264,6 +266,61 @@ describe("writing and reading", () => {
     expect(await author.json("reviews/delete", { reviewId: held })).toEqual({
       status: "not-found",
     });
+  });
+});
+
+describe("numbers and recent reviews, without the reviews", () => {
+  it("lists reviewed courses and instructors, one row each, by month rather than minute", async () => {
+    await author.submit(aReviewSubmitInput());
+    advance(HOUR);
+    await reader.submit(aReviewSubmitInput({ body: BODY_2 }));
+    advance(HOUR);
+    await author.submit(
+      aReviewSubmitInput({ reviewedName: "Clyde Kruskal", body: BODY_2 }),
+    );
+    const response = await call("reviews/recent", { limit: 5 });
+    expect(response.status).toBe(200);
+    expect(ReviewsRecentResultSchema.parse(await response.json())).toEqual({
+      // Kruskal's review went up last, but the same month: more reviews
+      // come first, so the order doesn't say who was reviewed a minute ago.
+      reviews: [
+        {
+          course: "CMSC351",
+          instructorId: "brandt",
+          instructorName: "Ada Brandt",
+          month: "2027-02",
+        },
+        {
+          course: "CMSC351",
+          instructorId: "kruskal",
+          instructorName: "Clyde Kruskal",
+          month: "2027-02",
+        },
+      ],
+    });
+    const off = await call("reviews/recent", { limit: 5 }, "", {
+      REVIEWS_ENABLED: "off",
+    });
+    expect(off.status).not.toBe(200);
+  });
+
+  it("sums published reviews per instructor and per course for server renders", async () => {
+    await author.submit(aReviewSubmitInput({ rating: 5 }));
+    await reader.submit(aReviewSubmitInput({ rating: 2, body: BODY_2 }));
+    const data = reviewsServerData(env.DB);
+    expect(await data.instructorNumbers(["brandt", "kruskal"])).toEqual({
+      brandt: { rating: 3.5, reviewCount: 2 },
+    });
+    expect(await data.courseNumbers("CMSC351")).toEqual({
+      rating: 3.5,
+      reviewCount: 2,
+    });
+    expect(await data.courseNumbers("CMSC250")).toBeNull();
+    expect(await data.instructor("brandt")).toEqual({
+      name: "Ada Brandt",
+      depts: ["CMSC"],
+    });
+    expect(await data.instructor("nobody")).toBeNull();
   });
 });
 

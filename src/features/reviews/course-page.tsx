@@ -1,25 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { formatGpa, gradeSummary } from "~/core/grades/grades";
+import { formatGpa } from "~/core/grades/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
-import { combineRatings, terpsicleRating } from "~/core/reviews";
 import {
-  type CourseCode,
-  CourseCodeSchema,
-  type InstructorId,
-  instructorNameKey,
-  type PublicReview,
-} from "~/core/schema";
-import { NotFoundPage } from "~/features/site/not-found-page";
+  type CourseInstructorRow,
+  type CoursePageData,
+  combineRatings,
+  terpsicleRating,
+} from "~/core/reviews";
+import type { CourseCode, InstructorId, PublicReview } from "~/core/schema";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer, type ComposerTarget } from "./composer";
-import {
-  loadCourseEntry,
-  loadCurrentCourse,
-  loadPlanetTerp,
-  useLoaded,
-} from "./data";
 import { Breadcrumbs, PageTitle, ReviewsFrame, Section } from "./frame";
 import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
 import { GradesBlock } from "./planetterp-blocks";
@@ -42,74 +34,14 @@ export const COURSE_LISTS_MAX = 12;
 /** Reviews of the course shown under the instructors. */
 const NEWEST = 10;
 
-interface Row {
-  /** Null: PlanetTerp doesn't know this Testudo name, so it has no id yet. */
-  id: InstructorId | null;
-  name: string;
-  teaching: boolean;
-  planetTerp: { rating: number | null; reviewCount: number } | null;
-  gpa: number | null;
-}
+type Row = CourseInstructorRow;
 
-/** The route's param, checked: anything but a course code is "Page not found". */
-export function CourseRoute({ code }: { code: string }) {
-  const parsed = CourseCodeSchema.safeParse(code.toUpperCase());
-  if (!parsed.success) return <NotFoundPage />;
-  return <CoursePage key={parsed.data} code={parsed.data} />;
-}
-
-export function CoursePage({ code }: { code: CourseCode }) {
-  const dept = code.slice(0, 4);
+/** The route's page: what the loader read (page-data.ts). */
+export function CoursePage({ data }: { data: CoursePageData }) {
+  const { code, title, term, grades } = data;
   const level = useReviewsLevel();
-  const entry = useLoaded(`entry:${code}`, () => loadCourseEntry(code));
-  const current = useLoaded(`current:${code}`, () => loadCurrentCourse(code));
-  const planetTerp = useLoaded(`pt:${dept}`, () => loadPlanetTerp(dept));
-  const ptDept = planetTerp.status === "ready" ? planetTerp.data.dept : null;
-  const grades = ptDept?.courses[code] ?? null;
   const [writingFor, setWritingFor] = useState<string | null>(null);
-
-  const title =
-    (entry.status === "ready" ? entry.data?.title : undefined) ??
-    (current.status === "ready" ? current.data?.course.title : undefined);
-  const term = current.status === "ready" ? current.data?.term : undefined;
-
-  const rows = useMemo(() => {
-    const byKey = new Map<string, Row>();
-    const teachingNames =
-      current.status === "ready" && current.data
-        ? current.data.course.sections.flatMap((s) => s.instructors)
-        : [];
-    for (const name of teachingNames) {
-      const id = ptDept?.names[instructorNameKey(name)] ?? null;
-      const key = id ?? `name:${instructorNameKey(name)}`;
-      if (byKey.has(key)) continue;
-      byKey.set(key, { id, name, teaching: true, planetTerp: null, gpa: null });
-    }
-    for (const slug of Object.keys(grades?.byInstructor ?? {}))
-      if (!byKey.has(slug))
-        byKey.set(slug, {
-          id: slug,
-          name: ptDept?.instructors[slug]?.name ?? slug,
-          teaching: false,
-          planetTerp: null,
-          gpa: null,
-        });
-    for (const row of byKey.values()) {
-      const pt = row.id ? ptDept?.instructors[row.id] : undefined;
-      if (pt) {
-        row.name = row.teaching ? row.name : pt.name;
-        row.planetTerp = { rating: pt.rating, reviewCount: pt.reviewCount };
-      }
-      const record = row.id ? grades?.byInstructor[row.id] : undefined;
-      row.gpa = record ? gradeSummary(record.counts).averageGpa : null;
-    }
-    return [...byKey.values()].sort(
-      (a, b) =>
-        Number(b.teaching) - Number(a.teaching) ||
-        (b.planetTerp?.reviewCount ?? 0) - (a.planetTerp?.reviewCount ?? 0) ||
-        a.name.localeCompare(b.name),
-    );
-  }, [current, ptDept, grades]);
+  const rows = data.instructors;
 
   const readIds = useMemo(
     () =>
@@ -139,8 +71,7 @@ export function CoursePage({ code }: { code: CourseCode }) {
   const mine = useMine();
   const ownById = new Map(mine.map((r) => [r.id, r]));
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
-  const loading =
-    planetTerp.status === "loading" || current.status === "loading";
+  const freshness = planetTerpFreshnessWords(data.source);
 
   return (
     <ReviewsFrame page="course">
@@ -153,48 +84,42 @@ export function CoursePage({ code }: { code: CourseCode }) {
           </>
         }
         sub={
-          term
-            ? `Offered in ${term.name}`
-            : current.status === "ready"
-              ? "Not offered this term"
-              : undefined
+          term ? (
+            <>
+              Offered in {term.name} ·{" "}
+              <WithTooltip label={`${code}'s sections in ${term.name}`}>
+                <Link
+                  to="/schedule"
+                  search={{ course: code }}
+                  className="text-fg underline underline-offset-2"
+                >
+                  View schedule
+                </Link>
+              </WithTooltip>
+            </>
+          ) : (
+            "Not offered this term"
+          )
         }
       />
 
       <Section title="Grades">
         <div className="pt-3">
-          {planetTerp.status === "loading" ? (
-            <Skeleton className="h-28 w-full" />
-          ) : grades?.all ? (
-            <GradesBlock
-              record={grades.all}
-              gradesThrough={
-                planetTerp.status === "ready"
-                  ? planetTerp.data.gradesThrough
-                  : null
-              }
-            />
+          {grades ? (
+            <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
           ) : (
             <p className="text-muted">
               PlanetTerp has no grades for {code} yet.
             </p>
           )}
-          {planetTerp.status === "ready" &&
-          planetTerpFreshnessWords(planetTerp.data.source) ? (
-            <p className="mt-1 text-faint text-xs">
-              {planetTerpFreshnessWords(planetTerp.data.source)}
-            </p>
+          {freshness ? (
+            <p className="mt-1 text-faint text-xs">{freshness}</p>
           ) : null}
         </div>
       </Section>
 
-      <Section title="Instructors" count={loading ? undefined : rows.length}>
-        {loading ? (
-          <div className="space-y-2 py-3">
-            <Skeleton className="h-3 w-1/2" />
-            <Skeleton className="h-3 w-2/5" />
-          </div>
-        ) : rows.length === 0 ? (
+      <Section title="Instructors" count={rows.length}>
+        {rows.length === 0 ? (
           <p className="py-3 text-muted">
             We don't know who's taught {code} yet.
           </p>

@@ -14,6 +14,7 @@ import {
   type Meeting,
   PACE_MPH,
   PlanetTerpDeptSchema,
+  PlanetTerpIndexSchema,
   PlanetTerpManifestSchema,
   PlanSchema,
   ReviewSummarySchema,
@@ -91,6 +92,7 @@ describe("the mock bucket", () => {
         /^planetterp\/dept\/[A-Z]{4}\.[0-9a-f]{16}\.json$/,
         PlanetTerpDeptSchema,
       ],
+      [/^planetterp\/index\.[0-9a-f]{16}\.json$/, PlanetTerpIndexSchema],
       [/^summaries\/.+\.json$/, ReviewSummarySchema],
       [/^geo\/manifest\.json$/, GeoManifestSchema],
       [/^geo\/buildings\.[0-9a-f]{16}\.json$/, BuildingsFileSchema],
@@ -139,6 +141,7 @@ describe("the mock bucket", () => {
     );
     for (const d of pt.departments)
       expect(files.has(`planetterp/dept/${d.code}.${d.hash}.json`)).toBe(true);
+    expect(files.has(`planetterp/index.${pt.index?.hash}.json`)).toBe(true);
     const geo = GeoManifestSchema.parse(
       await mockDataSource.json("geo/manifest.json"),
     );

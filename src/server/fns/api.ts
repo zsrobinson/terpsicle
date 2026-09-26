@@ -26,6 +26,8 @@ import {
   ReviewSummaryResultSchema,
   ReviewsMineInputSchema,
   ReviewsMineResultSchema,
+  ReviewsRecentInputSchema,
+  ReviewsRecentResultSchema,
   ReviewWriteResultSchema,
   SignOutInputSchema,
   SignOutResultSchema,
@@ -240,6 +242,18 @@ export const api = {
         "reviews/list",
         ReviewListInputSchema,
         ReviewListResultSchema,
+        input,
+        options,
+      ),
+    /** The newest reviewed courses and instructors, for /reviews. */
+    recent: (
+      input: z.input<typeof ReviewsRecentInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "reviews/recent",
+        ReviewsRecentInputSchema,
+        ReviewsRecentResultSchema,
         input,
         options,
       ),

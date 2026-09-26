@@ -19,6 +19,7 @@ export * from "./schema";
 export * from "./search";
 export * from "./seats";
 export * from "./security";
+export * from "./seo";
 export * from "./share";
 export * from "./sync";
 export * from "./time";

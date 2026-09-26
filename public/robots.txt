@@ -1,0 +1,10 @@
+# Everything a visitor can read is open to search engines. /reviews/mine and
+# other private pages say noindex themselves; the API and data files aren't
+# pages.
+User-agent: *
+Disallow: /api/
+Disallow: /data/
+Disallow: /avatars/
+Disallow: /ingest/
+
+Sitemap: https://terpsicle.com/sitemap.xml

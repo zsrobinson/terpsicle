@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { buildPlanetTerpIndex } from "~/core/reviews/planetterp-index";
 import {
   type CourseGrades,
   DeptChunkSchema,
@@ -12,10 +13,13 @@ import {
   ManifestSchema,
   manifestKey,
   PLANETTERP_MANIFEST_KEY,
+  type PlanetTerpDept,
   PlanetTerpDeptSchema,
+  PlanetTerpIndexSchema,
   PlanetTerpManifestSchema,
   type PlanetTerpSource,
   planetTerpDeptKey,
+  planetTerpIndexKey,
   SCHEMA_VERSIONS,
   TERMS_KEY,
   TermIdSchema,
@@ -178,6 +182,8 @@ interface CatalogIndex {
   names: Map<string, Set<string>>;
   /** Testudo name → courses they teach, for disambiguating slugs. */
   coursesByName: Map<string, Set<string>>;
+  /** Course → its title, from the newest active term that lists it. */
+  titles: Map<string, string>;
 }
 
 export async function runPlanetTerp(
@@ -319,6 +325,8 @@ export async function runPlanetTerp(
   let gradesThrough: string | null = null;
   let coursesWithGrades = 0;
   const departments: { code: string; hash: string }[] = [];
+  /** What each published department file holds, for the index. */
+  const published: PlanetTerpDept[] = [];
   for (const [dept, courses] of [...catalog.courses].sort(([a], [b]) =>
     a < b ? -1 : 1,
   )) {
@@ -351,30 +359,60 @@ export async function runPlanetTerp(
       for (const slug of Object.keys(record?.byInstructor ?? {}))
         addInstructor(slug);
     }
+    const file: PlanetTerpDept = {
+      schemaVersion: SCHEMA_VERSIONS.planetterp,
+      dept,
+      instructors: sortRecord(instructors),
+      names: sortRecord(names),
+      courses: courseGrades,
+    };
     try {
       const out = await writeHashed(
         store,
         PlanetTerpDeptSchema,
-        {
-          schemaVersion: SCHEMA_VERSIONS.planetterp,
-          dept,
-          instructors: sortRecord(instructors),
-          names: sortRecord(names),
-          courses: courseGrades,
-        },
+        file,
         (h) => planetTerpDeptKey(dept, h),
         `PlanetTerp ${dept}`,
         previousHashes.get(dept) ?? null,
       );
       if (out.written) written++;
       departments.push({ code: dept, hash: out.hash });
+      published.push(file);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       errors.push(`${dept}: ${message}`);
       log.error(`Kept the previous PlanetTerp ${dept}`, { error: message });
       const prior = previousHashes.get(dept);
-      if (prior) departments.push({ code: dept, hash: prior });
+      if (prior) {
+        departments.push({ code: dept, hash: prior });
+        const kept = await readJsonOrNull(
+          store,
+          planetTerpDeptKey(dept, prior),
+          PlanetTerpDeptSchema,
+          log,
+        );
+        if (kept) published.push(kept);
+      }
     }
+  }
+
+  // Across departments: who's where (instructor pages, the sitemap) and the
+  // most-taken courses (/reviews). A failure keeps the previous index.
+  let index = previous?.index;
+  try {
+    const out = await writeHashed(
+      store,
+      PlanetTerpIndexSchema,
+      buildPlanetTerpIndex(published, catalog.titles),
+      planetTerpIndexKey,
+      "PlanetTerp index",
+      previous?.index?.hash ?? null,
+    );
+    index = { hash: out.hash };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push(`index: ${message}`);
+    log.error("Kept the previous PlanetTerp index", { error: message });
   }
 
   const { status, reason } = statusAfterSuccess(latestReviewAt, now);
@@ -394,6 +432,7 @@ export async function runPlanetTerp(
       gradesThrough,
       departments,
       source,
+      ...(index ? { index } : {}),
     }),
   );
   await writeJson(store, UNMATCHED_KEY, {
@@ -528,6 +567,7 @@ async function loadCatalog(
     courses: new Map(),
     names: new Map(),
     coursesByName: new Map(),
+    titles: new Map(),
   };
   const add = <K, V>(map: Map<K, Set<V>>, key: K, value: V) => {
     const set = map.get(key) ?? new Set<V>();
@@ -550,6 +590,8 @@ async function loadCatalog(
       if (!chunk) continue;
       for (const course of chunk.courses) {
         add(index.courses, dept.code, course.code);
+        if (!index.titles.has(course.code))
+          index.titles.set(course.code, course.title);
         for (const section of course.sections) {
           for (const name of section.instructors) {
             add(index.names, dept.code, name);

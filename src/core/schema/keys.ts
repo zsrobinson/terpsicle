@@ -34,6 +34,8 @@ export const courseIndexDeptKey = (dept: DeptCode, hash: ContentHash): string =>
 export const PLANETTERP_MANIFEST_KEY = "planetterp/manifest.json";
 export const planetTerpDeptKey = (dept: DeptCode, hash: ContentHash): string =>
   `planetterp/dept/${dept}.${hash}.json`;
+export const planetTerpIndexKey = (hash: ContentHash): string =>
+  `planetterp/index.${hash}.json`;
 
 export const GEO_MANIFEST_KEY = "geo/manifest.json";
 export const buildingsKey = (hash: ContentHash): string =>
