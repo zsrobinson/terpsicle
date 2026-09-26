@@ -16,6 +16,7 @@ import {
   type Persistence,
   startPersisting,
 } from "~/state/persist";
+import { useReviewNumbers } from "~/state/reviews-store";
 import { startSeatAlerts, startSeatAlertsInMemory } from "~/state/seat-alerts";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
@@ -121,6 +122,10 @@ function useBootstrap(config: ClientConfig) {
       catalog.setReader(createDataReader(source), {
         cache: createDexieCache(db, source.kind === "mock" ? "mock:" : ""),
         onEvent: trackCatalogEvent,
+      });
+      // Terpsicle reviews' numbers, loaded per department on first use.
+      useReviewNumbers.getState().connect(source, {
+        cache: createDexieCache(db, source.kind === "mock" ? "mock:" : ""),
       });
       // A failure shows in place of the calendar, with a retry (catalog-error.tsx).
       await catalog.loadTerms();

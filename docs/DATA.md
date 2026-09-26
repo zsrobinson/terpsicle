@@ -58,7 +58,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `summaries/<slug>.json` | `ReviewSummarySchema` | `POST /api/review-summary` (§7.2) | fixed, **not served** |
 | `_jobs/…` | owned by M2, §2.6 | jobs (baselines, rotation state, reports) | **not served** |
 | `reviews/manifest.json` (v2) | `ReviewsManifestSchema` | `reviews-publish` job (hourly) | fixed |
-| `reviews/dept/<DEPT>.<hash>.json` (v2) | `ReviewsDeptSchema`: Terpsicle-review ratings per instructor id, and names of minted instructors. Never review text | `reviews-publish` job | hashed |
+| `reviews/dept/<DEPT>.<hash>.json` (v2) | `ReviewsDeptSchema`: Terpsicle-review ratings per instructor id, and the names PlanetTerp's join doesn't cover (§4.6). Never review text | `reviews-publish` job | hashed |
 
 **v2, bucket `terpsicle-user-content`** (binding `USER_CONTENT`; previews use `terpsicle-user-content-preview`): `avatars/<userId>/<hash16>.<ext>`, cached Google profile pictures, served at `/avatars/*` only with a session and never through `/data` (`docs/V2.md` §4.5). The `reviews/` family adds `reviews` to `SCHEMA_VERSIONS`; `ReviewSummarySchema` gains optional `sources` (additive).
 
@@ -69,7 +69,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 - A hashed key is never overwritten with different bytes.
 
 ### 2.3 Schema versions
-- `SCHEMA_VERSIONS` has one integer per family: `catalog`, `planetterp`, `geo`, `calendar`, `summaries`, and (v3) `courses`. Every JSON file has `schemaVersion: <literal>`. The routes binary has its own header version (`ROUTES_BINARY_VERSION`); share links have `v` (`SHARE_PAYLOAD_VERSION`).
+- `SCHEMA_VERSIONS` has one integer per family: `catalog`, `planetterp`, `geo`, `calendar`, `summaries`, (v3) `courses` and (v2) `reviews`. Every JSON file has `schemaVersion: <literal>`. The routes binary has its own header version (`ROUTES_BINARY_VERSION`); share links have `v` (`SHARE_PAYLOAD_VERSION`).
 - **Readers strip unknown keys** (plain `z.object`). So adding an optional field is not a bump: older clients ignore it. Bump only for breaking changes: a field removed, renamed, retyped, made required, or its meaning changed.
 - Clients parse `WireEnvelopeSchema` first:
   - data version > client's → the open tab is stale; keep using the cache and reload the app at the next visibility change;
@@ -82,7 +82,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 - Write order: every new hashed file first, the manifest last. A manifest never points at a file that doesn't exist yet.
 - **Two jobs write `catalog/<term>/manifest.json`** (catalog: `departments`, `catalogCrawledAt`; seats: `seats`, `changes`). Each does read → change only its own fields → set `generatedAt` → `put` with `onlyIf: { etagMatches }`; on a failed precondition it re-reads and retries (up to 5 times). `geo/manifest.json` follows the same rule (buildings job vs routes script).
 - Department chunks include section fields (meetings, instructors, notes), so a section change seen by the seats job rewrites that department's chunk in the same run as the `changes` entry that reports it. The catalog and the changes file never disagree for longer than one run.
-- Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working. It does the same under `courses/`.
+- Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working. It does the same under `courses/`, and the reviews-publish job under `reviews/`.
 
 ### 2.5 Serving `/data/*`
 The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys.ts`). A `null` policy means 404. Every response carries an ETag, and `If-None-Match` gets a 304.
@@ -91,7 +91,7 @@ The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys
 |---|---|---|
 | hashed (`*.<16hex>.json\|bin`) | `public, max-age=31536000, immutable` | 1 year |
 | `catalog/terms.json`, `catalog/<term>/manifest.json` | `public, no-cache` (revalidate with ETag) | 60 s |
-| `planetterp/manifest.json`, `geo/manifest.json`, `courses/manifest.json` | `public, no-cache` | 1 h |
+| `planetterp/manifest.json`, `geo/manifest.json`, `courses/manifest.json`, `reviews/manifest.json` | `public, no-cache` | 1 h |
 | `calendar/<term>.json` | `max-age=3600` | 1 h |
 | `geo/route/*.json` | `max-age=86400` | 1 day |
 | `geo/tiles.pmtiles` | `max-age=604800`, Range requests | 1 week |
@@ -105,6 +105,7 @@ The jobs' memory between runs. Everything here can be rebuilt by running the job
 | `_jobs/seats/<term>/baseline.json` | seats | Testudo's last seats stamp, the last full refresh time, each department's chunk hash and course list, and every section's `SectionSnapshot` (the diff base for `changes`) |
 | `_jobs/catalog/<term>/orphans.json` | catalog | when each unreferenced hashed file was first seen, for the 24 h garbage-collection grace |
 | `_jobs/catalog/building-rooms.json` | catalog | every building code seen, with one room, for the buildings job's popup lookups |
+| `_jobs/reviews/state.json` | reviews-publish | when each unreferenced `reviews/` file was first seen, for the 24 h grace |
 | `_jobs/courses/state.json` | catalog | per department, the `<term>:<chunk hash>` list its course-index file was built from (an unchanged list skips the rebuild), and when each unreferenced `courses/` file was first seen |
 | `_jobs/buildings/discovered.json` | buildings | codes joined (or not) since the checked-in seed, with why; failures retry after 30 days |
 | `_jobs/planetterp/grades.json` | PlanetTerp | per course, grades summed per PlanetTerp professor name, and when they were fetched (the rotation order). A course's rows are never replaced by an empty answer (§4.1) |
@@ -239,6 +240,17 @@ Little-endian throughout.
 - `published` has `classesStart`, `classesEnd` (last day of classes, not exams) and `noClasses` (named inclusive date ranges: breaks and holidays).
 - `not-published` is a real state: .ics export then says the dates aren't published yet.
 
+### 4.6 Terpsicle review numbers (v2, `reviews/`)
+
+The hourly `reviews-publish` job (`37 * * * *`, `src/jobs/reviews-publish.ts`) publishes the numbers of published Terpsicle reviews, so course details can combine them with PlanetTerp's (`docs/V2.md` §7.6). Review **text is never here**: hashed files are immutable for a year, and taking a review down must be instant, so words come only from `reviews/list`.
+- **Source:** D1, read in two queries (`publishedReviewFacts`, `publishableNameFacts` in `src/server/reviews/store.ts`): every published review's instructor, course, rating and `published_at`, and the `minted` and `manual` rows of `instructor_names`. No words, no author. Both finish before anything is written, so a D1 error leaves R2 as it was.
+- **Build** (`buildReviewsDepts`, `src/core/reviews/publish.ts`, pure): one file per department with something in it. `instructors` maps an instructor id (PlanetTerp slug or minted `t~` id) to `{rating, reviewCount, latestReviewMonth}` over **all** their published reviews, like PlanetTerp's per-instructor numbers; an instructor appears in every department they have a published review in (by the course code's first four letters) or a name in. `rating` is the mean to two decimals.
+- **`latestReviewMonth`** is `YYYY-MM` (America/New_York), not a time: an exact publish time next to an instructor would undo the month rounding readers see (V2 §7.5).
+- **`names`** maps `instructorNameKey(testudoName)` to an id, for what PlanetTerp's `names` can't say: the owner's corrections (`manual`), and minted instructors' names once they have a published review (a name alone would tell that someone tried to review them). The client reads a `manual` entry (a PlanetTerp slug) over PlanetTerp's join, and a minted one only where PlanetTerp's join has no match (`terpsicleInstructor`, `src/state/reviews-store.ts`).
+- **Publishing** (`publishReviews`, `src/ingest/reviews.ts`) follows §2: each file is validated and written only when its bytes changed; the manifest last, rewritten only when a department's hash changed (so `generatedAt` is when the numbers last changed); files it no longer lists are deleted after 24 h (`_jobs/reviews/state.json`). A department left with nothing is dropped from the manifest; an empty department file is never written. With no published review at all, the manifest lists no departments. A manifest of another schema version is replaced.
+- **Mock mode** publishes `src/fixtures/mock/reviews.ts` (five PlanetTerp instructors and two minted ones) with the same `buildReviewsDepts`; `src/ingest/__fixtures__/golden/reviews.json` is its output.
+- The client combines the two sources with `combineRatings` (`src/core/reviews/combine.ts`): `rating = Σ(rating_s × count_s) / Σ count_s`, `reviewCount = Σ count_s`, and the rating's tooltip gives the parts ("4.2 from 61 reviews: 4.1 from 48 on PlanetTerp, 4.6 from 13 on Terpsicle"). Only while `REVIEWS_ENABLED` isn't `off`; grade distributions stay PlanetTerp's.
+
 ---
 
 ## 5. Browser state (IndexedDB via Dexie)
@@ -302,6 +314,10 @@ The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cac
 3. The manifest check diffs hashes and refetches only files already loaded that changed, then, in one Dexie transaction, stores the new manifest and drops cached `courses/` files it no longer lists.
 4. Unlike the catalog, the cached manifest may list department files the browser doesn't have yet. What's cached is always listed by it. A cached manifest more than a day old can name files the server has deleted; a file that's missing waits for the session's manifest check and loads the new hash.
 5. There's no polling: the index changes at most every 6 h.
+
+### 5.3 Client review numbers flow (v2)
+
+`src/state/reviews-store.ts` (`useReviewNumbers`) follows §5.2 for `reviews/`: `ensureDepts(depts)` shows the cached manifest at once and checks the server's once per session, reads department files by hash from the cache or the network (validated, `family: "reviews"`), treats a department the manifest doesn't list as ready and empty, and on a missing file waits for the session's manifest check and tries the new hash. `refresh()` refetches only loaded files whose hash changed, then stores the manifest and drops unlisted files in one transaction. `app.tsx` connects it beside the catalog; course details read it through `useTerpsicleReviews(dept, enabled)`, and the reviews pages can use the same store. A manifest or file that can't load leaves PlanetTerp's numbers on their own.
 
 ---
 
@@ -486,22 +502,23 @@ CREATE TABLE counters (
 
 ### 7.2 Review summaries
 
-`review-summary` takes `{slug, course}` and returns `ReviewSummaryResultSchema` (`src/server/summaries/`).
+`review-summary` takes `{slug, course}` and returns `ReviewSummaryResultSchema` (`src/server/summaries/`). `slug` is any instructor id, so a minted instructor (`t~…`) with Terpsicle reviews gets a summary too.
 
-1. **Find the instructor.** The course's department names the PlanetTerp file that holds the instructor's `reviewCount` and `latestReviewAt`: `planetterp/manifest.json` → `planetterp/dept/<DEPT>.<hash>.json`. Missing → `unknown-instructor`; no reviews → `no-reviews`.
-2. **Serve the cache.** `summaries/<slug>.json` is used when it's fresh: `basedOnReviewCount ≥ reviewCount` and its `latestReviewAt` is at least the instructor's. The summary covers all of an instructor's reviews, so one file per instructor serves every course.
+1. **Find the instructor.** The course's department names the PlanetTerp file that holds the instructor's `reviewCount` and `latestReviewAt`: `planetterp/manifest.json` → `planetterp/dept/<DEPT>.<hash>.json`. While `REVIEWS_ENABLED` isn't `off`, our published reviews of the same id count too (D1 `publishedStats`): the combined `reviewCount` is the sum, and the combined newest is the later of PlanetTerp's and the month of ours (ours by month only, since a summary's `latestReviewAt` reaches the browser). Neither source knows the id → `unknown-instructor` (unless the `instructors` registry does: `no-reviews`); no reviews → `no-reviews`.
+2. **Serve the cache.** `summaries/<slug>.json` is used when it's fresh: `basedOnReviewCount ≥ reviewCount`, its `latestReviewAt` is at least the instructor's, and `sources.terpsicle` (0 when absent) equals our published count, so a review of ours taken down makes it stale. The summary covers all of an instructor's reviews, so one file per instructor serves every course.
 3. **Otherwise, generate once.**
    - **One generation at a time.** Concurrent requests in one isolate share one promise. Across isolates, a lock object `_jobs/summary-locks/<slug>.json` is taken with a create-only R2 put (`etagDoesNotMatch: "*"`). A lock older than its 60 s TTL is taken over with an etag-conditional put.
    - **Losers wait.** They poll R2 for up to 20 s for the new summary, then answer `busy`.
 4. **Enforce the daily cap.** A D1 counter `summaries` per UTC day is checked against `SUMMARIES_DAILY_CAP` (a var, 200). Past it → `daily-limit`.
-5. **Get the reviews.** First from the PlanetTerp job's private copy, `_jobs/planetterp/reviews/<slug>.json` (§2.6), when it holds at least the instructor's `reviewCount`. Otherwise live from PlanetTerp `/professor?name=…&reviews=true`, used only if its slug matches: names collide, so a mismatch falls back to the stored copy, or is `failed` rather than the wrong person's reviews. When PlanetTerp is down or gone, a stored copy that's behind is still used, so summaries can be regenerated without PlanetTerp.
+5. **Get the reviews.** Ours: the newest 40 published ones from D1 (`publishedForSummary`). PlanetTerp's (only when its file counts some): first from the PlanetTerp job's private copy, `_jobs/planetterp/reviews/<slug>.json` (§2.6), when it holds at least the instructor's `reviewCount`. Otherwise live from PlanetTerp `/professor?name=…&reviews=true`, used only if its slug matches: names collide, so a mismatch falls back to the stored copy, or is `failed` rather than the wrong person's reviews. When PlanetTerp is down or gone, a stored copy that's behind is still used, so summaries can be regenerated without PlanetTerp.
 6. **Run the model** (`src/server/summaries/prompt.ts`).
-   - **Input:** the 40 newest reviews, at most 18k characters, each stripped of `<`, `>` and links, inside one `<reviews>` fence. The system prompt says the reviews are data and any instructions inside them must be ignored.
+   - **Input:** the 40 newest reviews of both sources together, at most 18k characters, each stripped of `<`, `>` and links, inside one `<reviews>` fence. The system prompt says the reviews are data and any instructions inside them must be ignored.
    - **Output:** JSON mode with a schema, then `ModelSummarySchema`:
      - a summary of 20–600 characters and at most about 75 words, with no links, addresses or markup;
      - 2–4 themes of 1–4 lowercase words, each with a sentiment.
    - **Retries:** invalid output gets one retry that names the problem; a second failure is `failed`. Nothing that fails validation is stored or shown.
-7. **Store and return** the `ReviewSummary`. The UI hides the summary for every `unavailable` reason, and the summary is the only thing shown with the sparkles icon.
+7. **Check it with Llama Guard** (`@cf/meta/llama-guard-3-8b`, the moderation service's `runGuard`), for S5 (defamation) above all, since the summary restates what reviews say about a real person. Any unsafe verdict, or a check that fails, is `failed`: nothing is stored or shown (`summary_failed` with `unsafe` or `guard-error`).
+8. **Store and return** the `ReviewSummary`, with `sources: {planetterp, terpsicle}` (how many reviews of each it covers; optional and additive, so older summaries without it read as PlanetTerp's only). The UI's footer names both ("Summary of 61 reviews: 48 on PlanetTerp, 13 on Terpsicle"). The UI hides the summary for every `unavailable` reason, and the summary is the only thing shown with the sparkles icon.
 
 **Model: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`**, from the live Workers AI catalog on 2026-09-25.
 - **Why this one:**
@@ -594,6 +611,7 @@ The design is `docs/V2.md` §7. Routes: `src/server/reviews/api.ts` (and `report
 - **Stage 0** runs before anything is stored: any rule that would hold or remove (a link, contact details, a slur, the length) comes back as `invalid` with its span; so do words already published for the instructor (`duplicate`, by `text_hash`, the SHA-256 of `reviewTextKey(body)`). Flags go on to the models.
 - **Limits:** `users.reviews_blocked_until` (`blocked`); 10 new reviews per author per 7 days, deleted ones included (`limit`, with the wait); a burst (the 24-hour count of new reviews for the instructor past both 5 and 3× its 30-day daily average) holds the review for the owner with reason `burst`.
 - **Later decisions** reach reviews through `MODERATION_HANDLERS.review` (`src/server/reviews/decisions.ts`): approve publishes (applying a waiting edit), remove rejects the review (or only a waiting edit of a published review, unless reports are waiting too), undo puts it back to waiting.
+- **Published numbers:** the hourly `reviews-publish` job copies published reviews' ratings (never their words) to R2 `reviews/` (§4.6).
 - **Anonymity** (V2 §7.5): `PublicReview` is strict and has no author; dates are months (America/New_York); the list cursor is a review id, not a time. `reviews/mine` shows your own reviews without an author field. Moderation rows and snapshots never hold the author, and `src/server/reviews/anonymity.test.ts` checks every answer, both moderation tables and the models' input.
 
 

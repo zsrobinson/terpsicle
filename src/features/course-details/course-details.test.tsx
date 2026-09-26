@@ -1,12 +1,18 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { openCourse } from "~/features/courses/actions";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { panels as searchPanels } from "~/features/search/panels";
-import { aReviewSummary } from "~/fixtures";
+import { aReviewSummary, mockDataSource } from "~/fixtures";
 import { api } from "~/server/fns/api";
 import { useCatalog } from "~/state/catalog-store";
+import { createBucketDataSource } from "~/state/data-source";
+import {
+  INITIAL_REVIEW_NUMBERS_STATE,
+  useReviewNumbers,
+} from "~/state/reviews-store";
 import { useSeatAlerts } from "~/state/seat-alerts";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
@@ -155,6 +161,34 @@ describe("Course details", () => {
         /^Keiko Ashdown ?rated 3\.1 of 5, 142 reviews GPA 3\.26$/,
       );
       expect(rowCodes()).toEqual(["0101", "0201", "0301", "0401"]);
+    });
+
+    it("combines PlanetTerp's rating with Terpsicle's once Reviews is readable", async () => {
+      useReviewNumbers
+        .getState()
+        .connect(createBucketDataSource(mockDataSource));
+      useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "read" } });
+      try {
+        const { user } = await renderDetails();
+        const jada = within(screen.getByTestId("sections")).getByRole(
+          "button",
+          { expanded: true, name: /^Jada/ },
+        );
+        // 88 on PlanetTerp at 4.6, and the mock's 9 on Terpsicle at 3.33.
+        await waitFor(() => expect(jada).toHaveTextContent(/4\.5\(97\)$/));
+        expect(jada).toHaveAccessibleName(
+          /^Jada Abernathy ?rated 4\.5 of 5, 97 reviews$/,
+        );
+        await user.hover(within(jada).getByText("4.5"));
+        expect(
+          await screen.findByRole("tooltip", {
+            name: "4.5 from 97 reviews: 4.6 from 88 on PlanetTerp, 3.3 from 9 on Terpsicle",
+          }),
+        ).toBeInTheDocument();
+      } finally {
+        useAccount.setState({ flags: FLAGS_OFF });
+        useReviewNumbers.setState(INITIAL_REVIEW_NUMBERS_STATE);
+      }
     });
 
     it("collapses a group, and remembers it", async () => {
@@ -485,6 +519,24 @@ describe("Course details", () => {
       expect(track).toHaveBeenCalledWith("course_details_tab", {
         tab: "instructors",
       });
+    });
+
+    it("say how many reviews from each source a summary read", async () => {
+      vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
+        status: "ok",
+        summary: aReviewSummary({
+          slug,
+          basedOnReviewCount: 97,
+          sources: { planetterp: 88, terpsicle: 9 },
+        }),
+      }));
+      await renderDetails("CMSC351", "instructors");
+      const jada = await findReviews("Jada Abernathy");
+      await waitFor(() =>
+        expect(jada).toHaveTextContent(
+          "Summary of 97 reviews: 88 on PlanetTerp, 9 on Terpsicle",
+        ),
+      );
     });
 
     it("fall back to the review count when there's no summary", async () => {

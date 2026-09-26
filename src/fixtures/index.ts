@@ -47,6 +47,11 @@ export {
   demoPlans,
 } from "./mock/plans";
 export {
+  mockMintedNames,
+  mockPublishedReviews,
+  mockReviewNames,
+} from "./mock/reviews";
+export {
   MOCK_SEATS_AS_OF,
   MOCK_SEATS_FETCHED_AT,
   mockArchivedSeats,

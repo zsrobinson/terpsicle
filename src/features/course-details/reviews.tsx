@@ -8,14 +8,18 @@ import {
   gradeSummary,
   planetTerpFreshnessWords,
 } from "~/core/grades";
+import { combinedRatingWords, combineRatings } from "~/core/reviews";
 import {
   type Course,
   type Instructor,
   type PlanetTerpDept,
   planetTerpUrl,
+  type ReviewSummary,
 } from "~/core/schema";
+import { useAccount } from "~/features/auth/account-store";
 import { deptOf } from "~/state/catalog-store";
-import { usePlanetTerpStatus } from "~/state/data-hooks";
+import { usePlanetTerpStatus, useTerpsicleReviews } from "~/state/data-hooks";
+import { terpsicleInstructor } from "~/state/reviews-store";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
@@ -38,8 +42,39 @@ function courseGrades(
 }
 
 /**
+ * One rating over PlanetTerp's reviews and Terpsicle's (V2 §7.6), once
+ * Reviews is at least readable; PlanetTerp's alone before that.
+ */
+function useCombinedRating(
+  name: string,
+  course: Course,
+  planetTerp: PlanetTerpDept | null,
+) {
+  const reviewsOn = useAccount((s) => s.flags.reviews !== "off");
+  const ours = useTerpsicleReviews(deptOf(course.code), reviewsOn);
+  if (!name) return null;
+  const terpsicle = terpsicleInstructor(ours, planetTerp, name);
+  // The owner's fix can point a name at another PlanetTerp slug.
+  const pt = terpsicle
+    ? (planetTerp?.instructors[terpsicle.id] ?? null)
+    : instructorFor(planetTerp, name);
+  return combineRatings([
+    {
+      source: "planetterp",
+      rating: pt?.rating ?? null,
+      reviewCount: pt?.reviewCount ?? 0,
+    },
+    {
+      source: "terpsicle",
+      rating: terpsicle?.numbers?.rating ?? null,
+      reviewCount: terpsicle?.numbers?.reviewCount ?? 0,
+    },
+  ]);
+}
+
+/**
  * "★ 4.2 (61) · GPA 3.10": said once per instructor, beside their name in
- * the group header (UX review §3.4). Null when PlanetTerp has neither.
+ * the group header (UX review §3.4). Null when there's neither.
  */
 export function InstructorMeta({
   name,
@@ -52,26 +87,33 @@ export function InstructorMeta({
   planetTerp: PlanetTerpDept | null;
 }) {
   const pt = name ? instructorFor(planetTerp, name) : null;
-  const rating = pt ? formatRating(pt.rating, pt.reviewCount) : null;
+  const combined = useCombinedRating(name, course, planetTerp);
+  const rating = combined
+    ? formatRating(combined.rating, combined.reviewCount)
+    : null;
   const gpa = courseGrades(planetTerp, course, pt)?.averageGpa ?? null;
   if (!rating?.rating && gpa === null) return null;
+  const parts = combined ? combinedRatingWords(combined) : null;
   return (
     <span className="tnum inline-flex shrink-0 items-center gap-1 text-muted">
-      {rating?.rating ? (
-        <span className="inline-flex items-center gap-0.5">
-          <Star
-            size={11}
-            aria-hidden="true"
-            className="fill-current text-warn"
-          />
-          {/* "★ 4.2 (61)" on screen; "rated 4.2 of 5, 61 reviews" read out. */}
-          <span className="sr-only">
-            {` rated ${rating.rating} of 5, ${pt?.reviewCount} reviews`}
+      {rating?.rating && parts ? (
+        <WithTooltip label={parts}>
+          <span className="inline-flex items-center gap-0.5">
+            <Star
+              size={11}
+              aria-hidden="true"
+              className="fill-current text-warn"
+            />
+            {/* "★ 4.2 (61)" on screen; "rated 4.2 of 5, 61 reviews" read out. */}
+            <span className="sr-only">
+              {` rated ${rating.rating} of 5, ${combined?.reviewCount} reviews`}
+            </span>
+            <span aria-hidden="true">
+              <span className="text-fg">{rating.rating}</span>(
+              {combined?.reviewCount})
+            </span>
           </span>
-          <span aria-hidden="true">
-            <span className="text-fg">{rating.rating}</span>({pt?.reviewCount})
-          </span>
-        </span>
+        </WithTooltip>
       ) : null}
       {rating?.rating && gpa !== null ? <MetaSep /> : null}
       {gpa !== null ? <span>GPA {formatGpa(gpa)}</span> : null}
@@ -188,9 +230,7 @@ export function InstructorReviews({
             </div>
           ) : null}
           <div className="mt-2 text-xs text-faint">
-            Summary of {review.summary.basedOnReviewCount} PlanetTerp review
-            {review.summary.basedOnReviewCount === 1 ? "" : "s"} ·{" "}
-            <ReadThem slug={pt.slug} />
+            {summarySourceWords(review.summary)} · <ReadThem slug={pt.slug} />
           </div>
         </div>
       ) : pt.reviewCount > 0 ? (
@@ -206,6 +246,21 @@ export function InstructorReviews({
       ) : null}
     </div>
   );
+}
+
+/** "Summary of 48 PlanetTerp reviews", or of both sources' reviews. */
+export function summarySourceWords(summary: ReviewSummary): string {
+  const plural = (n: number) => (n === 1 ? "" : "s");
+  const terpsicle = summary.sources?.terpsicle ?? 0;
+  if (terpsicle === 0) {
+    const n = summary.basedOnReviewCount;
+    return `Summary of ${n} PlanetTerp review${plural(n)}`;
+  }
+  const planetterp = summary.sources?.planetterp ?? 0;
+  if (planetterp === 0)
+    return `Summary of ${terpsicle} Terpsicle review${plural(terpsicle)}`;
+  const n = planetterp + terpsicle;
+  return `Summary of ${n} reviews: ${planetterp} on PlanetTerp, ${terpsicle} on Terpsicle`;
 }
 
 function ReadThem({ slug }: { slug: string }) {
