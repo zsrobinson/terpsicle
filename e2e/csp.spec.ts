@@ -5,7 +5,7 @@ import { expect, type Page, test } from "@playwright/test";
 // `/schedule?demo=1`: search, adding a section, the Travel tab and a
 // route's map. None may trip it. The policy is
 // report-only, so a violation breaks nothing on screen; Chrome logs it to
-// the console ("[Report Only] Refused to …") and fires
+// the console (the wording varies by version) and fires
 // `securitypolicyviolation`, and this test watches both.
 //
 // Mock mode draws the route without MapLibre (no tiles offline); MapLibre's
@@ -28,7 +28,7 @@ async function watchCsp(page: Page) {
     document.addEventListener("securitypolicyviolation", (event) => {
       // Where from, so a failure says what to fix.
       w.__cspViolations?.push(
-        `${event.effectiveDirective} ${event.blockedURI} ${event.sourceFile}:${event.lineNumber}`,
+        `${event.effectiveDirective} ${event.blockedURI} ${event.disposition} ${event.sourceFile}:${event.lineNumber}`,
       );
     });
   });
@@ -93,14 +93,14 @@ test("/, then search, add a section, Travel and a route map: no CSP violations",
     script.textContent = "window.__cspControl = 1;";
     document.head.append(script);
   });
-  const control = expect.stringMatching(/^script-src-elem inline /);
+  const control = expect.stringMatching(/^script-src-elem inline report /);
   await expect.poll(csp.events).toContainEqual(control);
   await expect.poll(() => csp.logged.length).toBeGreaterThan(0);
 
   // Only the control: nothing the app did tripped the policy.
   expect(await csp.events()).toEqual([control]);
-  expect(csp.logged).toEqual([
-    expect.stringMatching(/^\[Report Only\] Refused to execute inline script/),
-  ]);
+  // The console has only the control's line too. Its wording changes with
+  // the Chrome version, so only the words every version uses are checked.
+  expect(csp.logged).toEqual([expect.stringMatching(/inline script/i)]);
   expect(errors).toEqual([]);
 });
