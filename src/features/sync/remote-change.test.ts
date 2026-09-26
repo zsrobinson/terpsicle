@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { aBlock, aPlan, aSavedCourse, aSettingsDoc } from "~/fixtures";
+import {
+  aBlock,
+  aPlan,
+  archivedFixtureTermId,
+  aSavedCourse,
+  aSettingsDoc,
+} from "~/fixtures";
 import { resetStores } from "~/state/testing";
 import { useWorkspace } from "~/state/workspace-store";
 import { applyRemoteChange, rebaseHistory } from "./remote-change";
@@ -78,6 +84,36 @@ describe("a change from the account", () => {
       travel: settings.travel,
       chatPlans: settings.chatPlans,
     });
+    expect(store().undo()).toBe(false);
+  });
+
+  it("drops only the untouched plans storage never saw, in the terms the account's plans arrived in", () => {
+    const theirs = aPlan({ id: "plan_acct_01", name: "Plan A" });
+    const unseen = aPlan({ id: "plan_auto_01", name: "Plan A", courses: [] });
+    const savedEmpty = aPlan({
+      id: "plan_auto_02",
+      name: "Plan C",
+      courses: [],
+    });
+    const elsewhere = aPlan({
+      id: "plan_auto_03",
+      termId: archivedFixtureTermId,
+      courses: [],
+    });
+    useWorkspace.setState({ plans: [unseen, savedEmpty, elsewhere, planB] });
+    applyRemoteChange(useWorkspace, {
+      plans: [[theirs.id, theirs]],
+      arrived: {
+        terms: [theirs.termId],
+        known: [theirs.id, savedEmpty.id, planB.id],
+      },
+    });
+    expect(store().plans.map((p) => p.id)).toEqual([
+      savedEmpty.id,
+      elsewhere.id,
+      planB.id,
+      theirs.id,
+    ]);
     expect(store().undo()).toBe(false);
   });
 
