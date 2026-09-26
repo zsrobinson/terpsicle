@@ -2,7 +2,10 @@ import { drawMark, type MarkId, type MarkLayer, type MarkRole } from "./marks";
 
 // A mark in the page, colored by tokens, so it follows the theme (the
 // umbrella's tile is paper in light and near-black in dark; product tiles
-// keep their color and swap the offset). The drawing is in ./marks.
+// keep their color and swap the offset). The drawing is in ./marks. Each
+// glyph has its own paint token (`product-<id>-fg`: paper, or ink on Todo's
+// yellow; marks.ts GLYPH_PAINT), and a keyline drawn in one theme only
+// (Todo's, in light) hides in the other.
 
 /** Fill (and, for the keyline, stroke) classes per mark and role. */
 const PAINT: Record<
@@ -45,10 +48,34 @@ const PAINT: Record<
     keyline: { fill: "fill-keyline", stroke: "stroke-keyline" },
     offset: { fill: "fill-mark-offset", stroke: "stroke-mark-offset" },
   },
+  plan: {
+    tile: { fill: "fill-product-plan", stroke: "stroke-product-plan" },
+    glyph: {
+      fill: "fill-product-plan-fg",
+      stroke: "stroke-product-plan-fg",
+    },
+    keyline: { fill: "fill-keyline", stroke: "stroke-keyline" },
+    offset: { fill: "fill-mark-offset", stroke: "stroke-mark-offset" },
+  },
+  todo: {
+    tile: { fill: "fill-product-todo", stroke: "stroke-product-todo" },
+    glyph: {
+      fill: "fill-product-todo-fg",
+      stroke: "stroke-product-todo-fg",
+    },
+    keyline: {
+      fill: "fill-product-todo-keyline",
+      stroke: "stroke-product-todo-keyline",
+    },
+    offset: { fill: "fill-mark-offset", stroke: "stroke-mark-offset" },
+  },
 };
 
+/** A layer drawn in one theme only hides in the other. */
+const ONLY_IN = { light: "dark:hidden", dark: "hidden dark:inline" } as const;
+
 /**
- * One of the four marks at `size` px. With a `label` it's an image with that
+ * One of the six marks at `size` px. With a `label` it's an image with that
  * name; without one it's decoration beside words that already say it.
  */
 export function Mark({
@@ -112,7 +139,9 @@ function Layer({
           height={layer.size}
           fill="none"
           strokeWidth={layer.width}
-          className={paint.stroke}
+          className={
+            layer.only ? `${paint.stroke} ${ONLY_IN[layer.only]}` : paint.stroke
+          }
         />
       );
     case "halo":

@@ -15,7 +15,10 @@ test.afterEach(() => {
 });
 
 const marketingHeading = (page: Page) =>
-  page.getByRole("heading", { name: "Terpsicle", level: 1 });
+  page.getByRole("heading", {
+    name: "Your semester's a tangle of tabs. Let's straighten it out.",
+    level: 1,
+  });
 /** The scheduler's calendar: on screen on desktop and phones alike. */
 const scheduler = (page: Page) =>
   page.getByRole("region", { name: "Week calendar" });
@@ -30,17 +33,15 @@ async function returning(page: Page): Promise<void> {
 }
 
 /**
- * Flags, across navigations in this tab, any moment the marketing heading
- * was on screen. The check hides the page until it decides, so a redirect
- * must never set it.
+ * Flags, across navigations in this tab, any moment the marketing page was
+ * on screen. The check hides the page until it decides, so a redirect must
+ * never set it.
  */
 function watchForMarketing(): void {
   const check = () => {
     const shown =
       !document.documentElement.hasAttribute("data-landing") &&
-      [...document.querySelectorAll("h1")].some(
-        (h) => h.textContent === "Terpsicle",
-      );
+      document.querySelector("[data-marketing]") !== null;
     if (shown) sessionStorage.setItem("saw-marketing", "1");
   };
   new MutationObserver(check).observe(document, {
@@ -59,7 +60,9 @@ test("a first visit sees the marketing page; after that, / opens the scheduler",
 }) => {
   await page.goto("/");
   await expect(marketingHeading(page)).toBeVisible();
-  await expect(page).toHaveTitle("Terpsicle");
+  await expect(page).toHaveTitle(
+    "Terpsicle: planning tools for your semester at Maryland",
+  );
   // Still shown once the app has hydrated: the check never runs twice.
   await page.waitForLoadState("networkidle");
   await expect(page.locator("html")).not.toHaveAttribute("data-landing");
