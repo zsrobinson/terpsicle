@@ -183,7 +183,7 @@ function ProductBlock({
           <ul className="mk-st flex flex-col gap-2 text-base" style={st(3)}>
             {block.facts.map((f) => (
               <li key={f} className="flex items-start gap-2">
-                <CheckIcon className="mk-text mt-0.5 shrink-0" />
+                <CheckIcon className="mk-text mt-0.5 size-3.5 shrink-0" />
                 <span>{f}</span>
               </li>
             ))}

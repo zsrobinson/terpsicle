@@ -271,6 +271,12 @@ test("shows the paper grain, and fits a phone without sideways scrolling", async
     .locator("[data-marketing]")
     .evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(fill).toBe("rgba(0, 0, 0, 0)");
+  // The blocks' fact ticks stay icon-sized.
+  const ticks = await page
+    .locator("section#schedule .mk-block-text ul svg")
+    .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+  expect(ticks.length).toBe(3);
+  for (const width of ticks) expect(width).toBeLessThanOrEqual(16);
   expect(
     await page.evaluate(
       () => getComputedStyle(document.body, "::before").backgroundImage,
