@@ -60,6 +60,15 @@ export interface ServerEvents {
   };
   // Plan sync: counts only, never who or what (V2.md §11).
   sync_push: { docs: number; fourYearDocs: number; conflicts: number };
+  // Feedback (docs/FEEDBACK.md): what kind arrived, never its words, its
+  // page or who sent it.
+  feedback_received: {
+    kind: "bug" | "idea";
+    product: string;
+    hasScreenshot: boolean;
+    withContext: boolean;
+    reply: boolean;
+  };
   // Terpsicle Todo's cron (docs/V3.md §6). Counts only: never a feed, a
   // link, a user or an item.
   todo_fetch_run: {

@@ -234,6 +234,11 @@ Revisit if: reports turn out too thin to act on.
 The feedback sheet's admin-only "Pin a note" mode stores notes on elements of a deployment, pulled by agents with `scripts/feedback.ts`.
 Revisit if: the owner prefers another way to leave notes.
 
+### Feedback reads the session without needing one
+2026-09-26 · agent · one feature
+`feedback/send` and `feedback/undo` are `auth: "optional"` routes: same-origin like signed-in routes (they write), with the session when there is one (for the reply toggle and the per-person limit), never a 401. The inbox shows whether a reply may go, never to whom.
+Revisit if: another route needs the same, or feedback needs sign-in.
+
 ## Process
 
 ### Ship it, drafts when asked

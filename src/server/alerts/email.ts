@@ -51,6 +51,7 @@ const testudoUrl = (ref: SectionRef) =>
 
 const label = (ref: SectionRef) => `${ref.courseCode} ${ref.sectionCode}`;
 
+export type EmailBlock = Block;
 type Block =
   | { kind: "p"; text: string }
   | { kind: "muted"; text: string }
@@ -58,7 +59,11 @@ type Block =
   | { kind: "link"; text: string; href: string }
   | { kind: "facts"; rows: [string, string][] };
 
-function layout(preheader: string, blocks: Block[], footer: Block[]): string {
+export function layout(
+  preheader: string,
+  blocks: Block[],
+  footer: Block[],
+): string {
   const font =
     "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
   const render = (b: Block): string => {
