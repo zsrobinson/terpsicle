@@ -190,6 +190,70 @@ describe("a saved plan", () => {
     expect((await saved())[0]?.entries).toHaveLength(2);
   });
 
+  it("adds the top result with Enter, once: then it says Added", async () => {
+    await seed(PLAN);
+    const user = renderPlan();
+    await user.click(
+      await screen.findByRole("button", { name: "Add a course to Fall 2026" }),
+    );
+    const box = screen.getByRole("searchbox", { name: "Search courses" });
+    await waitFor(() => expect(box).toHaveFocus());
+    await user.type(box, "cmsc 42");
+    // The top result's button shows the shortcut.
+    const top = await screen.findByRole("button", {
+      name: "Add CMSC420 to Fall 2026",
+    });
+    expect(
+      within(screen.getByRole("list", { name: "Courses" }))
+        .getAllByRole("button", { name: /^Add / })
+        .at(0),
+    ).toBe(top);
+    await user.hover(top);
+    expect(
+      await screen.findByRole("tooltip", {
+        name: "Add CMSC420 to Fall 2026 ↵",
+      }),
+    ).toBeInTheDocument();
+
+    await user.type(box, "{Enter}");
+    expect(within(column("Fall 2026")).getByText("CMSC420")).toBeVisible();
+    expect(await screen.findByText("Added CMSC420 to Fall 2026")).toBeVisible();
+    expect((await saved())[0]?.entries).toHaveLength(3);
+
+    // Already there: a quiet "Added" instead of a second Add.
+    expect(
+      screen.queryByRole("button", { name: "Add CMSC420 to Fall 2026" }),
+    ).toBeNull();
+    const row = screen
+      .getAllByTestId("plan-search-added")[0]
+      ?.closest("li") as HTMLElement;
+    expect(within(row).getByText("CMSC420")).toBeVisible();
+    expect(row).toHaveTextContent("Added to Fall 2026");
+
+    // Enter again says so and adds nothing.
+    await user.type(box, "{Enter}");
+    expect(
+      await screen.findByText("CMSC420's already in Fall 2026"),
+    ).toBeVisible();
+    expect(within(column("Fall 2026")).getAllByText("CMSC420")).toHaveLength(1);
+    expect((await saved())[0]?.entries).toHaveLength(3);
+  });
+
+  it("shows a course in another semester as addable here", async () => {
+    await seed(PLAN);
+    const user = renderPlan("/plan?tab=search&semester=202608");
+    const box = await screen.findByRole("searchbox", {
+      name: "Search courses",
+    });
+    await user.type(box, "cmsc351");
+    // CMSC351 is in Spring 2027; adding it to Fall 2026 is a choice, not a duplicate.
+    expect(
+      await screen.findByRole("button", { name: "Add CMSC351 to Fall 2026" }),
+    ).toBeVisible();
+    expect(screen.getByText("In Spring 2027")).toBeVisible();
+    expect(screen.queryByTestId("plan-search-added")).toBeNull();
+  });
+
   it("adds a placeholder for a pattern, then picks a course for it", async () => {
     await seed(PLAN);
     const user = renderPlan("/plan?tab=search&semester=202801");

@@ -277,6 +277,67 @@ describe("the list", () => {
     ).toBeVisible();
   });
 
+  describe("the Gradescope extensions note", () => {
+    const gradescope: TodoItem[] = [
+      aTodoItem({ uid: "gs-project", gradescope: true }),
+      aTodoItem({
+        uid: "gs-homework",
+        title: "Homework 4",
+        courseLabel: "MATH240-0201: Introduction to Linear Algebra",
+        courseCode: "MATH240",
+        sectionCode: "0201",
+        gradescope: true,
+        dueDate: "2026-09-28",
+        dueAt: "2026-09-29T03:59:00.000Z",
+      }),
+      aTodoItem({
+        uid: "gs-lab",
+        title: "Lab 7",
+        gradescope: true,
+        dueDate: "2026-10-02",
+        dueAt: "2026-10-03T03:59:00.000Z",
+      }),
+      aTodoItem({ uid: "plain", title: "Reading response 3" }),
+    ];
+    const notes = () =>
+      screen.queryAllByText(/Extensions you get in Gradescope/);
+    const rowOf = (title: string) => {
+      const row = screen.getByText(title).closest("li");
+      if (!row) throw new Error(`no row for ${title}`);
+      return row;
+    };
+
+    it("says it once, under the first Gradescope item still to do", async () => {
+      fakeClient({ items: gradescope });
+      signedIn();
+      renderTodo();
+      await screen.findByText("Homework 4");
+      expect(screen.getAllByText("Gradescope")).toHaveLength(3);
+      expect(notes()).toHaveLength(1);
+      expect(
+        within(rowOf("Homework 4")).getByText(/Extensions you get/),
+      ).toBeVisible();
+
+      // Checked off, it hands the note to the next one.
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole("checkbox", { name: "Done: Homework 4" }),
+      );
+      expect(notes()).toHaveLength(1);
+      expect(
+        within(rowOf("Project 2")).getByText(/Extensions you get/),
+      ).toBeVisible();
+    });
+
+    it("says it once by course too", async () => {
+      fakeClient({ items: gradescope });
+      signedIn();
+      renderTodo("course");
+      await screen.findByText("Homework 4");
+      expect(notes()).toHaveLength(1);
+    });
+  });
+
   it("renders what professors write as plain text", async () => {
     fakeClient({ items });
     signedIn();
