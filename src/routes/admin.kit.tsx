@@ -11,6 +11,8 @@ import { KitPage } from "~/features/admin/kit-page";
 // the kit's own ViewSwitch working on a real URL.
 export const Route = createFileRoute("/admin/kit")({
   ssr: false,
+  // Admin draws its own frame: no family bar while it loads.
+  staticData: { pending: "none" },
   validateSearch: z.object({
     view: KitViewSchema.optional().catch(undefined),
   }),

@@ -52,7 +52,10 @@ describe("sealing the feed link", () => {
       await openFeedLink(k, { userId: "tadmin", source: "elms" }, sealed),
     ).toBeNull();
     const [v, id, iv, data = ""] = sealed.split(".");
-    const flipped = `${data.slice(0, -2)}${data.endsWith("A") ? "B" : "A"}${data.slice(-1)}`;
+    // Change the second-to-last character (the last may be only padding
+    // bits), always to a different one.
+    const flipped = `${data.slice(0, -2)}${data.at(-2) === "A" ? "B" : "A"}${data.slice(-1)}`;
+    expect(flipped).not.toBe(data);
     expect(
       await openFeedLink(k, owner, [v, id, iv, flipped].join(".")),
     ).toBeNull();
