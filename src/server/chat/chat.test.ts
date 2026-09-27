@@ -35,6 +35,7 @@ import {
   sectionRoomId,
   TERMS_KEY,
 } from "~/core/schema";
+import { newYorkDateOf } from "~/core/todo";
 import {
   aCourse,
   aDeptChunk,
@@ -72,8 +73,13 @@ const room0201 = sectionRoomId(TERM, COURSE, "0201");
 // ---------- the catalog in R2 ----------
 
 /** A calendar whose last day of classes is `days` from today. */
+/**
+ * A published calendar whose classes end `days` from today, counted in
+ * College Park, as retention is: a UTC date would be a day late each evening
+ * there (00:00–04:00 UTC), and a room 11 days past would still be writable.
+ */
 function calendarEndingIn(days: number): AcademicCalendar {
-  const end = new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
+  const end = newYorkDateOf(Date.now() + days * DAY);
   return aPublishedCalendar({ termId: TERM, classesEnd: end });
 }
 
