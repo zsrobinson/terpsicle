@@ -66,19 +66,19 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 
 ### Phase 2: build the system
 - [x] `AppBar` (the family bar): products, account, feedback, and a slot for the product's own context. `SiteHeader` and the scheduler's `TopBar` are thin callers of it.
-- [ ] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes.
+- [x] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes. (`v3/page-kit`: `PageHeader`, `ProductPage`, `ViewSwitch`, `EmptyState`, `ListRow` and `GroupHeader`, `Card`, `RowSkeleton` and `PageSkeleton`, `InlineError`. The panel's one-line note is now `PanelNote`.)
 - [ ] Controls the inventory found hand-rolled five times over (§6):
-  - `Input` and `SearchField`: one height, one border, one focus rule.
-  - `Select`: Radix everywhere; no native `<select>`.
-  - `Switch`.
-  - `SegmentedControl`: one selected look.
-  - `BackLink`: one back affordance.
-  - `Section`: one heading under a page title.
+  - [x] `Input` and `SearchField`: one height, one border, one focus rule.
+  - [ ] `Select`: Radix everywhere; no native `<select>`.
+  - [x] `Switch`.
+  - [x] `SegmentedControl`: one selected look.
+  - [x] `BackLink`: one back affordance.
+  - [x] `Section`: one heading under a page title. (It's `PageSection`: a section is a course's offering.)
 - [x] One `undoToast()` helper (`src/components/ui/toast.tsx`): one action button, one icon, one 10-second window (`UNDO_MS`), focus holds it open, and the shortcut sits in its tooltip. It replaces the seven toast-action copies. Failures go through `noteToast()`, which is never red and offers Try again where retrying can help. The scheduler and Plan keep their Undo/Redo pair on the shared `ToastAction`.
 - [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
 - [ ] Routes get a shared `pendingComponent` and `errorComponent`. No page says "reload the page".
 - [ ] Guardrails:
-  - The design-tokens test also fails on raw `max-w-*` page containers and on `h1` elements outside `PageHeader`.
+  - The design-tokens test also fails on raw `max-w-*` page containers (done, with an allowlist of today's pages) and on `h1` elements outside `PageHeader` (not yet).
   - The `reviewer` agent checks for use of the kit.
   - A `scripts/shots.ts` takes the side-by-side grid of every product, so any PR can show the whole family.
 

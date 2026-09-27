@@ -18,6 +18,7 @@ import { Route as SigninRouteImport } from './routes/signin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminDecisionsRouteImport } from './routes/admin.decisions'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
+import { Route as AdminKitRouteImport } from './routes/admin.kit'
 import { Route as AuthTestRouteImport } from './routes/auth/test'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
@@ -83,6 +84,11 @@ const AdminDecisionsRoute = AdminDecisionsRouteImport.update({
 const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   id: '/admin/feedback',
   path: '/admin/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminKitRoute = AdminKitRouteImport.update({
+  id: '/admin/kit',
+  path: '/admin/kit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthTestRoute = AuthTestRouteImport.update({
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -265,6 +273,7 @@ export interface FileRoutesById {
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/admin/decisions'
     | '/admin/feedback'
+    | '/admin/kit'
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -330,6 +340,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/admin/decisions'
     | '/admin/feedback'
+    | '/admin/kit'
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -362,6 +373,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/admin/decisions'
     | '/admin/feedback'
+    | '/admin/kit'
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -395,6 +407,7 @@ export interface RootRouteChildren {
   SigninRoute: typeof SigninRoute
   AdminDecisionsRoute: typeof AdminDecisionsRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
+  AdminKitRoute: typeof AdminKitRoute
   AuthTestRoute: typeof AuthTestRoute
   ReviewsMineRoute: typeof ReviewsMineRoute
   ReviewsPolicyRoute: typeof ReviewsPolicyRoute
@@ -471,6 +484,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/feedback'
       fullPath: '/admin/feedback'
       preLoaderRoute: typeof AdminFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/kit': {
+      id: '/admin/kit'
+      path: '/admin/kit'
+      fullPath: '/admin/kit'
+      preLoaderRoute: typeof AdminKitRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/test': {
@@ -664,6 +684,7 @@ const rootRouteChildren: RootRouteChildren = {
   SigninRoute: SigninRoute,
   AdminDecisionsRoute: AdminDecisionsRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
+  AdminKitRoute: AdminKitRoute,
   AuthTestRoute: AuthTestRoute,
   ReviewsMineRoute: ReviewsMineRoute,
   ReviewsPolicyRoute: ReviewsPolicyRoute,

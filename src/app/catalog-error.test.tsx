@@ -1,4 +1,4 @@
-import { act, screen } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockDataSource } from "~/fixtures";
 import { useCatalog } from "~/state/catalog-store";
@@ -62,9 +62,10 @@ describe("catalog load failures", () => {
     await renderShell();
     act(() => useCatalog.setState({ network: "offline" }));
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Offline · showing saved data",
-    );
+    // The bar's own status; loading skeletons are statuses too.
+    expect(
+      within(screen.getByRole("banner")).getByRole("status"),
+    ).toHaveTextContent("Offline · showing saved data");
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });

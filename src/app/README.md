@@ -30,6 +30,8 @@ Use the pieces in `panel.tsx` so every panel matches the prototype:
 - `PanelHeader({ title, sub?, right? })`: the 48px header ("Plan A / 5 courses · 16 credits").
 - `PanelBody`: the scroll area under the header.
 - `PanelLabel`: a small section label ("Bookmarked").
+- `PanelNote`: what an empty list says ("No blocks in this plan."), with at most one action.
+- `ListRow` and `GroupHeader` come from the page kit in `src/components/ui` (re-exported here), which every product shares; so does `PageHeader`, whose panel size `PanelHeader` is. `/admin/kit` shows the whole kit.
 - `useFocusRequest(tab)` (in `focus-request.ts`, so `panel.tsx` stays free of the scheduler's stores): a ref the shell focuses on request; `/` focuses Search's field with `useFocusRequest<HTMLInputElement>("search")`.
 
 Panels and drill levels stay mounted while hidden, so going back (Back, `Esc` or the browser's Back) returns to exactly where the person was: scroll position, typed text, open groups. Don't reset local state on mount.

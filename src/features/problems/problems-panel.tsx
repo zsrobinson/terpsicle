@@ -2,10 +2,10 @@ import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { MessageText } from "~/app/message-text";
 import {
-  EmptyState,
   ListRow,
   PanelBody,
   PanelHeader,
+  PanelNote,
   SectionHeader,
 } from "~/app/panel";
 import { planLabel } from "~/app/plan-label";
@@ -60,14 +60,14 @@ export function ProblemsPanel() {
         {(checking || !current) && hasPlaced !== false ? (
           <Checking />
         ) : problems.length === 0 ? (
-          <EmptyState className="py-6">
+          <PanelNote className="py-6">
             <span className="flex items-center gap-2">
               <CircleCheck size={15} className="shrink-0 text-ok" aria-hidden />
               {hasPlaced
                 ? "Nothing to fix. This plan works."
                 : "Nothing to check yet. Problems show up here as you add courses."}
             </span>
-          </EmptyState>
+          </PanelNote>
         ) : (
           SEVERITY_ORDER.map((severity) => {
             const group = problems.filter((p) => p.severity === severity);

@@ -1,7 +1,9 @@
+import { cn } from "cn";
 import { type ReactNode, useEffect } from "react";
 import { signInPagePath } from "~/core/auth/return-path";
 import { useAccount } from "~/features/auth/account-store";
 import { NotFoundPage } from "~/features/site/not-found-page";
+import { PAGE_WIDTH } from "~/ui/product-page";
 import { Skeleton } from "~/ui/skeleton";
 
 // The browser's half of "admins only" (V2 §4.8). The Worker already answers
@@ -32,7 +34,7 @@ export function AdminGate({
   if (status === "signed-in") return <NotFoundPage />;
   return (
     <div
-      className="mx-auto w-full max-w-[720px] space-y-3 px-4 pt-6"
+      className={cn("mx-auto w-full space-y-3 px-4 pt-6", PAGE_WIDTH.reading)}
       aria-busy="true"
     >
       <Skeleton className="h-6 w-40" />

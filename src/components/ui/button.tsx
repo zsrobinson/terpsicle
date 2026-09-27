@@ -23,6 +23,8 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-8 px-3",
+        // A first visit's actions (EmptyState): 36px, and 44px on phones.
+        lg: "h-9 px-4 max-md:h-11",
         sm: "h-7 px-2.5",
         // The one size for actions inside list rows ("Switch", "Stop watching").
         row: "h-6 px-2 text-sm",

@@ -2,7 +2,7 @@ import { RotateCw } from "lucide-react";
 import { Component, type ReactNode } from "react";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { EmptyState, PanelHeader } from "./panel";
+import { PanelHeader, PanelNote } from "./panel";
 
 // A view that loads on first use (a route's chunk, the phone drawer) can
 // fail to arrive: offline, or a deploy removed the old chunk. Say so in the
@@ -47,7 +47,7 @@ export class PanelLoadBoundary extends Component<
     return (
       <div role="alert" className="flex min-h-0 flex-1 flex-col">
         <PanelHeader title={this.props.title} />
-        <EmptyState
+        <PanelNote
           action={
             <WithTooltip label="Reload the page to load this panel">
               <Button
@@ -63,7 +63,7 @@ export class PanelLoadBoundary extends Component<
         >
           Couldn't load {this.props.title}. Check your connection, then reload.
           Your plans are saved.
-        </EmptyState>
+        </PanelNote>
       </div>
     );
   }

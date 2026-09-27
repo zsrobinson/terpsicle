@@ -80,7 +80,31 @@ const RULES = {
     ),
     tsxOnly: true,
   },
+  /**
+   * max-w-[720px], max-w-4xl as a page's column: pick a width from the kit
+   * (ProductPage width="note" | "reading" | "app" | "full"; PAGE_WIDTH).
+   * The widths are the ones docs/cohesion-inventory.md §11 found.
+   */
+  pageWidth: {
+    pattern:
+      /(?<![\w-])max-w-(?:\[(?:440|560|720|1040|1120|1600)px\]|[2-7]xl|screen-[a-z0-9]+)(?![\w-])/g,
+    tsxOnly: true,
+  },
 } satisfies Record<string, Rule>;
+
+/**
+ * Pages that set their own column today (docs/cohesion-inventory.md §11).
+ * Each moves onto ProductPage in its product's Phase 3 PR, which deletes it
+ * here. Never add to this list: a new page picks a kit width.
+ */
+const OWN_PAGE_WIDTH = new Set([
+  "/src/features/auth/account-page.tsx",
+  "/src/features/chat/sign-in-moment.tsx",
+  "/src/features/four-year/empty-state.tsx",
+  "/src/features/site/site-page.tsx",
+  "/src/features/todo/connect-page.tsx",
+  "/src/features/todo/todo-page.tsx",
+]);
 
 /** "file:line: match" for every offending match in `sources`. */
 function scan(sources: Record<string, string>, rule: Rule): string[] {
@@ -127,6 +151,16 @@ describe("the rules", () => {
     expect(bad(`className="bg-error-soft text-fg"`, RULES.paletteClass)).toBe(
       0,
     );
+
+    expect(
+      bad(
+        `className="mx-auto max-w-[720px] max-w-4xl max-w-screen-lg"`,
+        RULES.pageWidth,
+      ),
+    ).toBe(3);
+    expect(
+      bad(`className="max-w-[460px] max-w-xs max-w-[7200px]"`, RULES.pageWidth),
+    ).toBe(0);
   });
 });
 
@@ -148,6 +182,33 @@ describe("the UI", () => {
     expect(scan(SOURCES, RULES.hexColor)).toEqual([]);
     expect(scan(SOURCES, RULES.colorFunction)).toEqual([]);
     expect(scan(SOURCES, RULES.paletteClass)).toEqual([]);
+  });
+
+  // docs/COHESION.md §1.4: a new page picks a layout; it doesn't invent a
+  // width. The kit (src/components/ui) is where the widths live.
+  it("sets a page's width only through the kit (ProductPage)", () => {
+    const pages = Object.fromEntries(
+      Object.entries(SOURCES).filter(
+        ([file]) =>
+          /^\/src\/(features|routes)\//.test(file) && !OWN_PAGE_WIDTH.has(file),
+      ),
+    );
+    expect(scan(pages, RULES.pageWidth)).toEqual([]);
+  });
+
+  it("keeps the list of pages with their own width honest", () => {
+    // A page that moved onto the kit leaves the list in the same PR.
+    for (const file of OWN_PAGE_WIDTH) {
+      const source = SOURCES[file];
+      expect(
+        source,
+        `${file} is gone: delete it from OWN_PAGE_WIDTH`,
+      ).toBeDefined();
+      expect(
+        scan({ [file]: source ?? "" }, RULES.pageWidth),
+        `${file} no longer sets a width: delete it from OWN_PAGE_WIDTH`,
+      ).not.toEqual([]);
+    }
   });
 });
 
