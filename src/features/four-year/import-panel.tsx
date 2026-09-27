@@ -292,8 +292,9 @@ function Row({
         {unknown ? (
           <p className="flex items-center gap-1.5 text-muted text-xs">
             <span aria-hidden="true" className="size-1.5 shrink-0 bg-warn" />
-            Not in Testudo's catalog. It imports anyway, and Problems will
-            mention it.
+            {line.genEds.length > 0
+              ? "Not in Testudo's catalog anymore. It imports with the GenEds your transcript lists."
+              : "Not in Testudo's catalog. It imports anyway, and you can add its course info."}
           </p>
         ) : null}
         {included

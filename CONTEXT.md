@@ -296,6 +296,10 @@ The scheduler plan a four-year plan's semester opens with "View schedule": the t
 **Plan view**:
 One of Plan's five views on its rail: GenEd, Problems, Search, Samples and Import (`1` to `5`). Each is a route (`/plan`, `/plan/problems`, …), and a course opens over it as a drill-in.
 
+**Course info**:
+What you tell Plan about a course Testudo doesn't list anymore (an honors seminar that rotated out, an old topics course): its title, credits and the GenEds it covered, so they count. An import fills it from the GenEds the transcript prints; an honors code whose base course Testudo lists offers "Count it as MATH141". Testudo's own data wins once it lists the code.
+_Avoid_: course details (that's the scheduler's course drill-in), override
+
 **Transcript import**:
 Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser, and grades stay private.
 

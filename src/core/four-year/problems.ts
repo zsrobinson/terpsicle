@@ -14,13 +14,15 @@ import {
   type FourYearSubject,
 } from "../schema/four-year";
 import {
+  detailsFromCourse,
   type FourYearCourses,
+  honorsBase,
   isRepeatable,
   isUnknownCourse,
 } from "./course-lookup";
 import { columnSummary, earnedNothing, FULL_TIME_CREDITS } from "./credits";
 import { firstSemesterMeetingPrereqs, unmetPrereqGroups } from "./prereqs";
-import { moveEntry, removeEntry } from "./reducer";
+import { moveEntry, removeEntry, setEntryDetails } from "./reducer";
 import type { StatusOf } from "./status";
 import {
   compareFourYearTerms,
@@ -212,14 +214,36 @@ function repeatedProblems({
   return out;
 }
 
-function unknownProblem(entry: FourYearCourseEntry): FourYearProblem {
+function unknownProblem(
+  lookup: FourYearCourses,
+  entry: FourYearCourseEntry,
+): FourYearProblem {
+  const base = honorsBase(lookup, entry.code);
+  if (base)
+    return problem(
+      "unknown-course",
+      [{ kind: "entry", entryId: entry.id }],
+      [course(entry.code), text(" isn't in Testudo")],
+      [
+        text("Testudo doesn't list it anymore, but it lists "),
+        course(base.code),
+        text(`, ${base.title}. Count it as that to get its GenEds.`),
+      ],
+      {
+        kind: "details",
+        code: entry.code,
+        details: detailsFromCourse(base),
+        credits: entry.credits ?? base.credits.min,
+        label: `Count it as ${base.code}`,
+      },
+    );
   return problem(
     "unknown-course",
     [{ kind: "entry", entryId: entry.id }],
     [course(entry.code), text(" isn't in Testudo")],
     [
       text(
-        "Check the code. An older course Testudo doesn't list anymore shows this too.",
+        "Check the code. If it's an older course Testudo doesn't list anymore, add its course info so its credits and GenEds count.",
       ),
     ],
   );
@@ -269,7 +293,8 @@ function rawProblems(input: FourYearProblemsInput): FourYearProblem[] {
   for (const entry of input.doc.entries) {
     if (entry.kind !== "course") continue;
     if (isUnknownCourse(input.lookup, entry.code)) {
-      out.push(unknownProblem(entry));
+      // Details answer it: the person has said what the course was.
+      if (!entry.details) out.push(unknownProblem(input.lookup, entry));
       continue;
     }
     out.push(
@@ -281,14 +306,14 @@ function rawProblems(input: FourYearProblemsInput): FourYearProblem[] {
   return out;
 }
 
-/** The doc with a fix applied: what "Move" and "Remove" would do. */
+/** The doc with a fix applied: what "Move", "Remove" and "Count it as" would do. */
 export function applyFourYearFix(
   doc: FourYearDoc,
   fix: FourYearFix,
 ): FourYearDoc {
-  return fix.kind === "move"
-    ? moveEntry(doc, fix.entryId, fix.term)
-    : removeEntry(doc, fix.entryId);
+  if (fix.kind === "move") return moveEntry(doc, fix.entryId, fix.term);
+  if (fix.kind === "remove") return removeEntry(doc, fix.entryId);
+  return setEntryDetails(doc, fix.code, fix.details, fix.credits);
 }
 
 /**

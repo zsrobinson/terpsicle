@@ -131,6 +131,28 @@ describe("allocateGenEds", () => {
     expect(picks.has("entry_ap")).toBe(false);
   });
 
+  it("counts the GenEds someone gave a code Testudo doesn't list, each of them", () => {
+    const details = { title: "Democratic Habits", genEds: ["DSHS", "SCIS"] };
+    const doc = aFourYear({
+      entries: [
+        course("hnuh", "HNUH278B", "202601", { credits: 3, details }),
+        // Testudo's GenEds win once it lists the code.
+        course("anth", "ANTH260", "202601", {
+          details: { title: null, genEds: ["FSAW"] },
+        }),
+      ],
+    });
+    const withHnuh = fourYearCourses([...lookup.courses.values()], ["HNUH"]);
+    const { progress, picks } = allocateGenEds(doc, withHnuh, statusOf);
+    expect(picks.get("entry_hnuh")?.map((p) => p.code)).toEqual([
+      "DSHS",
+      "SCIS",
+    ]);
+    expect(row(progress, "SCIS").done).toBe(1);
+    expect(row(progress, "DSHS").done).toBe(2);
+    expect(row(progress, "FSAW").done).toBe(0);
+  });
+
   it("gives an open choice to the category furthest from done", () => {
     const doc = aFourYear({
       entries: [course("anth", "ANTH260", "202601"), course("h200", "HIST200")],

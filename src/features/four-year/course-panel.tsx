@@ -4,10 +4,12 @@ import { MessageText } from "~/app/message-text";
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import { resolvesWildcard } from "~/core/four-year/wildcards";
 import { type CourseCode, GEN_ED_LABELS } from "~/core/schema";
+import type { FourYearCourseEntry } from "~/core/schema/four-year";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { addCourse, entryName, pickForPlaceholder } from "./actions";
+import { CourseDetailsForm } from "./course-details-form";
 import { useIndexEntry } from "./data";
 import { useModel, usePlanNav } from "./model";
 import { showAdded } from "./workbench-store";
@@ -38,8 +40,9 @@ export function CoursePanel({ code }: { code: CourseCode }) {
   const nav = usePlanNav();
   const course = useIndexEntry(code);
   const placed = doc.entries.filter(
-    (e) => e.kind === "course" && e.code === code,
+    (e): e is FourYearCourseEntry => e.kind === "course" && e.code === code,
   );
+  const details = placed.find((e) => e.details)?.details ?? null;
   const placeholder = nav.search.wildcard
     ? doc.entries.find((e) => e.id === nav.search.wildcard)
     : undefined;
@@ -63,10 +66,16 @@ export function CoursePanel({ code }: { code: CourseCode }) {
           {course === undefined ? (
             <Skeleton className="mt-1 h-4 w-2/3" />
           ) : course === null ? (
-            <p className="text-muted">
-              {code} isn't in Testudo's course list. Check the code, or keep it
-              as a note to yourself.
-            </p>
+            details?.title ? (
+              <p>{details.title}</p>
+            ) : (
+              <p className="text-muted">
+                {code} isn't in Testudo's course list.
+                {placed.length > 0
+                  ? " Check the code, or add its course info below."
+                  : " Check the code, or keep it as a note to yourself."}
+              </p>
+            )
           ) : (
             <p>{course.title}</p>
           )}
@@ -153,6 +162,15 @@ export function CoursePanel({ code }: { code: CourseCode }) {
             </Fact>
           ) : null}
         </dl>
+
+        {course === null && placed.length > 0 ? (
+          <CourseDetailsForm
+            // Undo, or a save from another tab, starts the form over.
+            key={JSON.stringify([details, placed[0]?.credits])}
+            code={code}
+            entries={placed}
+          />
+        ) : null}
       </div>
     </div>
   );

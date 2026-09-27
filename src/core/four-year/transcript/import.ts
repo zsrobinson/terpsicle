@@ -8,7 +8,11 @@ import type {
   TranscriptSkipReason,
 } from "../../schema";
 import { CourseCodeSchema } from "../../schema";
-import type { FourYearEntry, FourYearTerm } from "../../schema/four-year";
+import type {
+  FourYearCourseDetails,
+  FourYearEntry,
+  FourYearTerm,
+} from "../../schema/four-year";
 import type { FourYearCourses } from "../course-lookup";
 import type { StatusOf } from "../status";
 import { compareFourYearTerms } from "../terms";
@@ -201,6 +205,22 @@ function courseCredits(
 }
 
 /**
+ * A code the index doesn't have (an honors seminar that rotated out) keeps
+ * the GenEds the transcript lists for it as its details, so they count. Only
+ * a code the transcript itself names: a mapping someone typed could be off.
+ */
+function transcriptDetails(
+  row: TranscriptRow,
+  code: CourseCode,
+  checks: TranscriptChecks,
+  lookup: FourYearCourses,
+): { details: FourYearCourseDetails } | Record<string, never> {
+  if (row.line.code === null || lookup.courses.has(code)) return {};
+  const genEds = [...new Set(pickedCodes(row, checks).values())].slice(0, 8);
+  return genEds.length === 0 ? {} : { details: { title: null, genEds } };
+}
+
+/**
  * The entries and grades to import, in the order the rows came. Grades go
  * only on course entries, only when kept, and only for lines that have one
  * (in-progress, withdrawn and dropped lines don't).
@@ -227,6 +247,7 @@ export function buildTranscriptImport(
         genEdChoices: genEdChoices(row, code, checks, options.lookup),
         source: "transcript",
         transcript: { title: line.title, via: line.via },
+        ...transcriptDetails(row, code, checks, options.lookup),
       });
       // A skipped line brought back never carries a grade (V3 §2.5), even
       // when the parser saw a grade-shaped mark on it.
