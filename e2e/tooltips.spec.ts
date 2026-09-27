@@ -12,14 +12,19 @@ import { expect, type Page, test } from "@playwright/test";
 
 test.describe.configure({ timeout: 180_000 });
 
+// Each full load asks /api/me, which has a per-IP hourly limit the whole
+// suite shares: the scheduler's tabs are visited in place, not loaded.
+const TABS = [
+  "Courses",
+  "Search",
+  "Problems",
+  "Travel",
+  "Blocks",
+  "Generate",
+  "Export",
+];
+
 const SIGNED_OUT = [
-  "/schedule?demo=1",
-  "/schedule/search?demo=1",
-  "/schedule/problems?demo=1",
-  "/schedule/travel?demo=1",
-  "/schedule/blocks?demo=1",
-  "/schedule/generate?demo=1",
-  "/schedule/export?demo=1",
   "/schedule/course/CMSC351?demo=1",
   "/reviews",
   "/reviews/courses/CMSC351",
@@ -106,6 +111,26 @@ async function audit(page: Page, paths: readonly string[]) {
   }
   expect(missing, "controls without a tooltip").toEqual([]);
 }
+
+test("every control in the scheduler has a tooltip, on every tab", async ({
+  page,
+}) => {
+  const missing: string[] = [];
+  await page.goto("/schedule?demo=1");
+  await settle(page);
+  for (const tab of TABS) {
+    // The rail's tab on desktop, the drawer's on phones: one of them shows.
+    await page
+      .getByRole("button", { name: new RegExp(`^${tab}`) })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await settle(page);
+    for (const control of await untipped(page))
+      missing.push(`${tab}: ${control}`);
+  }
+  expect(missing, "controls without a tooltip").toEqual([]);
+});
 
 test("every control has a tooltip, signed out", async ({ page }) => {
   await audit(page, SIGNED_OUT);
