@@ -1,15 +1,18 @@
+import { Link } from "@tanstack/react-router";
 import { ChevronRight, ExternalLink } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
-import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import { signInStartHref } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
 import { SitePage } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
-import { undoToast } from "~/ui/toast";
+import { InlineError } from "~/ui/inline-error";
+import { ListRow } from "~/ui/list-row";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
+import { RowSkeleton } from "~/ui/skeleton";
+import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
-import { AccountSection } from "./account-page";
 import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
 import { SignInPanel } from "./sign-in-panel";
@@ -38,37 +41,50 @@ export function deletionDay(iso: string): string {
 /**
  * `/settings`: the account (V2.md §1.1), the sections you're watching for a
  * seat (#watching, from the account menu), and the way to notifications
- * (§6.2, their own page). It sits in the site's frame, so every product is
- * one click away.
+ * (§6.2, their own page). A note page in the site's frame, so every product
+ * is one click away.
  */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
   const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   return (
-    <SitePage layout="reading">
-      <h1 className="mb-4 font-semibold text-xl tracking-tight">Settings</h1>
+    <SitePage>
+      <PageHeader
+        title="Settings"
+        status={
+          status === "signed-in" ? "Signed in with your UMD account" : undefined
+        }
+      />
       <div
         aria-live="polite"
         aria-busy={status === "loading"}
-        className="space-y-4"
+        className="flex flex-col gap-6"
       >
-        <AccountSection title="Account">
+        <PageSection title="Account">
           <AccountDetails />
-        </AccountSection>
+        </PageSection>
         {status === "signed-in" ? (
-          <AccountSection title="Notifications">
+          <PageSection title="Notifications">
             <WithTooltip label="Seat openings, Chat mentions and Todo reminders, and your devices">
-              <a
-                href="/settings/notifications"
-                className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1 text-fg transition-colors hover:bg-hover"
+              <Link
+                to="/settings/notifications"
+                className="-mx-2 block text-fg transition-colors hover:bg-hover"
               >
-                <span className="min-w-0 flex-1">
+                <ListRow
+                  className="px-2"
+                  trail={
+                    <ChevronRight
+                      size={14}
+                      aria-hidden="true"
+                      className="text-muted"
+                    />
+                  }
+                >
                   Choose what Terpsicle sends you, and where
-                </span>
-                <ChevronRight size={16} aria-hidden="true" />
-              </a>
+                </ListRow>
+              </Link>
             </WithTooltip>
-          </AccountSection>
+          </PageSection>
         ) : null}
         {status === "signed-in" && seatAlerts ? (
           <Suspense fallback={null}>
@@ -87,26 +103,21 @@ function AccountDetails() {
   const deleteAfter = useAccount((s) => s.deleteAfter);
 
   if (status === "loading")
-    return (
-      <div className="flex items-center gap-3">
-        <Skeleton className="size-12 rounded-full" />
-        <Skeleton className="h-4 w-40" />
-      </div>
-    );
+    return <RowSkeleton rows={2} inset={false} label="Loading your account" />;
 
   if (status === "signed-in" && user)
     return (
-      <>
+      <div className="flex flex-col gap-3 text-muted">
         <div className="flex items-center gap-3">
           <Avatar name={user.name} src={user.avatarUrl} size="lg" />
           <div className="min-w-0">
             <p data-private="" className="truncate font-medium text-fg">
               {user.name}
             </p>
-            <p data-private="" className="truncate">
+            <p data-private="" className="truncate text-sm">
               {user.email}
             </p>
-            <p data-private="">
+            <p data-private="" className="text-sm">
               Directory ID <span className="ident text-fg">{user.id}</span>
             </p>
           </div>
@@ -119,7 +130,7 @@ function AccountDetails() {
               href={GOOGLE_PROFILE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-fg underline-offset-4 hover:underline"
+              className="inline-flex items-center gap-1 text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
             >
               Google Account
               <ExternalLink size={12} aria-hidden="true" />
@@ -127,27 +138,28 @@ function AccountDetails() {
           </WithTooltip>
         </p>
         <AccountActions />
-      </>
+      </div>
     );
 
   if (deleteAfter)
     return (
-      <>
+      <div className="flex flex-col gap-3 text-muted">
         <p className="text-fg">
           Your account will be deleted on {deletionDay(deleteAfter)}. Sign in
           before then to keep it.
         </p>
         <SignInPanel returnTo={SETTINGS_PATH} from="settings" pitch={false} />
-      </>
+      </div>
     );
 
-  if (!signInOn) return <p>Signing in isn't available yet.</p>;
+  if (!signInOn)
+    return <p className="text-muted">Signing in isn't available yet.</p>;
 
   return (
-    <>
+    <div className="flex flex-col gap-3 text-muted">
       <p>You're not signed in.</p>
       <SignInPanel returnTo={SETTINGS_PATH} from="settings" />
-    </>
+    </div>
   );
 }
 
@@ -168,7 +180,7 @@ function AccountActions() {
         await signOut({ removeLocal });
         track("signed_out", { removedLocal: removeLocal });
         if (removeLocal)
-          toast("Signed out", {
+          noteToast("Signed out", {
             description:
               "Your plans are removed from this browser. They're still on your account.",
           });
@@ -202,7 +214,7 @@ function AccountActions() {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <WithTooltip label="Your plans stay on this device">
           <Button
@@ -240,11 +252,7 @@ function AccountActions() {
         reviews stay up, with no name on them. Delete them first if you want
         them gone. Plans on this device stay.
       </p>
-      {failed ? (
-        <p role="status" className="text-fg text-sm">
-          {failed}
-        </p>
-      ) : null}
+      {failed ? <InlineError message={failed} className="py-0" /> : null}
     </div>
   );
 }

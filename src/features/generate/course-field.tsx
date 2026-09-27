@@ -17,6 +17,7 @@ import {
   type WildcardSearchInfo,
   wildcardSearchInfo,
 } from "~/core/search";
+import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
 
 // Type a code or title words, pick from the suggestions. The search index is
@@ -161,9 +162,8 @@ export function CourseField({
             : "Type a course code or words from its title"
         }
       >
-        <input
+        <Input
           ref={inputRef}
-          type="text"
           role="combobox"
           aria-label={label}
           aria-expanded={showList}
@@ -202,7 +202,6 @@ export function CourseField({
               setQuery("");
             }
           }}
-          className="h-7 w-full rounded-md border border-hairline-strong bg-bg px-2 text-base placeholder:text-faint focus:border-fg/40"
         />
       </WithTooltip>
       {showList ? (

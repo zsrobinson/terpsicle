@@ -92,6 +92,34 @@ describe("EmptyState", () => {
     expect(start).not.toHaveClass("text-center");
   });
 
+  it("links outside the router with a plain link, as a filled button or the quiet link", async () => {
+    const onStart = vi.fn();
+    renderInRouter(
+      <EmptyState
+        title="Your deadlines and exams, in one list"
+        line="Sign in to see your ELMS deadlines here."
+        primary={{
+          label: "Sign in with Google",
+          href: "/api/auth/google?return=%2Ftodo",
+          onClick: onStart,
+        }}
+        secondary={{ label: "Privacy", href: "/privacy" }}
+      />,
+    );
+    const signIn = await screen.findByRole("link", {
+      name: "Sign in with Google",
+    });
+    expect(signIn).toHaveAttribute("href", "/api/auth/google?return=%2Ftodo");
+    expect(signIn).toHaveAttribute("data-slot", "button");
+    const quiet = screen.getByRole("link", { name: "Privacy" });
+    expect(quiet).toHaveAttribute("href", "/privacy");
+    expect(quiet).not.toHaveAttribute("data-slot");
+    // Kept on this page, so the click is all that's tested.
+    signIn.addEventListener("click", (e) => e.preventDefault());
+    await userEvent.setup().click(signIn);
+    expect(onStart).toHaveBeenCalledOnce();
+  });
+
   it("shows an action's hint as its tooltip", async () => {
     renderInRouter(
       <EmptyState
