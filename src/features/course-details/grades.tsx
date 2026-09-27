@@ -14,6 +14,7 @@ import type {
   InstructorSlug,
   PlanetTerpDept,
 } from "~/core/schema";
+import { deptOf, useCatalog } from "~/state/catalog-store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
+import { InlineError } from "~/ui/inline-error";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { courseInstructors, instructorFor } from "./planetterp";
@@ -64,10 +66,14 @@ export function Grades({
     );
   if (failed && !planetTerp)
     return (
-      <p className="text-sm text-muted">
-        Couldn't load grades from PlanetTerp. Check your connection and reopen
-        this course.
-      </p>
+      <InlineError
+        className="py-0"
+        message="Couldn't load grades from PlanetTerp. Check your connection and try again."
+        onRetry={() =>
+          void useCatalog.getState().ensureInstructors(deptOf(course.code))
+        }
+        retryTooltip="Load PlanetTerp's grades again"
+      />
     );
   if (!grades?.all)
     return (

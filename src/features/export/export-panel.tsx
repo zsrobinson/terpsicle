@@ -1,10 +1,17 @@
 import { cn } from "cn";
 import { CalendarDays, Copy, Link2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { PanelBody, PanelHeader, PanelNote, SectionHeader } from "~/app/panel";
+import {
+  PanelBody,
+  PanelHeader,
+  PanelNote,
+  PanelSkeleton,
+  SectionHeader,
+} from "~/app/panel";
 import { planLabel } from "~/app/plan-label";
 import type { TermId } from "~/core/schema";
 import { WatchingList } from "~/features/alerts/watching-list";
+import { useCatalog } from "~/state/catalog-store";
 import { useAcademicCalendar } from "~/state/data-hooks";
 import {
   useActiveTerm,
@@ -14,6 +21,7 @@ import {
   useTermCatalog,
 } from "~/state/hooks";
 import { useSeatWatches } from "~/state/seat-watches";
+import { InlineError } from "~/ui/inline-error";
 import { WithTooltip } from "~/ui/tooltip";
 import { copySectionCodes, copyShareLink, downloadIcs } from "./actions";
 import { RegistrationChecklist } from "./registration-checklist";
@@ -29,7 +37,7 @@ export function ExportPanel() {
   // Cached and offline-safe; no file for the term reads as "not published".
   const calendar = useAcademicCalendar(current?.termId ?? null);
 
-  if (!current) return <PanelHeader title="Export" />;
+  if (!current) return <PanelSkeleton title="Export" />;
   const { plan, blocks, colors, termId, readOnly } = current;
   const placed = plan.courses.filter((c) => c.sectionCode !== null).length;
   const termName = term?.name ?? "This term";
@@ -70,7 +78,7 @@ export function ExportPanel() {
               notPublished
                 ? `${termName}'s dates aren't published yet. Check back once the provost posts the academic calendar.`
                 : calendar.state === "error"
-                  ? "Couldn't load the term's dates. Check your connection and reopen this tab."
+                  ? "The term's dates didn't load"
                   : empty
                     ? "Add a course first"
                     : "Weekly classes from the first day, with breaks and holidays skipped"
@@ -87,6 +95,14 @@ export function ExportPanel() {
               });
             }}
           />
+          {calendar.state === "error" ? (
+            <InlineError
+              className="px-4"
+              message="Couldn't load the term's dates, so there's no calendar file yet. Check your connection and try again."
+              onRetry={() => void useCatalog.getState().ensureCalendar(termId)}
+              retryTooltip="Load the term's dates again"
+            />
+          ) : null}
         </div>
 
         <SectionHeader

@@ -97,7 +97,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 ### Phase 4: shared patterns sweep
 - [ ] Words: one glossary pass over every string (titles, buttons, empty states, errors, toasts).
 - [ ] Behavior:
-  - loading and error states everywhere;
+  - loading and error states everywhere (`v3/behavior`: the kit's skeletons and `InlineError` outside Plan, and Reload beside every "Reload to …" but the shared link's, which is in the shell);
   - Undo on every destructive action;
   - tooltips and shortcuts on every control;
   - focus order and keyboard.

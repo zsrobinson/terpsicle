@@ -37,6 +37,7 @@ import { Card } from "~/ui/card";
 import { InlineError } from "~/ui/inline-error";
 import { type BackTo, PageHeader } from "~/ui/page-header";
 import { RowSkeleton } from "~/ui/skeleton";
+import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer } from "./composer";
 import type { MessageActions, ReportOutcome } from "./message-row";
@@ -260,7 +261,7 @@ export function RoomView({
             onSend={(text) => {
               void session?.send(room.id, text, thread).then((result) => {
                 if (!result.ok && result.code === "old-client")
-                  showNote(chatErrorWords(result.code));
+                  noteToast(chatErrorWords(result.code), { reload: true });
               });
             }}
           />
@@ -282,6 +283,14 @@ function Connecting({
       <InlineError
         className="px-4"
         message="You're signed out. Sign in again to see this room."
+      />
+    );
+  if (status === "outdated")
+    return (
+      <InlineError
+        className="px-4"
+        message={chatErrorWords("old-client")}
+        reload
       />
     );
   if (status === "unavailable")

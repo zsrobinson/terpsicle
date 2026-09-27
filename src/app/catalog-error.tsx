@@ -1,9 +1,7 @@
-import { RotateCw } from "lucide-react";
 import { useState } from "react";
 import { useCatalog } from "~/state/catalog-store";
 import { useActiveTerm } from "~/state/hooks";
-import { Button } from "~/ui/button";
-import { WithTooltip } from "~/ui/tooltip";
+import { InlineError } from "~/ui/inline-error";
 
 /**
  * Why the catalog can't show, when there's nothing saved to fall back on:
@@ -30,46 +28,27 @@ export function useCatalogFailure(): string | null {
 }
 
 /**
- * Specific words and a way out, in place of the calendar: try again, or
- * reload when the server publishes a newer format than this tab reads.
+ * Specific words and a way out, in place of the calendar: the kit's inline
+ * error with Try again, or Reload when the server publishes a newer format
+ * than this tab reads.
  */
 export function CatalogError({ message }: { message: string }) {
   const retry = useCatalog((s) => s.retry);
   const stale = useCatalog((s) => s.appStale);
   const [trying, setTrying] = useState(false);
   return (
-    <div
-      role="alert"
-      className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center"
-    >
-      <p className="max-w-[360px] text-base text-fg">{message}</p>
-      {stale ? (
-        <WithTooltip label="Reload the page to get the latest Terpsicle">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.location.reload()}
-          >
-            <RotateCw size={13} aria-hidden="true" />
-            Reload
-          </Button>
-        </WithTooltip>
-      ) : (
-        <WithTooltip label="Load the catalog again">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={trying}
-            onClick={() => {
-              setTrying(true);
-              void retry().finally(() => setTrying(false));
-            }}
-          >
-            <RotateCw size={13} aria-hidden="true" />
-            {trying ? "Trying…" : "Try again"}
-          </Button>
-        </WithTooltip>
-      )}
+    <div className="flex h-full items-center justify-center px-6">
+      <InlineError
+        message={message}
+        className="max-w-[360px]"
+        reload={stale}
+        retryTooltip={stale ? undefined : "Load the catalog again"}
+        retrying={trying}
+        onRetry={() => {
+          setTrying(true);
+          void retry().finally(() => setTrying(false));
+        }}
+      />
     </div>
   );
 }

@@ -16,7 +16,10 @@ import { useCatalog } from "~/state/catalog-store";
 import { EMPTY_DRAFT, useGenerateDrafts } from "~/state/generate-drafts";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
-import { createInProcessGenerator } from "~/worker/generator";
+import {
+  createInProcessGenerator,
+  GeneratorUnavailable,
+} from "~/worker/generator";
 import { GeneratePanel } from "./generate-panel";
 import { ResultDetails } from "./result-details";
 import { resetGenerateRun, setGenerator, useGenerateRun } from "./run-store";
@@ -79,7 +82,10 @@ describe("Generate", () => {
     setGenerator(createInProcessGenerator());
     vi.mocked(track).mockClear();
   });
-  afterEach(() => setGenerator(null));
+  afterEach(() => {
+    setGenerator(null);
+    vi.restoreAllMocks();
+  });
 
   it("adds courses from suggestions and switches them between required and optional", async () => {
     const { user } = await renderGenerate();
@@ -135,6 +141,57 @@ describe("Generate", () => {
     expect(
       within(group).getByRole("button", { name: "One more" }),
     ).toBeDisabled();
+  });
+
+  it("says when a run fails, and Try again runs it again", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const working = createInProcessGenerator();
+    let fail = true;
+    setGenerator({
+      run: (request, input, onProgress) =>
+        fail
+          ? {
+              result: Promise.reject(new Error("worker crashed")),
+              cancel: () => {},
+            }
+          : working.run(request, input, onProgress),
+    });
+    const { user } = await renderGenerate();
+    act(() => setCourses("CMSC351", "CMSC330"));
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    expect(
+      await screen.findByText("Couldn't generate plans. Try again."),
+    ).toBeInTheDocument();
+    fail = false;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByRole("list", { name: "Generated plans" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers Reload when a new version removed the generator's script", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    setGenerator({
+      run: () => ({
+        result: Promise.reject(new GeneratorUnavailable()),
+        cancel: () => {},
+      }),
+    });
+    const { user } = await renderGenerate();
+    act(() => setCourses("CMSC351"));
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    expect(
+      await screen.findByText(
+        /Terpsicle has a new version\. Reload to get it\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Reload" }));
+    expect(reload).toHaveBeenCalledOnce();
+    reload.mockRestore();
   });
 
   it("generates ranked plans, previews one, and saves it as a new plan", async () => {

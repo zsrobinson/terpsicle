@@ -12,6 +12,7 @@ import {
 } from "~/features/alerts/testing";
 import { renderPlanTab } from "~/features/courses/testing";
 import { aMeUser, aSeatWatch, fixtureTermId } from "~/fixtures";
+import { useCatalog } from "~/state/catalog-store";
 import { ExportPanel } from "./export-panel";
 
 const panels: ShellRoutes = { tabs: { export: ExportPanel } };
@@ -184,6 +185,30 @@ describe("Export tab", () => {
     expect(track).toHaveBeenCalledWith("ics_downloaded", {
       events: expect.any(Number),
     });
+  });
+
+  it("says when the term's dates didn't load, and Try again loads them", async () => {
+    const { user } = await renderPlanTab([panels], "export");
+    const button = await screen.findByRole("button", {
+      name: /Add to your calendar/,
+    });
+    await waitFor(() =>
+      expect(button).not.toHaveAttribute("aria-disabled", "true"),
+    );
+    const ensure = vi
+      .spyOn(useCatalog.getState(), "ensureCalendar")
+      .mockResolvedValue();
+    act(() =>
+      useCatalog.setState((s) => ({
+        calendars: {},
+        calendarsState: { ...s.calendarsState, [fixtureTermId]: "error" },
+      })),
+    );
+    expect(
+      screen.getByText(/Couldn't load the term's dates/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(ensure).toHaveBeenCalledWith(fixtureTermId);
   });
 
   describe("watching for a seat", () => {

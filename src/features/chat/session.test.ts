@@ -152,6 +152,33 @@ describe("CourseChatSession", () => {
     });
   });
 
+  it("says it's outdated, and stops reconnecting, when the server speaks a newer protocol", async () => {
+    sockets = [];
+    session = new CourseChatSession({
+      termId: fixtureTermId,
+      courseCode: "CMSC351",
+      rooms: [room],
+      origin: "https://terpsicle.com",
+      open: (url) => {
+        const socket = new FakeSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    const socket = sockets[0] as FakeSocket;
+    socket.open();
+    socket.serve({
+      type: "error",
+      req: null,
+      code: "old-client",
+      retryAfter: null,
+    });
+    // Only a reload helps: the room offers one (room-view's Connecting).
+    expect(session.getSnapshot().status).toBe("outdated");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(sockets).toHaveLength(1);
+  });
+
   it("stops reconnecting once the session ends", async () => {
     const socket = start();
     socket.drop(4003);

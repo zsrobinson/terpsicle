@@ -23,7 +23,12 @@ export type SocketStatus =
   /** The session ended (close 4003, or "signed-out"): no more reconnects. */
   | "signed-out"
   /** Chat is off, or the course isn't in the catalog: no more reconnects. */
-  | "unavailable";
+  | "unavailable"
+  /**
+   * The server speaks a newer protocol ("old-client"): only a reload helps,
+   * so no more reconnects.
+   */
+  | "outdated";
 
 /** A WebSocket as the socket uses it, so tests can stand one in. */
 export interface SocketLike {
@@ -202,7 +207,7 @@ export class ChatSocket {
         return;
       }
       if (frame.code === "old-client") {
-        this.#setStatus("unavailable");
+        this.#setStatus("outdated");
         this.close();
       }
     }

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import { SIGNED_IN_KEPT, SIGNED_IN_PARAM } from "~/core/schema";
+import { noteToast } from "~/ui/toast";
 import { useAccount } from "./account-store";
 
 /** Set once this browser has signed in, for `firstOnDevice`. */
@@ -33,7 +33,7 @@ export function AccountBoot() {
     }
     track("signin_completed", { firstOnDevice });
     if (signedIn === SIGNED_IN_KEPT)
-      toast(KEPT_ACCOUNT_NOTE, {
+      noteToast(KEPT_ACCOUNT_NOTE, {
         id: "account-kept",
         description: KEPT_ACCOUNT_DETAIL,
       });

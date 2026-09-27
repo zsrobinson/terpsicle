@@ -1,6 +1,7 @@
 import { Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { RELOAD_TOOLTIP, reloadPage } from "~/ui/reload";
 import { WithTooltip } from "~/ui/tooltip";
 
 // The one way every product says what just happened (docs/COHESION.md): a
@@ -180,13 +181,20 @@ let notes = 0;
 
 /**
  * A quiet line: something didn't go through, or needs no action. With
- * `retry`, it offers "Try again" where trying again can help.
+ * `retry`, it offers "Try again" where trying again can help; with `reload`,
+ * "Reload" where only a newer version of the page can.
  */
 export function noteToast(
   message: string,
-  options: { id?: string; description?: string; retry?: () => void } = {},
+  options: {
+    id?: string;
+    description?: string;
+    retry?: () => void;
+    reload?: boolean;
+  } = {},
 ): void {
-  const { description, retry } = options;
+  const { description, reload } = options;
+  const retry = reload ? reloadPage : options.retry;
   // A note that takes an undo toast's place settles it, as a new undo would.
   if (options.id) settlePrevious(options.id);
   const slot = options.id;
@@ -200,7 +208,8 @@ export function noteToast(
     duration: retry ? UNDO_MS : NOTE_MS,
     action: retry ? (
       <ToastAction
-        label="Try again"
+        label={reload ? "Reload" : "Try again"}
+        tooltip={reload ? RELOAD_TOOLTIP : "Try again"}
         icon={null}
         onClick={() => {
           leave();

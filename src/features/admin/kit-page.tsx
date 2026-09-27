@@ -389,7 +389,7 @@ function PageParts() {
                 icon: <Search aria-hidden="true" />,
                 to: "/chat",
               }}
-              secondary={{ label: "Open the scheduler", to: "/schedule" }}
+              secondary={{ label: "View schedule", to: "/schedule" }}
             />
           </Demo>
           <Demo
@@ -696,6 +696,27 @@ function ListParts() {
           </Demo>
           <Demo className="px-4" caption="An error where retrying can't help.">
             <InlineError message="This link has expired. Ask for a new one." />
+          </Demo>
+        </Pair>
+        <Pair>
+          <Demo
+            className="px-4"
+            caption="Only a newer version can help: Reload, beside the words."
+          >
+            <InlineError
+              message="Terpsicle was updated. Reload to keep chatting."
+              reload
+            />
+          </Demo>
+          <Demo
+            className="px-4"
+            caption="A retry on its way: Trying…, and no second press."
+          >
+            <InlineError
+              message="Couldn't reach terpsicle.com to load this term's courses. Check your connection and try again."
+              onRetry={() => undefined}
+              retrying
+            />
           </Demo>
         </Pair>
       </PageSection>

@@ -5,6 +5,7 @@ import { elementCrop } from "~/core/feedback/redact";
 import type { FeedbackProduct, Pin } from "~/core/schema/feedback";
 import { feedbackApi } from "~/server/fns/feedback-api";
 import { Button } from "~/ui/button";
+import { InlineError } from "~/ui/inline-error";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
 import { ToastAction } from "~/ui/toast";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
@@ -356,11 +357,8 @@ function NoteBox({
               className="w-full resize-y rounded-md border border-hairline-strong bg-bg px-2 py-1.5 text-base leading-5 placeholder:text-faint focus:border-fg/40"
             />
           </WithTooltip>
-          {error ? (
-            <p role="alert" className="text-sm">
-              {error}
-            </p>
-          ) : null}
+          {/* Pin is the way to try again, right below. */}
+          {error ? <InlineError className="py-0" message={error} /> : null}
           <div className="flex justify-end gap-2">
             <WithTooltip label="Pick something else" shortcut="Esc">
               <Button

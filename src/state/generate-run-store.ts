@@ -18,7 +18,8 @@ export type RunStatus =
       result: GenerateResult;
       durationMs: number;
     }
-  | { kind: "error"; message: string };
+  /** `reload`: only a newer version of the page can run it (a deploy). */
+  | { kind: "error"; message: string; reload?: boolean };
 
 /**
  * What the tab shows: the form, or the latest results under a one-line
