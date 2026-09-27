@@ -94,6 +94,40 @@ describe("dexieSyncStorage", () => {
     expect(settingsDocOf(again.tables).blocks).toEqual([aBlock()]);
   });
 
+  it("reads and writes the other products' prefs whole, keys it doesn't know too", async () => {
+    const storage = dexieSyncStorage(db);
+    expect((await storage.read()).tables.prefs).toEqual({});
+    const prefs = {
+      ai: { features: false },
+      chatRules: { seen: ["CMSC351"] },
+      later: { view: "week" },
+    };
+    await db.settings.put({ key: "prefs", value: prefs });
+    const read = await storage.read();
+    expect(read.tables.prefs).toEqual(prefs);
+    expect(settingsDocOf(read.tables).prefs).toEqual(prefs);
+
+    // A step that changes something else leaves the row alone.
+    await storage.update((s) => ({
+      ...s,
+      tables: { ...s.tables, chatPlans: { "202701": planA.id } },
+    }));
+    expect((await db.settings.get("prefs"))?.value).toEqual(prefs);
+
+    // A step that changes the prefs writes the row.
+    await storage.update((s) => ({
+      ...s,
+      tables: {
+        ...s.tables,
+        prefs: { ...s.tables.prefs, ai: { features: true } },
+      },
+    }));
+    expect((await db.settings.get("prefs"))?.value).toEqual({
+      ...prefs,
+      ai: { features: true },
+    });
+  });
+
   it("forgets the account on sign-out, and clears the device on remove", async () => {
     const storage = dexieSyncStorage(db);
     await storage.update((s) => ({
@@ -115,7 +149,13 @@ describe("dexieSyncStorage", () => {
     await db.settings.put({ key: "ui", value: DEFAULT_UI_PREFS });
     await db.fourYear.put(aFourYear());
     await db.settings.put({ key: "fourYear", value: { activeId: null } });
+    // Chat's rules name the person's courses: they go on a shared computer.
+    await db.settings.put({
+      key: "prefs",
+      value: { chatRules: { seen: ["CMSC351"] } },
+    });
     await storage.clearAll();
+    expect(await db.settings.get("prefs")).toBeUndefined();
     expect(await db.plans.count()).toBe(0);
     expect(await db.blocks.count()).toBe(0);
     expect(await db.courseColors.count()).toBe(0);

@@ -13,6 +13,7 @@ import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { openCourse } from "~/features/courses/actions";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { forgetReads } from "~/features/notifications/read-here";
+import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { SearchPanel } from "~/features/search/search-panel";
 import {
   aMeUser,
@@ -672,6 +673,59 @@ describe("Course details", () => {
         expect(jada).toHaveTextContent("88 reviews on PlanetTerp"),
       );
       expect(jada).not.toHaveTextContent("Summary of");
+    });
+
+    it("ask for no summary while AI features are off, and show the review count", async () => {
+      vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
+        status: "ok",
+        summary: aReviewSummary({ slug, basedOnReviewCount: 88 }),
+      }));
+      showSyncedPrefs({ ai: { features: false } });
+      try {
+        await renderDetails("CMSC351", "instructors");
+        const jada = await findReviews("Jada Abernathy");
+        await waitFor(() =>
+          expect(jada).toHaveTextContent("88 reviews on PlanetTerp"),
+        );
+        expect(api.reviewSummary).not.toHaveBeenCalled();
+        expect(
+          within(jada).queryByRole("img", { name: "AI summary" }),
+        ).toBeNull();
+        expect(
+          within(jada).queryByRole("button", { name: "AI summary options" }),
+        ).toBeNull();
+      } finally {
+        showSyncedPrefs({});
+      }
+    });
+
+    it("hide from the summary's ⋯ menu, with Undo", async () => {
+      vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
+        status: "ok",
+        summary: aReviewSummary({ slug, basedOnReviewCount: 88 }),
+      }));
+      try {
+        const { user } = await renderDetails("CMSC351", "instructors");
+        const jada = await findReviews("Jada Abernathy");
+        await user.click(
+          await within(jada).findByRole("button", {
+            name: "AI summary options",
+          }),
+        );
+        await user.click(
+          await screen.findByRole("menuitem", { name: /Hide AI summaries/ }),
+        );
+        expect(
+          within(jada).queryByRole("img", { name: "AI summary" }),
+        ).toBeNull();
+        expect(jada).toHaveTextContent("88 reviews on PlanetTerp");
+        expect(track).toHaveBeenCalledWith("ai_features_changed", {
+          on: false,
+          via: "box",
+        });
+      } finally {
+        showSyncedPrefs({});
+      }
     });
 
     it("say quietly when PlanetTerp has stopped updating", async () => {

@@ -273,6 +273,11 @@ async function seedAccount(id: string, n: number) {
         at,
       ],
       [
+        "INSERT INTO todo_hidden (user_id, course_key, hidden_at) VALUES (?1, 'Terps Robotics Club', ?2)",
+        id,
+        at,
+      ],
+      [
         `INSERT INTO seat_watches (user_id, term_id, section_key, created_at)
          VALUES (?1, ?2, 'CMSC351-0101', ?3)`,
         id,

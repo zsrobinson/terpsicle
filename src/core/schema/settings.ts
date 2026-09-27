@@ -6,6 +6,7 @@ import {
   RankBySchema,
 } from "./generate";
 import { FourYearPrefsSchema, UiPrefsSchema } from "./local";
+import { SyncedPrefsSchema } from "./prefs";
 import { TermIdSchema } from "./primitives";
 import { ChatPlansSchema, LocalSyncMetaSchema } from "./sync";
 import { TravelSettingsSchema } from "./travel";
@@ -52,6 +53,12 @@ export const SettingsRowSchema = z.discriminatedUnion("key", [
   z.object({ key: z.literal("chatPlans"), value: ChatPlansSchema }),
   /** Which four-year plan Terpsicle Plan has open. Local only. */
   z.object({ key: z.literal("fourYear"), value: FourYearPrefsSchema }),
+  /**
+   * The other products' prefs (AI features, Chat's room rules), synced as
+   * the settings doc's `prefs`. One row, so a key this build doesn't know
+   * stays with the rest.
+   */
+  z.object({ key: z.literal("prefs"), value: SyncedPrefsSchema }),
   /** Plan sync's account and pull cursor (DATA.md §5). */
   z.object({ key: z.literal("sync"), value: LocalSyncMetaSchema }),
 ]);

@@ -101,14 +101,18 @@ _Avoid_: calendar sync, ICS link (in UI)
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
 
 **Sync**:
-Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)".
+Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (**AI features**, the **room rules** you've closed) beside Schedule's.
 
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
 _Avoid_: close account, deactivate
 
 **Sparkles**:
-The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it.
+The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it. It shows only while **AI features** are on.
+
+**AI features**:
+Everything a model wrote that students see, marked with the sparkles: today, the review summary. On by default. "Show AI summaries" in Settings, or "Hide AI summaries" in an AI box's ⋯ menu, turns them all off, everywhere; signed in, the choice follows the account. Every new sparkles feature respects it (`useAiFeatures`).
+_Avoid_: AI mode, smart features
 
 **Feedback**:
 What someone sends from the feedback sheet: "Report a bug" or "Suggest a feature". The owner's own notes on a page are **pinned notes**.
@@ -333,6 +337,13 @@ The "Gradescope" tag on an item whose ELMS entry links to Gradescope. Terpsicle 
 
 **File import**:
 "Add a calendar file": an `.ics` the student exported, read in the browser. Its items say "From a file" and don't update.
+
+**Hidden course**:
+A course group the student hid in Todo ("Hide CMSC216"), for what the feed carries that they don't want, like a club. Its items show nowhere and count in nothing, "Due tomorrow" included. "Hidden: 2 courses" at the bottom shows them again.
+_Avoid_: muted, archived
+
+**This week**:
+Todo's progress: the items due Monday to Sunday of the current week, done or not. "This week: 7 of 12 done" in the header; "3 of 5 done this week" on each course.
 
 **Own task**:
 A task the student types in Todo ("Add a task…"), with an optional due date, time and course. It says "Yours" where the feed's items say "From ELMS", is kept on our server, and never goes to ELMS. Copy calls it a **task**.

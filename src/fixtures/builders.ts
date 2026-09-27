@@ -407,6 +407,7 @@ export function aSettingsDoc(
     colors: { CMSC351: "blue" },
     travel: DEFAULT_TRAVEL_SETTINGS,
     chatPlans: {},
+    prefs: {},
     ...overrides,
   };
 }

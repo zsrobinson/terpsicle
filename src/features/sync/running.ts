@@ -1,4 +1,4 @@
-import type { LocalId } from "~/core/schema";
+import type { LocalId, SyncedPrefs } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import type { TerpsicleDb } from "~/state/db";
 import type { Persistence } from "~/state/persist";
@@ -7,12 +7,12 @@ import type { SyncIds } from "./options";
 import type { WorkspaceStore } from "./remote-change";
 import type { SyncStatusState } from "./status";
 
-// The page's running engine (the scheduler's or Plan's), if it has one, for
-// signing out. Types only from the pages: plan sync's chunks load lazily and
+// The page's running engine (the scheduler's, Plan's, or the one another
+// page runs for the synced prefs), if it has one, for signing out. Types only from the pages: plan sync's chunks load lazily and
 // import none of their modules, which the page hands in instead (a module
 // both sides imported would be split out of the page's first load).
 
-/** What a page hands plan sync: the scheduler, or Plan (`/plan`). */
+/** What a page hands plan sync: the scheduler, Plan (`/plan`), or any page for the prefs. */
 interface SyncHostBase {
   db: TerpsicleDb;
   persistence: Persistence;
@@ -31,6 +31,18 @@ interface SyncHostBase {
     renamed: number;
     copies: number;
   }) => void;
+  /**
+   * Shows the other products' prefs as the device now holds them
+   * (`showSyncedPrefs`, ~/features/prefs/synced-prefs): every page reads a
+   * copy of the `prefs` row, which sync writes.
+   */
+  showPrefs: (prefs: SyncedPrefs) => void;
+  /**
+   * The first step since sync started has finished, whether it reached the
+   * account or not: the prefs shown are the account's, if it could be read
+   * (`settleAccountPrefs`).
+   */
+  settled: () => void;
 }
 
 /**
@@ -60,6 +72,11 @@ export type SyncHost = SyncHostBase &
         fourYear?: undefined;
       }
     | { fourYear: FourYearView; workspace?: undefined }
+    /**
+     * A page that shows none of the synced tables, only the other products'
+     * prefs (~/features/prefs/account-sync): Settings, Reviews, Chat.
+     */
+    | { workspace?: undefined; fourYear?: undefined }
   );
 
 let engine: SyncEngine | null = null;

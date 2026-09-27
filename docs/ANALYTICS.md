@@ -55,6 +55,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `course_details_tab` | `tab` | What people open on the course details page (one page, no tabs, since the UX review; the name stays for continuity): `instructors` for a group's Reviews, `grades` for "Grades ↓", `about` for "More about this course". |
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
   | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
+  | `ai_features_changed` | `on`, `via`: `box` · `settings` | How many people turn AI features off, and from where: an AI box's ⋯ menu (and its Undo) or Settings. Never who, or which summary. |
 
   | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `reviews` · `chat` · `todo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `reviews`: from writing or reporting a review. `chat`: from signed-out `/chat`. `todo`: from signed-out `/todo` or `/todo/connect`. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
