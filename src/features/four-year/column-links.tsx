@@ -38,7 +38,12 @@ export function ViewSchedule({ termId }: { termId: TermId }) {
   const listed = latestTermId === null || termId <= latestTermId;
   return (
     <div className={FOOT}>
-      <span className="tnum min-w-0 truncate text-muted">
+      {/* Wraps rather than truncating: "From Plan B: 0 of 2 pla…" hid the
+          words that say what it counts (QA P3). */}
+      <span
+        data-testid="linked-plan-count"
+        className="tnum min-w-0 text-balance text-muted"
+      >
         {linked && courses.length > 0
           ? placedLine(linked.name, placedInPlan(courses, linked))
           : null}

@@ -1,3 +1,4 @@
+import type { LocalId } from "~/core/schema";
 import {
   changedFourYearKeys,
   type DocKey,
@@ -50,9 +51,24 @@ function notifier(host: SyncHost) {
         renamed: notice.renamed.length,
         copies: notice.copies.length,
       });
+    if (notice.kind === "first-sign-in" && notice.fourYear.open)
+      openFourYear(host, notice.fourYear.open.id);
     const message = syncToast(notice);
     if (message) host.toast(message.title, message.description);
   };
+}
+
+/**
+ * After a first sign-in, Plan opens the account's four-year plan (QA P4).
+ * On Plan that's its store; the scheduler only remembers it for Plan, in
+ * the row Plan reads its open doc from.
+ */
+function openFourYear(host: SyncHost, id: LocalId): void {
+  if (host.fourYear) host.fourYear.open(id);
+  else
+    void host.db.settings
+      .put({ key: "fourYear", value: { activeId: id } })
+      .catch(console.error);
 }
 
 /** Forgets the sync state if a sign-out asked for it (SYNC_RESET_KEY). */

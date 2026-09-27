@@ -9,7 +9,7 @@ const firstSignIn = (
   reset: false,
   uploaded: 0,
   fromAccount: 0,
-  fourYear: { uploaded: 0, fromAccount: 0 },
+  fourYear: { uploaded: 0, fromAccount: 0, open: null },
   renamed: [],
   copies: [],
   ...over,
@@ -39,9 +39,9 @@ describe("syncToast", () => {
         }),
       ),
     ).toEqual({
-      title: "Your plan is saved to your account",
-      description:
-        "Plan A was kept as Plan A (copy). Your account already had one by that name.",
+      // One story: what was saved, under what name, and why (QA P4).
+      title: "Plan A from this device is saved as Plan A (copy)",
+      description: "Your account already had one by that name.",
     });
     expect(
       syncToast(
@@ -53,17 +53,20 @@ describe("syncToast", () => {
             { from: "Plan B", to: "Plan B (copy)" },
           ],
         }),
-      )?.description,
-    ).toBe(
-      "Plan A was kept as Plan A (copy) (and 1 more plan the same way). Your account had a different version, and you have both now.",
-    );
+      ),
+    ).toEqual({
+      title:
+        "Plan A from this device is saved as Plan A (copy) (and 1 more plan the same way)",
+      description:
+        "Your account had a different version, and you have both now. Your account's other plan is here too.",
+    });
   });
 
   it("counts plans and four-year plans together", () => {
     const both = (plans: number, fourYear: number) =>
       firstSignIn({
         uploaded: plans,
-        fourYear: { uploaded: fourYear, fromAccount: 0 },
+        fourYear: { uploaded: fourYear, fromAccount: 0, open: null },
       });
     expect(syncToast(both(3, 1))?.title).toBe(
       "Your 3 plans and your four-year plan are saved to your account",
@@ -79,24 +82,73 @@ describe("syncToast", () => {
         firstSignIn({
           uploaded: 1,
           fromAccount: 2,
-          fourYear: { uploaded: 0, fromAccount: 1 },
+          fourYear: { uploaded: 0, fromAccount: 1, open: null },
         }),
       )?.description,
     ).toBe("Your account's 2 other plans and its four-year plan are here too.");
     expect(
-      syncToast(firstSignIn({ fourYear: { uploaded: 0, fromAccount: 1 } })),
+      syncToast(
+        firstSignIn({ fourYear: { uploaded: 0, fromAccount: 1, open: null } }),
+      ),
     ).toEqual({ title: "Your four-year plan from your account is here" });
     expect(
       syncToast(
         firstSignIn({
-          fourYear: { uploaded: 1, fromAccount: 0 },
+          fourYear: { uploaded: 1, fromAccount: 0, open: null },
           renamed: [{ from: "My plan", to: "My plan (copy)" }],
         }),
       ),
     ).toEqual({
-      title: "Your four-year plan is saved to your account",
+      title: "My plan from this device is saved as My plan (copy)",
+      description: "Your account already had one by that name.",
+    });
+  });
+
+  it("says the account's four-year plan is the one open (QA P4)", () => {
+    // A second device: its own "My plan" is kept as a copy, and Plan opens
+    // the account's.
+    expect(
+      syncToast(
+        firstSignIn({
+          fourYear: {
+            uploaded: 1,
+            fromAccount: 1,
+            open: { id: "fy_account", name: "My plan" },
+          },
+          renamed: [{ from: "My plan", to: "My plan (copy)" }],
+        }),
+      ),
+    ).toEqual({
+      title: "My plan from this device is saved as My plan (copy)",
       description:
-        "My plan was kept as My plan (copy). Your account already had one by that name.",
+        "Your account already had one by that name. My plan from your account is open.",
+    });
+    // Nothing of this device's was open: the account's is simply here.
+    expect(
+      syncToast(
+        firstSignIn({
+          fourYear: {
+            uploaded: 0,
+            fromAccount: 1,
+            open: { id: "fy_account", name: "CS major" },
+          },
+        }),
+      ),
+    ).toEqual({ title: "Your four-year plan from your account is here" });
+    // This device's went up under its own name; the account's is open.
+    expect(
+      syncToast(
+        firstSignIn({
+          fourYear: {
+            uploaded: 1,
+            fromAccount: 1,
+            open: { id: "fy_account", name: "CS major" },
+          },
+        }),
+      ),
+    ).toEqual({
+      title: "Your four-year plan is saved to your account",
+      description: "CS major from your account is open.",
     });
   });
 

@@ -131,11 +131,11 @@ describe("termStatus", () => {
 });
 
 describe("labels and defaults", () => {
-  it("names terms short for the phone's strip", () => {
+  it("names terms for the phone's strip, seasons whole", () => {
     expect(fourYearTermShortLabel("before")).toBe("Before");
-    expect(fourYearTermShortLabel("202608")).toBe("Fa 2026");
-    expect(fourYearTermShortLabel("202612")).toBe("Wi 2027");
-    expect(fourYearTermShortLabel("202705")).toBe("Su 2027");
+    expect(fourYearTermShortLabel("202608")).toBe("Fall 2026");
+    expect(fourYearTermShortLabel("202612")).toBe("Winter 2027");
+    expect(fourYearTermShortLabel("202705")).toBe("Summer 2027");
   });
 
   it("groups a fall with the winter, spring and summer after it", () => {

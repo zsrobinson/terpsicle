@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { scan } from "./axe";
+import { lowerPlanDrawer } from "./plan-drawer";
 
 // Terpsicle Plan (docs/V3.md §2.13) on `pnpm dev:mock`: the first visit,
 // adding a course and a placeholder from Search, moving a block with the
@@ -28,26 +29,21 @@ async function axe(page: Page, what: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
-/**
- * On a phone, Search raises the drawer all the way (the keyboard is up),
- * over the semesters: lower it, as a person would, to pick one.
- */
-async function lowerDrawer(page: Page) {
-  const drawer = page.locator("[data-vaul-drawer]");
-  await expect(drawer).toHaveAttribute("data-snap", "full");
-  await page.getByRole("button", { name: "Lower the panel" }).click();
-  await expect(drawer).toHaveAttribute("data-snap", "peek");
+/** Whether `what` shows above a phone's drawer (the whole page on a desktop). */
+async function aboveDrawer(page: Page, what: ReturnType<Page["getByText"]>) {
+  const drawer = await page.locator("[data-vaul-drawer]").boundingBox();
+  const box = await what.boundingBox();
+  if (!box) return false;
+  return !drawer || box.y + box.height <= drawer.y;
 }
 
 /** A semester's column; on a phone, picked from the strip first. */
 async function semester(page: Page, isMobile: boolean, name: string) {
-  if (isMobile) {
-    const [season, year] = name.split(" ");
+  if (isMobile)
     await page
       .getByRole("navigation", { name: "Semesters" })
-      .getByRole("button", { name: `${season?.slice(0, 2)} ${year}` })
+      .getByRole("button", { name })
       .click();
-  }
   return page.getByRole("region", { name, exact: true });
 }
 
@@ -82,6 +78,17 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
     .click();
   await expect(spring.getByText("CMSC351")).toBeVisible();
   await expect(spring.getByText("Algorithms")).toBeVisible();
+  // On a phone the drawer comes down to half, so the semester shows the
+  // course above it (QA P1), and Search stays open for the next one.
+  if (isMobile) {
+    await expect(page.locator("[data-vaul-drawer]")).toHaveAttribute(
+      "data-snap",
+      "half",
+    );
+    await expect
+      .poll(() => aboveDrawer(page, spring.getByText("CMSC351")))
+      .toBe(true);
+  }
   // Already there: "Added", not a second Add.
   await expect(
     page.getByRole("button", {
@@ -115,7 +122,7 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
   await page.keyboard.press("Enter");
   await expect(page.getByText("Moved CMSC351 to Fall 2027")).toBeVisible();
 
-  if (isMobile) await lowerDrawer(page);
+  if (isMobile) await lowerPlanDrawer(page);
   const fall = await semester(page, isMobile, "Fall 2027");
   await expect(fall.getByText("CMSC351")).toBeVisible();
 

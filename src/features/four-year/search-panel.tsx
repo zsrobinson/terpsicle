@@ -28,6 +28,7 @@ import {
 import { useModel, usePlanNav } from "./model";
 import { showPlanNote } from "./toasts";
 import { PlanView } from "./views";
+import { showAdded } from "./workbench-store";
 
 // The Search tab (V3 §2.9, §2.13): every course in the course index, any
 // term. Typing CMSC4XX or "any DSHS" offers a placeholder first. From a
@@ -212,7 +213,7 @@ export function SearchPanel() {
   );
 
   const addOffer = (wildcard: NonNullable<typeof offer>) => {
-    addPlaceholder(doc, wildcard, target);
+    showAdded(addPlaceholder(doc, wildcard, target));
     type("");
   };
   const pick = (code: string) => {
@@ -228,7 +229,7 @@ export function SearchPanel() {
     if (resolving) return pick(code);
     if (inTarget.has(code))
       return showPlanNote(`${code}'s already in ${targetName}`);
-    addCourse(doc, code, target, useSearchFocus.getState().via);
+    showAdded(addCourse(doc, code, target, useSearchFocus.getState().via));
   };
 
   const scopeLine = resolving ? (
@@ -381,11 +382,13 @@ export function SearchPanel() {
                   action="Add"
                   actionLabel={`Add ${row[0]} to ${targetName}`}
                   onAct={() =>
-                    addCourse(
-                      doc,
-                      row[0],
-                      target,
-                      useSearchFocus.getState().via,
+                    showAdded(
+                      addCourse(
+                        doc,
+                        row[0],
+                        target,
+                        useSearchFocus.getState().via,
+                      ),
                     )
                   }
                   addedTo={inTarget.has(row[0]) ? target : null}
