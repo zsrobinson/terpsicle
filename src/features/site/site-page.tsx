@@ -31,13 +31,16 @@ const MAIN: Record<SiteLayout, string> = {
 export function SitePage({
   children,
   layout = "note",
+  notFound = false,
 }: {
   children: ReactNode;
   layout?: SiteLayout;
+  /** The 404 page, whose bar belongs to no product (see SiteHeader). */
+  notFound?: boolean;
 }) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <SiteHeader />
+      <SiteHeader notFound={notFound} />
       <main className={`mx-auto w-full flex-1 px-4 pb-8 ${MAIN[layout]}`}>
         {children}
       </main>
@@ -57,16 +60,21 @@ export function SitePage({
  * (`~/app/app-bar`), with the product this path belongs to and its feedback.
  * Chat's page uses it too, above its own full-height layout.
  */
-export function SiteHeader() {
+export function SiteHeader({ notFound = false }: { notFound?: boolean }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const current = PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null;
+  // The Worker renders a 404 at its own path (NOT_FOUND_PATH) and the page
+  // hydrates at the address asked for (`/admin` for a non-admin), so a 404's
+  // bar reads nothing from the path: server and client draw the same one.
+  const current = notFound
+    ? null
+    : (PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null);
   return (
     <AppBar
       current={current}
-      feedback={feedbackProduct(path)}
+      feedback={notFound ? null : feedbackProduct(path)}
       pathname={path}
       context={
-        path.startsWith("/settings") ? (
+        !notFound && path.startsWith("/settings") ? (
           <span className="flex items-center gap-1.5 font-semibold text-base">
             <Settings size={15} aria-hidden="true" className="text-muted" />
             Settings
