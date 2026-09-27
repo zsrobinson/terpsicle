@@ -98,7 +98,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [ ] Words: one glossary pass over every string (titles, buttons, empty states, errors, toasts).
 - [ ] Behavior:
   - loading and error states everywhere;
-  - Undo on every destructive action;
+  - Undo on every destructive action (`v3/behavior-undo`: Todo's check-off, Chat's Discard, and the pinned note on the kit's `undoToast`);
   - tooltips and shortcuts on every control;
   - focus order and keyboard.
 

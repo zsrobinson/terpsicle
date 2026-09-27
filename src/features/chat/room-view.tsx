@@ -554,7 +554,9 @@ function useMessageActions(
           );
       },
       discard: (item) => {
-        if (item.local) session?.discard(item.local.req);
+        if (!item.local || !session) return;
+        const { undo, send } = session.discardLater(item.local.req);
+        showUndo("Message discarded", undo, send);
       },
       report,
     }),

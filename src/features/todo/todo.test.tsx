@@ -398,6 +398,26 @@ describe("the list", () => {
     ).toBeChecked();
   });
 
+  it("says what a check did, and Undo puts the item back", async () => {
+    const client = fakeClient({ items });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Done: Midterm 1" }),
+    );
+    expect(await screen.findByText("Marked Midterm 1 done")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(client.done).toHaveBeenLastCalledWith({
+      uid: "event-calendar-event-3",
+      done: false,
+    });
+    expect(
+      screen.getByRole("checkbox", { name: "Done: Midterm 1" }),
+    ).not.toBeChecked();
+    expect(screen.queryByRole("button", { name: "1 done" })).toBeNull();
+  });
+
   it("puts a check back when the server didn't take it", async () => {
     const client = fakeClient({ items });
     client.done.mockRejectedValueOnce(new Error("offline"));
