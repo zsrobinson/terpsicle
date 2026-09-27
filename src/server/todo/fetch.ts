@@ -96,6 +96,10 @@ export async function fetchFeed(
     () => controller.abort(),
     options.timeoutMs ?? FEED_TIMEOUT_MS,
   );
+  // Called on its own, never as `options.fetch(…)`: the Workers runtime
+  // throws "Illegal invocation" when its fetch runs with another `this`, and
+  // the catch below would read that as ELMS not answering.
+  const send = options.fetch;
   try {
     let current = url;
     for (let hop = 0; ; hop++) {
@@ -106,7 +110,7 @@ export async function fetchFeed(
       if (options.etag) headers.set("If-None-Match", options.etag);
       if (options.lastModified)
         headers.set("If-Modified-Since", options.lastModified);
-      const response = await options.fetch(current, {
+      const response = await send(current, {
         method: "GET",
         redirect: "manual",
         headers,
