@@ -129,6 +129,10 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   await expect(project).toBeVisible();
   await expect(page.getByText("Exam", { exact: true })).toBeVisible();
   await expect(page.getByText("Gradescope", { exact: true })).toBeVisible();
+  // Said once, under the first Gradescope item.
+  await expect(page.getByText(/^Extensions you get in Gradescope/)).toHaveCount(
+    1,
+  );
   await expect(page.locator("body")).not.toContainText(
     TEST_FEED_TOKENS.calendar,
   );
