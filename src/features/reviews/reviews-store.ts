@@ -72,7 +72,7 @@ export interface ReviewsState {
     options?: { keepalive?: boolean },
   ) => Promise<boolean>;
   report: (
-    input: Omit<ReportCreateInput, "surface">,
+    input: Omit<Extract<ReportCreateInput, { surface: "review" }>, "surface">,
   ) => Promise<ReportCreateResult>;
 }
 

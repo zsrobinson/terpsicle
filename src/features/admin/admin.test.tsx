@@ -304,6 +304,40 @@ describe("the queue", () => {
     );
   });
 
+  it("labels the spam guard's holds plainly, urgent first, and offers Spam", async () => {
+    const client = fakeClient([
+      anItem({
+        kind: "chat",
+        course: "CMSC131",
+        text: "Free exam answers in my discord",
+        urgent: true,
+        reasons: [
+          {
+            code: "spam",
+            source: "cross-room",
+            action: "hold",
+            crossRoom: "repeat",
+          },
+        ],
+        scores: {},
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderQueue(client);
+    const card = await screen.findByRole("article");
+    expect(within(card).getByText("Urgent")).toBeVisible();
+    expect(
+      within(card).getByText(
+        /^Spam or an ad: the same message in 3 or more courses within an hour/,
+      ),
+    ).toHaveTextContent("· spam guard");
+    await user.click(within(card).getByRole("button", { name: /Remove/ }));
+    const reasons = within(card).getByRole("group", { name: "Remove because" });
+    expect(within(reasons).getAllByRole("button")[0]).toHaveTextContent(
+      "Spam or an ad",
+    );
+  });
+
   it("publishes at once, then Undo in the toast puts it back", async () => {
     const client = fakeClient([anItem()]);
     const user = userEvent.setup();

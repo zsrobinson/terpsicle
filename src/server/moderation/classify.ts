@@ -1,20 +1,21 @@
 // The moderation pipeline without storage: rules first (no model), then
-// Llama Guard, then the policy model for reviews and for chat the rules or
-// Guard were unsure about. Any model failure, timeout, bad output or the
-// daily cap holds the item; nothing is published without every check it
-// needed. Pure apart from the model calls, so scripts/moderation-eval.ts runs
+// Llama Guard beside the policy model (for chat, only when
+// `chatPolicy: "flagged"` isn't set; then Guard or the rules must flag it
+// first). Any model failure, timeout, bad output or the daily cap holds the
+// item; nothing is published without every check it needed. Pure apart from the model calls, so scripts/moderation-eval.ts runs
 // exactly this against Workers AI over REST.
 import {
+  actingPolicyLabels,
   type ChatPolicy,
   DEFAULT_CHAT_POLICY,
   DEFAULT_GUARD_ACTIONS,
-  DEFAULT_POLICY_THRESHOLDS,
   decide,
   type GuardActions,
   guardReasons,
+  isTrivialChat,
   needsPolicy,
+  POLICY_THRESHOLDS,
   type PolicyThresholds,
-  policyLabelsFor,
   policyReasons,
   precheck,
 } from "~/core/moderation";
@@ -47,7 +48,8 @@ export interface ModerationConfig {
   /** When a slow attempt gets a second one racing it. */
   hedgeAfterMs: number;
   guardActions: GuardActions;
-  policyThresholds: PolicyThresholds;
+  /** Per kind: chat's are lighter (decide.ts). */
+  policyThresholds: Readonly<Record<ModerationKind, PolicyThresholds>>;
   chatPolicy: ChatPolicy;
 }
 
@@ -57,7 +59,7 @@ export const DEFAULT_MODERATION_CONFIG: ModerationConfig = {
   timeoutMs: DEFAULT_TIMEOUT_MS,
   hedgeAfterMs: DEFAULT_HEDGE_AFTER_MS,
   guardActions: DEFAULT_GUARD_ACTIONS,
-  policyThresholds: DEFAULT_POLICY_THRESHOLDS,
+  policyThresholds: POLICY_THRESHOLDS,
   chatPolicy: DEFAULT_CHAT_POLICY,
 };
 
@@ -90,7 +92,14 @@ export function resolveConfig(raw: string | undefined): ModerationConfig {
     timeoutMs: o.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     hedgeAfterMs: o.hedgeAfterMs ?? DEFAULT_HEDGE_AFTER_MS,
     guardActions: { ...DEFAULT_GUARD_ACTIONS, ...o.guardActions },
-    policyThresholds: { ...DEFAULT_POLICY_THRESHOLDS, ...o.policyThresholds },
+    policyThresholds: {
+      review: { ...POLICY_THRESHOLDS.review, ...o.policyThresholds },
+      chat: {
+        ...POLICY_THRESHOLDS.chat,
+        ...o.policyThresholds,
+        ...o.chatPolicyThresholds,
+      },
+    },
     chatPolicy: o.chatPolicy ?? DEFAULT_CHAT_POLICY,
   };
 }
@@ -141,6 +150,9 @@ export async function classify(
   });
   // A slur or a bad length decides it; no model can change that.
   if (decide(reasons) === "remove") return result();
+  // "thanks!", "same", an emoji: nothing a model could find, so no call.
+  if (kind === "chat" && reasons.length === 0 && isTrivialChat(text))
+    return result();
 
   const options = (stage: keyof ModerationModels, id: string) => ({
     model: id,
@@ -182,13 +194,13 @@ export async function classify(
   } else reasons.push(systemHold(guard.failure));
 
   if (policyEarly || needsPolicy(kind, reasons, config.chatPolicy)) {
-    // Decided before the policy's own reasons are added.
-    const labels = policyLabelsFor(kind, reasons);
+    // Decided with Guard's reasons in, before the policy's own are added.
+    const labels = actingPolicyLabels(kind, text, reasons);
     const policy = await (policyEarly ?? policed());
     if (policy.ok) {
       scores = policy.value;
       reasons.push(
-        ...policyReasons(kind, scores, config.policyThresholds, labels),
+        ...policyReasons(kind, scores, config.policyThresholds[kind], labels),
       );
     } else reasons.push(systemHold(policy.failure));
   }

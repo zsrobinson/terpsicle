@@ -5,9 +5,9 @@ import { track } from "~/app/analytics";
 import { REPORT_REASON_WORDS } from "~/core/reviews";
 import {
   REPORT_NOTE_MAX,
-  type ReportReason,
-  ReportReasonSchema,
   type ReviewId,
+  type ReviewReportReason,
+  ReviewReportReasonSchema,
 } from "~/core/schema";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
@@ -68,7 +68,7 @@ export function ReportForm({
 }) {
   const signedIn = useSignedIn();
   const report = useReviews((s) => s.report);
-  const [reason, setReason] = useState<ReportReason | null>(null);
+  const [reason, setReason] = useState<ReviewReportReason | null>(null);
   const [note, setNote] = useState("");
   const [sent, setSent] = useState<Sent>("idle");
   const noteId = useId();
@@ -118,7 +118,7 @@ export function ReportForm({
           {/* The kit's rows, a native radio leading each: the reasons stay
               in view, and arrow keys move between them. */}
           <ul>
-            {ReportReasonSchema.options.map((r) => (
+            {ReviewReportReasonSchema.options.map((r) => (
               <ListRow
                 key={r}
                 as="li"

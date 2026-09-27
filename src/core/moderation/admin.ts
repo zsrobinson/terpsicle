@@ -142,6 +142,7 @@ const REMOVE_REASON_FOR_REPORT: Partial<Record<ReportReason, AdminReason>> = {
   "misconduct-claim": "misconduct-claim",
   "graded-work": "academic-integrity",
   "off-topic": "off-topic",
+  spam: "spam",
 };
 
 /** Urgent codes, and a reported threat (reportsAreUrgent's rule). */

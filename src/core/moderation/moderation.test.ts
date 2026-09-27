@@ -5,19 +5,25 @@ import {
   ReasonCodeSchema,
 } from "~/core/schema";
 import {
+  actingPolicyLabels,
+  answersHint,
   BLOCKED_WORDS,
   DEFAULT_GUARD_ACTIONS,
   decide,
   findBlockedWords,
+  findContacts,
+  findIntegrityIssues,
   findLinks,
   guardReasons,
+  INSULTS,
+  isTrivialChat,
   isUrgent,
   LENGTH_LIMITS,
   MODERATION_POLICY,
   needsPolicy,
   needsRetry,
   normalizeWord,
-  policyLabelsFor,
+  POLICY_LABELS,
   policyReasons,
   precheck,
   REASON_WORDS,
@@ -83,37 +89,43 @@ const GOLDEN: Golden[] = [
   ["review", "Too short to say much.", ["too-short:remove"]],
   ["chat", "x".repeat(LENGTH_LIMITS.chat.max + 1), ["too-long:remove"]],
 
-  // Links: UMD and Terpsicle are fine; others flag in chat, hold in reviews.
+  // Links: UMD and Terpsicle are fine; others are fine in chat and hold in
+  // reviews.
   ["chat", "syllabus: https://www.cs.umd.edu/class/fall2026/cmsc351/.", []],
   ["chat", "plan it on terpsicle.com/schedule", []],
-  [
-    "chat",
-    "notes here https://docs.google.com/document/d/abc, enjoy",
-    ["link:flag@https://docs.google.com/document/d/abc"],
-  ],
+  ["chat", "notes here https://docs.google.com/document/d/abc, enjoy", []],
+  ["chat", "this video explains it way better https://youtu.be/xyz123", []],
   [
     "review",
     "Take this class, and read my blog at www.example.net for more thoughts on it.",
     ["link:hold@www.example.net"],
   ],
+  // An answer site only flags chat (the author may get a nudge); reviews hold.
   [
     "chat",
     "it's on chegg.com/homework-help/q123",
+    ["cheating-site:flag@chegg.com/homework-help/q123"],
+  ],
+  [
+    "review",
+    "Every worksheet answer is on chegg.com/homework-help/q123 so the class is easy.",
     ["cheating-site:hold@chegg.com/homework-help/q123"],
   ],
   ["chat", "email me at testudo@terpmail.umd.edu", []],
 
-  // Contact details: someone else's always hold; your own is fine in chat.
+  // Contact details: any hold in reviews. Chat allows them, whoever's they
+  // are; only the policy model's very sure `personal-info` holds there.
   ["chat", "study group tonight, text me at 301-555-0199", []],
-  ["chat", "his number is (301) 555-0199 lol", ["phone:hold@(301) 555-0199"]],
+  ["chat", "his number is (301) 555-0199 lol", []],
   [
     "review",
     "Text me at 301.555.0199 and I'll explain why this course is worth it.",
     ["phone:hold@301.555.0199"],
   ],
+  ["chat", "her email is jdoe42@terpmail.umd.edu", []],
   [
-    "chat",
-    "her email is jdoe42@terpmail.umd.edu",
+    "review",
+    "Email the TA at jdoe42@terpmail.umd.edu before the exam, she answers fast.",
     ["email:hold@jdoe42@terpmail.umd.edu"],
   ],
   [
@@ -122,52 +134,62 @@ const GOLDEN: Golden[] = [
     ["address:hold@4321 Knox Rd"],
   ],
   ["chat", "come over to 7400 Baltimore Avenue at 6 to study", []],
+  ["chat", "study group in 1101 Kirwan Hall, 5 Paint Branch Dr at 7", []],
+  // A UID is still held in chat, unless it's plainly the writer's own.
   [
     "chat",
     "my UID is 118234567, is that bad to share?",
     ["uid:hold@118234567"],
   ],
 
-  // Academic integrity: strong patterns hold, the rest flag for the model.
+  // Academic integrity. Reviews: strong patterns hold, the rest flag for
+  // the model. Chat: asking, homework talk and code are fine; answer lists
+  // and "here are the answers" only flag (a nudge, never a hold).
+  ["chat", "does anyone have the answers to hw 3?", []],
+  ["chat", "can someone just send me their lab 4 code", []],
+  ["chat", "hw 3 solutions are posted on ELMS now", []],
+  ["chat", "is there an answer key for the practice exam", []],
   [
-    "chat",
-    "does anyone have the answers to hw 3?",
-    ["asks-for-answers:flag@does anyone have the answers"],
-  ],
-  [
-    "chat",
-    "can someone just send me their lab 4 code",
-    ["asks-for-answers:flag@can someone just send me their lab 4 code"],
-  ],
-  [
-    "chat",
-    "hw 3 solutions are posted on ELMS now",
-    ["asks-for-answers:flag@hw 3 solutions"],
-  ],
-  [
-    "chat",
-    "is there an answer key for the practice exam",
-    ["asks-for-answers:flag@answer key"],
+    "review",
+    "Does anyone have the answers to hw 3? The class never posts solutions at all.",
+    ["asks-for-answers:flag@Does anyone have the answers"],
   ],
   [
     "chat",
     "quiz 4: 1. B 2. C 3. A 4. D",
-    ["shares-answers:hold@1. B 2. C 3. A 4. D"],
+    ["shares-answers:flag@1. B 2. C 3. A 4. D"],
   ],
-  ["chat", "q1) a, q2) d, q3) c", ["shares-answers:hold@q1) a, q2) d, q3) c"]],
+  ["chat", "q1) a, q2) d, q3) c", ["shares-answers:flag@q1) a, q2) d, q3) c"]],
   [
     "chat",
     "here are the answers for the worksheet",
-    ["shares-answers:hold@here are the answers"],
+    ["shares-answers:flag@here are the answers"],
   ],
   [
-    "chat",
+    "review",
+    "Easy class. For quiz 4: 1. B 2. C 3. A 4. D, and the rest is the same.",
+    ["shares-answers:hold@1. B 2. C 3. A 4. D"],
+  ],
+  [
+    "review",
+    "Here are the answers for the worksheet since the TA never explains them.",
+    ["shares-answers:hold@Here are the answers"],
+  ],
+  ["chat", CODE_BLOCK, [], true],
+  ["chat", CODE_BLOCK, [], false],
+  ["chat", UNFENCED_CODE, [], true],
+  [
+    "review",
     CODE_BLOCK,
     [`code-paste:hold@${CODE_BLOCK.slice(CODE_BLOCK.indexOf("```"))}`],
     true,
   ],
-  ["chat", CODE_BLOCK, [], false],
-  ["chat", UNFENCED_CODE, [`code-paste:hold@${UNFENCED_CODE}`], true],
+  [
+    "review",
+    `What we wrote in lecture, for anyone curious:\n${UNFENCED_CODE}`,
+    [`code-paste:hold@${UNFENCED_CODE}`],
+    true,
+  ],
 
   // Words.
   ["chat", "found a chink in his argument", ["blocked-word:hold@chink"]],
@@ -197,6 +219,20 @@ describe("precheck (golden)", () => {
       ).toEqual(["blocked-word"]);
   });
 
+  it("lets casual insults through in chat, and flags them in reviews", () => {
+    for (const word of INSULTS) {
+      expect(precheck({ kind: "chat", text: `that's so ${word} lol` })).toEqual(
+        [],
+      );
+      expect(
+        precheck({
+          kind: "review",
+          text: `The grading policy is honestly ${word} and nobody explains it.`,
+        }).map((r) => `${r.code}:${r.action}`),
+      ).toEqual(["insult:flag"]);
+    }
+  });
+
   it("undoes leetspeak, separators and stretched letters", () => {
     expect(normalizeWord("K.1.K.E!")).toBe("kike");
     expect(normalizeWord("$p!c")).toBe("spic");
@@ -223,6 +259,87 @@ const r = (
   source: ModerationReason["source"] = "rules",
 ): ModerationReason => ({ code, action, source });
 
+// The detectors behind both kinds, pinned apart from what each kind does
+// with them: chat ignores most of them now, reviews don't.
+describe("detectors", () => {
+  const integrity = (text: string, activeAssignments = false) =>
+    findIntegrityIssues(text, { activeAssignments }).map(
+      (m) =>
+        `${m.code}:${m.strong ? "strong" : "weak"}@${text.slice(...m.span)}`,
+    );
+
+  it("finds answers, requests for them and pasted code", () => {
+    expect(integrity("does anyone have the answers to hw 3?")).toEqual([
+      "asks-for-answers:weak@does anyone have the answers",
+    ]);
+    expect(integrity("can someone just send me their lab 4 code")).toEqual([
+      "asks-for-answers:weak@can someone just send me their lab 4 code",
+    ]);
+    expect(integrity("hw 3 solutions are posted on ELMS now")).toEqual([
+      "asks-for-answers:weak@hw 3 solutions",
+    ]);
+    expect(integrity("is there an answer key for the practice exam")).toEqual([
+      "asks-for-answers:weak@answer key",
+    ]);
+    expect(integrity("q1) a, q2) d, q3) c")).toEqual([
+      "shares-answers:strong@q1) a, q2) d, q3) c",
+    ]);
+    expect(integrity(UNFENCED_CODE, true)).toEqual([
+      `code-paste:strong@${UNFENCED_CODE}`,
+    ]);
+    expect(integrity(UNFENCED_CODE, false)).toEqual([]);
+  });
+
+  it("finds contact details, and whether they're the writer's own", () => {
+    const contacts = (text: string) =>
+      findContacts(text).map(
+        (c) => `${c.kind}:${c.own ? "own" : "other"}@${text.slice(...c.span)}`,
+      );
+    expect(contacts("his number is (301) 555-0199 lol")).toEqual([
+      "phone:other@(301) 555-0199",
+    ]);
+    expect(contacts("text me at 301-555-0199")).toEqual([
+      "phone:own@301-555-0199",
+    ]);
+    expect(contacts("her email is jdoe42@terpmail.umd.edu")).toEqual([
+      "email:other@jdoe42@terpmail.umd.edu",
+    ]);
+  });
+});
+
+describe("chat nudges and shortcuts", () => {
+  it("nudges about graded answers only when a draft looks like them", () => {
+    expect(answersHint("quiz 4: 1. B 2. C 3. A 4. D")).toBe(true);
+    expect(answersHint("here are the answers for the worksheet")).toBe(true);
+    expect(answersHint("it's all on chegg.com/homework-help/q123")).toBe(true);
+    expect(answersHint("does anyone have the answers to hw 3?")).toBe(false);
+    expect(answersHint("hw 3 solutions are posted on ELMS now")).toBe(false);
+    expect(answersHint(CODE_BLOCK)).toBe(false);
+  });
+
+  it("skips the models only for the smallest, harmless messages", () => {
+    for (const text of [
+      "thanks!",
+      "Thank you!!",
+      "same",
+      "lol",
+      "👍",
+      "?",
+      "+1",
+    ])
+      expect(isTrivialChat(text), text).toBe(true);
+    for (const text of [
+      "kys",
+      "thanks idiot",
+      "no one likes you",
+      "ok see you at 6",
+      "💣💣💣💣💣💣💣💣",
+      "",
+    ])
+      expect(isTrivialChat(text), text).toBe(false);
+  });
+});
+
 describe("decide", () => {
   it("takes the most severe action and ignores flags", () => {
     expect(decide([])).toBe("publish");
@@ -239,21 +356,38 @@ describe("decide", () => {
     expect(needsPolicy("chat", [r("link", "flag")], "flagged")).toBe(true);
   });
 
-  it("acts only on targeting a person for chat nothing flagged", () => {
-    expect(policyLabelsFor("chat", [])).toEqual(["targets-person"]);
-    expect(policyLabelsFor("chat", [r("phone", "hold")])).toEqual([
+  it("reads chat for people, private details and spam only, with high bars", () => {
+    expect(POLICY_LABELS.chat).toEqual([
       "targets-person",
+      "personal-info",
+      "spam",
     ]);
-    expect(policyLabelsFor("chat", [r("insult", "flag")])).toContain(
-      "academic-integrity",
-    );
-    expect(policyLabelsFor("review", [])).toContain("off-topic");
-    const scores = { "personal-info": 1, "targets-person": 0.7 };
+    expect(POLICY_LABELS.review).toContain("academic-integrity");
+    // Answers never act on chat; a phone number for a study group is fine.
     expect(
-      policyReasons("chat", scores, undefined, policyLabelsFor("chat", [])).map(
-        (x) => x.code,
-      ),
-    ).toEqual(["targets-person"]);
+      policyReasons("chat", {
+        "academic-integrity": 1,
+        "personal-info": 0.85,
+        spam: 0.85,
+        "targets-person": 0.49,
+      }),
+    ).toEqual([]);
+    // Someone else's details, or clear spam, hold; spam never removes chat.
+    expect(
+      policyReasons("chat", {
+        "personal-info": 0.9,
+        spam: 0.99,
+        "targets-person": 0.5,
+      }).map((x) => `${x.code}:${x.action}`),
+    ).toEqual(["targets-person:hold", "personal-info:hold", "spam:hold"]);
+    // Reviews keep theirs.
+    expect(
+      policyReasons("review", {
+        "personal-info": 0.5,
+        spam: 0.95,
+        "academic-integrity": 0.5,
+      }).map((x) => `${x.code}:${x.action}`),
+    ).toEqual(["academic-integrity:hold", "personal-info:hold", "spam:remove"]);
   });
 
   it("retries only what a failed check held", () => {
@@ -326,6 +460,33 @@ describe("decide", () => {
     expect(isUrgent([r("violence", "flag", "guard")])).toBe(false);
     expect(isUrgent([r("phone", "hold")])).toBe(false);
   });
+
+  it("lets personal info act on chat only when there's someone else's detail to expose", () => {
+    const labels = (text: string, reasons: ModerationReason[] = []) =>
+      actingPolicyLabels("chat", text, reasons);
+    expect(labels("study group tonight, text me at 301-555-0199")).toEqual([
+      "targets-person",
+      "spam",
+    ]);
+    expect(labels("can someone send me their lab 4 code")).toEqual([
+      "targets-person",
+      "spam",
+    ]);
+    expect(labels("her cell is 240-555-0188, text her")).toEqual(
+      POLICY_LABELS.chat,
+    );
+    expect(
+      labels("you know where he lives", [r("privacy", "flag", "guard")]),
+    ).toEqual(POLICY_LABELS.chat);
+    expect(actingPolicyLabels("review", "anything", [])).toEqual(
+      POLICY_LABELS.review,
+    );
+  });
+
+  it("marks the spam guard's holds as urgent, not the policy model's spam", () => {
+    expect(isUrgent([r("spam", "hold", "cross-room")])).toBe(true);
+    expect(isUrgent([r("spam", "hold", "policy")])).toBe(false);
+  });
 });
 
 describe("policy text", () => {
@@ -339,5 +500,18 @@ describe("policy text", () => {
     expect(good).toContain(String(LENGTH_LIMITS.review.min));
     expect(good).toContain("2,000");
     expect(MODERATION_POLICY.chat.title).toBe("What's allowed");
+  });
+
+  it("asks kindly about answers in chat, and never says a bot reads every message", () => {
+    const chat = MODERATION_POLICY.chat;
+    const all = [
+      chat.intro,
+      chat.process,
+      ...chat.sections.flatMap((s) => [s.heading, ...s.items]),
+    ].join(" ");
+    expect(all).toMatch(/please don't/i);
+    expect(all).toMatch(/answers to graded work/);
+    expect(all).not.toMatch(/checked automatically|automatic check|bot/i);
+    expect(all).toMatch(/kept to these rules/);
   });
 });

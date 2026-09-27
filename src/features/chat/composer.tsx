@@ -16,7 +16,7 @@ import {
   mentionDraft,
   mentionMatches,
 } from "~/core/chat";
-import { MODERATION_POLICY, precheck, REASON_WORDS } from "~/core/moderation";
+import { answersHint, MODERATION_POLICY } from "~/core/moderation";
 import { CHAT_TEXT_MAX } from "~/core/schema";
 import { Button } from "~/ui/button";
 import { Textarea } from "~/ui/input";
@@ -24,13 +24,37 @@ import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 
 // The composer (V2.md §8.6): plain text, Enter to send and Shift+Enter for a
-// new line. What the rules would hold shows under it as a quiet line before
-// you send, never as an error, and "What's allowed" is one tap away. Typing
-// "@" offers the room's members (loaded the first time), and picking one
-// writes their full name, which is how the object finds who to notify.
+// new line, and "What's allowed" one tap away. Nothing here says a message
+// will be checked (the owner, 2026-09-27). The one exception is a gentle
+// nudge, shown once per browser, when a draft looks like answers to graded
+// work; it never stops the message. Typing "@" offers the room's members
+// (loaded the first time), and picking one writes their full name, which is
+// how the object finds who to notify.
 
 /** Show how much room is left once it's this little. */
 const SHOW_LEFT = 200;
+
+/** The graded-answers nudge, once per browser (it's a nudge, not a rule). */
+const ANSWERS_HINT_KEY = "terpsicle:chat-answers-hint-seen";
+
+export const ANSWERS_HINT =
+  "If these are answers to graded work, a hint helps more and keeps everyone's grade safe.";
+
+function answersHintSeen(): boolean {
+  try {
+    return localStorage.getItem(ANSWERS_HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markAnswersHintSeen(): void {
+  try {
+    localStorage.setItem(ANSWERS_HINT_KEY, "1");
+  } catch {
+    // Storage blocked: the nudge may show once more, which is fine.
+  }
+}
 
 export function Composer({
   placeholder,
@@ -65,14 +89,11 @@ export function Composer({
     field.current.setSelectionRange(at, at);
     setCaret(at);
   });
-  // Only what would hold or remove it: flags never stop a message.
-  const hint = useMemo(() => {
-    if (!text) return null;
-    const reason = precheck({ kind: "chat", text }).find(
-      (r) => r.action !== "flag",
-    );
-    return reason ? REASON_WORDS[reason.code] : null;
-  }, [text]);
+  const [hintSeen, setHintSeen] = useState(answersHintSeen);
+  const hint = useMemo(
+    () => !hintSeen && !!text && answersHint(text),
+    [hintSeen, text],
+  );
 
   if (disabledReason)
     return (
@@ -83,6 +104,11 @@ export function Composer({
 
   const send = () => {
     if (!text) return;
+    // Seen once, it's done its job; the message goes either way.
+    if (hint) {
+      markAnswersHintSeen();
+      setHintSeen(true);
+    }
     onSend(text);
     setDraft("");
     field.current?.focus();
@@ -196,8 +222,8 @@ export function Composer({
       <div className="mt-1 flex min-h-4 items-center gap-3 text-muted text-xs">
         <Allowed />
         {hint ? (
-          <span role="status" className="min-w-0 truncate">
-            {hint}. A person may check it before classmates see it.
+          <span role="status" className="min-w-0">
+            {ANSWERS_HINT}
           </span>
         ) : null}
         {left <= SHOW_LEFT ? (

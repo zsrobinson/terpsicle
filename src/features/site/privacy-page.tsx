@@ -94,10 +94,13 @@ export function PrivacyPage() {
           <p>
             Class chats show your real name and Google profile picture to the
             other students in the room. Messages are stored so the room keeps
-            its history. The same kind of moderation model checks messages and
-            holds ones that break the rules, such as answers to graded work, for
-            the moderator to review. A term's rooms become read-only 10 days
-            after classes end, and are deleted 60 days after that.
+            its history. The same kind of moderation model checks messages for
+            serious abuse, such as threats, hate and spam, and holds those for
+            the moderator to review. To catch one message posted across many
+            courses, Terpsicle keeps a fingerprint of each message (which can't
+            be turned back into its words), with its course and time, for an
+            hour. A term's rooms become read-only 10 days after classes end, and
+            are deleted 60 days after that.
           </p>
         </Section>
 

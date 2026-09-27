@@ -29,6 +29,8 @@ export const ReasonSourceSchema = z.enum([
   "system",
   "admin",
   "reports",
+  /** Chat's spam guard: one person's messages across rooms (docs/MODERATION.md §2). */
+  "cross-room",
 ]);
 export type ReasonSource = z.infer<typeof ReasonSourceSchema>;
 
@@ -129,8 +131,8 @@ export const AdminReasonSchema = z.enum([
 ]);
 export type AdminReason = z.infer<typeof AdminReasonSchema>;
 
-/** Why a reader reported something (V2 §9.3). */
-export const ReportReasonSchema = z.enum([
+/** Why a reader reported a review (V2 §9.3). */
+export const ReviewReportReasonSchema = z.enum([
   "personal-info",
   "names-a-student",
   "hate",
@@ -141,7 +143,33 @@ export const ReportReasonSchema = z.enum([
   "off-topic",
   "other",
 ]);
+export type ReviewReportReason = z.infer<typeof ReviewReportReasonSchema>;
+
+/**
+ * Why someone reported a chat message: abuse only, in the menu's order
+ * (the owner, 2026-09-27). `hate` reads "Harassment or hate"; `other` needs
+ * a note.
+ */
+export const ChatReportReasonSchema = z.enum([
+  "hate",
+  "threat",
+  "sexual",
+  "spam",
+  "personal-info",
+  "other",
+]);
+export type ChatReportReason = z.infer<typeof ChatReportReasonSchema>;
+
+/** Every reason either surface takes: what `reports` rows and queue labels hold. */
+export const ReportReasonSchema = z.enum([
+  ...ReviewReportReasonSchema.options,
+  "spam",
+]);
 export type ReportReason = z.infer<typeof ReportReasonSchema>;
+
+/** Which of chat's spam-guard rules a `cross-room` hold matched. */
+export const CrossRoomRuleSchema = z.enum(["repeat", "flood"]);
+export type CrossRoomRule = z.infer<typeof CrossRoomRuleSchema>;
 
 export const ModerationReasonSchema = z.object({
   code: ReasonCodeSchema,
@@ -157,6 +185,8 @@ export const ModerationReasonSchema = z.object({
   adminReason: AdminReasonSchema.optional(),
   /** What readers said, for `reported` reasons: one reason per report reason. */
   report: ReportReasonSchema.optional(),
+  /** Which spam-guard rule matched, for `cross-room` reasons. */
+  crossRoom: CrossRoomRuleSchema.optional(),
 });
 export type ModerationReason = z.infer<typeof ModerationReasonSchema>;
 
@@ -205,6 +235,14 @@ export const ModerationInputSchema = z.object({
 });
 export type ModerationInput = z.infer<typeof ModerationInputSchema>;
 
+const PolicyThresholdOverridesSchema = z.partialRecord(
+  PolicyLabelSchema,
+  z.strictObject({
+    hold: z.number().min(0).max(1),
+    remove: z.number().min(0).max(1).optional(),
+  }),
+);
+
 /**
  * MODERATION_CONFIG (an optional JSON var) overrides the defaults in
  * src/core/moderation/decide.ts and src/server/moderation/models.ts without a
@@ -224,15 +262,9 @@ export const ModerationConfigOverridesSchema = z.strictObject({
   guardActions: z
     .partialRecord(GuardCategorySchema, ModerationActionSchema)
     .optional(),
-  policyThresholds: z
-    .partialRecord(
-      PolicyLabelSchema,
-      z.strictObject({
-        hold: z.number().min(0).max(1),
-        remove: z.number().min(0).max(1).optional(),
-      }),
-    )
-    .optional(),
+  /** Both kinds' thresholds; `chatPolicyThresholds` wins for chat. */
+  policyThresholds: PolicyThresholdOverridesSchema.optional(),
+  chatPolicyThresholds: PolicyThresholdOverridesSchema.optional(),
 });
 export type ModerationConfigOverrides = z.infer<
   typeof ModerationConfigOverridesSchema
@@ -431,18 +463,40 @@ export const ResolveResultSchema = z.discriminatedUnion("status", [
 ]);
 export type ResolveResult = z.infer<typeof ResolveResultSchema>;
 
-// ---------- /api/reports/create (V2 §9.3; Reviews now, Chat later) ----------
+// ---------- /api/reports/create (V2 §9.3) ----------
 
 /** Characters in a report's optional note. */
 export const REPORT_NOTE_MAX = 300;
 
-export const ReportCreateInputSchema = z.strictObject({
-  surface: ModerationKindSchema,
-  /** The review id, or a chat message's ref. */
-  ref: ModerationTargetIdSchema,
-  reason: ReportReasonSchema,
-  note: z.string().trim().max(REPORT_NOTE_MAX).nullable(),
-});
+const ReportNoteSchema = z.string().trim().max(REPORT_NOTE_MAX).nullable();
+
+/**
+ * Each surface takes its own reasons: Reviews' nine, Chat's six (abuse
+ * only). "Something else" in chat needs a note, so a person knows what to
+ * look for.
+ */
+export const ReportCreateInputSchema = z
+  .discriminatedUnion("surface", [
+    z.strictObject({
+      surface: z.literal("review"),
+      /** The review id. */
+      ref: ModerationTargetIdSchema,
+      reason: ReviewReportReasonSchema,
+      note: ReportNoteSchema,
+    }),
+    z.strictObject({
+      surface: z.literal("chat"),
+      /** The message's ref, `<termId>:<courseCode>:<messageId>`. */
+      ref: ModerationTargetIdSchema,
+      reason: ChatReportReasonSchema,
+      note: ReportNoteSchema,
+    }),
+  ])
+  .refine(
+    (input) =>
+      input.surface !== "chat" || input.reason !== "other" || !!input.note,
+    { message: "Say what's wrong", path: ["note"] },
+  );
 export type ReportCreateInput = z.infer<typeof ReportCreateInputSchema>;
 
 export const ReportCreateResultSchema = z.discriminatedUnion("status", [
