@@ -1,7 +1,8 @@
 import { Mark } from "~/app/brand/mark";
 import { SCHEDULE_PATH } from "~/core/routing";
-import { useSignInAction } from "~/features/auth/sign-in-panel";
+import { GoogleButton } from "~/features/auth/sign-in-panel";
 import { EmptyState } from "~/ui/empty-state";
+import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
 import { ProductPage } from "~/ui/product-page";
 
@@ -17,16 +18,20 @@ export const CHAT_SIGN_IN_POINTS = [
 ] as const;
 
 export function SignInMoment({ returnTo }: { returnTo: string }) {
-  const signIn = useSignInAction(returnTo, "chat");
+  // The kit's first visit, with Google's own button as its one action: the
+  // sign-in start is the Worker's address, not a route, so it isn't an
+  // `EmptyState` action (yet).
   return (
     <ProductPage width="note">
-      <EmptyState
-        headingLevel={1}
-        mark={<Mark id="chat" size={40} />}
+      <Mark id="chat" size={40} />
+      <PageHeader
         title="Terpsicle Chat"
-        line="Talk with the people in your classes. Sign in to see your rooms."
-        primary={signIn}
+        status="Talk with the people in your classes. Sign in to see your rooms."
+        className="border-b-0 pb-0"
       />
+      <div className="self-start">
+        <GoogleButton returnTo={returnTo} from="chat" />
+      </div>
       <PageSection title="Before you sign in" className="mt-4">
         <ul className="flex list-disc flex-col gap-2 pl-4 text-muted">
           {CHAT_SIGN_IN_POINTS.map((point) => (
