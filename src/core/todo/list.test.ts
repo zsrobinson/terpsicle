@@ -14,6 +14,7 @@ import {
   listRange,
   newYorkClock,
   openCount,
+  openingWeek,
   TODO_OPEN_REFRESH_MS,
   weekDates,
   weekStart,
@@ -67,6 +68,13 @@ describe("days and weeks", () => {
     expect(dayLabel("2026-09-30", TODAY)).toBe("Tomorrow");
     expect(dayLabel("2026-09-28", TODAY)).toBe("Yesterday");
     expect(dayLabel("2026-10-02", TODAY)).toBe("Friday, Oct 2");
+  });
+
+  it("opens on this week on a weekday, and the coming one at the weekend", () => {
+    expect(openingWeek("2026-09-28")).toBe("2026-09-28"); // Monday
+    expect(openingWeek("2026-10-02")).toBe("2026-09-28"); // Friday
+    expect(openingWeek("2026-10-03")).toBe("2026-10-05"); // Saturday
+    expect(openingWeek("2026-09-27")).toBe("2026-09-28"); // Sunday
   });
 
   it("runs weeks Monday to Sunday", () => {

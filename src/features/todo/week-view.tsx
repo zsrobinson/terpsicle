@@ -7,7 +7,12 @@ import { seasonTermOf, termLabel } from "~/core/catalog/terms";
 import { addDays } from "~/core/ics/dates";
 import type { IsoDate, TodoItem } from "~/core/schema";
 import { formatShortDate } from "~/core/time";
-import { compareItems, dueTimeLabel, weekDates, weekStart } from "~/core/todo";
+import {
+  compareItems,
+  dueTimeLabel,
+  openingWeek,
+  weekDates,
+} from "~/core/todo";
 import { tintStyle } from "~/features/calendar/tint";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
@@ -67,7 +72,8 @@ function Chip({
 }
 
 export function WeekView(props: ListProps & { from: IsoDate; to: IsoDate }) {
-  const thisWeek = weekStart(props.today);
+  // At the weekend, the week ahead; Back still shows the one ending.
+  const thisWeek = openingWeek(props.today);
   const [monday, setMonday] = useState(thisWeek);
   const dates = weekDates(monday);
   const sunday = addDays(monday, 6);

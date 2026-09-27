@@ -87,6 +87,17 @@ export function weekStart(date: IsoDate): IsoDate {
   return addDays(date, -back);
 }
 
+/**
+ * The Monday of the week the Week view opens on: this one on a weekday,
+ * the coming one on a Saturday or Sunday, when what's left of this week is
+ * the weekend and what's due next is what a student is planning for.
+ */
+export function openingWeek(today: IsoDate): IsoDate {
+  const day = weekdayOf(today);
+  const monday = weekStart(today);
+  return day === "Sa" || day === "Su" ? addDays(monday, 7) : monday;
+}
+
 /** Seven dates from a week's Monday. */
 export function weekDates(monday: IsoDate): IsoDate[] {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));

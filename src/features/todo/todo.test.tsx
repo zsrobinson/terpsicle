@@ -138,14 +138,18 @@ describe("who's looking", () => {
       }),
     ).toBeVisible();
     expect(document.querySelector('[data-mark="todo"]')).not.toBeNull();
+    // Says up front what you'll need after signing in.
     expect(
-      screen.getByText(/Sign in to see your ELMS deadlines here/),
+      screen.getByText(/Sign in, then paste your ELMS calendar link/),
     ).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Sign in with Google" }),
     ).toHaveAttribute("href", expect.stringContaining("return=%2Ftodo"));
     const sample = screen.getByRole("list", { name: "A sample list" });
-    expect(within(sample).getAllByRole("checkbox")[0]).toBeDisabled();
+    // A sample, named as one: nothing says "Mark done" on it.
+    expect(
+      within(sample).getByRole("checkbox", { name: "Sample: Project 2" }),
+    ).toBeDisabled();
     expect(client.list).not.toHaveBeenCalled();
   });
 
@@ -159,18 +163,33 @@ describe("who's looking", () => {
     expect(screen.getByText(/Coming soon/)).toBeVisible();
   });
 
-  it("shows the three steps inline until ELMS is connected", async () => {
+  it("is the first-visit template until ELMS is connected, with the paste right there", async () => {
     fakeClient({ feed: null });
     signedIn();
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
     renderTodo();
     expect(
-      await screen.findByRole("heading", { name: "Connect ELMS" }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Connect ELMS to see your deadlines",
+      }),
     ).toBeVisible();
+    expect(document.querySelector('[data-mark="todo"]')).not.toBeNull();
+    // Step one opens ELMS in a new tab, so the paste is still here after.
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: "Open your ELMS calendar" }),
+    );
+    expect(open).toHaveBeenCalledWith(
+      "https://umd.instructure.com/calendar",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    expect(screen.getByLabelText("ELMS calendar link")).toBeVisible();
     expect(
-      screen.getByText(
-        "Click Calendar Feed at the bottom right and copy the link.",
-      ),
-    ).toBeVisible();
+      screen.getByRole("link", { name: "or add a calendar file" }),
+    ).toHaveAttribute("href", "/todo/connect");
+    open.mockRestore();
   });
 });
 
@@ -649,6 +668,21 @@ describe("the list", () => {
     });
   });
 
+  it("opens on the coming week at the weekend, and steps back to the one ending", async () => {
+    vi.setSystemTime(new Date("2026-09-27T16:00:00.000Z")); // a Sunday
+    fakeClient({ items });
+    signedIn();
+    renderTodo("week");
+    expect(
+      await screen.findByRole("heading", { name: "Sep 28 – Oct 4" }),
+    ).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Back a week" }));
+    expect(
+      screen.getByRole("heading", { name: "Sep 21 – Sep 27" }),
+    ).toBeInTheDocument();
+  });
+
   it("asks ELMS again on open when the last read is old, and says when it's too soon", async () => {
     const client = fakeClient({
       items,
@@ -708,6 +742,27 @@ describe("the connect page", () => {
     await user.click(await screen.findByRole("button", { name: "Disconnect" }));
     window.dispatchEvent(new Event("pagehide"));
     expect(client.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("is named ELMS link once connected, and Connect ELMS before", async () => {
+    fakeClient({ items: [aTodoItem()] });
+    signedIn();
+    wrap(<ConnectPage />);
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "ELMS link" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "See your deadlines" }),
+    ).toHaveAttribute("href", "/todo");
+  });
+
+  it("is named Connect ELMS while there's no link", async () => {
+    fakeClient({ feed: null });
+    signedIn();
+    wrap(<ConnectPage />);
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Connect ELMS" }),
+    ).toBeVisible();
   });
 
   it("says what Gradescope does and doesn't send", async () => {

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { RefreshCw } from "lucide-react";
+import { cn } from "cn";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import {
   type ReactNode,
   useCallback,
@@ -33,11 +34,16 @@ import { EmptyState } from "~/ui/empty-state";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
+import { PAGE_WIDTH } from "~/ui/product-page";
 import { PageSkeleton } from "~/ui/skeleton";
 import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { type View, ViewSwitch } from "~/ui/view-switch";
-import { ConnectForm, ConnectSteps, WHAT_COMES_THROUGH } from "./connect-form";
+import {
+  ConnectForm,
+  ELMS_CALENDAR_URL,
+  WHAT_COMES_THROUGH,
+} from "./connect-form";
 import { todoCourseColors, useSchedulerCourses } from "./course-colors";
 import { TodoItemRow } from "./todo-item";
 import {
@@ -49,9 +55,10 @@ import {
 import { useTodo } from "./todo-store";
 import { WeekView } from "./week-view";
 
-// `/todo` (docs/V3.md §3.9): the front door when signed out; the three
-// steps when ELMS isn't connected; the list by day, by course or (desktop)
-// the week once it is. Nothing here is stored in the browser.
+// `/todo` (docs/V3.md §3.9): the front door when signed out; the first
+// visit, with the paste, when ELMS isn't connected; the list by day, by
+// course or (desktop) the week once it is. Nothing here is stored in the
+// browser.
 
 export type TodoView = "day" | "course" | "week";
 
@@ -76,8 +83,9 @@ export function useNow(): { now: number; today: IsoDate } {
 }
 
 /**
- * Where Todo's pages go: the site's frame. The list is an app page (1120);
- * the front door and the connect steps are a form, so a note (560).
+ * Where Todo's pages go: the site's frame. The list is an app page (1120),
+ * and so is its first visit, in a note's column at the list's left edge;
+ * the front door and `/todo/connect` are a note (560).
  */
 export function TodoFrame({
   width = "app",
@@ -157,7 +165,7 @@ export function FrontDoor({ returnTo }: { returnTo: string }) {
         headingLevel={1}
         mark={<Mark id="todo" size={40} />}
         title="Your deadlines and exams, in one list"
-        line="Sign in to see your ELMS deadlines here. We'll remind you the evening before something's due."
+        line="Sign in, then paste your ELMS calendar link, and your deadlines show up here. We'll remind you the evening before something's due."
         primary={signIn}
       />
       <PageSection title="What it looks like" className="mt-4">
@@ -252,28 +260,50 @@ const NO_ANSWER = "ELMS didn't answer. We'll try again in 20 minutes.";
 /** One toast for checks: each check's Undo replaces the last one's. */
 const DONE_TOAST_ID = "todo-done";
 
-/** Signed in, before ELMS: what comes through and the three steps. */
-function InlineConnect() {
+/**
+ * Signed in, before ELMS: Todo's first visit, the kit's template like the
+ * other products'. Step one is its button; the paste is right under it. It
+ * sits in the list's own column, so connecting doesn't move the page: the
+ * list takes its place, at its width.
+ */
+function FirstConnect() {
   return (
-    <>
-      <PageHeader title={TITLE} status="ELMS isn't connected yet" />
-      <PageSection title="Connect ELMS">
-        <div className="flex flex-col gap-4">
-          <p className="text-muted">{WHAT_COMES_THROUGH}</p>
-          <ConnectSteps />
-          <ConnectForm />
-          <p className="text-muted text-sm">
-            We keep the link encrypted. More about it, and adding a calendar
-            file instead:{" "}
-            <WithTooltip label="Connect ELMS, or add a calendar file">
-              <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
-                ELMS and files
-              </Link>
-            </WithTooltip>
-          </p>
-        </div>
-      </PageSection>
-    </>
+    <div className={cn("flex w-full flex-col gap-6", PAGE_WIDTH.note)}>
+      <EmptyState
+        headingLevel={1}
+        mark={<Mark id="todo" size={40} />}
+        title="Connect ELMS to see your deadlines"
+        line="Open your ELMS calendar, click Calendar Feed at the bottom right and copy the link. Paste it below and your deadlines show up here."
+        primary={{
+          label: "Open your ELMS calendar",
+          icon: <ExternalLink aria-hidden="true" />,
+          hint: "Opens ELMS in a new tab, so you can come back and paste",
+          onClick: () =>
+            void window.open(
+              ELMS_CALENDAR_URL,
+              "_blank",
+              "noopener,noreferrer",
+            ),
+        }}
+        secondary={{
+          label: "or add a calendar file",
+          hint: "Add an .ics file instead, from the ELMS link page",
+          to: TODO_CONNECT_PATH,
+        }}
+      />
+      <div className="flex flex-col gap-3">
+        <ConnectForm />
+        <p className="text-muted text-sm">{WHAT_COMES_THROUGH}</p>
+        <p className="text-muted text-sm">
+          We keep the link encrypted.{" "}
+          <WithTooltip label="What we do with the link, and adding a calendar file">
+            <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
+              More about the link
+            </Link>
+          </WithTooltip>
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -355,7 +385,7 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
       </>
     );
 
-  if (!feed && items.length === 0) return <InlineConnect />;
+  if (!feed && items.length === 0) return <FirstConnect />;
 
   const open = openCount(items, done);
   const words = feedWords(feed, now);
@@ -463,17 +493,12 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
 export function TodoPage({ view, day }: { view: TodoView; day?: IsoDate }) {
   const status = useAccount((s) => s.status);
   const on = useAccount((s) => s.flags.todo);
-  // Signed in with nothing from ELMS or a file yet: the three steps.
-  const connectOnly = useTodo(
-    (s) => s.phase === "ready" && !s.feed && s.items.length === 0,
-  );
   if (status !== "loading" && !on) return <TodoOff />;
   // One frame for every state, so the family bar stays mounted (with focus
-  // in it) as the account and the list arrive.
-  const note =
-    status === "signed-out" || (status === "signed-in" && connectOnly);
+  // in it) as the account and the list arrive. Signed in, it's the list's
+  // width from the first visit on, so connecting ELMS doesn't move the page.
   return (
-    <TodoFrame width={note ? "note" : "app"}>
+    <TodoFrame width={status === "signed-out" ? "note" : "app"}>
       {status === "loading" ? (
         <TodoSkeleton />
       ) : status === "signed-out" ? (
