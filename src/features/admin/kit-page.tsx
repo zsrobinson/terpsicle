@@ -713,7 +713,7 @@ function ControlParts() {
   const [email, setEmail] = useState(true);
   const [pace, setPace] = useState<"slower" | "typical" | "faster">("typical");
   const [routes, setRoutes] = useState<"standard" | "accessible">("accessible");
-  const [term, setTerm] = useState("202701");
+  const [term, setTerm] = useState("spring");
   return (
     <>
       <PageSection title="Fields" aside="Input · SearchField">
@@ -869,8 +869,8 @@ function ControlParts() {
               </SelectTrigger>
             </WithTooltip>
             <SelectContent>
-              <SelectItem value="202608">Fall 2026</SelectItem>
-              <SelectItem value="202701">Spring 2027</SelectItem>
+              <SelectItem value="fall">Fall 2026</SelectItem>
+              <SelectItem value="spring">Spring 2027</SelectItem>
             </SelectContent>
           </Select>
           <Button size="lg">Filled, lg</Button>
