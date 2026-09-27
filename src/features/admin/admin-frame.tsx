@@ -66,9 +66,10 @@ export function AdminFrame({
             </WithTooltip>
           ))}
         </nav>
-        {/* The owner's notes on the panel itself ("Pin a note"). */}
+        {/* The owner's notes on the panel itself ("Pin a note"); the icon
+            alone, beside the Feedback page's own tab. */}
         <span className="ml-auto">
-          <FeedbackButton product="admin" pathname={current} />
+          <FeedbackButton product="admin" pathname={current} compact />
         </span>
       </header>
       <AdminGate>
