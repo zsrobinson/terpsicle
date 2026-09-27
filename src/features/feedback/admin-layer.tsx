@@ -1,12 +1,12 @@
 import { Undo2, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ToastAction } from "~/app/toast-action";
 import { elementCrop } from "~/core/feedback/redact";
 import type { FeedbackProduct, Pin } from "~/core/schema/feedback";
 import { feedbackApi } from "~/server/fns/feedback-api";
 import { Button } from "~/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
+import { ToastAction } from "~/ui/toast";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { describeElement } from "./element";
 import { usePins } from "./pin-store";

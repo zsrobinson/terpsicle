@@ -1,8 +1,8 @@
 import { Redo2, Undo2 } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { modKey } from "~/app/shortcuts";
-import { WithTooltip } from "~/ui/tooltip";
+import { NOTE_MS, ToastAction, UNDO_MS } from "~/ui/toast";
 import { useFourYear } from "./store";
 
 // Every change says what it did, with Undo (SPEC §3.1): Plan's way of never
@@ -10,39 +10,14 @@ import { useFourYear } from "./store";
 
 const TOAST_ID = "four-year-change";
 
-/** Long enough to read and reach Undo (WCAG 2.2.1); ⌘Z still works after. */
-export const PLAN_TOAST_MS = 10_000;
-
-function ToastAction({
-  label,
-  shortcut,
-  icon,
-  onClick,
-}: {
-  label: string;
-  shortcut: string;
-  icon: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <WithTooltip label={label} shortcut={shortcut}>
-      <button
-        type="button"
-        onClick={onClick}
-        className="ml-auto flex h-11 shrink-0 items-center gap-1.5 border border-hairline bg-raised px-2.5 font-medium text-base text-fg transition-colors hover:bg-hover md:h-7"
-      >
-        {icon}
-        {label}
-      </button>
-    </WithTooltip>
-  );
-}
+/** The app's Undo window; ⌘Z still works after. */
+export const PLAN_TOAST_MS = UNDO_MS;
 
 /** A quiet line in the same place, for something that didn't change anything. */
 export function showPlanNote(label: string): void {
   toast(label, {
     id: TOAST_ID,
-    duration: PLAN_TOAST_MS / 2,
+    duration: NOTE_MS,
     description: undefined,
     action: undefined,
   });

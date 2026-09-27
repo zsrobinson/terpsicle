@@ -1,10 +1,10 @@
-import { Undo2 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { feedWords } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { GoogleButton } from "~/features/auth/sign-in-panel";
 import { Button } from "~/ui/button";
+import { undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   ConnectForm,
@@ -22,7 +22,7 @@ import {
   TodoOff,
   useNow,
 } from "./todo-page";
-import { DISCONNECT_UNDO_MS, useTodo } from "./todo-store";
+import { useTodo } from "./todo-store";
 
 // `/todo/connect` (docs/V3.md §3.2, §3.7): connect ELMS, see how the
 // connection is doing, disconnect (Undo, no dialog), and add a calendar file.
@@ -35,21 +35,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="font-semibold text-lg">{title}</h2>
       {children}
     </section>
-  );
-}
-
-function UndoButton({ onClick }: { onClick: () => void }) {
-  return (
-    <WithTooltip label="Keep ELMS connected">
-      <button
-        type="button"
-        onClick={onClick}
-        className="ml-auto flex h-7 shrink-0 items-center gap-1.5 border border-hairline bg-raised px-2.5 font-medium text-base text-fg transition-colors hover:bg-hover"
-      >
-        <Undo2 size={13} aria-hidden="true" />
-        Undo
-      </button>
-    </WithTooltip>
   );
 }
 
@@ -69,18 +54,12 @@ function Connection() {
   const onDisconnect = () => {
     setConnected(false);
     disconnect();
-    toast("ELMS disconnected", {
+    undoToast({
       id: DISCONNECT_TOAST,
+      message: "ELMS disconnected",
       description: "We'll delete the link and its deadlines in a few seconds.",
-      duration: DISCONNECT_UNDO_MS,
-      action: (
-        <UndoButton
-          onClick={() => {
-            undoDisconnect();
-            toast.dismiss(DISCONNECT_TOAST);
-          }}
-        />
-      ),
+      tooltip: "Keep ELMS connected",
+      onUndo: undoDisconnect,
     });
   };
 

@@ -88,7 +88,7 @@ function useBootstrap(config: ClientConfig) {
         if (cancelled) return;
         persistence = startPersisting(db, (error) => {
           console.error(error);
-          toast.error(
+          toast(
             "Couldn't save your last change. Your browser's storage may be full.",
             { id: "storage-write" },
           );
@@ -137,7 +137,7 @@ function useBootstrap(config: ClientConfig) {
         if (cancelled) return;
         console.error(error);
         hydrateEmpty();
-        toast.error(
+        toast(
           "This browser won't let Terpsicle store plans, so changes last only until you close the tab.",
           { id: "storage-open", duration: 10_000 },
         );

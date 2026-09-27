@@ -10,6 +10,7 @@ import type {
 } from "~/core/schema";
 import { isStale, listRange } from "~/core/todo";
 import { todoApi } from "~/server/fns/todo";
+import { UNDO_MS } from "~/ui/toast";
 
 // Terpsicle Todo in the browser (docs/V3.md §3.8): the last list, in memory
 // only. Nothing from Todo goes to IndexedDB or localStorage: the data is the
@@ -25,8 +26,8 @@ export function setTodoClient(next: TodoClient): void {
   client = next;
 }
 
-/** How long Disconnect waits for Undo before it deletes anything (V3 §3.2). */
-export const DISCONNECT_UNDO_MS = 8_000;
+/** How long Disconnect waits for Undo before it deletes anything (V3 §3.2): the app's Undo window. */
+export const DISCONNECT_UNDO_MS = UNDO_MS;
 
 export type TodoPhase = "idle" | "loading" | "ready" | "failed";
 

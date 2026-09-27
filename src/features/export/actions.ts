@@ -27,7 +27,7 @@ async function writeClipboard(text: string): Promise<boolean> {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    toast.error(
+    toast(
       "Couldn't copy: this browser blocked the clipboard. Allow it for this site and try again.",
       { id: "clipboard" },
     );

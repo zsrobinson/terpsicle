@@ -270,7 +270,7 @@ function useSharedLink(
           : "newer-version",
     });
     if (!result.ok) {
-      toast.error(result.error.message);
+      toast(result.error.message);
       onClear?.();
     }
   }, [param, open, close, onClear]);
