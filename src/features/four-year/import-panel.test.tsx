@@ -235,9 +235,9 @@ describe("check", () => {
     expect(
       screen.getByText(/Pick a GenEd for 2 courses where Testudo says "or"/),
     ).toBeInTheDocument();
-    const psyc = screen.getByRole("group", { name: /PSYC100/ });
+    const psyc = screen.getByRole("radiogroup", { name: /PSYC100/ });
     await user.click(within(psyc).getByRole("radio", { name: "DSNS" }));
-    const aasp = screen.getByRole("group", { name: /AASP100/ });
+    const aasp = screen.getByRole("radiogroup", { name: /AASP100/ });
     await user.click(within(aasp).getByRole("radio", { name: "DSHU" }));
     expect(button).toBeEnabled();
   });
@@ -302,7 +302,7 @@ describe("import", () => {
     ] as const)
       await panel.user.click(
         within(
-          screen.getByRole("group", { name: new RegExp(course) }),
+          screen.getByRole("radiogroup", { name: new RegExp(course) }),
         ).getByRole("radio", { name: code }),
       );
     if (options.keepGrades === false)
@@ -375,7 +375,7 @@ describe("import", () => {
     ] as const)
       await panel.user.click(
         within(
-          screen.getByRole("group", { name: new RegExp(course) }),
+          screen.getByRole("radiogroup", { name: new RegExp(course) }),
         ).getByRole("radio", { name: code }),
       );
     await panel.user.click(

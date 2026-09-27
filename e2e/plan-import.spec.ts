@@ -77,11 +77,11 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
 
   // The "or" chooser, then the button is ready.
   await page
-    .getByRole("group", { name: /PSYC100/ })
+    .getByRole("radiogroup", { name: /PSYC100/ })
     .getByText("DSNS", { exact: true })
     .click();
   await page
-    .getByRole("group", { name: /AASP100/ })
+    .getByRole("radiogroup", { name: /AASP100/ })
     .getByText("DSHU", { exact: true })
     .click();
   // Transfer mapping: AP Chemistry counts as CHEM131 (not in the mock catalog).

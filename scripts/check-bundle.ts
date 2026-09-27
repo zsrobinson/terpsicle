@@ -200,7 +200,13 @@ const PLAN_ROUTE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
     pattern: /^src\/core\/ics\/(?!dates\.ts$)/,
     why: ".ics export loads with Export",
   },
-  ...SCHEDULE_NEVER_EAGER.filter((r) => !r.pattern.test("src/core/ics/x.ts")),
+  // Plan's first visit asks when you started with the kit's Select, so
+  // Radix's select is Plan's from the start (v3/cohesion-plan).
+  ...SCHEDULE_NEVER_EAGER.filter(
+    (r) =>
+      !r.pattern.test("src/core/ics/x.ts") &&
+      !r.pattern.test("node_modules/@radix-ui/react-select/index.mjs"),
+  ),
 ];
 
 /** The owner's panel loads with /admin, never with anyone else's pages. */

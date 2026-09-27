@@ -167,10 +167,11 @@ describe("the first visit", () => {
         name: "Plan your four years",
       }),
     ).toBeVisible();
+    // Equal paths: both filled, the same size.
     for (const name of ["Import your transcript", "Start from a sample plan"])
-      expect(screen.getByRole("button", { name })).toHaveAttribute(
-        "data-slot",
-        "button",
+      expect(screen.getByRole("button", { name })).toHaveClass(
+        "bg-accent",
+        "h-9",
       );
     expect(screen.queryByText("Coming next")).toBeNull();
     const started = screen.getByLabelText("I started at UMD in");
@@ -764,7 +765,7 @@ describe("on a phone", () => {
   it("opens the first visit's import with the drawer all the way up", async () => {
     const user = renderPlan();
     await user.click(
-      await screen.findByRole("button", { name: "Paste your transcript" }),
+      await screen.findByRole("button", { name: "Import your transcript" }),
     );
     await waitFor(() =>
       expect(router.state.location.pathname).toBe("/plan/import"),

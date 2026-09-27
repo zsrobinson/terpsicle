@@ -128,11 +128,11 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
       .click();
     await laptop.getByLabel("Paste your unofficial transcript").fill(PASTE);
     await laptop
-      .getByRole("group", { name: /PSYC100/ })
+      .getByRole("radiogroup", { name: /PSYC100/ })
       .getByText("DSNS", { exact: true })
       .click();
     await laptop
-      .getByRole("group", { name: /AASP100/ })
+      .getByRole("radiogroup", { name: /AASP100/ })
       .getByText("DSHU", { exact: true })
       .click();
     await laptop.getByRole("button", { name: /^Import \d+ courses$/ }).click();
