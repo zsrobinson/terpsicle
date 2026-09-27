@@ -2,8 +2,13 @@ import type { z } from "zod";
 import { clientConfig } from "~/app/config";
 import { pickTerm } from "~/core/catalog";
 import {
+  COURSE_INDEX_MANIFEST_KEY,
   type Course,
   type CourseCode,
+  CourseIndexManifestSchema,
+  CourseSearchFileSchema,
+  type CourseSearchRow,
+  courseSearchKey,
   DeptChunkSchema,
   deptChunkKey,
   ManifestSchema,
@@ -72,6 +77,8 @@ export interface ChatData {
     termId: TermId,
     codes: Iterable<CourseCode>,
   ): Promise<Map<CourseCode, Course>>;
+  /** Every course's code and title, any term: the course index's search file (Plan and Reviews search it too). */
+  courseSearch(): Promise<readonly CourseSearchRow[]>;
 }
 
 /** Published data from `/data/<key>`, validated like everything else read there. */
@@ -108,6 +115,17 @@ export function fetchChatData(
           }),
       );
       return out;
+    },
+    courseSearch: async () => {
+      const manifest = await read(
+        COURSE_INDEX_MANIFEST_KEY,
+        CourseIndexManifestSchema,
+      );
+      const file = await read(
+        courseSearchKey(manifest.search.hash),
+        CourseSearchFileSchema,
+      );
+      return file.courses;
     },
   };
 }
