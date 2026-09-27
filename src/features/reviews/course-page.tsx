@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
+import { ChevronDown, PenLine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
+import { PanelNote } from "~/app/panel";
 import { formatGpa } from "~/core/grades/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
 import {
@@ -10,10 +12,21 @@ import {
   terpsicleRating,
 } from "~/core/reviews";
 import type { CourseCode, InstructorId, PublicReview } from "~/core/schema";
-import { Skeleton } from "~/ui/skeleton";
+import { Button } from "~/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
+import { ListRow } from "~/ui/list-row";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer, type ComposerTarget } from "./composer";
-import { Breadcrumbs, PageTitle, ReviewsFrame, Section } from "./frame";
+import { PAGE_ROW, ReviewsFrame } from "./frame";
 import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
 import { GradesBlock } from "./planetterp-blocks";
 import { CombinedRatingBadge } from "./rating";
@@ -76,15 +89,15 @@ export function CoursePage({ data }: { data: CoursePageData }) {
 
   return (
     <ReviewsFrame page="course">
-      <Breadcrumbs crumbs={[{ label: "Reviews", to: "/reviews" }]} />
-      <PageTitle
+      <PageHeader
+        back={{ label: "Reviews", to: "/reviews" }}
         title={
           <>
             <span className="ident">{code}</span>
-            {title ? <span className="font-normal"> · {title}</span> : null}
+            {title ? ` · ${title}` : null}
           </>
         }
-        sub={
+        status={
           term ? (
             <>
               Offered in {term.name} ·{" "}
@@ -93,7 +106,7 @@ export function CoursePage({ data }: { data: CoursePageData }) {
                   to="/schedule/course/$code"
                   params={{ code }}
                   onClick={() => crossLinkClicked("reviews", "schedule")}
-                  className="text-fg underline underline-offset-2"
+                  className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
                 >
                   {viewWords("schedule")}
                 </Link>
@@ -103,28 +116,37 @@ export function CoursePage({ data }: { data: CoursePageData }) {
             "Not offered this term"
           )
         }
+        actions={
+          level === "on" && rows.length > 0 ? (
+            <WriteMenu
+              code={code}
+              rows={rows}
+              term={term?.name ?? null}
+              onWrite={setWritingFor}
+            />
+          ) : undefined
+        }
       />
 
-      <Section title="Grades">
-        <div className="pt-3">
-          {grades ? (
-            <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
-          ) : (
-            <p className="text-muted">
-              PlanetTerp has no grades for {code} yet.
-            </p>
-          )}
-          {freshness ? (
-            <p className="mt-1 text-faint text-xs">{freshness}</p>
-          ) : null}
-        </div>
-      </Section>
+      <PageSection title="Grades">
+        {grades ? (
+          <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
+        ) : (
+          <PanelNote className={PAGE_ROW}>
+            PlanetTerp has no grades for {code} yet.
+          </PanelNote>
+        )}
+        {freshness ? <p className="text-faint text-xs">{freshness}</p> : null}
+      </PageSection>
 
-      <Section title="Instructors" count={rows.length}>
+      <PageSection
+        title="Instructors"
+        aside={rows.length > 0 ? rows.length : undefined}
+      >
         {rows.length === 0 ? (
-          <p className="py-3 text-muted">
+          <PanelNote className={PAGE_ROW}>
             We don't know who's taught {code} yet.
-          </p>
+          </PanelNote>
         ) : (
           <ul>
             {rows.map((row) => (
@@ -142,52 +164,114 @@ export function CoursePage({ data }: { data: CoursePageData }) {
             ))}
           </ul>
         )}
-      </Section>
+      </PageSection>
 
       {level === "read" || level === "on" ? (
-        <Section title={`Newest reviews of ${code}`}>
+        <PageSection title={`Newest reviews of ${code}`}>
           {readIds.some(
             (id) =>
               lists[id]?.status !== "ready" && lists[id]?.status !== "error",
           ) ? (
-            <div className="space-y-2 py-3" aria-busy="true">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-4/5" />
-            </div>
+            <RowSkeleton
+              rows={2}
+              inset={false}
+              label={`Loading reviews of ${code}`}
+            />
           ) : newest.length === 0 ? (
-            <p className="py-3 text-muted">
+            <PanelNote className={PAGE_ROW}>
               No reviews of {code} on Terpsicle yet.
-            </p>
+            </PanelNote>
           ) : (
-            newest.slice(0, NEWEST).map((r) => (
-              <div key={r.id}>
-                <p className="pt-3 text-muted text-sm">
-                  About{" "}
-                  <WithTooltip
-                    label={`All reviews of ${nameOf.get(r.instructorId) ?? "them"} in ${code}`}
-                  >
-                    <Link
-                      to="/reviews/instructors/$id"
-                      params={{ id: r.instructorId }}
-                      search={{ course: code }}
-                      className="font-medium text-fg hover:underline"
-                    >
-                      {nameOf.get(r.instructorId) ?? "this instructor"}
-                    </Link>
-                  </WithTooltip>
-                </p>
+            <ul>
+              {newest.slice(0, NEWEST).map((r) => (
                 <ReviewCard
+                  key={r.id}
                   review={r}
                   own={ownById.get(r.id) ?? null}
                   level={level}
                   showCourse={false}
+                  about={
+                    <>
+                      About{" "}
+                      <WithTooltip
+                        label={`All reviews of ${nameOf.get(r.instructorId) ?? "them"} in ${code}`}
+                      >
+                        <Link
+                          to="/reviews/instructors/$id"
+                          params={{ id: r.instructorId }}
+                          search={{ course: code }}
+                          className="font-medium text-fg hover:underline"
+                        >
+                          {nameOf.get(r.instructorId) ?? "this instructor"}
+                        </Link>
+                      </WithTooltip>
+                    </>
+                  }
                 />
-              </div>
-            ))
+              ))}
+            </ul>
           )}
-        </Section>
+        </PageSection>
       ) : null}
     </ReviewsFrame>
+  );
+}
+
+/**
+ * The page's one filled action. A review is of an instructor in a course,
+ * so it asks who taught you: their page, where the form opens, or the form
+ * right here for someone PlanetTerp doesn't know yet.
+ */
+function WriteMenu({
+  code,
+  rows,
+  term,
+  onWrite,
+}: {
+  code: CourseCode;
+  rows: readonly Row[];
+  term: string | null;
+  onWrite: (name: string) => void;
+}) {
+  const signedIn = useSignedIn();
+  if (signedIn === "loading") return null;
+  return (
+    <DropdownMenu>
+      <WithTooltip label={`Pick who taught you ${code}`}>
+        <DropdownMenuTrigger asChild>
+          <Button>
+            <PenLine aria-hidden="true" />
+            Write a review
+            <ChevronDown aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+      </WithTooltip>
+      <DropdownMenuContent align="end" className="max-h-80">
+        <DropdownMenuLabel>Who taught you?</DropdownMenuLabel>
+        {rows.map((row) =>
+          row.id ? (
+            <DropdownMenuItem key={row.id} asChild>
+              <Link
+                to="/reviews/instructors/$id"
+                params={{ id: row.id }}
+                search={{ course: code }}
+              >
+                {row.name}
+                {row.teaching && term ? (
+                  <span className="ml-auto pl-3 text-muted text-sm">
+                    {term}
+                  </span>
+                ) : null}
+              </Link>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem key={row.name} onSelect={() => onWrite(row.name)}>
+              {row.name}
+            </DropdownMenuItem>
+          ),
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -241,51 +325,61 @@ function InstructorRow({
     course: code,
   };
   return (
-    <li className="border-hairline border-b py-2">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        {row.id ? (
-          <WithTooltip label={`${row.name}'s reviews and grades in ${code}`}>
-            <Link
-              to="/reviews/instructors/$id"
-              params={{ id: row.id }}
-              search={{ course: code }}
-              className="font-medium hover:underline"
-            >
-              {row.name}
-            </Link>
-          </WithTooltip>
-        ) : (
-          <span className="font-medium">{row.name}</span>
-        )}
-        {row.teaching && term ? (
-          <span className="bg-hover px-1.5 text-muted text-xs">
-            Teaching {term}
+    // The row, then the form it opens under it: one item of the list.
+    <li>
+      <ListRow
+        className={PAGE_ROW}
+        trail={
+          <span className="flex items-center gap-3">
+            <CombinedRatingBadge combined={combined} />
+            {row.gpa !== null ? (
+              <span className="text-muted">GPA {formatGpa(row.gpa)}</span>
+            ) : null}
+            {row.id === null && (!writing || signedIn !== true) ? (
+              <WriteButton
+                level={level}
+                target={target}
+                existing={null}
+                onWrite={writing ? onClose : onWrite}
+                label="Write the first review"
+                size="row"
+              />
+            ) : null}
           </span>
-        ) : null}
-        <span className="ml-auto flex items-center gap-3 text-sm">
-          <CombinedRatingBadge combined={combined} />
-          {row.gpa !== null ? (
-            <span className="tnum text-muted">GPA {formatGpa(row.gpa)}</span>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {row.id ? (
+            <WithTooltip label={`${row.name}'s reviews and grades in ${code}`}>
+              <Link
+                to="/reviews/instructors/$id"
+                params={{ id: row.id }}
+                search={{ course: code }}
+                className="font-medium hover:underline"
+              >
+                {row.name}
+              </Link>
+            </WithTooltip>
+          ) : (
+            <span className="font-medium">{row.name}</span>
+          )}
+          {row.teaching && term ? (
+            <span className="border border-hairline-strong px-1.5 text-muted text-xs">
+              Teaching {term}
+            </span>
           ) : null}
-          {row.id === null && (!writing || signedIn !== true) ? (
-            <WriteButton
-              level={level}
-              target={target}
-              existing={null}
-              onWrite={writing ? onClose : onWrite}
-              label="Write the first review"
-            />
-          ) : null}
-        </span>
-      </div>
-      {writing && signedIn !== true ? (
-        <SignInPrompt>
-          Sign in with your UMD account to write a review. Readers won't see who
-          wrote it.
-        </SignInPrompt>
-      ) : writing ? (
-        <div className="mt-2">
-          <Composer target={target} existing={null} onClose={onClose} />
+        </div>
+      </ListRow>
+      {writing ? (
+        <div className="pb-3">
+          {signedIn !== true ? (
+            <SignInPrompt>
+              Sign in with your UMD account to write a review. Readers won't see
+              who wrote it.
+            </SignInPrompt>
+          ) : (
+            <Composer target={target} existing={null} onClose={onClose} />
+          )}
         </div>
       ) : null}
     </li>

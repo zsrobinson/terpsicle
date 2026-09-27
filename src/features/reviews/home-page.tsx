@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { PenLine, Search } from "lucide-react";
+import { cn } from "cn";
+import { PenLine } from "lucide-react";
 import {
   type RefObject,
   useEffect,
@@ -8,12 +9,19 @@ import {
   useRef,
   useState,
 } from "react";
+import { PanelNote } from "~/app/panel";
 import type { CourseCode, CourseSearchRow } from "~/core/schema";
 import { formatMonthYear } from "~/core/time/format";
 import { Button } from "~/ui/button";
+import { InlineError } from "~/ui/inline-error";
+import { SearchField } from "~/ui/input";
+import { ListRow } from "~/ui/list-row";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { browserReader, loadCourseSearch, useLoaded } from "./data";
-import { PageTitle, ReviewsFrame, Section } from "./frame";
+import { PAGE_ROW, ReviewsFrame, ROW_LINK } from "./frame";
 import { useReviewsLevel, useSignedIn } from "./level";
 import { isDeptQuery, type ReviewsHomeData, searchResults } from "./page-data";
 import { readPlanCourses } from "./your-classes";
@@ -43,9 +51,24 @@ export function ReviewsHomePage({
   }, []);
   return (
     <ReviewsFrame page="home">
-      <PageTitle
+      <PageHeader
         title="Terpsicle Reviews"
-        sub="Ratings, grades and reviews for UMD courses and instructors. Anyone can read them."
+        status="Ratings, grades and reviews for UMD courses and instructors. Anyone can read them."
+        actions={
+          level === "on" ? (
+            <WithTooltip label="Find the course you took, then pick your instructor">
+              <Button
+                onClick={() => {
+                  setWriting(true);
+                  searchRef.current?.focus();
+                }}
+              >
+                <PenLine aria-hidden="true" />
+                Write a review
+              </Button>
+            </WithTooltip>
+          ) : undefined
+        }
       />
       <CourseSearch
         initialQuery={q}
@@ -58,53 +81,68 @@ export function ReviewsHomePage({
         }
       />
       {yours.length > 0 ? (
-        <Section title="Your classes">
-          <ul className="flex flex-wrap gap-1 pt-3">
+        <PageSection
+          title="Your classes"
+          aside="From the plans saved in this browser"
+        >
+          <ul className="flex flex-wrap gap-2">
             {yours.map((code) => (
               <li key={code}>
-                <CourseChip code={code} />
+                <WithTooltip label={`Reviews and grades for ${code}`}>
+                  <Button variant="outline" size="sm" className="ident" asChild>
+                    <Link to="/reviews/courses/$code" params={{ code }}>
+                      {code}
+                    </Link>
+                  </Button>
+                </WithTooltip>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-faint text-xs">
-            From the plans saved in this browser.
-          </p>
-        </Section>
+        </PageSection>
       ) : null}
 
       {/* min-w-0: long titles truncate instead of widening a column. */}
-      <div className="grid gap-x-8 sm:grid-cols-2 [&>*]:min-w-0">
+      <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 [&>*]:min-w-0">
         {data.mostTaken.length > 0 ? (
-          <Section title="Most taken">
-            <ul className="pt-1">
+          <PageSection title="Most taken">
+            <ul>
               {data.mostTaken
                 .slice(0, MOST_TAKEN_SHOWN)
                 .map(([code, title, students]) => (
-                  <li
+                  <ListRow
                     key={code}
-                    className="flex items-baseline gap-2 border-hairline border-b py-1.5"
+                    as="li"
+                    className={cn(PAGE_ROW, "relative")}
+                    trail={
+                      <span className="text-muted">
+                        {students.toLocaleString("en-US")}
+                      </span>
+                    }
                   >
                     <CourseLink code={code} title={title} />
-                    <span className="tnum ml-auto shrink-0 text-muted text-sm">
-                      {students.toLocaleString("en-US")}
-                    </span>
-                  </li>
+                  </ListRow>
                 ))}
             </ul>
-            <p className="mt-2 text-faint text-xs">
+            <p className="text-faint text-xs">
               Offered now, by how many students PlanetTerp's grade data counts.
             </p>
-          </Section>
+          </PageSection>
         ) : null}
 
-        <div>
+        <div className="flex flex-col gap-4">
           {data.recent.length > 0 ? (
-            <Section title="Recently reviewed">
-              <ul className="pt-1">
+            <PageSection title="Recently reviewed">
+              <ul>
                 {data.recent.map((r) => (
-                  <li
+                  <ListRow
                     key={`${r.course}:${r.instructorId}`}
-                    className="flex items-baseline gap-2 border-hairline border-b py-1.5"
+                    as="li"
+                    className={cn(PAGE_ROW, "relative")}
+                    trail={
+                      <span className="text-muted">
+                        {formatMonthYear(r.month)}
+                      </span>
+                    }
                   >
                     <WithTooltip
                       label={`Reviews of ${r.instructorName} in ${r.course}`}
@@ -113,23 +151,23 @@ export function ReviewsHomePage({
                         to="/reviews/instructors/$id"
                         params={{ id: r.instructorId }}
                         search={{ course: r.course }}
-                        className="min-w-0 truncate hover:underline"
+                        className={cn(
+                          ROW_LINK,
+                          "block truncate hover:underline",
+                        )}
                       >
                         <span className="ident font-medium">{r.course}</span>{" "}
                         <span className="text-muted">·</span> {r.instructorName}
                       </Link>
                     </WithTooltip>
-                    <span className="ml-auto shrink-0 text-muted text-sm">
-                      {formatMonthYear(r.month)}
-                    </span>
-                  </li>
+                  </ListRow>
                 ))}
               </ul>
-            </Section>
+            </PageSection>
           ) : null}
 
-          <Section title="Where the numbers come from">
-            <div className="space-y-2 pt-3 text-muted leading-5">
+          <PageSection title="Where the numbers come from">
+            <div className="space-y-2 text-muted leading-5">
               {level === "read" || level === "on" ? (
                 <p>
                   Ratings combine PlanetTerp's student reviews, with thanks, and
@@ -153,48 +191,58 @@ export function ReviewsHomePage({
                 </p>
               ) : null}
             </div>
-            {level === "on" ? (
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <WithTooltip label="Find the course you took, then pick your instructor">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setWriting(true);
-                      searchRef.current?.focus();
-                    }}
+            <nav
+              aria-label="More about Reviews"
+              className="flex flex-wrap gap-x-4 gap-y-1 text-sm"
+            >
+              <WithTooltip label="What reviews can and can't say, and how checks work">
+                <Link
+                  to="/reviews/policy"
+                  className="font-medium text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+                >
+                  What's allowed
+                </Link>
+              </WithTooltip>
+              {signedIn === true && level !== "off" ? (
+                <WithTooltip label="Everything you've written, and where each stands">
+                  <Link
+                    to="/reviews/mine"
+                    className="font-medium text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
                   >
-                    <PenLine aria-hidden="true" />
-                    Write a review
-                  </Button>
+                    Your reviews
+                  </Link>
                 </WithTooltip>
-                <span className="text-faint text-xs">
-                  Find the course, then pick your instructor.
-                </span>
-              </div>
-            ) : null}
-          </Section>
+              ) : null}
+            </nav>
+          </PageSection>
         </div>
       </div>
 
       {data.departments.length > 0 ? (
-        <Section
+        <PageSection
           title="Departments"
-          count={data.departments.length}
-          right={
-            data.term ? (
-              <span className="text-muted text-sm">{data.term.name}</span>
-            ) : undefined
+          aside={
+            data.term
+              ? `${data.departments.length} in ${data.term.name}`
+              : data.departments.length
           }
         >
-          <ul className="gap-x-6 pt-2 sm:columns-2 lg:columns-3">
+          <ul className="gap-x-6 sm:columns-2 lg:columns-3">
             {data.departments.map((d) => (
-              <li key={d.code} className="break-inside-avoid">
+              <ListRow
+                key={d.code}
+                as="li"
+                density="compact"
+                className={cn(PAGE_ROW, "relative break-inside-avoid")}
+              >
                 <WithTooltip label={`Every ${d.code} course`}>
                   <Link
                     to="/reviews"
                     search={{ q: d.code }}
-                    className="flex min-h-6 items-center gap-2 text-sm hover:underline"
+                    className={cn(
+                      ROW_LINK,
+                      "flex min-w-0 items-baseline gap-2 hover:underline",
+                    )}
                   >
                     <span className="ident w-11 shrink-0 font-medium">
                       {d.code}
@@ -202,48 +250,17 @@ export function ReviewsHomePage({
                     <span className="truncate text-muted">{d.name}</span>
                   </Link>
                 </WithTooltip>
-              </li>
+              </ListRow>
             ))}
           </ul>
-        </Section>
+        </PageSection>
       ) : null}
 
-      <nav
-        aria-label="More"
-        className="mt-8 flex flex-wrap gap-4 text-muted text-sm"
-      >
-        {signedIn === true && level !== "off" ? (
-          <WithTooltip label="Everything you've written, and where each stands">
-            <Link to="/reviews/mine" className="hover:text-fg">
-              Your reviews
-            </Link>
-          </WithTooltip>
-        ) : null}
-        <WithTooltip label="What reviews can and can't say, and how checks work">
-          <Link to="/reviews/policy" className="hover:text-fg">
-            What's allowed
-          </Link>
-        </WithTooltip>
-      </nav>
-      <p className="mt-2 text-faint text-xs">
+      <p className="text-faint text-xs">
         Ratings and grades include PlanetTerp's, with thanks. Terpsicle isn't
         affiliated with the University of Maryland.
       </p>
     </ReviewsFrame>
-  );
-}
-
-function CourseChip({ code }: { code: CourseCode }) {
-  return (
-    <WithTooltip label={`Reviews and grades for ${code}`}>
-      <Link
-        to="/reviews/courses/$code"
-        params={{ code }}
-        className="ident flex h-7 items-center rounded-md border border-hairline px-2.5 text-sm hover:bg-hover"
-      >
-        {code}
-      </Link>
-    </WithTooltip>
   );
 }
 
@@ -253,7 +270,10 @@ function CourseLink({ code, title }: { code: CourseCode; title: string }) {
       <Link
         to="/reviews/courses/$code"
         params={{ code }}
-        className="flex min-w-0 items-baseline gap-2 hover:underline"
+        className={cn(
+          ROW_LINK,
+          "flex min-w-0 items-baseline gap-2 hover:underline",
+        )}
       >
         <span className="ident shrink-0 font-medium">{code}</span>
         <span className="truncate text-muted">{title}</span>
@@ -299,6 +319,15 @@ function CourseSearch({
   );
   const open = (code: CourseCode) =>
     void navigate({ to: "/reviews/courses/$code", params: { code } });
+  // Typing replaces: Back leaves the page, not each letter.
+  const search = (text: string) => {
+    setQuery(text);
+    void navigate({
+      to: "/reviews",
+      search: text.trim() ? { q: text } : {},
+      replace: true,
+    });
+  };
   const typed = query.trim();
   return (
     <form
@@ -312,59 +341,61 @@ function CourseSearch({
       <label htmlFor={`${listId}-input`} className="sr-only">
         Find a course
       </label>
-      <div className="flex h-9 items-center gap-2 border border-hairline-strong bg-raised px-2.5 focus-within:border-fg/40">
-        <Search size={14} aria-hidden="true" className="text-faint" />
-        <WithTooltip label="Search by course code, title or department">
-          <input
-            ref={inputRef}
-            id={`${listId}-input`}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              // Typing replaces: Back leaves the page, not each letter.
-              void navigate({
-                to: "/reviews",
-                search: e.target.value.trim() ? { q: e.target.value } : {},
-                replace: true,
-              });
-            }}
-            onFocus={() => setWanted(true)}
-            placeholder={
-              placeholder ?? "Find a course: CMSC351, algorithms, ENGL…"
-            }
-            autoComplete="off"
-            aria-controls={listId}
-            className="h-full flex-1 bg-transparent text-base placeholder:text-faint focus:outline-none"
-          />
-        </WithTooltip>
-      </div>
+      <WithTooltip label="Search by course code, title or department">
+        <SearchField
+          ref={inputRef}
+          id={`${listId}-input`}
+          value={query}
+          onChange={(e) => search(e.target.value)}
+          onClear={() => {
+            search("");
+            inputRef.current?.focus();
+          }}
+          onFocus={() => setWanted(true)}
+          placeholder={
+            placeholder ?? "Find a course: CMSC351, algorithms, ENGL…"
+          }
+          autoComplete="off"
+          aria-controls={listId}
+        />
+      </WithTooltip>
+      {typed === "" ? null : rows.status === "error" ? (
+        <InlineError
+          message="Couldn't load the course list. Check your connection."
+          onRetry={rows.retry}
+          className="px-2.5"
+        />
+      ) : results.length > 0 ? null : rows.status === "ready" ? (
+        <PanelNote className="px-2.5">No course matches “{typed}”.</PanelNote>
+      ) : (
+        <RowSkeleton
+          rows={3}
+          inset={false}
+          label="Loading courses"
+          className="mt-1 px-2.5"
+        />
+      )}
       <ul id={listId} aria-label="Courses" className="mt-1">
-        {typed !== "" && results.length === 0 && rows.status === "loading" ? (
-          <li className="px-2.5 py-2 text-muted text-sm">Loading courses…</li>
-        ) : typed !== "" && rows.status === "error" ? (
-          <li className="px-2.5 py-2 text-muted text-sm">
-            Couldn't load the course list. Check your connection and try again.
-          </li>
-        ) : typed !== "" && results.length === 0 && rows.status === "ready" ? (
-          <li className="px-2.5 py-2 text-muted text-sm">
-            No course matches “{typed}”.
-          </li>
-        ) : (
-          results.map(([code, title]) => (
-            <li key={code}>
-              <WithTooltip label={`Reviews and grades for ${code}`}>
-                <Link
-                  to="/reviews/courses/$code"
-                  params={{ code }}
-                  className="flex items-baseline gap-2 px-2.5 py-1.5 hover:bg-hover"
-                >
-                  <span className="ident font-medium">{code}</span>
-                  <span className="truncate text-muted">{title}</span>
-                </Link>
-              </WithTooltip>
-            </li>
-          ))
-        )}
+        {typed !== "" && rows.status === "error"
+          ? null
+          : results.map(([code, title]) => (
+              <ListRow
+                key={code}
+                as="li"
+                className="relative px-2.5 hover:bg-hover"
+              >
+                <WithTooltip label={`Reviews and grades for ${code}`}>
+                  <Link
+                    to="/reviews/courses/$code"
+                    params={{ code }}
+                    className={cn(ROW_LINK, "flex items-baseline gap-2")}
+                  >
+                    <span className="ident font-medium">{code}</span>
+                    <span className="truncate text-muted">{title}</span>
+                  </Link>
+                </WithTooltip>
+              </ListRow>
+            ))}
       </ul>
     </form>
   );

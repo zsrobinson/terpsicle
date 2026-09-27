@@ -1,6 +1,8 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
+import { useState } from "react";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
+import { PanelNote } from "~/app/panel";
 import { formatGpa, gradeSummary } from "~/core/grades/grades";
 import {
   gradesSourceWords,
@@ -16,16 +18,32 @@ import {
   terpsicleRating,
 } from "~/core/reviews";
 import type { CourseCode, InstructorId } from "~/core/schema";
+import { ListRow } from "~/ui/list-row";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/ui/select";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { Breadcrumbs, PageTitle, ReviewsFrame, Section } from "./frame";
-import { useReviewsLevel } from "./level";
+import { type View, ViewSwitch } from "~/ui/view-switch";
+import type { ComposerTarget } from "./composer";
+import { PAGE_ROW, ReviewsFrame } from "./frame";
+import { useReviewsLevel, useSignedIn } from "./level";
 import { GradesBlock, SummaryBlock } from "./planetterp-blocks";
 import { Stars } from "./rating";
 import {
+  type Composing,
+  existingReview,
   ReviewsSection,
   useInstructorReviews,
   useMine,
+  useOwnHere,
+  WriteButton,
 } from "./reviews-section";
 
 // /reviews/instructors/$id (V2 §1.1): an instructor's combined rating, the
@@ -33,12 +51,20 @@ import {
 // it to one course. The route's loader read who they are and their grades
 // (page-data.ts); our reviews load here, once /api/me says Reviews is on.
 
+/**
+ * Courses the header's view switch holds, besides "All courses": the kit's
+ * switch is two to seven views. Past that, the choice is a list.
+ */
+const SWITCH_COURSES = 6;
+
 /** The route's page: what the loader read. */
 export function InstructorPage({ data }: { data: InstructorPageData }) {
   const { id, course } = data;
   const level = useReviewsLevel();
+  const signedIn = useSignedIn();
   const list = useInstructorReviews(id);
   const mine = useMine();
+  const [composing, setComposing] = useState<Composing>(null);
   const name =
     data.name ??
     mine.find((r) => r.instructorId === id)?.instructorName ??
@@ -73,36 +99,53 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
     ((level === "read" || level === "on") && list?.status === "loading");
   const title = name ?? (loading ? null : "Instructor");
 
+  const target: ComposerTarget | null =
+    course && name
+      ? {
+          instructorId: id,
+          reviewedName: name,
+          dept: course.slice(0, 4),
+          course,
+        }
+      : null;
+  const ownHere = useOwnHere(id, course);
+  const existing = existingReview(ownHere, target);
+
   return (
     <ReviewsFrame page="instructor">
-      <Breadcrumbs
-        crumbs={[
-          { label: "Reviews", to: "/reviews" },
-          ...(course
-            ? [
-                {
-                  label: course,
-                  to: "/reviews/courses/$code" as const,
-                  params: { code: course },
-                  mono: true,
-                },
-              ]
-            : []),
-        ]}
-      />
-      <PageTitle
+      <PageHeader
+        back={
+          course
+            ? {
+                label: course,
+                to: "/reviews/courses/$code",
+                params: { code: course },
+              }
+            : { label: "Reviews", to: "/reviews" }
+        }
         title={title ?? <Skeleton className="h-6 w-48" />}
-        sub={data.ta ? "Teaching assistant" : undefined}
+        status={data.ta ? "Teaching assistant" : undefined}
+        views={
+          courseList.length > 0 ? (
+            <CourseFilter id={id} courses={courseList} current={course} />
+          ) : undefined
+        }
+        actions={
+          composing === null || signedIn !== true ? (
+            <WriteButton
+              level={level}
+              target={target}
+              existing={existing}
+              onWrite={() => setComposing((c) => (c === "new" ? null : "new"))}
+            />
+          ) : undefined
+        }
       />
 
-      <RatingSummary combined={combined} loading={loading} />
-      {freshness ? (
-        <p className="mt-1 text-faint text-xs">{freshness}</p>
-      ) : null}
-
-      {courseList.length > 0 ? (
-        <CourseFilter id={id} courses={courseList} current={course} />
-      ) : null}
+      <div className="flex flex-col gap-1">
+        <RatingSummary combined={combined} loading={loading} />
+        {freshness ? <p className="text-faint text-xs">{freshness}</p> : null}
+      </div>
 
       {data.slug &&
       (data.planetTerp?.reviewCount ?? 0) > 0 &&
@@ -111,30 +154,57 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
       ) : null}
 
       {course ? (
-        <Section
+        <PageSection
           title={`Grades in ${course}`}
-          right={<CourseLinks course={course} />}
+          aside={
+            <WithTooltip label={`${course}'s sections this term`}>
+              <Link
+                to="/schedule/course/$code"
+                params={{ code: course }}
+                onClick={() => crossLinkClicked("reviews", "schedule")}
+                className="text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+              >
+                {viewWords("schedule")}
+              </Link>
+            </WithTooltip>
+          }
         >
-          <div className="pt-3">
-            {record ? (
-              <GradesBlock record={record} gradesThrough={gradesThrough} />
-            ) : (
-              <p className="text-muted">
-                PlanetTerp has no grades for {name ?? "them"} in {course}.
-              </p>
-            )}
-          </div>
-        </Section>
+          {record ? (
+            <GradesBlock record={record} gradesThrough={gradesThrough} />
+          ) : (
+            <PanelNote className={PAGE_ROW}>
+              PlanetTerp has no grades for {name ?? "them"} in {course}.
+            </PanelNote>
+          )}
+        </PageSection>
       ) : data.courses.length > 0 ? (
-        <Section title="Grades">
-          <ul className="pt-1">
+        <PageSection title="Grades">
+          <ul>
             {courseList.map((c) => {
               const r = grades.get(c);
               const gpa = r ? gradeSummary(r.counts).averageGpa : null;
               return r ? (
-                <li
+                <ListRow
                   key={c}
-                  className="flex items-center gap-2 border-hairline border-b py-2"
+                  as="li"
+                  className={PAGE_ROW}
+                  trail={
+                    <span className="flex items-center gap-3">
+                      <span className="text-muted">
+                        {gpa !== null ? `GPA ${formatGpa(gpa)}` : "No GPA"} ·{" "}
+                        {r.semesters} semester{r.semesters === 1 ? "" : "s"}
+                      </span>
+                      <WithTooltip label={`Everyone who's taught ${c}`}>
+                        <Link
+                          to="/reviews/courses/$code"
+                          params={{ code: c }}
+                          className="text-muted hover:text-fg hover:underline"
+                        >
+                          All instructors
+                        </Link>
+                      </WithTooltip>
+                    </span>
+                  }
                 >
                   <WithTooltip
                     label={`${name ?? "Their"} grades and reviews in ${c}`}
@@ -148,73 +218,26 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
                       {c}
                     </Link>
                   </WithTooltip>
-                  <span className="tnum ml-auto text-muted">
-                    {gpa !== null ? `GPA ${formatGpa(gpa)}` : "No GPA"} ·{" "}
-                    {r.semesters} semester{r.semesters === 1 ? "" : "s"}
-                  </span>
-                  <WithTooltip label={`Everyone who's taught ${c}`}>
-                    <Link
-                      to="/reviews/courses/$code"
-                      params={{ code: c }}
-                      className="text-muted text-sm hover:text-fg"
-                    >
-                      All instructors
-                    </Link>
-                  </WithTooltip>
-                </li>
+                </ListRow>
               ) : null;
             })}
           </ul>
-          <p className="mt-2 text-faint text-xs">
+          <p className="text-faint text-xs">
             Grades {gradesSourceWords(gradesThrough)}.
           </p>
-        </Section>
+        </PageSection>
       ) : null}
 
       <ReviewsSection
         instructorId={id}
         course={course}
-        target={
-          course && name
-            ? {
-                instructorId: id,
-                reviewedName: name,
-                dept: course.slice(0, 4),
-                course,
-              }
-            : null
-        }
+        target={target}
+        composing={composing}
+        onCompose={setComposing}
         planetTerpSlug={data.slug}
         planetTerpCount={data.planetTerp?.reviewCount ?? 0}
       />
     </ReviewsFrame>
-  );
-}
-
-/** From one instructor's view of a course: the course's page and its sections. */
-function CourseLinks({ course }: { course: CourseCode }) {
-  return (
-    <span className="flex items-center gap-3 text-sm">
-      <WithTooltip label={`Everyone who's taught ${course}`}>
-        <Link
-          to="/reviews/courses/$code"
-          params={{ code: course }}
-          className="text-muted hover:text-fg"
-        >
-          All instructors
-        </Link>
-      </WithTooltip>
-      <WithTooltip label={`${course}'s sections this term`}>
-        <Link
-          to="/schedule/course/$code"
-          params={{ code: course }}
-          onClick={() => crossLinkClicked("reviews", "schedule")}
-          className="text-muted hover:text-fg"
-        >
-          {viewWords("schedule")}
-        </Link>
-      </WithTooltip>
-    </span>
   );
 }
 
@@ -227,7 +250,11 @@ function RatingSummary({
   loading: boolean;
 }) {
   if (loading && combined.rating === null)
-    return <Skeleton className="h-8 w-40" />;
+    return (
+      <div role="status" aria-label="Loading the rating">
+        <Skeleton className="h-7 w-40" />
+      </div>
+    );
   if (combined.rating === null)
     return <p className="text-muted">No reviews yet.</p>;
   const words = combinedRatingWords(combined);
@@ -248,6 +275,7 @@ function RatingSummary({
   );
 }
 
+/** "All courses" or one of theirs: each a URL (`?course=`), so a view. */
 function CourseFilter({
   id,
   courses,
@@ -257,39 +285,63 @@ function CourseFilter({
   courses: readonly CourseCode[];
   current: CourseCode | null;
 }) {
-  const chip = (on: boolean) =>
-    cn(
-      "flex h-7 shrink-0 items-center rounded-md px-2.5 text-sm transition-colors",
-      on
-        ? "bg-accent-soft font-medium text-fg"
-        : "text-muted hover:bg-hover hover:text-fg",
+  const navigate = useNavigate();
+  if (courses.length <= SWITCH_COURSES) {
+    const views: View[] = [
+      {
+        id: "all",
+        label: "All courses",
+        hint: "Reviews from every course they've taught",
+        to: "/reviews/instructors/$id",
+        params: { id },
+        search: {},
+      },
+      ...courses.map((c) => ({
+        id: c,
+        label: c,
+        hint: `Only ${c}`,
+        to: "/reviews/instructors/$id" as const,
+        params: { id },
+        search: { course: c },
+      })),
+    ];
+    return (
+      <ViewSwitch
+        views={views}
+        current={current ?? "all"}
+        label="Courses"
+        className={cn(
+          // Codes read as codes; the scroll keeps a long row on a phone.
+          "overflow-x-auto [&>a:not(:first-child)]:ident",
+        )}
+      />
     );
+  }
+  // Too many for a switch: the same URLs, from a list.
   return (
-    <nav aria-label="Courses" className="mt-4 flex flex-wrap gap-1">
-      <WithTooltip label="Reviews from every course they've taught">
-        <Link
-          to="/reviews/instructors/$id"
-          params={{ id }}
-          search={{}}
-          aria-current={current === null ? "page" : undefined}
-          className={chip(current === null)}
-        >
-          All courses
-        </Link>
+    <Select
+      value={current ?? "all"}
+      onValueChange={(value) =>
+        void navigate({
+          to: "/reviews/instructors/$id",
+          params: { id },
+          search: value === "all" ? {} : { course: value },
+        })
+      }
+    >
+      <WithTooltip label="Show one course's grades and reviews">
+        <SelectTrigger aria-label="Courses" className="max-md:h-11 md:h-7">
+          <SelectValue />
+        </SelectTrigger>
       </WithTooltip>
-      {courses.map((c) => (
-        <WithTooltip key={c} label={`Only ${c}`}>
-          <Link
-            to="/reviews/instructors/$id"
-            params={{ id }}
-            search={{ course: c }}
-            aria-current={current === c ? "page" : undefined}
-            className={cn(chip(current === c), "ident")}
-          >
+      <SelectContent align="end" className="max-h-72">
+        <SelectItem value="all">All courses</SelectItem>
+        {courses.map((c) => (
+          <SelectItem key={c} value={c} className="ident">
             {c}
-          </Link>
-        </WithTooltip>
-      ))}
-    </nav>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

@@ -12,6 +12,8 @@ import { DecisionsPage } from "~/features/admin/decisions-page";
 // The decision log (V2 §10). Filters live in the URL, so Back undoes one.
 export const Route = createFileRoute("/admin/decisions")({
   ssr: false,
+  // Admin draws its own frame: no family bar while it loads.
+  staticData: { pending: "none" },
   validateSearch: z.object({
     surface: ModerationKindSchema.optional().catch(undefined),
     stage: DecisionStageSchema.optional().catch(undefined),

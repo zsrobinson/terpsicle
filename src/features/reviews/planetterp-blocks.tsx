@@ -9,6 +9,7 @@ import type {
 } from "~/core/schema";
 import { Bars } from "~/features/course-details/grades";
 import { useReviewSummary } from "~/features/course-details/use-review-summary";
+import { Card } from "~/ui/card";
 import { Skeleton } from "~/ui/skeleton";
 
 // PlanetTerp's side of an instructor or course page: the grade bars, and the
@@ -53,20 +54,22 @@ export function SummaryBlock({
 }) {
   const review = useReviewSummary(slug, course);
   if (review.status === "hidden") return null;
+  // A Card: the instructor's review summary is one standalone object, and
+  // the one place on Reviews the sparkles appear (docs/COHESION.md, kit).
   if (review.status === "loading")
     return (
-      <div className="mt-4 space-y-1.5" aria-busy="true">
-        <Skeleton className="h-2.5 w-full animate-pulse" />
-        <Skeleton className="h-2.5 w-4/5 animate-pulse" />
+      <Card role="status" aria-label="Summarizing reviews">
+        <Skeleton className="h-2.5 w-full" />
+        <Skeleton className="h-2.5 w-4/5" />
         <div className="flex items-center gap-1 text-faint text-xs">
           <Sparkles size={11} aria-hidden="true" />
           Summarizing reviews…
         </div>
-      </div>
+      </Card>
     );
   const { summary } = review;
   return (
-    <div className="mt-4">
+    <Card>
       <p className="leading-5">
         <Sparkles
           size={12}
@@ -77,7 +80,7 @@ export function SummaryBlock({
         {summary.summary}
       </p>
       {summary.themes.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1">
           {summary.themes.map((t) => (
             <span
               key={t.label}
@@ -94,10 +97,10 @@ export function SummaryBlock({
           ))}
         </div>
       ) : null}
-      <p className="mt-1.5 text-faint text-xs">
+      <p className="text-faint text-xs">
         An AI summary of {summary.basedOnReviewCount} PlanetTerp review
         {summary.basedOnReviewCount === 1 ? "" : "s"}. It can get things wrong.
       </p>
-    </div>
+    </Card>
   );
 }

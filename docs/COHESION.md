@@ -76,7 +76,8 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
   - [x] `Section`: one heading under a page title. (It's `PageSection`: a section is a course's offering.)
 - [x] One `undoToast()` helper (`src/components/ui/toast.tsx`): one action button, one icon, one 10-second window (`UNDO_MS`), focus holds it open, and the shortcut sits in its tooltip. It replaces the seven toast-action copies. Failures go through `noteToast()`, which is never red and offers Try again where retrying can help. The scheduler and Plan keep their Undo/Redo pair on the shared `ToastAction`.
 - [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
-- [ ] Routes get a shared `pendingComponent` and `errorComponent`. No page says "reload the page".
+- [x] Routes get a shared `pendingComponent` and `errorComponent` (`src/features/site/route-states.tsx`; a route sets `staticData.pending`).
+- [ ] No page says "reload the page".
 - [ ] Guardrails:
   - The design-tokens test also fails on raw `max-w-*` page containers (done, with an allowlist of today's pages) and on `h1` elements outside `PageHeader` (not yet).
   - The `reviewer` agent checks for use of the kit.
@@ -86,7 +87,7 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [ ] Settings and notifications.
 - [ ] Todo.
-- [ ] Reviews.
+- [x] Reviews. (`v3/cohesion-reviews`: `PageHeader` and `ProductPage` on every page, `PageSection`s of `ListRow`s, a `ViewSwitch` of an instructor's courses, `Card`s for the composer, the report form, sign-in and the AI summary, the kit's `Select`, `SearchField` and a new `Textarea`, `InlineError` with Try again, `RowSkeleton`, and `EmptyState` on `/reviews/mine`.)
 - [ ] Plan.
 - [x] Chat.
 - [ ] Schedule.
@@ -153,7 +154,7 @@ The most visible items:
 7. **List rows.** Only Schedule uses `ListRow`. Chat retypes it, Todo and Reviews hand-roll theirs, and Plan boxes every block.
 8. **Widths.** Page widths: 440, 560, 720, 1040, 1120, 1600 and full bleed.
 9. ~~**Undo toasts.**~~ Fixed: one `undoToast()`, one 10-second window.
-10. **Errors.** Error handling differs everywhere: red toasts in Schedule, plain ones in Chat, and "reload the page" with no button in Reviews and Settings. No route has an `errorComponent`.
+10. **Errors.** Error handling differs everywhere: red toasts in Schedule, plain ones in Chat, and "reload the page" with no button in Reviews and Settings. (Every route now shares one loading and one error state: `src/features/site/route-states.tsx`.)
 11. **Back.** Six back affordances.
 12. **Section headings.** Five section-heading styles.
 13. **Loading.** Three copies of `ListSkeleton`, one lone spinner, and pulsing in two places only.

@@ -1,5 +1,6 @@
 import { ExternalLink, PenLine } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { PanelNote } from "~/app/panel";
 import type {
   CourseCode,
   InstructorId,
@@ -8,10 +9,12 @@ import type {
 } from "~/core/schema";
 import { planetTerpUrl } from "~/core/schema";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { InlineError } from "~/ui/inline-error";
+import { PageSection } from "~/ui/page-section";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer, type ComposerTarget } from "./composer";
-import { Section } from "./frame";
+import { PAGE_ROW } from "./frame";
 import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
 import { OwnReviewCard, ReviewCard } from "./review-card";
 import { useReviews } from "./reviews-store";
@@ -20,9 +23,13 @@ import { SignInPrompt } from "./sign-in-prompt";
 // An instructor's reviews on Terpsicle, under their numbers: your own first
 // (with where each stands), then everyone's, newest first, then the credited
 // way to PlanetTerp's. PlanetTerp's review text is never shown here (V2 §7.1).
+// "Write a review" is the page header's action; the form opens here.
 
 /** Reviews shown before "Show more". */
 const PAGE = 20;
+
+/** What the composer is open on: a new review, one of yours, or nothing. */
+export type Composing = MyReview | "new" | null;
 
 /** Your reviews (reviews/mine), loaded once when you're signed in. */
 export function useMine(): MyReview[] {
@@ -62,10 +69,39 @@ export function useVisible(reviews: readonly PublicReview[]): PublicReview[] {
   );
 }
 
+/** Yours of this instructor (and course), not waiting out a delete's Undo. */
+export function useOwnHere(
+  instructorId: InstructorId,
+  course: CourseCode | null,
+): MyReview[] {
+  const mine = useMine();
+  const deleting = useReviews((s) => s.deleting);
+  return mine.filter(
+    (r) =>
+      r.instructorId === instructorId &&
+      (course === null || r.course === course) &&
+      !deleting[r.id],
+  );
+}
+
+/** Your live review of the target's class, which "Write a review" edits. */
+export function existingReview(
+  ownHere: readonly MyReview[],
+  target: ComposerTarget | null,
+): MyReview | null {
+  return target
+    ? (ownHere.find(
+        (r) => r.course === target.course && r.status !== "rejected",
+      ) ?? null)
+    : null;
+}
+
 export function ReviewsSection({
   instructorId,
   course,
   target,
+  composing,
+  onCompose,
   planetTerpSlug,
   planetTerpCount,
 }: {
@@ -74,6 +110,9 @@ export function ReviewsSection({
   course: CourseCode | null;
   /** What the composer writes about; null until a course is picked. */
   target: ComposerTarget | null;
+  /** The page's "Write a review" and each review's Edit open the form here. */
+  composing: Composing;
+  onCompose: (next: Composing) => void;
   /** PlanetTerp's slug and count, for the credited link. */
   planetTerpSlug: string | null;
   planetTerpCount: number;
@@ -81,23 +120,19 @@ export function ReviewsSection({
   const level = useReviewsLevel();
   const signedIn = useSignedIn();
   const list = useInstructorReviews(instructorId);
-  const mine = useMine();
-  const deleting = useReviews((s) => s.deleting);
-  const [composing, setComposing] = useState<MyReview | "new" | null>(null);
+  const reloadList = useReviews((s) => s.reloadList);
+  const ownHere = useOwnHere(instructorId, course);
   const [shown, setShown] = useState(PAGE);
+  const formRef = useRef<HTMLDivElement>(null);
 
-  const ownHere = mine.filter(
-    (r) =>
-      r.instructorId === instructorId &&
-      (course === null || r.course === course) &&
-      !deleting[r.id],
-  );
+  // The header's button can be a screen away: bring the form to it.
+  useEffect(() => {
+    if (composing !== null)
+      formRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [composing]);
+
   const ownById = new Map(ownHere.map((r) => [r.id, r]));
-  const existing = target
-    ? (ownHere.find(
-        (r) => r.course === target.course && r.status !== "rejected",
-      ) ?? null)
-    : null;
+  const existing = existingReview(ownHere, target);
   const all = useVisible(list?.status === "ready" ? list.reviews : []);
   const reviews =
     course === null ? all : all.filter((r) => r.course === course);
@@ -113,15 +148,14 @@ export function ReviewsSection({
 
   if (level === "loading")
     return (
-      <Section title="Reviews">
-        <Skeleton className="mt-3 h-3 w-2/3" />
-        <Skeleton className="mt-2 h-3 w-1/2" />
-      </Section>
+      <PageSection title="Reviews">
+        <RowSkeleton rows={2} inset={false} label="Loading reviews" />
+      </PageSection>
     );
   if (level === "off" || list?.status === "off")
-    return <Section title="Reviews">{planetTerpLink}</Section>;
+    return <PageSection title="Reviews">{planetTerpLink}</PageSection>;
 
-  const edit = (review: MyReview) => setComposing(review);
+  const edit = (review: MyReview) => onCompose(review);
   const composer =
     composing === "new" && signedIn !== true ? (
       <SignInPrompt>
@@ -132,74 +166,72 @@ export function ReviewsSection({
       <Composer
         target={target}
         existing={composing === "new" ? existing : composing}
-        onClose={() => setComposing(null)}
+        onClose={() => onCompose(null)}
       />
     ) : null;
+  const waiting = ownHere.filter(
+    (r) => r.status !== "published" && r !== composing,
+  );
 
   return (
-    <Section
+    <PageSection
       title="Reviews on Terpsicle"
-      count={list?.status === "ready" ? reviews.length : undefined}
-      right={
-        composing === null || signedIn !== true ? (
-          <WriteButton
-            level={level}
-            target={target}
-            existing={existing}
-            onWrite={() => setComposing((c) => (c === "new" ? null : "new"))}
-          />
-        ) : null
-      }
+      aside={list?.status === "ready" ? reviews.length : undefined}
     >
-      {composer ? <div className="my-3">{composer}</div> : null}
-      {ownHere
-        .filter((r) => r.status !== "published" && r !== composing)
-        .map((r) => (
-          <OwnReviewCard
-            key={r.id}
-            review={r}
-            level={level}
-            showCourse={course === null}
-            onEdit={edit}
-          />
-        ))}
-      {list === undefined || list.status === "loading" ? (
-        <div className="space-y-2 py-3" aria-busy="true">
-          <Skeleton className="h-3 w-1/3" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-4/5" />
+      {composer ? (
+        <div ref={formRef} className="scroll-mt-4">
+          {composer}
         </div>
+      ) : null}
+      {waiting.length > 0 ? (
+        <ul>
+          {waiting.map((r) => (
+            <OwnReviewCard
+              key={r.id}
+              review={r}
+              level={level}
+              showCourse={course === null}
+              onEdit={edit}
+            />
+          ))}
+        </ul>
+      ) : null}
+      {list === undefined || list.status === "loading" ? (
+        <RowSkeleton rows={3} inset={false} label="Loading reviews" />
       ) : list.status === "error" ? (
-        <p className="py-3 text-muted">
-          Couldn't load reviews. Check your connection and reload the page.
-        </p>
+        <InlineError
+          message="Couldn't load reviews. Check your connection."
+          onRetry={() => void reloadList(instructorId)}
+        />
       ) : reviews.length === 0 ? (
-        <p className="py-3 text-muted">
+        <PanelNote className={PAGE_ROW}>
           {course
             ? `No reviews of ${course} on Terpsicle yet.`
             : "No reviews on Terpsicle yet."}
           {level === "on" && target
             ? " Took it? Yours could be the first."
             : ""}
-        </p>
+        </PanelNote>
       ) : (
         <div>
-          {reviews
-            .slice(0, shown)
-            .map((r) =>
-              composing !== null &&
-              composing !== "new" &&
-              composing.id === r.id ? null : (
-                <ReviewCard
-                  key={r.id}
-                  review={r}
-                  own={ownById.get(r.id) ?? null}
-                  level={level}
-                  showCourse={course === null}
-                  onEdit={edit}
-                />
-              ),
-            )}
+          <ul>
+            {reviews
+              .slice(0, shown)
+              .map((r) =>
+                composing !== null &&
+                composing !== "new" &&
+                composing.id === r.id ? null : (
+                  <ReviewCard
+                    key={r.id}
+                    review={r}
+                    own={ownById.get(r.id) ?? null}
+                    level={level}
+                    showCourse={course === null}
+                    onEdit={edit}
+                  />
+                ),
+              )}
+          </ul>
           {reviews.length > shown ? (
             <WithTooltip
               label={`Show ${Math.min(PAGE, reviews.length - shown)} more`}
@@ -217,7 +249,7 @@ export function ReviewsSection({
         </div>
       )}
       {planetTerpLink}
-    </Section>
+    </PageSection>
   );
 }
 
@@ -233,7 +265,7 @@ export function PlanetTerpLink({
 }) {
   const words = `${count.toLocaleString("en-US")} ${more ? "more " : ""}${count === 1 ? "review" : "reviews"} on PlanetTerp`;
   return (
-    <p className="mt-3 text-muted text-sm">
+    <p className="text-muted text-sm">
       <WithTooltip label="Read them on PlanetTerp, which we're not part of">
         <a
           href={planetTerpUrl(slug)}
@@ -249,28 +281,31 @@ export function PlanetTerpLink({
   );
 }
 
-/** "Write a review", or what stands in its way. */
+/**
+ * "Write a review", or what stands in its way. `page`: the page header's one
+ * filled action; `row`: a row's small ghost action.
+ */
 export function WriteButton({
   level,
   target,
   existing,
   onWrite,
   label,
+  size = "page",
 }: {
   level: ReviewsLevel;
   target: ComposerTarget | null;
   existing: MyReview | null;
   onWrite: () => void;
   label?: string;
+  size?: "page" | "row";
 }) {
   const signedIn = useSignedIn();
   if (level !== "on" || signedIn === "loading") return null;
   const words = label ?? (existing ? "Edit your review" : "Write a review");
   if (!target)
     return (
-      <span className="text-faint text-sm">
-        Pick a course above to review it
-      </span>
+      <span className="text-muted text-sm">Pick a course to review it</span>
     );
   return (
     <WithTooltip
@@ -282,10 +317,17 @@ export function WriteButton({
             : `Review ${target.reviewedName} in ${target.course}`
       }
     >
-      <Button variant="outline" size="sm" onClick={onWrite}>
-        <PenLine size={13} aria-hidden="true" />
-        {words}
-      </Button>
+      {size === "row" ? (
+        <Button variant="ghost" size="row" onClick={onWrite}>
+          <PenLine size={12} aria-hidden="true" />
+          {words}
+        </Button>
+      ) : (
+        <Button onClick={onWrite}>
+          <PenLine aria-hidden="true" />
+          {words}
+        </Button>
+      )}
     </WithTooltip>
   );
 }
