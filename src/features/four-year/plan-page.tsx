@@ -9,8 +9,7 @@ import {
 } from "~/app/workbench/layout";
 import { RailButton, railHint, WorkbenchRail } from "~/app/workbench/rail";
 import { PLAN_VIEW_PATHS } from "~/core/routing/plan-location";
-import type { IsoDate } from "~/core/schema";
-import { SIDEBAR_WIDTH } from "~/core/schema";
+import { type IsoDate, SIDEBAR_WIDTH } from "~/core/schema";
 import { changedFourYearKeys, type DocKey } from "~/core/sync";
 import { newYorkClock } from "~/core/todo/list";
 import { useAccount } from "~/features/auth/account-store";
@@ -282,7 +281,6 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
             )
           }
           canvasId={PLAN_BOARD_ID}
-          canvasLabel="Semesters"
           canvasClassName="scroll-thin overflow-y-auto overscroll-y-contain"
         />
       </PlanModelProvider>

@@ -26,7 +26,6 @@ export function Workbench({
   drawer,
   canvas,
   canvasId,
-  canvasLabel,
   canvasClassName,
   before,
   after,
@@ -44,8 +43,6 @@ export function Workbench({
   canvas: ReactNode;
   /** The canvas's id, for skip links and focus. */
   canvasId: string;
-  /** The canvas's name, where the canvas doesn't name itself. */
-  canvasLabel?: string;
   canvasClassName?: string;
   /** Before the bar: skip links. */
   before?: ReactNode;
@@ -55,7 +52,6 @@ export function Workbench({
   const main = (
     <main
       id={canvasId}
-      aria-label={canvasLabel}
       tabIndex={-1}
       className={cn(
         mobile ? "min-h-0 flex-1 outline-none" : "min-w-0 flex-1 outline-none",

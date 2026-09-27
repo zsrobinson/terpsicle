@@ -646,6 +646,27 @@ describe("the URL", () => {
     ).toBeVisible();
   });
 
+  it("focuses Search once for each ask, not again on coming back to it", async () => {
+    await seed(PLAN);
+    const user = renderPlan();
+    await user.click(
+      await screen.findByRole("button", { name: "Add a course to Fall 2026" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("searchbox", { name: "Search courses" }),
+      ).toHaveFocus(),
+    );
+    const rail = screen.getByRole("navigation", { name: "Plan views" });
+    await user.click(within(rail).getByRole("button", { name: "GenEd" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/plan"));
+    router.history.back();
+    // A phone's keyboard, and the drawer with it, stay down.
+    expect(
+      await screen.findByRole("searchbox", { name: "Search courses" }),
+    ).not.toHaveFocus();
+  });
+
   it("closes a course opened by a link in place", async () => {
     await seed(PLAN);
     const user = renderPlan("/plan?course=CMSC351");

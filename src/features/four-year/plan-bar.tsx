@@ -207,8 +207,8 @@ function UndoRedo() {
 /**
  * Where the plan is saved: while sync runs, the scheduler's status words
  * and icon, which check with the account when pressed (V3 §2.4); else a
- * quiet "Saved in this browser". A phone's bar has room for neither, so
- * there they're for screen readers.
+ * quiet "Saved in this browser", from 1280px. A phone's bar has room for
+ * neither, so there they're for screen readers.
  */
 function SavedState({ compact }: { compact: boolean }) {
   const storageFailed = useFourYear((s) => s.storageFailed);
@@ -231,7 +231,9 @@ function SavedState({ compact }: { compact: boolean }) {
         role="status"
         className={cn(
           "shrink-0 whitespace-nowrap text-muted text-sm",
-          compact && "sr-only",
+          // A tablet's bar needs the room for the plan's name; "Not saved"
+          // still shows there.
+          compact ? "sr-only" : !storageFailed && "max-xl:sr-only",
         )}
       >
         {storageFailed ? "Not saved" : "Saved in this browser"}
@@ -277,7 +279,12 @@ export function PlanBar({
       status={
         <>
           <SavedState compact={compact} />
-          {compact ? null : <CreditsStatus label={creditsHeadline(totals)} />}
+          {compact ? null : (
+            // The sidebar starts with them; a tablet's bar has no room.
+            <span className="max-lg:hidden">
+              <CreditsStatus label={creditsHeadline(totals)} />
+            </span>
+          )}
           <ProblemsStatus
             counts={counts}
             compact={compact}
