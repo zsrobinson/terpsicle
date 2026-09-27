@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import type { Suggestion } from "~/core/reviews";
+import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
@@ -39,21 +40,17 @@ export function ReviewsNotFound({
           what === "instructor" ? "Instructor not found" : "Course not found"
         }
         status={
-          <>
-            {what === "instructor"
-              ? "We don't know an instructor at this address."
-              : "No UMD course we know has this code."}{" "}
-            <WithTooltip label="Search every UMD course">
-              <Link
-                to="/reviews"
-                className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
-              >
-                Find a course
-              </Link>
-            </WithTooltip>
-          </>
+          what === "instructor"
+            ? "We don't know an instructor at this address."
+            : "No UMD course we know has this code."
         }
       />
+      {/* The same shape as every page we don't have: say so, then the way on. */}
+      <WithTooltip label="Search every UMD course">
+        <Button asChild className="w-fit">
+          <Link to="/reviews">Find a course</Link>
+        </Button>
+      </WithTooltip>
       {suggestions.length > 0 ? (
         <PageSection title="Did you mean">
           <ul>
