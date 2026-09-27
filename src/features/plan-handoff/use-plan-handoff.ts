@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { termLabel } from "~/core/catalog/terms";
 import type { TermId } from "~/core/schema";
 import { useCatalog } from "~/state/catalog-store";
 import { useActiveTerm } from "~/state/hooks";
 import { useShare } from "~/state/share-store";
 import { useWorkspace } from "~/state/workspace-store";
+import { noteToast } from "~/ui/toast";
 
 // `/schedule?term=<id>&from=plan` (docs/V3.md §2.12): once the saved plans
 // have loaded and the scheduler shows that term, make or open its linked
@@ -46,7 +46,8 @@ export function usePlanHandoff(
     if (!terms) return;
     if (!want || !terms.some((t) => t.id === want)) {
       started.current = true;
-      if (want) toast(`${termLabel(want)}'s classes aren't on Testudo yet.`);
+      if (want)
+        noteToast(`${termLabel(want)}'s classes aren't on Testudo yet.`);
       end();
       return;
     }

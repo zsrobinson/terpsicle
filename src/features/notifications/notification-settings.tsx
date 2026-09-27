@@ -20,6 +20,7 @@ import { ApiCallError } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
+import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   currentEndpoint,
@@ -493,9 +494,6 @@ function ThisDevice({
   );
 }
 
-/** How long Remove's Undo stays up before the server hears. */
-const REMOVE_UNDO_MS = 6_000;
-
 function Devices({
   devices,
   onRemoveStart,
@@ -524,7 +522,7 @@ function Devices({
         () => {
           if (keepalive) return;
           onRemoveEnd(device.id, false);
-          toast(
+          noteToast(
             `Couldn't remove ${name}. Check your connection and try again.`,
           );
         },
@@ -541,23 +539,13 @@ function Devices({
     const toastId = `push-remove-${device.id}`;
     onRemoveStart(device.id);
     window.addEventListener("pagehide", onHide);
-    toast(`Removed ${name}`, {
+    undoToast({
       id: toastId,
+      message: `Removed ${name}`,
       description: "It won't get notifications anymore.",
-      duration: REMOVE_UNDO_MS,
-      action: (
-        <WithTooltip label="Put it back">
-          <button
-            type="button"
-            onClick={undo}
-            className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-hairline bg-raised px-2.5 font-medium text-base text-fg transition-colors hover:bg-hover"
-          >
-            Undo
-          </button>
-        </WithTooltip>
-      ),
-      onAutoClose: () => commit(),
-      onDismiss: () => commit(),
+      tooltip: "Put it back",
+      onUndo: undo,
+      onDone: () => commit(),
     });
   };
 
