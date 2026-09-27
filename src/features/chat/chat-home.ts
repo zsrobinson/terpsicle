@@ -10,6 +10,7 @@ import {
   type ChatUnreadRoom,
   type Course,
   type CourseCode,
+  type CourseSearchRow,
   type Plan,
   type RoomId,
   type Term,
@@ -65,11 +66,16 @@ export interface ChatHomeState {
   follows: Record<TermId, CourseCode[]>;
   /** Mutes set here, for rooms chat/unread doesn't list yet (no messages). */
   mutes: Record<RoomId, boolean>;
+  /** Every course's code and title, for finding any course's room; null until asked for. */
+  courseRows: readonly CourseSearchRow[] | null;
+  courseRowsState: "idle" | "loading" | "ready" | "error";
 
   /** Loads everything for a term (the asked one, or the usual pick). */
   load: (term: TermId | null) => Promise<void>;
   setTerm: (termId: TermId) => Promise<void>;
   refreshUnread: () => Promise<void>;
+  /** Loads `courseRows` once; after an error, asking again tries again. */
+  ensureCourseRows: () => Promise<void>;
   /** Makes sure a course's catalog entry is loaded (a course space opened by link). */
   ensureCourse: (courseCode: CourseCode) => Promise<Course | null>;
   follow: (courseCode: CourseCode) => Promise<"ok" | "too-many" | "failed">;
@@ -142,6 +148,8 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
     unread: [],
     follows: typeof window === "undefined" ? {} : readFollows(),
     mutes: {},
+    courseRows: null,
+    courseRowsState: "idle",
 
     load: async (term) => {
       set({ status: "loading" });
@@ -183,6 +191,20 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
         set({ unread: rooms, courses });
       } catch {
         // Keep the counts we have; the next refresh tries again.
+      }
+    },
+
+    ensureCourseRows: async () => {
+      const state = get().courseRowsState;
+      if (state === "loading" || state === "ready") return;
+      set({ courseRowsState: "loading" });
+      try {
+        set({
+          courseRows: await deps.data.courseSearch(),
+          courseRowsState: "ready",
+        });
+      } catch {
+        set({ courseRowsState: "error" });
       }
     },
 

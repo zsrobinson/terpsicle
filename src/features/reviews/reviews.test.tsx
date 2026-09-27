@@ -3,18 +3,35 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { REVIEW_HELD_WORDS } from "~/core/reviews";
-import type { MyReview } from "~/core/schema";
 import {
+  type MyReview,
+  manifestKey,
+  planetTerpIndexKey,
+  TERMS_KEY,
+} from "~/core/schema";
+import {
+  aManifest,
   aMyReview,
   aPlanetTerpDept,
+  aPlanetTerpIndex,
   aPlanetTerpManifest,
   aPublicReview,
+  aTermsFile,
   FIXTURE_HASH,
+  fixtureTermId,
 } from "~/fixtures";
 import { CoursePage } from "./course-page";
 import { deleteWithUndo } from "./delete-review";
+import { ReviewsHomePage } from "./home-page";
 import { InstructorPage } from "./instructor-page";
 import { MyReviewsPage } from "./mine-page";
+import { ReviewsNotFound } from "./not-found";
+import {
+  instructorSuggestions,
+  loadCoursePage,
+  loadInstructorPage,
+  loadReviewsHome,
+} from "./page-data";
 import { useReviews } from "./reviews-store";
 import {
   fakeReviewsClient,
@@ -41,8 +58,12 @@ afterEach(() => {
   toast.dismiss();
 });
 
-const instructor = (course: string | null = "CMSC351") =>
-  renderPage(<InstructorPage id="brandt" course={course} />);
+/** Brandt's page as the route renders it: the loader, then the page. */
+async function instructor(course: string | null = "CMSC351") {
+  const data = await loadInstructorPage("brandt", course ?? undefined);
+  if (!data) throw new Error("the loader didn't find brandt");
+  return renderPage(<InstructorPage data={data} />);
+}
 
 describe("an instructor's page", () => {
   it("combines PlanetTerp's rating with ours, and shows the math", async () => {
@@ -381,13 +402,83 @@ describe("a course's page", () => {
   it("lists who's taught it with their numbers, linking to each", async () => {
     setAccount({ reviews: "on" });
     fakeReviewsClient();
-    await renderPage(<CoursePage code="CMSC351" />, "/reviews/courses/CMSC351");
+    const data = await loadCoursePage("CMSC351");
+    if (!data) throw new Error("the loader didn't find CMSC351");
+    await renderPage(<CoursePage data={data} />, "/reviews/courses/CMSC351");
     const link = await screen.findByRole("link", { name: "Ada Brandt" });
     expect(link).toHaveAttribute(
       "href",
       "/reviews/instructors/brandt?course=CMSC351",
     );
     expect(screen.getAllByTestId("grade-bars")).toHaveLength(1);
+  });
+});
+
+describe("/reviews", () => {
+  it("shows a first-time visitor what's most taken, what's new and every department", async () => {
+    setAccount({ reviews: "on" });
+    fakeReviewsClient({
+      recent: async () => ({
+        reviews: [
+          {
+            course: "CMSC351",
+            instructorId: "brandt",
+            instructorName: "Ada Brandt",
+            month: "2027-02",
+          },
+        ],
+      }),
+    });
+    publishFiles({
+      [TERMS_KEY]: aTermsFile(),
+      [manifestKey(fixtureTermId)]: aManifest(),
+      "planetterp/manifest.json": aPlanetTerpManifest({
+        index: { hash: FIXTURE_HASH },
+      }),
+      [planetTerpIndexKey(FIXTURE_HASH)]: aPlanetTerpIndex(),
+    });
+    const data = await loadReviewsHome(undefined);
+    await renderPage(<ReviewsHomePage data={data} q="" />);
+    expect(
+      screen.getByRole("link", { name: /CMSC351\s*Algorithms/ }),
+    ).toHaveAttribute("href", "/reviews/courses/CMSC351");
+    expect(screen.getByText("13,592")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /CMSC351\s*·\s*Ada Brandt/ }),
+    ).toHaveAttribute("href", "/reviews/instructors/brandt?course=CMSC351");
+    expect(
+      screen.getByRole("link", { name: /CMSC\s*Computer Science/ }),
+    ).toHaveAttribute("href", "/reviews?q=CMSC");
+    expect(
+      screen.getByRole("heading", { name: "Where the numbers come from" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Write a review/ }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("a page nobody publishes", () => {
+  it("is not found, with who the address may have meant", async () => {
+    publishFiles({
+      "planetterp/manifest.json": aPlanetTerpManifest({
+        index: { hash: FIXTURE_HASH },
+      }),
+      [`planetterp/dept/CMSC.${FIXTURE_HASH}.json`]: aPlanetTerpDept(),
+      [planetTerpIndexKey(FIXTURE_HASH)]: aPlanetTerpIndex(),
+    });
+    expect(await loadInstructorPage("ada-brandt", undefined)).toBeNull();
+    const suggestions = await instructorSuggestions("ada-brandt");
+    await renderPage(
+      <ReviewsNotFound what="instructor" data={{ suggestions }} />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Instructor not found" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ada Brandt" })).toHaveAttribute(
+      "href",
+      "/reviews/instructors/brandt",
+    );
   });
 });
 

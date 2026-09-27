@@ -13,7 +13,7 @@ import {
   FeedbackUpdateResultSchema,
 } from "~/core/schema/feedback";
 import { type ApiEnv, handleApi, ROUTES } from "../api/router";
-import { purgeAccounts } from "../auth/store";
+import { purgeDueAccounts } from "../auth/purge";
 import { createWorker, NOT_FOUND_PATH } from "../worker";
 import { type FeedbackRow, pruneFeedback } from "./store";
 
@@ -641,7 +641,7 @@ describe("retention", () => {
     const { id } = await send({ ...bug, reply: true }, "student");
     await call("account/delete", {}, { who: "student" });
     tick(8 * DAY);
-    await purgeAccounts(env.DB, now());
+    await purgeDueAccounts(env as Env, now());
     expect(await row(id)).toMatchObject({ user_id: null, text: bug.text });
   });
 });

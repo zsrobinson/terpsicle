@@ -10,20 +10,13 @@ import {
   combinedRatingWords,
   combineRatings,
   formatStars,
+  type InstructorPageData,
   type RatingSource,
   terpsicleRating,
 } from "~/core/reviews";
-import {
-  type CourseCode,
-  CourseCodeSchema,
-  type DeptCode,
-  type InstructorId,
-  InstructorIdSchema,
-} from "~/core/schema";
-import { NotFoundPage } from "~/features/site/not-found-page";
+import type { CourseCode, InstructorId } from "~/core/schema";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { loadPlanetTerp, useLoaded } from "./data";
 import { Breadcrumbs, PageTitle, ReviewsFrame, Section } from "./frame";
 import { useReviewsLevel } from "./level";
 import { GradesBlock, SummaryBlock } from "./planetterp-blocks";
@@ -36,62 +29,23 @@ import {
 
 // /reviews/instructors/$id (V2 §1.1): an instructor's combined rating, the
 // AI summary, PlanetTerp's grades and our reviews; `?course=CMSC351` narrows
-// it to one course. PlanetTerp's department file says who they are, so the
-// page needs a department: the course's, else one learned this visit, else
-// the one their reviews are in.
+// it to one course. The route's loader read who they are and their grades
+// (page-data.ts); our reviews load here, once /api/me says Reviews is on.
 
-/** Instructor → a department PlanetTerp lists them in, learned this visit. */
-const knownDept = new Map<InstructorId, DeptCode>();
-
-/** The route's params, checked: a bad id or course is "Page not found". */
-export function InstructorRoute({
-  id,
-  course,
-}: {
-  id: string;
-  course: string | undefined;
-}) {
-  const parsedId = InstructorIdSchema.safeParse(id);
-  const parsedCourse = CourseCodeSchema.safeParse(course?.toUpperCase());
-  if (!parsedId.success) return <NotFoundPage />;
-  return (
-    <InstructorPage
-      key={parsedId.data}
-      id={parsedId.data}
-      course={parsedCourse.success ? parsedCourse.data : null}
-    />
-  );
-}
-
-export function InstructorPage({
-  id,
-  course,
-}: {
-  id: InstructorId;
-  course: CourseCode | null;
-}) {
+/** The route's page: what the loader read. */
+export function InstructorPage({ data }: { data: InstructorPageData }) {
+  const { id, course } = data;
   const level = useReviewsLevel();
   const list = useInstructorReviews(id);
   const mine = useMine();
-  const fromReviews =
-    list?.status === "ready" ? list.reviews[0]?.course.slice(0, 4) : undefined;
-  const fromMine = mine.find((r) => r.instructorId === id)?.course.slice(0, 4);
-  const dept =
-    course?.slice(0, 4) ?? knownDept.get(id) ?? fromReviews ?? fromMine ?? null;
-  if (dept && !knownDept.has(id)) knownDept.set(id, dept);
-  const planetTerp = useLoaded(dept ? `pt:${dept}` : null, () =>
-    loadPlanetTerp(dept ?? ""),
-  );
-
-  const ptDept = planetTerp.status === "ready" ? planetTerp.data.dept : null;
-  const pt = ptDept?.instructors[id] ?? null;
   const name =
-    pt?.name ?? mine.find((r) => r.instructorId === id)?.instructorName ?? null;
+    data.name ??
+    mine.find((r) => r.instructorId === id)?.instructorName ??
+    null;
+  const grades = new Map(data.courses.map((c) => [c.code, c.grades]));
 
-  // Their courses: PlanetTerp's grade data in this department, and ours.
-  const courses = new Set<CourseCode>();
-  for (const [code, grades] of Object.entries(ptDept?.courses ?? {}))
-    if (grades.byInstructor[id]) courses.add(code);
+  // Their courses: PlanetTerp's grade data, and ours.
+  const courses = new Set<CourseCode>(data.courses.map((c) => c.code));
   if (list?.status === "ready")
     for (const r of list.reviews) courses.add(r.course);
   if (course) courses.add(course);
@@ -104,22 +58,17 @@ export function InstructorPage({
   const sources: RatingSource[] = [
     {
       source: "planetterp",
-      rating: pt?.rating ?? null,
-      reviewCount: pt?.reviewCount ?? 0,
+      rating: data.planetTerp?.rating ?? null,
+      reviewCount: data.planetTerp?.reviewCount ?? 0,
     },
     ...(ours ? [ours] : []),
   ];
   const combined = combineRatings(sources);
-  const record = course ? ptDept?.courses[course]?.byInstructor[id] : undefined;
-  const gradesThrough =
-    planetTerp.status === "ready" ? planetTerp.data.gradesThrough : null;
-  const freshness =
-    planetTerp.status === "ready"
-      ? planetTerpFreshnessWords(planetTerp.data.source)
-      : null;
+  const record = course ? grades.get(course) : undefined;
+  const { gradesThrough } = data;
+  const freshness = planetTerpFreshnessWords(data.source);
   const loading =
     level === "loading" ||
-    (dept !== null && planetTerp.status === "loading") ||
     ((level === "read" || level === "on") && list?.status === "loading");
   const title = name ?? (loading ? null : "Instructor");
 
@@ -142,7 +91,7 @@ export function InstructorPage({
       />
       <PageTitle
         title={title ?? <Skeleton className="h-6 w-48" />}
-        sub={pt?.type === "ta" ? "Teaching assistant" : undefined}
+        sub={data.ta ? "Teaching assistant" : undefined}
       />
 
       <RatingSummary combined={combined} loading={loading} />
@@ -154,16 +103,19 @@ export function InstructorPage({
         <CourseFilter id={id} courses={courseList} current={course} />
       ) : null}
 
-      {pt && pt.reviewCount > 0 && (course ?? courseList[0]) ? (
-        <SummaryBlock slug={pt.slug} course={course ?? courseList[0] ?? ""} />
+      {data.slug &&
+      (data.planetTerp?.reviewCount ?? 0) > 0 &&
+      (course ?? courseList[0]) ? (
+        <SummaryBlock slug={data.slug} course={course ?? courseList[0] ?? ""} />
       ) : null}
 
       {course ? (
-        <Section title={`Grades in ${course}`}>
+        <Section
+          title={`Grades in ${course}`}
+          right={<CourseLinks course={course} />}
+        >
           <div className="pt-3">
-            {planetTerp.status === "loading" ? (
-              <Skeleton className="h-28 w-full" />
-            ) : record ? (
+            {record ? (
               <GradesBlock record={record} gradesThrough={gradesThrough} />
             ) : (
               <p className="text-muted">
@@ -172,12 +124,11 @@ export function InstructorPage({
             )}
           </div>
         </Section>
-      ) : ptDept &&
-        courseList.some((c) => ptDept.courses[c]?.byInstructor[id]) ? (
+      ) : data.courses.length > 0 ? (
         <Section title="Grades">
           <ul className="pt-1">
             {courseList.map((c) => {
-              const r = ptDept.courses[c]?.byInstructor[id];
+              const r = grades.get(c);
               const gpa = r ? gradeSummary(r.counts).averageGpa : null;
               return r ? (
                 <li
@@ -200,6 +151,15 @@ export function InstructorPage({
                     {gpa !== null ? `GPA ${formatGpa(gpa)}` : "No GPA"} ·{" "}
                     {r.semesters} semester{r.semesters === 1 ? "" : "s"}
                   </span>
+                  <WithTooltip label={`Everyone who's taught ${c}`}>
+                    <Link
+                      to="/reviews/courses/$code"
+                      params={{ code: c }}
+                      className="text-muted text-sm hover:text-fg"
+                    >
+                      All instructors
+                    </Link>
+                  </WithTooltip>
                 </li>
               ) : null;
             })}
@@ -223,10 +183,36 @@ export function InstructorPage({
               }
             : null
         }
-        planetTerpSlug={pt?.slug ?? null}
-        planetTerpCount={pt?.reviewCount ?? 0}
+        planetTerpSlug={data.slug}
+        planetTerpCount={data.planetTerp?.reviewCount ?? 0}
       />
     </ReviewsFrame>
+  );
+}
+
+/** From one instructor's view of a course: the course's page and its sections. */
+function CourseLinks({ course }: { course: CourseCode }) {
+  return (
+    <span className="flex items-center gap-3 text-sm">
+      <WithTooltip label={`Everyone who's taught ${course}`}>
+        <Link
+          to="/reviews/courses/$code"
+          params={{ code: course }}
+          className="text-muted hover:text-fg"
+        >
+          All instructors
+        </Link>
+      </WithTooltip>
+      <WithTooltip label={`${course}'s sections this term`}>
+        <Link
+          to="/schedule"
+          search={{ course }}
+          className="text-muted hover:text-fg"
+        >
+          View schedule
+        </Link>
+      </WithTooltip>
+    </span>
   );
 }
 

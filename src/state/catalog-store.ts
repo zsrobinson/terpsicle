@@ -12,6 +12,7 @@ import {
   BuildingsFileSchema,
   buildingsKey,
   type ChangesFile,
+  type ContentHash,
   type Course,
   type CourseCode,
   calendarKey,
@@ -49,7 +50,12 @@ import {
   EMPTY_CAMPUS,
 } from "~/core/travel";
 import { type CacheFile, type DataCache, versionedCache } from "./data-cache";
-import { DataError, type DataReader, SchemaVersionError } from "./data-source";
+import {
+  DataError,
+  type DataReader,
+  type ReadPriority,
+  SchemaVersionError,
+} from "./data-source";
 
 // Published data (DATA.md §2, §5.1): the term list; per term its manifest,
 // seats, changes and departments (as a core CatalogIndex); the campus map;
@@ -60,6 +66,12 @@ import { DataError, type DataReader, SchemaVersionError } from "./data-source";
 // network to revalidate. Manifests are diffed against what's loaded (core
 // `diffManifest`), so a poll fetches only the files whose hash changed.
 // Files are validated before use; a file that fails keeps the previous one.
+//
+// Departments load in two ways (DATA.md §5.1). What's on screen asks for its
+// own (`ensureDepts`: a course's details, the plan's courses, a shared link)
+// and sees them as soon as they arrive. The rest of the term follows in the
+// background (`ensureTerm`), after whatever was asked for first, at a low
+// fetch priority, and shows when it's all in: search waits for that.
 
 export type LoadState = "loading" | "ready" | "error";
 
@@ -75,6 +87,12 @@ export interface TermCatalog {
   index: CatalogIndex;
   /** Every department in the manifest has loaded. */
   complete: boolean;
+  /**
+   * Every department has loaded or failed at least once this session, so the
+   * index is the whole term (less any that failed): what search waits for.
+   * Stays true while a poll refetches changed departments.
+   */
+  settled: boolean;
   seats: SeatsFile | null;
   /** The changes file (DATA.md §3.3): what `usePlanProblems` feeds core. */
   changes: ChangesFile | null;
@@ -135,11 +153,15 @@ export interface CatalogState {
 
   setReader: (reader: DataReader, options?: CatalogOptions) => void;
   loadTerms: () => Promise<void>;
-  /** Loads the term's manifest, seats and changes, then the given departments. */
+  /**
+   * Loads the term's manifest, then the given departments, ahead of the
+   * background load of the rest, and shows them as soon as they're in.
+   */
   ensureDepts: (termId: TermId, depts: readonly DeptCode[]) => Promise<void>;
   /**
    * Loads every department of the term (search, fit and problems need them
-   * all), `first` ones first: the plan's departments before the rest.
+   * all), `first` ones first: the plan's departments, and anything else
+   * already asked for, before the rest.
    */
   ensureTerm: (termId: TermId, first?: readonly DeptCode[]) => Promise<void>;
   /** Revalidates the term's manifest and fetches only what changed (the seat poll). */
@@ -158,8 +180,13 @@ export interface CatalogState {
   ) => Promise<RouteGeometry | null>;
 }
 
-/** DATA.md §5.1: fetch departments six at a time. */
-const CONCURRENCY = 6;
+/**
+ * DATA.md §5.1: how many department files the background load fetches at
+ * once. /data is served over HTTP/2, where the browser's six-per-host limit
+ * doesn't apply, and the ~200 files are small, so latency, not bandwidth,
+ * bounds the load.
+ */
+const CONCURRENCY = 16;
 
 function emptyTerm(termId: TermId): TermCatalog {
   return {
@@ -170,15 +197,16 @@ function emptyTerm(termId: TermId): TermCatalog {
     depts: {},
     index: buildCatalogIndex(termId, []),
     complete: false,
+    settled: false,
     seats: null,
     changes: null,
   };
 }
 
-const inFlight = new Map<string, Promise<void>>();
-function once(key: string, run: () => Promise<void>): Promise<void> {
+const inFlight = new Map<string, Promise<unknown>>();
+function once<T>(key: string, run: () => Promise<T>): Promise<T> {
   const existing = inFlight.get(key);
-  if (existing) return existing;
+  if (existing) return existing as Promise<T>;
   const promise = run().finally(() => inFlight.delete(key));
   inFlight.set(key, promise);
   return promise;
@@ -219,8 +247,33 @@ export const INITIAL_CATALOG_STATE = {
   appStale: false,
 } satisfies Partial<CatalogState>;
 
+/** A department's courses, and the hash they were loaded at. */
+interface LoadedDept {
+  hash: ContentHash;
+  courses: readonly Course[];
+}
 /** Loaded department chunks, per term, to rebuild the index from. */
-const chunks = new Map<TermId, Map<DeptCode, readonly Course[]>>();
+const chunks = new Map<TermId, Map<DeptCode, LoadedDept>>();
+const termChunks = (termId: TermId): Map<DeptCode, LoadedDept> => {
+  let loaded = chunks.get(termId);
+  if (!loaded) {
+    loaded = new Map();
+    chunks.set(termId, loaded);
+  }
+  return loaded;
+};
+const indexOf = (termId: TermId, loaded: Map<DeptCode, LoadedDept>) =>
+  buildCatalogIndex(
+    termId,
+    [...loaded.values()].flatMap((d) => d.courses),
+  );
+/**
+ * Per term, the `ensureDepts` calls still loading: the background load of
+ * the rest waits for them, so what's on screen is fetched first.
+ */
+const asked = new Map<TermId, Set<Promise<void>>>();
+/** Per term, a first load's seats and changes, which `ensureTerm` waits for. */
+const firstSeats = new Map<TermId, Promise<void>>();
 /** Per term, this session: when loading started and how many files came from the network. */
 const loadStats = new Map<
   TermId,
@@ -324,9 +377,9 @@ export const useCatalog = create<CatalogState>()((set, get) => {
   });
 
   const rebuild = (termId: TermId, manifest: Manifest) => {
-    const loaded = chunks.get(termId) ?? new Map<DeptCode, readonly Course[]>();
+    const loaded = termChunks(termId);
     patchTerm(termId, (t) => ({
-      index: buildCatalogIndex(termId, [...loaded.values()].flat()),
+      index: indexOf(termId, loaded),
       complete: manifest.departments.every((d) => t.depts[d.code] === "ready"),
     }));
   };
@@ -415,9 +468,7 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       }
       const old = current?.manifest ?? null;
       const diff = diffManifest(old ? cachedCatalogOf(old) : null, next);
-      const loaded =
-        chunks.get(termId) ?? new Map<DeptCode, readonly Course[]>();
-      chunks.set(termId, loaded);
+      const loaded = termChunks(termId);
 
       // Departments the manifest dropped leave the index.
       for (const dept of diff.drop) loaded.delete(dept);
@@ -437,9 +488,16 @@ export const useCatalog = create<CatalogState>()((set, get) => {
           depts,
         };
       });
-      if (diff.seats || diff.changes || !old)
+      if (!old) {
+        // A first load: departments needn't wait for seats and changes.
+        // `ensureTerm` waits for them before it commits the manifest.
+        const seats = loadSeatsAndChanges(reader, termId, next).finally(() =>
+          firstSeats.delete(termId),
+        );
+        firstSeats.set(termId, seats);
+      } else if (diff.seats || diff.changes)
         await loadSeatsAndChanges(reader, termId, next);
-      if (stale.length > 0) await ensureDepts(termId, stale);
+      if (stale.length > 0) await loadDepts(termId, stale, "auto");
       else if (diff.drop.length > 0 || diff.fetch.length > 0)
         rebuild(termId, next);
       await persistManifest(termId);
@@ -473,7 +531,65 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       await refreshTerm(termId);
     });
 
-  const ensureDepts = async (termId: TermId, depts: readonly DeptCode[]) => {
+  /** Every department has loaded or failed. */
+  const isSettled = (
+    manifest: Manifest,
+    termId: TermId,
+    states = get().byTerm[termId]?.depts ?? {},
+  ) =>
+    manifest.departments.every(
+      (d) => states[d.code] === "ready" || states[d.code] === "error",
+    );
+
+  /**
+   * One department's chunk: the cache (read by the caller, for a whole batch)
+   * or the network. A chunk already loaded at this hash is never fetched
+   * again, so a department asked for twice, by what's on screen and by the
+   * background load, is fetched once.
+   */
+  const loadDept = (
+    reader: DataReader,
+    termId: TermId,
+    entry: Manifest["departments"][number],
+    cached: DeptChunk | undefined,
+    priority: ReadPriority,
+  ) =>
+    once(
+      `dept:${termId}:${entry.code}:${entry.hash}`,
+      async (): Promise<LoadState> => {
+        const loaded = termChunks(termId);
+        if (loaded.get(entry.code)?.hash === entry.hash) return "ready";
+        try {
+          let chunk = cached;
+          if (!chunk) {
+            chunk = await reached(
+              reader.deptChunk(termId, entry.code, entry.hash, { priority }),
+            );
+            stats(termId).fetched++;
+            store([
+              {
+                key: deptChunkKey(termId, entry.code, entry.hash),
+                ...catalogFile(termId),
+                data: chunk,
+              },
+            ]);
+          }
+          loaded.set(entry.code, { hash: entry.hash, courses: chunk.courses });
+          return "ready";
+        } catch (error) {
+          // A department that fails keeps its previous chunk, if any.
+          console.error(error);
+          return loaded.has(entry.code) ? "ready" : "error";
+        }
+      },
+    );
+
+  /** Loads departments and shows them together once they're all in. */
+  const loadDepts = async (
+    termId: TermId,
+    depts: readonly DeptCode[],
+    priority: ReadPriority,
+  ) => {
     const { reader } = get();
     if (!reader) return;
     if (get().byTerm[termId]?.manifestState !== "ready")
@@ -482,14 +598,20 @@ export const useCatalog = create<CatalogState>()((set, get) => {
     if (!manifest) return;
     const wanted = [...new Set(depts)].flatMap((dept) => {
       const entry = manifest.departments.find((d) => d.code === dept);
-      const state = get().byTerm[termId]?.depts[dept];
-      return entry && state !== "ready" && state !== "loading" ? [entry] : [];
+      return entry && get().byTerm[termId]?.depts[dept] !== "ready"
+        ? [entry]
+        : [];
     });
     if (wanted.length === 0) {
-      // Something else may be loading them; wait for it.
-      await Promise.all(
-        depts.map((d) => inFlight.get(`dept:${termId}:${d}`) ?? null),
-      );
+      // Nothing left to fetch (or nothing listed): the term may have just
+      // settled without a batch of its own.
+      if (!get().byTerm[termId]?.settled && isSettled(manifest, termId))
+        patchTerm(termId, (t) => ({
+          settled: true,
+          complete: manifest.departments.every(
+            (d) => t.depts[d.code] === "ready",
+          ),
+        }));
       return;
     }
     patchTerm(termId, (t) => {
@@ -497,45 +619,47 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       for (const d of wanted) next[d.code] = "loading";
       return { depts: next };
     });
-    const loaded = chunks.get(termId) ?? new Map<DeptCode, readonly Course[]>();
-    chunks.set(termId, loaded);
-    const results: Partial<Record<DeptCode, LoadState>> = {};
     // One cache read for the whole batch.
     const keys = wanted.map((e) => deptChunkKey(termId, e.code, e.hash));
     const cachedChunks =
       (await get().cache?.getFiles(keys)) ?? new Map<string, unknown>();
-    await eachLimited(wanted, CONCURRENCY, (entry) =>
-      once(`dept:${termId}:${entry.code}`, async () => {
-        const key = deptChunkKey(termId, entry.code, entry.hash);
-        try {
-          let chunk = cachedChunks.get(key) as DeptChunk | undefined;
-          if (!chunk) {
-            chunk = await reached(
-              reader.deptChunk(termId, entry.code, entry.hash),
-            );
-            stats(termId).fetched++;
-            store([{ key, ...catalogFile(termId), data: chunk }]);
-          }
-          loaded.set(entry.code, chunk.courses);
-          results[entry.code] = "ready";
-        } catch (error) {
-          // A department that fails keeps its previous chunk, if any.
-          console.error(error);
-          results[entry.code] = loaded.has(entry.code) ? "ready" : "error";
-        }
-      }),
-    );
+    const results: Partial<Record<DeptCode, LoadState>> = {};
+    await eachLimited(wanted, CONCURRENCY, async (entry) => {
+      const key = deptChunkKey(termId, entry.code, entry.hash);
+      results[entry.code] = await loadDept(
+        reader,
+        termId,
+        entry,
+        cachedChunks.get(key) as DeptChunk | undefined,
+        priority,
+      );
+    });
+    // On a first load, sections show with their seats, never "Seats unknown"
+    // for a moment. The two load side by side, so this rarely waits.
+    await firstSeats.get(termId);
     // One index rebuild per batch, not per department.
+    const loaded = termChunks(termId);
     patchTerm(termId, (t) => {
       const deptStates = { ...t.depts, ...results };
       return {
         depts: deptStates,
-        index: buildCatalogIndex(termId, [...loaded.values()].flat()),
+        index: indexOf(termId, loaded),
         complete: manifest.departments.every(
           (d) => deptStates[d.code] === "ready",
         ),
+        settled: t.settled || isSettled(manifest, termId, deptStates),
       };
     });
+  };
+
+  const ensureDepts = (termId: TermId, depts: readonly DeptCode[]) => {
+    const load = loadDepts(termId, depts, "auto");
+    const pending = asked.get(termId) ?? new Set<Promise<void>>();
+    asked.set(termId, pending);
+    pending.add(load);
+    const done = () => pending.delete(load);
+    load.then(done, done);
+    return load;
   };
 
   const loadTerms = () =>
@@ -644,6 +768,8 @@ export const useCatalog = create<CatalogState>()((set, get) => {
     setReader: (reader, options = {}) => {
       inFlight.clear();
       chunks.clear();
+      asked.clear();
+      firstSeats.clear();
       loadStats.clear();
       planetTerpManifest = null;
       onEvent = options.onEvent;
@@ -665,10 +791,17 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       const manifest = get().byTerm[termId]?.manifest;
       if (!manifest) return;
       if (first.length > 0) await ensureDepts(termId, first);
-      await ensureDepts(
-        termId,
-        manifest.departments.map((d) => d.code),
+      // Whatever's on screen asked for goes first; a second call while the
+      // background load runs (the plan gained a department) joins it.
+      await Promise.all(asked.get(termId) ?? []);
+      await once(`term:${termId}`, () =>
+        loadDepts(
+          termId,
+          manifest.departments.map((d) => d.code),
+          "low",
+        ),
       );
+      await firstSeats.get(termId);
       const s = stats(termId);
       if (!s.reported && get().byTerm[termId]?.complete) {
         s.reported = true;

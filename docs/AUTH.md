@@ -20,7 +20,7 @@ How Terpsicle knows who someone is. The plan is `docs/V2.md` §4; this is how th
 | `me`, `auth/sign-out`, `account/delete`, `auth/test-sign-in` | `src/server/auth/api.ts`, registered in `src/server/api/router.ts` |
 | Pictures (`/avatars/*`) | `src/server/auth/pictures.ts` |
 | Admins | `config/admins.txt`, read by `src/server/auth/admin.ts` |
-| The account purge | `src/jobs/daily.ts` (`7 13 * * *`) |
+| The account purge | `src/server/auth/purge.ts` (`PURGE_LEDGER` lists every table), run by `src/jobs/daily.ts` (`7 13 * * *`) |
 | Top bar button and menu, `/settings`, `/signin`, `/auth/test` | `src/features/auth/`, `src/routes/{settings,signin}.tsx`, `src/routes/auth/test.tsx`. On phones one top-bar button holds both the account (or Sign in) and the theme, so the plan's name keeps a tappable width. |
 | Tests | `src/core/auth/*.test.ts` (golden ID-token payloads in `src/fixtures/users.ts`), `src/server/auth/auth.test.ts` (the whole flow against D1 and R2, Google's token endpoint mocked), `src/features/auth/account.test.tsx`, `e2e/auth.spec.ts` |
 
@@ -162,7 +162,7 @@ These never refresh sessions or set cookies. For a GET that only reads (like `/a
 **What you get** (`AuthUser`): `id` (the directory ID), `email` and `hd` (the address used last), `name`, `avatarUrl` (our cached copy, or null), `isAdmin`, `createdAt`, `chatBlockedUntil`, `reviewsBlockedUntil`.
 
 **Rules for your tables and code:**
-- Reference `users (id) ON DELETE CASCADE`, so the purge takes your rows with it. If your data can't just go (reviews stay up without a name), add your step to the purge in `src/jobs/daily.ts`.
+- Reference `users (id) ON DELETE CASCADE`, and add your table to `PURGE_LEDGER` and its statement to `accountStatements` in `src/server/auth/purge.ts`: the purge deletes rows explicitly too, and a test fails while a table is missing from the ledger. If your data can't just go (reviews stay up without a name), null the column there instead.
 - Show the stored name and picture, never your own copy: they change when the person signs in again.
 - Never log, track or put in an event a name, email, directory ID, token, cookie or `sub`. Log check names and statuses only.
 - A reviewer's identity never reaches readers, moderation or the admin view (V2.md §7.5).
@@ -199,7 +199,7 @@ Google forbids wildcard redirect URIs, and previews live at `pr-<n>-terpsicle.zs
 ## Signing out and deleting an account
 
 - **Sign out** (`POST /api/auth/sign-out`) deletes this device's session and clears `__Host-session` and `__Host-hint`. Plans stay on the device and stop syncing (the sync state is forgotten, so the next sign-in merges as a first one). It needs our own origin, not a live session, so a stale cookie can always be cleared. **"Sign out and remove plans from this device"** (the account menu and `/settings`, for a shared computer) first pushes every change to the account; if one can't get there (offline), nothing is removed and the person stays signed in. Then it signs out, clears the plans, blocks, colors, travel, chat plans and sync state from IndexedDB and the `terpsicle:returning` flag, and goes to `/` (V2.md §5.3).
-- **Delete account** (`POST /api/account/delete`, `/settings`): no confirmation dialog (DESIGN §5). It sets `status = 'deleting'` and `delete_after` a week out, ends every session, and signs out. Settings says "Your account will be deleted on Saturday, October 3. Sign in before then to keep it." The toast's **Undo** signs back in, which cancels the deletion. The daily job purges accounts past `delete_after`: their pictures, then `users` (identities and sessions go with it). Later PRs add their own data to the purge (V2.md §4.7).
+- **Delete account** (`POST /api/account/delete`, `/settings`): no confirmation dialog (DESIGN §5). It sets `status = 'deleting'` and `delete_after` a week out, ends every session, and signs out. Settings says "Your account will be deleted on Saturday, October 3. Sign in before then to keep it." The toast's **Undo** signs back in, which cancels the deletion; the callback then lands on `?signed-in=kept`, and the app says quietly "Your account is staying". The daily job purges accounts past `delete_after` (`src/server/auth/purge.ts`), in three resumable steps: `purgeAuthor` on each course object in `chat_author_courses` (each row crossed off once its object answers), the pictures in R2, then one D1 batch with every other row and `users` last. Reviews stay with `author_id` null; reports stay with the reporter swapped for a random `purged:` stand-in; feedback stays with `user_id` null. Every step checks that the account is still due, so a sign-in mid-run keeps it. An account that fails partway is reported in the job's errors and finished the next day.
 
 ## Analytics and privacy
 

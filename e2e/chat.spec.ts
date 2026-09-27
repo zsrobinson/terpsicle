@@ -157,6 +157,42 @@ test("signed out, Chat says what it keeps and what classmates see", async ({
   ).toBeVisible();
 });
 
+test("with no classes yet, find any course and open its room", async ({
+  page,
+}) => {
+  // Someone new: no synced plans, so no rooms of their own.
+  await page.goto("/privacy");
+  const userId = `e2e${Math.random().toString(36).slice(2, 12)}`;
+  const next = await page.evaluate(async (id) => {
+    const response = await fetch("/api/auth/test-sign-in", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: id, return: "/chat" }),
+    });
+    const result: { return?: string } = await response.json();
+    return result.return ?? "";
+  }, userId);
+  await page.goto(next);
+
+  await expect(page.getByText(/No classes here yet/)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Open the scheduler" }),
+  ).toBeVisible();
+  const box = page.getByRole("searchbox", { name: "Find a course's chat" });
+  await box.fill("cmsc131");
+  await expect(
+    page.getByRole("list", { name: "Courses" }).getByRole("button").first(),
+  ).toContainText("CMSC131");
+  await box.press("Enter");
+
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("room") === `${TERM}:CMSC131`,
+  );
+  await expect(
+    page.getByRole("textbox", { name: /^Message CMSC131/ }),
+  ).toBeVisible();
+});
+
 test("two classmates talk in their section's room", async ({
   page,
   browser,

@@ -421,6 +421,125 @@ export async function listPublished(
   return results.map(parseRow);
 }
 
+const NumbersRowSchema = z.object({
+  id: InstructorIdSchema,
+  rating: z.number().min(1).max(5),
+  count: z.number().int().min(1),
+});
+
+/** Published reviews summed per instructor (every course). */
+export async function publishedNumbersByInstructor(
+  db: D1Database,
+  ids: readonly InstructorId[],
+): Promise<{ id: InstructorId; rating: number; count: number }[]> {
+  if (ids.length === 0) return [];
+  const { results } = await db
+    .prepare(
+      `SELECT instructor_id AS id, AVG(rating) AS rating, COUNT(*) AS count
+       FROM reviews
+       WHERE status = 'published'
+         AND instructor_id IN (SELECT value FROM json_each(?1))
+       GROUP BY instructor_id`,
+    )
+    .bind(JSON.stringify(ids))
+    .all();
+  return z.array(NumbersRowSchema).parse(results);
+}
+
+/** Published reviews of a course summed (every instructor); null with none. */
+export async function publishedNumbersForCourse(
+  db: D1Database,
+  course: CourseCode,
+): Promise<{ rating: number; count: number } | null> {
+  const row = await db
+    .prepare(
+      `SELECT AVG(rating) AS rating, COUNT(*) AS count
+       FROM reviews WHERE course = ?1 AND status = 'published'`,
+    )
+    .bind(course)
+    .first<{ rating: number | null; count: number }>();
+  return row && row.count > 0 && row.rating !== null
+    ? { rating: row.rating, count: row.count }
+    : null;
+}
+
+/**
+ * The registry's name for an instructor and the departments we know them
+ * in: from Testudo names joined here and from their published reviews.
+ */
+export async function instructorWithDepts(
+  db: D1Database,
+  id: InstructorId,
+): Promise<{ name: string; depts: DeptCode[] } | null> {
+  const instructor = await getInstructor(db, id);
+  if (!instructor) return null;
+  const { results } = await db
+    .prepare(
+      `SELECT dept FROM instructor_names WHERE instructor_id = ?1
+       UNION
+       SELECT DISTINCT substr(course, 1, 4) FROM reviews
+       WHERE instructor_id = ?1 AND status = 'published'
+       ORDER BY 1`,
+    )
+    .bind(id)
+    .all<{ dept: DeptCode }>();
+  return { name: instructor.name, depts: results.map((r) => r.dept) };
+}
+
+/**
+ * (course, instructor) pairs with a published review, newest publication
+ * first, with how many reviews each has and its newest review's created_at.
+ * Callers order what they show by month, never by this order (V2 §7.5).
+ */
+export async function reviewedPairs(
+  db: D1Database,
+  limit: number,
+): Promise<
+  {
+    course: CourseCode;
+    instructor_id: InstructorId;
+    name: string;
+    count: number;
+    created_at: string;
+  }[]
+> {
+  const { results } = await db
+    .prepare(
+      `SELECT r.course, r.instructor_id, i.name, COUNT(*) AS count,
+         MAX(r.created_at) AS created_at
+       FROM reviews r JOIN instructors i ON i.id = r.instructor_id
+       WHERE r.status = 'published'
+       GROUP BY r.course, r.instructor_id
+       ORDER BY MAX(r.published_at) DESC
+       LIMIT ?1`,
+    )
+    .bind(limit)
+    .all();
+  return z.array(ReviewedPairRowSchema).parse(results);
+}
+
+const ReviewedPairRowSchema = z.object({
+  course: CourseCodeSchema,
+  instructor_id: InstructorIdSchema,
+  name: z.string().min(1),
+  count: z.number().int().min(1),
+  created_at: z.string(),
+});
+
+/** Instructors we minted ids for who have a published review (the sitemap). */
+export async function mintedWithReviews(
+  db: D1Database,
+): Promise<InstructorId[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT DISTINCT instructor_id AS id FROM reviews
+       WHERE status = 'published' AND instructor_id LIKE 't~%'
+       ORDER BY 1`,
+    )
+    .all<{ id: InstructorId }>();
+  return results.map((r) => r.id);
+}
+
 // ---------- changes of state ----------
 
 export interface ReviewFields {
@@ -591,6 +710,24 @@ export async function pruneReviews(
     blanked: blanked?.meta.changes ?? 0,
     removed: removed?.meta.changes ?? 0,
   };
+}
+
+/**
+ * Account deletion (V2 §4.7): the person's reviews stay as they are, with
+ * no author. Nothing else links a review to anyone. A statement for the
+ * purge's batch, since this file is the only one that names `author_id`;
+ * `onlyIf` is the purge's condition on `?1` (the user) and `?2` (`at`).
+ */
+export function forgetAuthorStatement(
+  db: D1Database,
+  userId: string,
+  guard: { onlyIf: string; at: string },
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `UPDATE reviews SET author_id = NULL WHERE author_id = ?1 AND ${guard.onlyIf}`,
+    )
+    .bind(userId, guard.at);
 }
 
 // ---------- published numbers (the reviews-publish job) and summaries ----------

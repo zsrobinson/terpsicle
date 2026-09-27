@@ -23,6 +23,7 @@ export * from "./problems";
 export * from "./pwa";
 export * from "./reviews";
 export * from "./reviews-data";
+export * from "./reviews-url";
 export * from "./rows";
 export * from "./schedule-url";
 export * from "./seat-watches";

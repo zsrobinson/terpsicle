@@ -150,7 +150,9 @@ export async function testSignIn(
   return withCookies(
     json({
       status: "signed-in",
-      return: withSignedIn(safeReturnPath(input.return)),
+      return: withSignedIn(safeReturnPath(input.return), {
+        kept: signedIn.kept,
+      }),
     } satisfies TestSignInResult),
     signedIn.cookies,
   );

@@ -36,7 +36,11 @@ import {
   type RoomId,
   TermIdSchema,
 } from "~/core/schema";
-import { latestDecision, moderate } from "../moderation/service";
+import {
+  latestDecision,
+  moderate,
+  withdrawFromQueue,
+} from "../moderation/service";
 import { type ChatCourse, loadChatCourse, loadTermDates } from "./catalog";
 import { chatTargetId } from "./moderation-handler";
 import {
@@ -52,6 +56,7 @@ import {
   planSections,
   readMarkers,
   readProfiles,
+  recordAuthorCourse,
   recordVisible,
 } from "./store";
 
@@ -156,6 +161,8 @@ export class CourseChat extends DurableObject<Env> {
   #catalog: { at: number; value: ChatCourse | null } | null = null;
   readonly #profiles = new Map<string, { at: number; profile: ChatProfile }>();
   readonly #typing = new Map<string, number>();
+  /** Authors whose chat_author_courses row this instance has written. */
+  readonly #authorsRecorded = new Set<string>();
   /** Screens in flight per message, so the alarm doesn't start another. */
   readonly #screening = new Map<string, number>();
 
@@ -355,6 +362,13 @@ export class CourseChat extends DurableObject<Env> {
     const now = Date.now();
     const gate = await this.#writeGate(ws, att, room, req, now);
     if (!gate) return;
+    // Before the message exists, so account deletion always finds it,
+    // even one that's never shown (V2.md §8.5). Awaited before the checks
+    // below, so nothing interleaves between them and the insert.
+    if (!this.#authorsRecorded.has(att.user)) {
+      await recordAuthorCourse(this.env.DB, att.user, att.term, att.course);
+      this.#authorsRecorded.add(att.user);
+    }
     // A resend after a reconnect: the first one's answer, not a copy.
     const earlier = this.#store.messageByRequest(att.user, req);
     if (earlier) return this.#ack(ws, req, earlier);
@@ -625,6 +639,45 @@ export class CourseChat extends DurableObject<Env> {
     if (row?.status !== "visible") return false;
     await this.#apply(row.id, { state: "held", reason: "reported" }, row.body);
     return true;
+  }
+
+  /**
+   * Account deletion (V2.md §4.7, the daily purge): everything the person
+   * left in this course goes, whatever its state: their messages with the
+   * reactions on them, their reactions elsewhere, their send log and any
+   * socket still open. Classmates see the messages go, as when an author
+   * deletes one; moderation keeps its decisions but no longer waits on
+   * them. Idempotent: a second call finds nothing and changes nothing.
+   */
+  async purgeAuthor(target: {
+    termId: string;
+    courseCode: string;
+    userId: string;
+  }): Promise<{ messages: number }> {
+    this.#bind(target.termId, target.courseCode);
+    // Should the same directory ID write here again, it's recorded again.
+    this.#authorsRecorded.delete(target.userId);
+    for (const ws of this.ctx.getWebSockets(target.userId))
+      ws.close(CHAT_CLOSE.signedOut, "Sign in again.");
+    const gone = this.#store.purgeAuthor(target.userId);
+    const ids = new Set(gone.map((row) => row.id));
+    const threads = new Set<string>();
+    for (const row of gone) {
+      await withdrawFromQueue(
+        this.env.DB,
+        "chat",
+        chatTargetId(target.termId, target.courseCode, row.id),
+      );
+      if (row.status !== "visible") continue;
+      await this.#broadcast(row.room_id, () => ({
+        type: "deleted",
+        room: row.room_id,
+        id: row.id,
+      }));
+      if (row.reply_to && !ids.has(row.reply_to)) threads.add(row.reply_to);
+    }
+    for (const root of threads) await this.#threadChanged(root);
+    return { messages: gone.length };
   }
 
   /**

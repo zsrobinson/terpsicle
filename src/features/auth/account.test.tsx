@@ -1,3 +1,9 @@
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -6,6 +12,11 @@ import type { MeResult, MeUser } from "~/core/schema";
 import { api } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
+import {
+  AccountBoot,
+  KEPT_ACCOUNT_DETAIL,
+  KEPT_ACCOUNT_NOTE,
+} from "./account-boot";
 import { AccountButton } from "./account-button";
 import {
   type AccountClient,
@@ -66,6 +77,16 @@ const wrap = (node: ReactNode) =>
       <Toaster />
     </TooltipProvider>,
   );
+
+/** /settings in a router, as the app renders it: the site header needs one. */
+async function settings() {
+  const router = createRouter({
+    routeTree: createRootRoute({ component: SettingsPage }),
+    history: createMemoryHistory({ initialEntries: ["/settings"] }),
+  });
+  wrap(<RouterProvider router={router} />);
+  await screen.findByRole("heading", { name: "Settings", level: 1 });
+}
 
 async function loaded(me: MeResult) {
   const client = fakeClient(me);
@@ -266,7 +287,7 @@ describe("the top bar's account button", () => {
 describe("/settings", () => {
   it("shows the Google profile read-only, with where to change it", async () => {
     await loaded(signedIn());
-    wrap(<SettingsPage />);
+    await settings();
     expect(screen.getByText("Testudo Terrapin")).toBeInTheDocument();
     expect(screen.getByText("testudo@terpmail.umd.edu")).toBeInTheDocument();
     expect(screen.getByText("testudo")).toBeInTheDocument();
@@ -282,7 +303,7 @@ describe("/settings", () => {
   it("deletes without a dialog, and offers Undo (signing back in)", async () => {
     const client = await loaded(signedIn());
     const user = userEvent.setup();
-    wrap(<SettingsPage />);
+    await settings();
     await user.click(screen.getByRole("button", { name: "Delete account" }));
     expect(client.account.delete).toHaveBeenCalledOnce();
     expect(screen.queryByRole("alertdialog")).toBeNull();
@@ -293,14 +314,37 @@ describe("/settings", () => {
       await screen.findByRole("button", { name: "Undo" }),
     ).toBeInTheDocument();
     expect(
+      screen.getByText(/^Deleting your account on .*October 8$/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Undo signs you back in and keeps it."),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("link", { name: "Sign in with Google" }),
     ).toHaveAttribute("href", "/api/auth/google?return=%2Fsettings");
+  });
+
+  it("says quietly when signing in kept an account that was being deleted", async () => {
+    fakeClient(signedIn());
+    window.history.replaceState(null, "", "/settings?signed-in=kept");
+    wrap(<AccountBoot />);
+    expect(await screen.findByText(KEPT_ACCOUNT_NOTE)).toBeInTheDocument();
+    expect(screen.getByText(KEPT_ACCOUNT_DETAIL)).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+  });
+
+  it("says nothing extra after an ordinary sign-in", async () => {
+    fakeClient(signedIn());
+    window.history.replaceState(null, "", "/settings?signed-in=1");
+    wrap(<AccountBoot />);
+    await vi.waitFor(() => expect(window.location.search).toBe(""));
+    expect(screen.queryByText(KEPT_ACCOUNT_NOTE)).toBeNull();
   });
 
   it("signs out and removes plans from this device, with no dialog", async () => {
     const client = await loaded(signedIn());
     const user = userEvent.setup();
-    wrap(<SettingsPage />);
+    await settings();
     await user.click(
       screen.getByRole("button", {
         name: "Sign out and remove plans from this device",
@@ -324,8 +368,46 @@ describe("/settings", () => {
       status: "signed-out",
       flags: flags({ signIn: true }),
     });
-    wrap(<SettingsPage />);
+    await settings();
     expect(screen.getByText("You're not signed in.")).toBeInTheDocument();
+  });
+
+  it("sits in the site's frame: every product, and your account, one click away", async () => {
+    await loaded(signedIn());
+    await settings();
+    const header = screen.getByRole("banner");
+    const products = within(header).getByRole("navigation", {
+      name: "Products",
+    });
+    expect(
+      within(products).getByRole("link", { name: "Schedule" }),
+    ).toHaveAttribute("href", "/schedule");
+    // Nothing's the product you're on: Settings belongs to all of them.
+    expect(
+      within(products)
+        .getAllByRole("link")
+        .filter((a) => a.getAttribute("aria-current") === "page"),
+    ).toEqual([]);
+    const account = within(header).getByRole("link", {
+      name: "Account: Testudo Terrapin",
+    });
+    expect(account).toHaveAttribute("href", "/settings");
+    expect(account).toHaveAttribute("aria-current", "page");
+  });
+
+  it("offers Sign in in the header when signed out, back to /settings", async () => {
+    await loaded({
+      status: "signed-out",
+      flags: flags({ signIn: true }),
+    });
+    await settings();
+    const header = screen.getByRole("banner");
+    expect(
+      within(header).getByRole("navigation", { name: "Products" }),
+    ).toBeInTheDocument();
+    expect(
+      within(header).getByRole("link", { name: "Sign in" }),
+    ).toHaveAttribute("href", "/api/auth/google?return=%2Fsettings");
   });
 });
 

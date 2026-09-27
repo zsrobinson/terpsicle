@@ -17,7 +17,7 @@ import {
   type PushDevicesResult,
 } from "~/core/schema/notifications";
 import { type ApiEnv, handleApi } from "../api/router";
-import { purgeAccounts } from "../auth/store";
+import { type PurgeEnv, purgeDueAccounts } from "../auth/purge";
 import { TEST_VAPID_KEYS } from "../push/config";
 import { resetPushCachesForTests } from "../push/send";
 import { MAX_PUSH_FAILURES } from "../push/store";
@@ -611,7 +611,7 @@ describe("signing out, deleting the account and the purge", () => {
     )
       .bind(now().toISOString())
       .run();
-    await purgeAccounts(env.DB, now());
+    await purgeDueAccounts(env as unknown as PurgeEnv, now());
     const count = (table: string) =>
       env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{
         n: number;

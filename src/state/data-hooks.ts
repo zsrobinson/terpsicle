@@ -89,6 +89,22 @@ export function useCampus(): { campus: CampusMap; state: LoadState | "idle" } {
 }
 
 /**
+ * Loads the department a course is in ahead of the rest of the term, and its
+ * PlanetTerp file beside it, so the course's details show as soon as those
+ * two arrive rather than after the whole catalog (DATA.md §5.1).
+ */
+export function useCourseDept(termId: TermId | null, dept: DeptCode): void {
+  const reader = useCatalog((s) => s.reader);
+  const ensureDepts = useCatalog((s) => s.ensureDepts);
+  const ensureInstructors = useCatalog((s) => s.ensureInstructors);
+  useEffect(() => {
+    if (!reader || !termId) return;
+    void ensureDepts(termId, [dept]);
+    void ensureInstructors(dept);
+  }, [reader, termId, dept, ensureDepts, ensureInstructors]);
+}
+
+/**
  * A department's PlanetTerp file: instructors (by slug), the Testudo name →
  * slug join (`names`, keyed by `instructorNameKey`), and grades per course.
  * `source` says how current PlanetTerp is (null until its manifest loads);

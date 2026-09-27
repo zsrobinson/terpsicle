@@ -1,6 +1,7 @@
 import { createRouter, stringifySearchWith } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
+import type { PageRequestContext } from "~/core/routing";
 import { CSP_NONCE_HEADER } from "~/core/schema";
 import { routeTree } from "./routeTree.gen";
 
@@ -33,5 +34,8 @@ export function getRouter() {
 declare module "@tanstack/react-router" {
   interface Register {
     router: ReturnType<typeof getRouter>;
+    // What the Worker passes each server render (src/server.ts): loaders
+    // read it as `serverContext`, which is undefined in the browser.
+    server: { requestContext: PageRequestContext };
   }
 }

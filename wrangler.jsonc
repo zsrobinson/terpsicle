@@ -10,6 +10,12 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "upload_source_maps": true,
+  // Workers Cache, in front of this Worker: it keeps what's marked public
+  // (the public Reviews pages, sitemaps, /data files) by Cache-Control,
+  // stale-while-revalidate included. Keys include the Worker version, so a
+  // deploy never serves a page naming the last deploy's scripts. Pages
+  // default to no-cache; see src/server/pages/shared-pages.ts.
+  "cache": { "enabled": true },
 
   // The Cloudflare Vite plugin fills in the assets directory at build time.
   // Asset files are served before the Worker runs, so /data/* and /ingest/*
@@ -135,6 +141,8 @@
   // COURSE_CHAT is its own namespace, so previews never share rooms with
   // each other or with production (checked for v2/chat-do; STATUS.md).
   "previews": {
+    // Each preview caches apart from production.
+    "cache": { "enabled": true },
     // Todo on previews runs in test mode: a fixed key and the fixture feed,
     // never TODO_FEED_KEY or a real ELMS link.
     "vars": {

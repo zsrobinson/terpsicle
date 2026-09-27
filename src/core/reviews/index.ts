@@ -8,6 +8,8 @@ export {
   terpsicleRating,
 } from "./combine";
 export { matchCourses } from "./find";
+export * from "./pages";
+export { buildPlanetTerpIndex } from "./planetterp-index";
 export {
   buildReviewsDepts,
   type PublishedReviewFact,

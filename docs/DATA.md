@@ -49,6 +49,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `courses/dept/<DEPT>.<hash>.json` (v3) | `CourseIndexDeptSchema`: per course the title, credits, GenEd groups, prerequisite, corequisite and restriction text, cross-listings, parsed prerequisites and the terms it was offered in (§3.4) | catalog job | hashed |
 | `planetterp/manifest.json` | `PlanetTerpManifestSchema` | PlanetTerp job (daily) | fixed |
 | `planetterp/dept/<DEPT>.<hash>.json` | `PlanetTerpDeptSchema` | PlanetTerp job | hashed |
+| `planetterp/index.<hash>.json` | `PlanetTerpIndexSchema` | PlanetTerp job | hashed |
 | `geo/manifest.json` | `GeoManifestSchema` | buildings job (weekly), routes script (weekly, GitHub Actions) | fixed |
 | `geo/buildings.<hash>.json` | `BuildingsFileSchema` | buildings job | hashed |
 | `geo/routes.<hash>.bin` | binary, §4.2 | routes script | hashed |
@@ -188,6 +189,7 @@ The scheduler's catalog is per term and covers only the terms Testudo lists. The
 - **Never replace good data with empty data.** PlanetTerp looks unmaintained (reviews stopped in May 2026, grades end in Spring 2025), so the job assumes it can fail in ways that still parse:
   - **Sanity floors** (`src/ingest/planetterp/source.ts`). A run whose professor list is empty, or has more than 10% fewer professors or reviews than the last good run (`_jobs/planetterp/state.json`), is a source failure. So is a list that doesn't arrive at all. The job then publishes nothing new: the department files and the manifest's `departments` stay as they were, the manifest's `source.status` becomes `stale` (`gone` after 30 days without a good run), the reason goes in the job state, and the cron reports `cron_job_failed` with the reason as `firstError` (`docs/ANALYTICS.md`).
   - **Grades never go from something to nothing.** `/grades` answers 400 `{"error":"course not found"}` for a course it doesn't know; only that 400 means "no grades", and any other error keeps the stored rows. An empty answer for a course that had rows keeps the old rows too; only a course with no stored rows may stay empty.
+- **The index** (`planetterp/index.<hash>.json`, `PlanetTerpIndexSchema`, named by the manifest's optional `index: {hash}`, added without a version bump like `source`) is built from the department files the run published (`buildPlanetTerpIndex` in `src/core/reviews`): `instructors`, slug → `[name, depts]`, and `mostTaken`, the 40 courses offered in an active term with the most students in PlanetTerp's grades, as `[code, title, students]`. Instructor pages without `?course=` find their departments here, the sitemap lists every instructor from it, and a mistyped instructor URL gets "Did you mean" from its names. A failed write keeps the previous index.
 - **`source`** in `planetterp/manifest.json` (`PlanetTerpSourceSchema`) is `{status, lastSuccessAt, gradesThrough, latestReviewAt}`. It was added without a version bump (§2.3: an optional field; older clients strip it, and manifests without it read as "unknown"). `status`:
   - `ok`: the last run was good and PlanetTerp has published a review in the last six weeks;
   - `stale`: the last run was a source failure, or PlanetTerp has published no review for six weeks (its ratings are frozen);
@@ -297,7 +299,11 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 3.
    - fetch seats if `seats.hash` changed;
    - fetch changes if `changes.hash` changed.
 
-   Use concurrency 6 and validate each file.
+   Validate each file.
+
+   Departments load in two ways. Whatever is on screen asks for its own departments (`ensureDepts`: an open course's details, the plan's courses, a shared link), fetched at once and shown as soon as they arrive. Then the rest of the term loads in the background (`ensureTerm`), 16 files at a time with a `low` Fetch Priority, and shows once it's all in; search waits for that (`settled`). A department something asks for during the background load is fetched right away, not in its turn, and no file is fetched twice. On a first load, departments don't wait for seats and changes; they load side by side, and a batch shows once the seats are in too.
+
+   Why 16 and not 6: `/data` is served over HTTP/2, so the browser's six-connections-per-host limit doesn't apply, and ~200 small files (about 850 KB compressed) are bound by round trips, not bandwidth. Over HTTP/1.1 (a local dev server) the browser queues them at six, by priority.
 4. In **one Dexie transaction**, put the new `files` and then the new manifest. Never store a manifest whose files are missing. Then delete this term's `files` rows the manifest no longer references.
 5. **Polling:** for an active term, poll the manifest every 60 s while the document is visible, and immediately when it becomes visible again. Most polls are a 304. A change in `seats.hash` alone fetches only the seats file. For an archived term, fetch the manifest once per session and don't poll.
 6. PlanetTerp and geo follow the same pattern with their own manifests, fetched lazily: a PlanetTerp department file when a course from it opens, or when the generator ranks by rating or GPA; the routes binary when the plan first has a connection.
@@ -594,7 +600,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 | `chat_rooms` | `(term_id, course_code, room_id)` | `kind`, `sections` (JSON section codes), `last_seq`, `last_message_at` | Written by the object when a message becomes visible, so a room has a row only after its first. `kind` and `sections` let `chat/unread` pick your professor and section rooms without the catalog. |
 | `chat_read_markers` | `(user_id, term_id, course_code, room_id)` | `seq` | Only moves forward. `chat/unread`'s count is `last_seq − seq`. |
 | `chat_room_prefs` | `(user_id, term_id, course_code, room_id)` | `muted` | |
-| `chat_author_courses` | `(user_id, term_id, course_code)` | | Where someone has posted, for account deletion (`v2/account-delete`). No foreign key: the purge reads it after the user row is gone. |
+| `chat_author_courses` | `(user_id, term_id, course_code)` | | Where someone has written, for account deletion: recorded at their first send in a course, so held messages count. The purge calls `purgeAuthor` on each course's object and deletes the row once it answers. No foreign key. |
 
 **The object's SQLite** (made on its first write; an object nobody wrote in has no storage):
 - `meta`: `term_id`, `course_code`, `read_only_at` and `delete_at` (epoch ms, from `chatRetention`), `read_only_announced`.

@@ -1,6 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { renderShell } from "~/app/test-utils";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
@@ -19,7 +20,11 @@ import {
 } from "~/fixtures";
 import { api } from "~/server/fns/api";
 import { useCatalog } from "~/state/catalog-store";
-import { createBucketDataSource } from "~/state/data-source";
+import {
+  createBucketDataSource,
+  createDataReader,
+  type DataSource,
+} from "~/state/data-source";
 import {
   INITIAL_REVIEW_NUMBERS_STATE,
   useReviewNumbers,
@@ -684,6 +689,35 @@ describe("Course details", () => {
     await renderPlanTab([searchPanels, panels], "search");
     act(() => openCourse("ZZZZ999"));
     expect(await screen.findByText(/isn't offered in/)).toBeInTheDocument();
+  });
+
+  it("shows a course as soon as its department loads, while the rest of the term waits", async () => {
+    await renderShell({ panels: [searchPanels, panels] });
+    // Every other department's file waits until the course is on screen.
+    const bucket = createBucketDataSource(mockDataSource);
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const source: DataSource = {
+      ...bucket,
+      readJson: async (key, options) => {
+        if (key.includes("/dept/") && !key.includes("/dept/CMSC.")) await held;
+        return bucket.readJson(key, options);
+      },
+    };
+    await act(async () => {
+      useCatalog.getState().setReader(createDataReader(source));
+      await useCatalog.getState().loadTerms();
+    });
+    act(() => openCourse("CMSC351"));
+
+    await screen.findByTestId("sections");
+    expect(useCatalog.getState().byTerm[TEST_TERM_ID]?.complete).toBe(false);
+    await act(async () => release());
+    await waitFor(() =>
+      expect(useCatalog.getState().byTerm[TEST_TERM_ID]?.complete).toBe(true),
+    );
   });
 
   it("says a course isn't offered once its department loads, before the rest", async () => {

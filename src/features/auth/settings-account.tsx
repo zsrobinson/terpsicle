@@ -2,12 +2,14 @@ import { ChevronRight, ExternalLink } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
-import { signInStartHref } from "~/core/auth";
+import { SIGN_IN_PITCH, signInStartHref } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
+import { SitePage } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { AccountPage, AccountSection } from "./account-page";
+import { AccountLink } from "./account-link";
+import { AccountSection } from "./account-page";
 import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
 import { SignInPanel } from "./sign-in-panel";
@@ -36,37 +38,48 @@ export function deletionDay(iso: string): string {
 /**
  * `/settings`: the account (V2.md §1.1), the sections you're watching for a
  * seat (#watching, from the account menu), and the way to notifications
- * (§6.2, their own page).
+ * (§6.2, their own page). It sits in the site's frame, so every product is
+ * one click away.
  */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
   const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   return (
-    <AccountPage title="Settings" busy={status === "loading"}>
-      <AccountSection title="Account">
-        <AccountDetails />
-      </AccountSection>
-      {status === "signed-in" ? (
-        <AccountSection title="Notifications">
-          <WithTooltip label="Seat openings, Chat mentions and Todo reminders, and your devices">
-            <a
-              href="/settings/notifications"
-              className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1 text-fg transition-colors hover:bg-hover"
-            >
-              <span className="min-w-0 flex-1">
-                Choose what Terpsicle sends you, and where
-              </span>
-              <ChevronRight size={16} aria-hidden="true" />
-            </a>
-          </WithTooltip>
+    <SitePage
+      layout="reading"
+      actions={<AccountLink from="settings" signInTip={SIGN_IN_PITCH} />}
+    >
+      <h1 className="mb-4 font-semibold text-xl tracking-tight">Settings</h1>
+      <div
+        aria-live="polite"
+        aria-busy={status === "loading"}
+        className="space-y-4"
+      >
+        <AccountSection title="Account">
+          <AccountDetails />
         </AccountSection>
-      ) : null}
-      {status === "signed-in" && seatAlerts ? (
-        <Suspense fallback={null}>
-          <SeatWatches />
-        </Suspense>
-      ) : null}
-    </AccountPage>
+        {status === "signed-in" ? (
+          <AccountSection title="Notifications">
+            <WithTooltip label="Seat openings, Chat mentions and Todo reminders, and your devices">
+              <a
+                href="/settings/notifications"
+                className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1 text-fg transition-colors hover:bg-hover"
+              >
+                <span className="min-w-0 flex-1">
+                  Choose what Terpsicle sends you, and where
+                </span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </a>
+            </WithTooltip>
+          </AccountSection>
+        ) : null}
+        {status === "signed-in" && seatAlerts ? (
+          <Suspense fallback={null}>
+            <SeatWatches />
+          </Suspense>
+        ) : null}
+      </div>
+    </SitePage>
   );
 }
 
@@ -167,8 +180,8 @@ function AccountActions() {
         track("account_deletion_requested", {});
         // No confirmation dialog (DESIGN §5): Undo signs back in, which
         // keeps the account.
-        toast(`Account deleted on ${deletionDay(due)}`, {
-          description: "Sign in before then to keep it.",
+        toast(`Deleting your account on ${deletionDay(due)}`, {
+          description: "Undo signs you back in and keeps it.",
           duration: 10_000,
           action: {
             label: "Undo",
@@ -226,8 +239,10 @@ function AccountActions() {
         </WithTooltip>
       </div>
       <p className="text-sm">
-        Deleting removes your name, email and photo from Terpsicle after a week.
-        Plans on this device stay.
+        Deleting signs you out everywhere. After a week, your profile, synced
+        plans, chat messages and ELMS feed are gone for good. Your published
+        reviews stay up, with no name on them. Delete them first if you want
+        them gone. Plans on this device stay.
       </p>
       {failed ? (
         <p role="status" className="text-fg text-sm">
