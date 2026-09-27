@@ -22,7 +22,7 @@ import {
  * scheduler's "Join CMSC351 chat") follows the course once you're signed in.
  */
 export const ChatSearchSchema = z.object({
-  // The router reads `?term=202608` as a number: taken back as text.
+  // The router reads a numeric `?term=` as a number: taken back as text.
   term: z
     .union([z.string(), z.number()])
     .transform(String)

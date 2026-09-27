@@ -40,7 +40,7 @@ export function seasonSpan(termId: TermId): { start: IsoDate; end: IsoDate } {
 
 /**
  * The term whose usual months hold a date: Fall 2026 for 2026-10-01, Winter
- * 2027 (`202612`) for 2027-01-10.
+ * 2027 (the `12` term of 2026) for 2027-01-10.
  */
 export function seasonTermOf(date: IsoDate): TermId {
   const year = Number(date.slice(0, 4));
