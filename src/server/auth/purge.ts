@@ -75,7 +75,7 @@ export const PURGE_LEDGER = {
   moderation_author_stops:
     "untouched: no user id, only a queue item and when the stop ends",
   author_stops: "deleted",
-  // 0014_todo_tasks
+  // 0015_todo_tasks
   todo_tasks: "deleted: the person's own tasks",
 } as const satisfies Record<string, string>;
 

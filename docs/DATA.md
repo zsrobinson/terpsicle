@@ -537,7 +537,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
 | `0012_feedback` | `feedback`, `feedback_groups` | The feedback sheet (FEEDBACK.md) |
 | `0013_author_stops` | `moderation_author_stops` (per queue item: the stop's id and when it ends; no author), `author_stops` (per stop: who it's on, for Reviews' and Chat's stores; purged with the account) | "Stop this author" and its Undo (V2.md §10, MODERATION.md §6) |
-| `0014_todo_tasks` | `todo_tasks` (your own tasks: title, course, due date and time) | Todo's "Add a task…" (V3.md §3.10) |
+| `0015_todo_tasks` | `todo_tasks` (your own tasks: title, course, due date and time) | Todo's "Add a task…" (V3.md §3.10) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -624,7 +624,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 
 **Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` and `notifications` rows. `chat_members` stays: it describes people.
 
-### 7.10 Terpsicle Todo (landed: `migrations/0011_todo.sql`, `0014_todo_tasks.sql`)
+### 7.10 Terpsicle Todo (landed: `migrations/0011_todo.sql`, `0015_todo_tasks.sql`)
 
 The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the SQL `src/server/todo/store.ts` (with `TodoFeedRowSchema` and `TodoItemRowSchema`), the fetcher `fetch.ts`, the per-feed write `refresh.ts`, and the cron `src/jobs/todo-feeds.ts`. Inputs, answers and limits are `src/core/schema/todo-api.ts`; the pure pieces (cadence, backoff, the window, file items, test mode's feed) are in `src/core/todo`.
 
