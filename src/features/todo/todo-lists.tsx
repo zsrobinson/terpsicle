@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, MoreHorizontal } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import type {
@@ -12,14 +12,23 @@ import type {
 } from "~/core/schema";
 import {
   courseChatTerm,
-  dayLabel,
   doneWords,
-  dueTimeLabel,
+  dueWords,
   groupByCourse,
   groupByDay,
   type TodoDay,
+  taskFieldsOf,
 } from "~/core/todo";
+import { Button } from "~/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
+import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
+import { TaskEditor } from "./task-form";
 import {
   CourseTag,
   GRADESCOPE_EXTENSIONS_NOTE,
@@ -42,6 +51,73 @@ export interface ListProps {
   onToggle: (item: TodoItem) => void;
   /** The item that carries the Gradescope extensions note, if any. */
   noteUid: string | null;
+  /** The courses an own task can be for: on the feed and in your plans. */
+  taskCourses: readonly CourseCode[];
+  /** Deletes an own task, with Undo. */
+  onDeleteTask: (item: TodoItem) => void;
+}
+
+/** An own task: its row with Edit and Delete, or its fields while it's changed. */
+function OwnTaskRow({
+  item,
+  done,
+  props,
+  when,
+  showCourse,
+}: {
+  item: TodoItem;
+  done: boolean;
+  props: ListProps;
+  when: string | undefined;
+  showCourse: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  if (editing)
+    return (
+      <ListRow as="li" className="px-0">
+        <TaskEditor
+          uid={item.uid}
+          initial={taskFieldsOf(item)}
+          courses={props.taskCourses}
+          today={props.today}
+          onClose={() => setEditing(false)}
+        />
+      </ListRow>
+    );
+  return (
+    <TodoItemRow
+      item={item}
+      done={done}
+      {...props.look(item)}
+      when={when}
+      showCourse={showCourse}
+      onToggle={() => props.onToggle(item)}
+      menu={
+        <DropdownMenu>
+          <WithTooltip label="Edit or delete this task">
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`${item.title} options`}
+                className="-my-3 md:-my-1.5"
+              >
+                <MoreHorizontal aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+          </WithTooltip>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => setEditing(true)}>
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => props.onDeleteTask(item)}>
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      }
+    />
+  );
 }
 
 function DoneFold({ count, children }: { count: number; children: ReactNode }) {
@@ -72,7 +148,7 @@ function DoneFold({ count, children }: { count: number; children: ReactNode }) {
   );
 }
 
-function Rows({
+export function Rows({
   items,
   done,
   props,
@@ -84,18 +160,31 @@ function Rows({
   when?: (item: TodoItem) => string;
 }) {
   // Under a course's heading (when there's `when`), the course goes unsaid.
-  return items.map((item) => (
-    <TodoItemRow
-      key={item.uid}
-      item={item}
-      done={done}
-      {...props.look(item)}
-      when={when?.(item)}
-      showCourse={when === undefined}
-      note={item.uid === props.noteUid ? GRADESCOPE_EXTENSIONS_NOTE : undefined}
-      onToggle={() => props.onToggle(item)}
-    />
-  ));
+  return items.map((item) =>
+    item.source === "own" ? (
+      <OwnTaskRow
+        key={item.uid}
+        item={item}
+        done={done}
+        props={props}
+        when={when?.(item)}
+        showCourse={when === undefined}
+      />
+    ) : (
+      <TodoItemRow
+        key={item.uid}
+        item={item}
+        done={done}
+        {...props.look(item)}
+        when={when?.(item)}
+        showCourse={when === undefined}
+        note={
+          item.uid === props.noteUid ? GRADESCOPE_EXTENSIONS_NOTE : undefined
+        }
+        onToggle={() => props.onToggle(item)}
+      />
+    ),
+  );
 }
 
 function DayBlock({
@@ -108,7 +197,7 @@ function DayBlock({
   props: ListProps;
 }) {
   return (
-    <div id={`day-${day.date}`} className="scroll-mt-4">
+    <div id={`day-${day.date ?? "none"}`} className="scroll-mt-4">
       {heading ? (
         <h3 className="border-hairline border-b pt-3 pb-1 font-semibold text-muted text-sm">
           {day.label}
@@ -145,10 +234,15 @@ export function DayList(props: ListProps) {
           ) : (
             section.days.map((day) => (
               <DayBlock
-                key={day.date}
+                key={day.date ?? "none"}
                 day={day}
-                // Today and Tomorrow are one day each: the section says it.
-                heading={section.id !== "today" && section.id !== "tomorrow"}
+                // Today, Tomorrow and No date are one "day" each: the
+                // section says it.
+                heading={
+                  section.id !== "today" &&
+                  section.id !== "tomorrow" &&
+                  section.id !== "no-date"
+                }
                 props={props}
               />
             ))
@@ -190,8 +284,7 @@ export function CourseList(
   );
   if (groups.length === 0)
     return <p className="py-2 text-muted text-sm">Nothing due.</p>;
-  const when = (item: TodoItem) =>
-    `${dayLabel(item.dueDate, props.today)} · ${dueTimeLabel(item)}`;
+  const when = (item: TodoItem) => dueWords(item, props.today);
   return (
     <div className="space-y-6">
       {groups.map((group) => {

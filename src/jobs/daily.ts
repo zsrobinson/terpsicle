@@ -66,6 +66,7 @@ export const runDailyJob: Job = async (context) => {
         rejectedReviewsBlanked: reviews.blanked,
         deletedReviewsRemoved: reviews.removed,
         todoItemsPruned: todo.items,
+        todoTasksPruned: todo.tasks,
         todoDoneMarksPruned: todo.doneMarks,
         chatDigestsEmailed: digest.emailed,
         chatNotificationsDigested: digest.notifications,

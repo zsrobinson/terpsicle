@@ -73,8 +73,9 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `todo_item_checked` | `done`, `via` (`list`, `week`) | Whether checking things off is the habit. |
   | `todo_view_changed` | `view` (`day`, `course`, `week`) | Which views earn their place. |
   | `todo_file_imported` | `items`, `skipped` (counts) | Whether the Gradescope fallback (a dropped `.ics`) is used. |
+  | `todo_task_added` | `date`, `time`, `course` (booleans: whether the task got one) | Whether "Add a task…" earns its place, and whether people date their tasks. Never the task's words, date or course. |
 
-  Todo's events never carry an item's title, course, date or link, nor anything from the feed. `/todo` is on the no-autocapture list, and titles and course names are `data-private`.
+  Todo's events never carry an item's or a task's title, course, date or link, nor anything from the feed. `/todo` is on the no-autocapture list, and titles and course names are `data-private`.
 
   | `four_year_created` | `source`: `empty` · `copy` · `import` · `template` | Which way into Plan people take. `import` counts the first visit's "Paste your transcript", whether or not anything is imported; `transcript_imported` counts imports. `template` counts the first visit's "Pick a sample plan" and the Samples tab's "Start a new plan from it"; `template_applied` counts sample plans added. |
   | `four_year_course_added` | `via`: `search` · `column` · `wildcard-resolve` | Whether search or a semester's "+ Add a course" is found, and how often placeholders become courses. |

@@ -35,11 +35,13 @@ import {
   TestSignInInputSchema,
   TODO_IMPORT_MAX_BYTES,
   TodoConnectInputSchema,
+  TodoDeleteTaskInputSchema,
   TodoDisconnectInputSchema,
   TodoDoneInputSchema,
   TodoImportFileInputSchema,
   TodoListInputSchema,
   TodoRefreshInputSchema,
+  TodoSaveTaskInputSchema,
   UndoInputSchema,
 } from "~/core/schema";
 import {
@@ -153,11 +155,13 @@ import { pull, push } from "../sync/api";
 import { type TodoEnv, todoAvailable } from "../todo/config";
 import {
   connect as todoConnect,
+  deleteTask as todoDeleteTask,
   disconnect as todoDisconnect,
   done as todoDone,
   importFile as todoImportFile,
   list as todoList,
   refresh as todoRefresh,
+  saveTask as todoSaveTask,
 } from "../todo/service";
 import {
   apiError,
@@ -471,6 +475,20 @@ export const ROUTES = {
     alerts: false,
     auth: "user",
     handle: (env, input, ctx) => todoImportFile(env, input, ctx),
+  }),
+  "todo/save-task": route({
+    input: TodoSaveTaskInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => todoSaveTask(env, input, ctx),
+  }),
+  "todo/delete-task": route({
+    input: TodoDeleteTaskInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => todoDeleteTask(env, input, ctx),
   }),
   // Notifications (V2.md §6.3).
   "push/subscribe": route({

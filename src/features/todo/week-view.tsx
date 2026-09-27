@@ -10,6 +10,7 @@ import { formatShortDate } from "~/core/time";
 import {
   compareItems,
   dueTimeLabel,
+  NO_DATE,
   openingWeek,
   weekDates,
 } from "~/core/todo";
@@ -17,7 +18,7 @@ import { tintStyle } from "~/features/calendar/tint";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { TodoCheckbox } from "./todo-item";
-import type { ListProps } from "./todo-lists";
+import { type ListProps, Rows } from "./todo-lists";
 
 // The week, on desktop (docs/V3.md §3.1, §3.9): seven days side by side with
 // the Due lane, each item a chip in its course's tint. Exams are dashed.
@@ -78,7 +79,13 @@ export function WeekView(props: ListProps & { from: IsoDate; to: IsoDate }) {
   const dates = weekDates(monday);
   const sunday = addDays(monday, 6);
   const inWeek = props.items
-    .filter((i) => i.dueDate >= monday && i.dueDate <= sunday)
+    .filter(
+      (i) => i.dueDate !== null && i.dueDate >= monday && i.dueDate <= sunday,
+    )
+    .sort(compareItems);
+  // Own tasks with no date sit under the week, since no day holds them.
+  const undated = props.items
+    .filter((i) => i.dueDate === null && !props.done.has(i.uid))
     .sort(compareItems);
   const canBack = addDays(monday, -1) >= props.from;
   const canForward = addDays(monday, 7) <= props.to;
@@ -180,6 +187,19 @@ export function WeekView(props: ListProps & { from: IsoDate; to: IsoDate }) {
           );
         })}
       </div>
+      {undated.length > 0 ? (
+        <section aria-labelledby="todo-week-no-date" className="mt-6">
+          <h3
+            id="todo-week-no-date"
+            className="border-hairline border-b pb-1 font-semibold text-base"
+          >
+            {NO_DATE}
+          </h3>
+          <ul>
+            <Rows items={undated} done={false} props={props} />
+          </ul>
+        </section>
+      ) : null}
     </section>
   );
 }

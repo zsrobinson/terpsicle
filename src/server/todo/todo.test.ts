@@ -4,12 +4,14 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type MeResult,
+  TODO_MAX_TASKS,
   type TodoConnectResult,
   TodoConnectResultSchema,
   type TodoFileItem,
   type TodoImportFileResult,
   TodoListResultSchema,
   type TodoRefreshResult,
+  TodoSaveTaskResultSchema,
 } from "~/core/schema";
 import { parseIcs, TEST_FEED_TOKENS, testFeedLink } from "~/core/todo";
 import { type ApiEnv, handleApi } from "../api/router";
@@ -574,6 +576,139 @@ describe("todo/disconnect", () => {
     expect(
       await env.DB.prepare("SELECT COUNT(*) AS n FROM todo_done").first("n"),
     ).toBe(1);
+  });
+});
+
+describe("own tasks", () => {
+  const task = (overrides: Record<string, unknown> = {}) => ({
+    uid: "own-5b0c2a4e-7d1f",
+    title: "Office hours with Dr. Kim",
+    courseCode: "CMSC216",
+    dueDate: "2026-09-29",
+    dueTime: 14 * 60,
+    ...overrides,
+  });
+  const save = async (phone: Device, overrides: Record<string, unknown> = {}) =>
+    TodoSaveTaskResultSchema.parse(
+      await phone.call("/api/todo/save-task", task(overrides)),
+    );
+
+  it("adds a task that's yours, lists it beside the feed, and changes it in place", async () => {
+    const phone = await device();
+    await connect(phone);
+    expect(await save(phone)).toEqual({
+      status: "saved",
+      item: {
+        uid: "own-5b0c2a4e-7d1f",
+        source: "own",
+        title: "Office hours with Dr. Kim",
+        courseLabel: null,
+        courseCode: "CMSC216",
+        sectionCode: null,
+        kind: "assignment",
+        exam: false,
+        gradescope: false,
+        dueAt: "2026-09-29T18:00:00.000Z",
+        dueDate: "2026-09-29",
+        link: null,
+      },
+    });
+    const week = await list(phone, "2026-09-28", "2026-10-04");
+    expect(week.items.map((i) => [i.source, i.title])).toContainEqual([
+      "own",
+      "Office hours with Dr. Kim",
+    ]);
+
+    // The same uid is the same task: a new title and no date, not a second one.
+    await save(phone, { title: "Office hours", dueDate: null, dueTime: null });
+    const rows = await env.DB.prepare(
+      "SELECT title, due_at, due_date FROM todo_tasks",
+    ).all();
+    expect(rows.results).toEqual([
+      { title: "Office hours", due_at: null, due_date: null },
+    ]);
+    // No date: listed whatever the range asks for.
+    const later = await list(phone, "2026-12-01", "2026-12-31");
+    expect(later.items.map((i) => [i.title, i.dueDate])).toEqual([
+      ["Office hours", null],
+    ]);
+  });
+
+  it("works without ELMS, takes done marks, and deletes a task with its mark", async () => {
+    const phone = await device();
+    await save(phone);
+    await phone.call("/api/todo/done", { uid: task().uid, done: true });
+    expect(await list(phone)).toMatchObject({
+      feed: null,
+      done: [task().uid],
+    });
+    expect(
+      await phone.call("/api/todo/delete-task", { uid: task().uid }),
+    ).toEqual({ status: "ok" });
+    expect(await list(phone)).toEqual({ feed: null, items: [], done: [] });
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS n FROM todo_done").first("n"),
+    ).toBe(0);
+  });
+
+  it("never touches another person's task, or anything from ELMS", async () => {
+    const phone = await device();
+    await connect(phone);
+    await save(phone);
+    await phone.call("/api/todo/done", {
+      uid: "event-assignment-4410001",
+      done: true,
+    });
+    const other = await device("tadmin");
+    await other.call("/api/todo/delete-task", { uid: task().uid });
+    await other.call("/api/todo/done", { uid: task().uid, done: true });
+    expect(await list(other)).toEqual({ feed: null, items: [], done: [] });
+    expect((await list(phone)).items.map((i) => i.uid)).toContain(task().uid);
+    // Only an own task's uid is taken.
+    expect(
+      (
+        await phone.request("/api/todo/delete-task", {
+          uid: "event-assignment-4410001",
+        })
+      ).status,
+    ).toBe(400);
+    expect((await list(phone)).done).toEqual(["event-assignment-4410001"]);
+  });
+
+  it("keeps dates Todo keeps, and at most 500 tasks", async () => {
+    const phone = await device();
+    expect(await save(phone, { dueDate: "2026-08-01" })).toEqual({
+      status: "out-of-range",
+    });
+    expect(await save(phone, { dueDate: "2027-12-01" })).toEqual({
+      status: "out-of-range",
+    });
+    await env.DB.prepare(
+      `WITH RECURSIVE n(value) AS (SELECT 1 UNION ALL SELECT value + 1 FROM n WHERE value < ?2)
+       INSERT INTO todo_tasks (user_id, uid, title, created_at, updated_at)
+       SELECT 'tstudent', 'own-seeded-' || printf('%04d', value), 'Seeded', ?1, ?1
+       FROM n`,
+    )
+      .bind(now().toISOString(), TODO_MAX_TASKS)
+      .run();
+    expect(await save(phone)).toEqual({ status: "too-many" });
+    // Changing one you have still works.
+    expect(
+      (await save(phone, { uid: "own-seeded-0001", title: "Changed" })).status,
+    ).toBe("saved");
+  });
+
+  it("stays when ELMS is disconnected, with its done mark", async () => {
+    const phone = await device();
+    await connect(phone);
+    await save(phone);
+    await phone.call("/api/todo/done", { uid: task().uid, done: true });
+    await phone.call("/api/todo/disconnect");
+    expect(await list(phone)).toMatchObject({
+      feed: null,
+      items: [{ uid: task().uid, source: "own" }],
+      done: [task().uid],
+    });
   });
 });
 

@@ -266,6 +266,13 @@ async function seedAccount(id: string, n: number) {
         at,
       ],
       [
+        `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
+         VALUES (?1, 'own-reading-group-0001', 'Read chapter 4 with the study group', 'CMSC351', NULL, ?2, ?3, ?3)`,
+        id,
+        item.dueDate,
+        at,
+      ],
+      [
         `INSERT INTO seat_watches (user_id, term_id, section_key, created_at)
          VALUES (?1, ?2, 'CMSC351-0101', ?3)`,
         id,

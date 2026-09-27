@@ -14,7 +14,7 @@ import {
 } from "~/core/todo";
 import { type NotifyEnv, notify } from "../notifications/notify";
 import { readSettings, writeSettings } from "../notifications/store";
-import { doneAmong, listItems } from "./store";
+import { doneAmong, listItems, listTasks } from "./store";
 
 /** People reminded per run, at most; the next run (20 minutes on) takes the rest. */
 export const TODO_DUE_BATCH = 2_000;
@@ -48,10 +48,15 @@ async function candidates(
          AND EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = f.user_id)
          AND NOT EXISTS (SELECT 1 FROM notification_deliveries d
                          WHERE d.dedupe_key = 'todo-due:' || f.user_id || ':' || ?2 || ':push')
-         AND EXISTS (SELECT 1 FROM todo_items i
-                     WHERE i.user_id = f.user_id AND i.due_date = ?3
-                       AND NOT EXISTS (SELECT 1 FROM todo_done d
-                                       WHERE d.user_id = i.user_id AND d.uid = i.uid))
+         -- Own tasks count like the feed's items (V3.md §3.10).
+         AND (EXISTS (SELECT 1 FROM todo_items i
+                      WHERE i.user_id = f.user_id AND i.due_date = ?3
+                        AND NOT EXISTS (SELECT 1 FROM todo_done d
+                                        WHERE d.user_id = i.user_id AND d.uid = i.uid))
+              OR EXISTS (SELECT 1 FROM todo_tasks t
+                         WHERE t.user_id = f.user_id AND t.due_date = ?3
+                           AND NOT EXISTS (SELECT 1 FROM todo_done d
+                                           WHERE d.user_id = t.user_id AND d.uid = t.uid)))
        ORDER BY f.user_id LIMIT ?4`,
     )
     .bind(
@@ -91,10 +96,11 @@ export async function sendDueTomorrow(
     options.batch ?? TODO_DUE_BATCH,
   );
   const one = async (userId: string) => {
-    const items = await listItems(env.DB, userId, {
-      from: tomorrow,
-      to: tomorrow,
-    });
+    const day = { from: tomorrow, to: tomorrow };
+    const items = [
+      ...(await listItems(env.DB, userId, day)),
+      ...(await listTasks(env.DB, userId, day, { undated: false })),
+    ];
     const done = new Set(
       await doneAmong(
         env.DB,

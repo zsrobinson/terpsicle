@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { aTodoFeedState, aTodoItem } from "~/fixtures";
+import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
 import {
   agoWords,
   compareItems,
   courseChatTerm,
   dayLabel,
   dueTimeLabel,
+  dueWords,
   feedWords,
   groupByCourse,
   groupByDay,
@@ -309,5 +310,72 @@ describe("courseChatTerm", () => {
     expect(
       courseChatTerm({ open: [due("2027-01-20")], done: [] }, "2027-01-10"),
     ).toBe("202701");
+  });
+
+  it("is today's term for own tasks with no date", () => {
+    expect(
+      courseChatTerm({ open: [anOwnTask()], done: [] }, "2026-09-27"),
+    ).toBe("202608");
+    // A dated item still decides.
+    expect(
+      courseChatTerm(
+        { open: [anOwnTask(), due("2027-01-20")], done: [] },
+        "2026-12-20",
+      ),
+    ).toBe("202701");
+  });
+});
+
+describe("own tasks with no date", () => {
+  const undated = (uid: string, extra = {}) =>
+    anOwnTask({ uid: `own-${uid}-0000`, title: uid, ...extra });
+
+  it("sort after every dated item", () => {
+    const later = item("later", "2026-12-01");
+    expect(
+      [undated("a"), later, item("soon", TODAY)]
+        .sort(compareItems)
+        .map((i) => i.title),
+    ).toEqual(["soon", "later", "a"]);
+  });
+
+  it("go under No date, at the bottom of the day list, done ones folded", () => {
+    const sections = groupByDay(
+      [undated("call advisor"), item("today", TODAY), undated("buy lab coat")],
+      new Set(["own-buy lab coat-0000"]),
+      TODAY,
+    );
+    const last = sections.at(-1);
+    expect(last?.id).toBe("no-date");
+    expect(last?.label).toBe("No date");
+    expect(last?.days.map((d) => d.date)).toEqual([null]);
+    expect(last?.days[0]?.open.map((i) => i.title)).toEqual(["call advisor"]);
+    expect(last?.days[0]?.done.map((i) => i.title)).toEqual(["buy lab coat"]);
+  });
+
+  it("leave No date out when there are none", () => {
+    expect(
+      groupByDay([item("today", TODAY)], new Set(), TODAY).map((s) => s.id),
+    ).not.toContain("no-date");
+  });
+
+  it("join their course's group, after its dated work, and say No date", () => {
+    const groups = groupByCourse(
+      [
+        undated("read ahead", { courseCode: "CMSC216" }),
+        item("project", "2026-10-01"),
+        undated("errand"),
+      ],
+      new Set(),
+      TODAY,
+    );
+    expect(groups.map((g) => [g.key, g.open.map((i) => i.title)])).toEqual([
+      ["CMSC216", ["project", "read ahead"]],
+      ["Other", ["errand"]],
+    ]);
+    expect(dueWords(undated("x"), TODAY)).toBe("No date");
+    expect(dueWords(item("x", "2026-10-02"), TODAY)).toBe(
+      "Friday, Oct 2 · All day",
+    );
   });
 });

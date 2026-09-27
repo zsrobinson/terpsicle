@@ -7,13 +7,18 @@
 //   todo/done         marks an item done or not
 //   todo/refresh      fetches the feed now (at most every 5 minutes)
 //   todo/import-file  stores a dropped file's items
+//   todo/save-task    adds or changes one of your own tasks (V3 §3.10)
+//   todo/delete-task  deletes one, with its done mark
 //
 // No answer has a field that could hold the link (V3 §5.1).
 import {
   TODO_MAX_FEED_ITEMS,
   TODO_MAX_FILE_ITEMS,
+  TODO_MAX_TASKS,
   type TodoConnectInput,
   type TodoConnectResult,
+  type TodoDeleteTaskInput,
+  type TodoDeleteTaskResult,
   type TodoDisconnectResult,
   type TodoDoneInput,
   type TodoDoneResult,
@@ -22,6 +27,8 @@ import {
   type TodoListInput,
   type TodoListResult,
   type TodoRefreshResult,
+  type TodoSaveTaskInput,
+  type TodoSaveTaskResult,
 } from "~/core/schema";
 import {
   connectFailure,
@@ -29,10 +36,12 @@ import {
   keepInWindow,
   newYorkDateOf,
   nextFetch,
+  ownTaskDue,
   parseFeedLink,
   parseIcs,
   TODO_OPENED_WRITE_MS,
   TODO_REFRESH_MIN_MS,
+  taskDateInWindow,
 } from "~/core/todo";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
@@ -48,6 +57,7 @@ import { dueTomorrowAtConnect, dueTomorrowOn } from "./due-tomorrow";
 import { CONNECT_TIMEOUT_MS, fetchFeed } from "./fetch";
 import { refreshFeed } from "./refresh";
 import {
+  deleteTaskStatements,
   disconnectStatements,
   doneAmong,
   feedItemUids,
@@ -56,9 +66,11 @@ import {
   feedSuccessStatement,
   getFeed,
   listItems,
+  listTasks,
   markOpened,
   replaceItemsStatements,
   setDone,
+  upsertTask,
 } from "./store";
 
 export type TodoApiEnv = TodoEnv & AuthEnv;
@@ -172,7 +184,11 @@ export async function list(
   const opened = row
     ? await markOpened(env.DB, row, ctx.now, TODO_OPENED_WRITE_MS)
     : null;
-  const items = await listItems(env.DB, userId, input);
+  // Own tasks with no date are always listed: they're under "No date".
+  const items = [
+    ...(await listItems(env.DB, userId, input)),
+    ...(await listTasks(env.DB, userId, input, { undated: true })),
+  ];
   return {
     feed: opened ? feedState(opened) : null,
     items,
@@ -192,6 +208,42 @@ export async function done(
   const started = await begin(env, ctx);
   if (started instanceof Response) return started;
   await setDone(env.DB, started.userId, input.uid, input.done, ctx.now);
+  return { status: "ok" };
+}
+
+export async function saveTask(
+  env: TodoApiEnv,
+  input: TodoSaveTaskInput,
+  ctx: IdentityRouteContext,
+): Promise<TodoSaveTaskResult | Response> {
+  const started = await begin(env, ctx);
+  if (started instanceof Response) return started;
+  const { now } = ctx;
+  if (!taskDateInWindow(input.dueDate, newYorkDateOf(now.getTime())))
+    return { status: "out-of-range" };
+  const item = await upsertTask(
+    env.DB,
+    started.userId,
+    {
+      uid: input.uid,
+      title: input.title,
+      courseCode: input.courseCode,
+      ...ownTaskDue(input.dueDate, input.dueTime),
+    },
+    now,
+    TODO_MAX_TASKS,
+  );
+  return item ? { status: "saved", item } : { status: "too-many" };
+}
+
+export async function deleteTask(
+  env: TodoApiEnv,
+  input: TodoDeleteTaskInput,
+  ctx: IdentityRouteContext,
+): Promise<TodoDeleteTaskResult | Response> {
+  const started = await begin(env, ctx);
+  if (started instanceof Response) return started;
+  await env.DB.batch(deleteTaskStatements(env.DB, started.userId, input.uid));
   return { status: "ok" };
 }
 
