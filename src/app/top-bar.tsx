@@ -1,24 +1,8 @@
 import { cn } from "cn";
-import {
-  CircleAlert,
-  CircleCheck,
-  Info,
-  MessageSquareText,
-  TriangleAlert,
-} from "lucide-react";
+import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { problemCountWords } from "~/core/problems";
 import { SCHEDULE_PATH } from "~/core/routing";
-// Not the barrel: its pages (settings, sign-in) would load with the scheduler.
-import {
-  AccountButton,
-  useAccountButtonShown,
-} from "~/features/auth/account-button";
-import { useAccount } from "~/features/auth/account-store";
-import {
-  FeedbackButton,
-  openFeedbackSheet,
-} from "~/features/feedback/feedback-button";
 import { SyncStatusIcon } from "~/features/sync/status-view";
 import { useCatalog } from "~/state/catalog-store";
 import {
@@ -26,88 +10,49 @@ import {
   usePlanProblemsState,
   useProblemCounts,
 } from "~/state/hooks";
-import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
+import { AppBar } from "./app-bar";
 import { TONE_FILL } from "./emphasis";
-import { ProductMenu } from "./product-menu";
 import { tabById } from "./tabs";
 
-// The top bar (SPEC §2): logo / term / plans on the left; credits, the
-// problem count, "Send feedback" (docs/FEEDBACK.md) and the account button
-// (docs/AUTH.md) on the right. The
-// middle (tabs or the shared pill) comes from the shell.
+// The scheduler's bar (SPEC §2): the family bar (app-bar.tsx) with the term
+// and plans as its context, and credits, the problem count and sync as its
+// status. The middle (tabs or the shared pill) comes from the shell.
 
 export function TopBar({
   term,
   plans,
-  end,
   compact = false,
 }: {
   term: ReactNode;
   plans: ReactNode;
-  /** Extra controls at the far right (the theme toggle on phones). */
-  end?: ReactNode;
   compact?: boolean;
 }) {
-  // Phones: the account menu has "Send feedback", since the bar has no room
-  // for another button beside the plan's name (account-button.tsx). Until
-  // /api/me answers, neither shows, so nothing flashes.
-  const menuShown = useAccountButtonShown();
-  const loading = useAccount((s) => s.status === "loading");
-  const feedbackInMenu = compact && menuShown;
   return (
-    // Phones drop the slashes and tighten gaps so the open plan's name fits.
-    <header
-      className={cn(
-        "flex h-12 shrink-0 items-center border-hairline border-b",
-        compact ? "gap-1 px-2" : "gap-2 px-3",
-      )}
-    >
-      {/* The page's one h1: panels and the calendar sit under it as h2s. */}
-      <h1 className="flex shrink-0">
-        <ProductMenu compact={compact} />
-      </h1>
-      {compact ? null : <Slash className="ml-2" />}
-      {term}
-      {compact ? null : <Slash />}
-      <div className="flex min-w-0 flex-1 items-center">{plans}</div>
-      <div
-        className={cn(
-          "flex shrink-0 items-center",
-          compact ? "gap-1" : "gap-3",
-        )}
-      >
-        <OfflineNote compact={compact} />
-        {compact ? null : <Credits />}
-        <ProblemsButton compact={compact} />
-        {compact ? null : <SyncStatusIcon />}
-        <FeedbackButton
-          product="schedule"
-          pathname={SCHEDULE_PATH}
-          compact={compact}
-          showButton={!compact || (!loading && !feedbackInMenu)}
-        />
-        <AccountButton
-          compact={compact}
-          themeToggle={end}
-          phoneItems={feedbackInMenu ? <FeedbackMenuItem /> : null}
-        />
-      </div>
-    </header>
-  );
-}
-
-function FeedbackMenuItem() {
-  return (
-    <>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
-        <MessageSquareText aria-hidden="true" className="text-muted" />
-        Send feedback
-      </DropdownMenuItem>
-    </>
+    <AppBar
+      current="schedule"
+      heading
+      compact={compact}
+      feedback="schedule"
+      pathname={SCHEDULE_PATH}
+      context={
+        <>
+          {term}
+          {compact ? null : <Slash />}
+          <div className="flex min-w-0 flex-1 items-center">{plans}</div>
+        </>
+      }
+      status={
+        <>
+          <OfflineNote compact={compact} />
+          {compact ? null : <Credits />}
+          <ProblemsButton compact={compact} />
+          {compact ? null : <SyncStatusIcon />}
+        </>
+      }
+    />
   );
 }
 

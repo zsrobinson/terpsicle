@@ -127,9 +127,32 @@ test("/?stay shows the marketing page, even to someone returning", async ({
   await expect(page).toHaveURL(/\/\?stay$/);
 });
 
-test("the logo opens the product menu", async ({ page }) => {
+test("the bar names every product, and narrower, the menu does", async ({
+  page,
+  isMobile,
+}) => {
   await page.goto("/schedule");
-  await page.getByRole("button", { name: "Terpsicle" }).click();
+  const tabs = page.getByRole("navigation", { name: "Products" });
+  if (isMobile) {
+    // The phone bar keeps its room for the plan: the umbrella opens the menu.
+    await expect(tabs).toBeHidden();
+    await page.getByRole("button", { name: /^Terpsicle/ }).click();
+  } else {
+    for (const name of ["Schedule", "Reviews", "Chat"])
+      await expect(tabs.getByRole("link", { name })).toBeVisible();
+    await expect(tabs.getByRole("link", { name: "Schedule" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    // Below 1100px the tabs fold into the product menu, which names where
+    // you are.
+    await page.setViewportSize({ width: 900, height: 800 });
+    await expect(tabs).toBeHidden();
+    await page
+      .getByRole("button", { name: /Schedule/ })
+      .first()
+      .click();
+  }
   const menu = page.getByRole("menu");
   for (const name of [/^Schedule/, /^Reviews/, /^Chat/, /^About Terpsicle/])
     await expect(menu.getByRole("menuitem", { name })).toBeVisible();

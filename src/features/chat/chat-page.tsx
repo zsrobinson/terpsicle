@@ -16,7 +16,6 @@ import {
   type RoomId,
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
-import { Avatar } from "~/features/auth/avatar";
 import { SiteHeader } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
@@ -42,25 +41,9 @@ const UNREAD_EVERY_MS = 60_000;
 export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
   const status = useAccount((s) => s.status);
   const chat = useAccount((s) => s.flags.chat);
-  const user = useAccount((s) => s.user);
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
-      <SiteHeader
-        className="border-hairline border-b"
-        actions={
-          user ? (
-            <WithTooltip label="Your account and settings">
-              <a
-                href="/settings"
-                className="flex h-8 items-center gap-2 px-1 text-muted text-sm hover:bg-hover hover:text-fg max-md:h-11"
-                aria-label={`Account: ${user.name}`}
-              >
-                <Avatar name={user.name} src={user.avatarUrl} />
-              </a>
-            </WithTooltip>
-          ) : null
-        }
-      />
+      <SiteHeader />
       {status === "loading" ? (
         <div className="flex flex-col gap-3 px-4 py-6" aria-busy="true">
           <Skeleton className="h-4 w-40" />

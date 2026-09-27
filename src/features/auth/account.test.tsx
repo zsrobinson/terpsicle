@@ -152,8 +152,12 @@ describe("the top bar's account button", () => {
       }),
     ).toBeInTheDocument();
     await user.click(button);
-    const dialog = await screen.findByRole("dialog");
-    const google = within(dialog).getByRole("link", {
+    // One menu at every size: sign-in, then the theme.
+    const menu = await screen.findByRole("menu");
+    expect(
+      within(menu).getByRole("menuitemradio", { name: "Dark" }),
+    ).toBeInTheDocument();
+    const google = within(menu).getByRole("menuitem", {
       name: "Sign in with Google",
     });
     expect(google).toHaveAttribute(
@@ -171,11 +175,15 @@ describe("the top bar's account button", () => {
     const user = userEvent.setup();
     wrap(<AccountButton />);
     await user.click(screen.getByRole("button", { name: "Sign in" }));
-    const dialog = await screen.findByRole("dialog");
-    expect(
-      within(dialog).getByRole("link", { name: "Sign in (test mode)" }),
-    ).toHaveAttribute("href", "/api/auth/google?return=%2Fschedule");
-    expect(within(dialog).queryByRole("img")).toBeNull();
+    const menu = await screen.findByRole("menu");
+    const testMode = within(menu).getByRole("menuitem", {
+      name: "Sign in (test mode)",
+    });
+    expect(testMode).toHaveAttribute(
+      "href",
+      "/api/auth/google?return=%2Fschedule",
+    );
+    expect(within(testMode).queryByRole("img")).toBeNull();
   });
 
   it("opens a menu with the name, email, Settings and Sign out", async () => {
@@ -249,13 +257,13 @@ describe("the top bar's account button", () => {
 
   it("on phones, stands in for the theme toggle only once sign-in is on", async () => {
     const toggle = <button type="button">Theme</button>;
-    const { rerender } = wrap(<AccountButton compact themeToggle={toggle} />);
+    const { rerender } = wrap(<AccountButton compact fallback={toggle} />);
     expect(screen.getByRole("button", { name: "Theme" })).toBeInTheDocument();
 
     await loaded({ status: "signed-out", flags: flags({ signIn: true }) });
     rerender(
       <TooltipProvider delayDuration={0}>
-        <AccountButton compact themeToggle={toggle} />
+        <AccountButton compact fallback={toggle} />
       </TooltipProvider>,
     );
     expect(screen.queryByRole("button", { name: "Theme" })).toBeNull();
@@ -388,11 +396,16 @@ describe("/settings", () => {
         .getAllByRole("link")
         .filter((a) => a.getAttribute("aria-current") === "page"),
     ).toEqual([]);
-    const account = within(header).getByRole("link", {
-      name: "Account: Testudo Terrapin",
-    });
-    expect(account).toHaveAttribute("href", "/settings");
-    expect(account).toHaveAttribute("aria-current", "page");
+    // The same account menu as every page's bar.
+    const user = userEvent.setup();
+    await user.click(
+      within(header).getByRole("button", { name: "Account: Testudo Terrapin" }),
+    );
+    expect(
+      within(await screen.findByRole("menu")).getByRole("menuitem", {
+        name: "Settings",
+      }),
+    ).toHaveAttribute("href", "/settings");
   });
 
   it("offers Sign in in the header when signed out, back to /settings", async () => {
@@ -405,8 +418,12 @@ describe("/settings", () => {
     expect(
       within(header).getByRole("navigation", { name: "Products" }),
     ).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(within(header).getByRole("button", { name: "Sign in" }));
     expect(
-      within(header).getByRole("link", { name: "Sign in" }),
+      within(await screen.findByRole("menu")).getByRole("menuitem", {
+        name: "Sign in with Google",
+      }),
     ).toHaveAttribute("href", "/api/auth/google?return=%2Fsettings");
   });
 });

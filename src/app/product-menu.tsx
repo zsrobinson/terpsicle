@@ -12,11 +12,17 @@ import {
 import { WithTooltip } from "~/ui/tooltip";
 import { Mark } from "./brand/mark";
 import { Wordmark } from "./brand/wordmark";
-import { listedProducts, type Product, type ProductId } from "./products";
+import {
+  listedProducts,
+  PRODUCTS,
+  type Product,
+  type ProductId,
+} from "./products";
 
 // The product menu, the brand's app switcher (docs/V2.md §1.1, DESIGN.md
-// §7.6): the umbrella and the wordmark, top left, open the products
-// with their marks. The one you're in wears its soft color and a check. No
+// §7.6): where the bar is too narrow for the product tabs (app-bar.tsx),
+// the umbrella and the product you're in open the products with their
+// marks. The one you're in wears its soft color and a check. No
 // paths, counts or badges: nothing here pulls you into another product.
 // Then the marketing page at `/?stay`, which returning visitors would
 // otherwise skip. Plain links: the shell also renders outside a router
@@ -33,12 +39,14 @@ const CURRENT: Record<ProductId, string> = {
 
 export function ProductMenu({
   compact = false,
-  current = "schedule",
+  current,
 }: {
   compact?: boolean;
-  current?: ProductId;
+  /** The product you're in; null on Settings and the site's own pages. */
+  current: ProductId | null;
 }) {
   const flags = useAccount((s) => s.flags);
+  const here = PRODUCTS.find((p) => p.id === current) ?? null;
   return (
     <DropdownMenu>
       <WithTooltip label="Switch product">
@@ -48,17 +56,23 @@ export function ProductMenu({
             className="-mx-1 flex h-8 shrink-0 items-center gap-2 px-1 transition-colors hover:bg-hover data-[state=open]:bg-hover"
           >
             <Mark id="umbrella" size={20} label="Terpsicle" />
-            {/* A phone keeps the width for the open plan's name. */}
-            {compact ? null : (
+            {/* The scheduler's phone bar keeps its width for the term and
+                the plan's name: the umbrella alone opens the menu there. */}
+            {compact ? null : <Wordmark />}
+            {here && !compact ? (
               <>
-                <Wordmark />
-                <ChevronsUpDown
-                  size={12}
-                  aria-hidden="true"
-                  className="text-muted"
-                />
+                <span aria-hidden="true" className="text-faint">
+                  /
+                </span>
+                <Mark id={here.id} size={16} />
+                <span className="font-semibold text-base">{here.label}</span>
               </>
-            )}
+            ) : null}
+            <ChevronsUpDown
+              size={12}
+              aria-hidden="true"
+              className="text-muted"
+            />
           </button>
         </DropdownMenuTrigger>
       </WithTooltip>
