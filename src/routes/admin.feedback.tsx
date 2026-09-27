@@ -14,6 +14,8 @@ import { FeedbackPage } from "~/features/admin/feedback-page";
 // undoes one; `?item=<id>` is one item, the link issues and agents get.
 export const Route = createFileRoute("/admin/feedback")({
   ssr: false,
+  // Admin draws its own frame: no family bar while it loads.
+  staticData: { pending: "none" },
   validateSearch: z.object({
     status: FeedbackStatusSchema.optional().catch(undefined),
     kind: FeedbackKindSchema.optional().catch(undefined),

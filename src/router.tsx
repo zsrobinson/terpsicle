@@ -26,6 +26,9 @@ export function getRouter() {
     // One loading and one failure state for every route (docs/COHESION.md).
     defaultPendingComponent: RoutePending,
     defaultErrorComponent: RouteError,
+    // The Worker renders the pending state for browser-only routes, and the
+    // default 500ms minimum would hold it there after the page is ready.
+    defaultPendingMinMs: 0,
     // Text as text: `?q=351`, not the default's `?q=%22351%22`
     // (it quotes any string that would parse as JSON). Parsing still reads
     // `351` as a number, so every search schema takes numbers back as

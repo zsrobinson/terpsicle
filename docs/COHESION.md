@@ -76,7 +76,8 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
   - [x] `Section`: one heading under a page title. (It's `PageSection`: a section is a course's offering.)
 - [x] One `undoToast()` helper (`src/components/ui/toast.tsx`): one action button, one icon, one 10-second window (`UNDO_MS`), focus holds it open, and the shortcut sits in its tooltip. It replaces the seven toast-action copies. Failures go through `noteToast()`, which is never red and offers Try again where retrying can help. The scheduler and Plan keep their Undo/Redo pair on the shared `ToastAction`.
 - [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
-- [ ] Routes get a shared `pendingComponent` and `errorComponent`. No page says "reload the page".
+- [x] Routes get a shared `pendingComponent` and `errorComponent` (`src/features/site/route-states.tsx`; a route sets `staticData.pending`).
+- [ ] No page says "reload the page".
 - [ ] Guardrails:
   - The design-tokens test also fails on raw `max-w-*` page containers (done, with an allowlist of today's pages) and on `h1` elements outside `PageHeader` (not yet).
   - The `reviewer` agent checks for use of the kit.
