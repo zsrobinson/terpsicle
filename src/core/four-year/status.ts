@@ -38,6 +38,28 @@ export function termSpan(
   return { start: `${year}-${start}`, end: `${year}-${end}` };
 }
 
+/**
+ * The term whose usual months hold a date (the season spans above, which
+ * cover the whole year): Fall 2026 for 2026-10-01, Winter 2027 (`202612`)
+ * for 2027-01-10. For pages without the provost's calendars, like Todo's
+ * links into Chat and Schedule.
+ */
+export function seasonTermOf(date: IsoDate): TermId {
+  const year = Number(date.slice(0, 4));
+  const candidates: TermId[] = [
+    `${year - 1}12`,
+    `${year}01`,
+    `${year}05`,
+    `${year}08`,
+  ];
+  for (const termId of candidates) {
+    const { start, end } = termSpan(termId, []);
+    if (date >= start && date <= end) return termId;
+  }
+  // Unreachable while the spans cover the year; fall is the widest guess.
+  return `${year}08`;
+}
+
 /** "Before UMD" is always done. */
 export function termStatus(
   term: FourYearTerm,

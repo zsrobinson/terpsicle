@@ -14,9 +14,9 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { moveEntry } from "./actions";
 import { ENTRY_DRAG_TYPE, EntryBlock } from "./block";
+import { ViewSchedule, ViewTodos } from "./column-links";
 import { useModel, usePlanNav } from "./model";
 import { focusSearch } from "./search-panel";
-import { ViewSchedule } from "./view-schedule";
 
 // The semesters (V3 §2.13). Desktop: "Before UMD" across the top, then each
 // school year's fall and spring (and any summer or winter) side by side, two
@@ -170,6 +170,7 @@ export function TermColumn({
         <AddButton term={term} />
       </div>
       {term === handoffTerm ? <ViewSchedule termId={term} /> : null}
+      {status === "in-progress" ? <ViewTodos /> : null}
     </section>
   );
 }

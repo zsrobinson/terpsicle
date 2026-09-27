@@ -31,7 +31,7 @@ Schedule, Reviews, Chat, Plan, Todo (red, purple, blue, green, yellow). Menus, m
 The small menu for moving between products. The owner sometimes says "app switcher".
 
 **View link**:
-A link from one product into another, worded "View schedule", "View reviews", "View chat" or "View plan".
+A link from one product into another, worded "View schedule", "View reviews", "View chat", "View plan" or "View todos" (`PRODUCTS`' `view`). Each is counted as `cross_link_clicked`.
 _Avoid_: Open in Reviews, Go to Chat
 
 ## Shared

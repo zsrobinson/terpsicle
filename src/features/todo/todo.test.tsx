@@ -3,12 +3,18 @@ import {
   createRootRoute,
   createRouter,
   RouterProvider,
+  stringifySearchWith,
 } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TodoFeedState, TodoItem, TodoListResult } from "~/core/schema";
+import type {
+  Flags,
+  TodoFeedState,
+  TodoItem,
+  TodoListResult,
+} from "~/core/schema";
 import { TEST_FEED_TOKENS, testFeedLink } from "~/core/todo";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { aTodoFeedState, aTodoItem } from "~/fixtures";
@@ -65,6 +71,8 @@ function wrap(node: ReactNode) {
   const router = createRouter({
     routeTree: createRootRoute({ component: () => node }),
     history: createMemoryHistory({ initialEntries: ["/todo"] }),
+    // As src/router.tsx writes search params (`term=202608`, not quoted).
+    stringifySearch: stringifySearchWith(JSON.stringify),
   });
   return render(
     <TooltipProvider delayDuration={0}>
@@ -74,10 +82,10 @@ function wrap(node: ReactNode) {
   );
 }
 
-function signedIn(on = true) {
+function signedIn(on = true, chat: Flags["chat"] = "off") {
   useAccount.setState({
     status: "signed-in",
-    flags: { ...FLAGS_OFF, signIn: true, todo: on },
+    flags: { ...FLAGS_OFF, signIn: true, todo: on, chat },
     user: {
       id: "tstudent",
       name: "Test Student",
@@ -411,6 +419,31 @@ describe("the list", () => {
     expect(screen.getByRole("region", { name: "Study group" })).toBeVisible();
   });
 
+  it("links each course to its chat room while Chat is on (View chat)", async () => {
+    fakeClient({ items });
+    signedIn(true, "on");
+    renderTodo("course");
+    const cmsc = await screen.findByRole("region", { name: "CMSC216" });
+    // Due in Fall 2026, so Fall 2026's room.
+    expect(
+      within(cmsc).getByRole("link", { name: "View chat" }),
+    ).toHaveAttribute("href", "/chat?term=202608&course=CMSC216");
+    // Not from a course: no room to go to.
+    expect(
+      within(screen.getByRole("region", { name: "Study group" })).queryByRole(
+        "link",
+      ),
+    ).toBeNull();
+  });
+
+  it("has no View chat while Chat is off", async () => {
+    fakeClient({ items });
+    signedIn();
+    renderTodo("course");
+    await screen.findByRole("region", { name: "CMSC216" });
+    expect(screen.queryByRole("link", { name: "View chat" })).toBeNull();
+  });
+
   it("changes view with the switch", async () => {
     fakeClient({ items });
     signedIn();
@@ -432,6 +465,11 @@ describe("the list", () => {
       await screen.findByRole("heading", { name: "Sep 21 – Sep 27" }),
     ).toBeInTheDocument();
     expect(screen.getAllByTestId("todo-chip")).toHaveLength(2);
+    // The week's classes, in the term it falls in.
+    expect(screen.getByRole("link", { name: "View schedule" })).toHaveAttribute(
+      "href",
+      "/schedule?term=202608",
+    );
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Ahead a week" }));
     expect(

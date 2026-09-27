@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
+import { crossLinkClicked } from "~/app/cross-link";
 import { formatGpa, gradeSummary } from "~/core/grades/grades";
 import {
   gradesSourceWords,
@@ -207,6 +208,7 @@ function CourseLinks({ course }: { course: CourseCode }) {
         <Link
           to="/schedule/course/$code"
           params={{ code: course }}
+          onClick={() => crossLinkClicked("reviews", "schedule")}
           className="text-muted hover:text-fg"
         >
           View schedule
