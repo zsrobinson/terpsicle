@@ -517,7 +517,7 @@ export function ImportPanel() {
     if (!done) {
       setImportStatus(
         false,
-        "A plan holds up to 150 courses, and this would go past that. Remove some planned courses or leave some lines out, then import again.",
+        "A four-year plan holds up to 150 courses, and this would go past that. Remove some planned courses or leave some lines out, then import again.",
       );
       return;
     }
@@ -593,7 +593,7 @@ export function ImportPanel() {
           )}
           <div className="space-y-3 border-hairline border-t bg-raised px-4 py-3">
             <div className="space-y-1">
-              <WithTooltip label="Show each course's grade in your plan">
+              <WithTooltip label="Show each course's grade in your four-year plan">
                 <label className="flex w-fit cursor-pointer items-center gap-2 font-medium">
                   <input
                     type="checkbox"
@@ -605,9 +605,9 @@ export function ImportPanel() {
                 </label>
               </WithTooltip>
               <p className="text-muted text-xs">
-                Grades stay in your plan. If you're signed in, they sync to your
-                other devices through Terpsicle's server. Nobody else can see
-                them.
+                Grades stay in your four-year plan. If you're signed in, they
+                sync to your other devices through Terpsicle's server. Nobody
+                else can see them.
               </p>
             </div>
             {replacing ? (
@@ -624,7 +624,7 @@ export function ImportPanel() {
               </p>
             ) : null}
             {error ? <InlineError message={error} className="py-0" /> : null}
-            <WithTooltip label="Add these to your plan. Undo takes it back.">
+            <WithTooltip label="Add these to your four-year plan. Undo takes it back.">
               <Button
                 className="w-full"
                 disabled={busy || pending > 0 || included.length === 0}

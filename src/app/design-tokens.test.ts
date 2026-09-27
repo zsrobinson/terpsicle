@@ -105,7 +105,7 @@ const RULES = {
 const OWN_PAGE_WIDTH = new Set<string>([]);
 
 /**
- * Where an `<h1>` is written out today: the kit's PageHeader, the marketing
+ * Where an `<h1>` is written out today: the kit's PageHeader and the marketing
  * page's hero (its own design). Every page is on the kit now: never add
  * to it.
  */

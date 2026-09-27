@@ -286,7 +286,7 @@ describe("check", () => {
     expect(within(fall).queryByText("A-")).toBeNull();
     expect(
       screen.getByText(
-        /Grades stay in your plan. If you're signed in, they sync/,
+        /Grades stay in your four-year plan. If you're signed in, they sync/,
       ),
     ).toBeInTheDocument();
   });

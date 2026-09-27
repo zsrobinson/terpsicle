@@ -52,7 +52,7 @@ function StartsIn() {
   const { doc, today } = useModel();
   return (
     <FirstTermSelect
-      label="Your plan starts in"
+      label="Your four-year plan starts in"
       tooltip="Sample plans count semesters from here"
       value={doc.firstTermId}
       today={today}
@@ -144,7 +144,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
                 showBoard();
               }}
             >
-              Start a new plan from it
+              Start a new four-year plan from it
             </Button>
           </WithTooltip>
         ) : null}
@@ -183,7 +183,7 @@ export function TemplatePanel() {
         <RowSkeleton rows={4} inset={false} label="Loading the sample plans" />
       ) : state.phase === "failed" ? (
         <InlineError
-          message="The sample plans didn't load. Check your connection, then try again."
+          message="The sample plans didn't load. Check your connection and try again."
           onRetry={state.chunk ? () => window.location.reload() : state.retry}
           retryTooltip="Load the sample plans again"
         />

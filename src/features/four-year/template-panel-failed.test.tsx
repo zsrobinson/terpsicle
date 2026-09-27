@@ -32,7 +32,7 @@ function Harness() {
 it("says the sample plans didn't load, and tries again", async () => {
   render(<Harness />);
   expect(screen.getByRole("status")).toHaveTextContent(
-    "The sample plans didn't load. Check your connection, then try again.",
+    "The sample plans didn't load. Check your connection and try again.",
   );
   expect(screen.queryByText(/reload the page/)).toBeNull();
   expect(screen.queryByRole("button", { name: /^Add to/ })).toBeNull();

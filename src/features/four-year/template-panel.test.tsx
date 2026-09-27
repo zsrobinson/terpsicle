@@ -115,7 +115,9 @@ describe("the Samples tab", () => {
     );
     // An empty plan has nothing to keep apart from: one way to add it.
     expect(
-      within(card).queryByRole("button", { name: "Start a new plan from it" }),
+      within(card).queryByRole("button", {
+        name: "Start a new four-year plan from it",
+      }),
     ).toBeNull();
   });
 
@@ -205,7 +207,7 @@ describe("the Samples tab", () => {
 
   it("counts semesters from the plan's start, which the tab can change", async () => {
     const { user, card } = await renderPanel();
-    await user.click(screen.getByLabelText("Your plan starts in"));
+    await user.click(screen.getByLabelText("Your four-year plan starts in"));
     await user.click(
       await screen.findByRole("option", { name: "Spring 2026" }),
     );
@@ -225,7 +227,9 @@ describe("the Samples tab", () => {
     const mine = aFourYearEntry({ id: "entry_mine", term: "202608" });
     const { user, card } = await renderPanel({ entries: [mine] });
     await user.click(
-      within(card).getByRole("button", { name: "Start a new plan from it" }),
+      within(card).getByRole("button", {
+        name: "Start a new four-year plan from it",
+      }),
     );
     const { docs } = useFourYear.getState().history.present;
     expect(docs).toHaveLength(2);
