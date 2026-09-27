@@ -90,6 +90,11 @@ const RULES = {
       /(?<![\w-])max-w-(?:\[(?:440|560|720|1040|1120|1600)px\]|[2-7]xl|screen-[a-z0-9]+)(?![\w-])/g,
     tsxOnly: true,
   },
+  /**
+   * <h1>: a page's one title comes from the kit, PageHeader (or EmptyState
+   * on a first visit), so every product's title looks and reads the same.
+   */
+  pageTitle: { pattern: /<h1\b/g, tsxOnly: true },
 } satisfies Record<string, Rule>;
 
 /**
@@ -98,6 +103,21 @@ const RULES = {
  * here. Never add to this list: a new page picks a kit width.
  */
 const OWN_PAGE_WIDTH = new Set(["/src/features/four-year/empty-state.tsx"]);
+
+/**
+ * Where an `<h1>` is written out today: the kit's PageHeader, the marketing
+ * page's hero (its own design), and pages still to move onto the kit (Plan,
+ * admin). Each leaves the list in the PR that moves it. Never add to it.
+ */
+const OWN_H1 = new Set([
+  "/src/components/ui/page-header.tsx",
+  "/src/features/marketing/hero.tsx",
+  "/src/features/admin/decisions-page.tsx",
+  "/src/features/admin/feedback-page.tsx",
+  "/src/features/admin/queue-page.tsx",
+  "/src/features/four-year/empty-state.tsx",
+  "/src/features/four-year/header.tsx",
+]);
 
 /** "file:line: match" for every offending match in `sources`. */
 function scan(sources: Record<string, string>, rule: Rule): string[] {
@@ -151,6 +171,11 @@ describe("the rules", () => {
         RULES.pageWidth,
       ),
     ).toBe(3);
+
+    expect(bad(`<h1 className="text-xl">Todo</h1>`, RULES.pageTitle)).toBe(1);
+    expect(bad(`<h2>Todo</h2> <h1x /> headingLevel={1}`, RULES.pageTitle)).toBe(
+      0,
+    );
     expect(
       bad(`className="max-w-[460px] max-w-xs max-w-[7200px]"`, RULES.pageWidth),
     ).toBe(0);
@@ -187,6 +212,24 @@ describe("the UI", () => {
       ),
     );
     expect(scan(pages, RULES.pageWidth)).toEqual([]);
+  });
+
+  it("titles every page with the kit's heading", () => {
+    const pages = Object.fromEntries(
+      Object.entries(SOURCES).filter(([file]) => !OWN_H1.has(file)),
+    );
+    expect(scan(pages, RULES.pageTitle)).toEqual([]);
+  });
+
+  it("keeps the list of pages with their own h1 honest", () => {
+    for (const file of OWN_H1) {
+      const source = SOURCES[file];
+      expect(source, `${file} is gone: delete it from OWN_H1`).toBeDefined();
+      expect(
+        scan({ [file]: source ?? "" }, RULES.pageTitle),
+        `${file} no longer writes an <h1>: delete it from OWN_H1`,
+      ).not.toEqual([]);
+    }
   });
 
   it("keeps the list of pages with their own width honest", () => {
