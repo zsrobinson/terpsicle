@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import { useState } from "react";
 import { PanelNote } from "~/app/panel";
+import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { formatGpa, gradeSummary } from "~/core/grades/grades";
 import {
   gradesSourceWords,
@@ -160,9 +161,10 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
               <Link
                 to="/schedule/course/$code"
                 params={{ code: course }}
+                onClick={() => crossLinkClicked("reviews", "schedule")}
                 className="text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
               >
-                View schedule
+                {viewWords("schedule")}
               </Link>
             </WithTooltip>
           }

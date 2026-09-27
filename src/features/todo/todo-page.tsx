@@ -283,6 +283,7 @@ export function TodoList({
   const refreshNote = useTodo((s) => s.refreshNote);
   const setDone = useTodo((s) => s.setDone);
   const scheduler = useSchedulerCourses();
+  const chatOn = useAccount((s) => s.flags.chat !== "off");
 
   // Once per page, and again when the date turns over.
   useEffect(() => {
@@ -422,7 +423,11 @@ export function TodoList({
       {open === 0 ? <p className="text-fg">You're all caught up.</p> : null}
 
       {view === "course" ? (
-        <CourseList {...props} planCourses={scheduler.planCourses} />
+        <CourseList
+          {...props}
+          planCourses={scheduler.planCourses}
+          chatOn={chatOn}
+        />
       ) : view === "week" ? (
         <>
           <div className="max-md:hidden">

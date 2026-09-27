@@ -1,6 +1,9 @@
+import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { crossLinkClicked, viewWords } from "~/app/cross-link";
+import { seasonTermOf, termLabel } from "~/core/catalog/terms";
 import { addDays } from "~/core/ics/dates";
 import type { IsoDate, TodoItem } from "~/core/schema";
 import { formatShortDate } from "~/core/time";
@@ -73,6 +76,8 @@ export function WeekView(props: ListProps & { from: IsoDate; to: IsoDate }) {
     .sort(compareItems);
   const canBack = addDays(monday, -1) >= props.from;
   const canForward = addDays(monday, 7) <= props.to;
+  // The week's classes: the term its Monday falls in.
+  const term = seasonTermOf(monday);
 
   return (
     <section aria-labelledby="todo-week">
@@ -80,6 +85,16 @@ export function WeekView(props: ListProps & { from: IsoDate; to: IsoDate }) {
         <h2 id="todo-week" className="font-semibold text-base">
           {formatShortDate(monday)} – {formatShortDate(sunday)}
         </h2>
+        <WithTooltip label={`Your ${termLabel(term)} classes`}>
+          <Link
+            to="/schedule"
+            search={{ term }}
+            onClick={() => crossLinkClicked("todo", "schedule")}
+            className="text-muted text-sm underline-offset-2 hover:text-fg hover:underline"
+          >
+            {viewWords("schedule")}
+          </Link>
+        </WithTooltip>
         <div className="ml-auto flex items-center gap-1">
           <WithTooltip label="Back a week">
             <Button

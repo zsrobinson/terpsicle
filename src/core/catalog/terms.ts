@@ -1,4 +1,9 @@
-import { SEASON_BY_MONTH_CODE, type Term, type TermId } from "../schema";
+import {
+  type IsoDate,
+  SEASON_BY_MONTH_CODE,
+  type Term,
+  type TermId,
+} from "../schema";
 
 /** A term id as Testudo names it ("Spring 2027"); winter `YYYY12` is named for the next year. */
 export function termLabel(termId: string): string {
@@ -9,6 +14,48 @@ export function termLabel(termId: string): string {
   if (!season || !Number.isFinite(year)) return termId;
   const name = season.charAt(0).toUpperCase() + season.slice(1);
   return `${name} ${season === "winter" ? year + 1 : year}`;
+}
+
+/**
+ * The months each season usually runs, first day of classes through grades,
+ * as [month-day, month-day] of the term's calendar year; winter runs in the
+ * January after its id's year. They cover the whole year. For when the
+ * provost's calendar isn't there (not published yet, or a page that doesn't
+ * load them).
+ */
+const SEASON_SPAN = {
+  "01": ["01-25", "05-31"],
+  "05": ["06-01", "08-20"],
+  "08": ["08-21", "12-31"],
+  "12": ["01-01", "01-24"],
+} as const;
+
+/** A term's usual span by its season. */
+export function seasonSpan(termId: TermId): { start: IsoDate; end: IsoDate } {
+  const code = termId.slice(4) as keyof typeof SEASON_SPAN;
+  const year = Number(termId.slice(0, 4)) + (code === "12" ? 1 : 0);
+  const [start, end] = SEASON_SPAN[code];
+  return { start: `${year}-${start}`, end: `${year}-${end}` };
+}
+
+/**
+ * The term whose usual months hold a date: Fall 2026 for 2026-10-01, Winter
+ * 2027 (the `12` term of 2026) for 2027-01-10.
+ */
+export function seasonTermOf(date: IsoDate): TermId {
+  const year = Number(date.slice(0, 4));
+  const candidates: TermId[] = [
+    `${year - 1}12`,
+    `${year}01`,
+    `${year}05`,
+    `${year}08`,
+  ];
+  for (const termId of candidates) {
+    const { start, end } = seasonSpan(termId);
+    if (date >= start && date <= end) return termId;
+  }
+  // Unreachable while the spans cover the year; fall is the widest guess.
+  return `${year}08`;
 }
 
 const MONTH_CODE_BY_SEASON = {

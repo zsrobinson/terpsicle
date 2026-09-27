@@ -1,8 +1,17 @@
+import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import type { CourseCode, CourseColor, IsoDate, TodoItem } from "~/core/schema";
+import { crossLinkClicked, viewWords } from "~/app/cross-link";
+import type {
+  CourseCode,
+  CourseColor,
+  IsoDate,
+  TermId,
+  TodoItem,
+} from "~/core/schema";
 import {
+  courseChatTerm,
   dayLabel,
   doneWords,
   dueTimeLabel,
@@ -150,8 +159,28 @@ export function DayList(props: ListProps) {
   );
 }
 
+/** A course group's way into its chat room (`courseChatTerm`). */
+function ViewChat({ code, term }: { code: CourseCode; term: TermId }) {
+  return (
+    <WithTooltip label={`Talk with the people in ${code}`}>
+      <Link
+        to="/chat"
+        search={{ term, course: code }}
+        onClick={() => crossLinkClicked("todo", "chat")}
+        className="inline-flex min-h-11 shrink-0 items-center text-muted text-sm underline-offset-2 hover:text-fg hover:underline md:min-h-0"
+      >
+        {viewWords("chat")}
+      </Link>
+    </WithTooltip>
+  );
+}
+
 export function CourseList(
-  props: ListProps & { planCourses: ReadonlySet<CourseCode> },
+  props: ListProps & {
+    planCourses: ReadonlySet<CourseCode>;
+    /** Chat is on here: each course group links to its room. */
+    chatOn: boolean;
+  },
 ) {
   const groups = groupByCourse(
     props.items,
@@ -168,26 +197,32 @@ export function CourseList(
       {groups.map((group) => {
         const first = group.open[0] ?? group.done[0];
         const color = first ? props.look(first).color : null;
+        const chatTerm = courseChatTerm(group, props.today);
         return (
           <section key={group.key} aria-label={group.code ?? group.key}>
-            <h2 className="flex min-w-0 items-center gap-2 border-hairline border-b pb-1 font-semibold text-base">
-              {group.code !== null ? (
-                <CourseTag code={group.code} label={null} color={color} />
-              ) : null}
-              <span
-                data-private=""
-                className="min-w-0 truncate font-normal text-muted text-sm"
-              >
-                {group.code !== null
-                  ? (group.label ?? "")
-                  : group.key === "Other"
-                    ? "Not from a course"
-                    : group.key}
-              </span>
-              <span className="tnum ml-auto shrink-0 font-normal text-muted text-sm">
+            <div className="flex min-w-0 items-center gap-2 border-hairline border-b pb-1">
+              <h2 className="flex min-w-0 items-center gap-2 font-semibold text-base">
+                {group.code !== null ? (
+                  <CourseTag code={group.code} label={null} color={color} />
+                ) : null}
+                <span
+                  data-private=""
+                  className="min-w-0 truncate font-normal text-muted text-sm"
+                >
+                  {group.code !== null
+                    ? (group.label ?? "")
+                    : group.key === "Other"
+                      ? "Not from a course"
+                      : group.key}
+                </span>
+              </h2>
+              <span className="tnum ml-auto shrink-0 text-muted text-sm">
                 {group.open.length} open
               </span>
-            </h2>
+              {group.code !== null && props.chatOn && chatTerm ? (
+                <ViewChat code={group.code} term={chatTerm} />
+              ) : null}
+            </div>
             {group.open.length > 0 ? (
               <ul>
                 <Rows
