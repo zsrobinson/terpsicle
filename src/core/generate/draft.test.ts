@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { aPlanCourse, aSavedCourse } from "~/fixtures";
 import {
   DEFAULT_MUST_HAVES,
   GenItemSchema,
@@ -8,6 +9,7 @@ import {
   activeMustHaves,
   addWildcard,
   draftCourseCodes,
+  planCourseItems,
   relaxDraft,
   removeWildcard,
   requestItems,
@@ -169,6 +171,20 @@ describe("wildcards in the form", () => {
     ).toEqual([
       { kind: "wildcard", wildcard: cmsc4xx, required: true, count: 1 },
       { kind: "wildcard", wildcard: dshs, required: false, count: 1 },
+    ]);
+  });
+});
+
+describe("planCourseItems", () => {
+  it("makes placed courses required and bookmarked ones optional", () => {
+    expect(
+      planCourseItems([
+        aPlanCourse({ courseCode: "CMSC351", sectionCode: "0101" }),
+        aSavedCourse("MUSC130"),
+      ]),
+    ).toEqual([
+      { kind: "course", courseCode: "CMSC351", required: true },
+      { kind: "course", courseCode: "MUSC130", required: false },
     ]);
   });
 });

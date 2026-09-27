@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { scan } from "./axe";
+import { clearGenerateCourses } from "./generate-form";
 import { OPEN_VIEW } from "./sidebar";
 
 // WCAG 2.2 AA with axe on `pnpm dev:mock?demo=1`: every tab and drill-in, in
@@ -261,6 +262,7 @@ for (const scheme of ["light", "dark"] as const) {
       test.slow();
       await open(page);
       await openTab(page, isMobile, "Generate");
+      await clearGenerateCourses(page);
       const field = page.getByRole("combobox", { name: "Add a course" });
       for (const code of ["CMSC351", "CMSC330"]) {
         await field.fill(code);

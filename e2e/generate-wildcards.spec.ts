@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { clearGenerateCourses } from "./generate-form";
 import { OPEN_VIEW } from "./sidebar";
 
 // Wildcards in Generate on `pnpm dev:mock?demo=1`, on desktop and in the
@@ -44,6 +45,7 @@ async function openGenerate(page: Page, isMobile: boolean) {
   await expect(
     page.getByRole("heading", { name: "Generate" }).first(),
   ).toBeVisible();
+  await clearGenerateCourses(page);
 }
 
 /** Types into the course field and takes the first suggestion. */

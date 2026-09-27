@@ -171,6 +171,11 @@ Revisit if: signed-out people ask for it.
 Generate and Plan take `CMSC4XX`-style patterns and GenEd wildcards ("any DSHS"), through one shared matcher in core.
 Revisit if: a third product needs them differently.
 
+### Generate starts with the open plan's courses
+2026-09-27 · agent · one feature
+An untouched Generate form shows the open plan's courses (placed required, bookmarked optional), derived and never stored, so a list someone has changed or emptied always wins. It bends DESIGN §5's "don't prefill" because these are the person's own courses, not guesses: an empty form with a disabled button read as broken to someone who already had a plan (QA round 1, S16).
+Revisit if: people mostly clear the prefilled list before generating.
+
 ### Returning people skip marketing
 2026-09-26 · owner · one feature
 First visits to `/` see the marketing page; anyone with saved plans or a session goes to `/schedule`, and the installed app starts there.

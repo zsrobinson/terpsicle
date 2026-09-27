@@ -14,6 +14,7 @@ import { defaultCourseColor, resolveCourseColors } from "~/core/color";
 import {
   addWildcard,
   draftCourseCodes,
+  planCourseItems,
   removeWildcard,
 } from "~/core/generate/draft";
 import type {
@@ -44,6 +45,7 @@ export function CourseList({
   termName,
   colors,
   plan,
+  prefilledFrom,
   inputRef,
 }: {
   items: readonly GenerateDraftItem[];
@@ -55,6 +57,8 @@ export function CourseList({
   colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
   /** The open plan, for "Add Plan A's courses". */
   plan: Plan | null;
+  /** The plan the list came from, while it's still that plan's courses. */
+  prefilledFrom?: string | null;
   inputRef?: Ref<HTMLInputElement>;
 }) {
   const listed = useMemo(() => new Set(draftCourseCodes(items)), [items]);
@@ -179,6 +183,7 @@ export function CourseList({
       )}
       {items.length > 0 ? (
         <p className="text-xs text-faint">
+          {prefilledFrom ? `From ${prefilledFrom}. ` : null}
           Solid is required, dashed is optional. Click a course to switch.
         </p>
       ) : null}
@@ -192,16 +197,7 @@ export function CourseList({
               size="sm"
               className="text-sm"
               onClick={() =>
-                setItems((xs) => [
-                  ...xs,
-                  ...fromPlan.map(
-                    (c): GenerateDraftItem => ({
-                      kind: "course",
-                      courseCode: c.courseCode,
-                      required: c.sectionCode !== null,
-                    }),
-                  ),
-                ])
+                setItems((xs) => [...xs, ...planCourseItems(fromPlan)])
               }
             >
               <Plus className="size-3.5" />
