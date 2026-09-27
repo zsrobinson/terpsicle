@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
 import { ContactEmail } from "./contact-email";
 import { SitePage } from "./site-page";
 
@@ -7,38 +9,36 @@ import { SitePage } from "./site-page";
 // to review. Keep it true to the app as built and planned (docs/V2.md, the
 // owner's decisions), with nothing added that isn't.
 
+/** One part of the policy: the kit's section, with prose in it. */
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="space-y-2">
-      <h2 className="font-semibold text-fg text-lg tracking-tight">{title}</h2>
-      {children}
-    </section>
+    <PageSection title={title} className="text-fg">
+      <div className="flex flex-col gap-3 text-muted">{children}</div>
+    </PageSection>
   );
 }
 
 export function PrivacyPage() {
   return (
-    <SitePage>
-      <article className="space-y-6 text-muted leading-relaxed">
-        <header className="space-y-1.5">
-          <h1 className="font-semibold text-fg text-xl tracking-tight">
-            Privacy
-          </h1>
-          <p className="text-sm">Draft, last updated 2026-09-27</p>
-        </header>
-
-        <p>
-          Terpsicle is a class scheduler for University of Maryland students,
-          with course reviews and class chats. This page says what it keeps
-          about you, where, and why. Terpsicle isn't affiliated with the
-          University of Maryland.
-        </p>
-        <p className="font-medium text-fg">We don't sell or share your data.</p>
-        <p>
-          The services named below (Google for sign-in, Cloudflare for hosting
-          and moderation, PostHog for anonymous analytics, and your browser's
-          push service) handle it only to run Terpsicle for you.
-        </p>
+    <SitePage layout="reading">
+      <PageHeader title="Privacy" status="Draft, last updated 2026-09-27" />
+      <article className="flex flex-col gap-6 text-muted leading-relaxed">
+        <div className="flex flex-col gap-3">
+          <p>
+            Terpsicle is a class scheduler for University of Maryland students,
+            with course reviews and class chats. This page says what it keeps
+            about you, where, and why. Terpsicle isn't affiliated with the
+            University of Maryland.
+          </p>
+          <p className="font-medium text-fg">
+            We don't sell or share your data.
+          </p>
+          <p>
+            The services named below (Google for sign-in, Cloudflare for hosting
+            and moderation, PostHog for anonymous analytics, and your browser's
+            push service) handle it only to run Terpsicle for you.
+          </p>
+        </div>
 
         <Section title="The scheduler">
           <p>

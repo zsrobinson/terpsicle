@@ -3,6 +3,8 @@ import { Bell } from "lucide-react";
 import { useState } from "react";
 import type { SeatWatch, TermId } from "~/core/schema";
 import { useSeatWatches } from "~/state/seat-watches";
+import { Button } from "~/ui/button";
+import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { courseHref, sectionLabel, termLabel } from "./labels";
 import { stopWatching } from "./seat-watches";
@@ -25,7 +27,8 @@ function since(watch: SeatWatch): string {
 
 /**
  * The list itself; null until it has loaded. `termId`: the term on screen,
- * whose watches don't repeat its name.
+ * whose watches don't repeat its name. Its rows are flush: the list's
+ * `className` sets the inset (Export's panel gives it `px-4`).
  */
 export function WatchingList({
   termId,
@@ -66,49 +69,50 @@ function WatchRow({
   const [busy, setBusy] = useState(false);
   const label = sectionLabel(watch.sectionKey);
   return (
-    <li
-      className="flex items-center gap-2 py-1.5"
+    <ListRow
+      as="li"
+      className="px-0"
       data-testid={`seat-watch-${watch.sectionKey}`}
+      lead={
+        <Bell
+          size={13}
+          fill="currentColor"
+          className="text-fg"
+          aria-hidden="true"
+        />
+      }
+      secondary={`Watching · ${since(watch)}`}
+      action={
+        <WithTooltip label={`Stop watching ${label}. You can undo this.`}>
+          <Button
+            variant="ghost"
+            size="row"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void stopWatching(watch.termId, watch.sectionKey).finally(() =>
+                setBusy(false),
+              );
+            }}
+          >
+            Stop
+          </Button>
+        </WithTooltip>
+      }
     >
-      <Bell
-        size={13}
-        fill="currentColor"
-        className="shrink-0 text-fg"
-        aria-hidden
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <WithTooltip label={`Open ${label} in the scheduler`}>
-            <a
-              href={courseHref(watch.termId, watch.sectionKey)}
-              className="ident font-semibold text-base text-fg hover:underline"
-            >
-              {label}
-            </a>
-          </WithTooltip>
-          {showTerm ? (
-            <span className="text-muted text-sm">
-              {termLabel(watch.termId)}
-            </span>
-          ) : null}
-        </div>
-        <div className="text-muted text-sm">Watching · {since(watch)}</div>
+      <div className="flex items-baseline gap-2">
+        <WithTooltip label={`Open ${label} in the scheduler`}>
+          <a
+            href={courseHref(watch.termId, watch.sectionKey)}
+            className="ident font-semibold text-base text-fg hover:underline"
+          >
+            {label}
+          </a>
+        </WithTooltip>
+        {showTerm ? (
+          <span className="text-muted text-sm">{termLabel(watch.termId)}</span>
+        ) : null}
       </div>
-      <WithTooltip label={`Stop watching ${label}. You can undo this.`}>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            setBusy(true);
-            void stopWatching(watch.termId, watch.sectionKey).finally(() =>
-              setBusy(false),
-            );
-          }}
-          className="shrink-0 rounded px-1.5 py-0.5 text-muted text-sm transition-colors hover:bg-hover hover:text-fg"
-        >
-          Stop
-        </button>
-      </WithTooltip>
-    </li>
+    </ListRow>
   );
 }

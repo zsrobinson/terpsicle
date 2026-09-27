@@ -6,8 +6,6 @@ import { SignInPage } from "~/features/auth/signin-page";
 // Where sign-in errors land (V2.md §1.1), and test mode's sign-in.
 export const Route = createFileRoute("/signin")({
   ssr: false,
-  // Sign-in draws its own frame: no family bar while it loads.
-  staticData: { pending: "none" },
   validateSearch: z.object({
     error: SignInErrorSchema.optional().catch(undefined),
     return: z.string().max(512).optional().catch(undefined),

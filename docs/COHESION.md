@@ -85,13 +85,13 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 
 ### Phase 3: move every product onto it
 Easiest to hardest, so the kit is tested before the scheduler takes it on:
-- [ ] Settings and notifications.
-- [ ] Todo.
+- [x] Settings and notifications (`v3/cohesion-settings-todo`).
+- [x] Todo (`v3/cohesion-settings-todo`).
 - [x] Reviews. (`v3/cohesion-reviews`: `PageHeader` and `ProductPage` on every page, `PageSection`s of `ListRow`s, a `ViewSwitch` of an instructor's courses, `Card`s for the composer, the report form, sign-in and the AI summary, the kit's `Select`, `SearchField` and a new `Textarea`, `InlineError` with Try again, `RowSkeleton`, and `EmptyState` on `/reviews/mine`.)
 - [ ] Plan.
-- [ ] Chat.
+- [x] Chat.
 - [ ] Schedule.
-- [ ] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port.
+- [ ] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port. (`/privacy`, sign-in and not found are on the kit since `v3/cohesion-settings-todo`; `/` and the marketing port are left.)
 
 ### Phase 4: shared patterns sweep
 - [ ] Words: one glossary pass over every string (titles, buttons, empty states, errors, toasts).

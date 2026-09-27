@@ -1,9 +1,10 @@
-import { type ReactNode, useId } from "react";
-import { Logo } from "~/app/logo";
+import type { ReactNode } from "react";
+import { SitePage } from "~/features/site/site-page";
+import { PageHeader } from "~/ui/page-header";
 
 /**
- * The frame for /signin: the logo home, a title, and one column. /settings
- * uses the site's frame (`SitePage`) and borrows `AccountSection` from here.
+ * The page for /signin and /auth/test: the family bar, a title, and one
+ * note-width column, like /settings.
  */
 export function AccountPage({
   title,
@@ -15,46 +16,11 @@ export function AccountPage({
   busy?: boolean;
 }) {
   return (
-    <main className="flex min-h-dvh items-start justify-center bg-bg px-4 pt-[12vh] pb-6 text-fg">
-      <div className="w-full max-w-[440px]">
-        <a
-          href="/"
-          className="mb-6 inline-flex rounded-md"
-          aria-label="Terpsicle home"
-        >
-          <Logo />
-        </a>
-        <h1 className="mb-4 font-semibold text-xl tracking-tight">{title}</h1>
-        <div aria-live="polite" aria-busy={busy} className="space-y-4">
-          {children}
-        </div>
+    <SitePage>
+      <PageHeader title={title} />
+      <div aria-live="polite" aria-busy={busy} className="flex flex-col gap-4">
+        {children}
       </div>
-    </main>
-  );
-}
-
-/** A bordered group with a small heading, like a panel section. */
-export function AccountSection({
-  title,
-  children,
-  id,
-}: {
-  title: string;
-  children: ReactNode;
-  /** A link target: `/settings#<id>`. */
-  id?: string;
-}) {
-  const headingId = useId();
-  return (
-    <section
-      id={id}
-      aria-labelledby={headingId}
-      className="scroll-mt-6 rounded-lg border border-hairline bg-raised p-4"
-    >
-      <h2 id={headingId} className="mb-3 font-semibold text-base">
-        {title}
-      </h2>
-      <div className="space-y-4 text-muted">{children}</div>
-    </section>
+    </SitePage>
   );
 }
