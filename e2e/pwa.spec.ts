@@ -302,6 +302,11 @@ test.describe("install prompt", () => {
   }) => {
     await page.goto("/schedule");
     await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+    // Phones: the drawer is a lazy chunk. Opened before it mounts, a menu
+    // sits under the drawer's layer, which takes Esc, so the menu stays open
+    // and the second press of "Sign in" below closes it instead.
+    if (isMobile)
+      await expect(page.locator("[data-vaul-drawer]")).toBeVisible();
     const entry = isMobile
       ? page.getByRole("menuitem", { name: "Install app" })
       : page.getByRole("button", { name: "Install app" });
