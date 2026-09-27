@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useShortcut } from "~/app/shortcuts";
 import { useMediaQuery } from "~/app/use-media-query";
 import type { IsoDate } from "~/core/schema";
@@ -36,8 +36,9 @@ export function useToday(): IsoDate {
 
 /**
  * Syncs the four-year docs while someone is signed in (V3 §2.4), once they're
- * loaded. The engine loads with the first sign-in, so signed-out visitors
- * download none of it.
+ * loaded (or read again, on coming back): a sync that started first could be
+ * overwritten by that read. The engine loads with the first sign-in, so
+ * signed-out visitors download none of it.
  */
 function usePlanSync(ready: boolean) {
   const signedIn = useAccount((s) => s.status === "signed-in");
@@ -132,10 +133,20 @@ export function PlanPage({ nav }: { nav: PlanNav }) {
   const phase = useFourYear((s) => s.phase);
   const doc = useActiveFourYear();
   const today = useToday();
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    void startFourYear();
+    let cancelled = false;
+    // The course index failing doesn't stop the docs, or their sync.
+    void startFourYear()
+      .catch((error: unknown) => console.error(error))
+      .then(() => {
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  usePlanSync(phase === "ready");
+  usePlanSync(loaded && phase === "ready");
   return (
     <SitePage layout="wide">
       <PlanToasts />

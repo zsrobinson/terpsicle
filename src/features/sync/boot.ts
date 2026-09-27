@@ -44,8 +44,9 @@ function tablesOf(s: WorkspaceState): SyncedTables {
 function notifier(host: SyncHost) {
   return (notice: SyncNotice): void => {
     if (notice.kind === "first-sign-in" && !notice.reset)
+      // Counts only, plans and four-year plans together: never names or grades.
       host.trackFirstSignIn({
-        uploaded: notice.uploaded,
+        uploaded: notice.uploaded + notice.fourYear.uploaded,
         renamed: notice.renamed.length,
         copies: notice.copies.length,
       });
