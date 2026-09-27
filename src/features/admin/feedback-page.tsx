@@ -1,7 +1,5 @@
-import { cn } from "cn";
 import {
   Bug,
-  ChevronDown,
   ClipboardCopy,
   ExternalLink,
   Layers,
@@ -36,10 +34,16 @@ import {
 import { feedbackAdminApi } from "~/server/fns/feedback-admin-api";
 import { Button } from "~/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "~/ui/dialog";
-import { Skeleton } from "~/ui/skeleton";
+import { InlineError } from "~/ui/inline-error";
+import { Textarea } from "~/ui/input";
+import { GroupHeader, ListRow } from "~/ui/list-row";
+import { PageHeader } from "~/ui/page-header";
+import { SegmentedControl } from "~/ui/segmented-control";
+import { RowSkeleton } from "~/ui/skeleton";
 import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
-import { Filter } from "./decisions-page";
+import { AdminNav, PAGE_ROW } from "./admin-frame";
+import { Filter, Filters } from "./decisions-page";
 import { failureWords, useLoad } from "./use-load";
 
 // `/admin/feedback` (docs/FEEDBACK.md, "Triage"): what people sent, newest
@@ -76,7 +80,7 @@ const KIND_ICON: Readonly<Record<FeedbackKind, ReactNode>> = {
   review: <Pin size={14} aria-hidden="true" />,
 };
 
-/** The chips on each item; Spam is a quiet action beside them. */
+/** Each item's status choices; Spam is a quiet action beside them. */
 const CHIP_STATUSES: readonly FeedbackStatus[] = [
   "new",
   "planned",
@@ -286,27 +290,27 @@ export function FeedbackPage({
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h1 className="font-semibold text-lg">Feedback</h1>
-        {newCount !== undefined ? (
-          <span className="text-muted text-sm">{newCount} new</span>
-        ) : null}
-        <WithTooltip label="Sort the open items into groups of the same thing, with a summary each">
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-auto"
-            disabled={grouping}
-            onClick={() => void group()}
-          >
-            <Layers aria-hidden="true" />
-            {grouping ? "Grouping…" : "Group similar"}
-          </Button>
-        </WithTooltip>
-      </div>
+      <PageHeader
+        title="Feedback"
+        status={newCount !== undefined ? `${newCount} new` : "Newest first"}
+        views={<AdminNav current="feedback" />}
+        actions={
+          <WithTooltip label="Sort the open items into groups of the same thing, with a summary each">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={grouping}
+              onClick={() => void group()}
+            >
+              <Layers aria-hidden="true" />
+              {grouping ? "Grouping…" : "Group similar"}
+            </Button>
+          </WithTooltip>
+        }
+      />
 
       {filters.item ? (
-        <p className="mb-4 text-muted text-sm">
+        <p className="text-muted text-sm">
           One item.{" "}
           <WithTooltip label="See all feedback">
             <button
@@ -319,7 +323,7 @@ export function FeedbackPage({
           </WithTooltip>
         </p>
       ) : (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Filters>
           <Filter
             label="Status"
             hint="Where it stands"
@@ -359,22 +363,20 @@ export function FeedbackPage({
               onChange={(host) => set({ host })}
             />
           ) : null}
-        </div>
+        </Filters>
       )}
 
       {first.state === "failed" ? (
-        <p role="status" className="mb-3 text-muted">
-          Couldn't load feedback. {first.message}
-        </p>
+        <InlineError
+          message={`Couldn't load feedback. ${first.message}`}
+          onRetry={first.reload}
+        />
       ) : null}
 
       {first.data === null && first.state === "loading" ? (
-        <div className="space-y-3" aria-busy="true">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
+        <RowSkeleton rows={3} inset={false} label="Loading feedback" />
       ) : items.length === 0 && first.data ? (
-        <p className="text-muted">
+        <p className="py-2 text-muted">
           {filters.item
             ? "That feedback is gone: deleted, or past its year."
             : "No feedback matches these filters."}
@@ -383,9 +385,10 @@ export function FeedbackPage({
         <FeedbackList
           items={items}
           groups={groups}
-          render={(item) => (
-            <ItemCard
+          render={(item, inGroup) => (
+            <ItemRow
               key={item.id}
+              inGroup={inGroup}
               item={item}
               origin={origin}
               onStatus={(status) => void update(item, { status })}
@@ -396,24 +399,23 @@ export function FeedbackPage({
         />
       )}
 
-      {cursor ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <WithTooltip label={`Show the next ${PAGE}`}>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={loadingMore}
-              onClick={() => void loadMore()}
-            >
-              {loadingMore ? "Loading…" : "Show older"}
-            </Button>
-          </WithTooltip>
-          {moreFailed ? (
-            <span role="status" className="text-muted text-sm">
-              {moreFailed}
-            </span>
-          ) : null}
-        </div>
+      {moreFailed ? (
+        <InlineError
+          message={`Couldn't load older feedback. ${moreFailed}`}
+          onRetry={() => void loadMore()}
+        />
+      ) : cursor ? (
+        <WithTooltip label={`Show the next ${PAGE}`}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+          >
+            {loadingMore ? "Loading…" : "Show older"}
+          </Button>
+        </WithTooltip>
       ) : null}
     </>
   );
@@ -473,17 +475,21 @@ function FeedbackList({
 }: {
   items: readonly FeedbackItem[];
   groups: ReadonlyMap<string, FeedbackGroup>;
-  render: (item: FeedbackItem) => ReactNode;
+  render: (item: FeedbackItem, inGroup: boolean) => ReactNode;
 }) {
   return (
-    <ol aria-label="Feedback" className="space-y-3">
+    <ol aria-label="Feedback">
       {feedbackRows(items, groups).map((row) =>
         row.type === "item" ? (
-          <li key={row.item.id}>{render(row.item)}</li>
+          render(row.item, false)
         ) : (
-          <li key={row.group.id}>
+          // A hairline under the group, as between rows.
+          <li
+            key={row.group.id}
+            className="border-hairline border-b last:border-b-0"
+          >
             <GroupBlock group={row.group} count={row.items.length}>
-              {row.items.map(render)}
+              {row.items.map((item) => render(item, true))}
             </GroupBlock>
           </li>
         ),
@@ -492,6 +498,7 @@ function FeedbackList({
   );
 }
 
+/** Similar items under the model's summary: the kit's group bar. */
 function GroupBlock({
   group,
   count,
@@ -502,54 +509,42 @@ function GroupBlock({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
-  const id = useId();
   return (
-    <section
-      aria-label={`Group: ${group.summary}`}
-      className="rounded-lg border border-hairline bg-panel"
-    >
-      <WithTooltip
-        label={open ? "Hide this group's items" : "Show this group's items"}
-      >
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={id}
-          onClick={() => setOpen((o) => !o)}
-          className="flex w-full items-center gap-2 px-3 py-2 text-left"
-        >
-          <Sparkles
-            size={14}
-            aria-label="Summary written by AI"
-            className="shrink-0 text-muted"
-          />
-          <span className="min-w-0 flex-1 font-medium">{group.summary}</span>
-          <span className="tnum text-muted text-sm">{count}</span>
-          <ChevronDown
-            size={14}
-            aria-hidden="true"
-            className={cn(
-              "shrink-0 text-muted transition-transform",
-              open && "rotate-180",
-            )}
-          />
-        </button>
-      </WithTooltip>
-      <div id={id} hidden={!open} className="space-y-3 px-3 pb-3">
-        {children}
-      </div>
+    <section aria-label={`Group: ${group.summary}`}>
+      <GroupHeader
+        open={open}
+        onToggle={() => setOpen((o) => !o)}
+        toggleLabel={
+          open ? "Hide this group's items" : "Show this group's items"
+        }
+        title={
+          <span className="flex min-w-0 items-center gap-1.5">
+            <Sparkles
+              size={13}
+              aria-label="Summary written by AI"
+              className="shrink-0 text-muted"
+            />
+            <span className="truncate">{group.summary}</span>
+          </span>
+        }
+        meta={count}
+      />
+      <ol hidden={!open}>{children}</ol>
     </section>
   );
 }
 
-function ItemCard({
+function ItemRow({
   item,
+  inGroup,
   origin,
   onStatus,
   onNote,
   onDelete,
 }: {
   item: FeedbackItem;
+  /** Under a group's bar, the rows sit in from the page's edge. */
+  inGroup: boolean;
   origin: string;
   onStatus: (status: FeedbackStatus) => void;
   onNote: (note: string | null) => Promise<boolean>;
@@ -580,139 +575,133 @@ function ItemCard({
   };
   const context = item.context;
   return (
-    <article
-      data-feedback-item={item.id}
-      aria-label={`${KIND_WORDS[item.kind]}, ${STATUS_WORDS[item.status]}`}
-      className="rounded-lg border border-hairline bg-raised p-3"
-    >
-      <header className="mb-2 flex flex-wrap items-center gap-2 text-sm">
-        <span className="flex items-center gap-1 font-medium">
-          {KIND_ICON[item.kind]}
-          {KIND_WORDS[item.kind]}
-        </span>
-        <span className="text-muted">{PRODUCT_WORDS[item.product]}</span>
-        <span className="text-muted">{when(item.createdAt)}</span>
-        {item.reply ? (
-          <WithTooltip label="They asked for an email when it's fixed">
-            <span className="flex items-center gap-1 text-muted">
-              <Mail size={12} aria-hidden="true" />
-              Wants a reply
-            </span>
-          </WithTooltip>
+    <ListRow as="li" align="start" className={inGroup ? undefined : PAGE_ROW}>
+      <article
+        data-feedback-item={item.id}
+        aria-label={`${KIND_WORDS[item.kind]}, ${STATUS_WORDS[item.status]}`}
+      >
+        <header className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+          <span className="flex items-center gap-1 font-medium">
+            {KIND_ICON[item.kind]}
+            {KIND_WORDS[item.kind]}
+          </span>
+          <span className="text-muted">{PRODUCT_WORDS[item.product]}</span>
+          <span className="text-muted">{when(item.createdAt)}</span>
+          {item.reply ? (
+            <WithTooltip label="They asked for an email when it's fixed">
+              <span className="flex items-center gap-1 text-muted">
+                <Mail size={12} aria-hidden="true" />
+                Wants a reply
+              </span>
+            </WithTooltip>
+          ) : null}
+        </header>
+
+        {/* Their words, as plain text (CLAUDE.md). */}
+        <p className="whitespace-pre-wrap break-words">{item.text}</p>
+        {item.expected ? (
+          <p className="mt-1.5 whitespace-pre-wrap break-words text-muted">
+            <span className="font-medium text-fg">Expected: </span>
+            {item.expected}
+          </p>
         ) : null}
-      </header>
 
-      {/* Their words, as plain text (CLAUDE.md). */}
-      <p className="whitespace-pre-wrap break-words">{item.text}</p>
-      {item.expected ? (
-        <p className="mt-1.5 whitespace-pre-wrap break-words text-muted">
-          <span className="font-medium text-fg">Expected: </span>
-          {item.expected}
-        </p>
-      ) : null}
+        {shot || elementShot ? (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {elementShot ? (
+              <Shot src={elementShot} label="The element" />
+            ) : null}
+            {shot ? <Shot src={shot} label="The page" /> : null}
+          </div>
+        ) : null}
 
-      {shot || elementShot ? (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {elementShot ? <Shot src={elementShot} label="The element" /> : null}
-          {shot ? <Shot src={shot} label="The page" /> : null}
-        </div>
-      ) : null}
+        {item.element ? (
+          <p className="mt-2 break-all text-muted text-sm">
+            <span className="text-fg">Element: </span>
+            <code className="ident text-xs">{item.element.selector}</code>
+            {item.element.text ? ` · “${item.element.text}”` : null}
+          </p>
+        ) : null}
 
-      {item.element ? (
-        <p className="mt-2 break-all text-muted text-sm">
-          <span className="text-fg">Element: </span>
-          <code className="font-mono text-xs">{item.element.selector}</code>
-          {item.element.text ? ` · “${item.element.text}”` : null}
-        </p>
-      ) : null}
+        <p className="mt-2 break-all text-faint text-xs">{contextLine(item)}</p>
 
-      <p className="mt-2 break-all text-faint text-xs">{contextLine(item)}</p>
+        {isSheetContext(context) && context.actions.length > 0 ? (
+          <details className="mt-2 text-sm">
+            <summary className="cursor-pointer text-muted">
+              Recent actions ({context.actions.length})
+            </summary>
+            <ol className="ident mt-1 max-h-48 overflow-y-auto bg-panel p-2 text-xs leading-5">
+              {context.actions.map((a) => (
+                <li key={`${a.at}-${a.type}`} className="break-all">
+                  {actionLine(a)}
+                </li>
+              ))}
+            </ol>
+          </details>
+        ) : null}
 
-      {isSheetContext(context) && context.actions.length > 0 ? (
-        <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-muted">
-            Recent actions ({context.actions.length})
-          </summary>
-          <ol className="mt-1 max-h-48 overflow-y-auto rounded-md bg-panel p-2 font-mono text-xs leading-5">
-            {context.actions.map((a) => (
-              <li key={`${a.at}-${a.type}`} className="break-all">
-                {actionLine(a)}
-              </li>
-            ))}
-          </ol>
-        </details>
-      ) : null}
+        <NoteField item={item} onNote={onNote} />
 
-      <NoteField item={item} onNote={onNote} />
-
-      <div className="mt-2 flex flex-wrap items-center gap-1">
-        {CHIP_STATUSES.map((status) => (
-          <WithTooltip
-            key={status}
-            label={
-              status === "fixed" && item.reply && item.status !== "fixed"
-                ? "Mark Fixed and email them"
-                : `Mark ${STATUS_WORDS[status]}`
-            }
-          >
-            <button
-              type="button"
-              aria-pressed={item.status === status}
-              onClick={() => item.status !== status && onStatus(status)}
-              className={cn(
-                "h-6 rounded-md border px-2 text-sm transition-colors",
-                item.status === status
-                  ? "border-fg bg-hover font-medium text-fg"
-                  : "border-hairline text-muted hover:bg-hover hover:text-fg",
-              )}
-            >
-              {STATUS_WORDS[status]}
-            </button>
-          </WithTooltip>
-        ))}
-        <WithTooltip label="Mark it spam: it leaves the open list">
-          <Button
-            variant="ghost"
-            size="row"
-            aria-pressed={item.status === "spam"}
-            onClick={() => item.status !== "spam" && onStatus("spam")}
-          >
-            Spam
-          </Button>
-        </WithTooltip>
-        {/* Phones: the hand-offs get a row of their own. */}
-        <span className="flex w-full flex-wrap items-center gap-1 sm:ml-auto sm:w-auto">
-          <WithTooltip label="Copy its words, context, recent actions and screenshot links as Markdown">
-            <Button variant="ghost" size="row" onClick={() => void copy()}>
-              <ClipboardCopy aria-hidden="true" />
-              Copy for an agent
-            </Button>
-          </WithTooltip>
-          <WithTooltip label="A new issue with where to look, never their words or screenshot">
-            <Button variant="ghost" size="row" asChild>
-              <a
-                href={githubIssueUrl(item, adminLink)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink aria-hidden="true" />
-                Open GitHub issue
-              </a>
-            </Button>
-          </WithTooltip>
-          <WithTooltip label="Delete it and its screenshots">
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          <SegmentedControl
+            label="Status"
+            value={item.status}
+            options={CHIP_STATUSES.map((status) => ({
+              value: status,
+              label: STATUS_WORDS[status],
+              hint:
+                status === "fixed" && item.reply && item.status !== "fixed"
+                  ? "Mark Fixed and email them"
+                  : `Mark ${STATUS_WORDS[status]}`,
+            }))}
+            onValueChange={(status) => {
+              if (status !== item.status) onStatus(status);
+            }}
+          />
+          <WithTooltip label="Mark it spam: it leaves the open list">
             <Button
               variant="ghost"
               size="row"
-              aria-label="Delete"
-              onClick={onDelete}
+              aria-pressed={item.status === "spam"}
+              onClick={() => item.status !== "spam" && onStatus("spam")}
             >
-              <Trash2 aria-hidden="true" />
+              Spam
             </Button>
           </WithTooltip>
-        </span>
-      </div>
-    </article>
+          {/* Phones: the hand-offs get a row of their own. */}
+          <span className="flex w-full flex-wrap items-center gap-1 sm:ml-auto sm:w-auto">
+            <WithTooltip label="Copy its words, context, recent actions and screenshot links as Markdown">
+              <Button variant="ghost" size="row" onClick={() => void copy()}>
+                <ClipboardCopy aria-hidden="true" />
+                Copy for an agent
+              </Button>
+            </WithTooltip>
+            <WithTooltip label="A new issue with where to look, never their words or screenshot">
+              <Button variant="ghost" size="row" asChild>
+                <a
+                  href={githubIssueUrl(item, adminLink)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink aria-hidden="true" />
+                  Open GitHub issue
+                </a>
+              </Button>
+            </WithTooltip>
+            <WithTooltip label="Delete it and its screenshots">
+              <Button
+                variant="ghost"
+                size="row"
+                aria-label="Delete"
+                onClick={onDelete}
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </WithTooltip>
+          </span>
+        </div>
+      </article>
+    </ListRow>
   );
 }
 
@@ -724,7 +713,7 @@ function Shot({ src, label }: { src: string; label: string }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="overflow-hidden rounded-md border border-hairline bg-panel"
+          className="overflow-hidden border border-hairline bg-panel"
         >
           <img
             src={src}
@@ -771,7 +760,7 @@ function NoteField({
         Your note
       </label>
       <WithTooltip label="Only you see this. It saves when you click away.">
-        <textarea
+        <Textarea
           id={id}
           value={draft}
           onChange={(e) => {
@@ -782,7 +771,7 @@ function NoteField({
           rows={1}
           maxLength={2_000}
           placeholder="Your note"
-          className="w-full resize-y rounded-md border border-hairline-strong bg-bg px-2 py-1 text-sm placeholder:text-faint focus:border-fg/40"
+          className="resize-y"
         />
       </WithTooltip>
       {saved ? (

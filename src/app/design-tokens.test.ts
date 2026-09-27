@@ -106,15 +106,12 @@ const OWN_PAGE_WIDTH = new Set(["/src/features/four-year/empty-state.tsx"]);
 
 /**
  * Where an `<h1>` is written out today: the kit's PageHeader, the marketing
- * page's hero (its own design), and pages still to move onto the kit (Plan,
- * admin). Each leaves the list in the PR that moves it. Never add to it.
+ * page's hero (its own design), and pages still to move onto the kit (Plan).
+ * Each leaves the list in the PR that moves it. Never add to it.
  */
 const OWN_H1 = new Set([
   "/src/components/ui/page-header.tsx",
   "/src/features/marketing/hero.tsx",
-  "/src/features/admin/decisions-page.tsx",
-  "/src/features/admin/feedback-page.tsx",
-  "/src/features/admin/queue-page.tsx",
   "/src/features/four-year/empty-state.tsx",
   "/src/features/four-year/header.tsx",
 ]);

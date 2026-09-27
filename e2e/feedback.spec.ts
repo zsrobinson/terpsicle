@@ -284,7 +284,7 @@ test("the inbox shows what was sent, and a status change undoes", async ({
   const item = page.locator(`[data-feedback-item="${id}"]`);
   await expect(item.getByText(words)).toBeVisible();
   await scan(page, "feedback inbox");
-  await item.getByRole("button", { name: "Planned" }).click();
+  await item.getByRole("radio", { name: "Planned" }).click();
   await expect(page.getByText("Marked Planned")).toBeVisible();
   await expect(item).toHaveAttribute("aria-label", "Bug, Planned");
   await page.getByRole("button", { name: "Undo" }).click();

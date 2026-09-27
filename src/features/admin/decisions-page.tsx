@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { cn } from "cn";
+import { type ReactNode, useEffect, useState } from "react";
 import { HELD_SHARE_TARGET, heldShare } from "~/core/moderation/admin";
 import { REASON_WORDS } from "~/core/moderation/policy-text";
 import {
@@ -12,8 +13,20 @@ import {
 import type { DecisionDay, DecisionEntry } from "~/core/schema/admin";
 import { adminApi } from "~/server/fns/admin-api";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { InlineError } from "~/ui/inline-error";
+import { ListRow } from "~/ui/list-row";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/ui/select";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
+import { AdminNav, PAGE_ROW } from "./admin-frame";
 import { failureWords, useLoad } from "./use-load";
 import {
   ADMIN_REASON_WORDS,
@@ -93,10 +106,19 @@ export function DecisionsPage({
 
   const set = (patch: DecisionFilters) => onFilters({ ...filters, ...patch });
 
+  const days = first.data?.days;
   return (
     <>
-      <h1 className="mb-3 font-semibold text-lg">Decisions</h1>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <PageHeader
+        title="Decisions"
+        status={
+          days
+            ? heldLine(days, filters.surface)
+            : "Every decision, newest first"
+        }
+        views={<AdminNav current="decisions" />}
+      />
+      <Filters>
         <Filter
           label="Surface"
           hint="Reviews, chat, or both"
@@ -127,67 +149,65 @@ export function DecisionsPage({
           }))}
           onChange={(verdict) => set({ verdict })}
         />
-      </div>
+      </Filters>
 
       {first.state === "failed" ? (
-        <p role="status" className="mb-3 text-muted">
-          Couldn't load decisions. {first.message}
-        </p>
+        <InlineError
+          message={`Couldn't load decisions. ${first.message}`}
+          onRetry={first.reload}
+        />
       ) : null}
 
-      {first.data ? (
-        <DayCounts days={first.data.days} surface={filters.surface} />
+      {days ? (
+        <DayCounts days={days} surface={filters.surface} />
       ) : first.state === "loading" ? (
-        <Skeleton className="mb-4 h-40 w-full" />
+        <RowSkeleton rows={4} inset={false} label="Loading the day counts" />
       ) : null}
 
-      <h2 className="mb-2 font-medium text-base">Log</h2>
-      {first.data === null && first.state === "loading" ? (
-        <div className="space-y-2" aria-busy="true">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      ) : decisions.length === 0 && first.data ? (
-        <p className="text-muted">No decisions match these filters.</p>
-      ) : (
-        <ol
-          aria-label="Decision log"
-          className="divide-y divide-hairline rounded-lg border border-hairline bg-raised"
-        >
-          {decisions.map((d) => (
-            <li key={d.id}>
-              <DecisionRow decision={d} />
-            </li>
-          ))}
-        </ol>
-      )}
+      <PageSection title="Log">
+        {first.data === null && first.state === "loading" ? (
+          <RowSkeleton rows={3} inset={false} label="Loading decisions" />
+        ) : decisions.length === 0 && first.data ? (
+          <p className="py-2 text-muted">No decisions match these filters.</p>
+        ) : (
+          <ol aria-label="Decision log">
+            {decisions.map((d) => (
+              <DecisionRow key={d.id} decision={d} />
+            ))}
+          </ol>
+        )}
 
-      {cursor ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        {moreFailed ? (
+          <InlineError
+            message={`Couldn't load older decisions. ${moreFailed}`}
+            onRetry={() => void loadMore()}
+          />
+        ) : cursor ? (
           <WithTooltip label={`Show the next ${PAGE} decisions`}>
             <Button
               variant="outline"
               size="sm"
+              className="w-fit"
               disabled={loadingMore}
               onClick={() => void loadMore()}
             >
               {loadingMore ? "Loading…" : "Show older"}
             </Button>
           </WithTooltip>
-          {moreFailed ? (
-            <span role="status" className="text-muted text-sm">
-              {moreFailed}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </PageSection>
     </>
   );
 }
 
+/** The row of filters under a page's header. */
+export function Filters({ children }: { children: ReactNode }) {
+  return <div className="flex flex-wrap items-center gap-2">{children}</div>;
+}
+
 const ALL = "all";
 
-// A native select, not ~/ui/select: see RemoveMenu in ./queue-page.
+/** One filter: the kit's select, its name before the choice ("Stage: You"). */
 export function Filter<T extends string>({
   label,
   hint,
@@ -202,29 +222,27 @@ export function Filter<T extends string>({
   onChange: (value: T | undefined) => void;
 }) {
   return (
-    <WithTooltip label={hint}>
-      <label className="flex h-7 items-center gap-1.5 rounded-md border border-hairline-strong bg-bg pl-2 text-fg text-sm transition-colors hover:bg-hover">
-        <span className="text-muted">{label}:</span>
-        <select
-          aria-label={label}
-          value={value ?? ALL}
-          onChange={(event) => {
-            const picked = options.find(
-              (o) => o.value === event.currentTarget.value,
-            );
-            onChange(picked?.value);
-          }}
-          className="h-full cursor-pointer rounded-md bg-transparent pr-1 text-fg"
-        >
-          <option value={ALL}>All</option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
-    </WithTooltip>
+    <Select
+      value={value ?? ALL}
+      onValueChange={(next) =>
+        onChange(options.find((o) => o.value === next)?.value)
+      }
+    >
+      <WithTooltip label={hint}>
+        <SelectTrigger aria-label={label} className="max-md:h-11">
+          <span className="text-muted">{label}:</span>
+          <SelectValue />
+        </SelectTrigger>
+      </WithTooltip>
+      <SelectContent>
+        <SelectItem value={ALL}>All</SelectItem>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -238,6 +256,30 @@ function dayLabel(day: string): string {
   });
 }
 
+/** "11% held for you, against a target under 5%", over the days shown. */
+function heldLine(
+  days: readonly DecisionDay[],
+  surface: ModerationKind | undefined,
+): string {
+  const share = heldShare(
+    days.reduce(
+      (t, d) => ({
+        day: "total",
+        allowed: t.allowed + d.allowed,
+        held: t.held + d.held,
+        rejected: t.rejected + d.rejected,
+      }),
+      { day: "total", allowed: 0, held: 0, rejected: 0 },
+    ),
+  );
+  const what = surface ? KIND_PLURAL[surface].toLowerCase() : "posts";
+  return share === null
+    ? `No ${what} were checked in the last ${days.length} days`
+    : `${percent(share)} held for you, against a target under ${percent(HELD_SHARE_TARGET)}`;
+}
+
+const CELL = "px-2 py-1.5 text-right first:pl-0 last:pr-0";
+
 function DayCounts({
   days,
   surface,
@@ -245,44 +287,29 @@ function DayCounts({
   days: readonly DecisionDay[];
   surface: ModerationKind | undefined;
 }) {
-  const totals = days.reduce(
-    (t, d) => ({
-      day: "total",
-      allowed: t.allowed + d.allowed,
-      held: t.held + d.held,
-      rejected: t.rejected + d.rejected,
-    }),
-    { day: "total", allowed: 0, held: 0, rejected: 0 },
-  );
-  const share = heldShare(totals);
   return (
-    <section aria-labelledby="decision-days" className="mb-4">
-      <h2 id="decision-days" className="mb-1 font-medium text-base">
-        Automatic decisions, last {days.length} days
-        {surface ? ` (${KIND_PLURAL[surface]})` : ""}
-      </h2>
-      <p className="mb-2 text-muted text-sm">
-        {share === null
-          ? "Nothing was checked in these days."
-          : `${percent(share)} held for you, against a target under ${percent(HELD_SHARE_TARGET)}.`}{" "}
-        Days are UTC.
-      </p>
-      <table className="w-full rounded-lg border border-hairline bg-raised text-sm tabular-nums">
+    <PageSection
+      title={`Automatic decisions, last ${days.length} days${
+        surface ? ` (${KIND_PLURAL[surface]})` : ""
+      }`}
+      aside="Days are UTC"
+    >
+      <table className="tnum w-full text-sm">
         <thead className="text-muted">
           <tr className="border-hairline border-b">
-            <th scope="col" className="px-2 py-1 text-left font-normal">
+            <th scope="col" className={cn(CELL, "text-left font-normal")}>
               Day
             </th>
-            <th scope="col" className="px-2 py-1 text-right font-normal">
+            <th scope="col" className={cn(CELL, "font-normal")}>
               Allowed
             </th>
-            <th scope="col" className="px-2 py-1 text-right font-normal">
+            <th scope="col" className={cn(CELL, "font-normal")}>
               Held
             </th>
-            <th scope="col" className="px-2 py-1 text-right font-normal">
+            <th scope="col" className={cn(CELL, "font-normal")}>
               Rejected
             </th>
-            <th scope="col" className="px-2 py-1 text-right font-normal">
+            <th scope="col" className={cn(CELL, "font-normal")}>
               Held share
             </th>
           </tr>
@@ -292,20 +319,17 @@ function DayCounts({
             const dayShare = heldShare(d);
             const over = dayShare !== null && dayShare > HELD_SHARE_TARGET;
             return (
-              <tr key={d.day}>
-                <th scope="row" className="px-2 py-1 text-left font-normal">
+              <tr
+                key={d.day}
+                className="border-hairline border-b last:border-b-0"
+              >
+                <th scope="row" className={cn(CELL, "text-left font-normal")}>
                   {dayLabel(d.day)}
                 </th>
-                <td className="px-2 py-1 text-right">{count(d.allowed)}</td>
-                <td className="px-2 py-1 text-right">{count(d.held)}</td>
-                <td className="px-2 py-1 text-right">{count(d.rejected)}</td>
-                <td
-                  className={
-                    over
-                      ? "px-2 py-1 text-right text-warn"
-                      : "px-2 py-1 text-right text-muted"
-                  }
-                >
+                <td className={CELL}>{count(d.allowed)}</td>
+                <td className={CELL}>{count(d.held)}</td>
+                <td className={CELL}>{count(d.rejected)}</td>
+                <td className={cn(CELL, over ? "text-warn" : "text-muted")}>
                   {dayShare === null ? "–" : percent(dayShare)}
                 </td>
               </tr>
@@ -313,7 +337,7 @@ function DayCounts({
           })}
         </tbody>
       </table>
-    </section>
+    </PageSection>
   );
 }
 
@@ -340,20 +364,26 @@ function DecisionRow({ decision: d }: { decision: DecisionEntry }) {
           .map((r) => REASON_WORDS[r.code])
           .join(" · ") || null;
   return (
-    <div className="px-3 py-2">
-      <div className="flex flex-wrap items-baseline gap-x-2">
+    <ListRow
+      as="li"
+      align="start"
+      className={PAGE_ROW}
+      secondary={
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          {why ? <span>{why}</span> : null}
+          <span className="ident min-w-0 break-all">{d.targetId}</span>
+        </span>
+      }
+      trail={<span className="text-muted">{when(d.createdAt)}</span>}
+    >
+      <span className="flex flex-wrap items-baseline gap-x-2">
         <span className="font-medium">{VERDICT_WORDS[d.verdict]}</span>
         <span>{KIND_WORDS[d.kind]}</span>
         <span className="text-muted text-sm">
           by{" "}
           {d.decidedBy === "admin" ? "you" : STAGE_WORDS[d.stage].toLowerCase()}
         </span>
-        <span className="ml-auto text-muted text-sm">{when(d.createdAt)}</span>
-      </div>
-      <div className="flex flex-wrap items-baseline gap-x-2 text-muted text-sm">
-        {why ? <span>{why}</span> : null}
-        <span className="ident min-w-0 break-all">{d.targetId}</span>
-      </div>
-    </div>
+      </span>
+    </ListRow>
   );
 }

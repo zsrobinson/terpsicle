@@ -1,10 +1,9 @@
-import { cn } from "cn";
 import { type ReactNode, useEffect } from "react";
 import { signInPagePath } from "~/core/auth/return-path";
 import { useAccount } from "~/features/auth/account-store";
 import { NotFoundPage } from "~/features/site/not-found-page";
-import { PAGE_WIDTH } from "~/ui/product-page";
-import { Skeleton } from "~/ui/skeleton";
+import { SitePage } from "~/features/site/site-page";
+import { PageSkeleton } from "~/ui/skeleton";
 
 // The browser's half of "admins only" (V2 §4.8). The Worker already answers
 // a page load with a 404 or a trip to /signin (src/server/auth/pages.ts);
@@ -32,13 +31,11 @@ export function AdminGate({
 
   if (status === "signed-in" && isAdmin) return children;
   if (status === "signed-in") return <NotFoundPage />;
+  // Until /api/me answers (or while leaving for sign-in): the frame, and a
+  // page in the shape of what's coming.
   return (
-    <div
-      className={cn("mx-auto w-full space-y-3 px-4 pt-6", PAGE_WIDTH.reading)}
-      aria-busy="true"
-    >
-      <Skeleton className="h-6 w-40" />
-      <Skeleton className="h-24 w-full" />
-    </div>
+    <SitePage layout="app">
+      <PageSkeleton label="Loading the admin pages" />
+    </SitePage>
   );
 }
