@@ -225,6 +225,11 @@ Revisit if: people expect rooms before their plan syncs.
 `pnpm dev:mock` seeds local R2 with the mock catalog and screens chat with offline stand-ins for the models (`MODERATION_OFFLINE`, test mode only), so e2e can run two people against the real socket. Only the rules hold anything there.
 Revisit if: e2e needs to cover a model's own verdict.
 
+### Mentions come from the text
+2026-09-27 · agent · one feature
+The object finds "@Name" in a message's text among the room's members each time it's published, instead of the client sending a list of user ids. Nothing new in the protocol or the message rows, and a mention can only reach someone who can read the room. The digest reads message text from the object, so D1 never holds it.
+Revisit if: two members of a room share a full name often enough that mentions go to the wrong person.
+
 ## Plan and Todo
 
 ### Plan and Todo, requirements later

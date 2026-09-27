@@ -27,7 +27,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 | V2: Accounts and sync | `v2/sync-merge`, `v2/sync-api`, `v2/sync-engine`, `v2/avatars`, `v2/security-headers`, `v2/privacy` | `v2/sync-merge` (#57) and `v2/sync-api` (#58) merged; `v2/sync-engine` in review |
 | V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Both in review |
 | V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | `v2/reviews-api` merged (#69); `v2/reviews-ui` in review |
-| V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | `v2/chat-do` merged (#70); `v2/chat-ui` in review |
+| V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | `v2/chat-do` merged (#70); `v2/chat-ui` merged; `v2/chat-notify` in review |
 | Marketing | `v2/marketing` | The "Detangle" page at `/`: five tangled lines straighten into the five products, a live sample per product, SEO (meta, OG image, JSON-LD, robots, sitemap). Replaces #80, reverted in #83. |
 | V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | `v2/admin-shell` in review |
 

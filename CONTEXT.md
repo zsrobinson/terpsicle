@@ -211,6 +211,16 @@ _Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
 **Room rules**:
 The three lines a course's chat shows the first time you open it, and in room info.
 
+**Mention**:
+"@" and a classmate's name in a message ("@Hannah Lee"). Typing "@" offers the room's members; a mention of someone in the room notifies them, even in a room they muted.
+_Avoid_: tag, ping
+
+**Reply**:
+A message in a thread. The thread's first author hears about it ("Hannah Lee replied in CMSC131 · 0303"), unless they muted the room.
+
+**Chat digest**:
+The once-a-day email listing mentions and replies you haven't read ("3 unread in your class chats"). Off until you turn it on.
+
 ## Moderation
 
 **Moderation**:

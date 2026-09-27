@@ -619,7 +619,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 
 **Mock mode** (`pnpm dev:mock`, e2e): `scripts/seed-mock-data.ts` puts the mock bucket into local R2 before Vite starts, so the object reads the same catalog the app does, and the Vite config sets `CHAT_ENABLED: "on"` and `MODERATION_OFFLINE: "true"`: with `AUTH_TEST_MODE` on, moderation calls offline stand-ins for the models (`src/server/moderation/offline-models.ts`: Guard says safe, the policy model scores 0), so only the rules hold anything.
 
-**Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs` and `chat_author_courses` rows (`notifications` join them with `v2/chat-notify`). `chat_members` stays: it describes people.
+**Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` and `notifications` rows. `chat_members` stays: it describes people.
 
 ### 7.10 Terpsicle Todo (landed: `migrations/0011_todo.sql`)
 
@@ -645,11 +645,13 @@ The design is `docs/V2.md` §6 (its "As built" under §6.4). Routes: `src/server
 |---|---|---|---|
 | `notification_settings` | `user_id` | `settings` (`NotificationSettingsSchema` JSON), `updated_at` | No row means the defaults. A row that no longer reads also gives the defaults. |
 | `push_subscriptions` | `id` (16 random bytes) | `user_id`, `endpoint` (unique), `p256dh`, `auth`, `user_agent_label`, `created_at`, `last_success_at`, `failure_count` | One per device. Saving an endpoint again refreshes its keys; another account saving it takes the row over (a new `id` and date). 404/410 deletes it; the 10th failure in a row does too. The endpoint never leaves the server. |
-| `notifications` | `id` | `user_id`, `type`, `term_id`, `course_code`, `room_id`, `seq`, `message_id`, `actor_id`, `created_at`, `read_at`, `emailed_at` | Chat mentions and replies, for read state and the digest; `v2/chat-notify` fills it. |
+| `notifications` | `id` | `user_id`, `type`, `term_id`, `course_code`, `room_id`, `seq`, `message_id`, `actor_id`, `created_at`, `read_at`, `emailed_at` | Chat mentions and replies, for read state and the digest. The `CourseChat` object writes one per person per message (`id` is `<user>:<term>:<course>:<message>`, so a message published again after an edit adds none) once the message is visible; reading the room up to its `seq` sets `read_at`; the digest sets `emailed_at`. No message text: the digest asks the object. Pruned after 30 days, and with the course's other rows at retention. |
 | `notification_deliveries` | `id` | `user_id` (no foreign key; null once the account is purged), `type`, `channel`, `dedupe_key` (unique), `status` (`sent` · `failed` · `skipped`), `provider_id`, `sent_at` | One row per event per channel, claimed before sending, so a retry sends nothing twice. `provider_id` is the Email Service id, or the push services' statuses (`201,410`). Pruned after 90 days. "Send me a test" writes none. |
 
 - **Deleting an account** drops every push subscription at once (`account/delete`); the purge deletes settings, subscriptions and `notifications`, and sets deliveries' `user_id` to null.
 - **Signing out** with `pushEndpoint` deletes that device's row.
+- **Chat's dedupe keys** (`v2/chat-notify`): `chat-mention:<user>:<message>` and `chat-reply:<user>:<message>` (`…:push`), and `chat-digest:<user>:<College Park date>` (`…:email`). Chat pushes stop at 30 per person per hour (counted from these rows).
+- **One-click off** (RFC 8058): `POST /api/notifications/email-off?u&t&k` turns off type `t`'s email for person `u`; `k` is `keyedHash("email-off:<u>:<t>")`. The chat digest carries it; seat alerts keep `alerts/one-click`, which stops the watch.
 
 ## 8. Share links
 

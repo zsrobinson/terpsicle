@@ -22,6 +22,7 @@ import { TEST_VAPID_KEYS } from "../push/config";
 import { resetPushCachesForTests } from "../push/send";
 import { MAX_PUSH_FAILURES } from "../push/store";
 import { Device, FakeElms, signIn } from "../todo/testing";
+import { emailOffUrl } from "./email-off";
 import { notify } from "./notify";
 import { pruneDeliveries } from "./store";
 
@@ -637,5 +638,57 @@ describe("signing out, deleting the account and the purge", () => {
     expect(await pruneDeliveries(env.DB, now())).toBe(0);
     clock += 2 * 86_400_000;
     expect(await pruneDeliveries(env.DB, now())).toBe(1);
+  });
+});
+
+describe("notifications/email-off", () => {
+  const oneClick = (url: string, method = "POST") =>
+    handleApi(
+      new Request(url, {
+        method,
+        body: method === "POST" ? "List-Unsubscribe=One-Click" : null,
+        headers:
+          method === "POST"
+            ? { "Content-Type": "application/x-www-form-urlencoded" }
+            : {},
+      }),
+      testEnv,
+      { waitUntil: () => {} },
+    );
+
+  it("turns off that type's email for that person, and only with a good key", async () => {
+    const phone = await device();
+    await phone.call("/api/notifications/settings/set", {
+      settings: {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        chatDigest: { email: true },
+      },
+    });
+    const url = await emailOffUrl(
+      env.DATA,
+      "https://terpsicle.com",
+      "tstudent",
+      "chat-digest",
+    );
+    const forged = url.replace("u=tstudent", "u=tclassmate");
+    expect((await oneClick(forged)).status).toBe(400);
+    // A GET (a link scanner, or a person) changes nothing.
+    const get = await oneClick(url, "GET");
+    expect(get.status).toBe(303);
+    expect(get.headers.get("Location")).toBe(
+      "https://terpsicle.com/settings/notifications",
+    );
+    const settings = () =>
+      phone.call<{ settings: typeof DEFAULT_NOTIFICATION_SETTINGS }>(
+        "/api/notifications/settings",
+        {},
+      );
+    expect((await settings()).settings.chatDigest.email).toBe(true);
+    const post = await oneClick(url);
+    expect(post.status).toBe(200);
+    expect((await settings()).settings).toEqual({
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      chatDigest: { email: false },
+    });
   });
 });

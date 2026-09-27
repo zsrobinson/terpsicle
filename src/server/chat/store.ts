@@ -460,10 +460,100 @@ export async function deleteCourseRows(
       "chat_read_markers",
       "chat_room_prefs",
       "chat_author_courses",
+      "notifications",
     ].map((table) =>
       db
         .prepare(`DELETE FROM ${table} WHERE term_id = ?1 AND course_code = ?2`)
         .bind(termId, courseCode),
     ),
   );
+}
+
+// ---------- mentions and replies (V2.md §6.3, `notifications`) ----------
+
+/** Of `userIds`, those who muted the room. */
+export async function mutedIn(
+  db: D1Database,
+  userIds: readonly string[],
+  termId: TermId,
+  courseCode: CourseCode,
+  roomId: RoomId,
+): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set();
+  const { results } = await db
+    .prepare(
+      `SELECT user_id FROM chat_room_prefs
+       WHERE term_id = ?1 AND course_code = ?2 AND room_id = ?3 AND muted = 1
+         AND user_id IN (SELECT value FROM json_each(?4))`,
+    )
+    .bind(termId, courseCode, roomId, JSON.stringify(userIds))
+    .all();
+  return new Set(
+    results.map((r) => z.object({ user_id: z.string() }).parse(r).user_id),
+  );
+}
+
+export interface ChatNotificationRow {
+  userId: string;
+  type: "chat-mention" | "chat-reply";
+  termId: TermId;
+  courseCode: CourseCode;
+  roomId: RoomId;
+  seq: number;
+  messageId: string;
+  actorId: string;
+  at: string;
+}
+
+/**
+ * Records a mention or reply for read state and the digest. One per person
+ * per message, however often it's published again (an edit is screened
+ * again): false when they already have one for it.
+ */
+export async function recordChatNotification(
+  db: D1Database,
+  n: ChatNotificationRow,
+): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `INSERT INTO notifications
+         (id, user_id, type, term_id, course_code, room_id, seq, message_id, actor_id, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id`,
+    )
+    .bind(
+      `${n.userId}:${n.termId}:${n.courseCode}:${n.messageId}`,
+      n.userId,
+      n.type,
+      n.termId,
+      n.courseCode,
+      n.roomId,
+      n.seq,
+      n.messageId,
+      n.actorId,
+      n.at,
+    )
+    .first<{ id: string }>();
+  return row !== null;
+}
+
+/** Reading a room up to `seq` reads its mentions and replies too. */
+export async function readNotifications(
+  db: D1Database,
+  userId: string,
+  termId: TermId,
+  courseCode: CourseCode,
+  roomId: RoomId,
+  seq: number,
+  at: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE notifications SET read_at = ?6
+       WHERE user_id = ?1 AND term_id = ?2 AND course_code = ?3 AND room_id = ?4
+         AND seq <= ?5 AND read_at IS NULL`,
+    )
+    .bind(userId, termId, courseCode, roomId, seq, at)
+    .run();
 }

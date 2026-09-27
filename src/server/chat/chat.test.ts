@@ -9,7 +9,15 @@ import {
   runInDurableObject,
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from "vitest";
 import { findTestUser } from "~/core/auth";
 import { addDays } from "~/core/ics";
 import { SLURS } from "~/core/moderation";
@@ -56,9 +64,11 @@ import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { upsertUser } from "../auth/store";
 import { moderationHandlers } from "../moderation/handlers";
+import { sendChatDigests } from "../notifications/digest";
 import { createWorker } from "../worker";
 import { CHAT_CLOSE, type CourseChat, chatScreening } from "./course-chat";
 import { chatTargetId } from "./moderation-handler";
+import { chatNotifier } from "./notify";
 
 const ORIGIN = "https://terpsicle.com";
 const TERM = "202701";
@@ -174,6 +184,9 @@ beforeEach(async () => {
       "chat_read_markers",
       "chat_room_prefs",
       "chat_author_courses",
+      "notifications",
+      "notification_settings",
+      "notification_deliveries",
       "sync_docs",
       "sync_heads",
       "counters",
@@ -1725,5 +1738,353 @@ describe("chat routes", () => {
     expect(
       (await student.api("chat/unread", { termId: TERM }, "off")).status,
     ).toBe(503);
+  });
+});
+
+// ---------- mentions, replies and the digest (V2.md §6.1, §6.6) ----------
+
+describe("mentions and replies", () => {
+  let notifySpy: MockInstance<typeof chatNotifier.notify>;
+  beforeEach(() => {
+    notifySpy = vi.spyOn(chatNotifier, "notify");
+  });
+
+  /** Sends and waits until classmates can see it, and the object has notified. */
+  async function published(
+    client: Client,
+    room: string,
+    text: string,
+    replyTo: string | null = null,
+  ) {
+    const ack = await client.sendText(room, text, replyTo);
+    const id = ack.message?.id ?? "";
+    await client.next("moderation", (f) => f.id === id);
+    await client.flush(room);
+    return id;
+  }
+
+  /** Who got a push, with its type and payload, in order. */
+  const pushes = () =>
+    notifySpy.mock.calls.map(([, userId, n]) => ({
+      userId,
+      type: n.type,
+      push: n.push,
+    }));
+
+  const rows = async () =>
+    (
+      await env.DB.prepare(
+        "SELECT user_id, type, room_id, actor_id, read_at FROM notifications ORDER BY user_id",
+      ).all()
+    ).results;
+
+  it("pushes to the person mentioned, among the room's members only", async () => {
+    const { student } = await twoPeople();
+    await signIn("tadmin"); // Signed in, but CMSC351 is in no plan of theirs.
+    const a = await student.join([courseRoom]);
+    const id = await published(
+      a.client,
+      courseRoom,
+      "@Test Classmate did you start the homework? @Test Admin @Test Student",
+    );
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+    expect(pushes()).toEqual([
+      {
+        userId: "tclassmate",
+        type: "chat-mention",
+        push: {
+          title: "Test Student mentioned you in CMSC351",
+          body: "@Test Classmate did you start the homework? @Test Admin @Test Student",
+          url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}`,
+          tag: `chat:${courseRoom}`,
+        },
+      },
+    ]);
+    expect(notifySpy.mock.calls[0]?.[2]).toMatchObject({
+      key: `chat-mention:tclassmate:${id}`,
+    });
+    expect(await rows()).toEqual([
+      {
+        user_id: "tclassmate",
+        type: "chat-mention",
+        room_id: courseRoom,
+        actor_id: "tstudent",
+        read_at: null,
+      },
+    ]);
+  });
+
+  it("keeps a section room's mentions to its section", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([room0101]);
+    // tclassmate is in 0201, so not in the 0101 room.
+    await published(a.client, room0101, "@Test Classmate hello?");
+    await a.client.flush(room0101);
+    expect(pushes()).toEqual([]);
+    expect(await rows()).toEqual([]);
+  });
+
+  it("pushes the thread's author when someone replies", async () => {
+    const { student, classmate } = await twoPeople();
+    const b = await classmate.join([courseRoom]);
+    const root = await published(b.client, courseRoom, "anyone have notes?");
+    b.client.close();
+    const a = await student.join([courseRoom]);
+    const reply = await published(a.client, courseRoom, "yes, here", root);
+    // A reply to a reply joins the thread: still the thread's author.
+    await published(a.client, courseRoom, "and more", reply);
+    await vi.waitFor(() => expect(pushes()).toHaveLength(2));
+    expect(pushes()[0]).toEqual({
+      userId: "tclassmate",
+      type: "chat-reply",
+      push: {
+        title: "Test Student replied in CMSC351",
+        body: "yes, here",
+        url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}&thread=${root}`,
+        tag: `chat:${courseRoom}`,
+      },
+    });
+    // Replying in your own thread notifies nobody.
+    notifySpy.mockClear();
+    const own = await published(a.client, courseRoom, "top");
+    await published(a.client, courseRoom, "me again", own);
+    expect(pushes()).toEqual([]);
+  });
+
+  it("records but doesn't push to someone looking at the course's chat", async () => {
+    const { student, classmate } = await twoPeople();
+    const b = await classmate.join([courseRoom]);
+    const a = await student.join([courseRoom]);
+    await published(a.client, courseRoom, "@Test Classmate look");
+    await b.client.flush();
+    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
+    expect(pushes()).toEqual([]);
+  });
+
+  it("sends no reply push in a muted room, but mentions still push", async () => {
+    const { student, classmate } = await twoPeople();
+    await classmate.api("chat/mute", {
+      termId: TERM,
+      courseCode: COURSE,
+      roomId: courseRoom,
+      muted: true,
+    });
+    const b = await classmate.join([courseRoom]);
+    const root = await published(b.client, courseRoom, "question");
+    b.client.close();
+    const a = await student.join([courseRoom]);
+    await published(a.client, courseRoom, "answer", root);
+    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
+    expect(pushes()).toEqual([]);
+    await published(a.client, courseRoom, "@Test Classmate see above");
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+    expect(pushes()[0]?.type).toBe("chat-mention");
+  });
+
+  it("notifies once per person per message, even after an edit", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const id = await published(a.client, courseRoom, "@Test Classmate hi");
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+    const req = a.client.req();
+    a.client.send({
+      type: "edit",
+      req,
+      room: courseRoom,
+      id,
+      text: "@Test Classmate hi again",
+    });
+    await a.client.next("ack", (f) => f.req === req);
+    await a.client.next(
+      "moderation",
+      (f) => f.id === id && f.moderation.state === "visible",
+    );
+    await a.client.flush();
+    expect(pushes()).toHaveLength(1);
+    expect(await rows()).toHaveLength(1);
+  });
+
+  it("waits for moderation: a held message notifies nobody until it's approved", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "@Test Classmate [hold]");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    await a.client.flush();
+    expect(pushes()).toEqual([]);
+    await stub().applyDecision({
+      termId: TERM,
+      courseCode: COURSE,
+      messageId: id,
+      decision: "publish",
+    });
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+  });
+
+  it("stops pushing past 30 chat pushes an hour", async () => {
+    const { student } = await twoPeople();
+    const at = new Date().toISOString();
+    await env.DB.batch(
+      Array.from({ length: 30 }, (_, i) =>
+        env.DB.prepare(
+          `INSERT INTO notification_deliveries (user_id, type, channel, dedupe_key, status, sent_at)
+           VALUES ('tclassmate', 'chat-reply', 'push', ?1, 'sent', ?2)`,
+        ).bind(`earlier-${i}`, at),
+      ),
+    );
+    const a = await student.join([courseRoom]);
+    await published(a.client, courseRoom, "@Test Classmate one more");
+    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
+    expect(pushes()).toEqual([]);
+  });
+
+  it("reads mentions with the room", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const id = await published(a.client, courseRoom, "@Test Classmate hey");
+    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
+    const b = await classmate.join([courseRoom]);
+    b.client.send({ type: "read", room: courseRoom, upTo: id });
+    await b.client.flush();
+    expect((await rows())[0]?.read_at).not.toBeNull();
+  });
+});
+
+describe("the chat digest", () => {
+  type Mail = {
+    to: string;
+    subject: string;
+    text: string;
+    headers: Record<string, string>;
+  };
+  let mail: Mail[];
+  const digestEnv = () =>
+    ({
+      ...env,
+      EMAIL: {
+        send: async (m: Mail) => {
+          mail.push(m);
+          return { messageId: `m${mail.length}` };
+        },
+      },
+    }) as unknown as Parameters<typeof sendChatDigests>[0];
+
+  beforeEach(() => {
+    mail = [];
+    vi.spyOn(chatNotifier, "notify");
+  });
+
+  async function published(
+    client: Client,
+    text: string,
+    replyTo: string | null = null,
+  ) {
+    const ack = await client.sendText(courseRoom, text, replyTo);
+    const id = ack.message?.id ?? "";
+    await client.next("moderation", (f) => f.id === id);
+    await client.flush();
+    return id;
+  }
+
+  const digestOn = (p: Person) =>
+    p.api("notifications/settings/set", {
+      settings: {
+        v: 1,
+        seatOpen: { push: true, email: true },
+        chatMention: { push: true },
+        chatReply: { push: true },
+        chatDigest: { email: true },
+        todoDue: { push: false },
+      },
+    });
+
+  it("emails unread mentions and replies once, with the text as it is now", async () => {
+    const { student, classmate } = await twoPeople();
+    expect((await digestOn(classmate)).status).toBe(200);
+    const b = await classmate.join([courseRoom]);
+    const root = await published(b.client, "who's in the study group?");
+    b.client.close();
+    const a = await student.join([courseRoom]);
+    await published(a.client, "me!", root);
+    await published(a.client, "@Test Classmate bring the slides");
+    const gone = await published(a.client, "@Test Classmate [oops]");
+    const del = a.client.req();
+    a.client.send({ type: "delete", req: del, room: courseRoom, id: gone });
+    await a.client.next("ack", (f) => f.req === del);
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(3);
+    });
+
+    const now = new Date();
+    expect(await sendChatDigests(digestEnv(), { now })).toEqual({
+      emailed: 1,
+      notifications: 3,
+    });
+    expect(mail).toHaveLength(1);
+    const [m] = mail;
+    expect(m?.to).toBe("tclassmate@terpmail.umd.edu");
+    expect(m?.subject).toBe("2 unread in your class chats");
+    expect(m?.text).toContain(
+      "Test Student mentioned you in CMSC351: @Test Classmate bring the slides",
+    );
+    expect(m?.text).toContain("Test Student replied in CMSC351: me!");
+    expect(m?.text).not.toContain("[oops]");
+    expect(m?.text).toContain(`&thread=${root}`);
+    expect(m?.headers["List-Unsubscribe"]).toMatch(
+      /^<https:\/\/terpsicle\.com\/api\/notifications\/email-off\?u=tclassmate&t=chat-digest&k=[0-9a-f]+>$/,
+    );
+    // Emailed once: a second run the same day, or the next, sends nothing.
+    expect(await sendChatDigests(digestEnv(), { now })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    expect(mail).toHaveLength(1);
+  });
+
+  it("leaves out what's read, and people with the digest off", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const id = await published(a.client, "@Test Classmate one");
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(1);
+    });
+    // The digest is off by default.
+    expect(await sendChatDigests(digestEnv(), { now: new Date() })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    await digestOn(classmate);
+    const b = await classmate.join([courseRoom]);
+    b.client.send({ type: "read", room: courseRoom, upTo: id });
+    await b.client.flush();
+    expect(await sendChatDigests(digestEnv(), { now: new Date() })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    expect(mail).toEqual([]);
+  });
+
+  it("only looks back a day", async () => {
+    const { student, classmate } = await twoPeople();
+    await digestOn(classmate);
+    const a = await student.join([courseRoom]);
+    await published(a.client, "@Test Classmate old news");
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(1);
+    });
+    const later = new Date(Date.now() + 25 * 3_600_000);
+    expect(await sendChatDigests(digestEnv(), { now: later })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
   });
 });
