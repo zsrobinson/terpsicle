@@ -95,7 +95,7 @@ test("the hero tangles first, then straightens into five rails that end in the p
   // All five are out: nothing says "Coming soon", and Plan links to /plan.
   await expect(page.locator("main")).not.toContainText("Coming soon");
   await expect(
-    page.getByRole("link", { name: "View plan" }).first(),
+    page.getByRole("link", { name: "View four-year plan" }).first(),
   ).toHaveAttribute("href", "/plan");
   await expect(page.getByRole("link", { name: "View todos" })).toHaveAttribute(
     "href",

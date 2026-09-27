@@ -31,7 +31,7 @@ Schedule, Reviews, Chat, Plan, Todo (red, purple, blue, green, yellow). Menus, m
 The small menu for moving between products. The owner sometimes says "app switcher".
 
 **View link**:
-A link from one product into another, worded "View schedule", "View reviews", "View chat", "View plan" or "View todos" (`PRODUCTS`' `view`). Each is counted as `cross_link_clicked`.
+A link from one product into another, worded "View schedule", "View reviews", "View chat", "View four-year plan" or "View todos" (`PRODUCTS`' `view`). Each is counted as `cross_link_clicked`. Plan's says "four-year" because in Schedule "plan" alone is Plan A or B.
 _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 
 ## Shared
@@ -58,7 +58,7 @@ One offering of a course, named by a four-character code (`0101`). You add a sec
 One weekly time and place of a section: its kind (Lec, Dis, Lab), days, times, building and room. A meeting with no set time is "No set time".
 
 **Professor**:
-Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "instructor" on the Instructors tab and its cards, and "professor" for groups and rooms ("Professor TBA").
+Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "instructor" on the Instructors tab and its cards and for one section's own teacher (its row, its ghost, its problem: "Instructor TBA"), and "professor" for groups and rooms ("Professor TBA").
 
 **GenEd**:
 A UMD General Education code (DSHS, DSNL, FSAW, …). A course can count for one of several ("DSHS or DSHU"). The search chip reads "Gen-eds".

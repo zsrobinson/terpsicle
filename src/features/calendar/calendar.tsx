@@ -56,6 +56,7 @@ import {
   previewOrder,
   spreadPills,
   stepPreview,
+  type Timed,
 } from "./layout";
 import {
   type BlockDraft,
@@ -173,10 +174,38 @@ function visibleBand(
 }
 
 /**
- * When a course's sections start showing (opened, or hovered in search) and
- * none of them is in view, scroll the calendar to the first one: smoothly,
- * and only if needed. On a phone the drawer at half covers the calendar's
- * lower part, where a 12:30 class sits.
+ * Scrolls the calendar, smoothly and only if needed, so one of the items
+ * `pick` returns is in view: the first one when none is. On a phone the
+ * drawer at half covers the calendar's lower part, where a 12:30 class sits.
+ */
+function scrollIntoBand(
+  grid: HTMLDivElement | null,
+  pick: (column: CalendarModel["columns"][number]) => readonly Timed[],
+  { model, layout }: { model: CalendarModel; layout: CalendarLayout },
+  drawerCover: number,
+): void {
+  const scroller = grid?.closest<HTMLElement>("[data-calendar-scroll]");
+  if (!grid || !scroller) return;
+  const top = grid.getBoundingClientRect().top;
+  const delta = ghostScrollDelta(
+    model.columns.flatMap((c) =>
+      pick(c).map((item) => ({
+        top: top + layout.yOf(item.start),
+        bottom: top + layout.yOf(item.end),
+      })),
+    ),
+    visibleBand(scroller, drawerCover),
+  );
+  if (delta === 0) return;
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  scroller.scrollBy({ top: delta, behavior: still ? "auto" : "smooth" });
+}
+
+/**
+ * When a course's sections start showing (opened, or hovered in search),
+ * brings them into view; and when the open course's section in the plan is
+ * added or switched, brings that into view (QA S13: on a phone, a section
+ * added at 1pm landed under the drawer, out of sight).
  */
 function useScrollToGhosts(
   grid: RefObject<HTMLDivElement | null>,
@@ -188,35 +217,52 @@ function useScrollToGhosts(
   const ghostCourse = model.ghost?.courseCode ?? null;
   const latest = useRef({ model, layout });
   latest.current = { model, layout };
+  const cover = () =>
+    mobile && typeof window !== "undefined"
+      ? snapHeights(window.innerHeight)[snap]
+      : 0;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `cover` reads mobile and snap, listed
   useEffect(() => {
     if (!ghostCourse) return;
-    const frame = requestAnimationFrame(() => {
-      const el = grid.current;
-      const scroller = el?.closest<HTMLElement>("[data-calendar-scroll]");
-      if (!el || !scroller) return;
-      const { model, layout } = latest.current;
-      const top = el.getBoundingClientRect().top;
-      const cover =
-        mobile && typeof window !== "undefined"
-          ? snapHeights(window.innerHeight)[snap]
-          : 0;
-      const delta = ghostScrollDelta(
-        model.columns.flatMap((c) =>
-          c.ghostItems.map((g) => ({
-            top: top + layout.yOf(g.start),
-            bottom: top + layout.yOf(g.end),
-          })),
-        ),
-        visibleBand(scroller, cover),
-      );
-      if (delta === 0) return;
-      const still = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-      scroller.scrollBy({ top: delta, behavior: still ? "auto" : "smooth" });
-    });
+    const frame = requestAnimationFrame(() =>
+      scrollIntoBand(
+        grid.current,
+        (c) => c.ghostItems,
+        latest.current,
+        cover(),
+      ),
+    );
     return () => cancelAnimationFrame(frame);
   }, [ghostCourse, grid, mobile, snap]);
+
+  const placedKey =
+    ghostCourse && model.ghost?.placedCode
+      ? `${ghostCourse}-${model.ghost.placedCode}`
+      : null;
+  const shown = useRef<{ course: string | null; placed: string | null }>({
+    course: null,
+    placed: null,
+  });
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `cover` reads mobile and snap, listed
+  useEffect(() => {
+    const before = shown.current;
+    shown.current = { course: ghostCourse, placed: placedKey };
+    // Only a change while the course stays open: opening it is the ghosts'.
+    if (!placedKey || before.course !== ghostCourse) return;
+    if (before.placed === placedKey) return;
+    const frame = requestAnimationFrame(() =>
+      scrollIntoBand(
+        grid.current,
+        (c) =>
+          c.entryItems.filter(
+            (e) => e.kind === "class" && e.sectionKey === placedKey,
+          ),
+        latest.current,
+        cover(),
+      ),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [ghostCourse, placedKey, grid, mobile, snap]);
 }
 
 /** Clicking a course anywhere opens its details; clicking it again closes them. */

@@ -1,8 +1,13 @@
+import { useMediaQuery } from "~/app/use-media-query";
 import type { CourseCode, CourseColor } from "~/core/schema";
 import { CourseColorPicker } from "~/features/courses/color-picker";
 import { Kbd } from "~/ui/kbd";
 import { WithTooltip } from "~/ui/tooltip";
 import type { GhostSummary, UntimedSection } from "./layout";
+
+/** A touch screen, where copy says "tap" rather than "click" or "hover". */
+const COARSE_POINTER = "(pointer: coarse)";
+
 import { dotStyle, tintStyle } from "./tint";
 
 // One-line strips above the grid. Nothing ever goes below it (SPEC §2).
@@ -15,6 +20,8 @@ const HINT_CLASS =
 
 /** The Search tab before any hover: where the sections will show, and how. */
 export function SearchHint() {
+  // A tap opens the result instead of hovering it (#48).
+  const touch = useMediaQuery(COARSE_POINTER);
   return (
     <div className={HINT_CLASS}>
       <span
@@ -22,7 +29,9 @@ export function SearchHint() {
         className="size-2 shrink-0 rounded-full border border-hairline-strong"
       />
       <span className="truncate text-muted">
-        Hover a result to see its sections here.
+        {touch
+          ? "Tap a result to see its sections here."
+          : "Hover a result to see its sections here."}
       </span>
     </div>
   );
@@ -50,6 +59,8 @@ export function GhostHint({
   // With one section there's nothing to step through, placed or not.
   const choosing =
     interactive && !readOnly && others > 0 && ghost.sectionCount > 1;
+  // A phone's reader taps (QA S12).
+  const press = useMediaQuery(COARSE_POINTER) ? "Tap" : "Click";
   return (
     <div className={HINT_CLASS}>
       {interactive && !readOnly ? (
@@ -80,7 +91,7 @@ export function GhostHint({
             {interactive
               ? readOnly
                 ? "Save a copy to add it."
-                : "Click it to add it."
+                : `${press} it to add it.`
               : "Open it to add it."}
           </>
         ) : (
@@ -90,7 +101,7 @@ export function GhostHint({
             {interactive
               ? readOnly
                 ? "Save a copy to change sections."
-                : "Click one to switch."
+                : `${press} one to switch.`
               : "Open it to pick one."}
           </>
         )}

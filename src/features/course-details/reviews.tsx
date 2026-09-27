@@ -1,5 +1,6 @@
 import { cn } from "cn";
-import { Sparkles, Star } from "lucide-react";
+import { ArrowRight, Sparkles, Star } from "lucide-react";
+import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { MetaSep } from "~/app/panel";
 import {
   formatGpa,
@@ -96,11 +97,14 @@ export function InstructorMeta({
   const gpa = courseGrades(planetTerp, course, pt)?.averageGpa ?? null;
   if (!rating?.rating && gpa === null) return null;
   const parts = combined ? combinedRatingWords(combined) : null;
+  // A row of one line: what doesn't fit (the GPA first) wraps out of sight,
+  // so a narrow header keeps the professor's name whole (QA S8). The GPA is
+  // under Grades too.
   return (
-    <span className="tnum inline-flex shrink-0 items-center gap-1 text-muted">
+    <span className="tnum flex h-5 min-w-0 flex-wrap items-center gap-x-1 overflow-hidden text-muted">
       {rating?.rating && parts ? (
         <WithTooltip label={parts}>
-          <span className="inline-flex items-center gap-0.5">
+          <span className="inline-flex h-5 shrink-0 items-center gap-0.5">
             <Star
               size={11}
               aria-hidden="true"
@@ -117,8 +121,12 @@ export function InstructorMeta({
           </span>
         </WithTooltip>
       ) : null}
-      {rating?.rating && gpa !== null ? <MetaSep /> : null}
-      {gpa !== null ? <span>GPA {formatGpa(gpa)}</span> : null}
+      {gpa !== null ? (
+        // Not inline-flex: that would drop the spaces around the dot.
+        <span className="shrink-0 whitespace-nowrap leading-5">
+          {rating?.rating ? <MetaSep /> : null}GPA {formatGpa(gpa)}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -235,20 +243,24 @@ export function InstructorReviews({
               ))}
             </div>
           ) : null}
-          <div className="mt-2 text-xs text-faint">
-            {summarySourceWords(review.summary)} ·{" "}
-            <ReadThem slug={pt.slug} course={course.code} />
-          </div>
+          <p className="mt-2 text-xs text-faint">
+            {summarySourceWords(review.summary)}.
+          </p>
         </div>
       ) : pt.reviewCount > 0 ? (
-        <div className="mt-1 text-xs text-faint">
-          {pt.reviewCount} review{pt.reviewCount === 1 ? "" : "s"} on PlanetTerp
-          · <ReadThem slug={pt.slug} course={course.code} />
-        </div>
+        <p className="mt-1 text-xs text-faint">
+          {pt.reviewCount} review{pt.reviewCount === 1 ? "" : "s"} on
+          PlanetTerp.
+        </p>
       ) : null}
       {freshness && !loading ? (
         <p className="mt-1 text-xs text-faint" data-testid="pt-freshness">
           {freshness}
+        </p>
+      ) : null}
+      {pt && pt.reviewCount > 0 && !loading ? (
+        <p className="mt-2">
+          <ReadThem slug={pt.slug} course={course.code} name={name} />
         </p>
       ) : null}
     </div>
@@ -271,32 +283,47 @@ export function summarySourceWords(summary: ReviewSummary): string {
 }
 
 /**
- * Where full reviews live: Terpsicle Reviews once it's open here (V2 §7.1),
- * else PlanetTerp. A plain link, like the product menu's: none of Reviews'
- * code loads with the scheduler.
+ * Where full reviews live, on a line of its own so it can't read as the
+ * source note's (QA S3): Terpsicle Reviews once it's open here (V2 §7.1),
+ * as a View link, else PlanetTerp, named. A plain link, like the product
+ * menu's: none of Reviews' code loads with the scheduler.
  */
-function ReadThem({ slug, course }: { slug: string; course: CourseCode }) {
+function ReadThem({
+  slug,
+  course,
+  name,
+}: {
+  slug: string;
+  course: CourseCode;
+  name: string;
+}) {
   const reviews = useAccount((s) => s.flags.reviews);
+  const link =
+    "inline-flex min-h-11 items-center gap-1 font-medium text-fg underline underline-offset-2 hover:no-underline md:min-h-0";
   if (reviews !== "off")
     return (
-      <WithTooltip label="All reviews and grades for this instructor">
+      <WithTooltip
+        label={`All of ${name}'s reviews and grades in ${course}, in Terpsicle Reviews`}
+      >
         <a
           href={`/reviews/instructors/${encodeURIComponent(slug)}?course=${course}`}
-          className="underline underline-offset-2 hover:text-fg"
+          onClick={() => crossLinkClicked("schedule", "reviews")}
+          className={link}
         >
-          Read reviews
+          {viewWords("reviews")}
+          <ArrowRight size={12} aria-hidden="true" />
         </a>
       </WithTooltip>
     );
   return (
-    <WithTooltip label="Open on PlanetTerp">
+    <WithTooltip label="Opens PlanetTerp in a new tab">
       <a
         href={planetTerpUrl(slug)}
         target="_blank"
         rel="noreferrer"
-        className="underline underline-offset-2 hover:text-fg"
+        className={link}
       >
-        read them
+        Read them on PlanetTerp
       </a>
     </WithTooltip>
   );
