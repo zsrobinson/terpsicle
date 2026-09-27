@@ -129,6 +129,11 @@ Revisit if: a public page starts to depend on who's asking.
 `/`, `/privacy` and similar pages link to `/signin` rather than rendering the account button, and import auth modules directly, never through the `~/features/auth` barrel.
 Revisit if: `v2/schedule-routes` makes route splitting handle it.
 
+### Tooltips on controls, not on menu options
+2026-09-27 · agent · app-wide
+Every control on a page has a tooltip through `WithTooltip`, and `e2e/tooltips.spec.ts` fails on one without. The items of an open menu or listbox don't need one: their text is their whole label, the trigger that opened them has the tooltip, and one per option would cover the next. An item whose label doesn't say enough still gets one (side `left`).
+Revisit if: people hover menu items looking for more, or the owner wants tooltips on every option.
+
 ### Every kit control is 44px on phones
 2026-09-27 · agent · app-wide
 Below `md`, `Button` (every size), `SelectTrigger` and menu and select items are 44px, like `Input` and `SegmentedControl` already were. Pages don't add `max-md:h-11`. Chat, Todo and Plan had each hand-rolled this, and Schedule and Settings had 28–32px targets, so one product felt roomy and the next cramped. The cost is taller rows on phones (Problems' Switch, Generate's fields).

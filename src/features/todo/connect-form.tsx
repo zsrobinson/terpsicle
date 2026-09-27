@@ -112,21 +112,27 @@ export function ConnectForm({
         ELMS calendar link
       </label>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input
-          id={inputId}
-          type="url"
-          inputMode="url"
-          autoComplete="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          data-private=""
-          aria-describedby={note ? answerId : undefined}
-          placeholder="https://umd.instructure.com/feeds/calendars/user_….ics"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          disabled={busy}
-          className="ph-no-capture flex-1"
-        />
+        {/* Above the field, so it never covers Connect ELMS below it on phones. */}
+        <WithTooltip
+          label="Paste the link from Calendar Feed in ELMS"
+          side="top"
+        >
+          <Input
+            id={inputId}
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-private=""
+            aria-describedby={note ? answerId : undefined}
+            placeholder="https://umd.instructure.com/feeds/calendars/user_….ics"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            disabled={busy}
+            className="ph-no-capture flex-1"
+          />
+        </WithTooltip>
         <WithTooltip label="Check the link with ELMS and start showing your deadlines">
           <Button type="submit" disabled={busy || value.trim() === ""}>
             {busy ? "Checking ELMS…" : submitLabel}

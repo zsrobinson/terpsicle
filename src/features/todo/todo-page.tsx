@@ -255,7 +255,7 @@ const DONE_TOAST_ID = "todo-done";
 /** Signed in, before ELMS: what comes through and the three steps. */
 function InlineConnect() {
   return (
-    <TodoFrame width="note">
+    <>
       <PageHeader title={TITLE} status="ELMS isn't connected yet" />
       <PageSection title="Connect ELMS">
         <div className="flex flex-col gap-4">
@@ -273,11 +273,11 @@ function InlineConnect() {
           </p>
         </div>
       </PageSection>
-    </TodoFrame>
+    </>
   );
 }
 
-/** The list once signed in: header, view, items. */
+/** The list once signed in: header, view, items. `TodoPage` frames it. */
 export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
   const { now, today } = useNow();
   const phase = useTodo((s) => s.phase);
@@ -343,21 +343,16 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
     [done, setDone],
   );
 
-  if (phase === "idle" || phase === "loading")
-    return (
-      <TodoFrame>
-        <TodoSkeleton />
-      </TodoFrame>
-    );
+  if (phase === "idle" || phase === "loading") return <TodoSkeleton />;
   if (phase === "failed")
     return (
-      <TodoFrame>
+      <>
         <PageHeader title={TITLE} />
         <InlineError
           message="We couldn't load your list. Check your connection and try again."
           onRetry={() => void load(today, Date.now())}
         />
-      </TodoFrame>
+      </>
     );
 
   if (!feed && items.length === 0) return <InlineConnect />;
@@ -381,7 +376,7 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
   const checked = refreshing ? "Checking ELMS…" : words.checked;
 
   return (
-    <TodoFrame>
+    <>
       <PageHeader
         title={TITLE}
         status={
@@ -460,7 +455,7 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
       ) : (
         <DayList {...props} />
       )}
-    </TodoFrame>
+    </>
   );
 }
 
@@ -468,18 +463,24 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
 export function TodoPage({ view, day }: { view: TodoView; day?: IsoDate }) {
   const status = useAccount((s) => s.status);
   const on = useAccount((s) => s.flags.todo);
-  if (status === "loading")
-    return (
-      <TodoFrame>
+  // Signed in with nothing from ELMS or a file yet: the three steps.
+  const connectOnly = useTodo(
+    (s) => s.phase === "ready" && !s.feed && s.items.length === 0,
+  );
+  if (status !== "loading" && !on) return <TodoOff />;
+  // One frame for every state, so the family bar stays mounted (with focus
+  // in it) as the account and the list arrive.
+  const note =
+    status === "signed-out" || (status === "signed-in" && connectOnly);
+  return (
+    <TodoFrame width={note ? "note" : "app"}>
+      {status === "loading" ? (
         <TodoSkeleton />
-      </TodoFrame>
-    );
-  if (!on) return <TodoOff />;
-  if (status === "signed-out")
-    return (
-      <TodoFrame width="note">
+      ) : status === "signed-out" ? (
         <FrontDoor returnTo={TODO_PATH} />
-      </TodoFrame>
-    );
-  return <TodoList view={view} day={day} />;
+      ) : (
+        <TodoList view={view} day={day} />
+      )}
+    </TodoFrame>
+  );
 }

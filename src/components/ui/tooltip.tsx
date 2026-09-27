@@ -92,7 +92,10 @@ function WithTooltip({
         setOpen(next);
       }}
     >
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      {/* `data-tooltip`: e2e/tooltips.spec.ts finds controls without one. */}
+      <TooltipTrigger asChild data-tooltip="">
+        {children}
+      </TooltipTrigger>
       <TooltipContent side={side}>
         {label}
         {shortcut ? <Kbd>{shortcut}</Kbd> : null}

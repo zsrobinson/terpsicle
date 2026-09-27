@@ -99,8 +99,8 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [ ] Behavior:
   - loading and error states everywhere (`v3/behavior`, and Plan's in #144: the kit's skeletons and `InlineError`, and Reload beside every "Reload to …");
   - Undo on every destructive action;
-  - tooltips and shortcuts on every control;
-  - focus order and keyboard.
+  - tooltips and shortcuts on every control (`v3/behavior-keys`: `e2e/tooltips.spec.ts` checks every page; menu options are the one exception, in `docs/decisions.md`);
+  - focus order and keyboard (`v3/behavior-keys`: tabbed through every product at 1440; Esc closes the top layer, and a popover no longer needs two).
 
 ### Phase 5: first-time rounds, until happy
 - [ ] A scripted first visit to each product, as a new student with no account, then signed in:
