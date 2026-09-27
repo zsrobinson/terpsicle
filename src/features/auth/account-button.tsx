@@ -40,19 +40,29 @@ import { currentPath, SignInPanel } from "./sign-in-panel";
 export function AccountButton({
   compact = false,
   themeToggle = null,
+  phoneItems = null,
 }: {
   compact?: boolean;
   themeToggle?: ReactNode;
+  /** More items for the phone menu (the scheduler's "Send feedback"). */
+  phoneItems?: ReactNode;
 }) {
+  const shown = useAccountButtonShown();
+  const user = useAccount((s) => s.user);
+  if (!shown) return themeToggle;
+  if (compact) return <PhoneMenu items={phoneItems} />;
+  return user ? <AccountMenu user={user} /> : <SignInButton />;
+}
+
+/** Whether the account button (or, on phones, its menu) is showing. */
+export function useAccountButtonShown(): boolean {
   const status = useAccount((s) => s.status);
   const signIn = useAccount((s) => s.flags.signIn);
   const user = useAccount((s) => s.user);
-  const shown =
+  return (
     (status === "signed-in" && user !== null) ||
-    (status === "signed-out" && signIn);
-  if (!shown) return themeToggle;
-  if (compact) return <PhoneMenu />;
-  return user ? <AccountMenu user={user} /> : <SignInButton />;
+    (status === "signed-out" && signIn)
+  );
 }
 
 const triggerClass =
@@ -101,7 +111,7 @@ function AccountMenu({ user }: { user: MeUser }) {
 }
 
 /** Phones: one button for the account (or Sign in) and the theme. */
-function PhoneMenu() {
+function PhoneMenu({ items }: { items: ReactNode }) {
   const user = useAccount((s) => s.user);
   return (
     <DropdownMenu>
@@ -128,6 +138,7 @@ function PhoneMenu() {
         <DropdownMenuSeparator />
         <ThemeMenuItems />
         <InstallAppMenuItem />
+        {items}
       </DropdownMenuContent>
     </DropdownMenu>
   );

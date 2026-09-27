@@ -20,6 +20,7 @@ import type {
   TravelMode,
   Wildcard,
 } from "~/core/schema";
+import type { FeedbackProduct, FeedbackSendKind } from "~/core/schema/feedback";
 import type { FourYearProblemKind } from "~/core/schema/four-year";
 import { type ClientConfig, clientConfig, type DataSource } from "./config";
 
@@ -164,6 +165,16 @@ export interface AnalyticsEvents {
   transcript_imported: { lines: number; keptGrades: boolean };
   // Which sample plan, by its id ("cmsc-2026"), never what's in it.
   template_applied: { template: string };
+  // Feedback (docs/FEEDBACK.md): which boxes were on, never the words.
+  feedback_opened: { product: FeedbackProduct };
+  feedback_sent: {
+    kind: FeedbackSendKind;
+    product: FeedbackProduct;
+    hasScreenshot: boolean;
+    withContext: boolean;
+    reply: boolean;
+  };
+  feedback_undone: NoProperties;
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 
@@ -218,10 +229,25 @@ export async function initAnalytics(
   pending = undefined;
 }
 
+let trackListener: ((event: string, properties: object) => void) | undefined;
+
+/**
+ * Hears every `track()`, PostHog or not: the feedback activity log
+ * (./activity-log-boot.tsx). A hook rather than an import, so this module
+ * stays as small as it was on every page.
+ */
+export function onTrack(
+  listener: ((event: string, properties: object) => void) | null,
+): void {
+  trackListener = listener ?? undefined;
+}
+
 export function track<E extends AnalyticsEvent>(
   event: E,
   properties: AnalyticsEvents[E],
 ): void {
+  // Into the page's own activity log too, for feedback (PostHog or not).
+  trackListener?.(event, properties);
   if (client) client.capture(event, properties);
   else pending?.push({ event, properties });
 }

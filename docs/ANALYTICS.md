@@ -88,6 +88,12 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
   Plan's events never carry a course code, grade, GPA or a course's credits, nor anything from a pasted transcript beyond the counts above. `/plan` is on the no-autocapture list, and grades are `data-private`.
 
+  | `feedback_opened` | `product` | Whether people find "Send feedback", and from where. |
+  | `feedback_sent` | `kind` (`bug` · `idea`), `product`, `hasScreenshot`, `withContext`, `reply` | Whether people keep the screenshot and "Include what I was doing" on, and how often they want a reply. Never the words, the page or the person (docs/FEEDBACK.md). |
+  | `feedback_undone` | | How often Undo takes feedback back. |
+
+  Feedback's events never carry what someone wrote, their page or who they are: `[data-feedback-ui]` (the sheet, the admin's pins and their notes) is on autocapture's ignore list too.
+
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
 - **No session recordings.** The owner decided against them (2026-09-26): `posthog.init` sets `disable_session_recording: true` whatever the PostHog project says, nothing calls `startSessionRecording()` (a test in `src/app/analytics.test.ts` checks every source file), and `before_send` drops any recording data (`$snapshot`) anyway. Keep replay off in the PostHog project too.

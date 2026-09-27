@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -29,12 +30,30 @@ function checkoutMarker(): Plugin {
   };
 }
 
+/**
+ * The build's version for feedback (`__APP_VERSION__`): CI's commit,
+ * else the checkout's, else "dev".
+ */
+function appVersion(): string {
+  const sha = process.env.GITHUB_SHA;
+  if (sha) return sha.slice(0, 7);
+  try {
+    return execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "dev";
+  }
+}
+
 // Modes: `pnpm dev` = development (live data), `pnpm dev:mock` = mock
 // (fixtures, no network; also what e2e runs), `pnpm build` = production.
 export default defineConfig(({ command, mode }) => ({
   // Client env files live in env/, not the root: wrangler and the Cloudflare
   // plugin would load a root .env into the Worker's env and its types.
   envDir: "env",
+  define: { __APP_VERSION__: JSON.stringify(appVersion()) },
   resolve: { tsconfigPaths: true },
   plugins: [
     // First, so the Worker never sees the marker path.
