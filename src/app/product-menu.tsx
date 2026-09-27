@@ -108,9 +108,7 @@ function ProductItem({
       <Mark id={product.id} size={28} className="size-7" />
       <span className="min-w-0 flex-1">
         <span className="block font-semibold">{product.label}</span>
-        <span className="block truncate text-muted text-xs">
-          {product.hint}
-        </span>
+        <span className="block text-muted text-xs">{product.hint}</span>
       </span>
       {current ? <Check aria-hidden="true" /> : null}
     </>

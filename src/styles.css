@@ -590,6 +590,28 @@
 }
 
 /*
+ * Touch targets in the family bar (docs/ACCESSIBILITY.md, "Touch targets").
+ * The bar is 48px tall and full of small icons; drawing them all at 44px
+ * would push the scheduler's term and plans off a phone. On a touch screen
+ * each control's hit area fills the bar's height instead, and nothing is
+ * narrower than 32px, while the icons keep their size.
+ */
+@media (pointer: coarse) {
+  [data-slot="app-bar"] :is(a[href], button) {
+    position: relative;
+    min-width: 32px;
+  }
+  [data-slot="app-bar"] :is(a[href], button)::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+}
+
+/*
  * Short screens (a laptop at 400% zoom is 320×256, WCAG 1.4.10): a panel's
  * own header and fields can fill the drawer, leaving its list no height at
  * all. There the list keeps a usable minimum and the whole panel scrolls.

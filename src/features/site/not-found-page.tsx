@@ -6,8 +6,10 @@ import { OpenScheduleButton, SitePage } from "./site-page";
 export function NotFoundPage() {
   return (
     <SitePage notFound>
-      <PageHeader title="Page not found" />
-      <p className="text-muted">There's nothing at this address.</p>
+      <PageHeader
+        title="Page not found"
+        status="There's nothing at this address."
+      />
       <OpenScheduleButton />
     </SitePage>
   );
