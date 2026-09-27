@@ -238,7 +238,7 @@ function RefreshButton() {
         aria-label="Check ELMS now"
         disabled={refreshing}
         onClick={() => void refresh()}
-        className="max-md:-my-3 max-md:size-11"
+        className="max-md:-my-3"
       >
         <RefreshCw aria-hidden="true" className="size-3" />
       </Button>
