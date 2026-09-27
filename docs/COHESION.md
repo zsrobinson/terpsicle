@@ -67,6 +67,16 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 ### Phase 2: build the system
 - [ ] `AppFrame`: the global bar (products, account, feedback) with a slot for the product's own context. It replaces both `SiteHeader` and the scheduler's `TopBar` framing.
 - [ ] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes.
+- [ ] Controls the inventory found hand-rolled five times over (§6):
+  - `Input` and `SearchField`: one height, one border, one focus rule.
+  - `Select`: Radix everywhere; no native `<select>`.
+  - `Switch`.
+  - `SegmentedControl`: one selected look.
+  - `BackLink`: one back affordance.
+  - `Section`: one heading under a page title.
+- [ ] One `undoToast()` helper: one action button, one icon, one 10-second window, and the shortcut in its tooltip. It replaces the seven toast-action copies. Failures get one treatment: never red, with a Try again where retrying can help.
+- [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
+- [ ] Routes get a shared `pendingComponent` and `errorComponent`. No page says "reload the page".
 - [ ] Guardrails:
   - The design-tokens test also fails on raw `max-w-*` page containers and on `h1` elements outside `PageHeader`.
   - The `reviewer` agent checks for use of the kit.
@@ -106,4 +116,29 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - **Every UI PR shows the family, not just itself.** Its screenshots include the grid from `scripts/shots.ts` once that exists.
 
 ## 6. Interface inventory
-(Filled in from the code audit.)
+The full code audit is `docs/cohesion-inventory.md` (2026-09-27), with file and line references for every pattern. Phase 3 works from it, and a PR that fixes an entry deletes it there.
+
+The most visible items:
+1. **Account and theme.** Plan and Todo have no account entry. Chat shows its avatar only when you're signed in. The theme can only be changed inside Schedule. There are four different account entries.
+2. **Titles.** Titles follow no pattern:
+   - an `h1` at `text-xl` (where the type scale reserves `text-xl` for the first-visit headline);
+   - Plan's plan-name dropdown;
+   - no `h1` at all in Chat;
+   - the product menu as Schedule's `h1`.
+3. **First visits.** They look like four different products: three keylined cards, two hairline cards, a 440px column with a mark, a 560px column without one.
+4. **Chrome.** SiteHeader's border and the footer appear on some pages only. Admin and marketing each have their own header.
+5. **Selected states.** Nine selected-state looks across sub-navigation and chips.
+6. **Cards.** Cards are keylined, hairlined or hairline-strong on the same kind of surface.
+7. **List rows.** Only Schedule uses `ListRow`. Chat retypes it, Todo and Reviews hand-roll theirs, and Plan boxes every block.
+8. **Widths.** Page widths: 440, 560, 720, 1040, 1120, 1600 and full bleed.
+9. **Undo toasts.** Seven undo-toast implementations with 6-, 8- and 10-second windows.
+10. **Errors.** Error handling differs everywhere: red toasts in Schedule, plain ones in Chat, and "reload the page" with no button in Reviews and Settings. No route has an `errorComponent`.
+11. **Back.** Six back affordances.
+12. **Section headings.** Five section-heading styles.
+13. **Loading.** Three copies of `ListSkeleton`, one lone spinner, and pulsing in two places only.
+14. **Form controls.** No shared form controls:
+    - four search boxes and five text inputs;
+    - native and Radix selects;
+    - two switch knobs;
+    - a sign-in button that isn't a `Button`.
+15. **Small drift.** Plan uses raw `font-mono` instead of `ident`, and links use two different underline offsets.

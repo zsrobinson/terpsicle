@@ -2,6 +2,8 @@
 
 UMD academic planning tools at terpsicle.com. Five products, in color order: **Schedule** (red, `/schedule`), **Reviews** (purple, `/reviews`), **Chat** (blue, `/chat`), **Plan** (green, `/plan`) and **Todo** (yellow, `/todo`). Words for these and everything in them: `CONTEXT.md`, the glossary. What's been decided, by whom, and when to revisit it: `docs/decisions.md`.
 
+**The current goal is cohesion** (owner, 2026-09-27): the five products should feel like one product, built from the same shell and components. `docs/COHESION.md` is the plan and checklist. Build new UI from the shared kit it describes; don't hand-roll a header, empty state, list row, toast action or form control.
+
 ## Use the platform first
 
 Before you write infrastructure (routing, URL or state sync, lazy loading, caching, retries, scheduling, forms), check what the framework or platform already does. Prefer it, even if that means reshaping the feature. If you still hand-roll it, say why in the PR body. How-tos: the `framework-first` skill.
