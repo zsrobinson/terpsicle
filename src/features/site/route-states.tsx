@@ -33,7 +33,8 @@ declare module "@tanstack/react-router" {
      *   under it lays out its own column, so nothing jumps sideways.
      * - `reading`: the bar over a reading-width skeleton, for pages whose
      *   loader can be slow on a client-side visit (Reviews).
-     * - `none`: nothing, for pages with a frame of their own (admin).
+     * - `none`: nothing, for a page with a frame of its own (none today:
+     *   admin had one until it moved under the family bar).
      */
     pending?: "bar" | "reading" | "none";
   }

@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { ADMIN_FEEDBACK_PATH } from "~/core/routing";
 import {
   FeedbackIdSchema,
   FeedbackKindSchema,
@@ -14,8 +13,6 @@ import { FeedbackPage } from "~/features/admin/feedback-page";
 // undoes one; `?item=<id>` is one item, the link issues and agents get.
 export const Route = createFileRoute("/admin/feedback")({
   ssr: false,
-  // Admin draws its own frame: no family bar while it loads.
-  staticData: { pending: "none" },
   validateSearch: z.object({
     status: FeedbackStatusSchema.optional().catch(undefined),
     kind: FeedbackKindSchema.optional().catch(undefined),
@@ -36,7 +33,7 @@ function AdminFeedbackRoute() {
   const filters = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <AdminFrame current={ADMIN_FEEDBACK_PATH}>
+    <AdminFrame>
       <FeedbackPage
         filters={filters}
         onFilters={(next) => void navigate({ search: next })}

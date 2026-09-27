@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { ADMIN_KIT_PATH } from "~/core/routing";
 import { KitViewSchema } from "~/core/schema/admin-kit";
 import { AdminFrame } from "~/features/admin/admin-frame";
 import { KitPage } from "~/features/admin/kit-page";
@@ -11,8 +10,6 @@ import { KitPage } from "~/features/admin/kit-page";
 // the kit's own ViewSwitch working on a real URL.
 export const Route = createFileRoute("/admin/kit")({
   ssr: false,
-  // Admin draws its own frame: no family bar while it loads.
-  staticData: { pending: "none" },
   validateSearch: z.object({
     view: KitViewSchema.optional().catch(undefined),
   }),
@@ -28,7 +25,7 @@ export const Route = createFileRoute("/admin/kit")({
 function AdminKitRoute() {
   const { view } = Route.useSearch();
   return (
-    <AdminFrame current={ADMIN_KIT_PATH} width="app">
+    <AdminFrame>
       <KitPage view={view ?? "all"} />
     </AdminFrame>
   );

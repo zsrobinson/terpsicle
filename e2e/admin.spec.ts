@@ -79,11 +79,20 @@ test("the admin publishes, undoes, removes with a reason, then reads the log", a
 }) => {
   await signInAs(page, "Test Admin", "/admin");
   await expect(page).toHaveURL(/\/admin$/);
-  // Its own page, outside the scheduler's shell.
+  // Its own page, outside the scheduler's shell, under the family bar.
   await expect(page).toHaveTitle("Admin · Terpsicle");
-  await expect(page.getByRole("navigation", { name: "Admin" })).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByText("Admin", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Admin" })
+      .getByRole("link", { name: "Queue" }),
+  ).toHaveAttribute("aria-current", "page");
   await expect(page.locator("[data-app-shell]")).toHaveCount(0);
-  const health = page.getByRole("region", { name: "Health" });
+  const health = page.locator("section", {
+    has: page.getByRole("heading", { name: "Health" }),
+  });
   await expect(health.getByText("AI calls today")).toBeVisible();
   await expect(health.getByText(/ of 2,000$/)).toBeVisible();
 
@@ -144,7 +153,7 @@ test("the admin publishes, undoes, removes with a reason, then reads the log", a
   // What's decided lists it, with its own Undo; Back returns to waiting.
   await page
     .getByRole("navigation", { name: "Queue" })
-    .getByRole("button", { name: "Decided" })
+    .getByRole("link", { name: "Decided" })
     .click();
   await expect(page).toHaveURL(/\/admin\?show=decided$/);
   await expect(
@@ -163,7 +172,8 @@ test("the admin publishes, undoes, removes with a reason, then reads the log", a
     .click();
   await expect(page).toHaveURL(/\/admin\/decisions$/);
   await expect(page.getByRole("table")).toBeVisible();
-  await page.getByRole("combobox", { name: "Stage" }).selectOption("You");
+  await page.getByRole("combobox", { name: "Stage" }).click();
+  await page.getByRole("option", { name: "You" }).click();
   await expect(page).toHaveURL(/\/admin\/decisions\?stage=human$/);
   const log = page.getByRole("list", { name: "Decision log" });
   await expect(log.getByText(spam.targetId)).toBeVisible();
@@ -279,7 +289,7 @@ test("the admin removes a chat message from its link and stops its author, then 
   // Undo from Decided: back in the queue, and the author can post again.
   await page
     .getByRole("navigation", { name: "Queue" })
-    .getByRole("button", { name: "Decided" })
+    .getByRole("link", { name: "Decided" })
     .click();
   const decided = page.locator("[data-queue-item]").filter({ hasText: text });
   await expect(

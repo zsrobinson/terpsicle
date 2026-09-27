@@ -1,106 +1,61 @@
-import { Link } from "@tanstack/react-router";
-import { cn } from "cn";
 import type { ReactNode } from "react";
-import { Logo } from "~/app/logo";
 import {
   ADMIN_DECISIONS_PATH,
   ADMIN_FEEDBACK_PATH,
   ADMIN_KIT_PATH,
   ADMIN_PATH,
-  STAY_PARAM,
 } from "~/core/routing";
-import { FeedbackButton } from "~/features/feedback/feedback-button";
-import { Button } from "~/ui/button";
-import { PAGE_WIDTH } from "~/ui/product-page";
-import { WithTooltip } from "~/ui/tooltip";
+import { SitePage } from "~/features/site/site-page";
+import { type View, ViewSwitch } from "~/ui/view-switch";
 import { AdminGate } from "./admin-gate";
 
-// The frame for the admin pages (V2 §10): the logo, the panel's pages, and
-// one column. Deliberately plain and light: it loads none of
-// the scheduler (so no theme menu, which lives in the scheduler's store; the
-// system theme applies, as on the other pages around the scheduler).
+// The admin pages (V2 §10) sit in the same frame as every other page: the
+// family bar, with "Admin" in its context slot (SiteHeader), over the kit's
+// app-width page. Admin is no product, so no tab is current in the bar.
 
-const PAGES = [
-  { to: ADMIN_PATH, label: "Queue", hint: "Held posts waiting for you" },
+/** Admin's pages, each a route. */
+export type AdminPage = "queue" | "decisions" | "feedback" | "kit";
+
+const PAGES: readonly View[] = [
   {
-    to: ADMIN_DECISIONS_PATH,
+    id: "queue",
+    label: "Queue",
+    hint: "Held posts waiting for you",
+    to: ADMIN_PATH,
+  },
+  {
+    id: "decisions",
     label: "Decisions",
     hint: "Everything moderation decided, and how often it held",
+    to: ADMIN_DECISIONS_PATH,
   },
   {
-    to: ADMIN_FEEDBACK_PATH,
+    id: "feedback",
     label: "Feedback",
     hint: "Bugs, ideas and pinned notes people sent",
+    to: ADMIN_FEEDBACK_PATH,
   },
   {
-    to: ADMIN_KIT_PATH,
+    id: "kit",
     label: "Kit",
     hint: "Every piece of the page kit, in every state",
+    to: ADMIN_KIT_PATH,
   },
-] as const;
+];
 
-export function AdminFrame({
-  current,
-  width = "reading",
-  children,
-}: {
-  current: (typeof PAGES)[number]["to"];
-  /** The page kit's widths; the kit's side-by-side demos need `app`. */
-  width?: "reading" | "app";
-  children: ReactNode;
-}) {
+/** Moving between admin's pages: the page header's view switch. */
+export function AdminNav({ current }: { current: AdminPage }) {
+  return <ViewSwitch label="Admin" views={PAGES} current={current} />;
+}
+
+/** A row flush with the page's column, as on Reviews' pages. */
+export const PAGE_ROW = "px-0";
+
+/** A list you scan across columns: the app width, for every admin page. */
+export function AdminFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-hairline border-b px-4">
-        <WithTooltip label="About Terpsicle">
-          <a href={`/?${STAY_PARAM}`} className="rounded-md">
-            <Logo compact />
-          </a>
-        </WithTooltip>
-        {/* Phones: four pages and the icons fit at 390px only without the
-            word; the nav scrolls on its own before the page ever would. */}
-        <span className="font-semibold max-sm:sr-only">Admin</span>
-        <nav
-          aria-label="Admin"
-          className="flex min-w-0 items-center gap-1 overflow-x-auto"
-        >
-          {PAGES.map((p) => (
-            <WithTooltip key={p.to} label={p.hint}>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className={cn(
-                  "max-sm:px-1.5",
-                  p.to === current && "bg-hover text-fg",
-                )}
-              >
-                <Link
-                  to={p.to}
-                  aria-current={p.to === current ? "page" : undefined}
-                >
-                  {p.label}
-                </Link>
-              </Button>
-            </WithTooltip>
-          ))}
-        </nav>
-        {/* The owner's notes on the panel itself ("Pin a note"); the icon
-            alone, beside the Feedback page's own tab. */}
-        <span className="ml-auto">
-          <FeedbackButton product="admin" pathname={current} compact />
-        </span>
-      </header>
-      <AdminGate>
-        <main
-          className={cn(
-            "mx-auto w-full flex-1 px-4 pt-4 pb-8",
-            PAGE_WIDTH[width],
-          )}
-        >
-          {children}
-        </main>
-      </AdminGate>
-    </div>
+    <AdminGate>
+      <SitePage layout="app">{children}</SitePage>
+    </AdminGate>
   );
 }

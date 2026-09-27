@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { ADMIN_PATH } from "~/core/routing";
 import { AdminFrame } from "~/features/admin/admin-frame";
 import { QueuePage } from "~/features/admin/queue-page";
 
@@ -9,8 +8,6 @@ import { QueuePage } from "~/features/admin/queue-page";
 // Back returns to the waiting list.
 export const Route = createFileRoute("/admin/")({
   ssr: false,
-  // Admin draws its own frame: no family bar while it loads.
-  staticData: { pending: "none" },
   validateSearch: z.object({
     show: z.literal("decided").optional().catch(undefined),
   }),
@@ -25,17 +22,9 @@ export const Route = createFileRoute("/admin/")({
 
 function AdminQueueRoute() {
   const { show } = Route.useSearch();
-  const navigate = Route.useNavigate();
   return (
-    <AdminFrame current={ADMIN_PATH}>
-      <QueuePage
-        view={show ?? "waiting"}
-        onView={(view) =>
-          void navigate({
-            search: { show: view === "decided" ? view : undefined },
-          })
-        }
-      />
+    <AdminFrame>
+      <QueuePage view={show ?? "waiting"} />
     </AdminFrame>
   );
 }
