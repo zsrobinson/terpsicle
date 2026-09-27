@@ -11,6 +11,7 @@ import {
 import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { findTestUser } from "~/core/auth";
+import { addDays } from "~/core/ics";
 import { SLURS } from "~/core/moderation";
 import {
   type AcademicCalendar,
@@ -25,6 +26,7 @@ import {
   calendarKey,
   courseRoomId,
   deptChunkKey,
+  IsoDateSchema,
   type ModerationInput,
   type ModerationReason,
   type ModerationResult,
@@ -73,7 +75,13 @@ const room0201 = sectionRoomId(TERM, COURSE, "0201");
 
 /** A calendar whose last day of classes is `days` from today. */
 function calendarEndingIn(days: number): AcademicCalendar {
-  const end = new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
+  // Counted from today on campus: retention turns on at midnight Eastern
+  // (src/core/chat/retention.ts), so a UTC date is a day ahead from 00:00 to
+  // 04:00 UTC and the room would still be writable.
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+  }).format(new Date());
+  const end = addDays(IsoDateSchema.parse(today), days);
   return aPublishedCalendar({ termId: TERM, classesEnd: end });
 }
 
