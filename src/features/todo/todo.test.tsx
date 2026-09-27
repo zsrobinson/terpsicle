@@ -19,6 +19,7 @@ import type {
 import { TEST_FEED_TOKENS, testFeedLink } from "~/core/todo";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { aTodoFeedState, aTodoItem } from "~/fixtures";
+import { ApiCallError } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { ConnectPage } from "./connect-page";
@@ -207,24 +208,100 @@ describe("connecting", () => {
     expect(document.body.innerHTML).not.toContain(TEST_FEED_TOKENS.calendar);
   });
 
-  it("says why ELMS didn't take it", async () => {
+  it("says why ELMS didn't take it, and tracks only the codes", async () => {
     const client = fakeClient({ feed: null });
     signedIn();
     renderTodo();
     const user = userEvent.setup();
     const input = await screen.findByLabelText("ELMS calendar link");
-    client.connect.mockResolvedValueOnce({ status: "unreachable" });
+    client.connect.mockResolvedValueOnce({
+      status: "unreachable",
+      reason: "timeout",
+    });
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
     await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
     expect(
-      await screen.findByText("ELMS didn't answer. Try again in a minute."),
+      await screen.findByText(
+        "ELMS took too long to send your calendar. Try again in a minute.",
+      ),
     ).toBeVisible();
-    client.connect.mockResolvedValueOnce({ status: "not-a-calendar" });
+    expect(track).toHaveBeenCalledWith("todo_connect_result", {
+      outcome: "unreachable",
+      reason: "timeout",
+    });
+    client.connect.mockResolvedValueOnce({
+      status: "not-a-calendar",
+      reason: "http-404",
+    });
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.gone));
     await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
     expect(
-      await screen.findByText(/ELMS didn't send a calendar for that link/),
+      await screen.findByText(/^ELMS doesn't know that link anymore/),
     ).toBeVisible();
+    expect(track).toHaveBeenCalledWith("todo_connect_result", {
+      outcome: "not-a-calendar",
+      reason: "http-404",
+    });
+    expect(document.body.innerHTML).not.toContain(TEST_FEED_TOKENS.gone);
+  });
+
+  it("says what it's doing while ELMS is asked", async () => {
+    const client = fakeClient({ feed: null });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    let answer: (value: { status: "unreachable"; reason: "timeout" }) => void =
+      () => {};
+    client.connect.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const input = await screen.findByLabelText("ELMS calendar link");
+    await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
+    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    expect(
+      screen.getByRole("button", { name: "Checking ELMS…" }),
+    ).toBeDisabled();
+    expect(input).toBeDisabled();
+    expect(input).toHaveAccessibleDescription(
+      /this can take up to half a minute/,
+    );
+    answer({ status: "unreachable", reason: "timeout" });
+    expect(
+      await screen.findByRole("button", { name: "Connect ELMS" }),
+    ).toBeVisible();
+    expect(input).toHaveAccessibleDescription(/^ELMS took too long/);
+  });
+
+  it("says to sign in again when the session's gone", async () => {
+    vi.mocked(track).mockClear();
+    const client = fakeClient({ feed: null });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    client.connect.mockRejectedValueOnce(new ApiCallError("unauthorized"));
+    const input = await screen.findByLabelText("ELMS calendar link");
+    await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
+    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    expect(
+      await screen.findByText(
+        "You've been signed out. Sign in again to connect ELMS.",
+      ),
+    ).toBeVisible();
+    client.connect.mockRejectedValueOnce(new ApiCallError("network"));
+    await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
+    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    expect(
+      await screen.findByText(
+        "That didn't go through. Check your connection and try again.",
+      ),
+    ).toBeVisible();
+    // Our own server's failures aren't ELMS outcomes.
+    expect(track).not.toHaveBeenCalledWith(
+      "todo_connect_result",
+      expect.anything(),
+    );
   });
 });
 

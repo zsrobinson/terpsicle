@@ -1,5 +1,6 @@
 // Terpsicle Todo (docs/V3.md §3): reading ELMS calendar feeds and dropped .ics files.
 export * from "./cadence";
+export * from "./connect";
 export * from "./due-tomorrow";
 export * from "./feed";
 export * from "./file";

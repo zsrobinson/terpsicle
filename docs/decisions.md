@@ -267,6 +267,11 @@ Revisit if: Gradescope offers students an API or feed.
 Gradescope items linked in ELMS get a "Gradescope" tag from the ELMS feed; the fallback is an `.ics` the student drops in, read in the browser.
 Revisit if: UMD's Gradescope setup changes.
 
+### ELMS feeds come from umd.instructure.com
+2026-09-27 · agent · one feature
+`parseFeedLink` still takes a feed link on `elms.umd.edu`, but moves it to the same path on `umd.instructure.com` before anything fetches or stores it: `elms.umd.edu` is UMD's landing page and answers 404 for every feed. Redirects and item links still pass on either host (`isElmsUrl`). Connecting waits 25 seconds for the first fetch, since the person is watching and Canvas builds a whole feed as it's asked; the cron and refresh keep 10.
+Revisit if: UMD moves Canvas to another host, or `elms.umd.edu` starts serving feeds.
+
 ## Feedback
 
 ### Feedback without surveillance

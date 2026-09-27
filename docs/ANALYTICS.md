@@ -68,7 +68,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `review_form_opened` | | How often people start a review. |
   | `review_submitted` | `outcome`: `published` · `held` · `rejected` | How many new reviews post on their own, and how many wait for a person (V2.md §9.2's under-5% target). Never the review, instructor or course. |
   | `report_created` | `surface`, `reason` | How often readers report, and why. Never what they reported. |
-  | `todo_connect_result` | `outcome` (`connected`, `invalid-link`, `unreachable`, `not-a-calendar`) | Where connecting ELMS fails. |
+  | `todo_connect_result` | `outcome` (`connected`, `invalid-link`, `unreachable`, `not-a-calendar`), and with `unreachable` and `not-a-calendar` a `reason`: a fixed code, `timeout`, `network`, `bad-redirect`, `too-large`, `http-<status>` (`http-404`) or `not-recognized` (ELMS answered, but not with a calendar) | Where connecting ELMS fails, and why, so a failure can be traced without asking the student. The reason is a code from that list and nothing else: never the link, a message or the body. Calls to our own server that fail (signed out, offline) aren't sent. |
   | `todo_disconnected` | | Churn: sent once Disconnect's Undo is gone. |
   | `todo_item_checked` | `done`, `via` (`list`, `week`) | Whether checking things off is the habit. |
   | `todo_view_changed` | `view` (`day`, `course`, `week`) | Which views earn their place. |
