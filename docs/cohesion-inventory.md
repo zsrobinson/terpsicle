@@ -154,13 +154,11 @@ Shared `Button` (`components/ui/button.tsx`) in product code (excluding marketin
   - Chat uses `max-md:h-11` and `max-md:size-11` (about 20 sites).
   - Settings uses neither.
 - **Hand-rolled `<button>` elements with custom classes** (non-marketing), by folder:
-  - app 18: rail, drawer tabs, plan tabs ×4, product menu, theme toggle, top-bar problems ×2, shared pill ×2, drill back, term switcher, toast actions ×2, `GroupHeader`.
-  - calendar 9, course-details 8, generate 8, travel 8, chat 7, four-year 7, search 7, courses 5, blocks 4.
+  - app 18: rail and drawer tabs (the workbench's, one each for Schedule and Plan), plan tabs ×4, product menu, theme toggle, top-bar problems ×2, shared pill ×2, drill back, term switcher, toast actions ×2, `GroupHeader`.
+  - calendar 9, course-details 8, generate 8, travel 8, chat 7, four-year 6, search 7, courses 5, blocks 4.
   - auth 3 (account triggers), reviews 3, todo 3, notifications 2, problems 2, sync 2, alerts 1, export 1, pwa 1.
   - Notable pseudo-buttons: `DoneFold` (`todo-lists.tsx:44`), Plan doc menu (`plan-bar.tsx`, styled as the scheduler's plan tab), rating stars (`composer.tsx:325`), notification `ChannelSwitch` (`notification-settings.tsx:320`).
-- **Anchors styled as buttons**:
-  - `GoogleButton` (`auth/sign-in-panel.tsx:31-32`): `h-9 border-hairline-strong`, no offset shadow. It is the primary action on every front door but does not look like Button default.
-  - `AccountLink` (`account-link.tsx:22-23`).
+- ~~**Anchors styled as buttons**~~: fixed. `GoogleButton` is the kit's `Button` (`v3/signin-button`), and `AccountLink` is gone (the family bar's account menu).
 
 ## 11. Page widths and containers
 
@@ -258,5 +256,4 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
     - At least 5 text-input styles.
     - Native `<select>` (Plan, admin) next to Radix Select (Chat, Schedule).
     - Two copies of the switch knob.
-    - `GoogleButton` (the main front-door action) is `h-9` hairline-strong with no offset, unlike `Button` default.
     - Touch targets use `h-11 md:h-8` (Plan, Todo) vs `max-md:h-11` (Chat) vs nothing (Settings).

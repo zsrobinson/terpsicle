@@ -208,12 +208,22 @@ describe("Course details", () => {
         expect(jada).toHaveAccessibleName(
           /^Jada Abernathy ?rated 4\.5 of 5, 97 reviews$/,
         );
-        await user.hover(within(jada).getByText("4.5"));
-        expect(
-          await screen.findByRole("tooltip", {
-            name: "4.5 from 97 reviews: 4.6 from 88 on PlanetTerp, 3.3 from 9 on Terpsicle",
-          }),
-        ).toBeInTheDocument();
+        // The rating re-renders as the numbers settle, so hover the one on
+        // screen now, and again if a newer one replaced it.
+        await waitFor(async () => {
+          const rating = within(
+            within(screen.getByTestId("sections")).getByRole("button", {
+              expanded: true,
+              name: /^Jada/,
+            }),
+          ).getByText("4.5");
+          await user.hover(rating);
+          expect(
+            screen.getByRole("tooltip", {
+              name: "4.5 from 97 reviews: 4.6 from 88 on PlanetTerp, 3.3 from 9 on Terpsicle",
+            }),
+          ).toBeInTheDocument();
+        });
       } finally {
         useAccount.setState({ flags: FLAGS_OFF });
         useReviewNumbers.setState(INITIAL_REVIEW_NUMBERS_STATE);

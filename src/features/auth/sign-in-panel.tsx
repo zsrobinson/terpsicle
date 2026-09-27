@@ -30,9 +30,6 @@ export function currentPath(): string {
   return `${pathname}${search}${hash}`;
 }
 
-const buttonClass =
-  "inline-flex h-9 w-full items-center justify-center gap-3 rounded-md border border-hairline-strong bg-raised px-3 font-medium text-base text-fg transition-colors hover:bg-hover";
-
 /**
  * Sign-in as a first visit's filled action (`EmptyState`'s primary): the
  * same start, words and tooltip as {@link GoogleButton}, with Google's "G".
@@ -61,12 +58,12 @@ export function useSignInAction(
 }
 
 /**
- * Google's "Sign in with Google" button, drawn with our tokens: Google's
- * branding rules ask for the standard multicolor "G" (never recolored) on a
- * white or neutral fill with a hairline, and the words "Sign in with
- * Google". The "G" is a file (public/google-g.svg) because its colors are
- * Google's, not tokens. It's a link: the start is a navigation. In test
- * mode it says so and leads to /auth/test instead (V2.md §4.6).
+ * "Sign in with Google": the kit's filled `Button` at a first visit's size,
+ * as `useSignInAction` draws it in `EmptyState`, so sign-in looks the same
+ * wherever it's offered. Google's "G" keeps its own colors (never recolored),
+ * so it's a file (public/google-g.svg), not tokens. It's a link: the start is
+ * a navigation. In test mode it says so and leads to /auth/test instead
+ * (V2.md §4.6).
  */
 export function GoogleButton({
   returnTo,
@@ -87,20 +84,22 @@ export function GoogleButton({
     onStart?.();
     track("signin_started", { from });
   };
-  if (testMode)
-    return (
-      <WithTooltip label="Pick a test person instead of a Google account">
-        <a href={href} onClick={onClick} className={cn(buttonClass, className)}>
-          Sign in (test mode)
-        </a>
-      </WithTooltip>
-    );
   return (
-    <WithTooltip label={`Use your ${UMD_ACCOUNTS_WORDS} account`}>
-      <a href={href} onClick={onClick} className={cn(buttonClass, className)}>
-        <img src="/google-g.svg" alt="" width={18} height={18} />
-        Sign in with Google
-      </a>
+    <WithTooltip
+      label={
+        testMode
+          ? "Pick a test person instead of a Google account"
+          : `Use your ${UMD_ACCOUNTS_WORDS} account`
+      }
+    >
+      <Button asChild size="lg" className={cn("w-full", className)}>
+        <a href={href} onClick={onClick}>
+          {testMode ? null : (
+            <img src="/google-g.svg" alt="" width={16} height={16} />
+          )}
+          {testMode ? "Sign in (test mode)" : "Sign in with Google"}
+        </a>
+      </Button>
     </WithTooltip>
   );
 }
