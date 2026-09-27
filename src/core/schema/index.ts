@@ -18,6 +18,7 @@ export * from "./local";
 export * from "./moderation";
 export * from "./plan-url";
 export * from "./planetterp";
+export * from "./prefs";
 export * from "./primitives";
 export * from "./problems";
 export * from "./pwa";

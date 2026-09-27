@@ -1,4 +1,4 @@
-// `calendar_feeds` (migrations/0016_calendar_feeds.sql) and the reads a feed
+// `calendar_feeds` (migrations/0018_calendar_feeds.sql) and the reads a feed
 // is built from: the person's plans (sync_docs) and Todo's list.
 import { z } from "zod";
 import { type Plan, PlanDocSchema, type TermId } from "~/core/schema";

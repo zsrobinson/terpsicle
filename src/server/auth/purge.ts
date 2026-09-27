@@ -79,7 +79,9 @@ export const PURGE_LEDGER = {
   chat_send_hashes: "deleted",
   // 0015_todo_tasks
   todo_tasks: "deleted: the person's own tasks",
-  // 0016_calendar_feeds (it stops serving once the account is deleting)
+  // 0016_todo_hidden
+  todo_hidden: "deleted: the courses the person hid in Todo",
+  // 0018_calendar_feeds (it stops serving once the account is deleting)
   calendar_feeds: "deleted: the link's hash and nonce",
 } as const satisfies Record<string, string>;
 
@@ -282,10 +284,11 @@ export function accountStatements(
         `UPDATE feedback SET user_id = NULL WHERE user_id = ?1 AND ${STILL_DUE}`,
       )
       .bind(userId, at),
-    // Todo: the feed (its sealed link), its items, own tasks and done marks.
+    // Todo: the feed (its sealed link), its items, own tasks, done marks and hidden courses.
     byUser("todo_items"),
     byUser("todo_tasks"),
     byUser("todo_done"),
+    byUser("todo_hidden"),
     byUser("todo_feeds"),
     // The calendar feed's link.
     byUser("calendar_feeds"),

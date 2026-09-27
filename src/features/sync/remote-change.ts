@@ -23,7 +23,7 @@ export interface RemoteChange {
    * scheduler leaves them to IndexedDB.
    */
   readonly fourYear?: readonly (readonly [LocalId, FourYearDoc | null])[];
-  /** The settings doc: blocks, colors, travel and chat plans. */
+  /** The settings doc: blocks, colors, travel, chat plans and the prefs. */
   readonly settings?: SettingsDoc;
   /**
    * The account's plans arrived in these terms (a pull, the first sign-in),
@@ -144,6 +144,8 @@ export function applyRemoteChange(
           colors: workspace.colors,
           travel: state.travel,
           chatPlans: state.chatPlans,
+          // The store doesn't hold the prefs: the host shows them (boot.ts).
+          prefs: change.settings.prefs,
         },
         change.settings,
       )

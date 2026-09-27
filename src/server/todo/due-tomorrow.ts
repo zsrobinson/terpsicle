@@ -10,11 +10,18 @@ import {
   dueTomorrowKey,
   dueTomorrowPush,
   dueTomorrowRun,
+  isHiddenItem,
   TODO_DUE_FRESH_MS,
 } from "~/core/todo";
 import { type NotifyEnv, notify } from "../notifications/notify";
 import { readSettings, writeSettings } from "../notifications/store";
-import { doneAmong, listItems, listTasks } from "./store";
+import {
+  doneAmong,
+  hiddenCourses,
+  IN_HIDDEN_COURSE,
+  listItems,
+  listTasks,
+} from "./store";
 
 /** People reminded per run, at most; the next run (20 minutes on) takes the rest. */
 export const TODO_DUE_BATCH = 2_000;
@@ -48,15 +55,20 @@ async function candidates(
          AND EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = f.user_id)
          AND NOT EXISTS (SELECT 1 FROM notification_deliveries d
                          WHERE d.dedupe_key = 'todo-due:' || f.user_id || ':' || ?2 || ':push')
-         -- Own tasks count like the feed's items (V3.md §3.10).
+         -- Own tasks count like the feed's items (V3.md §3.10); a hidden
+         -- course never reminds (§3.11). A task is in a course by its code.
          AND (EXISTS (SELECT 1 FROM todo_items i
                       WHERE i.user_id = f.user_id AND i.due_date = ?3
                         AND NOT EXISTS (SELECT 1 FROM todo_done d
-                                        WHERE d.user_id = i.user_id AND d.uid = i.uid))
+                                        WHERE d.user_id = i.user_id AND d.uid = i.uid)
+                        AND NOT ${IN_HIDDEN_COURSE("i")})
               OR EXISTS (SELECT 1 FROM todo_tasks t
                          WHERE t.user_id = f.user_id AND t.due_date = ?3
                            AND NOT EXISTS (SELECT 1 FROM todo_done d
-                                           WHERE d.user_id = t.user_id AND d.uid = t.uid)))
+                                           WHERE d.user_id = t.user_id AND d.uid = t.uid)
+                           AND NOT EXISTS (SELECT 1 FROM todo_hidden h
+                                           WHERE h.user_id = t.user_id
+                                             AND h.course_key = t.course_code)))
        ORDER BY f.user_id LIMIT ?4`,
     )
     .bind(
@@ -108,7 +120,10 @@ export async function sendDueTomorrow(
         items.map((i) => i.uid),
       ),
     );
-    const open = items.filter((i) => !done.has(i.uid));
+    const hidden = new Set(await hiddenCourses(env.DB, userId));
+    const open = items.filter(
+      (i) => !done.has(i.uid) && !isHiddenItem(i, hidden, new Set()),
+    );
     if (open.length === 0) return;
     result.due++;
     // A push that fails is claimed as failed and not tried again tonight:

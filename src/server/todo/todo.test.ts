@@ -347,7 +347,12 @@ describe("todo/connect", () => {
 describe("todo/list and todo/done", () => {
   it("lists a range with its done marks, soonest first", async () => {
     const phone = await device();
-    expect(await list(phone)).toEqual({ feed: null, items: [], done: [] });
+    expect(await list(phone)).toEqual({
+      feed: null,
+      items: [],
+      done: [],
+      hidden: [],
+    });
     await connect(phone);
     await phone.call("/api/todo/done", {
       uid: "event-assignment-4410001",
@@ -579,6 +584,50 @@ describe("todo/disconnect", () => {
   });
 });
 
+describe("todo/hide-course", () => {
+  const hide = (phone: Device, key: string, hidden = true) =>
+    phone.call("/api/todo/hide-course", { key, hidden });
+
+  it("keeps the person's hidden courses, and shows one again", async () => {
+    const phone = await device();
+    await connect(phone);
+    expect(await hide(phone, "CMSC216")).toEqual({ status: "ok" });
+    await hide(phone, "Terps Robotics Club");
+    // Hiding twice is still one.
+    await hide(phone, "CMSC216");
+    expect((await list(phone)).hidden).toEqual([
+      "CMSC216",
+      "Terps Robotics Club",
+    ]);
+    // The items are still listed: the app leaves them out.
+    expect((await list(phone)).items.length).toBeGreaterThan(0);
+    await hide(phone, "CMSC216", false);
+    expect((await list(phone)).hidden).toEqual(["Terps Robotics Club"]);
+    // Another person's list is their own.
+    expect((await list(await device("tadmin"))).hidden).toEqual([]);
+    // It's a preference: disconnecting ELMS keeps it.
+    await phone.call("/api/todo/disconnect");
+    expect((await list(phone)).hidden).toEqual(["Terps Robotics Club"]);
+  });
+
+  it("keeps at most 100", async () => {
+    const phone = await device();
+    await env.DB.prepare(
+      `WITH RECURSIVE n(value) AS (SELECT 1 UNION ALL SELECT value + 1 FROM n WHERE value < 100)
+       INSERT INTO todo_hidden (user_id, course_key, hidden_at)
+       SELECT 'tstudent', 'Club ' || value, ?1 FROM n`,
+    )
+      .bind(now().toISOString())
+      .run();
+    await hide(phone, "CMSC216");
+    expect((await list(phone)).hidden).not.toContain("CMSC216");
+    expect(
+      (await phone.request("/api/todo/hide-course", { key: "", hidden: true }))
+        .status,
+    ).toBe(400);
+  });
+});
+
 describe("own tasks", () => {
   const task = (overrides: Record<string, unknown> = {}) => ({
     uid: "own-5b0c2a4e-7d1f",
@@ -645,7 +694,12 @@ describe("own tasks", () => {
     expect(
       await phone.call("/api/todo/delete-task", { uid: task().uid }),
     ).toEqual({ status: "ok" });
-    expect(await list(phone)).toEqual({ feed: null, items: [], done: [] });
+    expect(await list(phone)).toEqual({
+      feed: null,
+      items: [],
+      done: [],
+      hidden: [],
+    });
     expect(
       await env.DB.prepare("SELECT COUNT(*) AS n FROM todo_done").first("n"),
     ).toBe(0);
@@ -662,7 +716,12 @@ describe("own tasks", () => {
     const other = await device("tadmin");
     await other.call("/api/todo/delete-task", { uid: task().uid });
     await other.call("/api/todo/done", { uid: task().uid, done: true });
-    expect(await list(other)).toEqual({ feed: null, items: [], done: [] });
+    expect(await list(other)).toEqual({
+      feed: null,
+      items: [],
+      done: [],
+      hidden: [],
+    });
     expect((await list(phone)).items.map((i) => i.uid)).toContain(task().uid);
     // Only an own task's uid is taken.
     expect(

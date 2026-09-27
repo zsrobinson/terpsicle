@@ -1,7 +1,9 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { withAiFeatures } from "~/core/prefs";
 import type { Plan, SyncPullInput, SyncPushInput } from "~/core/schema";
-import { aFourYear, aPlan, demoPlan, FakeSyncServer } from "~/fixtures";
+import { savePrefs } from "~/features/prefs/save";
+import { aBlock, aFourYear, aPlan, demoPlan, FakeSyncServer } from "~/fixtures";
 import { TerpsicleDb } from "~/state/db";
 import { newLocalId, nowIso } from "~/state/ids";
 import { hydrate, type Persistence, startPersisting } from "~/state/persist";
@@ -61,6 +63,8 @@ async function bootScheduler(): Promise<void> {
     reloadAccount: vi.fn(),
     toast: vi.fn(),
     trackFirstSignIn: vi.fn(),
+    showPrefs: vi.fn(),
+    settled: vi.fn(),
   };
 }
 
@@ -168,6 +172,72 @@ describe("plan sync in the scheduler", () => {
     // And applying it wasn't an edit to push back.
     await new Promise((resolve) => setTimeout(resolve, 1_200));
     expect(fake.docs.get(`plan:${demoPlan.id}`)?.rev).toBe(rev + 1);
+  });
+
+  it("carries the prefs other products save, and never drops the account's (QA1 C7)", async () => {
+    seedDemoWorkspace();
+    startSync(host, "tstudent");
+    await vi.waitFor(() => expect(status()).toBe("saved"), WAIT);
+    const settings = () => {
+      const doc = fake.docs.get("settings:settings");
+      return doc?.kind === "settings" ? doc.body : null;
+    };
+
+    // Reviews turns AI summaries off on this device, beside the scheduler.
+    await savePrefs((p) => withAiFeatures(p, false));
+    await vi.waitFor(
+      () => expect(settings()?.prefs).toEqual({ ai: { features: false } }),
+      WAIT,
+    );
+
+    // The scheduler saves a block: its push carries the prefs.
+    const run = aBlock({ id: "block_run_001", label: "Run" });
+    useWorkspace
+      .getState()
+      .commit("Added a block", (w) => ({ ...w, blocks: [...w.blocks, run] }));
+    await vi.waitFor(
+      () => expect(settings()?.blocks.map((b) => b.id)).toContain(run.id),
+      WAIT,
+    );
+    expect(settings()?.prefs).toEqual({ ai: { features: false } });
+
+    // Another device sees Chat's rules, and saves a pref this build doesn't know.
+    const stored = fake.docs.get("settings:settings");
+    const theirs = {
+      ai: { features: false },
+      chatRules: { seen: ["CMSC351"] },
+      later: { view: "week" },
+    };
+    const body = settings();
+    if (!stored || !body) throw new Error("no settings doc");
+    fake.push({
+      docs: [
+        {
+          kind: "settings",
+          id: "settings",
+          baseRev: stored.rev,
+          body: { ...body, prefs: theirs },
+        },
+      ],
+    });
+    useSyncStatus.getState().syncNow?.();
+    await vi.waitFor(
+      async () =>
+        expect((await db.settings.get("prefs"))?.value).toEqual(theirs),
+      WAIT,
+    );
+    expect(host.showPrefs).toHaveBeenLastCalledWith(theirs);
+
+    // The scheduler saves again: nothing it doesn't own goes missing.
+    useWorkspace.getState().commit("Removed a block", (w) => ({
+      ...w,
+      blocks: w.blocks.filter((b) => b.id !== run.id),
+    }));
+    await vi.waitFor(
+      () => expect(settings()?.blocks.map((b) => b.id)).not.toContain(run.id),
+      WAIT,
+    );
+    expect(settings()?.prefs).toEqual(theirs);
   });
 
   it("stops quietly on sign-out, and starts over after a sign-out elsewhere", async () => {

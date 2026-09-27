@@ -240,6 +240,51 @@ describe("the 6pm send", () => {
     ]);
   });
 
+  it("never reminds about a course the person hid", async () => {
+    clock = Date.parse("2026-09-28T20:00:00Z");
+    const device = await connected(TWO_DUE_TUESDAY);
+    await device.call("/api/todo/hide-course", {
+      key: "Terps Robotics Club",
+      hidden: true,
+    });
+    await device.call("/api/todo/hide-course", {
+      key: "CMSC216",
+      hidden: true,
+    });
+    await runAt("2026-09-28T22:03:00Z");
+    expect(phone.received).toEqual([]);
+    // Shown again, it reminds the next evening.
+    await device.call("/api/todo/hide-course", {
+      key: "CMSC216",
+      hidden: false,
+    });
+    await runAt("2026-09-29T22:03:00Z");
+    expect(phone.received.map((p) => p.title)).toEqual([
+      "Quiz 3 is due tomorrow",
+    ]);
+  });
+
+  it("never reminds about an own task in a course the person hid", async () => {
+    clock = Date.parse("2026-09-28T20:00:00Z");
+    // Nothing on the feed is due Tuesday: only the task could remind.
+    const device = await connected(
+      feedOf([{ id: "3", title: "Quiz 3", due: "2026-10-01T03:59:00Z" }]),
+    );
+    await device.call("/api/todo/save-task", {
+      uid: "own-club-meeting-01",
+      title: "Robotics build night",
+      courseCode: "CMSC216",
+      dueDate: "2026-09-29",
+      dueTime: null,
+    });
+    await device.call("/api/todo/hide-course", {
+      key: "CMSC216",
+      hidden: true,
+    });
+    await runAt("2026-09-28T22:03:00Z");
+    expect(phone.received).toEqual([]);
+  });
+
   it("counts your own tasks due tomorrow like the feed's, until they're done", async () => {
     clock = Date.parse("2026-09-28T20:00:00Z");
     // Nothing on the feed is due Tuesday: only the tasks can remind.

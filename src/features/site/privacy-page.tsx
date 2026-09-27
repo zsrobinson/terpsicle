@@ -64,10 +64,11 @@ export function PrivacyPage() {
             only to people who are signed in.
           </p>
           <p>
-            Once you sign in, your plans sync to your account, so they follow
-            you to your other devices. Synced plans are stored on Terpsicle's
-            servers, encrypted at rest. Terpsicle sets one cookie to keep you
-            signed in, and no other cookies.
+            Once you sign in, your plans and settings (like whether AI summaries
+            show) sync to your account, so they follow you to your other
+            devices. Synced plans are stored on Terpsicle's servers, encrypted
+            at rest. Terpsicle sets one cookie to keep you signed in, and no
+            other cookies.
           </p>
           <p>
             If Google says your organization blocked Terpsicle, UMD's Google
@@ -116,11 +117,11 @@ export function PrivacyPage() {
           <p>
             To show your deadlines, we keep your ELMS calendar link on our
             server, encrypted, and check it about every 20 minutes. We store the
-            assignments and events it lists (titles, courses and due dates) and
-            which ones you've marked done. We don't get your grades, submissions
-            or ELMS password, and we never sign in to ELMS or Gradescope for
-            you. Disconnect any time and we delete the link and everything from
-            it at once.
+            assignments and events it lists (titles, courses and due dates),
+            which ones you've marked done, and any courses you hide. We don't
+            get your grades, submissions or ELMS password, and we never sign in
+            to ELMS or Gradescope for you. Disconnect any time and we delete the
+            link and everything from it at once.
           </p>
           <p>
             If you add a calendar file, it's read in your browser. Only the

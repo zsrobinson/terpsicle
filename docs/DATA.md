@@ -263,14 +263,14 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 4.
 
 **Version 3** (Terpsicle Plan, landed with `v3/plan-ui`; `src/state/db.ts`): a `fourYear` table, one row per four-year doc (`FourYearDocSchema`, validated on read; an invalid row is skipped and logged), and a `fourYear` settings row for the open doc (`FourYearPrefsSchema`, `{activeId}`, local only). `upgradeToV3` sets a signed-in device's pull cursor (the `sync` row) back to 0, once, so it pulls the four-year docs an older tab skipped (`docs/V3.md` §2.4). Nothing else changes shape (`src/state/db.test.ts` upgrades a v2 database).
 
-**Version 2** (plan sync, landed with `v2/sync-engine`; `src/state/db.ts`): a `syncDocs` table for each doc's sync flags (the settings doc's row also keeps `base`, its body as last saved or pulled), and a `sync` settings row (`{userId, cursor}`). The `seatAlerts` table is dropped with the email-token alerts it mirrored: seat watches live on the account in D1 (§7.1). An earlier build moved its rows to a `seatAlerts` settings row, which the app deletes on start. Nothing else changes shape, so plans, blocks, colors, settings and the data cache come through untouched (`src/state/db.test.ts` upgrades a v1 database). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel and chat plans) are `SyncDocSchema` in `src/core/schema/sync.ts`.
+**Version 2** (plan sync, landed with `v2/sync-engine`; `src/state/db.ts`): a `syncDocs` table for each doc's sync flags (the settings doc's row also keeps `base`, its body as last saved or pulled), and a `sync` settings row (`{userId, cursor}`). The `seatAlerts` table is dropped with the email-token alerts it mirrored: seat watches live on the account in D1 (§7.1). An earlier build moved its rows to a `seatAlerts` settings row, which the app deletes on start. Nothing else changes shape, so plans, blocks, colors, settings and the data cache come through untouched (`src/state/db.test.ts` upgrades a v1 database). The sync docs themselves (a plan doc per plan, one settings doc for blocks, colors, travel, chat plans and the other products' prefs) are `SyncDocSchema` in `src/core/schema/sync.ts`.
 
 | Table | Primary key, indexes | Row schema |
 |---|---|---|
 | `plans` | `id`, `termId` | `PlanSchema` |
 | `blocks` | `id`, `termId` | `BlockSchema` |
 | `courseColors` | `courseCode` | `CourseColorPrefSchema` |
-| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `fourYear` → `FourYearPrefs`, Plan's open doc, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor) |
+| `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `fourYear` → `FourYearPrefs`, Plan's open doc, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `prefs` → `SyncedPrefs`, the other products' prefs (`ai`: AI features, `chatRules`: the room rules you've closed), synced whole as the settings doc's `prefs`, with a copy in localStorage (`terpsicle:prefs`) that every page reads; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor) |
 | `fourYear` | `id` | `FourYearDocSchema` (`src/core/schema/four-year.ts`) |
 | `syncDocs` | `key` (`plan:<id>`, `four-year:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
 | `manifests` | `key` (the R2 key) | `CachedManifestSchema` |
@@ -290,7 +290,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 4.
 - **Course colors are global:** one color per course code, the same in every plan and term (SPEC §3.2). A course with no row gets a color when first added to a plan (the palette color least used in that plan), and that color is written to `courseColors` so it stays stable. `COURSE_COLORS` are palette ids; the UI maps each to light and dark tints. Only append to that list.
 - **UI prefs:** open tab, sidebar open, drill target (course with its details tab, or a connection; generated results aren't restorable), theme, last term, active plan per term, and collapsed instructor groups (`<course>|<instructor name>`).
 - **Not persisted:** the undo stack, hover/preview state, search text, and generator results.
-- **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors`, `fourYear` and the `travel`, `chatPlans` and `fourYear` rows. Four-year docs are synced tables too (`docs/V3.md` §2.4).
+- **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors`, `fourYear` and the `travel`, `chatPlans`, `fourYear` and `prefs` rows (and the prefs' localStorage copy). The `prefs` row is written by more than the scheduler (Settings, Reviews, Chat: `src/features/prefs`), so the engine reads it fresh at every step and never rebuilds it from a page's store. Four-year docs are synced tables too (`docs/V3.md` §2.4).
 - **Seat watches** aren't kept in the browser: they're the signed-in person's, in D1 (§7.1), and the app holds the list in memory (`src/state/seat-watches.ts`). The one thing kept locally is a watch asked for while signed out, in `sessionStorage["terpsicle:pending-watch"]` (`{termId, sectionKey, at}`, zod-checked, 30 minutes), so the watch starts when the person comes back signed in to that tab.
 
 ### 5.1 Client catalog flow
@@ -539,6 +539,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0013_author_stops` | `moderation_author_stops` (per queue item: the stop's id and when it ends; no author), `author_stops` (per stop: who it's on, for Reviews' and Chat's stores; purged with the account) | "Stop this author" and its Undo (V2.md §10, MODERATION.md §6) |
 | `0014_chat_spam_guard` | `chat_send_hashes` (`user_id`, `course_code`, `text_hash`, `created_at`; kept an hour) | Chat's spam guard across courses (MODERATION.md §2, §7.9) |
 | `0015_todo_tasks` | `todo_tasks` (your own tasks: title, course, due date and time) | Todo's "Add a task…" (V3.md §3.10) |
+| `0016_todo_hidden` | `todo_hidden` (the course groups a person hid in Todo) | "Hide CMSC216" (V3.md §3.11) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -636,11 +637,12 @@ The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the
 | `todo_items` | `(user_id, uid)` | `source` (`elms` · `file`), `title`, `course_label`, `course_code`, `section_code`, `kind`, `exam`, `gradescope`, `due_at`, `due_date`, `link`, `first_seen_at`, `updated_at` | Only `due_date` from 30 days ago to a year ahead, at most 1,500 feed items and 1,000 file items. A fetch is two statements whatever the size (`json_each`): an upsert that writes only changed rows, and a delete of the source's items that left. A feed item replaces a file item with its UID; a file item never replaces a feed item. No descriptions. |
 | `todo_done` | `(user_id, uid)` | `done_at` | Apart from items, so a refetch or a reconnect keeps them. Own tasks' marks are here too, under the task's uid. |
 | `todo_tasks` | `(user_id, uid)` | `title`, `course_code`, `due_at`, `due_date`, `created_at`, `updated_at` | Your own tasks (V3.md §3.10), typed in Terpsicle and never sent to ELMS. `uid` is `own-<random>`, made by the app so Undo can put a deleted task back as itself; saving the same uid changes the task. `due_date` null is "No date"; `due_at` is set only with a time. At most 500 per person; dates from 30 days back to a year ahead. A table of its own because each fetch rewrites `todo_items` by source and its `due_date` can't be empty. `TodoTaskRowSchema` in `store.ts`. |
+| `todo_hidden` | `(user_id, course_key)` | `hidden_at` | Courses a person hid (V3.md §3.11, `0016_todo_hidden.sql`): the group's key, a course code or an ELMS course name. At most 100. Disconnecting keeps them. |
 
-- **Disconnecting** deletes the feed row, its `elms` items and every done mark not on a remaining file item or own task, in one batch. Own tasks stay.
+- **Disconnecting** deletes the feed row, its `elms` items and every done mark not on a remaining file item or own task, in one batch. Own tasks and hidden courses stay.
 - **Deleting a task** deletes its done mark in the same batch.
 - **The daily job** deletes items and own tasks due more than 30 days ago (a task with no date stays), and done marks over 30 days old whose item or task is gone (we don't record when an item left the feed, so the mark's age stands in).
-- **Deleting an account** removes all four by `ON DELETE CASCADE`, and the purge deletes them explicitly (`src/server/auth/purge.ts`).
+- **Deleting an account** removes all five by `ON DELETE CASCADE`, and the purge deletes them explicitly (`src/server/auth/purge.ts`).
 
 ---
 
@@ -661,7 +663,7 @@ The design is `docs/V2.md` §6 (its "As built" under §6.4). Routes: `src/server
 - **One-click off** (RFC 8058): `POST /api/notifications/email-off?u&t&k` turns off type `t`'s email for person `u`; `k` is `keyedHash("email-off:<u>:<t>")`. The chat digest carries it; seat alerts keep `alerts/one-click`, which stops the watch.
 - **Due tomorrow's dedupe key** (`v3/todo-notify`, V3.md §4): `todo-due:<user>:<New York date>` (`…:push`), one a day whatever retries happen.
 
-### 7.12 The calendar feed (landed: `migrations/0016_calendar_feeds.sql`)
+### 7.12 The calendar feed (landed: `migrations/0018_calendar_feeds.sql`)
 
 The design is `docs/V2.md` §6.7 (its "As built"). Routes: `calendar/feed` and `calendar/feed/reset` (`src/server/calendar/feed.ts`, schemas in `src/core/schema/calendar-feed.ts`, kept out of the barrel) and `GET /cal/<token>.ics`, routed by the Worker before any page. The feed's contents are `buildCalendarFeed` in `src/core/ics/feed.ts`.
 

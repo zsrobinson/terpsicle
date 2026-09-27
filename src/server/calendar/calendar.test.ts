@@ -66,6 +66,7 @@ beforeEach(async () => {
       "sync_docs",
       "sync_heads",
       "todo_done",
+      "todo_hidden",
       "todo_tasks",
       "todo_items",
       "counters",
@@ -419,9 +420,26 @@ describe("GET /cal/<token>.ics", () => {
     )
       .bind(now().toISOString())
       .run();
+    // A course hidden in Todo, by its code.
+    await addItem(
+      "tstudent",
+      aTodoItem({
+        uid: "event-assignment-club",
+        title: "Club dues",
+        courseLabel: "MUSC130-0101: Chorus",
+        courseCode: "MUSC130",
+      }),
+    );
+    await env.DB.prepare(
+      "INSERT INTO todo_hidden (user_id, course_key, hidden_at) VALUES ('tstudent', 'MUSC130', ?1)",
+    )
+      .bind(now().toISOString())
+      .run();
 
     const { url } = await student.link();
     const body = unfold(await (await fetchFeed(url)).text());
+    // Hidden is left out.
+    expect(body).not.toContain("Club dues");
     expect(body).toContain("SUMMARY:CMSC351 Lecture");
     expect(body).toContain("LOCATION:IRB 0324");
     expect(body).toContain("DTSTART;TZID=America/New_York:20270127T100000");

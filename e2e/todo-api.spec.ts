@@ -79,5 +79,6 @@ test("connect the fixture feed, check an item off, and disconnect", async ({
     feed: null,
     items: [],
     done: [],
+    hidden: [],
   });
 });

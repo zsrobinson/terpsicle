@@ -21,13 +21,13 @@ import type {
   CalendarFeedResetResult,
   CalendarFeedResult,
 } from "~/core/schema/calendar-feed";
-import { newYorkDateOf } from "~/core/todo";
+import { isHiddenItem, newYorkDateOf } from "~/core/todo";
 import { catalogReader } from "../alerts/catalog";
 import { clientIp } from "../api/http";
 import type { RouteContext } from "../api/router";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
-import { doneAmong, listItems, listTasks } from "../todo/store";
+import { doneAmong, hiddenCourses, listItems, listTasks } from "../todo/store";
 import {
   createFeed,
   feedOwner,
@@ -166,11 +166,13 @@ async function feedBody(
   now: Date,
 ): Promise<string> {
   const today = newYorkDateOf(now.getTime());
-  const [terms, items, tasks] = await Promise.all([
+  const [terms, items, tasks, hiddenKeys] = await Promise.all([
     feedTerms(env, userId, feedTermIds(today)),
     listItems(env.DB, userId, null),
     listTasks(env.DB, userId, null, { undated: false }),
+    hiddenCourses(env.DB, userId),
   ]);
+  const hidden = new Set(hiddenKeys);
   const all = [...items, ...tasks];
   const done = new Set(
     await doneAmong(
@@ -181,7 +183,11 @@ async function feedBody(
   );
   return buildCalendarFeed({
     terms,
-    deadlines: feedDeadlines(all, done),
+    // A hidden course leaves the feed as it leaves "Due tomorrow" (V3 §3.11),
+    // read the same way: by the item's codes, without the person's plans.
+    deadlines: feedDeadlines(all, done, (i) =>
+      isHiddenItem(i, hidden, new Set()),
+    ),
     now: now.toISOString(),
   });
 }

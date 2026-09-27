@@ -53,6 +53,7 @@ function tables(overrides: Partial<SyncedTables> = {}): SyncedTables {
     travel: DEFAULT_TRAVEL_SETTINGS,
     chatPlans: {},
     fourYear: [mine],
+    prefs: {},
     ...overrides,
   };
 }

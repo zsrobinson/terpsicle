@@ -12,6 +12,7 @@ import {
   DEFAULT_TRAVEL_SETTINGS,
   PlanSchema,
   type SettingsDoc,
+  SettingsDocSchema,
   SyncDocSchema,
 } from "../schema";
 import {
@@ -69,6 +70,7 @@ function tables(overrides: Partial<SyncedTables> = {}): SyncedTables {
     travel: DEFAULT_TRAVEL_SETTINGS,
     chatPlans: {},
     fourYear: [],
+    prefs: {},
     ...overrides,
   };
 }
@@ -137,14 +139,41 @@ describe("doc keys", () => {
 });
 
 describe("mapping tables and docs", () => {
-  it("gathers blocks, colors, travel and chat plans into the settings doc", () => {
-    const t = tables({ chatPlans: { [SPRING]: planA.id } });
+  it("gathers blocks, colors, travel, chat plans and prefs into the settings doc", () => {
+    const t = tables({
+      chatPlans: { [SPRING]: planA.id },
+      prefs: { ai: { features: false } },
+    });
     expect(settingsDocOf(t)).toEqual({
       blocks: [aBlock()],
       colors: { CMSC351: "blue" },
       travel: DEFAULT_TRAVEL_SETTINGS,
       chatPlans: { [SPRING]: planA.id },
+      prefs: { ai: { features: false } },
     });
+  });
+
+  it("carries prefs this build doesn't know, both ways", () => {
+    const prefs = {
+      ai: { features: false },
+      chatRules: { seen: ["CMSC351"] },
+      later: { view: "week" },
+    };
+    const t = tables({ prefs });
+    expect(settingsDocOf(t).prefs).toEqual(prefs);
+    // What the server sends, read the way a pull reads it.
+    const pulled = SettingsDocSchema.parse({
+      ...settingsDocOf(tables()),
+      prefs,
+    });
+    expect(withSettingsDoc(tables(), pulled).prefs).toEqual(prefs);
+  });
+
+  it("marks the settings doc edited when only the prefs change", () => {
+    const t = tables();
+    const next = { ...t, prefs: { ai: { features: false } } };
+    expect(changedDocKeys(t, next)).toEqual([SETTINGS_DOC_KEY]);
+    expect(changedDocKeys(t, { ...t, prefs: {} })).toEqual([]);
   });
 
   it("applies a settings doc, keeping unchanged tables as they were", () => {
@@ -413,13 +442,38 @@ describe("mergeSettings", () => {
       colors: { CMSC351: "teal", ENGL101: "pink" },
       travel: { ...DEFAULT_TRAVEL_SETTINGS, accessible: true },
       chatPlans: { [SPRING]: planB.id, [FALL]: planA.id },
+      prefs: { ai: { features: false }, chatRules: { seen: ["CMSC351"] } },
     });
-    expect(mergeSettings({ base: null, local, server: base })).toEqual({
+    const server = edit(base, { prefs: { ai: { features: true } } });
+    expect(mergeSettings({ base: null, local, server })).toEqual({
       blocks: [lunch, work, gym],
       colors: { CMSC351: "blue", MATH240: "green", ENGL101: "pink" },
       travel: DEFAULT_TRAVEL_SETTINGS,
       chatPlans: { [SPRING]: planA.id, [FALL]: planA.id },
+      prefs: { ai: { features: true }, chatRules: { seen: ["CMSC351"] } },
     });
+  });
+
+  it("settles each product's prefs as one key", () => {
+    const withPrefs = edit(base, {
+      prefs: { ai: { features: true }, later: { view: "day" } },
+    });
+    // AI turned off here, while another device changed a pref this build
+    // doesn't know: both changes stay.
+    const local = edit(withPrefs, {
+      prefs: { ai: { features: false }, later: { view: "day" } },
+    });
+    const server = edit(withPrefs, {
+      prefs: { ai: { features: true }, later: { view: "week" } },
+    });
+    expect(mergeSettings({ base: withPrefs, local, server }).prefs).toEqual({
+      ai: { features: false },
+      later: { view: "week" },
+    });
+    // Only the server changed them: its prefs, whole.
+    expect(
+      mergeSettings({ base: withPrefs, local: withPrefs, server }).prefs,
+    ).toEqual(server.prefs);
   });
 });
 
