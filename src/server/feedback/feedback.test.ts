@@ -430,6 +430,8 @@ describe("the admin inbox", () => {
     expect((await list({ kind: "bug" })).items.map((i) => i.id)).toEqual([
       a.id,
     ]);
+    // One item, for a link back to it.
+    expect((await list({ id: b.id })).items.map((i) => i.id)).toEqual([b.id]);
   });
 
   it("pages with a cursor", async () => {

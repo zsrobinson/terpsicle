@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import type { TermId } from "~/core/schema";
 import { useSeatWatchesSync } from "~/features/alerts/seat-watches";
 import { usePlanHandoff } from "~/features/plan-handoff/use-plan-handoff";
-import { InstallAppMenuItem } from "~/features/pwa/install-entry";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCatalogPolling } from "~/state/data-hooks";
 import { useActiveTerm, useCurrentPlan } from "~/state/hooks";
@@ -34,7 +33,6 @@ const SIDEBAR_ID = "sidebar";
 
 import { TABS } from "./tabs";
 import { TermSwitcher } from "./term-switcher";
-import { ThemeToggle } from "./theme-toggle";
 import { TopBar } from "./top-bar";
 import { UndoToasts } from "./undo-toasts";
 import { MOBILE_QUERY, useIsMobile } from "./use-media-query";
@@ -112,18 +110,7 @@ function Shell({
   );
 
   const topBar = (
-    <TopBar
-      compact={mobile}
-      term={<TermSwitcher />}
-      plans={shared.plans}
-      end={
-        mobile ? (
-          <ThemeToggle side="bottom">
-            <InstallAppMenuItem />
-          </ThemeToggle>
-        ) : null
-      }
-    />
+    <TopBar compact={mobile} term={<TermSwitcher />} plans={shared.plans} />
   );
 
   if (mobile) {

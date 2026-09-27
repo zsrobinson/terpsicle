@@ -21,7 +21,7 @@ import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { track } from "./analytics";
 import { currentView, goTo } from "./schedule-nav";
-import { applyThemePreference } from "./theme";
+import { setThemePreference } from "./theme";
 
 // What people do in the shell, as plain functions: each changes the stores
 // and records the analytics event that goes with it, so every entry point
@@ -188,7 +188,7 @@ export function trackCatalogEvent(event: CatalogEvent): void {
 
 export function setTheme(theme: Theme): void {
   useUi.getState().setTheme(theme);
-  applyThemePreference(theme);
+  setThemePreference(theme);
   track("theme_changed", { theme });
 }
 

@@ -4,7 +4,7 @@ import { OpenScheduleButton, SitePage } from "./site-page";
 
 export function NotFoundPage() {
   return (
-    <SitePage>
+    <SitePage notFound>
       <h1 className="mb-1.5 font-semibold text-xl tracking-tight">
         Page not found
       </h1>

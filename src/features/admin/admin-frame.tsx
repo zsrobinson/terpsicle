@@ -1,14 +1,19 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Logo } from "~/app/logo";
-import { ADMIN_DECISIONS_PATH, ADMIN_PATH, STAY_PARAM } from "~/core/routing";
+import {
+  ADMIN_DECISIONS_PATH,
+  ADMIN_FEEDBACK_PATH,
+  ADMIN_PATH,
+  STAY_PARAM,
+} from "~/core/routing";
 import { FeedbackButton } from "~/features/feedback/feedback-button";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { AdminGate } from "./admin-gate";
 
-// The frame for /admin and /admin/decisions (V2 §10): the logo, the panel's
-// two pages, and one column. Deliberately plain and light: it loads none of
+// The frame for /admin, /admin/decisions and /admin/feedback (V2 §10): the
+// logo, the panel's pages, and one column. Deliberately plain and light: it loads none of
 // the scheduler (so no theme menu, which lives in the scheduler's store; the
 // system theme applies, as on the other pages around the scheduler).
 
@@ -18,6 +23,11 @@ const PAGES = [
     to: ADMIN_DECISIONS_PATH,
     label: "Decisions",
     hint: "Everything moderation decided, and how often it held",
+  },
+  {
+    to: ADMIN_FEEDBACK_PATH,
+    label: "Feedback",
+    hint: "Bugs, ideas and pinned notes people sent",
   },
 ] as const;
 
@@ -56,9 +66,10 @@ export function AdminFrame({
             </WithTooltip>
           ))}
         </nav>
-        {/* The owner's notes on the panel itself ("Pin a note"). */}
+        {/* The owner's notes on the panel itself ("Pin a note"); the icon
+            alone, beside the Feedback page's own tab. */}
         <span className="ml-auto">
-          <FeedbackButton product="admin" pathname={current} />
+          <FeedbackButton product="admin" pathname={current} compact />
         </span>
       </header>
       <AdminGate>

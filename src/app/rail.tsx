@@ -8,7 +8,6 @@ import { preloadView } from "./schedule-nav";
 import { SIDEBAR_PANEL_ID } from "./sidebar";
 import { useSidebarStack } from "./sidebar-stack";
 import { TABS, type Tab } from "./tabs";
-import { ThemeToggle } from "./theme-toggle";
 
 // The labeled rail (SPEC §2). Clicking the open tab collapses the sidebar;
 // any tab reopens it. The active state is a soft fill and a thin edge bar, no
@@ -40,7 +39,6 @@ export function Rail() {
       </nav>
       <div className="mt-auto flex flex-col items-center gap-1">
         <InstallAppButton side="right" />
-        <ThemeToggle side="right" />
       </div>
     </div>
   );

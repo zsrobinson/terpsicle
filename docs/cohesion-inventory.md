@@ -325,8 +325,8 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
 
 ## Top 15 inconsistencies, most visible first
 
-1. **Plan and Todo have no account entry at all, and there is no theme control outside Schedule.** `/plan` and `/todo` render `SitePage` with no `actions` (`plan-page.tsx:197`, `todo-page.tsx:61`). Chat shows an avatar only when signed in, with no Sign-in link (`chat-page.tsx:52-58`). The theme toggle exists only in Schedule's rail and phone account menu.
-2. **Four different account/avatar entries.**
+1. ~~**Plan and Todo have no account entry at all, and there is no theme control outside Schedule.**~~ Fixed in `v3/app-bar`: every page has the family bar with one account menu, which holds the theme.
+2. ~~**Four different account/avatar entries.**~~ Fixed in `v3/app-bar`: one `AccountButton` menu. `AccountLink` and Chat's avatar link are gone. The marketing page's Sign in is still its own.
    - `AccountButton` dropdown (Schedule, `h-7 text-base`)
    - `AccountLink` (Reviews and Settings, `h-7 text-base`, links to /settings)
    - Chat's hand-rolled anchor (`h-8 text-sm`, `max-md:h-11`)

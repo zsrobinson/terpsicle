@@ -1,6 +1,4 @@
 import { ChevronLeft } from "lucide-react";
-import { SIGN_IN_PITCH } from "~/core/auth";
-import { AccountLink } from "~/features/auth/account-link";
 import { AccountSection } from "~/features/auth/account-page";
 import { useAccount } from "~/features/auth/account-store";
 import { SignInPanel } from "~/features/auth/sign-in-panel";
@@ -19,10 +17,7 @@ export function NotificationsPage() {
   const status = useAccount((s) => s.status);
   const signInOn = useAccount((s) => s.flags.signIn);
   return (
-    <SitePage
-      layout="reading"
-      actions={<AccountLink from="settings" signInTip={SIGN_IN_PITCH} />}
-    >
+    <SitePage layout="reading">
       <WithTooltip label="Back to your account settings">
         <a
           href="/settings"

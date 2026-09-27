@@ -21,6 +21,31 @@ Signed-in people also get **You can reply by email**, off by default. Only then 
 
 Admins get a third mode in the sheet, **Pin a note**: hover outlines elements, a click opens a note box beside one, and the note stores the element (a stable selector, its visible text, its `data-*` ids and where it was), a cropped screenshot of it and one of the viewport, the page with its search params, viewport, theme, app version and the deployment's host. They land in the inbox as kind `review`. On the page they show as numbered dots, to admins only, on their route only.
 
+## The inbox and triage
+
+`/admin/feedback` (`src/features/admin/feedback-page.tsx`), in the admin frame and behind its gate, lists everything newest first. Filters (status, kind, product, and the deployment for pinned notes on PR previews) live in the URL; `?item=<id>` shows one item, the link issues and agents get. Each item shows its words (as plain text), screenshot thumbnails (click for full size, from the admin-only `/admin/feedback/shot/<id>`), the context line, the recent actions as a compact list, a pinned note's element, its status chips and the owner's note (saved on blur). Status changes and deletes happen at once with Undo in the toast; marking Fixed emails someone who asked for a reply, and the toast says so.
+
+- **Group similar** (and the daily job) sends the open items (New and Planned, newest 80) to Workers AI (`@cf/meta/llama-3.1-8b-instruct-fp8-fast`, `src/server/feedback/group.ts`, prompt and checks in `src/core/feedback/group.ts`). Their words are fenced as data; groups need two or more items and a one-line summary without links. Each run replaces the open items' groups; if the model doesn't answer, the old groups stay. Groups show as collapsible headers with the summary and the sparkles. Mock mode groups offline by kind and product.
+- **Copy for an agent** puts Markdown on the clipboard (`agentMarkdown` in `src/core/feedback/agent.ts`): kind, product, page, deployment, version and browser, the words fenced as data, the element, the person's plan (no block labels), settings, recent actions, screenshot links and the owner's note.
+- **Open GitHub issue** opens `https://github.com/zsrobinson/terpsicle/issues/new` prefilled with a one-line summary ("Bug in Schedule at /schedule"), the kind, product, route pattern, version and a link back to the item (`githubIssueUrl`). Never the person's words, plan or screenshot: issues are public.
+
+The triage loop: open the inbox (or run `scripts/feedback.ts list --status new`), group similar, mark what you'll do (Planned) or won't (Won't fix, Spam), hand each Planned item to an agent or an issue, and mark it Fixed when the fix is live, which emails whoever asked.
+
+## How agents read it
+
+`scripts/feedback.ts` reads D1 and R2 through `wrangler d1 execute … --remote --json` and `wrangler r2 object get`, with the owner's Cloudflare login:
+
+```
+pnpm tsx scripts/feedback.ts list [--since 7d] [--status new] [--kind bug|idea|review] [--pr <n>] [--json]
+pnpm tsx scripts/feedback.ts get <id> [--out <dir>] [--preview]
+pnpm tsx scripts/feedback.ts get <id> --mark <status> [--preview]
+```
+
+- `list` prints the newest 200 that match (the words cut to 80 characters), or JSON.
+- `get` prints the item as the same Markdown as "Copy for an agent". With `--out <dir>` it also writes `<id>.md` and the screenshots into that directory, and nowhere else. Never commit what it writes.
+- `--mark` sets the status directly. It emails no one: use the inbox's Fixed for someone waiting on a reply.
+- Pinned notes on PR previews live in the previews' database (`terpsicle-preview`) and bucket: `--pr <n>` lists that PR's, and `--preview` gets or marks one.
+
 ## Storage
 
 - **D1** `feedback` (migration `0012_feedback.sql`): kind, product, scrubbed path, text, expected, image keys, context and element JSON, host, `user_id` (only for a reply, or the admin's own note), status (`new`, `planned`, `fixed`, `wont-fix`, `spam`), group, the owner's note, the undo hash, `replied_at`, `deleted_at` and timestamps. `feedback_groups` holds the model's summary for a group of similar items.
