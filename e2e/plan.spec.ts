@@ -48,7 +48,9 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
   await expect(
     page.getByRole("heading", { name: "Plan your four years" }),
   ).toBeVisible();
-  await expect(page.getByText("Coming next")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Paste your transcript" }),
+  ).toBeVisible();
   await axe(page, "first visit");
 
   await page.getByLabel("I started at UMD in").selectOption("202508");

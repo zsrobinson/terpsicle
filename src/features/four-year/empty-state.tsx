@@ -8,14 +8,15 @@ import {
 import type { IsoDate } from "~/core/schema";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { createDoc } from "./actions";
+import { createDoc, createDocForImport } from "./actions";
+import type { PlanNav } from "./model";
 
 // The first visit (V3 §2.13): two equal ways in, like the scheduler's.
 // Starting from scratch asks one thing, when you started, so the semesters
-// line up. Importing a transcript is the next PR (`v3/transcript-import`),
-// so it says it's coming rather than leading nowhere.
+// line up. Importing opens a plan on the Import tab; the import sets the
+// first semester from the transcript.
 
-export function EmptyState({ today }: { today: IsoDate }) {
+export function EmptyState({ today, nav }: { today: IsoDate; nav: PlanNav }) {
   const [first, setFirst] = useState(() => defaultFirstTerm(today));
   const selectId = useId();
   return (
@@ -80,27 +81,30 @@ export function EmptyState({ today }: { today: IsoDate }) {
         </section>
         <section
           aria-labelledby="plan-start-import"
-          className="flex flex-col gap-3 border border-hairline border-dashed p-4"
+          className="flex flex-col gap-3 border border-keyline bg-raised p-4 shadow-offset"
         >
           <div className="space-y-1">
-            <h2
-              id="plan-start-import"
-              className="flex items-center gap-2 font-semibold text-lg"
-            >
+            <h2 id="plan-start-import" className="font-semibold text-lg">
               Import your transcript
-              <span className="border border-hairline-strong px-1.5 font-medium text-muted text-xs">
-                Coming next
-              </span>
             </h2>
             <p className="text-muted text-sm">
               Paste your unofficial transcript from Testudo and we'll fill in
               what you've taken. It's read in your browser and never sent to us.
             </p>
           </div>
-          <p className="mt-auto text-muted text-sm">
-            For now, start from scratch and add what you've taken. You won't
-            lose it when import arrives.
-          </p>
+          <div className="mt-auto">
+            <WithTooltip label="Paste Testudo's Unofficial Transcript page">
+              <Button
+                className="h-11 w-full md:h-8"
+                onClick={() => {
+                  createDocForImport(defaultFirstTerm(today));
+                  nav.go({ tab: "import" });
+                }}
+              >
+                Paste your transcript
+              </Button>
+            </WithTooltip>
+          </div>
         </section>
       </div>
     </div>
