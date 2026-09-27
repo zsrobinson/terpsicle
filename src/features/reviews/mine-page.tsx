@@ -1,14 +1,19 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Mark } from "~/app/brand/mark";
+import { PanelNote } from "~/app/panel";
 import type { MyReview } from "~/core/schema";
-import { currentPath, GoogleButton } from "~/features/auth/sign-in-panel";
-import { Skeleton } from "~/ui/skeleton";
+import { EmptyState } from "~/ui/empty-state";
+import { InlineError } from "~/ui/inline-error";
+import { PageHeader } from "~/ui/page-header";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer } from "./composer";
-import { Breadcrumbs, PageTitle, ReviewsFrame } from "./frame";
+import { PAGE_ROW, ReviewsFrame } from "./frame";
 import { useReviewsLevel, useSignedIn } from "./level";
 import { OwnReviewCard } from "./review-card";
 import { useReviews } from "./reviews-store";
+import { SignInPrompt } from "./sign-in-prompt";
 
 // /reviews/mine (V2 §1.1): everything you've written and where each stands:
 // posted, waiting for a person, not posted (and why), or hidden after
@@ -32,86 +37,86 @@ export function MyReviewsPage() {
 
   return (
     <ReviewsFrame>
-      <Breadcrumbs crumbs={[{ label: "Reviews", to: "/reviews" }]} />
-      <PageTitle
+      <PageHeader
+        back={{ label: "Reviews", to: "/reviews" }}
         title="Your reviews"
-        sub="Readers never see who wrote a review. This page is only for you."
+        status="Readers never see who wrote a review. This page is only for you."
       />
       {signedIn === "loading" || level === "loading" ? (
-        <Skeleton className="h-16 w-full" />
+        <RowSkeleton rows={2} inset={false} label="Loading your reviews" />
       ) : level === "off" ? (
-        <p className="text-muted">Terpsicle Reviews isn't open yet.</p>
+        <PanelNote className={PAGE_ROW}>
+          Terpsicle Reviews isn't open yet.
+        </PanelNote>
       ) : !signedIn ? (
-        <div className="max-w-[320px] space-y-3">
-          <p className="text-muted">
-            Sign in with your UMD account to see the reviews you've written.
-          </p>
-          <GoogleButton returnTo={currentPath()} from="reviews" />
-        </div>
+        <SignInPrompt>
+          Sign in with your UMD account to see the reviews you've written.
+        </SignInPrompt>
       ) : mine.status === "error" ? (
-        <p className="text-muted">
-          Couldn't load your reviews. Check your connection and reload the page.
-        </p>
+        <InlineError
+          message="Couldn't load your reviews. Check your connection."
+          onRetry={() => void loadMine()}
+        />
       ) : mine.status !== "ready" ? (
-        <Skeleton className="h-16 w-full" />
+        <RowSkeleton rows={2} inset={false} label="Loading your reviews" />
       ) : reviews.length === 0 ? (
-        <p className="text-muted">
-          You haven't written any reviews yet.{" "}
-          <WithTooltip label="Find a class you've taken">
-            <Link
-              to="/reviews"
-              className="underline underline-offset-2 hover:text-fg"
-            >
-              Find a class you've taken
-            </Link>
-          </WithTooltip>{" "}
-          to review it.
-        </p>
+        <EmptyState
+          mark={<Mark id="reviews" size={40} />}
+          title="No reviews yet"
+          line="Find a class you've taken, then pick your instructor to write one."
+          primary={{
+            label: "Find a class",
+            to: "/reviews",
+            hint: "Find a class you've taken",
+          }}
+          className="pt-2"
+        />
       ) : (
         <ul>
-          {reviews.map((r) => (
-            <li key={r.id} className="pt-3">
-              <p className="text-sm">
-                <WithTooltip
-                  label={`Reviews of ${r.instructorName} in ${r.course}`}
-                >
-                  <Link
-                    to="/reviews/instructors/$id"
-                    params={{ id: r.instructorId }}
-                    search={{ course: r.course }}
-                    className="font-medium hover:underline"
-                  >
-                    {r.instructorName}
-                  </Link>
-                </WithTooltip>
-                <span className="text-muted">
-                  {" · "}
-                  <span className="ident">{r.course}</span>
-                </span>
-              </p>
-              {editing?.id === r.id ? (
-                <div className="my-3">
-                  <Composer
-                    target={{
-                      instructorId: r.instructorId,
-                      reviewedName: r.reviewedName,
-                      dept: r.course.slice(0, 4),
-                      course: r.course,
-                    }}
-                    existing={r}
-                    onClose={() => setEditing(null)}
-                  />
-                </div>
-              ) : (
-                <OwnReviewCard
-                  review={r}
-                  level={level}
-                  showCourse={false}
-                  onEdit={setEditing}
+          {reviews.map((r) =>
+            editing?.id === r.id ? (
+              <li key={r.id} className="py-3">
+                <Composer
+                  target={{
+                    instructorId: r.instructorId,
+                    reviewedName: r.reviewedName,
+                    dept: r.course.slice(0, 4),
+                    course: r.course,
+                  }}
+                  existing={r}
+                  onClose={() => setEditing(null)}
                 />
-              )}
-            </li>
-          ))}
+              </li>
+            ) : (
+              <OwnReviewCard
+                key={r.id}
+                review={r}
+                level={level}
+                showCourse={false}
+                onEdit={setEditing}
+                about={
+                  <>
+                    <WithTooltip
+                      label={`Reviews of ${r.instructorName} in ${r.course}`}
+                    >
+                      <Link
+                        to="/reviews/instructors/$id"
+                        params={{ id: r.instructorId }}
+                        search={{ course: r.course }}
+                        className="font-medium hover:underline"
+                      >
+                        {r.instructorName}
+                      </Link>
+                    </WithTooltip>
+                    <span className="text-muted">
+                      {" · "}
+                      <span className="ident">{r.course}</span>
+                    </span>
+                  </>
+                }
+              />
+            ),
+          )}
         </ul>
       )}
     </ReviewsFrame>

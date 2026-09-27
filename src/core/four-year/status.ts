@@ -1,3 +1,4 @@
+import { seasonSpan } from "../catalog/terms";
 import { addDays } from "../ics/dates";
 import type { AcademicCalendar, IsoDate, TermId } from "../schema";
 import type { FourYearTerm, FourYearTermStatus } from "../schema/four-year";
@@ -8,18 +9,6 @@ import type { FourYearTerm, FourYearTermStatus } from "../schema/four-year";
 
 /** Grades post and finals end within two weeks of the last day of classes. */
 export const GRADES_GRACE_DAYS = 14;
-
-/**
- * When the provost hasn't published a term's calendar: the months each season
- * usually runs, first day of classes through grades, as [month-day, month-day]
- * of the term's calendar year. Winter runs in the January after its id's year.
- */
-const SEASON_SPAN = {
-  "01": ["01-25", "05-31"],
-  "05": ["06-01", "08-20"],
-  "08": ["08-21", "12-31"],
-  "12": ["01-01", "01-24"],
-} as const;
 
 /** A term's span: first day of classes through the end of the grace period. */
 export function termSpan(
@@ -32,10 +21,7 @@ export function termSpan(
       start: calendar.classesStart,
       end: addDays(calendar.classesEnd, GRADES_GRACE_DAYS),
     };
-  const code = termId.slice(4) as keyof typeof SEASON_SPAN;
-  const year = Number(termId.slice(0, 4)) + (code === "12" ? 1 : 0);
-  const [start, end] = SEASON_SPAN[code];
-  return { start: `${year}-${start}`, end: `${year}-${end}` };
+  return seasonSpan(termId);
 }
 
 /** "Before UMD" is always done. */

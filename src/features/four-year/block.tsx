@@ -1,6 +1,8 @@
+import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { MoreHorizontal } from "lucide-react";
 import type { DragEvent } from "react";
+import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
 import { isUnknownCourse } from "~/core/four-year/course-lookup";
 import { entryCredits } from "~/core/four-year/credits";
@@ -18,6 +20,7 @@ import {
   type FourYearTermStatus,
   WILDCARD_CREDITS,
 } from "~/core/schema/four-year";
+import { useAccount } from "~/features/auth/account-store";
 import { useCourseIndex } from "~/state/course-index-store";
 import { Button } from "~/ui/button";
 import {
@@ -117,6 +120,7 @@ function moveTargets(
 function BlockMenu({ entry }: { entry: FourYearEntry }) {
   const { doc, columns, lookup, genEds, summaries } = useModel();
   const nav = usePlanNav();
+  const reviewsOn = useAccount((s) => s.flags.reviews !== "off");
   const course =
     entry.kind === "course" ? lookup.courses.get(entry.code) : null;
   const targets = moveTargets(columns, entry);
@@ -164,6 +168,19 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
           >
             About {entry.code}
           </DropdownMenuItem>
+        ) : null}
+        {entry.kind === "course" && reviewsOn ? (
+          <WithTooltip label={`${entry.code}'s grades and reviews`} side="left">
+            <DropdownMenuItem asChild className={MENU_ITEM}>
+              <Link
+                to="/reviews/courses/$code"
+                params={{ code: entry.code }}
+                onClick={() => crossLinkClicked("plan", "reviews")}
+              >
+                {viewWords("reviews")}
+              </Link>
+            </DropdownMenuItem>
+          </WithTooltip>
         ) : null}
         {entry.kind === "wildcard" ? (
           <DropdownMenuItem
