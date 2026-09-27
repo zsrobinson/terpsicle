@@ -253,29 +253,40 @@ describe("Tabs whose route loads on first use", () => {
     expect(importer).toHaveBeenCalledTimes(1);
   });
 
-  it("says so in the panel, not the whole page, when one can't load", async () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const message =
-      "Failed to fetch dynamically imported module: /assets/schedule.export.js";
-    // The router reloads the page once for a missing chunk (a deploy since);
-    // this is the load after that.
-    sessionStorage.setItem(`tanstack_router_reload:${message}`, "1");
-    const { user } = await renderShell({
-      routes: {
-        tabs: {
-          export: lazyRouteComponent<ExportModule, "Panel">(
-            () => Promise.reject(new TypeError(message)),
-            "Panel",
+  for (const [how, importer] of [
+    [
+      "the import fails",
+      () =>
+        Promise.reject(
+          new TypeError(
+            "Failed to fetch dynamically imported module: /assets/schedule.export.js",
           ),
+        ),
+    ],
+    [
+      // What Vite's loader does once load-recovery has taken the error.
+      "the import resolves to nothing",
+      () => Promise.resolve(undefined as unknown as ExportModule),
+    ],
+  ] as const)
+    it(`says so in the panel, not the whole page, when one can't load (${how})`, async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { user } = await renderShell({
+        routes: {
+          tabs: {
+            export: lazyRouteComponent<ExportModule, "Panel">(
+              importer,
+              "Panel",
+            ),
+          },
         },
-      },
+      });
+      await user.click(railTab("Export"));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Couldn't load Export. Check your connection, then reload. Your plans are saved.",
+      );
+      expect(screen.getByRole("button", { name: "Reload" })).toBeVisible();
+      expect(rail()).toBeVisible();
+      error.mockRestore();
     });
-    await user.click(railTab("Export"));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Couldn't load Export. Check your connection, then reload. Your plans are saved.",
-    );
-    expect(screen.getByRole("button", { name: "Reload" })).toBeVisible();
-    expect(rail()).toBeVisible();
-    error.mockRestore();
-  });
 });

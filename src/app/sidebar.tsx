@@ -24,7 +24,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { goBack } from "./actions";
 import { DrillEntryProvider } from "./drill-entry";
 import { PanelSkeleton } from "./panel";
-import { PanelLoadBoundary } from "./panel-load-boundary";
+import { ChunkLoadError, PanelLoadBoundary } from "./panel-load-boundary";
 import { drillMono, drillName, useLatestLocation } from "./schedule-view";
 import { useShortcut } from "./shortcuts";
 import { useSidebarStack } from "./sidebar-stack";
@@ -48,27 +48,58 @@ const DRILL_PATHS: Record<DrillKind, string> = {
 /** Route components already wrapped to wait for their chunk. */
 const waiting = new WeakMap<ComponentType, ComponentType>();
 
+type RouteView = ComponentType & { preload?: () => Promise<unknown> };
+
+/**
+ * Whether a route component's chunk failed to arrive. The router's lazy
+ * component clears `preload` once its import settles; after a failure (or
+ * an import that resolved to nothing, as Vite's loader does once
+ * load-recovery has taken the error to reload the page) calling it throws
+ * the error it recorded, while a loaded one just returns an element.
+ */
+function chunkFailed(component: RouteView): boolean {
+  if (component.preload) return true;
+  try {
+    (component as (props: object) => unknown)({});
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+/** Stands in for a route component whose chunk didn't arrive. */
+function failedView(cause: string): ComponentType {
+  return function FailedView() {
+    throw new ChunkLoadError(cause);
+  };
+}
+
 /**
  * A route's component. The router splits it into its own chunk (`preload`
  * loads it); the router's own <Outlet /> waits for that before rendering,
  * so here React.lazy does, showing the skeleton meanwhile. Once wrapped,
- * always wrapped, so a view never remounts when its chunk arrives.
+ * always wrapped, so a view never remounts when its chunk arrives. A chunk
+ * that can't load says so in the panel (PanelLoadBoundary).
  */
 function useRouteComponent(id: string): ComponentType | undefined {
   const router = useRouter();
   const route = (router.routesById as unknown as Record<string, AnyRoute>)[id];
-  const component = route?.options.component as
-    | (ComponentType & { preload?: () => Promise<unknown> })
-    | undefined;
+  const component = route?.options.component as RouteView | undefined;
   if (!component) return undefined;
   const wrapped = waiting.get(component);
   if (wrapped) return wrapped;
+  // Not split (tests hand the router plain components): nothing to wait on.
+  if (!("preload" in component)) return component;
   const preload = component.preload;
-  if (!preload) return component;
+  if (!preload) {
+    if (!chunkFailed(component)) return component;
+    const failed = failedView(id);
+    waiting.set(component, failed);
+    return failed;
+  }
   const lazyView = lazy(async () => {
-    // A failed chunk is thrown by the component itself, to the boundary.
     await preload();
-    return { default: component };
+    return { default: chunkFailed(component) ? failedView(id) : component };
   });
   waiting.set(component, lazyView);
   return lazyView;

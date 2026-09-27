@@ -74,14 +74,14 @@ export function SidebarStackProvider({ children }: { children: ReactNode }) {
   // A place the URL names is one you can see: moving to another view opens
   // a collapsed sidebar. A plain `/schedule` opening the saved view doesn't.
   const place = JSON.stringify([view.tab, view.drill]);
+  const drilled = view.drill !== null;
   const last = useRef<{ place: string; inUrl: boolean } | null>(null);
   useEffect(() => {
     const before = last.current;
     last.current = { place, inUrl };
     if (!inUrl || before?.place === place) return;
-    if (before ? before.inUrl : place.includes("kind"))
-      useUi.getState().setSidebarOpen(true);
-  }, [place, inUrl]);
+    if (before ? before.inUrl : drilled) useUi.getState().setSidebarOpen(true);
+  }, [place, inUrl, drilled]);
 
   return (
     <SidebarStackContext.Provider value={current}>

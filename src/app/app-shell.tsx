@@ -42,11 +42,18 @@ import { MOBILE_QUERY, useIsMobile } from "./use-media-query";
 // It's a layout, not a place, so it's a lazy component rather than a route.
 let drawer: Promise<typeof import("./mobile-drawer")> | undefined;
 function loadDrawer() {
-  drawer ??= import("./mobile-drawer").catch((error: unknown) => {
-    // A failed chunk (offline, a deploy in between) can be tried again.
-    drawer = undefined;
-    throw new ChunkLoadError(error);
-  });
+  drawer ??= import("./mobile-drawer")
+    .then((m) => {
+      // Vite's loader resolves a failed chunk to nothing once load-recovery
+      // has taken the error (to reload the page).
+      if (!m?.MobileDrawer) throw new Error("empty module");
+      return m;
+    })
+    .catch((error: unknown) => {
+      // A failed chunk (offline, a deploy in between) can be tried again.
+      drawer = undefined;
+      throw new ChunkLoadError(error);
+    });
   return drawer;
 }
 if (typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches)

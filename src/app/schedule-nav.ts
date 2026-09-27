@@ -1,4 +1,8 @@
-import { type AnyRouter, useRouter } from "@tanstack/react-router";
+import {
+  type AnyRoute,
+  type AnyRouter,
+  useRouter,
+} from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { pickTerm } from "~/core/catalog";
 import {
@@ -173,7 +177,10 @@ export function goTo(view: ScheduleView, options: GoOptions = {}): void {
   const here = currentState();
   if (same && here.detailsTab === detailsTab) return;
   const from = viewName(currentView());
-  const replace = options.replace || same;
+  // Plain `/schedule` names no view, so there's nothing for Back to return
+  // to: the first move from it (a tab tapped before saved state loaded)
+  // takes its place.
+  const replace = options.replace || same || onIndex(router);
   const state: ScheduleHistoryState = replace
     ? { ...here, inApp: true, detailsTab }
     : { inApp: true, backLabel: from.label, backMono: from.mono, detailsTab };
@@ -202,6 +209,24 @@ function goToWithBase(view: ScheduleView): void {
 export function preloadView(view: ScheduleView): void {
   if (!router) return;
   router.preloadRoute(locationOf(view) as never).catch(() => {});
+}
+
+const DRILL_PATHS: Record<DrillEntry["kind"], string> = {
+  course: COURSE_PATH,
+  connection: CONNECTION_PATH,
+  "generated-plan": RESULT_PATH,
+};
+
+/**
+ * Starts loading a kind of drill-in's route chunk, on intent, before there's
+ * a particular one to open (hovering a travel pill).
+ */
+export function preloadDrill(kind: DrillEntry["kind"]): void {
+  if (!router) return;
+  const route = (router.routesById as unknown as Record<string, AnyRoute>)[
+    DRILL_PATHS[kind]
+  ];
+  if (route) router.loadRouteChunk(route)?.catch(() => {});
 }
 
 /** The drill-in views the sidebar has mounted, innermost last (sidebar-stack.tsx). */

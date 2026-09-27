@@ -169,7 +169,7 @@ What the scheduler loads on first use, not up front (each has a rule in `SCHEDUL
 - **MiniSearch.** `use-course-search.ts` loads the text index when Search first opens. Eager code imports `~/core/search/filters` and `~/core/search/summary`, never the `~/core/search` barrel, which would pull it back in.
 - MapLibre, the generator's worker and the mock fixtures, as before (`NEVER_EAGER`).
 
-A new tab or drill-in is a route, so it's split for free (`src/app/README.md`, "Add a tab panel or a drill-in view"); anything big that only one feature uses should get a never-eager rule.
+Every route's chunk, and what it imports statically, is in the service worker's precache (`scripts/pwa-precache.ts`), so since the scheduler's tabs became routes an installed app has all of them offline, at the cost of a bigger install. A new tab or drill-in is a route, so it's split for free (`src/app/README.md`, "Add a tab panel or a drill-in view"); anything big that only one feature uses should get a never-eager rule.
 
 **Fixtures** (`src/fixtures`) cover a realistic mock term of 60+ courses. Take shapes from `reference/prototype/src/data.ts`, expanded to include:
 - **two or more terms** (one active, one archived) so term switching and archiving are tested;

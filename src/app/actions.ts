@@ -129,8 +129,8 @@ export function startGenerate(): void {
 export function openTab(tab: RailTab, via: "click" | "shortcut"): void {
   const ui = useUi.getState();
   const view = currentView();
+  if (view.tab === tab && !view.drill && ui.sidebarOpen) return;
   ui.setSidebarOpen(true);
-  if (view.tab === tab && !view.drill) return;
   goTo({ tab, drill: null });
   track("tab_opened", { tab, via });
 }

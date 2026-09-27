@@ -235,6 +235,14 @@ test("a tab's route loads on hover, before the click", async ({
       name: "Travel",
     }),
   ).toBeVisible();
+
+  // Connection details load on hovering a travel pill, before its click.
+  const connectionChunk =
+    /schedule\.connection\.(\$|%24)connectionId\.tsx\?tsr-split=component|\/schedule\.connection\._connectionId-[\w-]+\.js/;
+  expect(requested.filter((url) => connectionChunk.test(url))).toEqual([]);
+  const details = page.waitForRequest(connectionChunk);
+  await calendar(page).locator('[data-day="M"] [data-verdict]').first().hover();
+  await details;
 });
 
 test.describe("phone", () => {

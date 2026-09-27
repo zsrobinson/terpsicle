@@ -22,7 +22,7 @@ import {
   closeToTab,
   currentView,
   openDrill,
-  preloadView,
+  preloadDrill,
 } from "~/app/schedule-nav";
 import { useScheduleView } from "~/app/schedule-view";
 import { useShortcut } from "~/app/shortcuts";
@@ -232,8 +232,7 @@ function openConnection(connection: Connection) {
 
 /** Hovering a travel pill starts loading connection details' route. */
 function preloadConnection() {
-  const { tab } = currentView();
-  preloadView({ tab, drill: { kind: "connection", connectionId: "" } });
+  preloadDrill("connection");
 }
 
 /** ↑/↓ preview the open course's sections; ↵ switches to the preview. */

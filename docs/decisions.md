@@ -31,7 +31,7 @@ Revisit if: a product needs its own domain.
 
 ### Use the platform first
 2026-09-26 · owner · app-wide
-Lean on TanStack Start and Router, Cloudflare and our libraries before building infrastructure ourselves ("i shouldn't have to worry about the page load things"). The scheduler's panel registry, `lazyPanel` and URL sync moved to real nested routes in `v2/schedule-routes` (changed 2026-09-27: done; see "Scheduler views are routes").
+Lean on TanStack Start and Router, Cloudflare and our libraries before building infrastructure ourselves ("i shouldn't have to worry about the page load things"). The scheduler's panel registry, `lazyPanel` and URL sync move to real nested routes in `v2/schedule-routes`.
 Revisit if: the framework can't do something; say what in the PR.
 
 ### Back and Forward undo navigation

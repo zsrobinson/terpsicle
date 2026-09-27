@@ -131,6 +131,13 @@ describe("plain /schedule", () => {
     expect(currentPath()).toMatch(/^\/schedule\/search\?term=/);
   });
 
+  it("gives way to the first view opened from it, so Back doesn't stop there", async () => {
+    const { router, user } = await renderShell({ routes, path: "/schedule" });
+    await user.click(railTab("Travel"));
+    expect(currentPath()).toBe("/schedule/travel");
+    expect(historyIndex(router)).toBe(0);
+  });
+
   it("never undoes a tab opened while saved state was loading", async () => {
     const { user } = await renderShell({ routes, path: "/schedule" });
     await user.click(railTab("Travel"));
@@ -193,6 +200,15 @@ describe("history", () => {
     expect(screen.getByText("Details for CMSC351")).toBeVisible();
   });
 
+  it("drilling in reopens a collapsed sidebar", async () => {
+    const { user } = await renderShell({ routes });
+    await user.click(railTab("Courses"));
+    expect(useUi.getState().sidebarOpen).toBe(false);
+    act(() => openDrill({ kind: "course", courseCode: "CMSC351" }));
+    expect(useUi.getState().sidebarOpen).toBe(true);
+    expect(screen.getByText("Details for CMSC351")).toBeVisible();
+  });
+
   it("a move through history reopens a collapsed sidebar", async () => {
     const { router, user } = await renderShell({ routes });
     await user.click(railTab("Travel"));
@@ -219,6 +235,21 @@ describe("the term and the open plan", () => {
       `/schedule/courses?term=${TEST_TERM_ID}&planId=${demoPlans[0]?.id}`,
     );
     expect(historyIndex(router)).toBe(0);
+  });
+
+  it("a planId that isn't one of this browser's plans is replaced", async () => {
+    await renderShell({
+      routes,
+      path: `/schedule/courses?term=${TEST_TERM_ID}&planId=plan-nope-0001`,
+    });
+    act(() => seedDemoWorkspace());
+    await restore();
+    expect(currentPath()).toBe(
+      `/schedule/courses?term=${TEST_TERM_ID}&planId=${demoPlans[0]?.id}`,
+    );
+    expect(useWorkspace.getState().activePlanByTerm[TEST_TERM_ID]).toBe(
+      demoPlans[0]?.id,
+    );
   });
 
   it("a plan tab pushes; an edit that moves the open plan replaces", async () => {
