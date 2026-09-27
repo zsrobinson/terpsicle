@@ -6,6 +6,7 @@ import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
 import { gradesSourceWords } from "~/core/grades";
 import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
+import { useReadCourseNotifications } from "~/features/notifications/read-here";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCourseDept, useInstructors } from "~/state/data-hooks";
 import {
@@ -85,6 +86,8 @@ function Details({
 }) {
   const catalog = useTermCatalog(termId);
   const fit = useFitContext();
+  // Opening the course reads its seat openings (V2.md §6.7).
+  useReadCourseNotifications(termId, course.code);
   const planetTerp = useInstructors(deptOf(course.code));
   const seats = catalog?.seats?.seats ?? null;
   const entry = current?.plan.courses.find((c) => c.courseCode === course.code);

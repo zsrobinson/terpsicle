@@ -1,14 +1,19 @@
-// One path for every seat-alert email: claim the dedupe key, send through
-// the Email Service binding, record the outcome in `seat_alert_sends`.
+// One path for every seat-alert email: claim each section's dedupe key,
+// send one email through the Email Service binding, record the outcome in
+// `seat_alert_sends` (a row per section, so the daily cap counts sections
+// whether they came alone or in one seats run's email).
 import { ALERTS_FROM, type RenderedEmail } from "./email";
 import { claimSend, finishSend } from "./store";
 
 export interface SendArgs {
   to: string;
   userId: string;
-  termId: string;
-  sectionKey: string;
-  dedupeKey: string;
+  /** The sections the email is about, each with its own dedupe key. */
+  sections: readonly {
+    termId: string;
+    sectionKey: string;
+    dedupeKey: string;
+  }[];
   email: RenderedEmail;
   now: Date;
 }
@@ -18,14 +23,20 @@ export async function sendAlertEmail(
   env: { DB: D1Database; EMAIL: SendEmail; EMAIL_SUBJECT_PREFIX?: string },
   args: SendArgs,
 ): Promise<boolean> {
-  const id = await claimSend(env.DB, {
-    userId: args.userId,
-    termId: args.termId,
-    sectionKey: args.sectionKey,
-    dedupeKey: args.dedupeKey,
-    sentAt: args.now.toISOString(),
-  });
-  if (id === null) return false;
+  const claimed: number[] = [];
+  for (const section of args.sections) {
+    const id = await claimSend(env.DB, {
+      userId: args.userId,
+      termId: section.termId,
+      sectionKey: section.sectionKey,
+      dedupeKey: section.dedupeKey,
+      sentAt: args.now.toISOString(),
+    });
+    if (id !== null) claimed.push(id);
+  }
+  if (claimed.length === 0) return false;
+  const finish = (outcome: Parameters<typeof finishSend>[2]) =>
+    Promise.all(claimed.map((id) => finishSend(env.DB, id, outcome)));
   try {
     const result = await env.EMAIL.send({
       to: args.to,
@@ -35,10 +46,7 @@ export async function sendAlertEmail(
       html: args.email.html,
       headers: args.email.headers,
     });
-    await finishSend(env.DB, id, {
-      status: "sent",
-      providerId: result.messageId,
-    });
+    await finish({ status: "sent", providerId: result.messageId });
     return true;
   } catch (error) {
     const code = (error as { code?: unknown }).code;
@@ -48,7 +56,7 @@ export async function sendAlertEmail(
       code: String(code ?? ""),
       error: String(error),
     });
-    await finishSend(env.DB, id, { status: "failed" });
+    await finish({ status: "failed" });
     return false;
   }
 }

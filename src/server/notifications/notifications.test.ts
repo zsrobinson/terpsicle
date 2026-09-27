@@ -14,6 +14,7 @@ import {
 import type { MeResult, PushPayload } from "~/core/schema";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
+  type NotificationsInboxResult,
   type PushDevicesResult,
 } from "~/core/schema/notifications";
 import { type ApiEnv, handleApi } from "../api/router";
@@ -436,14 +437,31 @@ describe("pruning", () => {
   });
 });
 
-const seatOpen = (key = "seat-open:tstudent:202608:CMSC351-0101:t1") => ({
+const seatOpen = (
+  key = "seat-open:tstudent:202608:CMSC351-0101:t1",
+  section = "CMSC351 0101",
+) => ({
   type: "seat-open" as const,
   key,
+  inbox: [
+    {
+      id: key,
+      groupKey: "seat:202608",
+      title: `A seat opened in ${section}`,
+      body: "1 of 40 open. Register on Testudo before it's gone.",
+      label: section,
+      url: "/schedule/course/CMSC351?term=202608",
+      termId: "202608",
+      courseCode: section.slice(0, 7),
+    },
+  ],
   push: {
-    title: "A seat opened in CMSC351 0101",
-    body: "1 of 40 open. Register on Testudo before it's gone.",
-    url: "/schedule?course=CMSC351",
-    tag: "seat:202608:CMSC351-0101",
+    event: {
+      type: "seat-open" as const,
+      title: `A seat opened in ${section}`,
+      body: "1 of 40 open. Register on Testudo before it's gone.",
+    },
+    url: "/schedule/course/CMSC351?term=202608",
   },
   email: {
     to: "tstudent@terpmail.umd.edu",
@@ -468,6 +486,7 @@ describe("notify", () => {
     await subscribe(phone, a);
     await subscribe(phone, b);
     expect(await notify(testEnv, "tstudent", seatOpen(), options())).toEqual({
+      inbox: "new",
       push: "sent",
       email: "sent",
     });
@@ -478,14 +497,23 @@ describe("notify", () => {
     const request = service.received.find((r) => r.endpoint === a.endpoint);
     expect(request?.headers.get("TTL")).toBe("3600");
     expect(request?.headers.get("Urgency")).toBe("high");
-    expect(await a.read(request?.body ?? new Uint8Array())).toMatchObject({
+    expect(await a.read(request?.body ?? new Uint8Array())).toEqual({
+      v: 1,
       type: "seat-open",
       title: "A seat opened in CMSC351 0101",
+      body: "1 of 40 open. Register on Testudo before it's gone.",
+      url: "/schedule/course/CMSC351?term=202608",
+      tag: "seat:202608",
+      count: 1,
+      badge: 1,
+      renotify: true,
+      id: "seat-open:tstudent:202608:CMSC351-0101:t1",
     });
     expect(sent.map((m) => m.to)).toEqual(["tstudent@terpmail.umd.edu"]);
 
     // A retried run: nothing goes twice.
     expect(await notify(testEnv, "tstudent", seatOpen(), options())).toEqual({
+      inbox: "duplicate",
       push: "duplicate",
       email: "duplicate",
     });
@@ -518,11 +546,18 @@ describe("notify", () => {
         seatOpen: { push: false, email: false },
       },
     });
+    // Off for push and email, it still lands in the inbox.
     expect(await notify(testEnv, "tstudent", seatOpen(), options())).toEqual({
+      inbox: "new",
       push: "off",
       email: "off",
     });
     // Off by default until ELMS is connected (V3 §4).
+    const due = {
+      title: "Project 2 is due tomorrow",
+      body: "CMSC216 · 11:59pm",
+      url: "/todo?day=2026-09-28",
+    };
     expect(
       await notify(
         testEnv,
@@ -530,32 +565,41 @@ describe("notify", () => {
         {
           type: "todo-due",
           key: "todo-due:tstudent:2026-09-27",
+          inbox: [
+            {
+              id: "todo-due:tstudent:2026-09-27",
+              groupKey: "todo-due:2026-09-28",
+              ...due,
+            },
+          ],
           push: {
-            title: "Project 2 is due tomorrow",
-            body: "CMSC216 · 11:59pm",
-            url: "/todo?day=2026-09-27",
-            tag: "todo-due",
+            event: { type: "todo-due", title: due.title, body: due.body },
+            url: due.url,
           },
         },
         options(),
       ),
-    ).toEqual({ push: "off", email: "none" });
+    ).toEqual({ inbox: "new", push: "off", email: "none" });
     expect(service.received).toEqual([]);
     expect(sent).toEqual([]);
     expect((await deliveries()).results).toEqual([]);
+    expect(
+      (await phone.call<NotificationsInboxResult>("/api/notifications/inbox"))
+        .unread,
+    ).toBe(2);
   });
 
   it("with no devices, emails only; with push off here, records the push as skipped", async () => {
     await device();
     expect(
       await notify(testEnv, "tstudent", seatOpen("k1"), options()),
-    ).toEqual({ push: "none", email: "sent" });
+    ).toEqual({ inbox: "new", push: "none", email: "sent" });
     const phone = await device();
     await subscribe(phone, await aSubscription(1));
     testEnv = makeEnv({ PUSH_ENABLED: "false", EMAIL: undefined });
     expect(
       await notify(testEnv, "tstudent", seatOpen("k2"), options()),
-    ).toEqual({ push: "skipped", email: "skipped" });
+    ).toEqual({ inbox: "new", push: "skipped", email: "skipped" });
     expect(service.received).toEqual([]);
     expect(
       (await deliveries()).results.map((d) => [
@@ -698,6 +742,241 @@ describe("notifications/email-off", () => {
   });
 });
 
+describe("the inbox (V2.md §6.7)", () => {
+  const options = () => ({ now: now(), fetch: service.fetch });
+  const inbox = (phone: Device, before?: string) =>
+    phone.call<NotificationsInboxResult>(
+      "/api/notifications/inbox",
+      before ? { before } : {},
+    );
+  const read = (phone: Device, body: object) =>
+    phone.call<{ unread: number }>("/api/notifications/read", body);
+  const unread = async (phone: Device) =>
+    (await phone.call<{ unread: number }>("/api/notifications/unread")).unread;
+  const minutes = (n: number) => {
+    clock += n * 60_000;
+  };
+  const dueOn = (day: string, n = 1) => ({
+    type: "todo-due" as const,
+    key: `todo-due:tstudent:${day}`,
+    inbox: [
+      {
+        id: `todo-due:tstudent:${day}`,
+        groupKey: `todo-due:${day}`,
+        count: n,
+        title: `${n} things due tomorrow`,
+        body: "Project 2 and more",
+        url: `/todo?day=${day}`,
+      },
+    ],
+  });
+
+  it("groups a term's seat openings into one push and one item, with the count", async () => {
+    const phone = await device();
+    const sub = await aSubscription(1);
+    await subscribe(phone, sub);
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOpen("k1", "CMSC351 0101"),
+      options(),
+    );
+    minutes(5);
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOpen("k2", "MATH240 0203"),
+      options(),
+    );
+    const payloads = await Promise.all(
+      service.received.map((r) => sub.read(r.body)),
+    );
+    expect(payloads.map((p) => [p?.tag, p?.count, p?.badge, p?.title])).toEqual(
+      [
+        ["seat:202608", 1, 1, "A seat opened in CMSC351 0101"],
+        ["seat:202608", 2, 1, "Seats opened in 2 sections you're watching"],
+      ],
+    );
+    expect(payloads[1]).toMatchObject({
+      body: "MATH240 0203 and CMSC351 0101",
+      renotify: true,
+      id: "k2",
+    });
+    expect(await inbox(phone)).toEqual({
+      items: [
+        {
+          id: "k2",
+          type: "seat-open",
+          product: "schedule",
+          title: "Seats opened in 2 sections you're watching",
+          body: "MATH240 0203 and CMSC351 0101",
+          url: "/schedule/course/CMSC351?term=202608",
+          count: 2,
+          createdAt: now().toISOString(),
+          readAt: null,
+        },
+      ],
+      unread: 1,
+      next: null,
+    });
+  });
+
+  it("never buzzes again for Due tomorrow, and says so in the push", async () => {
+    const phone = await device();
+    const sub = await aSubscription(1);
+    await subscribe(phone, sub);
+    await phone.call("/api/notifications/settings/set", {
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, todoDue: { push: true } },
+    });
+    const due = dueOn("2026-09-27", 3);
+    await notify(
+      testEnv,
+      "tstudent",
+      {
+        ...due,
+        push: {
+          event: {
+            type: "todo-due",
+            title: "3 things due tomorrow",
+            body: "Project 2 and more",
+          },
+          url: "/todo?day=2026-09-27",
+        },
+      },
+      options(),
+    );
+    const [request] = service.received;
+    expect(await sub.read(request?.body ?? new Uint8Array())).toMatchObject({
+      tag: "todo-due:2026-09-27",
+      title: "3 things due tomorrow",
+      count: 3,
+      renotify: false,
+    });
+  });
+
+  it("reads by id, by course, by day or all, and keeps what was read together as one item", async () => {
+    const phone = await device();
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOpen("k1", "CMSC351 0101"),
+      options(),
+    );
+    minutes(1);
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOpen("k2", "MATH240 0203"),
+      options(),
+    );
+    minutes(1);
+    await notify(testEnv, "tstudent", dueOn("2026-09-27"), options());
+    expect(await unread(phone)).toBe(2);
+
+    // Opening CMSC351 in Schedule reads its seat opening, not MATH240's.
+    minutes(1);
+    expect(
+      await read(phone, {
+        course: { termId: "202608", courseCode: "CMSC351" },
+      }),
+    ).toEqual({ unread: 2 });
+    const afterCourse = (await inbox(phone)).items;
+    expect(afterCourse.map((i) => [i.id, i.count, i.readAt !== null])).toEqual([
+      ["todo-due:tstudent:2026-09-27", 1, false],
+      ["k2", 1, false],
+      ["k1", 1, true],
+    ]);
+    expect(afterCourse[1]?.title).toBe("A seat opened in MATH240 0203");
+
+    // Todo's day reads its "Due tomorrow"; an id reads its item.
+    expect(await read(phone, { day: "2026-09-27" })).toEqual({ unread: 1 });
+    expect(await read(phone, { ids: ["k2"] })).toEqual({ unread: 0 });
+
+    // Everything at once, then someone else's ids read nothing of mine.
+    minutes(1);
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOpen("k3", "ENGL101 0401"),
+      options(),
+    );
+    minutes(1);
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOpen("k4", "CMSC351 0101"),
+      options(),
+    );
+    const classmate = await device("tclassmate");
+    expect(await read(classmate, { ids: ["k4"] })).toEqual({ unread: 0 });
+    expect(await unread(phone)).toBe(1);
+    expect(await read(phone, { all: true })).toEqual({ unread: 0 });
+    // Read together, the two stay one item.
+    const [latest] = (await inbox(phone)).items;
+    expect(latest).toMatchObject({
+      id: "k4",
+      count: 2,
+      title: "Seats opened in 2 sections you're watching",
+      readAt: now().toISOString(),
+    });
+  });
+
+  it("reads an item up to its newest row, not one that came after", async () => {
+    const phone = await device();
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOpen("k1", "CMSC351 0101"),
+      options(),
+    );
+    minutes(1);
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOpen("k2", "MATH240 0203"),
+      options(),
+    );
+    expect(await read(phone, { ids: ["k1"] })).toEqual({ unread: 1 });
+    const [newest] = (await inbox(phone)).items;
+    expect(newest).toMatchObject({ id: "k2", count: 1, readAt: null });
+  });
+
+  it("pages newest first, 30 at a time", async () => {
+    const phone = await device();
+    for (let day = 1; day <= 31; day++) {
+      minutes(1);
+      await notify(
+        testEnv,
+        "tstudent",
+        dueOn(`2026-10-${String(day).padStart(2, "0")}`),
+        options(),
+      );
+    }
+    const first = await inbox(phone);
+    expect(first.items).toHaveLength(30);
+    expect(first.items[0]?.url).toBe("/todo?day=2026-10-31");
+    expect(first.unread).toBe(31);
+    expect(first.next).not.toBeNull();
+    const second = await inbox(phone, first.next ?? undefined);
+    expect(second.items.map((i) => i.url)).toEqual(["/todo?day=2026-10-01"]);
+    expect(second.next).toBeNull();
+  });
+
+  it("refuses an empty read and a malformed one", async () => {
+    const phone = await device();
+    expect((await phone.request("/api/notifications/read", {})).status).toBe(
+      400,
+    );
+    expect(
+      (await phone.request("/api/notifications/read", { ids: [] })).status,
+    ).toBe(400);
+    expect(
+      (await phone.request("/api/notifications/read", { day: "tomorrow" }))
+        .status,
+    ).toBe(400);
+  });
+});
+
 describe("chat notifications", () => {
   it("prunes mentions and replies after 30 days", async () => {
     await device();
@@ -706,8 +985,8 @@ describe("chat notifications", () => {
     await env.DB.batch(
       [29, 31].map((days) =>
         env.DB.prepare(
-          `INSERT INTO notifications (id, user_id, type, term_id, course_code, room_id, seq, message_id, actor_id, created_at)
-           VALUES (?1, 'tstudent', 'chat-mention', '202701', 'CMSC131', '202701:CMSC131', 1, ?1, 'tclassmate', ?2)`,
+          `INSERT INTO notifications (id, user_id, type, product, group_key, term_id, course_code, room_id, seq, message_id, actor_id, created_at)
+           VALUES (?1, 'tstudent', 'chat-mention', 'chat', 'chat-mention:202701:CMSC131', '202701', 'CMSC131', '202701:CMSC131', 1, ?1, 'tclassmate', ?2)`,
         ).bind(`n${days}`, at(days)),
       ),
     );

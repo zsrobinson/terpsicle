@@ -73,3 +73,5 @@ export const PUSH_DELIVERY: Record<
 export function deliveryKey(eventKey: string, channel: Channel): string {
   return `${eventKey}:${channel}`;
 }
+
+export * from "./inbox";

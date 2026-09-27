@@ -90,6 +90,11 @@ Revisit if: the owner asks for one.
 The same types, delivered through an inbox (a bell in the family bar), grouped pushes with counts, one badge number (unread in the inbox), a private calendar feed for dates, quiet hours 11pm–8am on by default with seat openings let through, message text shown by default, and no caps on delivery (the owner: "we should deliver all notifs if we say we have notifs so that it doesn't feel broken"; grouping keeps a busy chat calm). On iPhone the sender's name goes in the title: the avatar style is native-only. The owner, on the design: "that design doc looks incredible for the notifications". Spec: V2 §6.7.
 Revisit if: people turn quiet hours or the inbox off in large numbers, or iOS opens communication notifications to web apps.
 
+### The badge counts unread groups, not events
+2026-09-27 · agent · notifications
+A group's unread rows (a room's mentions, a thread's replies, a term's seat openings) are one inbox item, and the bell and the app badge count items: "3 mentions in CMSC351" is 1, like the one notification it is on the phone. Rows read together stay one item. Spec: V2 §6.7 "As built".
+Revisit if: people say the number feels too low for a busy room, or the owner wants events counted.
+
 ### No session recording
 2026-09-26 · owner · app-wide
 No session recording anywhere ("creepy"): replay is off in code and in PostHog, and `/privacy` says so.

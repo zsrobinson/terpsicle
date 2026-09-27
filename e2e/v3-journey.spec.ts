@@ -260,7 +260,12 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
         title: "WebAssign 5 is due tomorrow",
         body: "MATH240 · 11:59pm",
         url: `/todo?day=${tomorrow}`,
-        tag: "todo-due",
+        // One group per due date, never buzzing again (V2.md §6.7).
+        tag: `todo-due:${tomorrow}`,
+        count: 1,
+        badge: 1,
+        renotify: false,
+        id: expect.stringMatching(new RegExp(`^todo-due:.+:${today}$`)),
       },
     ]);
   } finally {

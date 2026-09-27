@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { IsoDateTimeSchema } from "./primitives";
+import {
+  CourseCodeSchema,
+  IsoDateSchema,
+  IsoDateTimeSchema,
+  TermIdSchema,
+} from "./primitives";
 
 // Notifications (docs/V2.md §6, V3.md §4): the settings each person keeps,
 // the push subscriptions (one per device), and their routes, all
@@ -141,6 +146,101 @@ export const NotificationSettingsResultSchema = z.object({
 });
 export type NotificationSettingsResult = z.infer<
   typeof NotificationSettingsResultSchema
+>;
+
+// ---------- POST /api/notifications/inbox, notifications/read, notifications/unread ----------
+// The inbox (V2 §6.7): every notification, pushed or not, newest first.
+
+/** What an inbox row is about; the bell shows its product's mark. */
+export const InboxProductSchema = z.enum(["schedule", "chat", "todo", "admin"]);
+export type InboxProduct = z.infer<typeof InboxProductSchema>;
+
+/** The types with inbox rows: all but the digest (an email about rows already here). */
+export const InboxTypeSchema = z.enum([
+  "seat-open",
+  "chat-mention",
+  "chat-reply",
+  "todo-due",
+  "admin-urgent",
+]);
+export type InboxType = z.infer<typeof InboxTypeSchema>;
+
+/** An inbox row's id, as `notifications/inbox` gives it. */
+export const InboxIdSchema = z.string().min(1).max(200);
+
+/**
+ * One item of the inbox. A group's rows (a room's mentions, a thread's
+ * replies, a term's seat openings) that are unread, or were read
+ * together, are one item: `count` is how many events it stands for, and
+ * the words say so ("3 mentions in CMSC351"). `id` is its newest row's;
+ * reading it reads the whole item.
+ */
+export const InboxItemSchema = z.object({
+  id: InboxIdSchema,
+  type: InboxTypeSchema,
+  product: InboxProductSchema,
+  title: z.string(),
+  body: z.string(),
+  url: z.string(),
+  count: z.number().int().min(1),
+  createdAt: IsoDateTimeSchema,
+  readAt: IsoDateTimeSchema.nullable(),
+});
+export type InboxItem = z.infer<typeof InboxItemSchema>;
+
+/** Items per page of the inbox. */
+export const INBOX_PAGE_SIZE = 30;
+
+export const NotificationsInboxInputSchema = z.strictObject({
+  /** The previous page's `next`. */
+  before: z.string().min(1).max(300).optional(),
+});
+export const NotificationsInboxResultSchema = z.object({
+  /** Newest first. */
+  items: z.array(InboxItemSchema),
+  /** Unread items: the bell's count and the app badge. */
+  unread: z.number().int().min(0),
+  /** Pass as `before` for the next page; null on the last. */
+  next: z.string().nullable(),
+});
+export type NotificationsInboxResult = z.infer<
+  typeof NotificationsInboxResultSchema
+>;
+
+/**
+ * What to mark read: items by id (each reads its whole item), everything,
+ * or what a page is about. Reading the thing itself reads its rows (V2
+ * §6.7): a course in Schedule reads its seat openings, Todo's day reads
+ * that day's "Due tomorrow". Chat reads over its socket.
+ */
+export const NotificationsReadInputSchema = z
+  .strictObject({
+    ids: z.array(InboxIdSchema).min(1).max(100).optional(),
+    all: z.literal(true).optional(),
+    course: z
+      .strictObject({ termId: TermIdSchema, courseCode: CourseCodeSchema })
+      .optional(),
+    day: IsoDateSchema.optional(),
+  })
+  .refine(
+    (input) =>
+      input.ids !== undefined ||
+      input.all !== undefined ||
+      input.course !== undefined ||
+      input.day !== undefined,
+    { message: "Say what to read" },
+  );
+export type NotificationsReadInput = z.infer<
+  typeof NotificationsReadInputSchema
+>;
+
+export const NotificationsUnreadInputSchema = z.strictObject({});
+/** `notifications/read` and `notifications/unread`: unread items, after. */
+export const NotificationsUnreadResultSchema = z.object({
+  unread: z.number().int().min(0),
+});
+export type NotificationsUnreadResult = z.infer<
+  typeof NotificationsUnreadResultSchema
 >;
 
 // ---------- POST /api/notifications/email-off?u&t&k (RFC 8058 one-click) ----------

@@ -327,6 +327,34 @@ beforeEach(async () => {
     .run();
   for (const [n, id] of [GONE, GRACE, KEEP].entries()) await seedAccount(id, n);
   for (const course of COURSES) await seedChat(course, [GONE, KEEP, GRACE]);
+  // Everyone's inbox has a seat opening; KEEP was mentioned by GONE, and
+  // GRACE by KEEP (the purge must leave no trace of GONE in KEEP's).
+  const at = new Date(NOW.getTime() - DAY).toISOString();
+  await env.DB.batch([
+    ...[GONE, GRACE, KEEP].map((id) =>
+      env.DB.prepare(
+        `INSERT INTO notifications (id, user_id, type, product, group_key, title, body, url, term_id, course_code, created_at)
+         VALUES (?1, ?2, 'seat-open', 'schedule', ?3, 'A seat opened in CMSC351 0101', '1 of 40 open.', '/schedule/course/CMSC351', ?4, 'CMSC351', ?5)`,
+      ).bind(`seat-open:${id}:${TERM}`, id, `seat:${TERM}`, TERM, at),
+    ),
+    ...[
+      [KEEP, GONE],
+      [GRACE, KEEP],
+    ].map(([id, actor]) =>
+      env.DB.prepare(
+        `INSERT INTO notifications (id, user_id, type, product, group_key, term_id, course_code, room_id, seq, message_id, actor_id, created_at)
+         VALUES (?1, ?2, 'chat-mention', 'chat', ?3, ?4, 'CMSC351', ?5, 1, ?1, ?6, ?7)`,
+      ).bind(
+        `mention-${id}`,
+        id,
+        `chat-mention:${TERM}:CMSC351`,
+        TERM,
+        `${TERM}:CMSC351`,
+        actor,
+        at,
+      ),
+    ),
+  ]);
   await markDeleting(env.DB, GONE, new Date(NOW.getTime() - 1000));
   await markDeleting(env.DB, GRACE, new Date(NOW.getTime() + DAY));
 });

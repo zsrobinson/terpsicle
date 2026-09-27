@@ -1,11 +1,12 @@
-// "Due tomorrow" (docs/V3.md §4): the Todo cron's runs from 6pm to midnight
-// in New York push once to each person with the reminder on, a feed that's
-// working (active, and fetched in the last 26 hours: stale data mustn't
-// remind), and something not done that's due the next day. The first run
-// after 6pm sends; later ones catch up anyone it missed, and the dedupe key
+// "Due tomorrow" (docs/V3.md §4, V2.md §6.7): the Todo cron's runs from 6pm
+// to midnight in New York tell each person with a feed that's working
+// (active, and fetched in the last 26 hours: stale data mustn't remind) and
+// something not done that's due the next day, once: an inbox row for
+// everyone, and a push for those with the reminder on. The first run after
+// 6pm sends; later ones catch up anyone it missed, and the key
 // `todo-due:<user>:<New York date>` keeps it to one a day.
 
-import { withChannel } from "~/core/notifications";
+import { todoDueTag, withChannel } from "~/core/notifications";
 import {
   dueTomorrowKey,
   dueTomorrowPush,
@@ -20,11 +21,11 @@ import { doneAmong, listItems, listTasks } from "./store";
 export const TODO_DUE_BATCH = 2_000;
 
 export interface DueTomorrowResult {
-  /** People with something due tomorrow and the reminder on, not yet reminded today. */
+  /** People with something due tomorrow, not yet told today: each got an inbox row. */
   due: number;
   /** Pushed to at least one device. */
   sent: number;
-  /** No device, push off here, or every device failed. */
+  /** The reminder off, no device, push off here, or every device failed. */
   unsent: number;
 }
 
@@ -40,12 +41,11 @@ async function candidates(
     .prepare(
       `SELECT f.user_id FROM todo_feeds f
        JOIN users u ON u.id = f.user_id AND u.status = 'active'
-       JOIN notification_settings s ON s.user_id = f.user_id
-         AND json_extract(s.settings, '$.todoDue.push') = 1
+       LEFT JOIN notification_settings s ON s.user_id = f.user_id
        WHERE f.status = 'active' AND f.last_success_at >= ?1
-         -- Someone with no device gets no delivery row, so without this
-         -- they'd be picked again every run and could crowd out the rest.
-         AND EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = f.user_id)
+         -- Told today: the inbox row (a delivery row alone is from before the inbox).
+         AND NOT EXISTS (SELECT 1 FROM notifications n
+                         WHERE n.id = 'todo-due:' || f.user_id || ':' || ?2)
          AND NOT EXISTS (SELECT 1 FROM notification_deliveries d
                          WHERE d.dedupe_key = 'todo-due:' || f.user_id || ':' || ?2 || ':push')
          -- Own tasks count like the feed's items (V3.md §3.10).
@@ -57,7 +57,12 @@ async function candidates(
                          WHERE t.user_id = f.user_id AND t.due_date = ?3
                            AND NOT EXISTS (SELECT 1 FROM todo_done d
                                            WHERE d.user_id = t.user_id AND d.uid = t.uid)))
-       ORDER BY f.user_id LIMIT ?4`,
+       -- The people a push reaches first, so an inbox-only row never
+       -- crowds out a push in a full batch (the next run takes the rest).
+       ORDER BY (COALESCE(json_extract(s.settings, '$.todoDue.push'), 0) = 1
+                 AND EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = f.user_id)) DESC,
+                f.user_id
+       LIMIT ?4`,
     )
     .bind(
       new Date(now.getTime() - TODO_DUE_FRESH_MS).toISOString(),
@@ -111,6 +116,8 @@ export async function sendDueTomorrow(
     const open = items.filter((i) => !done.has(i.uid));
     if (open.length === 0) return;
     result.due++;
+    const key = dueTomorrowKey(userId, today);
+    const words = dueTomorrowPush(open, tomorrow);
     // A push that fails is claimed as failed and not tried again tonight:
     // the catch-up is for runs that didn't happen (V3.md §4 "As built").
     const sent = await notify(
@@ -118,8 +125,21 @@ export async function sendDueTomorrow(
       userId,
       {
         type: "todo-due",
-        key: dueTomorrowKey(userId, today),
-        push: dueTomorrowPush(open, tomorrow),
+        key,
+        inbox: [
+          {
+            id: key,
+            groupKey: todoDueTag(tomorrow),
+            count: open.length,
+            title: words.title,
+            body: words.body,
+            url: words.url,
+          },
+        ],
+        push: {
+          event: { type: "todo-due", title: words.title, body: words.body },
+          url: words.url,
+        },
       },
       {
         now: options.now,

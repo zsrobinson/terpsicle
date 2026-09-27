@@ -1,16 +1,26 @@
 // Called by the seats cron after it publishes a new seats file: tells every
-// person whose watched section just reopened (DATA.md §7.1), by email and web
-// push, each as their notification settings say (V2.md §6.5). Email keeps
-// this folder's own path (seat_alert_sends: dedupe, the daily cap, the
-// one-click stop); push goes through ~/server/notifications.
-import { channelOn } from "~/core/notifications";
+// person whose watched section just reopened (DATA.md §7.1), in their inbox
+// and by email and web push as their notification settings say (V2.md
+// §6.5, §6.7). Every section that opened for one person in one run is one
+// push and one email: "Seats opened in 3 sections you're watching". Email
+// keeps this folder's own path (seat_alert_sends: dedupe, the daily cap,
+// the one-click stop); the inbox and push go through ~/server/notifications.
+import { channelOn, seatTag } from "~/core/notifications";
 import type { SeatsFile } from "~/core/schema";
 import { captureServerEvent } from "../analytics";
 import { pruneCounters, windowStart } from "../counters";
+import { emailOffUrl } from "../notifications/email-off";
+import { countInboxEvents } from "../notifications/inbox";
 import { type NotifyEnv, notify } from "../notifications/notify";
 import { countDeliveries, readSettings } from "../notifications/store";
 import { catalogReader } from "./catalog";
-import { courseUrl, renderSeatOpenEmail } from "./email";
+import {
+  courseUrl,
+  type OpenedSection,
+  renderSeatOpenEmail,
+  renderSeatsOpenEmail,
+  type SectionRef,
+} from "./email";
 import { sendAlertEmail } from "./send";
 import {
   ALERT_LIMITS,
@@ -21,6 +31,8 @@ import {
 } from "./service";
 import { countSends, pruneSends, recordCheck, watchesInTerm } from "./store";
 
+type WatchRow = Awaited<ReturnType<typeof watchesInTerm>>[number];
+
 /** Links in alert emails: crons have no request, so always production. */
 export const ALERTS_ORIGIN = "https://terpsicle.com";
 
@@ -29,6 +41,29 @@ export interface NotifyResult {
   sent: number;
   /** Set when nothing ran. */
   skipped?: "disabled";
+}
+
+/** A watched section that reopened in this run, past the cooldown and the cap. */
+interface Opened extends OpenedSection {
+  watch: WatchRow;
+  /** This section's event: `seat-open:<user>:<term>:<section>:<snapshot>`. */
+  key: string;
+}
+
+/** Seat-open alerts this person got in the last day, on any channel (the daily cap). */
+async function alertsToday(
+  db: D1Database,
+  userId: string,
+  since: Date,
+): Promise<number> {
+  // Each section alert is one inbox row and at most one email row; a
+  // seats run's push counts once. The busiest record is the count.
+  const [emails, pushes, inbox] = await Promise.all([
+    countSends(db, userId, since.toISOString()),
+    countDeliveries(db, { userId, type: "seat-open", channel: "push", since }),
+    countInboxEvents(db, userId, "seat-open", since),
+  ]);
+  return Math.max(emails, pushes, inbox);
 }
 
 /**
@@ -53,14 +88,14 @@ export async function notifySeatChanges(
   const { now } = options;
   const origin = options.origin ?? ALERTS_ORIGIN;
   const nowIso = now.toISOString();
-  const since = new Date(now.getTime() - 86_400_000).toISOString();
+  const since = new Date(now.getTime() - 86_400_000);
   const findSection = catalogReader(env.DATA);
   // One dedupe key per seats snapshot, so a retried cron run can't send twice.
   const snapshot = after.asOf ?? windowStart(now, 30 * 60).toISOString();
 
-  const updates: D1PreparedStatement[] = [];
-  let sent = 0;
   const watches = await watchesInTerm(env.DB, after.termId);
+  const opened = new Map<string, Opened[]>();
+  const counts = new Map<string, number>();
   for (const w of watches) {
     const seats = after.seats[w.section_key];
     if (!seats) continue; // No counts ("Seats unknown"): nothing to compare.
@@ -71,77 +106,46 @@ export async function notifySeatChanges(
       w.last_notified_at !== null &&
       now.getTime() - Date.parse(w.last_notified_at) <
         ALERT_LIMITS.alertCooldownMs;
-
-    let notified = false;
-    if (reopened && !coolingDown) {
-      // Each alert sends at most one email and one push, so the busier
-      // channel is the count.
-      const sentToday = Math.max(
-        await countSends(env.DB, w.user_id, since),
-        await countDeliveries(env.DB, {
-          userId: w.user_id,
-          type: "seat-open",
-          channel: "push",
-          since: new Date(since),
-        }),
-      );
-      const underCap = sentToday < ALERT_LIMITS.alertsPerUserPerDay;
-      const found = underCap
-        ? await findSection(w.term_id, w.section_key)
-        : null;
-      if (found) {
-        const ref = sectionRef(found);
-        const key = `seat-open:${w.user_id}:${w.term_id}:${w.section_key}:${snapshot}`;
-        const link = new URL(courseUrl(origin, ref));
-        const pushed = await notify(
-          env,
-          w.user_id,
-          {
-            type: "seat-open",
-            key,
-            push: {
-              title: `A seat opened in ${ref.courseCode} ${ref.sectionCode}`,
-              body: `${open} of ${total} open. Register on Testudo before it's gone.`,
-              url: `${link.pathname}${link.search}`,
-              tag: `seat:${w.term_id}:${w.section_key}`,
-            },
-          },
-          { now, ...(options.fetch ? { fetch: options.fetch } : {}) },
-        );
-        const emailOn = channelOn(
-          await readSettings(env.DB, w.user_id),
-          "seat-open",
-          "email",
-        );
-        const stop = await oneClickStopUrl(env.DATA, origin, {
-          userId: w.user_id,
-          termId: w.term_id,
-          sectionKey: w.section_key,
-        });
-        const emailed =
-          emailOn &&
-          (await sendAlertEmail(env, {
-            to: w.email,
-            userId: w.user_id,
-            termId: w.term_id,
-            sectionKey: w.section_key,
-            dedupeKey: `${key}:email`,
-            email: renderSeatOpenEmail(
-              origin,
-              ref,
-              { open, total, waitlist, asOf: after.asOf },
-              stop,
-            ),
-            now,
-          }));
-        notified = emailed || pushed.push === "sent";
-        if (notified) sent++;
-      }
-    }
-    if (notified || w.last_open !== open) {
-      updates.push(recordCheck(env.DB, w, open, nowIso, notified));
-    }
+    if (!reopened || coolingDown) continue;
+    // This run's sections count toward the cap as they're found.
+    const sentToday =
+      counts.get(w.user_id) ?? (await alertsToday(env.DB, w.user_id, since));
+    counts.set(w.user_id, sentToday);
+    if (sentToday >= ALERT_LIMITS.alertsPerUserPerDay) continue;
+    const found = await findSection(w.term_id, w.section_key);
+    if (!found) continue;
+    counts.set(w.user_id, sentToday + 1);
+    opened.set(w.user_id, [
+      ...(opened.get(w.user_id) ?? []),
+      {
+        watch: w,
+        ref: sectionRef(found),
+        seats: { open, total, waitlist, asOf: after.asOf },
+        key: `seat-open:${w.user_id}:${w.term_id}:${w.section_key}:${snapshot}`,
+      },
+    ]);
   }
+
+  const notified = new Set<WatchRow>();
+  let sent = 0;
+  for (const [userId, sections] of opened) {
+    const delivered = await notifyOnePerson(env, userId, sections, {
+      ...options,
+      origin,
+      snapshot,
+    });
+    for (const s of delivered.notified) notified.add(s.watch);
+    if (delivered.sent) sent += sections.length;
+  }
+
+  const updates = watches.flatMap((w) => {
+    const open = after.seats[w.section_key]?.[0];
+    if (open === undefined) return [];
+    const was = notified.has(w);
+    return was || w.last_open !== open
+      ? [recordCheck(env.DB, w, open, nowIso, was)]
+      : [];
+  });
   if (updates.length > 0) await env.DB.batch(updates);
   await Promise.all([pruneCounters(env.DB, now), pruneSends(env.DB, now)]);
   if (sent > 0) {
@@ -153,4 +157,99 @@ export async function notifySeatChanges(
     );
   }
   return { checked: watches.length, sent };
+}
+
+/** "CMSC351 0101". */
+const labelOf = (ref: SectionRef) => `${ref.courseCode} ${ref.sectionCode}`;
+
+/**
+ * One person's sections from one run: an inbox row each, one push for the
+ * group and one email. `notified` are the sections that reached the inbox
+ * (their cooldown starts); `sent` is whether a push or an email went.
+ */
+async function notifyOnePerson(
+  env: AlertsEnv & Omit<NotifyEnv, "DB" | "EMAIL"> & { EMAIL: SendEmail },
+  userId: string,
+  sections: readonly Opened[],
+  options: {
+    now: Date;
+    origin: string;
+    snapshot: string;
+    fetch?: typeof fetch;
+  },
+): Promise<{ notified: readonly Opened[]; sent: boolean }> {
+  const { now, origin } = options;
+  const [first] = sections;
+  if (!first) return { notified: [], sent: false };
+  const termId = first.watch.term_id;
+  const rows = sections.map((s) => {
+    const link = new URL(courseUrl(origin, s.ref));
+    const label = labelOf(s.ref);
+    return {
+      id: s.key,
+      groupKey: seatTag(termId),
+      title: `A seat opened in ${label}`,
+      body: `${s.seats.open} of ${s.seats.total} open. Register on Testudo before it's gone.`,
+      label,
+      url: `${link.pathname}${link.search}`,
+      termId,
+      courseCode: s.ref.courseCode,
+    };
+  });
+  const [newest] = rows;
+  if (!newest) return { notified: [], sent: false };
+  const pushed = await notify(
+    env,
+    userId,
+    {
+      type: "seat-open",
+      key: `seat-open:${userId}:${termId}:${options.snapshot}`,
+      inbox: rows,
+      push: {
+        event: { type: "seat-open", title: newest.title, body: newest.body },
+        url: newest.url,
+      },
+    },
+    { now, ...(options.fetch ? { fetch: options.fetch } : {}) },
+  );
+  const emailOn = channelOn(
+    await readSettings(env.DB, userId),
+    "seat-open",
+    "email",
+  );
+  const email =
+    sections.length === 1
+      ? renderSeatOpenEmail(
+          origin,
+          first.ref,
+          first.seats,
+          await oneClickStopUrl(env.DATA, origin, {
+            userId,
+            termId,
+            sectionKey: first.watch.section_key,
+          }),
+        )
+      : renderSeatsOpenEmail(
+          origin,
+          sections,
+          await emailOffUrl(env.DATA, origin, userId, "seat-open"),
+        );
+  const emailed =
+    emailOn &&
+    (await sendAlertEmail(env, {
+      to: first.watch.email,
+      userId,
+      sections: sections.map((s) => ({
+        termId: s.watch.term_id,
+        sectionKey: s.watch.section_key,
+        dedupeKey: `${s.key}:email`,
+      })),
+      email,
+      now,
+    }));
+  return {
+    // A retried run finds the rows written: nothing new, no cooldown reset.
+    notified: pushed.inbox === "new" ? sections : [],
+    sent: emailed || pushed.push === "sent",
+  };
 }

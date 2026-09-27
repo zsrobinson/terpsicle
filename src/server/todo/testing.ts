@@ -89,6 +89,7 @@ export async function clearTodo(): Promise<void> {
       "todo_tasks",
       "todo_items",
       "todo_feeds",
+      "notifications",
       "notification_deliveries",
       "notification_settings",
       "push_subscriptions",

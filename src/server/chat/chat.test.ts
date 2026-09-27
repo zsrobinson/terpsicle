@@ -45,6 +45,7 @@ import {
   sectionRoomId,
   TERMS_KEY,
 } from "~/core/schema";
+import { NotificationsInboxResultSchema } from "~/core/schema/notifications";
 import {
   aCourse,
   aDeptChunk,
@@ -2161,13 +2162,20 @@ describe("mentions and replies", () => {
     return id;
   }
 
-  /** Who got a push, with its type and payload, in order. */
+  /**
+   * Who was pushed to, with its type and what it says, in order: calls to
+   * notify() with a push that wrote a new inbox row (a message published
+   * again finds its row there, and pushes nothing).
+   */
   const pushes = () =>
-    notifySpy.mock.calls.map(([, userId, n]) => ({
-      userId,
-      type: n.type,
-      push: n.push,
-    }));
+    notifySpy.mock.calls.flatMap(([, userId, n], i) => {
+      const settled = notifySpy.mock.settledResults[i];
+      return n.push &&
+        settled?.type === "fulfilled" &&
+        settled.value.inbox === "new"
+        ? [{ userId, type: n.type, push: n.push }]
+        : [];
+    });
 
   const rows = async () =>
     (
@@ -2191,15 +2199,24 @@ describe("mentions and replies", () => {
         userId: "tclassmate",
         type: "chat-mention",
         push: {
-          title: "Test Student mentioned you in CMSC351",
-          body: "@Test Classmate did you start the homework? @Test Admin @Test Student",
+          event: {
+            type: "chat-mention",
+            actor: "Test Student",
+            place: "CMSC351",
+            text: "@Test Classmate did you start the homework? @Test Admin @Test Student",
+          },
           url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}`,
-          tag: `chat:${courseRoom}`,
         },
       },
     ]);
     expect(notifySpy.mock.calls[0]?.[2]).toMatchObject({
       key: `chat-mention:tclassmate:${id}`,
+      inbox: [
+        {
+          id: `tclassmate:${TERM}:${COURSE}:${id}`,
+          groupKey: `chat-mention:${courseRoom}`,
+        },
+      ],
     });
     expect(await rows()).toEqual([
       {
@@ -2235,12 +2252,19 @@ describe("mentions and replies", () => {
       userId: "tclassmate",
       type: "chat-reply",
       push: {
-        title: "Test Student replied in CMSC351",
-        body: "yes, here",
+        event: {
+          type: "chat-reply",
+          actor: "Test Student",
+          place: "CMSC351",
+          text: "yes, here",
+        },
         url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}&thread=${root}`,
-        tag: `chat:${courseRoom}`,
       },
     });
+    // Both replies are one group: the thread's.
+    expect(
+      notifySpy.mock.calls.map(([, , n]) => n.inbox?.[0]?.groupKey),
+    ).toEqual([`chat-reply:${root}`, `chat-reply:${root}`]);
     // Replying in your own thread notifies nobody.
     notifySpy.mockClear();
     const own = await published(a.client, courseRoom, "top");
@@ -2359,7 +2383,9 @@ describe("mentions and replies", () => {
     await vi.waitFor(() => expect(pushes()).toHaveLength(1));
   });
 
-  it("stops pushing past 30 chat pushes an hour", async () => {
+  // The owner (V2.md §6.7): "we should deliver all notifs if we say we
+  // have notifs". The 30-an-hour cap is gone; grouping keeps it calm.
+  it("pushes every mention, however many went this hour", async () => {
     const { student } = await twoPeople();
     const at = new Date().toISOString();
     await env.DB.batch(
@@ -2372,8 +2398,80 @@ describe("mentions and replies", () => {
     );
     const a = await student.join([courseRoom]);
     await published(a.client, courseRoom, "@Test Classmate one more");
-    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
-    expect(pushes()).toEqual([]);
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+  });
+
+  it("groups a room's mentions and a thread's replies in the inbox, with the words from the object", async () => {
+    const { student, classmate } = await twoPeople();
+    const b = await classmate.join([courseRoom]);
+    const root = await published(b.client, courseRoom, "anyone have notes?");
+    b.client.close();
+    const a = await student.join([courseRoom]);
+    await published(a.client, courseRoom, "@Test Classmate are you coming?");
+    const second = await published(
+      a.client,
+      courseRoom,
+      "@Test Classmate  also bring   the notes",
+    );
+    const reply = await published(a.client, courseRoom, "yes, here", root);
+    const inbox = async () =>
+      NotificationsInboxResultSchema.parse(
+        await (await classmate.api("notifications/inbox", {})).json(),
+      );
+    const room = encodeURIComponent(courseRoom);
+    const { items, unread } = await inbox();
+    expect(unread).toBe(2);
+    expect(
+      items.map(({ type, product, title, body, url, count, readAt }) => ({
+        type,
+        product,
+        title,
+        body,
+        url,
+        count,
+        readAt,
+      })),
+    ).toEqual([
+      {
+        type: "chat-reply",
+        product: "chat",
+        title: "Test Student replied to your question",
+        body: "yes, here",
+        url: `/chat?term=${TERM}&course=${COURSE}&room=${room}&thread=${root}`,
+        count: 1,
+        readAt: null,
+      },
+      {
+        type: "chat-mention",
+        product: "chat",
+        title: "2 mentions in CMSC351",
+        body: "Test Student: @Test Classmate also bring the notes",
+        url: `/chat?term=${TERM}&course=${COURSE}&room=${room}`,
+        count: 2,
+        readAt: null,
+      },
+    ]);
+    // D1 holds no words of theirs.
+    const stored = await env.DB.prepare(
+      "SELECT title, body FROM notifications WHERE product = 'chat'",
+    ).all();
+    expect(
+      stored.results.every((r) => r.title === null && r.body === null),
+    ).toBe(true);
+
+    // Reading the room up to the mentions reads them, as one item; a
+    // deleted message drops out.
+    const c = await classmate.join([courseRoom]);
+    c.client.send({ type: "read", room: courseRoom, upTo: second });
+    await c.client.flush();
+    expect((await inbox()).unread).toBe(1);
+    const req = a.client.req();
+    a.client.send({ type: "delete", req, room: courseRoom, id: reply });
+    await a.client.next("ack", (f) => f.req === req);
+    const after = await inbox();
+    expect(
+      after.items.map((i) => [i.type, i.count, i.readAt !== null]),
+    ).toEqual([["chat-mention", 2, true]]);
   });
 
   it("reads mentions with the room", async () => {
