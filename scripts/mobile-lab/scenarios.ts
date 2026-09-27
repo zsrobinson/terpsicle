@@ -43,6 +43,9 @@ const TABS = [
 /** vaul's snap animation is 0.5 s. */
 const SETTLE = 800;
 
+/** How far from the screen's top and bottom a target must be to tap it. */
+const EDGE = 48;
+
 type Snap = "peek" | "half" | "full";
 
 async function snapOf(lab: Lab): Promise<Snap | null> {
@@ -585,19 +588,29 @@ export const SCENARIOS: Scenario[] = [
           visible: true,
           index: 0,
         };
-        const label = await lab.device.evaluate<string | null>(
-          call(
-            `(q) => { const all = [...document.querySelectorAll(q.selector)].filter((b) => { const r = b.getBoundingClientRect(); const y = r.y + r.height / 2; const hit = document.elementFromPoint(r.x + r.width / 2, y); return hit && (hit === b || b.contains(hit)); }); const b = all[q.index]; return b ? b.getAttribute("aria-label") : null; }`,
-            button,
-          ),
-        );
+        // Clear of the screen's edges: a tap on the last pixel rows goes to
+        // the browser, not the button (a person would scroll first). When
+        // none is clear, scroll the first one to the middle and look again.
+        const pick = (scroll: boolean) =>
+          lab.device.evaluate<string | null>(
+            call(
+              `(q) => { const clear = (b) => { const r = b.getBoundingClientRect(); if (r.top < ${EDGE} || r.bottom > innerHeight - ${EDGE}) return false; const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return hit && (hit === b || b.contains(hit)); }; const found = [...document.querySelectorAll(q.selector)]; if (q.scroll && !found.some(clear) && found[0]) found[0].scrollIntoView({ block: "center" }); const b = found.filter(clear)[q.index]; return b ? b.getAttribute("aria-label") : null; }`,
+              { ...button, scroll },
+            ),
+          );
+        let label = await pick(false);
+        if (!label) {
+          await pick(true);
+          await lab.wait(SETTLE);
+          label = await pick(false);
+        }
         if (!label) {
           await lab.step("no section button on screen");
           break;
         }
         const section = label.replace(/^(Add|Switch to) /, "");
-        // One tap, as a person would.
-        await lab.tap(button);
+        // One tap, as a person would, on the button picked above.
+        await lab.tap({ selector: button.selector, text: label, exact: true });
         await lab.wait(1500);
         const now = await current();
         await lab.step(`tapped ${label}`, {

@@ -1,4 +1,4 @@
-import { Bookmark, Search as SearchIcon, X } from "lucide-react";
+import { Bookmark, X } from "lucide-react";
 import {
   type KeyboardEvent,
   useEffect,
@@ -28,6 +28,7 @@ import {
 import { openCourse } from "~/features/courses/actions";
 import { useActiveTerm, useCurrentPlan, useFitContext } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
+import { SearchField } from "~/ui/input";
 import { Kbd } from "~/ui/kbd";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
@@ -112,52 +113,37 @@ export function SearchPanel() {
         }
       />
       <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-4 py-3">
-        <div className="flex h-9 items-center gap-2 rounded-lg border border-hairline bg-raised px-2.5 focus-within:border-hairline-strong has-[input:focus-visible]:focus-outline">
-          <SearchIcon size={14} className="shrink-0 text-muted" aria-hidden />
-          <input
-            ref={inputRef}
-            type="search"
-            role="combobox"
-            aria-expanded={courses.length > 0}
-            aria-controls="search-results"
-            aria-activedescendant={
-              active >= 0 ? `search-result-${active}` : undefined
-            }
-            aria-label="Search courses"
-            placeholder="Course, title or instructor"
-            // Course codes aren't words: no red squiggles or autocorrect.
-            spellCheck={false}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            value={query}
-            onChange={(e) => setQuery(termId, e.target.value)}
-            onKeyDown={onKeyDown}
-            onBlur={() => useUi.getState().setHoverCourse(null)}
-            className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-faint [&::-webkit-search-cancel-button]:hidden"
-          />
-          {query ? (
-            <WithTooltip label="Clear the search">
-              <button
-                type="button"
-                aria-label="Clear the search"
-                onClick={() => {
-                  setQuery(termId, "");
-                  inputRef.current?.focus();
-                }}
-                className="flex size-5 items-center justify-center rounded text-muted hover:bg-hover hover:text-fg"
-              >
-                <X size={12} aria-hidden="true" />
-              </button>
-            </WithTooltip>
-          ) : (
+        <SearchField
+          ref={inputRef}
+          role="combobox"
+          aria-expanded={courses.length > 0}
+          aria-controls="search-results"
+          aria-activedescendant={
+            active >= 0 ? `search-result-${active}` : undefined
+          }
+          aria-label="Search courses"
+          placeholder="Course, title or instructor"
+          // Course codes aren't words: no red squiggles or autocorrect.
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          value={query}
+          onChange={(e) => setQuery(termId, e.target.value)}
+          onKeyDown={onKeyDown}
+          onBlur={() => useUi.getState().setHoverCourse(null)}
+          onClear={() => {
+            setQuery(termId, "");
+            inputRef.current?.focus();
+          }}
+          hint={
             <WithTooltip label="Jump to search from anywhere" shortcut="/">
               <span>
                 <Kbd>/</Kbd>
               </span>
             </WithTooltip>
-          )}
-        </div>
+          }
+        />
         <FilterChips
           filters={filters}
           onChange={(next) => setFilters(termId, next)}

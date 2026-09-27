@@ -6,6 +6,7 @@ import {
   testFeedIcs,
   testFeedLink,
 } from "../src/core/todo/test-feed";
+import { liveToasts } from "./toasts";
 
 // Terpsicle Todo's pages (docs/V3.md §3.9) on `pnpm dev:mock`: test-mode
 // sign-in, and the Worker's fixture feeds (TEST_FEED_TOKENS) in place of
@@ -79,7 +80,10 @@ async function signIn(page: Page, isMobile: boolean) {
 test("signed out, /todo is the front door", async ({ page }) => {
   await page.goto("/todo");
   await expect(
-    page.getByRole("heading", { name: "Terpsicle Todo" }),
+    page.getByRole("heading", {
+      level: 1,
+      name: "Your deadlines and exams, in one list",
+    }),
   ).toBeVisible();
   await expect(
     page.getByText("Sign in to see your ELMS deadlines here."),
@@ -151,18 +155,20 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   await expect(page.getByText(/^5 open · /)).toBeVisible();
   await expect(page.getByRole("button", { name: "1 done" })).toBeVisible();
 
-  await page.getByRole("button", { name: "By course" }).click();
+  // Each view is a link: a URL that Back and a copied link keep.
+  const views = page.getByRole("navigation", { name: "Todo views" });
+  await views.getByRole("link", { name: "By course" }).click();
   await expect(page).toHaveURL(/view=course/);
   await expect(page.getByRole("region", { name: "CMSC216" })).toBeVisible();
   await axe(page, "by course");
 
   if (!isMobile) {
-    await page.getByRole("button", { name: "Week" }).click();
+    await views.getByRole("link", { name: "Week" }).click();
     await expect(page).toHaveURL(/view=week/);
     await expect(page.getByTestId("todo-chip").first()).toBeVisible();
     await axe(page, "week");
   } else {
-    await expect(page.getByRole("button", { name: "Week" })).toBeHidden();
+    await expect(views.getByRole("link", { name: "Week" })).toHaveCount(0);
   }
 
   // ?day= scrolls to that day (the due-tomorrow push opens it).
@@ -180,8 +186,8 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   await expect(page.getByText(/ELMS is connected/)).toBeVisible();
 
   await page.getByRole("button", { name: "Disconnect" }).click();
-  await expect(page.getByText("ELMS disconnected")).toBeVisible();
-  await expect(page.getByText("ELMS disconnected")).toBeHidden({
+  await expect(liveToasts(page).getByText("ELMS disconnected")).toBeVisible();
+  await expect(liveToasts(page).getByText("ELMS disconnected")).toBeHidden({
     timeout: 15_000,
   });
   await page.reload();

@@ -35,14 +35,18 @@ import {
 } from "~/core/schema";
 import { Avatar } from "~/features/auth/avatar";
 import { Button } from "~/ui/button";
+import { Card } from "~/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
+import { Textarea } from "~/ui/input";
+import { ListRow } from "~/ui/list-row";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
+import { ROW_LINK } from "./room-row";
 import { showNote } from "./undo";
 
 // One message (V2.md §8.6): the author's name and picture, the text as plain
@@ -522,16 +526,15 @@ function EditBox({
       <label htmlFor={id} className="sr-only">
         Edit your message
       </label>
-      <textarea
+      <Textarea
         id={id}
-        // biome-ignore lint/a11y/noAutofocus: the person just chose Edit
         autoFocus
         value={draft}
         maxLength={CHAT_TEXT_MAX}
         rows={Math.min(6, draft.split("\n").length + 1)}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={onKeyDown}
-        className="w-full resize-none border border-hairline-strong bg-bg px-2 py-1.5 text-base text-fg focus-visible:border-fg"
+        className="resize-none"
       />
       <div className="flex gap-2">
         <WithTooltip label="Save the edit" shortcut="↵">
@@ -561,7 +564,11 @@ function EditBox({
 
 const REASONS = Object.keys(CHAT_REPORT_REASON_WORDS) as ReportReason[];
 
-/** Report, inline (V2 §8.6): a reason, an optional note, and a plain thank-you. */
+/**
+ * Report, inline (V2 §8.6): a reason, an optional note, and a plain
+ * thank-you. The same form as a review's report: a `Card` with the reasons
+ * as the kit's rows, a native radio leading each.
+ */
 function ReportForm({
   onSend,
   onCancel,
@@ -575,6 +582,7 @@ function ReportForm({
     "idle" | "busy" | Exclude<ReportOutcome, "reported">
   >("idle");
   const name = useId();
+  const noteId = useId();
   if (state === "not-found" || state === "own")
     return (
       <p role="status" className="mt-1 text-muted text-sm">
@@ -589,74 +597,110 @@ function ReportForm({
       </p>
     );
   return (
-    <form
-      aria-label="Report this message"
-      className="mt-2 flex flex-col gap-2 border border-hairline-strong bg-bg p-3"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!reason) return;
-        setState("busy");
-        const outcome = await onSend(reason, note.trim() || null);
-        // A toast, since a report can take the message off your screen.
-        if (outcome === "reported") {
-          showNote("Thanks. A person will look at it.");
-          onCancel();
-        } else setState(outcome);
-      }}
-    >
-      <fieldset className="flex flex-col gap-1">
-        <legend className="mb-1 font-medium text-sm">
-          What's wrong with it?
-        </legend>
-        {REASONS.map((r) => (
-          <label
-            key={r}
-            className="flex min-h-7 items-center gap-2 text-sm max-md:min-h-11"
-          >
-            <input
-              type="radio"
-              name={name}
-              value={r}
-              checked={reason === r}
-              onChange={() => setReason(r)}
-            />
-            {CHAT_REPORT_REASON_WORDS[r]}
+    <Card className="mt-2 max-w-md">
+      <form
+        aria-label="Report this message"
+        className="flex flex-col gap-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!reason) return;
+          setState("busy");
+          const outcome = await onSend(reason, note.trim() || null);
+          // A toast, since a report can take the message off your screen.
+          if (outcome === "reported") {
+            showNote("Thanks. A person will look at it.");
+            onCancel();
+          } else setState(outcome);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onCancel();
+          }
+        }}
+      >
+        <fieldset>
+          <legend className="mb-1 font-medium">What's wrong with it?</legend>
+          {/* The kit's rows, a native radio leading each: the reasons stay
+              in view, and arrow keys move between them. */}
+          <ul>
+            {REASONS.map((r) => (
+              <ListRow
+                key={r}
+                as="li"
+                density="compact"
+                className="relative px-0 max-md:min-h-11"
+                lead={
+                  <input
+                    type="radio"
+                    id={`${name}-${r}`}
+                    name={name}
+                    value={r}
+                    checked={reason === r}
+                    onChange={() => setReason(r)}
+                    // Over the label's row-wide target, so it's pressed itself.
+                    className="relative z-10 flex size-4 accent-accent"
+                  />
+                }
+              >
+                <WithTooltip
+                  label={`Report it as: ${CHAT_REPORT_REASON_WORDS[r]}`}
+                >
+                  <label
+                    htmlFor={`${name}-${r}`}
+                    className={cn(
+                      ROW_LINK,
+                      "block cursor-pointer truncate",
+                      reason === r ? "font-medium text-fg" : "text-muted",
+                    )}
+                  >
+                    {CHAT_REPORT_REASON_WORDS[r]}
+                  </label>
+                </WithTooltip>
+              </ListRow>
+            ))}
+          </ul>
+        </fieldset>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={noteId} className="text-muted text-sm">
+            Anything a person should know? (optional)
           </label>
-        ))}
-      </fieldset>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted">
-          Anything a person should know? (optional)
-        </span>
-        <textarea
-          value={note}
-          maxLength={REPORT_NOTE_MAX}
-          rows={2}
-          onChange={(e) => setNote(e.target.value)}
-          className="w-full resize-none border border-hairline-strong bg-bg px-2 py-1.5 text-base text-fg focus-visible:border-fg"
-        />
-      </label>
-      {state === "failed" ? (
-        <p role="status" className="text-muted text-sm">
-          That didn't send. Try again.
-        </p>
-      ) : null}
-      <div className="flex gap-2">
-        <WithTooltip label="A person checks every report">
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!reason || state === "busy"}
+          <WithTooltip label="A note for the moderator; the author never sees it">
+            <Textarea
+              id={noteId}
+              value={note}
+              maxLength={REPORT_NOTE_MAX}
+              rows={2}
+              onChange={(e) => setNote(e.target.value)}
+              data-private=""
+              className="resize-none"
+            />
+          </WithTooltip>
+        </div>
+        {state === "failed" ? (
+          <p role="status" className="text-fg text-sm">
+            That didn't send. Try again.
+          </p>
+        ) : null}
+        <div className="flex items-center gap-2">
+          <WithTooltip
+            label={
+              reason ? "A person checks every report" : "Pick a reason first"
+            }
           >
-            Send report
-          </Button>
-        </WithTooltip>
-        <WithTooltip label="Don't report it">
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
-          </Button>
-        </WithTooltip>
-      </div>
-    </form>
+            <span className="flex" tabIndex={reason ? -1 : 0}>
+              <Button type="submit" disabled={!reason || state === "busy"}>
+                {state === "busy" ? "Sending…" : "Send report"}
+              </Button>
+            </span>
+          </WithTooltip>
+          <WithTooltip label="Don't report it" shortcut="Esc">
+            <Button type="button" variant="ghost" onClick={onCancel}>
+              Cancel
+            </Button>
+          </WithTooltip>
+        </div>
+      </form>
+    </Card>
   );
 }

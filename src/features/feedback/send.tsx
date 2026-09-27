@@ -1,4 +1,3 @@
-import { toast } from "sonner";
 import { recentActivity } from "~/app/activity-log";
 import { track } from "~/app/analytics";
 import { feedbackSources } from "~/app/feedback-sources";
@@ -11,7 +10,7 @@ import type {
 } from "~/core/schema/feedback";
 import { ApiCallError } from "~/server/fns/api";
 import { feedbackApi } from "~/server/fns/feedback-api";
-import { noteToast, undoToast } from "~/ui/toast";
+import { dismissToast, noteToast, undoToast } from "~/ui/toast";
 import { type FeedbackDraft, useDraft } from "./draft-store";
 import { base64Of } from "./screenshot";
 
@@ -120,7 +119,7 @@ export async function sendDraft(
   useDraft.getState().clear();
   const toastId = `feedback-sent-${result.id}`;
   const undo = async () => {
-    toast.dismiss(toastId);
+    dismissToast(toastId);
     try {
       const { status } = await feedbackApi.undo({
         id: result.id,

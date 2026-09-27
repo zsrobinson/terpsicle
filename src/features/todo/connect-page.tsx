@@ -1,10 +1,14 @@
-import { type ReactNode, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { feedWords } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { GoogleButton } from "~/features/auth/sign-in-panel";
 import { Button } from "~/ui/button";
-import { undoToast } from "~/ui/toast";
+import { InlineError } from "~/ui/inline-error";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
+import { RowSkeleton } from "~/ui/skeleton";
+import { dismissToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   ConnectForm,
@@ -15,7 +19,6 @@ import {
 import { FileDrop } from "./file-drop";
 import { GRADESCOPE_EXTENSIONS_NOTE } from "./todo-item";
 import {
-  ListSkeleton,
   TODO_CONNECT_PATH,
   TODO_PATH,
   TodoFrame,
@@ -26,17 +29,9 @@ import { useTodo } from "./todo-store";
 
 // `/todo/connect` (docs/V3.md §3.2, §3.7): connect ELMS, see how the
 // connection is doing, disconnect (Undo, no dialog), and add a calendar file.
+// A note page, with Back to the list.
 
 const DISCONNECT_TOAST = "todo-disconnect";
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="space-y-3 border-hairline border-t pt-4">
-      <h2 className="font-semibold text-lg">{title}</h2>
-      {children}
-    </section>
-  );
-}
 
 function Connection() {
   const { now } = useNow();
@@ -49,7 +44,7 @@ function Connection() {
 
   // Undo's window is over: the toast goes with it.
   useEffect(() => {
-    if (!disconnecting) toast.dismiss(DISCONNECT_TOAST);
+    if (!disconnecting) dismissToast(DISCONNECT_TOAST);
   }, [disconnecting]);
 
   const onDisconnect = () => {
@@ -67,7 +62,7 @@ function Connection() {
 
   if (!feed)
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <p className="text-muted">{WHAT_COMES_THROUGH}</p>
         <ConnectSteps />
         <ConnectForm onConnected={() => setConnected(true)} />
@@ -77,7 +72,7 @@ function Connection() {
 
   const words = feedWords(feed, now);
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {feed.status === "broken" ? (
         <>
           <p className="text-fg">{words.problem}</p>
@@ -100,16 +95,12 @@ function Connection() {
       )}
       <div className="flex flex-wrap items-center gap-2">
         <WithTooltip label="See your deadlines">
-          <Button asChild className="h-11 md:h-8">
-            <a href={TODO_PATH}>View todos</a>
+          <Button asChild>
+            <Link to={TODO_PATH}>View todos</Link>
           </Button>
         </WithTooltip>
         <WithTooltip label="Stop reading ELMS and delete the link and its deadlines">
-          <Button
-            variant="ghost"
-            className="h-11 md:h-8"
-            onClick={onDisconnect}
-          >
+          <Button variant="ghost" onClick={onDisconnect}>
             Disconnect
           </Button>
         </WithTooltip>
@@ -137,43 +128,37 @@ function SignedIn() {
 
   return (
     <>
-      <Section title="ELMS">
+      <PageSection title="ELMS">
         {phase === "ready" ? (
           <Connection />
         ) : phase === "failed" ? (
-          <div className="space-y-3">
-            <p className="text-fg">
-              We couldn't check your connection. Check your internet and try
-              again.
-            </p>
-            <WithTooltip label="Check the connection again">
-              <Button
-                variant="outline"
-                onClick={() => void load(today, Date.now())}
-              >
-                Try again
-              </Button>
-            </WithTooltip>
-          </div>
+          <InlineError
+            message="We couldn't check your connection. Check your internet and try again."
+            onRetry={() => void load(today, Date.now())}
+          />
         ) : (
-          <ListSkeleton />
+          <RowSkeleton
+            rows={2}
+            inset={false}
+            label="Checking your ELMS connection"
+          />
         )}
-      </Section>
-      <Section title="Gradescope">
+      </PageSection>
+      <PageSection title="Gradescope">
         <p className="text-muted">
           Gradescope work your professors link in ELMS comes through the feed,
           tagged Gradescope. We never ask for your Gradescope or ELMS password.
         </p>
         <p className="text-fg">{GRADESCOPE_EXTENSIONS_NOTE}</p>
-      </Section>
-      <Section title="Add a calendar file">
+      </PageSection>
+      <PageSection title="Add a calendar file">
         <p className="text-muted">
           Have deadlines that aren't in ELMS? Export them as an .ics file and
           add it here. It's read on this device; only the deadlines in it are
           saved. Files don't update. Drop a new one when your deadlines change.
         </p>
         <FileDrop />
-      </Section>
+      </PageSection>
     </>
   );
 }
@@ -183,26 +168,24 @@ export function ConnectPage() {
   const on = useAccount((s) => s.flags.todo);
   if (status !== "loading" && !on) return <TodoOff />;
   return (
-    <TodoFrame>
-      <div className="mx-auto max-w-[560px] space-y-6">
-        <div className="space-y-1">
-          <WithTooltip label="Back to your deadlines">
-            <a href={TODO_PATH} className="text-muted text-sm hover:text-fg">
-              Todo
-            </a>
-          </WithTooltip>
-          <h1 className="font-semibold text-xl tracking-tight">Connect ELMS</h1>
-        </div>
+    <TodoFrame width="note">
+      <PageHeader
+        title="Connect ELMS"
+        back={{ label: "Todo", to: TODO_PATH }}
+      />
+      <div className="flex flex-col gap-6">
         {status === "loading" ? (
-          <ListSkeleton />
+          <RowSkeleton rows={3} inset={false} label="Loading" />
         ) : status === "signed-out" ? (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <p className="text-fg">
               Sign in to connect ELMS. Your deadlines stay with your account.
             </p>
-            <div className="max-w-[320px]">
-              <GoogleButton returnTo={TODO_CONNECT_PATH} from="todo" />
-            </div>
+            <GoogleButton
+              returnTo={TODO_CONNECT_PATH}
+              from="todo"
+              className="w-fit"
+            />
           </div>
         ) : (
           <SignedIn />
