@@ -9,7 +9,7 @@ export const Route = createFileRoute("/todo/connect")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Connect ELMS · Todo · Terpsicle" },
+      { title: "ELMS link · Todo · Terpsicle" },
       { name: "robots", content: "noindex" },
     ],
   }),

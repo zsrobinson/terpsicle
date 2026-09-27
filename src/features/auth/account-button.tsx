@@ -9,7 +9,7 @@ import {
 import { type ReactNode, useState } from "react";
 import { track } from "~/app/analytics";
 import { ThemeMenuItems } from "~/app/theme-toggle";
-import { SIGN_IN_PITCH, signInStartHref } from "~/core/auth";
+import { signInPitch, signInStartHref } from "~/core/auth";
 import { type MeUser, SIGN_IN_START_PATH } from "~/core/schema";
 import { InstallAppMenuItem } from "~/features/pwa/install-entry";
 import { SyncStatusLine } from "~/features/sync/status-view";
@@ -75,7 +75,7 @@ function AccountMenu({
   return (
     <DropdownMenu>
       <WithTooltip
-        label={user ? "Your account and theme" : SIGN_IN_PITCH}
+        label={user ? "Your account and theme" : signInPitch(pagePathname())}
         side="bottom"
       >
         <DropdownMenuTrigger asChild>
@@ -114,13 +114,24 @@ function AccountMenu({
   );
 }
 
-/** The menu's sign-in: the pitch, then the Google (or test mode) link. */
+/**
+ * The page's pathname, for the pitch. The bar re-renders as the route
+ * changes; on the server there's no page yet, and the pitch only shows once
+ * the menu or its tooltip opens.
+ */
+function pagePathname(): string {
+  return typeof window === "undefined" ? "/" : window.location.pathname;
+}
+
+/** The menu's sign-in: this product's pitch, then the Google (or test mode) link. */
 function SignInItems() {
   const testMode = useAccount((s) => s.flags.authTestMode);
   return (
     <>
       <DropdownMenuLabel>Sign in</DropdownMenuLabel>
-      <p className="px-2 pb-2 text-muted text-sm">{SIGN_IN_PITCH}</p>
+      <p className="px-2 pb-2 text-muted text-sm">
+        {signInPitch(pagePathname())}
+      </p>
       <DropdownMenuItem asChild>
         <a
           href={signInStartHref(SIGN_IN_START_PATH, currentPath())}
