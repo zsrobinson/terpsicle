@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ModerationReason } from "../schema";
 import {
+  authorStopUntil,
   decisionCursor,
   fillDays,
   HELD_SHARE_TARGET,
   heldShare,
   markedSegments,
+  parseChatMessageRef,
   parseDecisionCursor,
   suggestedRemoveReason,
   waitedFor,
@@ -200,5 +202,51 @@ describe("waitedFor", () => {
 
   it("never goes negative on a clock that's slightly behind", () => {
     expect(waitedFor(ago(-60_000), NOW)).toBe("just now");
+  });
+});
+
+describe("authorStopUntil", () => {
+  it("stops review writers for 30 days and chat posters for 7 (V2 §10)", () => {
+    expect(authorStopUntil("review", NOW)).toBe("2027-02-09T12:00:00.000Z");
+    expect(authorStopUntil("chat", NOW)).toBe("2027-01-17T12:00:00.000Z");
+  });
+});
+
+describe("parseChatMessageRef", () => {
+  const found = {
+    termId: "202701",
+    courseCode: "CMSC351",
+    messageId: "01JABCDEFGHJKMNPQRSTVWXYZ0",
+  };
+
+  it("reads a ref from the decision log", () => {
+    expect(
+      parseChatMessageRef("  202701:CMSC351:01JABCDEFGHJKMNPQRSTVWXYZ0 \n"),
+    ).toEqual(found);
+  });
+
+  it("reads a thread link from Chat, on any host", () => {
+    for (const link of [
+      "https://terpsicle.com/chat?term=202701&course=CMSC351&room=202701%3ACMSC351&thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
+      "http://localhost:3000/chat?thread=01JABCDEFGHJKMNPQRSTVWXYZ0&course=CMSC351&term=202701",
+      "/chat?term=202701&course=CMSC351&thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
+      // The current term is left out; the room still names it.
+      "http://localhost:3706/chat?course=CMSC351&room=202701%3ACMSC351%3A0101&thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
+    ])
+      expect(parseChatMessageRef(link), link).toEqual(found);
+  });
+
+  it("refuses anything that doesn't name one message", () => {
+    for (const text of [
+      "",
+      "hello",
+      "202701:CMSC351",
+      "202701:cmsc351:01JABCDEFGHJKMNPQRSTVWXYZ0",
+      "202701:CMSC351:short",
+      "https://terpsicle.com/chat?term=202701&course=CMSC351",
+      "https://terpsicle.com/reviews?term=202701&course=CMSC351&thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
+      "http://[::1",
+    ])
+      expect(parseChatMessageRef(text), text).toBeNull();
   });
 });

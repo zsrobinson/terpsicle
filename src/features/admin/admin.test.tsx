@@ -9,7 +9,12 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REASON_WORDS } from "~/core/moderation/policy-text";
-import type { MeUser, QueueItem, ResolveResult } from "~/core/schema";
+import type {
+  AdminReason,
+  MeUser,
+  QueueItem,
+  ResolveResult,
+} from "~/core/schema";
 import type {
   AdminHealth,
   DecisionEntry,
@@ -69,6 +74,8 @@ const anItem = (over: Partial<QueueItem> = {}): QueueItem => ({
   createdAt: minutesAgo(180),
   closedAt: null,
   resolution: null,
+  stoppedUntil: null,
+  review: null,
   ...over,
 });
 
@@ -103,6 +110,17 @@ function fakeClient(items: QueueItem[], over: Partial<AdminClient> = {}) {
       }),
     ),
     samples: vi.fn(async () => ({ items })),
+    chatRemove: vi.fn(
+      async (input: { reason: AdminReason }): Promise<ResolveResult> => ({
+        status: "ok",
+        item: {
+          ...anItem({ kind: "chat", targetId: "202701:CMSC351:msg-0000001" }),
+          status: "closed",
+          closedAt: NOW.toISOString(),
+          resolution: { decision: "remove", reason: input.reason },
+        },
+      }),
+    ),
     ...over,
   } satisfies AdminClient;
 }
@@ -310,6 +328,227 @@ describe("the queue", () => {
       reason: "spam",
     });
     expect(await screen.findByText("Removed: Spam or an ad")).toBeVisible();
+  });
+
+  it("shows a held review's instructor, rating, term and grade", async () => {
+    const client = fakeClient([
+      anItem({
+        review: {
+          instructor: "Ada Brandt",
+          rating: 2,
+          termId: "202608",
+          grade: "B+",
+        },
+      }),
+      anItem({
+        id: "CCCCCCCCCCCCCCCCCCCCCC",
+        review: {
+          instructor: "Lee Moss",
+          rating: 5,
+          termId: null,
+          grade: null,
+        },
+      }),
+    ]);
+    wrap(
+      <QueuePage
+        view="waiting"
+        onView={() => {}}
+        client={client}
+        now={() => NOW}
+      />,
+    );
+    const [first, second] = (await screen.findAllByRole("article")) as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect(
+      within(first).getByText(
+        "Ada Brandt · rated 2 of 5 · Fall 2026 · grade B+",
+      ),
+    ).toBeVisible();
+    expect(within(second).getByText("Lee Moss · rated 5 of 5")).toBeVisible();
+  });
+
+  it("removes and stops the author, saying only until when, and Undo lifts both", async () => {
+    const until = "2027-02-09T12:00:00.000Z";
+    const client = fakeClient([anItem()], {
+      resolve: vi.fn(
+        async (input: { id: string }): Promise<ResolveResult> => ({
+          status: "ok",
+          item: {
+            ...anItem({ id: input.id }),
+            status: "closed",
+            closedAt: NOW.toISOString(),
+            resolution: { decision: "remove", reason: "hate" },
+            stoppedUntil: until,
+          },
+        }),
+      ),
+    });
+    const user = userEvent.setup();
+    wrap(
+      <QueuePage
+        view="waiting"
+        onView={() => {}}
+        client={client}
+        now={() => NOW}
+      />,
+    );
+    await user.click(await screen.findByRole("button", { name: /Remove/ }));
+    const reasons = screen.getByRole("group", { name: "Remove because" });
+    const stop = within(reasons).getByRole("checkbox", {
+      name: "Also stop this author writing reviews for 30 days",
+    });
+    expect(stop).not.toBeChecked();
+    await user.click(stop);
+    await user.click(within(reasons).getByRole("button", { name: "Hate" }));
+    expect(client.resolve).toHaveBeenCalledWith({
+      id: "AAAAAAAAAAAAAAAAAAAAAA",
+      action: "remove",
+      reason: "hate",
+      authorAction: "stop",
+    });
+    expect(await screen.findByText("Removed: Hate")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Review in CMSC351. Author can't write reviews until Feb 9.",
+      ),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Undo/ }));
+    expect(client.undo).toHaveBeenCalledWith({ id: "AAAAAAAAAAAAAAAAAAAAAA" });
+  });
+
+  it("offers Chat's 7 days for a chat message, and says when nobody could be stopped", async () => {
+    const client = fakeClient([
+      anItem({ kind: "chat", course: "CMSC131", reasons: [] }),
+    ]);
+    const user = userEvent.setup();
+    wrap(
+      <QueuePage
+        view="waiting"
+        onView={() => {}}
+        client={client}
+        now={() => NOW}
+      />,
+    );
+    await user.click(await screen.findByRole("button", { name: /Remove/ }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Also stop this author posting in Chat for 7 days",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Spam or an ad" }));
+    // The fake answers without a stop: the account or post was gone.
+    expect(
+      await screen.findByText(
+        /No one to stop: the account or the post is gone/,
+      ),
+    ).toBeVisible();
+  });
+
+  it("shows a stop on a decided item, and never who", async () => {
+    const decided = anItem({
+      status: "closed",
+      closedAt: minutesAgo(30),
+      resolution: { decision: "remove", reason: "hate" },
+      stoppedUntil: "2027-02-09T12:00:00.000Z",
+    });
+    const client = fakeClient([], {
+      queue: vi.fn(async () => ({ items: [decided], open: 0 })),
+    });
+    wrap(
+      <QueuePage
+        view="decided"
+        onView={() => {}}
+        client={client}
+        now={() => NOW}
+      />,
+    );
+    const card = await screen.findByRole("article");
+    expect(
+      within(card).getByText(
+        "Removed: Hate. Author can't write reviews until Feb 9",
+      ),
+    ).toBeVisible();
+  });
+
+  it("removes a chat message from a pasted link, with the same Undo", async () => {
+    const client = fakeClient([]);
+    const user = userEvent.setup();
+    wrap(
+      <QueuePage
+        view="waiting"
+        onView={() => {}}
+        client={client}
+        now={() => NOW}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Paste a chat link" }),
+    );
+    const form = screen.getByRole("region", { name: "Remove a chat message" });
+    const box = within(form).getByLabelText("Message link or id");
+    await user.type(box, "not a link");
+    await user.click(within(form).getByRole("button", { name: "Hate" }));
+    expect(within(form).getByText(/That isn't a message link/)).toBeVisible();
+    expect(client.chatRemove).not.toHaveBeenCalled();
+
+    await user.clear(box);
+    await user.type(
+      box,
+      "https://terpsicle.com/chat?term=202701&course=CMSC351&room=202701:CMSC351&thread=msg-0000001",
+    );
+    expect(within(form).getByText("A message in CMSC351")).toBeVisible();
+    await user.click(
+      within(form).getByRole("checkbox", {
+        name: "Also stop this author posting in Chat for 7 days",
+      }),
+    );
+    await user.click(within(form).getByRole("button", { name: "Hate" }));
+    expect(client.chatRemove).toHaveBeenCalledWith({
+      termId: "202701",
+      courseCode: "CMSC351",
+      messageId: "msg-0000001",
+      reason: "hate",
+      authorAction: "stop",
+    });
+    expect(await screen.findByText("Removed: Hate")).toBeVisible();
+    expect(
+      screen.queryByRole("region", { name: "Remove a chat message" }),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: /Undo/ }));
+    expect(client.undo).toHaveBeenCalled();
+  });
+
+  it("says so when the pasted message isn't there", async () => {
+    const client = fakeClient([], {
+      chatRemove: vi.fn(
+        async (): Promise<ResolveResult> => ({ status: "not-found" }),
+      ),
+    });
+    const user = userEvent.setup();
+    wrap(
+      <QueuePage
+        view="waiting"
+        onView={() => {}}
+        client={client}
+        now={() => NOW}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Paste a chat link" }),
+    );
+    await user.type(
+      screen.getByLabelText("Message link or id"),
+      "202701:CMSC351:msg-0000001",
+    );
+    await user.click(screen.getByRole("button", { name: "Spam or an ad" }));
+    expect(
+      await screen.findByText(
+        "That message isn't there, or it's already removed. Its author may have deleted it.",
+      ),
+    ).toBeVisible();
   });
 
   it("lists what was just decided under Decided", async () => {

@@ -225,6 +225,13 @@ async function seedAccount(id: string, n: number) {
         at,
       ],
       [
+        `INSERT INTO author_stops (id, surface, user_id, until, created_at)
+         VALUES (?2, 'chat', ?1, ?3, ?3)`,
+        id,
+        `stop-${n}`,
+        at,
+      ],
+      [
         `INSERT INTO reports (surface, ref, reporter_id, reason, note, created_at)
          VALUES ('chat', ?2, ?1, 'off-topic', NULL, ?3)`,
         id,

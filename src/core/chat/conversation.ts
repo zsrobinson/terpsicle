@@ -28,6 +28,8 @@ export type ChatItem = ChatMessage & {
     /** `sending` until the ack; `failed` with why when the server refused it. */
     readonly state: "sending" | "failed";
     readonly error?: ChatErrorCode;
+    /** When the owner's stop ends, for a send it refused (V2 §10). */
+    readonly until?: string;
   };
 };
 
@@ -93,6 +95,7 @@ export type ConversationAction =
       readonly type: "send-failed";
       readonly req: ChatRequestId;
       readonly code: ChatErrorCode;
+      readonly until?: string;
     }
   /** Your failed send, dropped (or retried under a new request id). */
   | { readonly type: "discard"; readonly req: ChatRequestId }
@@ -337,7 +340,12 @@ export function conversationReducer(
           ...state.byId,
           [id]: {
             ...message,
-            local: { req: action.req, state: "failed", error: action.code },
+            local: {
+              req: action.req,
+              state: "failed",
+              error: action.code,
+              ...(action.until ? { until: action.until } : {}),
+            },
           },
         },
       };

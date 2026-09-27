@@ -207,3 +207,27 @@ export const CourseDetailsTabSchema = z.enum([
   "about",
 ]);
 export type CourseDetailsTab = z.infer<typeof CourseDetailsTabSchema>;
+
+/**
+ * The grade a review's author says they got; null is "Rather not say". Here
+ * rather than with Reviews' schemas so moderation's queue can use it too.
+ */
+export const REVIEW_GRADES = [
+  "A+",
+  "A",
+  "A-",
+  "B+",
+  "B",
+  "B-",
+  "C+",
+  "C",
+  "C-",
+  "D+",
+  "D",
+  "D-",
+  "F",
+  "W",
+  "P",
+] as const;
+export const ReviewGradeSchema = z.enum(REVIEW_GRADES);
+export type ReviewGrade = z.infer<typeof ReviewGradeSchema>;

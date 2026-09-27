@@ -9,7 +9,7 @@ import type {
 } from "~/core/schema";
 import { LENGTH_LIMITS } from "../moderation/limits";
 import { REASON_WORDS } from "../moderation/policy-text";
-import { formatShortDate } from "../time/format";
+import { stopEndWords } from "../time/format";
 import { REVIEW_LIMITS } from "./rules";
 
 const { min, max } = LENGTH_LIMITS.review;
@@ -146,7 +146,7 @@ export function writeResultWords(
         ? `${notPostedWords(result.reason)} Readers still see your earlier words.`
         : notPostedWords(result.reason);
     case "blocked":
-      return `You can't write reviews until ${formatShortDate(result.until.slice(0, 10))}.`;
+      return `You can't write reviews until ${stopEndWords(result.until)}.`;
     case "limit":
       return `You've written ${REVIEW_LIMITS.perWeek} reviews this week. You can write another in ${waitWords(result.retryAfterSeconds)}.`;
     case "not-found":

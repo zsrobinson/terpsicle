@@ -127,7 +127,11 @@ test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
   await form.getByRole("button", { name: "Post review" }).click();
 
   // Held for a person (no model in mock mode). The toast says what's next.
-  await expect(page.getByText(HELD)).toBeVisible({ timeout: 20_000 });
+  // (Only the toast: once the page refetches, the writer's own card says it
+  // too, and a page-wide match would find both.)
+  await expect(
+    page.getByRole("region", { name: /Notifications/ }).getByText(HELD),
+  ).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("form", { name: "Write a review" })).toHaveCount(
     0,
   );

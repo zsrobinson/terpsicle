@@ -180,6 +180,8 @@ beforeEach(async () => {
       "sessions",
       "moderation_decisions",
       "moderation_queue",
+      "moderation_author_stops",
+      "author_stops",
       "reports",
       "users",
     ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
@@ -907,6 +909,8 @@ describe("sending", () => {
     const error = await a.client.error(req);
     expect(error.code).toBe("slow-down");
     expect(error.retryAfter).toBeGreaterThan(3_500);
+    // The frame says until when, for "You can't post in Chat until …".
+    expect(Date.parse(error.until ?? "")).toBeGreaterThan(Date.now());
   });
 
   it("keeps professor and section rooms to their sections", async () => {
@@ -1629,6 +1633,268 @@ describe("reports", () => {
     const ack = await a.client.sendText(courseRoom, "quiz tomorrow?");
     const ref = chatTargetId(TERM, COURSE, ack.message?.id ?? "");
     expect((await report(classmate, ref, "other", "off")).status).toBe(503);
+  });
+});
+
+describe("the owner's actions", () => {
+  /**
+   * tadmin through the admin routes. Identity's test mode makes them the
+   * admin, and it only runs on localhost and previews.
+   */
+  async function owner() {
+    const admin = await signIn("tadmin");
+    const local = "http://localhost:3000";
+    return async (path: string, body: unknown) => {
+      const response = await handleApi(
+        new Request(`${local}/api/${path}`, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: {
+            "Content-Type": "application/json",
+            Origin: local,
+            "Sec-Fetch-Site": "same-origin",
+            Cookie: admin.cookie,
+          },
+        }),
+        {
+          ...env,
+          CHAT_ENABLED: "on",
+          AUTH_TEST_MODE: "true",
+        } as unknown as ApiEnv,
+        { waitUntil: () => {} },
+      );
+      return { status: response.status, text: await response.text() };
+    };
+  }
+
+  /** Nothing the owner was shown names tstudent. */
+  function expectNoAuthor(text: string) {
+    for (const secret of ["tstudent", "Test Student"])
+      expect(text).not.toContain(secret);
+  }
+
+  const blockedUntil = () =>
+    env.DB.prepare(
+      "SELECT chat_blocked_until FROM users WHERE id = 'tstudent'",
+    ).first<string | null>("chat_blocked_until");
+
+  it("stops a message's author for 7 days through the queue, and undo lifts it", async () => {
+    const { student, classmate } = await twoPeople();
+    const admin = await owner();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "buy my notes, cheap");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    const ref = chatTargetId(TERM, COURSE, id);
+    await classmate.api("reports/create", {
+      surface: "chat",
+      ref,
+      reason: "off-topic",
+      note: null,
+    });
+
+    const queue = await admin("admin/moderation/queue", { status: "open" });
+    expectNoAuthor(queue.text);
+    const item = JSON.parse(queue.text).items.find(
+      (i: { targetId: string }) => i.targetId === ref,
+    );
+    expect(item).toMatchObject({ kind: "chat", review: null });
+
+    // Only with a removal.
+    expect(
+      (
+        await admin("admin/moderation/resolve", {
+          id: item.id,
+          action: "approve",
+          reason: "fine",
+          authorAction: "stop",
+        })
+      ).status,
+    ).toBe(400);
+    const before = Date.now();
+    const resolved = await admin("admin/moderation/resolve", {
+      id: item.id,
+      action: "remove",
+      reason: "spam",
+      authorAction: "stop",
+    });
+    expect(resolved.status).toBe(200);
+    expectNoAuthor(resolved.text);
+    const { item: closed } = JSON.parse(resolved.text);
+    expect(closed.status).toBe("closed");
+    const until = Date.parse(closed.stoppedUntil);
+    expect(until - before).toBeGreaterThanOrEqual(7 * DAY - 60_000);
+    expect(until - before).toBeLessThanOrEqual(7 * DAY + 60_000);
+    expect(await blockedUntil()).toBe(closed.stoppedUntil);
+
+    // The author's next message waits, and says until when.
+    const req = a.client.req();
+    a.client.send({
+      type: "send",
+      req,
+      room: courseRoom,
+      text: "hi",
+      replyTo: null,
+    });
+    const refused = await a.client.error(req);
+    expect(refused).toMatchObject({
+      code: "slow-down",
+      until: closed.stoppedUntil,
+    });
+    expect(refused.retryAfter).toBeGreaterThan(6 * 86_400);
+
+    // The log says a stop happened, not who.
+    const log = await admin("admin/decisions", { surface: "chat" });
+    expectNoAuthor(log.text);
+    expect(JSON.parse(log.text).decisions[0]).toMatchObject({
+      stage: "human",
+      verdict: "remove",
+      reasons: [{ code: "author-stopped" }],
+    });
+    for (const table of [
+      "moderation_decisions",
+      "moderation_queue",
+      "moderation_author_stops",
+    ])
+      expectNoAuthor(
+        JSON.stringify(
+          (await env.DB.prepare(`SELECT * FROM ${table}`).all()).results,
+        ),
+      );
+
+    // Undo puts the message back in the queue and lifts the stop.
+    const undone = await admin("admin/moderation/undo", { id: item.id });
+    expect(JSON.parse(undone.text)).toMatchObject({
+      status: "ok",
+      item: { status: "open", stoppedUntil: null },
+    });
+    expect(await blockedUntil()).toBeNull();
+    expect(
+      (await a.client.sendText(courseRoom, "sorry all")).message,
+    ).not.toBeNull();
+  });
+
+  it("keeps a longer stop that was already running, and undo leaves it", async () => {
+    const { student } = await twoPeople();
+    const admin = await owner();
+    const later = new Date(Date.now() + 20 * DAY).toISOString();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "spam spam");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    await env.DB.prepare(
+      "UPDATE users SET chat_blocked_until = ?1 WHERE id = 'tstudent'",
+    )
+      .bind(later)
+      .run();
+    const removed = JSON.parse(
+      (
+        await admin("admin/chat/remove", {
+          termId: TERM,
+          courseCode: COURSE,
+          messageId: id,
+          reason: "spam",
+          authorAction: "stop",
+        })
+      ).text,
+    );
+    // The item says when its own stop ends; the longer one stays in force.
+    expect(Date.parse(removed.item.stoppedUntil)).toBeLessThan(
+      Date.parse(later),
+    );
+    expect(await blockedUntil()).toBe(later);
+    await admin("admin/moderation/undo", { id: removed.item.id });
+    expect(await blockedUntil()).toBe(later);
+  });
+
+  it("removes a message found outside the queue, logged without its author", async () => {
+    const { student, classmate } = await twoPeople();
+    const admin = await owner();
+    const a = await student.join([courseRoom]);
+    const b = await classmate.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "dm me for the exam key");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    await b.client.next("message", (f) => f.message.id === id);
+
+    const input = {
+      termId: TERM,
+      courseCode: COURSE,
+      messageId: id,
+      reason: "academic-integrity",
+    };
+    expect((await student.api("admin/chat/remove", input)).status).toBe(403);
+    const removed = await admin("admin/chat/remove", input);
+    expect(removed.status).toBe(200);
+    expectNoAuthor(removed.text);
+    expect(JSON.parse(removed.text)).toMatchObject({
+      status: "ok",
+      item: {
+        kind: "chat",
+        targetId: chatTargetId(TERM, COURSE, id),
+        text: "dm me for the exam key",
+        status: "closed",
+        resolution: { decision: "remove", reason: "academic-integrity" },
+        stoppedUntil: null,
+      },
+    });
+    // Classmates see it go; its author is told.
+    expect(await b.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      {
+        moderation: { state: "removed" },
+      },
+    );
+    expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      {
+        moderation: { state: "removed" },
+      },
+    );
+    expect((await b.client.history(courseRoom)).messages).toEqual([]);
+    const decisions = await env.DB.prepare(
+      "SELECT stage, verdict, decided_by, reason FROM moderation_decisions WHERE ref = ?1",
+    )
+      .bind(chatTargetId(TERM, COURSE, id))
+      .all();
+    expect(decisions.results).toEqual([
+      {
+        stage: "human",
+        verdict: "remove",
+        decided_by: "admin",
+        reason: "academic-integrity",
+      },
+    ]);
+    expectNoAuthor(
+      JSON.stringify(
+        (await env.DB.prepare("SELECT * FROM moderation_decisions").all())
+          .results,
+      ),
+    );
+
+    // Undo: back in the queue, held for its author only.
+    const undone = await admin("admin/moderation/undo", {
+      id: JSON.parse(removed.text).item.id,
+    });
+    expect(JSON.parse(undone.text)).toMatchObject({
+      status: "ok",
+      item: { status: "open" },
+    });
+    expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      {
+        moderation: { state: "held" },
+      },
+    );
+
+    // A message that isn't there.
+    expect(
+      JSON.parse(
+        (
+          await admin("admin/chat/remove", {
+            ...input,
+            messageId: "nosuchmessage1",
+          })
+        ).text,
+      ),
+    ).toEqual({ status: "not-found" });
   });
 });
 

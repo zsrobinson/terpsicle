@@ -234,7 +234,11 @@ function LocalState({
     return (
       <div className="flex flex-wrap items-center gap-x-2 text-sm">
         <span className="text-muted" role="status">
-          {chatErrorWords(item.local.error ?? "bad-frame")}
+          {chatErrorWords(
+            item.local.error ?? "bad-frame",
+            null,
+            item.local.until ?? null,
+          )}
         </span>
         <WithTooltip label="Send it again">
           <Button
