@@ -539,6 +539,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0013_author_stops` | `moderation_author_stops` (per queue item: the stop's id and when it ends; no author), `author_stops` (per stop: who it's on, for Reviews' and Chat's stores; purged with the account) | "Stop this author" and its Undo (V2.md §10, MODERATION.md §6) |
 | `0014_chat_spam_guard` | `chat_send_hashes` (`user_id`, `course_code`, `text_hash`, `created_at`; kept an hour) | Chat's spam guard across courses (MODERATION.md §2, §7.9) |
 | `0015_todo_tasks` | `todo_tasks` (your own tasks: title, course, due date and time) | Todo's "Add a task…" (V3.md §3.10) |
+| `0016_todo_hidden` | `todo_hidden` (the course groups a person hid in Todo) | "Hide CMSC216" (V3.md §3.11) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -636,11 +637,12 @@ The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the
 | `todo_items` | `(user_id, uid)` | `source` (`elms` · `file`), `title`, `course_label`, `course_code`, `section_code`, `kind`, `exam`, `gradescope`, `due_at`, `due_date`, `link`, `first_seen_at`, `updated_at` | Only `due_date` from 30 days ago to a year ahead, at most 1,500 feed items and 1,000 file items. A fetch is two statements whatever the size (`json_each`): an upsert that writes only changed rows, and a delete of the source's items that left. A feed item replaces a file item with its UID; a file item never replaces a feed item. No descriptions. |
 | `todo_done` | `(user_id, uid)` | `done_at` | Apart from items, so a refetch or a reconnect keeps them. Own tasks' marks are here too, under the task's uid. |
 | `todo_tasks` | `(user_id, uid)` | `title`, `course_code`, `due_at`, `due_date`, `created_at`, `updated_at` | Your own tasks (V3.md §3.10), typed in Terpsicle and never sent to ELMS. `uid` is `own-<random>`, made by the app so Undo can put a deleted task back as itself; saving the same uid changes the task. `due_date` null is "No date"; `due_at` is set only with a time. At most 500 per person; dates from 30 days back to a year ahead. A table of its own because each fetch rewrites `todo_items` by source and its `due_date` can't be empty. `TodoTaskRowSchema` in `store.ts`. |
+| `todo_hidden` | `(user_id, course_key)` | `hidden_at` | Courses a person hid (V3.md §3.11, `0016_todo_hidden.sql`): the group's key, a course code or an ELMS course name. At most 100. Disconnecting keeps them. |
 
-- **Disconnecting** deletes the feed row, its `elms` items and every done mark not on a remaining file item or own task, in one batch. Own tasks stay.
+- **Disconnecting** deletes the feed row, its `elms` items and every done mark not on a remaining file item or own task, in one batch. Own tasks and hidden courses stay.
 - **Deleting a task** deletes its done mark in the same batch.
 - **The daily job** deletes items and own tasks due more than 30 days ago (a task with no date stays), and done marks over 30 days old whose item or task is gone (we don't record when an item left the feed, so the mark's age stands in).
-- **Deleting an account** removes all four by `ON DELETE CASCADE`, and the purge deletes them explicitly (`src/server/auth/purge.ts`).
+- **Deleting an account** removes all five by `ON DELETE CASCADE`, and the purge deletes them explicitly (`src/server/auth/purge.ts`).
 
 ---
 

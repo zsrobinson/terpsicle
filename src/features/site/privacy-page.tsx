@@ -117,11 +117,11 @@ export function PrivacyPage() {
           <p>
             To show your deadlines, we keep your ELMS calendar link on our
             server, encrypted, and check it about every 20 minutes. We store the
-            assignments and events it lists (titles, courses and due dates) and
-            which ones you've marked done. We don't get your grades, submissions
-            or ELMS password, and we never sign in to ELMS or Gradescope for
-            you. Disconnect any time and we delete the link and everything from
-            it at once.
+            assignments and events it lists (titles, courses and due dates),
+            which ones you've marked done, and any courses you hide. We don't
+            get your grades, submissions or ELMS password, and we never sign in
+            to ELMS or Gradescope for you. Disconnect any time and we delete the
+            link and everything from it at once.
           </p>
           <p>
             If you add a calendar file, it's read in your browser. Only the

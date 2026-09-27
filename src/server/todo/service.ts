@@ -7,6 +7,7 @@
 //   todo/done         marks an item done or not
 //   todo/refresh      fetches the feed now (at most every 5 minutes)
 //   todo/import-file  stores a dropped file's items
+//   todo/hide-course  hides a course's items everywhere, or shows them (V3 §3.11)
 //   todo/save-task    adds or changes one of your own tasks (V3 §3.10)
 //   todo/delete-task  deletes one, with its done mark
 //
@@ -14,6 +15,7 @@
 import {
   TODO_MAX_FEED_ITEMS,
   TODO_MAX_FILE_ITEMS,
+  TODO_MAX_HIDDEN,
   TODO_MAX_TASKS,
   type TodoConnectInput,
   type TodoConnectResult,
@@ -22,6 +24,8 @@ import {
   type TodoDisconnectResult,
   type TodoDoneInput,
   type TodoDoneResult,
+  type TodoHideCourseInput,
+  type TodoHideCourseResult,
   type TodoImportFileInput,
   type TodoImportFileResult,
   type TodoListInput,
@@ -65,10 +69,12 @@ import {
   feedState,
   feedSuccessStatement,
   getFeed,
+  hiddenCourses,
   listItems,
   listTasks,
   markOpened,
   replaceItemsStatements,
+  setCourseHidden,
   setDone,
   upsertTask,
 } from "./store";
@@ -197,7 +203,26 @@ export async function list(
       userId,
       items.map((i) => i.uid),
     ),
+    hidden: await hiddenCourses(env.DB, userId),
   };
+}
+
+export async function hideCourse(
+  env: TodoApiEnv,
+  input: TodoHideCourseInput,
+  ctx: IdentityRouteContext,
+): Promise<TodoHideCourseResult | Response> {
+  const started = await begin(env, ctx);
+  if (started instanceof Response) return started;
+  await setCourseHidden(
+    env.DB,
+    started.userId,
+    input.key,
+    input.hidden,
+    ctx.now,
+    TODO_MAX_HIDDEN,
+  );
+  return { status: "ok" };
 }
 
 export async function done(
