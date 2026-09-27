@@ -23,26 +23,33 @@ export function TodoCheckbox({
   title,
   done,
   onToggle,
-  disabled = false,
+  sample = false,
   className,
 }: {
   title: string;
   done: boolean;
   onToggle?: () => void;
-  disabled?: boolean;
+  /** The front door's sample: it can't be checked, and says why. */
+  sample?: boolean;
   className?: string;
 }) {
   // The label is the target (44px on phones); the box inside is the control.
   return (
-    <label
-      className={cn(TARGET, disabled ? null : "cursor-pointer", className)}
-    >
-      <WithTooltip label={done ? "Mark as not done" : "Mark done"}>
+    <label className={cn(TARGET, sample ? null : "cursor-pointer", className)}>
+      <WithTooltip
+        label={
+          sample
+            ? "A sample. Sign in to check off your own."
+            : done
+              ? "Mark as not done"
+              : "Mark done"
+        }
+      >
         <input
           type="checkbox"
           checked={done}
-          disabled={disabled}
-          aria-label={`Done: ${title}`}
+          disabled={sample}
+          aria-label={sample ? `Sample: ${title}` : `Done: ${title}`}
           onChange={() => onToggle?.()}
           className="size-4 shrink-0 cursor-pointer accent-accent disabled:cursor-default"
         />
@@ -143,7 +150,7 @@ export function TodoItemRow({
           title={item.title}
           done={done}
           onToggle={onToggle}
-          disabled={preview}
+          sample={preview}
           className="-my-3 -mr-2 -ml-3 md:-my-1.5 md:-mr-1.5 md:-ml-2"
         />
       }

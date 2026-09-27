@@ -12,6 +12,9 @@ import { useTodo } from "./todo-store";
 // secret: it's checked here for its shape, sent only in `todo/connect`'s
 // body, never echoed back, and cleared as soon as the answer comes.
 
+/** Where Calendar Feed is: step one of connecting. */
+export const ELMS_CALENDAR_URL = "https://umd.instructure.com/calendar";
+
 export const WHAT_COMES_THROUGH =
   "Assignments, quizzes and exams with a due date, and events your professors put on the ELMS calendar. Undated work and grades don't come through.";
 
@@ -32,7 +35,7 @@ export function ConnectSteps() {
         Open{" "}
         <WithTooltip label="Opens your ELMS calendar in a new tab">
           <a
-            href="https://umd.instructure.com/calendar"
+            href={ELMS_CALENDAR_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
