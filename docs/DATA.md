@@ -537,6 +537,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
 | `0012_feedback` | `feedback`, `feedback_groups` | The feedback sheet (FEEDBACK.md) |
 | `0013_author_stops` | `moderation_author_stops` (per queue item: the stop's id and when it ends; no author), `author_stops` (per stop: who it's on, for Reviews' and Chat's stores; purged with the account) | "Stop this author" and its Undo (V2.md §10, MODERATION.md §6) |
+| `0014_todo_tasks` | `todo_tasks` (your own tasks: title, course, due date and time) | Todo's "Add a task…" (V3.md §3.10) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -623,7 +624,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 
 **Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` and `notifications` rows. `chat_members` stays: it describes people.
 
-### 7.10 Terpsicle Todo (landed: `migrations/0011_todo.sql`)
+### 7.10 Terpsicle Todo (landed: `migrations/0011_todo.sql`, `0014_todo_tasks.sql`)
 
 The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the SQL `src/server/todo/store.ts` (with `TodoFeedRowSchema` and `TodoItemRowSchema`), the fetcher `fetch.ts`, the per-feed write `refresh.ts`, and the cron `src/jobs/todo-feeds.ts`. Inputs, answers and limits are `src/core/schema/todo-api.ts`; the pure pieces (cadence, backoff, the window, file items, test mode's feed) are in `src/core/todo`.
 
@@ -631,11 +632,13 @@ The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the
 |---|---|---|---|
 | `todo_feeds` | `(user_id, source)` | `url_enc`, `status` (`active` · `paused` · `broken`), `created_at`, `next_fetch_at`, `last_fetch_at`, `last_success_at`, `failure_count`, `last_error` (a code), `gone_strikes`, `gone_at`, `etag`, `last_modified`, `content_hash`, `item_count`, `last_opened_at` | One ELMS feed per person. `url_enc` is the link sealed with AES-256-GCM, `v1.<keyId>.<iv>.<ciphertext>`, bound to `todo-feed:<userId>:<source>`; only `src/server/todo/crypto.ts` and `fetch.ts` touch it (`scripts/check-imports.ts`), and store.ts reads rows by naming every other column. `gone_strikes` / `gone_at` count 401/403/404/410 answers in a row at least an hour apart; the third sets `broken`. |
 | `todo_items` | `(user_id, uid)` | `source` (`elms` · `file`), `title`, `course_label`, `course_code`, `section_code`, `kind`, `exam`, `gradescope`, `due_at`, `due_date`, `link`, `first_seen_at`, `updated_at` | Only `due_date` from 30 days ago to a year ahead, at most 1,500 feed items and 1,000 file items. A fetch is two statements whatever the size (`json_each`): an upsert that writes only changed rows, and a delete of the source's items that left. A feed item replaces a file item with its UID; a file item never replaces a feed item. No descriptions. |
-| `todo_done` | `(user_id, uid)` | `done_at` | Apart from items, so a refetch or a reconnect keeps them. |
+| `todo_done` | `(user_id, uid)` | `done_at` | Apart from items, so a refetch or a reconnect keeps them. Own tasks' marks are here too, under the task's uid. |
+| `todo_tasks` | `(user_id, uid)` | `title`, `course_code`, `due_at`, `due_date`, `created_at`, `updated_at` | Your own tasks (V3.md §3.10), typed in Terpsicle and never sent to ELMS. `uid` is `own-<random>`, made by the app so Undo can put a deleted task back as itself; saving the same uid changes the task. `due_date` null is "No date"; `due_at` is set only with a time. At most 500 per person; dates from 30 days back to a year ahead. A table of its own because each fetch rewrites `todo_items` by source and its `due_date` can't be empty. `TodoTaskRowSchema` in `store.ts`. |
 
-- **Disconnecting** deletes the feed row, its `elms` items and every done mark not on a remaining file item, in one batch.
-- **The daily job** deletes items due more than 30 days ago, and done marks over 30 days old whose item is gone (we don't record when an item left the feed, so the mark's age stands in).
-- **Deleting an account** removes all three by `ON DELETE CASCADE`.
+- **Disconnecting** deletes the feed row, its `elms` items and every done mark not on a remaining file item or own task, in one batch. Own tasks stay.
+- **Deleting a task** deletes its done mark in the same batch.
+- **The daily job** deletes items and own tasks due more than 30 days ago (a task with no date stays), and done marks over 30 days old whose item or task is gone (we don't record when an item left the feed, so the mark's age stands in).
+- **Deleting an account** removes all four by `ON DELETE CASCADE`, and the purge deletes them explicitly (`src/server/auth/purge.ts`).
 
 ---
 

@@ -351,4 +351,39 @@ describe("the daily job's Todo pruning", () => {
       "event-assignment-4410012",
     ]);
   });
+
+  it("drops own tasks due over 30 days ago, and keeps undated ones with their marks", async () => {
+    const phone = await connected();
+    const save = (uid: string, dueDate: string | null) =>
+      phone.call("/api/todo/save-task", {
+        uid,
+        title: uid,
+        courseCode: null,
+        dueDate,
+        dueTime: null,
+      });
+    await save("own-old-reading-01", "2026-09-01");
+    await save("own-this-week-001", "2026-09-30");
+    await save("own-someday-00001", null);
+    await phone.call("/api/todo/done", {
+      uid: "own-someday-00001",
+      done: true,
+    });
+    // Marked done long ago: its task is still here, so the mark stays.
+    await env.DB.prepare("UPDATE todo_done SET done_at = ?1")
+      .bind(at(clock - 40 * DAY))
+      .run();
+    clock = Date.parse("2026-10-05T13:07:00.000Z");
+    await runDailyJob({ env: testEnv, now: now() });
+    const tasks = await env.DB.prepare(
+      "SELECT uid FROM todo_tasks ORDER BY uid",
+    ).all<{ uid: string }>();
+    expect(tasks.results.map((r) => r.uid)).toEqual([
+      "own-someday-00001",
+      "own-this-week-001",
+    ]);
+    expect(await env.DB.prepare("SELECT uid FROM todo_done").first("uid")).toBe(
+      "own-someday-00001",
+    );
+  });
 });

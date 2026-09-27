@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { addDays } from "~/core/ics/dates";
 import {
+  type CourseCode,
   CourseCodeSchema,
   type FeedItem,
   FeedItemKindSchema,
@@ -18,8 +19,9 @@ import {
   type TodoFetchError,
   TodoFetchErrorSchema,
   type TodoItem,
+  TodoTaskUidSchema,
 } from "~/core/schema";
-import { newYorkDateOf } from "~/core/todo";
+import { newYorkDateOf, ownTaskItem } from "~/core/todo";
 import type { FeedOwner } from "./crypto";
 
 export const TodoFeedRowSchema = z.object({
@@ -279,10 +281,12 @@ export function disconnectStatements(
     db
       .prepare("DELETE FROM todo_items WHERE user_id = ?1 AND source = 'elms'")
       .bind(userId),
+    // Own tasks keep theirs: they aren't ELMS's.
     db
       .prepare(
         `DELETE FROM todo_done WHERE user_id = ?1
-         AND uid NOT IN (SELECT uid FROM todo_items WHERE user_id = ?1)`,
+         AND uid NOT IN (SELECT uid FROM todo_items WHERE user_id = ?1)
+         AND uid NOT IN (SELECT uid FROM todo_tasks WHERE user_id = ?1)`,
       )
       .bind(userId),
   ];
@@ -412,7 +416,7 @@ export async function doneAmong(
   return results.flatMap((r) => (typeof r.uid === "string" ? [r.uid] : []));
 }
 
-/** Marks an item done (only one the person has) or not done. */
+/** Marks an item or own task done (only one the person has) or not done. */
 export async function setDone(
   db: D1Database,
   userId: string,
@@ -424,8 +428,9 @@ export async function setDone(
     ? db
         .prepare(
           `INSERT INTO todo_done (user_id, uid, done_at)
-           SELECT ?1, ?2, ?3 WHERE EXISTS
-             (SELECT 1 FROM todo_items WHERE user_id = ?1 AND uid = ?2)
+           SELECT ?1, ?2, ?3 WHERE
+             EXISTS (SELECT 1 FROM todo_items WHERE user_id = ?1 AND uid = ?2)
+             OR EXISTS (SELECT 1 FROM todo_tasks WHERE user_id = ?1 AND uid = ?2)
            ON CONFLICT (user_id, uid) DO NOTHING`,
         )
         .bind(userId, uid, now.toISOString())
@@ -435,32 +440,149 @@ export async function setDone(
   await statement.run();
 }
 
+// ---------- Own tasks ----------
+
+export const TodoTaskRowSchema = z.object({
+  user_id: z.string(),
+  uid: TodoTaskUidSchema,
+  title: z.string().min(1),
+  course_code: CourseCodeSchema.nullable(),
+  due_at: IsoDateTimeSchema.nullable(),
+  due_date: IsoDateSchema.nullable(),
+  created_at: IsoDateTimeSchema,
+  updated_at: IsoDateTimeSchema,
+});
+export type TodoTaskRow = z.infer<typeof TodoTaskRowSchema>;
+
+const toTaskItem = (row: TodoTaskRow): TodoItem =>
+  ownTaskItem({
+    uid: row.uid,
+    title: row.title,
+    courseCode: row.course_code,
+    dueAt: row.due_at,
+    dueDate: row.due_date,
+  });
+
+/**
+ * A person's own tasks due from `from` through `to` (all dated ones without
+ * a range), and with `undated`, the ones with no date too. Soonest first.
+ */
+export async function listTasks(
+  db: D1Database,
+  userId: string,
+  range: { from: IsoDate; to: IsoDate } | null,
+  { undated }: { undated: boolean },
+): Promise<TodoItem[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM todo_tasks WHERE user_id = ?1
+       AND ((due_date IS NOT NULL AND (?2 IS NULL OR due_date BETWEEN ?2 AND ?3))
+            OR (?4 AND due_date IS NULL))
+       ORDER BY due_date IS NULL, due_date, due_at IS NOT NULL, due_at, title, uid`,
+    )
+    .bind(userId, range?.from ?? null, range?.to ?? null, undated ? 1 : 0)
+    .all();
+  return results.map((r) => toTaskItem(TodoTaskRowSchema.parse(r)));
+}
+
+/** A task as it's saved: its New York date and the instant, when it has a time. */
+export interface TaskToSave {
+  uid: string;
+  title: string;
+  courseCode: CourseCode | null;
+  dueAt: string | null;
+  dueDate: IsoDate | null;
+}
+
+/**
+ * Adds a task or changes the person's task with that uid. A new one past
+ * `max` isn't added: the answer is null then.
+ */
+export async function upsertTask(
+  db: D1Database,
+  userId: string,
+  task: TaskToSave,
+  now: Date,
+  max: number,
+): Promise<TodoItem | null> {
+  const at = now.toISOString();
+  const row = await db
+    .prepare(
+      `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7
+       WHERE (SELECT COUNT(*) FROM todo_tasks WHERE user_id = ?1) < ?8
+          OR EXISTS (SELECT 1 FROM todo_tasks WHERE user_id = ?1 AND uid = ?2)
+       ON CONFLICT (user_id, uid) DO UPDATE SET
+         title = excluded.title, course_code = excluded.course_code,
+         due_at = excluded.due_at, due_date = excluded.due_date,
+         updated_at = excluded.updated_at
+       RETURNING *`,
+    )
+    .bind(
+      userId,
+      task.uid,
+      task.title,
+      task.courseCode,
+      task.dueAt,
+      task.dueDate,
+      at,
+      max,
+    )
+    .first();
+  return row ? toTaskItem(TodoTaskRowSchema.parse(row)) : null;
+}
+
+/** Deletes one of the person's tasks, and its done mark with it. */
+export function deleteTaskStatements(
+  db: D1Database,
+  userId: string,
+  uid: string,
+): D1PreparedStatement[] {
+  return [
+    // The mark first, and only for a task that's theirs: a uid can't
+    // reach an ELMS item's mark.
+    db
+      .prepare(
+        `DELETE FROM todo_done WHERE user_id = ?1 AND uid = ?2
+         AND EXISTS (SELECT 1 FROM todo_tasks WHERE user_id = ?1 AND uid = ?2)`,
+      )
+      .bind(userId, uid),
+    db
+      .prepare("DELETE FROM todo_tasks WHERE user_id = ?1 AND uid = ?2")
+      .bind(userId, uid),
+  ];
+}
+
 // ---------- The daily job and the admin ----------
 
 /**
- * Items due more than 30 days ago, and done marks whose item is gone and
- * that are over 30 days old (we don't record when an item left the feed, so
- * the mark's own age stands in for it).
+ * Items and own tasks due more than 30 days ago (a task with no date stays),
+ * and done marks whose item or task is gone and that are over 30 days old
+ * (we don't record when an item left the feed, so the mark's own age stands
+ * in for it).
  */
 export async function pruneTodo(
   db: D1Database,
   now: Date,
-): Promise<{ items: number; doneMarks: number }> {
+): Promise<{ items: number; tasks: number; doneMarks: number }> {
   const cutoff = addDays(newYorkDateOf(now.getTime()), -TODO_WINDOW_PAST_DAYS);
   const markCutoff = new Date(
     now.getTime() - TODO_WINDOW_PAST_DAYS * 86_400_000,
   ).toISOString();
-  const [items, marks] = await db.batch([
+  const [items, tasks, marks] = await db.batch([
     db.prepare("DELETE FROM todo_items WHERE due_date < ?1").bind(cutoff),
+    db.prepare("DELETE FROM todo_tasks WHERE due_date < ?1").bind(cutoff),
     db
       .prepare(
-        `DELETE FROM todo_done WHERE done_at < ?1 AND NOT EXISTS
-           (SELECT 1 FROM todo_items i WHERE i.user_id = todo_done.user_id AND i.uid = todo_done.uid)`,
+        `DELETE FROM todo_done WHERE done_at < ?1
+         AND NOT EXISTS (SELECT 1 FROM todo_items i WHERE i.user_id = todo_done.user_id AND i.uid = todo_done.uid)
+         AND NOT EXISTS (SELECT 1 FROM todo_tasks t WHERE t.user_id = todo_done.user_id AND t.uid = todo_done.uid)`,
       )
       .bind(markCutoff),
   ]);
   return {
     items: items?.meta.changes ?? 0,
+    tasks: tasks?.meta.changes ?? 0,
     doneMarks: marks?.meta.changes ?? 0,
   };
 }

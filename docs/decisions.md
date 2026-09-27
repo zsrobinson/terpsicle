@@ -277,6 +277,11 @@ Revisit if: Gradescope offers students an API or feed.
 Gradescope items linked in ELMS get a "Gradescope" tag from the ELMS feed; the fallback is an `.ics` the student drops in, read in the browser.
 Revisit if: UMD's Gradescope setup changes.
 
+### Own tasks in Todo
+2026-09-27 · owner · one feature
+Todo takes tasks you type ("Add a task…"), kept in D1 per person and never sent to ELMS, beside the feed's items. This changes V3 §3.1, which left own todos out of the first release. The owner, after Better Canvas and Tasks for Canvas: "i kind of want you to just go off and implement anything that seems like it would be obviously really good for us to have based on that ... we don't want to make an extension ourselves, just have cool stuff that they have."
+Revisit if: never on its own; the owner decides.
+
 ### ELMS feeds come from umd.instructure.com
 2026-09-27 · agent · one feature
 `parseFeedLink` still takes a feed link on `elms.umd.edu`, but moves it to the same path on `umd.instructure.com` before anything fetches or stores it: `elms.umd.edu` is UMD's landing page and answers 404 for every feed. Redirects and item links still pass on either host (`isElmsUrl`). Connecting waits 25 seconds for the first fetch, since the person is watching and Canvas builds a whole feed as it's asked; the cron and refresh keep 10.

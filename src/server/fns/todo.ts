@@ -4,6 +4,8 @@ import type { z } from "zod";
 import {
   TodoConnectInputSchema,
   TodoConnectResultSchema,
+  TodoDeleteTaskInputSchema,
+  TodoDeleteTaskResultSchema,
   TodoDisconnectInputSchema,
   TodoDisconnectResultSchema,
   TodoDoneInputSchema,
@@ -14,6 +16,8 @@ import {
   TodoListResultSchema,
   TodoRefreshInputSchema,
   TodoRefreshResultSchema,
+  TodoSaveTaskInputSchema,
+  TodoSaveTaskResultSchema,
 } from "~/core/schema";
 import { type ApiOptions, call } from "./api";
 
@@ -73,6 +77,29 @@ export const todoApi = {
       "todo/import-file",
       TodoImportFileInputSchema,
       TodoImportFileResultSchema,
+      input,
+      options,
+    ),
+  /** Adds or changes an own task; the same uid is the same task. */
+  saveTask: (
+    input: z.input<typeof TodoSaveTaskInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "todo/save-task",
+      TodoSaveTaskInputSchema,
+      TodoSaveTaskResultSchema,
+      input,
+      options,
+    ),
+  deleteTask: (
+    input: z.input<typeof TodoDeleteTaskInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "todo/delete-task",
+      TodoDeleteTaskInputSchema,
+      TodoDeleteTaskResultSchema,
       input,
       options,
     ),

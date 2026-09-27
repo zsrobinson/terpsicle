@@ -848,6 +848,25 @@ export function aTodoItem(overrides: Partial<TodoItem> = {}): TodoItem {
   };
 }
 
+/** An own task as the app gets it from `todo/list`: no date, no course. */
+export function anOwnTask(overrides: Partial<TodoItem> = {}): TodoItem {
+  return {
+    uid: "own-5b0c2a4e-7d1f-4c1a-9f0e-2b7c3d4e5f60",
+    source: "own",
+    title: "Email Dr. Kim about the lab",
+    courseLabel: null,
+    courseCode: null,
+    sectionCode: null,
+    kind: "assignment",
+    exam: false,
+    gradescope: false,
+    dueAt: null,
+    dueDate: null,
+    link: null,
+    ...overrides,
+  };
+}
+
 /** A healthy ELMS feed, read a few minutes before `FIXTURE_NOW`. */
 export function aTodoFeedState(
   overrides: Partial<TodoFeedState> = {},

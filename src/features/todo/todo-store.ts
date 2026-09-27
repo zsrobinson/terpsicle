@@ -7,7 +7,15 @@ import type {
   TodoImportFileResult,
   TodoItem,
 } from "~/core/schema";
-import { type ConnectAnswer, isStale, listRange } from "~/core/todo";
+import {
+  type ConnectAnswer,
+  isStale,
+  listRange,
+  ownTaskDue,
+  ownTaskItem,
+  type TaskFields,
+  taskFieldsOf,
+} from "~/core/todo";
 import { ApiCallError } from "~/server/fns/api";
 import { todoApi } from "~/server/fns/todo";
 
@@ -64,6 +72,18 @@ export interface TodoState {
   confirmDisconnect: () => void;
   flushDisconnect: () => void;
   importFile: (items: TodoFileItem[]) => Promise<TodoImportFileResult | null>;
+  /**
+   * Adds or changes an own task at once, then saves it; on a failure the
+   * list goes back as it was and the answer says why.
+   */
+  saveTask: (
+    uid: string,
+    fields: TaskFields,
+  ) => Promise<"saved" | "too-many" | "out-of-range" | "failed">;
+  /** Takes an own task off the list at once, then deletes it; false when that failed and it's back. */
+  deleteTask: (uid: string) => Promise<boolean>;
+  /** Puts a deleted task back as it was, done mark and all (Undo). */
+  restoreTask: (item: TodoItem, done: boolean) => Promise<boolean>;
 }
 
 let pending: { before: Snapshot } | null = null;
@@ -224,6 +244,67 @@ export const useTodo = create<TodoState>()((set, get) => {
       } catch {
         return null;
       }
+    },
+
+    saveTask: async (uid, fields) => {
+      const before = get().items.find((i) => i.uid === uid) ?? null;
+      const shown = ownTaskItem({
+        uid,
+        title: fields.title.trim(),
+        courseCode: fields.courseCode,
+        ...ownTaskDue(fields.dueDate, fields.dueTime),
+      });
+      const put = (item: TodoItem | null) =>
+        set({
+          items:
+            item === null
+              ? get().items.filter((i) => i.uid !== uid)
+              : get().items.some((i) => i.uid === uid)
+                ? get().items.map((i) => (i.uid === uid ? item : i))
+                : [...get().items, item],
+        });
+      put(shown);
+      try {
+        const result = await client.saveTask({ uid, ...fields });
+        if (result.status !== "saved") {
+          put(before);
+          return result.status;
+        }
+        put(result.item);
+        return "saved";
+      } catch {
+        put(before);
+        return "failed";
+      }
+    },
+
+    deleteTask: async (uid) => {
+      const { items, done } = get();
+      const index = items.findIndex((i) => i.uid === uid);
+      const item = items[index];
+      if (!item) return true;
+      const wasDone = done.has(uid);
+      const withoutMark = new Set(done);
+      withoutMark.delete(uid);
+      set({ items: items.filter((i) => i.uid !== uid), done: withoutMark });
+      try {
+        await client.deleteTask({ uid });
+        return true;
+      } catch {
+        // Back where it was.
+        const next = [...get().items];
+        next.splice(Math.min(index, next.length), 0, item);
+        const marks = new Set(get().done);
+        if (wasDone) marks.add(uid);
+        set({ items: next, done: marks });
+        return false;
+      }
+    },
+
+    restoreTask: async (item, done) => {
+      const saved = await get().saveTask(item.uid, taskFieldsOf(item));
+      if (saved !== "saved") return false;
+      return done ? get().setDone(item.uid, true) : true;
     },
   };
 });
