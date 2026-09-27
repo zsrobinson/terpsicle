@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { Button } from "./button";
+import { WithTooltip } from "./tooltip";
 
 // A failure, in place of what didn't load (docs/COHESION.md §3, Phase 2):
 // one sentence that says what happened and what's next, and Try again where
@@ -8,11 +9,14 @@ import { Button } from "./button";
 export function InlineError({
   message,
   onRetry,
+  retryTooltip = "Load this again",
   className,
 }: {
   /** "ELMS didn't answer. We'll try again in 20 minutes." */
   message: string;
   onRetry?: () => void;
+  /** What Try again does, when it's more than loading this again. */
+  retryTooltip?: string;
   className?: string;
 }) {
   return (
@@ -22,9 +26,11 @@ export function InlineError({
     >
       <p className="text-fg">{message}</p>
       {onRetry ? (
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          Try again
-        </Button>
+        <WithTooltip label={retryTooltip}>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Try again
+          </Button>
+        </WithTooltip>
       ) : null}
     </div>
   );

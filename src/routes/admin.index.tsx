@@ -9,6 +9,8 @@ import { QueuePage } from "~/features/admin/queue-page";
 // Back returns to the waiting list.
 export const Route = createFileRoute("/admin/")({
   ssr: false,
+  // Admin draws its own frame: no family bar while it loads.
+  staticData: { pending: "none" },
   validateSearch: z.object({
     show: z.literal("decided").optional().catch(undefined),
   }),

@@ -2,15 +2,18 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { InlineError } from "./inline-error";
+import { TooltipProvider } from "./tooltip";
 
 describe("InlineError", () => {
   it("says what happened in one sentence, with Try again", async () => {
     const onRetry = vi.fn();
     render(
-      <InlineError
-        message="ELMS didn't answer. We'll try again in 20 minutes."
-        onRetry={onRetry}
-      />,
+      <TooltipProvider>
+        <InlineError
+          message="ELMS didn't answer. We'll try again in 20 minutes."
+          onRetry={onRetry}
+        />
+      </TooltipProvider>,
     );
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent(
