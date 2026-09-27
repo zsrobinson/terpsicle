@@ -22,6 +22,9 @@ import { useCourseLookup, useFourYearFacts } from "./data";
 // by core: columns and their status, credits, GenEd progress and problems.
 // Components read this and render (CLAUDE.md: "read state, call core").
 
+/** Where the side panel sits beside the semesters, rather than under them. */
+export const PLAN_WIDE_QUERY = "(min-width: 1024px)";
+
 export type PlanModel = {
   readonly doc: FourYearDoc;
   readonly today: IsoDate;

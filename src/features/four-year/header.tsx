@@ -23,6 +23,7 @@ import {
   deleteDoc,
   duplicateDoc,
   newDoc,
+  removeGrades,
   renameDoc,
   setFirstTerm,
 } from "./actions";
@@ -143,6 +144,14 @@ function DocMenu({ onRename }: { onRename: () => void }) {
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
+        {Object.keys(doc.grades).length > 0 ? (
+          <DropdownMenuItem
+            className={MENU_ITEM}
+            onSelect={() => removeGrades(doc)}
+          >
+            Remove grades
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem className={MENU_ITEM} onSelect={() => deleteDoc(doc)}>
           Delete
         </DropdownMenuItem>

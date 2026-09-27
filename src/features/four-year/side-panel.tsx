@@ -8,6 +8,7 @@ import type { PlanTab } from "~/core/schema";
 import { WithTooltip } from "~/ui/tooltip";
 import { CoursePanel } from "./course-panel";
 import { GenEdPanel } from "./gen-ed-panel";
+import { ImportPanel } from "./import-panel";
 import { useModel, usePlanNav } from "./model";
 import { ProblemsPanel } from "./problems-panel";
 import { focusSearch, SearchPanel } from "./search-panel";
@@ -72,6 +73,7 @@ const TABS: readonly { tab: PlanTab; label: string; tip: string }[] = [
   { tab: "gened", label: "GenEd", tip: "GenEd progress" },
   { tab: "problems", label: "Problems", tip: "Prerequisites and credits" },
   { tab: "search", label: "Search", tip: "Find a course to add" },
+  { tab: "import", label: "Import", tip: "Import your transcript" },
 ];
 
 export function SidePanel({
@@ -147,6 +149,8 @@ export function SidePanel({
           <SearchPanel />
         ) : tab === "problems" ? (
           <ProblemsPanel />
+        ) : tab === "import" ? (
+          <ImportPanel />
         ) : (
           <GenEdPanel />
         )}
