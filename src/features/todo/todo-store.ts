@@ -25,9 +25,6 @@ export function setTodoClient(next: TodoClient): void {
   client = next;
 }
 
-/** How long Disconnect waits for Undo before it deletes anything (V3 §3.2). */
-export const DISCONNECT_UNDO_MS = 8_000;
-
 export type TodoPhase = "idle" | "loading" | "ready" | "failed";
 
 /** What the refresh control last said, if anything. */
@@ -62,12 +59,13 @@ export interface TodoState {
   disconnect: () => void;
   undoDisconnect: () => void;
   /** Sends a pending disconnect at once (leaving the page). */
+  /** Undo's time is up: delete the link and its deadlines now. */
+  confirmDisconnect: () => void;
   flushDisconnect: () => void;
   importFile: (items: TodoFileItem[]) => Promise<TodoImportFileResult | null>;
 }
 
-let pending: { timer: ReturnType<typeof setTimeout>; before: Snapshot } | null =
-  null;
+let pending: { before: Snapshot } | null = null;
 
 const INITIAL = {
   phase: "idle" as TodoPhase,
@@ -96,7 +94,6 @@ export const useTodo = create<TodoState>()((set, get) => {
 
   const sendDisconnect = (keepalive: boolean) => {
     if (!pending) return;
-    clearTimeout(pending.timer);
     pending = null;
     set({ disconnecting: false });
     track("todo_disconnected", {});
@@ -164,7 +161,6 @@ export const useTodo = create<TodoState>()((set, get) => {
       // A disconnect still waiting on Undo goes first, or it would delete
       // the link being connected now.
       if (pending) {
-        clearTimeout(pending.timer);
         pending = null;
         set({ disconnecting: false });
         await client.disconnect().catch(() => undefined);
@@ -185,10 +181,9 @@ export const useTodo = create<TodoState>()((set, get) => {
     disconnect: () => {
       if (pending) return;
       const { feed, items, done } = get();
-      pending = {
-        before: { feed, items, done },
-        timer: setTimeout(() => sendDisconnect(false), DISCONNECT_UNDO_MS),
-      };
+      // Sent by confirmDisconnect once the Undo toast is gone (it waits
+      // while Undo has focus), or by flushDisconnect as the page closes.
+      pending = { before: { feed, items, done } };
       set({
         feed: null,
         items: items.filter((i) => i.source !== "elms"),
@@ -199,11 +194,12 @@ export const useTodo = create<TodoState>()((set, get) => {
 
     undoDisconnect: () => {
       if (!pending) return;
-      clearTimeout(pending.timer);
       const { before } = pending;
       pending = null;
       set({ ...before, disconnecting: false });
     },
+
+    confirmDisconnect: () => sendDisconnect(false),
 
     flushDisconnect: () => sendDisconnect(true),
 
@@ -222,7 +218,6 @@ export const useTodo = create<TodoState>()((set, get) => {
 
 /** Test hook: back to nothing loaded, with no disconnect waiting. */
 export function resetTodo(): void {
-  if (pending) clearTimeout(pending.timer);
   pending = null;
   useTodo.setState(INITIAL);
 }

@@ -40,7 +40,7 @@ import { MessageRow } from "./message-row";
 import { ROOM_RULES } from "./room-info";
 import { RoomLabel } from "./room-row";
 import type { CourseChatSession, SessionSnapshot } from "./session";
-import { CHAT_UNDO_MS, showNote, showUndo, useNow } from "./undo";
+import { showNote, showUndo, useNow } from "./undo";
 
 // A room's conversation, or one thread of it (V2.md §8.6): messages oldest
 // to newest with day dividers and a "New" line where what you hadn't read
@@ -545,8 +545,8 @@ function useMessageActions(
       },
       remove: (item) => {
         if (!session) return;
-        const undo = session.deleteLater(room.id, item.id, CHAT_UNDO_MS);
-        showUndo("Message deleted", undo);
+        const { undo, send } = session.deleteLater(room.id, item.id);
+        showUndo("Message deleted", undo, send);
       },
       react: (item, reaction, on) => {
         void session?.react(room.id, item.id, reaction, on).then((result) => {

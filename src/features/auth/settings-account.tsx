@@ -7,6 +7,7 @@ import { SIGN_IN_START_PATH } from "~/core/schema";
 import { SitePage } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
+import { undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { AccountSection } from "./account-page";
 import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
@@ -176,17 +177,16 @@ function AccountActions() {
         track("account_deletion_requested", {});
         // No confirmation dialog (DESIGN §5): Undo signs back in, which
         // keeps the account.
-        toast(`Deleting your account on ${deletionDay(due)}`, {
+        undoToast({
+          id: "account-delete",
+          message: `Deleting your account on ${deletionDay(due)}`,
           description: "Undo signs you back in and keeps it.",
-          duration: 10_000,
-          action: {
-            label: "Undo",
-            onClick: () => {
-              track("signin_started", { from: "undo" });
-              window.location.assign(
-                signInStartHref(SIGN_IN_START_PATH, SETTINGS_PATH),
-              );
-            },
+          tooltip: "Sign back in and keep your account",
+          onUndo: () => {
+            track("signin_started", { from: "undo" });
+            window.location.assign(
+              signInStartHref(SIGN_IN_START_PATH, SETTINGS_PATH),
+            );
           },
         });
       }

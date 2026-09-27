@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { useSeatWatchesSync } from "~/features/alerts/seat-watches";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCatalogPolling } from "~/state/data-hooks";
@@ -8,6 +7,7 @@ import { saveSharedCopy, useShare } from "~/state/share-store";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { Skeleton } from "~/ui/skeleton";
+import { noteToast } from "~/ui/toast";
 import { openTab, redo, undo } from "./actions";
 import { track } from "./analytics";
 import { CalendarRegion } from "./calendar/calendar-region";
@@ -257,7 +257,7 @@ function useSharedLink(
           : "newer-version",
     });
     if (!result.ok) {
-      toast.error(result.error.message);
+      noteToast(result.error.message);
       onClear?.();
     }
   }, [param, open, close, onClear]);
@@ -272,7 +272,7 @@ function useSharedLink(
       if (copy.dropped.length > 0) {
         const list = copy.dropped.map((k) => k.replace("-", " ")).join(", ");
         // "CMSC320 0301 isn't offered anymore, so it wasn't copied."
-        toast(
+        noteToast(
           `${list} ${copy.dropped.length === 1 ? "isn't" : "aren't"} offered anymore, so ${copy.dropped.length === 1 ? "it wasn't" : "they weren't"} copied.`,
         );
       }

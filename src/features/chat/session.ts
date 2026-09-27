@@ -85,10 +85,7 @@ export class CourseChatSession {
   readonly #typedAt = new Map<RoomId, number>();
   readonly #readUpTo = new Map<RoomId, ChatMessageId>();
   /** Deletes waiting out their undo, sent at once if the session closes. */
-  readonly #deletes = new Map<
-    ChatMessageId,
-    { room: RoomId; timer: ReturnType<typeof setTimeout> }
-  >();
+  readonly #deletes = new Map<ChatMessageId, { room: RoomId }>();
 
   constructor(options: SessionOptions) {
     this.termId = options.termId;
@@ -276,19 +273,22 @@ export class CourseChatSession {
   }
 
   /**
-   * Hides your message now and deletes it once the undo runs out (or the
-   * session closes). Returns the undo.
+   * Hides your message now. `send` deletes it, once the Undo toast is gone
+   * (it waits while Undo has focus); `undo` brings it back. Closing the
+   * session sends every delete still waiting.
    */
-  deleteLater(room: RoomId, id: ChatMessageId, afterMs: number): () => void {
+  deleteLater(
+    room: RoomId,
+    id: ChatMessageId,
+  ): { undo: () => void; send: () => void } {
     this.#dispatch({ type: "hide", id });
-    const timer = setTimeout(() => void this.#deleteNow(id), afterMs);
-    this.#deletes.set(id, { room, timer });
-    return () => {
-      const waiting = this.#deletes.get(id);
-      if (!waiting) return;
-      clearTimeout(waiting.timer);
-      this.#deletes.delete(id);
-      this.#dispatch({ type: "unhide", id });
+    this.#deletes.set(id, { room });
+    return {
+      undo: () => {
+        if (!this.#deletes.delete(id)) return;
+        this.#dispatch({ type: "unhide", id });
+      },
+      send: () => void this.#deleteNow(id),
     };
   }
 
@@ -296,7 +296,6 @@ export class CourseChatSession {
     const waiting = this.#deletes.get(id);
     if (!waiting) return;
     this.#deletes.delete(id);
-    clearTimeout(waiting.timer);
     const result = await this.#request({
       type: "delete",
       req: newRequestId(),
