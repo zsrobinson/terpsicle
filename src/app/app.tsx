@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAccount } from "~/features/auth/account-store";
 import { markReturning } from "~/features/marketing/returning";
@@ -9,6 +9,7 @@ import { createDexieCache } from "~/state/data-cache";
 import { createDataReader, createDataSource } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
 import { demoRequested, loadDemoState } from "~/state/demo";
+import { useCurrentPlan } from "~/state/hooks";
 import { newLocalId, nowIso } from "~/state/ids";
 import {
   hydrate,
@@ -23,12 +24,47 @@ import { trackCatalogEvent } from "./actions";
 import { track } from "./analytics";
 import { AppShell, type AppShellProps } from "./app-shell";
 import { type ClientConfig, clientConfig } from "./config";
+import { setFeedbackSources } from "./feedback-sources";
 import { applyThemePreference } from "./theme";
 
 /** The app: loads local state and the catalog, then shows the shell. */
 export function App(props: AppShellProps) {
   useBootstrap(clientConfig);
+  useFeedbackSources();
   return <AppShell {...props} />;
+}
+
+/**
+ * Offers the open plan (only the person's own) and the scheduler's
+ * settings to feedback's "Include what I was doing".
+ */
+function useFeedbackSources() {
+  const current = useCurrentPlan();
+  const ref = useRef(current);
+  ref.current = current;
+  useEffect(
+    () =>
+      setFeedbackSources({
+        plan: () => {
+          const now = ref.current;
+          return now && now.source === "own"
+            ? { plan: now.plan, blocks: now.blocks }
+            : null;
+        },
+        settings: () => {
+          const ui = useUi.getState();
+          return {
+            sidebarOpen: ui.sidebarOpen,
+            sidebarWidth: ui.sidebarWidth,
+            themePreference: ui.theme,
+            termId: ref.current?.termId ?? null,
+            sharedView: ref.current?.source === "shared",
+            plans: useWorkspace.getState().plans.length,
+          };
+        },
+      }),
+    [],
+  );
 }
 
 function useBootstrap(config: ClientConfig) {

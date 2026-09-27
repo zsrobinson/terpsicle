@@ -24,7 +24,7 @@ export function PrivacyPage() {
           <h1 className="font-semibold text-fg text-xl tracking-tight">
             Privacy
           </h1>
-          <p className="text-sm">Draft, last updated 2026-09-26</p>
+          <p className="text-sm">Draft, last updated 2026-09-27</p>
         </header>
 
         <p>
@@ -134,6 +134,44 @@ export function PrivacyPage() {
             Push messages pass through your browser maker's push service. The
             notification settings page lets you turn each kind on or off, for
             push and email separately.
+          </p>
+        </Section>
+
+        <Section title="Feedback">
+          <p>
+            "Send feedback" sends us what you write. Two boxes, on unless you
+            turn them off, add more:
+          </p>
+          <ul className="list-disc space-y-1 pl-6">
+            <li>
+              <span className="text-fg">Include what I was doing</span> adds the
+              app's version, your browser, screen size, theme and whether you
+              were online, the page you were on, your open plan and settings,
+              and the last 50 or so things you did in Terpsicle: pages you
+              opened, buttons you used, errors the app hit and requests that
+              failed. That list stays in the page's memory and is sent only with
+              your feedback.
+            </li>
+            <li>
+              <span className="text-fg">Include a screenshot</span> adds a
+              picture of the page. Names, pictures, messages, reviews and your
+              block labels are blacked out before the picture exists, and you
+              can black out or crop more before sending.
+            </li>
+          </ul>
+          <p>
+            Feedback never includes your ELMS calendar link, sign-in or
+            notification tokens, a share link's plan, other people's messages or
+            reviews, or grades you pasted into Plan. It isn't linked to your
+            account unless you're signed in and turn on "You can reply by
+            email"; then we keep who sent it so we can email you once when it's
+            fixed.
+          </p>
+          <p>
+            Screenshots are deleted 180 days after you send them, or 30 days
+            after we mark your feedback done, whichever comes first. Everything
+            else is deleted after a year. Right after sending, Undo takes it
+            back completely.
           </p>
         </Section>
 

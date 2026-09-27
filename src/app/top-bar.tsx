@@ -1,9 +1,24 @@
 import { cn } from "cn";
-import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
+import {
+  CircleAlert,
+  CircleCheck,
+  Info,
+  MessageSquareText,
+  TriangleAlert,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { problemCountWords } from "~/core/problems";
+import { SCHEDULE_PATH } from "~/core/routing";
 // Not the barrel: its pages (settings, sign-in) would load with the scheduler.
-import { AccountButton } from "~/features/auth/account-button";
+import {
+  AccountButton,
+  useAccountButtonShown,
+} from "~/features/auth/account-button";
+import { useAccount } from "~/features/auth/account-store";
+import {
+  FeedbackButton,
+  openFeedbackSheet,
+} from "~/features/feedback/feedback-button";
 import { SyncStatusIcon } from "~/features/sync/status-view";
 import { useCatalog } from "~/state/catalog-store";
 import {
@@ -11,6 +26,7 @@ import {
   usePlanProblemsState,
   useProblemCounts,
 } from "~/state/hooks";
+import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
@@ -19,7 +35,8 @@ import { ProductMenu } from "./product-menu";
 import { tabById } from "./tabs";
 
 // The top bar (SPEC §2): logo / term / plans on the left; credits, the
-// problem count and the account button (docs/AUTH.md) on the right. The
+// problem count, "Send feedback" (docs/FEEDBACK.md) and the account button
+// (docs/AUTH.md) on the right. The
 // middle (tabs or the shared pill) comes from the shell.
 
 export function TopBar({
@@ -34,6 +51,12 @@ export function TopBar({
   end?: ReactNode;
   compact?: boolean;
 }) {
+  // Phones: the account menu has "Send feedback", since the bar has no room
+  // for another button beside the plan's name (account-button.tsx). Until
+  // /api/me answers, neither shows, so nothing flashes.
+  const menuShown = useAccountButtonShown();
+  const loading = useAccount((s) => s.status === "loading");
+  const feedbackInMenu = compact && menuShown;
   return (
     // Phones drop the slashes and tighten gaps so the open plan's name fits.
     <header
@@ -60,9 +83,31 @@ export function TopBar({
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
         {compact ? null : <SyncStatusIcon />}
-        <AccountButton compact={compact} themeToggle={end} />
+        <FeedbackButton
+          product="schedule"
+          pathname={SCHEDULE_PATH}
+          compact={compact}
+          showButton={!compact || (!loading && !feedbackInMenu)}
+        />
+        <AccountButton
+          compact={compact}
+          themeToggle={end}
+          phoneItems={feedbackInMenu ? <FeedbackMenuItem /> : null}
+        />
       </div>
     </header>
+  );
+}
+
+function FeedbackMenuItem() {
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
+        <MessageSquareText aria-hidden="true" className="text-muted" />
+        Send feedback
+      </DropdownMenuItem>
+    </>
   );
 }
 

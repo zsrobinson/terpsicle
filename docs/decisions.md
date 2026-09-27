@@ -274,6 +274,11 @@ Revisit if: the owner prefers another way to leave notes.
 `feedback/send` and `feedback/undo` are `auth: "optional"` routes: same-origin like signed-in routes (they write), with the session when there is one (for the reply toggle and the per-person limit), never a 401. The inbox shows whether a reply may go, never to whom.
 Revisit if: another route needs the same, or feedback needs sign-in.
 
+### Send feedback on the scheduler's phone bar
+2026-09-27 · agent · one feature
+On phones the scheduler's top bar has no room for another button beside the plan's name, so "Send feedback" is an item in its account menu there, as the theme toggle is. Every other product's header shows the icon, with the wordmark hidden on phones to make room.
+Revisit if: the phone top bar is redesigned.
+
 ### Push on before the device check
 2026-09-27 · owner · one feature
 Web push is on in production without waiting for the planned iPhone and Android trial; the owner checks real devices live. The VAPID pair was rotated when it went on (no device had subscribed), with the private key piped straight into the Worker secret, never printed.

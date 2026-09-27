@@ -1,5 +1,6 @@
+import { isUnderRoute } from "../analytics/routes";
 import { scrubUrl } from "../analytics/scrub";
-import type { FeedbackKind } from "../schema/feedback";
+import type { FeedbackKind, FeedbackProduct } from "../schema/feedback";
 
 /**
  * The page as stored with an item. Feedback from the sheet keeps only what
@@ -15,4 +16,25 @@ export function feedbackPath(path: string, kind: FeedbackKind): string {
 /** The pathname part of a stored path, where pins are matched. */
 export function pathnameOf(path: string): string {
   return path.split(/[?#]/)[0] || "/";
+}
+
+/** Where "Send feedback" shows, and the product each page reports as. */
+const FEEDBACK_PAGES: readonly [string, FeedbackProduct][] = [
+  ["/schedule", "schedule"],
+  ["/reviews", "reviews"],
+  ["/chat", "chat"],
+  ["/plan", "plan"],
+  ["/todo", "todo"],
+  ["/settings", "settings"],
+  ["/admin", "admin"],
+];
+
+/**
+ * The product a page's feedback is about, or null where the button doesn't
+ * show: `/`, `/privacy`, sign-in, and pages we don't have.
+ */
+export function feedbackProduct(pathname: string): FeedbackProduct | null {
+  return (
+    FEEDBACK_PAGES.find(([route]) => isUnderRoute(pathname, route))?.[1] ?? null
+  );
 }

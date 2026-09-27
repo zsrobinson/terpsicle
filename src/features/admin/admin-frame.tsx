@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Logo } from "~/app/logo";
 import { ADMIN_DECISIONS_PATH, ADMIN_PATH, STAY_PARAM } from "~/core/routing";
+import { FeedbackButton } from "~/features/feedback/feedback-button";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { AdminGate } from "./admin-gate";
@@ -55,6 +56,10 @@ export function AdminFrame({
             </WithTooltip>
           ))}
         </nav>
+        {/* The owner's notes on the panel itself ("Pin a note"). */}
+        <span className="ml-auto">
+          <FeedbackButton product="admin" pathname={current} />
+        </span>
       </header>
       <AdminGate>
         <main className="mx-auto w-full max-w-[720px] flex-1 px-4 pt-4 pb-8">
