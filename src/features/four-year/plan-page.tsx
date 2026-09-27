@@ -29,6 +29,7 @@ import {
 import { changedFourYearKeys, type DocKey } from "~/core/sync";
 import { newYorkClock } from "~/core/todo/list";
 import { useAccount } from "~/features/auth/account-store";
+import { claimAccountSync } from "~/features/prefs/synced-prefs";
 import { InstallAppButton } from "~/features/pwa/install-entry";
 import { SitePage } from "~/features/site/site-page";
 import { readSidebarWidth } from "~/state/sidebar-width-pref";
@@ -106,6 +107,8 @@ function usePlanSync(ready: boolean) {
   // marked unsaved. Once it runs, it follows the store itself.
   const earlier = useRef(new Set<DocKey>());
   const running = useRef(false);
+  // This page's plan sync carries the synced prefs: none of its own for them.
+  useEffect(() => claimAccountSync(), []);
   useEffect(
     () =>
       useFourYear.subscribe((next, prev) => {

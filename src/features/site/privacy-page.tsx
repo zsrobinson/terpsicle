@@ -64,10 +64,11 @@ export function PrivacyPage() {
             only to people who are signed in.
           </p>
           <p>
-            Once you sign in, your plans sync to your account, so they follow
-            you to your other devices. Synced plans are stored on Terpsicle's
-            servers, encrypted at rest. Terpsicle sets one cookie to keep you
-            signed in, and no other cookies.
+            Once you sign in, your plans and settings (like whether AI summaries
+            show) sync to your account, so they follow you to your other
+            devices. Synced plans are stored on Terpsicle's servers, encrypted
+            at rest. Terpsicle sets one cookie to keep you signed in, and no
+            other cookies.
           </p>
           <p>
             If Google says your organization blocked Terpsicle, UMD's Google

@@ -140,6 +140,7 @@ Use these when the spec is silent:
 - **Don't prefill or over-model.** Blocks are just labeled time. Don't add fields people didn't ask for.
 - **Honest numbers.** Show the math behind estimates. Never draw something that implies a simpler calculation than the one we did (a straight route line, for example).
 - **Sparkles icon only for LLM output.** Generation is algorithms and gets no sparkles.
+- **AI can be turned off, and everything with sparkles respects it** (owner, 2026-09-27: "some users really don't like AI"). "Show AI summaries" (Settings, or "Hide AI summaries" in an AI box's ⋯ menu) is on by default and follows the account. Every sparkles feature, today's and future ones, checks `useAiFeatures()` (`src/features/ai`) before it asks a model for anything or shows what one wrote, and draws the icon with `AiSparkles`; off, it leaves nothing behind. `src/features/ai/sparkles-guard.test.ts` holds the line.
 - **Returning people land straight in the app.** A marketing page at `/` greets first visits only; anyone with saved plans or a session goes to `/schedule` (`docs/V2.md` §2).
 - **Nothing to babysit.** Terms, buildings and routes are discovered from the data. A new semester needs no code change.
 - **Make each feature excellent rather than adding more.** The owner cut finals, compare, image export and NL input to keep what remains excellent.

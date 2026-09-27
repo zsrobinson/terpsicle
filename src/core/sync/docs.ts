@@ -11,6 +11,7 @@ import {
   SETTINGS_DOC_ID,
   type SettingsDoc,
   type SettingsSyncDoc,
+  type SyncedPrefs,
   type TravelSettings,
 } from "../schema";
 import type { FourYearDoc } from "../schema/four-year";
@@ -85,16 +86,27 @@ export interface SyncedTables {
   readonly chatPlans: Readonly<ChatPlans>;
   /** Terpsicle Plan's four-year docs (V3 §2.3), grades and all. */
   readonly fourYear: readonly FourYearDoc[];
+  /**
+   * The other products' prefs (AI features, Chat's room rules): the `prefs`
+   * settings row, whole, with any key this build doesn't know. Schedule
+   * never edits them, but its pushes carry them.
+   */
+  readonly prefs: Readonly<SyncedPrefs>;
 }
 
-export function settingsDocOf(
-  t: Pick<SyncedTables, "blocks" | "colors" | "travel" | "chatPlans">,
-): SettingsDoc {
+/** The tables the settings doc is made of. */
+export type SettingsTables = Pick<
+  SyncedTables,
+  "blocks" | "colors" | "travel" | "chatPlans" | "prefs"
+>;
+
+export function settingsDocOf(t: SettingsTables): SettingsDoc {
   return {
     blocks: [...t.blocks],
     colors: { ...t.colors },
     travel: t.travel,
     chatPlans: { ...t.chatPlans },
+    prefs: { ...t.prefs },
   };
 }
 
@@ -102,9 +114,10 @@ export function settingsDocOf(
  * The tables with the settings doc's contents. Each table keeps its identity
  * when its contents didn't change, so persisting writes only what did.
  */
-export function withSettingsDoc<
-  T extends Pick<SyncedTables, "blocks" | "colors" | "travel" | "chatPlans">,
->(t: T, doc: SettingsDoc): T {
+export function withSettingsDoc<T extends SettingsTables>(
+  t: T,
+  doc: SettingsDoc,
+): T {
   const current = settingsDocOf(t);
   const blocks = sameJson(current.blocks, doc.blocks) ? t.blocks : doc.blocks;
   const colors = sameJson(current.colors, doc.colors) ? t.colors : doc.colors;
@@ -112,14 +125,16 @@ export function withSettingsDoc<
   const chatPlans = sameJson(current.chatPlans, doc.chatPlans)
     ? t.chatPlans
     : doc.chatPlans;
+  const prefs = sameJson(current.prefs, doc.prefs) ? t.prefs : doc.prefs;
   if (
     blocks === t.blocks &&
     colors === t.colors &&
     travel === t.travel &&
-    chatPlans === t.chatPlans
+    chatPlans === t.chatPlans &&
+    prefs === t.prefs
   )
     return t;
-  return { ...t, blocks, colors, travel, chatPlans };
+  return { ...t, blocks, colors, travel, chatPlans, prefs };
 }
 
 /**
@@ -201,7 +216,8 @@ export function changedDocKeys(
     (prev.blocks !== next.blocks ||
       prev.colors !== next.colors ||
       prev.travel !== next.travel ||
-      prev.chatPlans !== next.chatPlans) &&
+      prev.chatPlans !== next.chatPlans ||
+      prev.prefs !== next.prefs) &&
     !sameJson(settingsDocOf(prev), settingsDocOf(next));
   if (settingsChanged) keys.push(SETTINGS_DOC_KEY);
   return keys;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BlockSchema, CourseColorSchema, PlanSchema } from "./local";
+import { SyncedPrefsSchema } from "./prefs";
 import {
   CourseCodeSchema,
   IsoDateTimeSchema,
@@ -44,7 +45,7 @@ function uniqueIds(blocks: readonly { id: string }[]): boolean {
 /**
  * Everything synced that doesn't belong to one plan: blocks (per term, shared
  * by the term's plans), course colors (global) and travel settings, plus the
- * chat plan choice.
+ * chat plan choice and the other products' prefs (`SyncedPrefs`).
  */
 export const SettingsDocSchema = z.object({
   blocks: z
@@ -53,6 +54,8 @@ export const SettingsDocSchema = z.object({
   colors: z.record(CourseCodeSchema, CourseColorSchema),
   travel: TravelSettingsSchema,
   chatPlans: ChatPlansSchema,
+  /** Missing in docs saved before prefs, and in older builds' pushes. */
+  prefs: SyncedPrefsSchema.default(() => ({})),
 });
 export type SettingsDoc = z.infer<typeof SettingsDocSchema>;
 

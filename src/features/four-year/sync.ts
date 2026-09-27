@@ -1,6 +1,10 @@
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import type { DocKey } from "~/core/sync";
+import {
+  settleAccountPrefs,
+  showSyncedPrefs,
+} from "~/features/prefs/synced-prefs";
 import { type SyncHost, startSync, stopSync } from "~/features/sync/boot";
 import { runningEngine } from "~/features/sync/running";
 import { useSyncStatus } from "~/features/sync/status";
@@ -53,6 +57,8 @@ export function startPlanSync(
         duration: 10_000,
       }),
     trackFirstSignIn: (counts) => track("sync_first_sign_in", counts),
+    showPrefs: showSyncedPrefs,
+    settled: settleAccountPrefs,
   };
   startSync(host, userId);
   runningEngine()?.noteEditedDocs(earlier);
