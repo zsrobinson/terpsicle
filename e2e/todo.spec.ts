@@ -6,6 +6,7 @@ import {
   testFeedIcs,
   testFeedLink,
 } from "../src/core/todo/test-feed";
+import { liveToasts } from "./toasts";
 
 // Terpsicle Todo's pages (docs/V3.md §3.9) on `pnpm dev:mock`: test-mode
 // sign-in, and the Worker's fixture feeds (TEST_FEED_TOKENS) in place of
@@ -180,8 +181,8 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   await expect(page.getByText(/ELMS is connected/)).toBeVisible();
 
   await page.getByRole("button", { name: "Disconnect" }).click();
-  await expect(page.getByText("ELMS disconnected")).toBeVisible();
-  await expect(page.getByText("ELMS disconnected")).toBeHidden({
+  await expect(liveToasts(page).getByText("ELMS disconnected")).toBeVisible();
+  await expect(liveToasts(page).getByText("ELMS disconnected")).toBeHidden({
     timeout: 15_000,
   });
   await page.reload();

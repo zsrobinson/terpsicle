@@ -1,10 +1,9 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { feedWords } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { GoogleButton } from "~/features/auth/sign-in-panel";
 import { Button } from "~/ui/button";
-import { undoToast } from "~/ui/toast";
+import { dismissToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   ConnectForm,
@@ -49,7 +48,7 @@ function Connection() {
 
   // Undo's window is over: the toast goes with it.
   useEffect(() => {
-    if (!disconnecting) toast.dismiss(DISCONNECT_TOAST);
+    if (!disconnecting) dismissToast(DISCONNECT_TOAST);
   }, [disconnecting]);
 
   const onDisconnect = () => {
