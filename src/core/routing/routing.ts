@@ -20,6 +20,8 @@ export const STAY_PARAM = "stay";
 /** The owner's panel (docs/V2.md §10): `/admin` and `/admin/decisions`. */
 export const ADMIN_PATH = "/admin";
 export const ADMIN_DECISIONS_PATH = "/admin/decisions";
+/** The feedback inbox (docs/FEEDBACK.md). */
+export const ADMIN_FEEDBACK_PATH = "/admin/feedback";
 
 /** Whether a path is one of the admin pages, which only admins may load. */
 export function isAdminPath(pathname: string): boolean {

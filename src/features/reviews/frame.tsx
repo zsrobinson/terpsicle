@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { Fragment, type ReactNode, useEffect } from "react";
 import { initAnalytics, track } from "~/app/analytics";
 import type { CourseCode } from "~/core/schema";
-import { AccountLink } from "~/features/auth/account-link";
 import { SitePage } from "~/features/site/site-page";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -23,19 +22,7 @@ export function ReviewsFrame({
     void initAnalytics();
     if (page) track("reviews_page_viewed", { page });
   }, [page]);
-  return (
-    <SitePage
-      layout="reading"
-      actions={
-        <AccountLink
-          from="reviews"
-          signInTip="Sign in with your UMD account to write and report reviews"
-        />
-      }
-    >
-      {children}
-    </SitePage>
-  );
+  return <SitePage layout="reading">{children}</SitePage>;
 }
 
 export interface Crumb {
