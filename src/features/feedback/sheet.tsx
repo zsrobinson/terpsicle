@@ -18,7 +18,7 @@ import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
 import { Skeleton } from "~/ui/skeleton";
-import { WithTooltip } from "~/ui/tooltip";
+import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { type SheetMode, useDraft } from "./draft-store";
 import { usePins } from "./pin-store";
 import { RedactEditor } from "./redact-editor";
@@ -136,7 +136,8 @@ function KindPicker({ admin }: { admin: boolean }) {
     <div
       role="radiogroup"
       aria-label="What kind of feedback"
-      className={cn("grid gap-1", admin ? "grid-cols-3" : "grid-cols-2")}
+      // Admins' "Pin a note" gets a row of its own under the two kinds.
+      className="grid grid-cols-2 gap-1"
     >
       {modes.map((m, i) => {
         const checked = m.id === mode;
@@ -155,6 +156,7 @@ function KindPicker({ admin }: { admin: boolean }) {
               onKeyDown={(e) => onKeyDown(e, i)}
               className={cn(
                 "flex min-h-9 items-center justify-center gap-1.5 rounded-md border px-2 font-medium text-sm transition-colors [&_svg]:size-3.5 [&_svg]:shrink-0",
+                m.id === "pin" && "col-span-2",
                 checked
                   ? "border-fg bg-hover text-fg"
                   : "border-hairline text-muted hover:bg-hover hover:text-fg",
@@ -381,8 +383,8 @@ function PinModeFields({ onStartPin }: { onStartPin: () => void }) {
   return (
     <div className="space-y-3">
       <p className="text-muted text-sm">
-        Pick any part of this page to leave a note on it. Notes go to the inbox
-        as review notes, and only admins see the pins.
+        Pick any part of this page to leave a note on it. Pinned notes go to the
+        feedback inbox, and only admins see their dots.
       </p>
       <Check
         checked={visible}
@@ -632,6 +634,8 @@ function FeedbackPopover({
         aria-label="Send feedback"
         role="dialog"
         className="max-h-(--radix-popover-content-available-height) w-[380px] overflow-y-auto"
+        // The first field takes focus: its tooltip would cover its label.
+        onOpenAutoFocus={() => quietTooltips(800)}
         // The button toggles it: a press on it isn't a click away.
         onInteractOutside={(e) => {
           if (anchor.current?.contains(e.target as Node)) e.preventDefault();

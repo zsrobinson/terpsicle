@@ -151,11 +151,14 @@ export async function captureViewport(): Promise<{
       backgroundColor: getComputedStyle(document.body).backgroundColor,
       filter: (node) => !skipped(node),
       features: { restoreScrollPosition: true },
-      // The window's own scroll: the copy starts at the page's top.
-      style:
-        scrollX || scrollY
+      // The copy sits at the image's corner (no body margin), moved by the
+      // window's own scroll: the copy starts at the page's top.
+      style: {
+        margin: "0",
+        ...(scrollX || scrollY
           ? { transform: `translate(${-scrollX}px, ${-scrollY}px)` }
-          : null,
+          : {}),
+      },
       onCloneEachNode: (cloned) => {
         // Hidden in the copy as well as boxed on the image: belt and braces.
         if (cloned instanceof HTMLElement && cloned.matches(PRIVATE))

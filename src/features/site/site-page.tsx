@@ -88,7 +88,8 @@ export function SiteHeader({
       <WithTooltip label="About Terpsicle">
         {/* ?stay: returning visitors would otherwise skip to the scheduler. */}
         <a href={`/?${STAY_PARAM}`} className="flex">
-          <Logo />
+          {/* Phones: the mark alone leaves room for "Send feedback". */}
+          <Logo phoneMark={feedback !== null} />
         </a>
       </WithTooltip>
       <div className="flex items-center gap-1 sm:gap-2">

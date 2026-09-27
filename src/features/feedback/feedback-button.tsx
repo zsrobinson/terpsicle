@@ -1,10 +1,18 @@
 import { cn } from "cn";
 import { MessageSquareText } from "lucide-react";
-import { lazy, Suspense, useCallback, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { create } from "zustand";
 import { useIsMobile } from "~/app/use-media-query";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { useAccount } from "~/features/auth/account-store";
-import { WithTooltip } from "~/ui/tooltip";
+import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 
 // "Send feedback" (docs/FEEDBACK.md): the one eager piece of feedback, a
 // plain button. The sheet (its popover or drawer), the screenshot code and
@@ -25,6 +33,15 @@ function prefetch() {
   void loadSheet();
 }
 
+/** Opens from elsewhere: the scheduler's phone menu (./top-bar.tsx). */
+const requests = create<{ count: number }>(() => ({ count: 0 }));
+
+/** Opens the sheet of the page's "Send feedback", button or not. */
+export function openFeedbackSheet(): void {
+  prefetch();
+  requests.setState((s) => ({ count: s.count + 1 }));
+}
+
 /**
  * The button, in the scheduler's top bar and every product's header (not
  * on `/` or `/privacy`: `feedbackProduct` says where). An icon and
@@ -35,11 +52,14 @@ export function FeedbackButton({
   product,
   pathname,
   compact = false,
+  showButton = true,
 }: {
   product: FeedbackProduct;
   /** Where the admin's pins are looked up. */
   pathname: string;
   compact?: boolean;
+  /** False where a menu opens it instead (`openFeedbackSheet`). */
+  showButton?: boolean;
 }) {
   const admin = useAccount((s) => s.user?.isAdmin === true);
   const mobile = useIsMobile();
@@ -51,31 +71,44 @@ export function FeedbackButton({
     setOpen(next);
     if (next) setUsed(true);
   }, []);
+  const requested = requests((s) => s.count);
+  // Only requests made while this button is on the page.
+  const handled = useRef(requested);
+  useEffect(() => {
+    if (requested > handled.current) onOpenChange(true);
+    handled.current = requested;
+  }, [requested, onOpenChange]);
   const iconOnly = compact || mobile;
 
   return (
     <>
-      <WithTooltip label="Send feedback" side="bottom">
-        <button
-          ref={button}
-          type="button"
-          aria-label={iconOnly ? "Send feedback" : undefined}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          data-state={open ? "open" : "closed"}
-          data-testid="feedback-button"
-          onPointerEnter={prefetch}
-          onFocus={prefetch}
-          onClick={() => onOpenChange(!open)}
-          className={cn(
-            "flex shrink-0 items-center justify-center gap-1.5 rounded-md text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
-            iconOnly ? "size-8 max-[380px]:size-7" : "h-7 px-2",
-          )}
-        >
-          <MessageSquareText size={iconOnly ? 16 : 14} aria-hidden="true" />
-          {iconOnly ? null : "Feedback"}
-        </button>
-      </WithTooltip>
+      {showButton ? (
+        <WithTooltip label="Send feedback" side="bottom">
+          <button
+            ref={button}
+            type="button"
+            aria-label={iconOnly ? "Send feedback" : undefined}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            data-state={open ? "open" : "closed"}
+            data-testid="feedback-button"
+            onPointerEnter={prefetch}
+            onFocus={prefetch}
+            onClick={() => {
+              // The sheet's first field takes focus: no tooltip over its label.
+              if (!open) quietTooltips(800);
+              onOpenChange(!open);
+            }}
+            className={cn(
+              "flex shrink-0 items-center justify-center gap-1.5 rounded-md text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
+              iconOnly ? "size-8 max-[380px]:size-7" : "h-7 px-2",
+            )}
+          >
+            <MessageSquareText size={iconOnly ? 16 : 14} aria-hidden="true" />
+            {iconOnly ? null : "Feedback"}
+          </button>
+        </WithTooltip>
+      ) : null}
       {used ? (
         <Suspense fallback={null}>
           <FeedbackSurface

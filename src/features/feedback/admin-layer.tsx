@@ -7,7 +7,7 @@ import type { FeedbackProduct, Pin } from "~/core/schema/feedback";
 import { feedbackApi } from "~/server/fns/feedback-api";
 import { Button } from "~/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
-import { WithTooltip } from "~/ui/tooltip";
+import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { describeElement } from "./element";
 import { usePins } from "./pin-store";
 import {
@@ -155,7 +155,11 @@ function Picker({
       swallow(event);
       if (pickedRef.current) return;
       const el = pickable(event.clientX, event.clientY);
-      if (el) setPicked(el);
+      // The note box's field takes focus: no tooltip over its label.
+      if (el) {
+        quietTooltips(800);
+        setPicked(el);
+      }
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -198,7 +202,7 @@ function Picker({
       ) : null}
       <div
         role="status"
-        className="-translate-x-1/2 fixed top-2 left-1/2 z-50 flex items-center gap-2 rounded-md border border-keyline bg-raised py-1 pr-1 pl-3 text-sm shadow-pop"
+        className="-translate-x-1/2 fixed bottom-4 left-1/2 z-50 flex items-center gap-2 rounded-md border border-keyline bg-raised py-1 pr-1 pl-3 text-sm shadow-pop"
       >
         {picked ? "Write the note" : "Click anything to pin a note on it"}
         <WithTooltip label="Stop pinning" shortcut="Esc">

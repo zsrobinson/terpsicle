@@ -264,6 +264,11 @@ Revisit if: the owner prefers another way to leave notes.
 `feedback/send` and `feedback/undo` are `auth: "optional"` routes: same-origin like signed-in routes (they write), with the session when there is one (for the reply toggle and the per-person limit), never a 401. The inbox shows whether a reply may go, never to whom.
 Revisit if: another route needs the same, or feedback needs sign-in.
 
+### Send feedback on the scheduler's phone bar
+2026-09-27 · agent · one feature
+On phones the scheduler's top bar has no room for another button beside the plan's name, so "Send feedback" is an item in its account menu there, as the theme toggle is. Every other product's header shows the icon, with the wordmark hidden on phones to make room.
+Revisit if: the phone top bar is redesigned.
+
 ## Process
 
 ### Ship it, drafts when asked
