@@ -32,7 +32,8 @@ import { Kbd } from "~/ui/kbd";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { FilterChips, type FilterName } from "./filter-chips";
-import { useSearchStore, useTermSearch } from "./search-store";
+import { useTermSearch } from "./search-store";
+import { pickFilters, typeQuery, useSearchFromUrl } from "./search-url";
 import { useCourseResults } from "./use-course-search";
 
 // The Search tab (SPEC §3.5): a box, one line of filter chips, and a list of
@@ -45,9 +46,10 @@ const OVERSCAN = 6;
 
 export function SearchPanel() {
   const { termId } = useActiveTerm();
+  useSearchFromUrl(termId);
   const { query, filters } = useTermSearch(termId);
-  const setQuery = useSearchStore((s) => s.setQuery);
-  const setFilters = useSearchStore((s) => s.setFilters);
+  const setQuery = typeQuery;
+  const setFilters = pickFilters;
   const results = useCourseResults(termId, query, filters);
   const inputRef = useFocusRequest<HTMLInputElement>("search");
   const [active, setActive] = useState(-1);

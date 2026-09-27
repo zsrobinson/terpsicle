@@ -1,13 +1,18 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
-import { panels as detailsPanels } from "~/features/course-details/panels";
+import { currentView, goTo } from "~/app/schedule-nav";
+import type { ShellRoutes } from "~/app/test-utils";
+import { CourseDetails } from "~/features/course-details/course-details";
 import { renderPlanTab } from "~/features/courses/testing";
 import { useCatalog } from "~/state/catalog-store";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
-import { panels } from "./panels";
+import { SearchPanel } from "./search-panel";
 import { useSearchStore } from "./search-store";
+
+const panels: ShellRoutes = { tabs: { search: SearchPanel } };
+const detailsPanels: ShellRoutes = { drills: { course: CourseDetails } };
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 // Opening a course asks for review summaries; there's no server here.
@@ -145,7 +150,7 @@ describe("Search tab", () => {
     await user.keyboard("{ArrowUp}");
     expect(useUi.getState().hoverCourse).toBe(first);
     await user.keyboard("{Enter}");
-    expect(useUi.getState().stack.at(-1)).toEqual({
+    expect(currentView().drill).toEqual({
       kind: "course",
       courseCode: first,
     });
@@ -159,7 +164,7 @@ describe("Search tab", () => {
     const { user, box } = await renderSearch();
     await user.type(box, "algorithms");
     await user.click(await screen.findByRole("option", { name: /^CMSC351/ }));
-    expect(useUi.getState().stack.at(-1)).toEqual({
+    expect(currentView().drill).toEqual({
       kind: "course",
       courseCode: "CMSC351",
     });
@@ -250,8 +255,8 @@ describe("Search tab", () => {
     const { user, box } = await renderSearch();
     await user.type(box, "stat");
     await user.click(screen.getByRole("button", { name: "Open seats" }));
-    act(() => useUi.getState().openTab("courses"));
-    act(() => useUi.getState().openTab("search"));
+    act(() => goTo({ tab: "courses", drill: null }));
+    act(() => goTo({ tab: "search", drill: null }));
     await waitFor(() =>
       expect(
         screen.getByRole("combobox", { name: "Search courses" }),

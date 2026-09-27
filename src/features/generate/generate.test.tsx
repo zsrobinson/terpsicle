@@ -1,6 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { currentView, goTo } from "~/app/schedule-nav";
+import type { ShellRoutes } from "~/app/test-utils";
 import { renderShell } from "~/app/test-utils";
 import { plansInTerm } from "~/core/plans";
 import {
@@ -15,14 +17,20 @@ import { EMPTY_DRAFT, useGenerateDrafts } from "~/state/generate-drafts";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { createInProcessGenerator } from "~/worker/generator";
-import { panels } from "./panels";
+import { GeneratePanel } from "./generate-panel";
+import { ResultDetails } from "./result-details";
 import { resetGenerateRun, setGenerator, useGenerateRun } from "./run-store";
+
+const panels: ShellRoutes = {
+  tabs: { generate: GeneratePanel },
+  drills: { "generated-plan": ResultDetails },
+};
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 
 /** The shell on the demo plans with the Generate tab open. */
 async function renderGenerate() {
-  const view = await renderShell({ panels: [panels] });
+  const view = await renderShell({ routes: [panels] });
   await act(async () => {
     useWorkspace.setState({
       plans: [...demoPlans],
@@ -34,7 +42,7 @@ async function renderGenerate() {
     });
     await useCatalog.getState().ensureTerm(fixtureTermId);
     await useCatalog.getState().ensureCampus();
-    useUi.getState().openTab("generate");
+    goTo({ tab: "generate", drill: null });
   });
   return view;
 }
@@ -162,7 +170,7 @@ describe("Generate", () => {
     );
     expect(saved?.name).toBe("Plan C");
     expect(useUi.getState().previewPlan).toBeNull();
-    expect(useUi.getState().stack).toEqual([]);
+    expect(currentView().drill).toBeNull();
     expect(track).toHaveBeenCalledWith("generate_plans_saved", { count: 1 });
   });
 

@@ -1,5 +1,6 @@
 import { openTab } from "~/app/actions";
 import { track } from "~/app/analytics";
+import { openDrill } from "~/app/schedule-nav";
 import { snapshotOf } from "~/core/catalog";
 import {
   type Problem,
@@ -10,7 +11,6 @@ import {
 import { editablePlan, openCourse } from "~/features/courses/actions";
 import { useCatalog } from "~/state/catalog-store";
 import { nowIso } from "~/state/ids";
-import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 
 // Problems (SPEC §3.6): opening what a problem is about, and its one-click fix.
@@ -27,9 +27,7 @@ export function openSubject(subject: Subject): void {
       return;
     }
     case "connection":
-      useUi
-        .getState()
-        .drill({ kind: "connection", connectionId: subject.connectionId });
+      openDrill({ kind: "connection", connectionId: subject.connectionId });
       return;
     case "block":
       openTab("blocks", "click");

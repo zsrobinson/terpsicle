@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
+import type { ShellRoutes } from "~/app/test-utils";
 import { decodeShare, SHARE_PARAM } from "~/core/share";
 import {
   fakeSeatWatchesClient,
@@ -11,7 +12,9 @@ import {
 } from "~/features/alerts/testing";
 import { renderPlanTab } from "~/features/courses/testing";
 import { aMeUser, aSeatWatch, fixtureTermId } from "~/fixtures";
-import { panels } from "./panels";
+import { ExportPanel } from "./export-panel";
+
+const panels: ShellRoutes = { tabs: { export: ExportPanel } };
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 

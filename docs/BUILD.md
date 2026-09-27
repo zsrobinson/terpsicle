@@ -160,16 +160,16 @@ Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtu
 
 | Route | Guide | When set |
 |---|---|---|
-| `/schedule` | 345 KB | 335 KB (`perf/schedule-bundle`; 378 KB before it) |
+| `/schedule` (and `/schedule/courses`, `/schedule/course/$code` with it) | 345 KB | 335 KB (`perf/schedule-bundle`; 378 KB before it); 348 KB for `/schedule/courses` once each view was a route (`v2/schedule-routes`; 362 KB before it) |
 | `/` and the other entry pages | 215 KB | 193 KB (v2 routes) |
 
 What the scheduler loads on first use, not up front (each has a rule in `SCHEDULE_NEVER_EAGER`, so it can't drift back):
-- **Travel, Blocks, Generate and Export**, with the `connection` and `generated-plan` drill-ins and what only they use (the generator's Comlink client, `.ics`, Radix Select). Their `panels.tsx` registers them with `lazyPanel` (`src/app/lazy-panel.tsx`). Hovering or focusing a rail tab (a touch on a drawer tab, hovering a travel pill) starts the load, so it's usually there by the click; until then the panel's skeleton shows, and a chunk that can't load says so in the panel, with Reload. Courses, Search and Problems stay eager: they're the first view.
+- **Every tab and drill-in**, each its own route whose component the router splits into a chunk (`src/routes/schedule.*.tsx`): Travel, Blocks, Generate and Export with what only they use (the generator's Comlink client, `.ics`, Radix Select) have rules; Courses, Search, Problems and course details load with the first view that shows them (`/schedule/courses` on a first visit, `/schedule/course/$code` from an email), which `check:bundle` measures with `/schedule`. Hovering or focusing a rail tab (a touch on a drawer tab, hovering a travel pill) preloads the route, so it's usually there by the click; until then the panel's skeleton shows, and a chunk that can't load says so in the panel, with Reload.
 - **The phone drawer** (vaul). `app-shell.tsx` loads it only at the phone width, starting as soon as the app's code runs, so it arrives alongside the data; a resting edge holds its place meanwhile. Its sizes live in `drawer-heights.ts` for the shell and the calendar.
 - **MiniSearch.** `use-course-search.ts` loads the text index when Search first opens. Eager code imports `~/core/search/filters` and `~/core/search/summary`, never the `~/core/search` barrel, which would pull it back in.
 - MapLibre, the generator's worker and the mock fixtures, as before (`NEVER_EAGER`).
 
-A new tab or drill-in that isn't the first view should register with `lazyPanel` too, and anything big that only one feature uses should get a never-eager rule.
+Every route's chunk, and what it imports statically, is in the service worker's precache (`scripts/pwa-precache.ts`), so since the scheduler's tabs became routes an installed app has all of them offline, at the cost of a bigger install. A new tab or drill-in is a route, so it's split for free (`src/app/README.md`, "Add a tab panel or a drill-in view"); anything big that only one feature uses should get a never-eager rule.
 
 **Fixtures** (`src/fixtures`) cover a realistic mock term of 60+ courses. Take shapes from `reference/prototype/src/data.ts`, expanded to include:
 - **two or more terms** (one active, one archived) so term switching and archiving are tested;

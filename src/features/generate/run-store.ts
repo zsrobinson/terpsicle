@@ -1,4 +1,5 @@
 import { track } from "~/app/analytics";
+import { currentView, goTo } from "~/app/schedule-nav";
 import { matchesWildcard, wildcardDept } from "~/core/catalog";
 import {
   activeMustHaves,
@@ -15,10 +16,10 @@ import {
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import {
   type GenerateRunState,
+  type GenerateView,
   INITIAL_RUN_STATE,
   useGenerateRun,
 } from "~/state/generate-run-store";
-import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import {
   defaultGenerator,
@@ -155,12 +156,8 @@ export async function runGenerate(
     finished = true;
     if (!isCurrent()) return;
     const durationMs = Math.round(performance.now() - started);
-    set({
-      status: { kind: "done", request, result, durationMs },
-      view: "results",
-    });
-    // The results are a place of their own: Back returns to the form.
-    if (isCurrent()) useUi.getState().markNavigation();
+    set({ status: { kind: "done", request, result, durationMs } });
+    if (isCurrent()) showGenerateView("results");
     track("generate_run", {
       courses: draftCourseCodes(request.items).length,
       wildcards: request.items.flatMap((i) =>
@@ -186,6 +183,18 @@ export async function runGenerate(
       },
     });
   }
+}
+
+/**
+ * Shows the form or the latest results. They're two places, so on screen
+ * the change pushes an entry: Back returns to the other. Elsewhere, the tab
+ * shows it when next opened.
+ */
+export function showGenerateView(view: GenerateView): void {
+  useGenerateRun.getState().setView(view);
+  const here = currentView();
+  if (here.tab === "generate" && !here.drill)
+    goTo({ tab: "generate", drill: null });
 }
 
 /** Stops the run in progress, back to the form. */

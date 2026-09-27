@@ -14,6 +14,7 @@ import {
   type ModerationDecision,
   type ModerationDecisionRow,
   ModerationDecisionRowSchema,
+  ModerationIdSchema,
   type ModerationKind,
   type ModerationModels,
   type ModerationQueueRow,
@@ -441,12 +442,75 @@ async function latestAdminDecision(
   }).parse(found);
 }
 
+// ---------- the owner's stops (migrations/0013_author_stops.sql) ----------
+
+/**
+ * A stop the owner placed through an item: its id (shared with the feature's
+ * `author_stops` row) and when it ends. Never who.
+ */
+export interface AuthorStop {
+  id: string;
+  until: string;
+}
+
+const AuthorStopRowSchema = z.object({
+  id: ModerationIdSchema,
+  until: IsoDateTimeSchema,
+});
+
+export function insertAuthorStop(
+  db: D1Database,
+  queueId: string,
+  stop: AuthorStop,
+  now: Date,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO moderation_author_stops (id, queue_id, until, created_at)
+       VALUES (?1, ?2, ?3, ?4)`,
+    )
+    .bind(stop.id, queueId, stop.until, now.toISOString());
+}
+
+/** The item's stop that's still in force (not undone), if any. */
+export async function activeAuthorStop(
+  db: D1Database,
+  queueId: string,
+): Promise<AuthorStop | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, until FROM moderation_author_stops
+       WHERE queue_id = ?1 AND undone_at IS NULL
+       ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+    )
+    .bind(queueId)
+    .first();
+  return row ? AuthorStopRowSchema.parse(row) : null;
+}
+
+export function markAuthorStopUndone(
+  db: D1Database,
+  id: string,
+  now: Date,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      "UPDATE moderation_author_stops SET undone_at = ?2 WHERE id = ?1 AND undone_at IS NULL",
+    )
+    .bind(id, now.toISOString());
+}
+
 export async function toQueueItem(
   db: D1Database,
   row: ModerationQueueRow,
 ): Promise<QueueItem> {
-  const admin =
-    row.status === "closed" ? await latestAdminDecision(db, row) : null;
+  const [admin, stop] =
+    row.status === "closed"
+      ? await Promise.all([
+          latestAdminDecision(db, row),
+          activeAuthorStop(db, row.id),
+        ])
+      : [null, null];
   const decision = admin ? decisionOf(admin.verdict) : null;
   return {
     id: row.id,
@@ -465,6 +529,9 @@ export async function toQueueItem(
       admin && decision && decision !== "hold"
         ? { decision, reason: admin.reason }
         : null,
+    stoppedUntil: stop?.until ?? null,
+    // Reviews' context comes from Reviews (listQueue adds it).
+    review: null,
   };
 }
 

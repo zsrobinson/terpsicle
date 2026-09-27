@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useScheduleView } from "~/app/schedule-view";
 import { placedSections } from "~/core/catalog";
 import type { SeatsMap } from "~/core/seats";
 import { planConnections } from "~/core/travel";
@@ -10,7 +11,7 @@ import {
   useTermCatalog,
   useTravel,
 } from "~/state/hooks";
-import { selectGhostCourse, selectOpenCourse, useUi } from "~/state/ui-store";
+import { useUi } from "~/state/ui-store";
 import { buildCalendarModel, type CalendarModel } from "./layout";
 
 export interface CalendarView {
@@ -29,14 +30,13 @@ export function useCalendarModel(): CalendarView {
   const catalog = useTermCatalog(current?.termId ?? null);
   const connections = usePlanConnections();
   const fit = useFitContext();
-  const ghostCode = useUi(selectGhostCourse);
-  const openCourse = useUi(selectOpenCourse);
+  const top = useScheduleView().drill;
+  const openCourse = top?.kind === "course" ? top.courseCode : null;
+  const ghostCode = useUi((s) => s.hoverCourse) ?? openCourse;
   const preview = useUi((s) => s.previewSection);
   const planPreview = useUi((s) => s.previewPlan);
-  const selectedConnection = useUi((s) => {
-    const top = s.stack.at(-1);
-    return top?.kind === "connection" ? top.connectionId : null;
-  });
+  const selectedConnection =
+    top?.kind === "connection" ? top.connectionId : null;
 
   const ghostCourse =
     (ghostCode ? catalog?.index.courses.get(ghostCode) : undefined) ?? null;

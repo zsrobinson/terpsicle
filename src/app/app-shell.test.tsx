@@ -1,11 +1,17 @@
+import { lazyRouteComponent } from "@tanstack/react-router";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUi } from "~/state/ui-store";
+import { useDrillEntry } from "./drill-entry";
 import { useFocusRequest } from "./focus-request";
-import { lazyModule, lazyPanel } from "./lazy-panel";
-import { definePanels } from "./registry";
-import { renderShell } from "./test-utils";
+import { currentView, goTo, openDrill } from "./schedule-nav";
+import {
+  currentPath,
+  renderShell,
+  type ShellRoutes,
+  settle,
+} from "./test-utils";
 
 vi.mock("./analytics", () => ({ track: vi.fn() }));
 
@@ -22,9 +28,7 @@ function FakeSearch() {
       <div data-testid="results" style={{ height: 100, overflow: "auto" }}>
         <button
           type="button"
-          onClick={() =>
-            useUi.getState().drill({ kind: "course", courseCode: "CMSC351" })
-          }
+          onClick={() => openDrill({ kind: "course", courseCode: "CMSC351" })}
         >
           CMSC351
         </button>
@@ -33,16 +37,15 @@ function FakeSearch() {
   );
 }
 
-const fakePanels = definePanels({
+function FakeDetails() {
+  const entry = useDrillEntry("course");
+  return <p>Details for {entry.courseCode}</p>;
+}
+
+const fakeRoutes: ShellRoutes = {
   tabs: { search: FakeSearch },
-  drills: {
-    course: {
-      component: ({ entry }) => <p>Details for {entry.courseCode}</p>,
-      name: (entry) => entry.courseCode,
-      monoName: true,
-    },
-  },
-});
+  drills: { course: FakeDetails },
+};
 
 describe("AppShell", () => {
   beforeEach(() => {
@@ -106,7 +109,7 @@ describe("AppShell", () => {
   });
 
   it("drills in under one Back, and Esc returns to exactly where you were", async () => {
-    const { user } = await renderShell({ panels: [fakePanels] });
+    const { user } = await renderShell({ routes: fakeRoutes });
     await user.click(railTab("Search"));
     const field = screen.getByRole("textbox", { name: "Search courses" });
     await user.type(field, "algo");
@@ -135,7 +138,7 @@ describe("AppShell", () => {
   });
 
   it("Back returns to the tab", async () => {
-    const { user } = await renderShell({ panels: [fakePanels] });
+    const { user } = await renderShell({ routes: fakeRoutes });
     await user.click(railTab("Search"));
     await user.click(screen.getByRole("button", { name: "CMSC351" }));
     await user.click(screen.getByRole("button", { name: "Back to Search" }));
@@ -143,12 +146,10 @@ describe("AppShell", () => {
   });
 
   it("course to course shows one Back, to the course before, never a trail", async () => {
-    const { user } = await renderShell({ panels: [fakePanels] });
+    const { user } = await renderShell({ routes: fakeRoutes });
     await user.click(railTab("Search"));
     await user.click(screen.getByRole("button", { name: "CMSC351" }));
-    act(() => {
-      useUi.getState().drill({ kind: "course", courseCode: "CMSC330" });
-    });
+    act(() => openDrill({ kind: "course", courseCode: "CMSC330" }));
     expect(screen.getByText("Details for CMSC330")).toBeVisible();
     const back = screen.getByRole("button", { name: "Back to CMSC351" });
     expect(screen.queryByRole("button", { name: "Back to Search" })).toBeNull();
@@ -159,25 +160,26 @@ describe("AppShell", () => {
   });
 
   it("labels Back with the view history returns to, when there's one", async () => {
-    const { user } = await renderShell({ panels: [fakePanels] });
-    await user.click(railTab("Search"));
-    act(() => {
-      useUi.getState().drill({ kind: "course", courseCode: "CMSC351" });
-      useUi.setState({ historyBack: { label: "Courses", mono: false } });
-    });
+    const { user } = await renderShell({ routes: fakeRoutes });
+    act(() => openDrill({ kind: "course", courseCode: "CMSC351" }));
     expect(
       screen.getByRole("button", { name: "Back to Courses" }),
     ).toBeVisible();
     // Back to the same view (another plan's CMSC351) just says Back.
-    act(() => {
-      useUi.setState({ historyBack: { label: "CMSC351", mono: true } });
-    });
+    act(() => goTo(currentView(), { shared: { planId: "plan-b-0001" } }));
     await user.hover(screen.getByRole("button", { name: "Back" }));
     expect(await screen.findByRole("tooltip")).toHaveTextContent("BackEsc");
+    // It's the browser's Back: the entry before, the other plan's CMSC351.
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await settle();
+    expect(currentPath()).not.toContain("plan-b-0001");
+    expect(
+      screen.getByRole("button", { name: "Back to Courses" }),
+    ).toBeVisible();
   });
 
   it("clicking the open tab while drilled in goes back before collapsing", async () => {
-    const { user } = await renderShell({ panels: [fakePanels] });
+    const { user } = await renderShell({ routes: fakeRoutes });
     await user.click(railTab("Search"));
     await user.click(screen.getByRole("button", { name: "CMSC351" }));
     await user.click(railTab("Search"));
@@ -187,7 +189,7 @@ describe("AppShell", () => {
   });
 
   it("`/` opens Search and focuses its field", async () => {
-    const { user } = await renderShell({ panels: [fakePanels] });
+    const { user } = await renderShell({ routes: fakeRoutes });
     await user.keyboard("/");
     await waitFor(() =>
       expect(
@@ -197,18 +199,18 @@ describe("AppShell", () => {
   });
 
   it("shortcuts don't fire while typing in a field", async () => {
-    const { user } = await renderShell({ panels: [fakePanels] });
+    const { user } = await renderShell({ routes: fakeRoutes });
     await user.click(railTab("Search"));
     const field = screen.getByRole("textbox", { name: "Search courses" });
     await user.type(field, "3/7");
     expect(field).toHaveValue("3/7");
-    expect(useUi.getState().tab).toBe("search");
+    expect(currentView().tab).toBe("search");
 
     // Esc leaves the field first, then shortcuts work again.
     await user.keyboard("{Escape}");
     expect(field).not.toHaveFocus();
     await user.keyboard("3");
-    expect(useUi.getState().tab).toBe("problems");
+    expect(currentView().tab).toBe("problems");
   });
 
   it("the problem count opens Problems", async () => {
@@ -218,22 +220,22 @@ describe("AppShell", () => {
   });
 });
 
-describe("Panels that load on first use", () => {
+describe("Tabs whose route loads on first use", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   type ExportModule = { Panel: ComponentType };
 
-  it("starts loading on hover and shows the skeleton until the panel arrives", async () => {
+  it("starts loading its route on hover and shows the skeleton until the panel arrives", async () => {
     let arrive: (m: ExportModule) => void = () => {};
     const importer = vi.fn(
       () => new Promise<ExportModule>((resolve) => (arrive = resolve)),
     );
-    const panels = definePanels({
-      tabs: { export: lazyPanel(lazyModule(importer), (m) => m.Panel) },
+    const { user } = await renderShell({
+      routes: { tabs: { export: lazyRouteComponent(importer, "Panel") } },
     });
-    const { user } = await renderShell({ panels: [panels], preload: false });
     expect(importer).not.toHaveBeenCalled();
 
     await user.hover(railTab("Export"));
@@ -251,25 +253,40 @@ describe("Panels that load on first use", () => {
     expect(importer).toHaveBeenCalledTimes(1);
   });
 
-  it("says so in the panel, not the whole page, when one can't load", async () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const panels = definePanels({
-      tabs: {
-        export: lazyPanel(
-          lazyModule<ExportModule>(() =>
-            Promise.reject(new Error("Failed to fetch")),
+  for (const [how, importer] of [
+    [
+      "the import fails",
+      () =>
+        Promise.reject(
+          new TypeError(
+            "Failed to fetch dynamically imported module: /assets/schedule.export.js",
           ),
-          (m) => m.Panel,
         ),
-      },
+    ],
+    [
+      // What Vite's loader does once load-recovery has taken the error.
+      "the import resolves to nothing",
+      () => Promise.resolve(undefined as unknown as ExportModule),
+    ],
+  ] as const)
+    it(`says so in the panel, not the whole page, when one can't load (${how})`, async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { user } = await renderShell({
+        routes: {
+          tabs: {
+            export: lazyRouteComponent<ExportModule, "Panel">(
+              importer,
+              "Panel",
+            ),
+          },
+        },
+      });
+      await user.click(railTab("Export"));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Couldn't load Export. Check your connection, then reload. Your plans are saved.",
+      );
+      expect(screen.getByRole("button", { name: "Reload" })).toBeVisible();
+      expect(rail()).toBeVisible();
+      error.mockRestore();
     });
-    const { user } = await renderShell({ panels: [panels], preload: false });
-    await user.click(railTab("Export"));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Couldn't load Export. Check your connection, then reload. Your plans are saved.",
-    );
-    expect(screen.getByRole("button", { name: "Reload" })).toBeVisible();
-    expect(rail()).toBeVisible();
-    error.mockRestore();
-  });
 });

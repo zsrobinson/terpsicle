@@ -28,7 +28,13 @@ import { ChatSocket, type SocketLike, type SocketStatus } from "./socket";
 
 export type ChatResult =
   | { ok: true; message: ChatMessage | null }
-  | { ok: false; code: ChatErrorCode; retryAfter: number | null };
+  | {
+      ok: false;
+      code: ChatErrorCode;
+      retryAfter: number | null;
+      /** When the owner's stop ends, if that's why. */
+      until?: string;
+    };
 
 type Requested = Extract<ChatClientFrame, { req: string }>;
 
@@ -135,7 +141,12 @@ export class CourseChatSession {
         });
       pending?.resolve(
         frame.type === "error"
-          ? { ok: false, code: frame.code, retryAfter: frame.retryAfter }
+          ? {
+              ok: false,
+              code: frame.code,
+              retryAfter: frame.retryAfter,
+              ...(frame.until ? { until: frame.until } : {}),
+            }
           : { ok: true, message: frame.type === "ack" ? frame.message : null },
       );
       return;
@@ -223,7 +234,12 @@ export class CourseChatSession {
     if (result.ok && result.message)
       this.#dispatch({ type: "sent", req, message: result.message });
     else if (!result.ok)
-      this.#dispatch({ type: "send-failed", req, code: result.code });
+      this.#dispatch({
+        type: "send-failed",
+        req,
+        code: result.code,
+        ...(result.until ? { until: result.until } : {}),
+      });
     return result;
   }
 

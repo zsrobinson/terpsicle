@@ -118,6 +118,23 @@ const MONTHS = [
   "Dec",
 ];
 
+const CAMPUS_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** "2026-09-25": the College Park date of an instant. */
+export function campusDate(iso: string): IsoDate {
+  return CAMPUS_DATE.format(new Date(iso));
+}
+
+/** "Oct 26": the campus day an owner's stop ends, as its author and the owner read it. */
+export function stopEndWords(until: string): string {
+  return formatShortDate(campusDate(until));
+}
+
 /** "Mar 22" */
 export function formatShortDate(date: IsoDate): string {
   const [, m, d] = date.split("-").map(Number);

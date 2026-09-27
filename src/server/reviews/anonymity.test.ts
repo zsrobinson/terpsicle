@@ -222,7 +222,22 @@ describe("anonymity payloads (V2 §7.5)", () => {
       id: second.id,
       action: "remove",
       reason: "hate",
+      authorAction: "stop",
     });
+    // The stop landed on the author, and nothing the owner got says who.
+    expect(
+      await env.DB.prepare(
+        "SELECT reviews_blocked_until AS until FROM users WHERE id = ?1",
+      )
+        .bind(AUTHOR_ID)
+        .first("until"),
+    ).not.toBeNull();
+    const stops = await env.DB.prepare(
+      "SELECT * FROM moderation_author_stops",
+    ).all();
+    expect(stops.results).toHaveLength(1);
+    seen.push(["moderation_author_stops", stops.results]);
+    await record("admin decisions", admin, "admin/decisions", {});
     await record("admin undo", admin, "admin/moderation/undo", {
       id: second.id,
     });

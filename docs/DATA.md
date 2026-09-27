@@ -426,7 +426,7 @@ A signed-in person watches a section; the seats cron emails them when it reopens
 3. **Stop.** In the app: `alerts/unwatch`, from the bell, the problem's button, or the Watching list, with Undo (no confirmation, DESIGN §5). From the email: its one-click unsubscribe (below).
 4. **The end of a term.** The daily job (`endPastTermWatches`) deletes watches whose term isn't `active` in `terms.json` any more (archived or gone): seats stop updating then. Deleting an account deletes its watches (`ON DELETE CASCADE`).
 
-**The email** (`email.ts`): plain text plus simple table-based HTML, `Auto-Submitted: auto-generated`, from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`. It has the counts, Testudo's as-of time in Eastern, a link that opens the course (`/schedule?term=<id>&course=<code>`, which opens it over Courses in that term; `ScheduleSearchSchema`, §8.1), Testudo's page, and "See or stop your watches" (`/settings#watching`). Cron emails always link to terpsicle.com.
+**The email** (`email.ts`): plain text plus simple table-based HTML, `Auto-Submitted: auto-generated`, from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`. It has the counts, Testudo's as-of time in Eastern, a link that opens the course (`/schedule/course/<code>?term=<id>`; the older `/schedule?term=<id>&course=<code>` still redirects there, which opens it over Courses in that term; `ScheduleSearchSchema`, §8.1), Testudo's page, and "See or stop your watches" (`/settings#watching`). Cron emails always link to terpsicle.com.
 
 **One-click unsubscribe** (RFC 8058): `List-Unsubscribe: <https://terpsicle.com/api/alerts/one-click?u&t&s&k>` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. `k` is an HMAC of the user, term and section under the Worker's own key (`keyedHash`, the R2 key that also hashes IPs), so a link stops only that one watch and can't be made for anyone else's. The route sits outside the JSON table (mail providers POST a form):
 - `POST` stops the watch (idempotent) and answers a plain "Stopped";
@@ -535,6 +535,8 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0009_chat` (landed, §7.9) | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
 | `0010_four_year_sync` (landed, §7.7) | rebuilds `sync_docs` so `kind` also allows `four-year` (with tombstones) | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
+| `0012_feedback` | `feedback`, `feedback_groups` | The feedback sheet (FEEDBACK.md) |
+| `0013_author_stops` | `moderation_author_stops` (per queue item: the stop's id and when it ends; no author), `author_stops` (per stop: who it's on, for Reviews' and Chat's stores; purged with the account) | "Stop this author" and its Undo (V2.md §10, MODERATION.md §6) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -619,7 +621,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 
 **Mock mode** (`pnpm dev:mock`, e2e): `scripts/seed-mock-data.ts` puts the mock bucket into local R2 before Vite starts, so the object reads the same catalog the app does, and the Vite config sets `CHAT_ENABLED: "on"` and `MODERATION_OFFLINE: "true"`: with `AUTH_TEST_MODE` on, moderation calls offline stand-ins for the models (`src/server/moderation/offline-models.ts`: Guard says safe, the policy model scores 0), so only the rules hold anything.
 
-**Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs` and `chat_author_courses` rows (`notifications` join them with `v2/chat-notify`). `chat_members` stays: it describes people.
+**Retention:** the first message sets an alarm. Rooms turn read-only at midnight in College Park after the 10th day past `classesEnd`, or at once when `terms.json` has the term archived and no calendar is published; the alarm then closes every socket with `4001`. 60 days later it deletes the object's storage and the course's `chat_rooms`, `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` and `notifications` rows. `chat_members` stays: it describes people.
 
 ### 7.10 Terpsicle Todo (landed: `migrations/0011_todo.sql`)
 
@@ -645,11 +647,13 @@ The design is `docs/V2.md` §6 (its "As built" under §6.4). Routes: `src/server
 |---|---|---|---|
 | `notification_settings` | `user_id` | `settings` (`NotificationSettingsSchema` JSON), `updated_at` | No row means the defaults. A row that no longer reads also gives the defaults. |
 | `push_subscriptions` | `id` (16 random bytes) | `user_id`, `endpoint` (unique), `p256dh`, `auth`, `user_agent_label`, `created_at`, `last_success_at`, `failure_count` | One per device. Saving an endpoint again refreshes its keys; another account saving it takes the row over (a new `id` and date). 404/410 deletes it; the 10th failure in a row does too. The endpoint never leaves the server. |
-| `notifications` | `id` | `user_id`, `type`, `term_id`, `course_code`, `room_id`, `seq`, `message_id`, `actor_id`, `created_at`, `read_at`, `emailed_at` | Chat mentions and replies, for read state and the digest; `v2/chat-notify` fills it. |
+| `notifications` | `id` | `user_id`, `type`, `term_id`, `course_code`, `room_id`, `seq`, `message_id`, `actor_id`, `created_at`, `read_at`, `emailed_at` | Chat mentions and replies, for read state and the digest. The `CourseChat` object writes one per person per message (`id` is `<user>:<term>:<course>:<message>`, so a message published again after an edit adds none) once the message is visible; reading the room up to its `seq` sets `read_at`; the digest sets `emailed_at`. No message text: the digest asks the object. Pruned after 30 days, and with the course's other rows at retention. |
 | `notification_deliveries` | `id` | `user_id` (no foreign key; null once the account is purged), `type`, `channel`, `dedupe_key` (unique), `status` (`sent` · `failed` · `skipped`), `provider_id`, `sent_at` | One row per event per channel, claimed before sending, so a retry sends nothing twice. `provider_id` is the Email Service id, or the push services' statuses (`201,410`). Pruned after 90 days. "Send me a test" writes none. |
 
 - **Deleting an account** drops every push subscription at once (`account/delete`); the purge deletes settings, subscriptions and `notifications`, and sets deliveries' `user_id` to null.
 - **Signing out** with `pushEndpoint` deletes that device's row.
+- **Chat's dedupe keys** (`v2/chat-notify`): `chat-mention:<user>:<message>` and `chat-reply:<user>:<message>` (`…:push`), and `chat-digest:<user>:<College Park date>` (`…:email`). Chat pushes stop at 30 per person per hour (counted from these rows).
+- **One-click off** (RFC 8058): `POST /api/notifications/email-off?u&t&k` turns off type `t`'s email for person `u`; `k` is `keyedHash("email-off:<u>:<t>")`. The chat digest carries it; seat alerts keep `alerts/one-click`, which stops the watch.
 
 ## 8. Share links
 
@@ -677,22 +681,21 @@ At most 40 entries per list, and one entry per course across `sections` and `sav
 - Section keys missing from the catalog show up as cancelled problems in the shared view and are dropped on Save a copy, with a toast that names them.
 - The codec lives in `core/share`. A version the client doesn't know gets a specific error ("This link was made by a newer version of Terpsicle. Reload to open it.").
 
-### 8.1 The scheduler's other params
+### 8.1 The scheduler's URLs
 
-`/schedule` also carries where you are, validated by `ScheduleSearchSchema` (`core/schema/schedule-url.ts`); which change pushes a history entry is in `src/app/README.md`, "URL state". A bad value is dropped, never an error.
+Where you are is the path: `/schedule/<tab>` for a rail tab (`courses`, `search`, …), and `/schedule/course/<code>`, `/schedule/connection/<id>` or `/schedule/result/<id>` for a drill-in, with the tab it's over as `?tab=` (Courses when absent; a generated plan is over Generate). Which change pushes a history entry is in `src/app/README.md`, "URL state". Every param is validated by its route's schema (`core/schema/schedule-url.ts`); a bad value is dropped, never an error.
 
-| Param | Value |
-|---|---|
-| `term` | Term id. Omitted until the term list loads. |
-| `planId` | The open plan tab's local id; ignored when it isn't one of this browser's plans. |
-| `tab` | Rail tab (`courses`, `search`, …). The app's own URLs always name it; a link without it (`?term=&course=` from an email) opens over Courses. |
-| `course` · `connection` · `result` | The drill-in: a course code, a connection id, or a generated plan's id (only while that run's results are in memory). |
-| `view=results` | Generate shows its results rather than the form. |
-| `q` | Search's text. |
-| `gened` · `credits` · `level` · `openSeats` · `fits` | Search's filter chips: comma lists (`gened=DSHU,DSNL`, `level=300`) and `1` flags. |
-| `plan` · `demo` | The share link (above), and `pnpm dev:mock`'s demo switch. Kept as opened. |
+| Param | Where | Value |
+|---|---|---|
+| `term` | every view | Term id. Omitted until the term list loads. |
+| `planId` | every view | The open plan tab's local id; ignored when it isn't one of this browser's plans. |
+| `plan` · `demo` | every view | The share link (above), and `pnpm dev:mock`'s demo switch. Kept as opened. |
+| `tab` | drill-ins | The rail tab under it. |
+| `view=results` | `/schedule/generate` | Generate shows its results rather than the form. |
+| `q` | `/schedule/search` | Search's text. |
+| `gened` · `credits` · `level` · `openSeats` · `fits` | `/schedule/search` | Search's filter chips: comma lists (`gened=DSHU,DSNL`, `level=300`) and `1` flags. |
 
-History entries the app writes carry `ScheduleHistoryStateSchema` in their state: `inApp`, and the label of the view Back returns to.
+Old-style URLs, `/schedule?tab=&course=&connection=&result=&view=&q=…` (seat-alert emails, bookmarks), redirect to their route, replacing the entry; a plain `/schedule` (a share link, the installed app's start page) opens the saved view. History entries the app writes carry `ScheduleHistoryStateSchema` in their state: `inApp`, the label of the view Back returns to, and course details' sub-tab to jump to on arrival.
 
 ---
 

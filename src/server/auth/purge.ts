@@ -71,6 +71,10 @@ export const PURGE_LEDGER = {
   feedback:
     "kept for the owner, user_id set to null (they can't be replied to now)",
   feedback_groups: "untouched: no user data",
+  // 0013_author_stops
+  moderation_author_stops:
+    "untouched: no user id, only a queue item and when the stop ends",
+  author_stops: "deleted",
 } as const satisfies Record<string, string>;
 
 /**
@@ -250,6 +254,8 @@ export function accountStatements(
     byUser("chat_read_markers"),
     byUser("chat_room_prefs"),
     byUser("chat_author_courses"),
+    // The owner's stops on them (the users columns go with the row).
+    byUser("author_stops"),
     // Notifications: settings, devices and chat notifications go; the
     // record of what was sent stays, linked to nobody.
     byUser("notification_settings"),

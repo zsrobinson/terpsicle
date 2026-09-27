@@ -3,6 +3,7 @@
 // src/features/admin imports it, and that loads with /admin.
 import type { z } from "zod";
 import {
+  AdminChatRemoveInputSchema,
   AdminHealthInputSchema,
   AdminHealthSchema,
   AdminSamplesInputSchema,
@@ -34,6 +35,18 @@ export const adminApi = {
     call(
       "admin/moderation/resolve",
       ResolveInputSchema,
+      ResolveResultSchema,
+      input,
+      options,
+    ),
+  /** Removes a chat message found outside the queue, as a decided queue item. */
+  chatRemove: (
+    input: z.input<typeof AdminChatRemoveInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "admin/chat/remove",
+      AdminChatRemoveInputSchema,
       ResolveResultSchema,
       input,
       options,

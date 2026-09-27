@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { currentView } from "~/app/schedule-nav";
 import type { Plan } from "~/core/schema";
-import { useUi } from "~/state/ui-store";
 import { track } from "./analytics";
 import { splitTabs } from "./plan-tabs";
 import { renderShell } from "./test-utils";
@@ -63,7 +63,7 @@ describe("plan tabs", () => {
     await user.click(
       await screen.findByRole("menuitem", { name: /Generate plans/ }),
     );
-    expect(useUi.getState().tab).toBe("generate");
+    expect(currentView().tab).toBe("generate");
     expect(screen.getByRole("heading", { name: "Generate" })).toBeVisible();
   });
 

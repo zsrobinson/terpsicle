@@ -205,8 +205,8 @@ function CourseLinks({ course }: { course: CourseCode }) {
       </WithTooltip>
       <WithTooltip label={`${course}'s sections this term`}>
         <Link
-          to="/schedule"
-          search={{ course }}
+          to="/schedule/course/$code"
+          params={{ code: course }}
           className="text-muted hover:text-fg"
         >
           View schedule

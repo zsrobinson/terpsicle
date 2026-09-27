@@ -18,7 +18,9 @@ import { adminApi } from "~/server/fns/admin-api";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
+import { ChatRemoveForm } from "./chat-remove";
 import { HealthHeader } from "./health-header";
+import { StopAuthor } from "./stop-author";
 import { failureWords, useLoad } from "./use-load";
 import {
   ADMIN_REASON_WORDS,
@@ -27,21 +29,25 @@ import {
   percent,
   REMOVE_REASONS,
   REPORT_WORDS,
+  reviewContextWords,
   SCORE_WORDS,
   SOURCE_WORDS,
+  stoppedWords,
+  stopWords,
 } from "./words";
 
 // `/admin` (V2 §10): held posts, urgent first, then oldest. Publish or
 // remove at once, with a reason; the toast's Undo puts it back (no
-// confirmation dialogs, DESIGN §5). "Decided" lists what you closed lately,
-// each with its own Undo. Items never carry an author: moderation doesn't
-// store one.
+// confirmation dialogs, DESIGN §5). A removal can also stop the item's
+// author for a while; Reviews or Chat applies it, so the panel never learns
+// who. "Decided" lists what you closed lately, each with its own Undo. Items
+// never carry an author: moderation doesn't store one.
 
 export type QueueView = "waiting" | "decided";
 
 export type AdminClient = Pick<
   typeof adminApi,
-  "queue" | "resolve" | "undo" | "health" | "samples"
+  "queue" | "resolve" | "undo" | "health" | "samples" | "chatRemove"
 >;
 
 /** Long enough to read and reach Undo (WCAG 2.2.1), like the scheduler's. */
@@ -83,6 +89,7 @@ export function QueuePage({
     }));
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   const refresh = () => {
     setGone(() => new Set());
@@ -105,15 +112,65 @@ export function QueuePage({
     refresh();
   };
 
+  /** The toast after a decision, with Undo (DESIGN §5: no dialogs). */
+  const announce = (
+    decided: QueueItem,
+    action: "approve" | "remove",
+    reason: AdminReason,
+    stopAsked: boolean,
+  ) =>
+    toast(
+      action === "approve"
+        ? `${publishWord(decided)}ed`
+        : `Removed: ${ADMIN_REASON_WORDS[reason]}`,
+      {
+        id: `resolved-${decided.id}`,
+        description: stopAsked
+          ? decided.stoppedUntil
+            ? `${itemTitle(decided)}. ${stoppedWords(decided.kind, decided.stoppedUntil)}.`
+            : `${itemTitle(decided)}. No one to stop: the account or the post is gone.`
+          : itemTitle(decided),
+        duration: UNDO_TOAST_MS,
+        action: (
+          <WithTooltip
+            label={
+              decided.stoppedUntil
+                ? "Put it back in the queue, held, and lift the stop"
+                : "Put it back in the queue, held"
+            }
+          >
+            <Button
+              size="row"
+              variant="outline"
+              className="ml-auto"
+              onClick={() => {
+                toast.dismiss(`resolved-${decided.id}`);
+                void undo(decided);
+              }}
+            >
+              <Undo2 size={12} aria-hidden="true" />
+              Undo
+            </Button>
+          </WithTooltip>
+        ),
+      },
+    );
+
   const resolve = async (
     item: QueueItem,
     action: "approve" | "remove",
     reason: AdminReason,
+    stop: boolean,
   ) => {
     setBusy(item.id);
     try {
-      const result = await client.resolve({ id: item.id, action, reason });
-      if (result.status === "not-found") {
+      const result = await client.resolve({
+        id: item.id,
+        action,
+        reason,
+        ...(stop && action === "remove" ? { authorAction: "stop" } : {}),
+      });
+      if (result.status !== "ok") {
         toast("That post is gone", {
           description: "It was decided or deleted since this list loaded.",
         });
@@ -122,32 +179,7 @@ export function QueuePage({
       }
       setGone((prev) => new Set(prev).add(item.id));
       health.reload();
-      toast(
-        action === "approve"
-          ? `${publishWord(item)}ed`
-          : `Removed: ${ADMIN_REASON_WORDS[reason]}`,
-        {
-          id: `resolved-${item.id}`,
-          description: itemTitle(item),
-          duration: UNDO_TOAST_MS,
-          action: (
-            <WithTooltip label="Put it back in the queue, held">
-              <Button
-                size="row"
-                variant="outline"
-                className="ml-auto"
-                onClick={() => {
-                  toast.dismiss(`resolved-${item.id}`);
-                  void undo(item);
-                }}
-              >
-                <Undo2 size={12} aria-hidden="true" />
-                Undo
-              </Button>
-            </WithTooltip>
-          ),
-        },
-      );
+      announce(result.item, action, reason, stop && action === "remove");
     } catch (error) {
       toast(`Couldn't ${action === "approve" ? "publish" : "remove"} that`, {
         description: failureWords(error),
@@ -198,12 +230,22 @@ export function QueuePage({
             Decided
           </ViewButton>
         </nav>
+        <WithTooltip label="Take down a message you found in Chat, from its link">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            aria-expanded={removing}
+            onClick={() => setRemoving((was) => !was)}
+          >
+            Paste a chat link
+          </Button>
+        </WithTooltip>
         {testMode ? (
           <WithTooltip label="Test copies only: puts four made-up held posts in the queue">
             <Button
               variant="ghost"
               size="sm"
-              className="ml-auto"
               disabled={adding}
               onClick={() => void addSamples()}
             >
@@ -212,6 +254,18 @@ export function QueuePage({
           </WithTooltip>
         ) : null}
       </div>
+
+      {removing ? (
+        <ChatRemoveForm
+          client={client}
+          onClose={() => setRemoving(false)}
+          onRemoved={(item, reason, stop) => {
+            setRemoving(false);
+            refresh();
+            announce(item, "remove", reason, stop);
+          }}
+        />
+      ) : null}
 
       {queue.state === "failed" ? (
         <p role="status" className="mb-3 text-muted">
@@ -241,8 +295,8 @@ export function QueuePage({
                 item={item}
                 now={at}
                 busy={busy === item.id}
-                onResolve={(action, reason) =>
-                  void resolve(item, action, reason)
+                onResolve={(action, reason, stop) =>
+                  void resolve(item, action, reason, stop)
                 }
                 onUndo={() => void undo(item)}
               />
@@ -327,7 +381,11 @@ export function QueueCard({
   item: QueueItem;
   now: Date;
   busy: boolean;
-  onResolve: (action: "approve" | "remove", reason: AdminReason) => void;
+  onResolve: (
+    action: "approve" | "remove",
+    reason: AdminReason,
+    stop: boolean,
+  ) => void;
   onUndo: () => void;
 }) {
   const titleId = useId();
@@ -362,6 +420,11 @@ export function QueueCard({
             : `waiting ${waitedFor(item.createdAt, now)}`}
         </span>
       </div>
+      {item.review ? (
+        <p className="mt-1 text-muted text-sm">
+          {reviewContextWords(item.review)}
+        </p>
+      ) : null}
 
       {item.text === null ? (
         <p className="mt-2 text-muted">
@@ -421,7 +484,7 @@ export function QueueCard({
               <Button
                 size="sm"
                 disabled={busy}
-                onClick={() => onResolve("approve", "fine")}
+                onClick={() => onResolve("approve", "fine", false)}
               >
                 <Check size={14} aria-hidden="true" />
                 {publishWord(item)}
@@ -429,8 +492,9 @@ export function QueueCard({
             </WithTooltip>
             <RemoveMenu
               suggested={suggestedRemoveReason(reasons)}
+              stopLabel={stopWords(item.kind)}
               disabled={busy}
-              onRemove={(reason) => onResolve("remove", reason)}
+              onRemove={(reason, stop) => onResolve("remove", reason, stop)}
             />
           </>
         ) : (
@@ -441,8 +505,17 @@ export function QueueCard({
                 : item.resolution?.decision === "remove"
                   ? `Removed${item.resolution.reason ? `: ${ADMIN_REASON_WORDS[item.resolution.reason]}` : ""}`
                   : "Closed"}
+              {item.stoppedUntil
+                ? `. ${stoppedWords(item.kind, item.stoppedUntil)}`
+                : ""}
             </span>
-            <WithTooltip label="Put it back in the queue, held">
+            <WithTooltip
+              label={
+                item.stoppedUntil
+                  ? "Put it back in the queue, held, and lift the stop"
+                  : "Put it back in the queue, held"
+              }
+            >
               <Button variant="outline" size="sm" onClick={onUndo}>
                 <Undo2 size={14} aria-hidden="true" />
                 Undo
@@ -459,14 +532,17 @@ export function QueueCard({
 // /schedule, and sharing them with the panel split them out of its bundle.
 function RemoveMenu({
   suggested,
+  stopLabel,
   disabled,
   onRemove,
 }: {
   suggested: AdminReason;
+  stopLabel: string;
   disabled: boolean;
-  onRemove: (reason: AdminReason) => void;
+  onRemove: (reason: AdminReason, stop: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [stop, setStop] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const listId = useId();
   const others = REMOVE_REASONS.filter((r) => r !== suggested);
@@ -476,7 +552,7 @@ function RemoveMenu({
         variant={suggestion ? "outline" : "ghost"}
         size="row"
         disabled={disabled}
-        onClick={() => onRemove(reason)}
+        onClick={() => onRemove(reason, stop)}
       >
         {ADMIN_REASON_WORDS[reason]}
       </Button>
@@ -520,6 +596,7 @@ function RemoveMenu({
           </span>
           {choice(suggested, true)}
           {others.map((reason) => choice(reason, false))}
+          <StopAuthor label={stopLabel} checked={stop} onChange={setStop} />
         </fieldset>
       ) : null}
     </>

@@ -1,15 +1,22 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { currentView } from "~/app/schedule-nav";
+import type { ShellRoutes } from "~/app/test-utils";
 import { renderPlanTab } from "~/features/courses/testing";
 import { aPlan, fixtureTermId, mockSection, snapshotOf } from "~/fixtures";
 import { useCatalog } from "~/state/catalog-store";
-import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
-import { panels } from "./panels";
+import { ConnectionDetails } from "./connection-details";
 import { useTravelSettingsOpen } from "./settings-store";
+import { TravelPanel } from "./travel-panel";
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+
+const panels: ShellRoutes = {
+  tabs: { travel: TravelPanel },
+  drills: { connection: ConnectionDetails },
+};
 
 /** The Travel tab on the demo plan, with routes loaded. */
 async function renderTravel(options?: { demo?: boolean }) {
@@ -158,7 +165,7 @@ describe("Travel tab", () => {
     });
     if (!row) throw new Error("no row");
     await user.click(row);
-    expect(useUi.getState().stack.at(-1)).toEqual({
+    expect(currentView().drill).toEqual({
       kind: "connection",
       connectionId: "M:STAT400-0101#0>CMSC351-0301#0",
     });

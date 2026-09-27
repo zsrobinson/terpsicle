@@ -71,7 +71,7 @@ beforeEach(() => {
 });
 
 describe("NotificationSettingsSection", () => {
-  it("lists every type; seat openings switch and save, the rest stay quiet", async () => {
+  it("lists every type; the ones that send switch and save, the rest stay quiet", async () => {
     api.setSettings.mockResolvedValue({
       settings: DEFAULT_NOTIFICATION_SETTINGS,
     });
@@ -90,13 +90,50 @@ describe("NotificationSettingsSection", () => {
         seatOpen: { push: true, email: false },
       },
     });
-    const mention = screen.getByRole("switch", {
+    const due = screen.getByRole("switch", {
+      name: "Due tomorrow: Notification",
+    });
+    expect(due).toHaveAttribute("aria-disabled", "true");
+    expect(due).toHaveAttribute("aria-checked", "false");
+    await user.click(due);
+    expect(api.setSettings).toHaveBeenCalledOnce();
+  });
+
+  it("switches Chat's mentions, replies and digest", async () => {
+    api.setSettings.mockResolvedValue({
+      settings: DEFAULT_NOTIFICATION_SETTINGS,
+    });
+    const user = renderSection();
+    const mention = await screen.findByRole("switch", {
       name: "Mentions in Chat: Notification",
     });
-    expect(mention).toHaveAttribute("aria-disabled", "true");
-    expect(mention).toHaveAttribute("aria-checked", "false");
-    await user.click(mention);
-    expect(api.setSettings).toHaveBeenCalledOnce();
+    const reply = screen.getByRole("switch", {
+      name: "Replies in Chat: Notification",
+    });
+    const digest = screen.getByRole("switch", { name: "Chat digest: Email" });
+    expect(mention).toHaveAttribute("aria-checked", "true");
+    expect(reply).toHaveAttribute("aria-checked", "true");
+    // The digest starts off (V2.md §6.1).
+    expect(digest).toHaveAttribute("aria-checked", "false");
+    await user.click(reply);
+    expect(api.setSettings).toHaveBeenLastCalledWith({
+      settings: {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        chatReply: { push: false },
+      },
+    });
+    await user.click(digest);
+    expect(digest).toHaveAttribute("aria-checked", "true");
+    expect(api.setSettings).toHaveBeenLastCalledWith({
+      settings: {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        chatReply: { push: false },
+        chatDigest: { email: true },
+      },
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Chat digest: Notification" }),
+    ).not.toBeInTheDocument();
   });
 
   it("puts a switch back when saving fails", async () => {

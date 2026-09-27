@@ -119,6 +119,9 @@ What the sidebar shows for the open rail tab.
 A details view opened over the current tab (course details, connection details, a Generate result). It has one "Back" that returns to where you came from.
 _Avoid_: breadcrumb
 
+**Base view**:
+The tab's own view, put under a drill-in that was opened straight from a link (an email, a bookmark), so Back from it stays in Schedule.
+
 **Course details**:
 The one view of a course, the same from everywhere: header, section list, and the Instructors, Grades and About tabs.
 
@@ -211,6 +214,16 @@ _Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
 **Room rules**:
 The three lines a course's chat shows the first time you open it, and in room info.
 
+**Mention**:
+"@" and a classmate's name in a message ("@Hannah Lee"). Typing "@" offers the room's members; a mention of someone in the room notifies them, even in a room they muted.
+_Avoid_: tag, ping
+
+**Reply**:
+A message in a thread. The thread's first author hears about it ("Hannah Lee replied in CMSC131 · 0303"), unless they muted the room.
+
+**Chat digest**:
+The once-a-day email listing mentions and replies you haven't read ("3 unread in your class chats"). Off until you turn it on.
+
 ## Moderation
 
 **Moderation**:
@@ -234,6 +247,10 @@ _Avoid_: feedback (that's the feedback sheet's)
 
 **Moderation queue**:
 Held and reported items waiting for the owner in `/admin`. It's meant to stay small.
+
+**Stop (an author)**:
+The owner keeping whoever wrote a removed review or message from writing more for a while: reviews for 30 days, Chat for 7. Chosen through the item, so the owner never learns who; the person sees only when they can post again.
+_Avoid_: ban, block (a block is the scheduler's)
 
 **Admin**:
 The owner, the only admin and moderator. Contact is admin [at] terpsicle.com.

@@ -1,6 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { switchSection } from "~/app/actions";
+import { closeDrill, goTo, openDrill } from "~/app/schedule-nav";
 import { renderShell } from "~/app/test-utils";
 import { plansInTerm } from "~/core/plans";
 import {
@@ -129,9 +130,7 @@ describe("calendar", () => {
 
   it("↑/↓ preview a section solid and ↵ switches to it", async () => {
     const { calendar, user } = await renderDemo();
-    act(() =>
-      useUi.getState().drill({ kind: "course", courseCode: "CMSC351" }),
-    );
+    act(() => openDrill({ kind: "course", courseCode: "CMSC351" }));
     await user.keyboard("{ArrowUp}");
     expect(useUi.getState().previewSection).toBe("CMSC351-0201");
     await user.keyboard("{Enter}");
@@ -141,7 +140,7 @@ describe("calendar", () => {
 
   it("on the Search tab, the hint's row is there before a hover, and the day names stay", async () => {
     await renderDemo();
-    act(() => useUi.getState().openTab("search"));
+    act(() => goTo({ tab: "search", drill: null }));
     const idle = screen.getByText("Hover a result to see its sections here.");
     const row = idle.parentElement;
     expect(row).toHaveClass("h-9");
@@ -156,7 +155,7 @@ describe("calendar", () => {
       screen.getByText("Hover a result to see its sections here."),
     ).toBeVisible();
     // Other tabs have no hint at all.
-    act(() => useUi.getState().openTab("courses"));
+    act(() => goTo({ tab: "courses", drill: null }));
     expect(
       screen.queryByText("Hover a result to see its sections here."),
     ).toBeNull();
@@ -183,17 +182,17 @@ describe("calendar", () => {
     // nothing to step through.
     act(() => {
       useUi.getState().setHoverCourse(null);
-      useUi.getState().drill({ kind: "course", courseCode: "CMSC425" });
+      openDrill({ kind: "course", courseCode: "CMSC425" });
     });
     expect(screen.getByText(/only section/)).toHaveTextContent(
       "Click it to add it.",
     );
     expect(screen.queryByText("preview")).toBeNull();
     act(() => {
-      useUi.getState().back();
+      closeDrill();
       useUi.getState().setHoverCourse(null);
       switchSection("CMSC425", "0101", "list");
-      useUi.getState().drill({ kind: "course", courseCode: "CMSC425" });
+      openDrill({ kind: "course", courseCode: "CMSC425" });
     });
     expect(screen.getByText(/no other sections/)).toHaveTextContent(
       "CMSC425 has no other sections.",
@@ -204,9 +203,7 @@ describe("calendar", () => {
 
   it("the course's dot changes its color, everywhere, with undo", async () => {
     const { user } = await renderDemo();
-    act(() =>
-      useUi.getState().drill({ kind: "course", courseCode: "CMSC351" }),
-    );
+    act(() => openDrill({ kind: "course", courseCode: "CMSC351" }));
     await user.click(
       screen.getByRole("button", { name: "CMSC351 color: Violet" }),
     );

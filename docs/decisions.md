@@ -131,6 +131,11 @@ Revisit if: `v2/schedule-routes` makes route splitting handle it.
 
 ## Schedule
 
+### Scheduler views are routes, kept mounted by the sidebar
+2026-09-27 · agent · one feature
+Each rail tab and drill-in is a route (`/schedule/search`, `/schedule/course/CMSC351?tab=search`) that the router splits, preloads and keeps in history. The sidebar renders their components itself instead of an `<Outlet />`, so panels and drill-in levels stay mounted (scroll, typed text, focus to return to). The term, open plan and Search's text stay in stores too (saved state, undo, a box that never waits on the router), written to the URL and following it on Back.
+Revisit if: the router can keep an outlet's past matches mounted (React's `<Activity>` through it), or a view needs no memory across Back.
+
 ### Back, not breadcrumbs
 2026-09-26 · owner · one feature
 Drill-ins get one "Back" to where you came from; drilling course to course doesn't stack crumbs.
@@ -225,6 +230,11 @@ Revisit if: people expect rooms before their plan syncs.
 `pnpm dev:mock` seeds local R2 with the mock catalog and screens chat with offline stand-ins for the models (`MODERATION_OFFLINE`, test mode only), so e2e can run two people against the real socket. Only the rules hold anything there.
 Revisit if: e2e needs to cover a model's own verdict.
 
+### Mentions come from the text
+2026-09-27 · agent · one feature
+The object finds "@Name" in a message's text among the room's members each time it's published, instead of the client sending a list of user ids. Nothing new in the protocol or the message rows, and a mention can only reach someone who can read the room. The digest reads message text from the object, so D1 never holds it.
+Revisit if: two members of a room share a full name often enough that mentions go to the wrong person.
+
 ## Plan and Todo
 
 ### Plan and Todo, requirements later
@@ -268,6 +278,11 @@ Revisit if: another route needs the same, or feedback needs sign-in.
 2026-09-27 · agent · one feature
 On phones the scheduler's top bar has no room for another button beside the plan's name, so "Send feedback" is an item in its account menu there, as the theme toggle is. Every other product's header shows the icon, with the wordmark hidden on phones to make room.
 Revisit if: the phone top bar is redesigned.
+
+### Push on before the device check
+2026-09-27 · owner · one feature
+Web push is on in production without waiting for the planned iPhone and Android trial; the owner checks real devices live. The VAPID pair was rotated when it went on (no device had subscribed), with the private key piped straight into the Worker secret, never printed.
+Revisit if: pushes fail on a real device, or the pair is rotated again (every subscription breaks).
 
 ## Process
 

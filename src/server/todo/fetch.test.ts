@@ -1,7 +1,7 @@
 // The fetcher (docs/V3.md §3.5): redirects only on ELMS, a size cap, a
 // timeout, conditional GETs, and error codes instead of messages.
 import { describe, expect, it } from "vitest";
-import { fetchFeed } from "./fetch";
+import { FEED_USER_AGENT, fetchFeed } from "./fetch";
 import { ELMS_FEED, FEED_URL } from "./testing";
 
 type Handler = (
@@ -60,6 +60,24 @@ describe("fetchFeed", () => {
     expect(headers.get("If-None-Match")).toBe('"abc"');
     expect(headers.get("If-Modified-Since")).toBe(
       "Sat, 26 Sep 2026 12:00:00 GMT",
+    );
+  });
+
+  it("says who's asking on every hop, or ELMS's firewall refuses it", async () => {
+    // A Worker's fetch sends no User-Agent, and ELMS answers that with 403.
+    const { fetch, seen } = fake((url) =>
+      url === FEED_URL
+        ? redirect("https://umd.instructure.com/feeds/calendars/user_moved.ics")
+        : new Response(ELMS_FEED),
+    );
+    expect((await fetchFeed(FEED_URL, { fetch })).ok).toBe(true);
+    expect(seen).toHaveLength(2);
+    for (const { init } of seen)
+      expect(new Headers(init?.headers).get("User-Agent")).toBe(
+        FEED_USER_AGENT,
+      );
+    expect(FEED_USER_AGENT).toMatch(
+      /^Terpsicle\/\S+ \(\+https:\/\/terpsicle\.com\)$/,
     );
   });
 

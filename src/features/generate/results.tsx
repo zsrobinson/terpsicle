@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { useMemo, useState } from "react";
 import { ListRow, SectionHeader } from "~/app/panel";
+import { openDrill } from "~/app/schedule-nav";
 import type { CatalogIndex } from "~/core/catalog";
 import {
   chosenCourses,
@@ -19,7 +20,6 @@ import type {
   Plan,
   SectionKey,
 } from "~/core/schema";
-import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -372,9 +372,7 @@ function ResultRow({
           type="button"
           aria-label={`${label}: ${summary}`}
           onClick={() =>
-            useUi
-              .getState()
-              .drill({ kind: "generated-plan", resultId: result.id })
+            openDrill({ kind: "generated-plan", resultId: result.id })
           }
           className="grid w-full min-w-0 grid-cols-[76px_minmax(0,1fr)] gap-x-3 text-left"
         >

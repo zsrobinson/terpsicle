@@ -119,4 +119,5 @@ export const REASON_WORDS: Readonly<Record<ReasonCode, string>> = {
   reported: "Reported by readers",
   admin: "Decided by a moderator",
   undo: "A moderator's decision was undone",
+  "author-stopped": "You stopped its author writing for a while",
 };

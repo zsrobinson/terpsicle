@@ -6,6 +6,7 @@ import {
   InstructorNameSchema,
   InstructorSlugSchema,
   IsoDateTimeSchema,
+  ReviewGradeSchema,
   TermIdSchema,
 } from "./primitives";
 
@@ -40,27 +41,6 @@ export const ReviewIdSchema = z
 export type ReviewId = z.infer<typeof ReviewIdSchema>;
 
 export const ReviewRatingSchema = z.number().int().min(1).max(5);
-
-/** The grade the author says they got; null is "Rather not say". */
-export const REVIEW_GRADES = [
-  "A+",
-  "A",
-  "A-",
-  "B+",
-  "B",
-  "B-",
-  "C+",
-  "C",
-  "C-",
-  "D+",
-  "D",
-  "D-",
-  "F",
-  "W",
-  "P",
-] as const;
-export const ReviewGradeSchema = z.enum(REVIEW_GRADES);
-export type ReviewGrade = z.infer<typeof ReviewGradeSchema>;
 
 /**
  * The body as sent. The 40–2,000 character rule is stage 0's (`precheck`),

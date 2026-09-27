@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { CourseCodeSchema, IsoDateTimeSchema } from "./primitives";
+import {
+  CourseCodeSchema,
+  IsoDateTimeSchema,
+  ReviewGradeSchema,
+  TermIdSchema,
+} from "./primitives";
 
 // Moderation for Reviews and Chat: what moderate() returns, the D1 rows that
 // record it, and the admin API. Flow: docs/MODERATION.md.
@@ -103,6 +108,8 @@ export const ReasonCodeSchema = z.enum([
   // admin
   "admin",
   "undo",
+  /** The owner also stopped the item's author writing for a while (V2 §10). */
+  "author-stopped",
 ]);
 export type ReasonCode = z.infer<typeof ReasonCodeSchema>;
 
@@ -335,6 +342,19 @@ export type ModerationQueueRow = z.infer<typeof ModerationQueueRowSchema>;
 export const QueueStatusSchema = z.enum(["open", "closed"]);
 export type QueueStatus = z.infer<typeof QueueStatusSchema>;
 
+/**
+ * What the owner sees about a held review besides its words (V2 §10): who
+ * it's about and how it rated them, never who wrote it. The rating, term and
+ * grade are the waiting edit's when an edit is what was held.
+ */
+export const ReviewQueueContextSchema = z.object({
+  instructor: z.string().min(1),
+  rating: z.number().int().min(1).max(5),
+  termId: TermIdSchema.nullable(),
+  grade: ReviewGradeSchema.nullable(),
+});
+export type ReviewQueueContext = z.infer<typeof ReviewQueueContextSchema>;
+
 /** A held item as the owner sees it. There is no author: moderation never stores one. */
 export const QueueItemSchema = z.object({
   id: ModerationIdSchema,
@@ -356,6 +376,13 @@ export const QueueItemSchema = z.object({
       reason: AdminReasonSchema.nullable(),
     })
     .nullable(),
+  /**
+   * When the writer can post again, if the owner stopped them with this
+   * decision (and hasn't undone it). Only the time: never who.
+   */
+  stoppedUntil: IsoDateTimeSchema.nullable(),
+  /** Reviews: the course's instructor, rating, term and grade. Null for chat. */
+  review: ReviewQueueContextSchema.nullable(),
 });
 export type QueueItem = z.infer<typeof QueueItemSchema>;
 
@@ -372,11 +399,25 @@ export const QueueListResultSchema = z.object({
 });
 export type QueueListResult = z.infer<typeof QueueListResultSchema>;
 
-export const ResolveInputSchema = z.strictObject({
-  id: ModerationIdSchema,
-  action: z.enum(["approve", "remove"]),
-  reason: AdminReasonSchema,
-});
+/**
+ * "Stop this author writing reviews for 30 days" or "posting in Chat for 7
+ * days" (V2 §7.5, §10). The feature that stored the item finds its author
+ * and applies it; the panel never learns who. Only with a removal.
+ */
+export const AuthorActionSchema = z.enum(["stop"]);
+export type AuthorAction = z.infer<typeof AuthorActionSchema>;
+
+export const ResolveInputSchema = z
+  .strictObject({
+    id: ModerationIdSchema,
+    action: z.enum(["approve", "remove"]),
+    reason: AdminReasonSchema,
+    authorAction: AuthorActionSchema.optional(),
+  })
+  .refine((input) => !input.authorAction || input.action === "remove", {
+    message: "Only a removal can stop its author",
+    path: ["authorAction"],
+  });
 export type ResolveInput = z.infer<typeof ResolveInputSchema>;
 
 export const UndoInputSchema = z.strictObject({ id: ModerationIdSchema });
