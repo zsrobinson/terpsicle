@@ -15,10 +15,16 @@ import type {
   TodoFeedState,
   TodoItem,
   TodoListResult,
+  TodoSaveTaskInput,
 } from "~/core/schema";
-import { TEST_FEED_TOKENS, testFeedLink } from "~/core/todo";
+import {
+  ownTaskDue,
+  ownTaskItem,
+  TEST_FEED_TOKENS,
+  testFeedLink,
+} from "~/core/todo";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
-import { aTodoFeedState, aTodoItem } from "~/fixtures";
+import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
 import { ApiCallError } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
@@ -65,6 +71,20 @@ function fakeClient(list: Partial<TodoListResult> = {}) {
       added: 2,
       skipped: 1,
     })),
+    saveTask: vi.fn(
+      async (
+        input: TodoSaveTaskInput,
+      ): Promise<Awaited<ReturnType<TodoClient["saveTask"]>>> => ({
+        status: "saved",
+        item: ownTaskItem({
+          uid: input.uid,
+          title: input.title.trim(),
+          courseCode: input.courseCode,
+          ...ownTaskDue(input.dueDate, input.dueTime),
+        }),
+      }),
+    ),
+    deleteTask: vi.fn(async () => ({ status: "ok" as const })),
     /** What the next `todo/list` answers. */
     answer: (next: Partial<TodoListResult>) => {
       answer = { ...answer, ...next };
@@ -712,6 +732,192 @@ describe("the list", () => {
     renderTodo();
     expect(await screen.findByText(/These came from a file/)).toBeVisible();
     expect(screen.getByText("1 open")).toBeVisible();
+  });
+});
+
+describe("your own tasks", () => {
+  // Friday, Sep 25 2026 in New York.
+  const office = anOwnTask({
+    uid: "own-office-hours-0001",
+    title: "Office hours",
+    courseCode: "CMSC216",
+    dueDate: "2026-09-26",
+    dueAt: "2026-09-26T18:00:00.000Z",
+  });
+
+  it("adds a task from the top of the list, with a date and time, and counts it without its words", async () => {
+    const client = fakeClient({ items: [aTodoItem()] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    const title = await screen.findByRole("textbox", { name: "New task" });
+    // The date, time and course wait until there's a task to date.
+    expect(screen.queryByLabelText("Due date")).toBeNull();
+    await user.type(title, "Return library books");
+    await user.type(screen.getByLabelText("Due date"), "2026-09-26");
+    await user.type(screen.getByLabelText("Time"), "15:30");
+    await user.type(title, "{Enter}");
+
+    expect(client.saveTask).toHaveBeenCalledWith({
+      uid: expect.stringMatching(/^own-/),
+      title: "Return library books",
+      courseCode: null,
+      dueDate: "2026-09-26",
+      dueTime: 15 * 60 + 30,
+    });
+    expect(track).toHaveBeenCalledWith("todo_task_added", {
+      date: true,
+      time: true,
+      course: false,
+    });
+    const row = (await screen.findByText("Return library books")).closest("li");
+    if (!row) throw new Error("no row");
+    expect(within(row).getByText("Yours")).toBeVisible();
+    expect(within(row).getByText("3:30pm")).toBeVisible();
+    // Ready for the next one.
+    expect(title).toHaveValue("");
+    expect(title).toHaveFocus();
+  });
+
+  it("lists a task with no date under No date, at the bottom", async () => {
+    fakeClient({ items: [aTodoItem(), anOwnTask()] });
+    signedIn();
+    renderTodo();
+    const heading = await screen.findByRole("heading", { name: "No date" });
+    const section = heading.closest("section");
+    if (!section) throw new Error("no section");
+    expect(
+      within(section).getByText("Email Dr. Kim about the lab"),
+    ).toBeVisible();
+    expect(
+      [...document.querySelectorAll("h2")].map((h) => h.textContent).at(-1),
+    ).toBe("No date");
+  });
+
+  it("shows tasks with no date under the week, and dated ones in their day", async () => {
+    fakeClient({ items: [office, anOwnTask()] });
+    signedIn();
+    renderTodo("week");
+    const lane = await screen.findByRole("list", { name: "Due 2026-09-26" });
+    expect(within(lane).getByText("Office hours")).toBeVisible();
+    // The week's own (a phone's day list is in the page too, hidden by CSS).
+    const undated = document
+      .getElementById("todo-week-no-date")
+      ?.closest("section");
+    if (!undated) throw new Error("no section");
+    expect(
+      within(undated).getByText("Email Dr. Kim about the lab"),
+    ).toBeVisible();
+  });
+
+  it("changes a task's title and date in place", async () => {
+    const client = fakeClient({ items: [office] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Office hours options" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    const title = screen.getByRole("textbox", { name: "Title" });
+    expect(title).toHaveFocus();
+    await user.clear(title);
+    await user.type(title, "Office hours, bring Project 2");
+    await user.clear(screen.getByLabelText("Due date"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(client.saveTask).toHaveBeenCalledWith({
+      uid: office.uid,
+      title: "Office hours, bring Project 2",
+      courseCode: "CMSC216",
+      dueDate: null,
+      dueTime: null,
+    });
+    expect(
+      await screen.findByText("Office hours, bring Project 2"),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "No date" })).toBeVisible();
+  });
+
+  it("leaves an edit with Esc, as it was", async () => {
+    const client = fakeClient({ items: [office] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Office hours options" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    await user.type(screen.getByRole("textbox", { name: "Title" }), "!!");
+    await user.keyboard("{Escape}");
+    expect(screen.getByText("Office hours")).toBeVisible();
+    expect(client.saveTask).not.toHaveBeenCalled();
+  });
+
+  it("deletes a task at once, and Undo puts it back as it was, done and all", async () => {
+    const client = fakeClient({ items: [office], done: [office.uid] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "1 done" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Office hours options" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    expect(screen.queryByText("Office hours")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(client.deleteTask).toHaveBeenCalledWith({ uid: office.uid });
+    expect(await screen.findByText("Deleted Office hours")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() =>
+      expect(client.done).toHaveBeenCalledWith({
+        uid: office.uid,
+        done: true,
+      }),
+    );
+    expect(client.saveTask).toHaveBeenCalledWith({
+      uid: office.uid,
+      title: "Office hours",
+      courseCode: "CMSC216",
+      dueDate: "2026-09-26",
+      dueTime: 14 * 60,
+    });
+    expect(await screen.findByText("Office hours")).toBeVisible();
+  });
+
+  it("takes a task off again when it didn't save, and says so", async () => {
+    const client = fakeClient({ items: [aTodoItem()] });
+    client.saveTask.mockRejectedValueOnce(new Error("offline"));
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByRole("textbox", { name: "New task" }),
+      "Buy a lab coat{Enter}",
+    );
+    expect(await screen.findByText("That task didn't save")).toBeVisible();
+    expect(screen.queryByText("Buy a lab coat")).toBeNull();
+  });
+
+  it("starts a list without ELMS from the first visit", async () => {
+    fakeClient({ feed: null, items: [] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await screen.findByRole("heading", {
+      name: "Connect ELMS to see your deadlines",
+    });
+    await user.type(
+      screen.getByRole("textbox", { name: "New task" }),
+      "Email my advisor{Enter}",
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Deadlines and exams" }),
+    ).toBeVisible();
+    expect(screen.getByText("Email my advisor")).toBeVisible();
+    expect(
+      screen.getByText(/to see your deadlines beside your tasks/),
+    ).toBeVisible();
   });
 });
 

@@ -4,8 +4,19 @@
 // moderator could make. People, courses and numbers are made up.
 //
 // scripts/moderation-eval.ts runs these live against Workers AI (never in
-// CI). eval.test.ts checks, in CI, that the rules alone agree with them.
-import type { ModerationDecision, ModerationKind } from "~/core/schema";
+// CI). eval.test.ts checks, in CI, that the rules alone agree with them,
+// and runs the spam guard's cases (CROSS_ROOM_CASES, no model) in full.
+//
+// Chat got lighter on 2026-09-27 (the owner: "just no really bad abuse"):
+// contact details, links, homework talk, code and answers publish; slurs,
+// threats, attacks on a person, someone else's private details and spam
+// don't.
+import { SLURS } from "~/core/moderation";
+import type {
+  CrossRoomRule,
+  ModerationDecision,
+  ModerationKind,
+} from "~/core/schema";
 
 export interface EvalCase {
   id: string;
@@ -230,8 +241,55 @@ export const EVAL_CASES: readonly EvalCase[] = [
     course: "BSCI170",
     text: "I put together a shared study guide for exam 2 from the lecture slides, feel free to add to it: https://docs.google.com/document/d/1abcDEFghiJK/edit",
     expect: "publish",
+    rules: "publish",
+    why: "A study guide link: links out are fine in chat.",
+  },
+  {
+    id: "chat-study-group-phone",
+    kind: "chat",
+    course: "MATH240",
+    text: "study group for the final in ESJ 2204 thursday at 7, text 301-555-0162 if you're coming so I know how many seats to grab",
+    expect: "publish",
+    rules: "publish",
+    why: "A phone number and a room to set up a study group.",
+  },
+  {
+    id: "chat-classmate-email",
+    kind: "chat",
+    course: "BMGT220",
+    text: "for the group project, Dana said to email her at dana.k@terpmail.umd.edu with your part by sunday",
+    expect: "publish",
     accept: ["hold"],
-    why: "A study guide link. Borderline only because it's an outside link.",
+    rules: "publish",
+    why: "A groupmate's school email, passed on to coordinate. Borderline only for the policy model.",
+  },
+  {
+    id: "chat-resource-link",
+    kind: "chat",
+    course: "CMSC351",
+    text: "this lecture explains dynamic programming way better than our slides imo https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/",
+    expect: "publish",
+    rules: "publish",
+    why: "A link to a resource outside UMD.",
+  },
+  {
+    id: "chat-homework-approach",
+    kind: "chat",
+    course: "MATH241",
+    text: "how did everyone approach problem 3 on hw 5? I keep getting the wrong bounds on the double integral",
+    activeAssignments: true,
+    expect: "publish",
+    rules: "publish",
+    why: "Homework talk: asking how to approach a problem.",
+  },
+  {
+    id: "chat-casual-insult",
+    kind: "chat",
+    course: "CMSC132",
+    text: "this autograder is so stupid, it failed me for a trailing space",
+    expect: "publish",
+    rules: "publish",
+    why: "A casual insult aimed at a tool, not a person.",
   },
   {
     id: "chat-complaint",
@@ -260,15 +318,17 @@ export const EVAL_CASES: readonly EvalCase[] = [
     why: "Hyperbole, not self-harm.",
   },
 
-  // ---------- chat that should wait for a person ----------
+  // Answers publish in chat now: the room rules ask kindly, and the author
+  // may get a one-time nudge. They were held until 2026-09-27.
   {
     id: "chat-asks-for-answers",
     kind: "chat",
     course: "CMSC351",
     text: "does anyone have the answers to hw 6? it's due at midnight and I haven't started, can you dm me",
     activeAssignments: true,
-    expect: "hold",
-    why: "Asks for answers to open graded work.",
+    expect: "publish",
+    rules: "publish",
+    why: "Asks for answers: discouraged, not held.",
   },
   {
     id: "chat-answer-list",
@@ -276,9 +336,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
     course: "PSYC100",
     text: "quiz 7 answers: 1. B 2. D 3. A 4. C 5. B",
     activeAssignments: true,
-    expect: "hold",
-    rules: "hold",
-    why: "A list of quiz answers.",
+    expect: "publish",
+    rules: "publish",
+    why: "A list of quiz answers: flagged for the nudge, not held.",
   },
   {
     id: "chat-code-during-project",
@@ -286,18 +346,46 @@ export const EVAL_CASES: readonly EvalCase[] = [
     course: "CMSC216",
     text: "here's my whole function, it passes all the public tests:\n```c\nint remove_node(List *l, int key) {\n  Node *prev = NULL, *cur = l->head;\n  while (cur && cur->key != key) { prev = cur; cur = cur->next; }\n  if (!cur) return 0;\n  if (prev) prev->next = cur->next; else l->head = cur->next;\n  free(cur);\n  return 1;\n}\n```",
     activeAssignments: true,
-    expect: "hold",
-    rules: "hold",
-    why: "Pasted solution code while the project is open.",
+    expect: "publish",
+    rules: "publish",
+    why: "Pasted code, even while the project is open.",
   },
+  {
+    id: "chat-cheating-site",
+    kind: "chat",
+    course: "MATH241",
+    text: "just look it up on chegg.com/homework-help, every problem from the worksheet is on there",
+    activeAssignments: true,
+    expect: "publish",
+    rules: "publish",
+    why: "Points to an answer site: flagged for the nudge, not held.",
+  },
+
+  // ---------- chat that should wait for a person ----------
   {
     id: "chat-someone-elses-number",
     kind: "chat",
     course: "ECON200",
     text: "if you want to complain to the TA directly her cell is 240-555-0188, she hates getting texts lol",
     expect: "hold",
-    rules: "hold",
-    why: "Someone else's phone number.",
+    accept: ["publish"],
+    why: "Someone else's private cell, shared to bother her. Only the policy model's very sure personal-info score holds it, so publishing is acceptable.",
+  },
+  {
+    id: "chat-exposes-address",
+    kind: "chat",
+    course: "COMM107",
+    text: "Jordan Pike in our section lives at 4502 Guilford Dr apt 3, go let him know what you thought of his speech",
+    expect: "hold",
+    why: "Someone else's home address, to send people there.",
+  },
+  {
+    id: "chat-threat",
+    kind: "chat",
+    course: "CMSC250",
+    text: "if the TA takes points off my proof again I'm going to find out where he lives and hurt him",
+    expect: "hold",
+    why: "A threat of violence: urgent for the owner.",
   },
   {
     id: "chat-mocks-student",
@@ -308,16 +396,6 @@ export const EVAL_CASES: readonly EvalCase[] = [
     why: "Names and mocks another student.",
   },
   {
-    id: "chat-cheating-site",
-    kind: "chat",
-    course: "MATH241",
-    text: "just look it up on chegg.com/homework-help, every problem from the worksheet is on there",
-    activeAssignments: true,
-    expect: "hold",
-    rules: "hold",
-    why: "Points to an answer-sharing site for graded work.",
-  },
-  {
     id: "chat-self-harm",
     kind: "chat",
     course: "CHEM231",
@@ -326,15 +404,24 @@ export const EVAL_CASES: readonly EvalCase[] = [
     why: "Possible self-harm: a person should see it quickly.",
   },
 
-  // ---------- chat that should be removed ----------
   {
     id: "chat-spam",
     kind: "chat",
     course: "CMSC351",
     text: "💰 Make $500/day from your dorm!! Crypto signals group, 100% guaranteed returns, join now at cryptoprofitz.xyz/join 💰",
+    expect: "hold",
+    why: "A scam ad. Chat's spam holds; it never removes.",
+  },
+
+  // ---------- chat that should be removed ----------
+  {
+    id: "chat-slur",
+    kind: "chat",
+    course: "CMSC131",
+    text: `nobody wants you in this section, ${SLURS[0] ?? ""}`,
     expect: "remove",
-    accept: ["hold"],
-    why: "A scam ad.",
+    rules: "remove",
+    why: "A slur, removed by the rules without a model.",
   },
 
   // ---------- chat about a named person, with no word the rules flag ----------
@@ -409,8 +496,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
     course: "CMSC131",
     text: "can someone just send me their lab 4 code, I'll change the variable names so it doesn't look copied",
     activeAssignments: true,
-    expect: "hold",
-    why: "Asks for code to copy while the lab is open.",
+    // Held until 2026-09-27, when the owner made chat lighter.
+    expect: "publish",
+    why: "Asks for code to copy: discouraged by the room rules, not held.",
   },
   {
     id: "heldout-chat-collab",
@@ -445,5 +533,106 @@ export const EVAL_CASES: readonly EvalCase[] = [
     text: "whoever keeps leaving their trash in the IRB lounge after office hours, please stop, it's gross",
     expect: "publish",
     why: "A complaint about unnamed people's behavior.",
+  },
+];
+
+/**
+ * The spam guard's cases: one person's earlier sends, then one more, and
+ * which rule (if any) that last one trips. The guard counts courses, not
+ * rooms. Pure: no model, all in CI.
+ */
+export interface CrossRoomCase {
+  id: string;
+  /** Each send's course: every room of one course counts as that course. */
+  earlier: readonly { course: string; text: string; minutesAgo: number }[];
+  current: { course: string; text: string };
+  expect: CrossRoomRule | null;
+  why: string;
+}
+
+const SPAM_TEXT =
+  "Free exam answers + past midterms in my discord, join before it fills up: discord.gg/umdanswers";
+
+const QUESTION = "does anyone know if office hours are cancelled today?";
+
+/** `n` different messages, spread over `courses` courses and `minutes` minutes. */
+function spread(n: number, courses: number, minutes: number) {
+  return Array.from({ length: n }, (_, i) => ({
+    course: `CMSC${100 + (i % courses)}`,
+    text: `hi ${i}`,
+    minutesAgo: (minutes * (i + 1)) / (n + 1),
+  }));
+}
+
+export const CROSS_ROOM_CASES: readonly CrossRoomCase[] = [
+  {
+    id: "spam-three-courses",
+    earlier: [
+      { course: "CMSC131", text: SPAM_TEXT, minutesAgo: 4 },
+      { course: "MATH140", text: SPAM_TEXT, minutesAgo: 2 },
+    ],
+    current: { course: "PSYC100", text: SPAM_TEXT },
+    expect: "repeat",
+    why: "The same ad in a third course within minutes.",
+  },
+  {
+    id: "spam-near-same",
+    earlier: [
+      {
+        course: "CMSC131",
+        text: `${SPAM_TEXT} (CMSC131)`,
+        minutesAgo: 30,
+      },
+      {
+        course: "MATH140",
+        text: `${SPAM_TEXT} (MATH140)`,
+        minutesAgo: 20,
+      },
+    ],
+    current: { course: "PSYC100", text: `${SPAM_TEXT} (PSYC100)` },
+    expect: "repeat",
+    why: "Each copy names its course; still the same message.",
+  },
+  {
+    id: "question-three-rooms-one-course",
+    earlier: [
+      { course: "CMSC351", text: QUESTION, minutesAgo: 10 },
+      { course: "CMSC351", text: QUESTION, minutesAgo: 5 },
+    ],
+    current: { course: "CMSC351", text: QUESTION },
+    expect: null,
+    why: "The course room, the professor room and your section room of one course: normal.",
+  },
+  {
+    id: "thanks-everywhere",
+    earlier: [
+      { course: "CMSC131", text: "thanks!", minutesAgo: 20 },
+      { course: "MATH140", text: "thanks!", minutesAgo: 10 },
+      { course: "PSYC100", text: "thanks!", minutesAgo: 5 },
+    ],
+    current: { course: "ENGL101", text: "thanks!" },
+    expect: null,
+    why: "Short replies never count as repeats.",
+  },
+  {
+    id: "flood-five-courses",
+    earlier: spread(12, 5, 9),
+    current: { course: "CMSC100", text: "one more" },
+    expect: "flood",
+    why: "13 messages across 5 courses in 10 minutes.",
+  },
+  {
+    id: "busy-in-four-courses",
+    earlier: spread(25, 4, 9),
+    current: { course: "CMSC100", text: "one more" },
+    expect: null,
+    why: "A lively few courses isn't a flood.",
+  },
+  {
+    id: "busy-in-one-course",
+    earlier: spread(30, 1, 9),
+    current: { course: "CMSC100", text: "one more" },
+    expect: null,
+    why: "Lots of messages across one course's rooms isn't a flood.",
   },
 ];

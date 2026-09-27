@@ -240,6 +240,39 @@ describe("the 6pm send", () => {
     ]);
   });
 
+  it("counts your own tasks due tomorrow like the feed's, until they're done", async () => {
+    clock = Date.parse("2026-09-28T20:00:00Z");
+    // Nothing on the feed is due Tuesday: only the tasks can remind.
+    const device = await connected(
+      feedOf([{ id: "3", title: "Quiz 3", due: "2026-10-01T03:59:00Z" }]),
+    );
+    const task = (uid: string, title: string, dueTime: number | null) =>
+      device.call("/api/todo/save-task", {
+        uid,
+        title,
+        courseCode: null,
+        dueDate: "2026-09-29",
+        dueTime,
+      });
+    await task("own-office-hours-01", "Office hours", 14 * 60);
+    await task("own-return-books-01", "Return library books", null);
+    await device.call("/api/todo/save-task", {
+      uid: "own-someday-000001",
+      title: "Someday",
+      courseCode: null,
+      dueDate: null,
+      dueTime: null,
+    });
+    await device.call("/api/todo/done", {
+      uid: "own-return-books-01",
+      done: true,
+    });
+    await runAt("2026-09-28T22:03:00Z");
+    expect(phone.received.map((p) => [p.title, p.body])).toEqual([
+      ["Office hours is due tomorrow", "2pm"],
+    ]);
+  });
+
   it("says nothing when everything due tomorrow is done", async () => {
     clock = Date.parse("2026-09-28T20:00:00Z");
     const device = await connected(TWO_DUE_TUESDAY);

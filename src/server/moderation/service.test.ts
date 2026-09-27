@@ -127,15 +127,18 @@ describe("moderate", () => {
     ).toBe(false);
   });
 
-  it("reads every chat message, but acts only on targeting a person when nothing was flagged", async () => {
-    // The small model over-reads contact details and code; the rules own those.
+  it("reads every chat message, and only very sure scores hold it", async () => {
+    // Contact details, answers and links are fine in chat; the small model
+    // over-reads them. Spam needs a very high score, personal info also
+    // needs someone else's details to expose, and academic integrity never
+    // acts.
     const noisy = mockAi({
       policy: [
         {
           academic_integrity: 1,
           targets_person: 0,
           personal_info: 1,
-          spam: 1,
+          spam: 0.85,
         },
       ],
     });
@@ -145,6 +148,7 @@ describe("moderate", () => {
       { now: nextDay() },
     );
     expect(fine.decision).toBe("publish");
+    expect(fine.reasons).toEqual([]);
     expect(fine.model).toEqual({
       guard: GUARD_MODEL,
       policy: POLICY_MODELS.chat,
@@ -175,6 +179,56 @@ describe("moderate", () => {
     expect(mocking.reasons).toEqual([
       { code: "targets-person", source: "policy", action: "hold", score: 0.9 },
     ]);
+
+    const exposed = await moderate(
+      testEnv(
+        mockAi({
+          policy: [{ targets_person: 0, personal_info: 0.95, spam: 0.99 }],
+        }).ai,
+      ),
+      chat("jordan's home address is 12 Oak Ln, go tell him what you think"),
+      { now: nextDay() },
+    );
+    // Held for a person, never removed: spam doesn't remove chat.
+    expect(exposed.decision).toBe("hold");
+    expect(exposed.reasons.map((r) => `${r.code}:${r.action}`)).toEqual([
+      "personal-info:hold",
+      "spam:hold",
+    ]);
+  });
+
+  it("lets answers, homework talk, code and links through in chat", async () => {
+    const sure = mockAi({
+      policy: [{ targets_person: 0, personal_info: 0, spam: 0 }],
+    });
+    for (const [text, active] of [
+      ["quiz 7 answers: 1. B 2. D 3. A 4. C 5. B", true],
+      ["does anyone have the answers to hw 6? dm me", true],
+      ["it's all on chegg.com/homework-help, every problem", true],
+      ["here's my function:\n```c\nint f(int x) {\n  return x;\n}\n```", true],
+      ["this video helps a lot https://youtu.be/abc123", false],
+      ["that quiz was so stupid lol", false],
+    ] as const) {
+      const result = await moderate(testEnv(sure.ai), chat(text, active), {
+        now: nextDay(),
+      });
+      expect(result.decision, text).toBe("publish");
+    }
+  });
+
+  it("publishes the smallest messages without calling a model", async () => {
+    const { ai, run } = mockAi();
+    const input = chat("thanks!!");
+    const result = await moderate(testEnv(ai), input, { now: nextDay() });
+    expect(result).toEqual({
+      decision: "publish",
+      reasons: [],
+      model: { guard: null, policy: null },
+      scores: {},
+    });
+    expect(run).not.toHaveBeenCalled();
+    const [row] = await decisionsFor(env.DB, "chat", input.context.targetId);
+    expect(row).toMatchObject({ stage: "rules", verdict: "allow" });
   });
 
   it("asks only Llama Guard about unflagged chat when chatPolicy is flagged", async () => {
@@ -192,28 +246,20 @@ describe("moderate", () => {
     expect(modelsCalled(run)).toEqual([GUARD_MODEL]);
   });
 
-  it("asks the policy model when chat is uncertain, and publishes when it's fine", async () => {
+  it("asks the policy model about flagged chat when chatPolicy is flagged", async () => {
     const { ai, run } = mockAi({
-      policy: [
-        {
-          academic_integrity: 0.2,
-          targets_person: 0,
-          personal_info: 0,
-          spam: 0.1,
-        },
-      ],
+      policy: [{ targets_person: 0, personal_info: 0, spam: 0.1 }],
     });
-    const result = await moderate(
-      testEnv(ai),
-      chat("hw 3 solutions are posted on ELMS now"),
-      { now: nextDay() },
-    );
+    const result = await moderate(testEnv(ai), chat("q1) a, q2) d, q3) c"), {
+      now: nextDay(),
+      config: { ...DEFAULT_MODERATION_CONFIG, chatPolicy: "flagged" },
+    });
     expect(modelsCalled(run).sort()).toEqual(
       [GUARD_MODEL, POLICY_MODELS.chat].sort(),
     );
     expect(result.decision).toBe("publish");
     expect(result.reasons.map((r) => `${r.code}:${r.action}`)).toEqual([
-      "asks-for-answers:flag",
+      "shares-answers:flag",
     ]);
   });
 
@@ -460,7 +506,7 @@ describe("moderate", () => {
     // The rules still hold what they hold.
     expect(
       (
-        await moderate(mock, chat("here are the answers to hw 3"), {
+        await moderate(mock, chat("found a chink in his argument"), {
           now: nextDay(),
         })
       ).decision,
@@ -529,38 +575,39 @@ describe("model output parsing", () => {
     expect(
       parsePolicyOutput(
         "chat",
-        '```json\n{"academic_integrity":"0.9","targets_person":0,"personal_info":0,"spam":0}\n```',
+        '```json\n{"targets_person":"0.9","personal_info":0,"spam":0}\n```',
       ),
     ).toEqual({
-      "academic-integrity": 0.9,
-      "targets-person": 0,
+      "targets-person": 0.9,
       "personal-info": 0,
       spam: 0,
     });
     expect(
-      parsePolicyOutput("chat", {
-        academic_integrity: 0.1,
-        targets_person: 0,
-        personal_info: 0,
-      }),
+      parsePolicyOutput("chat", { targets_person: 0.1, personal_info: 0 }),
     ).toBeNull();
     expect(
       parsePolicyOutput("chat", {
-        academic_integrity: null,
-        targets_person: 0,
+        targets_person: null,
         personal_info: 0,
         spam: 0,
       }),
     ).toBeNull();
     expect(
       parsePolicyOutput("chat", {
-        academic_integrity: 7,
-        targets_person: 0,
+        targets_person: 7,
         personal_info: 0,
         spam: 0,
       }),
     ).toBeNull();
     expect(parsePolicyOutput("chat", 42)).toBeNull();
+    // Reviews still need all six.
+    expect(
+      parsePolicyOutput("review", {
+        targets_person: 0,
+        personal_info: 0,
+        spam: 0,
+      }),
+    ).toBeNull();
   });
 });
 
@@ -579,8 +626,23 @@ describe("configuration", () => {
     expect(merged.timeoutMs).toBe(3_000);
     expect(merged.guardActions.S5).toBe("hold");
     expect(merged.guardActions.S1).toBe("hold");
-    expect(merged.policyThresholds.spam).toEqual({ hold: 0.4 });
-    expect(merged.policyThresholds["targets-person"]).toEqual({ hold: 0.5 });
+    expect(merged.policyThresholds.review.spam).toEqual({ hold: 0.4 });
+    expect(merged.policyThresholds.review["targets-person"]).toEqual({
+      hold: 0.5,
+    });
+    // `policyThresholds` reaches chat too, unless chat has its own.
+    expect(merged.policyThresholds.chat.spam).toEqual({ hold: 0.4 });
+    expect(merged.policyThresholds.chat["personal-info"]).toEqual({
+      hold: 0.9,
+    });
+    const chatOnly = resolveConfig(
+      JSON.stringify({
+        policyThresholds: { spam: { hold: 0.4 } },
+        chatPolicyThresholds: { spam: { hold: 0.95 } },
+      }),
+    );
+    expect(chatOnly.policyThresholds.chat.spam).toEqual({ hold: 0.95 });
+    expect(chatOnly.policyThresholds.review.spam).toEqual({ hold: 0.4 });
   });
 
   it("uses MODERATION_CONFIG's thresholds from the environment", async () => {

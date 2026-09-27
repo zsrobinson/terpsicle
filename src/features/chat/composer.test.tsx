@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "~/ui/tooltip";
-import { Composer } from "./composer";
+import { ANSWERS_HINT, Composer } from "./composer";
 
 const MEMBERS = [
   { directoryId: "hlee", name: "Hannah Lee" },
@@ -32,6 +32,8 @@ function composer(
 }
 
 describe("Composer", () => {
+  beforeEach(() => localStorage.removeItem("terpsicle:chat-answers-hint-seen"));
+
   it("sends on Enter, keeps Shift+Enter for a new line, and says you're typing", async () => {
     const { onSend, onTyping, user } = composer();
     const field = screen.getByRole("textbox", {
@@ -52,15 +54,31 @@ describe("Composer", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  it("says quietly, before you send, what a person may check first", async () => {
+  it("never says a message will be checked", async () => {
     const { user } = composer();
-    await user.type(
-      screen.getByRole("textbox"),
-      "here are the answers to hw 3",
-    );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Might share answers to graded work. A person may check it before classmates see it.",
-    );
+    for (const text of [
+      "text me at 301-555-0199",
+      "found a chink in his argument",
+      "notes: https://docs.google.com/document/d/abc",
+    ]) {
+      await user.clear(screen.getByRole("textbox"));
+      await user.type(screen.getByRole("textbox"), text);
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(screen.queryByText(/check|a person/i)).toBeNull();
+    }
+  });
+
+  it("nudges once about graded answers, and still sends", async () => {
+    const { onSend, user } = composer();
+    const field = screen.getByRole("textbox");
+    await user.type(field, "here are the answers to hw 3");
+    expect(screen.getByRole("status")).toHaveTextContent(ANSWERS_HINT);
+    await user.keyboard("{Enter}");
+    expect(onSend).toHaveBeenCalledWith("here are the answers to hw 3");
+    await user.type(field, "quiz 4: 1. B 2. C 3. A 4. D");
+    expect(screen.queryByRole("status")).toBeNull();
+    // Remembered for this browser.
+    expect(localStorage.getItem("terpsicle:chat-answers-hint-seen")).toBe("1");
   });
 
   it("shows why you can't write, instead of a field", () => {

@@ -81,8 +81,9 @@ Revisit if: never on its own.
 
 ### Moderation is model-first
 2026-09-26 · owner · app-wide
-Workers AI with Meta models screens reviews and chat; clean items publish on their own and only unclear ones reach the owner. Answers to graded work are held. Keep the human queue small.
+Workers AI with Meta models screens reviews and chat; clean items publish on their own and only unclear ones reach the owner. Answers to graded work are held in reviews. Keep the human queue small.
 Revisit if: the held share stays over 10% for a week.
+(changed 2026-09-27: chat no longer holds answers, by the owner; see "Chat moderation is light, invisible and hard to spam".)
 
 ### Notifications stay few
 2026-09-26 · owner · app-wide
@@ -255,6 +256,11 @@ Revisit if: people expect rooms before their plan syncs.
 `pnpm dev:mock` seeds local R2 with the mock catalog and screens chat with offline stand-ins for the models (`MODERATION_OFFLINE`, test mode only), so e2e can run two people against the real socket. Only the rules hold anything there.
 Revisit if: e2e needs to cover a model's own verdict.
 
+### Chat moderation is light, invisible and hard to spam
+2026-09-27 · owner · one feature
+"i just don't want any *really* nasty things there. i mostly want to make sure that it's not abused in ways like spamming something in a million different course channels … sending a phone number to coordinate a study group, that should be perfectly fine, or links out to resources … this should mostly be transparent to the user … they should have the option to report other's messages for abuse only. something like sharing answers should be disencouraged but i'm not trying to be a narc." So chat stops only slurs, blocked words, Llama Guard's serious categories, attacks on a person, someone else's private details and clear spam, plus a cross-room spam guard (the same text in 3+ courses in an hour, or 13+ messages across 5+ courses in 10 minutes; one course's rooms count once), held urgent for the owner. The author sees nothing unless a message is really held; reports are abuse-only; answers get a kind room rule and a one-time nudge (docs/MODERATION.md).
+Revisit if: never on its own.
+
 ### Mentions come from the text
 2026-09-27 · agent · one feature
 The object finds "@Name" in a message's text among the room's members each time it's published, instead of the client sending a list of user ids. Nothing new in the protocol or the message rows, and a mention can only reach someone who can read the room. The digest reads message text from the object, so D1 never holds it.
@@ -286,6 +292,11 @@ Revisit if: Gradescope offers students an API or feed.
 2026-09-26 · agent · one feature
 Gradescope items linked in ELMS get a "Gradescope" tag from the ELMS feed; the fallback is an `.ics` the student drops in, read in the browser.
 Revisit if: UMD's Gradescope setup changes.
+
+### Own tasks in Todo
+2026-09-27 · owner · one feature
+Todo takes tasks you type ("Add a task…"), kept in D1 per person and never sent to ELMS, beside the feed's items. This changes V3 §3.1, which left own todos out of the first release. The owner, after Better Canvas and Tasks for Canvas: "i kind of want you to just go off and implement anything that seems like it would be obviously really good for us to have based on that ... we don't want to make an extension ourselves, just have cool stuff that they have."
+Revisit if: never on its own; the owner decides.
 
 ### ELMS feeds come from umd.instructure.com
 2026-09-27 · agent · one feature

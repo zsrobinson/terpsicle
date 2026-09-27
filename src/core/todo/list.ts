@@ -103,9 +103,28 @@ export function weekDates(monday: IsoDate): IsoDate[] {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 }
 
-/** Soonest first: by date, then time (all-day items first), then title. */
+/** Words for when an item's due, in a list that isn't by day: "Friday, Oct 2 · 1pm", or "No date". */
+export function dueWords(
+  item: Pick<TodoItem, "dueAt" | "dueDate">,
+  today: IsoDate,
+): string {
+  if (item.dueDate === null) return NO_DATE;
+  return `${dayLabel(item.dueDate, today)} · ${dueTimeLabel(item)}`;
+}
+
+/** Where own tasks without a date go, at the bottom of the list. */
+export const NO_DATE = "No date";
+
+/**
+ * Soonest first: by date, then time (all-day items first), then title.
+ * Items with no date (own tasks) go last.
+ */
 export function compareItems(a: TodoItem, b: TodoItem): number {
-  if (a.dueDate !== b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
+  if (a.dueDate !== b.dueDate) {
+    if (a.dueDate === null) return 1;
+    if (b.dueDate === null) return -1;
+    return a.dueDate < b.dueDate ? -1 : 1;
+  }
   const at = a.dueAt === null ? "" : a.dueAt;
   const bt = b.dueAt === null ? "" : b.dueAt;
   if (at !== bt) return at < bt ? -1 : 1;
@@ -114,7 +133,8 @@ export function compareItems(a: TodoItem, b: TodoItem): number {
 
 /** One day in the list: its open items, and its done ones folded away. */
 export interface TodoDay {
-  date: IsoDate;
+  /** Null for "No date": own tasks without one. */
+  date: IsoDate | null;
   label: string;
   open: TodoItem[];
   done: TodoItem[];
@@ -126,7 +146,8 @@ export type TodoSectionId =
   | "tomorrow"
   | "this-week"
   | "next-week"
-  | "later";
+  | "later"
+  | "no-date";
 
 /** A run of days under one heading. */
 export interface TodoSection {
@@ -144,6 +165,7 @@ const SECTION_LABELS: Record<TodoSectionId, string> = {
   "this-week": "This week",
   "next-week": "Next week",
   later: "Later",
+  "no-date": NO_DATE,
 };
 
 function sectionOf(date: IsoDate, today: IsoDate): TodoSectionId {
@@ -162,14 +184,14 @@ function sectionOf(date: IsoDate, today: IsoDate): TodoSectionId {
  * Today and Tomorrow always show, saying "Nothing due" when empty; so does
  * this week while it has days left, and next week. Earlier shows only open
  * work that's past due, with nothing folded: done past items are finished
- * business.
+ * business. Own tasks without a date go last, under "No date".
  */
 export function groupByDay(
   items: readonly TodoItem[],
   done: ReadonlySet<string>,
   today: IsoDate,
 ): TodoSection[] {
-  const days = new Map<IsoDate, TodoDay>();
+  const days = new Map<IsoDate, TodoDay & { date: IsoDate }>();
   const dayOf = (date: IsoDate) => {
     let day = days.get(date);
     if (!day) {
@@ -178,10 +200,12 @@ export function groupByDay(
     }
     return day;
   };
+  const undated: TodoDay = { date: null, label: NO_DATE, open: [], done: [] };
   for (const item of [...items].sort(compareItems)) {
     const isDone = done.has(item.uid);
-    if (item.dueDate < today && isDone) continue;
-    (isDone ? dayOf(item.dueDate).done : dayOf(item.dueDate).open).push(item);
+    const day = item.dueDate === null ? undated : dayOf(item.dueDate);
+    if (day.date !== null && day.date < today && isDone) continue;
+    (isDone ? day.done : day.open).push(item);
   }
   dayOf(today);
   dayOf(addDays(today, 1));
@@ -216,6 +240,13 @@ export function groupByDay(
     if (sectionDays.length === 0 && empty === null) continue;
     out.push({ id, label: SECTION_LABELS[id], days: sectionDays, empty });
   }
+  if (undated.open.length > 0 || undated.done.length > 0)
+    out.push({
+      id: "no-date",
+      label: SECTION_LABELS["no-date"],
+      days: [undated],
+      empty: null,
+    });
   return out;
 }
 
@@ -254,7 +285,7 @@ export function groupByCourse(
   const groups = new Map<string, TodoCourseGroup>();
   for (const item of [...items].sort(compareItems)) {
     const isDone = done.has(item.uid);
-    if (item.dueDate < today && isDone) continue;
+    if (item.dueDate !== null && item.dueDate < today && isDone) continue;
     const code = itemCourse(item, planCourses);
     const key = code ?? item.courseLabel ?? "Other";
     let group = groups.get(key);
@@ -278,18 +309,23 @@ export function groupByCourse(
  * The term a course group's chat room is for: the one its next item is due
  * in (from today on, else the latest), by season, since Todo has no
  * academic calendars. Winter's few weeks count as the spring they lead into:
- * an ELMS course posting work in January is a spring course.
+ * an ELMS course posting work in January is a spring course. A group of
+ * own tasks with no dates is in today's term.
  */
 export function courseChatTerm(
   group: Pick<TodoCourseGroup, "open" | "done">,
   today: IsoDate,
 ): TermId | null {
+  const dated = (items: readonly TodoItem[]) =>
+    items.flatMap((i) => (i.dueDate === null ? [] : [i.dueDate]));
+  const open = dated(group.open);
   const next =
-    group.open.find((i) => i.dueDate >= today) ??
-    group.done[0] ??
-    group.open.at(-1);
-  if (!next) return null;
-  const term = seasonTermOf(next.dueDate);
+    open.find((date) => date >= today) ??
+    dated(group.done)[0] ??
+    open.at(-1) ??
+    (group.open.length + group.done.length > 0 ? today : null);
+  if (next === null) return null;
+  const term = seasonTermOf(next);
   return term.endsWith("12") ? `${Number(term.slice(0, 4)) + 1}01` : term;
 }
 

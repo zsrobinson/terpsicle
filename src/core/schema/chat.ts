@@ -155,11 +155,14 @@ export type Reactions = z.infer<typeof ReactionsSchema>;
 
 /** Why a message is held back from everyone but its author. */
 export const HeldReasonSchema = z.enum([
-  /** The model hasn't answered yet ("Checking before classmates see it…"). */
+  /**
+   * Not screened yet (or a check failed and waits for a retry). Its author
+   * sees it as sent; classmates get it once it passes.
+   */
   "checking",
-  /** It looks like answers to graded work; a person checks it. */
+  /** Held as answers to graded work; chat no longer holds for this (2026-09-27), but older messages may say it. */
   "graded-work",
-  /** Flagged by the safety model or the rules; a person checks it. */
+  /** Held by the rules, the models or the spam guard; a person checks it. */
   "flagged",
   /** Reports reached the hiding weight; a person decides. */
   "reported",

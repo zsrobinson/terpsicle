@@ -31,6 +31,7 @@ import { StopAuthor } from "./stop-author";
 import { failureWords, useLoad } from "./use-load";
 import {
   ADMIN_REASON_WORDS,
+  CROSS_ROOM_WORDS,
   count,
   KIND_WORDS,
   percent,
@@ -429,6 +430,7 @@ export function QueueRow({
                 <li key={i}>
                   {REASON_WORDS[r.code]}
                   {r.report ? `: ${REPORT_WORDS[r.report]}` : ""}
+                  {r.crossRoom ? `: ${CROSS_ROOM_WORDS[r.crossRoom]}` : ""}
                   {reasonDetail(r) ? (
                     <span className="text-muted"> · {reasonDetail(r)}</span>
                   ) : null}

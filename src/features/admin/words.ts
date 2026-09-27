@@ -3,8 +3,10 @@
 // shared with the composers.
 import { termLabel } from "~/core/catalog/terms";
 import { AUTHOR_STOP_DAYS } from "~/core/moderation/admin";
+import { CROSS_ROOM } from "~/core/moderation/cross-room";
 import type {
   AdminReason,
+  CrossRoomRule,
   DecisionStage,
   ModerationKind,
   PolicyLabel,
@@ -50,6 +52,13 @@ export const SOURCE_WORDS: Readonly<Record<ReasonSource, string>> = {
   system: "system",
   admin: "you",
   reports: "readers",
+  "cross-room": "spam guard",
+};
+
+/** Which spam-guard rule held a chat message, after REASON_WORDS.spam. */
+export const CROSS_ROOM_WORDS: Readonly<Record<CrossRoomRule, string>> = {
+  repeat: `the same message in ${CROSS_ROOM.repeatCourses} or more courses within an hour`,
+  flood: `more than ${CROSS_ROOM.floodMessages} messages across ${CROSS_ROOM.floodCourses + 1} or more courses in 10 minutes`,
 };
 
 /** What a reader said when reporting, after REASON_WORDS.reported. */
@@ -62,6 +71,7 @@ export const REPORT_WORDS: Readonly<Record<ReportReason, string>> = {
   "misconduct-claim": "a misconduct claim",
   "graded-work": "shares graded work",
   "off-topic": "not about the course",
+  spam: "spam",
   other: "something else",
 };
 
