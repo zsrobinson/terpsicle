@@ -290,12 +290,14 @@ export const useFourYear = create<FourYearStore>()((set, get) => {
       get().applyRemote(changes);
     },
 
+    // Sync's own writes (dirty flags): a failure there isn't the plan's, so
+    // it doesn't say "Not saved"; the engine reports its own trouble.
     enqueue: (write) => {
       queue = queue
         .then(async () => {
           await write();
         })
-        .catch(failed);
+        .catch((error: unknown) => console.error(error));
     },
 
     stopSaving: () => {

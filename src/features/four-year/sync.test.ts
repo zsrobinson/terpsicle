@@ -135,6 +135,39 @@ describe("Plan's sync", () => {
     expect(fake.docs.get("four-year:fouryear_mine_01")?.rev).toBe(rev + 1);
   });
 
+  it("pushes an edit made before the engine loaded, when handed it", async () => {
+    useFourYear.getState().dispatch({
+      type: "create",
+      id: "fouryear_mine_01",
+      firstTermId: "202608",
+      now: NOW,
+    });
+    stop = startPlanSync("tstudent", vi.fn());
+    await vi.waitFor(() => expect(status()).toBe("saved"), WAIT);
+    stop();
+    const rev = fake.docs.get("four-year:fouryear_mine_01")?.rev;
+
+    // Signed in, but /plan's engine hasn't loaded yet: the page keeps the key.
+    useFourYear.getState().dispatch({
+      type: "rename",
+      docId: "fouryear_mine_01",
+      name: "Early",
+      now: NOW,
+    });
+    await whenSaved();
+    stop = startPlanSync("tstudent", vi.fn(), ["four-year:fouryear_mine_01"]);
+    await vi.waitFor(
+      () =>
+        expect(fake.docs.get("four-year:fouryear_mine_01")?.body).toMatchObject(
+          { name: "Early" },
+        ),
+      WAIT,
+    );
+    expect(fake.docs.get("four-year:fouryear_mine_01")?.rev).toBeGreaterThan(
+      rev ?? 0,
+    );
+  }, 20_000);
+
   it("brings a four-year plan from the account onto a new device", async () => {
     const theirs = aFourYear({ id: "fouryear_acct_01", name: "CS major" });
     fake.push({

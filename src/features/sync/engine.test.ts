@@ -816,18 +816,29 @@ describe("four-year docs", () => {
     });
     expect(a.status()).toBe("full-four-year");
 
-    // Deleting one makes room; the next change to the new one saves it.
+    // Deleting one makes room, and the new one goes up with that push.
     a.edit((t) => ({
       ...t,
       fourYear: t.fourYear.filter((d) => d.id !== "fouryear_0000_full"),
     }));
     await a.settle();
-    editDoc(a, cs.id, { name: "CS major, again" });
-    await a.settle();
-    expect(server.docs.get(`four-year:${cs.id}`)?.body).toMatchObject({
-      name: "CS major, again",
-    });
+    expect(server.docs.get(`four-year:${cs.id}`)?.body).toEqual(cs);
     expect(a.status()).toBe("saved");
+  });
+
+  it("go up when made on a signed-in device while no engine carried them", async () => {
+    // Made on /plan before this engine carried four-year docs, or before it
+    // loaded: in IndexedDB, with no flags, on a device that's in step.
+    const snapshot: SyncSnapshot = {
+      ...EMPTY_SNAPSHOT,
+      userId: USER,
+      tables: { ...EMPTY_SNAPSHOT.tables, fourYear: [cs] },
+    };
+    const a = track(new Device("a", server, { snapshot }));
+    await a.engine.start();
+    expect(server.docs.get(`four-year:${cs.id}`)?.body).toEqual(cs);
+    expect(a.flags[fourYearDocKey(cs.id)]?.dirty).toBe(false);
+    expect(await a.engine.flush()).toBe(true);
   });
 
   it("skip a doc from the account that doesn't read, and never log its grades", async () => {

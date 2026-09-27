@@ -134,6 +134,10 @@ function fourYearArb(idPool: readonly string[]): fc.Arbitrary<FourYearDoc> {
       firstTermId: fc.constantFrom("202508", "202608"),
       codes: fc.subarray(FOUR_YEAR_CODES, { maxLength: 2 }),
       graded: fc.boolean(),
+      template: fc.option(
+        fc.constant({ id: "cmsc-2026", department: "CMSC", year: "2026" }),
+        { nil: null },
+      ),
     })
     .map(({ codes, graded, ...d }) => {
       const entries = codes.map(fourYearEntry);
@@ -161,12 +165,16 @@ const SERVER_FOUR_YEAR_IDS = [
   "fouryear_both_01",
 ];
 
-/** Two four-year docs hold the same work: semesters, entries and grades, whatever they're called. */
+/**
+ * Two four-year docs hold the same work: semesters, entries, grades and
+ * template, whatever they're called (a copy or a rename changes the name).
+ */
 function sameFourYearWork(a: FourYearDoc, b: FourYearDoc): boolean {
   return (
     a.firstTermId === b.firstTermId &&
     sameJson(a.entries, b.entries) &&
-    sameJson(a.grades, b.grades)
+    sameJson(a.grades, b.grades) &&
+    sameJson(a.template, b.template)
   );
 }
 

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useShortcut } from "~/app/shortcuts";
 import { useMediaQuery } from "~/app/use-media-query";
 import type { IsoDate } from "~/core/schema";
+import { changedFourYearKeys, type DocKey } from "~/core/sync";
 import { newYorkClock } from "~/core/todo/list";
 import { useAccount } from "~/features/auth/account-store";
 import { SitePage } from "~/features/site/site-page";
@@ -43,19 +44,41 @@ export function useToday(): IsoDate {
 function usePlanSync(ready: boolean) {
   const signedIn = useAccount((s) => s.status === "signed-in");
   const userId = useAccount((s) => s.user?.id ?? null);
+  // Changes made before the engine loads (while /api/me answers and its
+  // chunk arrives) are handed to it, or a synced doc's edit would never be
+  // marked unsaved. Once it runs, it follows the store itself.
+  const earlier = useRef(new Set<DocKey>());
+  const running = useRef(false);
+  useEffect(
+    () =>
+      useFourYear.subscribe((next, prev) => {
+        const before = prev.history.present.docs;
+        const after = next.history.present.docs;
+        if (running.current || before === after) return;
+        if (next.changedBy !== "person") return;
+        for (const key of changedFourYearKeys(before, after))
+          earlier.current.add(key);
+      }),
+    [],
+  );
   useEffect(() => {
     if (!ready || !signedIn || !userId) return;
     let cancelled = false;
     let stop: (() => void) | undefined;
     void import("./sync").then((module) => {
       if (cancelled) return;
+      running.current = true;
+      const keys = [...earlier.current];
+      earlier.current.clear();
       stop = module.startPlanSync(
         userId,
         () => void useAccount.getState().load(),
+        keys,
       );
     });
     return () => {
       cancelled = true;
+      running.current = false;
       stop?.();
     };
   }, [ready, signedIn, userId]);

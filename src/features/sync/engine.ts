@@ -215,6 +215,21 @@ export function withCleanDocsPulled(
 }
 
 /** Pushes the page never heard back from (it closed mid-push): send again. */
+/**
+ * Four-year docs this signed-in device holds with no sync flags, marked
+ * dirty as never saved: made while no engine ran (Plan before `/api/me`
+ * answered, or before sync carried four-year docs at all). Every doc the
+ * account ever sent, or this device ever pushed, has flags, and unlike the
+ * scheduler's auto-made plans a four-year doc is always the person's own.
+ */
+export function withUnflaggedFourYear(s: SyncSnapshot): SyncSnapshot {
+  const keys = s.tables.fourYear
+    .map((d) => fourYearDocKey(d.id))
+    .filter((key) => s.sync.docs[key] === undefined);
+  if (keys.length === 0) return s;
+  return { ...s, sync: planSyncReducer(s.sync, { type: "edited", keys }) };
+}
+
 export function recoverInFlight(s: SyncSnapshot): SyncSnapshot {
   const keys = docsInFlight(s.sync);
   if (keys.length === 0) return s;
@@ -664,7 +679,11 @@ export class SyncEngine {
   }
 
   private async step(step: Step): Promise<void> {
-    const { after } = await this.o.storage.update(recoverInFlight);
+    const { after } = await this.o.storage.update((s) =>
+      s.userId === this.o.userId
+        ? withUnflaggedFourYear(recoverInFlight(s))
+        : recoverInFlight(s),
+    );
     if (after.userId !== this.o.userId) await this.joinAccount(false);
     else if (step === "sync") await this.pull(after.sync.cursor);
     await this.push();
@@ -820,6 +839,16 @@ export class SyncEngine {
         changeBetween(before.tables, after.tables).keys,
       );
       for (const notice of outcome.notices) this.o.notify(notice);
+      // A delete saved makes room: new docs of that kind can try again.
+      const answered = new Map(
+        answer.results.map((r) => [docKeyOf({ kind: r.kind, id: r.id }), r]),
+      );
+      for (const doc of docs) {
+        if (doc.body !== null || answered.get(docKeyOf(doc))?.status !== "ok")
+          continue;
+        for (const key of [...this.capped])
+          if (parseDocKey(key).kind === doc.kind) this.capped.delete(key);
+      }
       for (const key of outcome.full) {
         const kind = parseDocKey(key).kind;
         if (kind === "settings") continue;

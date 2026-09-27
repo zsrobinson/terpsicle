@@ -1,6 +1,8 @@
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
+import type { DocKey } from "~/core/sync";
 import { type SyncHost, startSync, stopSync } from "~/features/sync/boot";
+import { runningEngine } from "~/features/sync/running";
 import { useSyncStatus } from "~/features/sync/status";
 import { newLocalId, nowIso } from "~/state/ids";
 import { fourYearDb } from "./data";
@@ -11,10 +13,14 @@ import { useFourYear, whenSaved } from "./store";
 // signed in, like the scheduler's (scripts/check-bundle.ts). The engine
 // syncs every kind of doc from IndexedDB; this page shows the four-year ones.
 
-/** Starts syncing with `userId`'s account; returns a stop. Needs the docs loaded. */
+/**
+ * Starts syncing with `userId`'s account; returns a stop. Needs the docs
+ * loaded. `earlier` are docs the person changed before the engine loaded.
+ */
 export function startPlanSync(
   userId: string,
   reloadAccount: () => void,
+  earlier: readonly DocKey[] = [],
 ): () => void {
   const db = fourYearDb();
   // The browser refused IndexedDB: there's nothing on this device to sync.
@@ -48,5 +54,6 @@ export function startPlanSync(
     trackFirstSignIn: (counts) => track("sync_first_sign_in", counts),
   };
   startSync(host, userId);
+  runningEngine()?.noteEditedDocs(earlier);
   return () => stopSync(host);
 }

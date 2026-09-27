@@ -30,12 +30,12 @@ export const SYNC_STATUS_LOOK: SyncStatusLook = {
   saving: {
     icon: CLOUD_UPLOAD,
     label: "Saving…",
-    tooltip: "Saving your plans to your account",
+    tooltip: "Saving your changes to your account",
   },
   saved: {
     icon: CLOUD_CHECK,
     label: "Saved",
-    tooltip: "Your plans are saved to your account",
+    tooltip: "Your changes are saved to your account",
   },
   offline: {
     icon: CLOUD_OFF,

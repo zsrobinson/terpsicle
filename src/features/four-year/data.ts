@@ -83,7 +83,10 @@ async function loadFacts(reader: ReturnType<typeof createDataReader>) {
 export function startFourYear(
   options: { source?: DataSource } = {},
 ): Promise<void> {
-  if (started) return started.then(() => useFourYear.getState().refresh());
+  // Read again even if the first start failed partway (the course index),
+  // or sync would start over a stale store.
+  if (started)
+    return started.catch(() => {}).then(() => useFourYear.getState().refresh());
   started = (async () => {
     const db = await openDb();
     pageDb = db;
