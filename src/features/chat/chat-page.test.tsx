@@ -8,7 +8,8 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MOBILE_QUERY } from "~/app/use-media-query";
 import {
   type ChatUnreadRoom,
   COURSE_INDEX_MANIFEST_KEY,
@@ -168,6 +169,10 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 const signedIn = () =>
   useAccount.setState({
     status: "signed-in",
@@ -229,6 +234,64 @@ describe("ChatPage", () => {
     );
   });
 
+  it("names the page once, puts the term in the bar, and offers the room with the most unread", async () => {
+    signedIn();
+    fakeClient([
+      {
+        room: section0101,
+        courseCode: "CMSC351",
+        lastSeq: 5,
+        unread: 3,
+        lastMessageAt: FIXTURE_NOW,
+        muted: false,
+      },
+    ]);
+    const { go, user } = await page();
+    const open = await screen.findByRole("button", {
+      name: "Open CMSC351 0101",
+    });
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Chat" }),
+    ).toBeInTheDocument();
+    // The family bar, the page's first header.
+    expect(screen.getAllByRole("banner")[0]).toHaveTextContent(aTerm().name);
+    await user.click(open);
+    expect(go).toHaveBeenCalledWith(
+      { term: undefined, course: "CMSC351", room: section0101 },
+      undefined,
+    );
+  });
+
+  it("on a phone, says what Chat is first, and Find a course brings the finder", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) =>
+        ({
+          matches: query === MOBILE_QUERY,
+          media: query,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        }) as unknown as MediaQueryList,
+    );
+    signedIn();
+    const client = fakeClient();
+    client.sync.pull.mockResolvedValue({
+      status: "ok",
+      cursor: 0,
+      more: false,
+      docs: [],
+    });
+    const { user } = await page();
+    expect(
+      await screen.findByRole("heading", { name: "No classes here yet" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Find a course" }));
+    expect(
+      screen.getByRole("searchbox", { name: "Find a course's chat" }),
+    ).toHaveFocus();
+  });
+
   it("shows a course's whole room tree, with rooms you can't open yet saying why", async () => {
     signedIn();
     fakeClient();
@@ -282,13 +345,18 @@ describe("ChatPage", () => {
       docs: [],
     });
     const { go, user } = await page();
-    expect(await screen.findByText(/No classes here yet/)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "No classes here yet" }),
+    ).toBeInTheDocument();
     // The scheduler stays, second.
     expect(
       screen.getByRole("link", { name: "Open the scheduler" }),
     ).toHaveAttribute("href", "/schedule");
 
+    // On a desktop the finder is already in the list: Find a course goes there.
+    await user.click(screen.getByRole("button", { name: "Find a course" }));
     const box = screen.getByRole("searchbox", { name: "Find a course's chat" });
+    expect(box).toHaveFocus();
     await user.type(box, "algorithms");
     const results = await screen.findByRole("list", { name: "Courses" });
     expect(

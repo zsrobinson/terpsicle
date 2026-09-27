@@ -1,11 +1,15 @@
 import { cn } from "cn";
 import { BellOff, Hash, Lock, Users } from "lucide-react";
 import { type Room, unreadWords } from "~/core/chat";
+import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 
-// A room in a list (the chat list, a course's room tree): its code in mono
-// and its words, where it meets, and its unread count. Rows you can't open
-// yet say why on hover and stay quiet (DESIGN §5: no alarms).
+// A room in a list (the chat list, a course's room tree), on the kit's row:
+// its code in mono and its words, where it meets, and its unread count. Rows
+// you can't open yet say why on hover and stay quiet (DESIGN §5: no alarms).
+
+/** A row's one control, answering for the whole row (which is `relative`). */
+export const ROW_LINK = "after:absolute after:inset-0";
 
 export function UnreadCount({
   count,
@@ -23,7 +27,7 @@ export function UnreadCount({
     );
   if (count <= 0) return null;
   return (
-    <span className="tnum min-w-5 rounded-full bg-accent px-1.5 text-center font-semibold text-2xs text-accent-fg leading-5">
+    <span className="tnum block min-w-5 rounded-full bg-accent px-1.5 text-center font-semibold text-2xs text-accent-fg leading-5">
       <span aria-hidden="true">{count > 99 ? "99+" : count}</span>
       <span className="sr-only">{unreadWords(count)}</span>
     </span>
@@ -57,6 +61,11 @@ export function RoomLabel({
   );
 }
 
+/**
+ * A room as the kit's `ListRow`: its icon, its label with where it meets
+ * under it, and its unread count at the right. The open room wears the
+ * kit's one selected look.
+ */
 export function RoomRow({
   room,
   unread = 0,
@@ -76,28 +85,39 @@ export function RoomRow({
   onOpen: () => void;
 }) {
   const tooltip = locked ?? room.description;
+  const counted = !locked && (unread > 0 || muted);
   return (
-    <WithTooltip label={tooltip} side="right">
-      <button
-        type="button"
-        aria-current={current ? "page" : undefined}
-        aria-disabled={locked ? true : undefined}
-        onClick={locked ? undefined : onOpen}
-        className={cn(
-          "flex min-h-9 w-full items-center gap-2 border-hairline border-b px-4 py-1.5 text-left transition-colors last:border-b-0 hover:bg-hover max-md:min-h-11",
-          current && "bg-accent-soft hover:bg-accent-soft",
-          locked && "cursor-default text-faint hover:bg-transparent",
-          indent && "pl-8",
-        )}
-      >
-        <span className="flex w-4 shrink-0 justify-center">
+    <ListRow
+      state={current ? "current" : undefined}
+      lead={
+        <span className="flex w-4 justify-center">
           {locked ? (
             <Lock size={13} aria-hidden="true" className="text-faint" />
           ) : (
             <RoomIcon room={room} />
           )}
         </span>
-        <span className="min-w-0 flex-1">
+      }
+      secondary={room.detail ? room.detail : undefined}
+      trail={counted ? <UnreadCount count={unread} muted={muted} /> : undefined}
+      className={cn(
+        "relative max-md:min-h-11",
+        locked ? "text-faint" : current ? undefined : "hover:bg-hover",
+        indent && "pl-8",
+      )}
+    >
+      <WithTooltip label={tooltip} side="right">
+        <button
+          type="button"
+          aria-current={current ? "page" : undefined}
+          aria-disabled={locked ? true : undefined}
+          onClick={locked ? undefined : onOpen}
+          className={cn(
+            ROW_LINK,
+            "block w-full min-w-0 text-left",
+            locked && "cursor-default",
+          )}
+        >
           <RoomLabel
             room={room}
             className={cn(
@@ -105,14 +125,8 @@ export function RoomRow({
               unread > 0 && !muted && !locked && "font-semibold",
             )}
           />
-          {room.detail ? (
-            <span className="block truncate text-muted text-sm">
-              {room.detail}
-            </span>
-          ) : null}
-        </span>
-        {locked ? null : <UnreadCount count={unread} muted={muted} />}
-      </button>
-    </WithTooltip>
+        </button>
+      </WithTooltip>
+    </ListRow>
   );
 }

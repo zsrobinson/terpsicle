@@ -1,11 +1,17 @@
-import { ChevronRight, Search } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { cn } from "cn";
+import { ChevronRight } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { PanelNote } from "~/app/panel";
 import { matchCourses } from "~/core/reviews/find";
 import { type CourseCode, courseRoomId } from "~/core/schema";
-import { Button } from "~/ui/button";
+import { InlineError } from "~/ui/inline-error";
+import { SearchField } from "~/ui/input";
+import { ListRow } from "~/ui/list-row";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { useChatHome } from "./chat-home";
 import type { ChatGo } from "./nav";
+import { ROW_LINK } from "./room-row";
 
 // Finding any course's chat from the chat list (V2.md §8.2: course rooms
 // are open to anyone signed in), for someone with no classes in a synced
@@ -16,7 +22,14 @@ import type { ChatGo } from "./nav";
 /** As many as fit under the box without scrolling past the scheduler link. */
 const SHOWN = 8;
 
-export function CourseFinder({ go }: { go: ChatGo }) {
+export function CourseFinder({
+  go,
+  focus = 0,
+}: {
+  go: ChatGo;
+  /** Focuses the box each time it goes up ("Find a course"). */
+  focus?: number;
+}) {
   const termId = useChatHome((s) => s.termId);
   const termName = useChatHome(
     (s) => s.terms.find((t) => t.id === s.termId)?.name ?? "this term",
@@ -27,11 +40,16 @@ export function CourseFinder({ go }: { go: ChatGo }) {
   const [opening, setOpening] = useState<CourseCode | null>(null);
   const [notOffered, setNotOffered] = useState<CourseCode | null>(null);
   const id = useId();
+  const box = useRef<HTMLInputElement>(null);
   const typed = query.trim();
   const results = useMemo(
     () => (rows ? matchCourses(rows, typed).slice(0, SHOWN) : []),
     [rows, typed],
   );
+
+  useEffect(() => {
+    if (focus > 0) box.current?.focus();
+  }, [focus]);
 
   // Loaded on first use, so /chat's first load doesn't carry every course.
   const wake = () => void useChatHome.getState().ensureCourseRows();
@@ -53,67 +71,73 @@ export function CourseFinder({ go }: { go: ChatGo }) {
   return (
     <form
       aria-label="Find a course's chat"
+      className="flex flex-col gap-2 py-3"
       onSubmit={(e) => {
         e.preventDefault();
         const first = results[0];
         if (first) void open(first[0]);
       }}
     >
-      <label htmlFor={`${id}-input`} className="sr-only">
-        Find a course's chat
-      </label>
-      <div className="mx-4 flex h-8 items-center gap-2 border border-hairline-strong bg-raised px-2.5 focus-within:border-fg max-md:h-11">
-        <Search size={14} aria-hidden="true" className="text-faint" />
+      <div className="px-4">
         <WithTooltip label="Search by course code or title">
-          <input
-            id={`${id}-input`}
-            type="search"
+          <SearchField
+            ref={box}
+            aria-label="Find a course's chat"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setNotOffered(null);
               wake();
             }}
+            onClear={() => {
+              setQuery("");
+              setNotOffered(null);
+              box.current?.focus();
+            }}
             onFocus={wake}
             placeholder="CMSC131, algorithms, ENGL…"
             autoComplete="off"
             spellCheck={false}
             aria-controls={`${id}-results`}
-            className="h-full min-w-0 flex-1 bg-transparent text-base placeholder:text-faint focus:outline-none"
           />
         </WithTooltip>
       </div>
-      <div id={`${id}-results`} role="status" className="empty:hidden">
+      {/* Each state below announces itself (a status). */}
+      <div id={`${id}-results`} className="empty:hidden">
         {typed === "" ? null : rowsState === "error" ? (
-          <div className="flex items-center gap-2 px-4 pt-2 text-muted text-sm">
-            <span className="min-w-0 flex-1">
-              We couldn't load the course list. Check your connection and try
-              again.
-            </span>
-            <WithTooltip label="Load the course list again">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="max-md:h-11"
-                onClick={wake}
-              >
-                Try again
-              </Button>
-            </WithTooltip>
-          </div>
+          <InlineError
+            className="px-4 py-0"
+            message="We couldn't load the course list. Check your connection and try again."
+            onRetry={wake}
+            retryTooltip="Load the course list again"
+          />
         ) : !rows ? (
-          <p className="px-4 pt-2 text-muted text-sm">Loading courses…</p>
+          <RowSkeleton rows={2} label="Loading courses" />
         ) : results.length === 0 ? (
-          <p className="px-4 pt-2 text-muted text-sm">
-            No course matches “{typed}”.
-          </p>
+          <PanelNote className="py-0">
+            <span role="status">No course matches “{typed}”.</span>
+          </PanelNote>
         ) : null}
       </div>
       {typed !== "" && results.length > 0 ? (
-        <ul aria-label="Courses" className="mt-2">
+        <ul aria-label="Courses" className="border-hairline border-y">
           {results.map(([code, title], i) => (
-            <li key={code}>
+            <ListRow
+              key={code}
+              as="li"
+              density="compact"
+              trail={
+                <ChevronRight
+                  size={14}
+                  aria-hidden="true"
+                  className="text-muted"
+                />
+              }
+              className={cn(
+                "relative hover:bg-hover max-md:min-h-11",
+                opening !== null && "opacity-60",
+              )}
+            >
               <WithTooltip
                 label={`Open ${code}'s course room`}
                 shortcut={i === 0 ? "↵" : undefined}
@@ -122,27 +146,26 @@ export function CourseFinder({ go }: { go: ChatGo }) {
                   type="button"
                   disabled={opening !== null}
                   onClick={() => void open(code)}
-                  className="flex h-9 w-full items-center gap-2 px-4 text-left text-sm transition-colors hover:bg-hover disabled:opacity-60 max-md:h-11"
+                  className={cn(
+                    ROW_LINK,
+                    "block w-full truncate text-left text-sm",
+                  )}
                 >
                   <span className="ident font-semibold">{code}</span>
-                  <span className="min-w-0 flex-1 truncate text-muted">
-                    {title}
-                  </span>
-                  <ChevronRight
-                    size={14}
-                    aria-hidden="true"
-                    className="text-muted"
-                  />
+                  <span className="ml-2 text-muted">{title}</span>
                 </button>
               </WithTooltip>
-            </li>
+            </ListRow>
           ))}
         </ul>
       ) : null}
       {notOffered ? (
-        <p role="status" className="px-4 pt-2 text-muted text-sm">
-          {notOffered} isn't offered in {termName}, so it has no chat this term.
-        </p>
+        <PanelNote className="py-0">
+          <span role="status">
+            {notOffered} isn't offered in {termName}, so it has no chat this
+            term.
+          </span>
+        </PanelNote>
       ) : null}
     </form>
   );

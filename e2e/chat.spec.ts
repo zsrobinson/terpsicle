@@ -174,11 +174,16 @@ test("with no classes yet, find any course and open its room", async ({
   }, userId);
   await page.goto(next);
 
-  await expect(page.getByText(/No classes here yet/)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No classes here yet" }),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Open the scheduler" }),
   ).toBeVisible();
+  // The finder: already in the list on a desktop, and brought in on a phone.
+  await page.getByRole("button", { name: "Find a course" }).click();
   const box = page.getByRole("searchbox", { name: "Find a course's chat" });
+  await expect(box).toBeFocused();
   await box.fill("cmsc131");
   await expect(
     page.getByRole("list", { name: "Courses" }).getByRole("button").first(),
