@@ -246,7 +246,8 @@ A wildcard in a four-year plan ("CMSC4XX", "Any DSHS course"), dashed, counting 
 Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser, and grades stay private.
 
 **Template**:
-A hand-made starting four-year plan for a major, credited to its source.
+A hand-made starting four-year plan for a major, credited to its source. Copy calls it a **sample plan**, and adding one fills only empty semesters.
+_Avoid_: roadmap, preset
 
 ## Todo
 

@@ -191,6 +191,51 @@ export const handCourses: Record<string, { name: string; courses: Course[] }> =
     MATH: {
       name: "Mathematics",
       courses: [
+        // Calculus I and II, for the Computer Science sample plan
+        // (src/features/four-year/templates/cmsc-2026.json).
+        aCourse({
+          ...noText,
+          code: "MATH140",
+          title: "Calculus I",
+          credits: { min: 4, max: 4 },
+          genEds: [[{ code: "FSMA" }], [{ code: "FSAR" }]],
+          gradingMethods: ["Reg", "P-F", "Aud"],
+          prerequisite:
+            "Minimum grade of C- in MATH115; or must have math eligibility of MATH140 or higher.",
+          description:
+            "Introduction to calculus, including functions, limits, continuity, derivatives and applications of the derivative, sketching of graphs of functions, definite and indefinite integrals, and calculation of area.",
+          sections: sections(
+            aSection({
+              code: "0111",
+              instructors: ["Kemi Adeyemi"],
+              meetings: [
+                lec(["M", "W", "F"], t(11), t(11, 50), "MTH", "0303"),
+                dis(["Tu", "Th"], t(11), t(11, 50), "MTH", "0104"),
+              ],
+            }),
+          ),
+        }),
+        aCourse({
+          ...noText,
+          code: "MATH141",
+          title: "Calculus II",
+          credits: { min: 4, max: 4 },
+          genEds: [[{ code: "FSAR" }], [{ code: "FSMA" }]],
+          gradingMethods: ["Reg", "P-F", "Aud"],
+          prerequisite: "Minimum grade of C- in MATH140.",
+          description:
+            "Continuation of MATH140, including techniques of integration, improper integrals, applications of integration, Taylor series and differential equations.",
+          sections: sections(
+            aSection({
+              code: "0121",
+              instructors: ["Kemi Adeyemi"],
+              meetings: [
+                lec(["M", "W", "F"], t(13), t(13, 50), "MTH", "0303"),
+                dis(["Tu", "Th"], t(13), t(13, 50), "MTH", "0104"),
+              ],
+            }),
+          ),
+        }),
         aCourse({
           ...noText,
           code: "MATH240",

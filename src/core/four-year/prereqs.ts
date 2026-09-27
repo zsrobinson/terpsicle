@@ -27,6 +27,20 @@ export function meetsGroup(
   );
 }
 
+/**
+ * A course's prerequisite groups, without the course itself: Testudo's
+ * "math eligibility of MATH140" is placement, and a course never meets its
+ * own prerequisite. A group that was only the course asks for nothing.
+ */
+function prereqGroups(
+  code: CourseCode,
+  lookup: FourYearCourses,
+): CourseCode[][] {
+  return (lookup.courses.get(code)?.prereqs.groups ?? [])
+    .map((group) => group.filter((c) => c !== code))
+    .filter((group) => group.length > 0);
+}
+
 /** Course entries that can meet a prerequisite: all but ones whose grade earned nothing. */
 function satisfiers(
   doc: Pick<FourYearDoc, "entries" | "grades">,
@@ -43,7 +57,7 @@ export function unmetPrereqGroups(
   entry: FourYearCourseEntry,
   lookup: FourYearCourses,
 ): CourseCode[][] {
-  const groups = lookup.courses.get(entry.code)?.prereqs.groups ?? [];
+  const groups = prereqGroups(entry.code, lookup);
   if (groups.length === 0) return [];
   const earlier = satisfiers(doc).filter(
     (e) => compareFourYearTerms(e.term, entry.term) < 0,
@@ -63,7 +77,7 @@ export function firstSemesterMeetingPrereqs(
   entry: FourYearCourseEntry,
   lookup: FourYearCourses,
 ): TermId | null {
-  const groups = lookup.courses.get(entry.code)?.prereqs.groups ?? [];
+  const groups = prereqGroups(entry.code, lookup);
   const others = satisfiers(doc).filter((e) => e.id !== entry.id);
   let latest: FourYearTerm = "before";
   for (const group of groups) {

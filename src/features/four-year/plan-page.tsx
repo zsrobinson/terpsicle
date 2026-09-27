@@ -103,8 +103,9 @@ function Workspace({ nav }: { nav: PlanNav }) {
                 <Board />
               )}
             </div>
-          ) : importing ? (
-            // Importing is the task at hand: the paste comes before the semesters.
+          ) : importing || nav.search.tab === "templates" ? (
+            // Importing, or picking a sample plan, is the task at hand: it
+            // comes before the semesters.
             <div className="space-y-4">
               <CreditsSummary />
               <SidePanel credits={false} />

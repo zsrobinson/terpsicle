@@ -42,14 +42,27 @@ export type FourYearEntryDraft = WithoutTerm<
 
 export type FourYearTemplateRef = NonNullable<FourYearDoc["template"]>;
 
+/** A template's semesters as `apply-template` takes them, with ids for its blocks. */
+export type FourYearTemplateSemesters = readonly {
+  readonly index: number;
+  readonly entries: readonly FourYearEntryDraft[];
+}[];
+
 export type FourYearAction =
-  /** A new, empty doc. Name defaults to "My plan" ("My plan 2" when that's taken). */
+  /**
+   * A new doc. Name defaults to "My plan" ("My plan 2" when that's taken).
+   * With `template`, it starts from that sample plan, in the same step.
+   */
   | {
       type: "create";
       id: LocalId;
       firstTermId: TermId;
       now: IsoDateTime;
       name?: string;
+      template?: {
+        ref: FourYearTemplateRef;
+        semesters: FourYearTemplateSemesters;
+      };
     }
   /** "Copy of My plan", with the same entries and grades. */
   | { type: "duplicate"; docId: LocalId; id: LocalId; now: IsoDateTime }
@@ -118,10 +131,7 @@ export type FourYearAction =
       type: "apply-template";
       docId: LocalId;
       template: FourYearTemplateRef;
-      semesters: readonly {
-        readonly index: number;
-        readonly entries: readonly FourYearEntryDraft[];
-      }[];
+      semesters: FourYearTemplateSemesters;
       now: IsoDateTime;
     }
   /**
@@ -252,7 +262,10 @@ function updateEntry(
 
 function applyTemplate(
   doc: FourYearDoc,
-  action: Extract<FourYearAction, { type: "apply-template" }>,
+  action: {
+    template: FourYearTemplateRef;
+    semesters: FourYearTemplateSemesters;
+  },
 ): FourYearDoc {
   const semesters = semesterIds(doc.firstTermId);
   const filled = new Set<FourYearTerm>(doc.entries.map((e) => e.term));
@@ -319,7 +332,13 @@ export function fourYearReducer(
         createdAt: action.now,
         updatedAt: action.now,
       };
-      return { docs: [...state.docs, doc] };
+      const started = action.template
+        ? applyTemplate(doc, {
+            template: action.template.ref,
+            semesters: action.template.semesters,
+          })
+        : doc;
+      return { docs: [...state.docs, started] };
     }
     case "duplicate": {
       const source = state.docs.find((d) => d.id === action.docId);

@@ -12,6 +12,7 @@ import { ImportPanel } from "./import-panel";
 import { useModel, usePlanNav } from "./model";
 import { ProblemsPanel } from "./problems-panel";
 import { focusSearch, SearchPanel } from "./search-panel";
+import { TemplatePanel } from "./template-panel";
 
 // The side panel (V3 §2.13): credits on top, then the tabs. A course opened
 // from a block or a search result replaces the tab's content, with Back.
@@ -73,6 +74,7 @@ const TABS: readonly { tab: PlanTab; label: string; tip: string }[] = [
   { tab: "gened", label: "GenEd", tip: "GenEd progress" },
   { tab: "problems", label: "Problems", tip: "Prerequisites and credits" },
   { tab: "search", label: "Search", tip: "Find a course to add" },
+  { tab: "templates", label: "Samples", tip: "Start from a sample plan" },
   { tab: "import", label: "Import", tip: "Import your transcript" },
 ];
 
@@ -137,11 +139,15 @@ export function SidePanel({
           </WithTooltip>
         ))}
       </nav>
+      {/* It scrolls on desktop, and a tab may have nothing focusable to
+          scroll to (a GenEd tab with every category covered). */}
       <section
         aria-label={
           course ? `About ${course}` : TABS.find((t) => t.tab === tab)?.tip
         }
-        className="scroll-thin min-h-0 flex-1 overflow-y-auto"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard people scroll it from here
+        tabIndex={0}
+        className="scroll-thin min-h-0 flex-1 overflow-y-auto outline-none focus-visible:outline-2 focus-visible:outline-fg focus-visible:-outline-offset-2"
       >
         {course ? (
           <CoursePanel code={course} />
@@ -149,6 +155,8 @@ export function SidePanel({
           <SearchPanel />
         ) : tab === "problems" ? (
           <ProblemsPanel />
+        ) : tab === "templates" ? (
+          <TemplatePanel />
         ) : tab === "import" ? (
           <ImportPanel />
         ) : (
