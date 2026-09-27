@@ -386,6 +386,8 @@ export const FeedbackCursorSchema = z
   );
 
 export const FeedbackListInputSchema = z.strictObject({
+  /** One item, for a link back to it (issues, "Copy for an agent"). */
+  id: FeedbackIdSchema.optional(),
   status: FeedbackStatusSchema.optional(),
   kind: FeedbackKindSchema.optional(),
   product: FeedbackProductSchema.optional(),
@@ -447,3 +449,17 @@ export const FeedbackDeleteResultSchema = z.strictObject({
   status: z.enum(["deleted", "restored", "gone"]),
 });
 export type FeedbackDeleteResult = z.infer<typeof FeedbackDeleteResultSchema>;
+
+// ---------- POST /api/admin/feedback/group ----------
+
+export const FeedbackGroupInputSchema = z.strictObject({});
+
+export const FeedbackGroupResultSchema = z.strictObject({
+  /** `unavailable`: the model didn't answer; the old groups stay. */
+  status: z.enum(["grouped", "unavailable"]),
+  /** Groups made this time. */
+  groups: z.number().int().min(0),
+  /** Open items now in a group. */
+  grouped: z.number().int().min(0),
+});
+export type FeedbackGroupResult = z.infer<typeof FeedbackGroupResultSchema>;

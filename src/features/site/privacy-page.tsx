@@ -168,6 +168,11 @@ export function PrivacyPage() {
             fixed.
           </p>
           <p>
+            To sort similar feedback together, we send its words (never the
+            screenshot or what you were doing) to an AI model that runs on
+            Cloudflare, where Terpsicle runs.
+          </p>
+          <p>
             Screenshots are deleted 180 days after you send them, or 30 days
             after we mark your feedback done, whichever comes first. Everything
             else is deleted after a year. Right after sending, Undo takes it

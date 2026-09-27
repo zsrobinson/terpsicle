@@ -12,6 +12,16 @@ import {
   DecisionListResultSchema,
 } from "~/core/schema/admin";
 import {
+  FeedbackDeleteInputSchema,
+  FeedbackDeleteResultSchema,
+  FeedbackGroupInputSchema,
+  FeedbackGroupResultSchema,
+  FeedbackListInputSchema,
+  FeedbackListResultSchema,
+  FeedbackUpdateInputSchema,
+  FeedbackUpdateResultSchema,
+} from "~/core/schema/feedback";
+import {
   QueueListInputSchema,
   QueueListResultSchema,
   ResolveInputSchema,
@@ -86,6 +96,51 @@ export const adminApi = {
       "admin/samples",
       AdminSamplesInputSchema,
       AdminSamplesResultSchema,
+      {},
+      options,
+    ),
+  /** The feedback inbox, newest first, a page at a time. */
+  feedbackList: (
+    input: z.input<typeof FeedbackListInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "admin/feedback/list",
+      FeedbackListInputSchema,
+      FeedbackListResultSchema,
+      input,
+      options,
+    ),
+  /** Status, note or group; Fixed emails someone who asked for a reply. */
+  feedbackUpdate: (
+    input: z.input<typeof FeedbackUpdateInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "admin/feedback/update",
+      FeedbackUpdateInputSchema,
+      FeedbackUpdateResultSchema,
+      input,
+      options,
+    ),
+  /** Deletes, undoably for 10 seconds (`restore: true`). */
+  feedbackDelete: (
+    input: z.input<typeof FeedbackDeleteInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "admin/feedback/delete",
+      FeedbackDeleteInputSchema,
+      FeedbackDeleteResultSchema,
+      input,
+      options,
+    ),
+  /** Groups the open items again with Workers AI. */
+  feedbackGroup: (options?: ApiOptions) =>
+    call(
+      "admin/feedback/group",
+      FeedbackGroupInputSchema,
+      FeedbackGroupResultSchema,
       {},
       options,
     ),
