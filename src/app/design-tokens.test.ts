@@ -102,17 +102,16 @@ const RULES = {
  * Each moves onto ProductPage in its product's Phase 3 PR, which deletes it
  * here. Never add to this list: a new page picks a kit width.
  */
-const OWN_PAGE_WIDTH = new Set(["/src/features/four-year/empty-state.tsx"]);
+const OWN_PAGE_WIDTH = new Set<string>([]);
 
 /**
- * Where an `<h1>` is written out today: the kit's PageHeader, the marketing
- * page's hero (its own design), and pages still to move onto the kit (Plan).
- * Each leaves the list in the PR that moves it. Never add to it.
+ * Where an `<h1>` is written out today: the kit's PageHeader and the marketing
+ * page's hero (its own design). Every page is on the kit now: never add
+ * to it.
  */
 const OWN_H1 = new Set([
   "/src/components/ui/page-header.tsx",
   "/src/features/marketing/hero.tsx",
-  "/src/features/four-year/empty-state.tsx",
 ]);
 
 /** "file:line: match" for every offending match in `sources`. */

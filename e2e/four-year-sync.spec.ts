@@ -80,8 +80,9 @@ async function pull(page: Page) {
 /** A plan with CMSC351, signed in as `user`, saved to the account. */
 async function signedInWithPlan(page: Page, user: string) {
   await openPlan(page);
-  await page.getByLabel("I started at UMD in").selectOption("202508");
-  await page.getByRole("button", { name: "Start planning" }).click();
+  await page.getByLabel("I started at UMD in").click();
+  await page.getByRole("option", { name: "Fall 2025" }).click();
+  await page.getByRole("button", { name: "or add courses yourself" }).click();
   await addCourse(page, "CMSC351");
   await signIn(page, user);
   await saved(page);
@@ -108,8 +109,9 @@ test("a four-year plan goes up at sign-in, and two devices see each other's edit
   // A laptop plans while signed out: saved in this browser.
   const laptop = await device(browser, baseURL);
   await openPlan(laptop);
-  await laptop.getByLabel("I started at UMD in").selectOption("202508");
-  await laptop.getByRole("button", { name: "Start planning" }).click();
+  await laptop.getByLabel("I started at UMD in").click();
+  await laptop.getByRole("option", { name: "Fall 2025" }).click();
+  await laptop.getByRole("button", { name: "or add courses yourself" }).click();
   await addCourse(laptop, "CMSC351");
   await expect(laptop.getByText("Saved in this browser")).toBeVisible();
 
@@ -141,7 +143,7 @@ test("a four-year plan goes up at sign-in, and two devices see each other's edit
   // And one from the laptop reaches the phone: a rename.
   await laptop.getByRole("button", { name: /^My plan/ }).click();
   await laptop.getByRole("menuitem", { name: "Rename" }).click();
-  const name = laptop.getByRole("textbox", { name: "Plan name" });
+  const name = laptop.getByRole("textbox", { name: "Four-year plan name" });
   await name.fill("CS major");
   await name.press("Enter");
   await saved(laptop);

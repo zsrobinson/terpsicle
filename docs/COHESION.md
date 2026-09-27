@@ -88,7 +88,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [x] Settings and notifications (`v3/cohesion-settings-todo`).
 - [x] Todo (`v3/cohesion-settings-todo`).
 - [x] Reviews. (`v3/cohesion-reviews`: `PageHeader` and `ProductPage` on every page, `PageSection`s of `ListRow`s, a `ViewSwitch` of an instructor's courses, `Card`s for the composer, the report form, sign-in and the AI summary, the kit's `Select`, `SearchField` and a new `Textarea`, `InlineError` with Try again, `RowSkeleton`, and `EmptyState` on `/reviews/mine`.)
-- [ ] Plan. (`v3/plan-workbench`: Plan is on the scheduler's workbench, `src/app/workbench`, with each view a route. Its contents move onto the kit next.)
+- [x] Plan. (`v3/plan-workbench`: Plan is on the scheduler's workbench, `src/app/workbench`, with each view a route. `v3/cohesion-plan`: its first visit is the kit's `EmptyState` with two equal paths, its selects the kit's `Select`, its panels `ListRow`s under `PanelHeader`s, a sample plan a `Card`, loading the kit's skeletons, failures `InlineError` with Try again, codes `ident`, and `Button`, `Input`, `SearchField`, `Textarea` and `SegmentedControl` without per-product sizes. Blocks and semesters stay boxed on the canvas, like the calendar's blocks.)
 - [x] Chat.
 - [ ] Schedule.
 - [ ] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port. (`/privacy`, sign-in and not found are on the kit since `v3/cohesion-settings-todo`; `/` and the marketing port are left.)

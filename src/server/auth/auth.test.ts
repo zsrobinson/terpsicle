@@ -126,36 +126,42 @@ let tokenStatus = 200;
 const pictures = new Map<string, Uint8Array>();
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
 
-const googleFetch = vi.fn(
-  async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input instanceof Request ? input.url : input);
-    if (url === GOOGLE_TOKEN_URL) {
-      const form = new URLSearchParams(String(init?.body));
-      // Google checks PKCE: the verifier must hash to the challenge.
-      const verifier = form.get("code_verifier") ?? "";
-      if (
-        !pendingGoogle ||
-        tokenStatus !== 200 ||
-        (await s256(verifier)) !== pendingGoogle.challenge ||
-        form.get("client_secret") !== "fixture-client-secret" ||
-        form.get("grant_type") !== "authorization_code"
-      )
-        return Response.json({ error: "invalid_grant" }, { status: 400 });
-      return Response.json({
-        access_token: "ya29.fixture",
-        id_token: anIdToken(pendingGoogle.claims),
-        expires_in: 3599,
-        token_type: "Bearer",
-      });
-    }
-    const picture = pictures.get(url);
-    if (picture)
-      return new Response(picture, {
-        headers: { "Content-Type": "image/png" },
-      });
-    return new Response("Not found", { status: 404 });
-  },
-) as unknown as typeof fetch;
+// Like the Workers runtime's fetch, it refuses to run as another object's
+// method ("Illegal invocation").
+const googleFetch = vi.fn(async function (
+  this: unknown,
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) {
+  if (this !== undefined && this !== globalThis)
+    throw new TypeError("Illegal invocation");
+  const url = String(input instanceof Request ? input.url : input);
+  if (url === GOOGLE_TOKEN_URL) {
+    const form = new URLSearchParams(String(init?.body));
+    // Google checks PKCE: the verifier must hash to the challenge.
+    const verifier = form.get("code_verifier") ?? "";
+    if (
+      !pendingGoogle ||
+      tokenStatus !== 200 ||
+      (await s256(verifier)) !== pendingGoogle.challenge ||
+      form.get("client_secret") !== "fixture-client-secret" ||
+      form.get("grant_type") !== "authorization_code"
+    )
+      return Response.json({ error: "invalid_grant" }, { status: 400 });
+    return Response.json({
+      access_token: "ya29.fixture",
+      id_token: anIdToken(pendingGoogle.claims),
+      expires_in: 3599,
+      token_type: "Bearer",
+    });
+  }
+  const picture = pictures.get(url);
+  if (picture)
+    return new Response(picture, {
+      headers: { "Content-Type": "image/png" },
+    });
+  return new Response("Not found", { status: 404 });
+}) as unknown as typeof fetch;
 
 const location = (response: Response) =>
   new URL(response.headers.get("Location") ?? "", ORIGIN);

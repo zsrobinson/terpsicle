@@ -57,9 +57,6 @@ import { focusSearch } from "./search-panel";
 /** The drag's payload type: an entry id, only between Plan's own columns. */
 export const ENTRY_DRAG_TYPE = "application/x-terpsicle-four-year-entry";
 
-/** Menu rows are 44px on phones, like every other target there. */
-export const MENU_ITEM = "max-md:min-h-11";
-
 function Chips({ picks }: { picks: readonly GenEdPick[] }) {
   const shown = picks.filter((p) => p.code !== null);
   if (shown.length === 0) return null;
@@ -69,7 +66,7 @@ function Chips({ picks }: { picks: readonly GenEdPick[] }) {
         <span
           key={p.group}
           className={cn(
-            "border border-hairline px-1 font-mono text-2xs leading-[14px]",
+            "ident border border-hairline px-1 text-2xs leading-[14px]",
             p.counts ? "text-muted" : "text-faint line-through",
           )}
         >
@@ -88,7 +85,7 @@ function CodeChips({ codes }: { codes: readonly string[] }) {
       {codes.map((code) => (
         <span
           key={code}
-          className="border border-hairline px-1 font-mono text-2xs text-muted leading-[14px]"
+          className="ident border border-hairline px-1 text-2xs text-muted leading-[14px]"
         >
           {code}
         </span>
@@ -154,7 +151,7 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
             variant="ghost"
             size="icon-sm"
             aria-label={`${name} options`}
-            className="size-11 shrink-0 md:size-6"
+            className="size-6 shrink-0"
           >
             <MoreHorizontal aria-hidden="true" />
           </Button>
@@ -163,7 +160,6 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
       <DropdownMenuContent align="end" className="w-[220px]">
         {entry.kind === "course" ? (
           <DropdownMenuItem
-            className={MENU_ITEM}
             onSelect={() => nav.go({ course: entry.code }, { drill: true })}
           >
             About {entry.code}
@@ -171,7 +167,7 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
         ) : null}
         {entry.kind === "course" && reviewsOn ? (
           <WithTooltip label={`${entry.code}'s grades and reviews`} side="left">
-            <DropdownMenuItem asChild className={MENU_ITEM}>
+            <DropdownMenuItem asChild>
               <Link
                 to="/reviews/courses/$code"
                 params={{ code: entry.code }}
@@ -184,7 +180,6 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
         ) : null}
         {entry.kind === "wildcard" ? (
           <DropdownMenuItem
-            className={MENU_ITEM}
             onSelect={() => {
               nav.go({
                 tab: "search",
@@ -201,7 +196,6 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
         ) : null}
         {at > 0 ? (
           <DropdownMenuItem
-            className={MENU_ITEM}
             onSelect={() => moveEntry(doc, entry, entry.term, "menu", at - 1)}
           >
             Move up
@@ -209,7 +203,6 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
         ) : null}
         {at >= 0 && at < siblings.length - 1 ? (
           <DropdownMenuItem
-            className={MENU_ITEM}
             onSelect={() => moveEntry(doc, entry, entry.term, "menu", at + 1)}
           >
             Move down
@@ -217,14 +210,11 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
         ) : null}
         {targets.columns.length > 0 ? (
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className={MENU_ITEM}>
-              Move to…
-            </DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger>Move to…</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-[200px]">
               {targets.columns.map((term) => (
                 <DropdownMenuItem
                   key={term}
-                  className={MENU_ITEM}
                   onSelect={() => moveEntry(doc, entry, term, "menu")}
                 >
                   <span className="flex-1">{fourYearTermLabel(term)}</span>
@@ -240,7 +230,6 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
                   {targets.extra.map((term) => (
                     <DropdownMenuItem
                       key={term}
-                      className={MENU_ITEM}
                       onSelect={() => moveEntry(doc, entry, term, "menu")}
                     >
                       {fourYearTermLabel(term)}
@@ -253,20 +242,14 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
         ) : null}
         {creditChoices.length > 0 ? (
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className={MENU_ITEM}>
-              Credits
-            </DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger>Credits</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-[160px]">
               <DropdownMenuRadioGroup
                 value={String(entryCredits(entry, lookup))}
                 onValueChange={(value) => setCredits(doc, entry, Number(value))}
               >
                 {creditChoices.map((n) => (
-                  <DropdownMenuRadioItem
-                    key={n}
-                    value={String(n)}
-                    className={MENU_ITEM}
-                  >
+                  <DropdownMenuRadioItem key={n} value={String(n)}>
                     {n} {n === 1 ? "credit" : "credits"}
                   </DropdownMenuRadioItem>
                 ))}
@@ -280,7 +263,7 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
           const counted = picks.find((p) => p.group === index)?.code ?? null;
           return (
             <DropdownMenuSub key={index}>
-              <DropdownMenuSubTrigger className={MENU_ITEM}>
+              <DropdownMenuSubTrigger>
                 Counts as {counted ?? "…"}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-[240px]">
@@ -295,17 +278,16 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
                     )
                   }
                 >
-                  <DropdownMenuRadioItem value="auto" className={MENU_ITEM}>
+                  <DropdownMenuRadioItem value="auto">
                     Where it helps most
                   </DropdownMenuRadioItem>
                   {group.map((option) => (
                     <DropdownMenuRadioItem
                       key={option.code}
                       value={option.code}
-                      className={MENU_ITEM}
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="font-mono">{option.code}</span>{" "}
+                        <span className="ident">{option.code}</span>{" "}
                         <span className="text-muted">
                           {option.condition ?? GEN_ED_LABELS[option.code] ?? ""}
                         </span>
@@ -318,10 +300,7 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
           );
         })}
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className={MENU_ITEM}
-          onSelect={() => removeEntry(doc, entry)}
-        >
+        <DropdownMenuItem onSelect={() => removeEntry(doc, entry)}>
           Remove from {fourYearTermLabel(entry.term)}
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -390,7 +369,7 @@ export function EntryBlock({
     entry.kind === "course" ? (
       <>
         <span className="flex items-baseline gap-2">
-          <span className="font-mono font-semibold">{entry.code}</span>
+          <span className="ident font-semibold">{entry.code}</span>
           <span className="ml-auto flex shrink-0 items-baseline gap-1.5 text-sm">
             {grade ? (
               <span data-private className="font-semibold">
@@ -407,11 +386,10 @@ export function EntryBlock({
         <span className="flex items-baseline gap-2">
           <span className="truncate font-semibold">
             {entry.wildcard.kind === "pattern" ? (
-              <span className="font-mono">{entry.wildcard.pattern}</span>
+              <span className="ident">{entry.wildcard.pattern}</span>
             ) : (
               <>
-                Any <span className="font-mono">{entry.wildcard.code}</span>{" "}
-                course
+                Any <span className="ident">{entry.wildcard.code}</span> course
               </>
             )}
           </span>

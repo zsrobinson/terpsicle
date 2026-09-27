@@ -45,7 +45,7 @@ test("adds the Computer Science sample plan in one step, and undoes it", async (
   isMobile,
 }) => {
   await page.goto("/plan");
-  await page.getByRole("button", { name: "Pick a sample plan" }).click();
+  await page.getByRole("button", { name: "Start from a sample plan" }).click();
   await expect(page).toHaveURL(/\/plan\/samples/);
 
   const card = page.getByRole("region", { name: "Computer Science" });

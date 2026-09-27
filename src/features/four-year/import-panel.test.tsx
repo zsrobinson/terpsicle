@@ -20,7 +20,7 @@ import {
 } from "~/state/course-index-store";
 import { TooltipProvider } from "~/ui/tooltip";
 import { removeGrades } from "./actions";
-import { EmptyState } from "./empty-state";
+import { PlanFirstVisit } from "./first-visit";
 import { ImportPanel } from "./import-panel";
 import { resetTranscriptImport, useTranscriptImport } from "./import-state";
 import {
@@ -235,9 +235,9 @@ describe("check", () => {
     expect(
       screen.getByText(/Pick a GenEd for 2 courses where Testudo says "or"/),
     ).toBeInTheDocument();
-    const psyc = screen.getByRole("group", { name: /PSYC100/ });
+    const psyc = screen.getByRole("radiogroup", { name: /PSYC100/ });
     await user.click(within(psyc).getByRole("radio", { name: "DSNS" }));
-    const aasp = screen.getByRole("group", { name: /AASP100/ });
+    const aasp = screen.getByRole("radiogroup", { name: /AASP100/ });
     await user.click(within(aasp).getByRole("radio", { name: "DSHU" }));
     expect(button).toBeEnabled();
   });
@@ -286,7 +286,7 @@ describe("check", () => {
     expect(within(fall).queryByText("A-")).toBeNull();
     expect(
       screen.getByText(
-        /Grades stay in your plan. If you're signed in, they sync/,
+        /Grades stay in your four-year plan. If you're signed in, they sync/,
       ),
     ).toBeInTheDocument();
   });
@@ -302,7 +302,7 @@ describe("import", () => {
     ] as const)
       await panel.user.click(
         within(
-          screen.getByRole("group", { name: new RegExp(course) }),
+          screen.getByRole("radiogroup", { name: new RegExp(course) }),
         ).getByRole("radio", { name: code }),
       );
     if (options.keepGrades === false)
@@ -375,7 +375,7 @@ describe("import", () => {
     ] as const)
       await panel.user.click(
         within(
-          screen.getByRole("group", { name: new RegExp(course) }),
+          screen.getByRole("radiogroup", { name: new RegExp(course) }),
         ).getByRole("radio", { name: code }),
       );
     await panel.user.click(
@@ -407,13 +407,13 @@ describe("the first visit's import card", () => {
     const go = vi.fn();
     render(
       <TooltipProvider>
-        <EmptyState today={TODAY} nav={nav(go)} />
+        <PlanFirstVisit today={TODAY} nav={nav(go)} />
       </TooltipProvider>,
     );
     expect(screen.queryByText("Coming next")).toBeNull();
     await userEvent
       .setup()
-      .click(screen.getByRole("button", { name: "Paste your transcript" }));
+      .click(screen.getByRole("button", { name: "Import your transcript" }));
     expect(useFourYear.getState().history.present.docs).toHaveLength(1);
     expect(go).toHaveBeenCalledWith({ tab: "import" });
     expect(track).toHaveBeenCalledWith("four_year_created", {
