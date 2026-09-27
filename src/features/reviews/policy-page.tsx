@@ -1,5 +1,7 @@
 import { MODERATION_POLICY } from "~/core/moderation";
-import { Breadcrumbs, PageTitle, ReviewsFrame } from "./frame";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
+import { ReviewsFrame } from "./frame";
 
 // /reviews/policy (V2 §1.1, §7.5): what reviews can say, how checks work,
 // removal, and the honest line about what we store. The rules' words are
@@ -9,25 +11,22 @@ export function ReviewsPolicyPage() {
   const policy = MODERATION_POLICY.review;
   return (
     <ReviewsFrame>
-      <Breadcrumbs crumbs={[{ label: "Reviews", to: "/reviews" }]} />
-      <PageTitle title={policy.title} sub={policy.intro} />
-      <article className="space-y-6 leading-relaxed">
-        {policy.sections.map((section) => (
-          <section key={section.heading} className="space-y-2">
-            <h2 className="font-semibold text-lg tracking-tight">
-              {section.heading}
-            </h2>
-            <ul className="list-disc space-y-1 pl-6 text-muted">
-              {section.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </section>
-        ))}
-        <section className="space-y-2 text-muted">
-          <h2 className="font-semibold text-fg text-lg tracking-tight">
-            How checks work
-          </h2>
+      <PageHeader
+        back={{ label: "Reviews", to: "/reviews" }}
+        title={policy.title}
+        status={policy.intro}
+      />
+      {policy.sections.map((section) => (
+        <PageSection key={section.heading} title={section.heading}>
+          <ul className="list-disc space-y-1 pl-6 text-muted leading-relaxed">
+            {section.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </PageSection>
+      ))}
+      <PageSection title="How checks work">
+        <div className="space-y-2 text-muted leading-relaxed">
           <p>{policy.process}</p>
           <p>
             We never change a review's words. We post it, hold it for a person,
@@ -40,29 +39,23 @@ export function ReviewsPolicyPage() {
             looks. We pass credible threats to the University of Maryland Police
             (UMPD), without the author's account.
           </p>
-        </section>
-        <section className="space-y-2 text-muted">
-          <h2 className="font-semibold text-fg text-lg tracking-tight">
-            Who wrote it
-          </h2>
-          <p>
-            We store which account wrote a review so you can edit or delete it
-            and so limits work. We never show it to readers or moderators.
-          </p>
-        </section>
-        <section className="space-y-2 text-muted">
-          <h2 className="font-semibold text-fg text-lg tracking-tight">
-            PlanetTerp
-          </h2>
-          <p>
-            Ratings and grade distributions include PlanetTerp's, with a link to
-            read its reviews there. We don't show PlanetTerp's review text here.
-          </p>
-        </section>
-        <p className="text-faint text-sm">
-          Terpsicle isn't affiliated with the University of Maryland.
+        </div>
+      </PageSection>
+      <PageSection title="Who wrote it">
+        <p className="text-muted leading-relaxed">
+          We store which account wrote a review so you can edit or delete it and
+          so limits work. We never show it to readers or moderators.
         </p>
-      </article>
+      </PageSection>
+      <PageSection title="PlanetTerp">
+        <p className="text-muted leading-relaxed">
+          Ratings and grade distributions include PlanetTerp's, with a link to
+          read its reviews there. We don't show PlanetTerp's review text here.
+        </p>
+      </PageSection>
+      <p className="text-faint text-sm">
+        Terpsicle isn't affiliated with the University of Maryland.
+      </p>
     </ReviewsFrame>
   );
 }

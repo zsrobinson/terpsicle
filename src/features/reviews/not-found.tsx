@@ -1,7 +1,11 @@
 import { Link } from "@tanstack/react-router";
+import { cn } from "cn";
 import type { Suggestion } from "~/core/reviews";
+import { ListRow } from "~/ui/list-row";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
 import { WithTooltip } from "~/ui/tooltip";
-import { Breadcrumbs, ReviewsFrame } from "./frame";
+import { PAGE_ROW, ReviewsFrame, ROW_LINK } from "./frame";
 
 // An instructor or course page nobody publishes (a mistyped link, or an old
 // one): a real 404 from the server, with what they may have meant.
@@ -29,21 +33,36 @@ export function ReviewsNotFound({
   const suggestions = isSuggestions(data) ? data.suggestions : [];
   return (
     <ReviewsFrame>
-      <Breadcrumbs crumbs={[{ label: "Reviews", to: "/reviews" }]} />
-      <h1 className="mb-1.5 font-semibold text-xl tracking-tight">
-        {what === "instructor" ? "Instructor not found" : "Course not found"}
-      </h1>
-      <p className="text-muted">
-        {what === "instructor"
-          ? "We don't know an instructor at this address."
-          : "No UMD course we know has this code."}
-      </p>
+      <PageHeader
+        back={{ label: "Reviews", to: "/reviews" }}
+        title={
+          what === "instructor" ? "Instructor not found" : "Course not found"
+        }
+        status={
+          <>
+            {what === "instructor"
+              ? "We don't know an instructor at this address."
+              : "No UMD course we know has this code."}{" "}
+            <WithTooltip label="Search every UMD course">
+              <Link
+                to="/reviews"
+                className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
+              >
+                Find a course
+              </Link>
+            </WithTooltip>
+          </>
+        }
+      />
       {suggestions.length > 0 ? (
-        <div className="mt-6">
-          <h2 className="font-semibold">Did you mean</h2>
-          <ul className="mt-1">
+        <PageSection title="Did you mean">
+          <ul>
             {suggestions.map((s) => (
-              <li key={s.kind === "course" ? s.code : s.id}>
+              <ListRow
+                key={s.kind === "course" ? s.code : s.id}
+                as="li"
+                className={cn(PAGE_ROW, "relative")}
+              >
                 <WithTooltip
                   label={
                     s.kind === "course"
@@ -55,7 +74,7 @@ export function ReviewsNotFound({
                     <Link
                       to="/reviews/courses/$code"
                       params={{ code: s.code }}
-                      className="inline-block py-1 font-medium hover:underline"
+                      className={cn(ROW_LINK, "font-medium hover:underline")}
                     >
                       {s.label}
                     </Link>
@@ -64,24 +83,17 @@ export function ReviewsNotFound({
                       to="/reviews/instructors/$id"
                       params={{ id: s.id }}
                       search={{}}
-                      className="inline-block py-1 font-medium hover:underline"
+                      className={cn(ROW_LINK, "font-medium hover:underline")}
                     >
                       {s.label}
                     </Link>
                   )}
                 </WithTooltip>
-              </li>
+              </ListRow>
             ))}
           </ul>
-        </div>
+        </PageSection>
       ) : null}
-      <p className="mt-6 text-sm">
-        <WithTooltip label="Search every UMD course">
-          <Link to="/reviews" className="text-muted hover:text-fg">
-            Find a course
-          </Link>
-        </WithTooltip>
-      </p>
     </ReviewsFrame>
   );
 }

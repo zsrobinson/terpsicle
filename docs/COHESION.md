@@ -86,7 +86,7 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [ ] Settings and notifications.
 - [ ] Todo.
-- [ ] Reviews.
+- [x] Reviews. (`v3/cohesion-reviews`: `PageHeader` and `ProductPage` on every page, `PageSection`s of `ListRow`s, a `ViewSwitch` of an instructor's courses, `Card`s for the composer, the report form, sign-in and the AI summary, the kit's `Select`, `SearchField` and a new `Textarea`, `InlineError` with Try again, `RowSkeleton`, and `EmptyState` on `/reviews/mine`.)
 - [ ] Plan.
 - [ ] Chat.
 - [ ] Schedule.

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { Input, SearchField } from "./input";
+import { Input, SearchField, Textarea } from "./input";
 import { TooltipProvider } from "./tooltip";
 
 describe("Input", () => {
@@ -11,6 +11,17 @@ describe("Input", () => {
     const field = screen.getByRole("textbox", { name: "Plan name" });
     expect(field).toHaveClass("h-11", "md:h-8", "border-hairline-strong");
     expect(field).toHaveValue("Plan A");
+  });
+});
+
+describe("Textarea", () => {
+  it("has the field's border and fill, at the height of its rows", () => {
+    render(<Textarea aria-label="Your review" rows={6} defaultValue="Clear" />);
+    const field = screen.getByRole("textbox", { name: "Your review" });
+    expect(field).toHaveClass("border-hairline-strong", "bg-raised");
+    expect(field).not.toHaveClass("h-11");
+    expect(field).toHaveAttribute("rows", "6");
+    expect(field).toHaveValue("Clear");
   });
 });
 

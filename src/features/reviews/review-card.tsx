@@ -1,22 +1,24 @@
-import { cn } from "cn";
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { termLabel } from "~/core/catalog/terms";
 import { reviewStanding } from "~/core/reviews";
 import type { MyReview, PublicReview } from "~/core/schema";
 import { formatMonthYear } from "~/core/time/format";
 import { Button } from "~/ui/button";
+import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { deleteWithUndo } from "./delete-review";
+import { PAGE_ROW } from "./frame";
 import type { ReviewsLevel } from "./level";
 import { Stars } from "./rating";
 import { ReportForm, ReportToggle } from "./report-button";
 import { useReviews } from "./reviews-store";
 
-// One review. Anonymous (V2 §7.5): what a reader gets has no author, so
-// there's nothing to show; the author alone sees "Yours" on their own. The
-// words are plain text, never HTML: React escapes them, and line breaks
-// stay as typed.
+// One review, as a row of a list: callers put them in a `ul`, and the kit's
+// ListRow draws the hairlines between. Anonymous (V2 §7.5): what a reader
+// gets has no author, so there's nothing to show; the author alone sees
+// "Yours" on their own. The words are plain text, never HTML: React escapes
+// them, and line breaks stay as typed.
 
 /** "Took it Fall 2025 · Got an A-": what the author chose to say. */
 function contextWords(review: {
@@ -42,6 +44,7 @@ export function ReviewCard({
   level,
   showCourse,
   onEdit,
+  about,
 }: {
   review: PublicReview;
   /** Yours, from reviews/mine, when you wrote it. */
@@ -50,108 +53,111 @@ export function ReviewCard({
   showCourse: boolean;
   /** Left out where the page can't hold the form: Edit is on the instructor's page. */
   onEdit?: (review: MyReview) => void;
+  /** Who it's about, where a list mixes instructors ("About Ada Brandt"). */
+  about?: ReactNode;
 }) {
   const reported = useReviews((s) => s.reported[review.id] === true);
   const [reporting, setReporting] = useState(false);
   if (reported)
     return (
-      <article className="border-hairline border-b py-3 text-muted text-sm">
-        You reported this review. Thanks: a moderator will look at it.
-      </article>
+      <ListRow as="li" className={PAGE_ROW}>
+        <article className="text-muted text-sm">
+          You reported this review. Thanks: a moderator will look at it.
+        </article>
+      </ListRow>
     );
   const context = contextWords(review);
   const standing = own ? reviewStanding(own) : null;
   return (
-    <article className="border-hairline border-b py-3" data-review={review.id}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-        <Stars rating={review.rating} />
-        {showCourse ? (
-          <span className="ident font-medium">{review.course}</span>
+    // The date stays inside the article (not the row's trail): the article
+    // is the whole review.
+    <ListRow as="li" align="start" className={PAGE_ROW}>
+      <article className="flex flex-col gap-1.5" data-review={review.id}>
+        {about ? <p className="text-muted text-sm">{about}</p> : null}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <Stars rating={review.rating} />
+          {showCourse ? (
+            <span className="ident font-medium">{review.course}</span>
+          ) : null}
+          {context ? <span className="text-muted">{context}</span> : null}
+          <span className="tnum ml-auto text-faint">
+            {formatMonthYear(review.createdMonth)}
+            {review.edited ? " · Edited" : ""}
+          </span>
+        </div>
+        <p className="whitespace-pre-line break-words leading-5" data-private>
+          {review.body}
+        </p>
+        <div className="flex flex-wrap items-center gap-1">
+          {own ? (
+            <OwnActions own={own} level={level} onEdit={onEdit} label="Yours" />
+          ) : level !== "off" ? (
+            <ReportToggle
+              open={reporting}
+              onToggle={() => setReporting((open) => !open)}
+            />
+          ) : null}
+        </div>
+        {reporting && !own ? (
+          <ReportForm reviewId={review.id} onDone={() => setReporting(false)} />
         ) : null}
-        {context ? <span className="text-muted">{context}</span> : null}
-        <span className="ml-auto text-faint">
-          {formatMonthYear(review.createdMonth)}
-          {review.edited ? " · Edited" : ""}
-        </span>
-      </div>
-      <p
-        className="mt-1.5 whitespace-pre-line break-words leading-5"
-        data-private
-      >
-        {review.body}
-      </p>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1">
-        {own ? (
-          <OwnActions own={own} level={level} onEdit={onEdit} label="Yours" />
-        ) : level !== "off" ? (
-          <ReportToggle
-            open={reporting}
-            onToggle={() => setReporting((open) => !open)}
-          />
+        {standing?.detail ? (
+          <p className="text-muted text-sm">{standing.detail}</p>
         ) : null}
-      </div>
-      {reporting && !own ? (
-        <ReportForm reviewId={review.id} onDone={() => setReporting(false)} />
-      ) : null}
-      {standing?.detail ? (
-        <p className="mt-1 text-muted text-sm">{standing.detail}</p>
-      ) : null}
-    </article>
+      </article>
+    </ListRow>
   );
 }
 
 /**
- * Your review that readers can't see (waiting, not posted, or hidden after
- * reports): only you get this card, with where it stands.
+ * Your review, with where it stands. One readers can't see (waiting, not
+ * posted, or hidden after reports) says so: only you get this row.
  */
 export function OwnReviewCard({
   review,
   level,
   showCourse,
   onEdit,
+  about,
 }: {
   review: MyReview;
   level: ReviewsLevel;
   showCourse: boolean;
   onEdit: (review: MyReview) => void;
+  /** Who and what it's about, on the list of all of yours. */
+  about?: ReactNode;
 }) {
   const standing = reviewStanding(review);
   const context = contextWords(review);
   const onlyYou = review.status !== "published";
   return (
-    <article
-      className={cn(
-        "my-3 border p-3",
-        onlyYou ? "border-hairline-strong border-dashed" : "border-hairline",
-      )}
-      data-review={review.id}
-    >
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-        <span className="bg-hover px-1.5 font-medium">{standing.label}</span>
-        <Stars rating={review.rating} />
-        {showCourse ? (
-          <span className="ident font-medium">{review.course}</span>
+    <ListRow as="li" align="start" className={PAGE_ROW}>
+      <article className="flex flex-col gap-1.5" data-review={review.id}>
+        {about ? <p className="text-sm">{about}</p> : null}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <span className="bg-hover px-1.5 font-medium">{standing.label}</span>
+          <Stars rating={review.rating} />
+          {showCourse ? (
+            <span className="ident font-medium">{review.course}</span>
+          ) : null}
+          {context ? <span className="text-muted">{context}</span> : null}
+          {onlyYou ? (
+            <span className="ml-auto text-faint">Only you can see this</span>
+          ) : null}
+        </div>
+        {review.body ? (
+          <p className="whitespace-pre-line break-words leading-5" data-private>
+            {review.body}
+          </p>
         ) : null}
-        {context ? <span className="text-muted">{context}</span> : null}
-        {onlyYou ? (
-          <span className="ml-auto text-faint">Only you can see this</span>
+        {standing.detail ? (
+          <p className="text-muted text-sm">{standing.detail}</p>
         ) : null}
-      </div>
-      {review.body ? (
-        <p
-          className="mt-1.5 whitespace-pre-line break-words leading-5"
-          data-private
-        >
-          {review.body}
-        </p>
-      ) : null}
-      {standing.detail ? (
-        <p className="mt-1.5 text-muted text-sm">{standing.detail}</p>
-      ) : null}
-      <div className="mt-1.5 flex flex-wrap items-center gap-1">
-        <OwnActions own={review} level={level} onEdit={onEdit} label={null} />
-      </div>
-    </article>
+        <div className="flex flex-wrap items-center gap-1">
+          <OwnActions own={review} level={level} onEdit={onEdit} label={null} />
+        </div>
+      </article>
+    </ListRow>
   );
 }
 

@@ -144,6 +144,49 @@ describe("an instructor's page", () => {
     expect(screen.getByRole("button", { name: "Report" })).toBeInTheDocument();
   });
 
+  it("has the kit's header: Back to the course, and a view per course", async () => {
+    setAccount({ reviews: "on" });
+    fakeReviewsClient();
+    await instructor();
+    expect(
+      await screen.findByRole("heading", { name: "Ada Brandt", level: 1 }),
+    ).toBeInTheDocument();
+    // Back, named for the course it goes back to.
+    expect(
+      screen
+        .getAllByRole("link", { name: "CMSC351" })
+        .map((link) => link.getAttribute("href")),
+    ).toContain("/reviews/courses/CMSC351");
+    // Each course is a view, and a URL.
+    const views = screen.getByRole("navigation", { name: "Courses" });
+    expect(
+      within(views).getByRole("link", { name: "CMSC351" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      within(views).getByRole("link", { name: "All courses" }),
+    ).toHaveAttribute("href", "/reviews/instructors/brandt");
+  });
+
+  it("says when reviews didn't load, and tries again", async () => {
+    setAccount({ reviews: "on" });
+    let calls = 0;
+    fakeReviewsClient({
+      list: async () => {
+        calls += 1;
+        if (calls === 1) throw new Error("offline");
+        return { reviews: [aPublicReview()], next: null };
+      },
+    });
+    const user = userEvent.setup();
+    await instructor();
+    expect(
+      await screen.findByText("Couldn't load reviews. Check your connection."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/reload the page/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(aPublicReview().body)).toBeInTheDocument();
+  });
+
   it("asks you to sign in to write or report, in place", async () => {
     setAccount({ reviews: "on" });
     fakeReviewsClient({
@@ -412,6 +455,22 @@ describe("a course's page", () => {
     );
     expect(screen.getAllByTestId("grade-bars")).toHaveLength(1);
   });
+
+  it("asks who taught you from its one Write a review", async () => {
+    setAccount({ reviews: "on", user: STUDENT });
+    fakeReviewsClient();
+    const data = await loadCoursePage("CMSC351");
+    if (!data) throw new Error("the loader didn't find CMSC351");
+    await renderPage(<CoursePage data={data} />, "/reviews/courses/CMSC351");
+    expect(
+      screen.getByRole("heading", { name: /^CMSC351/, level: 1 }),
+    ).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Write a review/ }));
+    expect(
+      await screen.findByRole("menuitem", { name: /Ada Brandt/ }),
+    ).toHaveAttribute("href", "/reviews/instructors/brandt?course=CMSC351");
+  });
 });
 
 describe("/reviews", () => {
@@ -507,6 +566,19 @@ describe("/reviews/mine", () => {
         "It wasn't posted. Why: Targets a person. You can delete it and write a new one.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("starts you off when you haven't written one", async () => {
+    setAccount({ reviews: "on", user: STUDENT });
+    fakeReviewsClient({ mine: async () => ({ reviews: [] }) });
+    await renderPage(<MyReviewsPage />, "/reviews/mine");
+    expect(
+      await screen.findByRole("heading", { name: "No reviews yet" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Find a class" })).toHaveAttribute(
+      "href",
+      "/reviews",
+    );
   });
 
   it("asks you to sign in when you aren't", async () => {

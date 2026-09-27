@@ -113,8 +113,9 @@ test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
   await page.getByRole("button", { name: "Write a review" }).click();
   const form = page.getByRole("form", { name: "Write a review" });
   await form.getByRole("radio", { name: "4 stars" }).click();
-  // The newest term in the list.
-  await form.getByLabel("When you took it").selectOption({ index: 1 });
+  // The newest term in the list (after "Rather not say").
+  await form.getByLabel("When you took it").click();
+  await page.getByRole("option").nth(1).click();
   await form
     .getByLabel("Your review")
     .fill(`${BODY} Notes: https://example.com/351`);
@@ -176,7 +177,7 @@ test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
   });
   await page.reload();
   await expect(
-    page.getByText("You haven't written any reviews yet.", { exact: false }),
+    page.getByRole("heading", { name: "No reviews yet" }),
   ).toBeVisible();
 });
 

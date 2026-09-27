@@ -145,7 +145,10 @@ export const useReviews = create<ReviewsState>()((set, get) => {
     reloadList: (id) => load(id),
 
     loadMine: async () => {
-      if (get().mine.status === "idle") set({ mine: { status: "loading" } });
+      // A first load, or Try again after one failed: show it loading.
+      const { status } = get().mine;
+      if (status === "idle" || status === "error")
+        set({ mine: { status: "loading" } });
       try {
         const { reviews } = await client.reviews.mine();
         set({ mine: { status: "ready", reviews } });
