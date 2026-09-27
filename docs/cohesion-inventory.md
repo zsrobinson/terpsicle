@@ -146,10 +146,10 @@ Shared `Button` (`components/ui/button.tsx`) in product code (excluding marketin
   - Todo: ghost 5, default 2, outline 2.
   - Settings (auth + notifications): outline 6, ghost 2.
   - PWA: 4. Site: 3. Admin: 13.
-- **Height overrides fight the size scale**:
-  - Plan uses `h-11 md:h-8`, `h-11 md:h-6`, `size-11 md:size-7` (for example `empty-state.tsx:79`, `four-year/search-panel.tsx`, `problems-panel.tsx:67`). Todo keeps `max-md:size-11` on its refresh icon and `max-md:h-11` on Connect ELMS, which sits beside a 44px `Input` on phones, until `Button` has a phone size for them.
-  - Chat uses `max-md:h-11` and `max-md:size-11` (about 20 sites).
-  - Settings uses neither.
+- **Height overrides fight the size scale**: `Button`, `SelectTrigger` and menu items are 44px on phones from the kit now (`v3/touch-targets`), so the overrides on them are redundant. What's left, all in files other PRs had open:
+  - Plan's `h-11 md:h-8` / `size-11 md:size-6` on kit Buttons (`four-year/*`, going with `v3/cohesion-plan`).
+  - Todo's refresh icon (`todo/todo-page.tsx`, `max-md:-my-3 max-md:size-11`), Chat's `room-view.tsx` (4) and Reviews' `composer.tsx` `SELECT_TRIGGER`.
+  - Overrides on raw elements the kit doesn't size stay: Chat's reaction chips, "N replies", the term menu and row links; `ListRow`/`GroupHeader` links with `max-md:min-h-11`.
 - **Hand-rolled `<button>` elements with custom classes** (non-marketing), by folder:
   - app 18: rail and drawer tabs (the workbench's, one each for Schedule and Plan), plan tabs ×4, product menu, theme toggle, top-bar problems ×2, shared pill ×2, drill back, term switcher, toast actions ×2, `GroupHeader`.
   - calendar 9, course-details 8, generate 8, travel 8, chat 7, four-year 6, search 7, courses 5, blocks 4.
@@ -249,4 +249,4 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
     - At least 5 text-input styles.
     - Native `<select>` (Plan) next to Radix Select (Chat, Schedule, Reviews, admin).
     - Two copies of the switch knob.
-    - Touch targets use `h-11 md:h-8` (Plan, Todo) vs `max-md:h-11` (Chat) vs nothing (Settings).
+    - Touch targets: the kit's controls are 44px on phones (`v3/touch-targets`); a few per-page overrides remain (see "Height overrides fight the size scale" above).
