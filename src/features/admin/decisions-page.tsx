@@ -229,7 +229,7 @@ export function Filter<T extends string>({
       }
     >
       <WithTooltip label={hint}>
-        <SelectTrigger aria-label={label} className="max-md:h-11">
+        <SelectTrigger aria-label={label}>
           <span className="text-muted">{label}:</span>
           <SelectValue />
         </SelectTrigger>

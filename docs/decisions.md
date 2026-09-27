@@ -129,6 +129,11 @@ Revisit if: a public page starts to depend on who's asking.
 `/`, `/privacy` and similar pages link to `/signin` rather than rendering the account button, and import auth modules directly, never through the `~/features/auth` barrel.
 Revisit if: `v2/schedule-routes` makes route splitting handle it.
 
+### Every kit control is 44px on phones
+2026-09-27 · agent · app-wide
+Below `md`, `Button` (every size), `SelectTrigger` and menu and select items are 44px, like `Input` and `SegmentedControl` already were. Pages don't add `max-md:h-11`. Chat, Todo and Plan had each hand-rolled this, and Schedule and Settings had 28–32px targets, so one product felt roomy and the next cramped. The cost is taller rows on phones (Problems' Switch, Generate's fields).
+Revisit if: a phone screen can't fit its content at 44px, or the calendar's own controls need the same rule.
+
 ## Schedule
 
 ### Scheduler views are routes, kept mounted by the sidebar

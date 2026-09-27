@@ -330,7 +330,7 @@ function CourseFilter({
       }
     >
       <WithTooltip label="Show one course's grades and reviews">
-        <SelectTrigger aria-label="Courses" className="max-md:h-11 md:h-7">
+        <SelectTrigger aria-label="Courses">
           <SelectValue />
         </SelectTrigger>
       </WithTooltip>
