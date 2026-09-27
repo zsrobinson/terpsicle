@@ -10,10 +10,8 @@ import {
   Pin,
   Sparkles,
   Trash2,
-  Undo2,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState } from "react";
-import { toast } from "sonner";
 import {
   actionLine,
   agentMarkdown,
@@ -39,6 +37,7 @@ import { feedbackAdminApi } from "~/server/fns/feedback-admin-api";
 import { Button } from "~/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "~/ui/dialog";
 import { Skeleton } from "~/ui/skeleton";
+import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { Filter } from "./decisions-page";
 import { failureWords, useLoad } from "./use-load";
@@ -64,8 +63,6 @@ export type FeedbackClient = Pick<
 >;
 
 const PAGE = 50;
-/** Long enough to read and reach Undo (WCAG 2.2.1), like the queue's. */
-const UNDO_TOAST_MS = 10_000;
 
 const KIND_PLURAL: Readonly<Record<FeedbackKind, string>> = {
   bug: "Bugs",
@@ -196,7 +193,7 @@ export function FeedbackPage({
     try {
       const result = await client.feedbackUpdate({ id: item.id, ...change });
       if (result.status === "gone") {
-        toast("That feedback is gone", {
+        noteToast("That feedback is gone", {
           description: "It was deleted since this list loaded.",
         });
         reload();
@@ -204,27 +201,20 @@ export function FeedbackPage({
       }
       remember(result.item);
       if (change.status && undoable) {
-        const toastId = `feedback-status-${item.id}`;
-        toast(`Marked ${STATUS_WORDS[change.status]}`, {
-          id: toastId,
+        undoToast({
+          id: `feedback-status-${item.id}`,
+          message: `Marked ${STATUS_WORDS[change.status]}`,
           description: result.emailed
             ? "We emailed them that it's fixed."
             : undefined,
-          duration: UNDO_TOAST_MS,
-          action: (
-            <UndoButton
-              label={`Back to ${STATUS_WORDS[item.status]}`}
-              onClick={() => {
-                toast.dismiss(toastId);
-                void update(result.item, { status: item.status }, false);
-              }}
-            />
-          ),
+          tooltip: `Back to ${STATUS_WORDS[item.status]}`,
+          onUndo: () =>
+            void update(result.item, { status: item.status }, false),
         });
       }
       return true;
     } catch (error) {
-      toast("Couldn't save that", { description: failureWords(error) });
+      noteToast("Couldn't save that", { description: failureWords(error) });
       return false;
     }
   };
@@ -237,37 +227,30 @@ export function FeedbackPage({
         return;
       }
       setGone((prev) => new Set(prev).add(item.id));
-      const toastId = `feedback-deleted-${item.id}`;
-      toast("Feedback deleted", {
-        id: toastId,
-        duration: UNDO_TOAST_MS,
-        action: (
-          <UndoButton
-            label="Put it back"
-            onClick={() => {
-              toast.dismiss(toastId);
-              void client
-                .feedbackDelete({ id: item.id, restore: true })
-                .then((undone) => {
-                  if (undone.status === "restored")
-                    setGone((prev) => {
-                      const next = new Set(prev);
-                      next.delete(item.id);
-                      return next;
-                    });
-                  else toast("Too late to put it back.");
-                })
-                .catch((error: unknown) =>
-                  toast("Couldn't put it back", {
-                    description: failureWords(error),
-                  }),
-                );
-            }}
-          />
-        ),
+      undoToast({
+        id: `feedback-deleted-${item.id}`,
+        message: "Feedback deleted",
+        tooltip: "Put it back",
+        onUndo: () =>
+          void client
+            .feedbackDelete({ id: item.id, restore: true })
+            .then((undone) => {
+              if (undone.status === "restored")
+                setGone((prev) => {
+                  const next = new Set(prev);
+                  next.delete(item.id);
+                  return next;
+                });
+              else noteToast("Too late to put it back.");
+            })
+            .catch((error: unknown) =>
+              noteToast("Couldn't put it back", {
+                description: failureWords(error),
+              }),
+            ),
       });
     } catch (error) {
-      toast("Couldn't delete that", { description: failureWords(error) });
+      noteToast("Couldn't delete that", { description: failureWords(error) });
     }
   };
 
@@ -276,18 +259,21 @@ export function FeedbackPage({
     try {
       const result = await client.feedbackGroup();
       if (result.status === "unavailable")
-        toast("Couldn't group them just now", {
+        noteToast("Couldn't group them just now", {
           description: "The model didn't answer. The old groups stay.",
         });
       else
-        toast(
+        noteToast(
           result.groups === 0
             ? "Nothing similar enough to group"
             : `${result.grouped} items in ${result.groups} ${result.groups === 1 ? "group" : "groups"}`,
         );
       reload();
     } catch (error) {
-      toast("Couldn't group them", { description: failureWords(error) });
+      noteToast("Couldn't group them", {
+        description: failureWords(error),
+        retry: () => void group(),
+      });
     } finally {
       setGrouping(false);
     }
@@ -440,28 +426,6 @@ function hostLabel(host: string): string {
   return pr ? `PR ${pr[1]} preview` : host;
 }
 
-function UndoButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <WithTooltip label={label}>
-      <Button
-        size="row"
-        variant="outline"
-        className="ml-auto"
-        onClick={onClick}
-      >
-        <Undo2 size={12} aria-hidden="true" />
-        Undo
-      </Button>
-    </WithTooltip>
-  );
-}
-
 type Row =
   | { type: "item"; item: FeedbackItem }
   | { type: "group"; group: FeedbackGroup; items: FeedbackItem[] };
@@ -607,9 +571,9 @@ function ItemCard({
           elementShot,
         }),
       );
-      toast("Copied for an agent");
+      noteToast("Copied for an agent");
     } catch {
-      toast("Couldn't copy", {
+      noteToast("Couldn't copy", {
         description: "The browser didn't allow it. Try again from a click.",
       });
     }
