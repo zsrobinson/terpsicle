@@ -21,8 +21,6 @@ Shared primitives:
 | Schedule | `app/top-bar.tsx:46-48` | The h1 is the ProductMenu (umbrella mark + wordmark, `app/product-menu.tsx:46-60`). There is no page title. Panels use `PanelHeader` h2 `font-semibold text-base` (`panel.tsx:30-35`). | `PanelHeader` sub: `text-muted text-sm` | Credits, problems, sync and AccountButton in the top bar; panel `right` slot | Umbrella only |
 | Schedule first visit | `features/courses/first-visit.tsx:22-27` | **h3** `font-semibold text-xl`. It sits inside a panel whose h2 is `text-base`, so the h3 is larger than its parent. | `mt-0.5 text-muted text-sm` "Two ways to start…" | none | none |
 | Reviews | `features/reviews/frame.tsx:77-90` (shared `PageTitle`) | h1 `font-semibold text-xl tracking-tight`, `mb-4` | `mt-0.5 text-muted` (13px). Breadcrumbs sit above (`frame.tsx:49-74`, `mb-3 text-sm`). | none (instructor page adds a rating block below, `instructor-page.tsx:230-245`) | none |
-| Chat, signed in | `chat/room-list.tsx:42`, `chat/course-space.tsx:57-78`, `chat/room-view.tsx:160-222` | **No h1.** The list uses `PanelHeader` h2 text-base. The room header is a hand-rolled copy of PanelHeader's classes (`min-h-12 … border-b px-4 py-2`, h2 `truncate font-semibold text-base`). | The list sub is two Radix Selects (`room-list.tsx:132-205`) | Join/Leave (`course-space.tsx:223-288`); info/menu icons in the room | none |
-| Chat front door | `chat/sign-in-moment.tsx:16-31`, `:38-53` | h1 `text-xl tracking-tight` | `text-fg` tagline | — | `Mark id="chat" size={40}` |
 | Plan | `four-year/header.tsx:226-244` | The h1 wraps a **dropdown button** showing the plan's name, `font-semibold text-lg`, `h-11 md:h-8` (`:84-86`). Rename swaps in an input with `border-fg` (`:71`). | Inline "Saved in this browser" `text-muted text-sm` to the right of the title (`:201-223`), or `SyncStatusLabel` | Undo/Redo ghost icon-sm at `size-11 md:size-7` (`:166-196`) | none (the mark shows only on the empty state) |
 | Plan empty | `four-year/empty-state.tsx:29-38` | h1 `text-xl tracking-tight` | `max-w-[640px] text-muted` | — | `Mark id="plan" size={40} className="mb-3"` |
 | Todo | `todo/todo-page.tsx:362-384` | h1 "Todo" `text-xl tracking-tight` | `text-muted text-sm` status with a ghost icon-sm refresh button inline (`:365-371`) | ViewSwitch plus a hand-rolled "ELMS link" anchor (`:376-378`) | none |
@@ -35,8 +33,7 @@ Shared primitives:
 | Marketing | `marketing/frame.tsx:9-27` | Its own **h-14** header (SiteHeader is h-12) with a ghost "Sign in" button to `/signin` | — | — | — |
 
 Frame chrome:
-- `SiteHeader` (`site-page.tsx:82-84`) has **no bottom border** on SitePage pages. Chat passes `border-hairline border-b` (`chat-page.tsx:49`).
-- Chat also has **no footer**. Other SitePage pages get a "Privacy" footer (`site-page.tsx:55-61`).
+- `SiteHeader` (`site-page.tsx:82-84`) has **no bottom border** on SitePage pages.
 
 ## 2. Sub-navigation within a product
 
@@ -51,16 +48,14 @@ Frame chrome:
 | Todo views | `todo/todo-page.tsx:177-213` `ViewSwitch` (fieldset, `border-hairline-strong`) | `bg-accent-soft font-medium`, `h-11 md:h-7` |
 | Reviews | No product nav. Breadcrumbs (`frame.tsx:49`), a bottom "More" links row (`home-page.tsx:211-227`), and instructor course chips (`instructor-page.tsx:258-293`) | Chips: `bg-accent-soft font-medium`, no border |
 | Reviews / course details grades | Radiogroup chips (`course-details/grades.tsx:127-135`, `:184-195`) | `bg-hover font-medium` |
-| Chat room list | `chat/room-list.tsx:84-130` (course group buttons) + `chat/room-row.tsx:81-117` + `GroupHeader` (course space) | Current row `bg-accent-soft`; unread pill `bg-accent` |
 | Settings | Rows of `AccountSection`s; one hand-rolled link row to Notifications (`settings-account.tsx:64-72`, ChevronRight) | — |
 | Admin | `admin-frame.tsx:40-55` (ghost Button + `bg-hover`); queue view switch `admin/queue-page.tsx:325-336` (**outline when on, ghost when off**) | mixed |
 | Travel settings | `travel/travel-settings.tsx:46-72`, `:109-128` (segmented grid, `bg-panel p-0.5`) | `bg-raised ring-1 ring-hairline shadow-xs` |
 
 ## 3. Empty states and first visits
 
-- **Shared `EmptyState`** (`panel.tsx:274`, `px-4 py-3 text-muted text-sm` + optional action). It is used only in Schedule panels and Chat:
+- **Shared `EmptyState`** (`panel.tsx:274`, `px-4 py-3 text-muted text-sm` + optional action). It is used only in Schedule panels:
   - Schedule: `courses-panel.tsx:137`, `blocks-panel.tsx:81`, `problems-panel.tsx:63`, `sections.tsx:121,214`, `export-panel.tsx:97`, `travel-panel.tsx:134`, `fix-list.tsx:39`, `search-panel.tsx:475`, `panel-load-boundary.tsx:50`.
-  - Chat: `room-list.tsx:47`.
 - **Plan defines its own component, also named `EmptyState`** (`four-year/empty-state.tsx:24`). It is a full-page first visit:
   - Three `section` cards with `border-keyline bg-raised p-4 shadow-offset` (`:43`, `:89`, `:116`), h2 `text-lg`.
   - Full-width default buttons at `h-11 md:h-8`, and a native `<select>` (`:63-67`).
@@ -68,12 +63,6 @@ Frame chrome:
 - **Schedule "Two ways to start"** (`courses/first-visit.tsx:15-83`):
   - Two stacked `fieldset` cards with `rounded-lg border-hairline bg-raised p-3` (`:76`). **No offset shadow**, and no mark.
   - h4 `text-base`. Default Buttons with a `text-sm` override (buttons are normally `text-base`) and `size-3.5` icons.
-- **Chat "Pick a room to start talking."** (`chat-page.tsx:197-199`): a bare `main` with centered `text-muted text-sm`. It does not use `EmptyState`.
-- Chat's other empties are ad hoc:
-  - `NoRooms` (`room-list.tsx:212-229`): paragraph + CourseFinder + outline sm link button.
-  - "No messages yet…" (`room-view.tsx:434`): centered `px-4 py-6`.
-  - Room-view `<p className="px-4 py-4 text-muted text-sm">` states (`:227`, `:284-296`).
-- **Chat front door** (`sign-in-moment.tsx:16-31`): `max-w-[440px] pt-[10vh]`, Mark 40, a bulleted list, `GoogleButton` at full width.
 - **Todo front door** (`todo-page.tsx:129-168`):
   - `max-w-[560px] pt-[8vh]`, no Mark.
   - GoogleButton inside a `max-w-[320px]` wrapper.
@@ -95,7 +84,6 @@ Frame chrome:
 - **Keyline + offset shadow** (`border-keyline … shadow-offset`):
   - Plan first-visit cards (`empty-state.tsx:43,89,116`)
   - Reviews composer (`reviews/composer.tsx:153`)
-  - Chat "Before you post" card (`room-view.tsx:392`)
   - Chat message hover toolbar (`message-row.tsx:419`)
   - Marketing `Sample` (`marketing/samples/sample.tsx:40`)
   - Outline and default Buttons (`button.tsx:19-20`)
@@ -119,7 +107,6 @@ Frame chrome:
 - **Hairline-strong box**:
   - Reviews `SignInPrompt` (`sign-in-prompt.tsx:11`)
   - Reviews `ReportForm` (`report-button.tsx:101`)
-  - Chat report form (`message-row.tsx:592`, `bg-bg`)
 - **None, hairline between rows**: Schedule `ListRow`, Reviews lists, Todo lists, `ReviewCard` (`review-card.tsx:65`).
 
 ## 5. List rows
@@ -127,7 +114,6 @@ Frame chrome:
 | Product | Row markup | Notes |
 |---|---|---|
 | Schedule | Shared `ListRow` (`courses-panel.tsx:206`, `:322`; `search-panel.tsx:377`; `sections.tsx:464`; `results.tsx:341`; `blocks-panel.tsx:149`; `travel-panel.tsx:220`; `registration-checklist.tsx:41`; `problems-panel.tsx:140`) | `px-4 py-2`, hairline between rows, lead/trail/action columns |
-| Chat | Hand-rolled `RoomRow` button (`room-row.tsx:81-117`) | Same idea as ListRow, re-typed: `min-h-9 px-4 py-1.5 border-b`, current `bg-accent-soft`. Course group header button `h-9 bg-panel` (`room-list.tsx:100`), which is not `GroupHeader` |
 | Todo | `TodoItemRow` `li` (`todo-item.tsx:132-134`) | No horizontal padding (flush to the page), checkbox in a 44px/32px label, `py-3 md:py-1.5`, title `text-base`, meta `text-sm`, square outlined tags |
 | Reviews | Hand-rolled `li`s: `home-page.tsx:83-86,105-107` (`border-b py-1.5`, no px); `course-page.tsx:242` (`py-2`); `instructor-page.tsx:136`; search results `px-2.5 py-1.5 hover:bg-hover` (`home-page.tsx:359`); `ReviewCard` article `py-3 border-b` | Three different vertical rhythms on one product |
 | Plan | Blocks are **individually boxed** `li`s (`block.tsx:438`, border + `bg-raised`, dashed for wildcards, inset warn bar). Side-panel rows are hand-rolled: search `li` `border-b pr-2` + inner `px-4 py-1.5` (`four-year/search-panel.tsx:76`); problems `px-4 py-2 border-b` (`problems-panel.tsx:36`); GenEd `px-4 py-1.5`, no border (`gen-ed-panel.tsx:51`) | Plan imports nothing from `app/panel` |
@@ -140,9 +126,6 @@ Frame chrome:
   - `RowsSkeleton` (`courses-panel.tsx:482`) and travel `ListSkeleton` (`travel-panel.tsx:269`), which re-create near-identical row skeletons.
   - Top bar skeletons (`top-bar.tsx:125`, `term-switcher.tsx:27`, `app-shell.tsx:457`).
   - The drawer placeholder (`app-shell.tsx:173`).
-- **Chat**:
-  - Line skeletons with `gap-3 px-4`, differing padding (`py-6` in `chat-page.tsx:65,261`; `py-4` in `room-list.tsx:233`, `course-space.tsx:81`, `room-view.tsx:302,429`).
-  - Text "Loading courses…" (`course-finder.tsx:106`).
 - **Plan**: A block-grid skeleton (`plan-page.tsx:87-96`: `h-8 w-48`, `h-64`, `h-96`); search `h-9` bars (`four-year/search-panel.tsx:333-335`); block title line (`block.tsx:344`).
 - **Todo**:
   - `ListSkeleton` (`todo-page.tsx:72-81`: `h-5 w-48` + 4 × `h-10`). It is also reused on the connect page for a status check (`connect-page.tsx:178`, `:216`).
@@ -166,11 +149,6 @@ Frame chrome:
   - `CatalogError` (`app/catalog-error.tsx:41-73`): `role="alert"`, centered, `text-base text-fg`, outline sm button with RotateCw.
   - `PanelLoadBoundary` (`panel-load-boundary.tsx:48-66`): PanelHeader + EmptyState + outline sm Reload.
   - **`toast.error`** (red) for storage (`app.tsx:55,104`), clipboard (`export/actions.ts:30`), shared link (`app-shell.tsx:273`) and seat watches (`alerts/seat-watches.tsx:115-167`).
-- **Chat**:
-  - `EmptyState` + outline sm "Try again" (`room-list.tsx:47-64`); an inline row with outline sm (`course-finder.tsx:88-103`).
-  - Muted `text-sm` paragraphs (`room-view.tsx:284-296`, `room-info.tsx:96`).
-  - Link-variant "Try again" (`message-row.tsx:246-252`).
-  - Failures go to plain (never red) toasts via `showNote` (`chat/undo.tsx:40-43`), which contradicts Schedule's `toast.error`.
 - **Plan**:
   - Search error: default `<p>` (`text-fg` 13px) + outline sm "Try again" (`four-year/search-panel.tsx:321-331`).
   - Import `role="alert" text-sm` (`import-panel.tsx:630`).
@@ -193,9 +171,8 @@ Frame chrome:
 
 - **vaul Drawer**:
   - Schedule phone sidebar (`app/mobile-drawer.tsx:256-290`): full `h-dvh`, z-40, no overlay, grabber `h-1 w-8` in an `h-6 w-16` hit area (`:410-416`).
-  - Chat room info on phones, **built separately** (`chat/chat-page.tsx:322-354`): z-50, `bg-fg/20` overlay, `max-h-[85dvh]`, handle `h-1 w-10 mt-2`, a visible `Drawer.Title` with a size-11 close button.
+  - Chat room info on phones, **built separately** (`chat/chat-page.tsx:322-354`): z-50, `bg-fg/20` overlay, `max-h-[85dvh]`, handle `h-1 w-10 mt-2`, its header the kit's panel `PageHeader`.
   - Plan, Todo, Reviews and Settings use no sheets. Plan's phone layout stacks its panel inline (`plan-page.tsx:157-171`).
-- **Desktop side sheet**: Chat room info `aside w-72` with a hand-rolled `h-12` header (`chat-page.tsx:300-320`). This is not `PanelHeader` (`PanelHeader` is `min-h-12 py-2` with truncation).
 - **Radix Popover** (`~/ui/popover`):
   - Account sign-in (`account-button.tsx:73`)
   - seat bell (`course-details/seat-bell.tsx:102`)
@@ -210,7 +187,7 @@ Frame chrome:
 - **Radix Dialog**: used only by the PWA install dialog (`pwa/install-dialog.tsx:32`).
 - **Hand-rolled listboxes** (not Popover): Chat @mentions (`chat/composer.tsx:133-137`) and generate course suggestions (`generate/course-field.tsx:209-213`, hint `:264`).
 - **Select**:
-  - Radix `Select` in Chat (`room-list.tsx:152,184`), generate (`rank-by.tsx:52`, `must-haves.tsx:51`) and blocks (`block-form.tsx:198`).
+  - Radix `Select` in Chat ("Rooms from", `room-list.tsx`), generate (`rank-by.tsx:52`, `must-haves.tsx:51`) and blocks (`block-form.tsx:198`).
   - **Native `<select>`** in Plan (`empty-state.tsx:63`, `template-panel.tsx:61`), the Reviews composer (`composer.tsx:178,197`, `SELECT_CLASS` `:51-52`) and admin (`decisions-page.tsx:208`).
 
 ## 9. Toasts and undo
@@ -246,7 +223,6 @@ Shared `Button` (`components/ui/button.tsx`) in product code (excluding marketin
 - **Anchors styled as buttons**:
   - `GoogleButton` (`auth/sign-in-panel.tsx:31-32`): `h-9 border-hairline-strong`, no offset shadow. It is the primary action on every front door but does not look like Button default.
   - Todo "ELMS link" (`todo-page.tsx:376-378`).
-  - Chat account link (`chat-page.tsx:55`).
   - `AccountLink` (`account-link.tsx:22-23`).
   - Reviews `CourseChip` (`home-page.tsx:242`).
 
@@ -264,7 +240,6 @@ Shared `Button` (`components/ui/button.tsx`) in product code (excluding marketin
   - GoogleButton wrappers 320 (`todo-page.tsx:141`, `connect-page.tsx:222`, `mine-page.tsx:45`).
   - Reviews SignInPrompt 360 (`sign-in-prompt.tsx:11`).
   - Plan empty state 1040 `pt-[6vh]` inside 1600 (`empty-state.tsx:28`).
-- **Chat**: full-bleed `h-dvh` with no max width; list `w-80`, info `w-72` (`chat-page.tsx:294,303`); front door 440 `pt-[10vh]` (`sign-in-moment.tsx:18,40`).
 - **Schedule**: full-bleed shell, sidebar `w-sidebar` 320–480, rail 62px.
 - **Others**: Sign-in `AccountPage` 440 `pt-[12vh]` (`account-page.tsx:18-19`); Admin 720 in its own frame (`admin-frame.tsx:60`); marketing uses `mk-wrap`.
 
@@ -275,7 +250,6 @@ Shared `Button` (`components/ui/button.tsx`) in product code (excluding marketin
 | Schedule, desktop | `AccountButton` dropdown in the top bar (`top-bar.tsx:63`; trigger `account-button.tsx:58-59`, `h-7 text-base`) or a Sign-in popover | Rail foot (`rail.tsx:43`), icon dropdown `size-8` |
 | Schedule, phone | `PhoneMenu` with account and theme in one menu (`account-button.tsx:104-134`) | Inside the account menu (`:129`), or a standalone button when sign-in is off (`app-shell.tsx:109`) |
 | Reviews, Settings, Notifications | `AccountLink` (`account-link.tsx`): avatar links to /settings, or "Sign in" goes straight to Google. `h-7 text-base`. | **None** |
-| Chat | **Hand-rolled avatar anchor, signed-in only** (`chat-page.tsx:52-58`): `h-8 text-sm`, `max-md:h-11`. No Sign-in link in the header. | **None** |
 | Plan | **Nothing** (`SitePage` with no `actions`, `plan-page.tsx:197`) | **None** |
 | Todo | **Nothing** (`todo-page.tsx:61`) | **None** |
 | Marketing | Ghost "Sign in" Button to `/signin` (`marketing/frame.tsx:19-23`) | None |
@@ -287,7 +261,7 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
 
 - ~~**Two `EmptyState`s** with the same name: `app/panel.tsx:274` and `four-year/empty-state.tsx:24`.~~ Fixed in `v3/page-kit`: the panel's is `PanelNote`, and `EmptyState` is the kit's first-visit template. Plan's local one moves onto it in Plan's Phase 3 PR.
 - **Three `Section`s**: `reviews/frame.tsx:93` (h2 `text-lg tracking-tight`, `border-b` under, `mt-8`), `todo/connect-page.tsx:32` (h2 `text-lg`, **`border-t` above**, `pt-4`), `site/privacy-page.tsx:10` (no border). There is also `AccountSection` (`account-page.tsx:37`, a boxed h2 `text-base`) and `SectionHeader` (panel).
-- **Three `ListSkeleton`s**: `todo-page.tsx:72`, `chat/room-list.tsx:231`, `travel-panel.tsx:269`. Also `RowsSkeleton` (`courses-panel.tsx:482`) next to `PanelSkeleton`. (`v3/page-kit` added the shared shape, `RowSkeleton` and `PageSkeleton`, and `PanelSkeleton` uses it; the copies move over in each product's Phase 3 PR.)
+- **Two `ListSkeleton`s**: `todo-page.tsx:72`, `travel-panel.tsx:269`. Also `RowsSkeleton` (`courses-panel.tsx:482`) next to `PanelSkeleton`. (`v3/page-kit` added the shared shape, `RowSkeleton` and `PageSkeleton`, and `PanelSkeleton` uses it; the copies move over in each product's Phase 3 PR.)
 - **Two `ToastAction`s**: `app/toast-action.tsx:5` and `four-year/toasts.tsx:16`. Four more inline copies are listed in §9.
 - **Segmented controls, at least 5**: Todo `ViewSwitch` (`todo-page.tsx:177`), travel pace and extra-time (`travel-settings.tsx:46`, `:109`), admin queue views (`queue-page.tsx:325`), Plan side tabs (underline style, `side-panel.tsx:110`), marketing reviews sample (`reviews-sample.tsx:118`).
 - ~~**Switch knobs, 2**: `travel-settings.tsx:158` `Toggle` and `notification-settings.tsx:343` `Knob`. Identical markup except `mt-0.5`.~~ Fixed in `v3/page-kit`: both use `components/ui/switch.tsx` (Radix).
@@ -297,11 +271,10 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
   - accent-soft + border: `report-button.tsx:127-132`
   - bg-hover: `grades.tsx:184-195`
 - **Rail vs drawer tab buttons**: `rail.tsx:223-268` and `mobile-drawer.tsx:487-516`.
-- **PanelHeader re-typed by hand**: `chat/room-view.tsx:160-222`; chat info aside header `chat-page.tsx:305`; Plan course panel back bar `course-panel.tsx:57-67`.
-- **Search boxes, 4 styles**:
+- **PanelHeader re-typed by hand**: Plan course panel back bar `course-panel.tsx:57-67`.
+- **Search boxes, 3 styles**:
   - Schedule `h-9 border-hairline`, focus-outline (`search/search-panel.tsx:115`)
   - Reviews `h-9 border-hairline-strong focus-within:border-fg/40` (`home-page.tsx:315`)
-  - Chat `h-8 border-hairline-strong focus-within:border-fg max-md:h-11` (`course-finder.tsx:65`)
   - Plan: a bare input `h-11 md:h-8 border-hairline-strong focus-visible:border-fg` (`four-year/search-panel.tsx:256`)
 - **Text inputs** (no shared Input):
   - `h-7 border-hairline-strong bg-bg focus:border-fg/40` (Schedule blocks and generate)
@@ -309,12 +282,10 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
   - `h-9 bg-panel` (admin)
   - `h-11 md:h-8 bg-raised focus-visible:outline` (Todo `connect-form.tsx:104`)
   - `h-11 md:h-8 focus-visible:border-fg` (Plan)
-- **Report forms, 2**: Reviews chip radiogroup (`report-button.tsx:101-170`) vs Chat native radios (`message-row.tsx:590-640`).
-- **Account entry, 4**: `AccountButton`, `AccountLink`, Chat's inline anchor, and the marketing Sign-in.
+- **Account entry, 3**: `AccountButton`, `AccountLink`, and the marketing Sign-in.
 - **Back affordances, 6**:
   - Schedule `DrillBar` (`sidebar.tsx:370`)
   - Plan ghost sm "← Back" (`course-panel.tsx:59-66`)
-  - Chat ghost icon-sm chevron (`course-space.tsx:61`, `room-view.tsx:166`)
   - Todo plain "Todo" link (`connect-page.tsx:209`)
   - Notifications "‹ Settings" (`notifications-page.tsx:27`)
   - Reviews breadcrumbs (`frame.tsx:49`)
@@ -334,18 +305,15 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
 3. **Page titles don't share a pattern.**
    - `text-xl` h1 on Reviews, Todo, Settings and the front doors.
    - Plan's h1 is a `text-lg` dropdown button with the plan's name.
-   - Chat has no h1 (a `text-base` PanelHeader h2).
    - Schedule's h1 is the product menu.
-   - Subtitle/status lines sit under the title (Reviews `text-base`, Todo `text-sm` + refresh icon), inline to the right (Plan "Saved in this browser"), or in PanelHeader `sub` (Chat).
+   - Subtitle/status lines sit under the title (Reviews `text-base`, Todo `text-sm` + refresh icon), inline to the right (Plan "Saved in this browser").
 4. **First visits look like four different products.**
    - Plan: three keyline+offset cards, Mark 40, 1040px (`empty-state.tsx`).
    - Schedule: two hairline cards, no mark, an h3 `text-xl` inside the panel (`first-visit.tsx`).
-   - Chat: a 440px column, Mark 40, bullet list.
    - Todo: a 560px column, **no mark**, sample list in a hairline figure.
    - Reviews: none.
 5. **Site frame chrome differs.**
-   - SiteHeader has no bottom border except on Chat (`chat-page.tsx:49`).
-   - Chat drops the footer.
+   - SiteHeader has no bottom border.
    - Admin has its own h-12 header with no product nav.
    - Marketing has its own h-14 header.
 6. **Selected-state treatments for sub-nav are all different.**
@@ -359,25 +327,23 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
    - admin queue outline-vs-ghost
    - filter chips ink-filled; must-have days accent-filled
 7. **Card styles are mixed on the same kind of surface.**
-   - Keyline + offset: Plan start cards, Reviews composer, Chat rules card.
+   - Keyline + offset: Plan start cards, Reviews composer.
    - Hairline: Schedule start cards, Settings sections, Plan side panel and semesters.
-   - Hairline-strong: Reviews sign-in prompt and report form, Chat report form.
+   - Hairline-strong: Reviews sign-in prompt and report form.
    - `Dialog` is the only overlay with a hairline border; popovers and menus use keyline.
 8. **List rows are hand-rolled outside Schedule.**
    - Only Schedule uses `ListRow`.
-   - Chat re-types it (`RoomRow`).
    - Todo rows are flush (no px) with 44px checkbox targets.
    - Reviews rows have no px and use `py-1.5` / `py-2` / `py-3` on the same product.
    - Plan boxes every block individually, against ListRow's own rule "hairlines between rows, never boxes".
-9. **Page widths jump between products.** 720 (Reviews, Settings), 1120 (Todo, but its content is a nested 560), 1600 (Plan), full-bleed (Chat, Schedule), 440 (sign-in, Chat front door), 720 in a separate frame (Admin).
+9. **Page widths jump between products.** 720 (Reviews, Settings), 1120 (Todo, but its content is a nested 560), 1600 (Plan), full-bleed (Schedule), 440 (sign-in), 720 in a separate frame (Admin).
 10. ~~**Toast Undo/Redo buttons have seven implementations.**~~ Fixed in `v2/kit-toasts`.
 11. **Error handling differs by product.**
     - Schedule uses red `toast.error` and a `role=alert` block with a RotateCw retry.
-    - Chat never uses red and shows an outline sm "Try again".
     - Todo uses an outline default-size "Try again" with `text-fg` copy.
     - Reviews and Settings say "reload the page" in muted or fg text with no retry button.
     - No route has an `errorComponent`.
-12. **Back navigation has six forms.** DrillBar, Plan's "← Back" ghost button, Chat's chevron icon, Todo's plain "Todo" link, Notifications' "‹ Settings", Reviews' breadcrumbs.
+12. **Back navigation has five forms.** DrillBar, Plan's "← Back" ghost button, Todo's plain "Todo" link, Notifications' "‹ Settings", Reviews' breadcrumbs.
 13. **Section headings under a page title differ.**
     - Reviews `Section`: `text-lg`, rule below.
     - Todo connect `Section`: `text-lg`, rule above.
@@ -388,7 +354,7 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
     - Skeleton shapes differ, and three `ListSkeleton` copies exist.
     - Only two Reviews blocks pulse.
     - Todo has the app's only spinner.
-    - Reviews and Chat show "Loading courses…" text.
+    - Reviews shows "Loading courses…" text.
     - Plan shows a big grid of block skeletons.
 15. **Form controls have no shared primitives.**
     - 4 search-box styles (`h-8`/`h-9`/`h-11`; hairline vs hairline-strong; different focus rules).

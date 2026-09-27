@@ -88,7 +88,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [ ] Todo.
 - [ ] Reviews.
 - [ ] Plan.
-- [ ] Chat.
+- [x] Chat.
 - [ ] Schedule.
 - [ ] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port.
 
