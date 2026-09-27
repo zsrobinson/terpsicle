@@ -22,6 +22,7 @@ import { TEST_VAPID_KEYS } from "../push/config";
 import { resetPushCachesForTests } from "../push/send";
 import { MAX_PUSH_FAILURES } from "../push/store";
 import { Device, FakeElms, signIn } from "../todo/testing";
+import { pruneChatNotifications } from "./digest";
 import { emailOffUrl } from "./email-off";
 import { notify } from "./notify";
 import { pruneDeliveries } from "./store";
@@ -116,6 +117,7 @@ beforeEach(async () => {
   await env.DB.batch(
     [
       "notification_deliveries",
+      "notifications",
       "notification_settings",
       "push_subscriptions",
       "counters",
@@ -690,5 +692,26 @@ describe("notifications/email-off", () => {
       ...DEFAULT_NOTIFICATION_SETTINGS,
       chatDigest: { email: false },
     });
+  });
+});
+
+describe("chat notifications", () => {
+  it("prunes mentions and replies after 30 days", async () => {
+    await device();
+    const at = (days: number) =>
+      new Date(clock - days * 86_400_000).toISOString();
+    await env.DB.batch(
+      [29, 31].map((days) =>
+        env.DB.prepare(
+          `INSERT INTO notifications (id, user_id, type, term_id, course_code, room_id, seq, message_id, actor_id, created_at)
+           VALUES (?1, 'tstudent', 'chat-mention', '202701', 'CMSC131', '202701:CMSC131', 1, ?1, 'tclassmate', ?2)`,
+        ).bind(`n${days}`, at(days)),
+      ),
+    );
+    expect(await pruneChatNotifications(env.DB, now())).toBe(1);
+    const { results } = await env.DB.prepare(
+      "SELECT id FROM notifications",
+    ).all();
+    expect(results).toEqual([{ id: "n29" }]);
   });
 });

@@ -5,6 +5,7 @@
 // chat now, or (for a reply) muted the room. One notification per person
 // per message, however often it's published again.
 import {
+  CHAT_MENTIONS_MAX,
   CHAT_PUSHES_PER_HOUR,
   type ChatRecipient,
   canReadRoom,
@@ -21,17 +22,12 @@ import { countDeliveries } from "../notifications/store";
 import type { ChatCourse } from "./catalog";
 import type { MessageRow } from "./object-store";
 import {
+  mentionedAlready,
   mutedIn,
   planSections,
   recordChatNotification,
   roomMembers,
 } from "./store";
-
-/**
- * How the object sends. An object, not a bare import, so worker tests can
- * see who was notified (the object runs in the test's isolate).
- */
-export const chatNotifier = { notify };
 
 /** Members a mention is looked up among; far above any course's head count. */
 const MENTION_LOOKUP_MAX = 5_000;
@@ -116,7 +112,15 @@ export async function notifyChatMessage(
   const parsed = parseRoomId(row.room_id);
   if (!parsed) return [];
   const { termId, courseCode } = parsed;
-  const mentioned = await mentionsIn(env.DB, row, course);
+  // Five mentions per message, not per version: an edit can't name five
+  // more people each time it's published again.
+  const named = await mentionsIn(env.DB, row, course);
+  const earlier =
+    named.length === 0
+      ? new Set<string>()
+      : await mentionedAlready(env.DB, termId, courseCode, row.id);
+  let left = CHAT_MENTIONS_MAX - earlier.size;
+  const mentioned = named.filter((id) => earlier.has(id) || left-- > 0);
   const threadAuthor =
     input.threadAuthor !== null &&
     input.threadAuthor !== row.author_id &&
@@ -182,3 +186,10 @@ export async function notifyChatMessage(
   }
   return done;
 }
+
+/**
+ * How the object notifies. An object, not bare imports, so worker tests can
+ * see who was notified and wait for it (the object runs in the test's
+ * isolate).
+ */
+export const chatNotifier = { notify, message: notifyChatMessage };

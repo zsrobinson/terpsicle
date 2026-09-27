@@ -21,7 +21,7 @@ import {
 import { captureServerEvent } from "../analytics";
 import type { Session } from "../auth/session";
 import { hit } from "../counters";
-import { keyedHash } from "../crypto";
+import { keyedHash, sameHex } from "../crypto";
 import { catalogReader, type WatchedSection } from "./catalog";
 import type { SectionRef } from "./email";
 import {
@@ -199,14 +199,6 @@ export async function oneClickStopUrl(
     k: key,
   });
   return `${origin}/api/${ONE_CLICK_ROUTE}?${params}`;
-}
-
-/** Constant-time compare of two hex strings. */
-function sameHex(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
 
 /**

@@ -26,6 +26,10 @@ describe("findMentions", () => {
     ]);
     expect(findMentions("@Hannah can you check?", members, "me")).toEqual([]);
     expect(findMentions("@josé hi", members, "me")).toEqual(["jnunez"]);
+    expect(findMentions("see @Omar's notes", members, "me")).toEqual(["oali"]);
+    expect(findMentions("see @Omar Ali's notes", members, "me")).toEqual([
+      "oali",
+    ]);
   });
 
   it("prefers the longest name that fits", () => {

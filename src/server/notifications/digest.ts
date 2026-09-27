@@ -1,8 +1,9 @@
 // The daily chat digest (V2.md §6.6), run by the daily job: one email for
-// each person with the digest on and mentions or replies from the last 24
-// hours they haven't read or been emailed about. The text comes from each
-// course's object at send time, so a message deleted, held or removed since
-// is left out, and nothing of a message is copied into D1.
+// each person with the digest on and mentions or replies they haven't read
+// or been emailed about. The text comes from each course's object at send
+// time, so a message deleted, held or removed since (or in a room the
+// person can no longer read) is left out, and nothing of a message is
+// copied into D1.
 import { z } from "zod";
 import {
   type ChatNotificationType,
@@ -23,7 +24,14 @@ export interface DigestEnv extends NotifyEnv {
 }
 
 const DAY_MS = 86_400_000;
-/** Mentions and replies emailed per run, at most; the rest wait for tomorrow's. */
+/**
+ * How far back a run looks. The digest is about the last day, but a row
+ * isn't done until it's emailed (`emailed_at`), so a failed send, a course
+ * that couldn't be reached, rows past the cap and the cron's own drift are
+ * caught up by the next run instead of falling out of a 24-hour window.
+ */
+const DIGEST_LOOKBACK_MS = 2 * DAY_MS;
+/** Mentions and replies read per run, at most; the rest wait for tomorrow's. */
 const DIGEST_ROWS_MAX = 5_000;
 /** `notifications` rows are kept this long (V2.md §6.3). */
 const NOTIFICATIONS_KEPT_MS = 30 * DAY_MS;
@@ -43,7 +51,15 @@ type Row = z.infer<typeof RowSchema>;
 
 type Found = { text: string; place: string; threadRoot: string | null };
 
-/** What each course's object still shows of the digest's messages; null for a course it couldn't reach. */
+/** `<user> <course room>`: one reader's messages in one course. */
+const readerKey = (row: Row) =>
+  `${row.user_id} ${courseRoomId(row.term_id, row.course_code)}`;
+
+/**
+ * What each course's object still shows each reader of the digest's
+ * messages, by reader and course; null where the course couldn't be
+ * reached.
+ */
 async function lookUp(
   env: DigestEnv,
   rows: readonly Row[],
@@ -57,17 +73,27 @@ async function lookUp(
   for (const [key, courseRows] of byCourse) {
     const [first] = courseRows;
     if (!first) continue;
+    const byReader = new Map<string, string[]>();
+    for (const row of courseRows)
+      byReader.set(row.user_id, [
+        ...(byReader.get(row.user_id) ?? []),
+        row.message_id,
+      ]);
     try {
       const stub = env.COURSE_CHAT.get(env.COURSE_CHAT.idFromName(key));
       const found = await stub.digestMessages({
         termId: first.term_id,
         courseCode: first.course_code,
-        ids: [...new Set(courseRows.map((r) => r.message_id))],
+        readers: [...byReader].map(([userId, ids]) => ({ userId, ids })),
       });
-      out.set(key, new Map(found.map((m) => [m.id, m])));
+      for (const reader of found)
+        out.set(
+          `${reader.userId} ${key}`,
+          new Map(reader.messages.map((m) => [m.id, m])),
+        );
     } catch (error) {
       console.warn({ digest: "course lookup failed", error: String(error) });
-      out.set(key, null);
+      for (const userId of byReader.keys()) out.set(`${userId} ${key}`, null);
     }
   }
   return out;
@@ -101,9 +127,16 @@ export async function sendChatDigests(
      ORDER BY n.user_id, n.created_at DESC, n.id
      LIMIT ?2`,
   )
-    .bind(new Date(now.getTime() - DAY_MS).toISOString(), DIGEST_ROWS_MAX)
+    .bind(
+      new Date(now.getTime() - DIGEST_LOOKBACK_MS).toISOString(),
+      DIGEST_ROWS_MAX,
+    )
     .all();
-  const rows = results.map((r) => RowSchema.parse(r));
+  // A row that doesn't read is skipped, not fatal: the daily job goes on.
+  const rows = results.flatMap((r) => {
+    const row = RowSchema.safeParse(r);
+    return row.success ? [row.data] : [];
+  });
   const found = await lookUp(env, rows);
   const byUser = new Map<string, Row[]>();
   for (const row of rows)
@@ -115,7 +148,7 @@ export async function sendChatDigests(
     const settled: Row[] = [];
     const lines: DigestLine[] = [];
     for (const row of userRows) {
-      const course = found.get(courseRoomId(row.term_id, row.course_code));
+      const course = found.get(readerKey(row));
       if (course === null || course === undefined) continue;
       settled.push(row);
       const message = course.get(row.message_id);
@@ -154,8 +187,10 @@ export async function sendChatDigests(
         },
         { now },
       );
-      // A failed send is tried again tomorrow, under tomorrow's key.
-      if (sent.email === "failed" || sent.email === "off") continue;
+      // Only a send (or, with no EMAIL binding, a skip) settles the rows.
+      // A failure, or a retry today that finds today's key taken, leaves
+      // them for tomorrow's run, under tomorrow's key.
+      if (sent.email !== "sent" && sent.email !== "skipped") continue;
       result.emailed++;
     }
     if (settled.length === 0) continue;

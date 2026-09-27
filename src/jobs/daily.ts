@@ -36,7 +36,17 @@ export const runDailyJob: Job = async (context) => {
     const tombstonesPruned = await pruneTombstones(env.DB, now);
     const reviews = await pruneReviews(env.DB, now);
     const todo = await pruneTodo(env.DB, now);
-    const digest = await sendChatDigests(env, { now });
+    // A digest that fails is reported; the rest of the job still runs, and
+    // tomorrow's digest picks up what wasn't sent.
+    const digestErrors: string[] = [];
+    const digest = await sendChatDigests(env, { now }).catch(
+      (error: unknown) => {
+        digestErrors.push(
+          `chat digest: ${error instanceof Error ? error.name : "error"}`,
+        );
+        return { emailed: 0, notifications: 0 };
+      },
+    );
     const chatNotificationsPruned = await pruneChatNotifications(env.DB, now);
     const deliveriesPruned = await pruneDeliveries(env.DB, now);
     const watches = await endPastTermWatches(env);
@@ -61,7 +71,7 @@ export const runDailyJob: Job = async (context) => {
         feedbackShotsExpired: feedback.shotsExpired,
         feedbackRemoved: feedback.removed,
       },
-      errors: purged.errors,
+      errors: [...purged.errors, ...digestErrors],
     };
   });
 };

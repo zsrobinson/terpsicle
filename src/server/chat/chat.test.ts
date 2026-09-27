@@ -1745,11 +1745,26 @@ describe("chat routes", () => {
 
 describe("mentions and replies", () => {
   let notifySpy: MockInstance<typeof chatNotifier.notify>;
+  let messageSpy: MockInstance<typeof chatNotifier.message>;
   beforeEach(() => {
     notifySpy = vi.spyOn(chatNotifier, "notify");
+    messageSpy = vi.spyOn(chatNotifier, "message");
   });
 
-  /** Sends and waits until classmates can see it, and the object has notified. */
+  /**
+   * Waits until the object has worked out who a message notifies (it does
+   * each time the message is published), `times` times, and finished.
+   */
+  async function notified(id: string, times = 1) {
+    await vi.waitFor(() =>
+      expect(
+        messageSpy.mock.calls.filter(([, input]) => input.row.id === id),
+      ).toHaveLength(times),
+    );
+    await Promise.all(messageSpy.mock.results.map((r) => r.value));
+  }
+
+  /** Sends, and waits until classmates can see it and the object has notified. */
   async function published(
     client: Client,
     room: string,
@@ -1759,7 +1774,7 @@ describe("mentions and replies", () => {
     const ack = await client.sendText(room, text, replyTo);
     const id = ack.message?.id ?? "";
     await client.next("moderation", (f) => f.id === id);
-    await client.flush(room);
+    await notified(id);
     return id;
   }
 
@@ -1819,7 +1834,6 @@ describe("mentions and replies", () => {
     const a = await student.join([room0101]);
     // tclassmate is in 0201, so not in the 0101 room.
     await published(a.client, room0101, "@Test Classmate hello?");
-    await a.client.flush(room0101);
     expect(pushes()).toEqual([]);
     expect(await rows()).toEqual([]);
   });
@@ -1899,9 +1913,50 @@ describe("mentions and replies", () => {
       "moderation",
       (f) => f.id === id && f.moderation.state === "visible",
     );
-    await a.client.flush();
+    await notified(id, 2);
     expect(pushes()).toHaveLength(1);
     expect(await rows()).toHaveLength(1);
+  });
+
+  it("names five people per message, over all its edits", async () => {
+    const { student } = await twoPeople();
+    // Six more classmates in the course, so there's someone to spare.
+    const others = Array.from({ length: 6 }, (_, i) => `e2enotify${i}`);
+    for (const id of others) {
+      const p = await signIn(id);
+      await env.DB.prepare("UPDATE users SET name = ?2 WHERE id = ?1")
+        .bind(id, `Person ${"ABCDEF"[Number(id.slice(-1))]}`)
+        .run();
+      await p.push([
+        aPlan({
+          id: `plan_${id}`,
+          courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0102" })],
+        }),
+      ]);
+    }
+    const a = await student.join([courseRoom]);
+    const id = await published(
+      a.client,
+      courseRoom,
+      "@Person A @Person B @Person C",
+    );
+    const req = a.client.req();
+    a.client.send({
+      type: "edit",
+      req,
+      room: courseRoom,
+      id,
+      text: "@Person D @Person E @Person F",
+    });
+    await a.client.next("ack", (f) => f.req === req);
+    await notified(id, 2);
+    expect(pushes().map((p) => p.userId)).toEqual([
+      "e2enotify0",
+      "e2enotify1",
+      "e2enotify2",
+      "e2enotify3",
+      "e2enotify4",
+    ]);
   });
 
   it("waits for moderation: a held message notifies nobody until it's approved", async () => {
@@ -2044,6 +2099,79 @@ describe("the chat digest", () => {
     expect(mail).toHaveLength(1);
   });
 
+  it("tries a failed send again the next day", async () => {
+    const { student, classmate } = await twoPeople();
+    await digestOn(classmate);
+    const a = await student.join([courseRoom]);
+    await published(a.client, "@Test Classmate are you there?");
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(1);
+    });
+    const failing = {
+      ...digestEnv(),
+      EMAIL: {
+        send: async () => {
+          throw Object.assign(new Error("down"), { code: "E_DOWN" });
+        },
+      },
+    } as unknown as Parameters<typeof sendChatDigests>[0];
+    const today = new Date();
+    expect(await sendChatDigests(failing, { now: today })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    // The same day again: that day's key is taken, so nothing goes yet.
+    expect(await sendChatDigests(digestEnv(), { now: today })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    const tomorrow = new Date(today.getTime() + 24 * 3_600_000);
+    expect(await sendChatDigests(digestEnv(), { now: tomorrow })).toEqual({
+      emailed: 1,
+      notifications: 1,
+    });
+    expect(mail[0]?.subject).toBe("1 unread in your class chats");
+  });
+
+  it("quotes no room the person can't read anymore", async () => {
+    const { student } = await twoPeople();
+    const admin = await signIn("tadmin");
+    const plan = aPlan({
+      id: "plan_admin_1",
+      courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0101" })],
+    });
+    await admin.push([plan]);
+    await digestOn(admin);
+    const a = await student.join([room0101]);
+    const ack = await a.client.sendText(room0101, "@Test Admin section news");
+    await a.client.next("moderation", (f) => f.id === ack.message?.id);
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(1);
+    });
+    // They move to 0201 before the digest goes.
+    await admin.push(
+      [
+        {
+          ...plan,
+          courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0201" })],
+        },
+      ],
+      undefined,
+      [1],
+    );
+    expect(await sendChatDigests(digestEnv(), { now: new Date() })).toEqual({
+      emailed: 0,
+      notifications: 1,
+    });
+    expect(mail).toEqual([]);
+  });
+
   it("leaves out what's read, and people with the digest off", async () => {
     const { student, classmate } = await twoPeople();
     const a = await student.join([courseRoom]);
@@ -2070,7 +2198,7 @@ describe("the chat digest", () => {
     expect(mail).toEqual([]);
   });
 
-  it("only looks back a day", async () => {
+  it("looks back two days, so a missed run is caught up but old news isn't sent", async () => {
     const { student, classmate } = await twoPeople();
     await digestOn(classmate);
     const a = await student.join([courseRoom]);
@@ -2081,7 +2209,7 @@ describe("the chat digest", () => {
       ).all();
       expect(results).toHaveLength(1);
     });
-    const later = new Date(Date.now() + 25 * 3_600_000);
+    const later = new Date(Date.now() + 49 * 3_600_000);
     expect(await sendChatDigests(digestEnv(), { now: later })).toEqual({
       emailed: 0,
       notifications: 0,

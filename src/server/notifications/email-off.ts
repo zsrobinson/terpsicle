@@ -5,11 +5,11 @@
 // digest uses this one.
 import { withChannel } from "~/core/notifications";
 import {
+  EmailOffQuerySchema,
   type NotificationType,
-  NotificationTypeSchema,
 } from "~/core/schema/notifications";
 import { hit } from "../counters";
-import { keyedHash } from "../crypto";
+import { keyedHash, sameHex } from "../crypto";
 import { readSettings, writeSettings } from "./store";
 
 /** The path mail providers POST to, outside the JSON route table. */
@@ -40,14 +40,6 @@ export async function emailOffUrl(
   return `${origin}/api/${EMAIL_OFF_ROUTE}?${params}`;
 }
 
-/** Constant-time compare of two hex strings. */
-function sameHex(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
 /**
  * A mail provider's one-click unsubscribe (body `List-Unsubscribe=One-Click`)
  * turns that email off. A GET (a person, or a link scanner) changes nothing
@@ -70,16 +62,18 @@ export async function handleEmailOff(
   );
   if (count > EMAIL_OFF_PER_IP_PER_HOUR)
     return new Response("Too many requests", { status: 429 });
-  const url = new URL(request.url);
-  const userId = url.searchParams.get("u") ?? "";
-  const type = NotificationTypeSchema.safeParse(url.searchParams.get("t"));
-  const key = url.searchParams.get("k") ?? "";
+  const query = EmailOffQuerySchema.safeParse(
+    Object.fromEntries(new URL(request.url).searchParams),
+  );
   if (
-    !userId ||
-    !type.success ||
-    !sameHex(key, await keyedHash(env.DATA, subject(userId, type.data)))
+    !query.success ||
+    !sameHex(
+      query.data.k,
+      await keyedHash(env.DATA, subject(query.data.u, query.data.t)),
+    )
   )
     return new Response("This link isn't valid.", { status: 400 });
+  const { u: userId, t: type } = query.data;
   const settings = await readSettings(env.DB, userId);
   const exists = await env.DB.prepare("SELECT 1 FROM users WHERE id = ?1")
     .bind(userId)
@@ -88,7 +82,7 @@ export async function handleEmailOff(
     await writeSettings(
       env.DB,
       userId,
-      withChannel(settings, type.data, "email", false),
+      withChannel(settings, type, "email", false),
       ctx.now,
     );
   return new Response("Turned off. No more of these emails.", {

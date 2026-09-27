@@ -35,7 +35,8 @@ function memberAt(
     if (!best || name.length > best.name.trim().length) best = m;
   }
   if (best) return best;
-  const first = /^[\p{L}\p{N}'’-]+/u.exec(rest)?.[0];
+  // "@Omar's notes" names Omar.
+  const first = /^[\p{L}\p{N}'’-]+/u.exec(rest)?.[0]?.replace(/['’]s?$/u, "");
   if (!first) return null;
   const same = members.filter(
     (m) => fold(m.name.trim().split(/\s+/)[0] ?? "") === fold(first),

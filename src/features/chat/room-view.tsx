@@ -86,9 +86,9 @@ async function roomMembers(
     courseCode: room.courseCode,
     roomId: room.id,
   });
-  return result.status === "ok"
-    ? result.members.filter((m) => m.directoryId !== you)
-    : [];
+  // Thrown, so the next "@" asks again.
+  if (result.status !== "ok") throw new Error(result.status);
+  return result.members.filter((m) => m.directoryId !== you);
 }
 
 export function RoomView({

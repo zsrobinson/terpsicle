@@ -60,6 +60,14 @@ async function hashKey(bucket: R2Bucket): Promise<CryptoKey> {
   return cachedKey;
 }
 
+/** Constant-time compare of two hex strings (a signed link's key). */
+export function sameHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 /** HMAC-SHA-256 of `value` under the bucket's key, hex. */
 export async function keyedHash(
   bucket: R2Bucket,

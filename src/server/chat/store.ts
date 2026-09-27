@@ -538,6 +538,26 @@ export async function recordChatNotification(
   return row !== null;
 }
 
+/** Who a message has mentioned so far, over every version of it. */
+export async function mentionedAlready(
+  db: D1Database,
+  termId: TermId,
+  courseCode: CourseCode,
+  messageId: string,
+): Promise<Set<string>> {
+  const { results } = await db
+    .prepare(
+      `SELECT user_id FROM notifications
+       WHERE term_id = ?1 AND course_code = ?2 AND message_id = ?3
+         AND type = 'chat-mention'`,
+    )
+    .bind(termId, courseCode, messageId)
+    .all();
+  return new Set(
+    results.map((r) => z.object({ user_id: z.string() }).parse(r).user_id),
+  );
+}
+
 /** Reading a room up to `seq` reads its mentions and replies too. */
 export async function readNotifications(
   db: D1Database,

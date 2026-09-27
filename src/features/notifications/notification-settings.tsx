@@ -62,7 +62,7 @@ export const TYPE_ROWS: readonly TypeRow[] = [
     type: "chat-reply",
     title: "Replies in Chat",
     detail:
-      "When a classmate replies to your message. Muting a room stops these.",
+      "When a classmate replies in a thread you started. Muting a room stops these.",
     sending: true,
   },
   {
