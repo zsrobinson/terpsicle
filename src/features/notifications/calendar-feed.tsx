@@ -116,9 +116,8 @@ export function CalendarFeedSection() {
           <div>
             <WithTooltip label="The old link stops working, and calendars using it stop updating">
               <Button
-                variant="link"
+                variant="outline"
                 size="sm"
-                className="px-0"
                 disabled={resetting}
                 onClick={() => void reset()}
               >
