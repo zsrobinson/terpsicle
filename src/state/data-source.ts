@@ -37,10 +37,20 @@ import {
 // serves files from memory; live mode fetches `/data/<key>`. The IndexedDB
 // cache and manifest diffing sit above this, in the catalog store.
 
+/**
+ * How soon a read is needed, as the browser's Fetch Priority hint: "low" for
+ * background loads, so a file something on screen waits for goes first.
+ */
+export type ReadPriority = "high" | "low" | "auto";
+
+export interface ReadOptions {
+  priority?: ReadPriority;
+}
+
 export interface DataSource {
   readonly kind: "mock" | "live";
   /** Parsed JSON at a DATA.md key. Throws `DataError` when it's missing or unreadable. */
-  readJson(key: string): Promise<unknown>;
+  readJson(key: string, options?: ReadOptions): Promise<unknown>;
   /** Raw bytes (the routes binary). */
   readBinary(key: string): Promise<ArrayBuffer>;
 }
@@ -113,10 +123,16 @@ export function createFetchDataSource(
   fetchImpl: typeof fetch = (...args) => fetch(...args),
 ): DataSource {
   const base = baseUrl.replace(/\/+$/, "");
-  const request = async (key: string): Promise<Response> => {
+  const request = async (
+    key: string,
+    options: ReadOptions = {},
+  ): Promise<Response> => {
     let response: Response;
     try {
-      response = await fetchImpl(`${base}/${key}`);
+      response = await fetchImpl(
+        `${base}/${key}`,
+        options.priority ? { priority: options.priority } : undefined,
+      );
     } catch (error) {
       throw new DataError(
         key,
@@ -136,8 +152,8 @@ export function createFetchDataSource(
   };
   return {
     kind: "live",
-    readJson: async (key) => {
-      const response = await request(key);
+    readJson: async (key, options) => {
+      const response = await request(key, options);
       try {
         return (await response.json()) as unknown;
       } catch {
@@ -154,6 +170,22 @@ export interface DataSourceConfig {
 }
 
 /**
+ * Set to "http" in localStorage, mock mode fetches the fixtures from the dev
+ * Worker's `/data` (local R2, which `pnpm dev:mock` seeds with the same
+ * files) instead of reading them from memory: real requests, for DevTools
+ * throttling and for e2e specs that delay files with `page.route`.
+ */
+export const MOCK_DATA_OVER_HTTP_KEY = "terpsicle:mock-data";
+
+function mockDataOverHttp(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(MOCK_DATA_OVER_HTTP_KEY) === "http";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Mock mode reads the fixtures' mock bucket, imported only here and only in
  * mock (and test) builds. Production builds drop the import, so no chunk of
  * theirs can reach the fixtures: this module is shared with pages that load
@@ -166,6 +198,8 @@ export async function createDataSource(
   if (config.dataSource === "live")
     return createFetchDataSource(config.dataBaseUrl);
   if (import.meta.env.MODE === "mock" || import.meta.env.MODE === "test") {
+    if (mockDataOverHttp())
+      return { ...createFetchDataSource(config.dataBaseUrl), kind: "mock" };
     const { mockDataSource } = await import("~/fixtures");
     return createBucketDataSource(mockDataSource);
   }
@@ -208,8 +242,9 @@ export async function readParsed<S extends z.ZodType>(
   key: string,
   schema: S,
   family: SchemaFamily,
+  options?: ReadOptions,
 ): Promise<z.infer<S>> {
-  const raw = await source.readJson(key);
+  const raw = await source.readJson(key, options);
   const envelope = WireEnvelopeSchema.safeParse(raw);
   const expected = SCHEMA_VERSIONS[family];
   if (envelope.success && envelope.data.schemaVersion !== expected)
@@ -231,12 +266,18 @@ export function createDataReader(source: DataSource) {
     terms: () => readParsed(source, TERMS_KEY, TermsFileSchema, "catalog"),
     manifest: (termId: TermId) =>
       readParsed(source, manifestKey(termId), ManifestSchema, "catalog"),
-    deptChunk: (termId: TermId, dept: DeptCode, hash: ContentHash) =>
+    deptChunk: (
+      termId: TermId,
+      dept: DeptCode,
+      hash: ContentHash,
+      options?: ReadOptions,
+    ) =>
       readParsed(
         source,
         deptChunkKey(termId, dept, hash),
         DeptChunkSchema,
         "catalog",
+        options,
       ),
     seats: (termId: TermId, hash: ContentHash) =>
       readParsed(source, seatsKey(termId, hash), SeatsFileSchema, "catalog"),
