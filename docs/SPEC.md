@@ -126,7 +126,7 @@ Nobody should have to touch the app when a new semester appears.
 
   Sections that don't fit stay in place, with their label. **Full sections can be added** like any other; the plan then shows the "full" problem, whose fix is to watch for a seat (§3.6).
 - **Many sections** (over 20) add the plan's own section pinned under the Sections bar; "Only fits" appears from 9 sections.
-- **Seat freshness:** "Seats as of 2 min ago" above the section list.
+- **Seat freshness:** "Seats as of 2 min ago" above the Sections bar.
 - **Tabs:**
   - **Instructors:** a card per instructor with rating, reviews count, average GPA and % A/B in this course, the LLM review summary with theme tags, and a link to PlanetTerp.
   - **Grades:** a sentence ("64% got an A or B · average GPA 2.93") above **PlanetTerp-style bars**: one bar each for A, B, C, D, F, W and Other. Each letter bar is split into +/plain/− segments, and hovering a segment shows its count and percentage.
@@ -134,7 +134,7 @@ Nobody should have to touch the app when a new semester appears.
 
 ### 3.5 Search
 - Search by course code, title or instructor, with typo tolerance.
-- **Filters:** one line of chips under the search box. Each is a dropdown or toggle, and fills with color when active:
+- **Filters:** one line of chips under the search box (at the sidebar's usual width; a narrower sidebar or a phone wraps them rather than cutting one off). Each is a dropdown or toggle, and fills with color when active:
   - Gen-eds ▾ (multi-select);
   - Credits ▾;
   - Fits my plan (considers classes, blocks and travel time);

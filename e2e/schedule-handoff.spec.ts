@@ -58,7 +58,7 @@ async function add(page: Page, isMobile: boolean, query: string, name: string) {
   if (isMobile) await lowerDrawer(page);
 }
 
-test("View schedule makes Spring's plan, View plan comes back, and the second trip opens the same plan", async ({
+test("View schedule makes Spring's plan, View four-year plan comes back, and the second trip opens the same plan", async ({
   page,
   isMobile,
 }) => {
@@ -100,7 +100,7 @@ test("View schedule makes Spring's plan, View plan comes back, and the second tr
     );
 
   // Back to Plan, on Spring 2027: nothing placed yet.
-  await line.getByRole("link", { name: "View plan" }).click();
+  await line.getByRole("link", { name: "View four-year plan" }).click();
   await expect(page).toHaveURL(/\/plan\?semester=202701/);
   const back = page.getByRole("region", { name: "Spring 2027", exact: true });
   await expect(back.getByText("From Plan A: 0 of 2 placed")).toBeVisible();
@@ -161,7 +161,7 @@ test("a second visit in the same page fills the empty plan an earlier visit made
   await expect.poll(() => springPlanCount(page)).toBe(1);
 
   // To Plan and back without a reload: the scheduler mounts again.
-  await line.getByRole("link", { name: "View plan" }).click();
+  await line.getByRole("link", { name: "View four-year plan" }).click();
   await expect(page).toHaveURL(/\/plan\?semester=202701/);
   await page
     .getByRole("region", { name: "Spring 2027", exact: true })

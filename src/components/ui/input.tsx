@@ -91,7 +91,14 @@ function SearchField({
           </button>
         </WithTooltip>
       ) : hint ? (
-        <span className="flex shrink-0 items-center pr-2">{hint}</span>
+        // A shortcut means nothing without a keyboard (QA S11: Plan's "/" on
+        // a phone), so a touch screen keeps just the edge's spacer.
+        <>
+          <span className="flex shrink-0 items-center pr-2 pointer-coarse:hidden">
+            {hint}
+          </span>
+          <span className="hidden w-0.5 shrink-0 pointer-coarse:block" />
+        </>
       ) : (
         // Keeps the text clear of the right edge when there's no button.
         <span className="w-0.5 shrink-0" />

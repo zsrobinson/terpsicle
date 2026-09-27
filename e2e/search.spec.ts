@@ -123,6 +123,49 @@ test.describe("desktop", () => {
     await expect.poll(() => matchCount(page)).toBe(all);
   });
 
+  test("every filter chip shows whole at the sidebar's usual width", async ({
+    page,
+  }) => {
+    await page.keyboard.press("/");
+    const row = await page.getByTestId("search-filters").boundingBox();
+    if (!row) throw new Error("no filter row");
+    const chips = page.getByTestId("search-filters").getByRole("button");
+    await expect(chips).toHaveCount(5);
+    for (const chip of await chips.all()) {
+      const box = await chip.boundingBox();
+      if (!box) throw new Error("no chip");
+      // One line, nothing cut off (QA S9: "Leve").
+      expect(box.x + box.width).toBeLessThanOrEqual(row.x + row.width + 0.5);
+      expect(box.y).toBeCloseTo(row.y, 0);
+    }
+  });
+
+  test("a professor's name stays whole beside their rating", async ({
+    page,
+  }) => {
+    await page.keyboard.press("/");
+    await searchBox(page).fill("cmsc131");
+    await page.locator('[data-course-result="CMSC131"]').click();
+    const name = page
+      .getByTestId("sections")
+      .getByRole("button", { name: /^Farid Kincaid/ })
+      .getByText("Farid Kincaid", { exact: true });
+    await expect(name).toBeVisible();
+    // QA S8: it read "Farid Kinc…" while the rating and GPA kept their room.
+    expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+      true,
+    );
+    // "Reviews" opens what students say in place; the way to every review
+    // is a View link of its own (QA S3).
+    const header = page
+      .getByRole("button", { name: /^Farid Kincaid/ })
+      .locator("xpath=..");
+    await header.getByRole("button", { name: /^Reviews/ }).click();
+    await expect(
+      page.locator('[data-instructor="Farid Kincaid"]'),
+    ).toContainText(/reviews on PlanetTerp|Summary of/);
+  });
+
   test("course details: facts first, Grades a click away", async ({ page }) => {
     await page.keyboard.press("/");
     await searchBox(page).fill("cmsc 351");
@@ -186,6 +229,11 @@ test.describe("phone", () => {
     // A finger taps to open; only a mouse hovers to preview.
     await expect(page.getByTestId("search-hint-tap")).toBeVisible();
     await expect(page.getByTestId("search-hint-hover")).toBeHidden();
+    // A tap's focus opens no tooltip over the tabs (QA S11).
+    await searchBox(page).tap();
+    await expect(searchBox(page)).toBeFocused();
+    await page.waitForTimeout(500);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
     await searchBox(page).fill("cmsc 351");
     await page.locator('[data-course-result="CMSC351"]').tap();
 
@@ -194,12 +242,36 @@ test.describe("phone", () => {
       drawer.getByRole("heading", { name: "Algorithms" }),
     ).toBeVisible();
     await expect(drawer.getByTestId("sections")).toBeVisible();
+    // A phone says tap (QA S12).
     await expect(
-      page.getByText("Showing every section of CMSC351. Click one to switch."),
+      page.getByText("Showing every section of CMSC351. Tap one to switch."),
     ).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );
     expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("a section added off-screen scrolls into view", async ({ page }) => {
+    const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
+    await tabs.getByRole("button", { name: "Search" }).tap();
+    await searchBox(page).fill("cmsc131");
+    await page.locator('[data-course-result="CMSC131"]').tap();
+    const drawer = page.locator("[data-vaul-drawer]");
+    const row = drawer.getByTestId("sections").locator('[data-section="0102"]');
+    await row.getByRole("button", { name: "Add 0102" }).tap();
+    await expect(row).toContainText("In Plan A");
+    // QA S13: its 12:30 and 1pm classes landed under the drawer.
+    const top = async () => (await drawer.boundingBox())?.y ?? 0;
+    await expect
+      .poll(async () => {
+        const blocks = await calendar(page)
+          .getByRole("button", { name: /^CMSC131 0102/ })
+          .all();
+        const boxes = await Promise.all(blocks.map((b) => b.boundingBox()));
+        const cut = await top();
+        return boxes.some((b) => b !== null && b.y + b.height <= cut);
+      })
+      .toBe(true);
   });
 });

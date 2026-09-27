@@ -19,7 +19,7 @@ import { addFromFourYear } from "./handoff";
 
 // The Courses tab's quiet line about the four-year plan (docs/V3.md §1.2,
 // §2.12): what the term's column has that this plan doesn't, with one "Add
-// them"; its placeholders, which can't be bookmarked; and "View plan". Only
+// them"; its placeholders, which can't be bookmarked; and "View four-year plan". Only
 // for someone with a four-year plan in this browser, or once Plan is listed.
 
 export function FourYearLine({ plan }: { plan: Plan }) {

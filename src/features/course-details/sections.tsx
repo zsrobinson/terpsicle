@@ -146,6 +146,11 @@ function SectionList(props: SectionsProps) {
 
   return (
     <section aria-label="Sections" data-testid="sections">
+      {/* Above the bar, so it scrolls away whole instead of sitting half
+          under the sticky bar and groups (QA S10). */}
+      <div className="flex h-7 items-center justify-end px-4">
+        <SeatsFreshness termId={props.termId} />
+      </div>
       <SectionHeader
         sticky
         title="Sections"
@@ -179,12 +184,11 @@ function SectionList(props: SectionsProps) {
           </>
         }
       />
-      <div className="flex h-7 items-center justify-between gap-2 px-4 text-xs">
-        <span className="font-medium text-muted">
-          {many && placed ? "Your section" : null}
-        </span>
-        <SeatsFreshness termId={props.termId} />
-      </div>
+      {many && placed ? (
+        <div className="flex h-7 items-center px-4 font-medium text-muted text-xs">
+          Your section
+        </div>
+      ) : null}
       {many && placed ? (
         <ul
           aria-label="Your section"
@@ -289,6 +293,7 @@ function InstructorGroupRows({
             </span>
             {instructor && hasReviews(planetTerp, instructor) ? (
               <ReviewsToggle
+                name={instructor}
                 open={reviewsOpen}
                 onToggle={() => props.onToggleReviews(instructor)}
               />
@@ -334,6 +339,7 @@ function GroupNote({
         {one && hasReviews(props.planetTerp, one) ? (
           <span className="ml-auto">
             <ReviewsToggle
+              name={one}
               open={open}
               onToggle={() => props.onToggleReviews(one)}
             />
@@ -354,10 +360,18 @@ function GroupNote({
   );
 }
 
+/**
+ * Opens what students say under the header, in place: a disclosure, whose
+ * tooltip says so, not a link. The way to every review is the View link
+ * inside (QA S3). No chevron: the header's own is for its sections, and the
+ * room it'd take is the GPA's.
+ */
 function ReviewsToggle({
+  name,
   open,
   onToggle: toggle,
 }: {
+  name: string;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -367,7 +381,11 @@ function ReviewsToggle({
   };
   return (
     <WithTooltip
-      label={open ? "Hide reviews" : "What students say, from PlanetTerp"}
+      label={
+        open
+          ? `Hide what students say about ${name}`
+          : `Show what students say about ${name} here`
+      }
     >
       <button
         type="button"

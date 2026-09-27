@@ -31,7 +31,7 @@ export const VIEW: Record<MarketingProduct, { to: string; label: string }> = {
   schedule: { to: SCHEDULE_PATH, label: "View schedule" },
   reviews: { to: "/reviews", label: "View reviews" },
   chat: { to: "/chat", label: "View chat" },
-  plan: { to: "/plan", label: "View plan" },
+  plan: { to: "/plan", label: "View four-year plan" },
   todo: { to: "/todo", label: "View todos" },
 };
 
