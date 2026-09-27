@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { snapHeights } from "~/app/drawer-heights";
 import { MOBILE_QUERY } from "~/app/use-media-query";
 import { clampSidebarWidth, type DrawerSnap } from "~/core/schema";
 import { writeSidebarWidth } from "~/state/sidebar-width-pref";
@@ -63,4 +64,39 @@ export function showBoard(): void {
   if (!window.matchMedia(MOBILE_QUERY).matches) return;
   usePlanWorkbench.setState({ drawerSnap: "peek", keepDrawer: true });
   document.getElementById(PLAN_BOARD_ID)?.scrollTo({ top: 0 });
+}
+
+/**
+ * After an add on a phone, what was added, above the drawer (QA P1: a
+ * full drawer hid the semester it went to). A full drawer comes down to
+ * half, which keeps Search open for the next add, and the board scrolls
+ * the new course clear of it. When the board can't scroll that far (the
+ * course is at the end of a long semester), the drawer goes down to peek.
+ */
+export function showAdded(entryId: string | null): void {
+  if (!entryId || !window.matchMedia(MOBILE_QUERY).matches) return;
+  const ui = usePlanWorkbench.getState();
+  if (ui.drawerSnap === "full") ui.setDrawerSnap("half");
+  // After the render that draws the new course.
+  requestAnimationFrame(() => {
+    const board = document.getElementById(PLAN_BOARD_ID);
+    const added = board?.querySelector(
+      `[data-entry-id="${CSS.escape(entryId)}"]`,
+    );
+    if (!board || !added) return;
+    const under = (snap: DrawerSnap) =>
+      added.getBoundingClientRect().bottom -
+      (window.innerHeight - snapHeights(window.innerHeight)[snap]) +
+      8;
+    let by = under(planDrawerSnap());
+    if (by <= 0) return;
+    const room = board.scrollHeight - board.clientHeight - board.scrollTop;
+    if (room < by) {
+      usePlanWorkbench.getState().setDrawerSnap("peek");
+      by = Math.min(room, under("peek"));
+      if (by <= 0) return;
+    }
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    board.scrollBy({ top: by, behavior: still ? "auto" : "smooth" });
+  });
 }

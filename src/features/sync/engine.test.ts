@@ -520,7 +520,7 @@ describe("the first sign-in on a device", () => {
         reset: false,
         uploaded: 2,
         fromAccount: 0,
-        fourYear: { uploaded: 0, fromAccount: 0 },
+        fourYear: { uploaded: 0, fromAccount: 0, open: null },
         renamed: [],
         copies: [],
       },
@@ -784,7 +784,12 @@ describe("four-year docs", () => {
         reset: false,
         uploaded: 1,
         fromAccount: 0,
-        fourYear: { uploaded: 1, fromAccount: 1 },
+        // Plan opens the account's, not this device's (QA P4).
+        fourYear: {
+          uploaded: 1,
+          fromAccount: 1,
+          open: { id: theirs.id, name: "Econ" },
+        },
         renamed: [],
         copies: [],
       },

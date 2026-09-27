@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { TEST_FEED_TOKENS, testFeedLink } from "../src/core/todo/test-feed";
+import { lowerPlanDrawer } from "./plan-drawer";
 
 // The "View …" links between products (docs/V3.md §1.2) on `pnpm dev:mock`,
 // followed to where they lead: Plan → Reviews and Todo, and Todo → Chat and
@@ -30,7 +31,7 @@ test("Plan links a course to its reviews, and the semester in progress to Todo",
   if (isMobile)
     await page
       .getByRole("navigation", { name: "Semesters" })
-      .getByRole("button", { name: "Fa 2026" })
+      .getByRole("button", { name: "Fall 2026" })
       .click();
   const fall = page.getByRole("region", { name: "Fall 2026", exact: true });
   await fall.getByRole("button", { name: "Add a course to Fall 2026" }).click();
@@ -39,9 +40,8 @@ test("Plan links a course to its reviews, and the semester in progress to Todo",
     .getByRole("button", { name: "Add CMSC351 to Fall 2026", exact: true })
     .click();
 
-  // On a phone, Search left the drawer all the way up over the semesters.
-  if (isMobile)
-    await page.getByRole("button", { name: "Lower the panel" }).click();
+  // On a phone, Search left the drawer up over the semesters.
+  if (isMobile) await lowerPlanDrawer(page);
   await fall.getByRole("button", { name: "CMSC351 options" }).click();
   await page.getByRole("menuitem", { name: "View reviews" }).click();
   await expect(page).toHaveURL(/\/reviews\/courses\/CMSC351$/);

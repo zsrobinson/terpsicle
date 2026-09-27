@@ -10,6 +10,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { addCourse, entryName, pickForPlaceholder } from "./actions";
 import { useIndexEntry } from "./data";
 import { useModel, usePlanNav } from "./model";
+import { showAdded } from "./workbench-store";
 
 // A course, open in the sidebar (`?course=CMSC351`): what the index knows
 // about it, where it is in the plan, and Add (or Pick, for a placeholder).
@@ -90,7 +91,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
           <WithTooltip label={`Add ${code} to ${fourYearTermLabel(target)}`}>
             <Button
               variant={placed.length > 0 ? "outline" : "default"}
-              onClick={() => addCourse(doc, code, target, "search")}
+              onClick={() => showAdded(addCourse(doc, code, target, "search"))}
             >
               <Plus aria-hidden="true" />
               Add to {fourYearTermLabel(target)}

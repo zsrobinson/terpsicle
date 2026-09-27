@@ -5,7 +5,12 @@ import type { SyncPullInput, SyncPushInput } from "~/core/schema";
 import { useSyncStatus } from "~/features/sync/status";
 import { aFourYear, aFourYearEntry, FakeSyncServer } from "~/fixtures";
 import { TerpsicleDb } from "~/state/db";
-import { INITIAL_FOUR_YEAR_STORE, useFourYear, whenSaved } from "./store";
+import {
+  activeDoc,
+  INITIAL_FOUR_YEAR_STORE,
+  useFourYear,
+  whenSaved,
+} from "./store";
 import { startPlanSync } from "./sync";
 
 // Plan's side of sync (V3 §2.4): the engine the scheduler runs, wired to
@@ -177,6 +182,41 @@ describe("Plan's sync", () => {
     await vi.waitFor(() => expect(docs()).toEqual([theirs]), WAIT);
     expect(toasts).toContain("Your four-year plan from your account is here");
     expect(useFourYear.getState().changedBy).toBe("account");
+  });
+
+  it("opens the account's plan on a second device, and says one thing about the copy", async () => {
+    const theirs = aFourYear({ id: "fouryear_acct_01", name: "My plan" });
+    fake.push({
+      docs: [{ kind: "four-year", id: theirs.id, baseRev: 0, body: theirs }],
+    });
+    // This device made its own "My plan" before signing in.
+    const { dispatch } = useFourYear.getState();
+    dispatch({
+      type: "create",
+      id: "fouryear_mine_01",
+      firstTermId: "202608",
+      now: NOW,
+    });
+    dispatch({
+      type: "add",
+      docId: "fouryear_mine_01",
+      entry: aFourYearEntry(),
+      now: NOW,
+    });
+    await whenSaved();
+    expect(activeDoc(useFourYear.getState())?.id).toBe("fouryear_mine_01");
+
+    stop = startPlanSync("tstudent", vi.fn());
+    await vi.waitFor(() => expect(status()).toBe("saved"), WAIT);
+    // QA P4: it opened "My plan (copy)" with this device's one course.
+    expect(activeDoc(useFourYear.getState())?.id).toBe(theirs.id);
+    expect(toasts).toContain(
+      "My plan from this device is saved as My plan (copy)",
+    );
+    await whenSaved();
+    expect((await db.settings.get("fourYear"))?.value).toEqual({
+      activeId: theirs.id,
+    });
   });
 
   it("reads docs again that sync wrote while Plan wasn't showing", async () => {

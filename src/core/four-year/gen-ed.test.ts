@@ -345,23 +345,60 @@ describe("allocateGenEds", () => {
 });
 
 describe("genEdProgressLabel", () => {
-  it("reads like the panel", () => {
-    const [first] = GEN_ED_REQUIREMENTS;
-    if (!first) throw new Error("no requirements");
-    const base = {
-      requirement: { ...first, needed: 2 },
-      entryIds: [],
-      short: 0,
-      searchCodes: [],
+  const [first] = GEN_ED_REQUIREMENTS;
+  if (!first) throw new Error("no requirements");
+  const base = {
+    requirement: { ...first, needed: 2, atLeast: null },
+    entryIds: [],
+    searchCodes: [],
+  };
+  const none = { done: 0, inProgress: 0, planned: 0 };
+
+  it("says what's still needed, in words (QA P2)", () => {
+    expect(genEdProgressLabel({ ...base, ...none, short: 2 })).toBe(
+      "Needs 2 courses",
+    );
+    expect(
+      genEdProgressLabel({
+        ...base,
+        requirement: { ...base.requirement, needed: 1 },
+        ...none,
+        short: 1,
+      }),
+    ).toBe("Needs 1 course");
+    expect(
+      genEdProgressLabel({ ...base, ...none, inProgress: 1, short: 1 }),
+    ).toBe("1 planned, needs 1 more");
+  });
+
+  it("says when it's covered, and by what", () => {
+    expect(
+      genEdProgressLabel({ ...base, ...none, done: 2, planned: 1, short: 0 }),
+    ).toBe("Covered: 2 done, 1 planned");
+    expect(genEdProgressLabel({ ...base, ...none, planned: 2, short: 0 })).toBe(
+      "Covered: 2 planned",
+    );
+    expect(genEdProgressLabel({ ...base, ...none, done: 2, short: 0 })).toBe(
+      "Done",
+    );
+  });
+
+  it("names an at-least rule only while it's still short", () => {
+    const requirement = {
+      ...base.requirement,
+      atLeast: { count: 1, code: "DSNL" as const },
     };
     expect(
-      genEdProgressLabel({ ...base, done: 2, inProgress: 0, planned: 1 }),
-    ).toBe("2 done · 1 planned · of 2");
+      genEdProgressLabel({ ...base, requirement, ...none, short: 2 }),
+    ).toBe("Needs 2 courses, at least 1 DSNL");
     expect(
-      genEdProgressLabel({ ...base, done: 0, inProgress: 1, planned: 0 }),
-    ).toBe("1 planned · of 2");
-    expect(
-      genEdProgressLabel({ ...base, done: 0, inProgress: 0, planned: 0 }),
-    ).toBe("of 2");
+      genEdProgressLabel({
+        ...base,
+        requirement,
+        ...none,
+        planned: 2,
+        short: 0,
+      }),
+    ).toBe("Covered: 2 planned");
   });
 });

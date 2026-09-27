@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Plan, SyncPullInput, SyncPushInput } from "~/core/schema";
-import { aPlan, demoPlan, FakeSyncServer } from "~/fixtures";
+import { aFourYear, aPlan, demoPlan, FakeSyncServer } from "~/fixtures";
 import { TerpsicleDb } from "~/state/db";
 import { newLocalId, nowIso } from "~/state/ids";
 import { hydrate, type Persistence, startPersisting } from "~/state/persist";
@@ -103,6 +103,26 @@ describe("plan sync in the scheduler", () => {
     expect(await db.settings.get("sync")).toMatchObject({
       value: { userId: "tstudent" },
     });
+  });
+
+  it("remembers the account's four-year plan for Plan to open (QA P4)", async () => {
+    const theirs = aFourYear({ id: "fouryear_acct_01", name: "My plan" });
+    fake.push({
+      docs: [{ kind: "four-year", id: theirs.id, baseRev: 0, body: theirs }],
+    });
+    // This device's own, open in Plan before signing in.
+    await db.fourYear.put(aFourYear({ id: "fouryear_mine_01" }));
+    await db.settings.put({
+      key: "fourYear",
+      value: { activeId: "fouryear_mine_01" },
+    });
+    startSync(host, "tstudent");
+    await vi.waitFor(() => expect(status()).toBe("saved"), WAIT);
+    await vi.waitFor(async () =>
+      expect((await db.settings.get("fourYear"))?.value).toEqual({
+        activeId: theirs.id,
+      }),
+    );
   });
 
   it("pushes the person's edits, and shows the account's, clearing that plan's undo", async () => {
