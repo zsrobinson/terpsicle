@@ -97,10 +97,10 @@ export function PrivacyPage() {
             its history. The same kind of moderation model checks messages for
             serious abuse, such as threats, hate and spam, and holds those for
             the moderator to review. To catch one message posted across many
-            rooms, Terpsicle keeps a fingerprint of each message (which can't be
-            turned back into its words), with its room and time, for an hour. A
-            term's rooms become read-only 10 days after classes end, and are
-            deleted 60 days after that.
+            courses, Terpsicle keeps a fingerprint of each message (which can't
+            be turned back into its words), with its course and time, for an
+            hour. A term's rooms become read-only 10 days after classes end, and
+            are deleted 60 days after that.
           </p>
         </Section>
 

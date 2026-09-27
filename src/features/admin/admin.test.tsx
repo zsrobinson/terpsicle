@@ -328,7 +328,7 @@ describe("the queue", () => {
     expect(within(card).getByText("Urgent")).toBeVisible();
     expect(
       within(card).getByText(
-        /^Spam or an ad: the same message in 3 or more rooms within an hour/,
+        /^Spam or an ad: the same message in 3 or more courses within an hour/,
       ),
     ).toHaveTextContent("· spam guard");
     await user.click(within(card).getByRole("button", { name: /Remove/ }));

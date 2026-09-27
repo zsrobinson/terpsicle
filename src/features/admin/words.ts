@@ -57,8 +57,8 @@ export const SOURCE_WORDS: Readonly<Record<ReasonSource, string>> = {
 
 /** Which spam-guard rule held a chat message, after REASON_WORDS.spam. */
 export const CROSS_ROOM_WORDS: Readonly<Record<CrossRoomRule, string>> = {
-  repeat: `the same message in ${CROSS_ROOM.repeatRooms} or more rooms within an hour`,
-  flood: `more than ${CROSS_ROOM.floodMessages} messages across ${CROSS_ROOM.floodRooms + 1} or more rooms in 10 minutes`,
+  repeat: `the same message in ${CROSS_ROOM.repeatCourses} or more courses within an hour`,
+  flood: `more than ${CROSS_ROOM.floodMessages} messages across ${CROSS_ROOM.floodCourses + 1} or more courses in 10 minutes`,
 };
 
 /** What a reader said when reporting, after REASON_WORDS.reported. */

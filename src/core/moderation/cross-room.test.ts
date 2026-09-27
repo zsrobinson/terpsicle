@@ -12,13 +12,13 @@ const SPAM = "Join my discord for free exam answers discord.gg/abc123";
 const NOW = Date.UTC(2026, 9, 5, 18);
 const MIN = 60_000;
 
-/** One send, `ago` minutes before NOW. */
-const send = (room: string, text: string, ago: number): CrossRoomSend => ({
-  room,
+/** One send to a course's chat, `ago` minutes before NOW. */
+const send = (course: string, text: string, ago: number): CrossRoomSend => ({
+  course,
   fingerprint: textFingerprint(text),
   at: NOW - ago * MIN,
 });
-const now = (room: string, text: string) => send(room, text, 0);
+const now = (course: string, text: string) => send(course, text, 0);
 
 const near = (a: string, b: string) => {
   const fa = textFingerprint(a);
@@ -84,55 +84,72 @@ describe("fingerprints", () => {
 });
 
 describe("crossRoomRule: repeat", () => {
-  it("holds the same text in a third room within the hour", () => {
-    const earlier = [send("r1", SPAM, 50), send("r2", SPAM, 20)];
-    expect(crossRoomRule(now("r3", SPAM), earlier, NOW)).toBe("repeat");
+  it("holds the same text in a third course within the hour", () => {
+    const earlier = [send("CMSC131", SPAM, 50), send("MATH140", SPAM, 20)];
+    expect(crossRoomRule(now("PSYC100", SPAM), earlier, NOW)).toBe("repeat");
   });
 
   it("holds a near-same text too", () => {
     const earlier = [
-      send("r1", SPAM, 5),
-      send("r2", `${SPAM} (MATH140 folks too)`, 3),
+      send("CMSC131", SPAM, 5),
+      send("MATH140", `${SPAM} (MATH140 folks too)`, 3),
     ];
-    expect(crossRoomRule(now("r3", `${SPAM} CMSC351`), earlier, NOW)).toBe(
+    expect(crossRoomRule(now("PSYC100", `${SPAM} CMSC351`), earlier, NOW)).toBe(
       "repeat",
     );
   });
 
-  it("lets two rooms through", () => {
-    expect(crossRoomRule(now("r2", SPAM), [send("r1", SPAM, 1)], NOW)).toBe(
-      null,
-    );
+  it("lets two courses through", () => {
+    expect(
+      crossRoomRule(now("MATH140", SPAM), [send("CMSC131", SPAM, 1)], NOW),
+    ).toBe(null);
   });
 
-  it("counts rooms, not messages: repeating in one room is the room's business", () => {
+  it("counts courses, not messages: repeating in one course is its room's business", () => {
     const earlier = [
-      send("r1", SPAM, 3),
-      send("r1", SPAM, 2),
-      send("r2", SPAM, 1),
+      send("CMSC131", SPAM, 3),
+      send("CMSC131", SPAM, 2),
+      send("MATH140", SPAM, 1),
     ];
-    expect(crossRoomRule(now("r2", SPAM), earlier, NOW)).toBe(null);
+    expect(crossRoomRule(now("MATH140", SPAM), earlier, NOW)).toBe(null);
   });
 
   it("forgets sends older than the hour", () => {
-    const earlier = [send("r1", SPAM, 61), send("r2", SPAM, 30)];
-    expect(crossRoomRule(now("r3", SPAM), earlier, NOW)).toBe(null);
+    const earlier = [send("CMSC131", SPAM, 61), send("MATH140", SPAM, 30)];
+    expect(crossRoomRule(now("PSYC100", SPAM), earlier, NOW)).toBe(null);
   });
 
   it("never counts short replies", () => {
-    const earlier = [send("r1", "thanks!", 3), send("r2", "thanks!", 2)];
-    expect(crossRoomRule(now("r3", "thanks!"), earlier, NOW)).toBe(null);
+    const earlier = [
+      send("CMSC131", "thanks!", 3),
+      send("MATH140", "thanks!", 2),
+    ];
+    expect(crossRoomRule(now("PSYC100", "thanks!"), earlier, NOW)).toBe(null);
   });
 
-  it("lets different messages in many rooms through", () => {
+  it("lets the same question in three rooms of one course through", () => {
+    // The course room, the professor room and your section room.
+    const earlier = [send("CMSC351", SPAM, 20), send("CMSC351", SPAM, 10)];
+    expect(crossRoomRule(now("CMSC351", SPAM), earlier, NOW)).toBe(null);
+    // A third course is what holds it.
+    expect(
+      crossRoomRule(
+        now("MATH140", SPAM),
+        [...earlier, send("CMSC131", SPAM, 5)],
+        NOW,
+      ),
+    ).toBe("repeat");
+  });
+
+  it("lets different messages in many courses through", () => {
     const earlier = [
-      send("r1", "anyone want to study for the midterm tonight?", 30),
-      send("r2", "the lecture notes for today are on ELMS", 20),
-      send("r3", "does the quiz cover chapter 4 or just 3?", 10),
+      send("CMSC131", "anyone want to study for the midterm tonight?", 30),
+      send("MATH140", "the lecture notes for today are on ELMS", 20),
+      send("PSYC100", "does the quiz cover chapter 4 or just 3?", 10),
     ];
     expect(
       crossRoomRule(
-        now("r4", "who else is completely lost on project 2"),
+        now("ENGL101", "who else is completely lost on project 2"),
         earlier,
         NOW,
       ),
@@ -141,20 +158,20 @@ describe("crossRoomRule: repeat", () => {
 });
 
 describe("crossRoomRule: flood", () => {
-  const many = (count: number, rooms: number, spanMinutes: number) =>
+  const many = (count: number, courses: number, spanMinutes: number) =>
     Array.from({ length: count }, (_, i) =>
       send(
-        `r${i % rooms}`,
+        `COURSE${i % courses}`,
         `message number ${i} about something else entirely`,
         (spanMinutes * (i + 1)) / (count + 1),
       ),
     );
 
-  it("holds a 13th message across a 5th room within ten minutes", () => {
+  it("holds a 13th message across a 5th course within ten minutes", () => {
     const earlier = many(12, 5, 9);
     expect(
       crossRoomRule(
-        now("r0", "and one more different thing to say here"),
+        now("COURSE0", "and one more different thing to say here"),
         earlier,
         NOW,
       ),
@@ -165,22 +182,29 @@ describe("crossRoomRule: flood", () => {
     const earlier = many(11, 5, 9);
     expect(
       crossRoomRule(
-        now("r0", "and one more different thing to say here"),
+        now("COURSE0", "and one more different thing to say here"),
         earlier,
         NOW,
       ),
     ).toBe(null);
   });
 
-  it("lets a busy talker in four rooms through", () => {
+  it("lets a busy talker in four courses through", () => {
     const earlier = many(30, 4, 9);
     expect(
       crossRoomRule(
-        now("r0", "and one more different thing to say here"),
+        now("COURSE0", "and one more different thing to say here"),
         earlier,
         NOW,
       ),
     ).toBe(null);
+  });
+
+  it("counts one course's rooms as one course", () => {
+    const earlier = Array.from({ length: 20 }, (_, i) =>
+      send("CMSC351", `hi ${i}`, (9 * (i + 1)) / 21),
+    );
+    expect(crossRoomRule(now("CMSC351", "one more"), earlier, NOW)).toBe(null);
   });
 
   it("only counts the last ten minutes", () => {
@@ -188,7 +212,7 @@ describe("crossRoomRule: flood", () => {
     expect(earlier.length).toBeGreaterThan(0);
     expect(
       crossRoomRule(
-        now("r0", "and one more different thing to say here"),
+        now("COURSE0", "and one more different thing to say here"),
         earlier,
         NOW,
       ),

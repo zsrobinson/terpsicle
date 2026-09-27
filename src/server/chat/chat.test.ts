@@ -20,7 +20,7 @@ import {
 } from "vitest";
 import { findTestUser } from "~/core/auth";
 import { addDays } from "~/core/ics";
-import { SLURS } from "~/core/moderation";
+import { SLURS, textFingerprint } from "~/core/moderation";
 import {
   type AcademicCalendar,
   CHAT_PROTOCOL_VERSION,
@@ -760,17 +760,27 @@ describe("sending", () => {
     );
   });
 
-  it("holds the same message in a third room for the owner, urgent, without a model", async () => {
+  it("lets one course's rooms share a message, and holds it in a third course for the owner, urgent, without a model", async () => {
     const { student } = await twoPeople();
     const a = await student.join([courseRoom, brandtRoom, room0101]);
     const spam = "Join my discord for free exam answers discord.gg/abc123";
-    for (const room of [courseRoom, brandtRoom]) {
+    // The course room, the professor room and your section room: one course.
+    for (const room of [courseRoom, brandtRoom, room0101]) {
       const ack = await a.client.sendText(room, spam);
       expect(
         await a.client.next("moderation", (f) => f.id === ack.message?.id),
       ).toMatchObject({ moderation: { state: "visible" } });
     }
-    expect(moderateSpy).toHaveBeenCalledTimes(2);
+    expect(moderateSpy).toHaveBeenCalledTimes(3);
+
+    // The same person posted it in two other courses' chats just now.
+    const earlier = new Date(Date.now() - 60_000).toISOString();
+    for (const other of ["CMSC131", "MATH140"])
+      await env.DB.prepare(
+        "INSERT INTO chat_send_hashes (user_id, course_code, text_hash, created_at) VALUES ('tstudent', ?1, ?2, ?3)",
+      )
+        .bind(other, textFingerprint(`${spam} ${other}`), earlier)
+        .run();
     // Near-same counts: a course code tacked on doesn't make it new.
     const ack = await a.client.sendText(room0101, `${spam} CMSC351`);
     const id = ack.message?.id ?? "";
@@ -781,7 +791,7 @@ describe("sending", () => {
     expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
       { moderation: { state: "held", reason: "flagged" } },
     );
-    expect(moderateSpy).toHaveBeenCalledTimes(2);
+    expect(moderateSpy).toHaveBeenCalledTimes(3);
 
     const ref = chatTargetId(TERM, COURSE, id);
     const row = await env.DB.prepare(
@@ -811,14 +821,17 @@ describe("sending", () => {
         .bind(ref)
         .first(),
     ).toEqual({ stage: "rules", verdict: "hold" });
-    // The log keeps fingerprints, never the words.
+    // The log keeps the course and a fingerprint, never the words.
     const logged = await env.DB.prepare(
-      "SELECT user_id, room_id, text_hash FROM chat_send_hashes ORDER BY created_at",
-    ).all<{ user_id: string; room_id: string; text_hash: string }>();
-    expect(logged.results.map((r) => r.room_id)).toEqual([
-      courseRoom,
-      brandtRoom,
-      room0101,
+      "SELECT user_id, course_code, text_hash FROM chat_send_hashes ORDER BY created_at",
+    ).all<{ user_id: string; course_code: string; text_hash: string }>();
+    expect(logged.results.map((r) => r.course_code)).toEqual([
+      "CMSC131",
+      "MATH140",
+      COURSE,
+      COURSE,
+      COURSE,
+      COURSE,
     ]);
     expect(JSON.stringify(logged.results)).not.toContain("discord");
 

@@ -557,20 +557,21 @@ export class CourseChat extends DurableObject<Env> {
   // ---------- moderation ----------
 
   /**
-   * The spam guard (docs/MODERATION.md §2): the same text in many rooms, or
-   * a flood across rooms, holds the message for the owner, urgent, without
+   * The spam guard (docs/MODERATION.md §2): the same text in many courses, or
+   * a flood across courses, holds the message for the owner, urgent, without
    * spending a model call on it. True when it held it. A D1 failure here
    * lets the models screen it as usual.
    */
   async #spam(row: MessageRow, now: number): Promise<boolean> {
     const term = this.#termId;
-    const course = this.#courseCode;
-    if (!term || !course) return false;
+    const courseCode = CourseCodeSchema.safeParse(this.#courseCode);
+    if (!term || !courseCode.success) return false;
+    const course = courseCode.data;
     let rule: Awaited<ReturnType<typeof checkCrossRoom>>;
     try {
       rule = await chatScreening.checkCrossRoom(this.env.DB, {
         userId: row.author_id,
-        room: row.room_id,
+        course,
         text: row.body,
         now: new Date(now),
       });
@@ -579,14 +580,13 @@ export class CourseChat extends DurableObject<Env> {
       return false;
     }
     if (!rule) return false;
-    const courseCode = CourseCodeSchema.safeParse(course);
     await queueForOwner(
       this.env,
       {
         kind: "chat",
         targetId: chatTargetId(term, course, row.id),
         text: row.body,
-        course: courseCode.success ? courseCode.data : null,
+        course,
         reasons: [
           {
             code: "spam",

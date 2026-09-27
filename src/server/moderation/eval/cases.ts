@@ -538,13 +538,14 @@ export const EVAL_CASES: readonly EvalCase[] = [
 
 /**
  * The spam guard's cases: one person's earlier sends, then one more, and
- * which rule (if any) that last one trips. Pure: no model, all in CI.
+ * which rule (if any) that last one trips. The guard counts courses, not
+ * rooms. Pure: no model, all in CI.
  */
 export interface CrossRoomCase {
   id: string;
-  /** Rooms are labels here ("CMSC131"): the rules only tell them apart. */
-  earlier: readonly { room: string; text: string; minutesAgo: number }[];
-  current: { room: string; text: string };
+  /** Each send's course: every room of one course counts as that course. */
+  earlier: readonly { course: string; text: string; minutesAgo: number }[];
+  current: { course: string; text: string };
   expect: CrossRoomRule | null;
   why: string;
 }
@@ -552,10 +553,12 @@ export interface CrossRoomCase {
 const SPAM_TEXT =
   "Free exam answers + past midterms in my discord, join before it fills up: discord.gg/umdanswers";
 
-/** `n` different messages, spread over `rooms` rooms and `minutes` minutes. */
-function spread(n: number, rooms: number, minutes: number) {
+const QUESTION = "does anyone know if office hours are cancelled today?";
+
+/** `n` different messages, spread over `courses` courses and `minutes` minutes. */
+function spread(n: number, courses: number, minutes: number) {
   return Array.from({ length: n }, (_, i) => ({
-    room: `CMSC${100 + (i % rooms)}`,
+    course: `CMSC${100 + (i % courses)}`,
     text: `hi ${i}`,
     minutesAgo: (minutes * (i + 1)) / (n + 1),
   }));
@@ -565,10 +568,10 @@ export const CROSS_ROOM_CASES: readonly CrossRoomCase[] = [
   {
     id: "spam-three-courses",
     earlier: [
-      { room: "CMSC131", text: SPAM_TEXT, minutesAgo: 4 },
-      { room: "MATH140", text: SPAM_TEXT, minutesAgo: 2 },
+      { course: "CMSC131", text: SPAM_TEXT, minutesAgo: 4 },
+      { course: "MATH140", text: SPAM_TEXT, minutesAgo: 2 },
     ],
-    current: { room: "PSYC100", text: SPAM_TEXT },
+    current: { course: "PSYC100", text: SPAM_TEXT },
     expect: "repeat",
     why: "The same ad in a third course within minutes.",
   },
@@ -576,59 +579,60 @@ export const CROSS_ROOM_CASES: readonly CrossRoomCase[] = [
     id: "spam-near-same",
     earlier: [
       {
-        room: "CMSC131",
+        course: "CMSC131",
         text: `${SPAM_TEXT} (CMSC131)`,
         minutesAgo: 30,
       },
       {
-        room: "MATH140",
+        course: "MATH140",
         text: `${SPAM_TEXT} (MATH140)`,
         minutesAgo: 20,
       },
     ],
-    current: { room: "PSYC100", text: `${SPAM_TEXT} (PSYC100)` },
+    current: { course: "PSYC100", text: `${SPAM_TEXT} (PSYC100)` },
     expect: "repeat",
     why: "Each copy names its course; still the same message.",
   },
   {
-    id: "question-two-rooms",
+    id: "question-three-rooms-one-course",
     earlier: [
-      {
-        room: "CMSC351",
-        text: "does anyone know if office hours are cancelled today?",
-        minutesAgo: 5,
-      },
+      { course: "CMSC351", text: QUESTION, minutesAgo: 10 },
+      { course: "CMSC351", text: QUESTION, minutesAgo: 5 },
     ],
-    current: {
-      room: "CMSC351:0101",
-      text: "does anyone know if office hours are cancelled today?",
-    },
+    current: { course: "CMSC351", text: QUESTION },
     expect: null,
-    why: "Asking the course room and your section room is normal.",
+    why: "The course room, the professor room and your section room of one course: normal.",
   },
   {
     id: "thanks-everywhere",
     earlier: [
-      { room: "CMSC131", text: "thanks!", minutesAgo: 20 },
-      { room: "MATH140", text: "thanks!", minutesAgo: 10 },
-      { room: "PSYC100", text: "thanks!", minutesAgo: 5 },
+      { course: "CMSC131", text: "thanks!", minutesAgo: 20 },
+      { course: "MATH140", text: "thanks!", minutesAgo: 10 },
+      { course: "PSYC100", text: "thanks!", minutesAgo: 5 },
     ],
-    current: { room: "ENGL101", text: "thanks!" },
+    current: { course: "ENGL101", text: "thanks!" },
     expect: null,
     why: "Short replies never count as repeats.",
   },
   {
-    id: "flood-five-rooms",
+    id: "flood-five-courses",
     earlier: spread(12, 5, 9),
-    current: { room: "CMSC100", text: "one more" },
+    current: { course: "CMSC100", text: "one more" },
     expect: "flood",
-    why: "13 messages across 5 rooms in 10 minutes.",
+    why: "13 messages across 5 courses in 10 minutes.",
   },
   {
-    id: "busy-in-three-rooms",
-    earlier: spread(25, 3, 9),
-    current: { room: "CMSC100", text: "one more" },
+    id: "busy-in-four-courses",
+    earlier: spread(25, 4, 9),
+    current: { course: "CMSC100", text: "one more" },
     expect: null,
-    why: "A lively conversation in a few rooms isn't a flood.",
+    why: "A lively few courses isn't a flood.",
+  },
+  {
+    id: "busy-in-one-course",
+    earlier: spread(30, 1, 9),
+    current: { course: "CMSC100", text: "one more" },
+    expect: null,
+    why: "Lots of messages across one course's rooms isn't a flood.",
   },
 ];

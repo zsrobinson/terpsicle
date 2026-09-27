@@ -1,7 +1,7 @@
 // Chat's spam guard in D1 (migrations/0014_chat_spam_guard.sql): records
 // each message or edit's fingerprint, then asks the pure rules in
 // ~/core/moderation/cross-room whether this person is posting the same
-// thing across rooms, or flooding them. The rows never hold the words.
+// thing across courses, or flooding them. The rows never hold the words.
 import { z } from "zod";
 import {
   CROSS_ROOM,
@@ -9,13 +9,18 @@ import {
   crossRoomRule,
   textFingerprint,
 } from "~/core/moderation";
-import { type CrossRoomRule, IsoDateTimeSchema } from "~/core/schema";
+import {
+  type CourseCode,
+  CourseCodeSchema,
+  type CrossRoomRule,
+  IsoDateTimeSchema,
+} from "~/core/schema";
 
 /** Earlier rows read per check, at most: far past both rules' counts. */
 const MAX_EARLIER = 200;
 
 const SendRowSchema = z.object({
-  room_id: z.string().min(1),
+  course_code: CourseCodeSchema,
   text_hash: z
     .string()
     .regex(/^[0-9a-f]{16}$/)
@@ -25,7 +30,8 @@ const SendRowSchema = z.object({
 
 export interface SpamGuardInput {
   userId: string;
-  room: string;
+  /** The course whose room it went to: rooms of one course count once. */
+  course: CourseCode;
   text: string;
   now: Date;
 }
@@ -40,7 +46,7 @@ export async function checkCrossRoom(
 ): Promise<CrossRoomRule | null> {
   const now = input.now.getTime();
   const current: CrossRoomSend = {
-    room: input.room,
+    course: input.course,
     fingerprint: textFingerprint(input.text),
     at: now,
   };
@@ -48,18 +54,18 @@ export async function checkCrossRoom(
   const [earlier] = await db.batch([
     db
       .prepare(
-        `SELECT room_id, text_hash, created_at FROM chat_send_hashes
+        `SELECT course_code, text_hash, created_at FROM chat_send_hashes
          WHERE user_id = ?1 AND created_at > ?2
          ORDER BY created_at DESC LIMIT ?3`,
       )
       .bind(input.userId, since, MAX_EARLIER),
     db
       .prepare(
-        "INSERT INTO chat_send_hashes (user_id, room_id, text_hash, created_at) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO chat_send_hashes (user_id, course_code, text_hash, created_at) VALUES (?1, ?2, ?3, ?4)",
       )
       .bind(
         input.userId,
-        input.room,
+        input.course,
         current.fingerprint,
         input.now.toISOString(),
       ),
@@ -67,7 +73,7 @@ export async function checkCrossRoom(
   const sends = (earlier?.results ?? []).map((r): CrossRoomSend => {
     const row = SendRowSchema.parse(r);
     return {
-      room: row.room_id,
+      course: row.course_code,
       fingerprint: row.text_hash,
       at: Date.parse(row.created_at),
     };

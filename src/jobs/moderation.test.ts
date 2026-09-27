@@ -189,7 +189,7 @@ describe("the moderation job", () => {
     await env.DB.prepare("DELETE FROM chat_send_hashes").run();
     for (const minutesAgo of [61, 59])
       await env.DB.prepare(
-        "INSERT INTO chat_send_hashes (user_id, room_id, text_hash, created_at) VALUES ('tstudent', '202701:CMSC351', NULL, ?1)",
+        "INSERT INTO chat_send_hashes (user_id, course_code, text_hash, created_at) VALUES ('tstudent', 'CMSC351', NULL, ?1)",
       )
         .bind(new Date(now.getTime() - minutesAgo * 60_000).toISOString())
         .run();

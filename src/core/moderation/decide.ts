@@ -235,7 +235,7 @@ export const URGENT_CODES: ReadonlySet<ReasonCode> = new Set([
 
 /**
  * Urgent: a serious safety category, or chat's spam guard, since spam
- * across rooms is the abuse the owner most wants caught quickly.
+ * across courses is the abuse the owner most wants caught quickly.
  */
 export const isUrgent = (reasons: readonly ModerationReason[]) =>
   reasons.some(

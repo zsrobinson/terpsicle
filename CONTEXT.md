@@ -266,7 +266,7 @@ A signed-in person flagging a review or message, with a reason. Enough reports h
 _Avoid_: feedback (that's the feedback sheet's)
 
 **Spam guard**:
-Chat's check across rooms: one person posting the same message in 3 or more rooms within an hour, or flooding many rooms at once, is held for the owner, urgent.
+Chat's check across courses: one person posting the same message in 3 or more courses' chats within an hour, or flooding many courses at once, is held for the owner, urgent. One course's rooms count as one course.
 _Avoid_: burst (that's Reviews' rule for many reviews of one instructor)
 
 **Moderation queue**:

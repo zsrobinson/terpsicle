@@ -1,11 +1,12 @@
 -- Chat's spam guard (docs/MODERATION.md §2, the owner 2026-09-27): each
--- course is its own Durable Object, so one person's messages across rooms
+-- course is its own Durable Object, so one person's messages across courses
 -- are only visible here. One row per message or edit, never its words: a
--- fingerprint that near-same texts share. Kept an hour, then pruned by the
--- every-5-minutes moderation cron; the purge deletes a person's rows.
+-- fingerprint that near-same texts share. It counts courses, not rooms.
+-- Kept an hour, then pruned by the every-5-minutes moderation cron; the
+-- purge deletes a person's rows.
 CREATE TABLE chat_send_hashes (
   user_id     TEXT NOT NULL,                  -- no FK, like chat_author_courses
-  room_id     TEXT NOT NULL,                  -- `<termId>:<courseCode>…`, unique across courses
+  course_code TEXT NOT NULL,                  -- the course whose room it went to
   text_hash   TEXT,                           -- textFingerprint(): 16 hex chars; null when too short to compare
   created_at  TEXT NOT NULL
 );

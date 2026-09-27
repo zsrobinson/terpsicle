@@ -84,7 +84,7 @@ export const MODERATION_POLICY: Readonly<
           "Slurs, threats, harassment, or attacks on anyone's identity.",
           "Sexual content.",
           "Someone else's private details.",
-          "Spam and scams, or one message posted across many rooms.",
+          "Spam and scams, or one message posted across many courses.",
         ],
       },
     ],

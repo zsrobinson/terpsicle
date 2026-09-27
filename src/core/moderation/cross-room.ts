@@ -1,27 +1,29 @@
-// Chat's spam guard: one person posting the same thing in many rooms, or
-// flooding many rooms at once (the owner, 2026-09-27: "spamming something
-// in a million different course channels"). Each course is its own Durable
+// Chat's spam guard: one person posting the same thing in many courses'
+// chats, or flooding many courses at once (the owner, 2026-09-27:
+// "spamming something in a million different course channels"). It counts
+// courses, not rooms: the same question in a course's room, its professor
+// room and your section room is normal. Each course is its own Durable
 // Object, so the Worker keeps a short log in D1 (`chat_send_hashes`): who,
-// which room, when, and a fingerprint of the words, never the words. These
-// are the pure rules over that log.
+// which course, when, and a fingerprint of the words, never the words.
+// These are the pure rules over that log.
 import type { CrossRoomRule } from "~/core/schema";
 
 const MINUTE = 60_000;
 
 export const CROSS_ROOM = {
-  /** The same or a near-same text in this many different rooms… */
-  repeatRooms: 3,
+  /** The same or a near-same text in this many different courses… */
+  repeatCourses: 3,
   /** …within this long holds it. */
   repeatWindowMs: 60 * MINUTE,
   /** More than this many messages… */
   floodMessages: 12,
-  /** …across more than this many rooms… */
-  floodRooms: 4,
+  /** …across more than this many courses… */
+  floodCourses: 4,
   /** …within this long holds it. */
   floodWindowMs: 10 * MINUTE,
   /**
    * Normalized texts shorter than this never count as repeats: "thanks!"
-   * or "same" in three rooms is just talking.
+   * or "same" in three courses is just talking.
    */
   minRepeatChars: 20,
   /** Fingerprints at most this many bits apart (of 64) are near-same. */
@@ -32,7 +34,8 @@ export const CROSS_ROOM = {
 
 /** One message (or edit) as the log keeps it. */
 export interface CrossRoomSend {
-  room: string;
+  /** The course code of the room it went to. */
+  course: string;
   /** `textFingerprint` of its text; null when it's too short to compare. */
   fingerprint: string | null;
   /** Milliseconds since the epoch. */
@@ -107,10 +110,11 @@ export function fingerprintDistance(a: string, b: string): number {
 
 /**
  * Whether this message trips the guard, given the same person's earlier
- * sends (any rooms, any order). `repeat`: the same or a near-same text in
- * `repeatRooms` or more rooms within the hour, this one included. `flood`:
- * more than `floodMessages` messages across more than `floodRooms` rooms
- * in ten minutes, this one included. Null when neither.
+ * sends (any courses, any order). `repeat`: the same or a near-same text in
+ * `repeatCourses` or more courses within the hour, this one included.
+ * `flood`: more than `floodMessages` messages across more than
+ * `floodCourses` courses in ten minutes, this one included. Null when
+ * neither. Rooms of one course count as one.
  */
 export function crossRoomRule(
   current: CrossRoomSend,
@@ -119,7 +123,7 @@ export function crossRoomRule(
 ): CrossRoomRule | null {
   const fingerprint = current.fingerprint;
   if (fingerprint) {
-    const rooms = new Set([current.room]);
+    const courses = new Set([current.course]);
     for (const send of earlier)
       if (
         send.fingerprint &&
@@ -127,16 +131,19 @@ export function crossRoomRule(
         fingerprintDistance(fingerprint, send.fingerprint) <=
           CROSS_ROOM.nearBits
       )
-        rooms.add(send.room);
-    if (rooms.size >= CROSS_ROOM.repeatRooms) return "repeat";
+        courses.add(send.course);
+    if (courses.size >= CROSS_ROOM.repeatCourses) return "repeat";
   }
   const recent = earlier.filter(
     (send) => now - send.at <= CROSS_ROOM.floodWindowMs,
   );
-  const rooms = new Set([current.room, ...recent.map((send) => send.room)]);
+  const courses = new Set([
+    current.course,
+    ...recent.map((send) => send.course),
+  ]);
   if (
     recent.length + 1 > CROSS_ROOM.floodMessages &&
-    rooms.size > CROSS_ROOM.floodRooms
+    courses.size > CROSS_ROOM.floodCourses
   )
     return "flood";
   return null;

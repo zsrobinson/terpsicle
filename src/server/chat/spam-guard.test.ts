@@ -2,23 +2,24 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { CROSS_ROOM } from "~/core/moderation";
+import { CourseCodeSchema } from "~/core/schema";
 import { checkCrossRoom, pruneSendHashes } from "./spam-guard";
 
 const START = Date.UTC(2027, 1, 3, 15);
 const at = (minutes: number) => new Date(START + minutes * 60_000);
-const room = (n: number) => `202701:CMSC${100 + n}`;
+const course = (n: number) => CourseCodeSchema.parse(`CMSC${100 + n}`);
 
 beforeEach(async () => {
   await env.DB.prepare("DELETE FROM chat_send_hashes").run();
 });
 
 describe("checkCrossRoom", () => {
-  it("holds the third room of the same text, and only for that person", async () => {
+  it("holds the third course of the same text, and only for that person", async () => {
     const text = "Free exam answers in my discord, link in bio, join now";
     const check = (user: string, n: number, minute: number) =>
       checkCrossRoom(env.DB, {
         userId: user,
-        room: room(n),
+        course: course(n),
         text,
         now: at(minute),
       });
@@ -31,12 +32,12 @@ describe("checkCrossRoom", () => {
     expect(await check("spammer", 4, 62)).toBeNull();
   });
 
-  it("holds a flood across rooms, whatever the words", async () => {
+  it("holds a flood across courses, whatever the words", async () => {
     let result = null;
     for (let i = 0; i <= CROSS_ROOM.floodMessages; i++)
       result = await checkCrossRoom(env.DB, {
         userId: "flooder",
-        room: room(i % 5),
+        course: course(i % 5),
         // Too short to compare, so only the flood rule can match.
         text: `hi ${i}`,
         now: at(i / 2),
@@ -47,13 +48,13 @@ describe("checkCrossRoom", () => {
   it("keeps a fingerprint, never the words", async () => {
     await checkCrossRoom(env.DB, {
       userId: "tstudent",
-      room: room(1),
+      course: course(1),
       text: "anyone want to study for the midterm tonight?",
       now: at(0),
     });
     await checkCrossRoom(env.DB, {
       userId: "tstudent",
-      room: room(1),
+      course: course(1),
       text: "ok",
       now: at(1),
     });
@@ -63,13 +64,13 @@ describe("checkCrossRoom", () => {
     expect(results).toEqual([
       {
         user_id: "tstudent",
-        room_id: room(1),
+        course_code: course(1),
         text_hash: expect.stringMatching(/^[0-9a-f]{16}$/),
         created_at: at(0).toISOString(),
       },
       {
         user_id: "tstudent",
-        room_id: room(1),
+        course_code: course(1),
         text_hash: null,
         created_at: at(1).toISOString(),
       },
@@ -82,7 +83,7 @@ describe("pruneSendHashes", () => {
     for (const minute of [0, 30, 59])
       await checkCrossRoom(env.DB, {
         userId: "tstudent",
-        room: room(1),
+        course: course(1),
         text: "hello there, is the quiz open yet?",
         now: at(minute),
       });

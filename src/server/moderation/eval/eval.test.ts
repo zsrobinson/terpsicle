@@ -41,12 +41,12 @@ describe("the spam guard's cases", () => {
   const NOW = Date.UTC(2027, 1, 3, 15);
   it.each(CROSS_ROOM_CASES.map((c) => [c.id, c] as const))("%s", (_, c) => {
     const earlier = c.earlier.map((s) => ({
-      room: s.room,
+      course: s.course,
       fingerprint: textFingerprint(s.text),
       at: NOW - s.minutesAgo * 60_000,
     }));
     const current = {
-      room: c.current.room,
+      course: c.current.course,
       fingerprint: textFingerprint(c.current.text),
       at: NOW,
     };
