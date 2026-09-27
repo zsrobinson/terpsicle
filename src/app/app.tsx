@@ -107,8 +107,9 @@ function useBootstrap(config: ClientConfig) {
         );
       }
       applyThemePreference(useUi.getState().theme);
-      // The URL is followed from here on: before, loading saved prefs or the
-      // demo would undo it (schedule-url.ts).
+      // The URL's term and plan are followed from here on, and a plain
+      // /schedule opens the saved view: before, loading saved prefs or the
+      // demo would undo them (schedule-nav.ts).
       if (!cancelled) useUi.setState({ restored: true });
     })();
 

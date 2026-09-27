@@ -2,56 +2,26 @@
 
 The layout from `SPEC.md` §2: top bar, labeled rail, one sidebar panel with drill-in, and a calendar that fills the rest. On phones (≤ 768px) the same pieces, with the sidebar in a bottom drawer. State lives in `src/state`; this folder puts it on screen.
 
-Features (`src/features/<feature>/`) plug into the shell without editing anything here.
+Features (`src/features/<feature>/`) plug into the shell through routes: each tab and drill-in is one (below).
 
 ## Add a tab panel or a drill-in view
 
-Create `src/features/<feature>/panels.tsx` that exports `panels`. The shell finds every such file at build time (`import.meta.glob` in `registry.tsx`).
+Each rail tab and each drill-in is a route under `/schedule` (`src/routes/schedule.<tab>.tsx`, `schedule.course.$code.tsx`, …). The route file names the component; its feature folder holds it.
 
 ```tsx
-// src/features/search/panels.tsx
-import { definePanels } from "~/app/registry";
-import { CourseDetails } from "./course-details";
-import { SearchPanel } from "./search-panel";
-
-export const panels = definePanels({
-  // The panel shown when the rail's Search tab is open.
-  tabs: { search: SearchPanel },
-  // Views that drill in over whatever tab is open.
-  drills: {
-    course: {
-      component: CourseDetails, // gets { entry: { kind: "course", courseCode, tab? } }
-      name: (entry) => entry.courseCode, // its title, and "‹ CMSC351" on Back from the next view
-      monoName: true,
-    },
-  },
+// src/routes/schedule.travel.tsx
+export const Route = createFileRoute("/schedule/travel")({
+  component: TravelPanel,
 });
 ```
 
-- **Load it on first use** unless it's part of the first view (Courses, Search, Problems): wrap the components with `lazyPanel` from `lazy-panel.tsx`, so the panel is its own chunk and stays out of the scheduler's first load (`docs/BUILD.md` §5). The sidebar shows the skeleton while it loads, hovering or focusing its rail tab starts the load, and a chunk that fails says so in the panel.
-
-  ```tsx
-  const views = lazyModule(() => import("./travel-panel"));
-  export const panels = definePanels({
-    tabs: { travel: lazyPanel(views, (m) => m.TravelPanel) },
-  });
-  ```
-
-  A crumb has to work before the module arrives; `views.current` is the module once loaded.
-- **One owner per tab or drill kind.** Registering the same one twice logs a warning.
-- **Tabs:** `courses`, `search`, `problems`, `travel`, `blocks`, `generate`, `export`. Until a feature registers one, the tab shows a neutral skeleton.
-- **Drill kinds:** `course` and `connection` are declared in `~/state/drill` (they're remembered between visits). Add a new kind with module augmentation in your feature, then register its view:
-
-  ```ts
-  declare module "~/state/drill" {
-    interface DrillViews {
-      "generated-plan": { resultId: string };
-    }
-  }
-  ```
-
-  Only `course` and `connection` are restored on the next visit (`UiPrefs.drill`). Other kinds last for the session.
-- **Effects:** `effects: [Component]` mounts components that render nothing, once, for app-wide work a feature owns (the seat-alert sync in `alerts`). `FeatureEffects` in the shell renders them.
+- **The router splits and preloads it.** A route's component is its own chunk (TanStack Start's automatic code splitting), so it stays out of the scheduler's first load (`docs/BUILD.md` §5), and hovering or focusing its rail tab (`preloadView` in `schedule-nav.ts`) loads it before the click. The sidebar shows the skeleton while it loads, and a chunk that fails says so in the panel. Don't export anything else from a route file, or splitting can't move the component out.
+- **The sidebar renders it, not an `<Outlet />`.** Tab panels once visited and drill-in levels under the top one stay mounted, hidden (see "Build a panel"), which an outlet would unmount. `sidebar.tsx` shows each route's component in its own layer.
+- **A drill-in reads its entry with `useDrillEntry(kind)`** (`drill-entry.tsx`), not from the route's params: a level kept mounted under the top one isn't the URL's any more. Add its kind to `DrillEntry` in `~/state/drill`, its path to `~/core/routing/schedule-location`, its URL to `viewAt`/`locationOf` (`schedule-view.ts`, `schedule-nav.ts`) and its short name to `drillName`.
+- **Search params** a tab reads are its route's `validateSearch`, a zod schema from `~/core/schema/schedule-url` (`SearchTabSearchSchema`, `GenerateTabSearchSchema`). Read them with `useTabSearch(tab)`, which is null while the tab is hidden, so a hidden panel keeps what it showed.
+- **Tabs:** `courses`, `search`, `problems`, `travel`, `blocks`, `generate`, `export`. A route without a component shows a neutral skeleton.
+- **Drill kinds:** `course` and `connection` (restored on the next visit, `UiPrefs.drill`) and `generated-plan` (for the session: results aren't saved).
+- **App-wide work a feature owns** (the seat-watch sync in `alerts`) is a hook the shell calls in `app-shell.tsx`.
 
 ## Build a panel
 
@@ -95,7 +65,7 @@ Published data beyond the term catalog, in `~/state/data-hooks`. Each hook start
 Stores (Zustand) for everything else:
 
 - `useWorkspace` (`~/state/workspace-store`): plans, blocks, course colors, travel settings and the open plan per term. Change the workspace only through `commit(label, recipe, { toast? })` or `dispatch(action, label)`; both keep undo history, and `label` ("Removed CMSC351 from Plan A") becomes the Undo toast. Use `{ toast: false }` for quiet edits (renames). `setTravel` saves settings without history.
-- `useUi` (`~/state/ui-store`): `drill(entry)`, `replaceDrill(entry)`, `back()` and `backTo(depth)` (close views: a new place, so they push), `openTab(tab)`, `markNavigation()`, `requestFocus(tab)`, `toggleGroup(key)`, the drawer's snap, and the calendar fields below. For the person's Back, call `goBack()` from `./actions` (see "URL state").
+- `useUi` (`~/state/ui-store`): whether the sidebar shows (`setSidebarOpen`), `requestFocus(tab)`, `toggleGroup(key)`, the drawer's snap, the calendar fields below, and the tab and drill-in last on screen (`lastTab`, `lastDrill`: saved for the next visit, never read for what's on screen). Which tab and drill-in are open is the URL's: read it with `useScheduleView()` (`schedule-view.ts`), and move with the functions in `schedule-nav.ts` (see "URL state").
 - `useCatalog` (`~/state/catalog-store`): terms; per term (`byTerm[termId]`) the `manifest`, `seats`, `changes` (the changes file; `usePlanProblems` already feeds it to core) and a core `CatalogIndex`; the campus map; `instructors` and `calendars`. `ensureTerm(termId, first?)` loads every department, `first` ones first (the shell does this for the term on screen, with the plan's departments first), `ensureDepts(termId, depts)` a few, `ensureCampus()` the buildings and routes files, `refreshTerm(termId)` revalidates, and `retry()` tries a failed load again.
   - How loading works (`DATA.md` §5.1): everything is read from the IndexedDB cache first, so a repeat visit starts instantly, and then revalidated against the server. The manifest is diffed with core's `diffManifest`, so only departments whose hash changed are fetched, and files the manifest no longer lists are evicted. A file that fails validation keeps the previous one. The same path runs in mock mode (cache keys prefixed `mock:`).
   - `byTerm[termId].manifestSource` is `"cache"` or `"network"`; `checkedAt` is when the server last confirmed it.
@@ -142,7 +112,7 @@ Course details is one page (UX review §3.4, option A): header facts, then secti
 
 ## Travel and the route map
 
-`src/features/travel` owns the Travel tab and the `connection` drill (connection details). Open a connection with `useUi.getState().drill({ kind: "connection", connectionId })`; settings change through `setPace`, `setAccessible` and `setExtraMinutes` in `~/features/travel/actions` (each records `travel_settings_changed`).
+`src/features/travel` owns the Travel tab and the `connection` drill (connection details). Open a connection with `openConnection(connection)` (or `openDrill({ kind: "connection", connectionId })`); settings change through `setPace`, `setAccessible` and `setExtraMinutes` in `~/features/travel/actions` (each records `travel_settings_changed`).
 
 The route map draws UMD's path for the pair and mode (`geo/route/<from>-<to>-<mode>.json`), never a straight line; with no geometry it's hidden, with one quiet line. Live data draws it with MapLibre GL on `geo/tiles.pmtiles` (HTTP range reads through `/data`), in its own lazily loaded chunk, restyled from the theme tokens (`map-style.ts`). Mock mode has no tiles, so it draws the same path as an SVG on a plain themed background; so does a browser without WebGL.
 
@@ -156,7 +126,7 @@ Features talk to the calendar through three `useUi` fields. None is persisted.
 | `previewSection` (`setPreviewSection(key \| null)`) | Course details, on a section row's pointer enter/leave; the calendar itself for ghost hover and `↑`/`↓` | Draws that section of the open course solid. `↵` switches to it. Cleared when the open course changes. |
 | `previewPlan` (`setPreviewPlan({ plan, label } \| null)`) | Generate, while a result is previewed | Draws that plan instead of the open one, read-only, outlining sections that differ, under "Previewing <label>." |
 
-Ghosts for the course open in the sidebar come from the drill stack itself (`selectOpenCourse`): opening course details anywhere shows them, and `Esc` hides them. `selectGhostCourse` is the course whose ghosts are drawn (a hover wins).
+Ghosts for the course open in the sidebar come from the URL itself (`useOpenCourse()`): opening course details anywhere shows them, and `Esc` hides them. `useGhostCourse()` is the course whose ghosts are drawn (a hover wins).
 
 For the color dot, use `CourseColorPicker` from `~/features/courses/color-picker` (`courseCode`, `color`, `readOnly`); for dots and tints elsewhere, `dotStyle(color)` and `tintStyle(color)` from `~/features/calendar/tint`. Render core `Message`s with `MessageText` (`~/app/message-text`).
 
@@ -170,14 +140,18 @@ On desktop the sidebar's right edge drags between 320 and 480px (`SidebarResizeH
 
 ## URL state
 
-Where you are lives in `/schedule`'s search params, so reload, Back and Forward, and a copied link all land on the same view. `schedule-url.ts` keeps them in step with the stores: a store change is written to the URL (`useScheduleUrl`, mounted by the route), and a move through history is followed back into the stores. The params are typed by the route's `validateSearch` (`ScheduleSearchSchema` in `~/core/schema/schedule-url`; listed in `DATA.md` §8.1), and `historyMode` in `~/core/routing/history` decides push or replace.
+Where you are is the URL, so reload, Back and Forward, and a copied link all land on the same view. Each rail tab is a route (`/schedule/search`), and so is each drill-in, with the tab it's over as `?tab=` (`/schedule/course/CMSC351?tab=search`, `/schedule/connection/<id>`, `/schedule/result/<id>`). `/schedule` itself carries the params every view keeps (`term`, `planId`, `plan`, `demo`), validated by its route's `validateSearch` (`ScheduleSearchSchema` in `~/core/schema/schedule-url`; listed in `DATA.md` §8.1). Back and Forward are the router's history; there's no store mirroring the URL.
 
-- **Push** when someone went somewhere: every action that does bumps `useUi`'s `navSeq` (`drill`, `openTab`, `clickTab`, `back`, `backTo`, `setLastTermId`) or calls `markNavigation()` (a plan tab, a filter chip, Generate's results). The same URL is never pushed twice.
-- **Replace** for everything else: typing, and whatever the app corrects on its own (a plan that was deleted, a term that loaded, a result that's gone after a reload).
-- **Back is one thing.** The sidebar's Back, `Esc` and the browser's Back all go to the previous entry (`goBack()` in `actions.ts` calls `history.back()` when that entry is the app's). Each entry the app writes stores the short name of the view before it (`name` in a drill registration, or the tab's label), which labels Back: "‹ Search", "‹ CMSC351", or just "‹ Back" when it's the same view in another plan. Going from course to course pushes each course, so Back retraces them, but there's never a trail to aim at.
-- **The first entry is a base view.** A link straight to a drill-in (a seat-alert email's `?term=&course=`, a shared URL, a reload in a new tab) gets the tab's own view put under it, so Back from the course stays in the app.
-- **The URL wins** over saved prefs and `?demo=1`: it's followed once they've loaded. A plain `/schedule` shows what was saved (the open tab and course, SPEC §3.13) and writes it to the URL.
-- Views going back stay mounted (scroll, typed text): Back finds its level in the stack; Forward stacks it again. At most `MOUNTED_DRILLS` levels stay mounted.
+- **Read** the view with `useScheduleView()` (`{ tab, drill }`), and the open course or ghost course with `useOpenCourse()`/`useGhostCourse()` (`schedule-view.ts`). They follow the history as soon as it moves, before the route's chunk arrives, so a click answers in the same frame. Outside React, `currentView()` (`schedule-nav.ts`).
+- **Move** with `schedule-nav.ts`: `openDrill(entry)` (`openCourse` in `~/features/courses/actions` wraps it), `closeDrill()` and `closeToTab()` (close views: a new place, so they push), `goBack()` (the person's Back), `goTo(view, { replace?, shared? })` for anything else, and `preloadView(view)` on intent. Tabs go through `openTab`/`clickRailTab` in `actions.ts`, for their analytics.
+- **Push** when someone went somewhere: a tab, a drill-in, a plan tab, a term, a filter chip, Generate's results or its form. The same URL is never pushed twice (the router's rule).
+- **Replace** for everything else: typing in Search, and whatever the app corrects on its own (a plan that was deleted or undone, a term that loaded, a result that's gone after a reload).
+- **Back is one thing.** The sidebar's Back, `Esc`, the phone's back gesture and the browser's Back all go to the previous entry (`goBack()` calls the router's `history.back()` when that entry is the app's). Each entry the app pushes stores, in its history state, the short name of the view before it, which labels Back: "‹ Search", "‹ CMSC351", or just "‹ Back" when it's the same view in another plan. Going from course to course pushes each course, so Back retraces them, but there's never a trail to aim at.
+- **The first entry is a base view.** A link straight to a drill-in (a seat-alert email's `/schedule/course/CMSC216?term=`, a reload in a new tab) gets its tab's own view put under it, so Back from the course stays in the app.
+- **Old-style URLs** (`/schedule?tab=search&q=`, `?term=&course=`, `?connection=`, `?result=`) redirect to their route, replacing the entry (`canonicalScheduleLocation` in `~/core/routing`, run by `schedule.index.tsx`).
+- **A plain `/schedule`** opens what was saved (the tab and course, SPEC §3.13) once local state has loaded; a view the person opened meanwhile wins.
+- **Two things the stores keep too.** The term and the open plan are saved app state (the open plan per term is part of the workspace, with undo): a move through history puts the stores where the URL says, and an edit that moves them replaces the URL (`useTermAndPlanInUrl`). Search's text and chips are the search box's own state per term (typing never waits on the router): `search-url.ts` writes them to the URL and follows it back on Back, Forward and arrival. Generate remembers whether it last showed its results, for when the tab opens again.
+- Views going back stay mounted (scroll, text): Back finds its level in the stack; Forward stacks it again (`drill-stack.ts`). At most `MOUNTED_DRILLS` levels stay mounted.
 
 Every piece of scheduler UI state, and where it lives:
 
@@ -185,18 +159,18 @@ Every piece of scheduler UI state, and where it lives:
 |---|---|---|---|
 | Term on screen | `term` | push | Switching terms is going somewhere. |
 | Open plan tab | `planId` | push; replace when an edit moves it (new, copied, deleted, undo) | A tab is a place; edits are undone with ⌘Z, not Back. |
-| Rail tab | `tab` | push | |
-| Course details | `course` | push (opening the open course again: none) | The owner's "back to where I came from". |
-| Connection details | `connection` | push | |
-| A generated plan's details | `result` | push | Dropped (replace) after a reload: results aren't saved. |
-| Generate's results vs its form | `view=results` | push | A finished run, and Edit, are places. |
-| Search's text | `q` | replace | Back skips every keystroke. |
-| Search's filter chips | `gened`, `credits`, `level`, `openSeats`, `fits` | push | Back undoes a chip. |
+| Rail tab | the path (`/schedule/<tab>`) | push | |
+| Course details | the path (`/schedule/course/<code>?tab=`) | push (opening the open course again: none) | The owner's "back to where I came from". |
+| Connection details | the path (`/schedule/connection/<id>?tab=`) | push | |
+| A generated plan's details | the path (`/schedule/result/<id>?tab=generate`) | push | Dropped (replace) after a reload: results aren't saved. |
+| Generate's results vs its form | `view=results` on `/schedule/generate` | push | A finished run, and Edit, are places. |
+| Search's text | `q` on `/schedule/search` | replace | Back skips every keystroke. |
+| Search's filter chips | `gened`, `credits`, `level`, `openSeats`, `fits` on `/schedule/search` | push | Back undoes a chip. |
 | Closing a view (the open course's block clicked again, the rail's tab while drilled in, Save as new plan, a travel fix) | the view under it | push | Back reopens it. |
 | Shared plan | `plan` | as opened; ✕ and Save a copy replace it away | DATA.md §8. |
 | Demo switch (`pnpm dev:mock`) | `demo` | kept on every entry | |
 | A section's details | not yet a view | push, as `section`, once it is one | So Back closes it like any other. |
-| Course details' sub-tab jump (`grades`, `about`, `instructors`) | no | | A scroll target on arrival, not a place. |
+| Course details' sub-tab jump (`grades`, `about`, `instructors`) | history state (`detailsTab`) | replace | A scroll target on arrival, not a place. |
 | Sidebar collapsed, its width, theme, collapsed instructor groups | no | | Layout preferences, saved in `UiPrefs`. |
 | Drawer height (phones) | no | | Layout, and the drawer raises itself for a drill-in. |
 | Hover ghosts, ↑/↓ section preview, Generate's plan preview | no | | Transient: the previewed result's `result` is the place. |

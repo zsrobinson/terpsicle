@@ -100,6 +100,9 @@ What the sidebar shows for the open rail tab.
 A details view opened over the current tab (course details, connection details, a Generate result). It has one "Back" that returns to where you came from.
 _Avoid_: breadcrumb
 
+**Base view**:
+The tab's own view, put under a drill-in that was opened straight from a link (an email, a bookmark), so Back from it stays in Schedule.
+
 **Course details**:
 The one view of a course, the same from everywhere: header, section list, and the Instructors, Grades and About tabs.
 

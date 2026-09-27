@@ -31,13 +31,10 @@ const escapeHtml = (s: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-/** The scheduler URL that opens this course in this term (it reads `term` and `course`). */
+/** The scheduler URL that opens this course's details in this term. */
 export function courseUrl(origin: string, ref: SectionRef): string {
-  const params = new URLSearchParams({
-    term: ref.termId,
-    course: ref.courseCode,
-  });
-  return `${origin}${SCHEDULE_PATH}?${params}`;
+  const params = new URLSearchParams({ term: ref.termId });
+  return `${origin}${SCHEDULE_PATH}/course/${encodeURIComponent(ref.courseCode)}?${params}`;
 }
 
 /** Where people see and stop their watches. */
