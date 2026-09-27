@@ -636,9 +636,6 @@ function ItemCard({
             </span>
           </WithTooltip>
         ) : null}
-        <span className="ml-auto rounded-md bg-hover px-1.5 font-medium text-xs">
-          {STATUS_WORDS[item.status]}
-        </span>
       </header>
 
       {/* Their words, as plain text (CLAUDE.md). */}
@@ -719,7 +716,8 @@ function ItemCard({
             Spam
           </Button>
         </WithTooltip>
-        <span className="ml-auto flex flex-wrap items-center gap-1">
+        {/* Phones: the hand-offs get a row of their own. */}
+        <span className="flex w-full flex-wrap items-center gap-1 sm:ml-auto sm:w-auto">
           <WithTooltip label="Copy its words, context, recent actions and screenshot links as Markdown">
             <Button variant="ghost" size="row" onClick={() => void copy()}>
               <ClipboardCopy aria-hidden="true" />
