@@ -14,7 +14,7 @@ import { PageSection } from "~/ui/page-section";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer, type ComposerTarget } from "./composer";
-import { PAGE_ROW } from "./frame";
+import { PAGE_NOTE } from "./frame";
 import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
 import { OwnReviewCard, ReviewCard } from "./review-card";
 import { useReviews } from "./reviews-store";
@@ -204,11 +204,16 @@ export function ReviewsSection({
           onRetry={() => void reloadList(instructorId)}
         />
       ) : reviews.length === 0 ? (
-        <PanelNote className={PAGE_ROW}>
-          {course
-            ? `No reviews of ${course} on Terpsicle yet.`
-            : "No reviews on Terpsicle yet."}
-          {level === "on" && target
+        <PanelNote className={PAGE_NOTE}>
+          {/* Yours may be right above, held: it isn't the first "yet". */}
+          {ownHere.length > 0
+            ? course
+              ? `No one else has reviewed ${course} on Terpsicle yet.`
+              : "No one else has reviewed them on Terpsicle yet."
+            : course
+              ? `No reviews of ${course} on Terpsicle yet.`
+              : "No reviews on Terpsicle yet."}
+          {level === "on" && target && ownHere.length === 0
             ? " Took it? Yours could be the first."
             : ""}
         </PanelNote>

@@ -125,11 +125,14 @@ function PlanTab({
           onClick={onOpen}
           onDoubleClick={() => onRename("double-click")}
           className={cn(
-            "h-8 max-w-[160px] truncate rounded-md pl-2.5 text-base outline-offset-[-2px]",
+            // Never narrower than a thumb, however long the other tabs are.
+            // The name truncates, not the button, whose touch area (styles.css)
+            // reaches past its edges.
+            "flex h-8 min-w-11 max-w-[160px] items-center rounded-md pl-2.5 text-base outline-offset-[-2px]",
             active ? "pr-1 font-medium" : "pr-2.5 text-muted hover:text-fg",
           )}
         >
-          {plan.name}
+          <span className="truncate">{plan.name}</span>
         </button>
       </WithTooltip>
       {active ? (

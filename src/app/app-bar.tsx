@@ -69,6 +69,7 @@ export function AppBar({
   const Brand = heading ? "h1" : "div";
   return (
     <header
+      data-slot="app-bar"
       className={cn(
         "flex h-12 shrink-0 items-center border-hairline border-b",
         compact ? "gap-1 px-2" : "gap-2 px-3",

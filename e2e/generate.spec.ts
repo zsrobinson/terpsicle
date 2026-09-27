@@ -1,9 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
+import { clearGenerateCourses } from "./generate-form";
 import { OPEN_VIEW } from "./sidebar";
 
-// Generate on `pnpm dev:mock?demo=1` (SPEC §3.9): list courses, generate,
-// preview a result on the calendar, save two as plans; and when nothing
-// fits, apply a suggested relaxation.
+// Generate on `pnpm dev:mock?demo=1` (SPEC §3.9): start from Plan A's
+// courses, generate, preview a result on the calendar, save two as plans;
+// and when nothing fits, apply a suggested relaxation.
 
 test.skip(({ isMobile }) => isMobile, "desktop flows");
 
@@ -43,7 +44,7 @@ async function addCourse(page: Page, code: string) {
   await expect(page.getByTestId(`gen-course-${code}`)).toBeVisible();
 }
 
-test("generate from four courses, preview one, and save two as plans", async ({
+test("generate from Plan A's courses, preview one, and save two as plans", async ({
   page,
 }) => {
   // `+` → Generate plans… opens the tab with the course field focused.
@@ -51,11 +52,30 @@ test("generate from four courses, preview one, and save two as plans", async ({
   await page.getByRole("menuitem", { name: /Generate plans/ }).click();
   await expect(courseField(page)).toBeFocused();
 
+  // It starts with Plan A's courses: placed ones required, bookmarked ones
+  // optional. Keep four.
+  await expect(page.getByText(/^From Plan A\./)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "CMSC351, required" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "MUSC130, optional" }),
+  ).toBeVisible();
+  for (const code of ["ECON200", "MUSC130", "PHIL140"]) {
+    await page.getByRole("button", { name: `Remove ${code}` }).click();
+    await expect(page.getByTestId(`gen-course-${code}`)).toHaveCount(0);
+  }
   for (const code of ["CMSC351", "CMSC330", "STAT400", "ENGL393"])
-    await addCourse(page, code);
+    await expect(page.getByTestId(`gen-course-${code}`)).toBeVisible();
   await page.getByRole("button", { name: "Generate plans" }).click();
   const results = page.getByRole("list", { name: "Generated plans" });
   await expect(results.getByRole("listitem").first()).toBeVisible();
+
+  // Hovering a result previews it, like Search; moving away ends it.
+  await results.getByTestId("generated-plan").nth(1).hover();
+  await expect(page.getByText("Previewing Option 2.")).toBeVisible();
+  await page.getByRole("heading", { name: "Generate" }).first().hover();
+  await expect(page.getByText("Previewing Option 2.")).toHaveCount(0);
 
   // Clicking a result previews it and drills into its details.
   await results.getByRole("button").first().click();
@@ -65,7 +85,9 @@ test("generate from four courses, preview one, and save two as plans", async ({
     page.getByText("Changes from Plan A", { exact: true }),
   ).toBeVisible();
 
-  // Back to the list: the preview goes away with the details.
+  // Back to the list: the preview goes away with the details. (With the
+  // mouse off the list: over a result, it would preview that one.)
+  await calendar(page).hover();
   await page.keyboard.press("Escape");
   await expect(page.getByText("Previewing Option 1.")).toHaveCount(0);
 
@@ -93,6 +115,7 @@ test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
     .getByRole("navigation", { name: "Sidebar tabs" })
     .getByRole("button", { name: "Generate" })
     .click();
+  await clearGenerateCourses(page);
   await addCourse(page, "CMSC351");
   await addCourse(page, "CMSC330");
   await page.getByRole("combobox", { name: "Start after" }).click();

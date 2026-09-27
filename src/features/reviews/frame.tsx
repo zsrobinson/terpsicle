@@ -37,6 +37,13 @@ export function ReviewsFrame({
 export const PAGE_ROW = "px-0";
 
 /**
+ * A section's one line of words (a `PanelNote`: "No reviews yet"), set like
+ * the section's prose, right under its label. A panel's note pads itself
+ * to sit among rows; on a page that padding reads as a gap.
+ */
+export const PAGE_NOTE = "p-0";
+
+/**
  * A row's one link, answering for the whole row: its `::after` covers the
  * row, which must be `relative`.
  */

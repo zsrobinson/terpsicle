@@ -64,7 +64,7 @@ The week reads as five labeled day groups ("Monday", …). Each class, block, gh
 
 ### Phones
 - Every target is at least 24×24 CSS px (2.5.8), including calendar blocks, ghosts and travel pills (a 24px hit area around the 20px pill).
-- **Touch targets.** Below `md`, every kit control is 44px tall (2.5.5): `Button` at every size, `Input`, `SearchField`, `SegmentedControl`, `SelectTrigger`, and the items in selects, dropdown menus and context menus. The size comes from the kit, the same in every product, so pages never add their own `max-md:h-11`. A tighter layout (the calendar, travel pills) keeps the 24px floor above.
+- **Touch targets.** Below `md`, every kit control is 44px tall (2.5.5): `Button` at every size, `Input`, `SearchField`, `SegmentedControl`, `SelectTrigger`, and the items in selects, dropdown menus and context menus. The size comes from the kit, the same in every product, so pages never add their own `max-md:h-11`. The family bar is the one exception: its controls keep their small icons, and on a touch screen each one's hit area fills the bar's 48px height and is at least 32px wide (`src/styles.css`, checked by `e2e/touch-targets.spec.ts`), so the scheduler's term and plans still fit a phone. A tighter layout (the calendar, travel pills) keeps the 24px floor above.
 - The drawer comes after the calendar in the page, so swiping through with VoiceOver or TalkBack reads the top bar, the calendar, then the drawer's tabs and panel. "Skip to sidebar" jumps straight there.
 
 ## How it's tested

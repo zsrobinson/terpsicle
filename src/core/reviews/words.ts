@@ -73,7 +73,7 @@ export function notPostedWords(reason: ReasonCode | null): string {
 }
 
 export interface ReviewStanding {
-  /** A few words for the badge: "Posted", "Waiting", … */
+  /** A few words for the badge: "Posted", "Held", … (CONTEXT.md, Moderation) */
   label: string;
   /** A sentence under it, or null when the label says it all. */
   detail: string | null;
@@ -88,7 +88,7 @@ export function reviewStanding(review: MyReview): ReviewStanding {
     case "published":
       if (edit?.state === "waiting")
         return {
-          label: "Posted, edit waiting",
+          label: "Posted, edit held",
           detail:
             "A person will look at your edit first. Readers see your earlier words until then.",
           editable: true,
@@ -101,7 +101,7 @@ export function reviewStanding(review: MyReview): ReviewStanding {
         };
       return { label: "Posted", detail: null, editable: true };
     case "held":
-      return { label: "Waiting", detail: REVIEW_HELD_WORDS, editable: true };
+      return { label: "Held", detail: REVIEW_HELD_WORDS, editable: true };
     case "hidden":
       return {
         label: "Hidden for now",

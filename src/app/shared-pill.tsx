@@ -1,10 +1,12 @@
 import { Share2, X } from "lucide-react";
+import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 
 /**
- * Stands in for the plan tabs while a shared link is open (SPEC §3.11): a
- * light-red pill, "Shared plan · Save a copy · ✕". No names: we don't know
- * who shared it.
+ * Stands in for the plan tabs while a shared link is open (SPEC §3.11): the
+ * light-red "Shared plan" label says what you're looking at, and the kit's
+ * own buttons, neutral like every other action, save it or close it. No
+ * names: we don't know who shared it.
  */
 export function SharedPill({
   onSave,
@@ -16,34 +18,33 @@ export function SharedPill({
   saving?: boolean;
 }) {
   return (
-    <div className="flex h-7 min-w-0 shrink-0 items-center gap-1.5 rounded-full bg-shared-soft pr-1 pl-2.5 text-base text-shared">
-      <Share2 size={13} aria-hidden="true" className="shrink-0" />
-      <span className="truncate font-medium">Shared plan</span>
-      <span aria-hidden="true" className="opacity-50">
-        ·
+    // The label gives way first on a phone, down to its icon; the actions
+    // keep their size.
+    <div className="flex min-w-0 items-center gap-1.5">
+      <span className="flex h-7 min-w-0 shrink items-center gap-1.5 bg-shared-soft px-2 font-medium text-base text-shared">
+        <Share2 size={13} aria-hidden="true" className="shrink-0" />
+        <span className="truncate">Shared plan</span>
       </span>
       <WithTooltip label="Add this plan to your own plans">
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="outline"
           onClick={onSave}
           disabled={saving}
-          className="shrink-0 rounded-full px-1.5 py-0.5 font-medium underline-offset-2 transition-colors hover:bg-shared-soft hover:underline disabled:opacity-60"
+          className="shrink-0"
         >
           Save a copy
-        </button>
+        </Button>
       </WithTooltip>
-      <span aria-hidden="true" className="opacity-50">
-        ·
-      </span>
       <WithTooltip label="Back to your plans">
-        <button
-          type="button"
+        <Button
+          size="icon-sm"
+          variant="ghost"
           aria-label="Close shared plan"
           onClick={onClose}
-          className="flex size-5 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-shared-soft"
         >
-          <X size={12} aria-hidden="true" />
-        </button>
+          <X aria-hidden="true" />
+        </Button>
       </WithTooltip>
     </div>
   );

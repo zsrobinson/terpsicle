@@ -9,7 +9,7 @@ import { PageHeader } from "~/ui/page-header";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer } from "./composer";
-import { PAGE_ROW, ReviewsFrame } from "./frame";
+import { PAGE_NOTE, ReviewsFrame } from "./frame";
 import { useReviewsLevel, useSignedIn } from "./level";
 import { OwnReviewCard } from "./review-card";
 import { useReviews } from "./reviews-store";
@@ -45,7 +45,7 @@ export function MyReviewsPage() {
       {signedIn === "loading" || level === "loading" ? (
         <RowSkeleton rows={2} inset={false} label="Loading your reviews" />
       ) : level === "off" ? (
-        <PanelNote className={PAGE_ROW}>Reviews isn't open yet.</PanelNote>
+        <PanelNote className={PAGE_NOTE}>Reviews isn't open yet.</PanelNote>
       ) : !signedIn ? (
         <SignInPrompt>
           Sign in with your UMD account to see the reviews you've written.

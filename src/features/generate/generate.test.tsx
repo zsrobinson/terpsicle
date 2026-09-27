@@ -50,6 +50,13 @@ async function renderGenerate() {
   return view;
 }
 
+/**
+ * An empty form, as after removing every course: the tests that build a
+ * list from nothing start here, since an untouched form shows Plan A's.
+ */
+const emptyForm = () =>
+  act(() => useGenerateDrafts.getState().setDraft(fixtureTermId, EMPTY_DRAFT));
+
 const termPlans = () => plansInTerm(useWorkspace.getState(), fixtureTermId);
 const draft = () => useGenerateDrafts.getState().drafts[fixtureTermId];
 /** Required courses, typed into the form directly (quick to search). */
@@ -89,6 +96,7 @@ describe("Generate", () => {
 
   it("adds courses from suggestions and switches them between required and optional", async () => {
     const { user } = await renderGenerate();
+    emptyForm();
     await addCourse(user, "CMSC35");
     expect(draft()?.items).toEqual([
       { kind: "course", courseCode: "CMSC351", required: true },
@@ -100,26 +108,66 @@ describe("Generate", () => {
     expect(draft()?.items).toEqual([]);
   });
 
-  it("adds the open plan's courses: placed ones required, bookmarked ones optional", async () => {
+  it("starts with the open plan's courses: placed ones required, bookmarked ones optional", async () => {
     const { user } = await renderGenerate();
+    const planItems = demoPlan.courses.map((c) => ({
+      kind: "course",
+      courseCode: c.courseCode,
+      required: c.sectionCode !== null,
+    }));
+    for (const c of demoPlan.courses)
+      expect(
+        screen.getByRole("button", {
+          name: `${c.courseCode}, ${c.sectionCode !== null ? "required" : "optional"}`,
+        }),
+      ).toBeVisible();
+    expect(screen.getByText(/^From Plan A\./)).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Generate plans" }),
-    ).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: /Plan A's courses/ }));
+    ).toBeEnabled();
+    // Shown, not stored: it follows the plan until the first change.
+    expect(draft()).toBeUndefined();
+
+    await user.click(screen.getByRole("button", { name: "Remove MUSC130" }));
     expect(draft()?.items).toEqual(
-      demoPlan.courses.map((c) => ({
-        kind: "course",
-        courseCode: c.courseCode,
-        required: c.sectionCode !== null,
-      })),
+      planItems.filter((i) => i.courseCode !== "MUSC130"),
     );
+    expect(screen.queryByText(/^From Plan A\./)).toBeNull();
+    // "Plan A's courses" offers back what's missing.
+    await user.click(screen.getByRole("button", { name: /Plan A's courses/ }));
+    expect(draft()?.items).toEqual([
+      ...planItems.filter((i) => i.courseCode !== "MUSC130"),
+      { kind: "course", courseCode: "MUSC130", required: false },
+    ]);
     expect(
       screen.queryByRole("button", { name: /Plan A's courses/ }),
     ).toBeNull();
   });
 
+  it("never replaces a list someone built, even an emptied one", async () => {
+    const { user } = await renderGenerate();
+    act(() => setCourses("CMSC132"));
+    expect(
+      screen.getByRole("button", { name: "CMSC132, required" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "CMSC351, required" }),
+    ).toBeNull();
+    expect(screen.queryByText(/^From Plan A\./)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Remove CMSC132" }));
+    expect(draft()?.items).toEqual([]);
+    expect(
+      screen.getByRole("button", { name: "Generate plans" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Plan A's courses/ }),
+    ).toBeVisible();
+  });
+
   it("builds a pick-N group", async () => {
     const { user } = await renderGenerate();
+    emptyForm();
     await user.click(screen.getByRole("button", { name: "Pick N of these" }));
     const group = screen.getByRole("group", { name: "Pick 1 of these" });
     const field = within(group).getByRole("combobox");
@@ -231,6 +279,37 @@ describe("Generate", () => {
     expect(track).toHaveBeenCalledWith("generate_plans_saved", { count: 1 });
   });
 
+  it("previews a result on the calendar while the mouse is over it", async () => {
+    const { user } = await renderGenerate();
+    act(() => setCourses("CMSC351", "CMSC330", "STAT400"));
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    const list = await screen.findByRole("list", { name: "Generated plans" });
+    const [first, second] = within(list).getAllByTestId("generated-plan");
+    if (!first || !second) throw new Error("expected two results");
+    await user.hover(second);
+    expect(useUi.getState().previewPlan?.label).toBe("Option 2");
+    expect(screen.getByText("Previewing Option 2.")).toBeVisible();
+    await user.hover(first);
+    expect(useUi.getState().previewPlan?.label).toBe("Option 1");
+    await user.unhover(first);
+    expect(useUi.getState().previewPlan).toBeNull();
+    // Nothing is saved or opened by looking.
+    expect(currentView().drill).toBeNull();
+  });
+
+  it("says what the checkboxes do before any is ticked", async () => {
+    const { user } = await renderGenerate();
+    act(() => setCourses("CMSC351", "CMSC330", "STAT400"));
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    await screen.findByRole("list", { name: "Generated plans" });
+    expect(
+      screen.getByText(/^Tick plans to save several at once/),
+    ).toBeVisible();
+    await user.click(screen.getByRole("checkbox", { name: "Select Option 1" }));
+    expect(screen.queryByText(/^Tick plans to save several/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Save 1 plan" })).toBeVisible();
+  });
+
   it("saves several results at once, as one undo step", async () => {
     const { user } = await renderGenerate();
     act(() => setCourses("CMSC351", "CMSC330", "STAT400"));
@@ -289,6 +368,7 @@ describe("Generate", () => {
 
   it("keeps what was asked above the results, and edits it in the form", async () => {
     const { user } = await renderGenerate();
+    emptyForm();
     await addCourse(user, "CMSC351");
     await user.click(screen.getByRole("button", { name: "Generate plans" }));
     await screen.findByRole("list", { name: "Generated plans" });
@@ -343,6 +423,13 @@ describe("Generate", () => {
     act(() => setCourses("ENGL101"));
     await user.click(screen.getByRole("button", { name: "Generate plans" }));
     const list = await screen.findByRole("list", { name: "Generated plans" });
+    // The ×N chip explains itself with a real tooltip, not a native title.
+    const chip = within(list).getAllByText(/^×\d+$/)[0] as HTMLElement;
+    expect(chip).not.toHaveAttribute("title");
+    await user.hover(chip);
+    expect(
+      (await screen.findAllByText(/ways to get this same week/))[0],
+    ).toBeInTheDocument();
     await user.click(within(list).getAllByRole("button")[0] as HTMLElement);
     const changes = screen.getByRole("list", { name: "Changes from Plan A" });
     const row = within(changes)
@@ -427,6 +514,7 @@ describe("Generate", () => {
 
   it("adds a wildcard from a typed pattern, asks for more, and takes one away", async () => {
     const { user } = await renderGenerate();
+    emptyForm();
     await user.click(courseField());
     await user.keyboard("cmsc4xx");
     const list = await screen.findByRole("listbox", {

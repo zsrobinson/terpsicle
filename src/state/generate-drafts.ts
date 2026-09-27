@@ -1,8 +1,10 @@
 import { create } from "zustand";
+import { planCourseItems } from "~/core/generate/draft";
 import {
   DEFAULT_MUST_HAVES,
   type GenerateDraft,
   type GenerateDrafts,
+  type Plan,
   type TermId,
 } from "~/core/schema";
 
@@ -28,10 +30,21 @@ export const useGenerateDrafts = create<GenerateDraftsState>()((set, get) => ({
     set({ drafts: { ...get().drafts, [termId]: draft } }),
 }));
 
-/** A term's draft, or an empty one. */
+/**
+ * A term's draft. Before the person has touched the form, it starts with
+ * the open plan's courses (QA S16: an empty form with a disabled button
+ * read as broken to someone with a plan). The prefill is never stored, so
+ * it follows the plan until the first edit, and a saved draft, even one
+ * emptied on purpose, always wins: it can't replace a list someone built.
+ */
 export function draftFor(
   drafts: GenerateDrafts,
   termId: TermId,
+  plan: Pick<Plan, "termId" | "courses"> | null = null,
 ): GenerateDraft {
-  return drafts[termId] ?? EMPTY_DRAFT;
+  const saved = drafts[termId];
+  if (saved) return saved;
+  if (!plan || plan.termId !== termId || plan.courses.length === 0)
+    return EMPTY_DRAFT;
+  return { ...EMPTY_DRAFT, items: planCourseItems(plan.courses) };
 }

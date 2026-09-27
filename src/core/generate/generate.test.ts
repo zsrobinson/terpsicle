@@ -544,21 +544,23 @@ describe("scoring", () => {
       keepViolations: false,
     });
 
-  it("treats a merged group as its best member", () => {
+  it("treats a merged group as its best member, and saves the one with the most seats", () => {
     const c = course("CMSC351", [
       ["0101", ["Tu", "Th"], 600],
       ["0102", ["Tu", "Th"], 600],
     ]);
     const [g] = groups(c);
-    expect(g?.sections.map((s) => s.code)).toEqual(["0101", "0102"]);
-    expect(g).toMatchObject({ openSeats: 15, rating: 4.5, gpa: 3.2 });
+    // 0102 has more open seats, so it's the one a saved plan gets, and the
+    // seats shown are its own, not the group's total (QA S1).
+    expect(g?.sections.map((s) => s.code)).toEqual(["0102", "0101"]);
+    expect(g).toMatchObject({ openSeats: 9, rating: 4.5, gpa: 3.2 });
     if (!g) throw new Error("expected a group");
     expect(planStats([g])).toMatchObject({
       daysOnCampus: 2,
       firstClass: 600,
       lastClass: 650,
       avgRating: 4.5,
-      fewestOpenSeats: 15,
+      fewestOpenSeats: 9,
     });
     const breakdown = scoreBreakdown([g]);
     expect(breakdown["best-rated"]).toBeCloseTo(0.875);
@@ -589,6 +591,65 @@ describe("scoring", () => {
         },
       }),
     ).toBeGreaterThan(0);
+  });
+
+  it("never saves a full section when a same-time one has seats", () => {
+    const c = course("ENGL101", [
+      ["0401", ["M", "W"], 660],
+      ["0402", ["M", "W"], 660],
+      ["0403", ["M", "W"], 660],
+    ]);
+    const [g] = candidateGroups(c, {
+      mustHaves: DEFAULT_MUST_HAVES,
+      blocks: [],
+      seats: {
+        "ENGL101-0401": aSeatTuple({ open: 0, waitlist: 6 }),
+        "ENGL101-0402": aSeatTuple({ open: 5 }),
+        "ENGL101-0403": aSeatTuple({ open: 7 }),
+      },
+      quality: new Map(),
+      only: null,
+      keepViolations: false,
+    });
+    expect(g?.sections.map((s) => s.code)).toEqual(["0403", "0401", "0402"]);
+    expect(g?.openSeats).toBe(7);
+    const result = generatePlans(
+      request({ items: [required("ENGL101")] }),
+      data([c], {
+        seats: {
+          "ENGL101-0401": aSeatTuple({ open: 0, waitlist: 6 }),
+          "ENGL101-0402": aSeatTuple({ open: 5 }),
+          "ENGL101-0403": aSeatTuple({ open: 7 }),
+        },
+      }),
+    );
+    expect(result.results[0]?.sections).toEqual(["ENGL101-0403"]);
+    expect(result.results[0]?.stats.fewestOpenSeats).toBe(7);
+  });
+
+  it("keeps section order when seats tie or aren't known, and prefers unknown to full", () => {
+    const c = course("ENGL101", [
+      ["0401", ["M"], 660],
+      ["0402", ["M"], 660],
+      ["0403", ["M"], 660],
+    ]);
+    const rep = (seats: Record<string, SeatTuple> | null) =>
+      candidateGroups(c, {
+        mustHaves: DEFAULT_MUST_HAVES,
+        blocks: [],
+        seats,
+        quality: new Map(),
+        only: null,
+        keepViolations: false,
+      })[0]?.sections[0]?.code;
+    expect(rep(null)).toBe("0401");
+    expect(
+      rep({
+        "ENGL101-0401": aSeatTuple({ open: 3 }),
+        "ENGL101-0402": aSeatTuple({ open: 3 }),
+      }),
+    ).toBe("0401");
+    expect(rep({ "ENGL101-0401": aSeatTuple({ open: 0 }) })).toBe("0402");
   });
 
   it("scores gaps between classes as less compact, and online days as off campus", () => {
