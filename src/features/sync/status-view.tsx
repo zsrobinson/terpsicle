@@ -67,3 +67,29 @@ export function SyncStatusLine() {
     </WithTooltip>
   );
 }
+
+/**
+ * The line beside a page's title (Plan's header): the icon and the words,
+ * pressable like the top bar's icon. Nothing while signed out, so the page
+ * can say where things are saved instead.
+ */
+export function SyncStatusLabel({ className = "" }: { className?: string }) {
+  const { status, look, syncNow } = useSyncStatus();
+  if (status === "off" || !look) return null;
+  const { icon, label, tooltip } = look[status];
+  return (
+    <span role="status" className={`flex items-center ${className}`}>
+      <WithTooltip label={tooltip}>
+        <button
+          type="button"
+          data-sync-status={status}
+          onClick={() => syncNow?.()}
+          className="flex h-full items-center gap-1.5 rounded-md px-1 text-muted text-sm transition-colors hover:bg-hover hover:text-fg"
+        >
+          <Glyph paths={icon} size={14} />
+          {label}
+        </button>
+      </WithTooltip>
+    </span>
+  );
+}

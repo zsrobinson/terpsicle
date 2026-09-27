@@ -62,7 +62,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `push_enabled` | none | People turning on notifications on a device, from Settings. |
   | `push_disabled` | none | People turning them off there ("Turn off here"). |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
-  | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names or courses. |
+  | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans and four-year plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names, courses or grades. |
   | `account_deletion_requested` | | How often people delete their account. |
   | `reviews_page_viewed` | `page`: `home` · `instructor` · `course` | Which Reviews pages people read. Never which instructor or course. |
   | `review_form_opened` | | How often people start a review. |

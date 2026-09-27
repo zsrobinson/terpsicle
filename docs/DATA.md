@@ -257,7 +257,9 @@ The hourly `reviews-publish` job (`37 * * * *`, `src/jobs/reviews-publish.ts`) p
 
 ## 5. Browser state (IndexedDB via Dexie)
 
-Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 3.
+Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 4.
+
+**Version 4** (four-year sync, landed with `v3/four-year-sync`; `src/state/db.ts`): no table changes. `resetPullCursor` sets a signed-in device's pull cursor back to 0 once more, so it pulls the four-year docs a tab skipped between version 3 and the engine that carries them (`docs/V3.md` §2.13). `syncDocs` keys gain `four-year:<id>`.
 
 **Version 3** (Terpsicle Plan, landed with `v3/plan-ui`; `src/state/db.ts`): a `fourYear` table, one row per four-year doc (`FourYearDocSchema`, validated on read; an invalid row is skipped and logged), and a `fourYear` settings row for the open doc (`FourYearPrefsSchema`, `{activeId}`, local only). `upgradeToV3` sets a signed-in device's pull cursor (the `sync` row) back to 0, once, so it pulls the four-year docs an older tab skipped (`docs/V3.md` §2.4). Nothing else changes shape (`src/state/db.test.ts` upgrades a v2 database).
 
@@ -270,7 +272,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 3.
 | `courseColors` | `courseCode` | `CourseColorPrefSchema` |
 | `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `fourYear` → `FourYearPrefs`, Plan's open doc, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor) |
 | `fourYear` | `id` | `FourYearDocSchema` (`src/core/schema/four-year.ts`) |
-| `syncDocs` | `key` (`plan:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
+| `syncDocs` | `key` (`plan:<id>`, `four-year:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
 | `manifests` | `key` (the R2 key) | `CachedManifestSchema` |
 | `files` | `key` (the R2 key), `family`, `termId` | `CachedFileSchema` |
 
@@ -288,7 +290,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 3.
 - **Course colors are global:** one color per course code, the same in every plan and term (SPEC §3.2). A course with no row gets a color when first added to a plan (the palette color least used in that plan), and that color is written to `courseColors` so it stays stable. `COURSE_COLORS` are palette ids; the UI maps each to light and dark tints. Only append to that list.
 - **UI prefs:** open tab, sidebar open, drill target (course with its details tab, or a connection; generated results aren't restorable), theme, last term, active plan per term, and collapsed instructor groups (`<course>|<instructor name>`).
 - **Not persisted:** the undo stack, hover/preview state, search text, and generator results.
-- **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors` and the `travel` and `chatPlans` rows.
+- **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors`, `fourYear` and the `travel`, `chatPlans` and `fourYear` rows. Four-year docs are synced tables too (`docs/V3.md` §2.4).
 - **Seat watches** aren't kept in the browser: they're the signed-in person's, in D1 (§7.1), and the app holds the list in memory (`src/state/seat-watches.ts`). The one thing kept locally is a watch asked for while signed out, in `sessionStorage["terpsicle:pending-watch"]` (`{termId, sectionKey, at}`, zod-checked, 30 minutes), so the watch starts when the person comes back signed in to that tab.
 
 ### 5.1 Client catalog flow

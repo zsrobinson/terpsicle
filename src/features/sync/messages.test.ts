@@ -9,6 +9,7 @@ const firstSignIn = (
   reset: false,
   uploaded: 0,
   fromAccount: 0,
+  fourYear: { uploaded: 0, fromAccount: 0 },
   renamed: [],
   copies: [],
   ...over,
@@ -58,6 +59,47 @@ describe("syncToast", () => {
     );
   });
 
+  it("counts plans and four-year plans together", () => {
+    const both = (plans: number, fourYear: number) =>
+      firstSignIn({
+        uploaded: plans,
+        fourYear: { uploaded: fourYear, fromAccount: 0 },
+      });
+    expect(syncToast(both(3, 1))?.title).toBe(
+      "Your 3 plans and your four-year plan are saved to your account",
+    );
+    expect(syncToast(both(1, 2))?.title).toBe(
+      "Your plan and your 2 four-year plans are saved to your account",
+    );
+    expect(syncToast(both(0, 1))?.title).toBe(
+      "Your four-year plan is saved to your account",
+    );
+    expect(
+      syncToast(
+        firstSignIn({
+          uploaded: 1,
+          fromAccount: 2,
+          fourYear: { uploaded: 0, fromAccount: 1 },
+        }),
+      )?.description,
+    ).toBe("Your account's 2 other plans and its four-year plan are here too.");
+    expect(
+      syncToast(firstSignIn({ fourYear: { uploaded: 0, fromAccount: 1 } })),
+    ).toEqual({ title: "Your four-year plan from your account is here" });
+    expect(
+      syncToast(
+        firstSignIn({
+          fourYear: { uploaded: 1, fromAccount: 0 },
+          renamed: [{ from: "My plan", to: "My plan (copy)" }],
+        }),
+      ),
+    ).toEqual({
+      title: "Your four-year plan is saved to your account",
+      description:
+        "My plan was kept as My plan (copy). Your account already had one by that name.",
+    });
+  });
+
   it("stays quiet when there's nothing to say", () => {
     expect(syncToast(firstSignIn())).toBeNull();
     expect(syncToast(firstSignIn({ reset: true, uploaded: 2 }))).toBeNull();
@@ -74,8 +116,13 @@ describe("syncToast", () => {
   });
 
   it("says when the account is full", () => {
-    expect(syncToast({ kind: "too-many-plans" })?.title).toBe(
+    expect(syncToast({ kind: "too-many-plans", doc: "plan" })?.title).toBe(
       "Your account is full",
     );
+    expect(syncToast({ kind: "too-many-plans", doc: "four-year" })).toEqual({
+      title: "You have 20 four-year plans",
+      description:
+        "Delete one to make another. Until then, new ones stay on this device.",
+    });
   });
 });

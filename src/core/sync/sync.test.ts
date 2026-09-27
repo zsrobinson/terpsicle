@@ -68,6 +68,7 @@ function tables(overrides: Partial<SyncedTables> = {}): SyncedTables {
     colors: { CMSC351: "blue" },
     travel: DEFAULT_TRAVEL_SETTINGS,
     chatPlans: {},
+    fourYear: [],
     ...overrides,
   };
 }

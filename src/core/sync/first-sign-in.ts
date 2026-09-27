@@ -1,3 +1,4 @@
+import { DEFAULT_FOUR_YEAR_NAME } from "../four-year/reducer";
 import type {
   IsoDateTime,
   LocalId,
@@ -6,17 +7,20 @@ import type {
   SettingsSyncDoc,
   TermId,
 } from "../schema";
+import type { FourYearDoc } from "../schema/four-year";
 import {
   conflictCopyName,
   mergeSettings,
   nextOrder,
+  sameFourYearContent,
   samePlanContent,
 } from "./conflict";
 import {
+  type DeviceSyncDoc,
   type DocKey,
   docKeyOf,
+  fourYearDocKey,
   planDocKey,
-  type ScheduleSyncDoc,
   SETTINGS_DOC_KEY,
   type SyncedTables,
   settingsDocOf,
@@ -39,11 +43,27 @@ export function isUntouchedPlan(plan: Plan): boolean {
   return plan.courses.length === 0 && DEFAULT_NAME.test(plan.name);
 }
 
+const DEFAULT_FOUR_YEAR = new RegExp(`^${DEFAULT_FOUR_YEAR_NAME}(?: \\d+)?$`);
+
+/**
+ * A four-year doc nobody has put anything in: the reducer's default name
+ * ("My plan", "My plan 2"), no entries, no grades, no template. It isn't
+ * uploaded to an account that already has a four-year plan (V3 §2.4).
+ */
+export function isUntouchedFourYear(doc: FourYearDoc): boolean {
+  return (
+    doc.entries.length === 0 &&
+    Object.keys(doc.grades).length === 0 &&
+    doc.template === null &&
+    DEFAULT_FOUR_YEAR.test(doc.name)
+  );
+}
+
 export interface FirstSignInInput<T extends SyncedTables> {
   /** This device's tables. */
   local: T;
   /** A full pull: every doc on the account, tombstones included. */
-  server: readonly ScheduleSyncDoc[];
+  server: readonly DeviceSyncDoc[];
   /** The cursor that pull returned. */
   cursor: Rev;
   /** Mints ids for copies (only needed when a plan is already on the account and differs). */
@@ -62,11 +82,23 @@ export interface FirstSignInResult<T extends SyncedTables> {
   copies: { id: LocalId; of: LocalId }[];
   /** Untouched auto-made plans left out (`isUntouchedPlan`). */
   skipped: LocalId[];
+  /** The same for four-year docs; `skipped` holds untouched ones (`isUntouchedFourYear`). */
+  fourYear: {
+    uploaded: LocalId[];
+    renamed: { id: LocalId; from: string; to: string }[];
+    copies: { id: LocalId; of: LocalId }[];
+    skipped: LocalId[];
+  };
 }
 
 function byTermAndOrder(a: Plan, b: Plan): number {
   if (a.termId !== b.termId) return a.termId < b.termId ? -1 : 1;
   if (a.order !== b.order) return a.order - b.order;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+function byCreation(a: FourYearDoc, b: FourYearDoc): number {
+  if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
@@ -81,9 +113,13 @@ function byTermAndOrder(a: Plan, b: Plan): number {
  * - the settings doc keeps the account's values for keys both sides have and
  *   adds what only this device has (`mergeSettings` with no base).
  *
- * The only thing left out is an untouched auto-made plan in a term where the
- * account already has plans. The result doesn't depend on the order of the
- * plans in either input.
+ * Four-year docs join the same way, with the list of four-year docs as
+ * their one "term" (V3 §2.4).
+ *
+ * The only things left out are an untouched auto-made plan in a term where
+ * the account already has plans, and an untouched "My plan" when the account
+ * already has a four-year plan. The result doesn't depend on the order of
+ * the plans in either input.
  */
 export function firstSignInUnion<T extends SyncedTables>(
   input: FirstSignInInput<T>,
@@ -92,11 +128,16 @@ export function firstSignInUnion<T extends SyncedTables>(
   const docs: Partial<Record<DocKey, DocSync>> = {};
   const serverPlans = new Map<LocalId, Plan>();
   const tombstones = new Map<LocalId, Rev>();
+  const serverFourYear = new Map<LocalId, FourYearDoc>();
+  const fourYearTombstones = new Map<LocalId, Rev>();
   let serverSettings: SettingsSyncDoc | undefined;
   for (const doc of input.server) {
     docs[docKeyOf(doc)] = { rev: doc.rev, dirty: false, inFlight: false };
     if (doc.kind === "settings") serverSettings = doc;
-    else if (doc.body === null) tombstones.set(doc.id, doc.rev);
+    else if (doc.kind === "four-year") {
+      if (doc.body === null) fourYearTombstones.set(doc.id, doc.rev);
+      else serverFourYear.set(doc.id, doc.body);
+    } else if (doc.body === null) tombstones.set(doc.id, doc.rev);
     else serverPlans.set(doc.id, doc.body);
   }
 
@@ -111,6 +152,7 @@ export function firstSignInUnion<T extends SyncedTables>(
     renamed: [],
     copies: [],
     skipped: [],
+    fourYear: { uploaded: [], renamed: [], copies: [], skipped: [] },
   };
   const upload = (plan: Plan) => {
     out.push(plan);
@@ -163,6 +205,16 @@ export function firstSignInUnion<T extends SyncedTables>(
     result.uploaded.push(plan.id);
   }
 
+  const fourYear = fourYearUnion({
+    local: local.fourYear,
+    server: serverFourYear,
+    tombstones: fourYearTombstones,
+    docs,
+    result: result.fourYear,
+    newId: input.newId,
+    now,
+  });
+
   // A chat plan choice for a plan that was left out would point at nothing.
   const skipped = new Set(result.skipped);
   const localSettings = settingsDocOf(local);
@@ -185,6 +237,62 @@ export function firstSignInUnion<T extends SyncedTables>(
   };
 
   const plans = out.sort(byTermAndOrder);
-  const tables = withSettingsDoc({ ...local, plans }, settings);
+  const tables = withSettingsDoc({ ...local, plans, fourYear }, settings);
   return { ...result, tables, sync: { cursor: input.cursor, docs } };
+}
+
+/** `firstSignInUnion`'s four-year half: every doc is in one list, and names clash across it. */
+function fourYearUnion(input: {
+  local: readonly FourYearDoc[];
+  server: ReadonlyMap<LocalId, FourYearDoc>;
+  tombstones: ReadonlyMap<LocalId, Rev>;
+  docs: Partial<Record<DocKey, DocSync>>;
+  result: FirstSignInResult<SyncedTables>["fourYear"];
+  newId: () => LocalId;
+  now: IsoDateTime;
+}): FourYearDoc[] {
+  const { result, now } = input;
+  const out: FourYearDoc[] = [...input.server.values()];
+  const accountHasOne = out.length > 0;
+  const avoid = () => [
+    ...out.map((d) => d.name),
+    ...input.local.map((d) => d.name),
+  ];
+  const upload = (doc: FourYearDoc) => {
+    out.push(doc);
+    input.docs[fourYearDocKey(doc.id)] = {
+      rev: input.tombstones.get(doc.id) ?? 0,
+      dirty: true,
+      inFlight: false,
+    };
+  };
+  for (const doc of [...input.local].sort(byCreation)) {
+    const onAccount = input.server.get(doc.id);
+    if (onAccount) {
+      if (sameFourYearContent(onAccount, doc)) continue;
+      const copy: FourYearDoc = {
+        ...doc,
+        id: input.newId(),
+        name: conflictCopyName(doc.name, avoid()),
+        createdAt: now,
+        updatedAt: now,
+      };
+      upload(copy);
+      result.copies.push({ id: copy.id, of: doc.id });
+      continue;
+    }
+    if (accountHasOne && isUntouchedFourYear(doc)) {
+      result.skipped.push(doc.id);
+      continue;
+    }
+    const clash = out.some((d) => d.name === doc.name);
+    const next: FourYearDoc = clash
+      ? { ...doc, name: conflictCopyName(doc.name, avoid()), updatedAt: now }
+      : doc;
+    if (clash)
+      result.renamed.push({ id: doc.id, from: doc.name, to: next.name });
+    upload(next);
+    result.uploaded.push(doc.id);
+  }
+  return out.sort(byCreation);
 }

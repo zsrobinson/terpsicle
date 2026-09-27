@@ -80,7 +80,7 @@ _Avoid_: alert, push (in UI; code says push for the web push channel)
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
 
 **Sync**:
-Keeping a signed-in person's plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)".
+Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)".
 
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.

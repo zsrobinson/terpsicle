@@ -1,4 +1,8 @@
-import type { DocKey, SyncedTables } from "~/core/sync";
+import {
+  changedFourYearKeys,
+  type DocKey,
+  type SyncedTables,
+} from "~/core/sync";
 import type { WorkspaceState } from "~/state/workspace-store";
 import { SyncEngine, type SyncNotice } from "./engine";
 import { syncToast } from "./messages";
@@ -9,10 +13,11 @@ import type { SyncStatus } from "./status";
 import { dexieSyncStorage, type SyncStorage } from "./storage";
 import { SYNC_STATUS_LOOK } from "./view";
 
-// Plan sync in the scheduler: the lazy chunk the app loads once /api/me says
-// someone is signed in, so signed-out visitors download none of it. Wires
-// the engine to IndexedDB, the workspace store, the page's events and the
-// browser's other tabs. Everything from the scheduler comes in `SyncHost`.
+// Plan sync on a page: the lazy chunk the scheduler (and Plan, for its
+// four-year docs) loads once /api/me says someone is signed in, so signed-out
+// visitors download none of it. Wires the engine to IndexedDB, the page's
+// store, the page's events and the browser's other tabs. Everything from the
+// page comes in `SyncHost`.
 
 export type { SyncHost } from "./running";
 
@@ -22,6 +27,9 @@ const SYNC_RESET_KEY = "terpsicle:sync-reset";
 let current: { userId: string; host: SyncHost; teardown: () => void } | null =
   null;
 
+/** The scheduler doesn't hold four-year docs: sync leaves them to IndexedDB. */
+const NO_FOUR_YEAR = [] as const;
+
 function tablesOf(s: WorkspaceState): SyncedTables {
   return {
     plans: s.plans,
@@ -29,14 +37,16 @@ function tablesOf(s: WorkspaceState): SyncedTables {
     colors: s.colors,
     travel: s.travel,
     chatPlans: s.chatPlans,
+    fourYear: NO_FOUR_YEAR,
   };
 }
 
 function notifier(host: SyncHost) {
   return (notice: SyncNotice): void => {
     if (notice.kind === "first-sign-in" && !notice.reset)
+      // Counts only, plans and four-year plans together: never names or grades.
       host.trackFirstSignIn({
-        uploaded: notice.uploaded,
+        uploaded: notice.uploaded + notice.fourYear.uploaded,
         renamed: notice.renamed.length,
         copies: notice.copies.length,
       });
@@ -62,7 +72,7 @@ async function resetIfSignedOut(storage: SyncStorage): Promise<void> {
   }
 }
 
-/** Starts syncing the scheduler's workspace with `userId`'s account. */
+/** Starts syncing the page's store (the scheduler's or Plan's) with `userId`'s account. */
 export function startSync(host: SyncHost, userId: string): void {
   if (current?.userId === userId && current.host === host) return;
   stopSync();
@@ -79,7 +89,8 @@ export function startSync(host: SyncHost, userId: string): void {
     apply: (change) => {
       applying = true;
       try {
-        applyRemoteChange(host.workspace, change);
+        if (host.workspace) applyRemoteChange(host.workspace, change);
+        else if (change.fourYear?.length) host.fourYear.apply(change.fourYear);
       } finally {
         applying = false;
       }
@@ -101,10 +112,15 @@ export function startSync(host: SyncHost, userId: string): void {
     isVisible: () => document.visibilityState === "visible",
   });
 
-  const stopEdits = host.workspace.subscribe((next, prev) => {
-    if (applying || !next.hydrated || !prev.hydrated) return;
-    engine.noteEdit(tablesOf(prev), tablesOf(next));
-  });
+  const stopEdits = host.workspace
+    ? host.workspace.subscribe((next, prev) => {
+        if (applying || !next.hydrated || !prev.hydrated) return;
+        engine.noteEdit(tablesOf(prev), tablesOf(next));
+      })
+    : host.fourYear.subscribe((prev, next) => {
+        if (applying) return;
+        engine.noteEditedDocs(changedFourYearKeys(prev, next));
+      });
   const onVisible = () => {
     if (document.visibilityState === "visible") void engine.sync();
   };
@@ -150,7 +166,9 @@ export function startSync(host: SyncHost, userId: string): void {
     });
 }
 
-export function stopSync(): void {
+/** Stops syncing; with `host`, only if that page's engine is the one running. */
+export function stopSync(host?: SyncHost): void {
+  if (host && current?.host !== host) return;
   current?.teardown();
   current = null;
 }

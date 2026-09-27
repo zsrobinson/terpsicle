@@ -40,6 +40,13 @@ export const useFourYearFacts = create<CatalogFacts>()(() => ({
 }));
 
 let started: Promise<void> | null = null;
+/** The page's database, once open; null before, or when the browser refuses it. */
+let pageDb: TerpsicleDb | null = null;
+
+/** The database Plan's docs live in, for sync (./sync.ts). */
+export function fourYearDb(): TerpsicleDb | null {
+  return pageDb;
+}
 
 async function openDb(): Promise<TerpsicleDb | null> {
   try {
@@ -69,13 +76,20 @@ async function loadFacts(reader: ReturnType<typeof createDataReader>) {
 
 /**
  * Opens the docs and the course index, once per page. Tests pass the
- * fixtures' bucket as `source`; the app reads the configured one.
+ * fixtures' bucket as `source`; the app reads the configured one. Coming
+ * back to Plan later in the same page reads the docs again, since the
+ * scheduler's sync may have changed them in IndexedDB meanwhile.
  */
 export function startFourYear(
   options: { source?: DataSource } = {},
 ): Promise<void> {
-  started ??= (async () => {
+  // Read again even if the first start failed partway (the course index),
+  // or sync would start over a stale store.
+  if (started)
+    return started.catch(() => {}).then(() => useFourYear.getState().refresh());
+  started = (async () => {
     const db = await openDb();
+    pageDb = db;
     const docs = useFourYear.getState().start(db);
     const source = options.source ?? (await createDataSource(clientConfig));
     useCourseIndex.getState().connect(source, {
@@ -95,6 +109,7 @@ export function startFourYear(
 /** Forgets the page's start (tests). */
 export function resetFourYearStart(): void {
   started = null;
+  pageDb = null;
 }
 
 /** The departments a doc's courses come from. */

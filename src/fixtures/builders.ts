@@ -27,6 +27,7 @@ import {
   DEFAULT_TRAVEL_SETTINGS,
   type DeptChunk,
   type FeedItem,
+  type FourYearSyncDoc,
   type GenerateRequest,
   GRADE_KEYS,
   type GradeCounts,
@@ -419,6 +420,27 @@ export function aPlanSyncDoc(
   return {
     kind: "plan",
     id: body?.id ?? "plan_fixture_a",
+    rev: 1,
+    updatedAt: FIXTURE_NOW,
+    ...overrides,
+    body,
+  };
+}
+
+/**
+ * A four-year doc as the server returns it, at rev 1, its body already a
+ * whole `FourYearDoc` (as the device reads it). Its id follows the body's;
+ * pass `body: null` and an `id` for a tombstone.
+ */
+export function aFourYearSyncDoc(
+  overrides: Partial<Omit<FourYearSyncDoc, "body">> & {
+    body?: FourYearDoc | null;
+  } = {},
+): Omit<FourYearSyncDoc, "body"> & { body: FourYearDoc | null } {
+  const body = overrides.body === undefined ? aFourYear() : overrides.body;
+  return {
+    kind: "four-year",
+    id: body?.id ?? "fouryear_fixture_a",
     rev: 1,
     updatedAt: FIXTURE_NOW,
     ...overrides,
