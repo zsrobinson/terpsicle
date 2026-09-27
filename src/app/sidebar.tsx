@@ -1,6 +1,9 @@
+import { type AnyRoute, useRouter } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ChevronLeft } from "lucide-react";
 import {
+  type ComponentType,
+  lazy,
   type ReactNode,
   type RefObject,
   Suspense,
@@ -8,29 +11,76 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  CONNECTION_PATH,
+  COURSE_PATH,
+  RESULT_PATH,
+  TAB_PATHS,
+} from "~/core/routing/schedule-location";
 import type { RailTab } from "~/core/schema";
-import type { DrillEntry } from "~/state/drill";
-import { useUi } from "~/state/ui-store";
+import { ScheduleHistoryStateSchema } from "~/core/schema/schedule-url";
+import type { DrillEntry, DrillKind } from "~/state/drill";
 import { WithTooltip } from "~/ui/tooltip";
 import { goBack } from "./actions";
+import { DrillEntryProvider } from "./drill-entry";
 import { PanelSkeleton } from "./panel";
 import { PanelLoadBoundary } from "./panel-load-boundary";
-import { drillViewFor, type PanelRegistry, usePanelRegistry } from "./registry";
+import { drillMono, drillName, useLatestLocation } from "./schedule-view";
 import { useShortcut } from "./shortcuts";
+import { useSidebarStack } from "./sidebar-stack";
 import { tabById } from "./tabs";
 
-// One panel at a time, with drill-in views stacked over it (SPEC §2). Every
+// One panel at a time, with drill-in views stacked over it (SPEC §2). Each
+// tab and drill-in is a route; the sidebar shows its route's component (the
+// router splits each into its own chunk and preloads it on intent). Every
 // tab panel visited stays mounted (hidden) and so does every drill level
 // under the top one, so going back returns to exactly where you were: scroll
-// position, search text, open groups. A drill-in's header has one Back, the
-// same as the browser's (src/app/README.md, "URL state").
+// position, search text, open groups. That's why there's no <Outlet />,
+// which would unmount them. A drill-in's header has one Back, the same as
+// the browser's (src/app/README.md, "URL state").
+
+const DRILL_PATHS: Record<DrillKind, string> = {
+  course: COURSE_PATH,
+  connection: CONNECTION_PATH,
+  "generated-plan": RESULT_PATH,
+};
+
+/** Route components already wrapped to wait for their chunk. */
+const waiting = new WeakMap<ComponentType, ComponentType>();
+
+/**
+ * A route's component. The router splits it into its own chunk (`preload`
+ * loads it); the router's own <Outlet /> waits for that before rendering,
+ * so here React.lazy does, showing the skeleton meanwhile. Once wrapped,
+ * always wrapped, so a view never remounts when its chunk arrives.
+ */
+function useRouteComponent(id: string): ComponentType | undefined {
+  const router = useRouter();
+  const route = (router.routesById as unknown as Record<string, AnyRoute>)[id];
+  const component = route?.options.component as
+    | (ComponentType & { preload?: () => Promise<unknown> })
+    | undefined;
+  if (!component) return undefined;
+  const wrapped = waiting.get(component);
+  if (wrapped) return wrapped;
+  const preload = component.preload;
+  if (!preload) return component;
+  const lazyView = lazy(async () => {
+    // A failed chunk is thrown by the component itself, to the boundary.
+    await preload();
+    return { default: component };
+  });
+  waiting.set(component, lazyView);
+  return lazyView;
+}
 
 export const SIDEBAR_PANEL_ID = "sidebar-panel";
 
 export function SidebarContent() {
-  const tab = useUi((s) => s.tab);
-  const stack = useUi((s) => s.stack);
-  const registry = usePanelRegistry();
+  const {
+    view: { tab },
+    stack,
+  } = useSidebarStack();
   const [visited, setVisited] = useState<readonly RailTab[]>([tab]);
 
   useEffect(() => {
@@ -55,7 +105,7 @@ export function SidebarContent() {
 
   const shownTabs = visited.includes(tab) ? visited : [...visited, tab];
   const containerRef = useRef<HTMLDivElement>(null);
-  useDrillFocus(containerRef);
+  useDrillFocus(containerRef, stack);
 
   return (
     <div
@@ -65,7 +115,7 @@ export function SidebarContent() {
     >
       {shownTabs.map((t) => (
         <Layer key={t} active={t === tab && stack.length === 0}>
-          <TabPanel tab={t} registry={registry} />
+          <TabPanel tab={t} />
         </Layer>
       ))}
       {stack.map((entry, depth) => (
@@ -78,14 +128,9 @@ export function SidebarContent() {
             .join("/")}
           active={depth === stack.length - 1}
           animate
-          label={nameFor(registry, entry)}
+          label={drillName(entry)}
         >
-          <DrillLayer
-            tab={tab}
-            stack={stack}
-            depth={depth}
-            registry={registry}
-          />
+          <DrillLayer tab={tab} stack={stack} depth={depth} />
         </Layer>
       ))}
     </div>
@@ -98,38 +143,52 @@ export function SidebarContent() {
  * search result, section row or calendar block. Opening with nothing focused
  * (a restored or deep-linked drill-in) leaves focus alone.
  */
-function useDrillFocus(containerRef: RefObject<HTMLDivElement | null>) {
+function useDrillFocus(
+  containerRef: RefObject<HTMLDivElement | null>,
+  stack: readonly DrillEntry[],
+) {
   // What had focus when each level opened, by depth.
   const openers = useRef<(Element | null)[]>([]);
-  const pending = useRef<"into" | "back" | null>(null);
-  const stack = useUi((s) => s.stack);
-
+  // Focus as the URL moved: the history tells its subscribers at once, while
+  // focus is still on the control that opened (or closed) the level; the
+  // views change a moment later, once the route has loaded.
+  const atMove = useRef<{ focused: Element | null; inside: boolean }>({
+    focused: null,
+    inside: false,
+  });
+  const router = useRouter();
   useEffect(
     () =>
-      // Store changes are synchronous, so focus is still on the control
-      // that opened (or closed) the level.
-      useUi.subscribe((s, prev) => {
+      router.history.subscribe(() => {
         const focused = document.activeElement;
         const somewhere = focused !== null && focused !== document.body;
-        const inside = containerRef.current?.contains(focused) ?? false;
-        if (s.stack.length > prev.stack.length) {
-          openers.current[s.stack.length - 1] = somewhere ? focused : null;
-          pending.current = somewhere ? "into" : null;
-        } else if (s.stack.length < prev.stack.length) {
-          openers.current.length = s.stack.length + 1;
-          // A rail tab or shortcut from outside keeps focus where it is.
-          pending.current = inside || !somewhere ? "back" : null;
-        } else if (inside && !sameView(s.stack.at(-1), prev.stack.at(-1))) {
-          // Replaced by a different view; a sub-tab change keeps focus.
-          pending.current = "into";
-        }
+        atMove.current = {
+          focused: somewhere ? focused : null,
+          inside: containerRef.current?.contains(focused) ?? false,
+        };
       }),
-    [containerRef],
+    [router, containerRef],
   );
 
+  const previous = useRef(stack);
   useEffect(() => {
-    const move = pending.current;
-    pending.current = null;
+    const prev = previous.current;
+    previous.current = stack;
+    if (prev === stack) return;
+    const { focused, inside } = atMove.current;
+    atMove.current = { focused: null, inside: false };
+    let move: "into" | "back" | null = null;
+    if (stack.length > prev.length) {
+      openers.current[stack.length - 1] = focused;
+      move = focused ? "into" : null;
+    } else if (stack.length < prev.length) {
+      openers.current.length = stack.length + 1;
+      // A rail tab or shortcut from outside keeps focus where it is.
+      move = inside || !focused ? "back" : null;
+    } else if (inside && !sameView(stack.at(-1), prev.at(-1))) {
+      // Replaced by a different view; a sub-tab change keeps focus.
+      move = "into";
+    }
     const container = containerRef.current;
     if (!move || !container) return;
     const active = container.querySelector<HTMLElement>(
@@ -197,17 +256,11 @@ function Layer({
   );
 }
 
-function TabPanel({
-  tab,
-  registry,
-}: {
-  tab: RailTab;
-  registry: PanelRegistry;
-}) {
-  const Panel = registry.tabs[tab];
+function TabPanel({ tab }: { tab: RailTab }) {
+  const Panel = useRouteComponent(TAB_PATHS[tab]);
   const skeleton = <PanelSkeleton title={tabById(tab).label} />;
   if (!Panel) return skeleton;
-  // Tabs past the first few load on first use (lazy-panel.tsx).
+  // A tab's route chunk loads on first use; the skeleton shows meanwhile.
   return (
     <PanelLoadBoundary title={tabById(tab).label}>
       <Suspense fallback={skeleton}>
@@ -221,61 +274,42 @@ function DrillLayer({
   tab,
   stack,
   depth,
-  registry,
 }: {
   tab: RailTab;
   stack: readonly DrillEntry[];
   depth: number;
-  registry: PanelRegistry;
 }) {
   const entry = stack[depth];
+  const View = useRouteComponent(DRILL_PATHS[entry?.kind ?? "course"]);
   if (!entry) return null;
-  const view = drillViewFor(registry, entry);
-  const View = view?.component;
   const under = stack[depth - 1];
+  const name = drillName(entry);
   return (
     <>
       <BackBar
         entry={entry}
         under={
           under
-            ? {
-                label: nameFor(registry, under),
-                mono: monoFor(registry, under),
-              }
+            ? { label: drillName(under), mono: drillMono(under) }
             : { label: tabById(tab).label, mono: false }
         }
         active={depth === stack.length - 1}
-        registry={registry}
       />
       <div className="flex min-h-0 flex-1 flex-col">
         {View ? (
-          <PanelLoadBoundary title={nameFor(registry, entry)}>
-            <Suspense
-              fallback={<PanelSkeleton title={nameFor(registry, entry)} />}
-            >
-              <View entry={entry} />
+          <PanelLoadBoundary title={name}>
+            <Suspense fallback={<PanelSkeleton title={name} />}>
+              <DrillEntryProvider entry={entry}>
+                <View />
+              </DrillEntryProvider>
             </Suspense>
           </PanelLoadBoundary>
         ) : (
-          <PanelSkeleton title={nameFor(registry, entry)} />
+          <PanelSkeleton title={name} />
         )}
       </div>
     </>
   );
-}
-
-/** A drill-in's short name: "CMSC351", "Connection", "Option 3". */
-export function nameFor(registry: PanelRegistry, entry: DrillEntry): string {
-  const view = drillViewFor(registry, entry);
-  if (view) return view.name(entry);
-  if (entry.kind === "course") return entry.courseCode;
-  return "Details";
-}
-
-/** Whether a drill-in's name is set in Geist Mono (codes). */
-export function monoFor(registry: PanelRegistry, entry: DrillEntry): boolean {
-  return drillViewFor(registry, entry)?.monoName ?? entry.kind === "course";
 }
 
 /**
@@ -287,17 +321,18 @@ function BackBar({
   entry,
   under,
   active,
-  registry,
 }: {
   entry: DrillEntry;
   /** Where Back goes without history to follow: the level under this one. */
   under: { label: string; mono: boolean };
   active: boolean;
-  registry: PanelRegistry;
 }) {
-  const fromHistory = useUi((s) => (active ? s.historyBack : null));
-  const name = nameFor(registry, entry);
-  const to = fromHistory ?? under;
+  // The entry before this one, when it's the app's, labels Back.
+  const state = useLatestLocation().state;
+  const { backLabel, backMono } = ScheduleHistoryStateSchema.parse(state);
+  const name = drillName(entry);
+  const to =
+    active && backLabel ? { label: backLabel, mono: backMono ?? false } : under;
   // From one plan's CMSC351 back to another's: "Back", not "CMSC351".
   const same = to.label === name;
   return (
@@ -325,7 +360,7 @@ function BackBar({
         aria-current="page"
         className={cn(
           "min-w-0 truncate font-medium text-base",
-          monoFor(registry, entry) && "font-mono",
+          drillMono(entry) && "font-mono",
         )}
       >
         {name}

@@ -1,10 +1,18 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { currentView, openDrill } from "~/app/schedule-nav";
+import type { ShellRoutes } from "~/app/test-utils";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { useCatalog } from "~/state/catalog-store";
 import { useUi } from "~/state/ui-store";
-import { panels } from "./panels";
+import { ConnectionDetails } from "./connection-details";
+import { TravelPanel } from "./travel-panel";
+
+const panels: ShellRoutes = {
+  tabs: { travel: TravelPanel },
+  drills: { connection: ConnectionDetails },
+};
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 
@@ -19,7 +27,7 @@ async function openConnection(connectionId: string) {
   const view = await renderPlanTab([panels], "travel");
   await act(async () => {
     await useCatalog.getState().ensureCampus();
-    useUi.getState().drill({ kind: "connection", connectionId });
+    openDrill({ kind: "connection", connectionId });
   });
   return view;
 }
@@ -85,7 +93,7 @@ describe("connection details", () => {
     );
     await user.click(screen.getByRole("switch", { name: /Accessible routes/ }));
     act(() =>
-      useUi.getState().drill({
+      openDrill({
         kind: "connection",
         connectionId: WITH_ROUTE,
       }),
@@ -125,7 +133,7 @@ describe("connection details", () => {
     ).toBe("0201");
     expect(await screen.findByText("Switched STAT400 to 0201")).toBeVisible();
     // The connection it described is gone, so the details close.
-    expect(useUi.getState().stack).toEqual([]);
+    expect(currentView().drill).toBeNull();
     expect(useUi.getState().previewSection).toBeNull();
   });
 

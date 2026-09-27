@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { track } from "~/app/analytics";
+import { useDrillEntry } from "~/app/drill-entry";
 import { MessageText } from "~/app/message-text";
 import { ListRow, PanelBody, PanelFooter, SectionHeader } from "~/app/panel";
-import type { DrillViewProps } from "~/app/registry";
+import { closeDrill } from "~/app/schedule-nav";
 import { wildcardFromId, wildcardLabel } from "~/core/catalog";
 import { changesFrom, type PlanChange } from "~/core/generate/result-plan";
 import { planProblems } from "~/core/problems";
@@ -26,12 +27,6 @@ import { coursesOf, saveResults } from "./save";
 // calendar previews it while this is open; here is what changes from the
 // open plan and its problems, with Save as new plan in the footer.
 
-declare module "~/state/drill" {
-  interface DrillViews {
-    "generated-plan": { resultId: string };
-  }
-}
-
 /** The result and its rank in the latest run, if it's still there. */
 function useResult(resultId: string) {
   const status = useGenerateRun((s) => s.status);
@@ -41,14 +36,6 @@ function useResult(resultId: string) {
     const result = status.result.results[i];
     return result ? { result, rank: i + 1, request: status.request } : null;
   }, [status, resultId]);
-}
-
-/** Its name, on its Back button and the next view's: "Option 3". */
-export function resultName(resultId: string): string {
-  const { status } = useGenerateRun.getState();
-  if (status.kind !== "done") return "Plan";
-  const i = status.result.results.findIndex((r) => r.id === resultId);
-  return i >= 0 ? optionLabel(i + 1) : "Plan";
 }
 
 /** The section side of a change row: "0101 → 0312", "added 0201". */
@@ -138,7 +125,9 @@ function SameTimesRow({
   );
 }
 
-export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
+/** A generated plan's drill-in (`/schedule/result/$resultId`). */
+export function ResultDetails() {
+  const entry = useDrillEntry("generated-plan");
   const found = useResult(entry.resultId);
   const current = useCurrentPlan();
   const catalog = useTermCatalog(found?.request.termId ?? null);
@@ -334,7 +323,7 @@ export function ResultDetails({ entry }: DrillViewProps<"generated-plan">) {
             onClick={() => {
               saveResults([result], request);
               useUi.getState().setPreviewPlan(null);
-              useUi.getState().back();
+              closeDrill();
             }}
           >
             Save as new plan

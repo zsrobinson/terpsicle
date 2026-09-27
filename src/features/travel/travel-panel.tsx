@@ -11,6 +11,7 @@ import {
   PanelHeader,
   SectionHeader,
 } from "~/app/panel";
+import { useScheduleView } from "~/app/schedule-view";
 import {
   type Connection,
   parseSectionKey,
@@ -25,7 +26,6 @@ import {
   useTermCatalog,
   useTravel,
 } from "~/state/hooks";
-import { useUi } from "~/state/ui-store";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openConnection } from "./actions";
@@ -119,10 +119,8 @@ function Connections() {
   const current = useCurrentPlan();
   const catalog = useTermCatalog(current?.termId ?? null);
   const campusState = useCampus().state;
-  const openId = useUi((s) => {
-    const top = s.stack.at(-1);
-    return top?.kind === "connection" ? top.connectionId : null;
-  });
+  const top = useScheduleView().drill;
+  const openId = top?.kind === "connection" ? top.connectionId : null;
   const placed = current?.plan.courses.some((c) => c.sectionCode !== null);
   const loading =
     (placed && !catalog?.complete) ||

@@ -1,30 +1,27 @@
-import { type DrillTarget, DrillTargetSchema } from "~/core/schema";
+import type { CourseCode, CourseDetailsTab, DrillTarget } from "~/core/schema";
+import { DrillTargetSchema } from "~/core/schema";
 
 /**
- * Every kind of view the sidebar can drill into, and its props. Course and
- * connection details are declared here because they're remembered between
- * visits (`UiPrefs.drill`). Features add their own kinds with module
- * augmentation, without touching this file:
- *
- *   declare module "~/state/drill" {
- *     interface DrillViews { "generated-plan": { resultId: string } }
- *   }
+ * A view the sidebar drills into over a tab, as its route names it:
+ * `/schedule/course/CMSC351` is `{ kind: "course", courseCode: "CMSC351" }`.
+ * `tab` on a course is where its details jump on arrival (grades, about,
+ * instructors): a scroll target carried in history state, not a place.
  */
-export interface DrillViews {
-  course: Omit<Extract<DrillTarget, { kind: "course" }>, "kind">;
-  connection: Omit<Extract<DrillTarget, { kind: "connection" }>, "kind">;
-}
+export type DrillEntry =
+  | { kind: "course"; courseCode: CourseCode; tab?: CourseDetailsTab }
+  | { kind: "connection"; connectionId: string }
+  | { kind: "generated-plan"; resultId: string };
 
-export type DrillKind = keyof DrillViews;
+export type DrillKind = DrillEntry["kind"];
 
-/** One level of the drill-in stack: `{ kind: "course", courseCode: "CMSC351" }`. */
-export type DrillEntry = {
-  [K in DrillKind]: { kind: K } & DrillViews[K];
-}[DrillKind];
+export type DrillEntryOf<K extends DrillKind> = Extract<
+  DrillEntry,
+  { kind: K }
+>;
 
 /** The entry to remember between visits, if it's restorable (course or connection). */
 export function restorableTarget(
-  entry: DrillEntry | undefined,
+  entry: DrillEntry | null | undefined,
 ): DrillTarget | null {
   if (!entry) return null;
   const parsed = DrillTargetSchema.safeParse(entry);

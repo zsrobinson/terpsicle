@@ -39,7 +39,10 @@ test("sign in as a test person, see the account menu, and sign out", async ({
   // Somewhere in particular (a course open over Courses), so the sign-in has
   // a view to come back to.
   await open(page, "/schedule?course=CMSC351");
-  await expect(page).toHaveURL(/tab=courses&course=CMSC351/);
+  // Once the term and the new plan are in it too.
+  await expect(page).toHaveURL(
+    /\/schedule\/course\/CMSC351\?term=\d+&planId=[^&]+&tab=courses$/,
+  );
   await expect(page.locator(OPEN_VIEW)).toHaveText("CMSC351");
   const here = new URL(page.url());
   const view = `${here.pathname}${here.search}`;

@@ -21,10 +21,21 @@ import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
 import { Route as ReviewsMineRouteImport } from './routes/reviews.mine'
 import { Route as ReviewsPolicyRouteImport } from './routes/reviews.policy'
+import { Route as ScheduleIndexRouteImport } from './routes/schedule.index'
+import { Route as ScheduleBlocksRouteImport } from './routes/schedule.blocks'
+import { Route as ScheduleCoursesRouteImport } from './routes/schedule.courses'
+import { Route as ScheduleExportRouteImport } from './routes/schedule.export'
+import { Route as ScheduleGenerateRouteImport } from './routes/schedule.generate'
+import { Route as ScheduleProblemsRouteImport } from './routes/schedule.problems'
+import { Route as ScheduleSearchRouteImport } from './routes/schedule.search'
+import { Route as ScheduleTravelRouteImport } from './routes/schedule.travel'
 import { Route as TodoIndexRouteImport } from './routes/todo.index'
 import { Route as TodoConnectRouteImport } from './routes/todo.connect'
 import { Route as ReviewsCoursesCodeRouteImport } from './routes/reviews.courses.$code'
 import { Route as ReviewsInstructorsIdRouteImport } from './routes/reviews.instructors.$id'
+import { Route as ScheduleConnectionConnectionIdRouteImport } from './routes/schedule.connection.$connectionId'
+import { Route as ScheduleCourseCodeRouteImport } from './routes/schedule.course.$code'
+import { Route as ScheduleResultResultIdRouteImport } from './routes/schedule.result.$resultId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -86,6 +97,46 @@ const ReviewsPolicyRoute = ReviewsPolicyRouteImport.update({
   path: '/reviews/policy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ScheduleIndexRoute = ScheduleIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleBlocksRoute = ScheduleBlocksRouteImport.update({
+  id: '/blocks',
+  path: '/blocks',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleCoursesRoute = ScheduleCoursesRouteImport.update({
+  id: '/courses',
+  path: '/courses',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleExportRoute = ScheduleExportRouteImport.update({
+  id: '/export',
+  path: '/export',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleGenerateRoute = ScheduleGenerateRouteImport.update({
+  id: '/generate',
+  path: '/generate',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleProblemsRoute = ScheduleProblemsRouteImport.update({
+  id: '/problems',
+  path: '/problems',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleSearchRoute = ScheduleSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleTravelRoute = ScheduleTravelRouteImport.update({
+  id: '/travel',
+  path: '/travel',
+  getParentRoute: () => ScheduleRoute,
+} as any)
 const TodoIndexRoute = TodoIndexRouteImport.update({
   id: '/todo/',
   path: '/todo/',
@@ -106,61 +157,109 @@ const ReviewsInstructorsIdRoute = ReviewsInstructorsIdRouteImport.update({
   path: '/reviews/instructors/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ScheduleConnectionConnectionIdRoute =
+  ScheduleConnectionConnectionIdRouteImport.update({
+    id: '/connection/$connectionId',
+    path: '/connection/$connectionId',
+    getParentRoute: () => ScheduleRoute,
+  } as any)
+const ScheduleCourseCodeRoute = ScheduleCourseCodeRouteImport.update({
+  id: '/course/$code',
+  path: '/course/$code',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleResultResultIdRoute = ScheduleResultResultIdRouteImport.update({
+  id: '/result/$resultId',
+  path: '/result/$resultId',
+  getParentRoute: () => ScheduleRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
-  '/schedule': typeof ScheduleRoute
+  '/schedule': typeof ScheduleRouteWithChildren
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
+  '/schedule/blocks': typeof ScheduleBlocksRoute
+  '/schedule/courses': typeof ScheduleCoursesRoute
+  '/schedule/export': typeof ScheduleExportRoute
+  '/schedule/generate': typeof ScheduleGenerateRoute
+  '/schedule/problems': typeof ScheduleProblemsRoute
+  '/schedule/search': typeof ScheduleSearchRoute
+  '/schedule/travel': typeof ScheduleTravelRoute
   '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
+  '/schedule/': typeof ScheduleIndexRoute
   '/todo/': typeof TodoIndexRoute
   '/reviews/courses/$code': typeof ReviewsCoursesCodeRoute
   '/reviews/instructors/$id': typeof ReviewsInstructorsIdRoute
+  '/schedule/connection/$connectionId': typeof ScheduleConnectionConnectionIdRoute
+  '/schedule/course/$code': typeof ScheduleCourseCodeRoute
+  '/schedule/result/$resultId': typeof ScheduleResultResultIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
-  '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
+  '/schedule/blocks': typeof ScheduleBlocksRoute
+  '/schedule/courses': typeof ScheduleCoursesRoute
+  '/schedule/export': typeof ScheduleExportRoute
+  '/schedule/generate': typeof ScheduleGenerateRoute
+  '/schedule/problems': typeof ScheduleProblemsRoute
+  '/schedule/search': typeof ScheduleSearchRoute
+  '/schedule/travel': typeof ScheduleTravelRoute
   '/todo/connect': typeof TodoConnectRoute
   '/admin': typeof AdminIndexRoute
   '/chat': typeof ChatIndexRoute
   '/reviews': typeof ReviewsIndexRoute
+  '/schedule': typeof ScheduleIndexRoute
   '/todo': typeof TodoIndexRoute
   '/reviews/courses/$code': typeof ReviewsCoursesCodeRoute
   '/reviews/instructors/$id': typeof ReviewsInstructorsIdRoute
+  '/schedule/connection/$connectionId': typeof ScheduleConnectionConnectionIdRoute
+  '/schedule/course/$code': typeof ScheduleCourseCodeRoute
+  '/schedule/result/$resultId': typeof ScheduleResultResultIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
-  '/schedule': typeof ScheduleRoute
+  '/schedule': typeof ScheduleRouteWithChildren
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
+  '/schedule/blocks': typeof ScheduleBlocksRoute
+  '/schedule/courses': typeof ScheduleCoursesRoute
+  '/schedule/export': typeof ScheduleExportRoute
+  '/schedule/generate': typeof ScheduleGenerateRoute
+  '/schedule/problems': typeof ScheduleProblemsRoute
+  '/schedule/search': typeof ScheduleSearchRoute
+  '/schedule/travel': typeof ScheduleTravelRoute
   '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
+  '/schedule/': typeof ScheduleIndexRoute
   '/todo/': typeof TodoIndexRoute
   '/reviews/courses/$code': typeof ReviewsCoursesCodeRoute
   '/reviews/instructors/$id': typeof ReviewsInstructorsIdRoute
+  '/schedule/connection/$connectionId': typeof ScheduleConnectionConnectionIdRoute
+  '/schedule/course/$code': typeof ScheduleCourseCodeRoute
+  '/schedule/result/$resultId': typeof ScheduleResultResultIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -174,31 +273,52 @@ export interface FileRouteTypes {
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
+    | '/schedule/blocks'
+    | '/schedule/courses'
+    | '/schedule/export'
+    | '/schedule/generate'
+    | '/schedule/problems'
+    | '/schedule/search'
+    | '/schedule/travel'
     | '/todo/connect'
     | '/admin/'
     | '/chat/'
     | '/reviews/'
+    | '/schedule/'
     | '/todo/'
     | '/reviews/courses/$code'
     | '/reviews/instructors/$id'
+    | '/schedule/connection/$connectionId'
+    | '/schedule/course/$code'
+    | '/schedule/result/$resultId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/privacy'
-    | '/schedule'
     | '/settings'
     | '/signin'
     | '/admin/decisions'
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
+    | '/schedule/blocks'
+    | '/schedule/courses'
+    | '/schedule/export'
+    | '/schedule/generate'
+    | '/schedule/problems'
+    | '/schedule/search'
+    | '/schedule/travel'
     | '/todo/connect'
     | '/admin'
     | '/chat'
     | '/reviews'
+    | '/schedule'
     | '/todo'
     | '/reviews/courses/$code'
     | '/reviews/instructors/$id'
+    | '/schedule/connection/$connectionId'
+    | '/schedule/course/$code'
+    | '/schedule/result/$resultId'
   id:
     | '__root__'
     | '/'
@@ -210,19 +330,30 @@ export interface FileRouteTypes {
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
+    | '/schedule/blocks'
+    | '/schedule/courses'
+    | '/schedule/export'
+    | '/schedule/generate'
+    | '/schedule/problems'
+    | '/schedule/search'
+    | '/schedule/travel'
     | '/todo/connect'
     | '/admin/'
     | '/chat/'
     | '/reviews/'
+    | '/schedule/'
     | '/todo/'
     | '/reviews/courses/$code'
     | '/reviews/instructors/$id'
+    | '/schedule/connection/$connectionId'
+    | '/schedule/course/$code'
+    | '/schedule/result/$resultId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrivacyRoute: typeof PrivacyRoute
-  ScheduleRoute: typeof ScheduleRoute
+  ScheduleRoute: typeof ScheduleRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   SigninRoute: typeof SigninRoute
   AdminDecisionsRoute: typeof AdminDecisionsRoute
@@ -324,6 +455,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewsPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/schedule/': {
+      id: '/schedule/'
+      path: '/'
+      fullPath: '/schedule/'
+      preLoaderRoute: typeof ScheduleIndexRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/blocks': {
+      id: '/schedule/blocks'
+      path: '/blocks'
+      fullPath: '/schedule/blocks'
+      preLoaderRoute: typeof ScheduleBlocksRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/courses': {
+      id: '/schedule/courses'
+      path: '/courses'
+      fullPath: '/schedule/courses'
+      preLoaderRoute: typeof ScheduleCoursesRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/export': {
+      id: '/schedule/export'
+      path: '/export'
+      fullPath: '/schedule/export'
+      preLoaderRoute: typeof ScheduleExportRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/generate': {
+      id: '/schedule/generate'
+      path: '/generate'
+      fullPath: '/schedule/generate'
+      preLoaderRoute: typeof ScheduleGenerateRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/problems': {
+      id: '/schedule/problems'
+      path: '/problems'
+      fullPath: '/schedule/problems'
+      preLoaderRoute: typeof ScheduleProblemsRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/search': {
+      id: '/schedule/search'
+      path: '/search'
+      fullPath: '/schedule/search'
+      preLoaderRoute: typeof ScheduleSearchRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/travel': {
+      id: '/schedule/travel'
+      path: '/travel'
+      fullPath: '/schedule/travel'
+      preLoaderRoute: typeof ScheduleTravelRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
     '/todo/': {
       id: '/todo/'
       path: '/todo'
@@ -352,13 +539,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewsInstructorsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/schedule/connection/$connectionId': {
+      id: '/schedule/connection/$connectionId'
+      path: '/connection/$connectionId'
+      fullPath: '/schedule/connection/$connectionId'
+      preLoaderRoute: typeof ScheduleConnectionConnectionIdRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/course/$code': {
+      id: '/schedule/course/$code'
+      path: '/course/$code'
+      fullPath: '/schedule/course/$code'
+      preLoaderRoute: typeof ScheduleCourseCodeRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/result/$resultId': {
+      id: '/schedule/result/$resultId'
+      path: '/result/$resultId'
+      fullPath: '/schedule/result/$resultId'
+      preLoaderRoute: typeof ScheduleResultResultIdRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
   }
 }
+
+interface ScheduleRouteChildren {
+  ScheduleBlocksRoute: typeof ScheduleBlocksRoute
+  ScheduleCoursesRoute: typeof ScheduleCoursesRoute
+  ScheduleExportRoute: typeof ScheduleExportRoute
+  ScheduleGenerateRoute: typeof ScheduleGenerateRoute
+  ScheduleProblemsRoute: typeof ScheduleProblemsRoute
+  ScheduleSearchRoute: typeof ScheduleSearchRoute
+  ScheduleTravelRoute: typeof ScheduleTravelRoute
+  ScheduleIndexRoute: typeof ScheduleIndexRoute
+  ScheduleConnectionConnectionIdRoute: typeof ScheduleConnectionConnectionIdRoute
+  ScheduleCourseCodeRoute: typeof ScheduleCourseCodeRoute
+  ScheduleResultResultIdRoute: typeof ScheduleResultResultIdRoute
+}
+
+const ScheduleRouteChildren: ScheduleRouteChildren = {
+  ScheduleBlocksRoute: ScheduleBlocksRoute,
+  ScheduleCoursesRoute: ScheduleCoursesRoute,
+  ScheduleExportRoute: ScheduleExportRoute,
+  ScheduleGenerateRoute: ScheduleGenerateRoute,
+  ScheduleProblemsRoute: ScheduleProblemsRoute,
+  ScheduleSearchRoute: ScheduleSearchRoute,
+  ScheduleTravelRoute: ScheduleTravelRoute,
+  ScheduleIndexRoute: ScheduleIndexRoute,
+  ScheduleConnectionConnectionIdRoute: ScheduleConnectionConnectionIdRoute,
+  ScheduleCourseCodeRoute: ScheduleCourseCodeRoute,
+  ScheduleResultResultIdRoute: ScheduleResultResultIdRoute,
+}
+
+const ScheduleRouteWithChildren = ScheduleRoute._addFileChildren(
+  ScheduleRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrivacyRoute: PrivacyRoute,
-  ScheduleRoute: ScheduleRoute,
+  ScheduleRoute: ScheduleRouteWithChildren,
   SettingsRoute: SettingsRoute,
   SigninRoute: SigninRoute,
   AdminDecisionsRoute: AdminDecisionsRoute,

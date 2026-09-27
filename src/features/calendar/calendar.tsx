@@ -18,7 +18,13 @@ import {
   WeekFrame,
 } from "~/app/calendar/week-frame";
 import { PEEK_HEIGHT, snapHeights } from "~/app/drawer-heights";
-import { preloadDrill, usePanelRegistry } from "~/app/registry";
+import {
+  closeToTab,
+  currentView,
+  openDrill,
+  preloadView,
+} from "~/app/schedule-nav";
+import { useScheduleView } from "~/app/schedule-view";
 import { useShortcut } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
 import type { Connection, CourseCode, Day } from "~/core/schema";
@@ -27,7 +33,7 @@ import type { SeatsMap } from "~/core/seats";
 import { DAY_LONG_NAMES } from "~/core/time";
 import { useTravel } from "~/state/hooks";
 import { useWatchedSections } from "~/state/seat-watches";
-import { selectOpenCourse, useUi } from "~/state/ui-store";
+import { useUi } from "~/state/ui-store";
 import { Kbd } from "~/ui/kbd";
 import { quietTooltips } from "~/ui/tooltip";
 import {
@@ -74,9 +80,9 @@ export function Calendar() {
   // On the Search tab, hovering a result shows its sections: the hint's row
   // is there before the first hover, so no hover ever moves the grid, and
   // the day names stay in view (UX-REVIEW §4.2).
-  const searching = useUi(
-    (s) => s.tab === "search" && s.sidebarOpen && s.stack.length === 0,
-  );
+  const place = useScheduleView();
+  const searching =
+    useUi((s) => s.sidebarOpen) && place.tab === "search" && !place.drill;
   useGhostKeys(view);
   useClearStalePreview(model);
   const bottomInset = useDrawerInset();
@@ -215,13 +221,19 @@ function useScrollToGhosts(
 
 /** Clicking a course anywhere opens its details; clicking it again closes them. */
 function openCourse(courseCode: CourseCode) {
-  const ui = useUi.getState();
-  if (selectOpenCourse(ui) === courseCode) ui.backTo(0);
-  else ui.drill({ kind: "course", courseCode });
+  const top = currentView().drill;
+  if (top?.kind === "course" && top.courseCode === courseCode) closeToTab();
+  else openDrill({ kind: "course", courseCode });
 }
 
 function openConnection(connection: Connection) {
-  useUi.getState().drill({ kind: "connection", connectionId: connection.id });
+  openDrill({ kind: "connection", connectionId: connection.id });
+}
+
+/** Hovering a travel pill starts loading connection details' route. */
+function preloadConnection() {
+  const { tab } = currentView();
+  preloadView({ tab, drill: { kind: "connection", connectionId: "" } });
 }
 
 /** ↑/↓ preview the open course's sections; ↵ switches to the preview. */
@@ -338,11 +350,9 @@ function Grid({
   watched: ReadonlySet<string>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const registry = usePanelRegistry();
-  const preloadConnection = () => preloadDrill(registry, "connection");
   const [width, setWidth] = useState(0);
-  const openCode = useUi(selectOpenCourse);
-  const stackTop = useUi((s) => s.stack.at(-1));
+  const stackTop = useScheduleView().drill;
+  const openCode = stackTop?.kind === "course" ? stackTop.courseCode : null;
   const { travel } = useTravel();
   const [drag, setDrag] = useState<DragState | null>(null);
   const [pending, setPending] = useState<BlockDraft | null>(null);

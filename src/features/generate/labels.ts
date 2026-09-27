@@ -18,7 +18,7 @@ import { DAY_SHORT_NAMES, formatTime, sortDays } from "~/core/time";
 
 // Plain-words summaries of a generated plan (SPEC §3.13).
 
-export const optionLabel = (rank: number) => `Option ${rank}`;
+export { optionLabel } from "~/state/generate-run-store";
 
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${n} ${n === 1 ? one : many}`;

@@ -1,6 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { openDrill } from "~/app/schedule-nav";
+import type { ShellRoutes } from "~/app/test-utils";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
@@ -10,7 +12,7 @@ import {
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { openCourse } from "~/features/courses/actions";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
-import { panels as searchPanels } from "~/features/search/panels";
+import { SearchPanel } from "~/features/search/search-panel";
 import {
   aMeUser,
   aReviewSummary,
@@ -26,8 +28,11 @@ import {
 } from "~/state/reviews-store";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
-import { panels } from "./panels";
+import { CourseDetails } from "./course-details";
 import { forgetReviewSummaries } from "./use-review-summary";
+
+const panels: ShellRoutes = { drills: { course: CourseDetails } };
+const searchPanels: ShellRoutes = { tabs: { search: SearchPanel } };
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 vi.mock("~/server/fns/api", async (importOriginal) => {
@@ -48,7 +53,7 @@ async function renderDetails(
   const view = await renderPlanTab([searchPanels, panels], "search");
   act(() =>
     tab
-      ? useUi.getState().drill({ kind: "course", courseCode, tab })
+      ? openDrill({ kind: "course", courseCode, tab })
       : openCourse(courseCode),
   );
   await screen.findByTestId("sections");

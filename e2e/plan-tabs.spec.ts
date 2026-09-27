@@ -199,12 +199,12 @@ test("a seat-alert email's link opens that course in its term", async ({
   await page.goto("/schedule?term=202605&course=CMSC131");
   await expect(page.locator(OPEN_VIEW)).toContainText("CMSC131");
   await expect(page.getByRole("button", { name: /Summer 2026/ })).toBeVisible();
-  // The link stays as the page's address, now naming the tab too; Back goes
-  // to the term's Courses, not out of the app.
+  // The link is replaced by the course's own URL, naming the tab under it
+  // and keeping the term; Back goes to the term's Courses, not out of the app.
   await expect(page).toHaveURL(
     (url) =>
+      url.pathname === "/schedule/course/CMSC131" &&
       url.searchParams.get("term") === "202605" &&
-      url.searchParams.get("course") === "CMSC131" &&
       url.searchParams.get("tab") === "courses",
   );
   await page.getByRole("button", { name: "Back to Courses" }).click();

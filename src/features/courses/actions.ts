@@ -1,5 +1,6 @@
 import { openTab, startGenerate } from "~/app/actions";
 import { track } from "~/app/analytics";
+import { openDrill } from "~/app/schedule-nav";
 import type { CourseCode, Plan } from "~/core/schema";
 import { readActiveTermId } from "~/state/hooks";
 import { nowIso } from "~/state/ids";
@@ -24,7 +25,7 @@ export function editablePlan(): Plan | null {
 
 /** Opens a course's details over the current tab (SPEC §1: one way to open things). */
 export function openCourse(courseCode: CourseCode): void {
-  useUi.getState().drill({ kind: "course", courseCode });
+  openDrill({ kind: "course", courseCode });
 }
 
 /** Removes a course (placed or bookmarked) from the open plan. Undoable. */

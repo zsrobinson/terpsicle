@@ -199,3 +199,11 @@ export const RailTabSchema = z.enum([
   "export",
 ]);
 export type RailTab = z.infer<typeof RailTabSchema>;
+
+/** Course details' sections a link can jump to on arrival. */
+export const CourseDetailsTabSchema = z.enum([
+  "instructors",
+  "grades",
+  "about",
+]);
+export type CourseDetailsTab = z.infer<typeof CourseDetailsTabSchema>;
