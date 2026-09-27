@@ -112,7 +112,8 @@ function PlanTab({
     <li
       className={cn(
         "flex h-8 min-w-0 shrink items-center rounded-md transition-colors",
-        active ? "bg-hover" : "hover:bg-hover/60",
+        // The kit's one selected fill (accent-soft), deeper than hover's.
+        active ? "bg-accent-soft" : "hover:bg-hover/60",
       )}
     >
       <WithTooltip

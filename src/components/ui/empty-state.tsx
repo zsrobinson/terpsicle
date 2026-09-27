@@ -20,6 +20,8 @@ export type EmptyAction = {
   icon?: ReactNode;
   /** The tooltip, when the label alone doesn't say where it goes. */
   hint?: string;
+  /** Its keyboard shortcut, shown in the tooltip ("/"). */
+  shortcut?: string;
 } & (
   | {
       to: LinkProps["to"];
@@ -95,11 +97,13 @@ export function EmptyState(props: EmptyStateProps) {
         className={cn(
           "mt-1 flex flex-wrap items-center gap-3",
           center && "justify-center",
+          equal && "self-stretch",
         )}
       >
-        <ActionButton action={primary} />
-        {/* Equal paths: both filled, the same height, wrapping when narrow. */}
-        {equal ? <ActionButton action={secondary} /> : null}
+        {/* Equal paths: both filled and the same size. They share a row
+            equally, and when it's too narrow each takes a whole row. */}
+        <ActionButton action={primary} className={equal ? EQUAL : undefined} />
+        {equal ? <ActionButton action={secondary} className={EQUAL} /> : null}
         {link ? <QuietLink action={link} /> : null}
       </div>
     </div>
@@ -108,13 +112,24 @@ export function EmptyState(props: EmptyStateProps) {
 
 function withHint(action: EmptyAction, node: ReactElement) {
   return action.hint ? (
-    <WithTooltip label={action.hint}>{node}</WithTooltip>
+    <WithTooltip label={action.hint} shortcut={action.shortcut}>
+      {node}
+    </WithTooltip>
   ) : (
     node
   );
 }
 
-function ActionButton({ action }: { action: EmptyAction }) {
+/** An equal path: grows from nothing, so two share a row evenly. */
+const EQUAL = "min-w-fit flex-1 basis-0";
+
+function ActionButton({
+  action,
+  className,
+}: {
+  action: EmptyAction;
+  className?: string;
+}) {
   const content = (
     <>
       {action.icon}
@@ -124,11 +139,11 @@ function ActionButton({ action }: { action: EmptyAction }) {
   return withHint(
     action,
     "onClick" in action ? (
-      <Button size="lg" onClick={action.onClick}>
+      <Button size="lg" onClick={action.onClick} className={className}>
         {content}
       </Button>
     ) : (
-      <Button size="lg" asChild>
+      <Button size="lg" asChild className={className}>
         <Link to={action.to} search={action.search} params={action.params}>
           {content}
         </Link>
