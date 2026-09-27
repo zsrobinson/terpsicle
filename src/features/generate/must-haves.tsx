@@ -7,6 +7,7 @@ import {
   formatTime,
   sortDays,
 } from "~/core/time";
+import { Input } from "~/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,9 +23,6 @@ import { WithTooltip } from "~/ui/tooltip";
 const START_OPTIONS = [8, 9, 10, 11, 12, 13].map((h) => h * 60);
 const END_OPTIONS = [14, 15, 16, 17, 18, 19, 20, 21].map((h) => h * 60);
 const WEEKDAYS: readonly Day[] = ["M", "Tu", "W", "Th", "F"];
-
-const selectClass =
-  "h-7 min-w-0 flex-1 rounded-md border border-hairline-strong bg-bg px-1.5 text-sm focus:border-fg/40";
 
 /** Radix values can't be empty, so "Any time" gets its own. */
 const ANY = "any";
@@ -180,7 +178,7 @@ export function MustHaveFields({
       <Row label="Credits">
         <div className="flex flex-1 items-center gap-1.5">
           <WithTooltip label="At least this many credits">
-            <input
+            <Input
               type="number"
               inputMode="decimal"
               min={0}
@@ -196,12 +194,12 @@ export function MustHaveFields({
                   },
                 })
               }
-              className={cn(selectClass, "tnum w-0 px-2")}
+              className="tnum w-0 flex-1 px-2"
             />
           </WithTooltip>
           <span className="text-muted">to</span>
           <WithTooltip label="At most this many credits">
-            <input
+            <Input
               type="number"
               inputMode="decimal"
               min={0}
@@ -217,7 +215,7 @@ export function MustHaveFields({
                   },
                 })
               }
-              className={cn(selectClass, "tnum w-0 px-2")}
+              className="tnum w-0 flex-1 px-2"
             />
           </WithTooltip>
         </div>

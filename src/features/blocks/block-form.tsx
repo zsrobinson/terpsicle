@@ -3,6 +3,7 @@ import { type FormEvent, useId, useState } from "react";
 import { BlockLabelSchema, type Day } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTime, sortDays } from "~/core/time";
 import { Button } from "~/ui/button";
+import { Input } from "~/ui/input";
 import {
   Select,
   SelectContent,
@@ -103,7 +104,7 @@ export function BlockForm({
         ))}
       </fieldset>
       <WithTooltip label="What this time is for">
-        <input
+        <Input
           id={`${id}-label`}
           value={label}
           onChange={(e) => setLabel(e.target.value)}
@@ -112,7 +113,6 @@ export function BlockForm({
           maxLength={40}
           autoComplete="off"
           data-private
-          className="h-7 w-full rounded-md border border-hairline-strong bg-bg px-2 text-base placeholder:text-faint focus:border-fg/40"
         />
       </WithTooltip>
       <fieldset className="flex gap-1" aria-label="Days">
