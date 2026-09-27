@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { liveToasts } from "./toasts";
 
 // Terpsicle Reviews end to end (docs/V2.md §7), on `pnpm dev:mock`: the
 // fixtures' PlanetTerp data, the real /api/reviews/* over local D1, and
@@ -170,9 +171,9 @@ test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
   await expect(page.locator("article[data-review]")).toHaveCount(1);
 
   await page.getByRole("button", { name: "Delete" }).click();
-  await expect(page.getByText("Review deleted")).toBeVisible();
+  await expect(liveToasts(page).getByText("Review deleted")).toBeVisible();
   // Once the toast has gone, the server has it.
-  await expect(page.getByText("Review deleted")).toHaveCount(0, {
+  await expect(liveToasts(page).getByText("Review deleted")).toHaveCount(0, {
     timeout: 15_000,
   });
   await page.reload();
