@@ -7,10 +7,11 @@ import {
   creditTotals,
 } from "~/core/four-year/credits";
 import { allocateGenEds, type GenEdAllocation } from "~/core/four-year/gen-ed";
+import { handoffTerm } from "~/core/four-year/handoff";
 import { detectFourYearProblems } from "~/core/four-year/problems";
 import { type StatusOf, statusResolver } from "~/core/four-year/status";
 import { defaultTargetTerm, fourYearColumns } from "~/core/four-year/terms";
-import type { IsoDate, LocalId, PlanSearch } from "~/core/schema";
+import type { IsoDate, LocalId, PlanSearch, TermId } from "~/core/schema";
 import type {
   FourYearDoc,
   FourYearProblem,
@@ -39,6 +40,8 @@ export type PlanModel = {
   readonly problemsByEntry: ReadonlyMap<LocalId, readonly FourYearProblem[]>;
   /** Where Add puts a course: the picked semester, else the one in progress or next. */
   readonly target: FourYearTerm;
+  /** The next semester, which hands its courses to the scheduler (V3 §2.12). */
+  readonly handoffTerm: TermId | null;
 };
 
 export function usePlanModel(
@@ -79,6 +82,7 @@ export function usePlanModel(
       genEds: allocateGenEds(doc, lookup, statusOf),
       problems,
       problemsByEntry,
+      handoffTerm: handoffTerm(columns, statusOf),
       target:
         picked !== undefined && columns.includes(picked)
           ? picked

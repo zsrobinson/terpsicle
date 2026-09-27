@@ -57,6 +57,10 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
     hydrated: true,
     past: [],
     future: [],
+    // Loading isn't a change: a notice left from an earlier visit to the
+    // scheduler in this page (Plan → Schedule → Plan → Schedule) mustn't
+    // toast again.
+    notice: null,
   });
   useGenerateDrafts.setState({ drafts });
   useUi.setState({

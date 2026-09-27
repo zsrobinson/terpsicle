@@ -691,6 +691,7 @@ Where you are is the path: `/schedule/<tab>` for a rail tab (`courses`, `search`
 | `term` | every view | Term id. Omitted until the term list loads. |
 | `planId` | every view | The open plan tab's local id; ignored when it isn't one of this browser's plans. |
 | `plan` · `demo` | every view | The share link (above), and `pnpm dev:mock`'s demo switch. Kept as opened. |
+| `from=plan` | every view | Arrived by Plan's "View schedule" (`docs/V3.md` §2.12): once the saved plans and terms load, the scheduler makes or opens `term`'s linked plan, then drops `from` (replacing the entry). Never carried into a later move. |
 | `tab` | drill-ins | The rail tab under it. |
 | `view=results` | `/schedule/generate` | Generate shows its results rather than the form. |
 | `q` | `/schedule/search` | Search's text. |

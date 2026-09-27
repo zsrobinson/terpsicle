@@ -4,8 +4,9 @@ import {
   createRootRoute,
   createRouter,
   RouterProvider,
+  stringifySearchWith,
 } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -27,6 +28,8 @@ import {
   aFourYear,
   aFourYearEntry,
   aFourYearWildcardEntry,
+  aPlan,
+  aPlanCourse,
   mockDataSource,
 } from "~/fixtures";
 import {
@@ -60,6 +63,8 @@ function renderPlan(initial = "/plan") {
   router = createRouter({
     routeTree: root.addChildren([plan]),
     history: createMemoryHistory({ initialEntries: [initial] }),
+    // As src/router.tsx writes search params.
+    stringifySearch: stringifySearchWith(JSON.stringify),
   });
   render(
     <TooltipProvider delayDuration={0}>
@@ -366,6 +371,76 @@ describe("a saved plan", () => {
         name: /^CMSC999.*has a problem/,
       }),
     ).toBeVisible();
+  });
+});
+
+describe("View schedule", () => {
+  const NEXT = aFourYear({
+    firstTermId: "202508",
+    entries: [
+      aFourYearEntry({ id: "entry_cmsc351", term: "202701", code: "CMSC351" }),
+      aFourYearEntry({ id: "entry_math141", term: "202701", code: "MATH141" }),
+    ],
+  });
+
+  it("sits on the next semester only, and hands it to the scheduler", async () => {
+    await seed(NEXT);
+    renderPlan();
+    const spring = await screen.findByRole("region", { name: /^Spring 2027$/ });
+    const link = within(spring).getByRole("link", { name: "View schedule" });
+    expect(link).toHaveAttribute(
+      "href",
+      "/schedule/courses?term=202701&from=plan",
+    );
+    expect(
+      within(column("Fall 2026")).queryByRole("link", {
+        name: "View schedule",
+      }),
+    ).toBeNull();
+    expect(
+      within(column("Fall 2027")).queryByRole("link", {
+        name: "View schedule",
+      }),
+    ).toBeNull();
+  });
+
+  it("counts what the linked plan has placed, and follows it as the scheduler changes it", async () => {
+    await seed(NEXT);
+    const db = new TerpsicleDb();
+    await db.plans.put(
+      aPlan({
+        id: "plan_linked_a",
+        termId: "202701",
+        courses: [aPlanCourse({ courseCode: "CMSC351" })],
+      }),
+    );
+    renderPlan();
+    const spring = await screen.findByRole("region", { name: /^Spring 2027$/ });
+    expect(
+      await within(spring).findByText("From Plan A: 1 of 2 placed"),
+    ).toBeVisible();
+    // The scheduler, in another tab, places MATH141.
+    await db.plans.update("plan_linked_a", {
+      courses: [
+        aPlanCourse({ courseCode: "CMSC351" }),
+        aPlanCourse({ courseCode: "MATH141" }),
+      ],
+    });
+    expect(
+      await within(spring).findByText("From Plan A: 2 of 2 placed"),
+    ).toBeVisible();
+    db.close();
+  });
+
+  it("says so, instead of linking, while Testudo doesn't list the term", async () => {
+    await seed(NEXT);
+    renderPlan();
+    const spring = await screen.findByRole("region", { name: /^Spring 2027$/ });
+    await act(() => useFourYearFacts.setState({ latestTermId: "202608" }));
+    expect(within(spring).getByText("Not on Testudo yet")).toBeVisible();
+    expect(
+      within(spring).queryByRole("link", { name: "View schedule" }),
+    ).toBeNull();
   });
 });
 

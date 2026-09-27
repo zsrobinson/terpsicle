@@ -91,7 +91,11 @@ function ownTermId(): string | null {
 
 /** The params every scheduler URL keeps, as the current one has them. */
 function currentShared(): ScheduleSearch {
-  return ScheduleSearchSchema.parse(router ? latest(router).search : {});
+  // `from` is for the page it lands on (docs/V3.md §2.12), not for later moves.
+  const { from: _from, ...shared } = ScheduleSearchSchema.parse(
+    router ? latest(router).search : {},
+  );
+  return shared;
 }
 
 function currentState(): ScheduleHistoryState {

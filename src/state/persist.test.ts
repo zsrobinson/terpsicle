@@ -57,6 +57,20 @@ describe("persistence", () => {
     });
   });
 
+  it("loads without the last visit's change notice, so coming back doesn't toast it again", async () => {
+    useWorkspace
+      .getState()
+      .dispatch(
+        { type: "plan/create", id: "planAAAA", termId: SPRING, now: NOW },
+        "Created an empty plan",
+      );
+    expect(useWorkspace.getState().notice).not.toBeNull();
+    await persistence.flushed();
+    // The scheduler mounts again in the same page: its stores are as it left them.
+    await hydrate(db);
+    expect(useWorkspace.getState().notice).toBeNull();
+  });
+
   it("starts with defaults when nothing is saved", () => {
     expect(useWorkspace.getState()).toMatchObject({
       hydrated: true,

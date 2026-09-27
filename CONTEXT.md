@@ -266,6 +266,9 @@ Where a term in a four-year plan stands: done, in progress or planned, worked ou
 **Placeholder**:
 A wildcard in a four-year plan ("CMSC4XX", "Any DSHS course"), dashed, counting 3 credits by default until you pick a real course.
 
+**Linked plan**:
+The scheduler plan a four-year plan's semester opens with "View schedule": the term's open plan, else its first tab (`linkedSchedulePlan`). One per term, never a copy; "From Plan A: 4 of 5 placed" counts it.
+
 **Transcript import**:
 Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser, and grades stay private.
 

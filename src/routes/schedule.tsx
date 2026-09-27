@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { initAnalytics, track } from "~/app/analytics";
 import { App } from "~/app/app";
 import { clientConfig } from "~/app/config";
@@ -21,8 +21,19 @@ export const Route = createFileRoute("/schedule")({
 });
 
 function SchedulePage() {
-  const { plan } = Route.useSearch();
+  const { plan, from, term } = Route.useSearch();
   const router = useRouter();
+  // Plan's "View schedule" (docs/V3.md §2.12), as the page was opened: the
+  // term in the URL can change before the handoff runs.
+  const [handoff] = useState(() => (from === "plan" ? { termId: term } : null));
+  const dropFrom = useCallback(() => {
+    void router.navigate({
+      to: router.state.location.pathname,
+      search: (prev: Record<string, unknown>) => ({ ...prev, from: undefined }),
+      replace: true,
+      state: (prev: object) => prev,
+    } as never);
+  }, [router]);
   const clearShared = useCallback(() => {
     void router.navigate({
       to: router.state.location.pathname,
@@ -39,5 +50,12 @@ function SchedulePage() {
 
   // The sidebar shows the child routes' views itself, keeping each mounted
   // while hidden (src/app/sidebar.tsx), so there's no <Outlet />.
-  return <App sharedParam={plan} onClearShared={clearShared} />;
+  return (
+    <App
+      sharedParam={plan}
+      onClearShared={clearShared}
+      handoff={handoff}
+      onHandoffDone={dropFrom}
+    />
+  );
 }
