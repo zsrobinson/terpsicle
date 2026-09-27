@@ -26,7 +26,7 @@ import {
   usePlanProblemsState,
   useProblemCounts,
 } from "~/state/hooks";
-import { DropdownMenuItem } from "~/ui/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
@@ -101,10 +101,13 @@ export function TopBar({
 
 function FeedbackMenuItem() {
   return (
-    <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
-      <MessageSquareText aria-hidden="true" className="text-muted" />
-      Send feedback
-    </DropdownMenuItem>
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
+        <MessageSquareText aria-hidden="true" className="text-muted" />
+        Send feedback
+      </DropdownMenuItem>
+    </>
   );
 }
 
