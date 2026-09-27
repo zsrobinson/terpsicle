@@ -10,11 +10,12 @@ import {
   dueTomorrowKey,
   dueTomorrowPush,
   dueTomorrowRun,
+  isHiddenItem,
   TODO_DUE_FRESH_MS,
 } from "~/core/todo";
 import { type NotifyEnv, notify } from "../notifications/notify";
 import { readSettings, writeSettings } from "../notifications/store";
-import { doneAmong, listItems } from "./store";
+import { doneAmong, hiddenCourses, IN_HIDDEN_COURSE, listItems } from "./store";
 
 /** People reminded per run, at most; the next run (20 minutes on) takes the rest. */
 export const TODO_DUE_BATCH = 2_000;
@@ -51,7 +52,9 @@ async function candidates(
          AND EXISTS (SELECT 1 FROM todo_items i
                      WHERE i.user_id = f.user_id AND i.due_date = ?3
                        AND NOT EXISTS (SELECT 1 FROM todo_done d
-                                       WHERE d.user_id = i.user_id AND d.uid = i.uid))
+                                       WHERE d.user_id = i.user_id AND d.uid = i.uid)
+                       -- A hidden course never reminds (V3.md §3.11).
+                       AND NOT ${IN_HIDDEN_COURSE("i")})
        ORDER BY f.user_id LIMIT ?4`,
     )
     .bind(
@@ -102,7 +105,10 @@ export async function sendDueTomorrow(
         items.map((i) => i.uid),
       ),
     );
-    const open = items.filter((i) => !done.has(i.uid));
+    const hidden = new Set(await hiddenCourses(env.DB, userId));
+    const open = items.filter(
+      (i) => !done.has(i.uid) && !isHiddenItem(i, hidden, new Set()),
+    );
     if (open.length === 0) return;
     result.due++;
     // A push that fails is claimed as failed and not tried again tonight:

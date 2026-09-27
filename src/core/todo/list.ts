@@ -229,6 +229,105 @@ export function itemCourse(
   return pickFeedCourse(codes, planCourses);
 }
 
+/** Items with no course at all are grouped under this key. */
+export const NO_COURSE_KEY = "Other";
+
+/**
+ * The course group an item is filed under: its code (re-matched against the
+ * person's plans), else the ELMS course name, else "Other". Hiding a course
+ * hides this key.
+ */
+export function courseKey(
+  item: Pick<TodoItem, "courseLabel" | "courseCode">,
+  planCourses: ReadonlySet<CourseCode>,
+): string {
+  return itemCourse(item, planCourses) ?? item.courseLabel ?? NO_COURSE_KEY;
+}
+
+/**
+ * Whether an item is in a course the person hid: its group's key, or any
+ * course code it carries (a cross-listed item goes with either code, as the
+ * server's "Due tomorrow" reads it).
+ */
+export function isHiddenItem(
+  item: Pick<TodoItem, "courseLabel" | "courseCode">,
+  hidden: ReadonlySet<string>,
+  planCourses: ReadonlySet<CourseCode>,
+): boolean {
+  if (hidden.size === 0) return false;
+  if (hidden.has(courseKey(item, planCourses))) return true;
+  if (item.courseCode !== null && hidden.has(item.courseCode)) return true;
+  return matchFeedCourse(item.courseLabel).some((c) => hidden.has(c.code));
+}
+
+/** Done and all, of what's due in a run of days. */
+export interface Progress {
+  done: number;
+  total: number;
+}
+
+/** The Monday through Sunday of `today`'s week, the span progress counts. */
+function inThisWeek(date: IsoDate | null, today: IsoDate): boolean {
+  if (date === null) return false;
+  const monday = weekStart(today);
+  return date >= monday && date <= addDays(monday, 6);
+}
+
+/**
+ * This week's progress: the items due Monday through Sunday of `today`'s
+ * week, done or not, and how many of them are done.
+ */
+export function weekProgress(
+  items: readonly TodoItem[],
+  done: ReadonlySet<string>,
+  today: IsoDate,
+): Progress {
+  const week = items.filter((i) => inThisWeek(i.dueDate, today));
+  return {
+    done: week.filter((i) => done.has(i.uid)).length,
+    total: week.length,
+  };
+}
+
+/** "3 of 5 done". */
+export function progressWords({ done, total }: Progress): string {
+  return `${done} of ${total} done`;
+}
+
+/** The header's line: "This week: 7 of 12 done", or null with nothing due. */
+export function weekProgressWords(progress: Progress): string | null {
+  return progress.total === 0 ? null : `This week: ${progressWords(progress)}`;
+}
+
+/** "Hidden: 2 courses". */
+export function hiddenWords(count: number): string {
+  return `Hidden: ${count} ${count === 1 ? "course" : "courses"}`;
+}
+
+const MINUTE_WORDS = (n: number) => (n === 1 ? "1 minute" : `${n} minutes`);
+const HOUR_WORDS = (n: number) => (n === 1 ? "1 hour" : `${n} hours`);
+
+/**
+ * How an item due today reads, from `nowMs`: "Due in 3 hours", "Due in 25
+ * minutes", "Due now", or "Due 2 hours ago". Null for anything not due
+ * today at a time (tomorrow, all day, no date), which keeps its clock time.
+ * Both are counted down, never up, so it never says there's more time left
+ * than there is.
+ */
+export function relativeDue(
+  item: Pick<TodoItem, "dueAt" | "dueDate">,
+  nowMs: number,
+  today: IsoDate,
+): string | null {
+  if (item.dueAt === null || item.dueDate !== today) return null;
+  const diff = Date.parse(item.dueAt) - nowMs;
+  const away = Math.floor(Math.abs(diff) / MINUTE_MS);
+  if (away < 1) return "Due now";
+  const words =
+    away < 60 ? MINUTE_WORDS(away) : HOUR_WORDS(Math.floor(away / 60));
+  return diff > 0 ? `Due in ${words}` : `Due ${words} ago`;
+}
+
 /** One course in the by-course view. */
 export interface TodoCourseGroup {
   /** The course code, the ELMS course name when there's no code, or "Other". */
@@ -238,6 +337,8 @@ export interface TodoCourseGroup {
   label: string | null;
   open: TodoItem[];
   done: TodoItem[];
+  /** Its items due this week (Monday to Sunday), done or not. */
+  week: Progress;
 }
 
 /**
@@ -252,20 +353,38 @@ export function groupByCourse(
   planCourses: ReadonlySet<CourseCode> = new Set(),
 ): TodoCourseGroup[] {
   const groups = new Map<string, TodoCourseGroup>();
+  // This week counts what's done earlier in it too, which the list leaves out.
+  const weeks = new Map<string, Progress>();
+  for (const item of items) {
+    if (!inThisWeek(item.dueDate, today)) continue;
+    const key = courseKey(item, planCourses);
+    const week = weeks.get(key) ?? { done: 0, total: 0 };
+    weeks.set(key, {
+      done: week.done + (done.has(item.uid) ? 1 : 0),
+      total: week.total + 1,
+    });
+  }
   for (const item of [...items].sort(compareItems)) {
     const isDone = done.has(item.uid);
-    if (item.dueDate < today && isDone) continue;
+    if (item.dueDate !== null && item.dueDate < today && isDone) continue;
     const code = itemCourse(item, planCourses);
-    const key = code ?? item.courseLabel ?? "Other";
+    const key = courseKey(item, planCourses);
     let group = groups.get(key);
     if (!group) {
-      group = { key, code, label: item.courseLabel, open: [], done: [] };
+      group = {
+        key,
+        code,
+        label: item.courseLabel,
+        open: [],
+        done: [],
+        week: weeks.get(key) ?? { done: 0, total: 0 },
+      };
       groups.set(key, group);
     }
     (isDone ? group.done : group.open).push(item);
   }
   const rank = (g: TodoCourseGroup) =>
-    g.code !== null ? 0 : g.key !== "Other" ? 1 : 2;
+    g.code !== null ? 0 : g.key !== NO_COURSE_KEY ? 1 : 2;
   return [...groups.values()].sort(
     (a, b) =>
       Number(a.open.length === 0) - Number(b.open.length === 0) ||

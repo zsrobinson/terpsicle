@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
-import { newYorkClock } from "../src/core/todo/list";
+import { listRange, newYorkClock } from "../src/core/todo/list";
 import {
   TEST_FEED_TOKENS,
   testFeedIcs,
@@ -74,7 +74,25 @@ async function signIn(page: Page, isMobile: boolean) {
   // Start from nothing: no feed and no file items from an earlier run.
   expect(await post(page, "todo/disconnect")).toBe(200);
   expect(await post(page, "todo/import-file", { items: [] })).toBe(200);
+  await showHiddenCourses(page);
   await page.reload();
+}
+
+/** Shows every course hidden in an earlier run. */
+async function showHiddenCourses(page: Page) {
+  const today = newYorkClock(Date.now()).date;
+  const hidden = await page.evaluate(async (range) => {
+    const response = await fetch("/api/todo/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(range),
+    });
+    return ((await response.json()) as { hidden: string[] }).hidden;
+  }, listRange(today));
+  for (const key of hidden)
+    expect(await post(page, "todo/hide-course", { key, hidden: false })).toBe(
+      200,
+    );
 }
 
 test("signed out, /todo is the front door", async ({ page }) => {
@@ -224,4 +242,48 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   await expect(page.getByText("From a file").first()).toBeVisible();
   await expect(page.getByText(/^6 open$/)).toBeVisible();
   expect(await post(page, "todo/import-file", { items: [] })).toBe(200);
+});
+
+test("this week's progress, and hiding a course with Undo", async ({
+  page,
+  isMobile,
+}) => {
+  test.setTimeout(90_000);
+  await signIn(page, isMobile);
+  expect(
+    await post(page, "todo/connect", {
+      url: testFeedLink(TEST_FEED_TOKENS.calendar),
+    }),
+  ).toBe(200);
+  await page.goto("/todo?view=course");
+
+  // The week at a glance, in the header and on each course that has any.
+  await expect(page.getByText(/^This week: \d+ of \d+ done$/)).toBeVisible();
+  await expect(page.getByRole("progressbar").first()).toBeVisible();
+
+  // Hide a course from its menu: its items go, with Undo.
+  const engl = page.getByRole("region", { name: "ENGL101" });
+  await expect(engl).toBeVisible();
+  await page.getByRole("button", { name: "ENGL101 options" }).click();
+  await page.getByRole("menuitem", { name: "Hide ENGL101" }).click();
+  await expect(engl).toHaveCount(0);
+  await expect(page.getByText("Hidden: 1 course")).toBeVisible();
+  await liveToasts(page).getByRole("button", { name: "Undo" }).click();
+  await expect(engl).toBeVisible();
+
+  // Hidden again, it stays hidden: it's the account's, like done marks.
+  await page.getByRole("button", { name: "ENGL101 options" }).click();
+  await page.getByRole("menuitem", { name: "Hide ENGL101" }).click();
+  await expect(engl).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText("Hidden: 1 course")).toBeVisible();
+  await expect(page.getByText("Reading response 3")).toHaveCount(0);
+  await axe(page, "a hidden course");
+
+  // The line at the bottom shows it again.
+  await page.getByRole("button", { name: "Show again" }).click();
+  await page.getByRole("menuitem", { name: "Show ENGL101" }).click();
+  await expect(engl).toBeVisible();
+  await expect(page.getByText(/^Hidden:/)).toHaveCount(0);
+  expect(await post(page, "todo/disconnect")).toBe(200);
 });

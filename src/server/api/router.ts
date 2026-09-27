@@ -37,6 +37,7 @@ import {
   TodoConnectInputSchema,
   TodoDisconnectInputSchema,
   TodoDoneInputSchema,
+  TodoHideCourseInputSchema,
   TodoImportFileInputSchema,
   TodoListInputSchema,
   TodoRefreshInputSchema,
@@ -155,6 +156,7 @@ import {
   connect as todoConnect,
   disconnect as todoDisconnect,
   done as todoDone,
+  hideCourse as todoHideCourse,
   importFile as todoImportFile,
   list as todoList,
   refresh as todoRefresh,
@@ -471,6 +473,13 @@ export const ROUTES = {
     alerts: false,
     auth: "user",
     handle: (env, input, ctx) => todoImportFile(env, input, ctx),
+  }),
+  "todo/hide-course": route({
+    input: TodoHideCourseInputSchema,
+    perUserPerHour: 300,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => todoHideCourse(env, input, ctx),
   }),
   // Notifications (V2.md §6.3).
   "push/subscribe": route({

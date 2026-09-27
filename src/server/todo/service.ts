@@ -7,16 +7,20 @@
 //   todo/done         marks an item done or not
 //   todo/refresh      fetches the feed now (at most every 5 minutes)
 //   todo/import-file  stores a dropped file's items
+//   todo/hide-course  hides a course's items everywhere, or shows them (V3 §3.11)
 //
 // No answer has a field that could hold the link (V3 §5.1).
 import {
   TODO_MAX_FEED_ITEMS,
   TODO_MAX_FILE_ITEMS,
+  TODO_MAX_HIDDEN,
   type TodoConnectInput,
   type TodoConnectResult,
   type TodoDisconnectResult,
   type TodoDoneInput,
   type TodoDoneResult,
+  type TodoHideCourseInput,
+  type TodoHideCourseResult,
   type TodoImportFileInput,
   type TodoImportFileResult,
   type TodoListInput,
@@ -55,9 +59,11 @@ import {
   feedState,
   feedSuccessStatement,
   getFeed,
+  hiddenCourses,
   listItems,
   markOpened,
   replaceItemsStatements,
+  setCourseHidden,
   setDone,
 } from "./store";
 
@@ -181,7 +187,26 @@ export async function list(
       userId,
       items.map((i) => i.uid),
     ),
+    hidden: await hiddenCourses(env.DB, userId),
   };
+}
+
+export async function hideCourse(
+  env: TodoApiEnv,
+  input: TodoHideCourseInput,
+  ctx: IdentityRouteContext,
+): Promise<TodoHideCourseResult | Response> {
+  const started = await begin(env, ctx);
+  if (started instanceof Response) return started;
+  await setCourseHidden(
+    env.DB,
+    started.userId,
+    input.key,
+    input.hidden,
+    ctx.now,
+    TODO_MAX_HIDDEN,
+  );
+  return { status: "ok" };
 }
 
 export async function done(

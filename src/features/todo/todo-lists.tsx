@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, MoreHorizontal } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import type {
@@ -17,8 +17,20 @@ import {
   dueTimeLabel,
   groupByCourse,
   groupByDay,
+  NO_COURSE_KEY,
+  progressWords,
+  relativeDue,
+  type TodoCourseGroup,
   type TodoDay,
 } from "~/core/todo";
+import { dotStyle } from "~/features/calendar/tint";
+import { Button } from "~/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   CourseTag,
@@ -42,6 +54,8 @@ export interface ListProps {
   onToggle: (item: TodoItem) => void;
   /** The item that carries the Gradescope extensions note, if any. */
   noteUid: string | null;
+  /** The time, ticking each minute, for "Due in 3 hours". */
+  now: number;
 }
 
 function DoneFold({ count, children }: { count: number; children: ReactNode }) {
@@ -91,6 +105,7 @@ function Rows({
       done={done}
       {...props.look(item)}
       when={when?.(item)}
+      relative={relativeDue(item, props.now, props.today)}
       showCourse={when === undefined}
       note={item.uid === props.noteUid ? GRADESCOPE_EXTENSIONS_NOTE : undefined}
       onToggle={() => props.onToggle(item)}
@@ -175,11 +190,83 @@ function ViewChat({ code, term }: { code: CourseCode; term: TermId }) {
   );
 }
 
+/**
+ * A course's week: a small bar in its color and "3 of 5 done", counting what's
+ * due Monday to Sunday, done or not.
+ */
+function WeekProgress({
+  group,
+  color,
+}: {
+  group: TodoCourseGroup;
+  color: CourseColor | null;
+}) {
+  const { done, total } = group.week;
+  if (total === 0) return null;
+  const words = progressWords(group.week);
+  return (
+    <div className="flex items-center gap-2 pt-1.5 text-muted text-xs">
+      <div
+        role="progressbar"
+        aria-label={`This week in ${group.code ?? group.key}`}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={done}
+        aria-valuetext={words}
+        className="h-1.5 w-24 shrink-0 bg-hover"
+      >
+        <div
+          style={{
+            width: `${(done / total) * 100}%`,
+            ...(color ? dotStyle(color) : {}),
+          }}
+          className={cn("h-full", color ? null : "bg-fg")}
+        />
+      </div>
+      <span className="tnum">{words} this week</span>
+    </div>
+  );
+}
+
+/** A course group's ⋯: hide its items everywhere (with Undo). */
+function GroupMenu({ name, onHide }: { name: string; onHide: () => void }) {
+  return (
+    <DropdownMenu>
+      <WithTooltip label={`Hide ${name}'s items everywhere in Todo`}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`${name} options`}
+            className="max-md:-my-2 shrink-0"
+          >
+            <MoreHorizontal aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+      </WithTooltip>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={onHide}>
+          <span data-private="">Hide {name}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The name a course group goes by in its menu and toast. */
+export function groupName(
+  group: Pick<TodoCourseGroup, "code" | "key">,
+): string {
+  return group.code ?? group.key;
+}
+
 export function CourseList(
   props: ListProps & {
     planCourses: ReadonlySet<CourseCode>;
     /** Chat is on here: each course group links to its room. */
     chatOn: boolean;
+    /** Hides a course group's items everywhere, with Undo. */
+    onHideCourse: (group: TodoCourseGroup) => void;
   },
 ) {
   const groups = groupByCourse(
@@ -211,7 +298,7 @@ export function CourseList(
                 >
                   {group.code !== null
                     ? (group.label ?? "")
-                    : group.key === "Other"
+                    : group.key === NO_COURSE_KEY
                       ? "Not from a course"
                       : group.key}
                 </span>
@@ -222,7 +309,14 @@ export function CourseList(
               {group.code !== null && props.chatOn && chatTerm ? (
                 <ViewChat code={group.code} term={chatTerm} />
               ) : null}
+              {group.key !== NO_COURSE_KEY ? (
+                <GroupMenu
+                  name={groupName(group)}
+                  onHide={() => props.onHideCourse(group)}
+                />
+              ) : null}
             </div>
+            <WeekProgress group={group} color={color} />
             {group.open.length > 0 ? (
               <ul>
                 <Rows

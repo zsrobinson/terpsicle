@@ -75,6 +75,8 @@ export const PURGE_LEDGER = {
   moderation_author_stops:
     "untouched: no user id, only a queue item and when the stop ends",
   author_stops: "deleted",
+  // 0016_todo_hidden
+  todo_hidden: "deleted: the courses the person hid in Todo",
 } as const satisfies Record<string, string>;
 
 /**
@@ -275,9 +277,10 @@ export function accountStatements(
         `UPDATE feedback SET user_id = NULL WHERE user_id = ?1 AND ${STILL_DUE}`,
       )
       .bind(userId, at),
-    // Todo: the feed (its sealed link), its items and done marks.
+    // Todo: the feed (its sealed link), its items, done marks and hidden courses.
     byUser("todo_items"),
     byUser("todo_done"),
+    byUser("todo_hidden"),
     byUser("todo_feeds"),
     // Identity, the account last.
     byUser("sessions"),

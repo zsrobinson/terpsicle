@@ -16,11 +16,15 @@ import type { IsoDate, TodoItem } from "~/core/schema";
 import {
   compareItems,
   feedWords,
+  hiddenWords,
+  isHiddenItem,
   itemCourse,
   listRange,
   newYorkClock,
   openCount,
   openWords,
+  weekProgress,
+  weekProgressWords,
 } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { useSignInAction } from "~/features/auth/sign-in-panel";
@@ -30,6 +34,12 @@ import {
   SitePage,
 } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
 import { EmptyState } from "~/ui/empty-state";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
@@ -49,6 +59,7 @@ import { TodoItemRow } from "./todo-item";
 import {
   CourseList,
   DayList,
+  groupName,
   type ItemLook,
   type ListProps,
 } from "./todo-lists";
@@ -260,6 +271,9 @@ const NO_ANSWER = "ELMS didn't answer. We'll try again in 20 minutes.";
 /** One toast for checks: each check's Undo replaces the last one's. */
 const DONE_TOAST_ID = "todo-done";
 
+/** One toast for hiding and showing courses. */
+const HIDE_TOAST_ID = "todo-hide";
+
 /**
  * Signed in, before ELMS: Todo's first visit, the kit's template like the
  * other products'. Step one is its button; the paste is right under it. It
@@ -314,6 +328,8 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
   const refreshing = useTodo((s) => s.refreshing);
   const refreshNote = useTodo((s) => s.refreshNote);
   const setDone = useTodo((s) => s.setDone);
+  const hidden = useTodo((s) => s.hidden);
+  const hideCourse = useTodo((s) => s.hideCourse);
   const scheduler = useSchedulerCourses();
   const chatOn = useAccount((s) => s.flags.chat !== "off");
 
@@ -339,6 +355,41 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
       return { course, color: course ? (colors[course] ?? null) : null };
     };
   }, [items, scheduler]);
+
+  // A hidden course's items show nowhere, and count in nothing.
+  const shown = useMemo(
+    () => items.filter((i) => !isHiddenItem(i, hidden, scheduler.planCourses)),
+    [items, hidden, scheduler],
+  );
+
+  const setHidden = useCallback(
+    (key: string, name: string, hide: boolean) => {
+      const send = (value: boolean) =>
+        void hideCourse(key, value).then((ok) => {
+          if (!ok)
+            noteToast(
+              value ? `${name} didn't hide` : `${name} didn't come back`,
+              {
+                id: HIDE_TOAST_ID,
+                description: "Check your connection and try again.",
+                retry: () => send(value),
+              },
+            );
+        });
+      send(hide);
+      // Hiding takes things off the list, so it gets Undo; showing puts
+      // them back where they can be seen.
+      if (hide)
+        undoToast({
+          id: HIDE_TOAST_ID,
+          message: `Hid ${name}`,
+          description: "Its items won't show here or remind you.",
+          tooltip: `Show ${name} again`,
+          onUndo: () => send(false),
+        });
+    },
+    [hideCourse],
+  );
 
   const onToggle = useCallback(
     (item: TodoItem, via: "list" | "week") => {
@@ -383,16 +434,18 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
 
   if (!feed && items.length === 0) return <FirstConnect />;
 
-  const open = openCount(items, done);
+  const open = openCount(shown, done);
+  const progress = weekProgressWords(weekProgress(shown, done, today));
   const words = feedWords(feed, now);
   const noteUid =
-    [...items]
+    [...shown]
       .filter((i) => i.gradescope && !done.has(i.uid) && i.dueDate >= today)
       .sort(compareItems)[0]?.uid ?? null;
   const props: ListProps = {
-    items,
+    items: shown,
     done,
     today,
+    now,
     look,
     noteUid,
     onToggle: (item) => onToggle(item, "list"),
@@ -412,6 +465,10 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
               {checked ? ` · ${checked}` : ""}
             </span>
             {feed && feed.status !== "broken" ? <RefreshButton /> : null}
+            {/* A line of its own: the week at a glance. */}
+            {progress ? (
+              <span className="tnum basis-full">{progress}</span>
+            ) : null}
           </>
         }
         views={<TodoViews view={view} />}
@@ -463,6 +520,7 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
           {...props}
           planCourses={scheduler.planCourses}
           chatOn={chatOn}
+          onHideCourse={(group) => setHidden(group.key, groupName(group), true)}
         />
       ) : view === "week" ? (
         <>
@@ -481,7 +539,49 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
       ) : (
         <DayList {...props} />
       )}
+
+      {hidden.size > 0 ? (
+        <HiddenCourses
+          hidden={hidden}
+          onShow={(key) => setHidden(key, key, false)}
+        />
+      ) : null}
     </>
+  );
+}
+
+/**
+ * The line at the bottom once a course is hidden: "Hidden: 2 courses", and a
+ * menu to show each one again.
+ */
+function HiddenCourses({
+  hidden,
+  onShow,
+}: {
+  hidden: ReadonlySet<string>;
+  onShow: (key: string) => void;
+}) {
+  const keys = [...hidden].sort();
+  return (
+    <div className="flex items-center gap-2 border-hairline border-t pt-3 text-muted text-sm">
+      <span className="tnum">{hiddenWords(keys.length)}</span>
+      <DropdownMenu>
+        <WithTooltip label="Show a hidden course's items again">
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              Show again
+            </Button>
+          </DropdownMenuTrigger>
+        </WithTooltip>
+        <DropdownMenuContent align="start">
+          {keys.map((key) => (
+            <DropdownMenuItem key={key} onSelect={() => onShow(key)}>
+              <span data-private="">Show {key}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 

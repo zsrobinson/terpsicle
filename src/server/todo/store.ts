@@ -435,6 +435,62 @@ export async function setDone(
   await statement.run();
 }
 
+// ---------- Hidden courses ----------
+
+/** The course groups a person hid, by key. */
+export async function hiddenCourses(
+  db: D1Database,
+  userId: string,
+): Promise<string[]> {
+  const { results } = await db
+    .prepare(
+      "SELECT course_key FROM todo_hidden WHERE user_id = ?1 ORDER BY course_key",
+    )
+    .bind(userId)
+    .all<{ course_key: unknown }>();
+  return results.flatMap((r) =>
+    typeof r.course_key === "string" ? [r.course_key] : [],
+  );
+}
+
+/** Hides a course group (at most `max` of them) or shows it again. */
+export async function setCourseHidden(
+  db: D1Database,
+  userId: string,
+  key: string,
+  hidden: boolean,
+  now: Date,
+  max: number,
+): Promise<void> {
+  const statement = hidden
+    ? db
+        .prepare(
+          `INSERT INTO todo_hidden (user_id, course_key, hidden_at)
+           SELECT ?1, ?2, ?3
+           WHERE (SELECT COUNT(*) FROM todo_hidden WHERE user_id = ?1) < ?4
+           ON CONFLICT (user_id, course_key) DO NOTHING`,
+        )
+        .bind(userId, key, now.toISOString(), max)
+    : db
+        .prepare(
+          "DELETE FROM todo_hidden WHERE user_id = ?1 AND course_key = ?2",
+        )
+        .bind(userId, key);
+  await statement.run();
+}
+
+/**
+ * SQL that's true when item row `i` (with `user_id`, `course_code` and
+ * `course_label`) is in a course its person hid: by its code, its ELMS
+ * course name, or any course code in that name (a cross-listed item), as
+ * `isHiddenItem` reads it in the app.
+ */
+export const IN_HIDDEN_COURSE = (i: string) =>
+  `EXISTS (SELECT 1 FROM todo_hidden h WHERE h.user_id = ${i}.user_id
+     AND (h.course_key = ${i}.course_code OR h.course_key = ${i}.course_label
+          OR (h.course_key GLOB '[A-Z][A-Z][A-Z][A-Z][0-9][0-9][0-9]*'
+              AND instr(${i}.course_label, h.course_key) > 0)))`;
+
 // ---------- The daily job and the admin ----------
 
 /**

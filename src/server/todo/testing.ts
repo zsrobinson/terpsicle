@@ -86,6 +86,7 @@ export async function clearTodo(): Promise<void> {
   await env.DB.batch(
     [
       "todo_done",
+      "todo_hidden",
       "todo_items",
       "todo_feeds",
       "notification_deliveries",

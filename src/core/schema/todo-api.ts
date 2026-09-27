@@ -168,6 +168,8 @@ export const TodoListResultSchema = z.strictObject({
   items: z.array(TodoItemSchema),
   /** The UIDs among `items` marked done. */
   done: z.array(z.string()),
+  /** The course groups the person hid ("Hide CMSC216"): their keys. */
+  hidden: z.array(z.string()),
 });
 export type TodoListResult = z.infer<typeof TodoListResultSchema>;
 
@@ -222,3 +224,23 @@ export const TodoImportFileResultSchema = z.strictObject({
   skipped: z.number().int().min(0),
 });
 export type TodoImportFileResult = z.infer<typeof TodoImportFileResultSchema>;
+
+// ---------- POST /api/todo/hide-course ----------
+
+/** Course groups a person can hide, at most. */
+export const TODO_MAX_HIDDEN = 100;
+
+/**
+ * Hides a course group's items everywhere in Todo, or shows them again. The
+ * key is the group's: a course code, or the ELMS course name when the feed
+ * gave no code (`courseKey` in src/core/todo/list.ts).
+ */
+export const TodoHideCourseInputSchema = z.strictObject({
+  key: z.string().min(1).max(300),
+  hidden: z.boolean(),
+});
+export type TodoHideCourseInput = z.infer<typeof TodoHideCourseInputSchema>;
+export const TodoHideCourseResultSchema = z.strictObject({
+  status: z.literal("ok"),
+});
+export type TodoHideCourseResult = z.infer<typeof TodoHideCourseResultSchema>;

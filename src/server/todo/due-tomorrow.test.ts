@@ -240,6 +240,30 @@ describe("the 6pm send", () => {
     ]);
   });
 
+  it("never reminds about a course the person hid", async () => {
+    clock = Date.parse("2026-09-28T20:00:00Z");
+    const device = await connected(TWO_DUE_TUESDAY);
+    await device.call("/api/todo/hide-course", {
+      key: "Terps Robotics Club",
+      hidden: true,
+    });
+    await device.call("/api/todo/hide-course", {
+      key: "CMSC216",
+      hidden: true,
+    });
+    await runAt("2026-09-28T22:03:00Z");
+    expect(phone.received).toEqual([]);
+    // Shown again, it reminds the next evening.
+    await device.call("/api/todo/hide-course", {
+      key: "CMSC216",
+      hidden: false,
+    });
+    await runAt("2026-09-29T22:03:00Z");
+    expect(phone.received.map((p) => p.title)).toEqual([
+      "Quiz 3 is due tomorrow",
+    ]);
+  });
+
   it("says nothing when everything due tomorrow is done", async () => {
     clock = Date.parse("2026-09-28T20:00:00Z");
     const device = await connected(TWO_DUE_TUESDAY);
