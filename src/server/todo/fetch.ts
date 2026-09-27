@@ -14,6 +14,12 @@ import {
   sealFeedLink,
 } from "./crypto";
 
+/**
+ * Who's asking, as the ingest jobs say it (`src/ingest/http.ts`). ELMS's
+ * firewall answers a request with no User-Agent (a Worker's fetch sends
+ * none) with 403 "Not Authorized", so without it no feed ever loads.
+ */
+export const FEED_USER_AGENT = "Terpsicle/2 (+https://terpsicle.com)";
 export const FEED_TIMEOUT_MS = 10_000;
 export const FEED_MAX_BYTES = 5 * 1_048_576;
 export const FEED_MAX_REDIRECTS = 2;
@@ -93,7 +99,10 @@ export async function fetchFeed(
   try {
     let current = url;
     for (let hop = 0; ; hop++) {
-      const headers = new Headers({ Accept: "text/calendar, */*;q=0.5" });
+      const headers = new Headers({
+        Accept: "text/calendar, */*;q=0.5",
+        "User-Agent": FEED_USER_AGENT,
+      });
       if (options.etag) headers.set("If-None-Match", options.etag);
       if (options.lastModified)
         headers.set("If-Modified-Since", options.lastModified);
