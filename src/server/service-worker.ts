@@ -175,7 +175,9 @@ export function readPushPayload(raw: unknown): ShownPush | null {
     type !== "seat-open" &&
     type !== "chat-mention" &&
     type !== "chat-reply" &&
-    type !== "admin-urgent"
+    type !== "admin-urgent" &&
+    type !== "todo-due" &&
+    type !== "test"
   )
     return null;
   if (typeof title !== "string") return null;

@@ -473,6 +473,8 @@ describe("service worker: push", () => {
       },
       { ...aPush, type: "chat-mention" },
       { ...aPush, type: "admin-urgent" },
+      { ...aPush, type: "todo-due" },
+      { ...aPush, type: "test" },
       { ...aPush, extra: true },
       { ...aPush, v: 2 },
       { ...aPush, v: "1" },

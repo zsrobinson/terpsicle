@@ -59,6 +59,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `reviews` · `chat` · `todo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `reviews`: from writing or reporting a review. `chat`: from signed-out `/chat`. `todo`: from signed-out `/todo` or `/todo/connect`. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
+  | `push_enabled` | none | People turning on notifications on a device, from Settings. |
+  | `push_disabled` | none | People turning them off there ("Turn off here"). |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
   | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names or courses. |
   | `account_deletion_requested` | | How often people delete their account. |

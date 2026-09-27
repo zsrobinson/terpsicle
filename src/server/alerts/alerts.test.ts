@@ -7,6 +7,12 @@ import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { findTestUser } from "~/core/auth";
 import {
+  decryptPushPayload,
+  exportPublicKey,
+  generateKeyPair,
+  toBase64url,
+} from "~/core/push";
+import {
   SEAT_WATCH_MAX_PER_USER,
   type SeatsFile,
   SeatUnwatchResultSchema,
@@ -15,6 +21,7 @@ import {
   TERMS_KEY,
   TermsFileSchema,
 } from "~/core/schema";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "~/core/schema/notifications";
 import {
   archivedFixtureTermId,
   buildMockDataFiles,
@@ -25,6 +32,9 @@ import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { upsertUser } from "../auth/store";
+import { writeSettings } from "../notifications/store";
+import { TEST_VAPID_KEYS } from "../push/config";
+import { saveSubscription } from "../push/store";
 import { notifySeatChanges } from "./notify";
 import { endPastTermWatches, oneClickStopUrl } from "./service";
 
@@ -72,9 +82,16 @@ beforeAll(async () => {
 beforeEach(async () => {
   clock = Date.parse("2026-10-01T15:00:00.000Z");
   await env.DB.batch(
-    ["seat_watches", "seat_alert_sends", "counters", "sessions", "users"].map(
-      (t) => env.DB.prepare(`DELETE FROM ${t}`),
-    ),
+    [
+      "seat_watches",
+      "seat_alert_sends",
+      "notification_deliveries",
+      "notification_settings",
+      "push_subscriptions",
+      "counters",
+      "sessions",
+      "users",
+    ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
   );
 });
 
@@ -325,6 +342,110 @@ describe("seat watches", () => {
       ).toEqual({ checked: 0, sent: 0, skipped: "disabled" });
       expect(sent).toHaveLength(0);
     }
+  });
+});
+
+describe("seat watches by push (V2.md §6.5)", () => {
+  /** A device of tstudent's with push on, and what its push service got. */
+  async function aDevice() {
+    const pair = await generateKeyPair("ECDH", true);
+    const uaPublic = await exportPublicKey(pair.publicKey);
+    const authSecret = crypto.getRandomValues(new Uint8Array(16));
+    await saveSubscription(env.DB, {
+      userId: "tstudent",
+      endpoint: "https://fcm.googleapis.com/fcm/send/phone",
+      p256dh: toBase64url(uaPublic),
+      auth: toBase64url(authSecret),
+      label: "iPhone · Safari",
+      now: now(),
+    });
+    const received: unknown[] = [];
+    const fetcher: typeof fetch = async (input, init) => {
+      const body = new Uint8Array(await new Request(input, init).arrayBuffer());
+      const plain = await decryptPushPayload({
+        body,
+        uaPrivate: pair.privateKey,
+        uaPublic,
+        authSecret,
+      });
+      received.push(plain && JSON.parse(new TextDecoder().decode(plain)));
+      return new Response(null, { status: 201 });
+    };
+    return { received, fetcher };
+  }
+
+  const pushEnv = () =>
+    makeEnv({
+      PUSH_ENABLED: "true",
+      VAPID_PUBLIC_KEY: TEST_VAPID_KEYS.publicKey,
+      VAPID_PRIVATE_KEY: TEST_VAPID_KEYS.privateKey,
+    } as Partial<ApiEnv>);
+
+  it("pushes to the person's devices as well as emailing, once per reopen", async () => {
+    const { testEnv, sent } = pushEnv();
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+    const phone = await aDevice();
+    const after = reopen(SECTION, 3, "2026-10-01T15:05:00.000Z");
+    const go = () =>
+      notifySeatChanges(testEnv, mockSeats, after, {
+        now: now(),
+        fetch: phone.fetcher,
+      });
+    expect(await go()).toEqual({ checked: 1, sent: 1 });
+    expect(sent).toHaveLength(1);
+    expect(phone.received).toEqual([
+      {
+        v: 1,
+        type: "seat-open",
+        title: "A seat opened in CMSC351 0101",
+        body: "3 of 120 open. Register on Testudo before it's gone.",
+        url: `/schedule?term=${fixtureTermId}&course=CMSC351`,
+        tag: `seat:${fixtureTermId}:${SECTION}`,
+      },
+    ]);
+    // A retried run sends neither again.
+    expect(await go()).toMatchObject({ sent: 0 });
+    expect(phone.received).toHaveLength(1);
+    expect(sent).toHaveLength(1);
+  });
+
+  it("follows the person's settings: push only, or nothing", async () => {
+    const { testEnv, sent } = pushEnv();
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+    const phone = await aDevice();
+    await writeSettings(
+      env.DB,
+      "tstudent",
+      {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        seatOpen: { push: true, email: false },
+      },
+      now(),
+    );
+    const run = (asOf: string) =>
+      notifySeatChanges(testEnv, mockSeats, reopen(SECTION, 2, asOf), {
+        now: now(),
+        fetch: phone.fetcher,
+      });
+    expect(await run(now().toISOString())).toMatchObject({ sent: 1 });
+    expect(sent).toEqual([]);
+    expect(phone.received).toHaveLength(1);
+
+    tick(60);
+    await writeSettings(
+      env.DB,
+      "tstudent",
+      {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        seatOpen: { push: false, email: false },
+      },
+      now(),
+    );
+    expect(await run(now().toISOString())).toMatchObject({ sent: 0 });
+    expect(sent).toEqual([]);
+    expect(phone.received).toHaveLength(1);
   });
 });
 

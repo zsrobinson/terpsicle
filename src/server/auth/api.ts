@@ -17,6 +17,7 @@ import type {
   TestSignInResult,
 } from "~/core/schema";
 import { apiError, json } from "../api/http";
+import { deleteAllOf, deleteByEndpoint } from "../push/store";
 import { type AuthEnv, appFlags, isTestMode } from "./config";
 import {
   clearCookie,
@@ -47,9 +48,18 @@ function withCookies(response: Response, cookies: string[]): Response {
 export async function me(
   env: AuthEnv,
   ctx: IdentityRouteContext,
-  options: { seatAlerts: boolean; todo: boolean },
+  options: {
+    seatAlerts: boolean;
+    todo: boolean;
+    /** The VAPID public key while push works here, else null. */
+    pushPublicKey: string | null;
+  },
 ): Promise<Response> {
-  const flags = appFlags(env, new URL(ctx.request.url), options);
+  const flags = appFlags(env, new URL(ctx.request.url), {
+    seatAlerts: options.seatAlerts,
+    todo: options.todo,
+    push: options.pushPublicKey !== null,
+  });
   const session = await getSession(ctx.request, env, ctx.now, {
     refresh: true,
   });
@@ -63,7 +73,7 @@ export async function me(
     status: "signed-in",
     flags,
     user: toMeUser(session.user),
-    pushPublicKey: null,
+    pushPublicKey: options.pushPublicKey,
   } satisfies MeResult);
   return session.setCookie
     ? withCookies(response, [session.setCookie])
@@ -74,12 +84,19 @@ export async function me(
  * Ends this device's session. Works signed out too (a stale cookie is still
  * cleared), so it only needs the origin check. The hint cookie goes too: on
  * a shared computer, the next person shouldn't see this address at Google.
+ * With `pushEndpoint`, this device's notifications stop too (V2 §4.7).
  */
 export async function signOut(
   env: AuthEnv,
+  input: { pushEndpoint?: string | undefined },
   ctx: IdentityRouteContext,
 ): Promise<Response> {
   if (!isSameOrigin(ctx.request)) return apiError("forbidden");
+  if (input.pushEndpoint) {
+    const session = await getSession(ctx.request, env, ctx.now);
+    if (session)
+      await deleteByEndpoint(env.DB, session.user.id, input.pushEndpoint);
+  }
   const cookie = await endSession(ctx.request, env);
   return withCookies(json({ status: "signed-out" }), [
     cookie,
@@ -102,6 +119,8 @@ export async function deleteAccount(
   const due = deleteAfter(ctx.now);
   await markDeleting(env.DB, user.id, due);
   await deleteUserSessions(env.DB, user.id);
+  // Every device stops now, not after the week (V2 §4.7).
+  await deleteAllOf(env.DB, user.id).run();
   return withCookies(
     json({
       status: "deleting",

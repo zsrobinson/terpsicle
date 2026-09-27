@@ -15,12 +15,17 @@ export const SitePathSchema = z
   .max(2048)
   .regex(/^\/(?!\/)/, "Must be a path on this site, starting with one /");
 
-/** What a push is about (V2 §6.1; `admin-urgent` is the owner's moderation alert). */
+/**
+ * What a push is about (V2 §6.1; `admin-urgent` is the owner's moderation
+ * alert, `todo-due` is V3 §4's, and `test` is "Send me a test" in Settings).
+ */
 export const PushTypeSchema = z.enum([
   "seat-open",
   "chat-mention",
   "chat-reply",
   "admin-urgent",
+  "todo-due",
+  "test",
 ]);
 export type PushType = z.infer<typeof PushTypeSchema>;
 

@@ -72,6 +72,13 @@ _Avoid_: log in, magic link
 **Directory ID**:
 The part of a UMD email before the @. It's who a person is to Terpsicle: `x@umd.edu` and `x@terpmail.umd.edu` are one account.
 
+**Notification**:
+A push on your phone or computer, or an email, for one of the few kinds: seat openings, mentions and replies in Chat, and Todo's Due tomorrow. Each kind has its switches in Settings ("Notification", "Email").
+_Avoid_: alert, push (in UI; code says push for the web push channel)
+
+**Device**:
+A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
+
 **Sync**:
 Keeping a signed-in person's plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)".
 
