@@ -10,9 +10,12 @@ import type { SeatWatch, SectionKey, TermId } from "~/core/schema";
 export interface SeatWatchesState {
   /** Null until the list has loaded for this account (and when signed out). */
   watches: readonly SeatWatch[] | null;
+  /** The last load didn't reach the server, and there's no list yet. */
+  loadFailed: boolean;
 
   /** Replaces the list (a load, or signing out with null). */
   setAll: (watches: readonly SeatWatch[] | null) => void;
+  setLoadFailed: (failed: boolean) => void;
   /** Adds or replaces one, newest first. */
   put: (watch: SeatWatch) => void;
   remove: (termId: TermId, sectionKey: SectionKey) => void;
@@ -20,6 +23,7 @@ export interface SeatWatchesState {
 
 export const INITIAL_SEAT_WATCHES_STATE = {
   watches: null,
+  loadFailed: false,
 } satisfies Partial<SeatWatchesState>;
 
 const same =
@@ -29,7 +33,8 @@ const same =
 
 export const useSeatWatches = create<SeatWatchesState>()((set, get) => ({
   ...INITIAL_SEAT_WATCHES_STATE,
-  setAll: (watches) => set({ watches }),
+  setAll: (watches) => set({ watches, loadFailed: false }),
+  setLoadFailed: (loadFailed) => set({ loadFailed }),
   put: (watch) => {
     const rest = (get().watches ?? []).filter(
       (w) => !same(watch.termId, watch.sectionKey)(w),

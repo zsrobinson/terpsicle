@@ -52,7 +52,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
-import { Skeleton } from "~/ui/skeleton";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { bookmarkInstead, openCourse, removeCourse } from "./actions";
 import { CourseColorPicker } from "./color-picker";
@@ -77,7 +77,7 @@ export function CoursesPanel() {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <PanelHeader title="Courses" />
-        <RowsSkeleton />
+        <RowSkeleton label="Loading your courses" />
       </div>
     );
   }
@@ -478,21 +478,5 @@ function MenuItemPair({
         {action.label}
       </Item>
     </>
-  );
-}
-
-function RowsSkeleton() {
-  return (
-    <div className="flex flex-col">
-      {[0.62, 0.5, 0.7].map((w) => (
-        <div
-          key={w}
-          className="flex flex-col gap-2 border-hairline border-b px-4 py-3"
-        >
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="ml-4 h-3" style={{ width: `${w * 100}%` }} />
-        </div>
-      ))}
-    </div>
   );
 }

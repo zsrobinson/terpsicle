@@ -49,13 +49,37 @@ describe("catalog load failures", () => {
       await useCatalog.getState().loadTerms();
     });
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Couldn't reach terpsicle.com to load the course catalog. Check your connection and try again.",
-    );
+    const words =
+      "Couldn't reach terpsicle.com to load the course catalog. Check your connection and try again.";
+    // The kit's inline error: a quiet status, never an alert.
+    expect(screen.getByText(words).closest("[role=status]")).not.toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
     flaky.reconnect();
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Spring 2027")).toBeInTheDocument();
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(words)).toBeNull();
+  });
+
+  it("offers Reload when this tab is older than the catalog's format", async () => {
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    const { user } = await renderShell();
+    act(() =>
+      useCatalog.setState({
+        terms: null,
+        appStale: true,
+        termsError:
+          "Terpsicle has been updated since this page opened. Reload to load the course catalog.",
+      }),
+    );
+    expect(
+      screen.getByText(/Terpsicle has been updated since this page opened/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Reload" }));
+    expect(reload).toHaveBeenCalledOnce();
+    reload.mockRestore();
   });
 
   it("with saved data on screen, only notes it quietly in the top bar", async () => {

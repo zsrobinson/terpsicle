@@ -201,4 +201,24 @@ describe("noteToast", () => {
     );
     expect(retry).toHaveBeenCalledTimes(1);
   });
+
+  it("offers Reload, with its tooltip, when only a newer version can help", async () => {
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    renderToaster();
+    act(() =>
+      noteToast("Terpsicle was updated. Reload to keep chatting.", {
+        reload: true,
+      }),
+    );
+    const button = await screen.findByRole("button", { name: "Reload" });
+    await userEvent.hover(button);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Reload Terpsicle to get the new version",
+    );
+    await userEvent.click(button);
+    expect(reload).toHaveBeenCalledOnce();
+    reload.mockRestore();
+  });
 });

@@ -70,19 +70,14 @@ Frame chrome:
 ## 6. Loading states
 
 - **Schedule**:
-  - `PanelSkeleton` (`panel.tsx:333`) for every tab chunk.
-  - `RowsSkeleton` (`courses-panel.tsx:482`) and travel `ListSkeleton` (`travel-panel.tsx:269`), which re-create near-identical row skeletons.
+  - `PanelSkeleton` (`panel.tsx:333`) for every tab chunk. (Courses, Travel and Export use the kit's `RowSkeleton` or `PanelSkeleton` since `v3/behavior`; nothing pulses.)
   - Top bar skeletons (`top-bar.tsx:125`, `term-switcher.tsx:27`, `app-shell.tsx:457`).
   - The drawer placeholder (`app-shell.tsx:173`).
-  - Course details' review summary (`course-details/reviews.tsx:196-197`) is the only skeleton left that adds `animate-pulse`.
 - **Routes**: no `pendingComponent` or `errorComponent` on any route (only `notFoundComponent` in `__root.tsx:62` and the Reviews routes).
 
 ## 7. Error states and inline messages
 
-- **Schedule**:
-  - `CatalogError` (`app/catalog-error.tsx:41-73`): `role="alert"`, centered, `text-base text-fg`, outline sm button with RotateCw.
-  - `PanelLoadBoundary` (`panel-load-boundary.tsx:48-66`): PanelHeader + EmptyState + outline sm Reload.
-  - **`toast.error`** (red) for storage (`app.tsx:55,104`), clipboard (`export/actions.ts:30`), shared link (`app-shell.tsx:273`) and seat watches (`alerts/seat-watches.tsx:115-167`).
+- ~~**Schedule**~~: fixed in `v3/behavior`. `CatalogError`, `PanelLoadBoundary`, Generate's failure, PlanetTerp's and Export's use `InlineError` (with Reload where only a new version helps), and failures are `noteToast`s, never red.
 - **Plan**: `InlineError` for Search, the sample plans (with Try again) and the import; "Not saved" is the bar's status (`plan-bar.tsx`).
 - **Todo**: form answers `role="status" text-fg text-sm` (`connect-form.tsx`, `file-drop.tsx`), and the feed problem is a `text-fg` paragraph with a link, which `InlineError` can't hold.
 - **Settings**:
@@ -165,7 +160,7 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
 
 - ~~**Two `EmptyState`s** with the same name: `app/panel.tsx:274` and `four-year/empty-state.tsx:24`.~~ Fixed in `v3/page-kit`: the panel's is `PanelNote`, and `EmptyState` is the kit's first-visit template. Plan's local one moved onto it in `v3/cohesion-plan` (`four-year/first-visit.tsx`).
 - **`Section`**: fixed. Reviews, Todo's connect page, Privacy and Settings use `PageSection`; panels keep `SectionHeader`.
-- **One `ListSkeleton`**: `travel-panel.tsx:269`. Also `RowsSkeleton` (`courses-panel.tsx:482`) next to `PanelSkeleton`. (`v3/page-kit` added the shared shape, `RowSkeleton` and `PageSkeleton`, and `PanelSkeleton` uses it; the copies move over in each product's Phase 3 PR.)
+- ~~**One `ListSkeleton`**: `travel-panel.tsx:269`. Also `RowsSkeleton` (`courses-panel.tsx:482`) next to `PanelSkeleton`.~~ Fixed in `v3/behavior`: both are the kit's `RowSkeleton`.
 - ~~**Two `ToastAction`s**~~: fixed in `v2/kit-toasts` (§9); Plan's toasts use the kit's.
 - **Segmented controls, at least 2**: travel pace and extra-time (`travel-settings.tsx:46`, `:109`), marketing reviews sample (`reviews-sample.tsx:118`).
 - ~~**Switch knobs, 2**: `travel-settings.tsx:158` `Toggle` and `notification-settings.tsx:343` `Knob`. Identical markup except `mt-0.5`.~~ Fixed in `v3/page-kit`: both use `components/ui/switch.tsx` (Radix).
@@ -212,15 +207,12 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
    - (Plan's panels use `ListRow`; its blocks are canvas items, boxed like calendar blocks.)
 9. **Page widths jump between products.** Full-bleed (Chat, and the Schedule and Plan workbenches). (Reviews, Todo, Settings, sign-in, Chat's front door, admin and the site's pages take `ProductPage` widths.)
 10. ~~**Toast Undo/Redo buttons have seven implementations.**~~ Fixed in `v2/kit-toasts`.
-11. **Error handling differs by product.**
-    - Schedule uses red `toast.error` and a `role=alert` block with a RotateCw retry.
-    - (Every route shares one error state since `v3/route-states`; Reviews, Todo, Settings and Chat use `InlineError` with Try again.)
+11. ~~**Error handling differs by product.**~~ Fixed in `v3/behavior`: every route shares one error state, every product (the scheduler's catalog and lazy panels included) uses `InlineError` with Try again, or Reload where only a new version helps, and failures in toasts are `noteToast`s. Plan's are on `InlineError` since #144.
 12. ~~**Back navigation had several forms.**~~ Fixed: Reviews, Chat, Todo and Notifications use `PageHeader`'s Back; Schedule's and Plan's drill-ins use `BackButton` in the workbench's `DrillBackBar`.
 13. **Section headings under a page title differ.**
     - Todo DayList: `text-base`, rule below (the prototype's day list).
     - (Reviews, Todo's connect page, Settings and Privacy use `PageSection`.)
-14. **Loading states are inconsistent.**
-    - Skeleton shapes differ, and two `ListSkeleton` copies exist.
+14. ~~**Loading states are inconsistent.**~~ Fixed: every product loads with the kit's skeletons (Plan since #144, the scheduler's copies since `v3/behavior`).
 15. **Form controls have no shared primitives.**
     - 1 search-box style besides `SearchField` (`h-9` hairline in Schedule).
     - At least 5 text-input styles.

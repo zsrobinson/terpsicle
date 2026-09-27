@@ -26,7 +26,7 @@ import {
   useTermCatalog,
   useTravel,
 } from "~/state/hooks";
-import { Skeleton } from "~/ui/skeleton";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { openConnection } from "./actions";
 import {
@@ -127,7 +127,7 @@ function Connections() {
     (connections.length > 0 &&
       (campusState === "idle" || campusState === "loading"));
 
-  if (loading) return <ListSkeleton />;
+  if (loading) return <RowSkeleton label="Working out travel times" />;
   if (connections.length === 0)
     return (
       <section aria-label="Connections">
@@ -263,21 +263,5 @@ export function ConnectionRow({
         </button>
       </WithTooltip>
     </ListRow>
-  );
-}
-
-function ListSkeleton() {
-  return (
-    <div role="status" aria-label="Working out travel times">
-      {[0.62, 0.5, 0.56].map((w) => (
-        <div
-          key={w}
-          className="flex flex-col gap-1.5 border-hairline border-b px-4 py-2"
-        >
-          <Skeleton className="h-3" style={{ width: `${w * 100}%` }} />
-          <Skeleton className="h-2.5 w-2/3" />
-        </div>
-      ))}
-    </div>
   );
 }

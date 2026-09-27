@@ -1,8 +1,6 @@
-import { RotateCw } from "lucide-react";
 import { Component, type ReactNode } from "react";
-import { Button } from "~/ui/button";
-import { WithTooltip } from "~/ui/tooltip";
-import { PanelHeader, PanelNote } from "./panel";
+import { InlineError } from "~/ui/inline-error";
+import { PanelHeader } from "./panel";
 
 // A view that loads on first use (a route's chunk, the phone drawer) can
 // fail to arrive: offline, or a deploy removed the old chunk. Say so in the
@@ -45,25 +43,14 @@ export class PanelLoadBoundary extends Component<
     // Only a chunk that didn't arrive is this boundary's; a bug goes on up.
     if (!isChunkLoadError(error)) throw error;
     return (
-      <div role="alert" className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <PanelHeader title={this.props.title} />
-        <PanelNote
-          action={
-            <WithTooltip label="Reload the page to load this panel">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.reload()}
-              >
-                <RotateCw size={13} aria-hidden="true" />
-                Reload
-              </Button>
-            </WithTooltip>
-          }
-        >
-          Couldn't load {this.props.title}. Check your connection, then reload.
-          Your plans are saved.
-        </PanelNote>
+        <InlineError
+          className="px-4"
+          message={`Couldn't load ${this.props.title}. Check your connection, then reload. Your plans are saved.`}
+          reload
+          retryTooltip={`Reload Terpsicle to load ${this.props.title}`}
+        />
       </div>
     );
   }

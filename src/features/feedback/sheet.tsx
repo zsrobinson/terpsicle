@@ -16,6 +16,7 @@ import { browserName } from "~/core/feedback/context";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
+import { InlineError } from "~/ui/inline-error";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
 import { Skeleton } from "~/ui/skeleton";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
@@ -545,11 +546,8 @@ export function FeedbackForm({
           >
             {context}
           </p>
-          {error ? (
-            <p role="alert" className="text-fg text-sm">
-              {error}
-            </p>
-          ) : null}
+          {/* Send is the way to try again, right below. */}
+          {error ? <InlineError className="py-0" message={error} /> : null}
           <WithTooltip label="Send it to us" shortcut={modKey("↵")}>
             <Button
               type="submit"

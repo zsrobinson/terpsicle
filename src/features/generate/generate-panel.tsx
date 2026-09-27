@@ -20,6 +20,7 @@ import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { useActiveTerm, useCurrentPlan, useTermCatalog } from "~/state/hooks";
 import { useWorkspace } from "~/state/workspace-store";
 import { Button } from "~/ui/button";
+import { InlineError } from "~/ui/inline-error";
 import { WithTooltip } from "~/ui/tooltip";
 import { CourseList } from "./course-list";
 import { requestSummary } from "./labels";
@@ -236,9 +237,13 @@ export function GeneratePanel() {
               />
             ) : null}
             {mine.kind === "error" ? (
-              <p role="status" className="px-4 pt-4 text-muted text-sm">
-                {mine.message}
-              </p>
+              <InlineError
+                className="px-4 pt-4"
+                message={mine.message}
+                reload={mine.reload}
+                onRetry={runnable ? run : undefined}
+                retryTooltip={mine.reload ? undefined : "Generate plans again"}
+              />
             ) : null}
             <div className="h-4" />
           </>

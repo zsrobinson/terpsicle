@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Component, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "~/ui/tooltip";
@@ -40,7 +41,7 @@ describe("PanelLoadBoundary", () => {
   it("words a chunk that didn't arrive, in the panel", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     renderBoundary(new ChunkLoadError(new TypeError("Failed to fetch")));
-    expect(screen.getByRole("alert")).toHaveTextContent(
+    expect(screen.getByRole("status")).toHaveTextContent(
       "Couldn't load Travel. Check your connection, then reload.",
     );
     expect(screen.queryByText(/Outer caught/)).toBeNull();
@@ -53,7 +54,7 @@ describe("PanelLoadBoundary", () => {
         "Failed to fetch dynamically imported module: /assets/schedule.travel-x.js",
       ),
     );
-    expect(screen.getByRole("alert")).toHaveTextContent(
+    expect(screen.getByRole("status")).toHaveTextContent(
       "Couldn't load Travel.",
     );
   });
@@ -62,6 +63,16 @@ describe("PanelLoadBoundary", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     renderBoundary(new Error("a bug"));
     expect(screen.getByText("Outer caught: a bug")).toBeVisible();
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("reloads from its Reload button, since a failed import stays failed", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    renderBoundary(new ChunkLoadError(new TypeError("Failed to fetch")));
+    await userEvent.click(screen.getByRole("button", { name: "Reload" }));
+    expect(reload).toHaveBeenCalledOnce();
   });
 });

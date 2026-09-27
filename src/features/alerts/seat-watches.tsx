@@ -179,7 +179,9 @@ export function loadSeatWatches(): Promise<void> {
         .setAll(result.status === "ok" ? result.watches : []);
     } catch {
       // Offline or signed out meanwhile: bells show "Watch for a seat",
-      // and a click still works (watching is idempotent).
+      // and a click still works (watching is idempotent). The Watching
+      // list says it didn't load, with Try again.
+      useSeatWatches.getState().setLoadFailed(true);
     } finally {
       loading = null;
     }

@@ -27,6 +27,45 @@ describe("InlineError", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it("says Trying… and takes no second press while a retry is on its way", () => {
+    render(
+      <TooltipProvider>
+        <InlineError
+          message="The catalog didn't load."
+          onRetry={vi.fn()}
+          retrying
+        />
+      </TooltipProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Trying…" })).toBeDisabled();
+  });
+
+  it("offers Reload, with its tooltip, where only a newer version can help", async () => {
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    const onRetry = vi.fn();
+    render(
+      <TooltipProvider delayDuration={0}>
+        <InlineError
+          message="Terpsicle was updated. Reload to keep chatting."
+          onRetry={onRetry}
+          reload
+        />
+      </TooltipProvider>,
+    );
+    const user = userEvent.setup();
+    const button = screen.getByRole("button", { name: "Reload" });
+    await user.hover(button);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Reload Terpsicle to get the new version",
+    );
+    await user.click(button);
+    expect(reload).toHaveBeenCalledOnce();
+    expect(onRetry).not.toHaveBeenCalled();
+    reload.mockRestore();
+  });
+
   it("has no Try again where retrying can't help", () => {
     render(<InlineError message="This link has expired." />);
     expect(screen.queryByRole("button")).toBeNull();
