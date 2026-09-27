@@ -25,7 +25,7 @@ import {
 } from "~/core/schema";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { loadTerms, useLoaded } from "./data";
+import { browserReader, loadTerms, useLoaded } from "./data";
 import { useReviews } from "./reviews-store";
 
 // The review form (V2 §7.4): stars, when you took it, your grade (optional)
@@ -75,7 +75,9 @@ export function Composer({
   const [failure, setFailure] = useState<Failure | null>(null);
   const submit = useReviews((s) => s.submit);
   const edit = useReviews((s) => s.edit);
-  const terms = useLoaded("terms", loadTerms);
+  const terms = useLoaded("terms", async () =>
+    loadTerms(await browserReader()),
+  );
   const ids = { body: useId(), help: useId() };
   const editingPublished = existing?.status === "published";
   const verb = existing ? "Save changes" : "Post review";

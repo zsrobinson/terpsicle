@@ -191,8 +191,37 @@ export const PlanetTerpManifestSchema = z.object({
    * manifests written before it read as "unknown", never as a problem.
    */
   source: PlanetTerpSourceSchema.optional(),
+  /**
+   * The index file (`PlanetTerpIndexSchema`). Added without a version bump,
+   * like `source`: manifests from before it have none, and readers fall back.
+   */
+  index: z.object({ hash: ContentHashSchema }).optional(),
 });
 export type PlanetTerpManifest = z.infer<typeof PlanetTerpManifestSchema>;
+
+/** How many courses `mostTaken` keeps. */
+export const MOST_TAKEN_MAX = 40;
+
+/**
+ * `planetterp/index.<hash>.json`: what the department files hold, across
+ * departments. An instructor page with no course (`/reviews/instructors/
+ * kruskal`) finds its departments here, the sitemap lists every instructor,
+ * and a mistyped slug gets "Did you mean…". `mostTaken`: courses in an
+ * active term, most students first by PlanetTerp's grade data.
+ */
+export const PlanetTerpIndexSchema = z.object({
+  schemaVersion: planetterpVersion,
+  /** Slug → [PlanetTerp's name, the departments whose files list them, sorted]. */
+  instructors: z.record(
+    InstructorSlugSchema,
+    z.tuple([z.string().min(1).max(120), z.array(DeptCodeSchema).min(1)]),
+  ),
+  /** [course, its title, students], most students first. */
+  mostTaken: z
+    .array(z.tuple([CourseCodeSchema, z.string().min(1).max(200), count]))
+    .max(MOST_TAKEN_MAX),
+});
+export type PlanetTerpIndex = z.infer<typeof PlanetTerpIndexSchema>;
 
 // ---------- review summaries (Workers AI) ----------
 

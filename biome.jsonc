@@ -540,7 +540,8 @@
       "includes": [
         "src/app/**/*.test.{ts,tsx}",
         "src/features/**/*.test.{ts,tsx}",
-        "src/components/**/*.test.{ts,tsx}"
+        "src/components/**/*.test.{ts,tsx}",
+        "src/routes/**/*.test.{ts,tsx}"
       ],
       "linter": {
         "rules": {

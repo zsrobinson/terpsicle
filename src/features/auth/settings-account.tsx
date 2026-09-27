@@ -151,8 +151,8 @@ function AccountActions() {
         track("account_deletion_requested", {});
         // No confirmation dialog (DESIGN §5): Undo signs back in, which
         // keeps the account.
-        toast(`Account deleted on ${deletionDay(due)}`, {
-          description: "Sign in before then to keep it.",
+        toast(`Deleting your account on ${deletionDay(due)}`, {
+          description: "Undo signs you back in and keeps it.",
           duration: 10_000,
           action: {
             label: "Undo",
@@ -210,8 +210,10 @@ function AccountActions() {
         </WithTooltip>
       </div>
       <p className="text-sm">
-        Deleting removes your name, email and photo from Terpsicle after a week.
-        Plans on this device stay.
+        Deleting signs you out everywhere. After a week, your profile, synced
+        plans, chat messages and ELMS feed are gone for good. Your published
+        reviews stay up, with no name on them. Delete them first if you want
+        them gone. Plans on this device stay.
       </p>
       {failed ? (
         <p role="status" className="text-fg text-sm">

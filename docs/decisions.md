@@ -64,6 +64,11 @@ Revisit if: UMD changes its Google domains.
 Sign-in is invited, never required, for the scheduler: "Sign in to join your class chats. Your plans sync too."
 Revisit if: never on its own.
 
+### A deleted account leaves nothing that names the person
+2026-09-26 · agent · app-wide
+After the week, the daily purge removes every row with the person's directory ID or addresses, their chat messages in every course object and their pictures. Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
+Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
+
 ### LLMs only in three places
 2026-09-26 · owner · app-wide
 Review summaries, their small generated chips, and moderation. No other LLM features.
@@ -113,6 +118,11 @@ Revisit if: server functions gain those, or the table gets in the way.
 2026-09-26 · owner · app-wide
 Bundle totals are reported, not enforced; the never-eager rules (modules that must stay lazy) still fail CI.
 Revisit if: first loads get noticeably slow.
+
+### Public pages are cached at the edge, with hashed scripts
+2026-09-26 · agent · app-wide
+Pages whose HTML is the same for everyone (the public Reviews pages today) go out `s-maxage=600, stale-while-revalidate=86400` and Workers Cache keeps them, keyed by Worker version; signed-in requests are never stored. A cached page can't share a CSP nonce, so its policy lists its inline scripts' hashes instead.
+Revisit if: a public page starts to depend on who's asking.
 
 ### Static pages don't pull in the app
 2026-09-26 · agent · app-wide
@@ -178,6 +188,11 @@ Revisit if: never on its own.
 The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`.
 Revisit if: people don't find reviews from the scheduler.
 
+### Search markup never borrows PlanetTerp's ratings
+2026-09-26 · agent · one feature
+JSON-LD `aggregateRating` appears only on course pages and only from Terpsicle's own published reviews: Google forbids ratings aggregated from other sites, and Person isn't a review-snippet type. Instructor pages carry Person and BreadcrumbList markup only, and `?course=` views canonicalize to the instructor's page.
+Revisit if: PlanetTerp agrees to let us use its ratings, or Google's rules change.
+
 ### PlanetTerp text stays off
 2026-09-26 · owner · one feature
 PlanetTerp numbers show with credit; storing their review text waits until PlanetTerp agrees.
@@ -217,6 +232,11 @@ Revisit if: e2e needs to cover a model's own verdict.
 Both are approved. Plan's first release has no degree requirements and no major quirks.
 Revisit if: the owner starts the requirements work.
 
+### Plan is listed once PLAN_ENABLED is on
+2026-09-26 · agent · one feature
+`/plan` works for anyone who opens it, since it needs no server, but the product menu and the site header list Plan only when `PLAN_ENABLED` is on (or while you're in it). The flag waits, unlike "Ship it"'s screens-land rule, because it also opens four-year sync pushes, which V3 §11 turns on after `v3/four-year-sync`, `v3/e2e` and the owner's trial. The manifest's shortcut and `/`'s returning path to `/plan` wait with it, since both are static.
+Revisit if: Plan turns on in production; then list it always and add the shortcut.
+
 ### Gradescope, honestly
 2026-09-26 · owner · one feature
 Todo never stores an ELMS or Gradescope password, never automates a login, and never fetches gradescope.com.
@@ -238,6 +258,11 @@ Revisit if: reports turn out too thin to act on.
 2026-09-26 · agent · one feature
 The feedback sheet's admin-only "Pin a note" mode stores notes on elements of a deployment, pulled by agents with `scripts/feedback.ts`.
 Revisit if: the owner prefers another way to leave notes.
+
+### Feedback reads the session without needing one
+2026-09-26 · agent · one feature
+`feedback/send` and `feedback/undo` are `auth: "optional"` routes: same-origin like signed-in routes (they write), with the session when there is one (for the reply toggle and the per-person limit), never a 401. The inbox shows whether a reply may go, never to whom.
+Revisit if: another route needs the same, or feedback needs sign-in.
 
 ## Process
 

@@ -104,7 +104,9 @@ export function useCourseResults(
   const seats = catalog?.seats?.seats ?? null;
   const index = catalog?.index;
   const active = query.trim() !== "" || isFiltering(filters);
-  const loading = !catalog?.complete && (index?.courses.size ?? 0) === 0;
+  // Only the whole term: the departments on screen load first, and results
+  // from those alone would read as "no such course".
+  const loading = !catalog?.settled;
   return useMemo((): CourseResults => {
     if (!active) return { status: "idle" };
     if (!index || loading || !engine) return { status: "loading" };

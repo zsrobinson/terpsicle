@@ -43,6 +43,11 @@ export function setReviewsClient(next: ReviewsClient): void {
   client = next;
 }
 
+/** The API client (or the tests' fake), for loaders outside the store. */
+export function reviewsClient(): ReviewsClient {
+  return client;
+}
+
 export interface ReviewsState {
   lists: Readonly<Record<InstructorId, ListState>>;
   mine: MineState;

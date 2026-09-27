@@ -90,7 +90,7 @@ describe("fetch", () => {
     expect(app.fetch).not.toHaveBeenCalled();
   });
 
-  it("serves robots.txt and the sitemap itself, cached for a day", async () => {
+  it("serves robots.txt (cached for a day) and the sitemap itself", async () => {
     app.fetch.mockClear();
     const robots = await get("https://terpsicle.com/robots.txt");
     expect(robots.status).toBe(200);

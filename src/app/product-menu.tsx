@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { STAY_PARAM } from "~/core/routing";
+import { useAccount } from "~/features/auth/account-store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,7 @@ import {
 import { WithTooltip } from "~/ui/tooltip";
 import { Mark } from "./brand/mark";
 import { Wordmark } from "./brand/wordmark";
-import { PRODUCTS, type Product, type ProductId } from "./products";
+import { listedProducts, type Product, type ProductId } from "./products";
 
 // The product menu, the brand's app switcher (docs/V2.md §1.1, DESIGN.md
 // §7.6): the umbrella and the wordmark, top left, open the products
@@ -26,6 +27,7 @@ const CURRENT: Record<ProductId, string> = {
     "bg-product-schedule-soft data-highlighted:bg-product-schedule-soft",
   reviews: "bg-product-reviews-soft data-highlighted:bg-product-reviews-soft",
   chat: "bg-product-chat-soft data-highlighted:bg-product-chat-soft",
+  plan: "bg-product-plan-soft data-highlighted:bg-product-plan-soft",
   todo: "bg-product-todo-soft data-highlighted:bg-product-todo-soft",
 };
 
@@ -36,6 +38,7 @@ export function ProductMenu({
   compact?: boolean;
   current?: ProductId;
 }) {
+  const flags = useAccount((s) => s.flags);
   return (
     <DropdownMenu>
       <WithTooltip label="Switch product">
@@ -60,7 +63,7 @@ export function ProductMenu({
         </DropdownMenuTrigger>
       </WithTooltip>
       <DropdownMenuContent className="w-[248px]">
-        {PRODUCTS.map((product) => (
+        {listedProducts(flags, current).map((product) => (
           <ProductItem
             key={product.id}
             product={product}

@@ -1,9 +1,10 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Mark } from "~/app/brand/mark";
 import { Logo } from "~/app/logo";
-import { PRODUCTS, type ProductId } from "~/app/products";
+import { listedProducts, PRODUCTS, type ProductId } from "~/app/products";
 import { SCHEDULE_PATH, STAY_PARAM } from "~/core/routing";
+import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -15,6 +16,7 @@ const CURRENT: Record<ProductId, string> = {
   schedule: "aria-[current=page]:bg-product-schedule-soft",
   reviews: "aria-[current=page]:bg-product-reviews-soft",
   chat: "aria-[current=page]:bg-product-chat-soft",
+  plan: "aria-[current=page]:bg-product-plan-soft",
   todo: "aria-[current=page]:bg-product-todo-soft",
 };
 
@@ -22,14 +24,16 @@ const CURRENT: Record<ProductId, string> = {
  * How a page sits under the header:
  * - `note`: a narrow column a little way down (`/`, coming soon, `/privacy`);
  * - `reading`: a product's pages to read, from the top (Reviews);
- * - `app`: a product's own tool, wide, from the top (Todo's list and week).
+ * - `app`: a product's own tool, wide, from the top (Todo's list and week);
+ * - `wide`: a tool that uses the whole screen (Plan's semesters).
  */
-export type SiteLayout = "note" | "reading" | "app";
+export type SiteLayout = "note" | "reading" | "app" | "wide";
 
 const MAIN: Record<SiteLayout, string> = {
   note: "max-w-[560px] pt-[12vh]",
   reading: "max-w-[720px] pt-6",
   app: "max-w-[1120px] pt-4",
+  wide: "max-w-[1600px] pt-2",
 };
 
 export function SitePage({
@@ -71,6 +75,9 @@ export function SiteHeader({
   actions?: ReactNode;
   className?: string;
 }) {
+  const flags = useAccount((s) => s.flags);
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const current = PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null;
   return (
     <header
       className={`flex h-12 shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4 ${className}`}
@@ -84,7 +91,7 @@ export function SiteHeader({
       <div className="flex items-center gap-1 sm:gap-2">
         {/* The product menu's links, flat: these pages stay light (no menu code). */}
         <nav aria-label="Products" className="flex items-center sm:gap-1">
-          {PRODUCTS.map((p) => (
+          {listedProducts(flags, current).map((p) => (
             <WithTooltip key={p.to} label={p.view}>
               <Button
                 variant="ghost"

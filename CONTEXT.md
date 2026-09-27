@@ -75,12 +75,24 @@ The part of a UMD email before the @. It's who a person is to Terpsicle: `x@umd.
 **Sync**:
 Keeping a signed-in person's plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)".
 
+**Delete account**:
+"Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
+_Avoid_: close account, deactivate
+
 **Sparkles**:
 The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it.
 
 **Feedback**:
 What someone sends from the feedback sheet: "Report a bug" or "Suggest a feature". The owner's own notes on a page are **pinned notes**.
 _Avoid_: report (that's moderation's word)
+
+**Activity log**:
+The last ~50 things someone did in the app (pages by route pattern, app events, errors, failed requests), kept in the page's memory and sent only with feedback when "Include what I was doing" is on.
+_Avoid_: session recording, replay, telemetry
+
+**Pinned note**:
+An admin's note on one element of a page, left with the feedback sheet's "Pin a note" and shown as a numbered dot on that route, to admins only. Stored as feedback of kind `review` (a review of a deployment).
+_Avoid_: review note, comment (in the UI: "review" is Reviews' word)
 
 ## Schedule
 
@@ -161,6 +173,14 @@ The LLM summary of a professor's reviews, with theme chips. It carries the spark
 
 **PlanetTerp**:
 The outside site whose ratings and grade data we show, with credit and a link.
+
+**Most taken**:
+The courses offered now that the most students have taken, by PlanetTerp's grade data. Listed on `/reviews`.
+_Avoid_: popular, trending
+
+**Recently reviewed**:
+The courses and instructors with a new review on Terpsicle, by month. Listed on `/reviews`; it names pairs, never reviews.
+_Avoid_: latest reviews
 
 ## Chat
 
@@ -264,7 +284,7 @@ A PR's own deployment at `pr-<n>-terpsicle.zsrobinson.workers.dev`, with its own
 Sign-in with fixture people (Test Student, Test Classmate, Test Admin) instead of Google, only on previews and localhost.
 
 **Flag**:
-A product's on switch in production (`REVIEWS_ENABLED`, `CHAT_ENABLED`, `TODO_ENABLED`).
+A product's on switch in production (`REVIEWS_ENABLED`, `CHAT_ENABLED`, `TODO_ENABLED`, `PLAN_ENABLED`).
 
 **Load rule**:
 How much an agent may run locally: `tsc` once, biome on changed files, the relevant tests with one worker. CI is the verdict.

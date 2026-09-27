@@ -102,6 +102,8 @@ export const SIGNIN_PATH = "/signin";
 export const SIGNIN_ERROR_PARAM = "error";
 export const RETURN_PARAM = "return";
 export const SIGNED_IN_PARAM = "signed-in";
+/** `?signed-in=kept`: this sign-in cancelled the account's deletion (V2.md §4.7). */
+export const SIGNED_IN_KEPT = "kept";
 
 /** The browser-side start of a sign-in: a navigation, never fetched. */
 export const SIGN_IN_START_PATH = "/api/auth/google";
@@ -126,6 +128,8 @@ export const FlagsSchema = z.object({
   push: z.boolean(),
   /** Terpsicle Todo works here (TODO_ENABLED, and the feed key or test mode). */
   todo: z.boolean(),
+  /** Terpsicle Plan is listed with the products (PLAN_ENABLED, docs/V3.md §8). */
+  plan: z.boolean(),
   /** Test mode: Sign in goes to /auth/test's fixture people, not Google. */
   authTestMode: z.boolean(),
 });
@@ -136,6 +140,11 @@ export const FeatureVarsSchema = z.object({
   CHAT_ENABLED: FeatureLevelSchema.catch("off"),
   REVIEWS_ENABLED: FeatureLevelSchema.catch("off"),
   PUSH_ENABLED: z
+    .string()
+    .optional()
+    .catch(undefined)
+    .transform((value) => value === "true"),
+  PLAN_ENABLED: z
     .string()
     .optional()
     .catch(undefined)

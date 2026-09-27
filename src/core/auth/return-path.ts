@@ -1,5 +1,6 @@
 import {
   RETURN_PARAM,
+  SIGNED_IN_KEPT,
   SIGNED_IN_PARAM,
   SIGNIN_ERROR_PARAM,
   SIGNIN_PATH,
@@ -56,11 +57,15 @@ export function signInErrorPath(error: SignInError, returnTo: string): string {
 
 /**
  * `path` with `?signed-in=1`: the app strips it, and counts the sign-in
- * (and later runs the first-sign-in merge).
+ * (and later runs the first-sign-in merge). `?signed-in=kept` when the
+ * sign-in also cancelled the account's deletion, so the app can say so.
  */
-export function withSignedIn(path: string): string {
+export function withSignedIn(
+  path: string,
+  options: { kept?: boolean } = {},
+): string {
   const url = new URL(safeReturnPath(path), BASE);
-  url.searchParams.set(SIGNED_IN_PARAM, "1");
+  url.searchParams.set(SIGNED_IN_PARAM, options.kept ? SIGNED_IN_KEPT : "1");
   return `${url.pathname}${url.search}${url.hash}`;
 }
 

@@ -413,6 +413,29 @@ export class ObjectStore {
     this.sql.exec("DELETE FROM sends WHERE at <= ?", keepAfter);
   }
 
+  /**
+   * Account deletion (V2.md §4.7): the author's messages with every
+   * reaction on them, their reactions on other messages, and their send
+   * log. Returns the messages that went. Running it again finds nothing.
+   */
+  purgeAuthor(authorId: string): MessageRow[] {
+    if (!this.#ready) return [];
+    return this.storage.transactionSync(() => {
+      const rows = this.sql
+        .exec("SELECT * FROM messages WHERE author_id = ?", authorId)
+        .toArray()
+        .map(toRow);
+      this.sql.exec(
+        `DELETE FROM reactions WHERE user_id = ?1
+           OR message_id IN (SELECT id FROM messages WHERE author_id = ?1)`,
+        authorId,
+      );
+      this.sql.exec("DELETE FROM messages WHERE author_id = ?", authorId);
+      this.sql.exec("DELETE FROM sends WHERE author_id = ?", authorId);
+      return rows;
+    });
+  }
+
   /** Messages still checking whose recheck time has come. */
   dueForCheck(now: number, limit: number): MessageRow[] {
     if (!this.#ready) return [];

@@ -10,7 +10,7 @@ import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
 import { testBindings } from "../test-bindings";
 import { ADMINS_FILE, isAdmin } from "./admin";
-import { isTestMode, signInMode } from "./config";
+import { appFlags, isTestMode, signInMode } from "./config";
 import { GOOGLE_TOKEN_URL } from "./google";
 import { requireAdmin, requireUser } from "./guard";
 import { s256 } from "./pkce";
@@ -518,6 +518,20 @@ describe("pictures", () => {
   });
 });
 
+describe("flags", () => {
+  it("lists Plan only when PLAN_ENABLED is true", () => {
+    const url = new URL("https://terpsicle.com/api/me");
+    const others = { seatAlerts: false, todo: false };
+    expect(appFlags({ PLAN_ENABLED: "true" } as never, url, others).plan).toBe(
+      true,
+    );
+    expect(appFlags({ PLAN_ENABLED: "false" } as never, url, others).plan).toBe(
+      false,
+    );
+    expect(appFlags({} as never, url, others).plan).toBe(false);
+  });
+});
+
 describe("sessions", () => {
   it("answers signed-out without setting a cookie", async () => {
     const browser = new Browser(googleEnv());
@@ -531,6 +545,7 @@ describe("sessions", () => {
         seatAlerts: false,
         push: false,
         todo: false,
+        plan: false,
         authTestMode: false,
       },
     });
@@ -640,7 +655,16 @@ describe("account deletion", () => {
     const browser = new Browser(googleEnv());
     await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
     await browser.post("/api/account/delete");
-    await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
+    const kept = await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
+    // The app shows a quiet note for `kept`.
+    expect(kept.headers.get("Location")).toBe(
+      "https://terpsicle.com/settings?signed-in=kept",
+    );
+    expect(
+      (await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail)).headers.get(
+        "Location",
+      ),
+    ).toBe("https://terpsicle.com/settings?signed-in=1");
     expect(await getUser(env.DB, "testudo")).toMatchObject({
       status: "active",
       delete_after: null,
@@ -681,6 +705,25 @@ describe("test mode", () => {
       status: "signed-in",
       flags: { signIn: true, authTestMode: true },
       user: { id: "tadmin", name: "Test Admin", isAdmin: true },
+    });
+  });
+
+  it("keeps an account being deleted, and says so in the return", async () => {
+    const browser = new Browser(testEnv(), local);
+    const signIn = () =>
+      browser.post("/api/auth/test-sign-in", {
+        userId: "tstudent",
+        return: "/settings",
+      });
+    await signIn();
+    await browser.post("/api/account/delete");
+    expect(await (await signIn()).json()).toEqual({
+      status: "signed-in",
+      return: "/settings?signed-in=kept",
+    });
+    expect(await getUser(env.DB, "tstudent")).toMatchObject({
+      status: "active",
+      delete_after: null,
     });
   });
 
