@@ -77,7 +77,7 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 - [x] One `undoToast()` helper (`src/components/ui/toast.tsx`): one action button, one icon, one 10-second window (`UNDO_MS`), focus holds it open, and the shortcut sits in its tooltip. It replaces the seven toast-action copies. Failures go through `noteToast()`, which is never red and offers Try again where retrying can help. The scheduler and Plan keep their Undo/Redo pair on the shared `ToastAction`.
 - [x] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button` (done: `GoogleButton` is the kit's filled `Button`, `lg`). Every kit control is 44px on phones (`v3/touch-targets`, docs/ACCESSIBILITY.md "Touch targets"); the last per-page overrides go as their files' open PRs land.
 - [x] Routes get a shared `pendingComponent` and `errorComponent` (`src/features/site/route-states.tsx`; a route sets `staticData.pending`).
-- [ ] No page says "reload the page".
+- [x] No page says "reload the page". (`v3/behavior`: where only a new version helps, a Reload button sits beside the words; Plan's sample plans have Try again since #144.)
 - [x] Guardrails:
   - The design-tokens test fails on raw `max-w-*` page containers and on `<h1>` outside the kit, each with an allowlist of today's pages that must shrink.
   - The `reviewer` agent checks for use of the kit (its check 8).
@@ -88,7 +88,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [x] Settings and notifications (`v3/cohesion-settings-todo`).
 - [x] Todo (`v3/cohesion-settings-todo`).
 - [x] Reviews. (`v3/cohesion-reviews`: `PageHeader` and `ProductPage` on every page, `PageSection`s of `ListRow`s, a `ViewSwitch` of an instructor's courses, `Card`s for the composer, the report form, sign-in and the AI summary, the kit's `Select`, `SearchField` and a new `Textarea`, `InlineError` with Try again, `RowSkeleton`, and `EmptyState` on `/reviews/mine`.)
-- [ ] Plan. (`v3/plan-workbench`: Plan is on the scheduler's workbench, `src/app/workbench`, with each view a route. Its contents move onto the kit next.)
+- [x] Plan. (`v3/plan-workbench`: Plan is on the scheduler's workbench, `src/app/workbench`, with each view a route. `v3/cohesion-plan`: its first visit is the kit's `EmptyState` with two equal paths, its selects the kit's `Select`, its panels `ListRow`s under `PanelHeader`s, a sample plan a `Card`, loading the kit's skeletons, failures `InlineError` with Try again, codes `ident`, and `Button`, `Input`, `SearchField`, `Textarea` and `SegmentedControl` without per-product sizes. Blocks and semesters stay boxed on the canvas, like the calendar's blocks.)
 - [x] Chat.
 - [ ] Schedule.
 - [ ] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port. (`/privacy`, sign-in and not found are on the kit since `v3/cohesion-settings-todo`; `/` and the marketing port are left.)
@@ -97,7 +97,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 ### Phase 4: shared patterns sweep
 - [ ] Words: one glossary pass over every string (titles, buttons, empty states, errors, toasts).
 - [ ] Behavior:
-  - loading and error states everywhere (`v3/behavior`: the kit's skeletons and `InlineError` outside Plan, and Reload beside every "Reload to …");
+  - loading and error states everywhere (`v3/behavior`, and Plan's in #144: the kit's skeletons and `InlineError`, and Reload beside every "Reload to …");
   - Undo on every destructive action;
   - tooltips and shortcuts on every control;
   - focus order and keyboard.

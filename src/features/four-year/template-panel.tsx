@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
 import { useId } from "react";
@@ -7,21 +8,18 @@ import {
   templateFit,
   templateFitSentence,
 } from "~/core/four-year/templates";
-import {
-  firstTermChoices,
-  fourYearTermLabel,
-  semesterIds,
-} from "~/core/four-year/terms";
+import { fourYearTermLabel, semesterIds } from "~/core/four-year/terms";
 import type {
   FourYearTemplate,
   FourYearTemplateEntry,
 } from "~/core/schema/four-year";
+import { RouteError } from "~/features/site/route-states";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { Card } from "~/ui/card";
 import { WithTooltip } from "~/ui/tooltip";
 import { applyTemplate, newDocFromTemplate, setFirstTerm } from "./actions";
+import { FirstTermSelect } from "./first-term-select";
 import { useModel, usePlanNav } from "./model";
-import { useTemplates } from "./template-files";
 import { PlanView } from "./views";
 import { showBoard } from "./workbench-store";
 
@@ -34,7 +32,7 @@ import { showBoard } from "./workbench-store";
 function Chip({ entry }: { entry: FourYearTemplateEntry }) {
   if (entry.kind === "course")
     return (
-      <li className="border border-hairline-strong bg-panel px-1 font-mono text-xs">
+      <li className="ident border border-hairline-strong bg-panel px-1 text-xs">
         {entry.code}
       </li>
     );
@@ -43,7 +41,7 @@ function Chip({ entry }: { entry: FourYearTemplateEntry }) {
       ? entry.wildcard.pattern
       : wildcardLabel(entry.wildcard);
   return (
-    <li className="border border-hairline-strong border-dashed px-1 font-mono text-muted text-xs">
+    <li className="ident border border-hairline-strong border-dashed px-1 text-muted text-xs">
       {words}
     </li>
   );
@@ -51,34 +49,14 @@ function Chip({ entry }: { entry: FourYearTemplateEntry }) {
 
 function StartsIn() {
   const { doc, today } = useModel();
-  const id = useId();
-  const choices = firstTermChoices(today);
   return (
-    <div className="flex items-center gap-2">
-      <label htmlFor={id} className="shrink-0 text-muted text-sm">
-        Your plan starts in
-      </label>
-      <WithTooltip label="Sample plans count semesters from here">
-        <select
-          id={id}
-          value={doc.firstTermId}
-          onChange={(event) => setFirstTerm(doc, event.target.value)}
-          className="h-11 min-w-0 flex-1 border border-hairline-strong bg-raised px-2 text-base outline-none focus-visible:border-fg md:h-8 md:text-sm"
-        >
-          {/* A plan made elsewhere may start outside today's choices. */}
-          {choices.includes(doc.firstTermId) ? null : (
-            <option value={doc.firstTermId}>
-              {fourYearTermLabel(doc.firstTermId)}
-            </option>
-          )}
-          {choices.map((term) => (
-            <option key={term} value={term}>
-              {fourYearTermLabel(term)}
-            </option>
-          ))}
-        </select>
-      </WithTooltip>
-    </div>
+    <FirstTermSelect
+      label="Your four-year plan starts in"
+      tooltip="Sample plans count semesters from here"
+      value={doc.firstTermId}
+      today={today}
+      onChange={(term) => setFirstTerm(doc, term)}
+    />
   );
 }
 
@@ -97,10 +75,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
     showBoard();
   };
   return (
-    <section
-      aria-labelledby={headingId}
-      className="space-y-3 border border-hairline bg-panel p-3"
-    >
+    <Card role="region" aria-labelledby={headingId} className="gap-3">
       <div className="space-y-0.5">
         <h3 id={headingId} className="font-semibold">
           {template.name}
@@ -148,7 +123,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
           }
         >
           <Button
-            className="h-11 w-full md:h-8"
+            className="w-full"
             disabled={fit.fills.length === 0}
             onClick={add}
           >
@@ -161,14 +136,14 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
           >
             <Button
               variant="outline"
-              className="h-11 w-full md:h-8"
+              className="w-full"
               onClick={() => {
                 newDocFromTemplate(template, doc.firstTermId);
                 nav.go({ tab: undefined });
                 showBoard();
               }}
             >
-              Start a new plan from it
+              Start a new four-year plan from it
             </Button>
           </WithTooltip>
         ) : null}
@@ -187,12 +162,15 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
           </a>
         </WithTooltip>
       </p>
-    </section>
+    </Card>
   );
 }
 
-export function TemplatePanel() {
-  const state = useTemplates();
+export function TemplatePanel({
+  templates,
+}: {
+  templates: readonly FourYearTemplate[];
+}) {
   return (
     <div className="space-y-3 px-4 py-3">
       <div className="space-y-1">
@@ -203,25 +181,35 @@ export function TemplatePanel() {
         </p>
       </div>
       <StartsIn />
-      {state.phase === "loading" ? (
-        <Skeleton className="h-64 w-full" />
-      ) : state.phase === "failed" ? (
-        <p role="alert" className="text-sm">
-          The sample plans didn't load. Check your connection and reload the
-          page.
-        </p>
-      ) : (
-        state.templates.map((t) => <TemplateCard key={t.id} template={t} />)
-      )}
+      {templates.map((t) => (
+        <TemplateCard key={t.id} template={t} />
+      ))}
     </div>
   );
 }
 
-/** The Samples view, on its route (`/plan/samples`). */
-export function SamplesView() {
+/** The Samples view, on its route (`/plan/samples`), whose loader brings the sample plans. */
+export function SamplesView({
+  templates,
+}: {
+  templates: readonly FourYearTemplate[];
+}) {
   return (
     <PlanView tab="templates">
-      <TemplatePanel />
+      <TemplatePanel templates={templates} />
+    </PlanView>
+  );
+}
+
+/**
+ * The route's error state: the router's own (RouteError: Try again loads
+ * them again, or reloads for a file that didn't arrive), under the view's
+ * header, so the sidebar still says where you are.
+ */
+export function SamplesFailed(props: ErrorComponentProps) {
+  return (
+    <PlanView tab="templates">
+      <RouteError {...props} />
     </PlanView>
   );
 }

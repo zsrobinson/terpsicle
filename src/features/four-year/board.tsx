@@ -107,7 +107,7 @@ function AddButton({
           focusSearch("column");
         }}
         className={cn(
-          "h-11 w-full justify-start px-2 font-medium text-muted md:h-7",
+          "w-full justify-start px-2 font-medium text-muted",
           compact && "w-auto",
         )}
       >
@@ -294,7 +294,7 @@ export function PhoneBoard({ selected }: { selected: FourYearTerm }) {
                     className={cn(
                       "flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border px-3 text-sm",
                       current
-                        ? "border-fg bg-accent-soft font-medium"
+                        ? "border-hairline-strong bg-accent-soft font-medium text-fg"
                         : "border-hairline bg-raised text-muted",
                       statusOf(term) === "in-progress" &&
                         !current &&

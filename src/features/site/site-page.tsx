@@ -15,11 +15,8 @@ import { WithTooltip } from "~/ui/tooltip";
 // family bar over the kit's page (`ProductPage`), which picks the width and,
 // on the pages you read, draws the footer.
 
-/**
- * The page's width, from the kit (docs/COHESION.md §4), plus `wide`: Plan's
- * board until it moves onto the workbench, edge to edge with a gutter.
- */
-export type SiteLayout = PageWidth | "wide";
+/** The page's width, from the kit (docs/COHESION.md §4). */
+export type SiteLayout = PageWidth;
 
 export function SitePage({
   children,
@@ -34,13 +31,7 @@ export function SitePage({
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <SiteHeader notFound={notFound} />
-      {layout === "wide" ? (
-        <ProductPage width="full" className="px-4 pt-2 pb-8">
-          {children}
-        </ProductPage>
-      ) : (
-        <ProductPage width={layout}>{children}</ProductPage>
-      )}
+      <ProductPage width={layout}>{children}</ProductPage>
     </div>
   );
 }
