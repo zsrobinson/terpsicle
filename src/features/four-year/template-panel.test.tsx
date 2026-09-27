@@ -9,7 +9,7 @@ import {
   useCourseIndex,
 } from "~/state/course-index-store";
 import { TooltipProvider } from "~/ui/tooltip";
-import { EmptyState } from "./empty-state";
+import { PlanFirstVisit } from "./first-visit";
 import {
   PlanModelProvider,
   type PlanNav,
@@ -17,6 +17,7 @@ import {
   usePlanModel,
 } from "./model";
 import { activeDoc, INITIAL_FOUR_YEAR_STORE, useFourYear } from "./store";
+import { loadTemplates } from "./template-files";
 import { TemplatePanel } from "./template-panel";
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
@@ -58,9 +59,10 @@ async function renderPanel(docOverrides: Parameters<typeof aFourYear>[0] = {}) {
   });
   const go = vi.fn();
   const user = userEvent.setup();
+  const templates = await loadTemplates();
   render(
     <Harness go={go}>
-      <TemplatePanel />
+      <TemplatePanel templates={templates} />
     </Harness>,
   );
   const card = await screen.findByRole("region", { name: "Computer Science" });
@@ -115,7 +117,9 @@ describe("the Samples tab", () => {
     );
     // An empty plan has nothing to keep apart from: one way to add it.
     expect(
-      within(card).queryByRole("button", { name: "Start a new plan from it" }),
+      within(card).queryByRole("button", {
+        name: "Start a new four-year plan from it",
+      }),
     ).toBeNull();
   });
 
@@ -205,9 +209,9 @@ describe("the Samples tab", () => {
 
   it("counts semesters from the plan's start, which the tab can change", async () => {
     const { user, card } = await renderPanel();
-    await user.selectOptions(
-      screen.getByLabelText("Your plan starts in"),
-      "202601",
+    await user.click(screen.getByLabelText("Your four-year plan starts in"));
+    await user.click(
+      await screen.findByRole("option", { name: "Spring 2026" }),
     );
     expect(openDoc().firstTermId).toBe("202601");
     await waitFor(() =>
@@ -225,7 +229,9 @@ describe("the Samples tab", () => {
     const mine = aFourYearEntry({ id: "entry_mine", term: "202608" });
     const { user, card } = await renderPanel({ entries: [mine] });
     await user.click(
-      within(card).getByRole("button", { name: "Start a new plan from it" }),
+      within(card).getByRole("button", {
+        name: "Start a new four-year plan from it",
+      }),
     );
     const { docs } = useFourYear.getState().history.present;
     expect(docs).toHaveLength(2);
@@ -248,17 +254,35 @@ describe("the first visit", () => {
     const go = vi.fn();
     render(
       <TooltipProvider>
-        <EmptyState today={TODAY} nav={nav(go)} />
+        <PlanFirstVisit today={TODAY} nav={nav(go)} />
       </TooltipProvider>,
     );
     await userEvent
       .setup()
-      .click(screen.getByRole("button", { name: "Pick a sample plan" }));
+      .click(screen.getByRole("button", { name: "Start from a sample plan" }));
     expect(useFourYear.getState().history.present.docs).toHaveLength(1);
     expect(openDoc().firstTermId).toBe("202608");
     expect(go).toHaveBeenCalledWith({ tab: "templates" });
     expect(track).toHaveBeenCalledWith("four_year_created", {
       source: "template",
     });
+  });
+
+  it("starts the sample plan's four-year plan in the semester you pick", async () => {
+    useFourYear.setState({ ...INITIAL_FOUR_YEAR_STORE, phase: "ready" });
+    const go = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <PlanFirstVisit today={TODAY} nav={nav(go)} />
+      </TooltipProvider>,
+    );
+    await user.click(screen.getByLabelText("I started at UMD in"));
+    await user.click(await screen.findByRole("option", { name: "Fall 2025" }));
+    await user.click(
+      screen.getByRole("button", { name: "Start from a sample plan" }),
+    );
+    expect(openDoc().firstTermId).toBe("202508");
+    expect(go).toHaveBeenCalledWith({ tab: "templates" });
   });
 });

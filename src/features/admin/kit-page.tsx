@@ -394,17 +394,19 @@ function PageParts() {
           </Demo>
           <Demo
             className="min-h-72 p-4"
-            caption="Equal paths: two filled buttons of one size, and a third way as the quiet link."
+            caption="Equal paths: two filled buttons of one size, and a third way as the quiet link. A question every path needs goes between the sentence and the actions."
           >
             <EmptyState
               equal
               mark={<Mark id="plan" size={40} />}
               title="Plan your four years"
-              line="Lay out every semester, see your credits add up to 120 and keep track of your GenEds. It's saved in this browser, with nothing to sign up for."
+              line="Lay out every semester, see your credits add up to 120 and keep track of your GenEds. It's all in this browser, with nothing to sign up for, and a transcript you import never leaves it."
               primary={{ label: "Import your transcript", to: "/plan" }}
               secondary={{ label: "Start from a sample plan", to: "/plan" }}
               quiet={{ label: "or add courses yourself", to: "/plan" }}
-            />
+            >
+              <StartedIn />
+            </EmptyState>
           </Demo>
           <Demo
             className="min-h-72"
@@ -457,6 +459,31 @@ function PageParts() {
         </Demo>
       </PageSection>
     </>
+  );
+}
+
+/** EmptyState's question slot, as Plan's first visit asks it. */
+function StartedIn() {
+  const id = useId();
+  const [term, setTerm] = useState("fall-2026");
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor={id} className="shrink-0 text-muted text-sm">
+        I started at UMD in
+      </label>
+      <Select value={term} onValueChange={setTerm}>
+        <WithTooltip label="Your first fall or spring at UMD">
+          <SelectTrigger id={id} className="min-w-32">
+            <SelectValue />
+          </SelectTrigger>
+        </WithTooltip>
+        <SelectContent>
+          <SelectItem value="fall-2025">Fall 2025</SelectItem>
+          <SelectItem value="spring-2026">Spring 2026</SelectItem>
+          <SelectItem value="fall-2026">Fall 2026</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
