@@ -1,9 +1,8 @@
 import { create } from "zustand";
 import { MOBILE_QUERY } from "~/app/use-media-query";
-import { clampSidebarWidth } from "~/core/schema";
+import { clampSidebarWidth, type DrawerSnap } from "~/core/schema";
 import { writeSidebarWidth } from "~/state/sidebar-width-pref";
-// A type only: Plan never loads the scheduler's UI store.
-import type { DrawerSnap } from "~/state/ui-store";
+
 import { fourYearDb } from "./data";
 
 // Plan's workbench (src/app/workbench): whether its sidebar shows, where
@@ -16,6 +15,11 @@ export type PlanWorkbenchState = {
   drawerSnap: DrawerSnap;
   /** The saved width; null until it's read. */
   sidebarWidth: number | null;
+  /**
+   * The next move to another view keeps the drawer where it is: the move
+   * `showBoard` asked for, which would otherwise raise it again.
+   */
+  keepDrawer: boolean;
   setSidebarOpen: (open: boolean) => void;
   setDrawerSnap: (snap: DrawerSnap) => void;
   /** Saves a width the person chose. */
@@ -26,6 +30,7 @@ export const INITIAL_PLAN_WORKBENCH = {
   sidebarOpen: true,
   drawerSnap: "peek",
   sidebarWidth: null,
+  keepDrawer: false,
 } satisfies Partial<PlanWorkbenchState>;
 
 export const usePlanWorkbench = create<PlanWorkbenchState>()((set) => ({
@@ -51,11 +56,11 @@ export const PLAN_BOARD_ID = "plan-board";
 /**
  * Shows the semesters, which are the result of what was just done (a
  * sample plan added, a transcript imported): on a phone, the drawer goes
- * down and the board back to its top.
+ * down and the board back to its top. Call it with the move to GenEd that
+ * goes with it, which then leaves the drawer down.
  */
 export function showBoard(): void {
-  const { drawerSnap, setDrawerSnap } = usePlanWorkbench.getState();
   if (!window.matchMedia(MOBILE_QUERY).matches) return;
-  if (drawerSnap !== "peek") setDrawerSnap("peek");
+  usePlanWorkbench.setState({ drawerSnap: "peek", keepDrawer: true });
   document.getElementById(PLAN_BOARD_ID)?.scrollTo({ top: 0 });
 }

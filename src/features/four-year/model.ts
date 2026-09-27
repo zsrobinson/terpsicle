@@ -102,6 +102,13 @@ export type PlanNavOptions = {
   readonly drill?: boolean;
 };
 
+declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    /** A Plan view's route says which view it is (src/routes/plan.*.tsx). */
+    planView?: PlanTab;
+  }
+}
+
 /** Where Plan is: the view on its rail (its route), and the search params. */
 export type PlanPlace = PlanSearch & { readonly tab: PlanTab };
 

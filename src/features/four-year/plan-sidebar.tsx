@@ -19,6 +19,9 @@ import { planView } from "./views";
 /** "What Terpsicle doesn't do", always and quietly (V3 §2.1). */
 export const UACHIEVE_URL = "https://uachieve.umd.edu/";
 
+/** The desktop sidebar, which its resize handle controls. */
+export const PLAN_SIDEBAR_FRAME_ID = "plan-sidebar";
+
 /** The sidebar's content, which the rail's open view controls. */
 export const PLAN_SIDEBAR_ID = "plan-sidebar-panel";
 
@@ -107,7 +110,12 @@ export function PlanSidebarContent({
   const nav = usePlanNav();
   const course = nav.search.course;
   return (
-    <div id={PLAN_SIDEBAR_ID} className="flex min-h-0 flex-1 flex-col">
+    <div
+      id={PLAN_SIDEBAR_ID}
+      // The skip link lands here.
+      tabIndex={-1}
+      className="flex min-h-0 flex-1 flex-col outline-none"
+    >
       {compact ? null : (
         <div className="shrink-0 border-hairline border-b px-4 py-3">
           <CreditsSummary />

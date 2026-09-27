@@ -1,5 +1,12 @@
 import { useRouter } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useShortcut } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
 import {
@@ -8,8 +15,14 @@ import {
   WorkbenchSidebar,
 } from "~/app/workbench/layout";
 import { RailButton, railHint, WorkbenchRail } from "~/app/workbench/rail";
+import { SkipLinks } from "~/app/workbench/skip-links";
 import { PLAN_VIEW_PATHS } from "~/core/routing/plan-location";
-import { type IsoDate, SIDEBAR_WIDTH } from "~/core/schema";
+import {
+  type DrawerSnap,
+  type IsoDate,
+  type PlanTab,
+  SIDEBAR_WIDTH,
+} from "~/core/schema";
 import { changedFourYearKeys, type DocKey } from "~/core/sync";
 import { newYorkClock } from "~/core/todo/list";
 import { useAccount } from "~/features/auth/account-store";
@@ -32,6 +45,7 @@ import { PlanBar } from "./plan-bar";
 import {
   CreditsSummary,
   DegreeAuditNote,
+  PLAN_SIDEBAR_FRAME_ID,
   PLAN_SIDEBAR_ID,
   PlanSidebarContent,
 } from "./plan-sidebar";
@@ -163,6 +177,9 @@ function Shortcuts({ nav }: { nav: PlanNav }) {
  * collapsed sidebar and raises a resting drawer. Importing, or picking a
  * sample plan, is the task at hand, so on a phone it takes the screen.
  */
+/** Lowest to highest: a move only ever raises the drawer. */
+const SNAP_ORDER: readonly DrawerSnap[] = ["peek", "half", "full"];
+
 function useWorkbenchFollowsUrl(nav: PlanNav) {
   const { tab, course } = nav.search;
   const place = `${tab} ${course ?? ""}`;
@@ -187,7 +204,9 @@ function useWorkbenchFollowsUrl(nav: PlanNav) {
     if (!moved) return;
     const ui = usePlanWorkbench.getState();
     if (!ui.sidebarOpen) ui.setSidebarOpen(true);
-    if (ui.drawerSnap === "peek") ui.setDrawerSnap(raised);
+    if (ui.keepDrawer) usePlanWorkbench.setState({ keepDrawer: false });
+    else if (SNAP_ORDER.indexOf(ui.drawerSnap) < SNAP_ORDER.indexOf(raised))
+      ui.setDrawerSnap(raised);
   }, [place, tab, course]);
 }
 
@@ -201,8 +220,9 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
   const sidebarWidth = usePlanWorkbench((s) => s.sidebarWidth);
   const setSidebarWidth = usePlanWorkbench((s) => s.setSidebarWidth);
   useDocDepts(doc);
-  usePreloadedViews();
+  useSidebarWidth();
   useWorkbenchFollowsUrl(nav);
+  const preload = usePreloadView();
   const { tab, course } = nav.search;
   const importing = tab === "import";
   const checking = useImportRecognized() && importing && !mobile;
@@ -218,6 +238,14 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
         <Shortcuts nav={nav} />
         <Workbench
           mobile={mobile}
+          before={
+            <SkipLinks
+              canvasId={PLAN_BOARD_ID}
+              canvasName="semesters"
+              sidebarId={PLAN_SIDEBAR_ID}
+              onSidebar={toSidebar}
+            />
+          }
           bar={
             <PlanBar
               compact={mobile}
@@ -244,6 +272,7 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
                   open={sidebarOpen}
                   controls={PLAN_SIDEBAR_ID}
                   onClick={() => clickRailView(nav, v.tab)}
+                  onPreload={() => preload(v.tab)}
                   badge={v.tab === "problems" ? <ProblemsBadge /> : null}
                 />
               ))}
@@ -251,7 +280,7 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
           }
           sidebar={
             <WorkbenchSidebar
-              id="plan-sidebar"
+              id={PLAN_SIDEBAR_FRAME_ID}
               open={sidebarOpen}
               width={sidebarWidth}
               onWidth={setSidebarWidth}
@@ -259,7 +288,7 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
               <PlanSidebarContent view={view} />
             </WorkbenchSidebar>
           }
-          drawer={<PlanDrawer view={view} />}
+          drawer={<PlanDrawer view={view} onPreload={preload} />}
           canvas={
             mobile ? (
               <div className="space-y-4 px-4 pt-3 pb-4">
@@ -288,23 +317,34 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
   );
 }
 
-/**
- * Each view is a route in its own chunk. Plan is local first, so once it
- * has loaded every view comes too, rather than on first use: a view opened
- * offline (an "Add a course" on the train) still opens.
- */
-function usePreloadedViews() {
+/** Loads a view's route on intent (hover, focus, a touch), as the scheduler's rail does. */
+function usePreloadView(): (tab: PlanTab) => void {
   const router = useRouter();
-  useEffect(() => {
-    for (const to of Object.values(PLAN_VIEW_PATHS))
-      router.preloadRoute({ to }).catch(() => {});
-  }, [router]);
+  return useCallback(
+    (tab: PlanTab) => {
+      router.preloadRoute({ to: PLAN_VIEW_PATHS[tab] }).catch(() => {});
+    },
+    [router],
+  );
 }
 
-/** The sidebar's saved width (the scheduler's too), once the page's database is open. */
-function useSidebarWidth(loaded: boolean) {
+/** The skip link to the sidebar: opens it, or raises the drawer, then focuses it. */
+function toSidebar() {
+  const ui = usePlanWorkbench.getState();
+  if (!ui.sidebarOpen) ui.setSidebarOpen(true);
+  if (ui.drawerSnap === "peek") ui.setDrawerSnap("half");
+  requestAnimationFrame(() =>
+    document.getElementById(PLAN_SIDEBAR_ID)?.focus(),
+  );
+}
+
+/**
+ * The sidebar's saved width (the scheduler's too), read as the workbench
+ * opens, and forgotten when it closes: the scheduler may change it before
+ * the next visit, and a stale width here would flash before it's read.
+ */
+function useSidebarWidth() {
   useEffect(() => {
-    if (!loaded) return;
     const db = fourYearDb();
     let cancelled = false;
     (db ? readSidebarWidth(db) : Promise.resolve(SIDEBAR_WIDTH.default))
@@ -314,8 +354,9 @@ function useSidebarWidth(loaded: boolean) {
       });
     return () => {
       cancelled = true;
+      usePlanWorkbench.setState({ sidebarWidth: null });
     };
-  }, [loaded]);
+  }, []);
 }
 
 export function PlanPage({ nav, view }: { nav: PlanNav; view: ReactNode }) {
@@ -336,7 +377,6 @@ export function PlanPage({ nav, view }: { nav: PlanNav; view: ReactNode }) {
     };
   }, []);
   usePlanSync(loaded && phase === "ready");
-  useSidebarWidth(loaded);
   // The toasts stay put as the page changes under them (Delete, then Undo).
   return (
     <>

@@ -1,13 +1,13 @@
 import {
   createFileRoute,
   Outlet,
-  useLocation,
+  useChildMatches,
   useNavigate,
   useRouter,
 } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { initAnalytics } from "~/app/analytics";
-import { PLAN_VIEW_PATHS, planViewAt } from "~/core/routing/plan-location";
+import { PLAN_VIEW_PATHS } from "~/core/routing/plan-location";
 // Not the barrel: the route tree carries this schema to every page.
 import { type PlanSearch, PlanSearchSchema } from "~/core/schema/plan-url";
 import { PlanPage } from "~/features/four-year";
@@ -40,7 +40,6 @@ const DRILL_KEY = "planDrill";
 
 function PlanRoute() {
   const search = Route.useSearch();
-  const pathname = useLocation({ select: (l) => l.pathname });
   const navigate = useNavigate();
   const router = useRouter();
 
@@ -48,7 +47,10 @@ function PlanRoute() {
     void initAnalytics();
   }, []);
 
-  const tab = planViewAt(pathname);
+  // The open view: its route says which (`staticData.planView`).
+  const tab = useChildMatches({
+    select: (matches) => matches[0]?.staticData.planView ?? "gened",
+  });
   const nav = useMemo<PlanNav>(
     () => ({
       search: { ...search, tab },

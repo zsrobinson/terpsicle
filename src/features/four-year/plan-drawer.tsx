@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { DrawerTab, DrawerTabs, WorkbenchDrawer } from "~/app/workbench/drawer";
+import type { PlanTab } from "~/core/schema";
 import { usePlanNav } from "./model";
 import { PlanSidebarContent } from "./plan-sidebar";
 import { tapDrawerView } from "./view-nav";
@@ -9,7 +10,14 @@ import { planDrawerSnap, usePlanWorkbench } from "./workbench-store";
 // Plan on a phone: its sidebar in the workbench's bottom drawer, with its
 // views as the strip of tabs, as the scheduler's. Loaded on phones only.
 
-export function PlanDrawer({ view }: { view: ReactNode }) {
+export function PlanDrawer({
+  view,
+  onPreload,
+}: {
+  view: ReactNode;
+  /** Loads a view's route: a touch comes well before the tap's click. */
+  onPreload: (tab: PlanTab) => void;
+}) {
   const snap = usePlanWorkbench((s) => s.drawerSnap);
   const setSnap = usePlanWorkbench((s) => s.setDrawerSnap);
   const nav = usePlanNav();
@@ -32,6 +40,7 @@ export function PlanDrawer({ view }: { view: ReactNode }) {
               shortcut={v.shortcut}
               selected={v.tab === tab}
               onClick={() => tapDrawerView(nav, v.tab)}
+              onPreload={() => onPreload(v.tab)}
               badge={
                 v.tab === "problems" ? (
                   <ProblemsBadge className="right-1" />

@@ -19,7 +19,7 @@ import { useProblemCounts } from "./model";
 export type PlanViewInfo = {
   readonly tab: PlanTab;
   readonly label: string;
-  /** What it's for: the region's name, and the rail's tooltip. */
+  /** What it's for: the name of its region in the sidebar. */
   readonly tip: string;
   readonly icon: LucideIcon;
   /** `1`–`5`, as the scheduler's `1`–`7`. */
@@ -70,7 +70,10 @@ export function planView(tab: PlanTab): PlanViewInfo {
   return view;
 }
 
-/** Warnings on the Problems view, as the scheduler's rail counts them: notes don't. */
+/**
+ * Errors and warnings on the Problems view, as the scheduler's rail counts
+ * them; notes don't count. Red only for an error.
+ */
 export function ProblemsBadge({ className }: { className?: string }) {
   const counts = useProblemCounts();
   return (

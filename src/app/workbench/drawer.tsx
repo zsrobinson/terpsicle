@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Drawer } from "vaul";
-import type { DrawerSnap } from "~/state/ui-store";
+import type { DrawerSnap } from "~/core/schema";
 import { WithTooltip } from "~/ui/tooltip";
 import { PEEK_HEIGHT, snapHeights, TOP_BAR_HEIGHT } from "../drawer-heights";
 

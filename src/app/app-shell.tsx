@@ -73,9 +73,6 @@ function Shell({
   onHandoffDone = noop,
 }: AppShellProps) {
   const mobile = useIsMobile();
-  const sidebarOpen = useUi((s) => s.sidebarOpen);
-  const sidebarWidth = useUi((s) => s.sidebarWidth);
-  const setSidebarWidth = useUi((s) => s.setSidebarWidth);
 
   useShellShortcuts();
   useDocumentTitle();
@@ -100,21 +97,34 @@ function Shell({
       before={<SkipLinks />}
       bar={topBar}
       rail={<Rail />}
-      sidebar={
-        <WorkbenchSidebar
-          id={SIDEBAR_ID}
-          open={sidebarOpen}
-          width={sidebarWidth}
-          onWidth={setSidebarWidth}
-        >
-          <SidebarContent />
-        </WorkbenchSidebar>
-      }
+      sidebar={<SchedulerSidebar />}
       drawer={<MobileDrawer />}
       canvas={calendar}
       canvasId={CALENDAR_MAIN_ID}
       after={<UndoToasts />}
     />
+  );
+}
+
+/**
+ * The desktop sidebar. Its width is subscribed to here, not in the shell, so
+ * a drag doesn't redraw the calendar. The handle waits for the saved prefs:
+ * the head script has already drawn the saved width, and the store's
+ * default would flash it back first.
+ */
+function SchedulerSidebar() {
+  const open = useUi((s) => s.sidebarOpen);
+  const width = useUi((s) => (s.restored ? s.sidebarWidth : null));
+  const setWidth = useUi((s) => s.setSidebarWidth);
+  return (
+    <WorkbenchSidebar
+      id={SIDEBAR_ID}
+      open={open}
+      width={width}
+      onWidth={setWidth}
+    >
+      <SidebarContent />
+    </WorkbenchSidebar>
   );
 }
 
