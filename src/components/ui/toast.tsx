@@ -1,7 +1,7 @@
 import { Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-import { RELOAD_TOOLTIP, reloadPage } from "~/ui/reload";
+import { RELOAD_TOOLTIP, type ReloadTarget, reloadPage } from "~/ui/reload";
 import { WithTooltip } from "~/ui/tooltip";
 
 // The one way every product says what just happened (docs/COHESION.md): a
@@ -190,11 +190,12 @@ export function noteToast(
     id?: string;
     description?: string;
     retry?: () => void;
-    reload?: boolean;
+    /** Reload this page, or `{href}` when the address has moved on since. */
+    reload?: false | ReloadTarget;
   } = {},
 ): void {
   const { description, reload } = options;
-  const retry = reload ? reloadPage : options.retry;
+  const retry = reload ? () => reloadPage(reload) : options.retry;
   // A note that takes an undo toast's place settles it, as a new undo would.
   if (options.id) settlePrevious(options.id);
   const slot = options.id;

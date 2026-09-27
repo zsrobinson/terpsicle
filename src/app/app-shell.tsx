@@ -227,7 +227,13 @@ function useSharedLink(
           : "newer-version",
     });
     if (!result.ok) {
-      noteToast(result.error.message);
+      // A link from a newer version opens once this tab is that version:
+      // Reload goes back to the link, which clearing takes out of the URL.
+      noteToast(result.error.message, {
+        reload: result.error.kind === "newer-version" && {
+          href: window.location.href,
+        },
+      });
       onClear?.();
     }
   }, [param, open, close, onClear]);

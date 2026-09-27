@@ -30,7 +30,7 @@ export function InlineError({
   reload?: boolean;
   className?: string;
 }) {
-  const action = reload ? reloadPage : onRetry;
+  const action = reload ? () => reloadPage() : onRetry;
   return (
     <div
       role="status"
