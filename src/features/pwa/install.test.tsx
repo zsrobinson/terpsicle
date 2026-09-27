@@ -5,8 +5,9 @@ import { INSTALL_COOLDOWN_DAYS } from "~/core/pwa";
 import { INSTALL_PROMPT_STORAGE_KEY } from "~/core/schema";
 import { TooltipProvider } from "~/ui/tooltip";
 import { INSTALL_PROMPT_STASH } from "./install-capture";
-import { InstallAppButton, InstallAppSetting } from "./install-entry";
+import { InstallAppButton } from "./install-entry";
 import { InstallHost } from "./install-host";
+import { InstallAppSetting } from "./install-setting";
 import {
   captureInstallPrompt,
   requestInstallPrompt,

@@ -14,6 +14,8 @@ export interface AccountState {
   /** Off until /api/me answers, so nothing flashes where sign-in is off. */
   flags: Flags;
   user: MeUser | null;
+  /** The key to subscribe to web push with, while push works here. */
+  pushPublicKey: string | null;
   /** When this browser's just-deleted account goes (for the settings page). */
   deleteAfter: string | null;
 
@@ -60,6 +62,24 @@ export function signOutFailure(error: unknown): string {
     : "Couldn't sign out. Check your connection and try again.";
 }
 
+/**
+ * This browser's push endpoint, so signing out stops its notifications
+ * (V2.md §4.7). Never waits on a service worker that isn't there.
+ */
+async function pushEndpoint(): Promise<string | undefined> {
+  try {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator))
+      return undefined;
+    const registration = await navigator.serviceWorker.getRegistration("/");
+    return (
+      (await registration?.pushManager?.getSubscription())?.endpoint ??
+      undefined
+    );
+  } catch {
+    return undefined;
+  }
+}
+
 /** Plan sync's part of signing out (~/features/sync/sign-out). */
 export interface SignOutHooks {
   beforeSignOut: (o: {
@@ -82,6 +102,7 @@ export const useAccount = create<AccountState>()((set, get) => ({
   status: "loading",
   flags: FLAGS_OFF,
   user: null,
+  pushPublicKey: null,
   deleteAfter: null,
 
   load: async () => {
@@ -89,13 +110,28 @@ export const useAccount = create<AccountState>()((set, get) => ({
       const result = await client.me();
       set(
         result.status === "signed-in"
-          ? { status: "signed-in", flags: result.flags, user: result.user }
-          : { status: "signed-out", flags: result.flags, user: null },
+          ? {
+              status: "signed-in",
+              flags: result.flags,
+              user: result.user,
+              pushPublicKey: result.pushPublicKey,
+            }
+          : {
+              status: "signed-out",
+              flags: result.flags,
+              user: null,
+              pushPublicKey: null,
+            },
       );
     } catch {
       // Offline, or an older Worker without /api/me: behave as signed out
       // with sign-in hidden. The scheduler never needs an account.
-      set({ status: "signed-out", flags: FLAGS_OFF, user: null });
+      set({
+        status: "signed-out",
+        flags: FLAGS_OFF,
+        user: null,
+        pushPublicKey: null,
+      });
     }
   },
 
@@ -106,7 +142,11 @@ export const useAccount = create<AccountState>()((set, get) => ({
     // loading them (or fail when that fails offline).
     const hooks = removeLocal ? await signOutHooks() : null;
     await hooks?.beforeSignOut({ removeLocal, userId });
-    await client.auth.signOut({ removeLocal });
+    const endpoint = await pushEndpoint();
+    await client.auth.signOut({
+      removeLocal,
+      ...(endpoint ? { pushEndpoint: endpoint } : {}),
+    });
     try {
       // The next engine start forgets this account's sync state even if
       // the step below never runs.
@@ -114,14 +154,19 @@ export const useAccount = create<AccountState>()((set, get) => ({
     } catch {
       // Storage blocked: afterSignOut clears it directly.
     }
-    set({ status: "signed-out", user: null });
+    set({ status: "signed-out", user: null, pushPublicKey: null });
     const after = hooks ?? (await signOutHooks().catch(() => null));
     await after?.afterSignOut({ removeLocal }).catch(console.error);
   },
 
   deleteAccount: async () => {
     const result = await client.account.delete();
-    set({ status: "signed-out", user: null, deleteAfter: result.deleteAfter });
+    set({
+      status: "signed-out",
+      user: null,
+      pushPublicKey: null,
+      deleteAfter: result.deleteAfter,
+    });
     return result.deleteAfter;
   },
 }));

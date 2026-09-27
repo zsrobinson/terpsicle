@@ -549,6 +549,38 @@ describe("apply-template", () => {
     expect(only(s).template).toEqual(template);
   });
 
+  it("starts a new plan from a template in one step, which one undo takes back", () => {
+    const semesters = [
+      {
+        index: 0,
+        entries: [
+          aFourYearEntry({
+            id: "entry_t0",
+            code: "CMSC131",
+            source: "template",
+          }),
+        ],
+      },
+    ];
+    const before = createHistory(state);
+    const after = applyWithHistory(before, fourYearReducer, {
+      type: "create",
+      id: "fouryear_new",
+      firstTermId: "202701",
+      now: LATER,
+      template: { ref: template, semesters },
+    });
+    const created = after.present.docs[1];
+    expect(created?.name).toBe("My plan 2");
+    expect(created?.template).toEqual(template);
+    expect(created?.entries.map((e) => [e.id, e.term])).toEqual([
+      ["entry_t0", "202701"],
+    ]);
+    expect(created?.updatedAt).toBe(LATER);
+    expect(FourYearDocSchema.safeParse(created).success).toBe(true);
+    expect(undo(after).present).toBe(state);
+  });
+
   it("changes nothing when every semester it names has something", () => {
     const s = run(state, {
       type: "add",

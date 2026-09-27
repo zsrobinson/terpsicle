@@ -8,31 +8,36 @@ import {
 import type { IsoDate } from "~/core/schema";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { createDoc, createDocForImport } from "./actions";
+import {
+  createDoc,
+  createDocForImport,
+  createDocForTemplates,
+} from "./actions";
 import type { PlanNav } from "./model";
 
-// The first visit (V3 §2.13): two equal ways in, like the scheduler's.
-// Starting from scratch asks one thing, when you started, so the semesters
-// line up. Importing opens a plan on the Import tab; the import sets the
-// first semester from the transcript.
+// The first visit (V3 §2.13): equal ways in, like the scheduler's. Starting
+// from scratch asks one thing, when you started, so the semesters line up.
+// A sample plan opens a plan on the Samples tab, which asks the same before
+// it fills anything. Importing opens a plan on the Import tab; the import
+// sets the first semester from the transcript.
 
 export function EmptyState({ today, nav }: { today: IsoDate; nav: PlanNav }) {
   const [first, setFirst] = useState(() => defaultFirstTerm(today));
   const selectId = useId();
   return (
-    <div className="mx-auto max-w-[720px] space-y-6 pt-[6vh]">
+    <div className="mx-auto max-w-[1040px] space-y-6 pt-[6vh]">
       <div className="space-y-1.5">
         <Mark id="plan" size={40} className="mb-3" />
         <h1 className="font-semibold text-xl tracking-tight">
           Plan your four years
         </h1>
-        <p className="text-muted">
+        <p className="max-w-[640px] text-muted">
           Lay out every semester, see your credits add up to 120 and keep track
           of your GenEds. It's saved in this browser, with nothing to sign up
           for.
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         <section
           aria-labelledby="plan-start-scratch"
           className="flex flex-col gap-3 border border-keyline bg-raised p-4 shadow-offset"
@@ -75,6 +80,33 @@ export function EmptyState({ today, nav }: { today: IsoDate; nav: PlanNav }) {
                 onClick={() => createDoc(first)}
               >
                 Start planning
+              </Button>
+            </WithTooltip>
+          </div>
+        </section>
+        <section
+          aria-labelledby="plan-start-template"
+          className="flex flex-col gap-3 border border-keyline bg-raised p-4 shadow-offset"
+        >
+          <div className="space-y-1">
+            <h2 id="plan-start-template" className="font-semibold text-lg">
+              Start from a sample plan
+            </h2>
+            <p className="text-muted text-sm">
+              A major's courses laid out semester by semester, with placeholders
+              for the ones you'll pick. Computer Science for now.
+            </p>
+          </div>
+          <div className="mt-auto">
+            <WithTooltip label="See a major's courses by semester, then add them">
+              <Button
+                className="h-11 w-full md:h-8"
+                onClick={() => {
+                  createDocForTemplates(defaultFirstTerm(today));
+                  nav.go({ tab: "templates" });
+                }}
+              >
+                Pick a sample plan
               </Button>
             </WithTooltip>
           </div>

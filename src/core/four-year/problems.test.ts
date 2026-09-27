@@ -139,6 +139,40 @@ describe("prerequisite checks", () => {
     });
     expect(firstSemesterMeetingPrereqs(early, cs351, lookup)).toBe("202608");
   });
+
+  it("never counts a course as its own prerequisite", () => {
+    // Testudo's MATH140: "Minimum grade of C- in MATH115; or must have math
+    // eligibility of MATH140 or higher." The eligibility is placement, not
+    // the course.
+    const own = fourYearCourses([
+      aCourseIndexEntry({
+        code: "MATH140",
+        prerequisite:
+          "Minimum grade of C- in MATH115; or must have math eligibility of MATH140 or higher.",
+        prereqs: { groups: [["MATH115", "MATH140"]], complete: false },
+      }),
+      aCourseIndexEntry({
+        code: "MATH141",
+        prerequisite: "Math eligibility of MATH141.",
+        prereqs: { groups: [["MATH141"]], complete: false },
+      }),
+    ]);
+    const calc1 = course("140", "MATH140", "202608");
+    const calc2 = course("141", "MATH141", "202608");
+    const doc = aFourYear({ entries: [calc1, calc2] });
+    expect(unmetPrereqGroups(doc, calc1, own)).toEqual([["MATH115"]]);
+    expect(unmetPrereqGroups(doc, calc2, own)).toEqual([]);
+    expect(firstSemesterMeetingPrereqs(doc, calc2, own)).toBe("202608");
+    const [p] = detectFourYearProblems(input([calc1], { lookup: own })).filter(
+      (q) => q.kind === "prereq-order",
+    );
+    expect(p?.title).toEqual([
+      { kind: "course", courseCode: "MATH140" },
+      { kind: "text", text: " needs " },
+      { kind: "course", courseCode: "MATH115" },
+      { kind: "text", text: " first" },
+    ]);
+  });
 });
 
 describe("detectFourYearProblems", () => {

@@ -30,6 +30,7 @@ import { Route as ScheduleGenerateRouteImport } from './routes/schedule.generate
 import { Route as ScheduleProblemsRouteImport } from './routes/schedule.problems'
 import { Route as ScheduleSearchRouteImport } from './routes/schedule.search'
 import { Route as ScheduleTravelRouteImport } from './routes/schedule.travel'
+import { Route as SettingsNotificationsRouteImport } from './routes/settings_.notifications'
 import { Route as TodoIndexRouteImport } from './routes/todo.index'
 import { Route as TodoConnectRouteImport } from './routes/todo.connect'
 import { Route as ReviewsCoursesCodeRouteImport } from './routes/reviews.courses.$code'
@@ -143,6 +144,11 @@ const ScheduleTravelRoute = ScheduleTravelRouteImport.update({
   path: '/travel',
   getParentRoute: () => ScheduleRoute,
 } as any)
+const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
+  id: '/settings_/notifications',
+  path: '/settings/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TodoIndexRoute = TodoIndexRouteImport.update({
   id: '/todo/',
   path: '/todo/',
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/schedule/problems': typeof ScheduleProblemsRoute
   '/schedule/search': typeof ScheduleSearchRoute
   '/schedule/travel': typeof ScheduleTravelRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
   '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/schedule/problems': typeof ScheduleProblemsRoute
   '/schedule/search': typeof ScheduleSearchRoute
   '/schedule/travel': typeof ScheduleTravelRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
   '/todo/connect': typeof TodoConnectRoute
   '/admin': typeof AdminIndexRoute
   '/chat': typeof ChatIndexRoute
@@ -258,6 +266,7 @@ export interface FileRoutesById {
   '/schedule/problems': typeof ScheduleProblemsRoute
   '/schedule/search': typeof ScheduleSearchRoute
   '/schedule/travel': typeof ScheduleTravelRoute
+  '/settings_/notifications': typeof SettingsNotificationsRoute
   '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
@@ -290,6 +299,7 @@ export interface FileRouteTypes {
     | '/schedule/problems'
     | '/schedule/search'
     | '/schedule/travel'
+    | '/settings/notifications'
     | '/todo/connect'
     | '/admin/'
     | '/chat/'
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/schedule/problems'
     | '/schedule/search'
     | '/schedule/travel'
+    | '/settings/notifications'
     | '/todo/connect'
     | '/admin'
     | '/chat'
@@ -349,6 +360,7 @@ export interface FileRouteTypes {
     | '/schedule/problems'
     | '/schedule/search'
     | '/schedule/travel'
+    | '/settings_/notifications'
     | '/todo/connect'
     | '/admin/'
     | '/chat/'
@@ -373,6 +385,7 @@ export interface RootRouteChildren {
   AuthTestRoute: typeof AuthTestRoute
   ReviewsMineRoute: typeof ReviewsMineRoute
   ReviewsPolicyRoute: typeof ReviewsPolicyRoute
+  SettingsNotificationsRoute: typeof SettingsNotificationsRoute
   TodoConnectRoute: typeof TodoConnectRoute
   AdminIndexRoute: typeof AdminIndexRoute
   ChatIndexRoute: typeof ChatIndexRoute
@@ -531,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScheduleTravelRouteImport
       parentRoute: typeof ScheduleRoute
     }
+    '/settings_/notifications': {
+      id: '/settings_/notifications'
+      path: '/settings/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof SettingsNotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/todo/': {
       id: '/todo/'
       path: '/todo'
@@ -626,6 +646,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthTestRoute: AuthTestRoute,
   ReviewsMineRoute: ReviewsMineRoute,
   ReviewsPolicyRoute: ReviewsPolicyRoute,
+  SettingsNotificationsRoute: SettingsNotificationsRoute,
   TodoConnectRoute: TodoConnectRoute,
   AdminIndexRoute: AdminIndexRoute,
   ChatIndexRoute: ChatIndexRoute,

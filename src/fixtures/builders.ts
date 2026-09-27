@@ -27,6 +27,7 @@ import {
   DEFAULT_TRAVEL_SETTINGS,
   type DeptChunk,
   type FeedItem,
+  type FourYearSyncDoc,
   type GenerateRequest,
   GRADE_KEYS,
   type GradeCounts,
@@ -74,6 +75,7 @@ import type {
   FourYearCourseEntry,
   FourYearCreditEntry,
   FourYearDoc,
+  FourYearTemplate,
   FourYearWildcardEntry,
 } from "~/core/schema/four-year";
 
@@ -419,6 +421,27 @@ export function aPlanSyncDoc(
   return {
     kind: "plan",
     id: body?.id ?? "plan_fixture_a",
+    rev: 1,
+    updatedAt: FIXTURE_NOW,
+    ...overrides,
+    body,
+  };
+}
+
+/**
+ * A four-year doc as the server returns it, at rev 1, its body already a
+ * whole `FourYearDoc` (as the device reads it). Its id follows the body's;
+ * pass `body: null` and an `id` for a tombstone.
+ */
+export function aFourYearSyncDoc(
+  overrides: Partial<Omit<FourYearSyncDoc, "body">> & {
+    body?: FourYearDoc | null;
+  } = {},
+): Omit<FourYearSyncDoc, "body"> & { body: FourYearDoc | null } {
+  const body = overrides.body === undefined ? aFourYear() : overrides.body;
+  return {
+    kind: "four-year",
+    id: body?.id ?? "fouryear_fixture_a",
     rev: 1,
     updatedAt: FIXTURE_NOW,
     ...overrides,
@@ -1082,6 +1105,41 @@ export function aFourYearCreditEntry(
     credits: 4,
     genEds: [],
     source: "transcript",
+    ...overrides,
+  };
+}
+
+/**
+ * A two-semester sample plan: CMSC131 then CMSC132, with a DSHS
+ * placeholder, from the fixture's courses.
+ */
+export function aFourYearTemplate(
+  overrides: Partial<FourYearTemplate> = {},
+): FourYearTemplate {
+  return {
+    id: "test-2026",
+    name: "Computer Science",
+    department: "Department of Computer Science",
+    college: "College of Computer, Mathematical, and Natural Sciences",
+    year: "2026–27",
+    summary: "The first year of the major.",
+    credit: "A sample from the Department of Computer Science.",
+    sourceUrl: "https://undergrad.cs.umd.edu/degree-requirements-cs-major",
+    semesters: [
+      {
+        index: 0,
+        credits: 7,
+        entries: [
+          { kind: "course", code: "CMSC131" },
+          {
+            kind: "wildcard",
+            wildcard: { kind: "gen-ed", code: "DSHS" },
+            credits: 3,
+          },
+        ],
+      },
+      { index: 1, credits: 4, entries: [{ kind: "course", code: "CMSC132" }] },
+    ],
     ...overrides,
   };
 }

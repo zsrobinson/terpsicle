@@ -15,7 +15,9 @@ export type SyncStatus =
   /** The server answered with an error; the engine keeps retrying. */
   | "error"
   /** The account holds SYNC_MAX_PLANS plans; new ones can't be saved. */
-  | "full";
+  | "full"
+  /** The account holds SYNC_MAX_FOUR_YEAR_DOCS four-year plans; the same. */
+  | "full-four-year";
 
 export type ShownSyncStatus = Exclude<SyncStatus, "off">;
 

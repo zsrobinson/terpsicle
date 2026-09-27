@@ -176,6 +176,11 @@ Revisit if: it annoys people.
 Plain server-side storage, one JSON doc per plan with a rev and compare-and-swap. A conflict never merges: the server's copy stays and the local one becomes "<name> (copy)".
 Revisit if: people hit conflicts often.
 
+### Four-year plans sync through the scheduler's engine
+2026-09-27 · agent · one feature
+One engine, one pull cursor and one set of flags for plans, settings and four-year plans. It runs on whichever page is open (the scheduler, or Plan at `/plan`) with that page's store, and keeps the other product's docs in IndexedDB, so neither page can skip a kind and lose it.
+Revisit if: a third product needs sync, or loading the whole engine on Plan costs too much.
+
 ## Reviews
 
 ### Anonymous reviews, signed-in writers

@@ -94,13 +94,14 @@ export function signInMode(env: AuthEnv, url: URL): SignInMode {
 }
 
 /**
- * What POST /api/me tells the app is on (V2.md §4.9). Seat alerts' and
- * Todo's switches belong to their own folders, so the router passes them in.
+ * What POST /api/me tells the app is on (V2.md §4.9). Seat alerts', Todo's
+ * and push's switches belong to their own folders, so the router passes
+ * them in.
  */
 export function appFlags(
   env: AuthEnv,
   url: URL,
-  others: { seatAlerts: boolean; todo: boolean },
+  others: { seatAlerts: boolean; todo: boolean; push: boolean },
 ): Flags {
   const mode = signInMode(env, url);
   const features = FeatureVarsSchema.parse(env);
@@ -109,7 +110,7 @@ export function appFlags(
     chat: features.CHAT_ENABLED,
     reviews: features.REVIEWS_ENABLED,
     seatAlerts: others.seatAlerts,
-    push: features.PUSH_ENABLED,
+    push: others.push,
     todo: others.todo,
     plan: features.PLAN_ENABLED,
     authTestMode: mode.kind === "test",

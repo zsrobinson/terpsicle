@@ -1,7 +1,8 @@
-// The shared data contract. Prose version: docs/DATA.md. Two families stay
+// The shared data contract. Prose version: docs/DATA.md. Three families stay
 // out of this barrel, since every page loads it and zod objects don't
-// tree-shake: the admin panel's schemas (import ~/core/schema/admin) and
-// Plan's four-year doc (import ~/core/schema/four-year).
+// tree-shake: the admin panel's schemas (import ~/core/schema/admin),
+// Plan's four-year doc (import ~/core/schema/four-year) and notifications
+// (import ~/core/schema/notifications).
 export * from "./api";
 export * from "./auth";
 export * from "./calendar";

@@ -109,6 +109,9 @@ export interface AnalyticsEvents {
     outcome: "installed" | "dismissed";
   };
   pwa_installed: NoProperties;
+  // Web push on a device (V2.md §11), from /settings/notifications.
+  push_enabled: NoProperties;
+  push_disabled: NoProperties;
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
   signin_started: {
     from:
@@ -158,6 +161,8 @@ export interface AnalyticsEvents {
     skipped: number;
   };
   transcript_imported: { lines: number; keptGrades: boolean };
+  // Which sample plan, by its id ("cmsc-2026"), never what's in it.
+  template_applied: { template: string };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

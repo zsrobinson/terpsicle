@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import Dexie from "dexie";
 import { afterEach, describe, expect, it } from "vitest";
+import { LOCAL_DB_VERSION } from "~/core/schema";
 import { aBlock, aFourYear, aPlan } from "~/fixtures";
 import { DB_V1_STORES, TerpsicleDb } from "./db";
 import { hydrate } from "./persist";
@@ -61,7 +62,7 @@ describe("Dexie v2", () => {
 
     const db = new TerpsicleDb(name);
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(LOCAL_DB_VERSION);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       "blocks",
       "courseColors",
@@ -104,11 +105,11 @@ describe("Dexie v2", () => {
     db.close();
   });
 
-  it("makes a fresh database at v3", async () => {
+  it("makes a fresh database at the current version", async () => {
     name = `fresh-${++count}`;
     const db = new TerpsicleDb(name);
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(LOCAL_DB_VERSION);
     await db.syncDocs.put({
       key: "plan:planAAAA",
       rev: 3,
@@ -150,7 +151,7 @@ describe("Dexie v3", () => {
     await seedV2({ userId: "u_1", cursor: 42 });
     const db = new TerpsicleDb(name);
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(LOCAL_DB_VERSION);
     expect(await db.settings.get("sync")).toEqual({
       key: "sync",
       value: { userId: "u_1", cursor: 0 },
@@ -169,6 +170,46 @@ describe("Dexie v3", () => {
     const db = new TerpsicleDb(name);
     await db.open();
     expect(await db.settings.get("sync")).toBeUndefined();
+    db.close();
+  });
+});
+
+// Dexie v3 → v4 (four-year sync, V3 §2.13): no table changes, and the pull
+// cursor back to 0 once more, for the four-year docs pulls skipped between
+// the two upgrades.
+describe("Dexie v4", () => {
+  afterEach(async () => {
+    await Dexie.delete(name);
+  });
+
+  it("resets the sync cursor again and keeps the four-year docs", async () => {
+    name = `v4-${++count}`;
+    const v3 = new Dexie(name);
+    v3.version(1).stores(DB_V1_STORES);
+    v3.version(2).stores({ syncDocs: "key", seatAlerts: null });
+    v3.version(3).stores({ fourYear: "id" });
+    await v3.open();
+    await v3.table("fourYear").put(aFourYear());
+    await v3
+      .table("settings")
+      .put({ key: "sync", value: { userId: "u_1", cursor: 42 } });
+    v3.close();
+
+    const db = new TerpsicleDb(name);
+    await db.open();
+    expect(db.verno).toBe(4);
+    expect(await db.settings.get("sync")).toEqual({
+      key: "sync",
+      value: { userId: "u_1", cursor: 0 },
+    });
+    expect(await db.fourYear.toArray()).toEqual([aFourYear()]);
+    await db.syncDocs.put({
+      key: `four-year:${aFourYear().id}`,
+      rev: 1,
+      dirty: true,
+      inFlight: false,
+    });
+    expect(await db.syncDocs.count()).toBe(1);
     db.close();
   });
 });

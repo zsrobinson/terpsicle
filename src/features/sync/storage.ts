@@ -11,6 +11,7 @@ import {
   TravelSettingsSchema,
   validRows,
 } from "~/core/schema";
+import { type FourYearDoc, FourYearDocSchema } from "~/core/schema/four-year";
 import {
   type DocKey,
   type DocSync,
@@ -26,7 +27,7 @@ import {
 import type { TerpsicleDb } from "~/state/db";
 
 // Where plan sync keeps its state on the device (Dexie v2, DATA.md §5): the
-// synced tables themselves, each doc's flags (`syncDocs`), the settings doc's
+// synced tables themselves (with Terpsicle Plan's `fourYear`, V3 §2.4), each doc's flags (`syncDocs`), the settings doc's
 // `base`, and the `sync` row (account and cursor). The engine reads and
 // writes all of it in one transaction per step, so two tabs never act on a
 // stale view: IndexedDB runs read-write transactions over the same tables
@@ -53,7 +54,10 @@ export interface SyncStorage {
   ): Promise<{ before: SyncSnapshot; after: SyncSnapshot }>;
   /** Forgets the account (flags, cursor, base). Plans stay. */
   clearSync(): Promise<void>;
-  /** Removes plans, blocks, colors, travel and chat plans too (sign out and remove). */
+  /**
+   * Removes plans, blocks, colors, travel, chat plans and four-year plans too
+   * (sign out and remove).
+   */
   clearAll(): Promise<void>;
 }
 
@@ -63,6 +67,7 @@ export const EMPTY_TABLES: SyncedTables = {
   colors: {},
   travel: DEFAULT_TRAVEL_SETTINGS,
   chatPlans: {},
+  fourYear: [],
 };
 
 export const EMPTY_SNAPSHOT: SyncSnapshot = {
@@ -97,6 +102,24 @@ function rowChanges<T extends { id: string }>(
   };
 }
 
+/**
+ * Four-year rows that validate, the rest skipped and logged by id only:
+ * `validRows` logs the row, and these hold grades (V3 §2.5).
+ */
+function validFourYearRows(rows: readonly unknown[]): FourYearDoc[] {
+  const out: FourYearDoc[] = [];
+  for (const row of rows) {
+    const parsed = FourYearDocSchema.safeParse(row);
+    if (parsed.success) out.push(parsed.data);
+    else
+      console.warn(
+        "Skipped an invalid fourYear row",
+        typeof row === "object" && row !== null && "id" in row ? row.id : null,
+      );
+  }
+  return out;
+}
+
 function sameFlags(a: DocSync | undefined, b: DocSync | undefined): boolean {
   return (
     a?.rev === b?.rev && a?.dirty === b?.dirty && a?.inFlight === b?.inFlight
@@ -106,6 +129,8 @@ function sameFlags(a: DocSync | undefined, b: DocSync | undefined): boolean {
 // ---------- Dexie ----------
 
 const SETTINGS_SYNC_ROW = "sync";
+/** Plan's open four-year doc (`FourYearPrefs`): local, but it names a doc that goes with them. */
+const SETTINGS_FOUR_YEAR_ROW = "fourYear";
 
 export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
   const tables = [
@@ -114,16 +139,20 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
     db.courseColors,
     db.settings,
     db.syncDocs,
+    db.fourYear,
   ];
 
   async function readInTx(): Promise<SyncSnapshot> {
-    const [plans, blocks, colors, settings, docs] = await Promise.all([
-      db.plans.toArray(),
-      db.blocks.toArray(),
-      db.courseColors.toArray(),
-      db.settings.bulkGet(["travel", "chatPlans", SETTINGS_SYNC_ROW]),
-      db.syncDocs.toArray(),
-    ]);
+    const [plans, blocks, colors, settings, docs, fourYear] = await Promise.all(
+      [
+        db.plans.toArray(),
+        db.blocks.toArray(),
+        db.courseColors.toArray(),
+        db.settings.bulkGet(["travel", "chatPlans", SETTINGS_SYNC_ROW]),
+        db.syncDocs.toArray(),
+        db.fourYear.toArray(),
+      ],
+    );
     const [travelRow, chatPlansRow, syncRow] = settings;
     const travel = TravelSettingsSchema.safeParse(travelRow?.value);
     const chatPlans = ChatPlansSchema.safeParse(chatPlansRow?.value);
@@ -153,6 +182,7 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
         ),
         travel: travel.success ? travel.data : DEFAULT_TRAVEL_SETTINGS,
         chatPlans: chatPlans.success ? chatPlans.data : {},
+        fourYear: validFourYearRows(fourYear),
       },
     };
   }
@@ -186,6 +216,11 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
       await db.settings.put({ key: "travel", value: a.travel });
     if (a.chatPlans !== b.chatPlans)
       await db.settings.put({ key: "chatPlans", value: { ...a.chatPlans } });
+    if (a.fourYear !== b.fourYear) {
+      const { put, remove } = rowChanges(b.fourYear, a.fourYear);
+      if (put.length) await db.fourYear.bulkPut(put);
+      if (remove.length) await db.fourYear.bulkDelete(remove);
+    }
 
     const rows: LocalSyncDoc[] = [];
     const removed: DocKey[] = [];
@@ -244,7 +279,13 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
           db.blocks.clear(),
           db.courseColors.clear(),
           db.syncDocs.clear(),
-          db.settings.bulkDelete(["travel", "chatPlans", SETTINGS_SYNC_ROW]),
+          db.fourYear.clear(),
+          db.settings.bulkDelete([
+            "travel",
+            "chatPlans",
+            SETTINGS_SYNC_ROW,
+            SETTINGS_FOUR_YEAR_ROW,
+          ]),
         ]);
       }),
   };

@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { useMediaQuery } from "~/app/use-media-query";
 import {
   CREDITS_GOAL,
   CREDITS_GOAL_TOOLTIP,
@@ -9,9 +10,10 @@ import { WithTooltip } from "~/ui/tooltip";
 import { CoursePanel } from "./course-panel";
 import { GenEdPanel } from "./gen-ed-panel";
 import { ImportPanel } from "./import-panel";
-import { useModel, usePlanNav } from "./model";
+import { PLAN_WIDE_QUERY, useModel, usePlanNav } from "./model";
 import { ProblemsPanel } from "./problems-panel";
 import { focusSearch, SearchPanel } from "./search-panel";
+import { TemplatePanel } from "./template-panel";
 
 // The side panel (V3 §2.13): credits on top, then the tabs. A course opened
 // from a block or a search result replaces the tab's content, with Back.
@@ -73,6 +75,7 @@ const TABS: readonly { tab: PlanTab; label: string; tip: string }[] = [
   { tab: "gened", label: "GenEd", tip: "GenEd progress" },
   { tab: "problems", label: "Problems", tip: "Prerequisites and credits" },
   { tab: "search", label: "Search", tip: "Find a course to add" },
+  { tab: "templates", label: "Samples", tip: "Start from a sample plan" },
   { tab: "import", label: "Import", tip: "Import your transcript" },
 ];
 
@@ -87,6 +90,7 @@ export function SidePanel({
   const { problems } = useModel();
   const nav = usePlanNav();
   const tab = nav.search.tab ?? "gened";
+  const wide = useMediaQuery(PLAN_WIDE_QUERY);
   const course = nav.search.course;
   return (
     <aside
@@ -137,11 +141,15 @@ export function SidePanel({
           </WithTooltip>
         ))}
       </nav>
+      {/* It scrolls on desktop, and a tab may have nothing focusable to
+          scroll to (a GenEd tab with every category covered). On a phone
+          the page scrolls instead. */}
       <section
         aria-label={
           course ? `About ${course}` : TABS.find((t) => t.tab === tab)?.tip
         }
-        className="scroll-thin min-h-0 flex-1 overflow-y-auto"
+        tabIndex={wide ? 0 : undefined}
+        className="scroll-thin min-h-0 flex-1 overflow-y-auto outline-none focus-visible:outline-2 focus-visible:outline-fg focus-visible:-outline-offset-2"
       >
         {course ? (
           <CoursePanel code={course} />
@@ -149,6 +157,8 @@ export function SidePanel({
           <SearchPanel />
         ) : tab === "problems" ? (
           <ProblemsPanel />
+        ) : tab === "templates" ? (
+          <TemplatePanel />
         ) : tab === "import" ? (
           <ImportPanel />
         ) : (

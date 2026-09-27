@@ -48,6 +48,7 @@ export const SHARE_PAYLOAD_VERSION = 1;
  * Dexie database. Bump with an upgrade function whenever a table's shape
  * changes. 2: plan sync's `syncDocs`; `seatAlerts` moved to a settings row.
  * 3: Terpsicle Plan's `fourYear` table, and the sync cursor back to 0.
+ * 4: the sync cursor back to 0 again, once sync carries four-year docs.
  */
 export const LOCAL_DB_NAME = "terpsicle";
-export const LOCAL_DB_VERSION = 3;
+export const LOCAL_DB_VERSION = 4;
