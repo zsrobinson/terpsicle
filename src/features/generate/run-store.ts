@@ -26,6 +26,7 @@ import {
   GenerateCancelled,
   type GenerateInput,
   type Generator,
+  GeneratorUnavailable,
 } from "~/worker/generator";
 
 // One Generate run at a time: load what the request needs, run the search in
@@ -180,6 +181,7 @@ export async function runGenerate(
           error instanceof Error && error.message.startsWith("Couldn't")
             ? error.message
             : "Couldn't generate plans. Try again.",
+        ...(error instanceof GeneratorUnavailable ? { reload: true } : {}),
       },
     });
   }

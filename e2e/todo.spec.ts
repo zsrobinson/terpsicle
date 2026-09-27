@@ -117,8 +117,9 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
 
   await link.fill(testFeedLink(TEST_FEED_TOKENS.gone));
   await connect.click();
+  // Test mode's gone link answers 404: the reset-link sentence.
   await expect(
-    page.getByText(/ELMS didn't send a calendar for that link/),
+    page.getByText(/^ELMS doesn't know that link anymore/),
   ).toBeVisible();
   await expect(link).toHaveValue("");
 
@@ -149,6 +150,14 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   await project.click();
   await expect(page.getByText(/^5 open · /)).toBeVisible();
   await expect(page.getByRole("button", { name: "1 done" })).toBeVisible();
+
+  // A check has Undo, like every change: it comes back, then goes again.
+  await expect(page.getByText("Marked Project 2 done")).toBeVisible();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText(/^6 open · /)).toBeVisible();
+  await expect(project).not.toBeChecked();
+  await project.click();
+  await expect(page.getByText(/^5 open · /)).toBeVisible();
 
   // Done marks are the server's: they survive a reload.
   await page.reload();

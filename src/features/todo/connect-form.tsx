@@ -1,7 +1,8 @@
+import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
 import { track } from "~/app/analytics";
-import { parseFeedLink } from "~/core/todo";
+import { type ConnectAnswer, connectWords, parseFeedLink } from "~/core/todo";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
@@ -17,14 +18,12 @@ export const WHAT_COMES_THROUGH =
 export const LINK_IS_SECRET =
   "This link is a secret: anyone with it can read your due dates. We keep it encrypted and fetch it from our server, so reminders work when the app's closed. Disconnect any time.";
 
-const ANSWERS = {
-  "invalid-link":
-    "That isn't an ELMS calendar link. In ELMS, open Calendar, click Calendar Feed, and copy the link.",
-  unreachable: "ELMS didn't answer. Try again in a minute.",
-  "not-a-calendar":
-    "ELMS didn't send a calendar for that link. Copy the link from Calendar Feed again and paste it here.",
-  failed: "That didn't go through. Check your connection and try again.",
-} as const;
+/**
+ * Said while ELMS is asked. Connecting waits up to 25 seconds for Canvas to
+ * build the feed, so the wait gets a reason, in words rather than a spinner.
+ */
+export const CONNECT_WAIT =
+  "ELMS gathers every course's dates when we ask, so this can take up to half a minute.";
 
 export function ConnectSteps() {
   return (
@@ -60,7 +59,7 @@ export function ConnectForm({
   const connect = useTodo((s) => s.connect);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
-  const [answer, setAnswer] = useState<keyof typeof ANSWERS | null>(null);
+  const [answer, setAnswer] = useState<ConnectAnswer | null>(null);
   const inputId = useId();
   const answerId = useId();
 
@@ -71,20 +70,44 @@ export function ConnectForm({
     setValue("");
     setAnswer(null);
     if (parseFeedLink(pasted) === null) {
-      setAnswer("invalid-link");
+      setAnswer({ status: "invalid-link" });
       track("todo_connect_result", { outcome: "invalid-link" });
       return;
     }
     setBusy(true);
-    const status = await connect(pasted);
+    const result = await connect(pasted);
     setBusy(false);
-    if (status !== "failed") track("todo_connect_result", { outcome: status });
-    if (status === "connected") onConnected?.();
-    else setAnswer(status);
+    switch (result.status) {
+      case "connected":
+        track("todo_connect_result", { outcome: "connected" });
+        onConnected?.();
+        return;
+      case "invalid-link":
+        track("todo_connect_result", { outcome: "invalid-link" });
+        break;
+      case "unreachable":
+      case "not-a-calendar":
+        // Codes only: the reason never carries the link.
+        track("todo_connect_result", {
+          outcome: result.status,
+          reason: result.reason,
+        });
+        break;
+      default:
+        // Our own server didn't answer: not an ELMS outcome.
+        break;
+    }
+    setAnswer(result);
   };
 
+  const note = busy ? CONNECT_WAIT : answer ? connectWords(answer) : null;
+
   return (
-    <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-1.5">
+    <form
+      onSubmit={(e) => void submit(e)}
+      aria-busy={busy}
+      className="flex flex-col gap-1.5"
+    >
       <label htmlFor={inputId} className="font-medium text-muted text-xs">
         ELMS calendar link
       </label>
@@ -102,7 +125,7 @@ export function ConnectForm({
             autoCapitalize="off"
             spellCheck={false}
             data-private=""
-            aria-describedby={answer ? answerId : undefined}
+            aria-describedby={note ? answerId : undefined}
             placeholder="https://umd.instructure.com/feeds/calendars/user_….ics"
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -112,15 +135,21 @@ export function ConnectForm({
         </WithTooltip>
         <WithTooltip label="Check the link with ELMS and start showing your deadlines">
           <Button type="submit" disabled={busy || value.trim() === ""}>
-            {busy ? "Checking with ELMS…" : submitLabel}
+            {busy ? "Checking ELMS…" : submitLabel}
           </Button>
         </WithTooltip>
       </div>
-      {answer ? (
-        <p id={answerId} role="status" className="mt-0.5 text-fg text-sm">
-          {ANSWERS[answer]}
-        </p>
-      ) : null}
+      {/* Always there, so a screen reader hears the wait and then the answer. */}
+      <p
+        id={answerId}
+        role="status"
+        className={cn(
+          "mt-0.5 text-sm empty:hidden",
+          busy ? "text-muted" : "text-fg",
+        )}
+      >
+        {note}
+      </p>
     </form>
   );
 }

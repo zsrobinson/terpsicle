@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "~/ui/dialog";
+import { InlineError } from "~/ui/inline-error";
 import { WithTooltip } from "~/ui/tooltip";
 import { editShot, paintEdits, type Shot, ShotTooBigError } from "./screenshot";
 import { TOO_BIG } from "./send";
@@ -155,11 +156,7 @@ export function RedactEditor({
           onPointerCancel={() => setDrag(null)}
           className="mx-auto block max-h-[60vh] w-auto max-w-full cursor-crosshair touch-none rounded-md border border-hairline"
         />
-        {error ? (
-          <p role="alert" className="mt-2 text-sm">
-            {error}
-          </p>
-        ) : null}
+        {error ? <InlineError className="pb-0" message={error} /> : null}
         <div className="mt-3 flex justify-end gap-2">
           <WithTooltip label="Keep the screenshot as it was" shortcut="Esc">
             <Button variant="ghost" onClick={onClose}>

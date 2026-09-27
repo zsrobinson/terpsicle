@@ -1,8 +1,16 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
 import { aMeUser, aSeatWatch, fixtureTermId } from "~/fixtures";
 import { useSeatWatches } from "~/state/seat-watches";
+import { TooltipProvider } from "~/ui/tooltip";
 import {
   PENDING_WATCH_KEY,
   rememberPendingWatch,
@@ -10,6 +18,7 @@ import {
   takePendingWatch,
   useSeatWatchesSync,
 } from "./seat-watches";
+import { SeatWatchesSection } from "./settings-section";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
@@ -108,5 +117,28 @@ describe("useSeatWatchesSync", () => {
     );
     act(() => seatAlertsAccount(null));
     expect(useSeatWatches.getState().watches).toBeNull();
+  });
+});
+
+describe("the Watching list on Settings", () => {
+  it("says it didn't load, and Try again loads it", async () => {
+    const client = fakeSeatWatchesClient([aSeatWatch()]);
+    client.list.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    act(() => seatAlertsAccount(aMeUser()));
+    render(
+      <TooltipProvider>
+        <SeatWatchesSection />
+      </TooltipProvider>,
+    );
+    expect(
+      await screen.findByText(
+        "We couldn't load the sections you're watching. Check your connection and try again.",
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() =>
+      expect(useSeatWatches.getState().watches).toHaveLength(1),
+    );
+    expect(screen.queryByText(/We couldn't load/)).toBeNull();
   });
 });

@@ -2,13 +2,13 @@ import { create } from "zustand";
 import { track } from "~/app/analytics";
 import type {
   IsoDate,
-  TodoConnectResult,
   TodoFeedState,
   TodoFileItem,
   TodoImportFileResult,
   TodoItem,
 } from "~/core/schema";
-import { isStale, listRange } from "~/core/todo";
+import { type ConnectAnswer, isStale, listRange } from "~/core/todo";
+import { ApiCallError } from "~/server/fns/api";
 import { todoApi } from "~/server/fns/todo";
 
 // Terpsicle Todo in the browser (docs/V3.md §3.8): the last list, in memory
@@ -54,7 +54,8 @@ export interface TodoState {
   refresh: () => Promise<void>;
   /** Marks an item done or not; false when the server didn't take it. */
   setDone: (uid: string, done: boolean) => Promise<boolean>;
-  connect: (url: string) => Promise<TodoConnectResult["status"] | "failed">;
+  /** Connected, or what the form says instead. */
+  connect: (url: string) => Promise<{ status: "connected" } | ConnectAnswer>;
   /** Shows the disconnected state now; the route runs when Undo is gone. */
   disconnect: () => void;
   undoDisconnect: () => void;
@@ -66,6 +67,16 @@ export interface TodoState {
 }
 
 let pending: { before: Snapshot } | null = null;
+
+/** Why our own server didn't answer `todo/connect`, as far as the form can say. */
+function connectCallFailure(
+  error: unknown,
+): "signed-out" | "rate-limited" | "failed" {
+  if (!(error instanceof ApiCallError)) return "failed";
+  if (error.reason === "unauthorized") return "signed-out";
+  if (error.reason === "rate-limited") return "rate-limited";
+  return "failed";
+}
 
 const INITIAL = {
   phase: "idle" as TodoPhase,
@@ -171,10 +182,11 @@ export const useTodo = create<TodoState>()((set, get) => {
           set({ feed: result.feed });
           const today = get().today;
           if (today) await fetchList(today).catch(() => undefined);
+          return { status: "connected" };
         }
-        return result.status;
-      } catch {
-        return "failed";
+        return result;
+      } catch (error) {
+        return { status: connectCallFailure(error) };
       }
     },
 

@@ -1,12 +1,12 @@
-import { Undo2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { toast } from "sonner";
 import { elementCrop } from "~/core/feedback/redact";
 import type { FeedbackProduct, Pin } from "~/core/schema/feedback";
 import { feedbackApi } from "~/server/fns/feedback-api";
 import { Button } from "~/ui/button";
+import { InlineError } from "~/ui/inline-error";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
-import { ToastAction } from "~/ui/toast";
+import { noteToast, undoToast } from "~/ui/toast";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { describeElement } from "./element";
 import { usePins } from "./pin-store";
@@ -286,29 +286,23 @@ function NoteBox({
       });
       const pathname = window.location.pathname;
       void usePins.getState().load(pathname);
-      const toastId = `feedback-pin-${result.id}`;
-      toast("Pinned.", {
-        id: toastId,
-        duration: 10_000,
-        action: (
-          <ToastAction
-            label="Undo"
-            icon={<Undo2 size={14} aria-hidden="true" />}
-            onClick={() => {
-              toast.dismiss(toastId);
-              void feedbackApi
-                .undo({ id: result.id, undoToken: result.undoToken })
-                .then(({ status }) => {
-                  if (status !== "undone")
-                    toast("Too late to undo: the note's already in the inbox.");
-                  return usePins.getState().load(pathname);
-                })
-                .catch(() =>
-                  toast("Couldn't undo. Check your connection and try again."),
-                );
-            }}
-          />
-        ),
+      // The kit's Undo, as for sent feedback (send.tsx): one window, and
+      // focus on Undo holds it open.
+      undoToast({
+        id: `feedback-pin-${result.id}`,
+        message: "Pinned.",
+        tooltip: "Take the note back",
+        onUndo: () =>
+          void feedbackApi
+            .undo({ id: result.id, undoToken: result.undoToken })
+            .then(({ status }) => {
+              if (status !== "undone")
+                noteToast("Too late to undo: the note's already in the inbox.");
+              return usePins.getState().load(pathname);
+            })
+            .catch(() =>
+              noteToast("Couldn't undo. Check your connection and try again."),
+            ),
       });
       onPinned();
     } catch (e) {
@@ -356,11 +350,8 @@ function NoteBox({
               className="w-full resize-y rounded-md border border-hairline-strong bg-bg px-2 py-1.5 text-base leading-5 placeholder:text-faint focus:border-fg/40"
             />
           </WithTooltip>
-          {error ? (
-            <p role="alert" className="text-sm">
-              {error}
-            </p>
-          ) : null}
+          {/* Pin is the way to try again, right below. */}
+          {error ? <InlineError className="py-0" message={error} /> : null}
           <div className="flex justify-end gap-2">
             <WithTooltip label="Pick something else" shortcut="Esc">
               <Button

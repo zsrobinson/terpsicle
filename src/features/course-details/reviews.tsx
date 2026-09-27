@@ -18,9 +18,10 @@ import {
   type ReviewSummary,
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
-import { deptOf } from "~/state/catalog-store";
+import { deptOf, useCatalog } from "~/state/catalog-store";
 import { usePlanetTerpStatus, useTerpsicleReviews } from "~/state/data-hooks";
 import { terpsicleInstructor } from "~/state/reviews-store";
+import { InlineError } from "~/ui/inline-error";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
@@ -183,18 +184,22 @@ export function InstructorReviews({
       {loading ? (
         <Skeleton className="mt-2 h-2.5 w-2/3" />
       ) : failed && !planetTerp ? (
-        <p className="text-muted">
-          Couldn't load reviews from PlanetTerp. Check your connection and
-          reopen this course.
-        </p>
+        <InlineError
+          className="py-0"
+          message="Couldn't load reviews from PlanetTerp. Check your connection and try again."
+          onRetry={() =>
+            void useCatalog.getState().ensureInstructors(deptOf(course.code))
+          }
+          retryTooltip="Load PlanetTerp's reviews again"
+        />
       ) : !pt ? (
         <p className="text-muted">
           PlanetTerp has nothing on this instructor yet.
         </p>
       ) : review.status === "loading" ? (
         <div className="mt-1 space-y-1.5" aria-busy="true">
-          <Skeleton className="h-2.5 w-full animate-pulse" />
-          <Skeleton className="h-2.5 w-4/5 animate-pulse" />
+          <Skeleton className="h-2.5 w-full" />
+          <Skeleton className="h-2.5 w-4/5" />
           <div className="flex items-center gap-1 text-xs text-faint">
             <Sparkles size={11} aria-hidden="true" />
             Summarizing {pt.reviewCount} reviews…

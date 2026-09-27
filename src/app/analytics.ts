@@ -17,6 +17,7 @@ import type {
   TermId,
   TermStatus,
   Theme,
+  TodoConnectReason,
   TravelMode,
   Wildcard,
 } from "~/core/schema";
@@ -139,9 +140,13 @@ export interface AnalyticsEvents {
   report_created: { surface: ModerationKind; reason: ReportReason };
   // Terpsicle Todo (V3.md §6). Never a title, course, date or anything from
   // the feed: outcomes and counts only.
-  todo_connect_result: {
-    outcome: "connected" | "invalid-link" | "unreachable" | "not-a-calendar";
-  };
+  todo_connect_result:
+    | { outcome: "connected" | "invalid-link" }
+    | {
+        outcome: "unreachable" | "not-a-calendar";
+        /** A fixed code (`timeout`, `http-404`, `not-recognized`, …), never the link. */
+        reason: TodoConnectReason;
+      };
   todo_disconnected: NoProperties;
   todo_item_checked: { done: boolean; via: "list" | "week" };
   todo_view_changed: { view: "day" | "course" | "week" };

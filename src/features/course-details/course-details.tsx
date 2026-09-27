@@ -6,7 +6,7 @@ import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
 import { gradesSourceWords } from "~/core/grades";
 import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
-import { deptOf } from "~/state/catalog-store";
+import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCourseDept, useInstructors } from "~/state/data-hooks";
 import {
   type CurrentPlan,
@@ -183,6 +183,9 @@ function Details({
             planetTerp={planetTerp.data}
             loading={ptLoading}
             failed={planetTerp.state === "error"}
+            onRetry={() =>
+              void useCatalog.getState().ensureInstructors(deptOf(course.code))
+            }
           />
         </div>
       </section>

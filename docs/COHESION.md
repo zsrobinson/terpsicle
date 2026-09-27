@@ -77,7 +77,7 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 - [x] One `undoToast()` helper (`src/components/ui/toast.tsx`): one action button, one icon, one 10-second window (`UNDO_MS`), focus holds it open, and the shortcut sits in its tooltip. It replaces the seven toast-action copies. Failures go through `noteToast()`, which is never red and offers Try again where retrying can help. The scheduler and Plan keep their Undo/Redo pair on the shared `ToastAction`.
 - [x] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button` (done: `GoogleButton` is the kit's filled `Button`, `lg`). Every kit control is 44px on phones (`v3/touch-targets`, docs/ACCESSIBILITY.md "Touch targets"); the last per-page overrides go as their files' open PRs land.
 - [x] Routes get a shared `pendingComponent` and `errorComponent` (`src/features/site/route-states.tsx`; a route sets `staticData.pending`).
-- [ ] No page says "reload the page".
+- [x] No page says "reload the page". (`v3/behavior`: where only a new version helps, a Reload button sits beside the words; Plan's sample plans have Try again since #144.)
 - [x] Guardrails:
   - The design-tokens test fails on raw `max-w-*` page containers and on `<h1>` outside the kit, each with an allowlist of today's pages that must shrink.
   - The `reviewer` agent checks for use of the kit (its check 8).
@@ -97,7 +97,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 ### Phase 4: shared patterns sweep
 - [ ] Words: one glossary pass over every string (titles, buttons, empty states, errors, toasts).
 - [ ] Behavior:
-  - loading and error states everywhere;
+  - loading and error states everywhere (`v3/behavior`, and Plan's in #144: the kit's skeletons and `InlineError`, and Reload beside every "Reload to …");
   - Undo on every destructive action;
   - tooltips and shortcuts on every control (`v3/behavior-keys`: `e2e/tooltips.spec.ts` checks every page; menu options are the one exception, in `docs/decisions.md`);
   - focus order and keyboard (`v3/behavior-keys`: tabbed through every product at 1440; Esc closes the top layer, and a popover no longer needs two).

@@ -657,7 +657,7 @@ describe("Course details", () => {
     });
 
     it("say the file didn't load, rather than that PlanetTerp has nothing", async () => {
-      await renderDetails("CMSC351", "instructors");
+      const { user } = await renderDetails("CMSC351", "instructors");
       await findReviews("Jada Abernathy");
       act(() =>
         useCatalog.setState((s) => ({
@@ -671,6 +671,13 @@ describe("Course details", () => {
       expect(screen.getByTestId("grades")).toHaveTextContent(
         "Couldn't load grades from PlanetTerp",
       );
+      // Try again asks for the department's file again, in place.
+      const ensure = vi
+        .spyOn(useCatalog.getState(), "ensureInstructors")
+        .mockResolvedValue();
+      await user.click(within(jada).getByRole("button", { name: "Try again" }));
+      expect(ensure).toHaveBeenCalledWith("CMSC");
+      ensure.mockRestore();
     });
   });
 

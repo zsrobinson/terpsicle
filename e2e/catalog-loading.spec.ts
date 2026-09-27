@@ -65,3 +65,57 @@ test("a course link shows its details before the rest of the catalog loads", asy
   await expect(page.locator('[data-course-result="ENGL101"]')).toBeVisible();
   await expect.poll(() => finished).toBe(requested.length);
 });
+
+// A first visit whose catalog doesn't arrive (nothing saved to fall back
+// on): the kit's inline error in place of the calendar, never an alert, and
+// a way out. Forced by holding the terms file back.
+const TERMS_FILE = /\/data\/catalog\/terms\.json(\?.*)?$/;
+
+test("a catalog that didn't load says so in place, and Try again loads it", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("terpsicle:mock-data", "http"),
+  );
+  await page.route(TERMS_FILE, (route) => route.abort("internetdisconnected"));
+  await page.goto("/schedule");
+
+  await expect(
+    page.getByText(
+      "Couldn't reach terpsicle.com to load the course catalog. Check your connection and try again.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  await page.unroute(TERMS_FILE);
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByText(/Couldn't reach terpsicle\.com/)).toHaveCount(0);
+});
+
+test("a catalog newer than this tab offers Reload beside the words", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("terpsicle:mock-data", "http"),
+  );
+  // A format this tab can't read: only a new version of the page can help.
+  await page.route(TERMS_FILE, (route) =>
+    route.fulfill({ json: { schemaVersion: 999, terms: [] } }),
+  );
+  await page.goto("/schedule");
+
+  await expect(
+    page.getByText(
+      "Terpsicle has been updated since this page opened. Reload to load the course catalog.",
+    ),
+  ).toBeVisible();
+  const reload = page.getByRole("button", { name: "Reload" });
+  await reload.hover();
+  await expect(page.getByRole("tooltip")).toHaveText(
+    "Reload Terpsicle to get the new version",
+  );
+  // The reload fetches the page again; with the file back, the catalog loads.
+  await page.unroute(TERMS_FILE);
+  await reload.click();
+  await expect(page.getByText(/has been updated since/)).toHaveCount(0);
+});

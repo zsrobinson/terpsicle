@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
+import { deflateSync, strToU8 } from "fflate";
 import { describe, expect, it, vi } from "vitest";
-import { encodeShare } from "~/core/share";
+import { encodeShare, toBase64Url } from "~/core/share";
 import { archivedFixtureTermId, aSharePayload, mockCourse } from "~/fixtures";
 import { plansInTerm } from "~/state/plan-ops";
 import { useUi } from "~/state/ui-store";
@@ -75,5 +76,29 @@ describe("shared link view", () => {
       await screen.findByText(/incomplete or damaged/),
     ).toBeInTheDocument();
     expect(onClearShared).toHaveBeenCalled();
+  });
+
+  it("a link from a newer version offers Reload, back to the link", async () => {
+    const assign = vi.fn();
+    vi.spyOn(window, "location", "get").mockReturnValue({
+      ...window.location,
+      href: "https://terpsicle.com/schedule?plan=newer",
+      assign,
+    });
+    const onClearShared = vi.fn();
+    // Version 2 of the wire format: newer than this build reads.
+    const newer = toBase64Url(
+      deflateSync(strToU8(JSON.stringify([2, TERM])), { level: 9 }),
+    );
+    const { user } = await renderShell({ sharedParam: newer, onClearShared });
+    expect(
+      await screen.findByText(/made by a newer version of Terpsicle/),
+    ).toBeInTheDocument();
+    expect(onClearShared).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Reload" }));
+    expect(assign).toHaveBeenCalledWith(
+      "https://terpsicle.com/schedule?plan=newer",
+    );
+    vi.restoreAllMocks();
   });
 });

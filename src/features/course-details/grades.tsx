@@ -21,6 +21,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
+import { InlineError } from "~/ui/inline-error";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { courseInstructors, instructorFor } from "./planetterp";
@@ -45,12 +46,18 @@ export function Grades({
   planetTerp,
   loading,
   failed = false,
+  onRetry,
 }: {
   course: Course;
   planetTerp: PlanetTerpDept | null;
   loading: boolean;
   /** The department's PlanetTerp file didn't load: say so, not "no grades". */
   failed?: boolean;
+  /**
+   * Asks for the file again. The caller's: this file is in Reviews' pages
+   * too (`GradesBlock`), which don't load the scheduler's stores.
+   */
+  onRetry?: () => void;
 }) {
   const grades = planetTerp?.courses[course.code];
   const [who, setWho] = useState<InstructorSlug | "all">("all");
@@ -64,10 +71,12 @@ export function Grades({
     );
   if (failed && !planetTerp)
     return (
-      <p className="text-sm text-muted">
-        Couldn't load grades from PlanetTerp. Check your connection and reopen
-        this course.
-      </p>
+      <InlineError
+        className="py-0"
+        message="Couldn't load grades from PlanetTerp. Check your connection and try again."
+        onRetry={onRetry}
+        retryTooltip="Load PlanetTerp's grades again"
+      />
     );
   if (!grades?.all)
     return (

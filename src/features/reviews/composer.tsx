@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Star } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import { termLabel } from "~/core/catalog/terms";
 import { LENGTH_LIMITS } from "~/core/moderation";
@@ -33,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/ui/select";
+import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { browserReader, loadTerms, useLoaded } from "./data";
 import { useReviews } from "./reviews-store";
@@ -57,7 +57,7 @@ const TERM_CHOICES = 12;
 const NOT_SAID = "not-said";
 
 /** The kit's Select, a field's height: 44px on phones, 32px on a desktop. */
-const SELECT_TRIGGER = "w-40 max-md:h-11 md:h-8";
+const SELECT_TRIGGER = "w-40 md:h-8";
 
 type Failure =
   | { kind: "problems"; problems: ReviewProblem[] }
@@ -131,7 +131,7 @@ export function Composer({
       result.status === "rejected"
     ) {
       if (!existing) track("review_submitted", { outcome: result.status });
-      toast(
+      noteToast(
         result.status === "published"
           ? existing
             ? "Your edit is up."

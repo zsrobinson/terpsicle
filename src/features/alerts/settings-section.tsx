@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useSeatWatches } from "~/state/seat-watches";
+import { InlineError } from "~/ui/inline-error";
 import { PageSection } from "~/ui/page-section";
 import { RowSkeleton } from "~/ui/skeleton";
-import { useSeatWatchesSync } from "./seat-watches";
+import { loadSeatWatches, useSeatWatchesSync } from "./seat-watches";
 import { WatchingList } from "./watching-list";
 
 // Settings → "Watching for a seat" (`/settings#watching`, from the account
@@ -13,6 +14,7 @@ const WATCHING_ID = "watching";
 export function SeatWatchesSection() {
   useSeatWatchesSync();
   const loaded = useSeatWatches((s) => s.watches !== null);
+  const failed = useSeatWatches((s) => s.loadFailed);
   const scrolled = useRef(false);
   // The section appears after /api/me answers, too late for the browser's
   // own jump to #watching.
@@ -28,6 +30,11 @@ export function SeatWatchesSection() {
       <PageSection title="Watching for a seat">
         {loaded ? (
           <WatchingList />
+        ) : failed ? (
+          <InlineError
+            message="We couldn't load the sections you're watching. Check your connection and try again."
+            onRetry={() => void loadSeatWatches()}
+          />
         ) : (
           <RowSkeleton
             rows={1}

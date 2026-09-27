@@ -12,7 +12,7 @@ export const ORIGIN = "https://terpsicle.com";
 
 /** The fixture link's secret part: tests assert it's never seen anywhere. */
 export const FEED_TOKEN = "SyntheticFeedToken7Qx2Lm9Zr4Kd8Vw3";
-export const FEED_URL = `https://elms.umd.edu/feeds/calendars/user_${FEED_TOKEN}.ics`;
+export const FEED_URL = `https://umd.instructure.com/feeds/calendars/user_${FEED_TOKEN}.ics`;
 
 const base64url = (text: string) =>
   btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -37,7 +37,7 @@ export function todoEnv(overrides: Record<string, string> = {}): ApiEnv & Env {
 export const ELMS_FEED = FEEDS["synthetic-elms-2026-09"]?.text ?? "";
 export const FILE_FEED = FEEDS["synthetic-file-gradescope"]?.text ?? "";
 
-type Answer = () => Response | Promise<Response>;
+type Answer = (request: Request) => Response | Promise<Response>;
 
 /**
  * ELMS for one link. Answers the synthetic feed with an ETag until told
@@ -58,7 +58,7 @@ export class FakeElms {
       return new Response("{}");
     }
     this.requests.push({ url: request.url, headers: request.headers });
-    if (this.answer) return this.answer();
+    if (this.answer) return this.answer(request);
     if (request.url !== FEED_URL) return new Response("", { status: 404 });
     if (this.etag && request.headers.get("If-None-Match") === this.etag)
       return new Response(null, { status: 304 });

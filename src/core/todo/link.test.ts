@@ -4,22 +4,39 @@ import { isElmsUrl, parseFeedLink } from "./link";
 const TOKEN = "AbCdEf0123456789GhIjKlMnOpQrStUvWxYz0123";
 
 describe("parseFeedLink", () => {
-  it("accepts the feed link on either ELMS host", () => {
-    for (const host of ["elms.umd.edu", "umd.instructure.com"]) {
-      const link = `https://${host}/feeds/calendars/user_${TOKEN}.ics`;
-      expect(parseFeedLink(link)).toBe(link);
-    }
+  const CANVAS = `https://umd.instructure.com/feeds/calendars/user_${TOKEN}.ics`;
+
+  it("accepts the feed link on Canvas's host as it is", () => {
+    expect(parseFeedLink(CANVAS)).toBe(CANVAS);
+  });
+
+  it("moves a feed link on elms.umd.edu, which serves no feeds, to Canvas's host", () => {
+    expect(
+      parseFeedLink(`https://elms.umd.edu/feeds/calendars/user_${TOKEN}.ics`),
+    ).toBe(CANVAS);
+    expect(
+      parseFeedLink(`webcal://ELMS.UMD.EDU/feeds/calendars/user_${TOKEN}.ics`),
+    ).toBe(CANVAS);
+  });
+
+  it("keeps the token exactly as pasted when it moves the host", () => {
+    const mixed = "aBcD1234EfGh5678IjKl9012";
+    expect(
+      parseFeedLink(`https://elms.umd.edu/feeds/calendars/user_${mixed}.ics`),
+    ).toBe(`https://umd.instructure.com/feeds/calendars/user_${mixed}.ics`);
   });
 
   it("trims, rewrites webcal:// and lower-cases the scheme and host", () => {
     expect(
       parseFeedLink(
-        `  webcal://ELMS.umd.edu/feeds/calendars/user_${TOKEN}.ics\n`,
+        `  webcal://UMD.Instructure.com/feeds/calendars/user_${TOKEN}.ics\n`,
       ),
-    ).toBe(`https://elms.umd.edu/feeds/calendars/user_${TOKEN}.ics`);
+    ).toBe(CANVAS);
     expect(
-      parseFeedLink(`HTTPS://elms.umd.edu/feeds/calendars/user_${TOKEN}.ics`),
-    ).toBe(`https://elms.umd.edu/feeds/calendars/user_${TOKEN}.ics`);
+      parseFeedLink(
+        `HTTPS://umd.instructure.com/feeds/calendars/user_${TOKEN}.ics`,
+      ),
+    ).toBe(CANVAS);
   });
 
   it.each([
@@ -59,13 +76,21 @@ describe("parseFeedLink", () => {
       `my link: https://elms.umd.edu/feeds/calendars/user_${TOKEN}.ics`,
     ],
     ["nothing", ""],
+    [
+      "another path on Canvas's host",
+      `https://umd.instructure.com/calendar/user_${TOKEN}.ics`,
+    ],
+    [
+      "a query on Canvas's host",
+      `https://umd.instructure.com/feeds/calendars/user_${TOKEN}.ics?x=1`,
+    ],
   ])("rejects %s", (_, link) => {
     expect(parseFeedLink(link)).toBeNull();
   });
 });
 
 describe("isElmsUrl", () => {
-  it("accepts plain https on an ELMS host", () => {
+  it("accepts plain https on either ELMS host", () => {
     expect(isElmsUrl("https://elms.umd.edu/courses/1/assignments/2")).toBe(
       true,
     );

@@ -117,6 +117,10 @@ _Avoid_: queue (that's moderation's)
 **Feedback group**:
 Open feedback items about the same thing, sorted together by "Group similar" (and the daily job) with a one-line summary the model wrote, shown with the sparkles.
 
+**Try again** and **Reload**:
+The two ways out of something that didn't load or go through. "Try again" asks once more, in place. "Reload" loads the page again, and only where a newer version of Terpsicle is the fix (a deploy removed a file this tab needs, or the server speaks a newer format); it always sits beside the words that say so. Code: `InlineError`'s `onRetry` and `reload`, `noteToast`'s `retry` and `reload`.
+_Avoid_: "reload the page" with no button beside it
+
 ## Schedule
 
 **Plan**:

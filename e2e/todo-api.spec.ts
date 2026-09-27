@@ -70,7 +70,7 @@ test("connect the fixture feed, check an item off, and disconnect", async ({
         url: testFeedLink(TEST_FEED_TOKENS.gone),
       })
     ).body,
-  ).toEqual({ status: "not-a-calendar" });
+  ).toEqual({ status: "not-a-calendar", reason: "http-404" });
 
   expect((await post(page, "todo/disconnect")).body).toEqual({
     status: "disconnected",

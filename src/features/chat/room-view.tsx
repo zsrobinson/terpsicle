@@ -37,6 +37,7 @@ import { Card } from "~/ui/card";
 import { InlineError } from "~/ui/inline-error";
 import { type BackTo, PageHeader } from "~/ui/page-header";
 import { RowSkeleton } from "~/ui/skeleton";
+import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer } from "./composer";
 import type { MessageActions, ReportOutcome } from "./message-row";
@@ -191,7 +192,6 @@ export function RoomView({
                   size="icon-sm"
                   aria-label="Close the thread"
                   onClick={onCloseThread}
-                  className="max-md:size-11"
                 >
                   <X />
                 </Button>
@@ -204,7 +204,6 @@ export function RoomView({
                 size="icon-sm"
                 aria-label="Room info"
                 onClick={onInfo}
-                className="max-md:size-11"
               >
                 <Info />
               </Button>
@@ -260,7 +259,7 @@ export function RoomView({
             onSend={(text) => {
               void session?.send(room.id, text, thread).then((result) => {
                 if (!result.ok && result.code === "old-client")
-                  showNote(chatErrorWords(result.code));
+                  noteToast(chatErrorWords(result.code), { reload: true });
               });
             }}
           />
@@ -282,6 +281,14 @@ function Connecting({
       <InlineError
         className="px-4"
         message="You're signed out. Sign in again to see this room."
+      />
+    );
+  if (status === "outdated")
+    return (
+      <InlineError
+        className="px-4"
+        message={chatErrorWords("old-client")}
+        reload
       />
     );
   if (status === "unavailable")
@@ -389,7 +396,7 @@ function Messages({
             <Button
               size="sm"
               variant="outline"
-              className="self-start max-md:h-11"
+              className="self-start"
               onClick={() => {
                 markRulesSeen(courseCode);
                 setRules(false);
@@ -403,12 +410,7 @@ function Messages({
       {more ? (
         <div className="flex justify-center py-2">
           <WithTooltip label="Show earlier messages">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLoadOlder}
-              className="max-md:h-11"
-            >
+            <Button variant="ghost" size="sm" onClick={onLoadOlder}>
               Load older messages
             </Button>
           </WithTooltip>
@@ -554,7 +556,9 @@ function useMessageActions(
           );
       },
       discard: (item) => {
-        if (item.local) session?.discard(item.local.req);
+        if (!item.local || !session) return;
+        const { undo, send } = session.discardLater(item.local.req);
+        showUndo("Message discarded", undo, send);
       },
       report,
     }),

@@ -152,6 +152,33 @@ describe("CourseChatSession", () => {
     });
   });
 
+  it("says it's outdated, and stops reconnecting, when the server speaks a newer protocol", async () => {
+    sockets = [];
+    session = new CourseChatSession({
+      termId: fixtureTermId,
+      courseCode: "CMSC351",
+      rooms: [room],
+      origin: "https://terpsicle.com",
+      open: (url) => {
+        const socket = new FakeSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    const socket = sockets[0] as FakeSocket;
+    socket.open();
+    socket.serve({
+      type: "error",
+      req: null,
+      code: "old-client",
+      retryAfter: null,
+    });
+    // Only a reload helps: the room offers one (room-view's Connecting).
+    expect(session.getSnapshot().status).toBe("outdated");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(sockets).toHaveLength(1);
+  });
+
   it("stops reconnecting once the session ends", async () => {
     const socket = start();
     socket.drop(4003);
@@ -187,6 +214,36 @@ describe("CourseChatSession", () => {
     socket.serve({ type: "ack", req: del?.req ?? "", message: null });
     await vi.advanceTimersByTimeAsync(0);
     expect(session.getSnapshot().conversation.byId.message01).toBeUndefined();
+  });
+
+  it("hides a discarded send until Undo's time is up, and undo brings it back", async () => {
+    const socket = start();
+    const sent = session.send(room, "too soon");
+    const frame = socket.last("send");
+    socket.serve({
+      type: "error",
+      req: frame?.req ?? "",
+      code: "slow-down",
+      retryAfter: 5,
+    });
+    expect(await sent).toMatchObject({ ok: false });
+    const failed = listed(session.getSnapshot().conversation, room)[0];
+    const req = failed?.local?.req ?? "";
+    expect(failed?.local?.state).toBe("failed");
+
+    const first = session.discardLater(req);
+    expect(listed(session.getSnapshot().conversation, room)).toEqual([]);
+    first.undo();
+    expect(listed(session.getSnapshot().conversation, room)[0]?.text).toBe(
+      "too soon",
+    );
+
+    const second = session.discardLater(req);
+    second.send();
+    expect(listed(session.getSnapshot().conversation, room)).toEqual([]);
+    expect(session.getSnapshot().conversation.hidden.size).toBe(0);
+    // Nothing goes to the server: it was never sent.
+    expect(socket.sent.filter((f) => f.type !== "hello")).toHaveLength(1);
   });
 
   it("marks a room read up to its newest message, once", () => {
