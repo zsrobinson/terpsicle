@@ -1,9 +1,9 @@
 import { X } from "lucide-react";
 import { useId, useState } from "react";
-import { toast } from "sonner";
 import { parseChatMessageRef } from "~/core/moderation/admin";
 import type { AdminReason, QueueItem } from "~/core/schema";
 import { Button } from "~/ui/button";
+import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import type { AdminClient } from "./queue-page";
 import { StopAuthor } from "./stop-author";
@@ -52,7 +52,7 @@ export function ChatRemoveForm({
           "That message isn't there, or it's already removed. Its author may have deleted it.",
         );
     } catch (error) {
-      toast("Couldn't remove that", { description: failureWords(error) });
+      noteToast("Couldn't remove that", { description: failureWords(error) });
     } finally {
       setBusy(false);
     }

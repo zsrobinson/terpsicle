@@ -44,6 +44,7 @@ function Connection() {
   const disconnecting = useTodo((s) => s.disconnecting);
   const disconnect = useTodo((s) => s.disconnect);
   const undoDisconnect = useTodo((s) => s.undoDisconnect);
+  const confirmDisconnect = useTodo((s) => s.confirmDisconnect);
   const [connected, setConnected] = useState(false);
 
   // Undo's window is over: the toast goes with it.
@@ -60,6 +61,7 @@ function Connection() {
       description: "We'll delete the link and its deadlines in a few seconds.",
       tooltip: "Keep ELMS connected",
       onUndo: undoDisconnect,
+      onDone: confirmDisconnect,
     });
   };
 

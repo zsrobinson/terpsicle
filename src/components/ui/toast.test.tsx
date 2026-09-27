@@ -98,6 +98,62 @@ describe("undoToast", () => {
   });
 });
 
+describe("undoToast, settling", () => {
+  it("sends a replaced toast's change: a new one with its id settles it", async () => {
+    renderToaster();
+    const firstDone = vi.fn();
+    const secondDone = vi.fn();
+    act(() =>
+      undoToast({
+        id: "t",
+        message: "First",
+        onUndo: vi.fn(),
+        onDone: firstDone,
+      }),
+    );
+    await screen.findByText("First");
+    act(() =>
+      undoToast({
+        id: "t",
+        message: "Second",
+        onUndo: vi.fn(),
+        onDone: secondDone,
+      }),
+    );
+    expect(firstDone).toHaveBeenCalledTimes(1);
+    expect(secondDone).not.toHaveBeenCalled();
+  });
+
+  it("settles a toast a note takes the place of", async () => {
+    renderToaster();
+    const onDone = vi.fn();
+    act(() =>
+      undoToast({ id: "t", message: "Watching", onUndo: vi.fn(), onDone }),
+    );
+    await screen.findByText("Watching");
+    act(() => noteToast("Seat alerts are off right now.", { id: "t" }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(
+      await screen.findByText("Seat alerts are off right now."),
+    ).toBeInTheDocument();
+  });
+
+  it("never comes back once settled, even when Undo loses focus after", async () => {
+    renderToaster();
+    const onUndo = vi.fn();
+    const onDone = vi.fn();
+    act(() => undoToast({ id: "t", message: "Removed", onUndo, onDone }));
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    await userEvent.click(undo);
+    act(() => undo.blur());
+    await waitFor(() =>
+      expect(screen.queryByText("Removed")).not.toBeInTheDocument(),
+    );
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+  });
+});
+
 describe("noteToast", () => {
   it("is a quiet line with nothing to press", async () => {
     renderToaster();
@@ -105,7 +161,7 @@ describe("noteToast", () => {
     expect(
       await screen.findByText("We couldn't join. Try again."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("offers Try again when retrying can help", async () => {

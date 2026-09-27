@@ -11,7 +11,7 @@ import type {
 } from "~/core/schema/feedback";
 import { ApiCallError } from "~/server/fns/api";
 import { feedbackApi } from "~/server/fns/feedback-api";
-import { undoToast } from "~/ui/toast";
+import { noteToast, undoToast } from "~/ui/toast";
 import { type FeedbackDraft, useDraft } from "./draft-store";
 import { base64Of } from "./screenshot";
 
@@ -127,14 +127,14 @@ export async function sendDraft(
         undoToken: result.undoToken,
       });
       if (status !== "undone") {
-        toast("Too late to undo: it's already with us.");
+        noteToast("Too late to undo: it's already with us.");
         return;
       }
       track("feedback_undone", {});
       useDraft.getState().restore(words);
-      toast("Unsent. Your words are back in Send feedback.");
+      noteToast("Unsent. Your words are back in Send feedback.");
     } catch {
-      toast("Couldn't undo. Check your connection and try again.");
+      noteToast("Couldn't undo. Check your connection and try again.");
     }
   };
   undoToast({

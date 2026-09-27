@@ -20,7 +20,7 @@ import { ApiCallError } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
-import { undoToast } from "~/ui/toast";
+import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   currentEndpoint,
@@ -522,7 +522,7 @@ function Devices({
         () => {
           if (keepalive) return;
           onRemoveEnd(device.id, false);
-          toast(
+          noteToast(
             `Couldn't remove ${name}. Check your connection and try again.`,
           );
         },

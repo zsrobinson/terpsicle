@@ -13,8 +13,21 @@ import { WithTooltip } from "~/ui/tooltip";
  */
 export const UNDO_MS = 10_000;
 
-/** How long a note with nothing to press stays on screen. */
-export const NOTE_MS = 6_000;
+/** How long a note stays on screen: long enough to read (WCAG 2.2.1). */
+export const NOTE_MS = 8_000;
+
+/**
+ * What each live undo toast still owes when it leaves without Undo, by id.
+ * A toast that replaces another with the same id settles the old one first,
+ * so a replaced delete is still sent.
+ */
+const pendingDone = new Map<string, () => void>();
+
+function settlePrevious(id: string): void {
+  const previous = pendingDone.get(id);
+  pendingDone.delete(id);
+  previous?.();
+}
 
 /** A toast's button, with its tooltip and shortcut (every control has one). */
 export function ToastAction({
@@ -79,13 +92,16 @@ export function undoToast({
   shortcut,
   onDone,
 }: UndoToast): void {
+  settlePrevious(id);
   // Settled once: Undo pressed, or the toast left without it.
   let settled = false;
   const done = () => {
     if (settled) return;
     settled = true;
+    if (pendingDone.get(id) === done) pendingDone.delete(id);
     onDone?.();
   };
+  pendingDone.set(id, done);
   const show = (duration: number) =>
     toast(message, {
       id,
@@ -99,6 +115,7 @@ export function undoToast({
           onClick={() => {
             if (settled) return;
             settled = true;
+            if (pendingDone.get(id) === done) pendingDone.delete(id);
             onUndo();
             toast.dismiss(id);
           }}
@@ -113,6 +130,8 @@ export function undoToast({
   show(UNDO_MS);
 }
 
+let notes = 0;
+
 /**
  * A quiet line: something didn't go through, or needs no action. With
  * `retry`, it offers "Try again" where trying again can help.
@@ -121,7 +140,10 @@ export function noteToast(
   message: string,
   options: { id?: string; description?: string; retry?: () => void } = {},
 ): void {
-  const { id, description, retry } = options;
+  const { description, retry } = options;
+  // A note that takes an undo toast's place settles it, as a new undo would.
+  if (options.id) settlePrevious(options.id);
+  const id: string | number = options.id ?? `note-${++notes}`;
   toast(message, {
     id,
     description,
@@ -131,10 +153,14 @@ export function noteToast(
         label="Try again"
         icon={null}
         onClick={() => {
-          if (id) toast.dismiss(id);
+          toast.dismiss(id);
           retry();
         }}
       />
     ) : undefined,
+    // Sonner merges an update into a live toast with the same id; a note
+    // must not keep the undo toast's callbacks.
+    onAutoClose: undefined,
+    onDismiss: undefined,
   });
 }
