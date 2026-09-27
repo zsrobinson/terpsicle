@@ -7,7 +7,7 @@ import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
-import { RowSkeleton } from "~/ui/skeleton";
+import { RowSkeleton, Skeleton } from "~/ui/skeleton";
 import { dismissToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -94,9 +94,9 @@ function Connection() {
         </>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <WithTooltip label="See your deadlines">
+        <WithTooltip label="Back to your list of deadlines">
           <Button asChild>
-            <Link to={TODO_PATH}>View todos</Link>
+            <Link to={TODO_PATH}>See your deadlines</Link>
           </Button>
         </WithTooltip>
         <WithTooltip label="Stop reading ELMS and delete the link and its deadlines">
@@ -166,11 +166,26 @@ function SignedIn() {
 export function ConnectPage() {
   const status = useAccount((s) => s.status);
   const on = useAccount((s) => s.flags.todo);
+  // Named like the list's "ELMS link" once there's one to look after;
+  // until the connection's known, a placeholder rather than a wrong name.
+  const title = useTodo((s) =>
+    s.phase === "failed"
+      ? "ELMS link"
+      : s.phase !== "ready"
+        ? null
+        : s.feed
+          ? "ELMS link"
+          : "Connect ELMS",
+  );
   if (status !== "loading" && !on) return <TodoOff />;
   return (
     <TodoFrame width="note">
       <PageHeader
-        title="Connect ELMS"
+        title={
+          status === "signed-out"
+            ? "Connect ELMS"
+            : (title ?? <Skeleton className="h-6 w-40" />)
+        }
         back={{ label: "Todo", to: TODO_PATH }}
       />
       <div className="flex flex-col gap-6">

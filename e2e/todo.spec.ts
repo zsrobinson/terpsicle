@@ -85,8 +85,9 @@ test("signed out, /todo is the front door", async ({ page }) => {
       name: "Your deadlines and exams, in one list",
     }),
   ).toBeVisible();
+  // What you'll need after signing in, said before you do.
   await expect(
-    page.getByText("Sign in to see your ELMS deadlines here."),
+    page.getByText("Sign in, then paste your ELMS calendar link"),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Sign in (test mode)" }),
@@ -101,9 +102,12 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   test.setTimeout(90_000);
   await signIn(page, isMobile);
 
-  // Not connected: the three steps, inline.
+  // Not connected: the first visit, with the paste right under it.
   await expect(
-    page.getByRole("heading", { name: "Connect ELMS" }),
+    page.getByRole("heading", {
+      name: "Connect ELMS to see your deadlines",
+      level: 1,
+    }),
   ).toBeVisible();
   const link = page.getByLabel("ELMS calendar link");
   const connect = page.getByRole("button", { name: "Connect ELMS" });
@@ -187,6 +191,9 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   // Disconnect: at once, Undo in the toast, no dialog.
   await page.getByRole("link", { name: "ELMS link" }).click();
   await expect(page).toHaveURL(/\/todo\/connect$/);
+  await expect(
+    page.getByRole("heading", { name: "ELMS link", level: 1 }),
+  ).toBeVisible();
   await expect(page.getByText(/ELMS is connected/)).toBeVisible();
   await axe(page, "connect page");
   await page.getByRole("button", { name: "Disconnect" }).click();

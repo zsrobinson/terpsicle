@@ -52,7 +52,9 @@ test("sign in as a test person, see the account menu, and sign out", async ({
   // One menu at every size holds sign-in and the theme.
   const sheet = page.getByRole("menu");
   await expect(
-    sheet.getByText("Sign in to join your class chats. Your plans sync too."),
+    sheet.getByText(
+      "Sign in to keep your plans on every device and watch for a seat when a section's full.",
+    ),
   ).toBeVisible();
   await expect(
     sheet.getByRole("menuitemradio", { name: "Dark" }),

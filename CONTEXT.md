@@ -225,7 +225,7 @@ The room for one section, named by its meetings. Only courses with two or more s
 _Avoid_: lecture room
 
 **Chat plan**:
-The synced plan a term's rooms come from ("Rooms from Plan A ▾").
+The synced plan a term's rooms come from ("Rooms from Plan A in Schedule ▾"). Copy names Schedule, since the plan open there may be another; signed out, it says "the classes you add in Schedule", never "sync".
 
 **Join**:
 Keeping a course room in your chat list when the course isn't in your chat plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it.

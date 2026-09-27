@@ -319,7 +319,7 @@ function Reactions({
               disabled={!canReact}
               onClick={() => onReact(item, reaction, !yours)}
               className={cn(
-                "tnum flex h-6 items-center gap-1 rounded-full border px-2 text-xs transition-colors max-md:h-11 max-md:px-3",
+                "tnum flex h-6 items-center gap-1 border px-2 text-xs transition-colors max-md:h-11 max-md:px-3",
                 yours
                   ? "border-fg bg-accent-soft text-fg"
                   : "border-hairline-strong text-muted hover:bg-hover",

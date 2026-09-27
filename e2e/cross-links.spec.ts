@@ -53,7 +53,7 @@ test("Plan links a course to its reviews, and the semester in progress to Todo",
   await fall.getByRole("link", { name: "View todos" }).click();
   await expect(page).toHaveURL(/\/todo$/);
   await expect(
-    page.getByText(/Sign in to see your ELMS deadlines/),
+    page.getByText(/Sign in, then paste your ELMS calendar link/),
   ).toBeVisible();
 });
 

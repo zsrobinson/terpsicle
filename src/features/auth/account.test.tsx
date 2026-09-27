@@ -159,9 +159,10 @@ describe("the top bar's account button", () => {
     wrap(<AccountButton />);
     const button = screen.getByRole("button", { name: "Sign in" });
     await user.hover(button);
+    // What signing in adds here, in Schedule.
     expect(
       await screen.findByRole("tooltip", {
-        name: "Sign in to join your class chats. Your plans sync too.",
+        name: "Sign in to keep your plans on every device and watch for a seat when a section's full.",
       }),
     ).toBeInTheDocument();
     await user.click(button);
@@ -177,6 +178,23 @@ describe("the top bar's account button", () => {
       "href",
       "/api/auth/google?return=%2Fschedule%3Fplan%3Dabc",
     );
+  });
+
+  it("tells you on Todo that you'll need your ELMS calendar link", async () => {
+    await loaded({
+      status: "signed-out",
+      flags: flags({ signIn: true }),
+    });
+    window.history.replaceState(null, "", "/todo");
+    const user = userEvent.setup();
+    wrap(<AccountButton />);
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    const menu = await screen.findByRole("menu");
+    expect(
+      within(menu).getByText(
+        "Sign in, then paste your ELMS calendar link to see every deadline in one list.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("says test mode, and leads to /auth/test instead of Google", async () => {

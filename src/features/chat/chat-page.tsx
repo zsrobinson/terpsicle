@@ -1,6 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
-import { Search, X } from "lucide-react";
+import { CalendarDays, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Drawer } from "vaul";
 import { AppBar } from "~/app/app-bar";
@@ -29,7 +29,7 @@ import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
 import { PageHeader } from "~/ui/page-header";
-import { ProductPage } from "~/ui/product-page";
+import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, useChatHome } from "./chat-home";
@@ -187,12 +187,12 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
     finding > 0 ? (
       <CourseFinder go={goScoped} focus={finding} />
     ) : (
-      <NoClasses align="start" onFind={findCourse} className="px-4 py-6" />
+      <NoClasses onFind={findCourse} className="px-4 py-4" />
     )
   ) : (
     <>
       <PanelNote className="pb-0">
-        Rooms from your plans show up here.
+        Rooms for the classes in your Schedule plans show up here.
       </PanelNote>
       <CourseFinder go={goScoped} focus={finding} />
     </>
@@ -235,43 +235,49 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
           onReconnect={() => setAttempt((n) => n + 1)}
         />
       ) : mobile || homeStatus !== "ready" ? null : (
-        <div className="flex min-w-0 flex-1 flex-col px-6">
-          {noClasses ? (
-            <NoClasses align="center" onFind={findCourse} />
-          ) : (
-            <PickARoom list={list} course={course} go={goScoped} />
-          )}
+        // A first visit sits at the top of its pane, in a note's column,
+        // like Schedule's and Plan's (the kit's EmptyState, `start`).
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className={cn("mx-auto w-full px-4 pt-4", PAGE_WIDTH.note)}>
+            {noClasses ? (
+              <NoClasses onFind={findCourse} />
+            ) : (
+              <PickARoom list={list} course={course} go={goScoped} />
+            )}
+          </div>
         </div>
       )}
     </ProductPage>
   );
 }
 
-/** Chat's first visit, with no classes in a synced plan yet. */
+/**
+ * Chat's first visit, with no classes in a synced plan yet: two equal ways
+ * in, like Schedule's and Plan's (docs/COHESION.md §1.6).
+ */
 function NoClasses({
-  align,
   onFind,
   className,
 }: {
-  align: "start" | "center";
   onFind: () => void;
   className?: string;
 }) {
   return (
     <EmptyState
-      align={align}
+      equal
       className={className}
       mark={<Mark id="chat" size={40} />}
       title="No classes here yet"
-      line="Find any course to open its chat, or add classes to a plan and their rooms show up here."
+      line="Find any course to open its chat, or add classes to a plan in Schedule and their rooms show up here."
       primary={{
         label: "Find a course",
-        icon: <Search size={14} aria-hidden="true" />,
+        icon: <Search aria-hidden="true" />,
         hint: "Search every course this term",
         onClick: onFind,
       }}
       secondary={{
         label: "View schedule",
+        icon: <CalendarDays aria-hidden="true" />,
         hint: "Add classes to a plan",
         to: SCHEDULE_PATH,
       }}
@@ -297,7 +303,6 @@ function PickARoom({
   if (course)
     return (
       <EmptyState
-        align="center"
         mark={<Mark id="chat" size={40} />}
         title="Pick a room to start talking"
         line={`${course}'s rooms are on the left: one for the course, one for each professor's sections and one for each section.`}
@@ -318,7 +323,6 @@ function PickARoom({
   if (!target) return null;
   return (
     <EmptyState
-      align="center"
       mark={<Mark id="chat" size={40} />}
       title="Pick a room to start talking"
       line="Each of your classes has a room for the course, one for your professor's sections and one for your section."
@@ -444,14 +448,22 @@ function CourseRoom({
               to: "/chat",
               search: { term: view.term, course: courseCode, room: roomId },
             },
-            course: {
-              label: courseCode,
-              to: "/chat",
-              search: { term: view.term, course: courseCode },
-            },
+            // A course with one room has nothing to pick between: Back
+            // skips its room tree (and doesn't read "MATH140 · MATH140").
+            course:
+              tree.rooms.length > 1
+                ? {
+                    label: courseCode,
+                    to: "/chat",
+                    search: { term: view.term, course: courseCode },
+                  }
+                : {
+                    label: "Your classes",
+                    to: "/chat",
+                    search: { term: view.term },
+                  },
           }}
           onOpenThread={openThread}
-          onCloseThread={() => go({ course: courseCode, room: roomId })}
           onInfo={() => setInfoOpen(!infoOpen)}
           onSeen={onSeen}
           onReconnect={onReconnect}
