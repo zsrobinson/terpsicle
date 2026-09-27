@@ -28,7 +28,7 @@ export const TODO_FILE_WORDS: Record<
     "That file's over 2 MB. Export a shorter range of dates and try again.",
   "not-a-calendar": "That file isn't a calendar. Pick an .ics file.",
   empty: "That calendar has nothing with a date we could read.",
-  "too-many": `That calendar has too much to add at once (at most ${TODO_MAX_FILE_ITEMS.toLocaleString("en-US")} items). Export a shorter range of dates and try again.`,
+  "too-many": `That calendar has too much to add at once (at most ${TODO_MAX_FILE_ITEMS.toLocaleString("en-US")} deadlines). Export a shorter range of dates and try again.`,
 };
 
 /**

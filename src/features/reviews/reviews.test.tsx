@@ -576,7 +576,7 @@ describe("/reviews/mine", () => {
     expect(
       await screen.findByRole("heading", { name: "No reviews yet" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Find a class" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Find a course" })).toHaveAttribute(
       "href",
       "/reviews",
     );

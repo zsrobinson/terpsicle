@@ -326,7 +326,7 @@ describe("section problems", () => {
     ]);
     const note = watched.find((p) => p.kind === "watching");
     expect(words(note?.detail ?? [])).toBe(
-      "It's full. 9 waitlisted. We'll email you when a seat opens.",
+      "It's full. 9 waitlisted. We'll let you know when a seat opens.",
     );
     // The watch stays its fix, so it can be stopped from there.
     expect(note?.fix).toEqual(problems[0]?.fix);
@@ -362,9 +362,7 @@ describe("section problems", () => {
         seats: { "CMSC351-0101": aSeatTuple({ open: 0, total: 30 }) },
       }),
     );
-    expect(words(empty[0]?.detail ?? [])).toBe(
-      "Nobody is on the waitlist yet.",
-    );
+    expect(words(empty[0]?.detail ?? [])).toBe("Nobody's on the waitlist yet.");
     const noList = planProblems(
       input([course], plan("0101"), {
         seats: { "CMSC351-0101": aSeatTuple({ open: 0, waitlist: null }) },

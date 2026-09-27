@@ -40,7 +40,7 @@ export interface Generator {
 export class GeneratorUnavailable extends Error {
   constructor() {
     super(
-      "Couldn't start generating. Reload the page to get the latest version.",
+      "Couldn't start generating: Terpsicle has a new version. Reload to get it.",
     );
     this.name = "GeneratorUnavailable";
   }

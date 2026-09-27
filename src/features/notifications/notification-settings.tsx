@@ -103,7 +103,7 @@ const TURN_ON_WORDS: Record<Exclude<TurnOnResult, "on">, string | null> = {
     "Your browser blocked notifications for Terpsicle. Allow them in its site settings, then try again.",
   dismissed: null,
   "no-service-worker":
-    "Notifications need the app from terpsicle.com. Reload the page and try again.",
+    "Notifications only work on terpsicle.com. If you're there, try again in a moment.",
   unsupported: "This browser can't get notifications from Terpsicle.",
   "off-here": "Notifications are turned off on Terpsicle for now.",
   failed:

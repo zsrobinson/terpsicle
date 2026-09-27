@@ -94,7 +94,7 @@ describe("Generate", () => {
     expect(draft()?.items).toEqual([]);
   });
 
-  it("adds the open plan's courses: placed ones required, saved ones optional", async () => {
+  it("adds the open plan's courses: placed ones required, bookmarked ones optional", async () => {
     const { user } = await renderGenerate();
     expect(
       screen.getByRole("button", { name: "Generate plans" }),

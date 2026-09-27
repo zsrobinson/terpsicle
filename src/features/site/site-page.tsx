@@ -79,12 +79,12 @@ function pageContext(path: string): ReactNode {
   );
 }
 
-/** The one call to action off the scheduler: open it. */
+/** The one call to action off the scheduler: View schedule. */
 export function OpenScheduleButton() {
   return (
     <WithTooltip label="Plan your classes">
       <Button asChild className="w-fit">
-        <Link to={SCHEDULE_PATH}>Open the scheduler</Link>
+        <Link to={SCHEDULE_PATH}>View schedule</Link>
       </Button>
     </WithTooltip>
   );

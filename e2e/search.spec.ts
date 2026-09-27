@@ -161,7 +161,7 @@ test.describe("desktop", () => {
     await page.locator('[data-course-result="ENGL101"]').click();
     await expect(
       sections.getByText(
-        "Testudo hasn't named instructors for these sections yet.",
+        "Testudo hasn't named a professor for these sections yet.",
       ),
     ).toBeVisible();
     await sections

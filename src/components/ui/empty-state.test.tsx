@@ -12,7 +12,7 @@ describe("EmptyState", () => {
         title="No classes here yet"
         line="Find any course to open its chat."
         primary={{ label: "Find a course", to: "/chat" }}
-        secondary={{ label: "Open the scheduler", to: "/schedule" }}
+        secondary={{ label: "View schedule", to: "/schedule" }}
       />,
     );
     const heading = await screen.findByRole("heading", {
@@ -27,7 +27,7 @@ describe("EmptyState", () => {
     const primary = screen.getByRole("link", { name: "Find a course" });
     expect(primary).toHaveAttribute("href", "/chat");
     expect(primary).toHaveAttribute("data-slot", "button");
-    const quiet = screen.getByRole("link", { name: "Open the scheduler" });
+    const quiet = screen.getByRole("link", { name: "View schedule" });
     expect(quiet).toHaveAttribute("href", "/schedule");
     expect(quiet).not.toHaveAttribute("data-slot");
     expect(quiet).toHaveClass("underline");

@@ -295,7 +295,7 @@ describe("roomsForCourse: the canvas's four courses", () => {
     expect(tree.professors).toEqual([]);
     expect(tree.rooms).toHaveLength(93);
     expect(tree.groups.map((g) => [g.title, g.heading])).toEqual([
-      ["Instructor TBA", false],
+      ["Professor TBA", false],
     ]);
     expect(tree.sections.every((r) => r.parent === tree.course.id)).toBe(true);
     expect(tree.sections[2]).toMatchObject({
@@ -346,7 +346,7 @@ describe("roomsForCourse: edge cases", () => {
     );
     expect(tree.groups.map((g) => [g.title, g.heading])).toEqual([
       ["Ada Brandt", true],
-      ["Instructor TBA", true],
+      ["Professor TBA", true],
     ]);
     expect(tree.professors.map((r) => r.sectionCodes)).toEqual([
       ["0101", "0102"],
@@ -391,7 +391,7 @@ describe("roomsForCourse: edge cases", () => {
       ["0102", ""],
       ["0103 · time TBA", ""],
     ]);
-    expect(tree.groups.map((g) => g.title)).toEqual(["Instructor TBA"]);
+    expect(tree.groups.map((g) => g.title)).toEqual(["Professor TBA"]);
   });
 
   it("groups many sections by professor, one level deep", () => {

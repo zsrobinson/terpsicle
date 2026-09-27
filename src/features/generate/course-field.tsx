@@ -158,7 +158,7 @@ export function CourseField({
       <WithTooltip
         label={
           wildcards
-            ? "Type a code, title words, a pattern like CMSC4XX, or a gen-ed like DSHS"
+            ? "Type a code, title words, a pattern like CMSC4XX, or a GenEd like DSHS"
             : "Type a course code or words from its title"
         }
       >

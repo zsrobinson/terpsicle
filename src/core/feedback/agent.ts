@@ -164,7 +164,7 @@ export function agentMarkdown(item: FeedbackItem, links: AgentLinks): string {
         "",
         `- ${p.termId}, "${p.name}"`,
         `- Sections: ${p.sections.join(", ") || "none"}`,
-        `- Saved for later: ${p.bookmarks.join(", ") || "none"}`,
+        `- Bookmarks: ${p.bookmarks.join(", ") || "none"}`,
         ...(p.blocks.length > 0
           ? [
               `- Blocks: ${p.blocks.map((b) => `${b.days} ${b.start}–${b.end}`).join(", ")}`,

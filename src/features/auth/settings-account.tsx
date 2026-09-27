@@ -65,7 +65,7 @@ export function SettingsPage() {
         </PageSection>
         {status === "signed-in" ? (
           <PageSection title="Notifications">
-            <WithTooltip label="Seat openings, Chat mentions and Todo reminders, and your devices">
+            <WithTooltip label="Seat openings, Chat mentions and replies, Todo's Due tomorrow, and your devices">
               <Link
                 to="/settings/notifications"
                 className="-mx-2 block text-fg transition-colors hover:bg-hover"

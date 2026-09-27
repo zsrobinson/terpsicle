@@ -189,7 +189,10 @@ describe("ChatPage", () => {
     });
     await page();
     expect(
-      screen.getByRole("heading", { name: "Terpsicle Chat", level: 1 }),
+      screen.getByRole("heading", {
+        name: "A chat room for every class",
+        level: 1,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Classmates see your Google name and picture/),
@@ -349,9 +352,10 @@ describe("ChatPage", () => {
       await screen.findByRole("heading", { name: "No classes here yet" }),
     ).toBeInTheDocument();
     // The scheduler stays, second.
-    expect(
-      screen.getByRole("link", { name: "Open the scheduler" }),
-    ).toHaveAttribute("href", "/schedule");
+    expect(screen.getByRole("link", { name: "View schedule" })).toHaveAttribute(
+      "href",
+      "/schedule",
+    );
 
     // On a desktop the finder is already in the list: Find a course goes there.
     await user.click(screen.getByRole("button", { name: "Find a course" }));

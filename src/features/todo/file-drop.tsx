@@ -24,7 +24,7 @@ export function importWords(added: number, skipped: number): string {
       ? "Nothing new to add from that file."
       : `Added ${count(added, "deadline", "deadlines")} from the file.`;
   if (skipped === 0) return first;
-  return `${first} ${count(skipped, "item was", "items were")} already on your ELMS feed or too far from today, so we left ${skipped === 1 ? "it" : "them"} out.`;
+  return `${first} ${count(skipped, "deadline was", "deadlines were")} already on your ELMS feed or too far from today, so we left ${skipped === 1 ? "it" : "them"} out.`;
 }
 
 export function FileDrop() {

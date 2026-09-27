@@ -303,7 +303,7 @@ function sectionProblems(ref: SectionRef, seats: SeatsMap | null): Detected[] {
               ? "Testudo doesn't show a waitlist for it."
               : counts.waitlist > 0
                 ? `${counts.waitlist} waitlisted.`
-                : "Nobody is on the waitlist yet.",
+                : "Nobody's on the waitlist yet.",
           ),
         ],
         code,

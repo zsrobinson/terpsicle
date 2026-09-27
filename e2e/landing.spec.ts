@@ -168,7 +168,7 @@ for (const [path, heading, title] of [
     "Terpsicle Reviews",
     "UMD course and instructor reviews · Terpsicle",
   ],
-  ["/chat", "Terpsicle Chat", "Chat · Terpsicle"],
+  ["/chat", "A chat room for every class", "Chat · Terpsicle"],
   ["/privacy", "Privacy", "Privacy · Terpsicle"],
 ] as const) {
   test(`${path} is its own page, outside the scheduler`, async ({ page }) => {
@@ -223,6 +223,6 @@ test("an unknown path says so and offers the scheduler", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Page not found", level: 1 }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Open the scheduler" }).click();
+  await page.getByRole("link", { name: "View schedule" }).click();
   await expect(page).toHaveURL(/\/schedule$/);
 });

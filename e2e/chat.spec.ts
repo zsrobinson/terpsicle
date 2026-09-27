@@ -147,7 +147,10 @@ test("signed out, Chat says what it keeps and what classmates see", async ({
 }) => {
   await page.goto("/chat");
   await expect(
-    page.getByRole("heading", { name: "Terpsicle Chat", level: 1 }),
+    page.getByRole("heading", {
+      name: "A chat room for every class",
+      level: 1,
+    }),
   ).toBeVisible();
   await expect(
     page.getByText("Classmates see your Google name and picture"),
@@ -177,9 +180,7 @@ test("with no classes yet, find any course and open its room", async ({
   await expect(
     page.getByRole("heading", { name: "No classes here yet" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Open the scheduler" }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "View schedule" })).toBeVisible();
   // The finder: already in the list on a desktop, and brought in on a phone.
   await page.getByRole("button", { name: "Find a course" }).click();
   const box = page.getByRole("searchbox", { name: "Find a course's chat" });

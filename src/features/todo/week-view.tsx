@@ -107,7 +107,7 @@ export function WeekView(props: ListProps & { from: IsoDate; to: IsoDate }) {
               <ChevronLeft aria-hidden="true" />
             </Button>
           </WithTooltip>
-          <WithTooltip label="Go to this week">
+          <WithTooltip label="Show this week">
             <Button
               variant="ghost"
               size="sm"

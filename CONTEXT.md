@@ -9,7 +9,7 @@ The suite of UMD academic planning tools at terpsicle.com, and the name of its b
 _Avoid_: Planet Terpsicle, anything borrowing PlanetTerp's name
 
 **Schedule**:
-The class scheduler at `/schedule`, red, first in the product order. Older docs call it "the scheduler" or plain "Terpsicle".
+The class scheduler at `/schedule`, red, first in the product order. Older docs call it "the scheduler" or plain "Terpsicle"; copy calls it Schedule.
 
 **Reviews**:
 Terpsicle Reviews, course and professor reviews at `/reviews`, purple.
@@ -32,7 +32,7 @@ The small menu for moving between products. The owner sometimes says "app switch
 
 **View link**:
 A link from one product into another, worded "View schedule", "View reviews", "View chat", "View plan" or "View todos" (`PRODUCTS`' `view`). Each is counted as `cross_link_clicked`.
-_Avoid_: Open in Reviews, Go to Chat
+_Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 
 ## Shared
 
@@ -58,7 +58,7 @@ One offering of a course, named by a four-character code (`0101`). You add a sec
 One weekly time and place of a section: its kind (Lec, Dis, Lab), days, times, building and room. A meeting with no set time is "No set time".
 
 **Professor**:
-Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "instructor" on the Instructors tab and its cards, and "professor" for groups and rooms.
+Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "instructor" on the Instructors tab and its cards, and "professor" for groups and rooms ("Professor TBA").
 
 **GenEd**:
 A UMD General Education code (DSHS, DSNL, FSAW, …). A course can count for one of several ("DSHS or DSHU"). The search chip reads "Gen-eds".
@@ -67,7 +67,7 @@ A UMD General Education code (DSHS, DSNL, FSAW, …). A course can count for one
 A stand-in for any course matching a pattern (`CMSC4XX`, `CMSC42X`, `ARTTXXX`) or a GenEd ("Any DSHS course"). One matcher serves Generate and Plan.
 
 **Seat watch**:
-Watching a full or nearly full section for an opening, signed in, by push and email. The action is "Watch for a seat" (bell) and the state is "Watching" (filled bell).
+Watching a full or nearly full section for an opening, signed in, by push and email. The action is "Watch for a seat" (bell) and the state is "Watching" (filled bell). Copy promises "we'll let you know", not "we'll email you", since each channel has its own switch.
 _Avoid_: seat alert, opening alert (in UI; older code and docs say "seat alert")
 
 **Bookmark**:
@@ -302,7 +302,8 @@ A student's ELMS calendar link (an `.ics` URL). It's a secret: stored encrypted,
 _Avoid_: ELMS password, access token
 
 **Item**:
-One assignment, quiz or event from the feed, with a due time and a done mark.
+One assignment, quiz or event from the feed, with a due time and a done mark. Copy calls it a **deadline** ("Added 3 deadlines from the file").
+_Avoid_: item (in the UI)
 
 **Exam**:
 An item whose title reads like one. It's a guess, shown as a hint.
