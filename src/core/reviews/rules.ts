@@ -85,6 +85,8 @@ const SOURCE_ORDER: Readonly<Record<ModerationReason["source"], number>> = {
   reports: 3,
   admin: 4,
   system: 5,
+  // Chat's spam guard; reviews never have it.
+  "cross-room": 6,
 };
 
 /**

@@ -126,7 +126,11 @@ export function GroupHeader({
   const label = (
     <>
       <span className="truncate font-semibold text-fg">{title}</span>
-      {meta ? <span className="tnum shrink-0 text-muted">{meta}</span> : null}
+      {/* The title keeps its room; the meta takes what's left and gives it
+          up first (QA S8: "Farid Kinc…" beside a whole rating and GPA). */}
+      {meta ? (
+        <span className="tnum min-w-0 flex-1 truncate text-muted">{meta}</span>
+      ) : null}
     </>
   );
   const Heading = headingLevel ? (`h${headingLevel}` as const) : "div";

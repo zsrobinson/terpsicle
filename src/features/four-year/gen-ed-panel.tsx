@@ -54,14 +54,7 @@ function Row({ p }: { p: GenEdProgress }) {
     <ListRow
       as="li"
       lead={<Pips p={p} />}
-      secondary={
-        <span className="tnum">
-          {genEdProgressLabel(p)}
-          {p.requirement.atLeast
-            ? `, at least ${p.requirement.atLeast.count} ${p.requirement.atLeast.code}`
-            : ""}
-        </span>
-      }
+      secondary={<span className="tnum">{genEdProgressLabel(p)}</span>}
       trail={
         !met && code ? (
           <WithTooltip label={`Search for ${code} courses`}>

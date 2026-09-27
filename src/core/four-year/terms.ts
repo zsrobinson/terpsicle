@@ -89,11 +89,12 @@ export function firstSemesterOf(terms: Iterable<FourYearTerm>): TermId | null {
   return first;
 }
 
-/** The strip's short name: "Before", "Fa 2026", "Wi 2027". */
+/**
+ * The phone strip's name: "Before", "Fall 2026". Seasons stay whole: the
+ * strip scrolls, and "Fa 2026" read as a typo (QA P5).
+ */
 export function fourYearTermShortLabel(term: FourYearTerm): string {
-  if (term === "before") return "Before";
-  const [season, year] = termLabel(term).split(" ");
-  return season && year ? `${season.slice(0, 2)} ${year}` : term;
+  return term === "before" ? "Before" : termLabel(term);
 }
 
 /**

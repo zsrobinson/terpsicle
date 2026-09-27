@@ -144,7 +144,9 @@ export function TermColumn({
       {...handlers}
       className={cn(
         "flex min-w-0 flex-col border border-hairline bg-panel",
-        status === "in-progress" && "bg-product-plan-soft",
+        // A rule in Plan's color, not a fill: a whole column of green-900
+        // was a heavy olive block in the dark theme (QA P6).
+        status === "in-progress" && "border-t-2 border-t-product-plan-line",
         picked && "border-fg",
         over && "outline-2 outline-fg outline-dashed -outline-offset-2",
         className,
@@ -154,7 +156,14 @@ export function TermColumn({
         <Heading id={id} className="font-semibold">
           {fourYearTermLabel(term)}
         </Heading>
-        <span className="text-muted text-xs">{STATUS_WORDS[status]}</span>
+        <span
+          className={cn(
+            "text-xs",
+            status === "in-progress" ? "text-product-plan-text" : "text-muted",
+          )}
+        >
+          {STATUS_WORDS[status]}
+        </span>
         <span className="tnum ml-auto text-muted text-xs">
           {summary && summary.entries > 0 ? columnLabel(summary) : null}
         </span>
@@ -296,14 +305,14 @@ export function PhoneBoard({ selected }: { selected: FourYearTerm }) {
                       current
                         ? "border-hairline-strong bg-accent-soft font-medium text-fg"
                         : "border-hairline bg-raised text-muted",
+                      // Plan's color as a rule, as on the column (QA P6).
                       statusOf(term) === "in-progress" &&
-                        !current &&
-                        "bg-product-plan-soft",
+                        "border-t-2 border-t-product-plan-line",
                     )}
                   >
                     {fourYearTermShortLabel(term)}
                     <span className="tnum text-muted">
-                      · {summary?.credits ?? 0}
+                      · {summary?.credits ?? 0} cr
                     </span>
                   </button>
                 </WithTooltip>

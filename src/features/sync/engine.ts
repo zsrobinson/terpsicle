@@ -83,8 +83,15 @@ export type SyncNotice =
       uploaded: number;
       /** The account's plans that weren't on this device. */
       fromAccount: number;
-      /** The same counts for four-year plans. */
-      fourYear: { uploaded: number; fromAccount: number };
+      /**
+       * The same counts for four-year plans, and the account's four-year
+       * plan this device opens now (`FirstSignInResult`'s `open`).
+       */
+      fourYear: {
+        uploaded: number;
+        fromAccount: number;
+        open: { id: LocalId; name: string } | null;
+      };
       /** Plans and four-year plans alike. */
       renamed: readonly { from: string; to: string }[];
       copies: readonly { from: string; to: string }[];
@@ -919,6 +926,11 @@ export class SyncEngine {
             "four-year",
             new Set(s.tables.fourYear.map((d) => d.id)),
           ),
+          // A cursor reset isn't a sign-in: what's open stays open.
+          open:
+            four.open && !reset
+              ? { id: four.open, name: after.fourYear(four.open) }
+              : null,
         },
         renamed: [...result.renamed, ...four.renamed].map(({ from, to }) => ({
           from,

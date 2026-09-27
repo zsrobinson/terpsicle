@@ -242,7 +242,7 @@ test("course details in the scheduler link to the instructor's reviews", async (
   await expect(page.getByRole("heading", { name: "Algorithms" })).toBeVisible();
   // Keiko Ashdown's group, the open one (the plan has her 0301).
   await page.getByRole("button", { name: "Reviews" }).last().click();
-  const read = page.getByRole("link", { name: "Read reviews" }).first();
+  const read = page.getByRole("link", { name: "View reviews" }).first();
   await expect(read).toHaveAttribute(
     "href",
     /^\/reviews\/instructors\/[^?]+\?course=CMSC351$/,

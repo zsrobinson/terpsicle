@@ -36,9 +36,7 @@ async function axe(page: Page, what: string) {
 /** A semester's column; on a phone, picked from the strip first. */
 async function semester(page: Page, isMobile: boolean, name: string) {
   if (isMobile) {
-    const [season, year] = name.split(" ");
-    const label =
-      name === "Before UMD" ? "Before" : `${season?.slice(0, 2)} ${year}`;
+    const label = name === "Before UMD" ? "Before" : name;
     await page
       .getByRole("navigation", { name: "Semesters" })
       .getByRole("button", { name: new RegExp(`^${label}`) })

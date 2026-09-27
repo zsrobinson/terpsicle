@@ -191,6 +191,26 @@ test("phones get a drawer, from the menu or the header's icon", async ({
   await expect(sheet(page).getByLabel("What happened?")).toBeVisible();
 });
 
+test("on a phone, a bar with the product's context sends Feedback to the menu", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "phones only");
+  // Chat's bar carries its term, which reads whole instead of "Sprin…".
+  await page.goto(`/auth/test?return=${encodeURIComponent("/chat")}`);
+  await page.getByRole("button", { name: "Sign in as Test Student" }).click();
+  await page.waitForURL((url) => url.pathname.startsWith("/chat"));
+  const bar = page.locator('[data-slot="app-bar"]');
+  const term = bar.getByText(/^(Spring|Summer|Fall|Winter) \d{4}$/);
+  await expect(term).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("feedback-button")).toHaveCount(0);
+  const whole = await term.evaluate((el) => el.scrollWidth <= el.clientWidth);
+  expect(whole).toBe(true);
+  await bar.getByRole("button", { name: /^Account: / }).click();
+  await page.getByRole("menuitem", { name: "Send feedback" }).click();
+  await expect(sheet(page)).toBeVisible();
+});
+
 test("it's on product pages, not on / or /privacy", async ({ page }) => {
   await page.goto("/reviews");
   await expect(page.getByTestId("feedback-button")).toBeVisible();

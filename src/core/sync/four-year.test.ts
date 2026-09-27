@@ -243,6 +243,34 @@ describe("firstSignInUnion with four-year docs", () => {
     });
   });
 
+  it("opens the account's four-year plan, the latest changed, not this device's", () => {
+    const local = { ...mine, id: "fouryear_mine_02", name: "My plan" };
+    const older = {
+      ...theirs,
+      id: "fouryear_acct_old",
+      name: "Econ",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const newer = { ...theirs, updatedAt: "2026-09-01T00:00:00.000Z" };
+    const result = firstSignInUnion({
+      ...base,
+      local: tables({ fourYear: [local] }),
+      server: [
+        aFourYearSyncDoc({ body: older, rev: 2 }),
+        aFourYearSyncDoc({ body: newer, rev: 4 }),
+      ],
+      newId: ids(),
+    });
+    expect(result.fourYear.open).toBe(newer.id);
+    const alone = firstSignInUnion({
+      ...base,
+      local: tables({ fourYear: [local] }),
+      server: [],
+      newId: ids(),
+    });
+    expect(alone.fourYear.open).toBeNull();
+  });
+
   it("leaves out an untouched My plan only where the account has one", () => {
     const untouched = aFourYear({ id: "fouryear_new_0009" });
     const withAccount = firstSignInUnion({

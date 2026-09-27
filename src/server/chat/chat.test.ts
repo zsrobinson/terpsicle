@@ -20,7 +20,7 @@ import {
 } from "vitest";
 import { findTestUser } from "~/core/auth";
 import { addDays } from "~/core/ics";
-import { SLURS } from "~/core/moderation";
+import { SLURS, textFingerprint } from "~/core/moderation";
 import {
   type AcademicCalendar,
   CHAT_PROTOCOL_VERSION,
@@ -184,6 +184,7 @@ beforeEach(async () => {
       "chat_read_markers",
       "chat_room_prefs",
       "chat_author_courses",
+      "chat_send_hashes",
       "notifications",
       "notification_settings",
       "notification_deliveries",
@@ -757,6 +758,104 @@ describe("sending", () => {
         moderation: { state: "held", reason: "graded-work" },
       },
     );
+  });
+
+  it("lets one course's rooms share a message, and holds it in a third course for the owner, urgent, without a model", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom, brandtRoom, room0101]);
+    const spam = "Join my discord for free exam answers discord.gg/abc123";
+    // The course room, the professor room and your section room: one course.
+    for (const room of [courseRoom, brandtRoom, room0101]) {
+      const ack = await a.client.sendText(room, spam);
+      expect(
+        await a.client.next("moderation", (f) => f.id === ack.message?.id),
+      ).toMatchObject({ moderation: { state: "visible" } });
+    }
+    expect(moderateSpy).toHaveBeenCalledTimes(3);
+
+    // The same person posted it in two other courses' chats just now.
+    const earlier = new Date(Date.now() - 60_000).toISOString();
+    for (const other of ["CMSC131", "MATH140"])
+      await env.DB.prepare(
+        "INSERT INTO chat_send_hashes (user_id, course_code, text_hash, created_at) VALUES ('tstudent', ?1, ?2, ?3)",
+      )
+        .bind(other, textFingerprint(`${spam} ${other}`), earlier)
+        .run();
+    // Near-same counts: a course code tacked on doesn't make it new.
+    const ack = await a.client.sendText(room0101, `${spam} CMSC351`);
+    const id = ack.message?.id ?? "";
+    expect(ack.message?.moderation).toEqual({
+      state: "held",
+      reason: "checking",
+    });
+    expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      { moderation: { state: "held", reason: "flagged" } },
+    );
+    expect(moderateSpy).toHaveBeenCalledTimes(3);
+
+    const ref = chatTargetId(TERM, COURSE, id);
+    const row = await env.DB.prepare(
+      "SELECT labels, urgent, status, snapshot FROM moderation_queue WHERE ref = ?1",
+    )
+      .bind(ref)
+      .first<{
+        labels: string;
+        urgent: number;
+        status: string;
+        snapshot: string;
+      }>();
+    expect(row).toMatchObject({ urgent: 1, status: "open" });
+    expect(JSON.parse(row?.labels ?? "[]")).toEqual([
+      {
+        code: "spam",
+        source: "cross-room",
+        action: "hold",
+        crossRoom: "repeat",
+      },
+    ]);
+    expect(row?.snapshot).not.toContain("tstudent");
+    expect(
+      await env.DB.prepare(
+        "SELECT stage, verdict FROM moderation_decisions WHERE ref = ?1",
+      )
+        .bind(ref)
+        .first(),
+    ).toEqual({ stage: "rules", verdict: "hold" });
+    // The log keeps the course and a fingerprint, never the words.
+    const logged = await env.DB.prepare(
+      "SELECT user_id, course_code, text_hash FROM chat_send_hashes ORDER BY created_at",
+    ).all<{ user_id: string; course_code: string; text_hash: string }>();
+    expect(logged.results.map((r) => r.course_code)).toEqual([
+      "CMSC131",
+      "MATH140",
+      COURSE,
+      COURSE,
+      COURSE,
+      COURSE,
+    ]);
+    expect(JSON.stringify(logged.results)).not.toContain("discord");
+
+    // The owner approves it: it's shown after all.
+    await moderationHandlers(env).chat?.(ref, "publish", decided());
+    expect(
+      await a.client.next(
+        "moderation",
+        (f) => f.id === id && f.moderation.state === "visible",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("lets the guard fail open to the usual screening", async () => {
+    vi.spyOn(chatScreening, "checkCrossRoom").mockRejectedValue(
+      new Error("D1 is down"),
+    );
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "anyone at office hours?");
+    expect(
+      await a.client.next("moderation", (f) => f.id === ack.message?.id),
+    ).toMatchObject({ moderation: { state: "visible" } });
+    expect(moderateSpy).toHaveBeenCalledTimes(1);
   });
 
   it("removes, and tells only the author", async () => {
@@ -1520,14 +1619,10 @@ describe("reports", () => {
   const report = (
     who: Person,
     ref: string,
-    reason = "off-topic",
+    reason = "spam",
     level: "on" | "off" = "on",
-  ) =>
-    who.api(
-      "reports/create",
-      { surface: "chat", ref, reason, note: null },
-      level,
-    );
+    note: string | null = null,
+  ) => who.api("reports/create", { surface: "chat", ref, reason, note }, level);
 
   it("queues a reported message for the owner, without its author", async () => {
     const { student, classmate } = await twoPeople();
@@ -1645,7 +1740,29 @@ describe("reports", () => {
     const a = await student.join([courseRoom]);
     const ack = await a.client.sendText(courseRoom, "quiz tomorrow?");
     const ref = chatTargetId(TERM, COURSE, ack.message?.id ?? "");
-    expect((await report(classmate, ref, "other", "off")).status).toBe(503);
+    expect((await report(classmate, ref, "spam", "off")).status).toBe(503);
+  });
+
+  it("takes abuse reasons only, and a note with Something else", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "quiz tomorrow?");
+    const ref = chatTargetId(TERM, COURSE, ack.message?.id ?? "");
+    await a.client.next("moderation", (f) => f.id === ack.message?.id);
+    for (const reason of ["graded-work", "off-topic", "misconduct-claim"])
+      expect((await report(classmate, ref, reason)).status, reason).toBe(400);
+    expect((await report(classmate, ref, "other")).status).toBe(400);
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS n FROM reports").first("n"),
+    ).toBe(0);
+    expect(
+      await (
+        await report(classmate, ref, "other", "on", "keeps DMing people")
+      ).json(),
+    ).toEqual({ status: "reported" });
+    expect(
+      await env.DB.prepare("SELECT reason, note FROM reports").first(),
+    ).toEqual({ reason: "other", note: "keeps DMing people" });
   });
 });
 
@@ -1702,7 +1819,7 @@ describe("the owner's actions", () => {
     await classmate.api("reports/create", {
       surface: "chat",
       ref,
-      reason: "off-topic",
+      reason: "spam",
       note: null,
     });
 

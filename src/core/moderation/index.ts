@@ -16,8 +16,18 @@ export {
 } from "./admin";
 export { type ContactKind, type FoundContact, findContacts } from "./contact";
 export {
+  CROSS_ROOM,
+  type CrossRoomSend,
+  crossRoomRule,
+  fingerprintDistance,
+  normalizeForSpam,
+  textFingerprint,
+} from "./cross-room";
+export {
+  actingPolicyLabels,
   type ChatPolicy,
   DEFAULT_CHAT_POLICY,
+  DEFAULT_CHAT_POLICY_THRESHOLDS,
   DEFAULT_GUARD_ACTIONS,
   DEFAULT_POLICY_THRESHOLDS,
   decide,
@@ -28,11 +38,10 @@ export {
   needsPolicy,
   needsRetry,
   POLICY_LABELS,
+  POLICY_THRESHOLDS,
   type PolicyThreshold,
   type PolicyThresholds,
-  policyLabelsFor,
   policyReasons,
-  UNFLAGGED_CHAT_LABELS,
   URGENT_CODES,
 } from "./decide";
 export {
@@ -56,7 +65,12 @@ export {
   type PolicySection,
   REASON_WORDS,
 } from "./policy-text";
-export { type PrecheckInput, precheck } from "./precheck";
+export {
+  answersHint,
+  isTrivialChat,
+  type PrecheckInput,
+  precheck,
+} from "./precheck";
 export {
   HIDE_AT_ONCE,
   HIDE_AT_REPORTERS,

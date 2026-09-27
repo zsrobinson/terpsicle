@@ -36,7 +36,7 @@ export const PRODUCTS = [
     to: "/plan",
     label: "Plan",
     hint: "Your four years, semester by semester",
-    view: "View plan",
+    view: "View four-year plan",
   },
   {
     id: "todo",

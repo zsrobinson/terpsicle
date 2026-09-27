@@ -9,7 +9,7 @@ describe("cross links", () => {
     expect(viewWords("schedule")).toBe("View schedule");
     expect(viewWords("reviews")).toBe("View reviews");
     expect(viewWords("chat")).toBe("View chat");
-    expect(viewWords("plan")).toBe("View plan");
+    expect(viewWords("plan")).toBe("View four-year plan");
     expect(viewWords("todo")).toBe("View todos");
   });
 

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  ChatReportReasonSchema,
   ModerationConfigOverridesSchema,
   ModerationDecisionRowSchema,
   ModerationQueueRowSchema,
+  ReportCreateInputSchema,
+  ReviewReportReasonSchema,
 } from "./moderation";
 
 const ROW = {
@@ -98,5 +101,55 @@ describe("MODERATION_CONFIG overrides", () => {
       ModerationConfigOverridesSchema.safeParse({ guardModel: "gpt-4" })
         .success,
     ).toBe(false);
+  });
+
+  it("accepts chat's own threshold overrides", () => {
+    expect(
+      ModerationConfigOverridesSchema.safeParse({
+        chatPolicyThresholds: { "personal-info": { hold: 0.95 } },
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe("reports/create input", () => {
+  const report = (
+    surface: string,
+    reason: string,
+    note: string | null = null,
+  ) =>
+    ReportCreateInputSchema.safeParse({
+      surface,
+      ref: "202701:CMSC351:m-1",
+      reason,
+      note,
+    }).success;
+
+  it("takes only abuse reasons for chat", () => {
+    for (const reason of ChatReportReasonSchema.options.filter(
+      (r) => r !== "other",
+    ))
+      expect(report("chat", reason), reason).toBe(true);
+    for (const reason of [
+      "graded-work",
+      "off-topic",
+      "misconduct-claim",
+      "names-a-student",
+    ])
+      expect(report("chat", reason), reason).toBe(false);
+  });
+
+  it("needs a note with chat's Something else", () => {
+    expect(report("chat", "other")).toBe(false);
+    expect(report("chat", "other", "   ")).toBe(false);
+    expect(report("chat", "other", "keeps DMing me after I said stop")).toBe(
+      true,
+    );
+  });
+
+  it("keeps Reviews' reasons as they were", () => {
+    for (const reason of ReviewReportReasonSchema.options)
+      expect(report("review", reason), reason).toBe(true);
+    expect(report("review", "spam")).toBe(false);
   });
 });

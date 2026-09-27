@@ -48,6 +48,8 @@ export interface FourYearView {
   ) => () => void;
   /** Shows docs from the account: not undoable, and undo never brings back what they replaced. */
   apply: (docs: readonly (readonly [LocalId, FourYearDoc | null])[]) => void;
+  /** Opens one of them, and remembers it as the open one (`setActive`). */
+  open: (id: LocalId) => void;
 }
 
 export type SyncHost = SyncHostBase &

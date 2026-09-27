@@ -17,6 +17,7 @@ import { Wordmark } from "./brand/wordmark";
 import { ProductMenu } from "./product-menu";
 import { listedProducts, type ProductId } from "./products";
 import { ThemeToggle } from "./theme-toggle";
+import { useIsMobile } from "./use-media-query";
 
 // The one bar on every page (docs/COHESION.md §4, the "family bar"): the
 // wordmark and the five products as labeled tabs, in color order, then a
@@ -62,10 +63,13 @@ export function AppBar({
   /** The bar holds the page's h1 (the scheduler has no page title). */
   heading?: boolean;
 }) {
-  // Phones: "Send feedback" moves into the account menu, which has room.
-  // Until /api/me answers, neither shows, so nothing flashes.
+  // Phones: where the bar also carries the product's context (the scheduler,
+  // Chat's term), "Send feedback" moves into the account menu so the context
+  // reads whole. Until /api/me answers, neither shows, so nothing flashes.
   const accountLoading = useAccount((s) => s.status === "loading");
-  const feedbackInMenu = compact && feedback !== null;
+  const mobile = useIsMobile();
+  const crowded = compact || (mobile && context != null);
+  const feedbackInMenu = crowded && feedback !== null;
   const Brand = heading ? "h1" : "div";
   return (
     <header
@@ -123,7 +127,7 @@ export function AppBar({
             product={feedback}
             pathname={pathname}
             compact={compact}
-            showButton={!feedbackInMenu && !(compact && accountLoading)}
+            showButton={!feedbackInMenu && !(crowded && accountLoading)}
           />
         ) : null}
         <AccountButton

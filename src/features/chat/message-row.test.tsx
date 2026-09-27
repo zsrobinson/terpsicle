@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -6,7 +6,11 @@ import type { ChatItem } from "~/core/chat";
 import { aChatAuthor, aChatMessage, FIXTURE_NOW } from "~/fixtures";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
-import { type MessageActions, MessageRow } from "./message-row";
+import {
+  type MessageActions,
+  MessageRow,
+  SENDING_NOTE_AFTER_MS,
+} from "./message-row";
 
 const me = aChatAuthor({ directoryId: "tstudent", name: "Test Student" });
 const noor = aChatAuthor();
@@ -62,12 +66,51 @@ describe("MessageRow", () => {
     row(
       aChatMessage({
         author: me,
-        moderation: { state: "held", reason: "graded-work" },
+        moderation: { state: "held", reason: "flagged" },
       }),
     );
     expect(screen.getByTestId("held-note")).toHaveTextContent(
-      /Only you can see this\. It looks like it could be graded work/,
+      "Only you can see this for now, until a person looks at it.",
     );
+    expect(
+      screen.getByRole("article").querySelector("[data-message-body]"),
+    ).toHaveClass("text-muted");
+  });
+
+  it("shows a message being checked as sent, with nothing about checking", () => {
+    row(
+      aChatMessage({
+        author: me,
+        text: "anyone at office hours?",
+        moderation: { state: "held", reason: "checking" },
+      }),
+    );
+    expect(screen.queryByTestId("held-note")).toBeNull();
+    expect(screen.queryByText(/check/i)).toBeNull();
+    expect(
+      screen.getByRole("article").querySelector("[data-message-body]"),
+    ).not.toHaveClass("text-muted");
+  });
+
+  it("says Sending… only when a send is slow", () => {
+    vi.useFakeTimers();
+    try {
+      row({
+        ...aChatMessage({
+          id: "local-q2",
+          author: me,
+          moderation: { state: "held", reason: "checking" },
+        }),
+        local: { req: "q2", state: "sending" },
+      });
+      expect(screen.queryByText("Sending…")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(SENDING_NOTE_AFTER_MS);
+      });
+      expect(screen.getByText("Sending…")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("offers a refused send again, in words and not in red", async () => {
@@ -132,6 +175,42 @@ describe("MessageRow", () => {
       await screen.findByText("Thanks. A person will look at it."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("form")).toBeNull();
+  });
+
+  it("offers only abuse reasons, and asks what's wrong for Something else", async () => {
+    const { a, user } = row(aChatMessage());
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Report" }));
+    const form = screen.getByRole("form", { name: "Report this message" });
+    expect(
+      within(form)
+        .getAllByRole("radio")
+        .map((r) => r.closest("li")?.textContent),
+    ).toEqual([
+      "Harassment or hate",
+      "A threat",
+      "Sexual content",
+      "Spam",
+      "Someone's private info",
+      "Something else",
+    ]);
+    await user.click(
+      within(form).getByRole("radio", { name: "Something else" }),
+    );
+    const send = within(form).getByRole("button", { name: "Send report" });
+    expect(send).toBeDisabled();
+    await user.type(
+      within(form).getByRole("textbox", {
+        name: "Say what's wrong, so a person knows what to look for",
+      }),
+      "keeps messaging me",
+    );
+    await user.click(send);
+    expect(a.report).toHaveBeenCalledWith(
+      expect.anything(),
+      "other",
+      "keeps messaging me",
+    );
   });
 
   it("edits and deletes your own message, and never offers to report it", async () => {

@@ -356,12 +356,23 @@ export function allocateGenEds(
   return { picks: dense, progress };
 }
 
-/** "2 done · 1 planned · of 2"; in-progress courses count as planned in words. */
+/**
+ * A category's line in words: "Needs 2 courses", "1 planned, needs 1 more",
+ * "Covered: 1 done, 1 planned", "Done". In-progress courses count as
+ * planned. (QA P2: "1 planned · of 1" read as a sum, not a status.)
+ */
 export function genEdProgressLabel(p: GenEdProgress): string {
+  const planned = p.inProgress + p.planned;
   const parts: string[] = [];
   if (p.done > 0) parts.push(`${p.done} done`);
-  const planned = p.inProgress + p.planned;
   if (planned > 0) parts.push(`${planned} planned`);
-  parts.push(`of ${p.requirement.needed}`);
-  return parts.join(" · ");
+  if (p.short === 0)
+    return planned === 0 ? "Done" : `Covered: ${parts.join(", ")}`;
+  const { atLeast } = p.requirement;
+  const which = atLeast ? `, at least ${atLeast.count} ${atLeast.code}` : "";
+  if (parts.length === 0) {
+    const n = p.requirement.needed;
+    return `Needs ${n} ${n === 1 ? "course" : "courses"}${which}`;
+  }
+  return `${parts.join(", ")}, needs ${p.short} more${which}`;
 }

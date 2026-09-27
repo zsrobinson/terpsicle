@@ -17,7 +17,7 @@ export interface ModerationPolicyText {
   process: string;
 }
 
-const SHARED_NOT_ALLOWED = [
+const REVIEW_NOT_ALLOWED = [
   "Answers, solutions or code for graded work that's still open. Ask how to approach a problem instead.",
   "Phone numbers, emails, addresses or ID numbers of anyone else.",
   "Slurs, threats, or attacks on anyone's identity, looks or background.",
@@ -45,7 +45,7 @@ export const MODERATION_POLICY: Readonly<
       {
         heading: "Not allowed",
         items: [
-          ...SHARED_NOT_ALLOWED,
+          ...REVIEW_NOT_ALLOWED,
           "Comments on an instructor's looks, age, accent or identity.",
           "Accusations of misconduct. Report those to UMD instead; we can't check them.",
           "Links of any kind other than umd.edu.",
@@ -55,6 +55,9 @@ export const MODERATION_POLICY: Readonly<
     process:
       "Most reviews publish right away after an automatic check. A few wait for a person to read them first; that usually takes a day or two. Reviews are anonymous to readers.",
   },
+  // Chat is lighter than reviews (the owner, 2026-09-27): only real abuse
+  // is stopped, sharing answers is asked against kindly, and nothing here
+  // says a bot reads every message.
   chat: {
     title: "What's allowed",
     intro:
@@ -63,15 +66,30 @@ export const MODERATION_POLICY: Readonly<
       {
         heading: "Go ahead",
         items: [
-          "Ask about concepts, deadlines, office hours and study groups.",
-          "Share your own contact details if you want to meet up.",
-          "Link to umd.edu pages and class resources.",
+          "Ask about concepts, deadlines, office hours and anything you're stuck on.",
+          "Share your number, email or a room to set up a study group.",
+          "Link to notes, videos and anything else that helps.",
+          "Paste code to ask about a bug, and vent about the class.",
         ],
       },
-      { heading: "Not allowed", items: SHARED_NOT_ALLOWED },
+      {
+        heading: "Please don't",
+        items: [
+          "Post answers to graded work. Hints and ideas help more, and they don't put anyone's grade at risk.",
+        ],
+      },
+      {
+        heading: "Not allowed",
+        items: [
+          "Slurs, threats, harassment, or attacks on anyone's identity.",
+          "Sexual content.",
+          "Someone else's private details.",
+          "Spam and scams, or one message posted across many courses.",
+        ],
+      },
     ],
     process:
-      "Messages are checked automatically as you send them. A few wait for a person to read them before others can see them.",
+      "Messages are kept to these rules. To report someone else's message, open its menu and pick Report; a person looks at every report.",
   },
 };
 

@@ -15,7 +15,8 @@ import { useChatHome } from "./chat-home";
 // Chat's context in the family bar (docs/COHESION.md §4): the term whose
 // rooms you're in, after the divider, the way the scheduler shows its term.
 // With one term there's nothing to pick, so it's just the name. On a phone
-// the bar is tight: the name gives way before it runs into Feedback.
+// the bar moves Feedback into the account menu to make room; on the very
+// narrowest the name still gives way rather than run into the account.
 
 export function ChatTermMenu() {
   const terms = useChatHome((s) => s.terms);

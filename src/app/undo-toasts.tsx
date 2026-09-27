@@ -17,7 +17,7 @@ export function UndoToasts() {
   // Held for one notice: a toast that closes with focus on it fires no blur.
   const [heldFor, setHeldFor] = useState<typeof notice>(null);
   const held = heldFor !== null && heldFor === notice;
-  // Leaving the scheduler (View plan, a product link) takes its toast along:
+  // Leaving the scheduler (View four-year plan, a product link) takes its toast along:
   // Undo on another page would change plans nobody's saving.
   useEffect(() => () => void toast.dismiss(TOAST_ID), []);
   useEffect(() => {

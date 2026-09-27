@@ -128,6 +128,27 @@ describe("calendar", () => {
     expect(await screen.findByText("Switched CMSC351 to 0201")).toBeVisible();
   });
 
+  it("says tap, not click, on a touch screen", async () => {
+    const media = vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) =>
+        ({
+          matches: query === "(pointer: coarse)",
+          media: query,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        }) as unknown as MediaQueryList,
+    );
+    try {
+      await renderDemo();
+      act(() => openDrill({ kind: "course", courseCode: "CMSC351" }));
+      expect(screen.getByText(/Showing every section of/)).toHaveTextContent(
+        "Showing every section of CMSC351. Tap one to switch.",
+      );
+    } finally {
+      media.mockRestore();
+    }
+  });
+
   it("↑/↓ preview a section solid and ↵ switches to it", async () => {
     const { calendar, user } = await renderDemo();
     act(() => openDrill({ kind: "course", courseCode: "CMSC351" }));

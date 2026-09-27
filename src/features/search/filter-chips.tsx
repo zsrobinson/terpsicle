@@ -31,7 +31,7 @@ const GEN_EDS = Object.keys(GEN_ED_LABELS) as GenEdCode[];
 
 const chipClass = (active: boolean) =>
   cn(
-    "flex h-6 shrink-0 items-center gap-px rounded-md border px-1.5 text-xs transition-colors",
+    "flex h-6 shrink-0 items-center gap-px rounded-md border px-1 text-xs transition-colors",
     active
       ? "border-fg bg-fg text-bg hover:bg-fg/85"
       : "border-hairline text-muted hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
@@ -62,10 +62,15 @@ export function FilterChips({
     onChange(next);
   };
   return (
-    // One line in the sidebar (it scrolls sideways, and Tab brings each chip
-    // into view). On a phone-width screen, which is also a laptop at 400%
-    // zoom, they wrap rather than hide off the edge (WCAG 1.4.10).
-    <div className="scroll-thin flex items-center gap-1 overflow-x-auto max-[400px]:flex-wrap max-[400px]:overflow-x-visible">
+    // One line at the sidebar's usual width (DESIGN §4, the owner's "one
+    // line under the search bar"). A narrower sidebar, a phone, or a laptop
+    // at 400% zoom wraps them rather than cutting the last one off: a row
+    // that scrolled sideways showed "Leve" and read as broken (QA S9;
+    // WCAG 1.4.10).
+    <div
+      data-testid="search-filters"
+      className="flex flex-wrap items-center gap-x-0.5 gap-y-1"
+    >
       <MultiChip
         label="Gen-eds"
         tooltip="Only courses that count for these GenEds"

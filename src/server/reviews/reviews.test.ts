@@ -668,7 +668,7 @@ describe("reports", () => {
     const chat = await reader.call("reports/create", {
       surface: "chat",
       ref: "202701:CMSC351:m1",
-      reason: "other",
+      reason: "spam",
       note: null,
     });
     expect(chat.status).toBe(503);
