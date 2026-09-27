@@ -78,6 +78,13 @@ async function open(lab: Lab): Promise<void> {
 /** Types a search and waits for results. */
 async function search(lab: Lab, query: string): Promise<void> {
   await lab.tap(tab("Search"));
+  // The Search view is its own chunk: on a cold load its skeleton can
+  // still be up after the settle, with no box to tap yet.
+  await lab.waitFor(
+    `document.querySelector('${SEARCH_BOX.selector}')`,
+    15_000,
+    "the search box",
+  );
   await lab.wait(SETTLE);
   await lab.tap(SEARCH_BOX);
   await lab.wait(SETTLE);

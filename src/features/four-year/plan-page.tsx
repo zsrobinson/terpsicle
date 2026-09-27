@@ -1,12 +1,15 @@
 import { useRouter } from "@tanstack/react-router";
 import {
+  lazy,
   type ReactNode,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { ChunkLoadError } from "~/app/panel-load-boundary";
 import { useShortcut } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
 import {
@@ -29,10 +32,9 @@ import { useAccount } from "~/features/auth/account-store";
 import { InstallAppButton } from "~/features/pwa/install-entry";
 import { SitePage } from "~/features/site/site-page";
 import { readSidebarWidth } from "~/state/sidebar-width-pref";
-import { Skeleton } from "~/ui/skeleton";
+import { PageSkeleton } from "~/ui/skeleton";
 import { Board, PhoneBoard } from "./board";
 import { fourYearDb, startFourYear, useDocDepts } from "./data";
-import { EmptyState } from "./empty-state";
 import { ImportCheck, useImportRecognized } from "./import-panel";
 import { resetTranscriptImport } from "./import-state";
 import {
@@ -69,6 +71,19 @@ import {
 // The phone drawer (vaul) is its own chunk, fetched at once on phones only.
 const PlanDrawer = lazyDrawer(() =>
   import("./plan-drawer").then((m) => m?.PlanDrawer),
+);
+
+// The first visit is its own chunk too, with Radix's select: someone who
+// already has a plan never loads it. It's a moment, not a place (it shows
+// until a plan exists, at any of Plan's URLs), so it isn't a route. A chunk
+// that doesn't arrive throws to the route's error state, which reloads.
+const PlanFirstVisit = lazy(() =>
+  import("./first-visit").then((m) => {
+    // Vite's loader resolves a failed chunk to nothing once load-recovery
+    // has taken the error.
+    if (!m) throw new ChunkLoadError(new Error("empty module"));
+    return { default: m.PlanFirstVisit };
+  }),
 );
 
 /** New York's date, for term status. */
@@ -124,18 +139,6 @@ function usePlanSync(ready: boolean) {
       stop?.();
     };
   }, [ready, signedIn, userId]);
-}
-
-function Loading() {
-  return (
-    <div className="space-y-3" data-testid="plan-loading">
-      <Skeleton className="h-8 w-48" />
-      <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    </div>
-  );
 }
 
 /** ⌘Z and ⇧⌘Z, `/` Search, `1`–`5` the views, Esc closes a course. */
@@ -384,11 +387,17 @@ export function PlanPage({ nav, view }: { nav: PlanNav; view: ReactNode }) {
       {doc && phase !== "loading" ? (
         <Workspace nav={nav} view={view} />
       ) : (
-        <SitePage layout="wide">
+        // The first visit, and the moment before the plans are read, are
+        // a page like Todo's front door.
+        <SitePage layout="note">
           {phase === "loading" ? (
-            <Loading />
+            <PageSkeleton label="Loading your four-year plans" />
           ) : (
-            <EmptyState today={today} nav={nav} />
+            <Suspense
+              fallback={<PageSkeleton label="Loading your four-year plans" />}
+            >
+              <PlanFirstVisit today={today} nav={nav} />
+            </Suspense>
           )}
         </SitePage>
       )}

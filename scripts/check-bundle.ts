@@ -261,7 +261,19 @@ export const ROUTE_BUDGETS: readonly {
   ].map((route) => ({
     route,
     budget: PLAN_BUDGET,
-    never: [...PLAN_ROUTE_NEVER_EAGER, ADMIN_NEVER_EAGER, TODO_NEVER_EAGER],
+    never: [
+      // Samples asks when the four-year plan starts with the kit's Select,
+      // so a link straight to it carries Radix's select (as Generate's does
+      // on /schedule). Every other Plan route stays without it: the first
+      // visit, which asks too, is its own chunk (v3/cohesion-plan).
+      ...PLAN_ROUTE_NEVER_EAGER.filter(
+        (r) =>
+          route !== "/plan/samples" ||
+          !r.pattern.test("node_modules/@radix-ui/react-select/index.mjs"),
+      ),
+      ADMIN_NEVER_EAGER,
+      TODO_NEVER_EAGER,
+    ],
   })),
   // Todo keeps `/`'s rules: no Dexie and no scheduler stores (course colors
   // are a raw IndexedDB read).

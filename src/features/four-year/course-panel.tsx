@@ -58,7 +58,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
     <div className="flex flex-col">
       <div className="space-y-3 px-4 py-3">
         <div>
-          <h2 className="font-mono font-semibold text-lg">{code}</h2>
+          <h2 className="ident font-semibold text-lg">{code}</h2>
           {course === undefined ? (
             <Skeleton className="mt-1 h-4 w-2/3" />
           ) : course === null ? (
@@ -77,7 +77,6 @@ export function CoursePanel({ code }: { code: CourseCode }) {
             label={`Put ${code} in place of ${entryName(resolving)}`}
           >
             <Button
-              className="h-11 md:h-8"
               onClick={() => {
                 void pickForPlaceholder(resolving.id, code);
                 nav.go({ wildcard: undefined, course: undefined });
@@ -91,7 +90,6 @@ export function CoursePanel({ code }: { code: CourseCode }) {
           <WithTooltip label={`Add ${code} to ${fourYearTermLabel(target)}`}>
             <Button
               variant={placed.length > 0 ? "outline" : "default"}
-              className="h-11 md:h-8"
               onClick={() => addCourse(doc, code, target, "search")}
             >
               <Plus aria-hidden="true" />
@@ -117,7 +115,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
                         {k > 0 ? (
                           <span className="text-muted"> or </span>
                         ) : null}
-                        <span className="font-mono">{option.code}</span>{" "}
+                        <span className="ident">{option.code}</span>{" "}
                         <span className="text-muted text-sm">
                           {option.condition ?? GEN_ED_LABELS[option.code] ?? ""}
                         </span>

@@ -358,7 +358,7 @@ export function applyTemplate(
   return changed;
 }
 
-/** "Start a new plan from it": a new four-year plan with the sample, in one step Undo takes back. */
+/** "Start a new four-year plan from it": a new four-year plan with the sample, in one step Undo takes back. */
 export function newDocFromTemplate(
   template: FourYearTemplate,
   firstTermId: TermId,
