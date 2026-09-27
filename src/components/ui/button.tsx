@@ -21,15 +21,18 @@ const buttonVariants = cva(
         ghost: "text-muted hover:bg-hover hover:text-fg",
         link: "text-fg underline-offset-4 hover:underline",
       },
+      // Every size is 44px tall on phones (below md), where a finger, not a
+      // pointer, presses it (docs/ACCESSIBILITY.md, "Touch targets"). Pages
+      // never add their own phone heights.
       size: {
-        default: "h-8 px-3",
-        // A first visit's actions (EmptyState): 36px, and 44px on phones.
+        default: "h-8 px-3 max-md:h-11",
+        // A first visit's actions (EmptyState): 36px on a desktop.
         lg: "h-9 px-4 max-md:h-11",
-        sm: "h-7 px-2.5",
+        sm: "h-7 px-2.5 max-md:h-11",
         // The one size for actions inside list rows ("Switch", "Stop watching").
-        row: "h-6 px-2 text-sm",
-        icon: "size-8",
-        "icon-sm": "size-7",
+        row: "h-6 px-2 text-sm max-md:h-11",
+        icon: "size-8 max-md:size-11",
+        "icon-sm": "size-7 max-md:size-11",
       },
     },
     defaultVariants: { variant: "default", size: "default" },
