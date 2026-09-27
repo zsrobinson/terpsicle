@@ -47,6 +47,7 @@ function fakeClient(list: Partial<TodoListResult> = {}) {
     feed: aTodoFeedState({ lastSuccessAt: "2026-09-25T15:46:00.000Z" }),
     items: [],
     done: [],
+    hidden: [],
     ...list,
   };
   const client = {
@@ -71,6 +72,7 @@ function fakeClient(list: Partial<TodoListResult> = {}) {
       added: 2,
       skipped: 1,
     })),
+    hideCourse: vi.fn(async () => ({ status: "ok" as const })),
     saveTask: vi.fn(
       async (
         input: TodoSaveTaskInput,
@@ -405,7 +407,8 @@ describe("the list", () => {
 
     const midterm = screen.getByText("Midterm 1").closest("li");
     if (!midterm) throw new Error("no row");
-    expect(within(midterm).getByText("1pm")).toBeVisible();
+    // Due today at a time: how long, with the time in its tooltip.
+    expect(within(midterm).getByText("Due in 1 hour")).toBeVisible();
     expect(within(midterm).getByText("Exam")).toBeVisible();
     expect(within(midterm).getByText("From ELMS")).toBeVisible();
     // Only ELMS links are links.
@@ -577,7 +580,8 @@ describe("the list", () => {
     const cmsc = await screen.findByRole("region", { name: "CMSC216" });
     expect(within(cmsc).getByText("2 open")).toBeVisible();
     expect(within(cmsc).getByText("Tuesday, Sep 29 · 11:59pm")).toBeVisible();
-    expect(within(cmsc).getByText("Today · 1pm")).toBeVisible();
+    // Due today at a time: how long, in the date and time's place.
+    expect(within(cmsc).getByText("Due in 1 hour")).toBeVisible();
     expect(screen.getByRole("region", { name: "Study group" })).toBeVisible();
   });
 
@@ -732,6 +736,130 @@ describe("the list", () => {
     renderTodo();
     expect(await screen.findByText(/These came from a file/)).toBeVisible();
     expect(screen.getByText("1 open")).toBeVisible();
+  });
+});
+
+describe("this week, hidden courses and what's due today", () => {
+  // Friday, Sep 25: the week runs Monday the 21st to Sunday the 27th.
+  const week: TodoItem[] = [
+    aTodoItem({
+      uid: "monday-lab",
+      title: "Lab 5",
+      dueDate: "2026-09-21",
+      dueAt: "2026-09-22T03:59:00.000Z",
+    }),
+    aTodoItem({
+      uid: "today-quiz",
+      title: "Quiz 2",
+      dueDate: "2026-09-25",
+      dueAt: "2026-09-25T19:00:00.000Z",
+    }),
+    aTodoItem({
+      uid: "morning-reading",
+      title: "Reading check",
+      dueDate: "2026-09-25",
+      dueAt: "2026-09-25T13:30:00.000Z",
+    }),
+    aTodoItem({
+      uid: "saturday-hw",
+      title: "WebAssign 5",
+      courseLabel: "MATH240-0201: Introduction to Linear Algebra",
+      courseCode: "MATH240",
+      dueDate: "2026-09-26",
+      dueAt: "2026-09-27T03:59:00.000Z",
+    }),
+    aTodoItem({
+      uid: "club-meeting",
+      title: "Robotics build night",
+      courseLabel: "Terps Robotics Club",
+      courseCode: null,
+      sectionCode: null,
+      dueDate: "2026-09-25",
+      dueAt: "2026-09-25T23:00:00.000Z",
+      link: null,
+    }),
+  ];
+
+  it("says this week's progress in the header, and each course's in its group", async () => {
+    fakeClient({ items: week, done: ["monday-lab"] });
+    signedIn();
+    renderTodo("course");
+    expect(await screen.findByText("This week: 1 of 5 done")).toBeVisible();
+    const cmsc = screen.getByRole("region", { name: "CMSC216" });
+    expect(
+      within(cmsc).getByRole("progressbar", { name: "This week in CMSC216" }),
+    ).toHaveAttribute("aria-valuetext", "1 of 3 done");
+    expect(within(cmsc).getByText("1 of 3 done this week")).toBeVisible();
+    const math = screen.getByRole("region", { name: "MATH240" });
+    expect(within(math).getByText("0 of 1 done this week")).toBeVisible();
+  });
+
+  it("says how long until what's due today, and how long ago, quietly", async () => {
+    fakeClient({ items: week });
+    signedIn();
+    renderTodo();
+    const quiz = (await screen.findByText("Quiz 2")).closest("li");
+    const reading = screen.getByText("Reading check").closest("li");
+    if (!quiz || !reading) throw new Error("no rows");
+    // 12pm now; the quiz is at 3pm and the reading was at 9:30am.
+    expect(within(quiz).getByText("Due in 3 hours")).toBeVisible();
+    expect(within(quiz).getByText(", at 3pm")).toHaveClass("sr-only");
+    expect(within(reading).getByText("Due 2 hours ago")).toBeVisible();
+    // Tomorrow keeps its clock time.
+    const webassign = screen.getByText("WebAssign 5").closest("li");
+    if (!webassign) throw new Error("no row");
+    expect(within(webassign).getByText("11:59pm")).toBeVisible();
+  });
+
+  it("hides a course from its menu with Undo, and shows it again from the bottom", async () => {
+    const client = fakeClient({ items: week });
+    signedIn();
+    renderTodo("course");
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Terps Robotics Club options",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Hide Terps Robotics Club" }),
+    );
+    expect(client.hideCourse).toHaveBeenCalledWith({
+      key: "Terps Robotics Club",
+      hidden: true,
+    });
+    expect(screen.queryByText("Robotics build night")).toBeNull();
+    // Hidden items count in nothing.
+    expect(screen.getByText("This week: 0 of 4 done")).toBeVisible();
+    expect(screen.getByText(/^4 open/)).toBeVisible();
+    expect(await screen.findByText("Hid Terps Robotics Club")).toBeVisible();
+    expect(screen.getByText("Hidden: 1 course")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(client.hideCourse).toHaveBeenLastCalledWith({
+      key: "Terps Robotics Club",
+      hidden: false,
+    });
+    expect(await screen.findByText("Robotics build night")).toBeVisible();
+    expect(screen.queryByText(/^Hidden:/)).toBeNull();
+  });
+
+  it("starts with the courses hidden on the account, and shows one from the bottom line", async () => {
+    const client = fakeClient({ items: week, hidden: ["MATH240"] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    expect(await screen.findByText("Hidden: 1 course")).toBeVisible();
+    expect(screen.queryByText("WebAssign 5")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Show again" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Show MATH240" }),
+    );
+    expect(client.hideCourse).toHaveBeenCalledWith({
+      key: "MATH240",
+      hidden: false,
+    });
+    expect(await screen.findByText("WebAssign 5")).toBeVisible();
   });
 });
 

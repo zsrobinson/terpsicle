@@ -10,6 +10,8 @@ import {
   TodoDisconnectResultSchema,
   TodoDoneInputSchema,
   TodoDoneResultSchema,
+  TodoHideCourseInputSchema,
+  TodoHideCourseResultSchema,
   TodoImportFileInputSchema,
   TodoImportFileResultSchema,
   TodoListInputSchema,
@@ -77,6 +79,18 @@ export const todoApi = {
       "todo/import-file",
       TodoImportFileInputSchema,
       TodoImportFileResultSchema,
+      input,
+      options,
+    ),
+  /** Hides a course's items everywhere in Todo, or shows them again. */
+  hideCourse: (
+    input: z.input<typeof TodoHideCourseInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "todo/hide-course",
+      TodoHideCourseInputSchema,
+      TodoHideCourseResultSchema,
       input,
       options,
     ),

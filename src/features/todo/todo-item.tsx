@@ -127,6 +127,7 @@ export function TodoItemRow({
   course,
   color,
   when,
+  relative,
   note,
   onToggle,
   menu,
@@ -140,6 +141,11 @@ export function TodoItemRow({
   color: CourseColor | null;
   /** The due words; defaults to the time alone ("11:59pm"), or nothing for no date. */
   when?: string;
+  /**
+   * Due today at a time: "Due in 3 hours" or, quietly, "Due 2 hours ago",
+   * in the time's place, with the time in its tooltip.
+   */
+  relative?: string | null;
   /** A quiet line under the item. */
   note?: string;
   onToggle?: () => void;
@@ -177,7 +183,16 @@ export function TodoItemRow({
             {showCourse ? (
               <CourseTag code={course} label={item.courseLabel} color={color} />
             ) : null}
-            {time ? <span className="tnum">{time}</span> : null}
+            {relative ? (
+              <WithTooltip label={`Due today at ${dueTimeLabel(item)}`}>
+                <time dateTime={item.dueAt ?? undefined} className="tnum">
+                  {relative}
+                  <span className="sr-only">, at {dueTimeLabel(item)}</span>
+                </time>
+              </WithTooltip>
+            ) : time ? (
+              <span className="tnum">{time}</span>
+            ) : null}
             <span>{SOURCE_WORDS[item.source]}</span>
             {item.gradescope ? <Tag>Gradescope</Tag> : null}
             {item.exam ? <Tag dashed>Exam</Tag> : null}
