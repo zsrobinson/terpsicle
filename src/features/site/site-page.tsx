@@ -1,19 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Settings } from "lucide-react";
+import { Settings, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { AppBar } from "~/app/app-bar";
 import { PRODUCTS } from "~/app/products";
 import { feedbackProduct } from "~/core/feedback/path";
-import { SCHEDULE_PATH } from "~/core/routing";
+import { isAdminPath, SCHEDULE_PATH } from "~/core/routing";
 import { Button } from "~/ui/button";
 import { PageHeader } from "~/ui/page-header";
 import { type PageWidth, ProductPage } from "~/ui/product-page";
 import { WithTooltip } from "~/ui/tooltip";
 
 // The frame for pages outside the scheduler (the coming-soon pages,
-// `/privacy`, not found, sign-in, Settings, Reviews, Todo, Plan): the family
-// bar over the kit's page (`ProductPage`), which picks the width and, on the
-// pages you read, draws the footer.
+// `/privacy`, not found, sign-in, Settings, Reviews, Todo, Plan, admin): the
+// family bar over the kit's page (`ProductPage`), which picks the width and,
+// on the pages you read, draws the footer.
 
 /**
  * The page's width, from the kit (docs/COHESION.md §4), plus `wide`: Plan's
@@ -63,15 +63,28 @@ export function SiteHeader({ notFound = false }: { notFound?: boolean }) {
       current={current}
       feedback={notFound ? null : feedbackProduct(path)}
       pathname={path}
-      context={
-        !notFound && path.startsWith("/settings") ? (
-          <span className="flex items-center gap-1.5 font-semibold text-base">
-            <Settings size={15} aria-hidden="true" className="text-muted" />
-            Settings
-          </span>
-        ) : null
-      }
+      context={notFound ? null : pageContext(path)}
     />
+  );
+}
+
+/**
+ * The bar's context on pages that aren't a product: Settings, and the
+ * owner's admin pages. Neither is in the product menu, so the name says
+ * where you are.
+ */
+function pageContext(path: string): ReactNode {
+  const page = path.startsWith("/settings")
+    ? { icon: Settings, label: "Settings" }
+    : isAdminPath(path)
+      ? { icon: ShieldCheck, label: "Admin" }
+      : null;
+  if (!page) return null;
+  return (
+    <span className="flex items-center gap-1.5 font-semibold text-base">
+      <page.icon size={15} aria-hidden="true" className="text-muted" />
+      {page.label}
+    </span>
   );
 }
 

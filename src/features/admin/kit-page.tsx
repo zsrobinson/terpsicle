@@ -36,6 +36,7 @@ import { PageSkeleton, RowSkeleton } from "~/ui/skeleton";
 import { Switch } from "~/ui/switch";
 import { WithTooltip } from "~/ui/tooltip";
 import { type View, ViewSwitch } from "~/ui/view-switch";
+import { AdminNav } from "./admin-frame";
 
 // Every piece of the page kit, in every state, for reviewing side by side in
 // both themes (docs/COHESION.md §3, Phase 2). The words are real product
@@ -110,26 +111,27 @@ export function KitPage({ view }: { view: KitView }) {
             </a>
           </>
         }
-        views={
-          <ViewSwitch label="Parts of the kit" views={VIEWS} current={view} />
-        }
-        actions={
-          <SegmentedControl
-            label="Theme"
-            value={theme}
-            onValueChange={setTheme}
-            options={[
-              {
-                value: "system",
-                label: "System",
-                hint: "Follow this device's theme",
-              },
-              { value: "light", label: "Light", hint: "Show the kit light" },
-              { value: "dark", label: "Dark", hint: "Show the kit dark" },
-            ]}
-          />
-        }
+        views={<AdminNav current="kit" />}
       />
+      {/* Admin's pages are the header's switch; the kit's parts and the
+          theme it's shown in sit under it, over what they change. */}
+      <div className="-mt-4 flex flex-wrap items-center justify-between gap-2">
+        <ViewSwitch label="Parts of the kit" views={VIEWS} current={view} />
+        <SegmentedControl
+          label="Theme"
+          value={theme}
+          onValueChange={setTheme}
+          options={[
+            {
+              value: "system",
+              label: "System",
+              hint: "Follow this device's theme",
+            },
+            { value: "light", label: "Light", hint: "Show the kit light" },
+            { value: "dark", label: "Dark", hint: "Show the kit dark" },
+          ]}
+        />
+      </div>
       {show("page") ? <PageParts /> : null}
       {show("lists") ? <ListParts /> : null}
       {show("controls") ? <ControlParts /> : null}

@@ -1,3 +1,9 @@
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -62,15 +68,26 @@ function renderPage(
   filters: FeedbackFilters = {},
 ) {
   const onFilters = vi.fn();
+  // The page header links between admin's pages, so it needs a router.
+  const router = createRouter({
+    routeTree: createRootRoute({
+      component: () => (
+        <>
+          <FeedbackPage
+            filters={filters}
+            onFilters={onFilters}
+            client={client as unknown as FeedbackClient}
+            origin={ORIGIN}
+          />
+          <Toaster />
+        </>
+      ),
+    }),
+    history: createMemoryHistory({ initialEntries: ["/admin/feedback"] }),
+  });
   render(
     <TooltipProvider delayDuration={0}>
-      <FeedbackPage
-        filters={filters}
-        onFilters={onFilters}
-        client={client as unknown as FeedbackClient}
-        origin={ORIGIN}
-      />
-      <Toaster />
+      <RouterProvider router={router} />
     </TooltipProvider>,
   );
   return { onFilters, user: userEvent.setup() };
@@ -129,7 +146,10 @@ describe("the feedback inbox", () => {
       expect.objectContaining({ status: "new", limit: 50 }),
       expect.anything(),
     );
-    await user.selectOptions(screen.getByLabelText("Kind"), "Pinned notes");
+    await user.click(screen.getByRole("combobox", { name: "Kind" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Pinned notes" }),
+    );
     expect(onFilters).toHaveBeenCalledWith({
       status: "new",
       kind: "review",
@@ -142,7 +162,9 @@ describe("the feedback inbox", () => {
     const { user } = renderPage(client);
     const item = await screen.findByRole("article");
     expect(within(item).getByText("Wants a reply")).toBeInTheDocument();
-    await user.click(within(item).getByRole("button", { name: "Fixed" }));
+    const status = within(item).getByRole("radiogroup", { name: "Status" });
+    expect(within(status).getByRole("radio", { name: "New" })).toBeChecked();
+    await user.click(within(status).getByRole("radio", { name: "Fixed" }));
     expect(client.feedbackUpdate).toHaveBeenCalledWith({
       id: "FBAAAAAAAAAAAAAAAAAAAA",
       status: "fixed",

@@ -3,6 +3,8 @@ import { useId, useState } from "react";
 import { parseChatMessageRef } from "~/core/moderation/admin";
 import type { AdminReason, QueueItem } from "~/core/schema";
 import { Button } from "~/ui/button";
+import { Card } from "~/ui/card";
+import { Input } from "~/ui/input";
 import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import type { AdminClient } from "./queue-page";
@@ -59,81 +61,80 @@ export function ChatRemoveForm({
   };
 
   return (
+    // A card: a form that opens over the list, like Reviews' report form.
     <section
       aria-label="Remove a chat message"
-      className="mb-3 rounded-lg border border-hairline bg-raised p-3"
       onKeyDown={(event) => {
         if (event.key === "Escape") onClose();
       }}
     >
-      <div className="flex items-center gap-2">
-        <label htmlFor={inputId} className="font-medium text-base">
-          Message link or id
-        </label>
-        <WithTooltip label="Close (Esc)">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="ml-auto"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <X size={14} aria-hidden="true" />
-          </Button>
-        </WithTooltip>
-      </div>
-      <WithTooltip label="A thread link from Chat, or a ref from the decision log (term, course and message id)">
-        <input
-          id={inputId}
-          value={pasted}
-          onChange={(event) => {
-            setPasted(event.target.value);
-            setNote(null);
-          }}
-          aria-describedby={note ? noteId : undefined}
-          placeholder="https://terpsicle.com/chat?term=…&thread=…"
-          autoComplete="off"
-          spellCheck={false}
-          className="mt-1 h-9 w-full border border-hairline-strong bg-panel px-2.5 text-base placeholder:text-faint focus:border-fg/40 focus:outline-none"
-        />
-      </WithTooltip>
-      {note ? (
-        <p id={noteId} role="status" className="mt-1 text-muted text-sm">
-          {note}
-        </p>
-      ) : target ? (
-        <p className="mt-1 text-muted text-sm">
-          A message in {target.courseCode}
-        </p>
-      ) : null}
-      <fieldset
-        aria-label="Remove because"
-        className="mt-2 flex flex-wrap items-center gap-1"
-      >
-        <span aria-hidden="true" className="mr-1 text-muted text-sm">
-          Remove because
-        </span>
-        {REMOVE_REASONS.map((reason) => (
-          <WithTooltip
-            key={reason}
-            label="Remove it for this reason. You can undo."
-          >
+      <Card>
+        <div className="flex items-center gap-2">
+          <label htmlFor={inputId} className="font-medium text-base">
+            Message link or id
+          </label>
+          <WithTooltip label="Close (Esc)">
             <Button
               variant="ghost"
-              size="row"
-              disabled={busy || pasted.trim() === ""}
-              onClick={() => void remove(reason)}
+              size="icon-sm"
+              className="ml-auto"
+              aria-label="Close"
+              onClick={onClose}
             >
-              {ADMIN_REASON_WORDS[reason]}
+              <X size={14} aria-hidden="true" />
             </Button>
           </WithTooltip>
-        ))}
-        <StopAuthor
-          label={stopWords("chat")}
-          checked={stop}
-          onChange={setStop}
-        />
-      </fieldset>
+        </div>
+        <WithTooltip label="A thread link from Chat, or a ref from the decision log (term, course and message id)">
+          <Input
+            id={inputId}
+            value={pasted}
+            onChange={(event) => {
+              setPasted(event.target.value);
+              setNote(null);
+            }}
+            aria-describedby={note ? noteId : undefined}
+            placeholder="https://terpsicle.com/chat?term=…&thread=…"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </WithTooltip>
+        {note ? (
+          <p id={noteId} role="status" className="text-muted text-sm">
+            {note}
+          </p>
+        ) : target ? (
+          <p className="text-muted text-sm">A message in {target.courseCode}</p>
+        ) : null}
+        <fieldset
+          aria-label="Remove because"
+          className="flex flex-wrap items-center gap-1"
+        >
+          <span aria-hidden="true" className="mr-1 text-muted text-sm">
+            Remove because
+          </span>
+          {REMOVE_REASONS.map((reason) => (
+            <WithTooltip
+              key={reason}
+              label="Remove it for this reason. You can undo."
+            >
+              <Button
+                variant="ghost"
+                size="row"
+                disabled={busy || pasted.trim() === ""}
+                onClick={() => void remove(reason)}
+              >
+                {ADMIN_REASON_WORDS[reason]}
+              </Button>
+            </WithTooltip>
+          ))}
+          <StopAuthor
+            label={stopWords("chat")}
+            checked={stop}
+            onChange={setStop}
+          />
+        </fieldset>
+      </Card>
     </section>
   );
 }

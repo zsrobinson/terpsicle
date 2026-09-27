@@ -75,7 +75,7 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
   - [x] `BackLink`: one back affordance.
   - [x] `Section`: one heading under a page title. (It's `PageSection`: a section is a course's offering.)
 - [x] One `undoToast()` helper (`src/components/ui/toast.tsx`): one action button, one icon, one 10-second window (`UNDO_MS`), focus holds it open, and the shortcut sits in its tooltip. It replaces the seven toast-action copies. Failures go through `noteToast()`, which is never red and offers Try again where retrying can help. The scheduler and Plan keep their Undo/Redo pair on the shared `ToastAction`.
-- [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
+- [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button` (done: `GoogleButton` is the kit's filled `Button`, `lg`).
 - [x] Routes get a shared `pendingComponent` and `errorComponent` (`src/features/site/route-states.tsx`; a route sets `staticData.pending`).
 - [ ] No page says "reload the page".
 - [x] Guardrails:
@@ -92,6 +92,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [x] Chat.
 - [ ] Schedule.
 - [ ] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port. (`/privacy`, sign-in and not found are on the kit since `v3/cohesion-settings-todo`; `/` and the marketing port are left.)
+- [x] Admin onto the frame. (`v3/cohesion-admin`: the family bar with "Admin" in its context slot, `PageHeader` and `ProductPage width="app"` on every admin page, admin's pages and the queue's views as `ViewSwitch`es of links, `ListRow`s and `GroupHeader`s, the kit's `Input`, `Select`, `Textarea` and `SegmentedControl`, `InlineError` with Try again and `RowSkeleton`.)
 
 ### Phase 4: shared patterns sweep
 - [ ] Words: one glossary pass over every string (titles, buttons, empty states, errors, toasts).
@@ -148,7 +149,7 @@ The most visible items:
    - no `h1` at all in Chat;
    - the product menu as Schedule's `h1`.
 3. **First visits.** They look like four different products: three keylined cards, two hairline cards, a 440px column with a mark, a 560px column without one.
-4. **Chrome.** SiteHeader's border and the footer appear on some pages only. Admin and marketing each have their own header.
+4. **Chrome.** SiteHeader's border and the footer appear on some pages only. Marketing has its own header (admin had one until `v3/cohesion-admin`).
 5. **Selected states.** Nine selected-state looks across sub-navigation and chips.
 6. **Cards.** Cards are keylined, hairlined or hairline-strong on the same kind of surface.
 7. **List rows.** Only Schedule uses `ListRow`. Chat retypes it, Todo and Reviews hand-roll theirs, and Plan boxes every block.
