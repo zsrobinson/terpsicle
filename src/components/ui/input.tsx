@@ -28,6 +28,23 @@ function Input({
 }
 
 /**
+ * A text area: the field's border, fill, type and focus, at the height its
+ * `rows` give (a review, a note to a moderator). Label it like `Input`.
+ */
+function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+  return (
+    <textarea
+      data-slot="textarea"
+      className={cn(
+        "w-full min-w-0 border border-hairline-strong bg-raised px-2.5 py-1.5 text-base text-fg leading-5 placeholder:text-muted disabled:opacity-50",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
  * A search box: the magnifier, the field and, once there's text, Clear. The
  * box draws the focus ring, so the icon and Clear sit inside it.
  */
@@ -78,4 +95,4 @@ function SearchField({
   );
 }
 
-export { Input, SearchField };
+export { Input, SearchField, Textarea };

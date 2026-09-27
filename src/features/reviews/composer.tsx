@@ -24,6 +24,15 @@ import {
   type TermId,
 } from "~/core/schema";
 import { Button } from "~/ui/button";
+import { Card } from "~/ui/card";
+import { Textarea } from "~/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/ui/select";
 import { WithTooltip } from "~/ui/tooltip";
 import { browserReader, loadTerms, useLoaded } from "./data";
 import { useReviews } from "./reviews-store";
@@ -47,9 +56,8 @@ export interface ComposerTarget {
 const TERM_CHOICES = 12;
 const NOT_SAID = "not-said";
 
-// Native selects: short lists, and the phone's own picker is the best one.
-const SELECT_CLASS =
-  "h-7 w-40 rounded-md border border-hairline-strong bg-bg px-1.5 text-fg text-sm transition-colors hover:bg-hover focus-visible:border-fg/40";
+/** The kit's Select, a field's height: 44px on phones, 32px on a desktop. */
+const SELECT_TRIGGER = "w-40 max-md:h-11 md:h-8";
 
 type Failure =
   | { kind: "problems"; problems: ReviewProblem[] }
@@ -78,7 +86,12 @@ export function Composer({
   const terms = useLoaded("terms", async () =>
     loadTerms(await browserReader()),
   );
-  const ids = { body: useId(), help: useId() };
+  const ids = {
+    body: useId(),
+    help: useId(),
+    term: useId(),
+    grade: useId(),
+  };
   const editingPublished = existing?.status === "published";
   const verb = existing ? "Save changes" : "Post review";
   const { min, max } = LENGTH_LIMITS.review;
@@ -147,158 +160,176 @@ export function Composer({
       ? [...recentTerms.map((t) => t.id), termId]
       : recentTerms.map((t) => t.id);
 
+  // A Card: one thing that opens in place, with its own action.
   return (
-    <form
-      aria-label={existing ? "Edit your review" : "Write a review"}
-      className="space-y-4 border border-keyline bg-raised p-4 shadow-offset"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void send();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && !sending) onClose();
-      }}
-    >
-      <div>
-        <h2 className="font-semibold text-lg tracking-tight">
-          {existing ? "Edit your review" : "Write a review"}
-        </h2>
-        <p className="text-muted text-sm">
-          {target.reviewedName} · <span className="ident">{target.course}</span>{" "}
-          · Readers won't see who wrote it.
-        </p>
-      </div>
+    <Card className="p-4">
+      <form
+        aria-label={existing ? "Edit your review" : "Write a review"}
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && !sending) onClose();
+        }}
+      >
+        <div>
+          <h3 className="font-semibold text-base">
+            {existing ? "Edit your review" : "Write a review"}
+          </h3>
+          <p className="text-muted text-sm">
+            {target.reviewedName} ·{" "}
+            <span className="ident">{target.course}</span> · Readers won't see
+            who wrote it.
+          </p>
+        </div>
 
-      <RatingPicker value={rating} onChange={setRating} />
+        <RatingPicker value={rating} onChange={setRating} />
 
-      <div className="flex flex-wrap gap-3">
-        <label className="flex flex-col gap-1 text-muted text-sm">
-          When you took it
-          <WithTooltip label="The term you took it (optional)">
-            <select
+        <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor={ids.term} className="text-muted text-sm">
+              When you took it
+            </label>
+            <Select
               value={termId ?? NOT_SAID}
-              onChange={(e) =>
-                setTermId(e.target.value === NOT_SAID ? null : e.target.value)
+              onValueChange={(value) =>
+                setTermId(value === NOT_SAID ? null : value)
               }
-              className={SELECT_CLASS}
             >
-              <option value={NOT_SAID}>Rather not say</option>
-              {termOptions.map((id) => (
-                <option key={id} value={id}>
-                  {termLabel(id)}
-                </option>
-              ))}
-            </select>
-          </WithTooltip>
-        </label>
-        <label className="flex flex-col gap-1 text-muted text-sm">
-          Your grade
-          <WithTooltip label="The grade you got (optional; it never changes the grade bars)">
-            <select
+              <WithTooltip label="The term you took it (optional)">
+                <SelectTrigger id={ids.term} className={SELECT_TRIGGER}>
+                  <SelectValue />
+                </SelectTrigger>
+              </WithTooltip>
+              <SelectContent>
+                <SelectItem value={NOT_SAID}>Rather not say</SelectItem>
+                {termOptions.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {termLabel(id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor={ids.grade} className="text-muted text-sm">
+              Your grade
+            </label>
+            <Select
               value={grade ?? NOT_SAID}
-              onChange={(e) => {
-                const picked = ReviewGradeSchema.safeParse(e.target.value);
+              onValueChange={(value) => {
+                const picked = ReviewGradeSchema.safeParse(value);
                 setGrade(picked.success ? picked.data : null);
               }}
-              className={SELECT_CLASS}
             >
-              <option value={NOT_SAID}>Rather not say</option>
-              {REVIEW_GRADES.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
+              <WithTooltip label="The grade you got (optional; it never changes the grade bars)">
+                <SelectTrigger id={ids.grade} className={SELECT_TRIGGER}>
+                  <SelectValue />
+                </SelectTrigger>
+              </WithTooltip>
+              <SelectContent className="max-h-72">
+                <SelectItem value={NOT_SAID}>Rather not say</SelectItem>
+                {REVIEW_GRADES.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor={ids.body} className="font-medium text-sm">
+            Your review
+          </label>
+          <WithTooltip label="How lectures, exams, projects and grading went for you">
+            <Textarea
+              id={ids.body}
+              value={body}
+              onChange={(e) => {
+                setBody(e.target.value);
+                // Once a problem is showing, it goes as soon as it's fixed.
+                if (failure?.kind === "problems") {
+                  const left = stageZeroProblems(e.target.value);
+                  setFailure(
+                    left.length > 0
+                      ? { kind: "problems", problems: left }
+                      : null,
+                  );
+                }
+              }}
+              aria-describedby={ids.help}
+              rows={6}
+              maxLength={max * 2}
+              data-private
+              className="resize-y"
+              placeholder="What should someone deciding on this class know?"
+            />
           </WithTooltip>
-        </label>
-      </div>
-
-      <div className="space-y-1">
-        <label htmlFor={ids.body} className="font-medium text-sm">
-          Your review
-        </label>
-        <WithTooltip label="How lectures, exams, projects and grading went for you">
-          <textarea
-            id={ids.body}
-            value={body}
-            onChange={(e) => {
-              setBody(e.target.value);
-              // Once a problem is showing, it goes as soon as it's fixed.
-              if (failure?.kind === "problems") {
-                const left = stageZeroProblems(e.target.value);
-                setFailure(
-                  left.length > 0 ? { kind: "problems", problems: left } : null,
-                );
-              }
-            }}
-            aria-describedby={ids.help}
-            rows={6}
-            maxLength={max * 2}
-            data-private
-            className="w-full resize-y rounded-md border border-hairline-strong bg-bg px-2 py-1.5 text-base leading-5 placeholder:text-faint focus:border-fg/40"
-            placeholder="What should someone deciding on this class know?"
-          />
-        </WithTooltip>
-        <p
-          id={ids.help}
-          className="tnum flex justify-between gap-3 text-faint text-xs"
-        >
-          <span>
-            Write about the teaching and the course as you experienced it, in{" "}
-            {min} to {max.toLocaleString("en-US")} characters.{" "}
-            <WithTooltip label="What reviews can and can't say">
-              <Link
-                to="/reviews/policy"
-                target="_blank"
-                className="underline underline-offset-2 hover:text-fg"
-              >
-                What's allowed
-              </Link>
-            </WithTooltip>
-          </span>
-          <span className={cn(body.length > max && "text-fg")}>
-            {body.length.toLocaleString("en-US")}
-          </span>
-        </p>
-      </div>
-
-      {failure ? <FailureNote failure={failure} body={body} /> : null}
-
-      <div className="flex items-center gap-2">
-        <WithTooltip
-          label={
-            missing ??
-            (existing
-              ? "Save your changes"
-              : "Post it; a quick check runs first")
-          }
-        >
-          <span className="flex" tabIndex={missing ? 0 : -1}>
-            <Button type="submit" disabled={missing !== null || sending}>
-              {sending ? "Checking…" : verb}
-            </Button>
-          </span>
-        </WithTooltip>
-        <WithTooltip
-          label={existing ? "Keep it as it was" : "Put this away"}
-          shortcut="Esc"
-        >
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            disabled={sending}
+          <p
+            id={ids.help}
+            className="tnum flex justify-between gap-3 text-faint text-xs"
           >
-            Cancel
-          </Button>
-        </WithTooltip>
-        {editingPublished ? (
-          <span className="text-faint text-sm">
-            Your earlier words stay up while your edit is checked.
-          </span>
-        ) : null}
-      </div>
-    </form>
+            <span>
+              Write about the teaching and the course as you experienced it, in{" "}
+              {min} to {max.toLocaleString("en-US")} characters.{" "}
+              <WithTooltip label="What reviews can and can't say">
+                <Link
+                  to="/reviews/policy"
+                  target="_blank"
+                  className="underline underline-offset-2 hover:text-fg"
+                >
+                  What's allowed
+                </Link>
+              </WithTooltip>
+            </span>
+            <span className={cn(body.length > max && "text-fg")}>
+              {body.length.toLocaleString("en-US")}
+            </span>
+          </p>
+        </div>
+
+        {failure ? <FailureNote failure={failure} body={body} /> : null}
+
+        <div className="flex items-center gap-2">
+          <WithTooltip
+            label={
+              missing ??
+              (existing
+                ? "Save your changes"
+                : "Post it; a quick check runs first")
+            }
+          >
+            <span className="flex" tabIndex={missing ? 0 : -1}>
+              <Button type="submit" disabled={missing !== null || sending}>
+                {sending ? "Checking…" : verb}
+              </Button>
+            </span>
+          </WithTooltip>
+          <WithTooltip
+            label={existing ? "Keep it as it was" : "Put this away"}
+            shortcut="Esc"
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onClose}
+              disabled={sending}
+            >
+              Cancel
+            </Button>
+          </WithTooltip>
+          {editingPublished ? (
+            <span className="text-faint text-sm">
+              Your earlier words stay up while your edit is checked.
+            </span>
+          ) : null}
+        </div>
+      </form>
+    </Card>
   );
 }
 

@@ -10,13 +10,17 @@ import {
   type ReviewId,
 } from "~/core/schema";
 import { Button } from "~/ui/button";
+import { Card } from "~/ui/card";
+import { Textarea } from "~/ui/input";
+import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
+import { ROW_LINK } from "./frame";
 import { useSignedIn } from "./level";
 import { useReviews } from "./reviews-store";
 import { SignInPrompt } from "./sign-in-prompt";
 
 // "Report" on a review (V2 §9.3): pick why, add a note if it helps, send.
-// The form opens in place, under the review. One report per person per
+// The form opens in place, under the review, as a `Card`. One report per person per
 // review; the server decides what it does (enough reports hide it until a
 // person looks). Signing in is asked for here, not before: reading never
 // needs it.
@@ -68,6 +72,7 @@ export function ReportForm({
   const [note, setNote] = useState("");
   const [sent, setSent] = useState<Sent>("idle");
   const noteId = useId();
+  const reasonId = useId();
 
   if (signedIn !== true)
     return (
@@ -96,83 +101,96 @@ export function ReportForm({
   };
 
   return (
-    <form
-      aria-label="Report this review"
-      className="mt-2 space-y-3 border border-hairline-strong p-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void send();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onDone();
-      }}
-    >
-      <p className="font-medium">What's wrong with it?</p>
-      <div
-        role="radiogroup"
-        aria-label="Why you're reporting it"
-        className="flex flex-wrap gap-1"
+    <Card className="max-w-md">
+      <form
+        aria-label="Report this review"
+        className="flex flex-col gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onDone();
+        }}
       >
-        {ReportReasonSchema.options.map((r) => (
-          <WithTooltip
-            key={r}
-            label={`Report it as: ${REPORT_REASON_WORDS[r]}`}
-          >
-            {/* biome-ignore lint/a11y/useSemanticElements: chips, like the grade chips */}
-            <button
-              type="button"
-              role="radio"
-              aria-checked={reason === r}
-              onClick={() => setReason(r)}
-              className={cn(
-                "h-7 rounded-md border px-2.5 text-sm transition-colors",
-                reason === r
-                  ? "border-fg bg-accent-soft font-medium text-fg"
-                  : "border-hairline text-muted hover:bg-hover hover:text-fg",
-              )}
-            >
-              {REPORT_REASON_WORDS[r]}
-            </button>
+        <fieldset>
+          <legend className="mb-1 font-medium">What's wrong with it?</legend>
+          {/* The kit's rows, a native radio leading each: the reasons stay
+              in view, and arrow keys move between them. */}
+          <ul>
+            {ReportReasonSchema.options.map((r) => (
+              <ListRow
+                key={r}
+                as="li"
+                density="compact"
+                className="relative px-0 max-md:min-h-11"
+                lead={
+                  <input
+                    type="radio"
+                    id={`${reasonId}-${r}`}
+                    name={reasonId}
+                    value={r}
+                    checked={reason === r}
+                    onChange={() => setReason(r)}
+                    // Over the label's row-wide target, so it's pressed itself.
+                    className="relative z-10 flex size-4 accent-accent"
+                  />
+                }
+              >
+                <WithTooltip label={`Report it as: ${REPORT_REASON_WORDS[r]}`}>
+                  <label
+                    htmlFor={`${reasonId}-${r}`}
+                    className={cn(
+                      ROW_LINK,
+                      "block cursor-pointer truncate",
+                      reason === r ? "font-medium text-fg" : "text-muted",
+                    )}
+                  >
+                    {REPORT_REASON_WORDS[r]}
+                  </label>
+                </WithTooltip>
+              </ListRow>
+            ))}
+          </ul>
+        </fieldset>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={noteId} className="text-muted text-sm">
+            Anything a moderator should know? (optional)
+          </label>
+          <WithTooltip label="A note for the moderator; the author never sees it">
+            <Textarea
+              id={noteId}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={REPORT_NOTE_MAX}
+              rows={2}
+              data-private
+              className="resize-none"
+            />
           </WithTooltip>
-        ))}
-      </div>
-      <div className="space-y-1">
-        <label htmlFor={noteId} className="text-muted text-sm">
-          Anything a moderator should know? (optional)
-        </label>
-        <WithTooltip label="A note for the moderator; the author never sees it">
-          <textarea
-            id={noteId}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={REPORT_NOTE_MAX}
-            rows={2}
-            data-private
-            className="w-full resize-none rounded-md border border-hairline-strong bg-bg px-2 py-1 text-base focus:border-fg/40"
-          />
-        </WithTooltip>
-      </div>
-      <div className="flex items-center gap-2">
-        <WithTooltip
-          label={reason ? "Send it to a moderator" : "Pick a reason first"}
-        >
-          <span className="flex" tabIndex={reason ? -1 : 0}>
-            <Button type="submit" disabled={!reason || sent === "sending"}>
-              {sent === "sending" ? "Sending…" : "Send report"}
+        </div>
+        <div className="flex items-center gap-2">
+          <WithTooltip
+            label={reason ? "Send it to a moderator" : "Pick a reason first"}
+          >
+            <span className="flex" tabIndex={reason ? -1 : 0}>
+              <Button type="submit" disabled={!reason || sent === "sending"}>
+                {sent === "sending" ? "Sending…" : "Send report"}
+              </Button>
+            </span>
+          </WithTooltip>
+          <WithTooltip label="Close without reporting" shortcut="Esc">
+            <Button type="button" variant="ghost" onClick={onDone}>
+              Cancel
             </Button>
-          </span>
-        </WithTooltip>
-        <WithTooltip label="Close without reporting" shortcut="Esc">
-          <Button type="button" variant="ghost" onClick={onDone}>
-            Cancel
-          </Button>
-        </WithTooltip>
-      </div>
-      {SENT_WORDS[sent] ? (
-        <p className="text-muted text-sm" role="status">
-          {SENT_WORDS[sent]}
-        </p>
-      ) : null}
-    </form>
+          </WithTooltip>
+        </div>
+        {SENT_WORDS[sent] ? (
+          <p className="text-fg text-sm" role="status">
+            {SENT_WORDS[sent]}
+          </p>
+        ) : null}
+      </form>
+    </Card>
   );
 }
