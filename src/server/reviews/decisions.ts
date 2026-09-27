@@ -9,8 +9,10 @@ import {
   getReview,
   publish,
   reject,
+  restoreReviewAuthor,
   setPendingEdit,
   setWaiting,
+  stopReviewAuthor,
 } from "./store";
 
 export async function applyReviewDecision(
@@ -78,3 +80,18 @@ export async function applyReviewDecision(
       return;
   }
 }
+
+/**
+ * Reviews' side of the owner's stop (V2 §7.5 rule 3): the store finds the
+ * review's author and sets `reviews_blocked_until`, answering only when it
+ * ends. The author never leaves the store.
+ */
+export const reviewAuthorActor = {
+  stop: (reviewId: string, until: string, { db }: { db: D1Database }) =>
+    stopReviewAuthor(db, reviewId, until),
+  restore: (
+    reviewId: string,
+    stop: { until: string; previous: string | null },
+    { db }: { db: D1Database },
+  ) => restoreReviewAuthor(db, reviewId, stop),
+};

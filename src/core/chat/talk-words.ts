@@ -5,6 +5,7 @@ import type {
   ReportReason,
   ThreadSummary,
 } from "../schema";
+import { formatShortDate } from "../time/format";
 
 // Plain words for a conversation (SPEC §3.13, with contractions): times and
 // day dividers in College Park time, what your held messages say, who's
@@ -126,9 +127,13 @@ function waitWords(seconds: number): string {
 export function chatErrorWords(
   code: ChatErrorCode,
   retryAfter: number | null = null,
+  until: string | null = null,
 ): string {
   switch (code) {
     case "slow-down":
+      // The owner's stop: when it ends, not why (V2 §10; DESIGN §5).
+      if (until)
+        return `You can't post in Chat until ${formatShortDate(campusDay(until))}.`;
       return retryAfter
         ? `You're sending fast. Try again in ${waitWords(retryAfter)}.`
         : "You're sending fast. Try again in a moment.";

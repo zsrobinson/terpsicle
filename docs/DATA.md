@@ -533,6 +533,8 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0009_chat` (landed, §7.9) | `chat_members`, `chat_follows`, `chat_rooms` (a row only after a room's first message), `chat_read_markers`, `chat_room_prefs`, `chat_author_courses` | Chat indexes; messages live in the `CourseChat` Durable Object's own SQLite (V2.md §8.4–8.5) |
 | `0010_four_year_sync` (landed, §7.7) | rebuilds `sync_docs` so `kind` also allows `four-year` (with tombstones) | Terpsicle Plan's docs sync like plans (V3.md §2.4) |
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
+| `0012_feedback` | `feedback`, `feedback_groups` | The feedback sheet (FEEDBACK.md) |
+| `0013_author_stops` | `moderation_author_stops` (per queue item: when the owner's stop ends and what it replaced; no author) | Undo for "stop this author" (V2.md §10, MODERATION.md §6) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 

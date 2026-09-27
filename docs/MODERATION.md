@@ -147,10 +147,12 @@ Only clear spam and clear non-reviews are removed without a person. Every other 
 | Endpoint | Input | Result |
 |---|---|---|
 | `admin/moderation/queue` | `{status?: "open" \| "closed", limit?: 1–100}` | `{items: QueueItem[], open}`. Open: urgent first, then oldest. Closed: most recently closed first, each with its `resolution`. `retry` items never appear. |
-| `admin/moderation/resolve` | `{id, action: "approve" \| "remove", reason: AdminReason}` | `{status: "ok", item}` or `{status: "not-found"}` |
+| `admin/moderation/resolve` | `{id, action: "approve" \| "remove", reason: AdminReason, authorAction?: "stop"}` | `{status: "ok", item}` or `{status: "not-found"}` |
 | `admin/moderation/undo` | `{id}` | `{status: "ok", item}`, `{status: "nothing-to-undo"}` or `{status: "not-found"}` |
 
 - **No confirmation dialogs** (DESIGN §5): approve and remove act at once, and the UI offers **Undo**. Undo reopens the item, held, unless its ref was held again since (an edit), which answers `nothing-to-undo`.
+- **Stopping an author** (V2 §7.5, §10): `authorAction: "stop"`, only with `remove`, also keeps whoever wrote the item from writing more: reviews for 30 days, Chat for 7 (`AUTHOR_STOP_DAYS`). The surface's `AuthorActor` (`authorActors(env)` in `handlers.ts`: Reviews' store, or the message's `CourseChat` object) finds the author and sets `users.reviews_blocked_until` or `chat_blocked_until`, keeping a longer stop already running, and answers only when the stop ends and what it replaced. `moderation_author_stops` (migration `0013_author_stops.sql`) keeps that per queue item, never who; the item shows `stoppedUntil`, the decision's labels gain `author-stopped`, and Undo puts the old value back unless the stop changed since. Nobody to stop (a purged account, a deleted message, a sample) leaves the removal standing with `stoppedUntil: null`.
+- **Queue context:** review items carry `review: {instructor, rating, termId, grade}` from Reviews (the waiting edit's numbers for an edit); chat items `null`.
 - **Reaching the feature:** each handler from `moderationHandlers(env)` gets `(targetId, "publish" | "remove" | "hold", {db, now, reasons})` and must be idempotent. It runs before anything is recorded, so if it fails, nothing changes and the owner (or the next cron run) can try again. Tests pass their own through `handleApi(…, {moderationHandlers})`.
 - **A handler must treat a `targetId` it doesn't know as done**, not as an error: the author may have deleted the post while it waited, and on test copies the queue holds made-up posts (`admin/samples`, below) whose ids no feature stored. Throwing would leave the owner unable to close the item.
 
@@ -160,9 +162,10 @@ The rest of the panel's API (`src/server/admin/`, V2 §10), also `auth: "admin"`
 |---|---|---|
 | `admin/decisions` | `{surface?, stage?, verdict?, cursor?, limit?: 1–100}` | `{decisions: DecisionEntry[], cursor, days}`. Newest first; pass `cursor` back for the next page (`null` on the last). `days`: the last 14 UTC days of automatic decisions (allowed, held, rejected) for the surface filter, for the held share against the 5% target. Entries carry the reasons, never text, model ids or an author. |
 | `admin/health` | `{}` | `{aiCalls: {today, cap}, retry: {waiting, oldestAt}, queue: {open, urgent, oldestAt}}`. `today` counts model attempts this UTC day, up to the cap (attempts the cap turned away never reached a model). |
+| `admin/chat/remove` | `{termId, courseCode, messageId, reason, authorAction?}` | Removes a chat message found outside the queue: it's queued (or its waiting item is used) and resolved like any other, so the log has it without its author and Undo reopens it held. `{status: "ok", item}` or `not-found` when the message is gone. |
 | `admin/samples` | `{}` | Test mode only (previews, `pnpm dev:mock`, e2e; `not-found` elsewhere): puts four made-up held posts in the queue, one urgent, so the panel can be tried without real posts. `{items: QueueItem[]}` |
 
-The panel itself is `src/features/admin/` at `/admin` (the queue, with the health header and a "Decided" view with Undo per item) and `/admin/decisions` (the log, filters in the URL). Held text renders as plain text with each rule's match marked. `admin/chat/remove` and the author actions (V2 §10) come with the features that know a message or an author.
+The panel itself is `src/features/admin/` at `/admin` (the queue, with the health header and a "Decided" view with Undo per item) and `/admin/decisions` (the log, filters in the URL). Held text renders as plain text with each rule's match marked. "Paste a chat link" takes a thread link from Chat or a ref from the decision log for `admin/chat/remove`; a removal's "Also stop this author …" checkbox sends `authorAction`.
 
 **Reports** (V2 §9.3): `POST /api/reports/create {surface, ref, reason, note | null}`, `auth: "user"`, 30 per person per hour, in `src/server/moderation/reports.ts`.
 - Reasons: `personal-info`, `names-a-student`, `hate`, `threat`, `sexual`, `misconduct-claim`, `graded-work`, `off-topic`, `other`; a note of at most 300 characters.

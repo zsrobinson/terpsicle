@@ -228,6 +228,10 @@ _Avoid_: feedback (that's the feedback sheet's)
 **Moderation queue**:
 Held and reported items waiting for the owner in `/admin`. It's meant to stay small.
 
+**Stop (an author)**:
+The owner keeping whoever wrote a removed review or message from writing more for a while: reviews for 30 days, Chat for 7. Chosen through the item, so the owner never learns who; the person sees only when they can post again.
+_Avoid_: ban, block (a block is the scheduler's)
+
 **Admin**:
 The owner, the only admin and moderator. Contact is admin [at] terpsicle.com.
 

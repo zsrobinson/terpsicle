@@ -62,3 +62,31 @@ export function chatModerationHandler(namespace: CourseChatNamespace) {
     });
   };
 }
+
+/**
+ * Chat's side of the owner's stop (V2.md §10): the message's object knows
+ * its author and sets `chat_blocked_until`, answering only when it ends.
+ */
+export function chatAuthorActor(namespace: CourseChatNamespace) {
+  const objectFor = (targetId: string) => {
+    const target = parseChatTargetId(targetId);
+    if (!target) return null;
+    const stub = namespace.get(
+      namespace.idFromName(courseRoomId(target.termId, target.courseCode)),
+    );
+    return { target, stub };
+  };
+  return {
+    async stop(targetId: string, until: string) {
+      const found = objectFor(targetId);
+      return found ? found.stub.stopAuthor({ ...found.target, until }) : null;
+    },
+    async restore(
+      targetId: string,
+      stop: { until: string; previous: string | null },
+    ) {
+      const found = objectFor(targetId);
+      if (found) await found.stub.restoreAuthor({ ...found.target, stop });
+    },
+  };
+}

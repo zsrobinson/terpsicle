@@ -64,6 +64,9 @@ export const PURGE_LEDGER = {
   feedback:
     "kept for the owner, user_id set to null (they can't be replied to now)",
   feedback_groups: "untouched: no user data",
+  // 0013_author_stops
+  moderation_author_stops:
+    "untouched: no user id, only a queue item and when the stop ends (the stop itself is a users column, gone with the row)",
 } as const satisfies Record<string, string>;
 
 /**

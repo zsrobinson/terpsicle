@@ -4,9 +4,11 @@
 // mocked; anonymity has its own file (anonymity.test.ts).
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
+import { writeResultWords } from "~/core/reviews";
 import {
   type MyReview,
   PublicReviewSchema,
+  QueueListResultSchema,
   ReportCreateResultSchema,
   ResolveResultSchema,
   ReviewListResultSchema,
@@ -740,6 +742,138 @@ describe("limits", () => {
     expect(response.status).toBe(429);
     // Someone else isn't affected.
     expect((await reader.submit(short)).status).toBe("invalid");
+  });
+});
+
+describe("the owner's stop (V2 §7.5 rule 3)", () => {
+  async function heldItem() {
+    models("targets-person");
+    const id = idOf(await author.submit(aReviewSubmitInput()));
+    models("clean");
+    const [item] = await openQueue(admin);
+    if (!item) throw new Error("expected a queue item");
+    return { id, item };
+  }
+
+  const stop = async (id: string) =>
+    ResolveResultSchema.parse(
+      await admin.json("admin/moderation/resolve", {
+        id,
+        action: "remove",
+        reason: "targets-person",
+        authorAction: "stop",
+      }),
+    );
+
+  it("shows the owner the instructor, rating, term and grade, never the author", async () => {
+    const { item } = await heldItem();
+    expect(item.review).toEqual({
+      instructor: "Ada Brandt",
+      rating: 4,
+      termId: "202601",
+      grade: "A-",
+    });
+    expect(JSON.stringify(item)).not.toContain(author.id);
+    // A held edit shows the edit's numbers: that's what's waiting.
+    const published = idOf(
+      await reader.submit(aReviewSubmitInput({ course: "CMSC330" })),
+    );
+    models("targets-person");
+    await edit(reader, published, BODY_2, 2);
+    const waiting = (await openQueue(admin)).find(
+      (i) => i.targetId === published,
+    );
+    expect(waiting?.review).toEqual({
+      instructor: "Ada Brandt",
+      rating: 2,
+      termId: "202601",
+      grade: null,
+    });
+  });
+
+  it("stops the review's author for 30 days, and Undo lifts it", async () => {
+    const { item } = await heldItem();
+    const until = new Date(now().getTime() + 30 * DAY).toISOString();
+    const result = await stop(item.id);
+    expect(result).toMatchObject({
+      status: "ok",
+      item: { status: "closed", stoppedUntil: until },
+    });
+    expect(JSON.stringify(result)).not.toContain(author.id);
+    expect(
+      await author.submit(aReviewSubmitInput({ course: "CMSC330" })),
+    ).toEqual({ status: "blocked", until });
+    // What the author reads: when, not why.
+    expect(writeResultWords({ status: "blocked", until })).toBe(
+      "You can't write reviews until Mar 12.",
+    );
+    // Someone else can still write.
+    expect(
+      (await reader.submit(aReviewSubmitInput({ course: "CMSC330" }))).status,
+    ).toBe("published");
+    // Closed items keep saying so.
+    const [closed] = QueueListResultSchema.parse(
+      await admin.json("admin/moderation/queue", { status: "closed" }),
+    ).items;
+    expect(closed?.stoppedUntil).toBe(until);
+
+    const undone = ResolveResultSchema.parse(
+      await admin.json("admin/moderation/undo", { id: item.id }),
+    );
+    expect(undone).toMatchObject({
+      status: "ok",
+      item: { stoppedUntil: null },
+    });
+    expect(
+      (
+        await author.submit(
+          aReviewSubmitInput({ course: "CMSC330", body: BODY_2 }),
+        )
+      ).status,
+    ).toBe("published");
+  });
+
+  it("keeps a longer stop already running, and Undo leaves it", async () => {
+    const { item } = await heldItem();
+    const later = new Date(now().getTime() + 60 * DAY).toISOString();
+    await env.DB.prepare(
+      "UPDATE users SET reviews_blocked_until = ?1 WHERE id = ?2",
+    )
+      .bind(later, author.id)
+      .run();
+    expect((await stop(item.id)).status).toBe("ok");
+    await admin.json("admin/moderation/undo", { id: item.id });
+    expect(
+      await env.DB.prepare(
+        "SELECT reviews_blocked_until AS until FROM users WHERE id = ?1",
+      )
+        .bind(author.id)
+        .first("until"),
+    ).toBe(later);
+  });
+
+  it("only stops with a removal, and has nobody to stop once the account is gone", async () => {
+    const { id, item } = await heldItem();
+    const approveAndStop = await admin.call("admin/moderation/resolve", {
+      id: item.id,
+      action: "approve",
+      reason: "fine",
+      authorAction: "stop",
+    });
+    expect(approveAndStop.status).toBe(400);
+    // The purge leaves the review with no author (V2 §4.7).
+    await env.DB.prepare("UPDATE reviews SET author_id = NULL WHERE id = ?1")
+      .bind(id)
+      .run();
+    expect(await stop(item.id)).toMatchObject({
+      status: "ok",
+      item: { resolution: { decision: "remove" }, stoppedUntil: null },
+    });
+    expect(
+      await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM moderation_author_stops",
+      ).first("n"),
+    ).toBe(0);
   });
 });
 

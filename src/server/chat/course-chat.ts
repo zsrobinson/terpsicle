@@ -58,6 +58,8 @@ import {
   readProfiles,
   recordAuthorCourse,
   recordVisible,
+  restoreChatAuthor,
+  stopChatAuthor,
 } from "./store";
 
 export type CourseChatNamespace = DurableObjectNamespace<CourseChat>;
@@ -642,6 +644,49 @@ export class CourseChat extends DurableObject<Env> {
   }
 
   /**
+   * The owner's chat/remove (V2.md §10) found a message outside the queue:
+   * its words for the queue, never its author. Null when it's gone.
+   */
+  async messageForOwner(target: {
+    termId: string;
+    courseCode: string;
+    messageId: string;
+  }): Promise<{ text: string } | null> {
+    this.#bind(target.termId, target.courseCode);
+    const row = this.#store.message(target.messageId);
+    return row ? { text: row.body } : null;
+  }
+
+  /**
+   * "Stop this author posting in Chat" (V2.md §10), through one of their
+   * messages: the object knows who wrote it and sets the stop in D1, and
+   * answers only when it ends. Null when the message or its account is gone.
+   */
+  async stopAuthor(target: {
+    termId: string;
+    courseCode: string;
+    messageId: string;
+    until: string;
+  }): Promise<{ until: string; previous: string | null } | null> {
+    this.#bind(target.termId, target.courseCode);
+    const row = this.#store.message(target.messageId);
+    if (!row) return null;
+    return stopChatAuthor(this.env.DB, row.author_id, target.until);
+  }
+
+  /** Undoes stopAuthor. A message deleted since leaves the stop to run out. */
+  async restoreAuthor(target: {
+    termId: string;
+    courseCode: string;
+    messageId: string;
+    stop: { until: string; previous: string | null };
+  }): Promise<void> {
+    this.#bind(target.termId, target.courseCode);
+    const row = this.#store.message(target.messageId);
+    if (row) await restoreChatAuthor(this.env.DB, row.author_id, target.stop);
+  }
+
+  /**
    * Account deletion (V2.md §4.7, the daily purge): everything the person
    * left in this course goes, whatever its state: their messages with the
    * reactions on them, their reactions elsewhere, their send log and any
@@ -1015,6 +1060,7 @@ export class CourseChat extends DurableObject<Env> {
         req,
         "slow-down",
         Math.max(1, Math.ceil((blockedUntil - now) / 1000)),
+        new Date(blockedUntil).toISOString(),
       );
       return null;
     }
@@ -1083,8 +1129,15 @@ export class CourseChat extends DurableObject<Env> {
     req: string | null,
     code: ChatErrorCode,
     retryAfter: number | null = null,
+    until: string | null = null,
   ): void {
-    this.#sendFrame(ws, { type: "error", req, code, retryAfter });
+    this.#sendFrame(ws, {
+      type: "error",
+      req,
+      code,
+      retryAfter,
+      ...(until ? { until } : {}),
+    });
   }
 
   #sendFrame(ws: WebSocket, frame: ChatServerFrame): void {

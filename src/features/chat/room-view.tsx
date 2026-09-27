@@ -513,7 +513,9 @@ function useMessageActions(
         const before = item.text;
         const result = await session.edit(room.id, item.id, text);
         if (!result.ok) {
-          showNote(chatErrorWords(result.code, result.retryAfter));
+          showNote(
+            chatErrorWords(result.code, result.retryAfter, result.until),
+          );
           return false;
         }
         showUndo("Message edited", () => {
@@ -529,7 +531,9 @@ function useMessageActions(
       react: (item, reaction, on) => {
         void session?.react(room.id, item.id, reaction, on).then((result) => {
           if (!result.ok)
-            showNote(chatErrorWords(result.code, result.retryAfter));
+            showNote(
+              chatErrorWords(result.code, result.retryAfter, result.until),
+            );
         });
       },
       retry: (item) => {

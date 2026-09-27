@@ -20,6 +20,7 @@ import {
   type PendingEdit,
   type ReasonCode,
   type ReviewGrade,
+  type ReviewQueueContext,
   ReviewRatingSchema,
   type ReviewRow,
   ReviewRowSchema,
@@ -355,6 +356,104 @@ export async function getReview(
     .bind(id)
     .first();
   return row ? parseRow(row) : null;
+}
+
+const QueueContextRowSchema = ReviewRowSchema.pick({
+  id: true,
+  rating: true,
+  term_id: true,
+  grade: true,
+  pending_edit: true,
+}).extend({ instructor: z.string().min(1) });
+
+/**
+ * What the owner's queue shows about reviews besides their words (V2 §10):
+ * the instructor, rating, term and grade, never the author. A waiting
+ * edit's, when an edit is what was held. Reviews not found are left out.
+ */
+export async function reviewQueueContexts(
+  db: D1Database,
+  ids: readonly string[],
+): Promise<Map<string, ReviewQueueContext>> {
+  const out = new Map<string, ReviewQueueContext>();
+  if (ids.length === 0) return out;
+  const { results } = await db
+    .prepare(
+      `SELECT r.id, r.rating, r.term_id, r.grade, r.pending_edit, i.name AS instructor
+       FROM reviews r JOIN instructors i ON i.id = r.instructor_id
+       WHERE r.id IN (SELECT value FROM json_each(?1))`,
+    )
+    .bind(JSON.stringify([...new Set(ids)]))
+    .all();
+  for (const found of results) {
+    const row = QueueContextRowSchema.parse(found);
+    const edit =
+      row.pending_edit?.state === "waiting" ? row.pending_edit : null;
+    out.set(row.id, {
+      instructor: row.instructor,
+      rating: edit?.rating ?? row.rating,
+      termId: edit ? edit.termId : row.term_id,
+      grade: edit ? edit.grade : row.grade,
+    });
+  }
+  return out;
+}
+
+// ---------- the owner's stop (V2 §7.5 rule 3) ----------
+
+const BlockedUntilSchema = z.object({
+  previous: IsoDateTimeSchema.nullable(),
+});
+
+/**
+ * "Stop this author writing reviews for 30 days", through the review: its
+ * author's `reviews_blocked_until` becomes `until`, or stays if a stop
+ * already runs longer. Answers when it ends and what it was before (for
+ * undo), never who; null when the review has no author any more (a purged
+ * account) or doesn't exist.
+ */
+export async function stopReviewAuthor(
+  db: D1Database,
+  reviewId: string,
+  until: string,
+): Promise<{ until: string; previous: string | null } | null> {
+  const found = await db
+    .prepare(
+      `SELECT u.reviews_blocked_until AS previous
+       FROM reviews r JOIN users u ON u.id = r.author_id WHERE r.id = ?1`,
+    )
+    .bind(reviewId)
+    .first();
+  if (!found) return null;
+  const { previous } = BlockedUntilSchema.parse(found);
+  const applied = previous !== null && previous > until ? previous : until;
+  await db
+    .prepare(
+      `UPDATE users SET reviews_blocked_until = ?2
+       WHERE id = (SELECT author_id FROM reviews WHERE id = ?1)`,
+    )
+    .bind(reviewId, applied)
+    .run();
+  return { until: applied, previous };
+}
+
+/**
+ * Undoes stopReviewAuthor: puts back what was there, unless the stop has
+ * changed since (another one, placed later, stays).
+ */
+export async function restoreReviewAuthor(
+  db: D1Database,
+  reviewId: string,
+  stop: { until: string; previous: string | null },
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE users SET reviews_blocked_until = ?3
+       WHERE id = (SELECT author_id FROM reviews WHERE id = ?1)
+         AND reviews_blocked_until = ?2`,
+    )
+    .bind(reviewId, stop.until, stop.previous)
+    .run();
 }
 
 /** New reviews of an instructor in the last day and the last 30 (the burst check). */

@@ -310,7 +310,10 @@ export const ChatErrorCodeSchema = z.enum([
   "not-found",
   /** Editing or deleting someone else's message. */
   "not-yours",
-  /** Slow mode or a new account's wait: try again after `retryAfter`. */
+  /**
+   * Slow mode or a new account's wait: try again after `retryAfter`. Also
+   * the owner's stop (V2 §10), which says `until` when.
+   */
   "slow-down",
 ]);
 export type ChatErrorCode = z.infer<typeof ChatErrorCodeSchema>;
@@ -351,6 +354,11 @@ export const ChatServerFrameSchema = z.discriminatedUnion("type", [
     code: ChatErrorCodeSchema,
     /** Seconds to wait, for `slow-down`. */
     retryAfter: z.number().int().min(1).nullable(),
+    /**
+     * When the owner stopped you posting in Chat, until then. Optional, so
+     * clients older than it still read the frame (as a plain `slow-down`).
+     */
+    until: IsoDateTimeSchema.optional(),
   }),
   /**
    * A message someone may now see, or its new version: new, edited, a new

@@ -3,8 +3,11 @@
 // Chat delivers or deletes the message.
 import type { ModerationReason } from "~/core/schema";
 import type { CourseChatNamespace } from "../chat/course-chat";
-import { chatModerationHandler } from "../chat/moderation-handler";
-import { applyReviewDecision } from "../reviews/decisions";
+import {
+  chatAuthorActor,
+  chatModerationHandler,
+} from "../chat/moderation-handler";
+import { applyReviewDecision, reviewAuthorActor } from "../reviews/decisions";
 
 export interface HandlerContext {
   db: D1Database;
@@ -51,5 +54,35 @@ export function moderationHandlers(
     ...(env.COURSE_CHAT
       ? { chat: chatModerationHandler(env.COURSE_CHAT) }
       : {}),
+  };
+}
+
+/**
+ * The owner's "stop this author" (V2 §7.5, §10), through an item: only the
+ * feature knows who wrote it, so it applies the stop and answers when it
+ * ends and what it replaced (for undo), never who. `stop` answers null when
+ * there's nobody to stop (a purged account, a deleted post, a test sample).
+ */
+export interface AuthorActor {
+  stop(
+    targetId: string,
+    until: string,
+    ctx: { db: D1Database },
+  ): Promise<{ until: string; previous: string | null } | null>;
+  /** Puts back what was there, unless the stop changed since. Idempotent. */
+  restore(
+    targetId: string,
+    stop: { until: string; previous: string | null },
+    ctx: { db: D1Database },
+  ): Promise<void>;
+}
+
+export type AuthorActors = Partial<Record<"review" | "chat", AuthorActor>>;
+
+/** The live actors, for this Worker's bindings (like moderationHandlers). */
+export function authorActors(env: ModerationHandlerEnv): AuthorActors {
+  return {
+    review: reviewAuthorActor,
+    ...(env.COURSE_CHAT ? { chat: chatAuthorActor(env.COURSE_CHAT) } : {}),
   };
 }

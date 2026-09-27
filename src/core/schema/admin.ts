@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { ChatMessageIdSchema } from "./chat";
 import {
   AdminReasonSchema,
+  AuthorActionSchema,
   DecidedBySchema,
   DecisionStageSchema,
   ModerationIdSchema,
@@ -10,7 +12,12 @@ import {
   QueueItemSchema,
   StoredVerdictSchema,
 } from "./moderation";
-import { IsoDateSchema, IsoDateTimeSchema } from "./primitives";
+import {
+  CourseCodeSchema,
+  IsoDateSchema,
+  IsoDateTimeSchema,
+  TermIdSchema,
+} from "./primitives";
 
 // The owner's admin panel (docs/V2.md §10): the decision log, the health
 // header, and test mode's sample items. The queue's own routes are in
@@ -107,3 +114,20 @@ export const AdminSamplesResultSchema = z.object({
   items: z.array(QueueItemSchema),
 });
 export type AdminSamplesResult = z.infer<typeof AdminSamplesResultSchema>;
+
+// ---------- /api/admin/chat/remove ----------
+
+/**
+ * Takes down a chat message the owner found outside the queue (V2 §10),
+ * from a pasted link or ref. It's queued and decided like any held item, so
+ * the log has it (without its author) and Undo works the same way. Answers
+ * ResolveResultSchema; `not-found` when the message isn't there.
+ */
+export const AdminChatRemoveInputSchema = z.strictObject({
+  termId: TermIdSchema,
+  courseCode: CourseCodeSchema,
+  messageId: ChatMessageIdSchema,
+  reason: AdminReasonSchema,
+  authorAction: AuthorActionSchema.optional(),
+});
+export type AdminChatRemoveInput = z.infer<typeof AdminChatRemoveInputSchema>;

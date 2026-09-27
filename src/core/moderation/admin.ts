@@ -2,11 +2,16 @@
 // against its target, filling in quiet days, the decision log's cursor,
 // marking the words a rule matched, the removal reason to offer first, and
 // how long something has waited.
-import type {
-  AdminReason,
-  ModerationReason,
-  ReasonCode,
-  ReportReason,
+import {
+  type AdminReason,
+  ChatMessageIdSchema,
+  CourseCodeSchema,
+  type ModerationKind,
+  type ModerationReason,
+  parseRoomId,
+  type ReasonCode,
+  type ReportReason,
+  TermIdSchema,
 } from "../schema";
 import type { DecisionCursor, DecisionDay } from "../schema/admin";
 import { URGENT_CODES } from "./decide";
@@ -178,4 +183,66 @@ export function waitedFor(iso: string, now: Date): string {
   const hours = Math.floor(minutes / 60);
   if (hours < 48) return `${hours} h`;
   return `${Math.floor(hours / 24)} days`;
+}
+
+/**
+ * How long the owner's "stop this author" lasts (V2 §10): "Stop writing
+ * reviews for 30 days", "Stop posting in Chat for 7 days".
+ */
+export const AUTHOR_STOP_DAYS: Readonly<Record<ModerationKind, number>> = {
+  review: 30,
+  chat: 7,
+};
+
+/** When a stop placed now ends. */
+export function authorStopUntil(kind: ModerationKind, now: Date): string {
+  return new Date(
+    now.getTime() + AUTHOR_STOP_DAYS[kind] * DAY_MS,
+  ).toISOString();
+}
+
+export interface ChatMessageRef {
+  termId: string;
+  courseCode: string;
+  messageId: string;
+}
+
+/**
+ * The message a pasted link or id points at, for the owner's "Remove a chat
+ * message" (V2 §10): a moderation ref (`202701:CMSC351:<id>`, as the
+ * decision log shows it) or a Chat link to the message's thread
+ * (`/chat?term=202701&course=CMSC351&…&thread=<id>`, where the term may be
+ * left to the room). Null otherwise.
+ */
+export function parseChatMessageRef(pasted: string): ChatMessageRef | null {
+  const text = pasted.trim();
+  const valid = (termId: unknown, courseCode: unknown, messageId: unknown) =>
+    TermIdSchema.safeParse(termId).success &&
+    CourseCodeSchema.safeParse(courseCode).success &&
+    ChatMessageIdSchema.safeParse(messageId).success
+      ? {
+          termId: String(termId),
+          courseCode: String(courseCode),
+          messageId: String(messageId),
+        }
+      : null;
+  const parts = text.split(":");
+  const ref = parts.length === 3 ? valid(parts[0], parts[1], parts[2]) : null;
+  if (ref) return ref;
+  // Any host: previews and localhost have their own.
+  let url: URL;
+  try {
+    url = new URL(text, "https://terpsicle.com");
+  } catch {
+    return null;
+  }
+  if (url.pathname !== "/chat") return null;
+  const q = url.searchParams;
+  // Chat leaves out `term` for the current one; the room names it too.
+  const room = parseRoomId(q.get("room") ?? "");
+  return valid(
+    q.get("term") ?? room?.termId,
+    q.get("course") ?? room?.courseCode,
+    q.get("thread"),
+  );
 }
