@@ -74,6 +74,11 @@ Revisit if: moderation needs to tell that two reports came from one deleted pers
 Review summaries, their small generated chips, and moderation. No other LLM features.
 Revisit if: the owner asks for one.
 
+### AI features can be turned off
+2026-09-27 · owner · app-wide
+"some users really don't like AI. they should be able to disable our visible AI features like the reviews summarizer thing (which i really like, but again some prefer not to have it). there should likely be a little settings/dots thing on the box where it generates that allows you to disable them. then it should also appear in your account preferences." One pref, "Show AI summaries", on by default and following the account: in Settings, and as "Hide AI summaries" (with Undo) in every AI box's ⋯ menu. Off, no model is asked and nothing is left in the box's place. Every sparkles feature goes through `useAiFeatures()`.
+Revisit if: never on its own.
+
 ### Moderation is model-first
 2026-09-26 · owner · app-wide
 Workers AI with Meta models screens reviews and chat; clean items publish on their own and only unclear ones reach the owner. Answers to graded work are held in reviews. Keep the human queue small.
@@ -199,8 +204,13 @@ Revisit if: people hit conflicts often.
 
 ### Four-year plans sync through the scheduler's engine
 2026-09-27 · agent · one feature
-One engine, one pull cursor and one set of flags for plans, settings and four-year plans. It runs on whichever page is open (the scheduler, or Plan at `/plan`) with that page's store, and keeps the other product's docs in IndexedDB, so neither page can skip a kind and lose it.
+One engine, one pull cursor and one set of flags for plans, settings and four-year plans. It runs on whichever page is open (the scheduler, or Plan at `/plan`) with that page's store, and keeps the other product's docs in IndexedDB, so neither page can skip a kind and lose it. (changed 2026-09-27: Settings, Reviews and Chat run it too while signed in, with no store, for the synced prefs.)
 Revisit if: a third product needs sync, or loading the whole engine on Plan costs too much.
+
+### Other products' prefs ride the settings doc
+2026-09-27 · agent · one feature
+Prefs that aren't Schedule's (AI features, Chat's room rules seen) are one `prefs` object in the settings doc and one `prefs` row on the device. It's loose, so every build carries keys it doesn't know, and a conflict settles it per product key, like a course's color. Schedule never edits it but always pushes it whole. Every page reads a localStorage copy (Reviews loads no IndexedDB up front), which whatever writes the row keeps current.
+Revisit if: a pref needs merging inside its own key, or a pref must be read on the server.
 
 ## Reviews
 

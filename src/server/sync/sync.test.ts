@@ -225,6 +225,40 @@ describe("sync/push", () => {
     ]);
   });
 
+  it("keeps the settings doc's prefs whole, even keys this build doesn't know", async () => {
+    const phone = await signIn("tstudent");
+    const laptop = await signIn("tstudent");
+    const prefs = {
+      ai: { features: false },
+      chatRules: { seen: ["CMSC351"] },
+      later: { view: "week" },
+    };
+    await phone.push({
+      kind: "settings",
+      id: "settings",
+      baseRev: 0,
+      body: aSettingsDoc({ prefs }),
+    });
+    const { docs } = await laptop.pullAll();
+    expect(docs).toMatchObject([{ kind: "settings", body: { prefs } }]);
+  });
+
+  it("reads a settings doc saved before prefs as having none", async () => {
+    const phone = await signIn("tstudent");
+    const { prefs: _, ...before } = aSettingsDoc();
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO sync_heads (user_id, head) VALUES ('tstudent', 1)",
+      ),
+      env.DB.prepare(
+        `INSERT INTO sync_docs (user_id, kind, doc_id, rev, deleted, body, updated_at)
+         VALUES ('tstudent', 'settings', 'settings', 1, 0, ?1, ?2)`,
+      ).bind(JSON.stringify(before), now().toISOString()),
+    ]);
+    const { docs } = await phone.pullAll();
+    expect(docs).toMatchObject([{ kind: "settings", body: { prefs: {} } }]);
+  });
+
   it("lets exactly one of several concurrent saves win", async () => {
     const devices = await Promise.all(
       Array.from({ length: 6 }, () => signIn("tstudent")),

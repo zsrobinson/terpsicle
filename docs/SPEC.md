@@ -21,7 +21,7 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
 4. **Built for poking around.** People use it a few times a semester, so every control must be obvious on first sight, with light keyboard shortcuts on top.
 5. **Words before charts.** A chart only appears where it's clearer than a sentence.
 6. **Local-first; an account is optional (v2).** Everything in the scheduler works signed out, in the browser. Signing in with a UMD Google account syncs plans between devices and unlocks Chat, writing reviews and seat alerts. terpsicle.com sets a cookie only once someone signs in, and signing out removes it. Server-side user data is what `docs/V2.md` lists: the account (Google name and picture, UMD email, directory ID), synced plans, seat watches, notification settings, reviews and chat messages. v3 adds synced four-year plans (with any grades the person imported) and, for Todo, the encrypted ELMS calendar link, the deadlines it lists and done marks (`docs/V3.md` §5).
-7. **AI only on the backend, and only where it's clearly better.** No chatbot and no natural-language input (Terpsicle Chat is people talking to each other). v2: models are used only for review summaries, their small generated chips, and moderation. The sparkles icon marks LLM output, and only LLM output.
+7. **AI only on the backend, and only where it's clearly better.** No chatbot and no natural-language input (Terpsicle Chat is people talking to each other). v2: models are used only for review summaries, their small generated chips, and moderation. The sparkles icon marks LLM output, and only LLM output, and students can turn off everything that carries it (§3.13).
 
 **Not in the first release:** final exams, comparing plans side by side (future), image export, credit-limit warnings (the limit depends on major), and hiding courses from search. (v2: accounts and plan sync are in; `docs/V2.md` §4–5.)
 
@@ -238,6 +238,7 @@ Seat alerts are a signed-in feature (`docs/V2.md` §6.5). The owner calls it **S
 - **Tooltips on everything interactive.** Shortcuts appear in tooltips: `/` search, `1`–`7` tabs, `↑`/`↓` preview section, `↵` switch, `Esc` back/close, `⌘Z` undo.
 - **Remember** the open tab and drilled-in item between visits (per browser).
 - **Microcopy:** plain words, active voice, specific errors. The review summary is the only place the sparkles icon appears.
+- **AI features can be turned off** (owner, 2026-09-27). "Show AI summaries" in Settings, on by default, local signed out and the account's signed in; each AI box's ⋯ menu has "Hide AI summaries" with Undo. Off, no summary is asked for and nothing shows in its place. Every future sparkles feature goes through `useAiFeatures()` and `AiSparkles` (DESIGN.md §5).
 - **Contractions (v3, owner):** copy uses contractions everywhere, in the app and on marketing pages: "it's", "you'll", "don't", "we'll", "isn't". The product should feel a little personal. Write "Nothing's due tomorrow", not "Nothing is due tomorrow"; "We couldn't read that link", not "The link could not be read".
 
 ---

@@ -15,10 +15,11 @@ import { dexieSyncStorage, type SyncStorage } from "./storage";
 import { SYNC_STATUS_LOOK } from "./view";
 
 // Plan sync on a page: the lazy chunk the scheduler (and Plan, for its
-// four-year docs) loads once /api/me says someone is signed in, so signed-out
-// visitors download none of it. Wires the engine to IndexedDB, the page's
-// store, the page's events and the browser's other tabs. Everything from the
-// page comes in `SyncHost`.
+// four-year docs, and any other page for the synced prefs,
+// ~/features/prefs/account-sync) loads once /api/me says someone is signed
+// in, so signed-out visitors download none of it. Wires the engine to
+// IndexedDB, the page's store, the page's events and the browser's other
+// tabs. Everything from the page comes in `SyncHost`.
 
 export type { SyncHost } from "./running";
 
@@ -30,6 +31,11 @@ let current: { userId: string; host: SyncHost; teardown: () => void } | null =
 
 /** The scheduler doesn't hold four-year docs: sync leaves them to IndexedDB. */
 const NO_FOUR_YEAR = [] as const;
+/**
+ * Nor the other products' prefs: whoever changes them marks the settings doc
+ * themselves (~/features/prefs/save), and a push reads them from IndexedDB.
+ */
+const NO_PREFS = {};
 
 function tablesOf(s: WorkspaceState): SyncedTables {
   return {
@@ -39,6 +45,7 @@ function tablesOf(s: WorkspaceState): SyncedTables {
     travel: s.travel,
     chatPlans: s.chatPlans,
     fourYear: NO_FOUR_YEAR,
+    prefs: NO_PREFS,
   };
 }
 
@@ -106,7 +113,9 @@ export function startSync(host: SyncHost, userId: string): void {
       applying = true;
       try {
         if (host.workspace) applyRemoteChange(host.workspace, change);
-        else if (change.fourYear?.length) host.fourYear.apply(change.fourYear);
+        else if (host.fourYear && change.fourYear?.length)
+          host.fourYear.apply(change.fourYear);
+        if (change.settings) host.showPrefs(change.settings.prefs);
       } finally {
         applying = false;
       }
@@ -133,10 +142,12 @@ export function startSync(host: SyncHost, userId: string): void {
         if (applying || !next.hydrated || !prev.hydrated) return;
         engine.noteEdit(tablesOf(prev), tablesOf(next));
       })
-    : host.fourYear.subscribe((prev, next) => {
-        if (applying) return;
-        engine.noteEditedDocs(changedFourYearKeys(prev, next));
-      });
+    : host.fourYear
+      ? host.fourYear.subscribe((prev, next) => {
+          if (applying) return;
+          engine.noteEditedDocs(changedFourYearKeys(prev, next));
+        })
+      : () => {};
   const onVisible = () => {
     if (document.visibilityState === "visible") void engine.sync();
   };
@@ -177,9 +188,13 @@ export function startSync(host: SyncHost, userId: string): void {
   };
   void resetIfSignedOut(storage)
     .catch(console.error)
+    // The page's copy of the prefs starts from this device's.
+    .then(() => storage.read())
+    .then((s) => host.showPrefs(s.tables.prefs), console.error)
     .then(() => {
       if (runningEngine() === engine) return engine.start();
-    });
+    })
+    .then(() => host.settled(), console.error);
 }
 
 /** Stops syncing; with `host`, only if that page's engine is the one running. */

@@ -6,7 +6,6 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { PanelNote } from "~/app/panel";
 import {
@@ -23,6 +22,7 @@ import {
   typingIn,
   typingWords,
 } from "~/core/chat";
+import { chatRulesSeen, withChatRulesSeen } from "~/core/prefs";
 import {
   type ChatAuthor,
   type ChatMessageId,
@@ -30,6 +30,11 @@ import {
   ChatRulesSeenStoreSchema,
   type CourseCode,
 } from "~/core/schema";
+import {
+  saveSyncedPrefs,
+  useAccountPrefsSettled,
+  useSyncedPrefs,
+} from "~/features/prefs/synced-prefs";
 import { api } from "~/server/fns/api";
 import { chatApi } from "~/server/fns/chat-api";
 import { Button } from "~/ui/button";
@@ -52,33 +57,46 @@ import { showNote, showUndo, useNow } from "./undo";
 // starts, who's typing, and the composer. It sticks to the bottom while
 // you're there, and marks the room read as you see it.
 
-/** Rules shown once per course, the first time you open its chat. */
-const RULES_SEEN_KEY = "terpsicle:chat-rules-seen";
+/**
+ * Where this browser kept the courses whose rules it had seen, before they
+ * followed the account (QA1 C7): moved into the synced prefs once.
+ */
+const LEGACY_RULES_SEEN_KEY = "terpsicle:chat-rules-seen";
 
-function readRulesSeen(): CourseCode[] {
+function adoptLegacyRulesSeen(): void {
+  let codes: CourseCode[] = [];
   try {
-    const parsed = ChatRulesSeenStoreSchema.safeParse(
-      JSON.parse(localStorage.getItem(RULES_SEEN_KEY) ?? "[]"),
-    );
-    return parsed.success ? parsed.data : [];
+    const raw = localStorage.getItem(LEGACY_RULES_SEEN_KEY);
+    if (raw === null) return;
+    const parsed = ChatRulesSeenStoreSchema.safeParse(JSON.parse(raw));
+    if (parsed.success) codes = parsed.data;
+    localStorage.removeItem(LEGACY_RULES_SEEN_KEY);
   } catch {
-    return [];
+    // Storage blocked, or a list that doesn't read: nothing to move.
+    return;
   }
+  if (codes.length > 0)
+    void saveSyncedPrefs((prefs) => withChatRulesSeen(prefs, codes));
 }
 
-function rulesSeen(courseCode: CourseCode): boolean {
-  return readRulesSeen().includes(courseCode);
-}
-
-function markRulesSeen(courseCode: CourseCode): void {
-  try {
-    localStorage.setItem(
-      RULES_SEEN_KEY,
-      JSON.stringify([...new Set([...readRulesSeen(), courseCode])]),
-    );
-  } catch {
-    // Storage blocked: the rules show again next time, which is fine.
-  }
+/**
+ * Rules shown once per course, the first time you open its chat on any
+ * device: "seen" is a synced pref (~/features/prefs), so it follows the
+ * account. Null until the account's prefs have been read, so a new device
+ * doesn't flash rules you've already closed elsewhere.
+ */
+function useRulesSeen(courseCode: CourseCode): {
+  seen: boolean | null;
+  markSeen: () => void;
+} {
+  useEffect(adoptLegacyRulesSeen, []);
+  const prefs = useSyncedPrefs();
+  const settled = useAccountPrefsSettled();
+  return {
+    seen: prefs === null || !settled ? null : chatRulesSeen(prefs, courseCode),
+    markSeen: () =>
+      void saveSyncedPrefs((p) => withChatRulesSeen(p, [courseCode])),
+  };
 }
 
 /** Who can be @-mentioned here: the room's members (at most 200), you aside. */
@@ -324,7 +342,8 @@ function Messages({
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
-  const [rules, setRules] = useState(() => !rulesSeen(courseCode));
+  const rulesSeen = useRulesSeen(courseCode);
+  const rules = rulesSeen.seen === false;
   const nowIso = new Date(now).toISOString();
 
   // Stick to the bottom while you're there; keep your place when older ones load.
@@ -383,10 +402,7 @@ function Messages({
               size="sm"
               variant="outline"
               className="self-start"
-              onClick={() => {
-                markRulesSeen(courseCode);
-                setRules(false);
-              }}
+              onClick={rulesSeen.markSeen}
             >
               Got it
             </Button>

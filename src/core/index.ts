@@ -12,6 +12,7 @@ export * from "./grades";
 export * from "./ics";
 export * from "./moderation";
 export * from "./plans";
+export * from "./prefs";
 export * from "./problems";
 export * from "./pwa";
 export * from "./reviews";

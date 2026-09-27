@@ -8,6 +8,7 @@ import {
   LocalSyncMetaSchema,
   PlanSchema,
   type SettingsDoc,
+  SyncedPrefsSchema,
   TravelSettingsSchema,
   validRows,
 } from "~/core/schema";
@@ -55,8 +56,8 @@ export interface SyncStorage {
   /** Forgets the account (flags, cursor, base). Plans stay. */
   clearSync(): Promise<void>;
   /**
-   * Removes plans, blocks, colors, travel, chat plans and four-year plans too
-   * (sign out and remove).
+   * Removes plans, blocks, colors, travel, chat plans, four-year plans and
+   * the other products' prefs too (sign out and remove).
    */
   clearAll(): Promise<void>;
 }
@@ -68,6 +69,7 @@ export const EMPTY_TABLES: SyncedTables = {
   travel: DEFAULT_TRAVEL_SETTINGS,
   chatPlans: {},
   fourYear: [],
+  prefs: {},
 };
 
 export const EMPTY_SNAPSHOT: SyncSnapshot = {
@@ -131,6 +133,12 @@ function sameFlags(a: DocSync | undefined, b: DocSync | undefined): boolean {
 const SETTINGS_SYNC_ROW = "sync";
 /** Plan's open four-year doc (`FourYearPrefs`): local, but it names a doc that goes with them. */
 const SETTINGS_FOUR_YEAR_ROW = "fourYear";
+/**
+ * The other products' prefs (`SyncedPrefs`), whoever wrote them: Settings,
+ * Reviews and Chat write this row too (~/features/prefs), so every step reads
+ * it fresh and a Schedule push carries what they wrote.
+ */
+export const SETTINGS_PREFS_ROW = "prefs";
 
 export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
   const tables = [
@@ -148,14 +156,20 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
         db.plans.toArray(),
         db.blocks.toArray(),
         db.courseColors.toArray(),
-        db.settings.bulkGet(["travel", "chatPlans", SETTINGS_SYNC_ROW]),
+        db.settings.bulkGet([
+          "travel",
+          "chatPlans",
+          SETTINGS_SYNC_ROW,
+          SETTINGS_PREFS_ROW,
+        ]),
         db.syncDocs.toArray(),
         db.fourYear.toArray(),
       ],
     );
-    const [travelRow, chatPlansRow, syncRow] = settings;
+    const [travelRow, chatPlansRow, syncRow, prefsRow] = settings;
     const travel = TravelSettingsSchema.safeParse(travelRow?.value);
     const chatPlans = ChatPlansSchema.safeParse(chatPlansRow?.value);
+    const prefs = SyncedPrefsSchema.safeParse(prefsRow?.value);
     const meta = LocalSyncMetaSchema.safeParse(syncRow?.value);
     const flags: Partial<Record<DocKey, DocSync>> = {};
     let base: SettingsDoc | null = null;
@@ -183,6 +197,7 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
         travel: travel.success ? travel.data : DEFAULT_TRAVEL_SETTINGS,
         chatPlans: chatPlans.success ? chatPlans.data : {},
         fourYear: validFourYearRows(fourYear),
+        prefs: prefs.success ? prefs.data : {},
       },
     };
   }
@@ -216,6 +231,8 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
       await db.settings.put({ key: "travel", value: a.travel });
     if (a.chatPlans !== b.chatPlans)
       await db.settings.put({ key: "chatPlans", value: { ...a.chatPlans } });
+    if (a.prefs !== b.prefs)
+      await db.settings.put({ key: SETTINGS_PREFS_ROW, value: { ...a.prefs } });
     if (a.fourYear !== b.fourYear) {
       const { put, remove } = rowChanges(b.fourYear, a.fourYear);
       if (put.length) await db.fourYear.bulkPut(put);
@@ -285,6 +302,7 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
             "chatPlans",
             SETTINGS_SYNC_ROW,
             SETTINGS_FOUR_YEAR_ROW,
+            SETTINGS_PREFS_ROW,
           ]),
         ]);
       }),
