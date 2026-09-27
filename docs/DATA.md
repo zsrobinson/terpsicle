@@ -654,6 +654,7 @@ The design is `docs/V2.md` §6 (its "As built" under §6.4). Routes: `src/server
 - **Signing out** with `pushEndpoint` deletes that device's row.
 - **Chat's dedupe keys** (`v2/chat-notify`): `chat-mention:<user>:<message>` and `chat-reply:<user>:<message>` (`…:push`), and `chat-digest:<user>:<College Park date>` (`…:email`). Chat pushes stop at 30 per person per hour (counted from these rows).
 - **One-click off** (RFC 8058): `POST /api/notifications/email-off?u&t&k` turns off type `t`'s email for person `u`; `k` is `keyedHash("email-off:<u>:<t>")`. The chat digest carries it; seat alerts keep `alerts/one-click`, which stops the watch.
+- **Due tomorrow's dedupe key** (`v3/todo-notify`, V3.md §4): `todo-due:<user>:<New York date>` (`…:push`), one a day whatever retries happen.
 
 ## 8. Share links
 

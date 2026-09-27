@@ -76,7 +76,7 @@ export const TYPE_ROWS: readonly TypeRow[] = [
     type: "todo-due",
     title: "Due tomorrow",
     detail: "At 6pm, when something in Todo is due the next day.",
-    sending: false,
+    sending: true,
   },
 ];
 
@@ -112,6 +112,7 @@ export function NotificationSettingsSection() {
   const pushOn = useAccount((s) => s.flags.push);
   const publicKey = useAccount((s) => s.pushPublicKey);
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
+  const [todoConnected, setTodoConnected] = useState(false);
   const [devices, setDevices] = useState<PushDevice[] | null>(null);
   // Devices removed but still in Undo's window: hidden from every list,
   // whatever a refresh brings back, until the server hears or Undo.
@@ -126,6 +127,7 @@ export function NotificationSettingsSection() {
         notificationsApi.devices(endpoint ? { endpoint } : {}),
       ]);
       setSettings(s.settings);
+      setTodoConnected(s.todoConnected === true);
       setDevices(d.devices);
       setFailed(false);
     } catch {
@@ -167,7 +169,12 @@ export function NotificationSettingsSection() {
 
   return (
     <>
-      <TypeRows settings={settings} onChange={setSettings} pushOn={pushOn} />
+      <TypeRows
+        settings={settings}
+        onChange={setSettings}
+        pushOn={pushOn}
+        todoConnected={todoConnected}
+      />
       {pushOn && publicKey ? (
         <ThisDevice publicKey={publicKey} devices={shown} onChanged={refresh} />
       ) : (
@@ -203,10 +210,13 @@ function TypeRows({
   settings,
   onChange,
   pushOn,
+  todoConnected,
 }: {
   settings: NotificationSettings;
   onChange: (next: NotificationSettings) => void;
   pushOn: boolean;
+  /** "Due tomorrow" needs an ELMS feed in Todo (V3.md §4). */
+  todoConnected: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const save = async (next: NotificationSettings) => {
@@ -224,33 +234,56 @@ function TypeRows({
     <Group>
       <SubHeading>What to send</SubHeading>
       <ul className="space-y-3">
-        {TYPE_ROWS.map((row) => (
-          <li key={row.type} className="space-y-2">
-            <div>
-              <div className="font-medium text-fg">{row.title}</div>
-              <p className="text-sm">
-                {row.detail}
-                {row.sending ? null : (
-                  <span className="text-muted"> Coming soon.</span>
-                )}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {NOTIFICATION_CHANNELS[row.type].map((channel) => (
-                <ChannelSwitch
-                  key={channel}
-                  row={row}
-                  channel={channel}
-                  on={channelOn(settings, row.type, channel)}
-                  available={row.sending && (channel !== "push" || pushOn)}
-                  onToggle={(on) =>
-                    void save(withChannel(settings, row.type, channel, on))
-                  }
-                />
-              ))}
-            </div>
-          </li>
-        ))}
+        {TYPE_ROWS.map((row) => {
+          const needsTodo = row.type === "todo-due" && !todoConnected;
+          return (
+            <li key={row.type} className="space-y-2">
+              <div>
+                <div className="font-medium text-fg">{row.title}</div>
+                <p className="text-sm">
+                  {row.detail}
+                  {!row.sending ? (
+                    <span className="text-muted"> Coming soon.</span>
+                  ) : needsTodo ? (
+                    <span className="text-muted">
+                      {" "}
+                      <WithTooltip label="Open Todo's connect page">
+                        <a
+                          href="/todo/connect"
+                          className="underline underline-offset-2 hover:text-fg"
+                        >
+                          Connect ELMS in Todo
+                        </a>
+                      </WithTooltip>{" "}
+                      to get this.
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {NOTIFICATION_CHANNELS[row.type].map((channel) => (
+                  <ChannelSwitch
+                    key={channel}
+                    row={row}
+                    channel={channel}
+                    on={!needsTodo && channelOn(settings, row.type, channel)}
+                    available={
+                      row.sending &&
+                      !needsTodo &&
+                      (channel !== "push" || pushOn)
+                    }
+                    unavailableWords={
+                      needsTodo ? "Connect ELMS in Todo first" : undefined
+                    }
+                    onToggle={(on) =>
+                      void save(withChannel(settings, row.type, channel, on))
+                    }
+                  />
+                ))}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       {error ? (
         <p role="status" className="text-fg text-sm">
@@ -266,19 +299,22 @@ function ChannelSwitch({
   channel,
   on,
   available,
+  unavailableWords = "Coming soon",
   onToggle,
 }: {
   row: TypeRow;
   channel: Channel;
   on: boolean;
   available: boolean;
+  /** The tooltip while it can't be switched. */
+  unavailableWords?: string | undefined;
   onToggle: (on: boolean) => void;
 }) {
   const words = CHANNEL_WORDS[channel];
   const Icon = channel === "push" ? Bell : Mail;
   const label = available
     ? `${on ? "Turn off" : "Turn on"} ${row.title.toLowerCase()} by ${words.toLowerCase()}`
-    : "Coming soon";
+    : unavailableWords;
   return (
     <WithTooltip label={label}>
       <button

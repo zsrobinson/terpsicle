@@ -27,6 +27,7 @@ import {
   saveSubscription,
   subscriptionsOf,
 } from "../push/store";
+import { getFeed, resumePausedFeed } from "../todo/store";
 import { type NotifyEnv, sendTestPush } from "./notify";
 import { readSettings, writeSettings } from "./store";
 
@@ -124,7 +125,11 @@ export async function getSettings(
 ): Promise<NotificationSettingsResult | Response> {
   const userId = userOf(ctx);
   if (!userId) return apiError("unauthorized");
-  return { settings: await readSettings(env.DB, userId) };
+  const [settings, feed] = await Promise.all([
+    readSettings(env.DB, userId),
+    getFeed(env.DB, userId),
+  ]);
+  return { settings, todoConnected: feed !== null };
 }
 
 export async function setSettings(
@@ -134,6 +139,9 @@ export async function setSettings(
 ): Promise<NotificationSettingsResult | Response> {
   const userId = userOf(ctx);
   if (!userId) return apiError("unauthorized");
+  const before = await readSettings(env.DB, userId);
   await writeSettings(env.DB, userId, input.settings, ctx.now);
+  if (input.settings.todoDue.push && !before.todoDue.push)
+    await resumePausedFeed(env.DB, userId, ctx.now);
   return { settings: input.settings };
 }
