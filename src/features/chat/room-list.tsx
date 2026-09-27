@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, termPlans, useChatHome, useChatPlan } from "./chat-home";
+import { CourseFinder } from "./course-finder";
 import type { ChatGo, ChatView } from "./nav";
 import { RoomRow, UnreadCount } from "./room-row";
 import { showNote } from "./undo";
@@ -62,7 +63,7 @@ export function RoomList({ view, go }: { view: ChatView; go: ChatGo }) {
             We couldn't load your classes. Check your connection and try again.
           </EmptyState>
         ) : list.length === 0 ? (
-          <NoRooms />
+          <NoRooms go={go} />
         ) : (
           <ul aria-label="Your classes">
             {list.map((c) => (
@@ -203,21 +204,27 @@ function ListControls() {
   );
 }
 
-function NoRooms() {
+/**
+ * No classes in a synced plan yet: any course's room is still a search away
+ * (course rooms are open to anyone signed in), and the scheduler is where
+ * your own rooms come from.
+ */
+function NoRooms({ go }: { go: ChatGo }) {
   return (
-    <EmptyState
-      action={
+    <div className="py-3">
+      <p className="px-4 pb-3 text-muted text-sm">
+        No classes here yet. Find any course to open its chat, or add classes to
+        a plan and their rooms show up here.
+      </p>
+      <CourseFinder go={go} />
+      <div className="px-4 pt-4">
         <WithTooltip label="Add classes to a plan">
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm" className="max-md:h-11">
             <a href="/schedule">Open the scheduler</a>
           </Button>
         </WithTooltip>
-      }
-    >
-      Your rooms come from the plans you've synced. Add classes in the
-      scheduler, or open a course's chat from its page there, and they'll show
-      up here.
-    </EmptyState>
+      </div>
+    </div>
   );
 }
 

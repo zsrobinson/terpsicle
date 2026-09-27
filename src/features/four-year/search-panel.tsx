@@ -1,4 +1,4 @@
-import { Plus, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
@@ -9,7 +9,7 @@ import {
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import { parsePlaceholder } from "~/core/four-year/wildcards";
 import { type CourseSearchRow, GEN_ED_LABELS } from "~/core/schema";
-import { WILDCARD_CREDITS } from "~/core/schema/four-year";
+import { type FourYearTerm, WILDCARD_CREDITS } from "~/core/schema/four-year";
 import { useCourseIndex } from "~/state/course-index-store";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
@@ -21,6 +21,7 @@ import {
   pickForPlaceholder,
 } from "./actions";
 import { useModel, usePlanNav } from "./model";
+import { showPlanNote } from "./toasts";
 
 // The Search tab (V3 §2.9, §2.13): every course in the course index, any
 // term. Typing CMSC4XX or "any DSHS" offers a placeholder first. From a
@@ -44,22 +45,32 @@ export function focusSearch(via: "search" | "column" = "search"): void {
   useSearchFocus.setState((s) => ({ asked: s.asked + 1, via }));
 }
 
+/** Enter in the box acts on the top result; its button's tooltip says so. */
+const ENTER = "↵";
+
 function ResultRow({
   row,
   action,
   actionLabel,
   onAct,
+  addedTo = null,
+  top = false,
 }: {
   row: CourseSearchRow;
   action: string;
   actionLabel: string;
   onAct: () => void;
+  /** The semester it's already in, when that's the one you're adding to: no second copy. */
+  addedTo?: FourYearTerm | null;
+  /** The top result, which Enter in the search box acts on. */
+  top?: boolean;
 }) {
   const nav = usePlanNav();
   const { doc } = useModel();
   const [code, title, , , genEds] = row;
+  // "Added" already names the semester you're adding to.
   const where = doc.entries
-    .filter((e) => e.kind === "course" && e.code === code)
+    .filter((e) => e.kind === "course" && e.code === code && e.term !== addedTo)
     .map((e) => fourYearTermLabel(e.term));
   return (
     <li className="flex items-center gap-1 border-hairline border-b pr-2">
@@ -88,17 +99,30 @@ function ResultRow({
           ) : null}
         </button>
       </WithTooltip>
-      <WithTooltip label={actionLabel}>
-        <Button
-          variant="outline"
-          size="row"
-          aria-label={actionLabel}
-          className="h-11 md:h-6"
-          onClick={onAct}
-        >
-          {action}
-        </Button>
-      </WithTooltip>
+      {addedTo ? (
+        <WithTooltip label={`Already in ${fourYearTermLabel(addedTo)}`}>
+          <span
+            data-testid="plan-search-added"
+            className="flex h-11 shrink-0 items-center gap-1 px-2 text-muted text-sm md:h-6"
+          >
+            <Check size={13} aria-hidden="true" />
+            Added
+            <span className="sr-only"> to {fourYearTermLabel(addedTo)}</span>
+          </span>
+        </WithTooltip>
+      ) : (
+        <WithTooltip label={actionLabel} shortcut={top ? ENTER : undefined}>
+          <Button
+            variant="outline"
+            size="row"
+            aria-label={actionLabel}
+            className="h-11 md:h-6"
+            onClick={onAct}
+          >
+            {action}
+          </Button>
+        </WithTooltip>
+      )}
     </li>
   );
 }
@@ -157,6 +181,35 @@ export function SearchPanel() {
   const parsed = resolving ? null : parsePlaceholder(query);
   const offer = parsed?.kind === "wildcard" ? parsed.wildcard : null;
   const targetName = fourYearTermLabel(target);
+  const inTarget = useMemo(
+    () =>
+      new Set(
+        doc.entries.flatMap((e) =>
+          e.kind === "course" && e.term === target ? [e.code] : [],
+        ),
+      ),
+    [doc, target],
+  );
+
+  const addOffer = (wildcard: NonNullable<typeof offer>) => {
+    addPlaceholder(doc, wildcard, target);
+    type("");
+  };
+  const pick = (code: string) => {
+    if (!resolving) return;
+    void pickForPlaceholder(resolving.id, code);
+    nav.go({ wildcard: undefined, q: undefined });
+  };
+  /** Enter: what the top result's button does (the placeholder offer comes first). */
+  const actOnTop = () => {
+    if (offer) return addOffer(offer);
+    const code = result?.rows[0]?.[0];
+    if (!code) return;
+    if (resolving) return pick(code);
+    if (inTarget.has(code))
+      return showPlanNote(`${code}'s already in ${targetName}`);
+    addCourse(doc, code, target, useSearchFocus.getState().via);
+  };
 
   const scopeLine = resolving ? (
     <>
@@ -177,7 +230,14 @@ export function SearchPanel() {
         <label htmlFor={SEARCH_INPUT_ID} className="sr-only">
           Search courses
         </label>
-        <WithTooltip label="Search every course in Testudo" shortcut="/">
+        <WithTooltip
+          label={
+            resolving
+              ? "Search every course in Testudo. Enter picks the top one"
+              : "Search every course in Testudo. Enter adds the top one"
+          }
+          shortcut="/"
+        >
           <input
             ref={input}
             id={SEARCH_INPUT_ID}
@@ -186,6 +246,12 @@ export function SearchPanel() {
             spellCheck={false}
             value={query}
             onChange={(event) => type(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.nativeEvent.isComposing)
+                return;
+              event.preventDefault();
+              actOnTop();
+            }}
             placeholder="CMSC351, a title, CMSC4XX or DSHS"
             className="h-11 w-full border border-hairline-strong bg-raised px-2.5 text-base outline-none placeholder:text-faint focus-visible:border-fg md:h-8"
           />
@@ -237,15 +303,12 @@ export function SearchPanel() {
               , {WILDCARD_CREDITS.default} cr until you pick one
             </span>
           </span>
-          <WithTooltip label={`Add it to ${targetName}`}>
+          <WithTooltip label={`Add it to ${targetName}`} shortcut={ENTER}>
             <Button
               size="row"
               aria-label={`Add ${offer.kind === "pattern" ? offer.pattern : wildcardLabel(offer)} to ${targetName}`}
               className="h-11 md:h-6"
-              onClick={() => {
-                addPlaceholder(doc, offer, target);
-                type("");
-              }}
+              onClick={() => addOffer(offer)}
             >
               <Plus aria-hidden="true" />
               Add
@@ -285,17 +348,15 @@ export function SearchPanel() {
       ) : (
         <>
           <ul aria-label="Courses">
-            {result.rows.map((row) =>
+            {result.rows.map((row, i) =>
               resolving ? (
                 <ResultRow
                   key={row[0]}
                   row={row}
                   action="Pick"
                   actionLabel={`Use ${row[0]} for ${entryName(resolving)}`}
-                  onAct={() => {
-                    void pickForPlaceholder(resolving.id, row[0]);
-                    nav.go({ wildcard: undefined, q: undefined });
-                  }}
+                  onAct={() => pick(row[0])}
+                  top={i === 0}
                 />
               ) : (
                 <ResultRow
@@ -311,6 +372,8 @@ export function SearchPanel() {
                       useSearchFocus.getState().via,
                     )
                   }
+                  addedTo={inTarget.has(row[0]) ? target : null}
+                  top={i === 0 && !offer}
                 />
               ),
             )}

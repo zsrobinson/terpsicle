@@ -11,6 +11,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type ChatUnreadRoom,
+  COURSE_INDEX_MANIFEST_KEY,
+  courseRoomId,
+  courseSearchKey,
   deptChunkKey,
   type MeUser,
   manifestKey,
@@ -19,6 +22,8 @@ import {
 } from "~/core/schema";
 import {
   aCourse,
+  aCourseIndexManifest,
+  aCourseSearchFile,
   aDeptChunk,
   aManifest,
   aManifestDepartment,
@@ -65,6 +70,14 @@ const files: Record<string, unknown> = {
   }),
   [deptChunkKey(fixtureTermId, "CMSC", FIXTURE_HASH)]: aDeptChunk({
     courses: [cmsc351],
+  }),
+  // The course index lists every term's courses: CMSC352 isn't in this one.
+  [COURSE_INDEX_MANIFEST_KEY]: aCourseIndexManifest(),
+  [courseSearchKey(FIXTURE_HASH)]: aCourseSearchFile({
+    courses: [
+      ["CMSC351", "Algorithms", 3, 3, []],
+      ["CMSC352", "Algorithms II", 3, 3, []],
+    ],
   }),
 };
 const data = fetchChatData("/data", async (url) => {
@@ -150,6 +163,8 @@ beforeEach(() => {
     unread: [],
     follows: {},
     mutes: {},
+    courseRows: null,
+    courseRowsState: "idle",
   });
 });
 
@@ -255,5 +270,72 @@ describe("ChatPage", () => {
     expect(client.chat.unfollow).toHaveBeenCalled();
     await user.click(await screen.findByRole("button", { name: "Undo" }));
     expect(client.chat.follow).toHaveBeenCalledTimes(2);
+  });
+
+  it("with no classes yet, finds any course and opens its room, with ↵", async () => {
+    signedIn();
+    const client = fakeClient();
+    client.sync.pull.mockResolvedValue({
+      status: "ok",
+      cursor: 0,
+      more: false,
+      docs: [],
+    });
+    const { go, user } = await page();
+    expect(await screen.findByText(/No classes here yet/)).toBeInTheDocument();
+    // The scheduler stays, second.
+    expect(
+      screen.getByRole("link", { name: "Open the scheduler" }),
+    ).toHaveAttribute("href", "/schedule");
+
+    const box = screen.getByRole("searchbox", { name: "Find a course's chat" });
+    await user.type(box, "algorithms");
+    const results = await screen.findByRole("list", { name: "Courses" });
+    expect(
+      within(results)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["CMSC351Algorithms", "CMSC352Algorithms II"]);
+    await user.hover(within(results).getAllByRole("button")[0] as HTMLElement);
+    expect(
+      await screen.findByRole("tooltip", {
+        name: "Open CMSC351's course room ↵",
+      }),
+    ).toBeInTheDocument();
+
+    await user.type(box, "{Enter}");
+    await vi.waitFor(() =>
+      expect(go).toHaveBeenCalledWith(
+        {
+          term: undefined,
+          course: "CMSC351",
+          room: courseRoomId(fixtureTermId, "CMSC351"),
+        },
+        undefined,
+      ),
+    );
+  });
+
+  it("says so when a course found has no rooms this term", async () => {
+    signedIn();
+    const client = fakeClient();
+    client.sync.pull.mockResolvedValue({
+      status: "ok",
+      cursor: 0,
+      more: false,
+      docs: [],
+    });
+    const { go, user } = await page();
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Find a course's chat" }),
+      "cmsc352",
+    );
+    await user.click(await screen.findByRole("button", { name: /^CMSC352/ }));
+    expect(
+      await screen.findByText(
+        `CMSC352 isn't offered in ${aTerm().name}, so it has no chat this term.`,
+      ),
+    ).toBeInTheDocument();
+    expect(go).not.toHaveBeenCalled();
   });
 });
