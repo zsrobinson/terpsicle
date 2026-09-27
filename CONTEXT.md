@@ -72,8 +72,15 @@ _Avoid_: log in, magic link
 **Directory ID**:
 The part of a UMD email before the @. It's who a person is to Terpsicle: `x@umd.edu` and `x@terpmail.umd.edu` are one account.
 
+**Notification**:
+A push on your phone or computer, or an email, for one of the few kinds: seat openings, mentions and replies in Chat, and Todo's Due tomorrow. Each kind has its switches in Settings ("Notification", "Email").
+_Avoid_: alert, push (in UI; code says push for the web push channel)
+
+**Device**:
+A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
+
 **Sync**:
-Keeping a signed-in person's plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)".
+Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)".
 
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
@@ -250,7 +257,8 @@ A wildcard in a four-year plan ("CMSC4XX", "Any DSHS course"), dashed, counting 
 Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser, and grades stay private.
 
 **Template**:
-A hand-made starting four-year plan for a major, credited to its source.
+A hand-made starting four-year plan for a major, credited to its source. Copy calls it a **sample plan**, in the side panel's Samples tab, and adding one fills only empty semesters.
+_Avoid_: roadmap, preset
 
 ## Todo
 

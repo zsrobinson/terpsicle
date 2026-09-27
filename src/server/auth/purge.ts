@@ -53,6 +53,13 @@ export const PURGE_LEDGER = {
   chat_room_prefs: "deleted",
   chat_author_courses:
     "each row deleted once purgeAuthor has run on its course's object",
+  // 0006_notifications
+  notification_settings: "deleted",
+  push_subscriptions:
+    "deleted (account/delete already dropped them, a week earlier)",
+  notifications: "deleted: the person's chat mentions and replies",
+  notification_deliveries:
+    "kept for dedupe and counts, user_id set to null; pruned after 90 days",
   // 0007_seat_watches
   seat_watches: "deleted",
   seat_alert_sends: "deleted",
@@ -249,6 +256,16 @@ export function accountStatements(
     byUser("chat_author_courses"),
     // The owner's stops on them (the users columns go with the row).
     byUser("author_stops"),
+    // Notifications: settings, devices and chat notifications go; the
+    // record of what was sent stays, linked to nobody.
+    byUser("notification_settings"),
+    byUser("push_subscriptions"),
+    byUser("notifications"),
+    db
+      .prepare(
+        `UPDATE notification_deliveries SET user_id = NULL WHERE user_id = ?1 AND ${STILL_DUE}`,
+      )
+      .bind(userId, at),
     // Seat watches and the alerts sent for them.
     byUser("seat_watches"),
     byUser("seat_alert_sends"),

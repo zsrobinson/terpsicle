@@ -59,8 +59,10 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `reviews` · `chat` · `todo` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `reviews`: from writing or reporting a review. `chat`: from signed-out `/chat`. `todo`: from signed-out `/todo` or `/todo/connect`. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
+  | `push_enabled` | none | People turning on notifications on a device, from Settings. |
+  | `push_disabled` | none | People turning them off there ("Turn off here"). |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
-  | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names or courses. |
+  | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans and four-year plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names, courses or grades. |
   | `account_deletion_requested` | | How often people delete their account. |
   | `reviews_page_viewed` | `page`: `home` · `instructor` · `course` | Which Reviews pages people read. Never which instructor or course. |
   | `review_form_opened` | | How often people start a review. |
@@ -74,13 +76,14 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
   Todo's events never carry an item's title, course, date or link, nor anything from the feed. `/todo` is on the no-autocapture list, and titles and course names are `data-private`.
 
-  | `four_year_created` | `source`: `empty` · `copy` · `import` (later `template`) | Which way into Plan people take. `import` counts the first visit's "Paste your transcript", whether or not anything is imported; `transcript_imported` counts imports. |
+  | `four_year_created` | `source`: `empty` · `copy` · `import` · `template` | Which way into Plan people take. `import` counts the first visit's "Paste your transcript", whether or not anything is imported; `transcript_imported` counts imports. `template` counts the first visit's "Pick a sample plan" and the Samples tab's "Start a new plan from it"; `template_applied` counts sample plans added. |
   | `four_year_course_added` | `via`: `search` · `column` · `wildcard-resolve` | Whether search or a semester's "+ Add a course" is found, and how often placeholders become courses. |
   | `four_year_course_moved` | `via`: `drag` · `menu` | Whether drag is discovered, or people use "Move to…". |
   | `four_year_wildcard_added` / `four_year_wildcard_resolved` | `kind`: `pattern` · `gen-ed` | Whether placeholders earn their place. |
   | `four_year_problem_opened` / `four_year_problem_fix_applied` | `kind` (a `FourYearProblemKind`) | Whether prerequisite and credit problems help. |
   | `transcript_parsed` | `recognized`, and counts: `lines` read, `choices` waiting on an "or", `skipped` lines | How often pastes read, and how much fixing they need. Sent once a paste settles, never with its text. |
   | `transcript_imported` | `lines` (entries imported), `keptGrades` | How many pastes become plans, and whether people keep grades. |
+  | `template_applied` | `template` (the sample plan's id, like `cmsc-2026`) | Which sample plans are worth curating next. Never what's in the plan. |
 
   Plan's events never carry a course code, grade, GPA or a course's credits, nor anything from a pasted transcript beyond the counts above. `/plan` is on the no-autocapture list, and grades are `data-private`.
 

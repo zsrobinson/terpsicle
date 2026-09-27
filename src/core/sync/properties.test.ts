@@ -2,6 +2,9 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   aBlock,
+  aFourYear,
+  aFourYearEntry,
+  aFourYearSyncDoc,
   aPlan,
   aPlanCourse,
   aPlanSyncDoc,
@@ -10,6 +13,7 @@ import {
   aSettingsDoc,
   aSettingsSyncDoc,
 } from "~/fixtures";
+import { type FourYearAction, fourYearReducer } from "../four-year/reducer";
 import { type PlanAction, plansReducer } from "../plans";
 import {
   type Block,
@@ -19,27 +23,36 @@ import {
   PlanSchema,
   type SettingsDoc,
 } from "../schema";
+import { type FourYearDoc, FourYearDocSchema } from "../schema/four-year";
 import {
+  fourYearAfterConflict,
   mergeSettings,
   plansAfterConflict,
+  resolveFourYearConflict,
   resolvePlanConflict,
+  sameFourYearContent,
   samePlanContent,
 } from "./conflict";
 import {
   applyDoc,
   changedDocKeys,
+  type DeviceSyncDoc,
   type DocKey,
   docBody,
   docKeyOf,
+  fourYearDocKey,
   parseDocKey,
   planDocKey,
-  type ScheduleSyncDoc,
   type SyncedTables,
   settingsDocOf,
   withSettingsDoc,
 } from "./docs";
 import { sameJson } from "./equal";
-import { firstSignInUnion, isUntouchedPlan } from "./first-sign-in";
+import {
+  firstSignInUnion,
+  isUntouchedFourYear,
+  isUntouchedPlan,
+} from "./first-sign-in";
 import {
   baseRev,
   docsToPush,
@@ -52,8 +65,9 @@ import {
 } from "./state";
 
 // Properties of plan sync: the first sign-in and a conflict never drop a
-// plan, running either twice changes nothing, and two devices syncing through
-// a model server end up with the same plans without losing unsaved work.
+// plan or a four-year plan, running either twice changes nothing, and two
+// devices syncing through a model server end up with the same plans and
+// four-year plans without losing unsaved work.
 
 const SPRING = "202701";
 const FALL = "202608";
@@ -105,6 +119,65 @@ const SERVER_IDS = [
   "plan_both_02",
 ];
 
+const FOUR_YEAR_NAMES = ["My plan", "My plan 2", "CS major", "My plan (copy)"];
+const FOUR_YEAR_CODES = ["CMSC131", "CMSC132", "MATH140"];
+
+/** A block per code, so a doc never holds the same entry id twice. */
+const fourYearEntry = (code: string) =>
+  aFourYearEntry({ id: `entry_${code}`, code });
+
+function fourYearArb(idPool: readonly string[]): fc.Arbitrary<FourYearDoc> {
+  return fc
+    .record({
+      id: fc.constantFrom(...idPool),
+      name: fc.constantFrom(...FOUR_YEAR_NAMES),
+      firstTermId: fc.constantFrom("202508", "202608"),
+      codes: fc.subarray(FOUR_YEAR_CODES, { maxLength: 2 }),
+      graded: fc.boolean(),
+      template: fc.option(
+        fc.constant({ id: "cmsc-2026", department: "CMSC", year: "2026" }),
+        { nil: null },
+      ),
+    })
+    .map(({ codes, graded, ...d }) => {
+      const entries = codes.map(fourYearEntry);
+      const first = entries[0];
+      return aFourYear({
+        ...d,
+        entries,
+        // Grades sync like the rest of the doc (V3 §2.5).
+        grades: graded && first ? { [first.id]: "A" } : {},
+      });
+    });
+}
+
+const fourYearDocs = (idPool: readonly string[]) =>
+  fc.uniqueArray(fourYearArb(idPool), { selector: (d) => d.id, maxLength: 3 });
+
+const LOCAL_FOUR_YEAR_IDS = [
+  "fouryear_mine_01",
+  "fouryear_mine_02",
+  "fouryear_both_01",
+];
+const SERVER_FOUR_YEAR_IDS = [
+  "fouryear_acct_01",
+  "fouryear_acct_02",
+  "fouryear_both_01",
+];
+
+/**
+ * Two four-year docs hold the same work: semesters, entries, grades and
+ * template, whatever they're called (a copy or a rename changes the name).
+ */
+function sameFourYearWork(a: FourYearDoc, b: FourYearDoc): boolean {
+  return (
+    a.firstTermId === b.firstTermId &&
+    sameJson(a.entries, b.entries) &&
+    sameJson(a.grades, b.grades) &&
+    sameJson(a.template, b.template)
+  );
+}
+
 const blockArb: fc.Arbitrary<Block> = fc
   .record({
     id: fc.constantFrom("block_lunch_1", "block_work_01", "block_gym_001"),
@@ -134,37 +207,52 @@ const settingsArb: fc.Arbitrary<SettingsDoc> = fc
     }),
   );
 
-const serverDocs: fc.Arbitrary<ScheduleSyncDoc[]> = fc
+const serverDocs: fc.Arbitrary<DeviceSyncDoc[]> = fc
   .tuple(
     plans(SERVER_IDS),
     fc.subarray(SERVER_IDS),
     fc.option(settingsArb, { nil: undefined }),
+    fourYearDocs(SERVER_FOUR_YEAR_IDS),
+    fc.subarray(SERVER_FOUR_YEAR_IDS),
   )
-  .map(([live, dead, settings]) => {
+  .map(([live, dead, settings, liveFourYear, deadFourYear]) => {
     let rev = 0;
-    const docs: ScheduleSyncDoc[] = live.map((body) =>
+    const docs: DeviceSyncDoc[] = live.map((body) =>
       aPlanSyncDoc({ body, rev: ++rev }),
     );
     for (const id of dead)
       if (!live.some((p) => p.id === id))
         docs.push(aPlanSyncDoc({ id, body: null, rev: ++rev }));
     if (settings) docs.push(aSettingsSyncDoc({ body: settings, rev: ++rev }));
+    for (const body of liveFourYear)
+      docs.push(aFourYearSyncDoc({ body, rev: ++rev }));
+    for (const id of deadFourYear)
+      if (!liveFourYear.some((d) => d.id === id))
+        docs.push(aFourYearSyncDoc({ id, body: null, rev: ++rev }));
     return docs;
   });
 
-function localTables(p: Plan[], s: SettingsDoc): SyncedTables {
+function localTables(
+  p: Plan[],
+  s: SettingsDoc,
+  fourYear: FourYearDoc[] = [],
+): SyncedTables {
   return {
     plans: p,
     blocks: s.blocks,
     colors: s.colors,
     travel: s.travel,
     chatPlans: s.chatPlans,
+    fourYear,
   };
 }
 
 const localArb = fc
-  .tuple(plans(LOCAL_IDS), settingsArb)
-  .map(([p, s]) => localTables(p, s));
+  .tuple(plans(LOCAL_IDS), settingsArb, fourYearDocs(LOCAL_FOUR_YEAR_IDS))
+  .map(([p, s, f]) => localTables(p, s, f));
+
+const accountFourYear = (server: readonly DeviceSyncDoc[]) =>
+  server.flatMap((d) => (d.kind === "four-year" && d.body ? [d.body] : []));
 
 function counter(prefix: string) {
   let n = 0;
@@ -187,7 +275,7 @@ function shuffled<T>(items: readonly T[], seed: number): T[] {
 }
 
 describe("the first sign-in", () => {
-  const union = (local: SyncedTables, server: readonly ScheduleSyncDoc[]) =>
+  const union = (local: SyncedTables, server: readonly DeviceSyncDoc[]) =>
     firstSignInUnion({
       local,
       server,
@@ -229,6 +317,25 @@ describe("the first sign-in", () => {
           expect(result.tables.colors[code]).toBeDefined();
         for (const plan of out)
           expect(PlanSchema.safeParse(plan).success).toBe(true);
+
+        const account = accountFourYear(server);
+        const fourYear = result.tables.fourYear;
+        for (const doc of account) expect(fourYear).toContainEqual(doc);
+        for (const doc of local.fourYear) {
+          const kept = fourYear.some(
+            (d) =>
+              (d.id === doc.id ||
+                result.fourYear.copies.some((c) => c.id === d.id)) &&
+              sameFourYearWork(d, doc),
+          );
+          const leftOut =
+            result.fourYear.skipped.includes(doc.id) &&
+            isUntouchedFourYear(doc) &&
+            account.length > 0;
+          expect(kept || leftOut).toBe(true);
+        }
+        for (const doc of fourYear)
+          expect(FourYearDocSchema.safeParse(doc).success).toBe(true);
       }),
     );
   });
@@ -254,6 +361,17 @@ describe("the first sign-in", () => {
           );
           expect(clash).toBe(false);
         }
+        const accountDocs = accountFourYear(server);
+        const addedFourYear = new Set([
+          ...result.fourYear.uploaded,
+          ...result.fourYear.copies.map((c) => c.id),
+        ]);
+        for (const doc of result.tables.fourYear) {
+          if (!addedFourYear.has(doc.id)) continue;
+          expect(
+            accountDocs.some((a) => a.id !== doc.id && a.name === doc.name),
+          ).toBe(false);
+        }
       }),
     );
   });
@@ -276,15 +394,24 @@ describe("the first sign-in", () => {
                   body: settingsDocOf(first.tables),
                   rev: ++rev,
                 })
-              : aPlanSyncDoc({
-                  id: parsed.id,
-                  body: body as Plan | null,
-                  rev: ++rev,
-                }),
+              : parsed.kind === "four-year"
+                ? aFourYearSyncDoc({
+                    id: parsed.id,
+                    body: body as FourYearDoc | null,
+                    rev: ++rev,
+                  })
+                : aPlanSyncDoc({
+                    id: parsed.id,
+                    body: body as Plan | null,
+                    rev: ++rev,
+                  }),
           );
         }
         const second = union(first.tables, [...landed.values()]);
         expect(second.tables.plans).toEqual(first.tables.plans);
+        expect(second.tables.fourYear).toEqual(first.tables.fourYear);
+        expect(second.fourYear.uploaded).toEqual([]);
+        expect(second.fourYear.copies).toEqual([]);
         expect(
           sameJson(settingsDocOf(second.tables), settingsDocOf(first.tables)),
         ).toBe(true);
@@ -300,10 +427,16 @@ describe("the first sign-in", () => {
       fc.property(localArb, serverDocs, fc.nat(), (local, server, seed) => {
         const a = union(local, server);
         const b = union(
-          { ...local, plans: shuffled(local.plans, seed) },
+          {
+            ...local,
+            plans: shuffled(local.plans, seed),
+            fourYear: shuffled(local.fourYear, seed + 2),
+          },
           shuffled(server, seed + 1),
         );
         expect(b.tables.plans).toEqual(a.tables.plans);
+        expect(b.tables.fourYear).toEqual(a.tables.fourYear);
+        expect(b.fourYear).toEqual(a.fourYear);
         expect(b.sync).toEqual(a.sync);
         expect(b.uploaded).toEqual(a.uploaded);
         expect(b.renamed).toEqual(a.renamed);
@@ -368,6 +501,61 @@ describe("a plan conflict", () => {
   });
 });
 
+describe("a four-year doc conflict", () => {
+  const ID = "fouryear_both_01";
+  const pair = fc.tuple(
+    fc.option(fourYearArb([ID]), { nil: null }),
+    fc.option(fourYearArb([ID]), { nil: null }),
+    fourYearDocs(LOCAL_FOUR_YEAR_IDS),
+  );
+
+  it("never loses this device's version, grades included", () => {
+    fc.assert(
+      fc.property(pair, ([local, server, others]) => {
+        const mine = others.filter((d) => d.id !== ID);
+        const before = local ? [...mine, local] : mine;
+        const result = resolveFourYearConflict({
+          local,
+          server,
+          docs: before,
+          copyId: "fouryear_copy_01",
+          now: NOW,
+        });
+        const after = fourYearAfterConflict(before, ID, result);
+        if (local)
+          expect(after.some((d) => sameFourYearWork(d, local))).toBe(true);
+        if (server)
+          expect(after.some((d) => sameFourYearWork(d, server))).toBe(true);
+        if (result.kind === "keep-both") {
+          expect(
+            after.some(
+              (d) => d.id !== result.copy.id && d.name === result.copy.name,
+            ),
+          ).toBe(false);
+          expect(FourYearDocSchema.safeParse(result.copy).success).toBe(true);
+        }
+      }),
+    );
+  });
+
+  it("is a no-op when both sides already agree", () => {
+    fc.assert(
+      fc.property(fourYearArb([ID]), (doc) => {
+        expect(
+          resolveFourYearConflict({
+            local: doc,
+            server: { ...doc, updatedAt: NOW },
+            docs: [doc],
+            copyId: "fouryear_copy_01",
+            now: NOW,
+          }).kind,
+        ).toBe("take-server");
+        expect(sameFourYearContent(doc, { ...doc, createdAt: NOW })).toBe(true);
+      }),
+    );
+  });
+});
+
 describe("the settings doc's merge", () => {
   it("returns either side when the other didn't change, and agrees with itself", () => {
     fc.assert(
@@ -407,6 +595,7 @@ describe("the sync flags", () => {
   const keys: DocKey[] = [
     planDocKey("plan_mine_01"),
     planDocKey("plan_mine_02"),
+    fourYearDocKey("fouryear_mine_01"),
     "settings",
   ];
   const event: fc.Arbitrary<PlanSyncEvent> = fc.oneof(
@@ -480,14 +669,14 @@ describe("the sync flags", () => {
 // ---------- two devices and a model server ----------
 
 class ModelServer {
-  readonly docs = new Map<DocKey, ScheduleSyncDoc>();
+  readonly docs = new Map<DocKey, DeviceSyncDoc>();
   private head = 0;
 
   push(
     key: DocKey,
     base: number,
-    body: Plan | SettingsDoc | null,
-  ): { ok: true; rev: number } | { ok: false; doc: ScheduleSyncDoc } {
+    body: Plan | SettingsDoc | FourYearDoc | null,
+  ): { ok: true; rev: number } | { ok: false; doc: DeviceSyncDoc } {
     const current = this.docs.get(key);
     if (current && current.rev !== base) return { ok: false, doc: current };
     if (!current && base !== 0) throw new Error(`no doc ${key} at rev ${base}`);
@@ -497,12 +686,18 @@ class ModelServer {
       key,
       parsed.kind === "settings"
         ? aSettingsSyncDoc({ rev, body: body as SettingsDoc })
-        : aPlanSyncDoc({ id: parsed.id, rev, body: body as Plan | null }),
+        : parsed.kind === "four-year"
+          ? aFourYearSyncDoc({
+              id: parsed.id,
+              rev,
+              body: body as FourYearDoc | null,
+            })
+          : aPlanSyncDoc({ id: parsed.id, rev, body: body as Plan | null }),
     );
     return { ok: true, rev };
   }
 
-  pull(since: number): { docs: ScheduleSyncDoc[]; cursor: number } {
+  pull(since: number): { docs: DeviceSyncDoc[]; cursor: number } {
     const docs = [...this.docs.values()]
       .filter((d) => d.rev > since)
       .sort((a, b) => a.rev - b.rev);
@@ -512,6 +707,12 @@ class ModelServer {
   livePlans(): Plan[] {
     return [...this.docs.values()]
       .flatMap((d) => (d.kind === "plan" && d.body ? [d.body] : []))
+      .sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
+
+  liveFourYear(): FourYearDoc[] {
+    return [...this.docs.values()]
+      .flatMap((d) => (d.kind === "four-year" && d.body ? [d.body] : []))
       .sort((a, b) => (a.id < b.id ? -1 : 1));
   }
 }
@@ -534,13 +735,31 @@ class Device {
       colors: {},
       travel: DEFAULT_TRAVEL_SETTINGS,
       chatPlans: {},
+      fourYear: [],
     };
   }
 
-  edit(action: PlanAction): void {
-    const { plans, blocks, colors } = this.tables;
-    const state = plansReducer({ plans, blocks, colors }, action);
-    const next = { ...this.tables, ...state };
+  edit(action: PlanAction | FourYearAction): void {
+    const next =
+      "docId" in action || action.type === "create"
+        ? {
+            ...this.tables,
+            fourYear: fourYearReducer(
+              { docs: this.tables.fourYear },
+              action as FourYearAction,
+            ).docs,
+          }
+        : {
+            ...this.tables,
+            ...plansReducer(
+              {
+                plans: this.tables.plans,
+                blocks: this.tables.blocks,
+                colors: this.tables.colors,
+              },
+              action as PlanAction,
+            ),
+          };
     const keys = changedDocKeys(this.tables, next);
     this.tables = next;
     if (keys.length)
@@ -563,6 +782,29 @@ class Device {
         continue;
       }
       const doc = answer.doc;
+      if (doc.kind === "four-year") {
+        const result = resolveFourYearConflict({
+          local: body as FourYearDoc | null,
+          server: doc.body,
+          docs: this.tables.fourYear,
+          copyId: this.newId(),
+          now: NOW,
+        });
+        this.tables = {
+          ...this.tables,
+          fourYear: fourYearAfterConflict(this.tables.fourYear, doc.id, result),
+        };
+        this.sync = planSyncReducer(this.sync, {
+          type: "push-conflict",
+          key,
+          rev: doc.rev,
+          pushAgain: result.kind === "keep-local",
+          ...(result.kind === "keep-both"
+            ? { copy: fourYearDocKey(result.copy.id) }
+            : {}),
+        });
+        continue;
+      }
       if (doc.kind === "settings") {
         const merged = mergeSettings({
           base: this.settingsBase,
@@ -619,16 +861,94 @@ class Device {
   sortedPlans(): Plan[] {
     return [...this.tables.plans].sort((a, b) => (a.id < b.id ? -1 : 1));
   }
+
+  sortedFourYear(): FourYearDoc[] {
+    return [...this.tables.fourYear].sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
 }
 
 type Step =
   | { device: 0 | 1; kind: "push" | "pull" }
-  | { device: 0 | 1; kind: "edit"; action: (d: Device) => PlanAction | null };
+  | {
+      device: 0 | 1;
+      kind: "edit";
+      action: (d: Device) => PlanAction | FourYearAction | null;
+    };
 
 const pickPlan = (d: Device, i: number) =>
   d.tables.plans.length ? d.tables.plans[i % d.tables.plans.length] : undefined;
 
+const pickFourYear = (d: Device, i: number) =>
+  d.tables.fourYear.length
+    ? d.tables.fourYear[i % d.tables.fourYear.length]
+    : undefined;
+
+/** Edits to four-year docs: the same shapes of change as the plans get. */
+const fourYearStepArb: fc.Arbitrary<Step> = fc
+  .tuple(
+    fc.constantFrom<0 | 1>(0, 1),
+    fc.nat(9),
+    fc.constantFrom(...FOUR_YEAR_CODES),
+    fc.constantFrom("create", "rename", "delete", "add", "remove", "import"),
+    fc.constantFrom(...FOUR_YEAR_NAMES),
+  )
+  .map(
+    ([device, i, code, what, name]): Step => ({
+      device,
+      kind: "edit",
+      action: (d) => {
+        const doc = pickFourYear(d, i);
+        switch (what) {
+          case "create":
+            return {
+              type: "create",
+              id: `${d.name}_fouryear_${String(i).padStart(3, "0")}`,
+              firstTermId: i % 2 ? "202508" : "202608",
+              now: NOW,
+            };
+          case "rename":
+            return doc
+              ? { type: "rename", docId: doc.id, name, now: NOW }
+              : null;
+          case "delete":
+            return doc ? { type: "delete", docId: doc.id } : null;
+          case "add":
+            return doc
+              ? {
+                  type: "add",
+                  docId: doc.id,
+                  entry: fourYearEntry(code),
+                  now: NOW,
+                }
+              : null;
+          case "remove":
+            return doc
+              ? {
+                  type: "remove",
+                  docId: doc.id,
+                  entryId: fourYearEntry(code).id,
+                  now: NOW,
+                }
+              : null;
+          default:
+            // A transcript import: the only way grades come in (V3 §2.5).
+            return doc
+              ? {
+                  type: "import",
+                  docId: doc.id,
+                  replace: [],
+                  entries: [fourYearEntry(code)],
+                  grades: { [fourYearEntry(code).id]: "B+" },
+                  now: NOW,
+                }
+              : null;
+        }
+      },
+    }),
+  );
+
 const stepArb: fc.Arbitrary<Step> = fc.oneof(
+  fourYearStepArb,
   fc.record({
     device: fc.constantFrom<0 | 1>(0, 1),
     kind: fc.constantFrom<"push" | "pull">("push", "pull"),
@@ -715,6 +1035,19 @@ function unsavedWork(d: Device): Plan[] {
   });
 }
 
+/** The same for four-year docs: dirty, and not held as they are here. */
+function unsavedFourYear(d: Device): FourYearDoc[] {
+  return d.tables.fourYear.filter((doc) => {
+    if (!d.sync.docs[fourYearDocKey(doc.id)]?.dirty) return false;
+    const held = d.server.docs.get(fourYearDocKey(doc.id));
+    return !(
+      held?.kind === "four-year" &&
+      held.body !== null &&
+      sameFourYearContent(held.body, doc)
+    );
+  });
+}
+
 describe("two devices syncing through the server", () => {
   it("lets a delete remove a plan whose unsaved edit the account already holds", () => {
     const server = new ModelServer();
@@ -773,6 +1106,7 @@ describe("two devices syncing through the server", () => {
           }
 
           const unsavedPlans = devices.flatMap(unsavedWork);
+          const unsavedDocs = devices.flatMap(unsavedFourYear);
           const unsavedBlocks = devices.flatMap((d) =>
             d.sync.docs.settings?.dirty ? d.tables.blocks.map((b) => b.id) : [],
           );
@@ -785,6 +1119,7 @@ describe("two devices syncing through the server", () => {
           for (const d of devices) {
             expect(hasUnsaved(d.sync)).toBe(false);
             expect(d.sortedPlans()).toEqual(server.livePlans());
+            expect(d.sortedFourYear()).toEqual(server.liveFourYear());
             expect(
               sameJson(
                 settingsDocOf(d.tables),
@@ -795,6 +1130,9 @@ describe("two devices syncing through the server", () => {
           const final = server.livePlans();
           for (const plan of unsavedPlans)
             expect(final.some((p) => sameWork(p, plan))).toBe(true);
+          const finalDocs = server.liveFourYear();
+          for (const doc of unsavedDocs)
+            expect(finalDocs.some((f) => sameFourYearWork(f, doc))).toBe(true);
           const blocks = new Set(devices[0].tables.blocks.map((b) => b.id));
           for (const id of unsavedBlocks) expect(blocks.has(id)).toBe(true);
         },

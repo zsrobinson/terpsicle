@@ -257,7 +257,9 @@ The hourly `reviews-publish` job (`37 * * * *`, `src/jobs/reviews-publish.ts`) p
 
 ## 5. Browser state (IndexedDB via Dexie)
 
-Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 3.
+Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 4.
+
+**Version 4** (four-year sync, landed with `v3/four-year-sync`; `src/state/db.ts`): no table changes. `resetPullCursor` sets a signed-in device's pull cursor back to 0 once more, so it pulls the four-year docs a tab skipped between version 3 and the engine that carries them (`docs/V3.md` §2.13). `syncDocs` keys gain `four-year:<id>`.
 
 **Version 3** (Terpsicle Plan, landed with `v3/plan-ui`; `src/state/db.ts`): a `fourYear` table, one row per four-year doc (`FourYearDocSchema`, validated on read; an invalid row is skipped and logged), and a `fourYear` settings row for the open doc (`FourYearPrefsSchema`, `{activeId}`, local only). `upgradeToV3` sets a signed-in device's pull cursor (the `sync` row) back to 0, once, so it pulls the four-year docs an older tab skipped (`docs/V3.md` §2.4). Nothing else changes shape (`src/state/db.test.ts` upgrades a v2 database).
 
@@ -270,7 +272,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 3.
 | `courseColors` | `courseCode` | `CourseColorPrefSchema` |
 | `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `fourYear` → `FourYearPrefs`, Plan's open doc, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `chatPlans` → `ChatPlans`, synced; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor) |
 | `fourYear` | `id` | `FourYearDocSchema` (`src/core/schema/four-year.ts`) |
-| `syncDocs` | `key` (`plan:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
+| `syncDocs` | `key` (`plan:<id>`, `four-year:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
 | `manifests` | `key` (the R2 key) | `CachedManifestSchema` |
 | `files` | `key` (the R2 key), `family`, `termId` | `CachedFileSchema` |
 
@@ -288,7 +290,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 3.
 - **Course colors are global:** one color per course code, the same in every plan and term (SPEC §3.2). A course with no row gets a color when first added to a plan (the palette color least used in that plan), and that color is written to `courseColors` so it stays stable. `COURSE_COLORS` are palette ids; the UI maps each to light and dark tints. Only append to that list.
 - **UI prefs:** open tab, sidebar open, drill target (course with its details tab, or a connection; generated results aren't restorable), theme, last term, active plan per term, and collapsed instructor groups (`<course>|<instructor name>`).
 - **Not persisted:** the undo stack, hover/preview state, search text, and generator results.
-- **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors` and the `travel` and `chatPlans` rows.
+- **Plan sync** (`docs/V2.md` §5.3, `src/features/sync/`): the synced tables stay the source of truth; `syncDocs` and the `sync` row are all sync adds. The engine reads and writes them together with the synced tables in one transaction per step, under a Web Lock every tab shares. Signing out forgets them (`syncDocs` cleared, `sync` deleted), so the next sign-in merges as a first one; "Sign out and remove plans from this device" also clears `plans`, `blocks`, `courseColors`, `fourYear` and the `travel`, `chatPlans` and `fourYear` rows. Four-year docs are synced tables too (`docs/V3.md` §2.4).
 - **Seat watches** aren't kept in the browser: they're the signed-in person's, in D1 (§7.1), and the app holds the list in memory (`src/state/seat-watches.ts`). The one thing kept locally is a watch asked for while signed out, in `sessionStorage["terpsicle:pending-watch"]` (`{termId, sectionKey, at}`, zod-checked, 30 minutes), so the watch starts when the person comes back signed in to that tab.
 
 ### 5.1 Client catalog flow
@@ -467,7 +469,7 @@ CREATE TABLE seat_alert_sends (
 CREATE INDEX seat_alert_sends_by_user ON seat_alert_sends (user_id, sent_at);
 ```
 
-`seat_alert_sends` stands in for V2.md's `notification_deliveries` until `0006_notifications` lands; `v2/push` can fold it in. `counters` (from `0002_seat_alerts`) stays: per-IP and per-user limits and the summary cap. `SeatWatchRowSchema` validates rows on read (`src/server/alerts/store.ts`).
+`seat_alert_sends` holds the alert emails in place of V2.md's `notification_deliveries`; since `v2/push`, each reopen's push is a `notification_deliveries` row (`…:push`), the email is sent only while the person's `seatOpen.email` setting is on, and the daily cap counts the busier channel (§7.11). `counters` (from `0002_seat_alerts`) stays: per-IP and per-user limits and the summary cap. `SeatWatchRowSchema` validates rows on read (`src/server/alerts/store.ts`).
 
 ### 7.2 Review summaries
 
@@ -636,6 +638,20 @@ The design is `docs/V3.md` §3; the routes are `src/server/todo/service.ts`, the
 - **Deleting an account** removes all three by `ON DELETE CASCADE`.
 
 ---
+
+### 7.11 Notifications (landed: `migrations/0006_notifications.sql`)
+
+The design is `docs/V2.md` §6 (its "As built" under §6.4). Routes: `src/server/notifications/api.ts`; sending: `notify` and `sendTestPush` (`src/server/notifications/notify.ts`) over `sendPush` (`src/server/push/send.ts`); SQL: `src/server/notifications/store.ts` and `src/server/push/store.ts`; schemas: `src/core/schema/notifications.ts` (kept out of the schema barrel); crypto and push request rules: `src/core/push`; settings rules: `src/core/notifications`. The number was reserved in V2.md §13, so it lands after `0011` (wrangler applies migrations by name).
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `notification_settings` | `user_id` | `settings` (`NotificationSettingsSchema` JSON), `updated_at` | No row means the defaults. A row that no longer reads also gives the defaults. |
+| `push_subscriptions` | `id` (16 random bytes) | `user_id`, `endpoint` (unique), `p256dh`, `auth`, `user_agent_label`, `created_at`, `last_success_at`, `failure_count` | One per device. Saving an endpoint again refreshes its keys; another account saving it takes the row over (a new `id` and date). 404/410 deletes it; the 10th failure in a row does too. The endpoint never leaves the server. |
+| `notifications` | `id` | `user_id`, `type`, `term_id`, `course_code`, `room_id`, `seq`, `message_id`, `actor_id`, `created_at`, `read_at`, `emailed_at` | Chat mentions and replies, for read state and the digest; `v2/chat-notify` fills it. |
+| `notification_deliveries` | `id` | `user_id` (no foreign key; null once the account is purged), `type`, `channel`, `dedupe_key` (unique), `status` (`sent` · `failed` · `skipped`), `provider_id`, `sent_at` | One row per event per channel, claimed before sending, so a retry sends nothing twice. `provider_id` is the Email Service id, or the push services' statuses (`201,410`). Pruned after 90 days. "Send me a test" writes none. |
+
+- **Deleting an account** drops every push subscription at once (`account/delete`); the purge deletes settings, subscriptions and `notifications`, and sets deliveries' `user_id` to null.
+- **Signing out** with `pushEndpoint` deletes that device's row.
 
 ## 8. Share links
 

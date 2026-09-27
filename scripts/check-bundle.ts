@@ -172,6 +172,10 @@ const PLAN_ROUTE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
     why: "the scheduler's app loads with /schedule",
   },
   {
+    pattern: /^src\/features\/four-year\/templates\//,
+    why: "sample plans load when the Samples tab opens (V3 §2.11)",
+  },
+  {
     pattern:
       /^src\/state\/(workspace-store|ui-store|catalog-store|persist)\.ts$/,
     why: "Plan doesn't load the scheduler's stores",

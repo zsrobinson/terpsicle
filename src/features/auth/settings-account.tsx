@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
@@ -36,9 +36,10 @@ export function deletionDay(iso: string): string {
 }
 
 /**
- * `/settings`: the account (V2.md §1.1) and the sections you're watching for
- * a seat (#watching, from the account menu). Notifications come later. It
- * sits in the site's frame, so every product is one click away.
+ * `/settings`: the account (V2.md §1.1), the sections you're watching for a
+ * seat (#watching, from the account menu), and the way to notifications
+ * (§6.2, their own page). It sits in the site's frame, so every product is
+ * one click away.
  */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
@@ -57,6 +58,21 @@ export function SettingsPage() {
         <AccountSection title="Account">
           <AccountDetails />
         </AccountSection>
+        {status === "signed-in" ? (
+          <AccountSection title="Notifications">
+            <WithTooltip label="Seat openings, Chat mentions and Todo reminders, and your devices">
+              <a
+                href="/settings/notifications"
+                className="-mx-2 flex items-center gap-3 rounded-md px-2 py-1 text-fg transition-colors hover:bg-hover"
+              >
+                <span className="min-w-0 flex-1">
+                  Choose what Terpsicle sends you, and where
+                </span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </a>
+            </WithTooltip>
+          </AccountSection>
+        ) : null}
         {status === "signed-in" && seatAlerts ? (
           <Suspense fallback={null}>
             <SeatWatches />

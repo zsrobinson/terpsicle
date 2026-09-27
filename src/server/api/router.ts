@@ -58,6 +58,15 @@ import {
   FeedbackUndoInputSchema,
   FeedbackUpdateInputSchema,
 } from "~/core/schema/feedback";
+import {
+  NotificationSettingsInputSchema,
+  NotificationSettingsSetInputSchema,
+  PushDevicesInputSchema,
+  PushRemoveInputSchema,
+  PushSubscribeInputSchema,
+  PushTestInputSchema,
+  PushUnsubscribeInputSchema,
+} from "~/core/schema/notifications";
 import { removeChatMessage } from "../admin/chat-remove";
 import { listDecisions } from "../admin/decisions";
 import { adminHealth } from "../admin/health";
@@ -117,6 +126,17 @@ import {
 import { createReport, reportTargets } from "../moderation/reports";
 import type { ModerationEnv } from "../moderation/service";
 import {
+  getSettings as getNotificationSettings,
+  type NotificationsEnv,
+  devices as pushDevices,
+  subscribe as pushSubscribe,
+  unsubscribe as pushUnsubscribe,
+  removeDevice as removePushDevice,
+  setSettings as setNotificationSettings,
+  testPush,
+} from "../notifications/api";
+import { type PushEnv, pushConfig } from "../push/config";
+import {
   deleteReview,
   editReview,
   listReviews,
@@ -152,7 +172,9 @@ export type ApiEnv = AlertsEnv &
   ModerationEnv &
   ChatApiEnv &
   ReviewsEnv &
-  TodoEnv;
+  TodoEnv &
+  NotificationsEnv &
+  PushEnv;
 
 interface Route<S extends z.ZodType> {
   input: S;
@@ -264,13 +286,14 @@ export const ROUTES = {
       me(env, ctx, {
         seatAlerts: alertsEnabled(env),
         todo: todoAvailable(env, isTestMode(env, new URL(ctx.request.url))),
+        pushPublicKey: pushPublicKey(env, ctx.request),
       }),
   }),
   "auth/sign-out": route({
     input: SignOutInputSchema,
     perIpPerHour: 30,
     alerts: false,
-    handle: (env, _input, ctx) => signOut(env, ctx),
+    handle: (env, input, ctx) => signOut(env, input, ctx),
   }),
   "account/delete": route({
     input: AccountDeleteInputSchema,
@@ -446,6 +469,57 @@ export const ROUTES = {
     auth: "user",
     handle: (env, input, ctx) => todoImportFile(env, input, ctx),
   }),
+  // Notifications (V2.md §6.3).
+  "push/subscribe": route({
+    input: PushSubscribeInputSchema,
+    perUserPerHour: 60,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => pushSubscribe(env, input, ctx),
+  }),
+  "push/unsubscribe": route({
+    input: PushUnsubscribeInputSchema,
+    perUserPerHour: 60,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => pushUnsubscribe(env, input, ctx),
+  }),
+  "push/devices": route({
+    input: PushDevicesInputSchema,
+    perUserPerHour: 300,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => pushDevices(env, input, ctx),
+  }),
+  "push/remove": route({
+    input: PushRemoveInputSchema,
+    perUserPerHour: 60,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => removePushDevice(env, input, ctx),
+  }),
+  // Each one reaches every device the person has; a handful is plenty.
+  "push/test": route({
+    input: PushTestInputSchema,
+    perUserPerHour: 10,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => testPush(env, ctx),
+  }),
+  "notifications/settings": route({
+    input: NotificationSettingsInputSchema,
+    perUserPerHour: 300,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => getNotificationSettings(env, ctx),
+  }),
+  "notifications/settings/set": route({
+    input: NotificationSettingsSetInputSchema,
+    perUserPerHour: 120,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => setNotificationSettings(env, input, ctx),
+  }),
   // Feedback (docs/FEEDBACK.md). Anyone can send it; who sent it is kept
   // only when they ask for a reply.
   "feedback/send": route({
@@ -567,6 +641,12 @@ export const ROUTES = {
     handle: (env, _input, ctx) => addSamples(env, ctx),
   }),
 } as const;
+
+/** The VAPID public key the app subscribes with, while push works here. */
+function pushPublicKey(env: ApiEnv, request: Request): string | null {
+  const config = pushConfig(env, isTestMode(env, new URL(request.url)));
+  return config.enabled ? config.publicKey : null;
+}
 
 /** A person's counter for one route (`counters.name`, pruned like the rest). */
 export function userLimitKey(userId: string, route: string): string {

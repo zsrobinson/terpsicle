@@ -41,6 +41,8 @@ export const PINNED_SEATS: Readonly<Record<string, SeatTuple>> = {
 const HAND_TOTALS: Readonly<Record<string, number>> = {
   ARTH200: 60,
   ECON200: 75,
+  MATH140: 120,
+  MATH141: 120,
   MATH240: 40,
   MUSC130: 200,
   PHIL140: 90,

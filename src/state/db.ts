@@ -45,11 +45,13 @@ const V2_CHANGES = {
 const V3_CHANGES = { fourYear: "id" } as const;
 
 /**
- * Sends the next pull back to the start (V3 §2.4). A tab from before the
- * four-year sync kind skipped those docs but still moved its cursor past
- * them, so this device pulls everything once and sees what it skipped.
+ * Sends the next pull back to the start (V3 §2.4). A tab from before sync
+ * carried four-year docs skipped them but still moved its cursor past them,
+ * so this device pulls everything once and sees what it skipped. Version 3
+ * did it when the `fourYear` table came; version 4 does it again with
+ * `v3/four-year-sync`, for the pulls that skipped them in between.
  */
-export async function upgradeToV3(tx: Transaction): Promise<void> {
+export async function resetPullCursor(tx: Transaction): Promise<void> {
   const settings = tx.table("settings");
   const row: unknown = await settings.get("sync");
   const meta = LocalSyncMetaSchema.safeParse(
@@ -77,7 +79,9 @@ export class TerpsicleDb extends Dexie {
     super(name);
     this.version(1).stores(DB_V1_STORES);
     this.version(2).stores(V2_CHANGES);
-    this.version(LOCAL_DB_VERSION).stores(V3_CHANGES).upgrade(upgradeToV3);
+    this.version(3).stores(V3_CHANGES).upgrade(resetPullCursor);
+    // Version 4 (four-year sync, V3 §2.13): no table changes.
+    this.version(LOCAL_DB_VERSION).stores({}).upgrade(resetPullCursor);
   }
 }
 

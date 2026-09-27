@@ -1,11 +1,16 @@
-// Called by the seats cron after it publishes a new seats file: emails every
-// person whose watched section just reopened (DATA.md §7.1). Web push joins
-// here once src/server/push lands (V2.md §6.4).
+// Called by the seats cron after it publishes a new seats file: tells every
+// person whose watched section just reopened (DATA.md §7.1), by email and web
+// push, each as their notification settings say (V2.md §6.5). Email keeps
+// this folder's own path (seat_alert_sends: dedupe, the daily cap, the
+// one-click stop); push goes through ~/server/notifications.
+import { channelOn } from "~/core/notifications";
 import type { SeatsFile } from "~/core/schema";
 import { captureServerEvent } from "../analytics";
 import { pruneCounters, windowStart } from "../counters";
+import { type NotifyEnv, notify } from "../notifications/notify";
+import { countDeliveries, readSettings } from "../notifications/store";
 import { catalogReader } from "./catalog";
-import { renderSeatOpenEmail } from "./email";
+import { courseUrl, renderSeatOpenEmail } from "./email";
 import { sendAlertEmail } from "./send";
 import {
   ALERT_LIMITS,
@@ -32,7 +37,7 @@ export interface NotifyResult {
  * seats before (or at the watch's last check) and has some now.
  */
 export async function notifySeatChanges(
-  env: AlertsEnv,
+  env: AlertsEnv & Omit<NotifyEnv, "DB" | "EMAIL">,
   before: SeatsFile | null,
   after: SeatsFile,
   options: {
@@ -40,6 +45,8 @@ export async function notifySeatChanges(
     waitUntil?: (promise: Promise<unknown>) => void;
     /** Where email links point; the harness passes its own. */
     origin?: string;
+    /** Outbound fetch for push services; tests fake it. */
+    fetch?: typeof fetch;
   },
 ): Promise<NotifyResult> {
   if (!alertsEnabled(env)) return { checked: 0, sent: 0, skipped: "disabled" };
@@ -67,32 +74,67 @@ export async function notifySeatChanges(
 
     let notified = false;
     if (reopened && !coolingDown) {
-      const underCap =
-        (await countSends(env.DB, w.user_id, since)) <
-        ALERT_LIMITS.alertsPerUserPerDay;
+      // Each alert sends at most one email and one push, so the busier
+      // channel is the count.
+      const sentToday = Math.max(
+        await countSends(env.DB, w.user_id, since),
+        await countDeliveries(env.DB, {
+          userId: w.user_id,
+          type: "seat-open",
+          channel: "push",
+          since: new Date(since),
+        }),
+      );
+      const underCap = sentToday < ALERT_LIMITS.alertsPerUserPerDay;
       const found = underCap
         ? await findSection(w.term_id, w.section_key)
         : null;
       if (found) {
+        const ref = sectionRef(found);
+        const key = `seat-open:${w.user_id}:${w.term_id}:${w.section_key}:${snapshot}`;
+        const link = new URL(courseUrl(origin, ref));
+        const pushed = await notify(
+          env,
+          w.user_id,
+          {
+            type: "seat-open",
+            key,
+            push: {
+              title: `A seat opened in ${ref.courseCode} ${ref.sectionCode}`,
+              body: `${open} of ${total} open. Register on Testudo before it's gone.`,
+              url: `${link.pathname}${link.search}`,
+              tag: `seat:${w.term_id}:${w.section_key}`,
+            },
+          },
+          { now, ...(options.fetch ? { fetch: options.fetch } : {}) },
+        );
+        const emailOn = channelOn(
+          await readSettings(env.DB, w.user_id),
+          "seat-open",
+          "email",
+        );
         const stop = await oneClickStopUrl(env.DATA, origin, {
           userId: w.user_id,
           termId: w.term_id,
           sectionKey: w.section_key,
         });
-        notified = await sendAlertEmail(env, {
-          to: w.email,
-          userId: w.user_id,
-          termId: w.term_id,
-          sectionKey: w.section_key,
-          dedupeKey: `seat-open:${w.user_id}:${w.term_id}:${w.section_key}:${snapshot}:email`,
-          email: renderSeatOpenEmail(
-            origin,
-            sectionRef(found),
-            { open, total, waitlist, asOf: after.asOf },
-            stop,
-          ),
-          now,
-        });
+        const emailed =
+          emailOn &&
+          (await sendAlertEmail(env, {
+            to: w.email,
+            userId: w.user_id,
+            termId: w.term_id,
+            sectionKey: w.section_key,
+            dedupeKey: `${key}:email`,
+            email: renderSeatOpenEmail(
+              origin,
+              ref,
+              { open, total, waitlist, asOf: after.asOf },
+              stop,
+            ),
+            now,
+          }));
+        notified = emailed || pushed.push === "sent";
         if (notified) sent++;
       }
     }

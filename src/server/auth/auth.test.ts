@@ -521,7 +521,7 @@ describe("pictures", () => {
 describe("flags", () => {
   it("lists Plan only when PLAN_ENABLED is true", () => {
     const url = new URL("https://terpsicle.com/api/me");
-    const others = { seatAlerts: false, todo: false };
+    const others = { seatAlerts: false, todo: false, push: false };
     expect(appFlags({ PLAN_ENABLED: "true" } as never, url, others).plan).toBe(
       true,
     );

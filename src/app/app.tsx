@@ -88,7 +88,7 @@ function useBootstrap(config: ClientConfig) {
               sync = module;
               module.startSync(host, user.id);
             });
-          else if (status === "signed-out") sync?.stopSync();
+          else if (status === "signed-out") sync?.stopSync(host);
         };
         follow();
         stopAccount = useAccount.subscribe((next, prev) => {

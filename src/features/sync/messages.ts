@@ -1,4 +1,4 @@
-import { SYNC_MAX_PLANS } from "~/core/schema";
+import { SYNC_MAX_FOUR_YEAR_DOCS, SYNC_MAX_PLANS } from "~/core/schema";
 import type { SyncNotice } from "./engine";
 
 // Plan sync's words (SPEC §3.13: plain, specific, contractions). Every notice
@@ -11,6 +11,29 @@ export interface SyncToast {
 
 const plans = (n: number) => (n === 1 ? "plan" : "plans");
 
+/**
+ * "Your 3 plans and your four-year plan", "Your 2 four-year plans": plans
+ * and four-year plans counted together (V3 §2.4), and whether that's one
+ * thing or more. `owner` starts the words and `again` names the owner after
+ * "and"; `other` says "other" before plans, for the account's own.
+ */
+function counted(
+  planCount: number,
+  fourYearCount: number,
+  words: { owner: string; again: string; other?: boolean },
+): { words: string; many: boolean } {
+  const parts: string[] = [];
+  const more = words.other ? "other " : "";
+  if (planCount === 1) parts.push(`${words.owner} ${more}plan`);
+  else if (planCount > 1)
+    parts.push(`${words.owner} ${planCount} ${more}plans`);
+  const owner = parts.length > 0 ? words.again : words.owner;
+  if (fourYearCount === 1) parts.push(`${owner} four-year plan`);
+  else if (fourYearCount > 1)
+    parts.push(`${owner} ${fourYearCount} four-year plans`);
+  return { words: parts.join(" and "), many: planCount + fourYearCount > 1 };
+}
+
 function kept(list: readonly { from: string; to: string }[]): string {
   const [first, ...rest] = list;
   if (!first) return "";
@@ -20,6 +43,9 @@ function kept(list: readonly { from: string; to: string }[]): string {
       : ` (and ${rest.length} more ${plans(rest.length)} the same way)`;
   return `${first.from} was kept as ${first.to}${more}.`;
 }
+
+const YOURS = { owner: "Your", again: "your" };
+const THE_ACCOUNTS = { owner: "Your account's", again: "its", other: true };
 
 /** The toast for a notice, or null when there's nothing worth saying. */
 export function syncToast(notice: SyncNotice): SyncToast | null {
@@ -38,29 +64,34 @@ export function syncToast(notice: SyncNotice): SyncToast | null {
         return details
           ? { title: "Your plans are up to date", description: details }
           : null;
-      const { uploaded, fromAccount } = notice;
-      const also =
-        fromAccount === 0
-          ? ""
-          : fromAccount === 1
-            ? "Your account's other plan is here too."
-            : `Your account's ${fromAccount} other plans are here too.`;
+      const uploaded = counted(
+        notice.uploaded,
+        notice.fourYear.uploaded,
+        YOURS,
+      );
+      const accountOnly = counted(
+        notice.fromAccount,
+        notice.fourYear.fromAccount,
+        THE_ACCOUNTS,
+      );
+      const also = accountOnly.words
+        ? `${accountOnly.words} ${accountOnly.many ? "are" : "is"} here too.`
+        : "";
       const description =
         [details, also].filter(Boolean).join(" ") || undefined;
-      if (uploaded > 0)
+      if (uploaded.words)
         return {
-          title:
-            uploaded === 1
-              ? "Your plan is saved to your account"
-              : `Your ${uploaded} plans are saved to your account`,
+          title: `${uploaded.words} ${uploaded.many ? "are" : "is"} saved to your account`,
           ...(description ? { description } : {}),
         };
-      if (fromAccount > 0)
+      const fromAccount = counted(
+        notice.fromAccount,
+        notice.fourYear.fromAccount,
+        YOURS,
+      );
+      if (fromAccount.words)
         return {
-          title:
-            fromAccount === 1
-              ? "Your plan from your account is here"
-              : `Your ${fromAccount} plans from your account are here`,
+          title: `${fromAccount.words} from your account ${fromAccount.many ? "are" : "is"} here`,
           ...(details ? { description: details } : {}),
         };
       return details
@@ -73,9 +104,15 @@ export function syncToast(notice: SyncNotice): SyncToast | null {
         description: `${notice.from} changed on another device too, so you have both versions.`,
       };
     case "too-many-plans":
-      return {
-        title: "Your account is full",
-        description: `It holds ${SYNC_MAX_PLANS} plans. New plans stay on this device until you delete one.`,
-      };
+      return notice.doc === "four-year"
+        ? {
+            title: `You have ${SYNC_MAX_FOUR_YEAR_DOCS} four-year plans`,
+            description:
+              "Delete one to make another. Until then, new ones stay on this device.",
+          }
+        : {
+            title: "Your account is full",
+            description: `It holds ${SYNC_MAX_PLANS} plans. New plans stay on this device until you delete one.`,
+          };
   }
 }
