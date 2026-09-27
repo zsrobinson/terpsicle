@@ -14,6 +14,8 @@ import { routeHead } from "~/features/reviews/route-head";
 export const Route = createFileRoute("/reviews/courses/$code")({
   // The loader's data code is its own chunk, like the page: nothing of
   // Reviews loads with other pages (scripts/check-bundle.ts).
+  // From another page, a slow course loads under the bar as a reading page.
+  staticData: { pending: "reading" },
   codeSplitGroupings: [["loader"], ["component"], ["notFoundComponent"]],
   loader: async ({ params, serverContext }) => {
     const code = parseCourseParam(params.code);
