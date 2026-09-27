@@ -99,7 +99,6 @@ const RULES = {
  */
 const OWN_PAGE_WIDTH = new Set([
   "/src/features/auth/account-page.tsx",
-  "/src/features/chat/sign-in-moment.tsx",
   "/src/features/four-year/empty-state.tsx",
   "/src/features/site/site-page.tsx",
   "/src/features/todo/connect-page.tsx",

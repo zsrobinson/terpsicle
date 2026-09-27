@@ -1,6 +1,5 @@
-import { ChevronLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { GroupHeader, PanelBody, PanelHeader } from "~/app/panel";
+import { PanelBody, PanelNote } from "~/app/panel";
 import {
   canReadRoom,
   chatPlanFor,
@@ -11,7 +10,9 @@ import {
 } from "~/core/chat";
 import type { ChatUnreadRoom, CourseCode, RoomId } from "~/core/schema";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { GroupHeader } from "~/ui/list-row";
+import { PageHeader } from "~/ui/page-header";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { useChatHome, withMutes } from "./chat-home";
 import type { ChatGo, ChatView } from "./nav";
@@ -54,38 +55,26 @@ export function CourseSpace({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PanelHeader
-        title={
-          <span className="flex items-center gap-1">
-            <WithTooltip label="Your classes" shortcut="Esc">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Your classes"
-                className="-ml-2 max-md:size-11"
-                onClick={() => go({})}
-              >
-                <ChevronLeft />
-              </Button>
-            </WithTooltip>
-            <span className="ident">{courseCode}</span>
-          </span>
-        }
-        sub={course?.title}
-        right={
+      <PageHeader
+        size="panel"
+        back={{
+          label: "Your classes",
+          to: "/chat",
+          search: { term: view.term },
+        }}
+        title={<span className="ident">{courseCode}</span>}
+        status={course?.title}
+        actions={
           termId && course ? <FollowButton courseCode={courseCode} /> : null
         }
       />
       <PanelBody>
         {!termId || (!course && !missing) ? (
-          <div className="flex flex-col gap-3 px-4 py-4" aria-busy="true">
-            <Skeleton className="h-3 w-2/3" />
-            <Skeleton className="h-3 w-1/2" />
-          </div>
+          <RowSkeleton label={`Loading ${courseCode}'s rooms`} />
         ) : !course ? (
-          <p className="px-4 py-3 text-muted text-sm">
+          <PanelNote>
             {courseCode} isn't in this term's catalog, so it has no rooms.
-          </p>
+          </PanelNote>
         ) : (
           <RoomTreeList
             courseCode={courseCode}
@@ -237,6 +226,24 @@ function FollowButton({ courseCode }: { courseCode: CourseCode }) {
   const [busy, setBusy] = useState(false);
   if (!termId || inPlan) return null;
   const home = useChatHome.getState;
+  const leave = async () => {
+    setBusy(true);
+    const left = await home().unfollow(courseCode);
+    setBusy(false);
+    if (!left) return showNote(`We couldn't leave ${courseCode} chat.`, leave);
+    showUndo(`Left ${courseCode} chat`, () => void home().follow(courseCode));
+  };
+  const join = async () => {
+    setBusy(true);
+    const result = await home().follow(courseCode);
+    setBusy(false);
+    if (result === "too-many")
+      showNote(
+        "You've joined 100 courses' chats this term. Leave one to join another.",
+      );
+    else if (result === "failed")
+      showNote(`We couldn't join ${courseCode} chat.`, join);
+  };
   if (following)
     return (
       <WithTooltip
@@ -247,16 +254,7 @@ function FollowButton({ courseCode }: { courseCode: CourseCode }) {
           size="sm"
           disabled={busy}
           className="max-md:h-11"
-          onClick={async () => {
-            setBusy(true);
-            const left = await home().unfollow(courseCode);
-            setBusy(false);
-            if (!left) return showNote("We couldn't leave. Try again.");
-            showUndo(
-              `Left ${courseCode} chat`,
-              () => void home().follow(courseCode),
-            );
-          }}
+          onClick={() => void leave()}
         >
           Leave
         </Button>
@@ -269,17 +267,7 @@ function FollowButton({ courseCode }: { courseCode: CourseCode }) {
         size="sm"
         disabled={busy}
         className="max-md:h-11"
-        onClick={async () => {
-          setBusy(true);
-          const result = await home().follow(courseCode);
-          setBusy(false);
-          if (result === "too-many")
-            showNote(
-              "You've joined 100 courses' chats this term. Leave one to join another.",
-            );
-          else if (result === "failed")
-            showNote("We couldn't join. Try again.");
-        }}
+        onClick={() => void join()}
       >
         Join
       </Button>

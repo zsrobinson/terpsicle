@@ -5,7 +5,10 @@ import type { ChatAuthor, CourseCode, TermId } from "~/core/schema";
 import { Avatar } from "~/features/auth/avatar";
 import { chatApi } from "~/server/fns/chat-api";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { InlineError } from "~/ui/inline-error";
+import { ListRow } from "~/ui/list-row";
+import { PageSection } from "~/ui/page-section";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { isMuted, useChatHome } from "./chat-home";
 import { showNote, showUndo } from "./undo";
@@ -41,6 +44,9 @@ export function RoomInfo({
 }) {
   const [members, setMembers] = useState<Members>({ state: "loading" });
   const [all, setAll] = useState(false);
+  // Try again asks once more.
+  const [attempt, setAttempt] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt asks again
   useEffect(() => {
     let live = true;
     setMembers({ state: "loading" });
@@ -58,7 +64,7 @@ export function RoomInfo({
     return () => {
       live = false;
     };
-  }, [termId, courseCode, room.id]);
+  }, [termId, courseCode, room.id, attempt]);
 
   const total =
     members.state === "ready" ? members.total : (memberCount ?? null);
@@ -71,7 +77,7 @@ export function RoomInfo({
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4 text-sm">
-      <section>
+      <div>
         <p className="text-fg">{room.description}.</p>
         {room.detail ? <p className="text-muted">{room.detail}</p> : null}
         {room.kind !== "course" && total !== null ? (
@@ -81,29 +87,35 @@ export function RoomInfo({
             Terpsicle can't see registrations.
           </p>
         ) : null}
-      </section>
+      </div>
 
-      <section aria-label="People">
-        <h3 className="mb-1.5 font-semibold">
-          {total === null ? "People" : peopleWords(total)}
-        </h3>
+      <PageSection
+        headingLevel={3}
+        title={total === null ? "People" : peopleWords(total)}
+      >
         {members.state === "loading" ? (
-          <div className="flex flex-col gap-2" aria-busy="true">
-            <Skeleton className="h-3 w-1/2" />
-            <Skeleton className="h-3 w-2/3" />
-          </div>
+          <RowSkeleton rows={2} inset={false} label="Loading who's here" />
         ) : members.state === "failed" ? (
-          <p className="text-muted">We couldn't load who's here.</p>
+          <InlineError
+            className="py-0"
+            message="We couldn't load who's here."
+            onRetry={() => setAttempt((n) => n + 1)}
+          />
         ) : (
           <>
-            <ul className="flex flex-col gap-1.5">
+            <ul>
               {shown.map((m) => (
-                <li key={m.directoryId} className="flex items-center gap-2">
-                  <Avatar name={m.name} src={m.picture} />
-                  <span className="truncate" data-private="">
+                <ListRow
+                  key={m.directoryId}
+                  as="li"
+                  density="compact"
+                  className="px-0"
+                  lead={<Avatar name={m.name} src={m.picture} />}
+                >
+                  <span className="block truncate" data-private="">
                     {m.name}
                   </span>
-                </li>
+                </ListRow>
               ))}
             </ul>
             {members.members.length > SHOW_FIRST && !all ? (
@@ -111,7 +123,7 @@ export function RoomInfo({
                 <Button
                   variant="link"
                   size="row"
-                  className="mt-1 px-0 max-md:h-11"
+                  className="self-start px-0 max-md:h-11"
                   onClick={() => setAll(true)}
                 >
                   Show all {members.members.length}
@@ -120,25 +132,27 @@ export function RoomInfo({
             ) : null}
           </>
         )}
-      </section>
+      </PageSection>
 
-      <section className="flex flex-col gap-2" aria-label="Your settings">
+      <section
+        aria-label="Your settings"
+        className="flex flex-col gap-2 border-hairline border-t pt-3"
+      >
         <MuteButton courseCode={courseCode} room={room} />
         <LeaveOrWhy courseCode={courseCode} room={room} />
       </section>
 
-      <section>
-        <h3 className="mb-1.5 font-semibold">Room rules</h3>
+      <PageSection headingLevel={3} title="Room rules">
         <ul className="list-disc pl-4 text-muted">
           {ROOM_RULES.map((rule) => (
             <li key={rule}>{rule}</li>
           ))}
         </ul>
-        <p className="mt-2 text-muted">
+        <p className="text-muted">
           To report a message, open its menu (…) and pick Report. A person
           checks every report, and nobody sees who sent it.
         </p>
-      </section>
+      </PageSection>
     </div>
   );
 }
@@ -152,6 +166,16 @@ function MuteButton({
 }) {
   const muted = useChatHome((s) => isMuted(s, room.id));
   const [busy, setBusy] = useState(false);
+  const toggle = async (mute: boolean) => {
+    setBusy(true);
+    const ok = await useChatHome.getState().mute(courseCode, room.id, mute);
+    setBusy(false);
+    if (!ok)
+      showNote(
+        mute ? "We couldn't mute this room." : "We couldn't unmute this room.",
+        () => void toggle(mute),
+      );
+  };
   return (
     <WithTooltip
       label={
@@ -166,14 +190,7 @@ function MuteButton({
         aria-pressed={muted}
         disabled={busy}
         className="self-start max-md:h-11"
-        onClick={async () => {
-          setBusy(true);
-          const ok = await useChatHome
-            .getState()
-            .mute(courseCode, room.id, !muted);
-          setBusy(false);
-          if (!ok) showNote("That didn't save. Try again.");
-        }}
+        onClick={() => void toggle(!muted)}
       >
         {muted ? <BellOff aria-hidden="true" /> : <Bell aria-hidden="true" />}
         {muted ? "Muted" : "Mute this room"}
@@ -221,6 +238,11 @@ function LeaveOrWhy({
     );
   if (!following || room.kind !== "course") return null;
   const home = useChatHome.getState;
+  const leave = async () => {
+    if (!(await home().unfollow(courseCode)))
+      return showNote(`We couldn't leave ${courseCode} chat.`, leave);
+    showUndo(`Left ${courseCode} chat`, () => void home().follow(courseCode));
+  };
   return (
     <WithTooltip
       label={`Take ${courseCode} out of your list. You can undo this`}
@@ -229,14 +251,7 @@ function LeaveOrWhy({
         variant="outline"
         size="sm"
         className="self-start max-md:h-11"
-        onClick={async () => {
-          if (!(await home().unfollow(courseCode)))
-            return showNote("We couldn't leave. Try again.");
-          showUndo(
-            `Left ${courseCode} chat`,
-            () => void home().follow(courseCode),
-          );
-        }}
+        onClick={() => void leave()}
       >
         Leave {courseCode} chat
       </Button>

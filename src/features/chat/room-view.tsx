@@ -1,4 +1,4 @@
-import { ChevronLeft, Info, X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { PanelNote } from "~/app/panel";
 import {
   type ChatItem,
   campusDay,
@@ -32,7 +33,10 @@ import {
 import { api } from "~/server/fns/api";
 import { chatApi } from "~/server/fns/chat-api";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { Card } from "~/ui/card";
+import { InlineError } from "~/ui/inline-error";
+import { type BackTo, PageHeader } from "~/ui/page-header";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer } from "./composer";
 import type { MessageActions, ReportOutcome } from "./message-row";
@@ -99,11 +103,12 @@ export function RoomView({
   snapshot,
   roomState,
   compact,
-  onBack,
+  back,
   onOpenThread,
   onCloseThread,
   onInfo,
   onSeen,
+  onReconnect,
 }: {
   courseCode: CourseCode;
   room: Room;
@@ -114,12 +119,15 @@ export function RoomView({
   roomState: ChatRoomState | undefined;
   /** A phone: the header has a way back. */
   compact: boolean;
-  onBack: () => void;
+  /** Back from a thread to its room, and (on a phone) from the room to its course. */
+  back: { room: BackTo; course: BackTo };
   onOpenThread: (id: ChatMessageId) => void;
   onCloseThread: () => void;
   onInfo: () => void;
   /** You've seen the room's newest message. */
   onSeen: () => void;
+  /** Opens the course's socket again, after it gave up. */
+  onReconnect: () => void;
 }) {
   const now = useNow();
   const conversation = snapshot?.conversation ?? null;
@@ -157,78 +165,62 @@ export function RoomView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex min-h-12 shrink-0 items-center gap-2 border-hairline border-b px-4 py-2">
-        {compact || thread ? (
-          <WithTooltip
-            label={thread ? "Back to the room" : "Back"}
-            shortcut="Esc"
-          >
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={thread ? "Back to the room" : "Back"}
-              className="-ml-2 max-md:size-11"
-              onClick={thread ? onCloseThread : onBack}
-            >
-              <ChevronLeft />
-            </Button>
-          </WithTooltip>
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate font-semibold text-base">
-            {thread ? "Thread" : <RoomLabel room={room} />}
-          </h2>
-          <p className="truncate text-muted text-sm">
-            {thread ? (
-              <RoomLabel room={room} />
-            ) : (
-              [
-                room.kind === "course" && room.code ? null : courseCode,
-                room.detail,
-                roomState ? peopleWords(roomState.members) : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            )}
-          </p>
-        </div>
-        {thread ? (
-          compact ? null : (
-            <WithTooltip label="Close the thread" shortcut="Esc">
+      <PageHeader
+        size="panel"
+        back={thread ? back.room : compact ? back.course : undefined}
+        title={thread ? "Thread" : <RoomLabel room={room} />}
+        status={
+          thread ? (
+            <RoomLabel room={room} />
+          ) : (
+            [
+              room.kind === "course" && room.code ? null : courseCode,
+              room.detail,
+              roomState ? peopleWords(roomState.members) : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          )
+        }
+        actions={
+          thread ? (
+            compact ? null : (
+              <WithTooltip label="Close the thread" shortcut="Esc">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close the thread"
+                  onClick={onCloseThread}
+                  className="max-md:size-11"
+                >
+                  <X />
+                </Button>
+              </WithTooltip>
+            )
+          ) : (
+            <WithTooltip label="Room info: people, mute, leave">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Close the thread"
-                onClick={onCloseThread}
+                aria-label="Room info"
+                onClick={onInfo}
                 className="max-md:size-11"
               >
-                <X />
+                <Info />
               </Button>
             </WithTooltip>
           )
-        ) : (
-          <WithTooltip label="Room info: people, mute, leave">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Room info"
-              onClick={onInfo}
-              className="max-md:size-11"
-            >
-              <Info />
-            </Button>
-          </WithTooltip>
-        )}
-      </header>
+        }
+      />
 
       {!welcomed ? (
-        <Connecting status={status} />
+        <Connecting status={status} onReconnect={onReconnect} />
       ) : !readable ? (
-        <p className="px-4 py-4 text-muted text-sm">
+        <PanelNote>
           {room.kind === "section"
             ? `This room is for people with ${room.code} in a plan. Add it to one of yours to join.`
             : "This room is for people with one of its sections in a plan. Add one to join."}
-        </p>
+        </PanelNote>
       ) : (
         <Messages
           key={`${room.id}>${thread ?? ""}`}
@@ -278,37 +270,33 @@ export function RoomView({
   );
 }
 
-function Connecting({ status }: { status: SessionSnapshot["status"] }) {
+function Connecting({
+  status,
+  onReconnect,
+}: {
+  status: SessionSnapshot["status"];
+  onReconnect: () => void;
+}) {
   if (status === "signed-out")
     return (
-      <p className="px-4 py-4 text-muted text-sm">
-        You're signed out. Sign in again to see this room.
-      </p>
+      <InlineError
+        className="px-4"
+        message="You're signed out. Sign in again to see this room."
+      />
     );
   if (status === "unavailable")
     return (
-      <p className="px-4 py-4 text-muted text-sm">
-        This course's chat isn't reachable right now. Reload to try again.
-      </p>
+      <InlineError
+        className="px-4"
+        message="This course's chat isn't reachable right now."
+        onRetry={onReconnect}
+      />
     );
   if (status === "offline")
     return (
-      <p className="px-4 py-4 text-muted text-sm">
-        You're offline. The room opens when you're back.
-      </p>
+      <PanelNote>You're offline. The room opens when you're back.</PanelNote>
     );
-  return (
-    <div
-      className="flex flex-col gap-3 px-4 py-4"
-      role="status"
-      aria-busy="true"
-      aria-label="Opening the room"
-    >
-      <Skeleton className="h-3 w-2/3" />
-      <Skeleton className="h-3 w-1/2" />
-      <Skeleton className="h-3 w-3/5" />
-    </div>
-  );
+  return <RowSkeleton label="Opening the room" />;
 }
 
 function Messages({
@@ -389,8 +377,8 @@ function Messages({
       }}
     >
       {rules && !thread ? (
-        <div className="m-4 border border-keyline bg-raised p-3 text-sm shadow-offset">
-          <h3 className="mb-1 font-semibold">Before you post</h3>
+        <Card className="m-4 text-sm">
+          <h3 className="font-semibold">Before you post</h3>
           <ul className="list-disc pl-4 text-muted">
             {ROOM_RULES.map((rule) => (
               <li key={rule}>{rule}</li>
@@ -400,7 +388,7 @@ function Messages({
             <Button
               size="sm"
               variant="outline"
-              className="mt-2 max-md:h-11"
+              className="self-start max-md:h-11"
               onClick={() => {
                 markRulesSeen(courseCode);
                 setRules(false);
@@ -409,7 +397,7 @@ function Messages({
               Got it
             </Button>
           </WithTooltip>
-        </div>
+        </Card>
       ) : null}
       {more ? (
         <div className="flex justify-center py-2">
@@ -426,16 +414,13 @@ function Messages({
         </div>
       ) : null}
       {!loaded ? (
-        <div className="flex flex-col gap-3 px-4 py-4">
-          <Skeleton className="h-3 w-2/3" />
-          <Skeleton className="h-3 w-1/2" />
-        </div>
+        <RowSkeleton rows={2} label="Loading messages" />
       ) : rows.length === 0 ? (
-        <p className="px-4 py-6 text-center text-muted text-sm">
+        <PanelNote className="py-6 text-center">
           {thread
             ? "No replies yet."
             : "No messages yet. Say hi to your classmates."}
-        </p>
+        </PanelNote>
       ) : (
         rows.map((item, i) => {
           const prev = rows[i - 1];
