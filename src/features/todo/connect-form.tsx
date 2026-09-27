@@ -30,18 +30,18 @@ export function ConnectSteps() {
     <ol className="list-decimal space-y-1 pl-4 text-fg marker:text-muted">
       <li>
         Open{" "}
-        <WithTooltip label="Opens ELMS in a new tab">
+        <WithTooltip label="Opens your ELMS calendar in a new tab">
           <a
-            href="https://elms.umd.edu/calendar"
+            href="https://umd.instructure.com/calendar"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 underline underline-offset-4"
           >
-            elms.umd.edu
+            your ELMS calendar
             <ExternalLink size={12} aria-hidden="true" />
           </a>
-        </WithTooltip>{" "}
-        and go to Calendar.
+        </WithTooltip>
+        .
       </li>
       <li>Click Calendar Feed at the bottom right and copy the link.</li>
       <li>Paste it here.</li>
@@ -97,7 +97,7 @@ export function ConnectForm({
           spellCheck={false}
           data-private=""
           aria-describedby={answer ? answerId : undefined}
-          placeholder="https://elms.umd.edu/feeds/calendars/user_….ics"
+          placeholder="https://umd.instructure.com/feeds/calendars/user_….ics"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           disabled={busy}
