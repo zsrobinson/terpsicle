@@ -153,7 +153,7 @@ The most visible items:
 7. **List rows.** Only Schedule uses `ListRow`. Chat retypes it, Todo and Reviews hand-roll theirs, and Plan boxes every block.
 8. **Widths.** Page widths: 440, 560, 720, 1040, 1120, 1600 and full bleed.
 9. ~~**Undo toasts.**~~ Fixed: one `undoToast()`, one 10-second window.
-10. **Errors.** Error handling differs everywhere: red toasts in Schedule, plain ones in Chat, and "reload the page" with no button in Reviews and Settings. No route has an `errorComponent`.
+10. **Errors.** Error handling differs everywhere: red toasts in Schedule, plain ones in Chat, and "reload the page" with no button in Reviews and Settings. (Every route now shares one loading and one error state: `src/features/site/route-states.tsx`.)
 11. **Back.** Six back affordances.
 12. **Section headings.** Five section-heading styles.
 13. **Loading.** Three copies of `ListSkeleton`, one lone spinner, and pulsing in two places only.
