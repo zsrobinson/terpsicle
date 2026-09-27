@@ -23,6 +23,7 @@ import type {
 import type { FeedbackProduct, FeedbackSendKind } from "~/core/schema/feedback";
 import type { FourYearProblemKind } from "~/core/schema/four-year";
 import { type ClientConfig, clientConfig, type DataSource } from "./config";
+import type { ProductId } from "./products";
 
 type NoProperties = Record<string, never>;
 
@@ -155,6 +156,9 @@ export interface AnalyticsEvents {
   four_year_problem_opened: { kind: FourYearProblemKind };
   four_year_problem_fix_applied: { kind: FourYearProblemKind };
   four_year_handoff: { outcome: "created-plan" | "opened-plan" };
+  // Every "View …" link between products (V3.md §6): product ids only,
+  // never the course, term or item it leads to.
+  cross_link_clicked: { from: ProductId; to: ProductId };
   // The transcript import: counts and a boolean, never what was pasted.
   transcript_parsed: {
     recognized: boolean;

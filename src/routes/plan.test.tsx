@@ -10,9 +10,11 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { track } from "~/app/analytics";
 import { isApple } from "~/app/shortcuts";
 import { LOCAL_DB_NAME } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
+import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import {
   resetFourYearStart,
   startFourYear,
@@ -45,6 +47,11 @@ import { Route } from "./plan";
 // /plan on the fixtures' course index and a fake IndexedDB. 2026-09-26 is in
 // Fall 2026, so a plan from Fall 2025 has two done semesters and one in
 // progress.
+
+vi.mock("~/app/analytics", async (original) => ({
+  ...(await original<typeof import("~/app/analytics")>()),
+  track: vi.fn(),
+}));
 
 const NOW = "2026-09-26T16:00:00.000Z";
 
@@ -441,6 +448,65 @@ describe("View schedule", () => {
     expect(
       within(spring).queryByRole("link", { name: "View schedule" }),
     ).toBeNull();
+  });
+});
+
+describe("links to the other products", () => {
+  afterEach(() => useAccount.setState({ flags: FLAGS_OFF }));
+
+  it("View todos sits on the semester in progress, while Todo is on", async () => {
+    useAccount.setState({ flags: { ...FLAGS_OFF, todo: true } });
+    await seed(PLAN);
+    renderPlan();
+    const fall = await screen.findByRole("region", { name: /^Fall 2026$/ });
+    expect(
+      within(fall).getByRole("link", { name: "View todos" }),
+    ).toHaveAttribute("href", "/todo");
+    expect(
+      within(column("Spring 2027")).queryByRole("link", { name: "View todos" }),
+    ).toBeNull();
+    await userEvent
+      .setup()
+      .click(within(fall).getByRole("link", { name: "View todos" }));
+    expect(track).toHaveBeenCalledWith("cross_link_clicked", {
+      from: "plan",
+      to: "todo",
+    });
+  });
+
+  it("has no View todos while Todo is off", async () => {
+    await seed(PLAN);
+    renderPlan();
+    const fall = await screen.findByRole("region", { name: /^Fall 2026$/ });
+    expect(within(fall).queryByRole("link", { name: "View todos" })).toBeNull();
+  });
+
+  it("a course block's menu has View reviews, while Reviews is on", async () => {
+    useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "on" } });
+    await seed(PLAN);
+    const user = renderPlan();
+    await user.click(
+      await screen.findByRole("button", { name: "CMSC351 options" }),
+    );
+    expect(
+      await screen.findByRole("menuitem", { name: "View reviews" }),
+    ).toHaveAttribute("href", "/reviews/courses/CMSC351");
+    await user.click(screen.getByRole("menuitem", { name: "View reviews" }));
+    expect(track).toHaveBeenCalledWith("cross_link_clicked", {
+      from: "plan",
+      to: "reviews",
+    });
+  });
+
+  it("a placeholder's menu has no View reviews", async () => {
+    useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "on" } });
+    await seed(PLAN);
+    const user = renderPlan();
+    await user.click(
+      await screen.findByRole("button", { name: "CMSC4XX options" }),
+    );
+    await screen.findByRole("menuitem", { name: "Pick a course" });
+    expect(screen.queryByRole("menuitem", { name: "View reviews" })).toBeNull();
   });
 });
 

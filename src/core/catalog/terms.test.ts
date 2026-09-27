@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aTerm } from "~/fixtures";
 import type { Term } from "../schema";
-import { pickTerm, termIdFromLabel, termLabel } from "./terms";
+import { pickTerm, seasonTermOf, termIdFromLabel, termLabel } from "./terms";
 
 const term = (id: string, season: Term["season"], status: Term["status"]) =>
   aTerm({ id, name: id, season, year: Number(id.slice(0, 4)), status });
@@ -67,5 +67,17 @@ describe("termIdFromLabel", () => {
     expect(termIdFromLabel("Fall 25")).toBeNull();
     expect(termIdFromLabel("Fall 2025 grades")).toBeNull();
     expect(termIdFromLabel("Winter 0999")).toBeNull();
+  });
+});
+
+describe("seasonTermOf", () => {
+  it("names the term a date falls in by season, without calendars", () => {
+    expect(seasonTermOf("2026-10-01")).toBe("202608");
+    expect(seasonTermOf("2026-12-31")).toBe("202608");
+    expect(seasonTermOf("2027-01-10")).toBe("202612");
+    expect(seasonTermOf("2027-01-25")).toBe("202701");
+    expect(seasonTermOf("2027-05-31")).toBe("202701");
+    expect(seasonTermOf("2027-06-01")).toBe("202705");
+    expect(seasonTermOf("2027-08-21")).toBe("202708");
   });
 });

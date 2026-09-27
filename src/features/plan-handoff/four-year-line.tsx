@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { termLabel } from "~/core/catalog/terms";
 import {
   missingFromPlan,
@@ -61,9 +62,10 @@ export function FourYearLine({ plan }: { plan: Plan }) {
           <Link
             to="/plan"
             search={{ semester: termId }}
-            className="text-muted underline underline-offset-2 hover:text-fg"
+            onClick={() => crossLinkClicked("schedule", "plan")}
+            className="inline-flex min-h-11 items-center text-muted underline underline-offset-2 hover:text-fg md:min-h-0"
           >
-            View plan
+            {viewWords("plan")}
           </Link>
         </WithTooltip>
       </p>

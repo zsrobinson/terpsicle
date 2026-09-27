@@ -1,3 +1,4 @@
+import { seasonTermOf } from "../catalog/terms";
 import {
   addDays,
   easternOffsetMinutes,
@@ -8,6 +9,7 @@ import type {
   CourseCode,
   Day,
   IsoDate,
+  TermId,
   TodoFeedState,
   TodoItem,
 } from "../schema";
@@ -259,6 +261,25 @@ export function groupByCourse(
       rank(a) - rank(b) ||
       a.key.localeCompare(b.key),
   );
+}
+
+/**
+ * The term a course group's chat room is for: the one its next item is due
+ * in (from today on, else the latest), by season, since Todo has no
+ * academic calendars. Winter's few weeks count as the spring they lead into:
+ * an ELMS course posting work in January is a spring course.
+ */
+export function courseChatTerm(
+  group: Pick<TodoCourseGroup, "open" | "done">,
+  today: IsoDate,
+): TermId | null {
+  const next =
+    group.open.find((i) => i.dueDate >= today) ??
+    group.done[0] ??
+    group.open.at(-1);
+  if (!next) return null;
+  const term = seasonTermOf(next.dueDate);
+  return term.endsWith("12") ? `${Number(term.slice(0, 4)) + 1}01` : term;
 }
 
 /** Open items the list shows: past-due ones and everything from today on. */
