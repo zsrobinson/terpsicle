@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { MessageText } from "~/app/message-text";
 import { fourYearTermLabel } from "~/core/four-year/terms";
@@ -11,9 +11,10 @@ import { addCourse, entryName, pickForPlaceholder } from "./actions";
 import { useIndexEntry } from "./data";
 import { useModel, usePlanNav } from "./model";
 
-// A course, open in the side panel (`?course=CMSC351`): what the index knows
+// A course, open in the sidebar (`?course=CMSC351`): what the index knows
 // about it, where it is in the plan, and Add (or Pick, for a placeholder).
-// One Back, like the scheduler's drill-ins.
+// The sidebar puts one Back over it, like the scheduler's drill-ins
+// (plan-sidebar.tsx).
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -55,19 +56,6 @@ export function CoursePanel({ code }: { code: CourseCode }) {
 
   return (
     <div className="flex flex-col">
-      <div className="flex min-h-12 items-center gap-2 border-hairline border-b px-2 py-1.5">
-        <WithTooltip label="Back" shortcut="Esc">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-11 md:h-7"
-            onClick={() => nav.back({ course: undefined })}
-          >
-            <ArrowLeft aria-hidden="true" />
-            Back
-          </Button>
-        </WithTooltip>
-      </div>
       <div className="space-y-3 px-4 py-3">
         <div>
           <h2 className="font-mono font-semibold text-lg">{code}</h2>

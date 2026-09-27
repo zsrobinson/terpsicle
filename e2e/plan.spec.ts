@@ -28,6 +28,17 @@ async function axe(page: Page, what: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
+/**
+ * On a phone, Search raises the drawer all the way (the keyboard is up),
+ * over the semesters: lower it, as a person would, to pick one.
+ */
+async function lowerDrawer(page: Page) {
+  const drawer = page.locator("[data-vaul-drawer]");
+  await expect(drawer).toHaveAttribute("data-snap", "full");
+  await page.getByRole("button", { name: "Lower the panel" }).click();
+  await expect(drawer).toHaveAttribute("data-snap", "peek");
+}
+
 /** A semester's column; on a phone, picked from the strip first. */
 async function semester(page: Page, isMobile: boolean, name: string) {
   if (isMobile) {
@@ -85,7 +96,10 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
     .getByRole("button", { name: "Add CMSC4XX to Spring 2027", exact: true })
     .click();
   await expect(spring.getByText("Any CMSC 400-level")).toBeVisible();
-  await expect(page.getByText("6 of 120 credits")).toBeVisible();
+  // The bar's credits on a desktop; over the semesters on a phone.
+  await expect(
+    page.getByRole(isMobile ? "main" : "banner").getByText("6 of 120 credits"),
+  ).toBeVisible();
 
   // Move CMSC351 with the keyboard alone: its menu, Move to…, Fall 2027.
   await spring.getByRole("button", { name: "CMSC351 options" }).focus();
@@ -100,6 +114,7 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
   await page.keyboard.press("Enter");
   await expect(page.getByText("Moved CMSC351 to Fall 2027")).toBeVisible();
 
+  if (isMobile) await lowerDrawer(page);
   const fall = await semester(page, isMobile, "Fall 2027");
   await expect(fall.getByText("CMSC351")).toBeVisible();
 

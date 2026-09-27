@@ -5,6 +5,7 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { applyFix } from "./actions";
 import { useModel, usePlanNav } from "./model";
+import { PlanView } from "./views";
 
 // The Problems tab (V3 §2.8): prerequisites out of order, light semesters,
 // repeats, codes Testudo doesn't know, courses not offered lately. All of it
@@ -93,5 +94,14 @@ export function ProblemsPanel() {
         <Row key={problem.id} problem={problem} />
       ))}
     </ul>
+  );
+}
+
+/** The Problems view, on its route (`/plan/problems`). */
+export function ProblemsView() {
+  return (
+    <PlanView tab="problems">
+      <ProblemsPanel />
+    </PlanView>
   );
 }

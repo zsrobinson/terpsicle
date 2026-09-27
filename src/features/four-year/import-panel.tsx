@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef } from "react";
 import { track } from "~/app/analytics";
 import { modKey } from "~/app/shortcuts";
-import { useMediaQuery } from "~/app/use-media-query";
+import { useIsMobile } from "~/app/use-media-query";
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import {
   buildTranscriptImport,
@@ -41,8 +41,10 @@ import {
   toggleRow,
   useTranscriptImport,
 } from "./import-state";
-import { PLAN_WIDE_QUERY, useModel, usePlanNav } from "./model";
+import { useModel, usePlanNav } from "./model";
 import { activeDoc, useFourYear } from "./store";
+import { PlanView } from "./views";
+import { showBoard } from "./workbench-store";
 
 // The Import tab (docs/V3.md §2.10): paste, check, import. The paste is in
 // the side panel; the check list sits beside it on desktop, in the board's
@@ -457,7 +459,7 @@ export function useImportRecognized(): boolean {
 export function ImportPanel() {
   const { doc, columns, statusOf } = useModel();
   const nav = usePlanNav();
-  const wide = useMediaQuery(PLAN_WIDE_QUERY);
+  const wide = !useIsMobile();
   const text = useTranscriptImport((s) => s.text);
   const parse = useTranscriptImport((s) => s.parse);
   const rows = useTranscriptImport((s) => s.rows);
@@ -527,6 +529,7 @@ export function ImportPanel() {
     }
     resetTranscriptImport();
     nav.go({ tab: undefined });
+    showBoard();
   };
 
   return (
@@ -646,5 +649,14 @@ export function ImportPanel() {
         </>
       ) : null}
     </div>
+  );
+}
+
+/** The Import view, on its route (`/plan/import`). */
+export function ImportView() {
+  return (
+    <PlanView tab="import">
+      <ImportPanel />
+    </PlanView>
   );
 }

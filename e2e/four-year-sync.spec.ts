@@ -42,7 +42,7 @@ function newUser(): string {
 
 /** Plan's saved-state line: the account's status words while signed in. */
 const savedState = (page: Page) =>
-  page.getByRole("main").locator("[data-sync-status]");
+  page.getByRole("banner").locator("[data-sync-status]");
 const spring = (page: Page) =>
   page.getByRole("region", { name: "Spring 2027", exact: true });
 
@@ -164,6 +164,17 @@ test("the same four-year plan changed on two devices, one offline, keeps both", 
   await signIn(b, user);
   await saved(b);
   await expect(spring(b).getByText("CMSC351")).toBeVisible();
+
+  // Search is a route with its own chunk. In production the service worker
+  // has every route's chunk before this (scripts/pwa-precache.ts); the dev
+  // server runs no worker, so open Search once while online, as the worker
+  // would have fetched it.
+  const rail = b.getByRole("navigation", { name: "Plan views" });
+  await rail.getByRole("button", { name: "Search" }).click();
+  await expect(
+    b.getByRole("searchbox", { name: "Search courses" }),
+  ).toBeVisible();
+  await rail.getByRole("button", { name: "GenEd" }).click();
 
   await b.context().setOffline(true);
   await addCourse(b, "MATH240");

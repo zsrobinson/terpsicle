@@ -1,6 +1,11 @@
+import { useLocation } from "@tanstack/react-router";
+import { cn } from "cn";
 import { Check, ChevronDown, Redo2, Undo2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { AppBar } from "~/app/app-bar";
 import { modKey } from "~/app/shortcuts";
+import { CreditsStatus, ProblemsStatus } from "~/app/workbench/status";
+import { creditsHeadline } from "~/core/four-year/credits";
 import { firstTermChoices, fourYearTermLabel } from "~/core/four-year/terms";
 import { canRedo, canUndo } from "~/core/plans/history";
 import type { FourYearDoc } from "~/core/schema/four-year";
@@ -30,13 +35,17 @@ import {
   setFirstTerm,
 } from "./actions";
 import { MENU_ITEM } from "./block";
-import { useModel } from "./model";
+import { useDeptsLoading } from "./data";
+import { useModel, useProblemCounts } from "./model";
 import { useFourYear } from "./store";
+import { planView } from "./views";
 
-// The top of Plan: the open plan's name with its ▾ menu (switch, Rename,
-// Duplicate, New, the first semester, Delete with Undo), where it's saved
-// (this browser, or the account's status words while signed in, V3 §2.13),
-// and undo and redo (V3 §2.3, §2.13).
+// Plan's bar (V3 §2.13): the family bar (~/app/app-bar), as the scheduler's.
+// Its context is the open plan's name with its ▾ menu (switch, Rename,
+// Duplicate, New, the first semester, Delete with Undo), then undo and redo
+// (V3 §2.3). Its status is where the plan is saved (this browser, or the
+// account's sync icon while signed in), the credits, and the problems,
+// which open the Problems view.
 
 function RenameField({
   doc,
@@ -68,7 +77,7 @@ function RenameField({
         if (event.key === "Enter") finish(true);
         if (event.key === "Escape") finish(false);
       }}
-      className="h-11 w-full max-w-[280px] border border-fg bg-raised px-2 font-semibold text-lg outline-none md:h-8"
+      className="h-8 w-40 min-w-0 rounded-md border border-hairline-strong bg-raised px-2 font-medium text-base outline-none"
     />
   );
 }
@@ -83,12 +92,14 @@ function DocMenu({ onRename }: { onRename: () => void }) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="-mx-1 flex h-11 min-w-0 items-center gap-1 px-1 font-semibold text-lg hover:bg-hover data-[state=open]:bg-hover md:h-8"
+            // The kit's one selected fill, as the scheduler's open plan tab.
+            className="flex h-8 min-w-0 items-center gap-1 rounded-md bg-accent-soft pr-1.5 pl-2.5 font-medium text-base transition-colors hover:bg-hover data-[state=open]:bg-hover"
           >
             <span className="truncate">{doc.name}</span>
             <ChevronDown
+              size={13}
               aria-hidden="true"
-              className="size-4 shrink-0 text-muted"
+              className="shrink-0 text-muted"
             />
           </button>
         </DropdownMenuTrigger>
@@ -168,7 +179,7 @@ function UndoRedo() {
   const undo = useFourYear((s) => s.undo);
   const redo = useFourYear((s) => s.redo);
   return (
-    <div className="flex items-center">
+    <div className="flex shrink-0 items-center">
       <WithTooltip label="Undo" shortcut={modKey("Z")}>
         <Button
           variant="ghost"
@@ -176,7 +187,6 @@ function UndoRedo() {
           aria-label="Undo"
           disabled={!canUndo(history)}
           onClick={undo}
-          className="size-11 md:size-7"
         >
           <Undo2 aria-hidden="true" />
         </Button>
@@ -188,7 +198,6 @@ function UndoRedo() {
           aria-label="Redo"
           disabled={!canRedo(history)}
           onClick={redo}
-          className="size-11 md:size-7"
         >
           <Redo2 aria-hidden="true" />
         </Button>
@@ -197,12 +206,19 @@ function UndoRedo() {
   );
 }
 
-/** Where the plan is saved: the account while sync runs, else this browser. */
-function SavedState() {
+/**
+ * Where the plan is saved: while sync runs, the scheduler's status words
+ * and icon, which check with the account when pressed (V3 §2.4); else a
+ * quiet "Saved in this browser", from 1280px. A phone's bar has room for
+ * neither, so there they're for screen readers.
+ */
+function SavedState({ compact }: { compact: boolean }) {
   const storageFailed = useFourYear((s) => s.storageFailed);
   const syncing = useSyncStatus((s) => s.status !== "off" && s.look !== null);
   if (syncing && !storageFailed)
-    return <SyncStatusLabel className="h-8 shrink-0 max-sm:sr-only" />;
+    return (
+      <SyncStatusLabel className={cn("h-7 shrink-0", compact && "sr-only")} />
+    );
   return (
     <WithTooltip
       label={
@@ -215,7 +231,12 @@ function SavedState() {
         // biome-ignore lint/a11y/noNoninteractiveTabindex: the tooltip needs a focus stop
         tabIndex={0}
         role="status"
-        className="shrink-0 text-muted text-sm max-sm:sr-only"
+        className={cn(
+          "shrink-0 whitespace-nowrap text-muted text-sm",
+          // A tablet's bar needs the room for the plan's name; "Not saved"
+          // still shows there.
+          compact ? "sr-only" : !storageFailed && "max-xl:sr-only",
+        )}
       >
         {storageFailed ? "Not saved" : "Saved in this browser"}
       </span>
@@ -223,23 +244,61 @@ function SavedState() {
   );
 }
 
-export function PlanHeader() {
+/** The plan's name and its menu, or the field that renames it. */
+function PlanName() {
   const { doc } = useModel();
   const [renaming, setRenaming] = useState(false);
+  return renaming ? (
+    <RenameField doc={doc} onDone={() => setRenaming(false)} />
+  ) : (
+    <DocMenu onRename={() => setRenaming(true)} />
+  );
+}
+
+export function PlanBar({
+  compact,
+  onOpenProblems,
+}: {
+  /** A phone's bar, as the scheduler's. */
+  compact: boolean;
+  onOpenProblems: () => void;
+}) {
+  const { doc, totals } = useModel();
+  const counts = useProblemCounts();
+  const checking = useDeptsLoading(doc);
+  // Where an admin's pinned notes are looked up: the view's own path.
+  const pathname = useLocation({ select: (l) => l.pathname });
   return (
-    <header className="flex min-h-11 items-center gap-2">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {/* The page's heading is the plan's name; its menu hangs off it. */}
-        <h1 className="flex min-w-0">
-          {renaming ? (
-            <RenameField doc={doc} onDone={() => setRenaming(false)} />
-          ) : (
-            <DocMenu onRename={() => setRenaming(true)} />
+    <AppBar
+      current="plan"
+      heading
+      compact={compact}
+      feedback="plan"
+      pathname={pathname}
+      context={
+        <>
+          <PlanName />
+          <UndoRedo />
+        </>
+      }
+      status={
+        <>
+          <SavedState compact={compact} />
+          {compact ? null : (
+            // The sidebar starts with them; a tablet's bar has no room.
+            <span className="max-lg:hidden">
+              <CreditsStatus label={creditsHeadline(totals)} />
+            </span>
           )}
-        </h1>
-        <SavedState />
-      </div>
-      <UndoRedo />
-    </header>
+          <ProblemsStatus
+            counts={counts}
+            checking={checking}
+            compact={compact}
+            shortcut={planView("problems").shortcut}
+            onOpen={onOpenProblems}
+          />
+        </>
+      }
+    />
   );
 }

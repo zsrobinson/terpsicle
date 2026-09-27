@@ -177,7 +177,7 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
     await laptop.goto("/plan");
     await expect(spring(laptop).getByText("CMSC420")).toBeVisible();
     await signIn(laptop, user, "/plan");
-    const saved = laptop.getByRole("main").locator("[data-sync-status]");
+    const saved = laptop.getByRole("banner").locator("[data-sync-status]");
     await expect(saved).toHaveAttribute("data-sync-status", "saved");
 
     // 5. A second device signs in and has it: transcript, placeholder's pick
@@ -186,7 +186,7 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
     await phone.goto("/plan");
     await signIn(phone, user, "/plan");
     await expect(
-      phone.getByRole("main").locator("[data-sync-status]"),
+      phone.getByRole("banner").locator("[data-sync-status]"),
     ).toHaveAttribute("data-sync-status", "saved");
     await expect(spring(phone).getByText("CMSC420")).toBeVisible();
     await expect(spring(phone).getByText("CMSC351")).toBeVisible();

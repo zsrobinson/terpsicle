@@ -7,22 +7,23 @@ import {
   useState,
 } from "react";
 import { clampSidebarWidth, SIDEBAR_WIDTH } from "~/core/schema";
-import { useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   applySidebarWidth,
   COMPACT_SIDEBAR_QUERY,
   setSidebarWidthVar,
   shownSidebarWidth,
-} from "./sidebar-width";
-import { useMediaQuery } from "./use-media-query";
+} from "../sidebar-width";
+import { useMediaQuery } from "../use-media-query";
 
-// The desktop sidebar's right edge, draggable from 320 to 480px (the owner:
+// A workbench sidebar's right edge, draggable from 320 to 480px (the owner:
 // "draggable would be sick"). A drag moves `--sidebar-width` once per frame
-// and saves once, on release; the calendar is flex-1, so it just reflows.
+// and saves once, on release; the canvas is flex-1, so it just reflows.
 // Arrow keys, Home and End do the same from the keyboard; a double-click
-// goes back to the default. Phones have the drawer instead, so the shell
-// only mounts this on desktop.
+// goes back to the default. Phones have the drawer instead, so a workbench
+// only mounts this on desktop. The width is one preference for every
+// workbench, which the head script sets before first paint; each product
+// passes the saved value and where to save a new one.
 
 /** How far one arrow key moves the edge. */
 export const SIDEBAR_KEY_STEP = 16;
@@ -43,12 +44,21 @@ export function sidebarWidthForKey(width: number, key: string): number | null {
   }
 }
 
-export function SidebarResizeHandle({ controls }: { controls: string }) {
-  const saved = useUi((s) => s.sidebarWidth);
+export function SidebarResizeHandle({
+  controls,
+  width: saved,
+  onWidth: setWidth,
+}: {
+  /** The sidebar's id. */
+  controls: string;
+  /** The saved width. */
+  width: number;
+  /** Saves a new width: once per drag, key or double-click. */
+  onWidth: (px: number) => void;
+}) {
   const compact = useMediaQuery(COMPACT_SIDEBAR_QUERY);
   // What's on screen: drags, keys and the value read from here.
   const width = shownSidebarWidth(saved, compact);
-  const setWidth = useUi((s) => s.setSidebarWidth);
   const [dragging, setDragging] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; start: number; next: number } | null>(null);

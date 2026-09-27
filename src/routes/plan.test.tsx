@@ -12,6 +12,7 @@ import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
 import { isApple } from "~/app/shortcuts";
+import { MOBILE_QUERY } from "~/app/use-media-query";
 import { LOCAL_DB_NAME } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
@@ -43,6 +44,11 @@ import { TerpsicleDb } from "~/state/db";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { Route } from "./plan";
+import { Route as ImportRoute } from "./plan.import";
+import { Route as GenEdRoute } from "./plan.index";
+import { Route as ProblemsRoute } from "./plan.problems";
+import { Route as SamplesRoute } from "./plan.samples";
+import { Route as SearchRoute } from "./plan.search";
 
 // /plan on the fixtures' course index and a fake IndexedDB. 2026-09-26 is in
 // Fall 2026, so a plan from Fall 2025 has two done semesters and one in
@@ -57,7 +63,10 @@ const NOW = "2026-09-26T16:00:00.000Z";
 
 let router: ReturnType<typeof createRouter>;
 
-/** The real `/plan` route (its search schema, push and replace, Back) on a memory history. */
+/**
+ * The real `/plan` routes (the layout's search schema, a route per view,
+ * the old `?tab=` redirect, push and replace, Back) on a memory history.
+ */
 function renderPlan(initial = "/plan") {
   // Before the page's own call, which then shares this start.
   void startFourYear({ source: createBucketDataSource(mockDataSource) });
@@ -67,8 +76,19 @@ function renderPlan(initial = "/plan") {
     path: "/plan",
     getParentRoute: () => root,
   } as never);
+  const views = (
+    [
+      [GenEdRoute, "/"],
+      [ProblemsRoute, "/problems"],
+      [SearchRoute, "/search"],
+      [SamplesRoute, "/samples"],
+      [ImportRoute, "/import"],
+    ] as const
+  ).map(([view, path]) =>
+    view.update({ id: path, path, getParentRoute: () => plan } as never),
+  );
   router = createRouter({
-    routeTree: root.addChildren([plan]),
+    routeTree: root.addChildren([plan.addChildren(views)]),
     history: createMemoryHistory({ initialEntries: [initial] }),
     // As src/router.tsx writes search params.
     stringifySearch: stringifySearchWith(JSON.stringify),
@@ -122,7 +142,7 @@ beforeEach(async () => {
   vi.setSystemTime(new Date(NOW));
   // Radix menus measure; happy-dom has no layout.
   window.matchMedia = ((query: string) => ({
-    matches: query === "(min-width: 1024px)",
+    matches: false,
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},
@@ -256,7 +276,7 @@ describe("a saved plan", () => {
 
   it("shows a course in another semester as addable here", async () => {
     await seed(PLAN);
-    const user = renderPlan("/plan?tab=search&semester=202608");
+    const user = renderPlan("/plan/search?semester=202608");
     const box = await screen.findByRole("searchbox", {
       name: "Search courses",
     });
@@ -271,7 +291,7 @@ describe("a saved plan", () => {
 
   it("adds a placeholder for a pattern, then picks a course for it", async () => {
     await seed(PLAN);
-    const user = renderPlan("/plan?tab=search&semester=202801");
+    const user = renderPlan("/plan/search?semester=202801");
     const box = await screen.findByRole("searchbox", {
       name: "Search courses",
     });
@@ -545,7 +565,7 @@ describe("reordering", () => {
 describe("the URL", () => {
   it("keeps the search in it, and Back from a course lands on the same results", async () => {
     await seed(PLAN);
-    const user = renderPlan("/plan?tab=search");
+    const user = renderPlan("/plan/search");
     const box = await screen.findByRole("searchbox", {
       name: "Search courses",
     });
@@ -559,7 +579,7 @@ describe("the URL", () => {
     expect(
       await screen.findByRole("heading", { name: "CMSC420" }),
     ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByRole("button", { name: "Back to Search" }));
     await waitFor(() =>
       expect(router.state.location.search).toMatchObject({ q: "cmsc42" }),
     );
@@ -574,14 +594,175 @@ describe("the URL", () => {
     ).toBeVisible();
   });
 
+  it("opens the view a link names, with its search", async () => {
+    await seed(PLAN);
+    renderPlan("/plan/search?q=cmsc42");
+    expect(
+      await screen.findByRole("searchbox", { name: "Search courses" }),
+    ).toHaveValue("cmsc42");
+    const rail = screen.getByRole("navigation", { name: "Plan views" });
+    expect(
+      within(rail).getByRole("button", { name: "Search" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("makes each view on the rail a route, and Back returns to the last", async () => {
+    await seed(PLAN);
+    const user = renderPlan();
+    const rail = await screen.findByRole("navigation", { name: "Plan views" });
+    await user.click(within(rail).getByRole("button", { name: /^Problems/ }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/problems"),
+    );
+    expect(
+      within(rail).getByRole("button", { name: /^Problems/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(rail).getByRole("button", { name: "Samples" }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/samples"),
+    );
+    router.history.back();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/problems"),
+    );
+    expect(
+      await screen.findByRole("region", { name: "Prerequisites and credits" }),
+    ).toBeVisible();
+  });
+
+  it("hides the sidebar when the open view is clicked again, and any view brings it back", async () => {
+    await seed(PLAN);
+    const user = renderPlan();
+    const rail = await screen.findByRole("navigation", { name: "Plan views" });
+    const gened = within(rail).getByRole("button", { name: "GenEd" });
+    await user.click(gened);
+    expect(
+      screen.getByRole("complementary", { hidden: true }),
+    ).not.toBeVisible();
+    expect(gened).toHaveAttribute("aria-pressed", "false");
+    await user.keyboard("3");
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/search"),
+    );
+    expect(
+      screen.getByRole("complementary", { name: "Sidebar" }),
+    ).toBeVisible();
+  });
+
+  it("focuses Search once for each ask, not again on coming back to it", async () => {
+    await seed(PLAN);
+    const user = renderPlan();
+    await user.click(
+      await screen.findByRole("button", { name: "Add a course to Fall 2026" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("searchbox", { name: "Search courses" }),
+      ).toHaveFocus(),
+    );
+    const rail = screen.getByRole("navigation", { name: "Plan views" });
+    await user.click(within(rail).getByRole("button", { name: "GenEd" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/plan"));
+    router.history.back();
+    // A phone's keyboard, and the drawer with it, stay down.
+    expect(
+      await screen.findByRole("searchbox", { name: "Search courses" }),
+    ).not.toHaveFocus();
+  });
+
   it("closes a course opened by a link in place", async () => {
     await seed(PLAN);
     const user = renderPlan("/plan?course=CMSC351");
-    await user.click(await screen.findByRole("button", { name: "Back" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Back to GenEd" }),
+    );
     await waitFor(() =>
       expect(router.state.location.search).not.toHaveProperty("course"),
     );
     expect(router.state.location.pathname).toBe("/plan");
+  });
+});
+
+describe("the rail", () => {
+  it("closes a course open over the view before it hides the sidebar", async () => {
+    await seed(PLAN);
+    const user = renderPlan("/plan/search?course=CMSC351");
+    const rail = await screen.findByRole("navigation", { name: "Plan views" });
+    const search = within(rail).getByRole("button", { name: "Search" });
+    await user.click(search);
+    await waitFor(() =>
+      expect(router.state.location.search).not.toHaveProperty("course"),
+    );
+    expect(router.state.location.pathname).toBe("/plan/search");
+    expect(
+      screen.getByRole("complementary", { name: "Sidebar" }),
+    ).toBeVisible();
+    await user.click(search);
+    expect(
+      screen.getByRole("complementary", { hidden: true }),
+    ).not.toBeVisible();
+  });
+});
+
+describe("on a phone", () => {
+  beforeEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: query === MOBILE_QUERY,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  const drawer = async () => {
+    const tabs = await screen.findByRole("navigation", { name: "Plan views" });
+    const content = tabs.closest("[data-snap]");
+    if (!(content instanceof HTMLElement)) throw new Error("No drawer");
+    return { tabs, content };
+  };
+
+  it("rests the drawer at GenEd, and a tab raises it; the open tab lowers it", async () => {
+    await seed(PLAN);
+    const user = renderPlan();
+    const { tabs, content } = await drawer();
+    expect(content).toHaveAttribute("data-snap", "peek");
+    await user.click(within(tabs).getByRole("button", { name: "Problems" }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/problems"),
+    );
+    expect(content).toHaveAttribute("data-snap", "half");
+    await user.click(within(tabs).getByRole("button", { name: "Problems" }));
+    expect(content).toHaveAttribute("data-snap", "peek");
+  });
+
+  it("opens a link to a view with the drawer raised, and Samples all the way", async () => {
+    await seed(PLAN);
+    renderPlan("/plan/samples");
+    const { content } = await drawer();
+    expect(content).toHaveAttribute("data-snap", "full");
+  });
+
+  it("lowers the drawer onto the semesters once a sample plan is added", async () => {
+    await seed(aFourYear({ firstTermId: "202608" }));
+    const user = renderPlan("/plan/samples");
+    const { content } = await drawer();
+    await user.click(
+      await screen.findByRole("button", { name: "Add to My plan" }),
+    );
+    await waitFor(() => expect(router.state.location.pathname).toBe("/plan"));
+    expect(content).toHaveAttribute("data-snap", "peek");
+  });
+
+  it("opens the first visit's import with the drawer all the way up", async () => {
+    const user = renderPlan();
+    await user.click(
+      await screen.findByRole("button", { name: "Paste your transcript" }),
+    );
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/import"),
+    );
+    const { content } = await drawer();
+    expect(content).toHaveAttribute("data-snap", "full");
   });
 });
 

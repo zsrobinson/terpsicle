@@ -247,6 +247,11 @@ Revisit if: the owner starts the requirements work.
 `/plan` works for anyone who opens it, since it needs no server, but the product menu and the site header list Plan only when `PLAN_ENABLED` is on (or while you're in it). The flag waits, unlike "Ship it"'s screens-land rule, because it also opens four-year sync pushes, which V3 §11 turns on after `v3/four-year-sync`, `v3/e2e` and the owner's trial. The manifest's shortcut and `/`'s returning path to `/plan` wait with it, since both are static.
 Revisit if: Plan turns on in production; then list it always and add the shortcut.
 
+### Plan and Schedule share one sidebar width
+2026-09-27 · agent · one feature
+The two workbenches draw one sidebar, so they keep one width: Plan reads and writes `UiPrefs.sidebarWidth`, changing only that field in a transaction, without loading the scheduler's stores (`src/state/sidebar-width-pref.ts`). A width of Plan's own would have needed a second CSS variable and head script, and would flash the scheduler's width first. A scheduler open in another tab can put its older width back, which is the worst a race does; Plan's other prefs stay in their own row for that reason.
+Revisit if: people want different widths in each product.
+
 ### Gradescope, honestly
 2026-09-26 · owner · one feature
 Todo never stores an ELMS or Gradescope password, never automates a login, and never fetches gradescope.com.
@@ -274,9 +279,10 @@ Revisit if: the owner prefers another way to leave notes.
 `feedback/send` and `feedback/undo` are `auth: "optional"` routes: same-origin like signed-in routes (they write), with the session when there is one (for the reply toggle and the per-person limit), never a 401. The inbox shows whether a reply may go, never to whom.
 Revisit if: another route needs the same, or feedback needs sign-in.
 
-### Send feedback on the scheduler's phone bar
+### Send feedback on a workbench's phone bar
 2026-09-27 · agent · one feature
-On phones the scheduler's top bar has no room for another button beside the plan's name, so "Send feedback" is an item in its account menu there, as the theme toggle is. Every other product's header shows the icon, with the wordmark hidden on phones to make room.
+On phones a workbench's bar (the scheduler's, and Plan's since `v3/plan-workbench`) has no room for another button beside the plan's name and its context, so "Send feedback" is an item in its account menu there, as the theme toggle is. Every other product's header shows the icon, with the wordmark hidden on phones to make room.
+(changed 2026-09-27: Plan moved onto the workbench, and its phone bar is the scheduler's compact one.)
 Revisit if: the phone top bar is redesigned.
 
 ### Feedback groups by Workers AI, issues without words
