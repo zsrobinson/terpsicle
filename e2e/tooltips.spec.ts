@@ -75,8 +75,12 @@ async function untipped(page: Page): Promise<string[]> {
       if (el.closest("[aria-hidden=true], [inert]")) continue;
       // The exception above: an open menu's items and a listbox's options.
       if (el.closest("[role=menu], [role=listbox]")) continue;
-      // Its own tooltip, or its label's (a checkbox inside one).
+      // Its own tooltip, or its label's (a checkbox inside one, or a hidden
+      // file input whose label is the box you press).
       if (el.closest("[data-tooltip]")) continue;
+      const labels = (el as HTMLInputElement).labels;
+      if (labels && [...labels].some((l) => l.closest("[data-tooltip]")))
+        continue;
       const name = (
         el.getAttribute("aria-label") ??
         el.textContent ??
