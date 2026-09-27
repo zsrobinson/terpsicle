@@ -36,6 +36,15 @@ _Avoid_: Open in Reviews, Go to Chat
 
 ## Shared
 
+**Family bar**:
+The one bar on every page: the wordmark and the five products as tabs (folded into the product menu on narrow screens), the product's context, then Feedback and the account. Code says `AppBar`.
+
+**Page kind**:
+How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: Todo), or full (a workbench, or Chat's split).
+
+**Workbench**:
+A product laid out like the scheduler: the rail of views, the sidebar and the canvas, with the same drawer on phones. Schedule and Plan are workbenches.
+
 **Term**:
 A semester Testudo lists (fall, spring, summer or winter). A term is **active** while Testudo lists it and **archived** after, shown under "Past terms".
 

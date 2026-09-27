@@ -1,26 +1,16 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
-import { Mark } from "~/app/brand/mark";
-import { Logo } from "~/app/logo";
-import { listedProducts, PRODUCTS, type ProductId } from "~/app/products";
+import { AppBar } from "~/app/app-bar";
+import { PRODUCTS } from "~/app/products";
 import { feedbackProduct } from "~/core/feedback/path";
-import { SCHEDULE_PATH, STAY_PARAM } from "~/core/routing";
-import { useAccount } from "~/features/auth/account-store";
-import { FeedbackButton } from "~/features/feedback/feedback-button";
+import { SCHEDULE_PATH } from "~/core/routing";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 
-// The frame for pages outside the scheduler (`/`, the coming-soon pages,
-// `/privacy`, not found, Todo): the product menu, one column, and a footer.
-
-/** The product you're on wears its soft color, as in the product menu. */
-const CURRENT: Record<ProductId, string> = {
-  schedule: "aria-[current=page]:bg-product-schedule-soft",
-  reviews: "aria-[current=page]:bg-product-reviews-soft",
-  chat: "aria-[current=page]:bg-product-chat-soft",
-  plan: "aria-[current=page]:bg-product-plan-soft",
-  todo: "aria-[current=page]:bg-product-todo-soft",
-};
+// The frame for pages outside the scheduler (the coming-soon pages,
+// `/privacy`, not found, Reviews, Todo, Plan, Settings): the family bar, one
+// column, and a footer.
 
 /**
  * How a page sits under the header:
@@ -41,16 +31,16 @@ const MAIN: Record<SiteLayout, string> = {
 export function SitePage({
   children,
   layout = "note",
-  actions,
+  notFound = false,
 }: {
   children: ReactNode;
   layout?: SiteLayout;
-  /** The right end of the header, after the products and "Send feedback" (Reviews' account link). */
-  actions?: ReactNode;
+  /** The 404 page, whose bar belongs to no product (see SiteHeader). */
+  notFound?: boolean;
 }) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <SiteHeader actions={actions} />
+      <SiteHeader notFound={notFound} />
       <main className={`mx-auto w-full flex-1 px-4 pb-8 ${MAIN[layout]}`}>
         {children}
       </main>
@@ -66,63 +56,32 @@ export function SitePage({
 }
 
 /**
- * The header of pages outside the scheduler: the logo, the products as flat
- * links (no menu code, so these pages stay light) and `actions` at the end.
+ * The bar of every page outside the scheduler: the family bar
+ * (`~/app/app-bar`), with the product this path belongs to and its feedback.
  * Chat's page uses it too, above its own full-height layout.
  */
-export function SiteHeader({
-  actions,
-  className = "",
-}: {
-  actions?: ReactNode;
-  className?: string;
-}) {
-  const flags = useAccount((s) => s.flags);
+export function SiteHeader({ notFound = false }: { notFound?: boolean }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const current = PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null;
-  const feedback = feedbackProduct(path);
+  // The Worker renders a 404 at its own path (NOT_FOUND_PATH) and the page
+  // hydrates at the address asked for (`/admin` for a non-admin), so a 404's
+  // bar reads nothing from the path: server and client draw the same one.
+  const current = notFound
+    ? null
+    : (PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null);
   return (
-    <header
-      className={`flex h-12 shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4 ${className}`}
-    >
-      <WithTooltip label="About Terpsicle">
-        {/* ?stay: returning visitors would otherwise skip to the scheduler. */}
-        <a href={`/?${STAY_PARAM}`} className="flex">
-          {/* Phones: the mark alone leaves room for "Send feedback". */}
-          <Logo phoneMark={feedback !== null} />
-        </a>
-      </WithTooltip>
-      <div className="flex items-center gap-1 sm:gap-2">
-        {/* The product menu's links, flat: these pages stay light (no menu code). */}
-        <nav aria-label="Products" className="flex items-center sm:gap-1">
-          {listedProducts(flags, current).map((p) => (
-            <WithTooltip key={p.to} label={p.view}>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className={`max-sm:px-1.5 aria-[current=page]:text-fg ${CURRENT[p.id]}`}
-              >
-                <Link to={p.to} activeProps={{ "aria-current": "page" }}>
-                  {/* size-4: the button shrinks unsized icons. */}
-                  <Mark id={p.id} size={16} className="size-4" />
-                  {/* Phones name only the product you're on: every mark
-                      and one name fit beside the logo at 390px. */}
-                  <span className="max-sm:not-in-aria-[current=page]:sr-only">
-                    {p.label}
-                  </span>
-                </Link>
-              </Button>
-            </WithTooltip>
-          ))}
-        </nav>
-        {/* Only on product pages: not on `/` or `/privacy`. */}
-        {feedback ? (
-          <FeedbackButton product={feedback} pathname={path} />
-        ) : null}
-        {actions}
-      </div>
-    </header>
+    <AppBar
+      current={current}
+      feedback={notFound ? null : feedbackProduct(path)}
+      pathname={path}
+      context={
+        !notFound && path.startsWith("/settings") ? (
+          <span className="flex items-center gap-1.5 font-semibold text-base">
+            <Settings size={15} aria-hidden="true" className="text-muted" />
+            Settings
+          </span>
+        ) : null
+      }
+    />
   );
 }
 

@@ -25,7 +25,11 @@ import { track } from "./analytics";
 import { AppShell, type AppShellProps } from "./app-shell";
 import { type ClientConfig, clientConfig } from "./config";
 import { setFeedbackSources } from "./feedback-sources";
-import { applyThemePreference } from "./theme";
+import {
+  applyThemePreference,
+  readThemePreference,
+  subscribeThemePreference,
+} from "./theme";
 
 /** The app: loads local state and the catalog, then shows the shell. */
 export function App(props: AppShellProps) {
@@ -74,6 +78,7 @@ function useBootstrap(config: ClientConfig) {
     let persistence: Persistence | undefined;
     let stopReturning: (() => void) | undefined;
     let stopAccount: (() => void) | undefined;
+    let stopTheme: (() => void) | undefined;
     let sync: typeof import("~/features/sync/boot") | undefined;
     const db = new TerpsicleDb();
     // The email-token seat alerts' old local list: seat watches live on the
@@ -139,7 +144,15 @@ function useBootstrap(config: ClientConfig) {
           { id: "storage-open" },
         );
       }
-      applyThemePreference(useUi.getState().theme);
+      // The theme may have changed on another page since UiPrefs were
+      // saved; the store follows the saved copy from here on (theme.ts).
+      const followTheme = () => {
+        const theme = readThemePreference();
+        if (useUi.getState().theme !== theme) useUi.getState().setTheme(theme);
+      };
+      followTheme();
+      stopTheme = subscribeThemePreference(followTheme);
+      applyThemePreference(readThemePreference());
       // The URL's term and plan are followed from here on, and a plain
       // /schedule opens the saved view: before, loading saved prefs or the
       // demo would undo them (schedule-nav.ts).
@@ -167,6 +180,7 @@ function useBootstrap(config: ClientConfig) {
     return () => {
       cancelled = true;
       stopAccount?.();
+      stopTheme?.();
       sync?.stopSync();
       persistence?.stop();
       stopReturning?.();

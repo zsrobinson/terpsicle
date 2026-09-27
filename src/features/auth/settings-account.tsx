@@ -2,14 +2,13 @@ import { ChevronRight, ExternalLink } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
-import { SIGN_IN_PITCH, signInStartHref } from "~/core/auth";
+import { signInStartHref } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
 import { SitePage } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
-import { AccountLink } from "./account-link";
 import { AccountSection } from "./account-page";
 import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
@@ -46,10 +45,7 @@ export function SettingsPage() {
   const status = useAccount((s) => s.status);
   const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   return (
-    <SitePage
-      layout="reading"
-      actions={<AccountLink from="settings" signInTip={SIGN_IN_PITCH} />}
-    >
+    <SitePage layout="reading">
       <h1 className="mb-4 font-semibold text-xl tracking-tight">Settings</h1>
       <div
         aria-live="polite"

@@ -32,13 +32,15 @@ async function signIn(page: Page, name: string, path: string) {
   await page.goto(`/auth/test?return=${encodeURIComponent(path)}`);
   await page.getByRole("button", { name: `Sign in as ${name}` }).click();
   await expect(
-    page.getByRole("link", { name: `Account: ${name}` }),
+    page.getByRole("banner").getByRole("button", { name: `Account: ${name}` }),
   ).toBeVisible();
 }
 
 /** The page's code is running: "Sign in" appears once /api/me answers. */
 async function hydrated(page: Page) {
-  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("button", { name: "Sign in" }),
+  ).toBeVisible();
 }
 
 /**

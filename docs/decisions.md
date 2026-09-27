@@ -301,3 +301,8 @@ Revisit if: the checklist in COHESION.md is done and a full first-time round fin
 A PR's "as built" notes go in its body. `DATA.md`, `STATUS.md`, `V2.md` and `V3.md` change only when a contract changes (a schema, storage, an API or a flag). Parallel PRs kept colliding in those files.
 Revisit if: agents start missing contract changes that the docs used to catch.
 
+### The family bar
+2026-09-27 · agent · app-wide
+Every page has one bar: the five products as labeled tabs from 1100px (the product menu below that), the product's context, then Feedback and one account menu, which holds the theme. This beats a menu-only switcher, because cohesion and cold arrivals are the goal (docs/COHESION.md §4).
+Revisit if: a sixth product arrives, or the scheduler's bar can't fit its term and plans beside the tabs at 1100–1300px.
+

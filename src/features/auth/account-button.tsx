@@ -21,37 +21,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
-import { currentPath, SignInPanel } from "./sign-in-panel";
+import { currentPath } from "./sign-in-panel";
 
 /**
- * The top bar's account entry (V2.md §1.1): a quiet "Sign in" when signed
- * out, the avatar and its menu when signed in, and nothing while /api/me
- * loads or where signing in is off. Sign-in is invited, never required.
- *
- * On phones the top bar has no room for another button next to the theme
- * toggle (the plan's name would shrink below a tappable size), so one
- * button does both: its menu has the account (or Sign in) and the theme.
- * `themeToggle` shows until then, and wherever sign-in is off.
+ * The account entry at the right end of every page's bar (V2.md §1.1,
+ * docs/COHESION.md): the avatar when signed in, a quiet "Sign in" when
+ * not, and nothing while /api/me loads or where signing in is off. One menu
+ * at every size: the account (or Sign in), then the theme and Install, then
+ * `items` (on phones, "Send feedback"). Sign-in is invited, never required.
+ * `fallback` shows while there's no menu (the theme toggle), so the theme
+ * is always one click away.
  */
 export function AccountButton({
   compact = false,
-  themeToggle = null,
-  phoneItems = null,
+  fallback = null,
+  items = null,
 }: {
   compact?: boolean;
-  themeToggle?: ReactNode;
-  /** More items for the phone menu (the scheduler's "Send feedback"). */
-  phoneItems?: ReactNode;
+  fallback?: ReactNode;
+  /** More items at the end of the menu (on phones, "Send feedback"). */
+  items?: ReactNode;
 }) {
   const shown = useAccountButtonShown();
-  const user = useAccount((s) => s.user);
-  if (!shown) return themeToggle;
-  if (compact) return <PhoneMenu items={phoneItems} />;
-  return user ? <AccountMenu user={user} /> : <SignInButton />;
+  if (!shown) return fallback;
+  return <AccountMenu compact={compact} items={items} />;
 }
 
 /** Whether the account button (or, on phones, its menu) is showing. */
@@ -68,50 +64,13 @@ export function useAccountButtonShown(): boolean {
 const triggerClass =
   "flex h-7 items-center gap-1.5 rounded-md px-2 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg";
 
-function SignInButton() {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <WithTooltip label={SIGN_IN_PITCH} side="bottom">
-        <PopoverTrigger asChild>
-          <button type="button" className={triggerClass}>
-            <LogIn size={14} aria-hidden="true" />
-            Sign in
-          </button>
-        </PopoverTrigger>
-      </WithTooltip>
-      <PopoverContent align="end" className="w-[300px]">
-        <h2 className="mb-2 font-semibold text-lg tracking-tight">Sign in</h2>
-        {open ? <SignInPanel returnTo={currentPath()} from="topbar" /> : null}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function AccountMenu({ user }: { user: MeUser }) {
-  return (
-    <DropdownMenu>
-      <WithTooltip label="Your account" side="bottom">
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`Account: ${user.name}`}
-            className={`${triggerClass} px-1.5`}
-          >
-            <Avatar name={user.name} src={user.avatarUrl} />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent align="end" className="w-[240px]">
-        <AccountItems user={user} />
-        <InstallAppMenuItem />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/** Phones: one button for the account (or Sign in) and the theme. */
-function PhoneMenu({ items }: { items: ReactNode }) {
+function AccountMenu({
+  compact,
+  items,
+}: {
+  compact: boolean;
+  items: ReactNode;
+}) {
   const user = useAccount((s) => s.user);
   return (
     <DropdownMenu>
@@ -120,17 +79,28 @@ function PhoneMenu({ items }: { items: ReactNode }) {
         side="bottom"
       >
         <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={user ? `Account: ${user.name}` : "Sign in"}
-            className="flex size-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-[380px]:size-7"
-          >
-            {user ? (
+          {user ? (
+            <button
+              type="button"
+              aria-label={`Account: ${user.name}`}
+              className={`${triggerClass} px-1.5`}
+            >
               <Avatar name={user.name} src={user.avatarUrl} />
-            ) : (
+            </button>
+          ) : compact ? (
+            <button
+              type="button"
+              aria-label="Sign in"
+              className="flex size-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-[380px]:size-7"
+            >
               <LogIn size={15} strokeWidth={1.75} aria-hidden="true" />
-            )}
-          </button>
+            </button>
+          ) : (
+            <button type="button" className={triggerClass}>
+              <LogIn size={14} aria-hidden="true" />
+              Sign in
+            </button>
+          )}
         </DropdownMenuTrigger>
       </WithTooltip>
       <DropdownMenuContent side="bottom" align="end" className="w-[260px]">
@@ -144,7 +114,7 @@ function PhoneMenu({ items }: { items: ReactNode }) {
   );
 }
 
-/** The phone menu's sign-in: the pitch, then the Google (or test mode) link. */
+/** The menu's sign-in: the pitch, then the Google (or test mode) link. */
 function SignInItems() {
   const testMode = useAccount((s) => s.flags.authTestMode);
   return (

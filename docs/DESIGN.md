@@ -215,7 +215,7 @@ Six marks on an 18-unit grid (`src/app/brand/marks.ts`): the **umbrella** (Terps
 
 ### 7.6 The product menu
 
-The umbrella and the wordmark, top left, open the product menu (`src/app/product-menu.tsx`, docs/V2.md §1.1): Schedule, Reviews and Chat, each with its mark and a one-line description.
+Every page has the family bar (docs/COHESION.md §4): from 1100px, the five products are labeled tabs beside the wordmark. Narrower, the umbrella and the product you're in open the product menu (`src/app/product-menu.tsx`, docs/V2.md §1.1): each product with its mark and a one-line description.
 - The product you're in wears its soft color and a check. There are no paths, counts or badges: nothing here pulls you into another product.
 - Links between products say what you'll see: "View schedule", "View reviews", "View chat".
 
