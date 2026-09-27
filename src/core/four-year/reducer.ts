@@ -9,6 +9,7 @@ import type {
 } from "../schema";
 import {
   FOUR_YEAR_MAX_ENTRIES,
+  type FourYearCourseDetails,
   type FourYearCourseEntry,
   type FourYearDoc,
   type FourYearEntry,
@@ -121,6 +122,18 @@ export type FourYearAction =
       docId: LocalId;
       entryId: LocalId;
       credits: number | null;
+      now: IsoDateTime;
+    }
+  /**
+   * Details for every entry of a code the index doesn't know (null clears
+   * them), and their credits when given.
+   */
+  | {
+      type: "set-details";
+      docId: LocalId;
+      code: CourseCode;
+      details: FourYearCourseDetails | null;
+      credits?: number | null;
       now: IsoDateTime;
     }
   /**
@@ -260,6 +273,53 @@ function updateEntry(
   return { ...doc, entries: doc.entries.map((e, k) => (k === i ? next : e)) };
 }
 
+/** Trimmed, with a blank title as none and each code once. */
+export function cleanDetails(
+  details: FourYearCourseDetails,
+): FourYearCourseDetails {
+  const title = details.title?.trim().slice(0, 120) ?? "";
+  return {
+    title: title === "" ? null : title,
+    genEds: [...new Set(details.genEds)].slice(0, 8),
+  };
+}
+
+function sameDetails(
+  a: FourYearCourseDetails | null | undefined,
+  b: FourYearCourseDetails | null,
+): boolean {
+  if (!a || !b) return (a ?? null) === b;
+  return (
+    a.title === b.title &&
+    a.genEds.length === b.genEds.length &&
+    a.genEds.every((code, i) => b.genEds[i] === code)
+  );
+}
+
+/** Details (and credits, when given) on every entry of a code. */
+export function setEntryDetails(
+  doc: FourYearDoc,
+  code: CourseCode,
+  given: FourYearCourseDetails | null,
+  givenCredits?: number | null,
+): FourYearDoc {
+  const details = given ? cleanDetails(given) : null;
+  const credits =
+    givenCredits === undefined || givenCredits === null
+      ? givenCredits
+      : clamp(givenCredits, 0, 20);
+  let changed = false;
+  const entries = doc.entries.map((entry) => {
+    if (entry.kind !== "course" || entry.code !== code) return entry;
+    const nextCredits = credits === undefined ? entry.credits : credits;
+    if (sameDetails(entry.details, details) && nextCredits === entry.credits)
+      return entry;
+    changed = true;
+    return { ...entry, details, credits: nextCredits };
+  });
+  return changed ? { ...doc, entries } : doc;
+}
+
 function applyTemplate(
   doc: FourYearDoc,
   action: {
@@ -294,7 +354,18 @@ function importTranscript(
       (e.source === "typed" && !(e.kind === "course" && imported.has(e.code))),
   );
   const keptIds = new Set(kept.map((e) => e.id));
-  const incoming = action.entries.filter((e) => !keptIds.has(e.id));
+  // Details someone gave a code outlive a fresh import of it.
+  const details = new Map<CourseCode, FourYearCourseDetails>();
+  for (const e of doc.entries)
+    if (e.kind === "course" && e.details) details.set(e.code, e.details);
+  const incoming = action.entries
+    .filter((e) => !keptIds.has(e.id))
+    .map((e) => {
+      const known = e.kind === "course" ? details.get(e.code) : undefined;
+      return e.kind === "course" && known && !e.details
+        ? { ...e, details: known }
+        : e;
+    });
   const entries = sortEntries([...kept, ...incoming]);
   if (entries.length > FOUR_YEAR_MAX_ENTRIES) return doc;
   const grades: Record<LocalId, Grade> = {};
@@ -435,6 +506,10 @@ export function fourYearReducer(
           }
           return entry;
         }),
+      );
+    case "set-details":
+      return updateDoc(state, action.docId, action.now, (doc) =>
+        setEntryDetails(doc, action.code, action.details, action.credits),
       );
     case "apply-template":
       return updateDoc(state, action.docId, action.now, (doc) =>

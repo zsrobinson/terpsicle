@@ -228,6 +228,37 @@ describe("buildTranscriptImport", () => {
     });
   });
 
+  it("keeps the GenEds the transcript lists for a code the index doesn't have", () => {
+    const { rows } = transcriptRows({
+      recognized: true,
+      lines: [
+        aTranscriptLine({
+          code: "HNUH278B",
+          title: "DEMOCRATIC HABITS",
+          credits: 3,
+          genEds: [[{ code: "DSHS" }], [{ code: "SCIS" }]],
+        }),
+        aTranscriptLine({ code: "HNUH218C", credits: 3, genEds: [] }),
+        aTranscriptLine({
+          code: "CMSC131",
+          genEds: [[{ code: "DSNS" }]],
+        }),
+      ],
+      skipped: [],
+    });
+    const { entries } = buildTranscriptImport(rows, checks(), {
+      lookup,
+      newId: ids(),
+    });
+    expect(entries[0]).toMatchObject({
+      code: "HNUH278B",
+      details: { title: null, genEds: ["DSHS", "SCIS"] },
+    });
+    // No GenEds printed, or a code Testudo knows: nothing to keep.
+    expect(entries[1]).not.toHaveProperty("details");
+    expect(entries[2]).not.toHaveProperty("details");
+  });
+
   it("leaves grades out when they aren't kept", () => {
     const { rows } = transcriptRows(parse("synthetic-four-semesters"));
     const result = buildTranscriptImport(rows, checks({ keepGrades: false }), {

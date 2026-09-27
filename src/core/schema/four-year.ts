@@ -20,6 +20,22 @@ import { WildcardSchema } from "./wildcard";
 export const FourYearTermSchema = TranscriptTermSchema;
 export type FourYearTerm = z.infer<typeof FourYearTermSchema>;
 
+/**
+ * What a person says about a course Testudo doesn't list anymore (an honors
+ * seminar that rotated out, an old topics course), so Plan can count it: its
+ * title and the GenEds it was meant to cover, each of which applies.
+ */
+export const FourYearCourseDetailsSchema = z.object({
+  title: z.string().min(1).max(120).nullable(),
+  genEds: z
+    .array(GenEdCodeSchema)
+    .max(8)
+    .refine((codes) => new Set(codes).size === codes.length, {
+      message: "GenEd codes must be unique",
+    }),
+});
+export type FourYearCourseDetails = z.infer<typeof FourYearCourseDetailsSchema>;
+
 /** Placeholder credits (§2.9): 3 unless the person changes it, 1–6. */
 export const WILDCARD_CREDITS = { default: 3, min: 1, max: 6 } as const;
 
@@ -40,6 +56,8 @@ export const FourYearCourseEntrySchema = z.object({
       via: z.enum(["umd", "ap", "transfer"]),
     })
     .nullable(),
+  /** Only for a code the index doesn't know; used only while it doesn't. Absent in older docs. */
+  details: FourYearCourseDetailsSchema.nullable().optional(),
 });
 export type FourYearCourseEntry = z.infer<typeof FourYearCourseEntrySchema>;
 
@@ -207,6 +225,14 @@ export const FourYearFixSchema = z.discriminatedUnion("kind", [
     kind: z.literal("move"),
     entryId: LocalIdSchema,
     term: FourYearTermSchema,
+    label: z.string().min(1),
+  }),
+  /** "Count it as MATH241": an honors code Testudo dropped takes its base course's details. */
+  z.object({
+    kind: z.literal("details"),
+    code: CourseCodeSchema,
+    details: FourYearCourseDetailsSchema,
+    credits: z.number().min(0).max(20).nullable(),
     label: z.string().min(1),
   }),
   /** "Remove the later one". */
