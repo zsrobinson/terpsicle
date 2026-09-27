@@ -38,6 +38,16 @@ function ToastAction({
   );
 }
 
+/** A quiet line in the same place, for something that didn't change anything. */
+export function showPlanNote(label: string): void {
+  toast(label, {
+    id: TOAST_ID,
+    duration: PLAN_TOAST_MS / 2,
+    description: undefined,
+    action: undefined,
+  });
+}
+
 export function PlanToasts() {
   const notice = useFourYear((s) => s.notice);
   useEffect(() => {

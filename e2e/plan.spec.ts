@@ -68,6 +68,14 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
     .click();
   await expect(spring.getByText("CMSC351")).toBeVisible();
   await expect(spring.getByText("Algorithms")).toBeVisible();
+  // Already there: "Added", not a second Add.
+  await expect(
+    page.getByRole("button", {
+      name: "Add CMSC351 to Spring 2027",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(page.getByTestId("plan-search-added")).toBeVisible();
 
   // A placeholder: typing a pattern offers one first.
   await search.fill("cmsc4xx");
@@ -106,4 +114,20 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
   const again = await semester(page, isMobile, "Spring 2027");
   await expect(again.getByText("CMSC351")).toBeVisible();
   await expect(again.getByText("Any CMSC 400-level")).toBeVisible();
+
+  // Enter adds the top result, like its Add button.
+  await again
+    .getByRole("button", { name: "Add a course to Spring 2027" })
+    .click();
+  await expect(search).toBeFocused();
+  await search.fill("CMSC330");
+  await expect(
+    page.getByRole("button", {
+      name: "Add CMSC330 to Spring 2027",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await search.press("Enter");
+  await expect(again.getByText("CMSC330")).toBeVisible();
+  await expect(page.getByTestId("plan-search-added")).toBeVisible();
 });
