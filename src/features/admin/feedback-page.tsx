@@ -35,7 +35,7 @@ import {
   type FeedbackStatus,
   FeedbackStatusSchema,
 } from "~/core/schema/feedback";
-import { adminApi } from "~/server/fns/admin-api";
+import { feedbackAdminApi } from "~/server/fns/feedback-admin-api";
 import { Button } from "~/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "~/ui/dialog";
 import { Skeleton } from "~/ui/skeleton";
@@ -59,7 +59,7 @@ export interface FeedbackFilters {
 }
 
 export type FeedbackClient = Pick<
-  typeof adminApi,
+  typeof feedbackAdminApi,
   "feedbackList" | "feedbackUpdate" | "feedbackDelete" | "feedbackGroup"
 >;
 
@@ -100,7 +100,7 @@ function when(iso: string): string {
 export function FeedbackPage({
   filters,
   onFilters,
-  client = adminApi,
+  client = feedbackAdminApi,
   origin = typeof window === "undefined" ? "" : window.location.origin,
 }: {
   filters: FeedbackFilters;

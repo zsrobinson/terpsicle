@@ -6,7 +6,7 @@ import {
   FeedbackKindSchema,
   FeedbackProductSchema,
   FeedbackStatusSchema,
-} from "~/core/schema/feedback";
+} from "~/core/schema/feedback-enums";
 import { AdminFrame } from "~/features/admin/admin-frame";
 import { FeedbackPage } from "~/features/admin/feedback-page";
 
