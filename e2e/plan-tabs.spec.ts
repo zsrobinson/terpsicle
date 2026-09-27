@@ -44,26 +44,26 @@ test("first visit shows two equal ways to start", async ({ page }) => {
   await expect(
     guide.getByRole("heading", { name: "Build your Spring 2027 schedule" }),
   ).toBeVisible();
-  const build = guide.getByRole("group", { name: "Build it yourself" });
-  const generate = guide.getByRole("group", { name: "Generate plans" });
+  const build = guide.getByRole("button", { name: "Search for a course" });
+  const generate = guide.getByRole("button", { name: "Generate plans" });
   const [a, b] = await Promise.all([
     build.boundingBox(),
     generate.boundingBox(),
   ]);
   if (!a || !b) throw new Error("paths not measured");
-  // Stacked, the same size: neither path is styled as the default.
-  expect(a.width).toBeCloseTo(b.width, 0);
+  // Both filled, the same height: neither path is styled as the default.
   expect(a.height).toBeCloseTo(b.height, 0);
-  expect(a.x).toBeCloseTo(b.x, 0);
-  expect(b.y).toBeGreaterThan(a.y + a.height - 1);
+  expect(await build.getAttribute("class")).toBe(
+    await generate.getAttribute("class"),
+  );
 
-  await build.getByRole("button", { name: "Search for a course" }).click();
+  await build.click();
   await expect(
     sidebar(page).getByRole("heading", { name: "Search" }),
   ).toBeVisible();
 
   await openTab(page, "Courses");
-  await generate.getByRole("button", { name: "Generate plans" }).click();
+  await generate.click();
   await expect(
     sidebar(page).getByRole("heading", { name: "Generate" }),
   ).toBeVisible();

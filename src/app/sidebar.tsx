@@ -1,6 +1,5 @@
 import { type AnyRoute, useRouter } from "@tanstack/react-router";
 import { cn } from "cn";
-import { ChevronLeft } from "lucide-react";
 import {
   type ComponentType,
   lazy,
@@ -20,6 +19,7 @@ import {
 import type { RailTab } from "~/core/schema";
 import { ScheduleHistoryStateSchema } from "~/core/schema/schedule-url";
 import type { DrillEntry, DrillKind } from "~/state/drill";
+import { BackButton } from "~/ui/page-header";
 import { WithTooltip } from "~/ui/tooltip";
 import { goBack } from "./actions";
 import { DrillEntryProvider } from "./drill-entry";
@@ -367,31 +367,29 @@ function BackBar({
   // From one plan's CMSC351 back to another's: "Back", not "CMSC351".
   const same = to.label === name;
   return (
-    <div className="flex h-12 shrink-0 items-center gap-2 border-hairline border-b px-2">
+    <div className="flex h-12 shrink-0 items-center gap-2 border-hairline border-b px-4">
       <WithTooltip label={same ? "Back" : `Back to ${to.label}`} shortcut="Esc">
-        <button
-          type="button"
+        <BackButton
           onClick={() => goBack()}
-          className="flex min-w-0 max-w-[60%] shrink-0 items-center gap-0.5 rounded py-1 pr-1.5 pl-0.5 text-base text-muted transition-colors hover:bg-hover hover:text-fg"
+          className="min-w-0 max-w-[60%] shrink-0"
         >
-          <ChevronLeft size={16} className="shrink-0" aria-hidden="true" />
           {same ? (
             "Back"
           ) : (
             <>
               <span className="sr-only">Back to </span>
-              <span className={cn("truncate", to.mono && "font-mono")}>
+              <span className={cn("truncate", to.mono && "ident")}>
                 {to.label}
               </span>
             </>
           )}
-        </button>
+        </BackButton>
       </WithTooltip>
       <span
         aria-current="page"
         className={cn(
           "min-w-0 truncate font-medium text-base",
-          drillMono(entry) && "font-mono",
+          drillMono(entry) && "ident",
         )}
       >
         {name}
