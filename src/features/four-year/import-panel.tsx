@@ -240,7 +240,7 @@ function Row({
   return (
     <li
       className={cn(
-        "flex gap-2.5 border-hairline border-b px-4 py-2 last:border-b-0",
+        "flex gap-2 border-hairline border-b px-4 py-2 last:border-b-0",
       )}
     >
       <WithTooltip label={included ? `Leave ${name} out` : `Import ${name}`}>
@@ -540,7 +540,7 @@ export function ImportPanel() {
           ({modKey("A")}), copy, and paste it here. Nothing leaves your browser
           until you import.
         </p>
-        <div className="relative">
+        <div className="space-y-1">
           <WithTooltip label="Paste the whole Unofficial Transcript page">
             <textarea
               ref={input}
@@ -554,22 +554,22 @@ export function ImportPanel() {
               spellCheck={false}
               rows={recognized ? 3 : 6}
               placeholder="Paste here"
-              className="block w-full resize-y border border-hairline-strong bg-raised px-2.5 py-2 pr-12 font-mono text-base outline-none placeholder:font-sans placeholder:text-faint focus-visible:border-fg md:pr-9 md:text-xs"
+              className="block w-full resize-y border border-hairline-strong bg-raised px-2.5 py-2 font-mono text-base outline-none placeholder:font-sans placeholder:text-faint focus-visible:border-fg md:text-xs"
             />
           </WithTooltip>
           {text !== "" ? (
             <WithTooltip label="Clear the paste">
               <Button
                 variant="ghost"
-                size="icon-sm"
-                aria-label="Clear the paste"
+                size="row"
                 onClick={() => {
                   setTranscriptText("");
                   input.current?.focus();
                 }}
-                className="absolute top-1 right-1 size-11 bg-raised md:size-7"
+                className="ml-auto flex h-11 md:h-6"
               >
                 <X aria-hidden="true" />
+                Clear the paste
               </Button>
             </WithTooltip>
           ) : null}
