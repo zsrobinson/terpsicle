@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { PanelNote } from "~/app/panel";
 import {
   insertMention,
   type Mentionable,
@@ -18,6 +19,7 @@ import {
 import { MODERATION_POLICY, precheck, REASON_WORDS } from "~/core/moderation";
 import { CHAT_TEXT_MAX } from "~/core/schema";
 import { Button } from "~/ui/button";
+import { Textarea } from "~/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -74,9 +76,9 @@ export function Composer({
 
   if (disabledReason)
     return (
-      <p className="border-hairline border-t px-4 py-3 text-muted text-sm">
+      <PanelNote className="border-hairline border-t">
         {disabledReason}
-      </p>
+      </PanelNote>
     );
 
   const send = () => {
@@ -164,7 +166,7 @@ export function Composer({
         <label htmlFor={id} className="sr-only">
           {label}
         </label>
-        <textarea
+        <Textarea
           id={id}
           ref={field}
           value={draft}
@@ -183,7 +185,7 @@ export function Composer({
           aria-activedescendant={
             mentions.open ? optionId(mentions.active) : undefined
           }
-          className="min-h-9 w-full flex-1 resize-none border border-hairline-strong bg-bg px-2 py-1.5 text-base text-fg placeholder:text-faint focus-visible:border-fg max-md:min-h-11"
+          className="min-h-8 flex-1 resize-none max-md:min-h-11"
         />
         <WithTooltip label="Send" shortcut="↵">
           <Button

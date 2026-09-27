@@ -1,39 +1,54 @@
+import { useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
-import { X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Drawer } from "vaul";
+import { AppBar } from "~/app/app-bar";
+import { Mark } from "~/app/brand/mark";
+import { PanelNote } from "~/app/panel";
 import { useIsMobile } from "~/app/use-media-query";
 import {
+  type ChatListCourse,
   canReadRoom,
   chatListUnread,
+  type Room,
   roomsForCourse,
   sectionsInPlans,
+  unreadWords,
 } from "~/core/chat";
+import { feedbackProduct } from "~/core/feedback/path";
+import { SCHEDULE_PATH } from "~/core/routing";
 import {
   type CourseCode,
   chatHref,
+  courseRoomId,
   parseRoomId,
   type RoomId,
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
-import { SiteHeader } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { EmptyState } from "~/ui/empty-state";
+import { PageHeader } from "~/ui/page-header";
+import { ProductPage } from "~/ui/product-page";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, useChatHome } from "./chat-home";
+import { CourseFinder } from "./course-finder";
 import { CourseSpace } from "./course-space";
 import type { ChatGo, ChatView } from "./nav";
 import { RoomInfo } from "./room-info";
-import { RoomList } from "./room-list";
+import { RoomList, useChatList } from "./room-list";
 import { RoomView } from "./room-view";
 import { useCourseChat } from "./session";
 import { ChatClosed, SignInMoment } from "./sign-in-moment";
+import { ChatTermMenu } from "./term-menu";
 
-// Terpsicle Chat (`/chat`, V2.md §8.6). Signed out, it's the front door;
-// signed in, the list of your classes and their rooms beside the room
-// you're in. On a phone (SPEC §2) one thing at a time: the list, a course's
-// rooms, or a room, with room info in a bottom drawer. Everything is plain
-// text and tokens; there are no sparkles anywhere in Chat.
+// Terpsicle Chat (`/chat`, V2.md §8.6), the kit's "full" page: a tool with
+// panes under the family bar. Signed out, it's the front door; signed in,
+// the list of your classes and their rooms beside the room you're in, with
+// the term in the bar. On a phone (SPEC §2) one thing at a time: the list, a
+// course's rooms, or a room, with room info in a bottom drawer. Everything is
+// plain text and tokens; there are no sparkles anywhere in Chat.
 
 /** How often the list's unread counts refresh while /chat is open. */
 const UNREAD_EVERY_MS = 60_000;
@@ -41,14 +56,28 @@ const UNREAD_EVERY_MS = 60_000;
 export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
   const status = useAccount((s) => s.status);
   const chat = useAccount((s) => s.flags.chat);
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const app = status === "signed-in" && chat !== "off";
   return (
-    <div className="flex h-dvh flex-col bg-bg text-fg">
-      <SiteHeader />
+    <div
+      className={cn(
+        "flex flex-col bg-bg text-fg",
+        // The app's panes scroll inside; the front door scrolls as a page.
+        app || status === "loading" ? "h-dvh" : "min-h-dvh",
+      )}
+    >
+      <AppBar
+        current="chat"
+        feedback={feedbackProduct(path)}
+        pathname={path}
+        context={app ? <ChatTermMenu /> : null}
+      />
       {status === "loading" ? (
-        <div className="flex flex-col gap-3 px-4 py-6" aria-busy="true">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-3 w-64" />
-        </div>
+        <ProductPage width="full" className="md:flex-row">
+          <div className="md:w-80 md:shrink-0 md:border-hairline md:border-r">
+            <RowSkeleton label="Loading Chat" />
+          </div>
+        </ProductPage>
       ) : chat === "off" ? (
         <ChatClosed />
       ) : status === "signed-out" ? (
@@ -65,6 +94,10 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   const termId = useChatHome((s) => s.termId);
   const homeStatus = useChatHome((s) => s.status);
   const [infoOpen, setInfoOpen] = useState(false);
+  // Each "Find a course" focuses the finder (and, on a phone, shows it).
+  const [finding, setFinding] = useState(0);
+  // Try again on a room whose socket gave up opens a new one.
+  const [attempt, setAttempt] = useState(0);
 
   // Load once, for the term in the link (or the usual pick).
   const loadedFor = useRef<string | null>(null);
@@ -143,16 +176,40 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
     [go, view.term],
   );
 
+  const list = useChatList();
+  const noClasses = homeStatus === "ready" && list.length === 0;
+  const findCourse = () => setFinding((n) => n + 1);
+
+  // No classes yet: on a desktop the list holds the finder and the room's
+  // pane says what Chat is; on a phone the list is the only pane, so it
+  // says it there, and "Find a course" swaps the finder in.
+  const empty = mobile ? (
+    finding > 0 ? (
+      <CourseFinder go={goScoped} focus={finding} />
+    ) : (
+      <NoClasses align="start" onFind={findCourse} className="px-4 py-6" />
+    )
+  ) : (
+    <>
+      <PanelNote className="pb-0">
+        Rooms from your plans show up here.
+      </PanelNote>
+      <CourseFinder go={goScoped} focus={finding} />
+    </>
+  );
+
   const showList = !mobile || !room;
   const sidebar =
     course && (!room || !mobile) ? (
       <CourseSpace courseCode={course} view={view} go={goScoped} />
     ) : (
-      <RoomList view={view} go={goScoped} />
+      <RoomList view={view} go={goScoped} empty={empty} />
     );
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <ProductPage width="full" className="flex-row">
+      {/* The page's one h1: the panes' headers say where you are. */}
+      <PageHeader title="Chat" className="sr-only" />
       {showList ? (
         <nav
           aria-label="Rooms"
@@ -166,7 +223,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
       ) : null}
       {room && course && termId ? (
         <CourseRoom
-          key={course}
+          key={`${course}#${attempt}`}
           termId={termId}
           courseCode={course}
           roomId={room}
@@ -175,14 +232,112 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
           mobile={mobile}
           infoOpen={infoOpen}
           setInfoOpen={setInfoOpen}
+          onReconnect={() => setAttempt((n) => n + 1)}
         />
-      ) : mobile ? null : (
-        <main className="flex flex-1 items-center justify-center px-6 text-center text-muted text-sm">
-          {homeStatus === "ready" ? "Pick a room to start talking." : null}
-        </main>
+      ) : mobile || homeStatus !== "ready" ? null : (
+        <div className="flex min-w-0 flex-1 flex-col px-6">
+          {noClasses ? (
+            <NoClasses align="center" onFind={findCourse} />
+          ) : (
+            <PickARoom list={list} course={course} go={goScoped} />
+          )}
+        </div>
       )}
-    </div>
+    </ProductPage>
   );
+}
+
+/** Chat's first visit, with no classes in a synced plan yet. */
+function NoClasses({
+  align,
+  onFind,
+  className,
+}: {
+  align: "start" | "center";
+  onFind: () => void;
+  className?: string;
+}) {
+  return (
+    <EmptyState
+      align={align}
+      className={className}
+      mark={<Mark id="chat" size={40} />}
+      title="No classes here yet"
+      line="Find any course to open its chat, or add classes to a plan and their rooms show up here."
+      primary={{
+        label: "Find a course",
+        icon: <Search size={14} aria-hidden="true" />,
+        hint: "Search every course this term",
+        onClick: onFind,
+      }}
+      secondary={{
+        label: "Open the scheduler",
+        hint: "Add classes to a plan",
+        to: SCHEDULE_PATH,
+      }}
+    />
+  );
+}
+
+/**
+ * The room's pane before you've picked one: what the rooms are, and one way
+ * in. That's the room with the most unread, or else the first course's.
+ */
+function PickARoom({
+  list,
+  course,
+  go,
+}: {
+  list: readonly ChatListCourse[];
+  course: CourseCode | null;
+  go: ChatGo;
+}) {
+  const termId = useChatHome((s) => s.termId);
+  if (!termId) return null;
+  if (course)
+    return (
+      <EmptyState
+        align="center"
+        mark={<Mark id="chat" size={40} />}
+        title="Pick a room to start talking"
+        line={`${course}'s rooms are on the left: one for the course, one for each professor's sections and one for each section.`}
+        primary={{
+          label: "Open the course room",
+          hint: `Talk with everyone in ${course}`,
+          onClick: () => go({ course, room: courseRoomId(termId, course) }),
+        }}
+      />
+    );
+  const rooms = list.flatMap((c) =>
+    c.rooms.map((r) => ({ ...r, courseCode: c.courseCode })),
+  );
+  const target =
+    [...rooms]
+      .filter((r) => !r.muted && r.unread > 0)
+      .sort((a, b) => b.unread - a.unread)[0] ?? rooms[0];
+  if (!target) return null;
+  return (
+    <EmptyState
+      align="center"
+      mark={<Mark id="chat" size={40} />}
+      title="Pick a room to start talking"
+      line="Each of your classes has a room for the course, one for your professor's sections and one for your section."
+      primary={{
+        label: `Open ${roomName(target.courseCode, target.room)}`,
+        hint:
+          target.unread > 0 && !target.muted
+            ? unreadWords(target.unread)
+            : target.room.description,
+        onClick: () => go({ course: target.courseCode, room: target.room.id }),
+      }}
+    />
+  );
+}
+
+/** "CMSC351", "CMSC351 0101", "CMSC351 Brandt's sections". */
+function roomName(courseCode: CourseCode, room: Room): string {
+  if (room.kind === "course") return courseCode;
+  return `${courseCode} ${room.code ?? room.words}`;
 }
 
 /** A room with its course's socket; room info beside it (desktop) or in a drawer (phone). */
@@ -195,6 +350,7 @@ function CourseRoom({
   mobile,
   infoOpen,
   setInfoOpen,
+  onReconnect,
 }: {
   termId: string;
   courseCode: CourseCode;
@@ -204,6 +360,7 @@ function CourseRoom({
   mobile: boolean;
   infoOpen: boolean;
   setInfoOpen: (open: boolean) => void;
+  onReconnect: () => void;
 }) {
   const course = useChatHome((s) => s.courses.get(courseCode) ?? null);
   const plans = useChatHome((s) => s.synced.plans);
@@ -239,17 +396,13 @@ function CourseRoom({
 
   if (!tree || !room)
     return (
-      <main className="flex flex-1 flex-col">
+      <section className="flex min-w-0 flex-1 flex-col">
         {course === null ? (
-          <div className="flex flex-col gap-3 px-4 py-6" aria-busy="true">
-            <Skeleton className="h-4 w-40" />
-          </div>
+          <RowSkeleton label="Opening the room" />
         ) : (
-          <p className="px-4 py-6 text-muted text-sm">
-            That room isn't in {courseCode} anymore.
-          </p>
+          <PanelNote>That room isn't in {courseCode} anymore.</PanelNote>
         )}
-      </main>
+      </section>
     );
 
   const roomState = snapshot?.conversation.rooms[roomId];
@@ -261,10 +414,23 @@ function CourseRoom({
       members={roomState?.members ?? null}
     />
   );
+  const closeInfo = (
+    <WithTooltip label="Close room info" shortcut={mobile ? undefined : "Esc"}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Close room info"
+        className="max-md:size-11"
+        onClick={() => setInfoOpen(false)}
+      >
+        <X />
+      </Button>
+    </WithTooltip>
+  );
 
   return (
     <>
-      <main className="flex min-w-0 flex-1 flex-col" aria-label={room.label}>
+      <section className="flex min-w-0 flex-1 flex-col" aria-label={room.label}>
         <RoomView
           courseCode={courseCode}
           room={room}
@@ -273,31 +439,31 @@ function CourseRoom({
           snapshot={snapshot}
           roomState={roomState}
           compact={mobile}
-          onBack={() => go({ course: courseCode })}
+          back={{
+            room: {
+              label: roomName(courseCode, room),
+              to: "/chat",
+              search: { term: view.term, course: courseCode, room: roomId },
+            },
+            course: {
+              label: courseCode,
+              to: "/chat",
+              search: { term: view.term, course: courseCode },
+            },
+          }}
           onOpenThread={openThread}
           onCloseThread={() => go({ course: courseCode, room: roomId })}
           onInfo={() => setInfoOpen(!infoOpen)}
           onSeen={onSeen}
+          onReconnect={onReconnect}
         />
-      </main>
+      </section>
       {infoOpen && !mobile ? (
         <aside
           aria-label="Room info"
           className="scroll-thin w-72 shrink-0 overflow-y-auto border-hairline border-l"
         >
-          <div className="flex h-12 items-center justify-between border-hairline border-b px-4">
-            <h2 className="font-semibold text-base">Room info</h2>
-            <WithTooltip label="Close room info" shortcut="Esc">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Close room info"
-                onClick={() => setInfoOpen(false)}
-              >
-                <X />
-              </Button>
-            </WithTooltip>
-          </div>
+          <PageHeader size="panel" title="Room info" actions={closeInfo} />
           {info}
         </aside>
       ) : null}
@@ -313,22 +479,15 @@ function CourseRoom({
                 className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-hairline-strong"
                 aria-hidden="true"
               />
-              <div className="flex items-center justify-between px-4 pt-2">
-                <Drawer.Title className="font-semibold text-base">
-                  Room info
-                </Drawer.Title>
-                <WithTooltip label="Close room info">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Close room info"
-                    className="size-11"
-                    onClick={() => setInfoOpen(false)}
-                  >
-                    <X />
-                  </Button>
-                </WithTooltip>
-              </div>
+              <PageHeader
+                size="panel"
+                title={
+                  <Drawer.Title asChild>
+                    <span>Room info</span>
+                  </Drawer.Title>
+                }
+                actions={closeInfo}
+              />
               <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
                 {info}
               </div>

@@ -18,9 +18,12 @@ export function showUndo(
   undoToast({ id: UNDO_TOAST_ID, message: label, onUndo, onDone });
 }
 
-/** A quiet note that something didn't go through (never red). */
-export function showNote(label: string): void {
-  noteToast(label);
+/**
+ * A quiet note that something didn't go through (never red), with Try again
+ * where trying again can help.
+ */
+export function showNote(label: string, retry?: () => void): void {
+  noteToast(label, retry ? { retry } : {});
 }
 
 /** The time, updated every `everyMs`, for "Today" and "2 min ago". */

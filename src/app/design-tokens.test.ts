@@ -97,10 +97,7 @@ const RULES = {
  * Each moves onto ProductPage in its product's Phase 3 PR, which deletes it
  * here. Never add to this list: a new page picks a kit width.
  */
-const OWN_PAGE_WIDTH = new Set([
-  "/src/features/chat/sign-in-moment.tsx",
-  "/src/features/four-year/empty-state.tsx",
-]);
+const OWN_PAGE_WIDTH = new Set(["/src/features/four-year/empty-state.tsx"]);
 
 /** "file:line: match" for every offending match in `sources`. */
 function scan(sources: Record<string, string>, rule: Rule): string[] {
