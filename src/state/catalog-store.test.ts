@@ -333,6 +333,14 @@ describe("what's on screen first", () => {
     expect(deptReads()).not.toContain(last);
   });
 
+  it("settles a term that lists no departments", async () => {
+    server.publish(ACTIVE, {});
+    await useCatalog.getState().ensureTerm(ACTIVE);
+
+    expect(t()?.complete).toBe(true);
+    expect(t()?.settled).toBe(true);
+  });
+
   it("settles when a department fails, so search doesn't wait forever", async () => {
     server.files.delete(deptChunkKey(ACTIVE, "ENGL", hash(3)));
     await useCatalog.getState().ensureTerm(ACTIVE);

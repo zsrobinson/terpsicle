@@ -531,6 +531,16 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       await refreshTerm(termId);
     });
 
+  /** Every department has loaded or failed. */
+  const isSettled = (
+    manifest: Manifest,
+    termId: TermId,
+    states = get().byTerm[termId]?.depts ?? {},
+  ) =>
+    manifest.departments.every(
+      (d) => states[d.code] === "ready" || states[d.code] === "error",
+    );
+
   /**
    * One department's chunk: the cache (read by the caller, for a whole batch)
    * or the network. A chunk already loaded at this hash is never fetched
@@ -592,7 +602,18 @@ export const useCatalog = create<CatalogState>()((set, get) => {
         ? [entry]
         : [];
     });
-    if (wanted.length === 0) return;
+    if (wanted.length === 0) {
+      // Nothing left to fetch (or nothing listed): the term may have just
+      // settled without a batch of its own.
+      if (!get().byTerm[termId]?.settled && isSettled(manifest, termId))
+        patchTerm(termId, (t) => ({
+          settled: true,
+          complete: manifest.departments.every(
+            (d) => t.depts[d.code] === "ready",
+          ),
+        }));
+      return;
+    }
     patchTerm(termId, (t) => {
       const next = { ...t.depts };
       for (const d of wanted) next[d.code] = "loading";
@@ -626,12 +647,7 @@ export const useCatalog = create<CatalogState>()((set, get) => {
         complete: manifest.departments.every(
           (d) => deptStates[d.code] === "ready",
         ),
-        settled:
-          t.settled ||
-          manifest.departments.every(
-            (d) =>
-              deptStates[d.code] === "ready" || deptStates[d.code] === "error",
-          ),
+        settled: t.settled || isSettled(manifest, termId, deptStates),
       };
     });
   };
