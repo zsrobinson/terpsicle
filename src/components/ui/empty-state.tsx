@@ -36,8 +36,20 @@ export type EmptyAction = {
       href: string;
       /** Runs as the page leaves (analytics). */
       onClick?: () => void;
+      /**
+       * Opens in a new tab, for a step done elsewhere that you come back
+       * from (Todo's "Open your ELMS calendar").
+       */
+      newTab?: boolean;
     }
 );
+
+/** A new tab never gets a handle back to this page. */
+function tabProps(action: EmptyAction) {
+  return "href" in action && action.newTab
+    ? { target: "_blank", rel: "noopener noreferrer" }
+    : {};
+}
 
 type EmptyStateProps = {
   /** The product's `Mark` at 40px. */
@@ -155,7 +167,7 @@ function ActionButton({
     action,
     "href" in action ? (
       <Button size="lg" asChild className={className}>
-        <a href={action.href} onClick={action.onClick}>
+        <a href={action.href} onClick={action.onClick} {...tabProps(action)}>
           {content}
         </a>
       </Button>
@@ -180,7 +192,12 @@ function QuietLink({ action }: { action: EmptyAction }) {
   return withHint(
     action,
     "href" in action ? (
-      <a href={action.href} onClick={action.onClick} className={QUIET}>
+      <a
+        href={action.href}
+        onClick={action.onClick}
+        className={QUIET}
+        {...tabProps(action)}
+      >
         {action.label}
       </a>
     ) : "onClick" in action ? (

@@ -205,7 +205,7 @@ describe("the Courses tab's four-year line", () => {
     await saveFourYear(COLUMN);
     const { sidebar } = await renderPlanTab([panels], "courses");
     const link = await within(sidebar).findByRole("link", {
-      name: "View plan",
+      name: "View four-year plan",
     });
     expect(link).toHaveAttribute("href", `/plan?semester=${TEST_TERM_ID}`);
   });
@@ -236,7 +236,7 @@ describe("the Courses tab's four-year line", () => {
     const { sidebar } = await renderPlanTab([panels], "courses");
     act(() => useUi.getState().setLastTermId(archivedFixtureTermId));
     const link = await within(sidebar).findByRole("link", {
-      name: "View plan",
+      name: "View four-year plan",
     });
     expect(link).toHaveAttribute(
       "href",
@@ -252,14 +252,14 @@ describe("the Courses tab's four-year line", () => {
     await settle();
     await screen.findByTestId("course-row-CMSC351");
     expect(within(sidebar).queryByTestId("four-year-line")).toBeNull();
-    // Once Plan is on, "View plan" is the way in.
+    // Once Plan is on, "View four-year plan" is the way in.
     act(() =>
       useAccount.setState({
         flags: { ...useAccount.getState().flags, plan: true },
       }),
     );
     expect(
-      await within(sidebar).findByRole("link", { name: "View plan" }),
+      await within(sidebar).findByRole("link", { name: "View four-year plan" }),
     ).toBeInTheDocument();
     expect(within(sidebar).getByTestId("four-year-line")).not.toHaveTextContent(
       "four-year plan:",

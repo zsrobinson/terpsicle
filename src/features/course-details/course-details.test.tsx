@@ -582,7 +582,7 @@ describe("Course details", () => {
       expect(keiko).not.toHaveTextContent("GPA");
       expect(within(keiko).getByText("clear lectures")).toBeInTheDocument();
       expect(
-        within(keiko).getByRole("link", { name: "read them" }),
+        within(keiko).getByRole("link", { name: "Read them on PlanetTerp" }),
       ).toHaveAttribute("href", expect.stringContaining("planetterp.com"));
       expect(track).toHaveBeenCalledWith("review_summary_viewed", {
         state: "shown",
@@ -617,15 +617,25 @@ describe("Course details", () => {
         const jada = await findReviews("Jada Abernathy");
         await waitFor(() =>
           expect(
-            within(jada).getByRole("link", { name: "Read reviews" }),
+            within(jada).getByRole("link", { name: "View reviews" }),
           ).toHaveAttribute(
             "href",
             "/reviews/instructors/abernathy_jada?course=CMSC351",
           ),
         );
         expect(
-          within(jada).queryByRole("link", { name: "read them" }),
+          within(jada).queryByRole("link", { name: "Read them on PlanetTerp" }),
         ).toBeNull();
+        // A View link on its own line, so it can't read as PlanetTerp's
+        // (QA S3), and it counts as a cross-link.
+        const link = within(jada).getByRole("link", { name: "View reviews" });
+        expect(link.closest("p")).toHaveTextContent(/^View reviews$/);
+        link.addEventListener("click", (e) => e.preventDefault());
+        link.click();
+        expect(track).toHaveBeenCalledWith("cross_link_clicked", {
+          from: "schedule",
+          to: "reviews",
+        });
       } finally {
         useAccount.setState({ flags: FLAGS_OFF });
       }

@@ -68,6 +68,35 @@ function quietTooltips(ms = 400): void {
   quietUntil = performance.now() + ms;
 }
 
+// When a finger last came down. A tap focuses what it lands on, and a
+// tooltip opening on that focus covered the tabs above a phone's search box
+// and stayed while you typed (QA S11). Radix already ignores a finger's
+// hover; this ignores its focus.
+let touchedAt = Number.NEGATIVE_INFINITY;
+let listening = false;
+const TOUCH_FOCUS_MS = 1000;
+
+function listenForTouches(): void {
+  if (listening || typeof document === "undefined") return;
+  listening = true;
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.pointerType === "touch") touchedAt = performance.now();
+    },
+    { capture: true, passive: true },
+  );
+}
+
+/** Keys that type into a field: the tooltip's done once you're typing. */
+function isTyping(e: React.KeyboardEvent): boolean {
+  return (
+    !e.metaKey &&
+    !e.ctrlKey &&
+    (e.key.length === 1 || e.key === "Backspace" || e.key === "Delete")
+  );
+}
+
 /**
  * The one way to give a control a tooltip. Every interactive element gets one
  * (CLAUDE.md), and if it has a shortcut, `shortcut` shows it.
@@ -84,16 +113,24 @@ function WithTooltip({
   children: React.ReactElement;
 }) {
   const [open, setOpen] = React.useState(false);
+  React.useEffect(listenForTouches, []);
   return (
     <Tooltip
       open={open}
       onOpenChange={(next) => {
         if (next && performance.now() < quietUntil) return;
+        if (next && performance.now() - touchedAt < TOUCH_FOCUS_MS) return;
         setOpen(next);
       }}
     >
       {/* `data-tooltip`: e2e/tooltips.spec.ts finds controls without one. */}
-      <TooltipTrigger asChild data-tooltip="">
+      <TooltipTrigger
+        asChild
+        data-tooltip=""
+        onKeyDown={(e) => {
+          if (isTyping(e)) setOpen(false);
+        }}
+      >
         {children}
       </TooltipTrigger>
       <TooltipContent side={side}>

@@ -159,6 +159,25 @@ export function GeneratePanel() {
               : `Found ${done.result.results.length === 1 ? "1 plan" : `${done.result.results.length} plans`}.`
             : ""}
       </p>
+      {!shared && showing && catalog ? (
+        // What was asked, pinned above the list rather than scrolling half
+        // under the results' sticky bar (QA S10).
+        <div className="flex shrink-0 items-baseline gap-2 border-hairline border-b px-4 py-2">
+          <p className="min-w-0 flex-1 text-muted text-sm">
+            {requestSummary(showing.request)}
+          </p>
+          <WithTooltip label="Change courses, must-haves or ranking">
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto px-0 text-sm"
+              onClick={edit}
+            >
+              Edit
+            </Button>
+          </WithTooltip>
+        </div>
+      ) : null}
       <PanelBody>
         <div ref={topRef} />
         {shared ? (
@@ -167,41 +186,24 @@ export function GeneratePanel() {
             own.
           </p>
         ) : showing && catalog ? (
-          <>
-            <div className="flex items-baseline gap-2 border-hairline border-b px-4 py-2">
-              <p className="min-w-0 flex-1 text-muted text-sm">
-                {requestSummary(showing.request)}
-              </p>
-              <WithTooltip label="Change courses, must-haves or ranking">
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto px-0 text-sm"
-                  onClick={edit}
-                >
-                  Edit
-                </Button>
-              </WithTooltip>
-            </div>
-            {showing.result.results.length > 0 ? (
-              <Results
-                request={showing.request}
-                result={showing.result}
-                index={catalog.index}
-                colors={colors}
-                plan={current?.plan ?? null}
-                termName={termName}
-              />
-            ) : (
-              <NothingFits
-                result={showing.result}
-                index={catalog.index}
-                colors={colors}
-                termName={termName}
-                onRelax={relax}
-              />
-            )}
-          </>
+          showing.result.results.length > 0 ? (
+            <Results
+              request={showing.request}
+              result={showing.result}
+              index={catalog.index}
+              colors={colors}
+              plan={current?.plan ?? null}
+              termName={termName}
+            />
+          ) : (
+            <NothingFits
+              result={showing.result}
+              index={catalog.index}
+              colors={colors}
+              termName={termName}
+              onRelax={relax}
+            />
+          )
         ) : (
           <>
             <SectionHeader variant="label" title="Courses" />

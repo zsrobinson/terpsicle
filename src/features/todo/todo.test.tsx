@@ -166,7 +166,6 @@ describe("who's looking", () => {
   it("is the first-visit template until ELMS is connected, with the paste right there", async () => {
     fakeClient({ feed: null });
     signedIn();
-    const open = vi.spyOn(window, "open").mockReturnValue(null);
     renderTodo();
     expect(
       await screen.findByRole("heading", {
@@ -176,20 +175,17 @@ describe("who's looking", () => {
     ).toBeVisible();
     expect(document.querySelector('[data-mark="todo"]')).not.toBeNull();
     // Step one opens ELMS in a new tab, so the paste is still here after.
-    const user = userEvent.setup();
-    await user.click(
-      screen.getByRole("button", { name: "Open your ELMS calendar" }),
-    );
-    expect(open).toHaveBeenCalledWith(
+    const step = screen.getByRole("link", { name: "Open your ELMS calendar" });
+    expect(step).toHaveAttribute(
+      "href",
       "https://umd.instructure.com/calendar",
-      "_blank",
-      "noopener,noreferrer",
     );
+    expect(step).toHaveAttribute("target", "_blank");
+    expect(step).toHaveAttribute("rel", "noopener noreferrer");
     expect(screen.getByLabelText("ELMS calendar link")).toBeVisible();
     expect(
       screen.getByRole("link", { name: "or add a calendar file" }),
     ).toHaveAttribute("href", "/todo/connect");
-    open.mockRestore();
   });
 });
 
