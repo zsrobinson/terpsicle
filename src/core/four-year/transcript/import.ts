@@ -125,6 +125,12 @@ export function normalizeCourseCode(input: string): CourseCode | null {
   return CourseCodeSchema.safeParse(code).success ? code : null;
 }
 
+/** Whether a course code fits a generic equivalent: CHEM131 fits "CHEM1XX". */
+export function fitsEquivalentPattern(code: string, pattern: string): boolean {
+  if (!/^[A-Z]{4}[0-9X]{3}$/.test(pattern)) return false;
+  return new RegExp(`^${pattern.replace(/X/g, "\\d")}[A-Z]?$`).test(code);
+}
+
 /** "CHEM1XX" → "CHEM 1XX", as Testudo prints it. */
 function patternLabel(pattern: string): string {
   return `${pattern.slice(0, 4)} ${pattern.slice(4)}`;
@@ -222,7 +228,10 @@ export function buildTranscriptImport(
         source: "transcript",
         transcript: { title: line.title, via: line.via },
       });
-      if (checks.keepGrades && line.grade !== null) grades[id] = line.grade;
+      // A skipped line brought back never carries a grade (V3 §2.5), even
+      // when the parser saw a grade-shaped mark on it.
+      if (checks.keepGrades && row.skipped === null && line.grade !== null)
+        grades[id] = line.grade;
     } else if (line.term === "before") {
       const title = line.equivalentPattern
         ? `${line.title} (${patternLabel(line.equivalentPattern)})`

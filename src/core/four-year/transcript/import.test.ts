@@ -13,6 +13,7 @@ import { PASTES } from "./__fixtures__/pastes";
 import {
   buildTranscriptImport,
   EMPTY_TRANSCRIPT_CHECKS,
+  fitsEquivalentPattern,
   importReplaceTerms,
   importSummary,
   normalizeCourseCode,
@@ -54,8 +55,12 @@ const row = (
 describe("transcriptRows", () => {
   it("lists read lines, then lines left out that can be ticked back in, by term", () => {
     const { rows, unreadable } = transcriptRows(parse("synthetic-in-progress"));
-    const terms = rows.map((r) => r.line.term);
-    expect([...terms].sort()).toEqual(terms.slice().sort());
+    expect([...new Set(rows.map((r) => r.line.term))]).toEqual([
+      "before",
+      "202508",
+      "202601",
+      "202608",
+    ]);
     const skipped = rows.filter((r) => r.skipped !== null);
     expect(
       skipped.map((r) => [r.skipped, r.line.code ?? r.line.title]),
@@ -163,6 +168,15 @@ describe("rowCode", () => {
     expect(rowCode(calc, checks({ mappings: { [calc.key]: "MATH140" } }))).toBe(
       "MATH141",
     );
+  });
+});
+
+describe("fitsEquivalentPattern", () => {
+  it("matches the pattern's digits and an honors letter", () => {
+    expect(fitsEquivalentPattern("CHEM131", "CHEM1XX")).toBe(true);
+    expect(fitsEquivalentPattern("CHEM131H", "CHEM1XX")).toBe(true);
+    expect(fitsEquivalentPattern("CHEM231", "CHEM1XX")).toBe(false);
+    expect(fitsEquivalentPattern("CHEM131", "CHEM.XX")).toBe(false);
   });
 });
 
@@ -368,6 +382,33 @@ describe("buildTranscriptImport", () => {
     );
     expect(bmgt).toBeDefined();
     expect(bmgt && grades[bmgt.id]).toBeUndefined();
+  });
+
+  it("never brings a grade in with a skipped line, even one with a grade-shaped mark", () => {
+    const { rows } = transcriptRows({
+      recognized: true,
+      lines: [],
+      skipped: [
+        {
+          raw: "AP BIOLOGY P BSCI105 4.00 Credit not granted",
+          reason: "no-credit",
+          line: aTranscriptLine({
+            term: "before",
+            code: "BSCI105",
+            grade: "P",
+            via: "ap",
+          }),
+        },
+      ],
+    });
+    const key = rows[0]?.key ?? "";
+    const { entries, grades } = buildTranscriptImport(
+      rows,
+      checks({ toggled: new Set([key]) }),
+      { lookup, newId: ids() },
+    );
+    expect(entries).toHaveLength(1);
+    expect(grades).toEqual({});
   });
 
   it("never imports an in-progress course's grade, since it has none", () => {

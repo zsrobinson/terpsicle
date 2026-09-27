@@ -4,6 +4,12 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
 import { courseSearchRow } from "~/core/catalog/course-index";
+import {
+  EMPTY_TRANSCRIPT_CHECKS,
+  parseTranscript,
+  pendingChoices,
+  transcriptRows,
+} from "~/core/four-year/transcript";
 import { PASTES } from "~/core/four-year/transcript/__fixtures__/pastes";
 import { canUndo } from "~/core/plans/history";
 import type { PlanSearch } from "~/core/schema";
@@ -178,10 +184,14 @@ describe("paste", () => {
     expect(track).toHaveBeenCalledTimes(1);
     const [event, props] = vi.mocked(track).mock.calls[0] ?? [];
     expect(event).toBe("transcript_parsed");
+    const parsed = parseTranscript(paste("synthetic-in-progress"));
     expect(props).toEqual({
       recognized: true,
-      lines: expect.any(Number),
-      choices: expect.any(Number),
+      lines: parsed.lines.length,
+      choices: pendingChoices(
+        transcriptRows(parsed).rows,
+        EMPTY_TRANSCRIPT_CHECKS,
+      ),
       skipped: 5,
     });
   });

@@ -8,6 +8,7 @@ import { fourYearTermLabel } from "~/core/four-year/terms";
 import {
   buildTranscriptImport,
   EMPTY_TRANSCRIPT_CHECKS,
+  fitsEquivalentPattern,
   importReplaceTerms,
   normalizeCourseCode,
   pendingChoices,
@@ -61,6 +62,8 @@ const SKIP_REASONS: Record<TranscriptSkipReason, string> = {
   withdrawn: "Withdrawn (W), so it's left out.",
   dropped: "Dropped, so it's left out.",
   "no-credit": "No credit granted, so it's left out.",
+  // Unreadable lines have nothing to import, so they're never rows; the
+  // record needs the key.
   unreadable: "We couldn't read this line.",
 };
 
@@ -155,8 +158,9 @@ function MappingField({
   const known = code ? search?.get(code) : undefined;
   const suggestions = useMemo(() => {
     if (!pattern || !search) return [];
-    const re = new RegExp(`^${pattern.replace(/X/g, "\\d")}[A-Z]?$`);
-    return [...search.values()].filter((r) => re.test(r[0])).slice(0, 50);
+    return [...search.values()]
+      .filter((r) => fitsEquivalentPattern(r[0], pattern))
+      .slice(0, 50);
   }, [pattern, search]);
   const kind = row.line.via === "ap" ? "AP credit" : "transfer credit";
   return (
@@ -426,9 +430,11 @@ export function ImportCheck({ columns = false }: { columns?: boolean }) {
               They're left out. Add them from Search if you need them.
             </p>
             <ul className="space-y-0.5">
-              {unreadable.map((raw) => (
+              {unreadable.map((raw, i) => (
                 <li
-                  key={raw}
+                  // By position: a key made of pasted text could reach a console warning.
+                  // biome-ignore lint/suspicious/noArrayIndexKey: the list only changes with the paste
+                  key={i}
                   data-private
                   className="break-words font-mono text-muted text-xs"
                 >
@@ -462,8 +468,6 @@ export function ImportPanel() {
 
   useEffect(() => {
     input.current?.focus();
-    // Closing the tab forgets the paste.
-    return resetTranscriptImport;
   }, []);
 
   useEffect(() => {
@@ -501,7 +505,9 @@ export function ImportPanel() {
       .ensureDepts([...depts])
       .catch(() => undefined);
     const current = activeDoc(useFourYear.getState());
-    if (!current) return setImportStatus(false, null);
+    // The terms to replace were worked out for this doc: if another opened
+    // while departments loaded, stop rather than replace the wrong ones.
+    if (current?.id !== doc.id) return setImportStatus(false, null);
     const { entries, grades } = buildTranscriptImport(rows, checks, {
       lookup: currentCourseLookup(),
       newId: newLocalId,

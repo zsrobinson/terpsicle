@@ -10,6 +10,7 @@ import { startFourYear, useDocDepts } from "./data";
 import { EmptyState } from "./empty-state";
 import { PlanHeader } from "./header";
 import { ImportCheck, useImportRecognized } from "./import-panel";
+import { resetTranscriptImport } from "./import-state";
 import {
   PLAN_WIDE_QUERY,
   PlanModelProvider,
@@ -25,8 +26,6 @@ import { PlanToasts } from "./toasts";
 // `/plan` (docs/V3.md §2.13): the four-year plan, local first. Desktop shows
 // every semester beside the side panel; a phone shows a strip of semesters
 // and one at a time, with the panel under it.
-
-export { PLAN_WIDE_QUERY } from "./model";
 
 /** New York's date, for term status. */
 export function useToday(): IsoDate {
@@ -80,6 +79,12 @@ function Workspace({ nav }: { nav: PlanNav }) {
   useDocDepts(doc);
   const importing = nav.search.tab === "import";
   const checking = useImportRecognized() && importing;
+  // Leaving the Import tab, or Plan, forgets the paste. A resize that moves
+  // the panel between layouts doesn't.
+  useEffect(() => {
+    if (!importing) resetTranscriptImport();
+  }, [importing]);
+  useEffect(() => resetTranscriptImport, []);
   return (
     <PlanNavProvider value={nav}>
       <PlanModelProvider value={model}>
