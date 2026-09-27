@@ -271,7 +271,7 @@ function NoClasses({
         onClick: onFind,
       }}
       secondary={{
-        label: "Open the scheduler",
+        label: "View schedule",
         hint: "Add classes to a plan",
         to: SCHEDULE_PATH,
       }}

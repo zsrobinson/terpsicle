@@ -272,7 +272,7 @@ function InstructorGroupRows({
         open={!closed}
         onToggle={onToggle}
         toggleLabel={`${closed ? "Show" : "Hide"} ${group.name ? `${group.name}'s sections` : "the TBA sections"}`}
-        title={group.name || "Instructor TBA"}
+        title={group.name || "Professor TBA"}
         meta={
           <InstructorMeta
             name={instructor ? group.name : ""}
@@ -329,7 +329,7 @@ function GroupNote({
             planetTerp={props.planetTerp}
           />
         ) : (
-          "Testudo hasn't named instructors for these sections yet."
+          "Testudo hasn't named a professor for these sections yet."
         )}
         {one && hasReviews(props.planetTerp, one) ? (
           <span className="ml-auto">

@@ -115,7 +115,7 @@ test("watch a full section: sign in, watching everywhere, the email, stop and un
     .click();
 
   // The sign-in it offers comes back to the app, already watching.
-  await expect(page.getByText("Sign in to get seat alerts.")).toBeVisible();
+  await expect(page.getByText("Sign in to watch for a seat.")).toBeVisible();
   await page.getByRole("link", { name: "Sign in (test mode)" }).click();
   await page.getByRole("button", { name: "Sign in as Test Student" }).click();
   await expect(
@@ -193,7 +193,7 @@ test("watch a full section: sign in, watching everywhere, the email, stop and un
   await page.getByRole("menuitem", { name: "Watching for a seat" }).click();
   await expect(page).toHaveURL(/\/settings#watching$/);
   const listed = page.getByTestId("seat-watch-CMSC351-0101");
-  await expect(listed).toContainText("Last email");
+  await expect(listed).toContainText("Last notified");
   await listed.getByRole("button", { name: "Stop" }).click();
   await expect(listed).toHaveCount(0);
   await page.getByRole("button", { name: "Undo" }).click();

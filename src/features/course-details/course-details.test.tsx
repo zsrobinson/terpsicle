@@ -397,7 +397,7 @@ describe("Course details", () => {
       ).toBe("0101");
       expect(
         within(row("0101")).getByRole("button", {
-          name: "Watch for a seat: we'll email you when one opens, CMSC351 0101",
+          name: "Watch for a seat: we'll let you know when one opens, CMSC351 0101",
         }),
       ).toBeInTheDocument();
     });
@@ -409,7 +409,7 @@ describe("Course details", () => {
       expect(sectionsBar()).toHaveTextContent(/\d+ of 92 fit/);
       expect(
         screen.getByText(
-          "Testudo hasn't named instructors for these sections yet.",
+          "Testudo hasn't named a professor for these sections yet.",
         ),
       ).toBeInTheDocument();
       // No grouping by time, and no group header.
@@ -477,7 +477,7 @@ describe("Course details", () => {
       const { user } = await renderDetails();
       expect(within(row("0401")).queryByLabelText(/seat opens/)).toBeNull();
       const bell = within(row("0101")).getByRole("button", {
-        name: "Watch for a seat: we'll email you when one opens, CMSC351 0101",
+        name: "Watch for a seat: we'll let you know when one opens, CMSC351 0101",
       });
       expect(bell).toHaveAttribute("data-alert", "none");
       await user.click(bell);
@@ -492,7 +492,7 @@ describe("Course details", () => {
       expect(on).toHaveAttribute("aria-pressed", "true");
       expect(row("0101")).toHaveTextContent("Watching");
       const shown = await toastSaying("Watching CMSC351 0101");
-      expect(shown).toHaveTextContent("We'll email you when a seat opens.");
+      expect(shown).toHaveTextContent("We'll let you know when a seat opens.");
       expect(track).toHaveBeenCalledWith("seat_watch_started", {
         signedInFirst: false,
       });
@@ -541,7 +541,7 @@ describe("Course details", () => {
         }),
       );
       expect(
-        await screen.findByText("Sign in to get seat alerts.", {
+        await screen.findByText("Sign in to watch for a seat.", {
           exact: false,
         }),
       ).toBeVisible();

@@ -25,10 +25,10 @@ export function PrivacyPage() {
       <article className="flex flex-col gap-6 text-muted leading-relaxed">
         <div className="flex flex-col gap-3">
           <p>
-            Terpsicle is a class scheduler for University of Maryland students,
-            with course reviews and class chats. This page says what it keeps
-            about you, where, and why. Terpsicle isn't affiliated with the
-            University of Maryland.
+            Terpsicle is a set of planning tools for University of Maryland
+            students: Schedule, Reviews, Chat, Plan and Todo. This page says
+            what it keeps about you, where, and why. Terpsicle isn't affiliated
+            with the University of Maryland.
           </p>
           <p className="font-medium text-fg">
             We don't sell or share your data.
@@ -40,7 +40,7 @@ export function PrivacyPage() {
           </p>
         </div>
 
-        <Section title="The scheduler">
+        <Section title="Schedule">
           <p>
             Your plans, blocks and settings are saved in your browser, on your
             device. Nothing about them is sent to Terpsicle unless you sign in.
@@ -56,7 +56,7 @@ export function PrivacyPage() {
 
         <Section title="Signing in">
           <p>
-            The scheduler works without an account. To sign in, you use your UMD
+            Schedule works without an account. To sign in, you use your UMD
             Google account (umd.edu or terpmail.umd.edu). Google gives Terpsicle
             your name, your UMD email address and your profile picture. Your
             directory ID (the part of your email before the @) identifies your
@@ -125,7 +125,7 @@ export function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="Seat alerts and notifications">
+        <Section title="Seat watches and notifications">
           <p>
             When you watch a full section, Terpsicle tells you by web push and
             email once a seat opens; chat notifications work the same way. To

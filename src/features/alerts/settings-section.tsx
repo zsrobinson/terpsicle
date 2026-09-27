@@ -36,7 +36,7 @@ export function SeatWatchesSection() {
           />
         )}
         <p className="text-muted text-sm">
-          We email you when a seat opens in a section you watch. Watches end
+          We let you know when a seat opens in a section you watch. Watches end
           when the term does.
         </p>
       </PageSection>

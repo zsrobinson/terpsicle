@@ -179,7 +179,7 @@ export async function runGenerate(
         message:
           error instanceof Error && error.message.startsWith("Couldn't")
             ? error.message
-            : "Couldn't generate plans. Try again, or reload the page.",
+            : "Couldn't generate plans. Try again.",
       },
     });
   }

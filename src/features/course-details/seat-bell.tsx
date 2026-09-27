@@ -46,10 +46,10 @@ export function SeatBell({
   const label = sectionKey.replace("-", " ");
   const watching = state.kind === "watching";
   const tooltip = watching
-    ? `Watching ${label}: we'll email you when a seat opens. Click to stop.`
+    ? `Watching ${label}: we'll let you know when a seat opens. Click to stop.`
     : full
-      ? "Watch for a seat: we'll email you when one opens"
-      : "Watch for a seat: we'll email you if it fills and one opens again";
+      ? "Watch for a seat: we'll let you know when one opens"
+      : "Watch for a seat: we'll let you know if it fills and one opens again";
   const words = watching ? "Watching" : "Watch for a seat";
 
   const toggle = async () => {
@@ -108,18 +108,17 @@ export function SeatBell({
           <div className="font-medium text-base">
             {full ? (
               <>
-                Get an email when <span className="ident">{label}</span> has a
-                seat
+                Find out when <span className="ident">{label}</span> has a seat
               </>
             ) : (
               <>
-                Get an email if <span className="ident">{label}</span> fills and
-                a seat opens again
+                Find out if <span className="ident">{label}</span> fills and a
+                seat opens again
               </>
             )}
           </div>
           <p className="mt-1 mb-3 text-muted text-sm">
-            Sign in to get seat alerts. You'll be watching as soon as you're
+            Sign in to watch for a seat. You'll be watching as soon as you're
             back.
           </p>
           <GoogleButton
