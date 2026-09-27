@@ -1268,6 +1268,147 @@ describe("retention", () => {
   });
 });
 
+// ---------- account deletion (V2.md §4.7) ----------
+
+describe("purgeAuthor", () => {
+  async function published(
+    client: Client,
+    room: string,
+    text: string,
+    replyTo: string | null = null,
+  ) {
+    const ack = await client.sendText(room, text, replyTo);
+    const id = ack.message?.id ?? "";
+    await client.next("moderation", (f) => f.id === id);
+    return id;
+  }
+
+  const inObject = (sql: string, ...params: string[]) =>
+    runInDurableObject(stub(), (_i, state) =>
+      state.storage.sql.exec(sql, ...params).toArray(),
+    );
+
+  it("records where someone wrote at the first send, even a message that's never shown", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    await a.client.sendText(courseRoom, "here you go [hold]");
+    expect(
+      (
+        await env.DB.prepare(
+          "SELECT user_id, term_id, course_code FROM chat_author_courses",
+        ).all()
+      ).results,
+    ).toEqual([{ user_id: "tstudent", term_id: TERM, course_code: COURSE }]);
+  });
+
+  it("removes everything the person left in the course, and tells the room", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const b = await classmate.join([courseRoom]);
+    const shown = await published(a.client, courseRoom, "exam moved to Friday");
+    const held = (await a.client.sendText(courseRoom, "here you go [hold]"))
+      .message?.id;
+    // What moderation queued for the owner (the models are stood in for).
+    await env.DB.prepare(
+      `INSERT INTO moderation_queue (id, surface, ref, snapshot, status, created_at)
+       VALUES ('q1', 'chat', ?1, '{}', 'open', ?2)`,
+    )
+      .bind(chatTargetId(TERM, COURSE, held ?? ""), new Date().toISOString())
+      .run();
+    const theirs = await published(b.client, courseRoom, "thanks, which room?");
+    const reply = await published(
+      b.client,
+      courseRoom,
+      "is it still at 2?",
+      shown,
+    );
+    const react = a.client.req();
+    a.client.send({
+      type: "react",
+      req: react,
+      room: courseRoom,
+      id: theirs,
+      reaction: "check",
+      on: true,
+    });
+    await a.client.next("ack", (f) => f.req === react);
+    b.client.send({
+      type: "react",
+      req: b.client.req(),
+      room: courseRoom,
+      id: shown,
+      reaction: "thumbs",
+      on: true,
+    });
+    await b.client.flush();
+
+    expect(
+      await stub().purgeAuthor({
+        termId: TERM,
+        courseCode: COURSE,
+        userId: "tstudent",
+      }),
+    ).toEqual({ messages: 2 });
+    // Their socket is closed; classmates see the shown message go.
+    expect(await a.client.closed()).toBe(CHAT_CLOSE.signedOut);
+    expect(await b.client.next("deleted", (f) => f.id === shown)).toEqual({
+      type: "deleted",
+      room: courseRoom,
+      id: shown,
+    });
+    const page = await b.client.history(courseRoom);
+    expect(page.messages.map((m) => [m.id, m.reactions])).toEqual([
+      [theirs, {}],
+    ]);
+    for (const table of ["messages", "sends"])
+      expect(
+        await inObject(
+          `SELECT * FROM ${table} WHERE author_id = ?`,
+          "tstudent",
+        ),
+        table,
+      ).toEqual([]);
+    expect(
+      await inObject(
+        "SELECT * FROM reactions WHERE user_id = ?1 OR message_id = ?2",
+        "tstudent",
+        shown,
+      ),
+    ).toEqual([]);
+    // A classmate's reply stays theirs.
+    expect(await inObject("SELECT id FROM messages ORDER BY seq")).toEqual([
+      { id: theirs },
+      { id: reply },
+    ]);
+    // Moderation no longer waits on the held one.
+    expect(
+      await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM moderation_queue WHERE status IN ('retry', 'open')",
+      ).first("n"),
+    ).toBe(0);
+
+    // Again: nothing left, nothing changes.
+    expect(
+      await stub().purgeAuthor({
+        termId: TERM,
+        courseCode: COURSE,
+        userId: "tstudent",
+      }),
+    ).toEqual({ messages: 0 });
+  });
+
+  it("is a no-op on a course nobody wrote in", async () => {
+    expect(
+      await stub().purgeAuthor({
+        termId: TERM,
+        courseCode: COURSE,
+        userId: "tstudent",
+      }),
+    ).toEqual({ messages: 0 });
+    expect(await objectTables()).toBe(0);
+  });
+});
+
 // ---------- chat_members from sync pushes ----------
 
 describe("chat_members", () => {

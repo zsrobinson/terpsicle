@@ -64,6 +64,11 @@ Revisit if: UMD changes its Google domains.
 Sign-in is invited, never required, for the scheduler: "Sign in to join your class chats. Your plans sync too."
 Revisit if: never on its own.
 
+### A deleted account leaves nothing that names the person
+2026-09-26 · agent · app-wide
+After the week, the daily purge removes every row with the person's directory ID or addresses, their chat messages in every course object and their pictures. Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
+Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
+
 ### LLMs only in three places
 2026-09-26 · owner · app-wide
 Review summaries, their small generated chips, and moderation. No other LLM features.

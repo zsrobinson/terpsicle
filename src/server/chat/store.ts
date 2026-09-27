@@ -328,6 +328,26 @@ export async function recordVisible(
   ]);
 }
 
+/**
+ * Records that someone wrote in a course, so account deletion reaches the
+ * course's object (V2.md §8.5). Written at every first send, not only when
+ * a message shows: a held one is theirs too.
+ */
+export async function recordAuthorCourse(
+  db: D1Database,
+  userId: string,
+  termId: string,
+  courseCode: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO chat_author_courses (user_id, term_id, course_code)
+       VALUES (?1, ?2, ?3) ON CONFLICT DO NOTHING`,
+    )
+    .bind(userId, termId, courseCode)
+    .run();
+}
+
 /** Read markers: never moves back. */
 export async function markRead(
   db: D1Database,

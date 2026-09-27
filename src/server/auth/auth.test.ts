@@ -655,7 +655,16 @@ describe("account deletion", () => {
     const browser = new Browser(googleEnv());
     await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
     await browser.post("/api/account/delete");
-    await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
+    const kept = await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
+    // The app shows a quiet note for `kept`.
+    expect(kept.headers.get("Location")).toBe(
+      "https://terpsicle.com/settings?signed-in=kept",
+    );
+    expect(
+      (await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail)).headers.get(
+        "Location",
+      ),
+    ).toBe("https://terpsicle.com/settings?signed-in=1");
     expect(await getUser(env.DB, "testudo")).toMatchObject({
       status: "active",
       delete_after: null,
@@ -696,6 +705,25 @@ describe("test mode", () => {
       status: "signed-in",
       flags: { signIn: true, authTestMode: true },
       user: { id: "tadmin", name: "Test Admin", isAdmin: true },
+    });
+  });
+
+  it("keeps an account being deleted, and says so in the return", async () => {
+    const browser = new Browser(testEnv(), local);
+    const signIn = () =>
+      browser.post("/api/auth/test-sign-in", {
+        userId: "tstudent",
+        return: "/settings",
+      });
+    await signIn();
+    await browser.post("/api/account/delete");
+    expect(await (await signIn()).json()).toEqual({
+      status: "signed-in",
+      return: "/settings?signed-in=kept",
+    });
+    expect(await getUser(env.DB, "tstudent")).toMatchObject({
+      status: "active",
+      delete_after: null,
     });
   });
 
