@@ -1,4 +1,4 @@
-import { SYNC_MAX_PLANS } from "~/core/schema";
+import { SYNC_MAX_FOUR_YEAR_DOCS, SYNC_MAX_PLANS } from "~/core/schema";
 import type { SyncStatusLook } from "./status";
 
 // How plan sync's status looks (status-view.tsx draws it). Loaded with the
@@ -53,5 +53,10 @@ export const SYNC_STATUS_LOOK: SyncStatusLook = {
     icon: CLOUD_ALERT,
     label: "Account full",
     tooltip: `Your account holds ${SYNC_MAX_PLANS} plans. New plans stay on this device until you delete one.`,
+  },
+  "full-four-year": {
+    icon: CLOUD_ALERT,
+    label: "Account full",
+    tooltip: `You have ${SYNC_MAX_FOUR_YEAR_DOCS} four-year plans. New ones stay on this device until you delete one.`,
   },
 };

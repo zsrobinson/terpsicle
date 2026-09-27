@@ -2,12 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type IsoDateTime,
   type Plan,
+  SYNC_MAX_FOUR_YEAR_DOCS,
   SYNC_MAX_PLANS,
   SYNC_PULL_PAGE,
   type SyncPullInput,
   type SyncPushInput,
 } from "~/core/schema";
+import type { FourYearDoc } from "~/core/schema/four-year";
 import {
+  fourYearDocKey,
   planDocKey,
   SETTINGS_DOC_KEY,
   type SyncedTables,
@@ -16,6 +19,7 @@ import {
 import {
   aBlock,
   aFourYear,
+  aFourYearEntry,
   aPlan,
   aPlanCourse,
   aSavedCourse,
@@ -287,7 +291,7 @@ describe("pushing", () => {
     await a.settle();
     expect(server.plans().has(planB.id)).toBe(false);
     expect(a.plan(planB.id)).toEqual(planB);
-    expect(a.notices).toContainEqual({ kind: "too-many-plans" });
+    expect(a.notices).toContainEqual({ kind: "too-many-plans", doc: "plan" });
     expect(a.status()).toBe("full");
     expect(await a.engine.flush()).toBe(false);
   });
@@ -323,7 +327,7 @@ describe("pulling", () => {
     expect(b.names()).toContain("Spring");
   });
 
-  it("leaves Terpsicle Plan's four-year docs to their own engine", async () => {
+  it("pulls Terpsicle Plan's four-year docs too, apart from a plan with the same id", async () => {
     const a = track(await syncedDevice("a", server));
     a.edit((t) => ({ ...t, plans: [planA] }));
     await a.settle();
@@ -333,22 +337,26 @@ describe("pulling", () => {
         { kind: "four-year", id: fourYear.id, baseRev: 0, body: fourYear },
       ],
     });
-    // Same id as a plan, different kind: the plan and its flags stay put,
-    // and the cursor moves past the four-year doc.
+    // Same id as a plan, different kind: the plan and its flags stay put.
     const before = a.storage.snapshot;
     await a.engine.sync();
-    expect(a.tables).toEqual(before.tables);
-    expect(a.flags).toEqual(before.sync.docs);
-    expect(a.storage.snapshot.sync.cursor).toBe(server.head);
+    expect(a.tables.plans).toEqual(before.tables.plans);
+    expect(a.tables.fourYear).toEqual([fourYear]);
+    expect(a.flags[planDocKey(planA.id)]).toEqual(
+      before.sync.docs[planDocKey(planA.id)],
+    );
+    expect(a.flags[fourYearDocKey(fourYear.id)]).toEqual({
+      rev: server.head,
+      dirty: false,
+      inFlight: false,
+    });
+    expect(a.applied.at(-1)?.fourYear).toEqual([[fourYear.id, fourYear]]);
 
-    // A new device joining the account skips it too.
+    // A new device joining the account gets it too.
     const b = track(new Device("b", server));
     await b.engine.start();
     expect(b.tables.plans).toEqual([planA]);
-    expect(Object.keys(b.flags).sort()).toEqual([
-      planDocKey(planA.id),
-      SETTINGS_DOC_KEY,
-    ]);
+    expect(b.tables.fourYear).toEqual([fourYear]);
   });
 
   it("pulls on the interval, and page by page", async () => {
@@ -512,6 +520,7 @@ describe("the first sign-in on a device", () => {
         reset: false,
         uploaded: 2,
         fromAccount: 0,
+        fourYear: { uploaded: 0, fromAccount: 0 },
         renamed: [],
         copies: [],
       },
@@ -651,4 +660,197 @@ describe("two tabs", () => {
 
 it("doesn't mark the settings doc for a plan edit", () => {
   expect(SETTINGS_DOC_KEY).toBe("settings");
+});
+
+describe("four-year docs", () => {
+  const cs = aFourYear({
+    id: "fouryear_cs_0001",
+    name: "CS major",
+    entries: [aFourYearEntry({ id: "entry_cmsc131", code: "CMSC131" })],
+    grades: { entry_cmsc131: "A-" },
+  });
+  const editDoc = (d: Device, id: string, change: Partial<FourYearDoc>) =>
+    d.edit((t) => ({
+      ...t,
+      fourYear: t.fourYear.map((doc) =>
+        doc.id === id ? { ...doc, ...change } : doc,
+      ),
+    }));
+
+  it("go up a second after an edit and reach the other device, grades and all", async () => {
+    const a = track(await syncedDevice("a", server));
+    const b = track(await syncedDevice("b", server));
+    a.edit((t) => ({ ...t, fourYear: [cs] }));
+    await a.settle();
+    expect(server.docs.get(`four-year:${cs.id}`)?.body).toEqual(cs);
+    expect(a.flags[fourYearDocKey(cs.id)]).toEqual({
+      rev: server.head,
+      dirty: false,
+      inFlight: false,
+    });
+
+    await b.engine.sync();
+    expect(b.tables.fourYear).toEqual([cs]);
+    expect(b.applied.at(-1)?.fourYear).toEqual([[cs.id, cs]]);
+
+    editDoc(b, cs.id, { name: "CS and math" });
+    await b.settle();
+    await a.engine.sync();
+    expect(a.tables.fourYear[0]?.name).toBe("CS and math");
+  });
+
+  it("delete with a tombstone, and a never-saved one needs no push", async () => {
+    const a = track(await syncedDevice("a", server));
+    const b = track(await syncedDevice("b", server));
+    a.edit((t) => ({ ...t, fourYear: [cs] }));
+    await a.settle();
+    await b.engine.sync();
+
+    const draft = aFourYear({ id: "fouryear_draft_1", name: "Draft" });
+    a.edit((t) => ({ ...t, fourYear: [...t.fourYear, draft] }));
+    a.edit((t) => ({ ...t, fourYear: [] }));
+    await a.settle();
+    expect(server.docs.get(`four-year:${cs.id}`)?.body).toBeNull();
+    expect(server.docs.has(`four-year:${draft.id}`)).toBe(false);
+    expect(a.flags[fourYearDocKey(draft.id)]).toBeUndefined();
+
+    await b.engine.sync();
+    expect(b.tables.fourYear).toEqual([]);
+    expect(b.applied.at(-1)?.fourYear).toEqual([[cs.id, null]]);
+  });
+
+  it("keep both on a conflict, as a copy named like a plan's", async () => {
+    const a = track(await syncedDevice("a", server));
+    const b = track(await syncedDevice("b", server));
+    a.edit((t) => ({ ...t, fourYear: [cs] }));
+    await a.settle();
+    await b.engine.sync();
+
+    b.online = false;
+    editDoc(b, cs.id, { grades: {} });
+    await b.settle();
+    editDoc(a, cs.id, { firstTermId: "202508" });
+    await a.settle();
+    b.online = true;
+    await b.engine.sync();
+
+    expect(b.tables.fourYear.map((d) => d.name)).toEqual([
+      "CS major",
+      "CS major (copy)",
+    ]);
+    expect(b.tables.fourYear[0]?.firstTermId).toBe("202508");
+    expect(b.tables.fourYear[1]?.grades).toEqual({});
+    expect(b.notices).toContainEqual({
+      kind: "conflict-copy",
+      from: "CS major",
+      to: "CS major (copy)",
+    });
+    const stored = [...server.docs.values()].filter(
+      (d) => d.kind === "four-year" && d.body !== null,
+    );
+    expect(stored).toHaveLength(2);
+    await a.engine.sync();
+    expect(a.tables.fourYear).toEqual(b.tables.fourYear);
+  });
+
+  it("join the account at the first sign-in, and the toast counts them", async () => {
+    const other = track(await syncedDevice("other", server));
+    const theirs = aFourYear({ id: "fouryear_acct_01", name: "Econ" });
+    other.edit((t) => ({ ...t, fourYear: [theirs] }));
+    await other.settle();
+
+    const untouched = aFourYear({ id: "fouryear_empty_1" });
+    const a = track(
+      new Device("a", server, {
+        snapshot: {
+          ...EMPTY_SNAPSHOT,
+          tables: {
+            ...EMPTY_SNAPSHOT.tables,
+            plans: [planB],
+            fourYear: [cs, untouched],
+          },
+        },
+      }),
+    );
+    await a.engine.start();
+    expect(a.tables.fourYear.map((d) => d.id).sort()).toEqual(
+      [cs.id, theirs.id].sort(),
+    );
+    expect(server.docs.get(`four-year:${cs.id}`)?.body).toEqual(cs);
+    expect(server.docs.has(`four-year:${untouched.id}`)).toBe(false);
+    expect(a.notices).toEqual([
+      {
+        kind: "first-sign-in",
+        reset: false,
+        uploaded: 1,
+        fromAccount: 0,
+        fourYear: { uploaded: 1, fromAccount: 1 },
+        renamed: [],
+        copies: [],
+      },
+    ]);
+  });
+
+  it("say when the account holds 20, and keep the new one here until one goes", async () => {
+    for (let i = 0; i < SYNC_MAX_FOUR_YEAR_DOCS; i++) {
+      const id = `fouryear_${String(i).padStart(4, "0")}_full`;
+      server.push({
+        docs: [
+          {
+            kind: "four-year",
+            id,
+            baseRev: 0,
+            body: aFourYear({ id, name: `Plan ${i}` }),
+          },
+        ],
+      });
+    }
+    const a = track(await syncedDevice("a", server));
+    a.edit((t) => ({ ...t, fourYear: [...t.fourYear, cs] }));
+    await a.settle();
+    expect(server.docs.has(`four-year:${cs.id}`)).toBe(false);
+    expect(a.tables.fourYear).toContainEqual(cs);
+    expect(a.notices).toContainEqual({
+      kind: "too-many-plans",
+      doc: "four-year",
+    });
+    expect(a.status()).toBe("full-four-year");
+
+    // Deleting one makes room; the next change to the new one saves it.
+    a.edit((t) => ({
+      ...t,
+      fourYear: t.fourYear.filter((d) => d.id !== "fouryear_0000_full"),
+    }));
+    await a.settle();
+    editDoc(a, cs.id, { name: "CS major, again" });
+    await a.settle();
+    expect(server.docs.get(`four-year:${cs.id}`)?.body).toMatchObject({
+      name: "CS major, again",
+    });
+    expect(a.status()).toBe("saved");
+  });
+
+  it("skip a doc from the account that doesn't read, and never log its grades", async () => {
+    const a = track(await syncedDevice("a", server));
+    const bad = { ...cs, id: "fouryear_bad_001", entries: "nope" };
+    server.push({
+      docs: [{ kind: "four-year", id: bad.id, baseRev: 0, body: bad }],
+    });
+    const logged: unknown[] = [];
+    const spies = (["log", "info", "warn", "error", "debug"] as const).map(
+      (level) =>
+        vi.spyOn(console, level).mockImplementation((...args) => {
+          logged.push(...args);
+        }),
+    );
+    try {
+      await a.engine.sync();
+    } finally {
+      for (const spy of spies) spy.mockRestore();
+    }
+    expect(a.tables.fourYear).toEqual([]);
+    expect(a.storage.snapshot.sync.cursor).toBe(server.head);
+    expect(logged).toContain(bad.id);
+    expect(JSON.stringify(logged)).not.toContain("A-");
+  });
 });

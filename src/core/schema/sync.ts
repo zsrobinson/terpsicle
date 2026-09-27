@@ -112,10 +112,14 @@ export type FourYearSyncDoc = Extract<SyncDoc, { kind: "four-year" }>;
 
 // ---------- on the device (Dexie v2, DATA.md §5) ----------
 
-/** A doc's name on the device: `plan:<id>` or `settings` (`DocKey` in ~/core/sync). */
+/**
+ * A doc's name on the device: `plan:<id>`, `four-year:<id>` or `settings`
+ * (`DocKey` in ~/core/sync).
+ */
 export const DocKeySchema = z.union([
   z.literal(SETTINGS_DOC_ID),
   z.templateLiteral(["plan:", LocalIdSchema]),
+  z.templateLiteral(["four-year:", LocalIdSchema]),
 ]);
 
 /**

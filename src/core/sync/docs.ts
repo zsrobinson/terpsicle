@@ -3,6 +3,7 @@ import {
   type ChatPlans,
   type CourseCode,
   type CourseColor,
+  type FourYearSyncDoc,
   type LocalId,
   type Plan,
   type PlanDoc,
@@ -10,19 +11,22 @@ import {
   SETTINGS_DOC_ID,
   type SettingsDoc,
   type SettingsSyncDoc,
-  type SyncDoc,
-  type SyncPushDoc,
   type TravelSettings,
 } from "../schema";
+import type { FourYearDoc } from "../schema/four-year";
 import { sameJson } from "./equal";
 
 // Mapping between the device's tables (Dexie, the source of truth on each
 // device) and sync docs (V2 §5). A plan doc is the plan row itself; the
 // settings doc gathers what no single plan owns: blocks are per term and
-// shared by its plans, colors are global (DATA.md §5).
+// shared by its plans, colors are global (DATA.md §5). A four-year doc is
+// Terpsicle Plan's row in its own table (V3 §2.4).
 
-/** Names a doc on the device: `plan:<id>` or `settings`. */
-export type DocKey = `plan:${LocalId}` | typeof SETTINGS_DOC_ID;
+/** Names a doc on the device: `plan:<id>`, `four-year:<id>` or `settings`. */
+export type DocKey =
+  | `plan:${LocalId}`
+  | `four-year:${LocalId}`
+  | typeof SETTINGS_DOC_ID;
 
 export const SETTINGS_DOC_KEY: DocKey = SETTINGS_DOC_ID;
 
@@ -30,28 +34,46 @@ export function planDocKey(id: LocalId): DocKey {
   return `plan:${id}`;
 }
 
-/**
- * The docs these tables hold. Four-year docs are Terpsicle Plan's (V3 §2.4),
- * kept in their own table; this engine skips them.
- */
-export type ScheduleSyncDoc = PlanSyncDoc | SettingsSyncDoc;
-export type ScheduleDocKind = ScheduleSyncDoc["kind"];
-export type SchedulePushDoc = Extract<SyncPushDoc, { kind: ScheduleDocKind }>;
-
-export function isScheduleDoc(doc: SyncDoc): doc is ScheduleSyncDoc {
-  return doc.kind === "plan" || doc.kind === "settings";
+export function fourYearDocKey(id: LocalId): DocKey {
+  return `four-year:${id}`;
 }
 
-export function docKeyOf(doc: { kind: ScheduleDocKind; id: string }): DocKey {
-  return doc.kind === "plan" ? planDocKey(doc.id) : SETTINGS_DOC_KEY;
+/**
+ * A doc as the device uses it. The server's four-year body is only checked
+ * loosely (`FourYearSyncBodySchema`, so the full schema stays out of every
+ * page's first load); the engine checks it against `FourYearDocSchema`
+ * before it gets here.
+ */
+export type DeviceFourYearSyncDoc = Omit<FourYearSyncDoc, "body"> & {
+  readonly body: FourYearDoc | null;
+};
+export type DeviceSyncDoc =
+  | PlanSyncDoc
+  | SettingsSyncDoc
+  | DeviceFourYearSyncDoc;
+export type DocKind = DeviceSyncDoc["kind"];
+
+export function docKeyOf(doc: { kind: DocKind; id: string }): DocKey {
+  switch (doc.kind) {
+    case "plan":
+      return planDocKey(doc.id);
+    case "four-year":
+      return fourYearDocKey(doc.id);
+    case "settings":
+      return SETTINGS_DOC_KEY;
+  }
 }
 
 export function parseDocKey(
   key: DocKey,
-): { kind: "plan"; id: LocalId } | { kind: "settings" } {
-  return key === SETTINGS_DOC_KEY
-    ? { kind: "settings" }
-    : { kind: "plan", id: key.slice("plan:".length) };
+):
+  | { kind: "plan"; id: LocalId }
+  | { kind: "four-year"; id: LocalId }
+  | { kind: "settings" } {
+  if (key === SETTINGS_DOC_KEY) return { kind: "settings" };
+  if (key.startsWith("four-year:"))
+    return { kind: "four-year", id: key.slice("four-year:".length) };
+  return { kind: "plan", id: key.slice("plan:".length) };
 }
 
 /** Everything on the device that syncs. The rest (UI prefs, drafts, caches) stays local. */
@@ -61,6 +83,8 @@ export interface SyncedTables {
   readonly colors: Readonly<Record<CourseCode, CourseColor>>;
   readonly travel: TravelSettings;
   readonly chatPlans: Readonly<ChatPlans>;
+  /** Terpsicle Plan's four-year docs (V3 §2.3), grades and all. */
+  readonly fourYear: readonly FourYearDoc[];
 }
 
 export function settingsDocOf(
@@ -78,10 +102,9 @@ export function settingsDocOf(
  * The tables with the settings doc's contents. Each table keeps its identity
  * when its contents didn't change, so persisting writes only what did.
  */
-export function withSettingsDoc<T extends SyncedTables>(
-  t: T,
-  doc: SettingsDoc,
-): T {
+export function withSettingsDoc<
+  T extends Pick<SyncedTables, "blocks" | "colors" | "travel" | "chatPlans">,
+>(t: T, doc: SettingsDoc): T {
   const current = settingsDocOf(t);
   const blocks = sameJson(current.blocks, doc.blocks) ? t.blocks : doc.blocks;
   const colors = sameJson(current.colors, doc.colors) ? t.colors : doc.colors;
@@ -99,14 +122,33 @@ export function withSettingsDoc<T extends SyncedTables>(
   return { ...t, blocks, colors, travel, chatPlans };
 }
 
-/** What to push for a doc: the plan (null once it's deleted here) or the settings. */
+/**
+ * What to push for a doc: the plan or four-year doc (null once it's deleted
+ * here) or the settings.
+ */
 export function docBody(
   t: SyncedTables,
   key: DocKey,
-): PlanDoc | SettingsDoc | null {
+): PlanDoc | SettingsDoc | FourYearDoc | null {
   const parsed = parseDocKey(key);
   if (parsed.kind === "settings") return settingsDocOf(t);
+  if (parsed.kind === "four-year")
+    return t.fourYear.find((d) => d.id === parsed.id) ?? null;
   return t.plans.find((p) => p.id === parsed.id) ?? null;
+}
+
+/** Rows with one row replaced, added (at the end) or removed (`null`). */
+function withRow<T extends { id: LocalId }>(
+  rows: readonly T[],
+  id: LocalId,
+  row: T | null,
+): readonly T[] {
+  const i = rows.findIndex((r) => r.id === id);
+  const current = rows[i];
+  if (current === undefined) return row === null ? rows : [...rows, row];
+  if (row === null) return rows.filter((r) => r.id !== id);
+  if (sameJson(current, row)) return rows;
+  return rows.map((r, k) => (k === i ? row : r));
 }
 
 /** The plans with one plan replaced, added (at the end) or removed (`null`). */
@@ -115,12 +157,16 @@ export function withPlan(
   id: LocalId,
   plan: Plan | null,
 ): readonly Plan[] {
-  const i = plans.findIndex((p) => p.id === id);
-  const current = plans[i];
-  if (current === undefined) return plan === null ? plans : [...plans, plan];
-  if (plan === null) return plans.filter((p) => p.id !== id);
-  if (sameJson(current, plan)) return plans;
-  return plans.map((p, k) => (k === i ? plan : p));
+  return withRow(plans, id, plan);
+}
+
+/** The four-year docs with one replaced, added (at the end) or removed (`null`). */
+export function withFourYear(
+  docs: readonly FourYearDoc[],
+  id: LocalId,
+  doc: FourYearDoc | null,
+): readonly FourYearDoc[] {
+  return withRow(docs, id, doc);
 }
 
 /**
@@ -128,11 +174,12 @@ export function withPlan(
  * tombstone removes the plan). Only for docs with no unsaved local changes;
  * the others go through the conflict rules (`./conflict`).
  */
-export function applyDoc<T extends SyncedTables>(
-  t: T,
-  doc: ScheduleSyncDoc,
-): T {
+export function applyDoc<T extends SyncedTables>(t: T, doc: DeviceSyncDoc): T {
   if (doc.kind === "settings") return withSettingsDoc(t, doc.body);
+  if (doc.kind === "four-year") {
+    const fourYear = withFourYear(t.fourYear, doc.id, doc.body);
+    return fourYear === t.fourYear ? t : { ...t, fourYear };
+  }
   const plans = withPlan(t.plans, doc.id, doc.body);
   return plans === t.plans ? t : { ...t, plans };
 }
@@ -146,15 +193,10 @@ export function changedDocKeys(
   prev: SyncedTables,
   next: SyncedTables,
 ): DocKey[] {
-  const keys: DocKey[] = [];
-  const before = new Map(prev.plans.map((p) => [p.id, p]));
-  const seen = new Set<LocalId>();
-  for (const plan of next.plans) {
-    seen.add(plan.id);
-    const old = before.get(plan.id);
-    if (old !== plan && !sameJson(old, plan)) keys.push(planDocKey(plan.id));
-  }
-  for (const id of before.keys()) if (!seen.has(id)) keys.push(planDocKey(id));
+  const keys: DocKey[] = [
+    ...changedRows(prev.plans, next.plans, planDocKey),
+    ...changedRows(prev.fourYear, next.fourYear, fourYearDocKey),
+  ];
   const settingsChanged =
     (prev.blocks !== next.blocks ||
       prev.colors !== next.colors ||
@@ -162,5 +204,32 @@ export function changedDocKeys(
       prev.chatPlans !== next.chatPlans) &&
     !sameJson(settingsDocOf(prev), settingsDocOf(next));
   if (settingsChanged) keys.push(SETTINGS_DOC_KEY);
+  return keys;
+}
+
+/** The four-year docs a change to Plan's list touched. */
+export function changedFourYearKeys(
+  prev: readonly FourYearDoc[],
+  next: readonly FourYearDoc[],
+): DocKey[] {
+  return changedRows(prev, next, fourYearDocKey);
+}
+
+/** Keys of the rows added, changed or removed between two versions of a table. */
+function changedRows<T extends { id: LocalId }>(
+  prev: readonly T[],
+  next: readonly T[],
+  keyOf: (id: LocalId) => DocKey,
+): DocKey[] {
+  if (prev === next) return [];
+  const keys: DocKey[] = [];
+  const before = new Map(prev.map((r) => [r.id, r]));
+  const seen = new Set<LocalId>();
+  for (const row of next) {
+    seen.add(row.id);
+    const old = before.get(row.id);
+    if (old !== row && !sameJson(old, row)) keys.push(keyOf(row.id));
+  }
+  for (const id of before.keys()) if (!seen.has(id)) keys.push(keyOf(id));
   return keys;
 }

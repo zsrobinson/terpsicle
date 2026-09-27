@@ -3,6 +3,7 @@ import { useShortcut } from "~/app/shortcuts";
 import { useMediaQuery } from "~/app/use-media-query";
 import type { IsoDate } from "~/core/schema";
 import { newYorkClock } from "~/core/todo/list";
+import { useAccount } from "~/features/auth/account-store";
 import { SitePage } from "~/features/site/site-page";
 import { Skeleton } from "~/ui/skeleton";
 import { Board, PhoneBoard } from "./board";
@@ -31,6 +32,32 @@ export const PLAN_WIDE_QUERY = "(min-width: 1024px)";
 export function useToday(): IsoDate {
   const date = newYorkClock(Date.now()).date;
   return useMemo(() => date, [date]);
+}
+
+/**
+ * Syncs the four-year docs while someone is signed in (V3 §2.4), once they're
+ * loaded. The engine loads with the first sign-in, so signed-out visitors
+ * download none of it.
+ */
+function usePlanSync(ready: boolean) {
+  const signedIn = useAccount((s) => s.status === "signed-in");
+  const userId = useAccount((s) => s.user?.id ?? null);
+  useEffect(() => {
+    if (!ready || !signedIn || !userId) return;
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    void import("./sync").then((module) => {
+      if (cancelled) return;
+      stop = module.startPlanSync(
+        userId,
+        () => void useAccount.getState().load(),
+      );
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [ready, signedIn, userId]);
 }
 
 function Loading() {
@@ -108,6 +135,7 @@ export function PlanPage({ nav }: { nav: PlanNav }) {
   useEffect(() => {
     void startFourYear();
   }, []);
+  usePlanSync(phase === "ready");
   return (
     <SitePage layout="wide">
       <PlanToasts />

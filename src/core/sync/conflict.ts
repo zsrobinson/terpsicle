@@ -1,6 +1,7 @@
 import { PLAN_NAME_MAX } from "../plans/naming";
 import type { IsoDateTime, LocalId, Plan, SettingsDoc } from "../schema";
-import { withPlan } from "./docs";
+import type { FourYearDoc } from "../schema/four-year";
+import { withFourYear, withPlan } from "./docs";
 import { sameJson } from "./equal";
 
 // What happens when a save finds the server's `rev` moved (another device
@@ -105,6 +106,79 @@ export function plansAfterConflict(
       return withPlan(plans, id, conflict.plan);
     case "keep-both":
       return [...withPlan(plans, id, conflict.plan), conflict.copy];
+  }
+}
+
+// ---------- four-year docs ----------
+
+/**
+ * Whether two versions of a four-year doc hold the same work: its name,
+ * first semester, entries, grades and template. When it was made or last
+ * changed doesn't count.
+ */
+export function sameFourYearContent(a: FourYearDoc, b: FourYearDoc): boolean {
+  return (
+    a.name === b.name &&
+    a.firstTermId === b.firstTermId &&
+    sameJson(a.entries, b.entries) &&
+    sameJson(a.grades, b.grades) &&
+    sameJson(a.template, b.template)
+  );
+}
+
+/** A plan conflict's outcomes (`PlanConflict`), for a four-year doc. */
+export type FourYearConflict =
+  | { kind: "take-server"; doc: FourYearDoc | null }
+  | { kind: "keep-local"; doc: FourYearDoc }
+  | { kind: "keep-both"; doc: FourYearDoc; copy: FourYearDoc };
+
+/**
+ * The conflict rule for a four-year doc, the plans' rule (V3 §2.4): the same
+ * work takes the server's, an edit beats a delete, and otherwise both are
+ * kept: the server's stays, and this device's becomes a new doc named
+ * "<name> (copy)" at the end of the list.
+ */
+export function resolveFourYearConflict(input: {
+  /** This device's current version; null when it was deleted here. */
+  local: FourYearDoc | null;
+  /** The server's current version; null for a tombstone. */
+  server: FourYearDoc | null;
+  /** This device's four-year docs, for the copy's name. */
+  docs: readonly FourYearDoc[];
+  copyId: LocalId;
+  now: IsoDateTime;
+}): FourYearConflict {
+  const { local, server } = input;
+  if (local === null) return { kind: "take-server", doc: server };
+  if (server === null) return { kind: "keep-local", doc: local };
+  if (sameFourYearContent(local, server))
+    return { kind: "take-server", doc: server };
+  const others = withFourYear(input.docs, server.id, server);
+  const copy: FourYearDoc = {
+    ...local,
+    id: input.copyId,
+    name: conflictCopyName(
+      local.name,
+      others.map((d) => d.name),
+    ),
+    createdAt: input.now,
+    updatedAt: input.now,
+  };
+  return { kind: "keep-both", doc: server, copy };
+}
+
+/** The device's four-year docs once a conflict on doc `id` is resolved. */
+export function fourYearAfterConflict(
+  docs: readonly FourYearDoc[],
+  id: LocalId,
+  conflict: FourYearConflict,
+): readonly FourYearDoc[] {
+  switch (conflict.kind) {
+    case "take-server":
+    case "keep-local":
+      return withFourYear(docs, id, conflict.doc);
+    case "keep-both":
+      return [...withFourYear(docs, id, conflict.doc), conflict.copy];
   }
 }
 

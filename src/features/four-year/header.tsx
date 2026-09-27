@@ -4,6 +4,8 @@ import { modKey } from "~/app/shortcuts";
 import { firstTermChoices, fourYearTermLabel } from "~/core/four-year/terms";
 import { canRedo, canUndo } from "~/core/plans/history";
 import type { FourYearDoc } from "~/core/schema/four-year";
+import { useSyncStatus } from "~/features/sync/status";
+import { SyncStatusLabel } from "~/features/sync/status-view";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,
@@ -31,7 +33,8 @@ import { useModel } from "./model";
 import { useFourYear } from "./store";
 
 // The top of Plan: the open plan's name with its ▾ menu (switch, Rename,
-// Duplicate, New, the first semester, Delete with Undo), whether it's saved,
+// Duplicate, New, the first semester, Delete with Undo), where it's saved
+// (this browser, or the account's status words while signed in, V3 §2.13),
 // and undo and redo (V3 §2.3, §2.13).
 
 function RenameField({
@@ -185,10 +188,35 @@ function UndoRedo() {
   );
 }
 
+/** Where the plan is saved: the account while sync runs, else this browser. */
+function SavedState() {
+  const storageFailed = useFourYear((s) => s.storageFailed);
+  const syncing = useSyncStatus((s) => s.status !== "off" && s.look !== null);
+  if (syncing && !storageFailed)
+    return <SyncStatusLabel className="h-8 shrink-0 max-sm:sr-only" />;
+  return (
+    <WithTooltip
+      label={
+        storageFailed
+          ? "This browser won't let Terpsicle store it, so changes last until you close the tab."
+          : "Your four-year plan is saved in this browser."
+      }
+    >
+      <span
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: the tooltip needs a focus stop
+        tabIndex={0}
+        role="status"
+        className="shrink-0 text-muted text-sm max-sm:sr-only"
+      >
+        {storageFailed ? "Not saved" : "Saved in this browser"}
+      </span>
+    </WithTooltip>
+  );
+}
+
 export function PlanHeader() {
   const { doc } = useModel();
   const [renaming, setRenaming] = useState(false);
-  const storageFailed = useFourYear((s) => s.storageFailed);
   return (
     <header className="flex min-h-11 items-center gap-2">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -200,22 +228,7 @@ export function PlanHeader() {
             <DocMenu onRename={() => setRenaming(true)} />
           )}
         </h1>
-        <WithTooltip
-          label={
-            storageFailed
-              ? "This browser won't let Terpsicle store it, so changes last until you close the tab."
-              : "Your four-year plan is saved in this browser."
-          }
-        >
-          <span
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: the tooltip needs a focus stop
-            tabIndex={0}
-            role="status"
-            className="shrink-0 text-muted text-sm max-sm:sr-only"
-          >
-            {storageFailed ? "Not saved" : "Saved in this browser"}
-          </span>
-        </WithTooltip>
+        <SavedState />
       </div>
       <UndoRedo />
     </header>

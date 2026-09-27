@@ -1,4 +1,5 @@
 import type { LocalId, Plan, SettingsDoc, TermId } from "~/core/schema";
+import type { FourYearDoc } from "~/core/schema/four-year";
 import {
   isUntouchedPlan,
   sameJson,
@@ -17,6 +18,11 @@ import type { WorkspaceState } from "~/state/workspace-store";
 export interface RemoteChange {
   /** Plans the account replaced, added (at the end) or removed (`null`). */
   readonly plans?: readonly (readonly [LocalId, Plan | null])[];
+  /**
+   * Four-year docs the same way (V3 §2.4). Only Plan's page shows them; the
+   * scheduler leaves them to IndexedDB.
+   */
+  readonly fourYear?: readonly (readonly [LocalId, FourYearDoc | null])[];
   /** The settings doc: blocks, colors, travel and chat plans. */
   readonly settings?: SettingsDoc;
   /**
