@@ -74,7 +74,7 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
   - `SegmentedControl`: one selected look.
   - `BackLink`: one back affordance.
   - `Section`: one heading under a page title.
-- [ ] One `undoToast()` helper: one action button, one icon, one 10-second window, and the shortcut in its tooltip. It replaces the seven toast-action copies. Failures get one treatment: never red, with a Try again where retrying can help.
+- [x] One `undoToast()` helper (`src/components/ui/toast.tsx`): one action button, one icon, one 10-second window (`UNDO_MS`), focus holds it open, and the shortcut sits in its tooltip. It replaces the seven toast-action copies. Failures go through `noteToast()`, which is never red and offers Try again where retrying can help. The scheduler and Plan keep their Undo/Redo pair on the shared `ToastAction`.
 - [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
 - [ ] Routes get a shared `pendingComponent` and `errorComponent`. No page says "reload the page".
 - [ ] Guardrails:
@@ -131,7 +131,7 @@ The most visible items:
 6. **Cards.** Cards are keylined, hairlined or hairline-strong on the same kind of surface.
 7. **List rows.** Only Schedule uses `ListRow`. Chat retypes it, Todo and Reviews hand-roll theirs, and Plan boxes every block.
 8. **Widths.** Page widths: 440, 560, 720, 1040, 1120, 1600 and full bleed.
-9. **Undo toasts.** Seven undo-toast implementations with 6-, 8- and 10-second windows.
+9. ~~**Undo toasts.**~~ Fixed: one `undoToast()`, one 10-second window.
 10. **Errors.** Error handling differs everywhere: red toasts in Schedule, plain ones in Chat, and "reload the page" with no button in Reviews and Settings. No route has an `errorComponent`.
 11. **Back.** Six back affordances.
 12. **Section headings.** Five section-heading styles.

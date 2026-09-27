@@ -1,9 +1,7 @@
-import { Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { recentActivity } from "~/app/activity-log";
 import { track } from "~/app/analytics";
 import { feedbackSources } from "~/app/feedback-sources";
-import { ToastAction } from "~/app/toast-action";
 import { scrubUrl } from "~/core/analytics/scrub";
 import { buildFeedbackContext, feedbackPlan } from "~/core/feedback/context";
 import type {
@@ -13,14 +11,12 @@ import type {
 } from "~/core/schema/feedback";
 import { ApiCallError } from "~/server/fns/api";
 import { feedbackApi } from "~/server/fns/feedback-api";
+import { noteToast, undoToast } from "~/ui/toast";
 import { type FeedbackDraft, useDraft } from "./draft-store";
 import { base64Of } from "./screenshot";
 
 // Sending from the sheet: the payload, the words for what went wrong, and
 // the "Sent" toast whose Undo takes it back (docs/FEEDBACK.md).
-
-/** As long as the app's other Undo toasts (not imported: that's the scheduler's). */
-const UNDO_TOAST_MS = 10_000;
 
 /** The build, from vite.config.ts; "dev" in tests. */
 export const APP_VERSION =
@@ -131,25 +127,19 @@ export async function sendDraft(
         undoToken: result.undoToken,
       });
       if (status !== "undone") {
-        toast("Too late to undo: it's already with us.");
+        noteToast("Too late to undo: it's already with us.");
         return;
       }
       track("feedback_undone", {});
       useDraft.getState().restore(words);
-      toast("Unsent. Your words are back in Send feedback.");
+      noteToast("Unsent. Your words are back in Send feedback.");
     } catch {
-      toast("Couldn't undo. Check your connection and try again.");
+      noteToast("Couldn't undo. Check your connection and try again.");
     }
   };
-  toast("Sent. Thanks for telling us.", {
+  undoToast({
     id: toastId,
-    duration: UNDO_TOAST_MS,
-    action: (
-      <ToastAction
-        label="Undo"
-        icon={<Undo2 size={14} aria-hidden="true" />}
-        onClick={() => void undo()}
-      />
-    ),
+    message: "Sent. Thanks for telling us.",
+    onUndo: () => void undo(),
   });
 }

@@ -1,4 +1,5 @@
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { NOTE_MS } from "~/ui/toast";
 
 // Pop-up messages (undo, errors). Themed from our tokens; `theme="system"`
 // only picks sonner's icon set, colors come from the CSS variables. Sonner's
@@ -10,15 +11,14 @@ function Toaster(props: ToasterProps) {
       theme="system"
       position="bottom-center"
       // Twice sonner's default, so a message can be read to the end (WCAG
-      // 2.2.1); hovering holds it. Undo toasts set their own (undo-toasts.tsx).
-      duration={8000}
+      // 2.2.1); hovering holds it. Undo toasts set their own (`~/ui/toast`).
+      duration={NOTE_MS}
       toastOptions={{
         classNames: {
           toast:
             "font-sans! bg-raised! text-fg! border-keyline! shadow-pop! text-base! rounded-none! gap-3! py-2! pr-2! pl-3! items-center!",
           title: "font-normal! leading-snug!",
           description: "text-muted! text-sm!",
-          actionButton: "bg-accent! text-accent-fg!",
         },
       }}
       {...props}

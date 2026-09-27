@@ -1,6 +1,6 @@
 import { RotateCw } from "lucide-react";
 import { toast } from "sonner";
-import { WithTooltip } from "~/ui/tooltip";
+import { ToastAction } from "~/ui/toast";
 
 // "Update ready": a new version of the app is installed and waiting. A quiet
 // toast, not a banner (DESIGN §5); ignoring it is fine, since the new version
@@ -16,19 +16,15 @@ export function showUpdateReady(apply: () => void): void {
     duration: UPDATE_TOAST_MS,
     description: "Reload to get the new version. Your plans are saved.",
     action: (
-      <WithTooltip label="Reload Terpsicle now">
-        <button
-          type="button"
-          onClick={() => {
-            toast.dismiss(TOAST_ID);
-            apply();
-          }}
-          className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-hairline bg-raised px-2.5 font-medium text-base text-fg transition-colors hover:bg-hover"
-        >
-          <RotateCw size={13} aria-hidden="true" />
-          Reload
-        </button>
-      </WithTooltip>
+      <ToastAction
+        label="Reload"
+        tooltip="Reload Terpsicle now"
+        icon={<RotateCw size={13} aria-hidden="true" />}
+        onClick={() => {
+          toast.dismiss(TOAST_ID);
+          apply();
+        }}
+      />
     ),
   });
 }

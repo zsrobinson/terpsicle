@@ -1,6 +1,5 @@
 import { Check, ChevronDown, Trash2, Undo2 } from "lucide-react";
 import { type ReactNode, useId, useRef, useState } from "react";
-import { toast } from "sonner";
 import {
   markedSegments,
   suggestedRemoveReason,
@@ -17,6 +16,7 @@ import { useAccount } from "~/features/auth/account-store";
 import { adminApi } from "~/server/fns/admin-api";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
+import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { ChatRemoveForm } from "./chat-remove";
 import { HealthHeader } from "./health-header";
@@ -49,9 +49,6 @@ export type AdminClient = Pick<
   typeof adminApi,
   "queue" | "resolve" | "undo" | "health" | "samples" | "chatRemove"
 >;
-
-/** Long enough to read and reach Undo (WCAG 2.2.1), like the scheduler's. */
-const UNDO_TOAST_MS = 10_000;
 
 export function QueuePage({
   view,
@@ -100,14 +97,14 @@ export function QueuePage({
   const undo = async (item: QueueItem) => {
     try {
       const result = await client.undo({ id: item.id });
-      if (result.status === "ok") toast("Back in the queue");
+      if (result.status === "ok") noteToast("Back in the queue");
       else if (result.status === "nothing-to-undo")
-        toast("Nothing to undo", {
+        noteToast("Nothing to undo", {
           description: "It was edited and held again since, so it's waiting.",
         });
-      else toast("That post is gone, so there's nothing to undo.");
+      else noteToast("That post is gone, so there's nothing to undo.");
     } catch (error) {
-      toast("Couldn't undo that", { description: failureWords(error) });
+      noteToast("Couldn't undo that", { description: failureWords(error) });
     }
     refresh();
   };
@@ -119,42 +116,22 @@ export function QueuePage({
     reason: AdminReason,
     stopAsked: boolean,
   ) =>
-    toast(
-      action === "approve"
-        ? `${publishWord(decided)}ed`
-        : `Removed: ${ADMIN_REASON_WORDS[reason]}`,
-      {
-        id: `resolved-${decided.id}`,
-        description: stopAsked
-          ? decided.stoppedUntil
-            ? `${itemTitle(decided)}. ${stoppedWords(decided.kind, decided.stoppedUntil)}.`
-            : `${itemTitle(decided)}. No one to stop: the account or the post is gone.`
-          : itemTitle(decided),
-        duration: UNDO_TOAST_MS,
-        action: (
-          <WithTooltip
-            label={
-              decided.stoppedUntil
-                ? "Put it back in the queue, held, and lift the stop"
-                : "Put it back in the queue, held"
-            }
-          >
-            <Button
-              size="row"
-              variant="outline"
-              className="ml-auto"
-              onClick={() => {
-                toast.dismiss(`resolved-${decided.id}`);
-                void undo(decided);
-              }}
-            >
-              <Undo2 size={12} aria-hidden="true" />
-              Undo
-            </Button>
-          </WithTooltip>
-        ),
-      },
-    );
+    undoToast({
+      id: `resolved-${decided.id}`,
+      message:
+        action === "approve"
+          ? `${publishWord(decided)}ed`
+          : `Removed: ${ADMIN_REASON_WORDS[reason]}`,
+      description: stopAsked
+        ? decided.stoppedUntil
+          ? `${itemTitle(decided)}. ${stoppedWords(decided.kind, decided.stoppedUntil)}.`
+          : `${itemTitle(decided)}. No one to stop: the account or the post is gone.`
+        : itemTitle(decided),
+      tooltip: decided.stoppedUntil
+        ? "Put it back in the queue, held, and lift the stop"
+        : "Put it back in the queue, held",
+      onUndo: () => void undo(decided),
+    });
 
   const resolve = async (
     item: QueueItem,
@@ -171,7 +148,7 @@ export function QueuePage({
         ...(stop && action === "remove" ? { authorAction: "stop" } : {}),
       });
       if (result.status !== "ok") {
-        toast("That post is gone", {
+        noteToast("That post is gone", {
           description: "It was decided or deleted since this list loaded.",
         });
         refresh();
@@ -181,9 +158,12 @@ export function QueuePage({
       health.reload();
       announce(result.item, action, reason, stop && action === "remove");
     } catch (error) {
-      toast(`Couldn't ${action === "approve" ? "publish" : "remove"} that`, {
-        description: failureWords(error),
-      });
+      noteToast(
+        `Couldn't ${action === "approve" ? "publish" : "remove"} that`,
+        {
+          description: failureWords(error),
+        },
+      );
     } finally {
       setBusy(null);
     }
@@ -195,7 +175,9 @@ export function QueuePage({
       await client.samples();
       refresh();
     } catch (error) {
-      toast("Couldn't add test posts", { description: failureWords(error) });
+      noteToast("Couldn't add test posts", {
+        description: failureWords(error),
+      });
     } finally {
       setAdding(false);
     }

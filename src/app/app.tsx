@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { useAccount } from "~/features/auth/account-store";
 import { markReturning } from "~/features/marketing/returning";
 import type { SyncHost } from "~/features/sync/running";
@@ -20,6 +19,7 @@ import {
 import { useReviewNumbers } from "~/state/reviews-store";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
+import { noteToast } from "~/ui/toast";
 import { trackCatalogEvent } from "./actions";
 import { track } from "./analytics";
 import { AppShell, type AppShellProps } from "./app-shell";
@@ -88,7 +88,7 @@ function useBootstrap(config: ClientConfig) {
         if (cancelled) return;
         persistence = startPersisting(db, (error) => {
           console.error(error);
-          toast.error(
+          noteToast(
             "Couldn't save your last change. Your browser's storage may be full.",
             { id: "storage-write" },
           );
@@ -108,10 +108,7 @@ function useBootstrap(config: ClientConfig) {
           ids: { now: nowIso, newId: newLocalId },
           reloadAccount: () => void useAccount.getState().load(),
           toast: (title, description) =>
-            toast(title, {
-              ...(description ? { description } : {}),
-              duration: 10_000,
-            }),
+            noteToast(title, description ? { description } : {}),
           trackFirstSignIn: (counts) => track("sync_first_sign_in", counts),
         };
         const follow = () => {
@@ -137,9 +134,9 @@ function useBootstrap(config: ClientConfig) {
         if (cancelled) return;
         console.error(error);
         hydrateEmpty();
-        toast.error(
+        noteToast(
           "This browser won't let Terpsicle store plans, so changes last only until you close the tab.",
-          { id: "storage-open", duration: 10_000 },
+          { id: "storage-open" },
         );
       }
       applyThemePreference(useUi.getState().theme);
