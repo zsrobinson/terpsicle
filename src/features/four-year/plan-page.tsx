@@ -9,7 +9,9 @@ import { Board, PhoneBoard } from "./board";
 import { startFourYear, useDocDepts } from "./data";
 import { EmptyState } from "./empty-state";
 import { PlanHeader } from "./header";
+import { ImportCheck, useImportRecognized } from "./import-panel";
 import {
+  PLAN_WIDE_QUERY,
   PlanModelProvider,
   type PlanNav,
   PlanNavProvider,
@@ -24,8 +26,7 @@ import { PlanToasts } from "./toasts";
 // every semester beside the side panel; a phone shows a strip of semesters
 // and one at a time, with the panel under it.
 
-/** Where the side panel sits beside the semesters, rather than under them. */
-export const PLAN_WIDE_QUERY = "(min-width: 1024px)";
+export { PLAN_WIDE_QUERY } from "./model";
 
 /** New York's date, for term status. */
 export function useToday(): IsoDate {
@@ -77,6 +78,8 @@ function Workspace({ nav }: { nav: PlanNav }) {
   const model = usePlanModel(doc, today, nav.search.semester);
   const wide = useMediaQuery(PLAN_WIDE_QUERY);
   useDocDepts(doc);
+  const importing = nav.search.tab === "import";
+  const checking = useImportRecognized() && importing;
   return (
     <PlanNavProvider value={nav}>
       <PlanModelProvider value={model}>
@@ -86,7 +89,21 @@ function Workspace({ nav }: { nav: PlanNav }) {
           {wide ? (
             <div className="grid grid-cols-[320px_minmax(0,1fr)] items-start gap-4">
               <SidePanel className="sticky top-3 max-h-[calc(100dvh-24px)]" />
-              <Board />
+              {/* The check step, live next to the paste (V3 §2.10). */}
+              {checking ? (
+                <div className="border border-hairline bg-panel">
+                  <ImportCheck columns />
+                </div>
+              ) : (
+                <Board />
+              )}
+            </div>
+          ) : importing ? (
+            // Importing is the task at hand: the paste comes before the semesters.
+            <div className="space-y-4">
+              <CreditsSummary />
+              <SidePanel credits={false} />
+              <PhoneBoard selected={model.target} />
             </div>
           ) : (
             <div className="space-y-4">
@@ -116,7 +133,7 @@ export function PlanPage({ nav }: { nav: PlanNav }) {
       ) : doc ? (
         <Workspace nav={nav} />
       ) : (
-        <EmptyState today={today} />
+        <EmptyState today={today} nav={nav} />
       )}
     </SitePage>
   );

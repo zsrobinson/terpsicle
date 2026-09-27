@@ -130,7 +130,10 @@ describe("the first visit", () => {
   it("offers two ways in, and starts a plan from the semester you pick", async () => {
     const user = renderPlan();
     expect(await screen.findByText("Plan your four years")).toBeVisible();
-    expect(screen.getByText("Coming next")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Paste your transcript" }),
+    ).toBeVisible();
+    expect(screen.queryByText("Coming next")).toBeNull();
     expect(screen.getByLabelText("I started at UMD in")).toHaveValue("202608");
 
     await user.selectOptions(
