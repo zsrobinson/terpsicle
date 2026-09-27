@@ -11,7 +11,14 @@ import { handoffTerm } from "~/core/four-year/handoff";
 import { detectFourYearProblems } from "~/core/four-year/problems";
 import { type StatusOf, statusResolver } from "~/core/four-year/status";
 import { defaultTargetTerm, fourYearColumns } from "~/core/four-year/terms";
-import type { IsoDate, LocalId, PlanSearch, TermId } from "~/core/schema";
+import type {
+  IsoDate,
+  LocalId,
+  PlanSearch,
+  PlanTab,
+  Severity,
+  TermId,
+} from "~/core/schema";
 import type {
   FourYearDoc,
   FourYearProblem,
@@ -22,9 +29,6 @@ import { useCourseLookup, useFourYearFacts } from "./data";
 // Everything the page shows about the open doc, worked out once per change
 // by core: columns and their status, credits, GenEd progress and problems.
 // Components read this and render (CLAUDE.md: "read state, call core").
-
-/** Where the side panel sits beside the semesters, rather than under them. */
-export const PLAN_WIDE_QUERY = "(min-width: 1024px)";
 
 export type PlanModel = {
   readonly doc: FourYearDoc;
@@ -94,14 +98,24 @@ export function usePlanModel(
 export type PlanNavOptions = {
   /** For typing and other transient changes; otherwise Back undoes it. */
   readonly replace?: boolean;
-  /** Opens something the in-app Back closes (a course in the side panel). */
+  /** Opens something the in-app Back closes (a course in the sidebar). */
   readonly drill?: boolean;
 };
 
+/** Where Plan is: the view on its rail (its route), and the search params. */
+export type PlanPlace = PlanSearch & { readonly tab: PlanTab };
+
 /** The page's URL state, and how to change it. */
 export type PlanNav = {
-  readonly search: PlanSearch;
-  readonly go: (patch: Partial<PlanSearch>, options?: PlanNavOptions) => void;
+  readonly search: PlanPlace;
+  /**
+   * Moves within Plan. A `tab` in the patch goes to that view's route
+   * (`tab: undefined` is GenEd); without one, the view stays.
+   */
+  readonly go: (
+    patch: Partial<PlanSearch> & { readonly tab?: PlanTab | undefined },
+    options?: PlanNavOptions,
+  ) => void;
   /**
    * The in-app Back: the browser's Back when what it closes was opened in
    * the app, so the two are one thing (decisions.md, "Back and Forward undo
@@ -126,4 +140,14 @@ export function useModel(): PlanModel {
   const model = useContext(ModelContext);
   if (!model) throw new Error("useModel outside PlanModelProvider");
   return model;
+}
+
+/** Problems by severity, for the scheduler's words ("1 problem · 2 notes"). */
+export function useProblemCounts(): Record<Severity, number> {
+  const { problems } = useModel();
+  return useMemo(() => {
+    const counts: Record<Severity, number> = { error: 0, warning: 0, info: 0 };
+    for (const p of problems) counts[p.severity]++;
+    return counts;
+  }, [problems]);
 }

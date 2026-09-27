@@ -22,6 +22,7 @@ import {
 } from "./actions";
 import { useModel, usePlanNav } from "./model";
 import { showPlanNote } from "./toasts";
+import { PlanView } from "./views";
 
 // The Search tab (V3 §2.9, §2.13): every course in the course index, any
 // term. Typing CMSC4XX or "any DSHS" offers a placeholder first. From a
@@ -37,9 +38,15 @@ export const SEARCH_INPUT_ID = "plan-search";
  */
 export const useSearchFocus = create<{
   asked: number;
+  /**
+   * The last request the box took. A request is taken once: coming back to
+   * Search later (Back from Reviews) doesn't bring up a phone's keyboard,
+   * and with it the drawer, over the semesters.
+   */
+  answered: number;
   /** Where Search was opened from, for `four_year_course_added`. */
   via: "search" | "column";
-}>()(() => ({ asked: 0, via: "search" }));
+}>()(() => ({ asked: 0, answered: 0, via: "search" }));
 
 export function focusSearch(via: "search" | "column" = "search"): void {
   useSearchFocus.setState((s) => ({ asked: s.asked + 1, via }));
@@ -164,8 +171,10 @@ export function SearchPanel() {
 
   const asked = useSearchFocus((s) => s.asked);
   useEffect(() => {
-    // On a phone the panel is under the semesters: focus brings it up too.
-    if (asked > 0) input.current?.focus();
+    // On a phone the panel is in the drawer: focus raises it too.
+    if (asked <= useSearchFocus.getState().answered) return;
+    useSearchFocus.setState({ answered: asked });
+    input.current?.focus();
   }, [asked]);
 
   const result = useMemo(
@@ -387,5 +396,14 @@ export function SearchPanel() {
         </>
       )}
     </div>
+  );
+}
+
+/** The Search view, on its route (`/plan/search`). */
+export function SearchView() {
+  return (
+    <PlanView tab="search">
+      <SearchPanel />
+    </PlanView>
   );
 }

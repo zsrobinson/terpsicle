@@ -8,6 +8,7 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { useModel, usePlanNav } from "./model";
 import { focusSearch } from "./search-panel";
+import { PlanView } from "./views";
 
 // The GenEd tab (V3 §2.7): one row per category, done and planned against
 // what it needs, and "Find a course" for one that's short. Not an audit.
@@ -114,5 +115,14 @@ export function GenEdPanel() {
         From Testudo's GenEd codes. Your degree audit is the official check.
       </p>
     </div>
+  );
+}
+
+/** The GenEd view, on its route (`/plan`). */
+export function GenEdView() {
+  return (
+    <PlanView tab="gened">
+      <GenEdPanel />
+    </PlanView>
   );
 }

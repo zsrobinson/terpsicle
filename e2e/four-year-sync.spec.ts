@@ -42,7 +42,7 @@ function newUser(): string {
 
 /** Plan's saved-state line: the account's status words while signed in. */
 const savedState = (page: Page) =>
-  page.getByRole("main").locator("[data-sync-status]");
+  page.getByRole("banner").locator("[data-sync-status]");
 const spring = (page: Page) =>
   page.getByRole("region", { name: "Spring 2027", exact: true });
 

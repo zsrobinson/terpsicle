@@ -19,13 +19,19 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-/** Spring 2027's column; on a phone, picked from the strip first. */
+/**
+ * Spring 2027's column; on a phone, picked from the strip first, lowering
+ * the drawer if Search left it all the way up over the semesters.
+ */
 async function spring(page: Page, isMobile: boolean) {
-  if (isMobile)
+  if (isMobile) {
+    const lower = page.getByRole("button", { name: "Lower the panel" });
+    if (await lower.isVisible()) await lower.click();
     await page
       .getByRole("navigation", { name: "Semesters" })
       .getByRole("button", { name: "Sp 2027" })
       .click();
+  }
   return page.getByRole("region", { name: "Spring 2027", exact: true });
 }
 

@@ -28,9 +28,14 @@ async function axe(page: Page, what: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
-/** A semester's column; on a phone, picked from the strip first. */
+/**
+ * A semester's column; on a phone, picked from the strip first, lowering
+ * the drawer if Search left it all the way up over the semesters.
+ */
 async function semester(page: Page, isMobile: boolean, name: string) {
   if (isMobile) {
+    const lower = page.getByRole("button", { name: "Lower the panel" });
+    if (await lower.isVisible()) await lower.click();
     const [season, year] = name.split(" ");
     await page
       .getByRole("navigation", { name: "Semesters" })
@@ -85,7 +90,7 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
     .getByRole("button", { name: "Add CMSC4XX to Spring 2027", exact: true })
     .click();
   await expect(spring.getByText("Any CMSC 400-level")).toBeVisible();
-  await expect(page.getByText("6 of 120 credits")).toBeVisible();
+  await expect(page.getByText("6 of 120 credits").first()).toBeVisible();
 
   // Move CMSC351 with the keyboard alone: its menu, Move to…, Fall 2027.
   await spring.getByRole("button", { name: "CMSC351 options" }).focus();

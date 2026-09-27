@@ -1,119 +1,61 @@
-import { cn } from "cn";
 import { InstallAppButton } from "~/features/pwa/install-entry";
 import { useProblemCounts } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
-import { WithTooltip } from "~/ui/tooltip";
 import { clickRailTab } from "./actions";
 import { preloadView } from "./schedule-nav";
 import { SIDEBAR_PANEL_ID } from "./sidebar";
 import { useSidebarStack } from "./sidebar-stack";
-import { TABS, type Tab } from "./tabs";
+import { TABS } from "./tabs";
+import {
+  CountBadge,
+  RailButton,
+  railHint,
+  WorkbenchRail,
+} from "./workbench/rail";
 
-// The labeled rail (SPEC §2). Clicking the open tab collapses the sidebar;
-// any tab reopens it. The active state is a soft fill and a thin edge bar, no
-// ring or shadow, kept light so the rail doesn't read like a chat app
-// (DESIGN §5). A tab is a route (/schedule/<tab>): clicking one navigates.
+// The scheduler's rail (SPEC §2), on the workbench's. A tab is a route
+// (/schedule/<tab>): clicking one navigates, and clicking the open one
+// collapses the sidebar (clickRailTab).
 
 export function Rail() {
   const { view } = useSidebarStack();
   const tab = view.tab;
   const open = useUi((s) => s.sidebarOpen);
   const drilled = view.drill !== null;
-  // On a short screen (a phone on its side gets this layout) the tabs run
-  // past the bottom: the rail scrolls, with no scrollbar eating its width.
   return (
-    <div className="flex w-[62px] shrink-0 flex-col items-center overflow-y-auto border-hairline border-r bg-panel py-2 [scrollbar-width:none]">
-      <nav
-        aria-label="Sidebar tabs"
-        className="flex flex-col items-center gap-0.5"
-      >
-        {TABS.map((t) => (
-          <RailButton
-            key={t.id}
-            tab={t}
-            current={t.id === tab}
-            open={open}
-            drilled={drilled}
-          />
-        ))}
-      </nav>
-      <div className="mt-auto flex flex-col items-center gap-1">
-        <InstallAppButton side="right" />
-      </div>
-    </div>
-  );
-}
-
-function hint(tab: Tab, current: boolean, open: boolean, drilled: boolean) {
-  if (!current || !open) return tab.label;
-  if (drilled) return `Back to ${tab.label}`;
-  return `${tab.label} (click again to hide the sidebar)`;
-}
-
-function RailButton({
-  tab,
-  current,
-  open,
-  drilled,
-}: {
-  tab: Tab;
-  current: boolean;
-  open: boolean;
-  drilled: boolean;
-}) {
-  const Icon = tab.icon;
-  const selected = current && open;
-  // The router loads the tab's route chunk on intent, so it's usually there
-  // by the click.
-  const preload = () => preloadView({ tab: tab.id, drill: null });
-  return (
-    <WithTooltip
-      label={hint(tab, current, open, drilled)}
-      shortcut={tab.shortcut}
-      side="right"
+    <WorkbenchRail
+      label="Sidebar tabs"
+      footer={<InstallAppButton side="right" />}
     >
-      <button
-        type="button"
-        aria-pressed={selected}
-        aria-controls={selected ? SIDEBAR_PANEL_ID : undefined}
-        onClick={() => clickRailTab(tab.id)}
-        onPointerEnter={preload}
-        onFocus={preload}
-        className={cn(
-          "relative flex w-[54px] flex-col items-center gap-1 rounded-lg py-2 transition-colors",
-          // Selected: the kit's one selected fill (accent-soft, as a selected
-          // row or segment), and a 2px bar at the rail's edge, so a hovered
-          // tab never reads as selected.
-          selected
-            ? "bg-accent-soft text-fg before:-left-1 before:absolute before:inset-y-3 before:w-0.5 before:rounded-full before:bg-fg"
-            : "text-muted hover:bg-hover/50 hover:text-fg",
-          current && !open && "text-fg",
-        )}
-      >
-        <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
-        <span className="font-medium text-2xs">{tab.label}</span>
-        {tab.id === "problems" ? <ProblemBadge /> : null}
-      </button>
-    </WithTooltip>
+      {TABS.map((t) => (
+        <RailButton
+          key={t.id}
+          icon={t.icon}
+          label={t.label}
+          hint={railHint(t.label, { current: t.id === tab, open, drilled })}
+          shortcut={t.shortcut}
+          current={t.id === tab}
+          open={open}
+          controls={SIDEBAR_PANEL_ID}
+          onClick={() => clickRailTab(t.id)}
+          // The router loads the tab's route chunk on intent, so it's
+          // usually there by the click.
+          onPreload={() => preloadView({ tab: t.id, drill: null })}
+          badge={t.id === "problems" ? <ProblemBadge /> : null}
+        />
+      ))}
+    </WorkbenchRail>
   );
 }
 
 /** Errors and warnings on the Problems tab; red only when something is an error. */
 export function ProblemBadge({ className }: { className?: string }) {
   const counts = useProblemCounts();
-  const n = counts.error + counts.warning;
-  if (n === 0) return null;
   return (
-    // The top bar says it in words; here it's a glance.
-    <span
-      aria-hidden="true"
-      className={cn(
-        "tnum absolute top-1 right-1.5 min-w-[15px] rounded-full px-1 text-center font-mono text-2xs text-bg leading-[15px]",
-        counts.error > 0 ? "bg-error" : "bg-warn",
-        className,
-      )}
-    >
-      {n}
-    </span>
+    <CountBadge
+      count={counts.error + counts.warning}
+      tone={counts.error > 0 ? "error" : "warn"}
+      className={className}
+    />
   );
 }

@@ -43,6 +43,11 @@ import { TerpsicleDb } from "~/state/db";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { Route } from "./plan";
+import { Route as ImportRoute } from "./plan.import";
+import { Route as GenEdRoute } from "./plan.index";
+import { Route as ProblemsRoute } from "./plan.problems";
+import { Route as SamplesRoute } from "./plan.samples";
+import { Route as SearchRoute } from "./plan.search";
 
 // /plan on the fixtures' course index and a fake IndexedDB. 2026-09-26 is in
 // Fall 2026, so a plan from Fall 2025 has two done semesters and one in
@@ -57,7 +62,10 @@ const NOW = "2026-09-26T16:00:00.000Z";
 
 let router: ReturnType<typeof createRouter>;
 
-/** The real `/plan` route (its search schema, push and replace, Back) on a memory history. */
+/**
+ * The real `/plan` routes (the layout's search schema, a route per view,
+ * the old `?tab=` redirect, push and replace, Back) on a memory history.
+ */
 function renderPlan(initial = "/plan") {
   // Before the page's own call, which then shares this start.
   void startFourYear({ source: createBucketDataSource(mockDataSource) });
@@ -67,8 +75,19 @@ function renderPlan(initial = "/plan") {
     path: "/plan",
     getParentRoute: () => root,
   } as never);
+  const views = (
+    [
+      [GenEdRoute, "/"],
+      [ProblemsRoute, "/problems"],
+      [SearchRoute, "/search"],
+      [SamplesRoute, "/samples"],
+      [ImportRoute, "/import"],
+    ] as const
+  ).map(([view, path]) =>
+    view.update({ id: path, path, getParentRoute: () => plan } as never),
+  );
   router = createRouter({
-    routeTree: root.addChildren([plan]),
+    routeTree: root.addChildren([plan.addChildren(views)]),
     history: createMemoryHistory({ initialEntries: [initial] }),
     // As src/router.tsx writes search params.
     stringifySearch: stringifySearchWith(JSON.stringify),
@@ -122,7 +141,7 @@ beforeEach(async () => {
   vi.setSystemTime(new Date(NOW));
   // Radix menus measure; happy-dom has no layout.
   window.matchMedia = ((query: string) => ({
-    matches: query === "(min-width: 1024px)",
+    matches: false,
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},
@@ -559,7 +578,7 @@ describe("the URL", () => {
     expect(
       await screen.findByRole("heading", { name: "CMSC420" }),
     ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByRole("button", { name: "Back to Search" }));
     await waitFor(() =>
       expect(router.state.location.search).toMatchObject({ q: "cmsc42" }),
     );
@@ -574,10 +593,65 @@ describe("the URL", () => {
     ).toBeVisible();
   });
 
+  it("sends an old ?tab= link to its view's route, keeping the rest", async () => {
+    await seed(PLAN);
+    renderPlan("/plan?tab=search&q=cmsc42");
+    expect(
+      await screen.findByRole("searchbox", { name: "Search courses" }),
+    ).toHaveValue("cmsc42");
+    expect(router.state.location.pathname).toBe("/plan/search");
+    expect(router.state.location.search).toEqual({ q: "cmsc42" });
+  });
+
+  it("makes each view on the rail a route, and Back returns to the last", async () => {
+    await seed(PLAN);
+    const user = renderPlan();
+    const rail = await screen.findByRole("navigation", { name: "Plan views" });
+    await user.click(within(rail).getByRole("button", { name: /^Problems/ }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/problems"),
+    );
+    expect(
+      within(rail).getByRole("button", { name: /^Problems/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(rail).getByRole("button", { name: "Samples" }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/samples"),
+    );
+    router.history.back();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/problems"),
+    );
+    expect(
+      await screen.findByRole("region", { name: "Prerequisites and credits" }),
+    ).toBeVisible();
+  });
+
+  it("hides the sidebar when the open view is clicked again, and any view brings it back", async () => {
+    await seed(PLAN);
+    const user = renderPlan();
+    const rail = await screen.findByRole("navigation", { name: "Plan views" });
+    const gened = within(rail).getByRole("button", { name: "GenEd" });
+    await user.click(gened);
+    expect(
+      screen.getByRole("complementary", { hidden: true }),
+    ).not.toBeVisible();
+    expect(gened).toHaveAttribute("aria-pressed", "false");
+    await user.keyboard("3");
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/plan/search"),
+    );
+    expect(
+      screen.getByRole("complementary", { name: "Sidebar" }),
+    ).toBeVisible();
+  });
+
   it("closes a course opened by a link in place", async () => {
     await seed(PLAN);
     const user = renderPlan("/plan?course=CMSC351");
-    await user.click(await screen.findByRole("button", { name: "Back" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Back to GenEd" }),
+    );
     await waitFor(() =>
       expect(router.state.location.search).not.toHaveProperty("course"),
     );

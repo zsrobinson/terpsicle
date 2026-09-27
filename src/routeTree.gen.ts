@@ -21,6 +21,11 @@ import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
 import { Route as AdminKitRouteImport } from './routes/admin.kit'
 import { Route as AuthTestRouteImport } from './routes/auth/test'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
+import { Route as PlanIndexRouteImport } from './routes/plan.index'
+import { Route as PlanImportRouteImport } from './routes/plan.import'
+import { Route as PlanProblemsRouteImport } from './routes/plan.problems'
+import { Route as PlanSamplesRouteImport } from './routes/plan.samples'
+import { Route as PlanSearchRouteImport } from './routes/plan.search'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
 import { Route as ReviewsMineRouteImport } from './routes/reviews.mine'
 import { Route as ReviewsPolicyRouteImport } from './routes/reviews.policy'
@@ -100,6 +105,31 @@ const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/chat/',
   path: '/chat/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PlanIndexRoute = PlanIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlanRoute,
+} as any)
+const PlanImportRoute = PlanImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => PlanRoute,
+} as any)
+const PlanProblemsRoute = PlanProblemsRouteImport.update({
+  id: '/problems',
+  path: '/problems',
+  getParentRoute: () => PlanRoute,
+} as any)
+const PlanSamplesRoute = PlanSamplesRouteImport.update({
+  id: '/samples',
+  path: '/samples',
+  getParentRoute: () => PlanRoute,
+} as any)
+const PlanSearchRoute = PlanSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => PlanRoute,
 } as any)
 const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
   id: '/reviews/',
@@ -200,7 +230,7 @@ const ScheduleResultResultIdRoute = ScheduleResultResultIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/plan': typeof PlanRoute
+  '/plan': typeof PlanRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/schedule': typeof ScheduleRouteWithChildren
   '/settings': typeof SettingsRoute
@@ -209,6 +239,10 @@ export interface FileRoutesByFullPath {
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
+  '/plan/import': typeof PlanImportRoute
+  '/plan/problems': typeof PlanProblemsRoute
+  '/plan/samples': typeof PlanSamplesRoute
+  '/plan/search': typeof PlanSearchRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
   '/schedule/blocks': typeof ScheduleBlocksRoute
@@ -222,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
+  '/plan/': typeof PlanIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
   '/schedule/': typeof ScheduleIndexRoute
   '/todo/': typeof TodoIndexRoute
@@ -233,7 +268,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/plan': typeof PlanRoute
   '/privacy': typeof PrivacyRoute
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
@@ -241,6 +275,10 @@ export interface FileRoutesByTo {
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
+  '/plan/import': typeof PlanImportRoute
+  '/plan/problems': typeof PlanProblemsRoute
+  '/plan/samples': typeof PlanSamplesRoute
+  '/plan/search': typeof PlanSearchRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
   '/schedule/blocks': typeof ScheduleBlocksRoute
@@ -254,6 +292,7 @@ export interface FileRoutesByTo {
   '/todo/connect': typeof TodoConnectRoute
   '/admin': typeof AdminIndexRoute
   '/chat': typeof ChatIndexRoute
+  '/plan': typeof PlanIndexRoute
   '/reviews': typeof ReviewsIndexRoute
   '/schedule': typeof ScheduleIndexRoute
   '/todo': typeof TodoIndexRoute
@@ -266,7 +305,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/plan': typeof PlanRoute
+  '/plan': typeof PlanRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/schedule': typeof ScheduleRouteWithChildren
   '/settings': typeof SettingsRoute
@@ -275,6 +314,10 @@ export interface FileRoutesById {
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
+  '/plan/import': typeof PlanImportRoute
+  '/plan/problems': typeof PlanProblemsRoute
+  '/plan/samples': typeof PlanSamplesRoute
+  '/plan/search': typeof PlanSearchRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
   '/schedule/blocks': typeof ScheduleBlocksRoute
@@ -288,6 +331,7 @@ export interface FileRoutesById {
   '/todo/connect': typeof TodoConnectRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
+  '/plan/': typeof PlanIndexRoute
   '/reviews/': typeof ReviewsIndexRoute
   '/schedule/': typeof ScheduleIndexRoute
   '/todo/': typeof TodoIndexRoute
@@ -310,6 +354,10 @@ export interface FileRouteTypes {
     | '/admin/feedback'
     | '/admin/kit'
     | '/auth/test'
+    | '/plan/import'
+    | '/plan/problems'
+    | '/plan/samples'
+    | '/plan/search'
     | '/reviews/mine'
     | '/reviews/policy'
     | '/schedule/blocks'
@@ -323,6 +371,7 @@ export interface FileRouteTypes {
     | '/todo/connect'
     | '/admin/'
     | '/chat/'
+    | '/plan/'
     | '/reviews/'
     | '/schedule/'
     | '/todo/'
@@ -334,7 +383,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/plan'
     | '/privacy'
     | '/settings'
     | '/signin'
@@ -342,6 +390,10 @@ export interface FileRouteTypes {
     | '/admin/feedback'
     | '/admin/kit'
     | '/auth/test'
+    | '/plan/import'
+    | '/plan/problems'
+    | '/plan/samples'
+    | '/plan/search'
     | '/reviews/mine'
     | '/reviews/policy'
     | '/schedule/blocks'
@@ -355,6 +407,7 @@ export interface FileRouteTypes {
     | '/todo/connect'
     | '/admin'
     | '/chat'
+    | '/plan'
     | '/reviews'
     | '/schedule'
     | '/todo'
@@ -375,6 +428,10 @@ export interface FileRouteTypes {
     | '/admin/feedback'
     | '/admin/kit'
     | '/auth/test'
+    | '/plan/import'
+    | '/plan/problems'
+    | '/plan/samples'
+    | '/plan/search'
     | '/reviews/mine'
     | '/reviews/policy'
     | '/schedule/blocks'
@@ -388,6 +445,7 @@ export interface FileRouteTypes {
     | '/todo/connect'
     | '/admin/'
     | '/chat/'
+    | '/plan/'
     | '/reviews/'
     | '/schedule/'
     | '/todo/'
@@ -400,7 +458,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  PlanRoute: typeof PlanRoute
+  PlanRoute: typeof PlanRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   ScheduleRoute: typeof ScheduleRouteWithChildren
   SettingsRoute: typeof SettingsRoute
@@ -506,6 +564,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/chat/'
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/plan/': {
+      id: '/plan/'
+      path: '/'
+      fullPath: '/plan/'
+      preLoaderRoute: typeof PlanIndexRouteImport
+      parentRoute: typeof PlanRoute
+    }
+    '/plan/import': {
+      id: '/plan/import'
+      path: '/import'
+      fullPath: '/plan/import'
+      preLoaderRoute: typeof PlanImportRouteImport
+      parentRoute: typeof PlanRoute
+    }
+    '/plan/problems': {
+      id: '/plan/problems'
+      path: '/problems'
+      fullPath: '/plan/problems'
+      preLoaderRoute: typeof PlanProblemsRouteImport
+      parentRoute: typeof PlanRoute
+    }
+    '/plan/samples': {
+      id: '/plan/samples'
+      path: '/samples'
+      fullPath: '/plan/samples'
+      preLoaderRoute: typeof PlanSamplesRouteImport
+      parentRoute: typeof PlanRoute
+    }
+    '/plan/search': {
+      id: '/plan/search'
+      path: '/search'
+      fullPath: '/plan/search'
+      preLoaderRoute: typeof PlanSearchRouteImport
+      parentRoute: typeof PlanRoute
     }
     '/reviews/': {
       id: '/reviews/'
@@ -643,6 +736,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface PlanRouteChildren {
+  PlanImportRoute: typeof PlanImportRoute
+  PlanProblemsRoute: typeof PlanProblemsRoute
+  PlanSamplesRoute: typeof PlanSamplesRoute
+  PlanSearchRoute: typeof PlanSearchRoute
+  PlanIndexRoute: typeof PlanIndexRoute
+}
+
+const PlanRouteChildren: PlanRouteChildren = {
+  PlanImportRoute: PlanImportRoute,
+  PlanProblemsRoute: PlanProblemsRoute,
+  PlanSamplesRoute: PlanSamplesRoute,
+  PlanSearchRoute: PlanSearchRoute,
+  PlanIndexRoute: PlanIndexRoute,
+}
+
+const PlanRouteWithChildren = PlanRoute._addFileChildren(PlanRouteChildren)
+
 interface ScheduleRouteChildren {
   ScheduleBlocksRoute: typeof ScheduleBlocksRoute
   ScheduleCoursesRoute: typeof ScheduleCoursesRoute
@@ -677,7 +788,7 @@ const ScheduleRouteWithChildren = ScheduleRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  PlanRoute: PlanRoute,
+  PlanRoute: PlanRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   ScheduleRoute: ScheduleRouteWithChildren,
   SettingsRoute: SettingsRoute,
