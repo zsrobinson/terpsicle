@@ -34,6 +34,8 @@ export const courseIndexDeptKey = (dept: DeptCode, hash: ContentHash): string =>
 export const PLANETTERP_MANIFEST_KEY = "planetterp/manifest.json";
 export const planetTerpDeptKey = (dept: DeptCode, hash: ContentHash): string =>
   `planetterp/dept/${dept}.${hash}.json`;
+export const planetTerpIndexKey = (hash: ContentHash): string =>
+  `planetterp/index.${hash}.json`;
 
 /** Terpsicle reviews' numbers, never their text (V2 §7.6). */
 export const REVIEWS_MANIFEST_KEY = "reviews/manifest.json";

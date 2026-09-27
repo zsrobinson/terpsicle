@@ -60,6 +60,7 @@ export function setAccount({
 export function fakeReviewsClient(
   overrides: {
     list?: ReviewsClient["reviews"]["list"];
+    recent?: ReviewsClient["reviews"]["recent"];
     mine?: ReviewsClient["reviews"]["mine"];
     submit?: ReviewsClient["reviews"]["submit"];
     edit?: ReviewsClient["reviews"]["edit"];
@@ -73,6 +74,7 @@ export function fakeReviewsClient(
         overrides.list ?? (async () => ({ reviews: [], next: null })),
       ),
       mine: vi.fn(overrides.mine ?? (async () => ({ reviews: [] }))),
+      recent: vi.fn(overrides.recent ?? (async () => ({ reviews: [] }))),
       submit: vi.fn(
         overrides.submit ??
           (async () => ({

@@ -140,7 +140,11 @@ test("the logo opens the product menu", async ({ page }) => {
 });
 
 for (const [path, heading, title] of [
-  ["/reviews", "Terpsicle Reviews", "Reviews · Terpsicle"],
+  [
+    "/reviews",
+    "Terpsicle Reviews",
+    "UMD course and instructor reviews · Terpsicle",
+  ],
   ["/chat", "Terpsicle Chat", "Chat · Terpsicle"],
   ["/privacy", "Privacy", "Privacy · Terpsicle"],
 ] as const) {

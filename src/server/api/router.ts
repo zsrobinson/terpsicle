@@ -23,6 +23,7 @@ import {
   ReviewSubmitInputSchema,
   ReviewSummaryInputSchema,
   ReviewsMineInputSchema,
+  ReviewsRecentInputSchema,
   SeatWatchInputSchema,
   SeatWatchListInputSchema,
   type SeatWatchListResult,
@@ -119,6 +120,7 @@ import {
   type ReviewsEnv,
   submitReview,
 } from "../reviews/api";
+import { listRecent } from "../reviews/public";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
 import { pull, push } from "../sync/api";
 import { type TodoEnv, todoAvailable } from "../todo/config";
@@ -335,6 +337,14 @@ export const ROUTES = {
     alerts: false,
     reviews: "read",
     handle: (env, input) => listReviews(env, input),
+  }),
+  // Which courses and instructors were reviewed lately, for /reviews.
+  "reviews/recent": route({
+    input: ReviewsRecentInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    reviews: "read",
+    handle: (env, input) => listRecent(env, input),
   }),
   "reviews/submit": route({
     input: ReviewSubmitInputSchema,

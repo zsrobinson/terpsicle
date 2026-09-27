@@ -40,6 +40,7 @@ import {
   type Plan,
   type PlanCourse,
   type PlanetTerpDept,
+  type PlanetTerpIndex,
   type PlanetTerpManifest,
   type PlanetTerpSource,
   type PlanSyncDoc,
@@ -544,6 +545,18 @@ export function aPlanetTerpDept(
     instructors: { brandt: anInstructor() },
     names: { "ada brandt": "brandt" },
     courses: { CMSC351: someCourseGrades() },
+    ...overrides,
+  };
+}
+
+/** PlanetTerp's index: Ada Brandt in CMSC, and CMSC351 most taken. */
+export function aPlanetTerpIndex(
+  overrides: Partial<PlanetTerpIndex> = {},
+): PlanetTerpIndex {
+  return {
+    schemaVersion: 1,
+    instructors: { brandt: ["Ada Brandt", ["CMSC"]] },
+    mostTaken: [["CMSC351", "Algorithms", 13592]],
     ...overrides,
   };
 }

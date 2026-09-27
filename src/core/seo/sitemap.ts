@@ -1,7 +1,7 @@
 // What crawlers read: robots.txt and the sitemap (served by the Worker,
-// src/server/seo/). Pure text builders, so the Worker's routes stay thin
-// and Reviews can add its instructor and course pages later by handing in
-// more entries.
+// src/server/seo/). Pure text builders, so the Worker's routes stay thin:
+// the Worker hands in SITE_PAGES plus Reviews' instructor and course pages,
+// read from what's published.
 
 export interface SitemapEntry {
   /** A path on the site, starting with "/". */
@@ -21,16 +21,23 @@ export interface SitemapEntry {
 }
 
 /**
- * The pages every deploy has. Reviews adds `/reviews/instructors/<id>` and
- * `/reviews/courses/<code>` entries when its pages are public (append them
- * to the list `sitemapXml` gets).
+ * The pages every deploy has. The Worker appends Reviews' pages after them
+ * (`/reviews/courses/<code>`, `/reviews/instructors/<id>`; src/server/seo/).
  */
 export const SITE_PAGES: readonly SitemapEntry[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/schedule", changeFrequency: "weekly", priority: 0.9 },
   { path: "/reviews", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/reviews/policy", changeFrequency: "yearly", priority: 0.2 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.2 },
 ];
+
+/**
+ * The protocol's limit for one sitemap file. The site is about 5,000 courses
+ * and PlanetTerp's instructors, well under it; past it, the sitemap needs to
+ * become an index of parts.
+ */
+export const SITEMAP_MAX_URLS = 50_000;
 
 /** Paths crawlers shouldn't bother with: private, per-person, or machinery. */
 export const DISALLOWED_PATHS: readonly string[] = [
@@ -50,14 +57,20 @@ function escapeXml(text: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
-/** A sitemap document (sitemaps.org 0.9) for `entries` on `origin`. */
+/**
+ * A sitemap document (sitemaps.org 0.9) for `entries` on `origin`. Throws
+ * past SITEMAP_MAX_URLS; the caller decides what to leave out.
+ */
 export function sitemapXml(
   origin: string,
   entries: readonly SitemapEntry[],
 ): string {
+  if (entries.length > SITEMAP_MAX_URLS)
+    throw new Error(`A sitemap holds at most ${SITEMAP_MAX_URLS} URLs`);
   const urls = entries.map((e) => {
     const parts = [`<loc>${escapeXml(new URL(e.path, origin).href)}</loc>`];
     if (e.lastModified) parts.push(`<lastmod>${e.lastModified}</lastmod>`);

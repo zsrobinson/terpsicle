@@ -167,6 +167,14 @@ The LLM summary of a professor's reviews, with theme chips. It carries the spark
 **PlanetTerp**:
 The outside site whose ratings and grade data we show, with credit and a link.
 
+**Most taken**:
+The courses offered now that the most students have taken, by PlanetTerp's grade data. Listed on `/reviews`.
+_Avoid_: popular, trending
+
+**Recently reviewed**:
+The courses and instructors with a new review on Terpsicle, by month. Listed on `/reviews`; it names pairs, never reviews.
+_Avoid_: latest reviews
+
 ## Chat
 
 **Room**:

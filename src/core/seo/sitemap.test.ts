@@ -13,6 +13,7 @@ describe("sitemapXml", () => {
       "https://terpsicle.com/",
       "https://terpsicle.com/schedule",
       "https://terpsicle.com/reviews",
+      "https://terpsicle.com/reviews/policy",
       "https://terpsicle.com/privacy",
     ]);
     expect(xml).toContain("<priority>1.0</priority>");

@@ -98,12 +98,17 @@ function isDocument(response: Response): boolean {
 
 /**
  * `response` with the security headers. Documents also get the CSP, with
- * `nonce` when the app rendered them. A WebSocket upgrade passes as is.
+ * `nonce` when the app rendered them, and `scriptHashes` for a cached page's
+ * inline scripts (src/server/pages/shared-pages.ts). A WebSocket upgrade
+ * passes as is.
  */
 export function withSecurityHeaders(
   response: Response,
   request: Request,
-  { nonce = null }: { nonce?: string | null } = {},
+  {
+    nonce = null,
+    scriptHashes = [],
+  }: { nonce?: string | null; scriptHashes?: readonly string[] } = {},
 ): Response {
   if (response.status === 101) return response;
   // Redirects from Response.redirect() have immutable headers.
@@ -124,7 +129,7 @@ export function withSecurityHeaders(
       : "Content-Security-Policy",
     contentSecurityPolicy({
       nonce,
-      scriptHashes: INLINE_SCRIPT_HASHES,
+      scriptHashes: [...new Set([...INLINE_SCRIPT_HASHES, ...scriptHashes])],
       reportOnly: CSP_REPORT_ONLY,
       reportUrl,
     }),

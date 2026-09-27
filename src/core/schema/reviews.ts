@@ -336,3 +336,27 @@ export const ReviewRowSchema = z.object({
   updated_at: IsoDateTimeSchema,
 });
 export type ReviewRow = z.infer<typeof ReviewRowSchema>;
+
+/** How many pairs `reviews/recent` answers, at most. */
+export const REVIEWS_RECENT_MAX = 12;
+
+export const ReviewsRecentInputSchema = z.strictObject({
+  limit: z.number().int().min(1).max(REVIEWS_RECENT_MAX),
+});
+export type ReviewsRecentInput = z.infer<typeof ReviewsRecentInputSchema>;
+
+/**
+ * The newest reviewed courses and instructors, for /reviews: which course
+ * and instructor, and the month. No review id, text or author (V2 §7.5).
+ */
+export const ReviewsRecentResultSchema = z.strictObject({
+  reviews: z.array(
+    z.strictObject({
+      course: CourseCodeSchema,
+      instructorId: InstructorIdSchema,
+      instructorName: InstructorNameSchema,
+      month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+    }),
+  ),
+});
+export type ReviewsRecentResult = z.infer<typeof ReviewsRecentResultSchema>;

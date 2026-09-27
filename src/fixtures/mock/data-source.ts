@@ -9,6 +9,7 @@ import {
   courseSearchRow,
 } from "~/core/catalog";
 import { buildReviewsDepts } from "~/core/reviews";
+import { buildPlanetTerpIndex } from "~/core/reviews/planetterp-index";
 import {
   buildingsKey,
   type ChangesFile,
@@ -27,6 +28,7 @@ import {
   PLANETTERP_MANIFEST_KEY,
   type PlanetTerpManifest,
   planetTerpDeptKey,
+  planetTerpIndexKey,
   REVIEWS_MANIFEST_KEY,
   type ReviewsManifest,
   reviewsDeptKey,
@@ -38,7 +40,7 @@ import {
   type TermId,
   TRAVEL_MODES,
 } from "~/core/schema";
-import { FIXTURE_NOW } from "../builders";
+import { FIXTURE_NOW, fixtureTermId } from "../builders";
 import { mockCatalog, mockDepartmentNames } from "./catalog";
 import { mockChanges } from "./changes";
 import {
@@ -186,6 +188,19 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
       lastSuccessAt: FIXTURE_NOW,
       gradesThrough: MOCK_GRADES_THROUGH,
       latestReviewAt: MOCK_LATEST_REVIEW_AT,
+    },
+    index: {
+      hash: await putHashed(
+        planetTerpIndexKey,
+        buildPlanetTerpIndex(
+          mockPlanetTerpDepts,
+          new Map(
+            (mockCatalog[fixtureTermId] ?? []).flatMap((chunk) =>
+              chunk.courses.map((c) => [c.code, c.title] as const),
+            ),
+          ),
+        ),
+      ),
     },
   };
   put(PLANETTERP_MANIFEST_KEY, jsonBytes(ptManifest));
