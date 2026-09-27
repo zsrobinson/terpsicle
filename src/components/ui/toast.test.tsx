@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Toaster } from "~/ui/sonner";
-import { noteToast, UNDO_MS, undoToast } from "~/ui/toast";
+import { dismissToast, noteToast, UNDO_MS, undoToast } from "~/ui/toast";
 import { TooltipProvider } from "~/ui/tooltip";
 
 function renderToaster() {
@@ -151,6 +151,34 @@ describe("undoToast, settling", () => {
     );
     expect(onUndo).toHaveBeenCalledTimes(1);
     expect(onDone).not.toHaveBeenCalled();
+  });
+});
+
+describe("undoToast, shown again", () => {
+  it("shows a new toast with the id of one that just left (Delete, Undo, Delete)", async () => {
+    renderToaster();
+    act(() =>
+      undoToast({ id: "t", message: "Review deleted", onUndo: vi.fn() }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }));
+    // Straight away, while the first is still on its way out.
+    act(() =>
+      undoToast({ id: "t", message: "Review deleted", onUndo: vi.fn() }),
+    );
+    expect(await screen.findByText("Review deleted")).toBeInTheDocument();
+    // It stays: the leaving toast doesn't take it with it.
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    expect(screen.getByText("Review deleted")).toBeInTheDocument();
+  });
+
+  it("dismissToast takes down a toast by our id", async () => {
+    renderToaster();
+    act(() => undoToast({ id: "t", message: "Removed", onUndo: vi.fn() }));
+    await screen.findByText("Removed");
+    act(() => dismissToast("t"));
+    await waitFor(() =>
+      expect(screen.queryByText("Removed")).not.toBeInTheDocument(),
+    );
   });
 });
 

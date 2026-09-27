@@ -1,6 +1,5 @@
-import { toast } from "sonner";
 import type { ReviewId } from "~/core/schema";
-import { noteToast, undoToast } from "~/ui/toast";
+import { dismissToast, noteToast, undoToast } from "~/ui/toast";
 import { useReviews } from "./reviews-store";
 
 // Deleting a review, with Undo instead of a confirmation (DESIGN §5). The
@@ -30,7 +29,7 @@ export function deleteWithUndo(id: ReviewId): void {
     settled = true;
     window.removeEventListener("pagehide", onHide);
     useReviews.getState().undoDelete(id);
-    toast.dismiss(toastId);
+    dismissToast(toastId);
   };
 
   useReviews.getState().startDelete(id);

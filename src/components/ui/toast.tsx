@@ -29,6 +29,43 @@ function settlePrevious(id: string): void {
   previous?.();
 }
 
+/**
+ * The sonner id on screen for each of our ids. A toast that's still up is
+ * replaced in place (the same sonner id). One that has left gets a fresh id:
+ * sonner's Toaster merges an update into a toast that's still animating out,
+ * and it leaves with it (a Delete right after Undo showed nothing).
+ */
+const onScreen = new Map<string, string>();
+let shown = 0;
+
+function slotFor(id: string): string {
+  const current = onScreen.get(id);
+  // Sonner's own word on whether it's still up: a toast can also leave
+  // without our callbacks (a dismiss-all, the Toaster going away).
+  if (current !== undefined && toast.getToasts().some((t) => t.id === current))
+    return current;
+  const fresh = `${id}#${++shown}`;
+  onScreen.set(id, fresh);
+  return fresh;
+}
+
+/**
+ * Takes down the toast shown under our `id` (an undo toast or a note), as
+ * `toast.dismiss` would: callers name toasts by our ids, not sonner's.
+ */
+export function dismissToast(id: string): void {
+  const sonnerId = onScreen.get(id);
+  if (sonnerId === undefined) return;
+  // Vacated now, so a toast shown straight after is a new one.
+  onScreen.delete(id);
+  toast.dismiss(sonnerId);
+}
+
+/** This toast has left (closed, dismissed or undone): the next is new. */
+function vacate(id: string, sonnerId: string): void {
+  if (onScreen.get(id) === sonnerId) onScreen.delete(id);
+}
+
 /** A toast's button, with its tooltip and shortcut (every control has one). */
 export function ToastAction({
   label,
@@ -93,6 +130,7 @@ export function undoToast({
   onDone,
 }: UndoToast): void {
   settlePrevious(id);
+  const sonnerId = slotFor(id);
   // Settled once: Undo pressed, or the toast left without it.
   let settled = false;
   const done = () => {
@@ -104,7 +142,7 @@ export function undoToast({
   pendingDone.set(id, done);
   const show = (duration: number) =>
     toast(message, {
-      id,
+      id: sonnerId,
       description,
       duration,
       action: (
@@ -116,16 +154,24 @@ export function undoToast({
             if (settled) return;
             settled = true;
             if (pendingDone.get(id) === done) pendingDone.delete(id);
+            vacate(id, sonnerId);
             onUndo();
-            toast.dismiss(id);
+            toast.dismiss(sonnerId);
           }}
           // A settled toast is on its way out: never bring it back.
           onFocus={() => settled || show(Number.POSITIVE_INFINITY)}
           onBlur={() => settled || show(UNDO_MS)}
         />
       ),
-      onAutoClose: done,
-      onDismiss: done,
+      // It left: settle it, and the next toast with this id is a new one.
+      onAutoClose: () => {
+        vacate(id, sonnerId);
+        done();
+      },
+      onDismiss: () => {
+        vacate(id, sonnerId);
+        done();
+      },
     });
   show(UNDO_MS);
 }
@@ -143,7 +189,11 @@ export function noteToast(
   const { description, retry } = options;
   // A note that takes an undo toast's place settles it, as a new undo would.
   if (options.id) settlePrevious(options.id);
-  const id: string | number = options.id ?? `note-${++notes}`;
+  const slot = options.id;
+  const id = slot ? slotFor(slot) : `note-${++notes}`;
+  const leave = () => {
+    if (slot) vacate(slot, id);
+  };
   toast(message, {
     id,
     description,
@@ -153,14 +203,15 @@ export function noteToast(
         label="Try again"
         icon={null}
         onClick={() => {
+          leave();
           toast.dismiss(id);
           retry();
         }}
       />
     ) : undefined,
     // Sonner merges an update into a live toast with the same id; a note
-    // must not keep the undo toast's callbacks.
-    onAutoClose: undefined,
-    onDismiss: undefined,
+    // must not keep the undo toast's callbacks, only its own.
+    onAutoClose: leave,
+    onDismiss: leave,
   });
 }
