@@ -57,7 +57,7 @@ const TERM_CHOICES = 12;
 const NOT_SAID = "not-said";
 
 /** The kit's Select, a field's height: 44px on phones, 32px on a desktop. */
-const SELECT_TRIGGER = "w-40 max-md:h-11 md:h-8";
+const SELECT_TRIGGER = "w-40 md:h-8";
 
 type Failure =
   | { kind: "problems"; problems: ReviewProblem[] }

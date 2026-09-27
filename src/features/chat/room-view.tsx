@@ -192,7 +192,6 @@ export function RoomView({
                   size="icon-sm"
                   aria-label="Close the thread"
                   onClick={onCloseThread}
-                  className="max-md:size-11"
                 >
                   <X />
                 </Button>
@@ -205,7 +204,6 @@ export function RoomView({
                 size="icon-sm"
                 aria-label="Room info"
                 onClick={onInfo}
-                className="max-md:size-11"
               >
                 <Info />
               </Button>
@@ -398,7 +396,7 @@ function Messages({
             <Button
               size="sm"
               variant="outline"
-              className="self-start max-md:h-11"
+              className="self-start"
               onClick={() => {
                 markRulesSeen(courseCode);
                 setRules(false);
@@ -412,12 +410,7 @@ function Messages({
       {more ? (
         <div className="flex justify-center py-2">
           <WithTooltip label="Show earlier messages">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLoadOlder}
-              className="max-md:h-11"
-            >
+            <Button variant="ghost" size="sm" onClick={onLoadOlder}>
               Load older messages
             </Button>
           </WithTooltip>
