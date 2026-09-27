@@ -295,3 +295,14 @@ Revisit if: pushes fail on a real device, or the pair is rotated again (every su
 2026-09-26 · owner · app-wide
 Merge every green PR without waiting, and turn a product's flag on in production when its screens land. Anything the owner wants to try first is a draft until the owner says otherwise. Agents never enable auto-merge.
 Revisit if: the owner wants to review before merges.
+
+### One product, then more features
+2026-09-27 · owner · app-wide
+The goal after the in-flight work is cohesion: every product in one frame, built from one shared kit, with the same first-visit, empty, loading, error and undo patterns (`docs/COHESION.md`). The orchestrator builds the frame and the kit itself, and at most two other sessions run at a time, on parts of the code that don't overlap.
+Revisit if: the checklist in COHESION.md is done and a full first-time round finds nothing worth fixing.
+
+### "As built" goes in the PR body
+2026-09-27 · agent · process
+A PR's "as built" notes go in its body. `DATA.md`, `STATUS.md`, `V2.md` and `V3.md` change only when a contract changes (a schema, storage, an API or a flag). Parallel PRs kept colliding in those files.
+Revisit if: agents start missing contract changes that the docs used to catch.
+

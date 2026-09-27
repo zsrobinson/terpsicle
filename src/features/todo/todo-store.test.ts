@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { aTodoFeedState, aTodoItem } from "~/fixtures";
 import {
-  DISCONNECT_UNDO_MS,
   resetTodo,
   setTodoClient,
   type TodoClient,
@@ -40,15 +39,17 @@ afterEach(() => {
 });
 
 describe("disconnect", () => {
-  it("hides ELMS at once, keeps file items, and deletes after Undo's time", async () => {
+  it("hides ELMS at once, keeps file items, and deletes once Undo's time is up", async () => {
     const client = fakeClient();
     await useTodo.getState().load("2026-09-25", Date.now());
     useTodo.getState().disconnect();
     expect(useTodo.getState().feed).toBeNull();
     expect(useTodo.getState().items).toEqual([FILE_ITEM]);
-    vi.advanceTimersByTime(DISCONNECT_UNDO_MS - 1);
+    // No timer of its own: the Undo toast confirms (it waits while Undo
+    // has focus).
+    vi.advanceTimersByTime(60_000);
     expect(client.disconnect).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
+    useTodo.getState().confirmDisconnect();
     expect(client.disconnect).toHaveBeenCalledTimes(1);
     expect(useTodo.getState().disconnecting).toBe(false);
   });
@@ -61,7 +62,7 @@ describe("disconnect", () => {
     useTodo.getState().undoDisconnect();
     expect(useTodo.getState().feed).not.toBeNull();
     expect(useTodo.getState().items).toBe(before);
-    vi.advanceTimersByTime(DISCONNECT_UNDO_MS * 2);
+    useTodo.getState().confirmDisconnect();
     expect(client.disconnect).not.toHaveBeenCalled();
   });
 
@@ -75,7 +76,7 @@ describe("disconnect", () => {
     expect(client.disconnect.mock.invocationCallOrder[0] ?? 0).toBeLessThan(
       client.connect.mock.invocationCallOrder[0] ?? 0,
     );
-    vi.advanceTimersByTime(DISCONNECT_UNDO_MS);
+    useTodo.getState().confirmDisconnect();
     expect(client.disconnect).toHaveBeenCalledTimes(1);
   });
 

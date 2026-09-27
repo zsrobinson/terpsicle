@@ -1,9 +1,6 @@
-import { Undo2 } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 import { track } from "~/app/analytics";
-import { ToastAction } from "~/app/toast-action";
 import {
   IsoDateTimeSchema,
   type SeatWatch,
@@ -16,6 +13,7 @@ import { useAccount } from "~/features/auth/account-store";
 import { requestInstallPrompt } from "~/features/pwa/install-store";
 import { ApiCallError, api } from "~/server/fns/api";
 import { findSeatWatch, useSeatWatches } from "~/state/seat-watches";
+import { noteToast, undoToast } from "~/ui/toast";
 import { sectionLabel } from "./labels";
 
 // Seat watches from the app's side (SPEC §3.12, V2.md §6.5): "Watch for a
@@ -87,17 +85,6 @@ function failure(error: unknown): string {
 
 const TOAST_ID = "seat-watch";
 
-const undoButton = (onClick: () => void) => (
-  <ToastAction
-    label="Undo"
-    icon={<Undo2 size={13} aria-hidden="true" />}
-    onClick={() => {
-      toast.dismiss(TOAST_ID);
-      onClick();
-    }}
-  />
-);
-
 /**
  * Starts watching. Shows "Watching …" (or why not) in a toast, whose Undo
  * stops it again.
@@ -112,7 +99,7 @@ export async function watchSeat(
   try {
     result = await client.watch({ termId, sectionKey });
   } catch (error) {
-    toast.error(failure(error), { id: TOAST_ID });
+    noteToast(failure(error), { id: TOAST_ID });
     return false;
   }
   switch (result.status) {
@@ -121,28 +108,27 @@ export async function watchSeat(
       track("seat_watch_started", { signedInFirst });
       // A seat alert just turned on: the moment to offer the app (V2 §3.4).
       requestInstallPrompt("alert-on");
-      toast(`Watching ${label}`, {
+      undoToast({
         id: TOAST_ID,
+        message: `Watching ${label}`,
         description: "We'll email you when a seat opens.",
-        action: undoButton(
-          () => void stopWatching(termId, sectionKey, { undo: true }),
-        ),
+        onUndo: () => void stopWatching(termId, sectionKey, { undo: true }),
       });
       return true;
     case "too-many":
-      toast.error(
+      noteToast(
         `You're watching ${result.max} sections, the most at once. Stop one to watch ${label}.`,
         { id: TOAST_ID },
       );
       return false;
     case "unknown-section":
-      toast.error(
+      noteToast(
         `Testudo doesn't list ${label} anymore, so there's nothing to watch.`,
         { id: TOAST_ID },
       );
       return false;
     case "unavailable":
-      toast.error("Seat alerts are turned off right now.", { id: TOAST_ID });
+      noteToast("Seat alerts are turned off right now.", { id: TOAST_ID });
       return false;
   }
 }
@@ -164,17 +150,18 @@ export async function stopWatching(
     await client.unwatch({ termId, sectionKey });
   } catch (error) {
     if (before) useSeatWatches.getState().put(before);
-    toast.error(failure(error), { id: TOAST_ID });
+    noteToast(failure(error), { id: TOAST_ID });
     return false;
   }
   track("seat_watch_stopped", {});
-  toast(undo ? `Not watching ${label}` : `Stopped watching ${label}`, {
-    id: TOAST_ID,
-    description: undo ? undefined : "No more emails about it.",
-    action: undo
-      ? undefined
-      : undoButton(() => void watchSeat(termId, sectionKey)),
-  });
+  if (undo) noteToast(`Not watching ${label}`, { id: TOAST_ID });
+  else
+    undoToast({
+      id: TOAST_ID,
+      message: `Stopped watching ${label}`,
+      description: "No more emails about it.",
+      onUndo: () => void watchSeat(termId, sectionKey),
+    });
   return true;
 }
 
