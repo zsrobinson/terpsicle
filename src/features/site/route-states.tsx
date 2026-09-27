@@ -21,7 +21,9 @@ import { SiteHeader } from "./site-page";
 // route's page, the same states sit in place, without a second bar.
 //
 // A route says how it loads with `staticData.pending` (below), so the
-// default can't disagree with the page. The Worker renders this pending
+// default can't disagree with the page. A route whose loader runs again as
+// you use the page (typing a search, picking a view) sets `pendingMs:
+// Infinity` instead: the page stays put, and what you're typing with it. The Worker renders this pending
 // state for routes that render only in the browser (`ssr: false`), so those
 // paint the bar at once instead of a blank page.
 

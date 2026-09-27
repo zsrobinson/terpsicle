@@ -78,10 +78,10 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 - [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
 - [x] Routes get a shared `pendingComponent` and `errorComponent` (`src/features/site/route-states.tsx`; a route sets `staticData.pending`).
 - [ ] No page says "reload the page".
-- [ ] Guardrails:
-  - The design-tokens test also fails on raw `max-w-*` page containers (done, with an allowlist of today's pages) and on `h1` elements outside `PageHeader` (not yet).
-  - The `reviewer` agent checks for use of the kit.
-  - A `scripts/shots.ts` takes the side-by-side grid of every product, so any PR can show the whole family.
+- [x] Guardrails:
+  - The design-tokens test fails on raw `max-w-*` page containers and on `<h1>` outside the kit, each with an allowlist of today's pages that must shrink.
+  - The `reviewer` agent checks for use of the kit (its check 8).
+  - `pnpm tsx scripts/shots.ts` takes the side-by-side grid of every product (desktop and phone, light and dark), so any PR can show the whole family.
 
 ### Phase 3: move every product onto it
 Easiest to hardest, so the kit is tested before the scheduler takes it on:
@@ -135,7 +135,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 ## 5. How we work on this
 - **Cross-cutting work stays with the orchestrator.** The frame, the kit and the scheduler's move onto them are done in the orchestrator's own session, not handed off. At most two other sessions run at once, on parts of the code that don't overlap.
 - **"As built" notes go in the PR body.** Shared docs (`DATA.md`, `STATUS.md`, `V2.md`, `V3.md`) change only when a contract changes: a schema, storage, an API or a flag. This keeps parallel PRs from colliding in the same doc files.
-- **Every UI PR shows the family, not just itself.** Its screenshots include the grid from `scripts/shots.ts` once that exists.
+- **Every UI PR shows the family, not just itself.** Its screenshots include the grids from `pnpm tsx scripts/shots.ts --url <dev server> [--signed-in]`.
 
 ## 6. Interface inventory
 The full code audit is `docs/cohesion-inventory.md` (2026-09-27), with file and line references for every pattern. Phase 3 works from it, and a PR that fixes an entry deletes it there.

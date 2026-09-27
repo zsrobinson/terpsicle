@@ -8,6 +8,8 @@ dist
 coverage
 playwright-report
 test-results
+# pnpm tsx scripts/shots.ts
+/shots
 .DS_Store
 
 # Local ingest output (pnpm tsx scripts/ingest.ts … --target fs)
