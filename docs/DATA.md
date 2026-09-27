@@ -301,7 +301,11 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 4.
    - fetch seats if `seats.hash` changed;
    - fetch changes if `changes.hash` changed.
 
-   Use concurrency 6 and validate each file.
+   Validate each file.
+
+   Departments load in two ways. Whatever is on screen asks for its own departments (`ensureDepts`: an open course's details, the plan's courses, a shared link), fetched at once and shown as soon as they arrive. Then the rest of the term loads in the background (`ensureTerm`), 16 files at a time with a `low` Fetch Priority, and shows once it's all in; search waits for that (`settled`). A department something asks for during the background load is fetched right away, not in its turn, and no file is fetched twice. On a first load, departments don't wait for seats and changes; they load side by side, and a batch shows once the seats are in too.
+
+   Why 16 and not 6: `/data` is served over HTTP/2, so the browser's six-connections-per-host limit doesn't apply, and ~200 small files (about 850 KB compressed) are bound by round trips, not bandwidth. Over HTTP/1.1 (a local dev server) the browser queues them at six, by priority.
 4. In **one Dexie transaction**, put the new `files` and then the new manifest. Never store a manifest whose files are missing. Then delete this term's `files` rows the manifest no longer references.
 5. **Polling:** for an active term, poll the manifest every 60 s while the document is visible, and immediately when it becomes visible again. Most polls are a 304. A change in `seats.hash` alone fetches only the seats file. For an archived term, fetch the manifest once per session and don't poll.
 6. PlanetTerp and geo follow the same pattern with their own manifests, fetched lazily: a PlanetTerp department file when a course from it opens, or when the generator ranks by rating or GPA; the routes binary when the plan first has a connection.

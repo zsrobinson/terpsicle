@@ -7,7 +7,7 @@ import { defaultCourseColor } from "~/core/color";
 import { gradesSourceWords } from "~/core/grades";
 import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
 import { deptOf } from "~/state/catalog-store";
-import { useInstructors } from "~/state/data-hooks";
+import { useCourseDept, useInstructors } from "~/state/data-hooks";
 import {
   type CurrentPlan,
   useActiveTerm,
@@ -33,10 +33,12 @@ export function CourseDetails({ entry }: DrillViewProps<"course">) {
   const catalog = useTermCatalog(termId);
   const current = useCurrentPlan();
   const course = catalog?.index.courses.get(entry.courseCode);
+  // Its department first, ahead of the other ~200: no waiting on them.
+  const dept = deptOf(entry.courseCode);
+  useCourseDept(termId, dept);
 
   // A missing course is known to be missing once its department has loaded,
-  // or when the term has no such department: no waiting on the other ~200.
-  const dept = deptOf(entry.courseCode);
+  // or when the term has no such department.
   const settled =
     catalog?.complete ||
     catalog?.depts[dept] === "ready" ||
