@@ -85,6 +85,11 @@ Revisit if: the held share stays over 10% for a week.
 Web push and email, managed at `/settings/notifications`: chat mentions and replies (plus an optional digest), seat watches (push and email by default) and Todo's "Due tomorrow". Don't add more types.
 Revisit if: the owner asks for one.
 
+### Notifications arrive better, not more
+2026-09-27 · owner · app-wide
+The same types, delivered through an inbox (a bell in the family bar), grouped pushes with counts, one badge number (unread in the inbox), a private calendar feed for dates, quiet hours 11pm–8am on by default with seat openings let through, message text shown by default, and at most 12 pushes a day across types. On iPhone the sender's name goes in the title: the avatar style is native-only. The owner, on the design: "that design doc looks incredible for the notifications". Spec: V2 §6.7.
+Revisit if: people turn quiet hours or the inbox off in large numbers, or iOS opens communication notifications to web apps.
+
 ### No session recording
 2026-09-26 · owner · app-wide
 No session recording anywhere ("creepy"): replay is off in code and in PostHog, and `/privacy` says so.
