@@ -417,9 +417,11 @@ function Messages({
         <RowSkeleton rows={2} label="Loading messages" />
       ) : rows.length === 0 ? (
         <PanelNote className="py-6 text-center">
-          {thread
-            ? "No replies yet."
-            : "No messages yet. Say hi to your classmates."}
+          <p>
+            {thread
+              ? "No replies yet."
+              : "No messages yet. Say hi to your classmates."}
+          </p>
         </PanelNote>
       ) : (
         rows.map((item, i) => {
