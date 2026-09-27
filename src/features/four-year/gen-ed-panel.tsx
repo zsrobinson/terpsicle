@@ -68,6 +68,7 @@ function Row({ p }: { p: GenEdProgress }) {
             <Button
               variant="ghost"
               size="row"
+              className="max-md:h-11"
               onClick={() => {
                 nav.go({
                   tab: "search",
@@ -116,14 +117,13 @@ export function GenEdPanel() {
   );
 }
 
-/** "5 of 11 categories covered", for the view's header. */
+/** "5 of 11 covered, with planned courses", for the view's header. */
 export function GenEdStatus() {
   const { genEds } = useModel();
   const met = genEds.progress.filter((p) => p.short === 0).length;
   return (
     <span className="tnum">
-      {met} of {GEN_ED_REQUIREMENTS.length} categories covered, counting planned
-      courses
+      {met} of {GEN_ED_REQUIREMENTS.length} covered, with planned courses
     </span>
   );
 }

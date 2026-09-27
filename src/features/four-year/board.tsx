@@ -107,7 +107,7 @@ function AddButton({
           focusSearch("column");
         }}
         className={cn(
-          "w-full justify-start px-2 font-medium text-muted",
+          "w-full justify-start px-2 font-medium text-muted max-md:h-11",
           compact && "w-auto",
         )}
       >

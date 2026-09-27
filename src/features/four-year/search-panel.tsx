@@ -87,7 +87,7 @@ function ResultRow({
   return (
     <ListRow
       as="li"
-      className="hover:bg-hover"
+      className="relative hover:bg-hover"
       action={
         addedTo ? (
           <WithTooltip label={`Already in ${fourYearTermLabel(addedTo)}`}>
@@ -106,6 +106,8 @@ function ResultRow({
               variant="outline"
               size="row"
               aria-label={actionLabel}
+              // Above the row's About button, which covers the whole row.
+              className="relative z-10 max-md:h-11"
               onClick={onAct}
             >
               {action}
@@ -118,7 +120,7 @@ function ResultRow({
         <button
           type="button"
           onClick={() => nav.go({ course: code }, { drill: true })}
-          className="block w-full min-w-0 text-left"
+          className="block w-full min-w-0 text-left after:absolute after:inset-0"
         >
           <span className="flex items-baseline gap-2">
             <span className="ident font-semibold">{code}</span>
@@ -294,6 +296,7 @@ export function SearchPanel() {
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Search every course"
+                className="max-md:size-11"
                 onClick={() =>
                   nav.go({
                     wildcard: undefined,
@@ -316,6 +319,7 @@ export function SearchPanel() {
             <WithTooltip label={`Add it to ${targetName}`} shortcut={ENTER}>
               <Button
                 size="row"
+                className="max-md:h-11"
                 aria-label={`Add ${offer.kind === "pattern" ? offer.pattern : wildcardLabel(offer)} to ${targetName}`}
                 onClick={() => addOffer(offer)}
               >

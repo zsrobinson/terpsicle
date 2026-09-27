@@ -1,12 +1,15 @@
 import { useRouter } from "@tanstack/react-router";
 import {
+  lazy,
   type ReactNode,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { ChunkLoadError } from "~/app/panel-load-boundary";
 import { useShortcut } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
 import {
@@ -32,7 +35,6 @@ import { readSidebarWidth } from "~/state/sidebar-width-pref";
 import { PageSkeleton } from "~/ui/skeleton";
 import { Board, PhoneBoard } from "./board";
 import { fourYearDb, startFourYear, useDocDepts } from "./data";
-import { PlanFirstVisit } from "./first-visit";
 import { ImportCheck, useImportRecognized } from "./import-panel";
 import { resetTranscriptImport } from "./import-state";
 import {
@@ -69,6 +71,19 @@ import {
 // The phone drawer (vaul) is its own chunk, fetched at once on phones only.
 const PlanDrawer = lazyDrawer(() =>
   import("./plan-drawer").then((m) => m?.PlanDrawer),
+);
+
+// The first visit is its own chunk too, with Radix's select: someone who
+// already has a plan never loads it. It's a moment, not a place (it shows
+// until a plan exists, at any of Plan's URLs), so it isn't a route. A chunk
+// that doesn't arrive throws to the route's error state, which reloads.
+const PlanFirstVisit = lazy(() =>
+  import("./first-visit").then((m) => {
+    // Vite's loader resolves a failed chunk to nothing once load-recovery
+    // has taken the error.
+    if (!m) throw new ChunkLoadError(new Error("empty module"));
+    return { default: m.PlanFirstVisit };
+  }),
 );
 
 /** New York's date, for term status. */
@@ -378,7 +393,11 @@ export function PlanPage({ nav, view }: { nav: PlanNav; view: ReactNode }) {
           {phase === "loading" ? (
             <PageSkeleton label="Loading your four-year plans" />
           ) : (
-            <PlanFirstVisit today={today} nav={nav} />
+            <Suspense
+              fallback={<PageSkeleton label="Loading your four-year plans" />}
+            >
+              <PlanFirstVisit today={today} nav={nav} />
+            </Suspense>
           )}
         </SitePage>
       )}

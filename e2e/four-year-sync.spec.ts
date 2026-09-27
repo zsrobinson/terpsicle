@@ -143,7 +143,7 @@ test("a four-year plan goes up at sign-in, and two devices see each other's edit
   // And one from the laptop reaches the phone: a rename.
   await laptop.getByRole("button", { name: /^My plan/ }).click();
   await laptop.getByRole("menuitem", { name: "Rename" }).click();
-  const name = laptop.getByRole("textbox", { name: "Plan name" });
+  const name = laptop.getByRole("textbox", { name: "Four-year plan name" });
   await name.fill("CS major");
   await name.press("Enter");
   await saved(laptop);

@@ -41,6 +41,7 @@ const STICKY_LEVELS = 2;
 /** The scrolling part of a panel, under its header. */
 export function PanelBody({
   focusable = false,
+  labelledBy,
   className,
   children,
 }: {
@@ -49,6 +50,8 @@ export function PanelBody({
    * have nothing focusable in it (GenEd with every category covered).
    */
   focusable?: boolean;
+  /** The panel title's id: a focusable body says what it is when focused. */
+  labelledBy?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -57,6 +60,9 @@ export function PanelBody({
       // The phone drawer measures this to pick a height that shows it.
       data-panel-body=""
       tabIndex={focusable ? 0 : undefined}
+      {...(labelledBy
+        ? { role: "group", "aria-labelledby": labelledBy }
+        : undefined)}
       className={cn(
         "scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-y-contain",
         focusable &&

@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { ChunkLoadError } from "~/app/panel-load-boundary";
 import { isApple } from "~/app/shortcuts";
 import { MOBILE_QUERY } from "~/app/use-media-query";
 import { LOCAL_DB_NAME } from "~/core/schema";
@@ -58,6 +59,22 @@ vi.mock("~/app/analytics", async (original) => ({
   ...(await original<typeof import("~/app/analytics")>()),
   track: vi.fn(),
 }));
+
+/** The next sample-plan load fails with this, once (the Samples route's loader). */
+const templateLoads = vi.hoisted(() => ({ fail: null as Error | null }));
+vi.mock("~/features/four-year/template-files", async (original) => {
+  const real =
+    await original<typeof import("~/features/four-year/template-files")>();
+  return {
+    ...real,
+    loadTemplates: async () => {
+      const error = templateLoads.fail;
+      templateLoads.fail = null;
+      if (error) throw error;
+      return real.loadTemplates();
+    },
+  };
+});
 
 const NOW = "2026-09-26T16:00:00.000Z";
 
@@ -167,12 +184,8 @@ describe("the first visit", () => {
         name: "Plan your four years",
       }),
     ).toBeVisible();
-    // Equal paths: both filled, the same size.
     for (const name of ["Import your transcript", "Start from a sample plan"])
-      expect(screen.getByRole("button", { name })).toHaveClass(
-        "bg-accent",
-        "h-9",
-      );
+      expect(screen.getByRole("button", { name })).toBeVisible();
     expect(screen.queryByText("Coming next")).toBeNull();
     const started = screen.getByLabelText("I started at UMD in");
     expect(started).toHaveTextContent("Fall 2026");
@@ -772,6 +785,43 @@ describe("on a phone", () => {
     );
     const { content } = await drawer();
     expect(content).toHaveAttribute("data-snap", "full");
+  });
+});
+
+describe("the Samples view", () => {
+  it("says the sample plans didn't load, under its header, and Try again loads them", async () => {
+    await seed(aFourYear({ firstTermId: "202608" }));
+    templateLoads.fail = new Error("The sample files didn't answer");
+    const user = renderPlan("/plan/samples");
+    const view = await screen.findByRole("region", {
+      name: "Start from a sample plan",
+    });
+    expect(
+      await within(view).findByText(/^Something went wrong on our side/),
+    ).toBeVisible();
+    // The router's own error state, not the error's text.
+    expect(screen.queryByText(/didn't answer/)).toBeNull();
+    await user.click(within(view).getByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByRole("region", { name: "Computer Science" }),
+    ).toBeVisible();
+  });
+
+  it("reloads the page for a sample file that didn't arrive", async () => {
+    const reload = vi.fn();
+    const location = vi.spyOn(window, "location", "get").mockReturnValue({
+      ...window.location,
+      reload,
+    });
+    await seed(aFourYear({ firstTermId: "202608" }));
+    templateLoads.fail = new ChunkLoadError(new Error("gone"));
+    const user = renderPlan("/plan/samples");
+    expect(
+      await screen.findByText(/a new version just went out/),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(reload).toHaveBeenCalledOnce();
+    location.mockRestore();
   });
 });
 

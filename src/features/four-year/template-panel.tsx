@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
 import { useId } from "react";
@@ -12,15 +13,13 @@ import type {
   FourYearTemplate,
   FourYearTemplateEntry,
 } from "~/core/schema/four-year";
+import { RouteError } from "~/features/site/route-states";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
-import { InlineError } from "~/ui/inline-error";
-import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { applyTemplate, newDocFromTemplate, setFirstTerm } from "./actions";
 import { FirstTermSelect } from "./first-term-select";
 import { useModel, usePlanNav } from "./model";
-import { useTemplates } from "./template-files";
 import { PlanView } from "./views";
 import { showBoard } from "./workbench-store";
 
@@ -124,7 +123,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
           }
         >
           <Button
-            className="w-full"
+            className="w-full max-md:h-11"
             disabled={fit.fills.length === 0}
             onClick={add}
           >
@@ -137,7 +136,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
           >
             <Button
               variant="outline"
-              className="w-full"
+              className="w-full max-md:h-11"
               onClick={() => {
                 newDocFromTemplate(template, doc.firstTermId);
                 nav.go({ tab: undefined });
@@ -167,8 +166,11 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
   );
 }
 
-export function TemplatePanel() {
-  const state = useTemplates();
+export function TemplatePanel({
+  templates,
+}: {
+  templates: readonly FourYearTemplate[];
+}) {
   return (
     <div className="space-y-3 px-4 py-3">
       <div className="space-y-1">
@@ -179,26 +181,35 @@ export function TemplatePanel() {
         </p>
       </div>
       <StartsIn />
-      {state.phase === "loading" ? (
-        <RowSkeleton rows={4} inset={false} label="Loading the sample plans" />
-      ) : state.phase === "failed" ? (
-        <InlineError
-          message="The sample plans didn't load. Check your connection and try again."
-          onRetry={state.chunk ? () => window.location.reload() : state.retry}
-          retryTooltip="Load the sample plans again"
-        />
-      ) : (
-        state.templates.map((t) => <TemplateCard key={t.id} template={t} />)
-      )}
+      {templates.map((t) => (
+        <TemplateCard key={t.id} template={t} />
+      ))}
     </div>
   );
 }
 
-/** The Samples view, on its route (`/plan/samples`). */
-export function SamplesView() {
+/** The Samples view, on its route (`/plan/samples`), whose loader brings the sample plans. */
+export function SamplesView({
+  templates,
+}: {
+  templates: readonly FourYearTemplate[];
+}) {
   return (
     <PlanView tab="templates">
-      <TemplatePanel />
+      <TemplatePanel templates={templates} />
+    </PlanView>
+  );
+}
+
+/**
+ * The route's error state: the router's own (RouteError: Try again loads
+ * them again, or reloads for a file that didn't arrive), under the view's
+ * header, so the sidebar still says where you are.
+ */
+export function SamplesFailed(props: ErrorComponentProps) {
+  return (
+    <PlanView tab="templates">
+      <RouteError {...props} />
     </PlanView>
   );
 }

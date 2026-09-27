@@ -17,6 +17,7 @@ import {
   usePlanModel,
 } from "./model";
 import { activeDoc, INITIAL_FOUR_YEAR_STORE, useFourYear } from "./store";
+import { loadTemplates } from "./template-files";
 import { TemplatePanel } from "./template-panel";
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
@@ -58,9 +59,10 @@ async function renderPanel(docOverrides: Parameters<typeof aFourYear>[0] = {}) {
   });
   const go = vi.fn();
   const user = userEvent.setup();
+  const templates = await loadTemplates();
   render(
     <Harness go={go}>
-      <TemplatePanel />
+      <TemplatePanel templates={templates} />
     </Harness>,
   );
   const card = await screen.findByRole("region", { name: "Computer Science" });
@@ -264,5 +266,23 @@ describe("the first visit", () => {
     expect(track).toHaveBeenCalledWith("four_year_created", {
       source: "template",
     });
+  });
+
+  it("starts the sample plan's four-year plan in the semester you pick", async () => {
+    useFourYear.setState({ ...INITIAL_FOUR_YEAR_STORE, phase: "ready" });
+    const go = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <PlanFirstVisit today={TODAY} nav={nav(go)} />
+      </TooltipProvider>,
+    );
+    await user.click(screen.getByLabelText("I started at UMD in"));
+    await user.click(await screen.findByRole("option", { name: "Fall 2025" }));
+    await user.click(
+      screen.getByRole("button", { name: "Start from a sample plan" }),
+    );
+    expect(openDoc().firstTermId).toBe("202508");
+    expect(go).toHaveBeenCalledWith({ tab: "templates" });
   });
 });

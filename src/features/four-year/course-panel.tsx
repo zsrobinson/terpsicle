@@ -77,6 +77,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
             label={`Put ${code} in place of ${entryName(resolving)}`}
           >
             <Button
+              className="max-md:h-11"
               onClick={() => {
                 void pickForPlaceholder(resolving.id, code);
                 nav.go({ wildcard: undefined, course: undefined });
@@ -90,6 +91,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
           <WithTooltip label={`Add ${code} to ${fourYearTermLabel(target)}`}>
             <Button
               variant={placed.length > 0 ? "outline" : "default"}
+              className="max-md:h-11"
               onClick={() => addCourse(doc, code, target, "search")}
             >
               <Plus aria-hidden="true" />

@@ -41,6 +41,9 @@ function Row({ problem }: { problem: FourYearProblem }) {
     <ListRow
       as="li"
       align="start"
+      // The whole row shows the problem (the title's ::after covers it), as
+      // the scheduler's does; the fix sits above that.
+      className="relative hover:bg-hover"
       lead={
         // A warning's dot; a note has none (nothing turns red, V3 §2.8).
         <span
@@ -60,6 +63,7 @@ function Row({ problem }: { problem: FourYearProblem }) {
                 <Button
                   variant="outline"
                   size="row"
+                  className="relative z-10 max-md:h-11"
                   onClick={() => applyFix(doc, problem)}
                 >
                   {problem.fix.label}
@@ -79,7 +83,7 @@ function Row({ problem }: { problem: FourYearProblem }) {
             if (term !== undefined) nav.go({ semester: term });
             requestAnimationFrame(() => reveal(problem));
           }}
-          className="text-left font-medium hover:underline"
+          className="text-left font-medium after:absolute after:inset-0"
         >
           <MessageText message={problem.title} />
         </button>

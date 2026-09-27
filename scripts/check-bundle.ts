@@ -200,13 +200,7 @@ const PLAN_ROUTE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
     pattern: /^src\/core\/ics\/(?!dates\.ts$)/,
     why: ".ics export loads with Export",
   },
-  // Plan's first visit asks when you started with the kit's Select, so
-  // Radix's select is Plan's from the start (v3/cohesion-plan).
-  ...SCHEDULE_NEVER_EAGER.filter(
-    (r) =>
-      !r.pattern.test("src/core/ics/x.ts") &&
-      !r.pattern.test("node_modules/@radix-ui/react-select/index.mjs"),
-  ),
+  ...SCHEDULE_NEVER_EAGER.filter((r) => !r.pattern.test("src/core/ics/x.ts")),
 ];
 
 /** The owner's panel loads with /admin, never with anyone else's pages. */
@@ -267,7 +261,19 @@ export const ROUTE_BUDGETS: readonly {
   ].map((route) => ({
     route,
     budget: PLAN_BUDGET,
-    never: [...PLAN_ROUTE_NEVER_EAGER, ADMIN_NEVER_EAGER, TODO_NEVER_EAGER],
+    never: [
+      // Samples asks when the four-year plan starts with the kit's Select,
+      // so a link straight to it carries Radix's select (as Generate's does
+      // on /schedule). Every other Plan route stays without it: the first
+      // visit, which asks too, is its own chunk (v3/cohesion-plan).
+      ...PLAN_ROUTE_NEVER_EAGER.filter(
+        (r) =>
+          route !== "/plan/samples" ||
+          !r.pattern.test("node_modules/@radix-ui/react-select/index.mjs"),
+      ),
+      ADMIN_NEVER_EAGER,
+      TODO_NEVER_EAGER,
+    ],
   })),
   // Todo keeps `/`'s rules: no Dexie and no scheduler stores (course colors
   // are a raw IndexedDB read).

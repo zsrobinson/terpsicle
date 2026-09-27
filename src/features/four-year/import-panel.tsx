@@ -176,7 +176,7 @@ function MappingField({
           spellCheck={false}
           onChange={(event) => onType(event.target.value)}
           placeholder={pattern ? `${pattern.slice(0, 5)}…` : "Optional"}
-          className="ident w-36 uppercase placeholder:font-sans placeholder:normal-case"
+          className="ident w-36 uppercase placeholder:font-sans placeholder:normal-case max-md:h-11"
         />
       </WithTooltip>
       {suggestions.length > 0 ? (
@@ -563,7 +563,7 @@ export function ImportPanel() {
                   setTranscriptText("");
                   input.current?.focus();
                 }}
-                className="ml-auto flex"
+                className="ml-auto flex max-md:h-11"
               >
                 <X aria-hidden="true" />
                 Clear the paste
@@ -626,7 +626,7 @@ export function ImportPanel() {
             {error ? <InlineError message={error} className="py-0" /> : null}
             <WithTooltip label="Add these to your four-year plan. Undo takes it back.">
               <Button
-                className="w-full"
+                className="w-full max-md:h-11"
                 disabled={busy || pending > 0 || included.length === 0}
                 onClick={() => void run()}
               >

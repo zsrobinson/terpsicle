@@ -33,7 +33,7 @@ export function PlanFirstVisit({
       headingLevel={1}
       mark={<Mark id="plan" size={40} />}
       title="Plan your four years"
-      line="Lay out every semester, see your credits add up to 120 and keep track of your GenEds. It's saved in this browser, with nothing to sign up for."
+      line="Lay out every semester, see your credits add up to 120 and keep track of your GenEds. It's all in this browser, with nothing to sign up for, and a transcript you import never leaves it."
       primary={{
         label: "Import your transcript",
         icon: <FileText aria-hidden="true" />,

@@ -6,7 +6,7 @@ import {
   type LucideIcon,
   Search,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { PanelBody, PanelHeader } from "~/app/panel";
 import { CountBadge } from "~/app/workbench/rail";
 import type { PlanTab } from "~/core/schema";
@@ -96,15 +96,21 @@ export function PlanView({
   children,
 }: {
   tab: PlanTab;
-  /** The header's one line: "5 of 11 categories covered", "1 problem". */
+  /** The header's one line: "5 of 11 covered, with planned courses", "1 problem". */
   status?: ReactNode;
   children: ReactNode;
 }) {
   const view = planView(tab);
+  const titleId = useId();
   return (
     <section aria-label={view.tip} className="flex min-h-0 flex-1 flex-col">
-      <PanelHeader title={view.label} sub={status} />
-      <PanelBody focusable>{children}</PanelBody>
+      <PanelHeader
+        title={<span id={titleId}>{view.label}</span>}
+        sub={status}
+      />
+      <PanelBody focusable labelledBy={titleId}>
+        {children}
+      </PanelBody>
     </section>
   );
 }
