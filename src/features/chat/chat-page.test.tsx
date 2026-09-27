@@ -198,6 +198,11 @@ describe("ChatPage", () => {
       screen.getByText(/Classmates see your Google name and picture/),
     ).toBeInTheDocument();
     expect(screen.getByText(/delete them/)).toBeInTheDocument();
+    // Where rooms come from, in words someone new knows: Schedule, not "sync".
+    expect(
+      screen.getByText(/Your rooms come from the classes you add in Schedule/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("main")).not.toHaveTextContent(/sync/i);
   });
 
   it("says so, quietly, while Chat is off", async () => {
@@ -230,6 +235,10 @@ describe("ChatPage", () => {
       expect.stringContaining("0101 · "),
     ]);
     expect(within(list).getAllByText("3 unread")).toHaveLength(2);
+    // Which plan, and where it lives: the one open in Schedule may differ.
+    expect(
+      screen.getByText("Rooms from Plan A in Schedule"),
+    ).toBeInTheDocument();
     await user.click(within(list).getByRole("button", { name: /^0101 · / }));
     expect(go).toHaveBeenCalledWith(
       { term: undefined, course: "CMSC351", room: section0101 },
@@ -287,6 +296,10 @@ describe("ChatPage", () => {
     const { user } = await page();
     expect(
       await screen.findByRole("heading", { name: "No classes here yet" }),
+    ).toBeInTheDocument();
+    // The first-visit template's two equal paths, as in Schedule and Plan.
+    expect(
+      screen.getByRole("link", { name: "View schedule" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Find a course" }));

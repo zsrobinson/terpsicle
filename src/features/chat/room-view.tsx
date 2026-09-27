@@ -1,4 +1,4 @@
-import { Info, X } from "lucide-react";
+import { Info } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -106,7 +106,6 @@ export function RoomView({
   compact,
   back,
   onOpenThread,
-  onCloseThread,
   onInfo,
   onSeen,
   onReconnect,
@@ -123,7 +122,6 @@ export function RoomView({
   /** Back from a thread to its room, and (on a phone) from the room to its course. */
   back: { room: BackTo; course: BackTo };
   onOpenThread: (id: ChatMessageId) => void;
-  onCloseThread: () => void;
   onInfo: () => void;
   /** You've seen the room's newest message. */
   onSeen: () => void;
@@ -184,20 +182,8 @@ export function RoomView({
           )
         }
         actions={
-          thread ? (
-            compact ? null : (
-              <WithTooltip label="Close the thread" shortcut="Esc">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Close the thread"
-                  onClick={onCloseThread}
-                >
-                  <X />
-                </Button>
-              </WithTooltip>
-            )
-          ) : (
+          // A thread's one way out is Back (and Esc), as in every drill-in.
+          thread ? null : (
             <WithTooltip label="Room info: people, mute, leave">
               <Button
                 variant="ghost"
