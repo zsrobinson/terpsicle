@@ -51,6 +51,24 @@ export class ApiCallError extends Error {
   }
 }
 
+/** A call that failed: its route and status (0 without a network), never a body. */
+export interface ApiFailure {
+  route: string;
+  status: number;
+}
+
+let failureListener: ((failure: ApiFailure) => void) | undefined;
+
+/**
+ * Hears every failed call, for the feedback activity log
+ * (src/app/activity-log.ts). One listener; null removes it.
+ */
+export function onApiFailure(
+  listener: ((failure: ApiFailure) => void) | null,
+): void {
+  failureListener = listener ?? undefined;
+}
+
 export interface ApiOptions {
   /** Defaults to the page's origin. */
   baseUrl?: string;
@@ -78,8 +96,12 @@ export async function call<I extends z.ZodType, O extends z.ZodType>(
       signal: options.signal,
     });
   } catch {
+    if (!options.signal?.aborted)
+      failureListener?.({ route: `/api/${path}`, status: 0 });
     throw new ApiCallError("network");
   }
+  if (!response.ok)
+    failureListener?.({ route: `/api/${path}`, status: response.status });
   let payload: unknown;
   try {
     payload = await response.json();

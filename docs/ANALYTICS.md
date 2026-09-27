@@ -84,6 +84,9 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `transcript_parsed` | `recognized`, and counts: `lines` read, `choices` waiting on an "or", `skipped` lines | How often pastes read, and how much fixing they need. Sent once a paste settles, never with its text. |
   | `transcript_imported` | `lines` (entries imported), `keptGrades` | How many pastes become plans, and whether people keep grades. |
   | `template_applied` | `template` (the sample plan's id, like `cmsc-2026`) | Which sample plans are worth curating next. Never what's in the plan. |
+  | `feedback_opened` | `product` | Whether people find "Send feedback", and from where. |
+  | `feedback_sent` | `kind` (`bug` · `idea`), `product`, `hasScreenshot`, `withContext`, `reply` | Whether people keep the screenshot and "Include what I was doing" on, and how often they want a reply. Never the words, the page or the person (docs/FEEDBACK.md). |
+  | `feedback_undone` | | How often Undo takes feedback back. |
 
   Plan's events never carry a course code, grade, GPA or a course's credits, nor anything from a pasted transcript beyond the counts above. `/plan` is on the no-autocapture list, and grades are `data-private`.
 

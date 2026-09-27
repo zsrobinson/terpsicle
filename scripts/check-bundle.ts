@@ -53,6 +53,16 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
   },
   { pattern: /^src\/fixtures\//, why: "fixtures are for mock mode only" },
   {
+    pattern: /(^|\/)modern-screenshot\//,
+    why: "feedback screenshots load when the sheet opens",
+  },
+  {
+    // Only "Send feedback" itself is eager (docs/FEEDBACK.md).
+    pattern:
+      /^src\/(features\/feedback\/(?!feedback-button\.tsx$)|server\/fns\/feedback-api\.ts$|core\/schema\/feedback\.ts$|core\/feedback\/(context|redact|sanitize)\.ts$)/,
+    why: "the feedback sheet loads on first hover or focus of Send feedback",
+  },
+  {
     // Only its status (a tiny store and the top bar's icon) is eager.
     pattern: /^src\/features\/sync\/(?!status)/,
     why: "plan sync loads only once someone is signed in",

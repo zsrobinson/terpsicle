@@ -159,6 +159,8 @@ export const MessageRow = memo(function MessageRow({
         ) : (
           <p
             data-message-body=""
+            // A classmate's words: boxed out of feedback screenshots.
+            data-private=""
             className={cn(
               "whitespace-pre-wrap break-words",
               (item.local || (mine && !visible)) && "text-muted",

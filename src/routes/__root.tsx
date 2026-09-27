@@ -5,6 +5,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { ActivityLogBoot } from "~/app/activity-log-boot";
 import { InlineScript } from "~/app/inline-script";
 import { Pwa } from "~/app/pwa";
 import { pwaLinks, pwaMeta, themeColorMeta } from "~/app/pwa-head";
@@ -100,6 +101,7 @@ function RootLayout() {
   return (
     <TooltipProvider>
       <AccountBoot />
+      <ActivityLogBoot />
       <Outlet />
       <Toaster />
       <Pwa />

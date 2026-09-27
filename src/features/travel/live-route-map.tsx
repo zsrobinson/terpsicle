@@ -12,6 +12,7 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { Protocol } from "pmtiles";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { registerScreenshotMap } from "~/app/screenshot-maps";
 import type { BuildingCode, RouteGeometry } from "~/core/schema";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
@@ -128,7 +129,10 @@ export function LiveRouteMap({
     ];
     map.current = instance;
     styledDark.current = dark;
+    // Feedback screenshots copy its frame (src/features/feedback).
+    const unregister = registerScreenshotMap(instance);
     return () => {
+      unregister();
       resizes.disconnect();
       for (const m of markers) m?.remove();
       instance.remove();

@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import { Mark } from "~/app/brand/mark";
 import { Logo } from "~/app/logo";
 import { listedProducts, PRODUCTS, type ProductId } from "~/app/products";
+import { feedbackProduct } from "~/core/feedback/path";
 import { SCHEDULE_PATH, STAY_PARAM } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
+import { FeedbackButton } from "~/features/feedback/feedback-button";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -43,7 +45,7 @@ export function SitePage({
 }: {
   children: ReactNode;
   layout?: SiteLayout;
-  /** The right end of the header, after the products (Reviews' account link). */
+  /** The right end of the header, after the products and "Send feedback" (Reviews' account link). */
   actions?: ReactNode;
 }) {
   return (
@@ -78,6 +80,7 @@ export function SiteHeader({
   const flags = useAccount((s) => s.flags);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const current = PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null;
+  const feedback = feedbackProduct(path);
   return (
     <header
       className={`flex h-12 shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4 ${className}`}
@@ -112,6 +115,10 @@ export function SiteHeader({
             </WithTooltip>
           ))}
         </nav>
+        {/* Only on product pages: not on `/` or `/privacy`. */}
+        {feedback ? (
+          <FeedbackButton product={feedback} pathname={path} />
+        ) : null}
         {actions}
       </div>
     </header>

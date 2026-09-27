@@ -2,8 +2,10 @@ import { cn } from "cn";
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { problemCountWords } from "~/core/problems";
+import { SCHEDULE_PATH } from "~/core/routing";
 // Not the barrel: its pages (settings, sign-in) would load with the scheduler.
 import { AccountButton } from "~/features/auth/account-button";
+import { FeedbackButton } from "~/features/feedback/feedback-button";
 import { SyncStatusIcon } from "~/features/sync/status-view";
 import { useCatalog } from "~/state/catalog-store";
 import {
@@ -19,7 +21,8 @@ import { ProductMenu } from "./product-menu";
 import { tabById } from "./tabs";
 
 // The top bar (SPEC §2): logo / term / plans on the left; credits, the
-// problem count and the account button (docs/AUTH.md) on the right. The
+// problem count, "Send feedback" (docs/FEEDBACK.md) and the account button
+// (docs/AUTH.md) on the right. The
 // middle (tabs or the shared pill) comes from the shell.
 
 export function TopBar({
@@ -60,6 +63,11 @@ export function TopBar({
         {compact ? null : <Credits />}
         <ProblemsButton compact={compact} />
         {compact ? null : <SyncStatusIcon />}
+        <FeedbackButton
+          product="schedule"
+          pathname={SCHEDULE_PATH}
+          compact={compact}
+        />
         <AccountButton compact={compact} themeToggle={end} />
       </div>
     </header>
