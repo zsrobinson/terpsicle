@@ -68,7 +68,7 @@ export function FilterChips({
     <div className="scroll-thin flex items-center gap-1 overflow-x-auto max-[400px]:flex-wrap max-[400px]:overflow-x-visible">
       <MultiChip
         label="Gen-eds"
-        tooltip="Only courses that count for these gen-eds"
+        tooltip="Only courses that count for these GenEds"
         picked={filters.genEds}
         options={GEN_EDS.map((code) => ({
           value: code,

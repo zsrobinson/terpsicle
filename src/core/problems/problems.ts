@@ -155,7 +155,7 @@ export function withWatches(
       detail: [
         { kind: "text", text: "It's full. " },
         ...p.detail,
-        { kind: "text", text: " We'll email you when a seat opens." },
+        { kind: "text", text: " We'll let you know when a seat opens." },
       ],
     };
   });

@@ -133,7 +133,7 @@ function SignedIn() {
           <Connection />
         ) : phase === "failed" ? (
           <InlineError
-            message="We couldn't check your connection. Check your internet and try again."
+            message="We couldn't check your ELMS connection. Check your internet and try again."
             onRetry={() => void load(today, Date.now())}
           />
         ) : (

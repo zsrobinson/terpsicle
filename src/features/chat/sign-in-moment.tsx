@@ -23,7 +23,7 @@ export function SignInMoment({ returnTo }: { returnTo: string }) {
       <EmptyState
         headingLevel={1}
         mark={<Mark id="chat" size={40} />}
-        title="Terpsicle Chat"
+        title="A chat room for every class"
         line="Talk with the people in your classes. Sign in to see your rooms."
         primary={signIn}
       />
@@ -34,7 +34,7 @@ export function SignInMoment({ returnTo }: { returnTo: string }) {
           ))}
         </ul>
         <p className="text-muted text-sm">
-          The scheduler works without an account, and always will.
+          Schedule works without an account, and always will.
         </p>
       </PageSection>
     </ProductPage>
@@ -51,7 +51,7 @@ export function ChatClosed() {
         title="Chat isn't open yet"
         line="When it is, you'll talk with the people in your classes here, in rooms for each course and section."
         primary={{
-          label: "Open the scheduler",
+          label: "View schedule",
           hint: "Plan your classes",
           to: SCHEDULE_PATH,
         }}

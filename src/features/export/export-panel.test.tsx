@@ -206,7 +206,7 @@ describe("Export tab", () => {
       // Another term's watch says which term.
       expect(
         within(list).getByTestId("seat-watch-ENGL393-0101"),
-      ).toHaveTextContent(/Fall 2026.*Last email Sep 25/);
+      ).toHaveTextContent(/Fall 2026.*Last notified Sep 25/);
 
       await user.click(within(row).getByRole("button", { name: "Stop" }));
       await waitFor(() =>

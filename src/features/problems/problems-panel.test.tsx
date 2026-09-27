@@ -138,7 +138,7 @@ describe("Problems tab", () => {
     const note = await screen.findByTestId("problem-watching");
     expect(screen.queryByTestId("problem-full")).toBeNull();
     expect(note).toHaveTextContent("Watching for a seat in CMSC351 0101");
-    expect(note).toHaveTextContent("We'll email you when a seat opens.");
+    expect(note).toHaveTextContent("We'll let you know when a seat opens.");
     expect(
       within(screen.getByRole("region", { name: "Good to know" })).getByTestId(
         "problem-watching",

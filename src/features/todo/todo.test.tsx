@@ -661,7 +661,7 @@ describe("importWords", () => {
     expect(importWords(1, 0)).toBe("Added 1 deadline from the file.");
     expect(importWords(0, 0)).toBe("Nothing new to add from that file.");
     expect(importWords(12, 1)).toBe(
-      "Added 12 deadlines from the file. 1 item was already on your ELMS feed or too far from today, so we left it out.",
+      "Added 12 deadlines from the file. 1 deadline was already on your ELMS feed or too far from today, so we left it out.",
     );
   });
 });

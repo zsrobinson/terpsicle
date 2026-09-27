@@ -30,8 +30,8 @@ describe("SectionHeader", () => {
   });
 
   it("has a quiet label form, which PanelLabel is", () => {
-    const { container } = render(<PanelLabel>Saved for later</PanelLabel>);
-    expect(container.firstChild).toHaveTextContent("Saved for later");
+    const { container } = render(<PanelLabel>Bookmarked</PanelLabel>);
+    expect(container.firstChild).toHaveTextContent("Bookmarked");
     expect(container.firstChild).not.toHaveClass("border-y");
   });
 });

@@ -113,7 +113,7 @@ export function DetailsHeader({
           label={
             aboutOpen
               ? "Show less"
-              : "The whole description, gen-eds, cross-listings and grading"
+              : "The whole description, GenEds, cross-listings and grading"
           }
         >
           <button

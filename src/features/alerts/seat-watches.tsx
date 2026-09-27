@@ -111,7 +111,7 @@ export async function watchSeat(
       undoToast({
         id: TOAST_ID,
         message: `Watching ${label}`,
-        description: "We'll email you when a seat opens.",
+        description: "We'll let you know when a seat opens.",
         onUndo: () => void stopWatching(termId, sectionKey, { undo: true }),
       });
       return true;
@@ -128,7 +128,9 @@ export async function watchSeat(
       );
       return false;
     case "unavailable":
-      noteToast("Seat alerts are turned off right now.", { id: TOAST_ID });
+      noteToast("Watching for seats is turned off right now.", {
+        id: TOAST_ID,
+      });
       return false;
   }
 }
@@ -159,7 +161,7 @@ export async function stopWatching(
     undoToast({
       id: TOAST_ID,
       message: `Stopped watching ${label}`,
-      description: "No more emails about it.",
+      description: "No more notifications about it.",
       onUndo: () => void watchSeat(termId, sectionKey),
     });
   return true;

@@ -45,9 +45,7 @@ export function MyReviewsPage() {
       {signedIn === "loading" || level === "loading" ? (
         <RowSkeleton rows={2} inset={false} label="Loading your reviews" />
       ) : level === "off" ? (
-        <PanelNote className={PAGE_ROW}>
-          Terpsicle Reviews isn't open yet.
-        </PanelNote>
+        <PanelNote className={PAGE_ROW}>Reviews isn't open yet.</PanelNote>
       ) : !signedIn ? (
         <SignInPrompt>
           Sign in with your UMD account to see the reviews you've written.
@@ -63,11 +61,11 @@ export function MyReviewsPage() {
         <EmptyState
           mark={<Mark id="reviews" size={40} />}
           title="No reviews yet"
-          line="Find a class you've taken, then pick your instructor to write one."
+          line="Find the course you took, then pick your instructor to write one."
           primary={{
-            label: "Find a class",
+            label: "Find a course",
             to: "/reviews",
-            hint: "Find a class you've taken",
+            hint: "Find the course you took",
           }}
           className="pt-2"
         />

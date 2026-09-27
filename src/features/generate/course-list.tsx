@@ -185,7 +185,7 @@ export function CourseList({
       <div className="flex flex-wrap gap-1.5">
         {plan && fromPlan.length > 0 ? (
           <WithTooltip
-            label={`Adds ${fromPlan.map((c) => c.courseCode).join(", ")}: placed courses required, saved ones optional`}
+            label={`Adds ${fromPlan.map((c) => c.courseCode).join(", ")}: placed courses required, bookmarked ones optional`}
           >
             <Button
               variant="outline"

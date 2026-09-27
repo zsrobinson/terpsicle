@@ -65,7 +65,7 @@ function ChangeText({ change: c }: { change: PlanChange }) {
     case "unplaced":
       return (
         <span className="text-muted">
-          <span className="ident">{c.from}</span> → saved for later
+          <span className="ident">{c.from}</span> → bookmarked
         </span>
       );
     case "dropped":

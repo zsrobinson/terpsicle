@@ -203,7 +203,7 @@ function build(termId: TermId, course: Course): RoomTree {
     if (professor) professors.push(professor);
     return {
       key: collapsedGroupKey(course.code, g),
-      title: g.name || "Instructor TBA",
+      title: g.name || "Professor TBA",
       summary: countWords(codes.length, "section"),
       instructors: g.instructors,
       heading: headed,

@@ -8,7 +8,7 @@ export const Route = createFileRoute("/reviews/policy")({
   head: () =>
     routeHead(
       pageHead({
-        title: "What's allowed · Terpsicle Reviews",
+        title: "What's allowed · Reviews · Terpsicle",
         description:
           "What Terpsicle reviews can and can't say, how each is checked before it's posted, and how removals work.",
         path: "/reviews/policy",

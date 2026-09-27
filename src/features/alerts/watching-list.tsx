@@ -18,10 +18,10 @@ const DAY = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
 });
 
-/** "Since Sep 24" or "Last email Sep 25". */
+/** "Since Sep 24" or "Last notified Sep 25". */
 function since(watch: SeatWatch): string {
   return watch.lastNotifiedAt
-    ? `Last email ${DAY.format(new Date(watch.lastNotifiedAt))}`
+    ? `Last notified ${DAY.format(new Date(watch.lastNotifiedAt))}`
     : `Since ${DAY.format(new Date(watch.createdAt))}`;
 }
 
@@ -43,7 +43,7 @@ export function WatchingList({
     return (
       <p className={cn("text-muted text-sm", className)}>
         You're not watching any sections. On a full section, choose "Watch for a
-        seat" and we'll email you when one opens.
+        seat" and we'll let you know when one opens.
       </p>
     );
   return (
@@ -101,7 +101,7 @@ function WatchRow({
       }
     >
       <div className="flex items-baseline gap-2">
-        <WithTooltip label={`Open ${label} in the scheduler`}>
+        <WithTooltip label={`Open ${label} in Schedule`}>
           <a
             href={courseHref(watch.termId, watch.sectionKey)}
             className="ident font-semibold text-base text-fg hover:underline"
