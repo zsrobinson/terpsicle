@@ -39,8 +39,8 @@ export function ViewSchedule({ termId }: { termId: TermId }) {
         <WithTooltip
           label={
             linked
-              ? `Open ${linked.name} for ${term} in the scheduler`
-              : `Make a ${term} schedule from this semester's courses`
+              ? `Open ${linked.name} for ${term} in Schedule`
+              : `Start a ${term} schedule with this semester's courses`
           }
         >
           <Link

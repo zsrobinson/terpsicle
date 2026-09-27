@@ -4,6 +4,7 @@ import { termLabel } from "~/core/catalog/terms";
 import type { TermId } from "~/core/schema";
 import { useCatalog } from "~/state/catalog-store";
 import { useActiveTerm } from "~/state/hooks";
+import { useShare } from "~/state/share-store";
 import { useWorkspace } from "~/state/workspace-store";
 
 // `/schedule?term=<id>&from=plan` (docs/V3.md §2.12): once the saved plans
@@ -19,6 +20,7 @@ export function usePlanHandoff(
   done: () => void,
 ): boolean {
   const hydrated = useWorkspace((s) => s.hydrated);
+  const sharing = useShare((s) => s.shared !== null);
   const terms = useCatalog((s) => s.terms);
   const termsFailed = useCatalog((s) => s.termsState === "error");
   const { termId } = useActiveTerm();
@@ -30,32 +32,34 @@ export function usePlanHandoff(
   useEffect(() => {
     if (!request || started.current || !hydrated) return;
     const want = request.termId;
-    if (termsFailed) {
-      started.current = true;
+    const end = () => {
       setPending(false);
       finish.current();
+    };
+    // Nothing to hand over: no term list, a term Testudo doesn't list, or a
+    // shared plan (read-only, and on its own term).
+    if (termsFailed || sharing) {
+      started.current = true;
+      end();
       return;
     }
     if (!terms) return;
     if (!want || !terms.some((t) => t.id === want)) {
       started.current = true;
       if (want) toast(`${termLabel(want)}'s classes aren't on Testudo yet.`);
-      setPending(false);
-      finish.current();
+      end();
       return;
     }
     // The URL's term becomes the one on screen first (schedule-nav.ts).
     if (termId !== want) return;
     started.current = true;
-    // Loaded only for an arrival, so the scheduler's first load doesn't carry it.
+    // On demand: the shell is in every scheduler entry (a seat-alert email's
+    // course link, Search), and only the Courses tab carries this already.
     void import("./handoff")
       .then(({ arriveFromPlan }) => arriveFromPlan(want))
       .catch((error: unknown) => console.warn("View schedule", error))
-      .finally(() => {
-        setPending(false);
-        finish.current();
-      });
-  }, [request, hydrated, terms, termsFailed, termId]);
+      .finally(end);
+  }, [request, hydrated, sharing, terms, termsFailed, termId]);
 
   return pending;
 }

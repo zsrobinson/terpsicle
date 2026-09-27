@@ -133,9 +133,20 @@ function listWords(items: readonly string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
-/** A placeholder by the name its block shows: "CMSC4XX", or the GenEd's code. */
+/** "an" before a letter said with a vowel sound: "an FSAW course", "a DSHS course". */
+function article(code: string): string {
+  return "AEFHILMNORSX".includes(code.charAt(0)) ? "an" : "a";
+}
+
+/** A placeholder in a sentence: its pattern ("CMSC4XX"), or "a DSHS course". */
 function placeholderName(wildcard: Wildcard): string {
-  return wildcard.kind === "pattern" ? wildcard.pattern : wildcard.code;
+  return wildcard.kind === "pattern"
+    ? wildcard.pattern
+    : `${article(wildcard.code)} ${wildcard.code} course`;
+}
+
+function capitalized(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** The toast when the scheduler bookmarks the column's courses in a plan. */
@@ -154,9 +165,11 @@ export function missingLine(missing: readonly CourseCode[]): string {
 /** The Courses tab's line for the column's placeholders, which can't be bookmarked. */
 export function placeholderLine(placeholders: readonly Wildcard[]): string {
   const names = [...new Set(placeholders.map(placeholderName))];
-  return names.length === 1
-    ? `${names[0]} is a placeholder; pick a course in Search or Generate.`
-    : `${listWords(names)} are placeholders; pick courses in Search or Generate.`;
+  return capitalized(
+    names.length === 1
+      ? `${names[0]} is a placeholder; pick a course in Search or Generate.`
+      : `${listWords(names)} are placeholders; pick courses in Search or Generate.`,
+  );
 }
 
 /** The Undo toast for "Add them". */

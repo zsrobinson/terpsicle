@@ -74,7 +74,7 @@ Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, gre
 | W1: Parsers, index, brand | `v3/course-index`, `v3/transcript-parser`, `v3/ics-parser`, `v3/brand` | Not started (the parsers wait on owner fixtures) |
 | W2: Core and APIs | `v3/four-year-core`, `v3/four-year-sync-api`, `v3/todo-api` | Not started |
 | W3: UIs | `v3/plan-ui`, `v3/todo-ui` | `v3/todo-ui` done (#86); `v3/plan-ui` in review |
-| W4: Sync, import, templates, handoff, reminder | `v3/four-year-sync`, `v3/transcript-import`, `v3/templates`, `v3/schedule-handoff`, `v3/todo-notify` | `v3/todo-notify` done (#118); `v3/schedule-handoff` in review |
+| W4: Sync, import, templates, handoff, reminder | `v3/four-year-sync`, `v3/transcript-import`, `v3/templates`, `v3/schedule-handoff`, `v3/todo-notify` | `v3/todo-notify` in review; `v3/schedule-handoff` in review |
 | W5: Links and e2e | `v3/cross-links`, `v3/e2e` | Not started |
 
 **v3 decisions** (details in `docs/V3.md`):

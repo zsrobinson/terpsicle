@@ -12,6 +12,7 @@ import {
   readFourYearColumn,
   useLiveQuery,
 } from "~/state/four-year-link";
+import { useActiveTerm } from "~/state/hooks";
 import { WithTooltip } from "~/ui/tooltip";
 import { addFromFourYear } from "./handoff";
 
@@ -26,8 +27,12 @@ export function FourYearLine({ plan }: { plan: Plan }) {
     readFourYearColumn(fourYearLinkDb(), termId),
   );
   const planListed = useAccount((s) => s.flags.plan);
+  // A term Testudo has dropped is history: the plan is what happened, so
+  // there's nothing to add, only the way back to Plan.
+  const archived = useActiveTerm().term?.status === "archived";
   if (!column || (!column.hasDoc && !planListed)) return null;
-  const missing = missingFromPlan(column.courses, plan);
+  const missing = archived ? [] : missingFromPlan(column.courses, plan);
+  const placeholders = archived ? [] : column.placeholders;
   const term = termLabel(termId);
   return (
     <div
@@ -50,9 +55,7 @@ export function FourYearLine({ plan }: { plan: Plan }) {
           </WithTooltip>
         </p>
       ) : null}
-      {column.placeholders.length > 0 ? (
-        <p>{placeholderLine(column.placeholders)}</p>
-      ) : null}
+      {placeholders.length > 0 ? <p>{placeholderLine(placeholders)}</p> : null}
       <p>
         <WithTooltip label={`${term} in your four-year plan`}>
           <Link

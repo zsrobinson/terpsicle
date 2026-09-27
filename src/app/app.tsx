@@ -138,6 +138,11 @@ function useBootstrap(config: ClientConfig) {
       persistence?.stop();
       stopReturning?.();
       db.close();
+      // The stores outlive the page (Plan → Schedule again in the same tab):
+      // until the next mount has read IndexedDB, nothing may treat them as
+      // loaded, or a change made first would be overwritten by that read.
+      useWorkspace.setState({ hydrated: false });
+      useUi.setState({ restored: false });
     };
   }, [config]);
 }

@@ -121,3 +121,45 @@ function springPlanCount(page: Page): Promise<number> {
       }),
   );
 }
+
+test("a second visit in the same page fills the empty plan an earlier visit made, and it's saved", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto("/plan");
+  await page.getByLabel("I started at UMD in").selectOption("202508");
+  await page.getByRole("button", { name: "Start planning" }).click();
+  await add(page, isMobile, "CMSC351", "Add CMSC351 to Spring 2027");
+  await add(page, isMobile, "STAT400", "Add STAT400 to Spring 2027");
+
+  // A look at the scheduler first: its first visit makes an empty Plan A,
+  // and the Courses tab names what the four-year plan has.
+  await page.goto("/schedule/courses?term=202701");
+  const line = page.getByTestId("four-year-line");
+  await expect(line).toContainText(
+    "From your four-year plan: CMSC351 and STAT400 aren't here.",
+  );
+  await expect.poll(() => springPlanCount(page)).toBe(1);
+
+  // To Plan and back without a reload: the scheduler mounts again.
+  await line.getByRole("link", { name: "View plan" }).click();
+  await expect(page).toHaveURL(/\/plan\?semester=202701/);
+  await page
+    .getByRole("region", { name: "Spring 2027", exact: true })
+    .getByRole("link", { name: "View schedule" })
+    .click();
+  await expect(
+    page.getByText(
+      "Plan A has your 2 courses from your four-year plan. Pick sections for each.",
+    ),
+  ).toBeVisible();
+
+  // Saved, not just shown.
+  await page.reload();
+  const saved = page.getByRole("list", { name: "Bookmarked" });
+  await expect(saved.getByRole("listitem")).toHaveText([
+    /^CMSC351/,
+    /^STAT400/,
+  ]);
+  await expect.poll(() => springPlanCount(page)).toBe(1);
+});

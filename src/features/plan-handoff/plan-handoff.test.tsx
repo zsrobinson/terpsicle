@@ -12,10 +12,12 @@ import {
   aFourYearEntry,
   aFourYearWildcardEntry,
   aPlan,
+  archivedFixtureTermId,
   aSavedCourse,
 } from "~/fixtures";
 import { fourYearLinkDb } from "~/state/four-year-link";
 import { TEST_TERM_ID } from "~/state/testing";
+import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { applyHandoff } from "./handoff";
 
@@ -216,6 +218,32 @@ describe("the Courses tab's four-year line", () => {
     await act(() => saveFourYear(COLUMN));
     await waitFor(() =>
       expect(line).toHaveTextContent("MATH141 and CMSC216 aren't here."),
+    );
+  });
+
+  it("on a term Testudo has dropped, only links back to Plan", async () => {
+    await fourYearLinkDb().fourYear.put(
+      aFourYear({
+        entries: [
+          aFourYearEntry({
+            id: "entry_summer",
+            term: archivedFixtureTermId,
+            code: "MATH141",
+          }),
+        ],
+      }),
+    );
+    const { sidebar } = await renderPlanTab([panels], "courses");
+    act(() => useUi.getState().setLastTermId(archivedFixtureTermId));
+    const link = await within(sidebar).findByRole("link", {
+      name: "View plan",
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      `/plan?semester=${archivedFixtureTermId}`,
+    );
+    expect(within(sidebar).getByTestId("four-year-line")).not.toHaveTextContent(
+      "aren't here",
     );
   });
 

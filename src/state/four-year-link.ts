@@ -1,6 +1,5 @@
 import { liveQuery } from "dexie";
 import { useEffect, useRef, useState } from "react";
-import { z } from "zod";
 import {
   fourYearColumnFor,
   type HandoffEntry,
@@ -9,15 +8,16 @@ import {
 } from "~/core/four-year/handoff";
 import {
   type CourseCode,
-  CourseCodeSchema,
-  LocalIdSchema,
   type Plan,
   PlanSchema,
   type TermId,
-  TermIdSchema,
+  UiPrefsSchema,
   type Wildcard,
-  WildcardSchema,
 } from "~/core/schema";
+import {
+  FourYearLinkDocSchema,
+  FourYearLinkEntrySchema,
+} from "~/core/schema/four-year-link";
 import { FourYearPrefsSchema } from "~/core/schema/local";
 import { TerpsicleDb } from "./db";
 
@@ -76,29 +76,6 @@ export const NO_FOUR_YEAR_COLUMN: FourYearColumn = {
   placeholders: [],
 };
 
-/**
- * What the scheduler reads of a four-year doc: which one it is, and each
- * course's or placeholder's term. Grades and the rest never leave Plan, so
- * they aren't parsed here, and the scheduler doesn't load the whole schema.
- */
-const LinkDocSchema = z.object({
-  id: LocalIdSchema,
-  createdAt: z.string(),
-  entries: z.array(z.unknown()),
-});
-const LinkEntrySchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("course"),
-    term: TermIdSchema,
-    code: CourseCodeSchema,
-  }),
-  z.object({
-    kind: z.literal("wildcard"),
-    term: TermIdSchema,
-    wildcard: WildcardSchema,
-  }),
-]);
-
 export async function readFourYearColumn(
   db: TerpsicleDb,
   termId: TermId,
@@ -108,7 +85,7 @@ export async function readFourYearColumn(
     db.settings.get("fourYear"),
   ]);
   const docs = rows.flatMap((row) => {
-    const parsed = LinkDocSchema.safeParse(row);
+    const parsed = FourYearLinkDocSchema.safeParse(row);
     return parsed.success ? [parsed.data] : [];
   });
   const prefs = FourYearPrefsSchema.safeParse(prefsRow?.value);
@@ -116,16 +93,14 @@ export async function readFourYearColumn(
   if (!doc) return NO_FOUR_YEAR_COLUMN;
   // "Before UMD" and credit entries never match a term: skipped.
   const entries: HandoffEntry[] = doc.entries.flatMap((entry) => {
-    const parsed = LinkEntrySchema.safeParse(entry);
+    const parsed = FourYearLinkEntrySchema.safeParse(entry);
     return parsed.success ? [parsed.data] : [];
   });
   return { hasDoc: true, ...fourYearColumnFor({ entries }, termId) };
 }
 
 /** The part of the scheduler's `ui` settings row the link needs. */
-const OpenPlansSchema = z.object({
-  activePlanByTerm: z.record(TermIdSchema, LocalIdSchema).catch({}),
-});
+const OpenPlansSchema = UiPrefsSchema.pick({ activePlanByTerm: true });
 
 /** The term's linked scheduler plan (`linkedSchedulePlan`), or null when it has none. */
 export async function readLinkedSchedulePlan(

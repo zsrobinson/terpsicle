@@ -189,7 +189,10 @@ describe("the words", () => {
         { kind: "gen-ed", code: "DSHS" },
       ]),
     ).toBe(
-      "CMSC4XX and DSHS are placeholders; pick courses in Search or Generate.",
+      "CMSC4XX and a DSHS course are placeholders; pick courses in Search or Generate.",
+    );
+    expect(placeholderLine([{ kind: "gen-ed", code: "FSAW" }])).toBe(
+      "An FSAW course is a placeholder; pick a course in Search or Generate.",
     );
   });
 
