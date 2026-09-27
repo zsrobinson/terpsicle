@@ -19,7 +19,6 @@ Shared primitives:
 | Product | Where | Title markup | Subtitle/status | Right-side actions | Product mark |
 |---|---|---|---|---|---|
 | Schedule | `app/top-bar.tsx:46-48` | The h1 is the ProductMenu (umbrella mark + wordmark, `app/product-menu.tsx:46-60`). There is no page title. Panels use `PanelHeader` h2 `font-semibold text-base` (`panel.tsx:30-35`). | `PanelHeader` sub: `text-muted text-sm` | Credits, problems, sync and AccountButton in the top bar; panel `right` slot | Umbrella only |
-| Schedule first visit | `features/courses/first-visit.tsx:22-27` | **h3** `font-semibold text-xl`. It sits inside a panel whose h2 is `text-base`, so the h3 is larger than its parent. | `mt-0.5 text-muted text-sm` "Two ways to start…" | none | none |
 | Plan | `four-year/header.tsx:226-244` | The h1 wraps a **dropdown button** showing the plan's name, `font-semibold text-lg`, `h-11 md:h-8` (`:84-86`). Rename swaps in an input with `border-fg` (`:71`). | Inline "Saved in this browser" `text-muted text-sm` to the right of the title (`:201-223`), or `SyncStatusLabel` | Undo/Redo ghost icon-sm at `size-11 md:size-7` (`:166-196`) | none (the mark shows only on the empty state) |
 | Plan empty | `four-year/empty-state.tsx:29-38` | h1 `text-xl tracking-tight` | `max-w-[640px] text-muted` | — | `Mark id="plan" size={40} className="mb-3"` |
 | Todo | `todo/todo-page.tsx:362-384` | h1 "Todo" `text-xl tracking-tight` | `text-muted text-sm` status with a ghost icon-sm refresh button inline (`:365-371`) | ViewSwitch plus a hand-rolled "ELMS link" anchor (`:376-378`) | none |
@@ -38,10 +37,6 @@ Frame chrome:
 
 | Where | Component | Selected look |
 |---|---|---|
-| Schedule rail | `app/rail.tsx:77-97` (hand-rolled buttons, `aria-pressed`) | `bg-fg/10` plus a 2px edge bar; icon 17 over a `text-2xs` label |
-| Schedule phone drawer tabs | `app/mobile-drawer.tsx:473-516` (`DrawerTab`, a second copy of the rail button) | `bg-fg/10`, no edge bar |
-| Schedule plan tabs (top bar) | `app/plan-tabs.tsx:113-131` | `bg-hover`, `font-medium` |
-| Schedule drill-in back bar | `app/sidebar.tsx:370-399` | ChevronLeft + muted label, then current name `font-medium text-base` |
 | Plan side panel tabs | `four-year/side-panel.tsx:110-143` (hand-rolled `aria-current`) | **Underline tabs**: `border-b-2 border-fg`, `h-11 md:h-9`, count `text-xs` |
 | Plan phone semester strip | `four-year/board.tsx:288-306` | Bordered pills: `border-fg bg-accent-soft` vs `border-hairline bg-raised` |
 | Todo views | `todo/todo-page.tsx:177-213` `ViewSwitch` (fieldset, `border-hairline-strong`) | `bg-accent-soft font-medium`, `h-11 md:h-7` |
@@ -258,7 +253,7 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
   - `h-11 md:h-8 bg-raised focus-visible:outline` (Todo `connect-form.tsx:104`)
   - `h-11 md:h-8 focus-visible:border-fg` (Plan)
 - **Account entry, 3**: `AccountButton`, `AccountLink`, and the marketing Sign-in.
-- **Back affordances, 5** (Reviews uses `PageHeader`'s Back):
+- **Back affordances, 4** (Reviews and Chat use `PageHeader`'s Back):
   - Schedule `DrillBar` (`sidebar.tsx:370`)
   - Plan ghost sm "← Back" (`course-panel.tsx:59-66`)
   - Todo plain "Todo" link (`connect-page.tsx:209`)
