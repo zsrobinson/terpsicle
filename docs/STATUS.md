@@ -75,7 +75,7 @@ Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, gre
 | W2: Core and APIs | `v3/four-year-core`, `v3/four-year-sync-api`, `v3/todo-api` | Not started |
 | W3: UIs | `v3/plan-ui`, `v3/todo-ui` | `v3/todo-ui` done (#86); `v3/plan-ui` in review |
 | W4: Sync, import, templates, handoff, reminder | `v3/four-year-sync`, `v3/transcript-import`, `v3/templates`, `v3/schedule-handoff`, `v3/todo-notify` | `v3/todo-notify` in review; `v3/schedule-handoff` in review |
-| W5: Links and e2e | `v3/cross-links`, `v3/e2e` | `v3/cross-links` and `v3/e2e` in review |
+| W5: Links and e2e | `v3/cross-links`, `v3/e2e` | `v3/cross-links` in review |
 
 **v3 decisions** (details in `docs/V3.md`):
 - **Plan's first release has no degree requirements:** credits, GenEd progress from Testudo's codes, prerequisite problems as information, transcript paste import, sample templates (Computer Science first) and "View schedule". Reading requirements from the catalog with a model is a later phase (§9.1).
