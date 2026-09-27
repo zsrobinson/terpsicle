@@ -4,6 +4,7 @@ import { lazy, Suspense, useState } from "react";
 import { track } from "~/app/analytics";
 import { signInStartHref } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
+import { AiSettingsSection } from "~/features/ai/ai-settings-section";
 import { SitePage } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
@@ -40,9 +41,9 @@ export function deletionDay(iso: string): string {
 
 /**
  * `/settings`: the account (V2.md §1.1), the sections you're watching for a
- * seat (#watching, from the account menu), and the way to notifications
- * (§6.2, their own page). A note page in the site's frame, so every product
- * is one click away.
+ * seat (#watching, from the account menu), the way to notifications (§6.2,
+ * their own page), and AI features, signed in or not. A note page in the
+ * site's frame, so every product is one click away.
  */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
@@ -91,6 +92,8 @@ export function SettingsPage() {
             <SeatWatches />
           </Suspense>
         ) : null}
+        {/* Signed out too: it's this browser's until someone signs in. */}
+        <AiSettingsSection />
       </div>
     </SitePage>
   );

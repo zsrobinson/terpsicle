@@ -198,12 +198,19 @@ const settingsArb: fc.Arbitrary<SettingsDoc> = fc
     chat: fc.option(fc.constantFrom(...LOCAL_IDS, ...SERVER_IDS), {
       nil: undefined,
     }),
+    ai: fc.option(fc.boolean(), { nil: undefined }),
+    // Another product's pref, one this build doesn't know.
+    later: fc.option(fc.constantFrom("week", "day"), { nil: undefined }),
   })
-  .map(({ accessible, chat, ...s }) =>
+  .map(({ accessible, chat, ai, later, ...s }) =>
     aSettingsDoc({
       ...s,
       travel: { ...DEFAULT_TRAVEL_SETTINGS, accessible },
       chatPlans: chat ? { [SPRING]: chat } : {},
+      prefs: {
+        ...(ai === undefined ? {} : { ai: { features: ai } }),
+        ...(later === undefined ? {} : { later: { view: later } }),
+      },
     }),
   );
 
@@ -244,6 +251,7 @@ function localTables(
     travel: s.travel,
     chatPlans: s.chatPlans,
     fourYear,
+    prefs: s.prefs,
   };
 }
 
@@ -736,6 +744,7 @@ class Device {
       travel: DEFAULT_TRAVEL_SETTINGS,
       chatPlans: {},
       fourYear: [],
+      prefs: {},
     };
   }
 

@@ -43,6 +43,13 @@ import {
   setAccount,
 } from "./testing";
 
+// Signed in, an instructor's page syncs the AI features pref with the
+// account (~/features/prefs); these tests have no sync server.
+vi.mock("~/features/prefs/account-sync", () => ({
+  syncPrefs: () => {},
+  stopPrefsSync: () => {},
+}));
+
 // PlanetTerp (the fixtures): Ada Brandt ("brandt"), 4.2 from 61 reviews.
 const BODY =
   "Lectures were clear and the exams matched the homework. Office hours helped a lot.";

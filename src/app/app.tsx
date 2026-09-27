@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useAccount } from "~/features/auth/account-store";
 import { markReturning } from "~/features/marketing/returning";
+import {
+  claimAccountSync,
+  settleAccountPrefs,
+  showSyncedPrefs,
+} from "~/features/prefs/synced-prefs";
 import type { SyncHost } from "~/features/sync/running";
 import { useSyncStatus } from "~/features/sync/status";
 import { useCatalog } from "~/state/catalog-store";
@@ -75,6 +80,8 @@ function useBootstrap(config: ClientConfig) {
   useEffect(() => {
     let cancelled = false;
     useUi.setState({ restored: false });
+    // This page's plan sync carries the synced prefs: none of its own for them.
+    const releaseSync = claimAccountSync();
     let persistence: Persistence | undefined;
     let stopReturning: (() => void) | undefined;
     let stopAccount: (() => void) | undefined;
@@ -115,6 +122,8 @@ function useBootstrap(config: ClientConfig) {
           toast: (title, description) =>
             noteToast(title, description ? { description } : {}),
           trackFirstSignIn: (counts) => track("sync_first_sign_in", counts),
+          showPrefs: showSyncedPrefs,
+          settled: settleAccountPrefs,
         };
         const follow = () => {
           const { status, user } = useAccount.getState();
@@ -179,6 +188,7 @@ function useBootstrap(config: ClientConfig) {
 
     return () => {
       cancelled = true;
+      releaseSync();
       stopAccount?.();
       stopTheme?.();
       sync?.stopSync();

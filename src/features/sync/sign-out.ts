@@ -1,3 +1,4 @@
+import { PREFS_STORAGE_KEY } from "~/core/prefs";
 import { RETURNING_FLAG_KEY } from "~/core/routing";
 import { TerpsicleDb } from "~/state/db";
 import { newLocalId, nowIso } from "~/state/ids";
@@ -95,8 +96,16 @@ export async function afterSignOut(options: {
     } catch {
       // Storage blocked: `/` counts plans instead, and finds none.
     }
-    // In the scheduler, its plans are gone from under it: start over at `/`.
-    if (host) window.location.assign("/");
+    // The prefs' copy goes with their row, on this page and in other tabs.
+    if (host) host.showPrefs({});
+    try {
+      localStorage.removeItem(PREFS_STORAGE_KEY);
+    } catch {
+      // Storage blocked: there's no copy.
+    }
+    // In the scheduler or Plan, its plans are gone from under it: start over
+    // at `/`. A page that only synced the prefs has nothing gone.
+    if (host?.workspace || host?.fourYear) window.location.assign("/");
   } finally {
     device?.db.close();
   }

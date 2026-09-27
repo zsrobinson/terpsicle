@@ -1,5 +1,11 @@
 import { PLAN_NAME_MAX } from "../plans/naming";
-import type { IsoDateTime, LocalId, Plan, SettingsDoc } from "../schema";
+import type {
+  IsoDateTime,
+  LocalId,
+  Plan,
+  SettingsDoc,
+  SyncedPrefs,
+} from "../schema";
 import type { FourYearDoc } from "../schema/four-year";
 import { withFourYear, withPlan } from "./docs";
 import { sameJson } from "./equal";
@@ -226,8 +232,9 @@ function entries<V>(record: Readonly<Record<string, V>>): Map<string, V> {
 /**
  * The settings doc after a conflict. It can't be kept twice the way a plan
  * is, so it's settled per key (a block, a course's color, the travel
- * settings, a term's chat plan): keys this device changed since `base`, its
- * last save, keep this device's value; every other key takes the server's.
+ * settings, a term's chat plan, a product's prefs): keys this device changed
+ * since `base`, its last save, keep this device's value; every other key
+ * takes the server's.
  * A key deleted on one side and edited on the other keeps the edit.
  *
  * With no `base` (the first sign-in), the server's value wins for keys both
@@ -281,6 +288,14 @@ export function mergeSettings(input: {
     chatPlans: settle(
       (d) => d.chatPlans,
       () => keyed((d) => d.chatPlans),
+    ),
+    // Each product's prefs are one key (`ai`, `chatRules`, and any this
+    // build doesn't know), settled like a course's color.
+    prefs: settle(
+      (d) => d.prefs,
+      // The values are the docs' own, already checked: only the record's
+      // type is lost on the way through the Map.
+      () => keyed<unknown>((d) => d.prefs) as SyncedPrefs,
     ),
   };
 }

@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ArrowRight, Sparkles, Star } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { MetaSep } from "~/app/panel";
 import {
@@ -18,6 +18,9 @@ import {
   planetTerpUrl,
   type ReviewSummary,
 } from "~/core/schema";
+import { AiMenu } from "~/features/ai/ai-menu";
+import { AiSparkles } from "~/features/ai/ai-sparkles";
+import { useAiFeatures } from "~/features/ai/use-ai-features";
 import { useAccount } from "~/features/auth/account-store";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { usePlanetTerpStatus, useTerpsicleReviews } from "~/state/data-hooks";
@@ -172,9 +175,12 @@ export function InstructorReviews({
 }) {
   const pt = instructorFor(planetTerp, name);
   const grades = courseGrades(planetTerp, course, pt);
-  // Mounted only while open, so the summary is asked for on open (SPEC §4).
+  // Mounted only while open, so the summary is asked for on open (SPEC §4),
+  // and never while AI features are off: then the review count shows, as
+  // when there's no summary.
+  const ai = useAiFeatures();
   const review = useReviewSummary(
-    pt && pt.reviewCount > 0 ? pt.slug : null,
+    pt && pt.reviewCount > 0 && ai.on === true ? pt.slug : null,
     course.code,
   );
   const { source, failed } = usePlanetTerpStatus(deptOf(course.code));
@@ -205,25 +211,31 @@ export function InstructorReviews({
           PlanetTerp has nothing on this instructor yet.
         </p>
       ) : review.status === "loading" ? (
-        <div className="mt-1 space-y-1.5" aria-busy="true">
-          <Skeleton className="h-2.5 w-full" />
-          <Skeleton className="h-2.5 w-4/5" />
-          <div className="flex items-center gap-1 text-xs text-faint">
-            <Sparkles size={11} aria-hidden="true" />
-            Summarizing {pt.reviewCount} reviews…
+        <div className="mt-1 flex items-start gap-2">
+          <div className="min-w-0 flex-1 space-y-1.5" aria-busy="true">
+            <Skeleton className="h-2.5 w-full" />
+            <Skeleton className="h-2.5 w-4/5" />
+            <div className="flex items-center gap-1 text-xs text-faint">
+              <AiSparkles size={11} aria-hidden="true" />
+              Summarizing {pt.reviewCount} reviews…
+            </div>
           </div>
+          <AiMenu />
         </div>
       ) : review.status === "shown" ? (
         <div className="fade-in-0 animate-in duration-200">
-          <p className="mt-1 text-muted leading-5">
-            <Sparkles
-              size={11}
-              role="img"
-              aria-label="AI summary"
-              className="-mt-0.5 mr-1 inline text-fg"
-            />
-            {review.summary.summary}
-          </p>
+          <div className="mt-1 flex items-start gap-2">
+            <p className="min-w-0 flex-1 text-muted leading-5">
+              <AiSparkles
+                size={11}
+                role="img"
+                aria-label="AI summary"
+                className="-mt-0.5 mr-1 inline text-fg"
+              />
+              {review.summary.summary}
+            </p>
+            <AiMenu />
+          </div>
           {review.summary.themes.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1">
               {review.summary.themes.map((t) => (
