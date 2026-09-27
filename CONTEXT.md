@@ -85,6 +85,18 @@ The part of a UMD email before the @. It's who a person is to Terpsicle: `x@umd.
 A push on your phone or computer, or an email, for one of the few kinds: seat openings, mentions and replies in Chat, and Todo's Due tomorrow. Each kind has its switches in Settings ("Notification", "Email").
 _Avoid_: alert, push (in UI; code says push for the web push channel)
 
+**Notifications (the bell)**:
+The list behind the bell in the family bar: every notification, pushed or not, newest first, grouped by day. The badge on the app icon counts what's unread here. Code calls it the inbox.
+_Avoid_: inbox (in UI), activity, alerts
+
+**Quiet hours**:
+11pm to 8am, when notifications wait and arrive together at 8am. On by default; seat openings come through unless you turn that off.
+_Avoid_: do not disturb, snooze
+
+**Calendar feed**:
+Your private link that Apple, Google or Outlook Calendar subscribes to: your classes and Todo deadlines, with your calendar's own alerts. You can make a new link, which stops the old one.
+_Avoid_: calendar sync, ICS link (in UI)
+
 **Device**:
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
 
@@ -325,6 +337,13 @@ The "Gradescope" tag on an item whose ELMS entry links to Gradescope. Terpsicle 
 
 **File import**:
 "Add a calendar file": an `.ics` the student exported, read in the browser. Its items say "From a file" and don't update.
+
+**Hidden course**:
+A course group the student hid in Todo ("Hide CMSC216"), for what the feed carries that they don't want, like a club. Its items show nowhere and count in nothing, "Due tomorrow" included. "Hidden: 2 courses" at the bottom shows them again.
+_Avoid_: muted, archived
+
+**This week**:
+Todo's progress: the items due Monday to Sunday of the current week, done or not. "This week: 7 of 12 done" in the header; "3 of 5 done this week" on each course.
 
 **Own task**:
 A task the student types in Todo ("Add a task…"), with an optional due date, time and course. It says "Yours" where the feed's items say "From ELMS", is kept on our server, and never goes to ELMS. Copy calls it a **task**.

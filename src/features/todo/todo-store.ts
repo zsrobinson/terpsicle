@@ -51,6 +51,8 @@ export interface TodoState {
   feed: TodoFeedState | null;
   items: TodoItem[];
   done: ReadonlySet<string>;
+  /** Course groups the person hid, by key: their items show nowhere. */
+  hidden: ReadonlySet<string>;
   refreshing: boolean;
   refreshNote: RefreshNote;
   /** Set while Disconnect's Undo is still open. */
@@ -72,6 +74,8 @@ export interface TodoState {
   confirmDisconnect: () => void;
   flushDisconnect: () => void;
   importFile: (items: TodoFileItem[]) => Promise<TodoImportFileResult | null>;
+  /** Hides a course group or shows it again, at once; false when the server didn't take it and it's back. */
+  hideCourse: (key: string, hidden: boolean) => Promise<boolean>;
   /**
    * Adds or changes an own task at once, then saves it; on a failure the
    * list goes back as it was and the answer says why.
@@ -104,6 +108,7 @@ const INITIAL = {
   feed: null,
   items: [],
   done: new Set<string>(),
+  hidden: new Set<string>(),
   refreshing: false,
   refreshNote: null as RefreshNote,
   disconnecting: false,
@@ -120,6 +125,7 @@ export const useTodo = create<TodoState>()((set, get) => {
       feed: result.feed,
       items: result.items,
       done: new Set(result.done),
+      hidden: new Set(result.hidden),
     });
   };
 
@@ -234,6 +240,23 @@ export const useTodo = create<TodoState>()((set, get) => {
     confirmDisconnect: () => sendDisconnect(false),
 
     flushDisconnect: () => sendDisconnect(true),
+
+    hideCourse: async (key, hidden) => {
+      const flip = (on: boolean) => {
+        const next = new Set(get().hidden);
+        if (on) next.add(key);
+        else next.delete(key);
+        set({ hidden: next });
+      };
+      flip(hidden);
+      try {
+        await client.hideCourse({ key, hidden });
+        return true;
+      } catch {
+        flip(!hidden);
+        return false;
+      }
+    },
 
     importFile: async (items) => {
       try {
