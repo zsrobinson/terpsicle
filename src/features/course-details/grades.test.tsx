@@ -10,7 +10,7 @@ import {
   someCourseGrades,
   someGrades,
 } from "~/fixtures";
-import { TooltipProvider } from "~/ui/tooltip";
+import { quietTooltips, TooltipProvider } from "~/ui/tooltip";
 import { Grades } from "./grades";
 
 // Three instructors in PlanetTerp's history; only Ada Brandt teaches this term.
@@ -73,6 +73,29 @@ describe("Grades", () => {
     renderGrades();
     expect(screen.getByTestId("grade-bars")).toBeInTheDocument();
     expect(screen.getByText(/students over 6 semesters/)).toBeInTheDocument();
+  });
+
+  it("names the shades, and says a segment's share is of all grades", async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider delayDuration={0}>
+        <Grades course={course} planetTerp={planetTerp} loading={false} />
+      </TooltipProvider>,
+    );
+    const legend = screen.getByRole("list", { name: "Shades" });
+    expect(
+      within(legend)
+        .getAllByRole("listitem")
+        .map((i) => i.textContent),
+    ).toEqual(["A+, B+…", "A, B…", "A−, B−…"]);
+    const plainA = document.querySelector('[data-grade="A"]');
+    if (!plainA) throw new Error("no plain A segment");
+    // The first test's menu hushed tooltips as it closed; this is a new page.
+    quietTooltips(0);
+    await user.hover(plainA);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      /^A: [\d,]+ students · \d+% of all grades$/,
+    );
   });
 
   it("says when PlanetTerp has nothing", () => {

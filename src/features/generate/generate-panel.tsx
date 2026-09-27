@@ -73,7 +73,8 @@ export function GeneratePanel() {
   const { term, termId } = useActiveTerm();
   const current = useCurrentPlan();
   const catalog = useTermCatalog(termId);
-  const [draft, update] = useDraft(termId);
+  const plan = current?.plan ?? null;
+  const [draft, update, prefilled] = useDraft(termId, plan);
   const blocks = useWorkspace((s) => s.blocks);
   const status = useGenerateRun((s) => s.status);
   const runTermId = useGenerateRun((s) => s.termId);
@@ -117,7 +118,7 @@ export function GeneratePanel() {
   const relax = (r: Relaxation) => {
     if (!termId) return;
     const next = relaxDraft(
-      draftFor(useGenerateDrafts.getState().drafts, termId),
+      draftFor(useGenerateDrafts.getState().drafts, termId, plan),
       r.patch,
     );
     update(() => next);
@@ -214,6 +215,7 @@ export function GeneratePanel() {
               termName={termName}
               colors={colors}
               plan={current?.plan ?? null}
+              prefilledFrom={prefilled ? (plan?.name ?? null) : null}
               inputRef={inputRef}
             />
             <SectionHeader variant="label" title="Must have" />
@@ -267,6 +269,14 @@ export function GeneratePanel() {
                 Clear
               </Button>
             </WithTooltip>
+          </PanelFooter>
+        ) : showing.result.results.length > 1 ? (
+          // What the checkboxes are for, where their Save button will be
+          // (QA S14: only a tooltip said so).
+          <PanelFooter>
+            <p className="py-1.5 text-muted text-sm">
+              Tick plans to save several at once, or open one to see it first.
+            </p>
           </PanelFooter>
         ) : null
       ) : (

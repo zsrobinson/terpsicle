@@ -179,6 +179,7 @@ Nobody should have to touch the app when a new semester appears.
 ### 3.9 Generate (first-class, no sparkles)
 Generating **creates plans**; it doesn't edit one. Entry points: the Generate tab, `+` → Generate plans…, and the first-visit guide.
 - **Courses:** type or pick courses. Each is **Required** or **Optional**, with a "pick N of these" group for things like "any 1 DSHU from this list".
+  - Until you change the list, it starts with the open plan's courses ("From Plan A."): placed ones required, bookmarked ones optional. A list you've changed, even emptied, is never replaced.
 - **Wildcards (owner request, 2026-09-26):** for "some upper-level, not sure which". The course field takes a pattern or a gen-ed code as well as a course, and suggests it first: `CMSC4XX` is "Any CMSC 400-level", `CMSC42X` "Any CMSC 420–429", `ARTTXXX` "Any ARTT course", and `DSHS` "Any DSHS course". Typing a department ("CMSC", "CMSC4") offers its pattern after the courses.
   - A wildcard is one course picked from its set; the generator tries each and ranks them with everything else. Adding the same wildcard again asks for one more course from it ("Any CMSC 400-level ×2"); ✕ takes one away. It's Required or Optional like a course.
   - X only fills the end of the number, in all three places: `CMSC4X` and `CMSC4X1` aren't patterns, and the field says how to fix them. `BUSI758X` is a course (X as its suffix letter).
@@ -197,9 +198,9 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
   - credit range.
 - **Rank by:** compact days, fewer days on campus, later starts, best-rated instructors, higher average GPA, safest seats. A "Custom" option exposes weight sliders.
 - **Results:** a ranked list. Each result has a mini-week thumbnail and plain stats (days on campus, first class, average rating, fewest open seats).
-  - Results that differ only in time-identical sections are merged ("×3 equivalent").
-  - Clicking a result previews it on the calendar and drills into its details (changes, problems).
-  - Actions: **Save as new plan**. Multiple results can be saved at once (checkboxes → "Save 3 plans").
+  - Results that differ only in time-identical sections are merged ("×3 equivalent"). Saving one adds the merged section with the most open seats, and the seats a result shows are that section's.
+  - Hovering a result (with a mouse) previews it on the calendar, as Search does. Clicking one previews it and drills into its details (changes, problems).
+  - Actions: **Save as new plan**. Multiple results can be saved at once (checkboxes → "Save 3 plans"); until one is ticked, the footer says what the checkboxes do.
 - **When nothing fits:** suggested relaxations with the count each would unlock ("Allow classes before 10am → 38 plans"), plus the closest near-misses with their conflicts marked.
 - It runs in a Web Worker, stays responsive, and stops at a budget with "showing the best 200".
 

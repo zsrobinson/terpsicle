@@ -7,6 +7,7 @@ import {
   type GenWildcardItem,
   MAX_WILDCARD_COUNT,
   type MustHaves,
+  type PlanCourse,
   type Relaxable,
   type Relaxation,
   type Wildcard,
@@ -28,6 +29,17 @@ export function requestItems(items: readonly GenerateDraftItem[]): GenItem[] {
     if (rest.length === 0) return [{ kind: "course", required: true, ...only }];
     return [{ ...item, count: Math.min(item.count, item.courses.length) }];
   });
+}
+
+/** A plan's courses as form items: placed ones required, bookmarked ones optional. */
+export function planCourseItems(
+  courses: readonly PlanCourse[],
+): GenerateDraftItem[] {
+  return courses.map((c) => ({
+    kind: "course",
+    courseCode: c.courseCode,
+    required: c.sectionCode !== null,
+  }));
 }
 
 /** Every course the form mentions, first mention first (a wildcard isn't one). */

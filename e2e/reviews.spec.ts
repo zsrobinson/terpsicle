@@ -6,7 +6,7 @@ import { liveToasts } from "./toasts";
 // fixtures' PlanetTerp data, the real /api/reviews/* over local D1, and
 // test-mode sign-in. Mock mode has no Workers AI, so the moderation check
 // can't finish and every new review waits for a person, as it would when
-// the model is down: the "waiting" state is what a writer sees here.
+// the model is down: the held state is what a writer sees here.
 //
 // Keiko Ashdown ("ashdown_keiko") teaches CMSC351 in the mock term, with 142
 // PlanetTerp reviews at 3.1.
@@ -148,7 +148,7 @@ test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
   const mine = page.locator("article[data-review]");
   await expect(mine).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Keiko Ashdown" })).toBeVisible();
-  await expect(mine.getByText("Waiting")).toBeVisible();
+  await expect(mine.getByText("Held")).toBeVisible();
   await expect(mine.getByText(HELD)).toBeVisible();
   await expect(
     mine.getByText(/^Took it (Spring|Summer|Fall|Winter) \d{4}$/),

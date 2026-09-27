@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, PenLine } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { PanelNote } from "~/app/panel";
 import { formatGpa } from "~/core/grades/grades";
@@ -9,9 +9,16 @@ import {
   type CourseInstructorRow,
   type CoursePageData,
   combineRatings,
+  hasTermStarted,
   terpsicleRating,
 } from "~/core/reviews";
-import type { CourseCode, InstructorId, PublicReview } from "~/core/schema";
+import type {
+  CourseCode,
+  InstructorId,
+  MyReview,
+  PublicReview,
+} from "~/core/schema";
+import { newYorkClock } from "~/core/todo/list";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,
@@ -26,7 +33,7 @@ import { PageSection } from "~/ui/page-section";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer, type ComposerTarget } from "./composer";
-import { PAGE_ROW, ReviewsFrame } from "./frame";
+import { PAGE_NOTE, PAGE_ROW, ReviewsFrame } from "./frame";
 import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
 import { GradesBlock } from "./planetterp-blocks";
 import { CombinedRatingBadge } from "./rating";
@@ -86,6 +93,7 @@ export function CoursePage({ data }: { data: CoursePageData }) {
   const ownById = new Map(mine.map((r) => [r.id, r]));
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   const freshness = planetTerpFreshnessWords(data.source);
+  const today = newYorkClock(Date.now()).date;
 
   return (
     <ReviewsFrame page="course">
@@ -121,7 +129,7 @@ export function CoursePage({ data }: { data: CoursePageData }) {
             <WriteMenu
               code={code}
               rows={rows}
-              term={term?.name ?? null}
+              term={term && hasTermStarted(term.id, today) ? term.name : null}
               onWrite={setWritingFor}
             />
           ) : undefined
@@ -132,11 +140,10 @@ export function CoursePage({ data }: { data: CoursePageData }) {
         {grades ? (
           <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
         ) : (
-          <PanelNote className={PAGE_ROW}>
+          <PanelNote className={PAGE_NOTE}>
             PlanetTerp has no grades for {code} yet.
           </PanelNote>
         )}
-        {freshness ? <p className="text-faint text-xs">{freshness}</p> : null}
       </PageSection>
 
       <PageSection
@@ -144,7 +151,7 @@ export function CoursePage({ data }: { data: CoursePageData }) {
         aside={rows.length > 0 ? rows.length : undefined}
       >
         {rows.length === 0 ? (
-          <PanelNote className={PAGE_ROW}>
+          <PanelNote className={PAGE_NOTE}>
             We don't know who's taught {code} yet.
           </PanelNote>
         ) : (
@@ -157,6 +164,14 @@ export function CoursePage({ data }: { data: CoursePageData }) {
                 term={term?.name ?? null}
                 list={row.id ? lists[row.id] : undefined}
                 level={level}
+                existing={
+                  mine.find(
+                    (r) =>
+                      r.instructorId === row.id &&
+                      r.course === code &&
+                      r.status !== "rejected",
+                  ) ?? null
+                }
                 writing={writingFor === row.name}
                 onWrite={() => setWritingFor(row.name)}
                 onClose={() => setWritingFor(null)}
@@ -164,6 +179,8 @@ export function CoursePage({ data }: { data: CoursePageData }) {
             ))}
           </ul>
         )}
+        {/* About the ratings beside each name, which are PlanetTerp's. */}
+        {freshness ? <p className="text-faint text-xs">{freshness}</p> : null}
       </PageSection>
 
       {level === "read" || level === "on" ? (
@@ -178,7 +195,7 @@ export function CoursePage({ data }: { data: CoursePageData }) {
               label={`Loading reviews of ${code}`}
             />
           ) : newest.length === 0 ? (
-            <PanelNote className={PAGE_ROW}>
+            <PanelNote className={PAGE_NOTE}>
               No reviews of {code} on Terpsicle yet.
             </PanelNote>
           ) : (
@@ -219,8 +236,9 @@ export function CoursePage({ data }: { data: CoursePageData }) {
 
 /**
  * The page's one filled action. A review is of an instructor in a course,
- * so it asks who taught you: their page, where the form opens, or the form
- * right here for someone PlanetTerp doesn't know yet.
+ * so it asks who taught you, then opens the form for them under their row:
+ * one pick and you're writing (or asked to sign in). The term beside a name
+ * is only one that's begun: nobody's taken a class in a term still ahead.
  */
 function WriteMenu({
   code,
@@ -230,6 +248,7 @@ function WriteMenu({
 }: {
   code: CourseCode;
   rows: readonly Row[];
+  /** This term's name while it's under way; null before it starts. */
   term: string | null;
   onWrite: (name: string) => void;
 }) {
@@ -248,28 +267,17 @@ function WriteMenu({
       </WithTooltip>
       <DropdownMenuContent align="end" className="max-h-80">
         <DropdownMenuLabel>Who taught you?</DropdownMenuLabel>
-        {rows.map((row) =>
-          row.id ? (
-            <DropdownMenuItem key={row.id} asChild>
-              <Link
-                to="/reviews/instructors/$id"
-                params={{ id: row.id }}
-                search={{ course: code }}
-              >
-                {row.name}
-                {row.teaching && term ? (
-                  <span className="ml-auto pl-3 text-muted text-sm">
-                    {term}
-                  </span>
-                ) : null}
-              </Link>
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem key={row.name} onSelect={() => onWrite(row.name)}>
-              {row.name}
-            </DropdownMenuItem>
-          ),
-        )}
+        {rows.map((row) => (
+          <DropdownMenuItem
+            key={row.id ?? row.name}
+            onSelect={() => onWrite(row.name)}
+          >
+            {row.name}
+            {row.teaching && term ? (
+              <span className="ml-auto pl-3 text-muted text-sm">{term}</span>
+            ) : null}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -295,6 +303,7 @@ function InstructorRow({
   term,
   list,
   level,
+  existing,
   writing,
   onWrite,
   onClose,
@@ -304,11 +313,18 @@ function InstructorRow({
   term: string | null;
   list: ListState | undefined;
   level: ReviewsLevel;
+  /** Your live review of them in this course, which the form edits. */
+  existing: MyReview | null;
   writing: boolean;
   onWrite: () => void;
   onClose: () => void;
 }) {
   const signedIn = useSignedIn();
+  const formRef = useRef<HTMLDivElement>(null);
+  // The header's menu can be a screen away: bring the form to it.
+  useEffect(() => {
+    if (writing) formRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [writing]);
   const ours = list?.status === "ready" ? terpsicleRating(list.reviews) : null;
   const combined = combineRatings([
     {
@@ -371,14 +387,14 @@ function InstructorRow({
         </div>
       </ListRow>
       {writing ? (
-        <div className="pb-3">
+        <div ref={formRef} className="scroll-mt-4 pb-3">
           {signedIn !== true ? (
             <SignInPrompt>
               Sign in with your UMD account to write a review. Readers won't see
               who wrote it.
             </SignInPrompt>
           ) : (
-            <Composer target={target} existing={null} onClose={onClose} />
+            <Composer target={target} existing={existing} onClose={onClose} />
           )}
         </div>
       ) : null}

@@ -171,13 +171,13 @@ export function ReviewsHomePage({
               {level === "read" || level === "on" ? (
                 <p>
                   Ratings combine PlanetTerp's student reviews, with thanks, and
-                  reviews written here, weighted by how many each has. Each
-                  rating's tooltip shows the math.
+                  reviews written here, weighted by how many each has. An
+                  instructor's page spells out the math.
                 </p>
               ) : (
                 <p>
-                  Ratings are PlanetTerp's student reviews, with thanks. Each
-                  rating's tooltip says how many there are.
+                  Ratings are PlanetTerp's student reviews, with thanks. The
+                  number in parentheses is how many there are.
                 </p>
               )}
               <p>
@@ -352,9 +352,7 @@ function CourseSearch({
             inputRef.current?.focus();
           }}
           onFocus={() => setWanted(true)}
-          placeholder={
-            placeholder ?? "Find a course: CMSC351, algorithms, ENGL…"
-          }
+          placeholder={placeholder ?? "Find a course: CMSC351, algorithms…"}
           autoComplete="off"
           aria-controls={listId}
         />

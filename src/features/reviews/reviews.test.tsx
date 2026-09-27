@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { REVIEW_HELD_WORDS } from "~/core/reviews";
 import {
   type MyReview,
@@ -291,6 +291,43 @@ describe("writing a review", () => {
       await screen.findByText("Only you can see this"),
     ).toBeInTheDocument();
     expect(screen.getAllByText(REVIEW_HELD_WORDS).length).toBeGreaterThan(0);
+    expect(screen.getByText("Held")).toBeInTheDocument();
+    // Yours is right there, so nothing asks you to be the first.
+    expect(
+      screen.getByText("No one else has reviewed CMSC351 on Terpsicle yet."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Yours could be the first/)).toBeNull();
+  });
+
+  it("offers the term under way and earlier ones, never one ahead", async () => {
+    // A Sunday in Fall 2026, while the catalog leads with Spring 2027.
+    vi.useFakeTimers({
+      now: new Date("2026-09-27T16:00:00Z"),
+      toFake: ["Date"],
+    });
+    try {
+      setAccount({ reviews: "on", user: STUDENT });
+      fakeReviewsClient();
+      const user = userEvent.setup();
+      await instructor();
+      await user.click(
+        await screen.findByRole("button", { name: /Write a review/ }),
+      );
+      const form = screen.getByRole("form", { name: "Write a review" });
+      await user.click(
+        within(form).getByRole("combobox", { name: "When you took it" }),
+      );
+      const options = screen.getAllByRole("option").map((o) => o.textContent);
+      expect(options.slice(0, 4)).toEqual([
+        "Rather not say",
+        "Fall 2026",
+        "Summer 2026",
+        "Spring 2026",
+      ]);
+      expect(options).not.toContain("Spring 2027");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("says why it can't send without clearing what you wrote", async () => {
@@ -468,9 +505,33 @@ describe("a course's page", () => {
     ).toBeInTheDocument();
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /Write a review/ }));
-    expect(
+    // Picking who taught you opens the form for them, in one step.
+    await user.click(
       await screen.findByRole("menuitem", { name: /Ada Brandt/ }),
-    ).toHaveAttribute("href", "/reviews/instructors/brandt?course=CMSC351");
+    );
+    const form = await screen.findByRole("form", { name: "Write a review" });
+    expect(within(form).getByText(/Ada Brandt/)).toBeInTheDocument();
+    expect(within(form).getByLabelText("Your review")).toBeInTheDocument();
+  });
+
+  it("asks you to sign in right after you pick, when you aren't", async () => {
+    setAccount({ reviews: "on" });
+    fakeReviewsClient();
+    const data = await loadCoursePage("CMSC351");
+    if (!data) throw new Error("the loader didn't find CMSC351");
+    await renderPage(<CoursePage data={data} />, "/reviews/courses/CMSC351");
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: /Write a review/ }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: /Ada Brandt/ }),
+    );
+    expect(
+      await screen.findByText(
+        /Sign in with your UMD account to write a review/,
+      ),
+    ).toBeInTheDocument();
   });
 });
 
@@ -559,7 +620,7 @@ describe("/reviews/mine", () => {
       }),
     });
     await renderPage(<MyReviewsPage />, "/reviews/mine");
-    expect(await screen.findByText("Waiting")).toBeInTheDocument();
+    expect(await screen.findByText("Held")).toBeInTheDocument();
     expect(screen.getByText(REVIEW_HELD_WORDS)).toBeInTheDocument();
     expect(screen.getByText("Not posted")).toBeInTheDocument();
     expect(
