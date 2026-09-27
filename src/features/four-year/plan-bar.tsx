@@ -65,7 +65,6 @@ function RenameField({
   };
   return (
     <Input
-      // biome-ignore lint/a11y/noAutofocus: it replaces the name the person just chose to rename
       autoFocus
       aria-label="Plan name"
       maxLength={60}
