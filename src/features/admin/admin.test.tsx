@@ -3,6 +3,7 @@ import {
   createRootRoute,
   createRouter,
   RouterProvider,
+  useRouterState,
 } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -24,9 +25,10 @@ import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { adminApi } from "~/server/fns/admin-api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
+import { AdminFrame } from "./admin-frame";
 import { AdminGate } from "./admin-gate";
 import { type DecisionsClient, DecisionsPage } from "./decisions-page";
-import { type AdminClient, QueuePage } from "./queue-page";
+import { type AdminClient, QueuePage, type QueueView } from "./queue-page";
 
 const NOW = new Date("2027-01-10T12:00:00.000Z");
 const minutesAgo = (m: number) =>
@@ -127,7 +129,56 @@ function fakeClient(items: QueueItem[], over: Partial<AdminClient> = {}) {
 
 beforeEach(() => signedInAs(ADMIN));
 
+/** A component as the one route of a memory router at `path`. */
+function renderInRouter(node: ReactNode, path: string) {
+  const router = createRouter({
+    routeTree: createRootRoute({ component: () => node }),
+    history: createMemoryHistory({ initialEntries: [path] }),
+  });
+  return { ...wrap(<RouterProvider router={router} />), router };
+}
+
+/**
+ * The queue page at `/admin`, its view from the URL as the route reads it,
+ * so the view switch's links really switch it.
+ */
+function renderQueue(client: AdminClient, view: QueueView = "waiting") {
+  function Queue() {
+    const show = useRouterState({
+      select: (s) => (s.location.search as { show?: string }).show,
+    });
+    return (
+      <QueuePage
+        view={show === "decided" ? "decided" : "waiting"}
+        client={client}
+        now={() => NOW}
+      />
+    );
+  }
+  return renderInRouter(
+    <Queue />,
+    view === "decided" ? "/admin?show=decided" : "/admin",
+  );
+}
+
+/** A page section, by its heading. */
+async function findSection(name: string): Promise<HTMLElement> {
+  const heading = await screen.findByRole("heading", { level: 2, name });
+  const section = heading.closest("section");
+  if (!section) throw new Error(`no section around ${name}`);
+  return section;
+}
+
 describe("the admin gate", () => {
+  it("puts the panel under the family bar, which names it", async () => {
+    renderInRouter(<AdminFrame>the panel</AdminFrame>, "/admin");
+    const bar = await screen.findByRole("banner");
+    expect(within(bar).getByText("Admin")).toBeInTheDocument();
+    // Admin is no product: no product tab is the current page.
+    expect(within(bar).queryByRole("link", { current: "page" })).toBeNull();
+    expect(screen.getByRole("main")).toHaveTextContent("the panel");
+  });
+
   it("shows the panel only to an admin", () => {
     wrap(<AdminGate>the panel</AdminGate>);
     expect(screen.getByText("the panel")).toBeInTheDocument();
@@ -149,13 +200,19 @@ describe("the admin gate", () => {
     expect(screen.queryByText("the panel")).toBeNull();
   });
 
-  it("sends a signed-out visitor to sign in, and back here afterwards", () => {
+  it("sends a signed-out visitor to sign in, and back here afterwards", async () => {
     signedInAs(null);
     window.history.replaceState(null, "", "/admin/decisions?stage=human");
     const redirect = vi.fn();
-    wrap(<AdminGate redirect={redirect}>the panel</AdminGate>);
-    expect(redirect).toHaveBeenCalledWith(
-      "/signin?return=%2Fadmin%2Fdecisions%3Fstage%3Dhuman",
+    // While it leaves, the family bar and a skeleton: the bar needs a router.
+    renderInRouter(
+      <AdminGate redirect={redirect}>the panel</AdminGate>,
+      "/admin/decisions?stage=human",
+    );
+    await waitFor(() =>
+      expect(redirect).toHaveBeenCalledWith(
+        "/signin?return=%2Fadmin%2Fdecisions%3Fstage%3Dhuman",
+      ),
     );
     expect(screen.queryByText("the panel")).toBeNull();
   });
@@ -177,15 +234,8 @@ describe("the queue", () => {
       }),
       anItem(),
     ]);
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
-    const health = await screen.findByRole("region", { name: "Health" });
+    renderQueue(client);
+    const health = await findSection("Health");
     expect(await within(health).findByText("132 of 2,000")).toBeVisible();
     expect(within(health).getByText("7% used")).toBeVisible();
     expect(within(health).getByText("Oldest 4 min")).toBeVisible();
@@ -236,14 +286,7 @@ describe("the queue", () => {
       }),
     ]);
     const user = userEvent.setup();
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     const card = await screen.findByRole("article");
     expect(
       within(card).getByText(REASON_WORDS.burst, { exact: false }),
@@ -264,14 +307,7 @@ describe("the queue", () => {
   it("publishes at once, then Undo in the toast puts it back", async () => {
     const client = fakeClient([anItem()]);
     const user = userEvent.setup();
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     await user.click(await screen.findByRole("button", { name: /Publish/ }));
     expect(client.resolve).toHaveBeenCalledWith({
       id: "AAAAAAAAAAAAAAAAAAAAAA",
@@ -293,14 +329,7 @@ describe("the queue", () => {
   it("removes with a reason, offering the one that fits first", async () => {
     const client = fakeClient([anItem()]);
     const user = userEvent.setup();
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     const remove = await screen.findByRole("button", { name: /Remove/ });
     expect(remove).toHaveAttribute("aria-expanded", "false");
     await user.click(remove);
@@ -350,14 +379,7 @@ describe("the queue", () => {
         },
       }),
     ]);
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     const [first, second] = (await screen.findAllByRole("article")) as [
       HTMLElement,
       HTMLElement,
@@ -387,14 +409,7 @@ describe("the queue", () => {
       ),
     });
     const user = userEvent.setup();
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     await user.click(await screen.findByRole("button", { name: /Remove/ }));
     const reasons = screen.getByRole("group", { name: "Remove because" });
     const stop = within(reasons).getByRole("checkbox", {
@@ -424,14 +439,7 @@ describe("the queue", () => {
       anItem({ kind: "chat", course: "CMSC131", reasons: [] }),
     ]);
     const user = userEvent.setup();
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     await user.click(await screen.findByRole("button", { name: /Remove/ }));
     await user.click(
       screen.getByRole("checkbox", {
@@ -457,14 +465,7 @@ describe("the queue", () => {
     const client = fakeClient([], {
       queue: vi.fn(async () => ({ items: [decided], open: 0 })),
     });
-    wrap(
-      <QueuePage
-        view="decided"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client, "decided");
     const card = await screen.findByRole("article");
     expect(
       within(card).getByText(
@@ -476,14 +477,7 @@ describe("the queue", () => {
   it("removes a chat message from a pasted link, with the same Undo", async () => {
     const client = fakeClient([]);
     const user = userEvent.setup();
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     await user.click(
       await screen.findByRole("button", { name: "Paste a chat link" }),
     );
@@ -528,14 +522,7 @@ describe("the queue", () => {
       ),
     });
     const user = userEvent.setup();
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     await user.click(
       await screen.findByRole("button", { name: "Paste a chat link" }),
     );
@@ -554,21 +541,19 @@ describe("the queue", () => {
   it("lists what was just decided under Decided", async () => {
     const client = fakeClient([anItem()]);
     const user = userEvent.setup();
-    const page = (view: "waiting" | "decided") => (
-      <TooltipProvider delayDuration={0}>
-        <QueuePage
-          view={view}
-          onView={() => {}}
-          client={client}
-          now={() => NOW}
-        />
-      </TooltipProvider>
-    );
-    const { rerender } = render(page("waiting"));
+    const { router } = renderQueue(client);
     await user.click(await screen.findByRole("button", { name: /Publish/ }));
     await waitFor(() => expect(screen.queryByRole("article")).toBeNull());
-    rerender(page("decided"));
+    const views = screen.getByRole("navigation", { name: "Queue" });
+    expect(
+      within(views).getByRole("link", { name: /^Waiting/ }),
+    ).toHaveAttribute("aria-current", "page");
+    await user.click(within(views).getByRole("link", { name: "Decided" }));
+    expect(router.state.location.search).toEqual({ show: "decided" });
     expect(await screen.findByRole("article")).toBeVisible();
+    expect(
+      within(views).getByRole("link", { name: "Decided" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
   it("says so plainly when an action fails, and keeps the post", async () => {
@@ -578,14 +563,7 @@ describe("the queue", () => {
       }),
     });
     const user = userEvent.setup();
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     await user.click(await screen.findByRole("button", { name: /Publish/ }));
     expect(await screen.findByText("Couldn't publish that")).toBeVisible();
     expect(screen.getByRole("article")).toBeVisible();
@@ -601,41 +579,35 @@ describe("the queue", () => {
       queue: vi.fn(async () => ({ items: [decided], open: 0 })),
     });
     const user = userEvent.setup();
-    const onView = vi.fn();
-    wrap(
-      <QueuePage
-        view="decided"
-        onView={onView}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    const { router } = renderQueue(client, "decided");
+    const card = await screen.findByRole("article");
     expect(client.queue).toHaveBeenCalledWith(
       { status: "closed", limit: 50 },
       expect.anything(),
     );
-    const card = await screen.findByRole("article");
     expect(within(card).getByText("Removed: Personal info")).toBeVisible();
     expect(within(card).getByText("decided 30 min ago")).toBeVisible();
     await user.click(within(card).getByRole("button", { name: /Undo/ }));
     expect(client.undo).toHaveBeenCalledWith({ id: decided.id });
 
-    await user.click(screen.getByRole("button", { name: /Waiting/ }));
-    expect(onView).toHaveBeenCalledWith("waiting");
+    await user.click(screen.getByRole("link", { name: /^Waiting/ }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(client.queue).toHaveBeenLastCalledWith(
+      { status: "open", limit: 50 },
+      expect.anything(),
+    );
   });
 
   it("offers made-up posts only on test copies", async () => {
     const client = fakeClient([]);
-    const { unmount } = wrap(
-      <QueuePage view="waiting" onView={() => {}} client={client} />,
-    );
+    const { unmount } = renderQueue(client);
     expect(await screen.findByText(/Nothing's waiting/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Add test posts" })).toBeNull();
     unmount();
 
     signedInAs(ADMIN, true);
     const user = userEvent.setup();
-    wrap(<QueuePage view="waiting" onView={() => {}} client={client} />);
+    renderQueue(client);
     await user.click(
       await screen.findByRole("button", { name: "Add test posts" }),
     );
@@ -665,14 +637,7 @@ describe("the queue", () => {
       ...fakeClient([]),
       queue: (input, options) => adminApi.queue(input, { ...options, fetcher }),
     };
-    wrap(
-      <QueuePage
-        view="waiting"
-        onView={() => {}}
-        client={client}
-        now={() => NOW}
-      />,
-    );
+    renderQueue(client);
     await screen.findByRole("article");
     expect(document.body.textContent).not.toMatch(/Secret Author|sauthor/);
   });
@@ -718,7 +683,10 @@ describe("the decision log", () => {
         days: days(),
       })),
     } satisfies DecisionsClient;
-    wrap(<DecisionsPage filters={{}} onFilters={() => {}} client={client} />);
+    renderInRouter(
+      <DecisionsPage filters={{}} onFilters={() => {}} client={client} />,
+      "/admin/decisions",
+    );
     const table = await screen.findByRole("table");
     const rows = within(table).getAllByRole("row");
     expect(rows[1]).toHaveTextContent(/Sun, Jan 10\s*18\s*1\s*1\s*5%/);
@@ -751,13 +719,15 @@ describe("the decision log", () => {
     } satisfies DecisionsClient;
     const onFilters = vi.fn();
     const user = userEvent.setup();
-    wrap(
+    renderInRouter(
       <DecisionsPage
         filters={{ surface: "chat" }}
         onFilters={onFilters}
         client={client}
       />,
+      "/admin/decisions?surface=chat",
     );
+    await screen.findByRole("heading", { level: 1, name: "Decisions" });
     expect(client.decisions).toHaveBeenCalledWith(
       { surface: "chat", stage: undefined, verdict: undefined, limit: 50 },
       expect.anything(),
@@ -766,10 +736,8 @@ describe("the decision log", () => {
     expect(await screen.findByText("older")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Show older" })).toBeNull();
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Stage" }),
-      "You",
-    );
+    await user.click(screen.getByRole("combobox", { name: "Stage" }));
+    await user.click(await screen.findByRole("option", { name: "You" }));
     expect(onFilters).toHaveBeenCalledWith({ surface: "chat", stage: "human" });
   });
 });

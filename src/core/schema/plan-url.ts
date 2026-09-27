@@ -44,12 +44,3 @@ export const PlanSearchSchema = z.object({
   q: param(z.string().max(100)),
 });
 export type PlanSearch = z.infer<typeof PlanSearchSchema>;
-
-/**
- * `/plan?tab=search&q=…`, as links made before each view was a route:
- * `/plan` sends them to their view's route.
- */
-export const LegacyPlanSearchSchema = PlanSearchSchema.extend({
-  tab: param(PlanTabSchema),
-});
-export type LegacyPlanSearch = z.infer<typeof LegacyPlanSearchSchema>;

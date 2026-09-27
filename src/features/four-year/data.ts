@@ -131,6 +131,23 @@ export function useDocDepts(doc: FourYearDoc | null): void {
   }, [connected, key, ensure]);
 }
 
+/**
+ * True while a department the doc needs is still loading: its problems
+ * aren't known yet ("isn't in Testudo" would be a guess).
+ */
+export function useDeptsLoading(doc: FourYearDoc | null): boolean {
+  const key = docDepts(doc).join(",");
+  return useCourseIndex(
+    (s) =>
+      s.source !== null &&
+      key !== "" &&
+      key.split(",").some((d) => {
+        const state = s.deptsState[d];
+        return state === undefined || state === "loading";
+      }),
+  );
+}
+
 /** Everything the loaded department files know, for core's checks. */
 export function useCourseLookup(): FourYearCourses {
   const depts = useCourseIndex((s) => s.depts);

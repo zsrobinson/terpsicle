@@ -1,3 +1,4 @@
+import { useLocation } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Check, ChevronDown, Redo2, Undo2 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -34,6 +35,7 @@ import {
   renameDoc,
   setFirstTerm,
 } from "./actions";
+import { useDeptsLoading } from "./data";
 import { useModel, useProblemCounts } from "./model";
 import { useFourYear } from "./store";
 import { planView } from "./views";
@@ -242,15 +244,18 @@ export function PlanBar({
   compact: boolean;
   onOpenProblems: () => void;
 }) {
-  const { totals } = useModel();
+  const { doc, totals } = useModel();
   const counts = useProblemCounts();
+  const checking = useDeptsLoading(doc);
+  // Where an admin's pinned notes are looked up: the view's own path.
+  const pathname = useLocation({ select: (l) => l.pathname });
   return (
     <AppBar
       current="plan"
       heading
       compact={compact}
       feedback="plan"
-      pathname="/plan"
+      pathname={pathname}
       context={
         <>
           <PlanName />
@@ -268,6 +273,7 @@ export function PlanBar({
           )}
           <ProblemsStatus
             counts={counts}
+            checking={checking}
             compact={compact}
             shortcut={planView("problems").shortcut}
             onOpen={onOpenProblems}

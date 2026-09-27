@@ -249,9 +249,16 @@ export const ROUTE_BUDGETS: readonly {
     budget: CHAT_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   },
-  // Plan's layout, and GenEd, the view a visit to `/plan` opens. Each other
-  // view is a child route with its own chunk.
-  ...["/plan", "/plan/"].map((route) => ({
+  // Plan's layout and every view's route: GenEd at `/plan/`, and each other
+  // view, which a link can open first.
+  ...[
+    "/plan",
+    "/plan/",
+    "/plan/problems",
+    "/plan/search",
+    "/plan/samples",
+    "/plan/import",
+  ].map((route) => ({
     route,
     budget: PLAN_BUDGET,
     never: [...PLAN_ROUTE_NEVER_EAGER, ADMIN_NEVER_EAGER, TODO_NEVER_EAGER],

@@ -20,13 +20,23 @@ test.afterEach(() => {
 });
 
 /**
- * Spring 2027's column; on a phone, picked from the strip first, lowering
- * the drawer if Search left it all the way up over the semesters.
+ * On a phone, Search raises the drawer all the way (the keyboard is up),
+ * over the semesters: lower it, as a person would, to pick one.
  */
+async function lowerDrawer(page: Page) {
+  const drawer = page.locator("[data-vaul-drawer]");
+  await expect(drawer).toHaveAttribute("data-snap", "full");
+  await page.getByRole("button", { name: "Lower the panel" }).click();
+  await expect(drawer).toHaveAttribute("data-snap", "peek");
+}
+
+/** Spring 2027's column; on a phone, picked from the strip first. */
 async function spring(page: Page, isMobile: boolean) {
   if (isMobile) {
-    const lower = page.getByRole("button", { name: "Lower the panel" });
-    if (await lower.isVisible()) await lower.click();
+    await expect(page.locator("[data-vaul-drawer]")).toHaveAttribute(
+      "data-snap",
+      "peek",
+    );
     await page
       .getByRole("navigation", { name: "Semesters" })
       .getByRole("button", { name: "Sp 2027" })
@@ -45,6 +55,7 @@ async function add(page: Page, isMobile: boolean, query: string, name: string) {
   await search.fill(query);
   await page.getByRole("button", { name, exact: true }).click();
   await expect(column.getByText(query.toUpperCase())).toBeVisible();
+  if (isMobile) await lowerDrawer(page);
 }
 
 test("View schedule makes Spring's plan, View plan comes back, and the second trip opens the same plan", async ({
