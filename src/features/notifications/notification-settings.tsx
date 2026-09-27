@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Bell, Mail } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import {
@@ -19,7 +19,10 @@ import { InstallAppSetting } from "~/features/pwa/install-setting";
 import { ApiCallError } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { InlineError } from "~/ui/inline-error";
+import { ListRow } from "~/ui/list-row";
+import { PageSection } from "~/ui/page-section";
+import { RowSkeleton } from "~/ui/skeleton";
 import { Switch } from "~/ui/switch";
 import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
@@ -34,7 +37,8 @@ import {
 } from "./this-device";
 
 // /settings/notifications (V2.md §6.2): what to send, this device, and the
-// devices with notifications on. Loaded only for someone signed in.
+// devices with notifications on, each a section of the page. Loaded only for
+// someone signed in.
 
 interface TypeRow {
   type: NotificationType;
@@ -143,18 +147,14 @@ export function NotificationSettingsSection() {
 
   if (failed && !settings)
     return (
-      <p role="status" className="text-fg">
-        Couldn't load your notification settings. Check your connection and
-        reload the page.
-      </p>
+      <InlineError
+        message="Couldn't load your notification settings. Check your connection and try again."
+        onRetry={() => void refresh()}
+      />
     );
   if (!settings || !devices)
     return (
-      <div className="space-y-3">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </div>
+      <RowSkeleton rows={4} inset={false} label="Loading your notifications" />
     );
 
   const shown = devices.filter((d) => !removing.has(d.id));
@@ -180,9 +180,11 @@ export function NotificationSettingsSection() {
       {pushOn && publicKey ? (
         <ThisDevice publicKey={publicKey} devices={shown} onChanged={refresh} />
       ) : (
-        <Group>
-          <p>Notifications on your phone and computer are coming soon.</p>
-        </Group>
+        <PageSection title="This device">
+          <p className="text-muted">
+            Notifications on your phone and computer are coming soon.
+          </p>
+        </PageSection>
       )}
       {pushOn ? (
         <Devices
@@ -192,19 +194,6 @@ export function NotificationSettingsSection() {
         />
       ) : null}
     </>
-  );
-}
-
-function SubHeading({ children }: { children: ReactNode }) {
-  return <h3 className="font-medium text-base text-fg">{children}</h3>;
-}
-
-/** One part of the section; each after the first sits under a hairline. */
-function Group({ children }: { children: ReactNode }) {
-  return (
-    <div className="space-y-3 border-hairline not-first:border-t not-first:pt-4">
-      {children}
-    </div>
   );
 }
 
@@ -233,36 +222,33 @@ function TypeRows({
     }
   };
   return (
-    <Group>
-      <SubHeading>What to send</SubHeading>
-      <ul className="space-y-3">
+    <PageSection title="What to send">
+      <ul>
         {TYPE_ROWS.map((row) => {
           const needsTodo = row.type === "todo-due" && !todoConnected;
           return (
-            <li key={row.type} className="space-y-2">
-              <div>
-                <div className="font-medium text-fg">{row.title}</div>
-                <p className="text-sm">
-                  {row.detail}
-                  {!row.sending ? (
-                    <span className="text-muted"> Coming soon.</span>
-                  ) : needsTodo ? (
-                    <span className="text-muted">
-                      {" "}
-                      <WithTooltip label="Open Todo's connect page">
-                        <a
-                          href="/todo/connect"
-                          className="underline underline-offset-2 hover:text-fg"
-                        >
-                          Connect ELMS in Todo
-                        </a>
-                      </WithTooltip>{" "}
-                      to get this.
-                    </span>
-                  ) : null}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
+            <ListRow key={row.type} as="li" className="px-0">
+              <div className="font-medium">{row.title}</div>
+              <p className="mt-0.5 text-muted text-sm">
+                {row.detail}
+                {!row.sending ? (
+                  <span className="text-muted"> Coming soon.</span>
+                ) : needsTodo ? (
+                  <span className="text-muted">
+                    {" "}
+                    <WithTooltip label="Open Todo's connect page">
+                      <a
+                        href="/todo/connect"
+                        className="underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+                      >
+                        Connect ELMS in Todo
+                      </a>
+                    </WithTooltip>{" "}
+                    to get this.
+                  </span>
+                ) : null}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {NOTIFICATION_CHANNELS[row.type].map((channel) => (
                   <ChannelSwitch
                     key={channel}
@@ -283,16 +269,12 @@ function TypeRows({
                   />
                 ))}
               </div>
-            </li>
+            </ListRow>
           );
         })}
       </ul>
-      {error ? (
-        <p role="status" className="text-fg text-sm">
-          {error}
-        </p>
-      ) : null}
-    </Group>
+      {error ? <InlineError message={error} className="py-0" /> : null}
+    </PageSection>
   );
 }
 
@@ -420,9 +402,8 @@ function ThisDevice({
   else status = "Notifications are off here.";
 
   return (
-    <Group>
-      <SubHeading>This device</SubHeading>
-      <p className={onHere ? "text-fg" : undefined}>{status}</p>
+    <PageSection title="This device">
+      <p className={onHere ? "text-fg" : "text-muted"}>{status}</p>
       <div className="flex flex-wrap gap-2">
         {support === "ok" && !onHere && permission !== "denied" ? (
           <WithTooltip label="Your browser asks first">
@@ -465,8 +446,10 @@ function ThisDevice({
           {message}
         </p>
       ) : null}
-      <InstallAppSetting />
-    </Group>
+      <div className="mt-2">
+        <InstallAppSetting />
+      </div>
+    </PageSection>
   );
 }
 
@@ -526,30 +509,32 @@ function Devices({
   };
 
   return (
-    <Group>
-      <SubHeading>Devices with notifications on</SubHeading>
-      <ul className="space-y-2">
+    <PageSection title="Devices with notifications on">
+      <ul>
         {devices.map((device) => (
-          <li key={device.id} className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-fg">
-                {device.label ?? "A device"}
-              </div>
-              <p className="text-sm">
-                Added {addedOn(device.createdAt)}
-                {device.current ? " · This device" : ""}
-              </p>
-            </div>
-            <WithTooltip
-              label={`Stops notifications on ${device.label ?? "this device"}`}
-            >
-              <Button variant="ghost" size="sm" onClick={() => remove(device)}>
-                Remove
-              </Button>
-            </WithTooltip>
-          </li>
+          <ListRow
+            key={device.id}
+            as="li"
+            className="px-0"
+            secondary={`Added ${addedOn(device.createdAt)}${device.current ? " · This device" : ""}`}
+            action={
+              <WithTooltip
+                label={`Stops notifications on ${device.label ?? "this device"}`}
+              >
+                <Button
+                  variant="ghost"
+                  size="row"
+                  onClick={() => remove(device)}
+                >
+                  Remove
+                </Button>
+              </WithTooltip>
+            }
+          >
+            <div className="truncate">{device.label ?? "A device"}</div>
+          </ListRow>
         ))}
       </ul>
-    </Group>
+    </PageSection>
   );
 }

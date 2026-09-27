@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { PageHeader } from "./page-header";
 import { renderInRouter } from "./test-utils";
@@ -23,6 +24,11 @@ describe("PageHeader at page size", () => {
     );
     const back = screen.getByRole("link", { name: "Reviews" });
     expect(back).toHaveAttribute("href", "/reviews");
+    // Every control has a tooltip: Back says where it goes.
+    await userEvent.setup().hover(back);
+    expect(
+      await screen.findByRole("tooltip", { name: "Back to Reviews" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("navigation", { name: "Views" }),
     ).toBeInTheDocument();

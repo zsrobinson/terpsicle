@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import { AccountSection } from "~/features/auth/account-page";
 import { useSeatWatches } from "~/state/seat-watches";
-import { Skeleton } from "~/ui/skeleton";
+import { PageSection } from "~/ui/page-section";
+import { RowSkeleton } from "~/ui/skeleton";
 import { useSeatWatchesSync } from "./seat-watches";
 import { WatchingList } from "./watching-list";
 
@@ -23,12 +23,23 @@ export function SeatWatchesSection() {
       document.getElementById(WATCHING_ID)?.scrollIntoView?.();
   }, [loaded]);
   return (
-    <AccountSection title="Watching for a seat" id={WATCHING_ID}>
-      {loaded ? <WatchingList /> : <Skeleton className="h-4 w-48" />}
-      <p className="text-sm">
-        We email you when a seat opens in a section you watch. Watches end when
-        the term does.
-      </p>
-    </AccountSection>
+    // The link target is a wrapper: the kit's section takes no id.
+    <div id={WATCHING_ID} className="scroll-mt-4">
+      <PageSection title="Watching for a seat">
+        {loaded ? (
+          <WatchingList />
+        ) : (
+          <RowSkeleton
+            rows={1}
+            inset={false}
+            label="Loading the sections you're watching"
+          />
+        )}
+        <p className="text-muted text-sm">
+          We email you when a seat opens in a section you watch. Watches end
+          when the term does.
+        </p>
+      </PageSection>
+    </div>
   );
 }
