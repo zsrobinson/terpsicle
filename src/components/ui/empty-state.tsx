@@ -13,7 +13,10 @@ import { WithTooltip } from "./tooltip";
 //
 // A list's one-line "nothing here" note is `PanelNote` in src/app/panel.tsx.
 
-/** An action: a route to go to, or something to do here. */
+/**
+ * An action: a route to go to, something to do here, or an address outside
+ * the router (sign-in's start, which the Worker answers).
+ */
 export type EmptyAction = {
   label: string;
   /** A 14px icon before the label (filled buttons only). */
@@ -29,6 +32,11 @@ export type EmptyAction = {
       params?: LinkProps["params"];
     }
   | { onClick: () => void }
+  | {
+      href: string;
+      /** Runs as the page leaves (analytics). */
+      onClick?: () => void;
+    }
 );
 
 type EmptyStateProps = {
@@ -138,7 +146,13 @@ function ActionButton({
   );
   return withHint(
     action,
-    "onClick" in action ? (
+    "href" in action ? (
+      <Button size="lg" asChild className={className}>
+        <a href={action.href} onClick={action.onClick}>
+          {content}
+        </a>
+      </Button>
+    ) : "onClick" in action ? (
       <Button size="lg" onClick={action.onClick} className={className}>
         {content}
       </Button>
@@ -158,7 +172,11 @@ const QUIET =
 function QuietLink({ action }: { action: EmptyAction }) {
   return withHint(
     action,
-    "onClick" in action ? (
+    "href" in action ? (
+      <a href={action.href} onClick={action.onClick} className={QUIET}>
+        {action.label}
+      </a>
+    ) : "onClick" in action ? (
       <button type="button" onClick={action.onClick} className={QUIET}>
         {action.label}
       </button>

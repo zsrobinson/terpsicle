@@ -81,7 +81,8 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   await page.getByRole("button", { name: "Connect ELMS" }).click();
   await expect(page.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
 
-  await page.getByRole("button", { name: "By course" }).click();
+  // The views are links: each one is a URL (`?view=course`).
+  await page.getByRole("link", { name: "By course" }).click();
   const cmsc = page.getByRole("region", { name: "CMSC216" });
   await cmsc.getByRole("link", { name: "View chat" }).click();
   await expect(page).toHaveURL(/\/chat\?term=\d{6}&course=CMSC216$/);

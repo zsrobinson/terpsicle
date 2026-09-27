@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { track } from "~/app/analytics";
 import { safeReturnPath, signInErrorMessage } from "~/core/auth";
 import type { SignInError } from "~/core/schema";
-import { Skeleton } from "~/ui/skeleton";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { AccountPage } from "./account-page";
 import { useAccount } from "./account-store";
@@ -32,7 +32,11 @@ export function SignInPage({
     <AccountPage title="Sign in" busy={status === "loading"}>
       {error ? <p className="text-fg">{signInErrorMessage(error)}</p> : null}
       {status === "loading" ? (
-        <Skeleton className="h-9 w-full" />
+        <RowSkeleton
+          rows={1}
+          inset={false}
+          label="Checking whether you're signed in"
+        />
       ) : status === "signed-in" ? (
         <p className="text-muted">You're signed in.</p>
       ) : signInOn ? (
@@ -47,7 +51,7 @@ export function SignInPage({
       <WithTooltip label="Everything works without signing in">
         <a
           href={back}
-          className="inline-flex text-fg underline-offset-4 hover:underline"
+          className="w-fit text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
         >
           Back to Terpsicle
         </a>

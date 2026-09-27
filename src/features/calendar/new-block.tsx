@@ -4,6 +4,7 @@ import { addBlock } from "~/app/actions";
 import { DAYS, type Day } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTimeRange } from "~/core/time";
 import { Button } from "~/ui/button";
+import { Input } from "~/ui/input";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -120,13 +121,13 @@ export function NewBlockPopover({
           <div className="tnum text-muted text-sm">{draftLabel(draft)}</div>
           {/* No tooltip: the field is focused on open, and a focus tooltip
               would cover the time above it. The placeholder says it. */}
-          <input
+          <Input
             aria-label="Block label"
             value={label}
             maxLength={40}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="What's this time for?"
-            className="mt-1.5 h-8 w-full rounded-md border border-hairline bg-bg px-2 text-base placeholder:text-faint focus:border-hairline-strong"
+            className="mt-1.5"
           />
           <div className="mt-2 flex flex-wrap gap-1">
             {BLOCK_PRESETS.map((preset) => (

@@ -53,11 +53,14 @@ function SearchField({
   value,
   onClear,
   clearLabel = "Clear the search",
+  hint,
   ...props
 }: Omit<React.ComponentProps<"input">, "type"> & {
   /** Shows Clear while there's text. Esc in the field is the caller's. */
   onClear?: () => void;
   clearLabel?: string;
+  /** In Clear's place while the field is empty: its shortcut (`<Kbd>/</Kbd>`). */
+  hint?: React.ReactNode;
 }) {
   const hasText = typeof value === "string" && value !== "";
   return (
@@ -87,6 +90,8 @@ function SearchField({
             <X size={14} aria-hidden="true" />
           </button>
         </WithTooltip>
+      ) : hint ? (
+        <span className="flex shrink-0 items-center pr-2">{hint}</span>
       ) : (
         // Keeps the text clear of the right edge when there's no button.
         <span className="w-0.5 shrink-0" />

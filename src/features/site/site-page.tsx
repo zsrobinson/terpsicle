@@ -6,27 +6,20 @@ import { PRODUCTS } from "~/app/products";
 import { feedbackProduct } from "~/core/feedback/path";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { Button } from "~/ui/button";
+import { PageHeader } from "~/ui/page-header";
+import { type PageWidth, ProductPage } from "~/ui/product-page";
 import { WithTooltip } from "~/ui/tooltip";
 
 // The frame for pages outside the scheduler (the coming-soon pages,
-// `/privacy`, not found, Reviews, Todo, Plan, Settings): the family bar, one
-// column, and a footer.
+// `/privacy`, not found, sign-in, Settings, Reviews, Todo, Plan): the family
+// bar over the kit's page (`ProductPage`), which picks the width and, on the
+// pages you read, draws the footer.
 
 /**
- * How a page sits under the header:
- * - `note`: a narrow column a little way down (`/`, coming soon, `/privacy`);
- * - `reading`: a product's pages to read, from the top (Reviews);
- * - `app`: a product's own tool, wide, from the top (Todo's list and week);
- * - `wide`: a tool that uses the whole screen (Plan's semesters).
+ * The page's width, from the kit (docs/COHESION.md §4), plus `wide`: Plan's
+ * board until it moves onto the workbench, edge to edge with a gutter.
  */
-export type SiteLayout = "note" | "reading" | "app" | "wide";
-
-const MAIN: Record<SiteLayout, string> = {
-  note: "max-w-[560px] pt-[12vh]",
-  reading: "max-w-[720px] pt-6",
-  app: "max-w-[1120px] pt-4",
-  wide: "max-w-[1600px] pt-2",
-};
+export type SiteLayout = PageWidth | "wide";
 
 export function SitePage({
   children,
@@ -41,16 +34,13 @@ export function SitePage({
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <SiteHeader notFound={notFound} />
-      <main className={`mx-auto w-full flex-1 px-4 pb-8 ${MAIN[layout]}`}>
-        {children}
-      </main>
-      <footer className="flex h-12 shrink-0 items-center gap-4 px-4 text-muted text-sm">
-        <WithTooltip label="What Terpsicle keeps about you, and why">
-          <Link to="/privacy" className="rounded-md hover:text-fg">
-            Privacy
-          </Link>
-        </WithTooltip>
-      </footer>
+      {layout === "wide" ? (
+        <ProductPage width="full" className="px-4 pt-2 pb-8">
+          {children}
+        </ProductPage>
+      ) : (
+        <ProductPage width={layout}>{children}</ProductPage>
+      )}
     </div>
   );
 }
@@ -89,7 +79,7 @@ export function SiteHeader({ notFound = false }: { notFound?: boolean }) {
 export function OpenScheduleButton() {
   return (
     <WithTooltip label="Plan your classes">
-      <Button asChild>
+      <Button asChild className="w-fit">
         <Link to={SCHEDULE_PATH}>Open the scheduler</Link>
       </Button>
     </WithTooltip>
@@ -106,8 +96,8 @@ export function ComingSoonPage({
 }) {
   return (
     <SitePage>
-      <h1 className="mb-1.5 font-semibold text-xl tracking-tight">{title}</h1>
-      <p className="mb-6 text-muted">Coming soon. {children}</p>
+      <PageHeader title={title} status="Coming soon" />
+      <p className="text-muted">{children}</p>
       <OpenScheduleButton />
     </SitePage>
   );
