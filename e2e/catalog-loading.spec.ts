@@ -47,9 +47,12 @@ test("a course link shows its details before the rest of the catalog loads", asy
   await expect(
     page.getByText("Introduction to Computer Systems").first(),
   ).toBeVisible();
+  // Only the course's department has arrived: the details didn't wait for
+  // the rest of the term, which may not even be requested yet.
   expect(requested[0]).toBe("CMSC");
-  // The rest of the term is still held back.
-  expect(requested.length).toBeGreaterThan(1);
+  expect(finished).toBe(1);
+  // The rest follows in the background, and stays held back.
+  await expect.poll(() => requested.length).toBeGreaterThan(1);
   expect(finished).toBe(1);
 
   // Search waits for the whole term rather than answer from one department.
