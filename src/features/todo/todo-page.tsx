@@ -278,12 +278,8 @@ function FirstConnect() {
           label: "Open your ELMS calendar",
           icon: <ExternalLink aria-hidden="true" />,
           hint: "Opens ELMS in a new tab, so you can come back and paste",
-          onClick: () =>
-            void window.open(
-              ELMS_CALENDAR_URL,
-              "_blank",
-              "noopener,noreferrer",
-            ),
+          href: ELMS_CALENDAR_URL,
+          newTab: true,
         }}
         secondary={{
           label: "or add a calendar file",

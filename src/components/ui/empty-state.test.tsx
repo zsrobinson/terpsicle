@@ -146,6 +146,30 @@ describe("EmptyState", () => {
     expect(onStart).toHaveBeenCalledOnce();
   });
 
+  it("opens a step done elsewhere in a new tab, with no handle back", async () => {
+    renderInRouter(
+      <EmptyState
+        title="Connect ELMS to see your deadlines"
+        line="Copy the link from ELMS and paste it here."
+        primary={{
+          label: "Open your ELMS calendar",
+          href: "https://umd.instructure.com/calendar",
+          newTab: true,
+        }}
+        secondary={{ label: "Privacy", href: "/privacy" }}
+      />,
+    );
+    const step = await screen.findByRole("link", {
+      name: "Open your ELMS calendar",
+    });
+    expect(step).toHaveAttribute("target", "_blank");
+    expect(step).toHaveAttribute("rel", "noopener noreferrer");
+    // Without newTab, a link stays in this tab.
+    expect(screen.getByRole("link", { name: "Privacy" })).not.toHaveAttribute(
+      "target",
+    );
+  });
+
   it("shows an action's hint as its tooltip", async () => {
     renderInRouter(
       <EmptyState
