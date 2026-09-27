@@ -41,7 +41,7 @@ The week reads as five labeled day groups ("Monday", …). Each class, block, gh
 ### Focus
 - Every focused control shows a 2px ring.
 - **Never hidden (2.4.11):** panel bodies keep `scroll-padding` under their two sticky levels (the Sections bar and a group header), and the calendar under its sticky day names and a phone's drawer, so focus scrolls clear of them.
-- Drill-ins take focus as they open and give it back to what opened them on `Esc` or Back (the browser's Back too). Menus and popovers return focus to their trigger, without a tooltip popping up over it.
+- Drill-ins take focus as they open and give it back to what opened them on `Esc` or Back (the browser's Back too). Menus and popovers return focus to their trigger, without a tooltip popping up over it. A popover opens without a tooltip on what it focuses, too, so the first `Esc` closes it.
 - No focus traps: there are no modal dialogs.
 
 ### Zoom, reflow and text spacing

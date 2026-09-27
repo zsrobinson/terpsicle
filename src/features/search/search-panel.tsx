@@ -113,37 +113,44 @@ export function SearchPanel() {
         }
       />
       <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-4 py-3">
-        <SearchField
-          ref={inputRef}
-          role="combobox"
-          aria-expanded={courses.length > 0}
-          aria-controls="search-results"
-          aria-activedescendant={
-            active >= 0 ? `search-result-${active}` : undefined
-          }
-          aria-label="Search courses"
-          placeholder="Course, title or instructor"
-          // Course codes aren't words: no red squiggles or autocorrect.
-          spellCheck={false}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          value={query}
-          onChange={(e) => setQuery(termId, e.target.value)}
-          onKeyDown={onKeyDown}
-          onBlur={() => useUi.getState().setHoverCourse(null)}
-          onClear={() => {
-            setQuery(termId, "");
-            inputRef.current?.focus();
-          }}
-          hint={
-            <WithTooltip label="Jump to search from anywhere" shortcut="/">
-              <span>
-                <Kbd>/</Kbd>
-              </span>
-            </WithTooltip>
-          }
-        />
+        {/* Above the field, so it never covers the filters or results. */}
+        <WithTooltip
+          label="Search by course code, title or instructor"
+          shortcut="/"
+          side="top"
+        >
+          <SearchField
+            ref={inputRef}
+            role="combobox"
+            aria-expanded={courses.length > 0}
+            aria-controls="search-results"
+            aria-activedescendant={
+              active >= 0 ? `search-result-${active}` : undefined
+            }
+            aria-label="Search courses"
+            placeholder="Course, title or instructor"
+            // Course codes aren't words: no red squiggles or autocorrect.
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            value={query}
+            onChange={(e) => setQuery(termId, e.target.value)}
+            onKeyDown={onKeyDown}
+            onBlur={() => useUi.getState().setHoverCourse(null)}
+            onClear={() => {
+              setQuery(termId, "");
+              inputRef.current?.focus();
+            }}
+            hint={
+              <WithTooltip label="Jump to search from anywhere" shortcut="/">
+                <span>
+                  <Kbd>/</Kbd>
+                </span>
+              </WithTooltip>
+            }
+          />
+        </WithTooltip>
         <FilterChips
           filters={filters}
           onChange={(next) => setFilters(termId, next)}

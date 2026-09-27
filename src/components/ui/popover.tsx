@@ -27,6 +27,7 @@ function PopoverContent({
   align = "start",
   sideOffset = 6,
   collisionPadding = 8,
+  onOpenAutoFocus,
   onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
@@ -36,6 +37,12 @@ function PopoverContent({
         data-slot="popover-content"
         align={align}
         sideOffset={sideOffset}
+        // Opening moves focus inside. A tooltip opening on that focus would
+        // sit on top and take the first Esc, so Esc wouldn't close this.
+        onOpenAutoFocus={(event) => {
+          quietTooltips();
+          onOpenAutoFocus?.(event);
+        }}
         onCloseAutoFocus={(event) => {
           quietTooltips();
           onCloseAutoFocus?.(event);

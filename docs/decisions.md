@@ -129,6 +129,11 @@ Revisit if: a public page starts to depend on who's asking.
 `/`, `/privacy` and similar pages link to `/signin` rather than rendering the account button, and import auth modules directly, never through the `~/features/auth` barrel.
 Revisit if: `v2/schedule-routes` makes route splitting handle it.
 
+### Tooltips on controls, not on menu options
+2026-09-27 · agent · app-wide
+Every control on a page has a tooltip through `WithTooltip`, and `e2e/tooltips.spec.ts` fails on one without. The items of an open menu or listbox don't need one: their text is their whole label, the trigger that opened them has the tooltip, and one per option would cover the next. An item whose label doesn't say enough still gets one (side `left`).
+Revisit if: people hover menu items looking for more, or the owner wants tooltips on every option.
+
 ## Schedule
 
 ### Scheduler views are routes, kept mounted by the sidebar
