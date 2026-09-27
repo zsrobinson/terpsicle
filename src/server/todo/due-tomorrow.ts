@@ -34,6 +34,7 @@ async function candidates(
   now: Date,
   today: string,
   tomorrow: string,
+  batch: number,
 ): Promise<string[]> {
   const { results } = await db
     .prepare(
@@ -42,6 +43,9 @@ async function candidates(
        JOIN notification_settings s ON s.user_id = f.user_id
          AND json_extract(s.settings, '$.todoDue.push') = 1
        WHERE f.status = 'active' AND f.last_success_at >= ?1
+         -- Someone with no device gets no delivery row, so without this
+         -- they'd be picked again every run and could crowd out the rest.
+         AND EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = f.user_id)
          AND NOT EXISTS (SELECT 1 FROM notification_deliveries d
                          WHERE d.dedupe_key = 'todo-due:' || f.user_id || ':' || ?2 || ':push')
          AND EXISTS (SELECT 1 FROM todo_items i
@@ -54,7 +58,7 @@ async function candidates(
       new Date(now.getTime() - TODO_DUE_FRESH_MS).toISOString(),
       today,
       tomorrow,
-      TODO_DUE_BATCH,
+      batch,
     )
     .all<{ user_id: unknown }>();
   return results.flatMap((r) =>
@@ -62,15 +66,31 @@ async function candidates(
   );
 }
 
+/** Reminders sent at once, like the fetches (the Todo cron's budget is its 20 minutes). */
+const TODO_DUE_CONCURRENCY = 8;
+
 export async function sendDueTomorrow(
   env: NotifyEnv,
-  options: { now: Date; testMode?: boolean; fetch?: typeof fetch },
+  options: {
+    now: Date;
+    testMode?: boolean;
+    fetch?: typeof fetch;
+    /** Tests make it small. */
+    batch?: number;
+  },
 ): Promise<DueTomorrowResult> {
   const result: DueTomorrowResult = { due: 0, sent: 0, unsent: 0 };
   const run = dueTomorrowRun(options.now.getTime());
   if (!run) return result;
   const { today, tomorrow } = run;
-  for (const userId of await candidates(env.DB, options.now, today, tomorrow)) {
+  const people = await candidates(
+    env.DB,
+    options.now,
+    today,
+    tomorrow,
+    options.batch ?? TODO_DUE_BATCH,
+  );
+  const one = async (userId: string) => {
     const items = await listItems(env.DB, userId, {
       from: tomorrow,
       to: tomorrow,
@@ -83,8 +103,10 @@ export async function sendDueTomorrow(
       ),
     );
     const open = items.filter((i) => !done.has(i.uid));
-    if (open.length === 0) continue;
+    if (open.length === 0) return;
     result.due++;
+    // A push that fails is claimed as failed and not tried again tonight:
+    // the catch-up is for runs that didn't happen (V3.md §4 "As built").
     const sent = await notify(
       env,
       userId,
@@ -103,7 +125,13 @@ export async function sendDueTomorrow(
     );
     if (sent.push === "sent") result.sent++;
     else result.unsent++;
-  }
+  };
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: TODO_DUE_CONCURRENCY }, async () => {
+      for (let id = people[next++]; id; id = people[next++]) await one(id);
+    }),
+  );
   return result;
 }
 
@@ -127,24 +155,28 @@ export async function dueTomorrowOn(
 }
 
 /**
- * Connecting ELMS turns "Due tomorrow" on (V3.md §4), when the person had
- * no feed before. Reconnecting a feed that's still there (a new link for
- * the same calendar) leaves their choice alone. Returns whether it's on.
+ * Connecting ELMS turns "Due tomorrow" on (V3.md §4) when the person had no
+ * feed; pasting a new link over a connected feed leaves their choice alone.
+ * `plan` says whether it will be on (for the cadence) before the feed is
+ * stored; `apply` writes it after, so a failed connect changes nothing.
  */
-export async function turnOnAtConnect(
+export async function dueTomorrowAtConnect(
   db: D1Database,
   userId: string,
   firstConnect: boolean,
-  now: Date,
-): Promise<boolean> {
+): Promise<{ on: boolean; apply: (now: Date) => Promise<void> }> {
   const settings = await readSettings(db, userId);
-  if (!firstConnect) return settings.todoDue.push;
-  if (!settings.todoDue.push)
-    await writeSettings(
-      db,
-      userId,
-      withChannel(settings, "todo-due", "push", true),
-      now,
-    );
-  return true;
+  const turnOn = firstConnect && !settings.todoDue.push;
+  return {
+    on: firstConnect || settings.todoDue.push,
+    apply: async (now) => {
+      if (turnOn)
+        await writeSettings(
+          db,
+          userId,
+          withChannel(settings, "todo-due", "push", true),
+          now,
+        );
+    },
+  };
 }

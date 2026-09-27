@@ -18,6 +18,7 @@ import {
 import { runTodoFeedsJob } from "~/jobs/todo-feeds";
 import { TEST_VAPID_KEYS } from "../push/config";
 import { resetPushCachesForTests } from "../push/send";
+import { sendDueTomorrow } from "./due-tomorrow";
 import {
   clearTodo,
   type Device,
@@ -269,5 +270,49 @@ describe("the 6pm send", () => {
       .run();
     await runAt("2026-09-28T22:23:00Z");
     expect(phone.received).toEqual([]);
+  });
+});
+
+describe("who's picked", () => {
+  it("never lets people with no device crowd out a batch", async () => {
+    clock = Date.parse("2026-09-28T20:00:00Z");
+    const feed = feedOf([
+      { id: "1", title: "Project 2", due: "2026-09-30T03:59:00Z" },
+    ]);
+    // tadmin sorts first and has ELMS but no device; the batch is one.
+    elms.serve(feed);
+    const laptop = await signIn("tadmin", { now, env: testEnv, elms });
+    await laptop.call("/api/todo/connect", { url: FEED_URL });
+    await connected(feed);
+    clock = Date.parse("2026-09-28T22:03:00Z");
+    expect(
+      await sendDueTomorrow(testEnv(), {
+        now: now(),
+        fetch: phone.fetch,
+        batch: 1,
+      }),
+    ).toEqual({ due: 1, sent: 1, unsent: 0 });
+    expect(phone.received.map((p) => p.title)).toEqual([
+      "Project 2 is due tomorrow",
+    ]);
+  });
+
+  it("wakes a paused feed when the reminder is turned back on", async () => {
+    clock = Date.parse("2026-09-28T16:00:00Z");
+    const device = await connected(
+      feedOf([{ id: "1", title: "Project 2", due: "2026-09-30T03:59:00Z" }]),
+    );
+    await device.call("/api/notifications/settings/set", {
+      settings: DEFAULT_NOTIFICATION_SETTINGS,
+    });
+    await env.DB.prepare("UPDATE todo_feeds SET status = 'paused'").run();
+    await device.call("/api/notifications/settings/set", {
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, todoDue: { push: true } },
+    });
+    expect(
+      await env.DB.prepare(
+        "SELECT status, next_fetch_at FROM todo_feeds",
+      ).first(),
+    ).toEqual({ status: "active", next_fetch_at: now().toISOString() });
   });
 });

@@ -44,7 +44,7 @@ import {
   saveFeedLinkStatement,
   sealFeedLink,
 } from "./crypto";
-import { dueTomorrowOn, turnOnAtConnect } from "./due-tomorrow";
+import { dueTomorrowAtConnect, dueTomorrowOn } from "./due-tomorrow";
 import { fetchFeed } from "./fetch";
 import { refreshFeed } from "./refresh";
 import {
@@ -115,12 +115,11 @@ export async function connect(
 
   const { now } = ctx;
   const owner: FeedOwner = { userId, source: "elms" };
-  // Connecting turns "Due tomorrow" on (V3.md §4), before the cadence reads it.
-  const dueTomorrow = await turnOnAtConnect(
+  // Connecting turns "Due tomorrow" on (V3.md §4); the cadence reads it.
+  const dueTomorrow = await dueTomorrowAtConnect(
     env.DB,
     userId,
     (await getFeed(env.DB, userId)) === null,
-    now,
   );
   const { kept } = keepInWindow(
     parsed.items,
@@ -132,7 +131,11 @@ export async function connect(
     saveFeedLinkStatement(env.DB, owner, sealed, now),
     feedSuccessStatement(env.DB, owner, {
       now,
-      next: nextFetch({ now, lastOpenedAt: now, dueTomorrowOn: dueTomorrow }),
+      next: nextFetch({
+        now,
+        lastOpenedAt: now,
+        dueTomorrowOn: dueTomorrow.on,
+      }),
       body: {
         etag: fetched.etag,
         lastModified: fetched.lastModified,
@@ -144,6 +147,7 @@ export async function connect(
     // Reconnecting keeps done marks: they're keyed on UIDs, apart from items.
     ...replaceItemsStatements(env.DB, userId, "elms", kept, now),
   ]);
+  await dueTomorrow.apply(now);
   const row = await getFeed(env.DB, userId);
   if (!row) return apiError("unavailable");
   return {
