@@ -12,6 +12,11 @@ import { liveToasts } from "./toasts";
 // sign-in, and the Worker's fixture feeds (TEST_FEED_TOKENS) in place of
 // ELMS. Each project signs in as its own person so the two never share a
 // feed (e2e/todo-api.spec.ts uses the third, Test Admin).
+//
+// Within a project every signed-in test is that one person, changing their
+// feed, own tasks and hidden courses, so this file's tests run one after
+// another in one worker (the config is fully parallel elsewhere).
+test.describe.configure({ mode: "default" });
 
 let errors: string[] = [];
 
