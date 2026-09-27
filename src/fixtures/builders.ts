@@ -71,6 +71,7 @@ import {
   type TranscriptLine,
   type UntimedMeeting,
 } from "~/core/schema";
+import type { FeedbackContext, FeedbackItem } from "~/core/schema/feedback";
 import type {
   FourYearCourseEntry,
   FourYearCreditEntry,
@@ -1140,6 +1141,76 @@ export function aFourYearTemplate(
       },
       { index: 1, credits: 4, entries: [{ kind: "course", code: "CMSC132" }] },
     ],
+    ...overrides,
+  };
+}
+
+/** "What I was doing" for a bug on the scheduler: Chrome, dark, one error. */
+export function aFeedbackContext(
+  overrides: Partial<FeedbackContext> = {},
+): FeedbackContext {
+  return {
+    version: "abc1234",
+    browser: "Chrome 141 · macOS",
+    screen: { width: 1512, height: 982, dpr: 2 },
+    viewport: { width: 1280, height: 800 },
+    online: true,
+    theme: "dark",
+    route: "/schedule?tab=travel",
+    actions: [
+      {
+        type: "nav",
+        at: Date.parse(FIXTURE_NOW) - 60_000,
+        route: "/schedule?tab=travel",
+      },
+      {
+        type: "event",
+        at: Date.parse(FIXTURE_NOW) - 30_000,
+        name: "route_map_shown",
+        props: { mode: "walk", hasGeometry: true },
+      },
+      {
+        type: "error",
+        at: Date.parse(FIXTURE_NOW) - 20_000,
+        name: "TypeError",
+        message: "Cannot read properties of undefined (reading 'getCanvas')",
+        stack:
+          "TypeError: …\n    at f (https://terpsicle.com/assets/map-B3kd92Jd.js:1:2)",
+      },
+    ],
+    plan: {
+      termId: fixtureTermId,
+      name: "Plan A",
+      sections: ["CMSC351 0101"],
+      bookmarks: ["MUSC130"],
+      blocks: [{ label: "Lunch", days: "MWF", start: "12:00", end: "13:00" }],
+    },
+    settings: { sidebarOpen: true, termId: fixtureTermId },
+    ...overrides,
+  };
+}
+
+/** A new bug on the scheduler from the inbox (`admin/feedback/list`), with a screenshot. */
+export function aFeedback(overrides: Partial<FeedbackItem> = {}): FeedbackItem {
+  return {
+    id: "FBAAAAAAAAAAAAAAAAAAAA",
+    kind: "bug",
+    product: "schedule",
+    path: "/schedule?tab=travel",
+    text: "The route map stays blank after I pick a section.",
+    expected: "A walking route between my classes.",
+    hasScreenshot: true,
+    hasElementShot: false,
+    context: aFeedbackContext(),
+    element: null,
+    host: "terpsicle.com",
+    reply: false,
+    status: "new",
+    groupId: null,
+    note: null,
+    createdAt: FIXTURE_NOW,
+    updatedAt: FIXTURE_NOW,
+    closedAt: null,
     ...overrides,
   };
 }

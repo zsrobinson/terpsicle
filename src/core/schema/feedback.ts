@@ -1,5 +1,14 @@
 import { z } from "zod";
+import {
+  FeedbackIdSchema,
+  FeedbackKindSchema,
+  FeedbackProductSchema,
+  type FeedbackStatus,
+  FeedbackStatusSchema,
+} from "./feedback-enums";
 import { IsoDateTimeSchema } from "./primitives";
+
+export * from "./feedback-enums";
 
 // Feedback (docs/FEEDBACK.md): what the feedback sheet sends, the owner's
 // pinned notes, and the admin inbox. Kept out of the ~/core/schema barrel
@@ -13,33 +22,9 @@ import { IsoDateTimeSchema } from "./primitives";
 // (~/core/feedback) scrubs routes and redacts link- and token-shaped text
 // in the browser and again in the Worker.
 
-export const FeedbackKindSchema = z.enum(["bug", "idea", "review"]);
-export type FeedbackKind = z.infer<typeof FeedbackKindSchema>;
-
 /** The kinds the sheet sends; "review" is a pinned note (`feedback/pin`). */
 export const FeedbackSendKindSchema = z.enum(["bug", "idea"]);
 export type FeedbackSendKind = z.infer<typeof FeedbackSendKindSchema>;
-
-export const FeedbackProductSchema = z.enum([
-  "schedule",
-  "reviews",
-  "chat",
-  "plan",
-  "todo",
-  "site",
-  "settings",
-  "admin",
-]);
-export type FeedbackProduct = z.infer<typeof FeedbackProductSchema>;
-
-export const FeedbackStatusSchema = z.enum([
-  "new",
-  "planned",
-  "fixed",
-  "wont-fix",
-  "spam",
-]);
-export type FeedbackStatus = z.infer<typeof FeedbackStatusSchema>;
 
 /** Statuses that close an item: its screenshots go 30 days after. */
 export const CLOSED_FEEDBACK_STATUSES: readonly FeedbackStatus[] = [
@@ -47,12 +32,6 @@ export const CLOSED_FEEDBACK_STATUSES: readonly FeedbackStatus[] = [
   "wont-fix",
   "spam",
 ];
-
-/** 16 random bytes, base64url without padding. */
-export const FeedbackIdSchema = z
-  .string()
-  .regex(/^[A-Za-z0-9_-]{22}$/, "Expected a 22-char id");
-export type FeedbackId = z.infer<typeof FeedbackIdSchema>;
 
 /** A group of similar items (`feedback_groups.id`), the same shape. */
 export const FeedbackGroupIdSchema = FeedbackIdSchema;
@@ -386,6 +365,8 @@ export const FeedbackCursorSchema = z
   );
 
 export const FeedbackListInputSchema = z.strictObject({
+  /** One item, for a link back to it (issues, "Copy for an agent"). */
+  id: FeedbackIdSchema.optional(),
   status: FeedbackStatusSchema.optional(),
   kind: FeedbackKindSchema.optional(),
   product: FeedbackProductSchema.optional(),
@@ -447,3 +428,17 @@ export const FeedbackDeleteResultSchema = z.strictObject({
   status: z.enum(["deleted", "restored", "gone"]),
 });
 export type FeedbackDeleteResult = z.infer<typeof FeedbackDeleteResultSchema>;
+
+// ---------- POST /api/admin/feedback/group ----------
+
+export const FeedbackGroupInputSchema = z.strictObject({});
+
+export const FeedbackGroupResultSchema = z.strictObject({
+  /** `unavailable`: the model didn't answer; the old groups stay. */
+  status: z.enum(["grouped", "unavailable"]),
+  /** Groups made this time. */
+  groups: z.number().int().min(0),
+  /** Open items now in a group. */
+  grouped: z.number().int().min(0),
+});
+export type FeedbackGroupResult = z.infer<typeof FeedbackGroupResultSchema>;

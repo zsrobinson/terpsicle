@@ -110,6 +110,13 @@ _Avoid_: session recording, replay, telemetry
 An admin's note on one element of a page, left with the feedback sheet's "Pin a note" and shown as a numbered dot on that route, to admins only. Stored as feedback of kind `review` (a review of a deployment).
 _Avoid_: review note, comment (in the UI: "review" is Reviews' word)
 
+**Feedback inbox**:
+`/admin/feedback`, where the owner reads feedback and pinned notes, sets each one's status (New, Planned, Fixed, Won't fix, or Spam) and hands it on: "Copy for an agent" or "Open GitHub issue".
+_Avoid_: queue (that's moderation's)
+
+**Feedback group**:
+Open feedback items about the same thing, sorted together by "Group similar" (and the daily job) with a one-line summary the model wrote, shown with the sparkles.
+
 ## Schedule
 
 **Plan**:

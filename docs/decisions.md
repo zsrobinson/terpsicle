@@ -279,6 +279,11 @@ Revisit if: another route needs the same, or feedback needs sign-in.
 On phones the scheduler's top bar has no room for another button beside the plan's name, so "Send feedback" is an item in its account menu there, as the theme toggle is. Every other product's header shows the icon, with the wordmark hidden on phones to make room.
 Revisit if: the phone top bar is redesigned.
 
+### Feedback groups by Workers AI, issues without words
+2026-09-27 · agent · one feature
+"Group similar" and the daily job send open feedback's words to Workers AI (the small Llama chat's policy check uses) to group items about the same thing; each run replaces the open items' groups. "Open GitHub issue" carries only where to look (kind, product, route pattern, version, a link back), never the person's words, plan or screenshot. `scripts/feedback.ts` reads production D1 and R2 remotely, and writes only where it's told.
+Revisit if: groups turn out wrong often, or feedback grows past what one model call can sort.
+
 ### Push on before the device check
 2026-09-27 · owner · one feature
 Web push is on in production without waiting for the planned iPhone and Android trial; the owner checks real devices live. The VAPID pair was rotated when it went on (no device had subscribed), with the private key piped straight into the Worker secret, never printed.

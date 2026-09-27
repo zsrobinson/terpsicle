@@ -51,6 +51,7 @@ import {
 import {
   FEEDBACK_MAX_REQUEST_BYTES,
   FeedbackDeleteInputSchema,
+  FeedbackGroupInputSchema,
   FeedbackListInputSchema,
   FeedbackPinInputSchema,
   FeedbackPinsInputSchema,
@@ -112,6 +113,7 @@ import {
   sendFeedback,
   undoFeedback,
 } from "../feedback/api";
+import { groupOpenFeedback } from "../feedback/group";
 import {
   listQueue,
   resolveQueueItem,
@@ -574,6 +576,13 @@ export const ROUTES = {
     alerts: false,
     auth: "admin",
     handle: (env, input, ctx) => adminDeleteFeedback(env, input, ctx),
+  }),
+  "admin/feedback/group": route({
+    input: FeedbackGroupInputSchema,
+    perIpPerHour: 60,
+    alerts: false,
+    auth: "admin",
+    handle: (env, _input, ctx) => groupOpenFeedback(env, ctx.now),
   }),
   // Moderation's admin side (docs/MODERATION.md §6).
   "admin/moderation/queue": route({
