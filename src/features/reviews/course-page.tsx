@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, PenLine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { PanelNote } from "~/app/panel";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
+import { PanelNote } from "~/app/panel";
 import { formatGpa } from "~/core/grades/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
 import {

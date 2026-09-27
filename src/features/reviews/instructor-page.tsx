@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import { useState } from "react";
-import { PanelNote } from "~/app/panel";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
+import { PanelNote } from "~/app/panel";
 import { formatGpa, gradeSummary } from "~/core/grades/grades";
 import {
   gradesSourceWords,
