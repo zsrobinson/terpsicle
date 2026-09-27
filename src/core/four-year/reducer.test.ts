@@ -139,6 +139,31 @@ describe("docs", () => {
       }),
     ).toBe(state);
   });
+
+  it("moves the first semester and leaves entries where they are", () => {
+    const withEntry = run(state, {
+      type: "add",
+      docId: doc.id,
+      entry: aFourYearEntry({ term: "202608" }),
+      now: LATER,
+    });
+    const moved = run(withEntry, {
+      type: "set-first-term",
+      docId: doc.id,
+      firstTermId: "202708",
+      now: LATER,
+    });
+    expect(only(moved).firstTermId).toBe("202708");
+    expect(only(moved).entries).toEqual(only(withEntry).entries);
+    expect(
+      run(moved, {
+        type: "set-first-term",
+        docId: doc.id,
+        firstTermId: "202708",
+        now: LATER,
+      }),
+    ).toBe(moved);
+  });
 });
 
 describe("entries", () => {

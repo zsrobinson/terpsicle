@@ -82,6 +82,14 @@ The icon that marks LLM output, and only LLM output. Generate's results are algo
 What someone sends from the feedback sheet: "Report a bug" or "Suggest a feature". The owner's own notes on a page are **pinned notes**.
 _Avoid_: report (that's moderation's word)
 
+**Activity log**:
+The last ~50 things someone did in the app (pages by route pattern, app events, errors, failed requests), kept in the page's memory and sent only with feedback when "Include what I was doing" is on.
+_Avoid_: session recording, replay, telemetry
+
+**Pinned note**:
+An admin's note on one element of a page, left with the feedback sheet's "Pin a note" and shown as a numbered dot on that route, to admins only. Stored as feedback of kind `review` (a review of a deployment).
+_Avoid_: review note, comment (in the UI: "review" is Reviews' word)
+
 ## Schedule
 
 **Plan**:
@@ -261,7 +269,7 @@ A PR's own deployment at `pr-<n>-terpsicle.zsrobinson.workers.dev`, with its own
 Sign-in with fixture people (Test Student, Test Classmate, Test Admin) instead of Google, only on previews and localhost.
 
 **Flag**:
-A product's on switch in production (`REVIEWS_ENABLED`, `CHAT_ENABLED`, `TODO_ENABLED`).
+A product's on switch in production (`REVIEWS_ENABLED`, `CHAT_ENABLED`, `TODO_ENABLED`, `PLAN_ENABLED`).
 
 **Load rule**:
 How much an agent may run locally: `tsc` once, biome on changed files, the relevant tests with one worker. CI is the verdict.

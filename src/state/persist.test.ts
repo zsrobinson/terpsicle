@@ -53,6 +53,7 @@ describe("persistence", () => {
       syncDocs: ["key"],
       manifests: ["key"],
       files: ["key", "family", "termId"],
+      fourYear: ["id"],
     });
   });
 

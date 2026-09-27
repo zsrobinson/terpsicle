@@ -1,0 +1,321 @@
+import { cn } from "cn";
+import { Plus } from "lucide-react";
+import { type DragEvent, useEffect, useRef, useState } from "react";
+import { columnLabel } from "~/core/four-year/credits";
+import {
+  academicYearLabel,
+  academicYearOf,
+  entriesInTerm,
+  fourYearTermLabel,
+  fourYearTermShortLabel,
+} from "~/core/four-year/terms";
+import type { FourYearTerm, FourYearTermStatus } from "~/core/schema/four-year";
+import { Button } from "~/ui/button";
+import { WithTooltip } from "~/ui/tooltip";
+import { moveEntry } from "./actions";
+import { ENTRY_DRAG_TYPE, EntryBlock } from "./block";
+import { useModel, usePlanNav } from "./model";
+import { focusSearch } from "./search-panel";
+
+// The semesters (V3 §2.13). Desktop: "Before UMD" across the top, then each
+// school year's fall and spring (and any summer or winter) side by side, two
+// years to a row on a wide screen. Phone: a strip of semesters with their
+// credits, and one semester's list under it.
+
+export const STATUS_WORDS: Record<FourYearTermStatus, string> = {
+  done: "Done",
+  "in-progress": "In progress",
+  planned: "Planned",
+};
+
+/** Where in a column a drop at `y` lands: before the first block whose middle is below it. */
+function dropIndex(
+  list: HTMLElement,
+  y: number,
+  dragged: string | null,
+): number {
+  const blocks = [
+    ...list.querySelectorAll<HTMLElement>("[data-entry-id]"),
+  ].filter((el) => el.dataset.entryId !== dragged);
+  const i = blocks.findIndex((el) => {
+    const box = el.getBoundingClientRect();
+    return y < box.top + box.height / 2;
+  });
+  return i === -1 ? blocks.length : i;
+}
+
+function useDrop(term: FourYearTerm) {
+  const { doc } = useModel();
+  const [over, setOver] = useState(false);
+  const accepts = (event: DragEvent) =>
+    event.dataTransfer.types.includes(ENTRY_DRAG_TYPE);
+  return {
+    over,
+    handlers: {
+      onDragEnter: (event: DragEvent) => {
+        if (accepts(event)) setOver(true);
+      },
+      onDragOver: (event: DragEvent) => {
+        if (!accepts(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      },
+      onDragLeave: (event: DragEvent) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+          setOver(false);
+      },
+      onDrop: (event: DragEvent<HTMLElement>) => {
+        setOver(false);
+        const id = event.dataTransfer.getData(ENTRY_DRAG_TYPE);
+        const entry = doc.entries.find((e) => e.id === id);
+        if (!entry) return;
+        event.preventDefault();
+        const list = event.currentTarget.querySelector("ul");
+        const index = list ? dropIndex(list, event.clientY, id) : undefined;
+        moveEntry(doc, entry, term, "drag", index);
+      },
+    },
+  };
+}
+
+function AddButton({
+  term,
+  compact = false,
+}: {
+  term: FourYearTerm;
+  compact?: boolean;
+}) {
+  const nav = usePlanNav();
+  const label = `Add a course to ${fourYearTermLabel(term)}`;
+  return (
+    <WithTooltip label={label}>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label={label}
+        onClick={() => {
+          nav.go({
+            tab: "search",
+            semester: term,
+            course: undefined,
+            wildcard: undefined,
+            gened: undefined,
+            q: undefined,
+          });
+          focusSearch("column");
+        }}
+        className={cn(
+          "h-11 w-full justify-start px-2 font-medium text-muted md:h-7",
+          compact && "w-auto",
+        )}
+      >
+        <Plus aria-hidden="true" />
+        {term === "before" ? "Add AP or transfer credit" : "Add a course"}
+      </Button>
+    </WithTooltip>
+  );
+}
+
+/** One semester: its header, its blocks and "Add a course". */
+export function TermColumn({
+  term,
+  className,
+  heading: Heading = "h3",
+}: {
+  term: FourYearTerm;
+  className?: string;
+  /** h3 under a year's heading on desktop; h2 alone on a phone. */
+  heading?: "h2" | "h3";
+}) {
+  const { doc, statusOf, summaries } = useModel();
+  const nav = usePlanNav();
+  const { over, handlers } = useDrop(term);
+  const entries = entriesInTerm(doc, term);
+  const status = statusOf(term);
+  const summary = summaries.get(term);
+  const picked = nav.search.tab === "search" && nav.search.semester === term;
+  const id = `term-${term}`;
+  return (
+    <section
+      aria-labelledby={id}
+      data-term={term}
+      {...handlers}
+      className={cn(
+        "flex min-w-0 flex-col border border-hairline bg-panel",
+        status === "in-progress" && "bg-product-plan-soft",
+        picked && "border-fg",
+        over && "outline-2 outline-fg outline-dashed -outline-offset-2",
+        className,
+      )}
+    >
+      <header className="flex items-baseline gap-2 px-2 pt-2 pb-1.5">
+        <Heading id={id} className="font-semibold">
+          {fourYearTermLabel(term)}
+        </Heading>
+        <span className="text-muted text-xs">{STATUS_WORDS[status]}</span>
+        <span className="tnum ml-auto text-muted text-xs">
+          {summary && summary.entries > 0 ? columnLabel(summary) : null}
+        </span>
+      </header>
+      <ul
+        aria-label={`${fourYearTermLabel(term)} courses`}
+        className="flex flex-1 flex-col gap-1 px-1.5"
+      >
+        {entries.map((entry) => (
+          <EntryBlock key={entry.id} entry={entry} status={status} />
+        ))}
+      </ul>
+      <div className="p-1.5 pt-1">
+        <AddButton term={term} />
+      </div>
+    </section>
+  );
+}
+
+/** AP and transfer credit, across the top. */
+function BeforeRow() {
+  const { doc, summaries } = useModel();
+  const nav = usePlanNav();
+  const { over, handlers } = useDrop("before");
+  const entries = entriesInTerm(doc, "before");
+  const summary = summaries.get("before");
+  const picked =
+    nav.search.tab === "search" && nav.search.semester === "before";
+  return (
+    <section
+      aria-labelledby="term-before"
+      data-term="before"
+      {...handlers}
+      className={cn(
+        "border border-hairline bg-panel",
+        picked && "border-fg",
+        over && "outline-2 outline-fg outline-dashed -outline-offset-2",
+      )}
+    >
+      <header className="flex items-baseline gap-2 px-2 pt-2 pb-1.5">
+        <h2 id="term-before" className="font-semibold">
+          Before UMD
+        </h2>
+        <span className="text-muted text-xs">AP and transfer credit</span>
+        <span className="tnum ml-auto text-muted text-xs">
+          {summary && summary.entries > 0 ? columnLabel(summary) : null}
+        </span>
+      </header>
+      <div className="flex flex-wrap items-start gap-1.5 px-1.5 pb-1.5">
+        {entries.length > 0 ? (
+          <ul
+            aria-label="Before UMD courses"
+            className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-1"
+          >
+            {entries.map((entry) => (
+              <EntryBlock key={entry.id} entry={entry} status="done" />
+            ))}
+          </ul>
+        ) : null}
+        <AddButton term="before" compact />
+      </div>
+    </section>
+  );
+}
+
+/** Desktop: every semester at once. */
+export function Board() {
+  const { columns } = useModel();
+  const years = new Map<number, FourYearTerm[]>();
+  for (const term of columns) {
+    if (term === "before") continue;
+    const year = academicYearOf(term);
+    years.set(year, [...(years.get(year) ?? []), term]);
+  }
+  const ordered = [...years.entries()].sort(([a], [b]) => a - b);
+  return (
+    <div className="space-y-3">
+      <BeforeRow />
+      <div className="grid gap-x-3 gap-y-4 xl:grid-cols-2">
+        {ordered.map(([year, terms], i) => (
+          <section
+            key={year}
+            aria-label={`Year ${i + 1}, ${academicYearLabel(year)}`}
+          >
+            <h2 className="mb-1.5 flex items-baseline gap-2 text-muted text-xs">
+              <span className="font-medium text-fg">Year {i + 1}</span>
+              <span className="tnum">{academicYearLabel(year)}</span>
+            </h2>
+            <div
+              className="grid gap-1.5"
+              style={{
+                gridTemplateColumns: `repeat(${terms.length}, minmax(0, 1fr))`,
+              }}
+            >
+              {terms.map((term) => (
+                <TermColumn key={term} term={term} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Phone: the strip of semesters, and the picked one's list. */
+export function PhoneBoard({ selected }: { selected: FourYearTerm }) {
+  const { columns, summaries, statusOf } = useModel();
+  const nav = usePlanNav();
+  const strip = useRef<HTMLElement>(null);
+  // Keep the picked semester in view as it changes (an Add, a problem).
+  useEffect(() => {
+    strip.current
+      ?.querySelector(`[data-strip-term="${selected}"]`)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [selected]);
+  return (
+    <div className="space-y-2">
+      <nav
+        ref={strip}
+        aria-label="Semesters"
+        className="-mx-4 scroll-px-4 overflow-x-auto px-4 pb-1"
+      >
+        <ul className="flex gap-1.5">
+          {columns.map((term) => {
+            const summary = summaries.get(term);
+            const current = term === selected;
+            return (
+              <li key={term}>
+                <WithTooltip
+                  label={`${fourYearTermLabel(term)}, ${STATUS_WORDS[statusOf(term)].toLowerCase()}`}
+                >
+                  <button
+                    type="button"
+                    data-strip-term={term}
+                    aria-current={current ? "true" : undefined}
+                    onClick={() => nav.go({ semester: term })}
+                    className={cn(
+                      "flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border px-3 text-sm",
+                      current
+                        ? "border-fg bg-accent-soft font-medium"
+                        : "border-hairline bg-raised text-muted",
+                      statusOf(term) === "in-progress" &&
+                        !current &&
+                        "bg-product-plan-soft",
+                    )}
+                  >
+                    {fourYearTermShortLabel(term)}
+                    <span className="tnum text-muted">
+                      · {summary?.credits ?? 0}
+                    </span>
+                  </button>
+                </WithTooltip>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+      {selected === "before" ? (
+        <BeforeRow />
+      ) : (
+        <TermColumn term={selected} heading="h2" />
+      )}
+    </div>
+  );
+}

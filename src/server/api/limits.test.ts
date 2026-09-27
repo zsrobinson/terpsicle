@@ -82,13 +82,13 @@ describe("the route table", () => {
       if (r.perUser !== undefined)
         expect([r.name, r.auth]).toEqual([
           r.name,
-          expect.stringMatching(/^(user|admin)$/),
+          expect.stringMatching(/^(optional|user|admin)$/),
         ]);
   });
 
   it("limits every route anyone can call per IP", () => {
     for (const r of routes)
-      if (r.auth === undefined || r.auth === "none")
+      if (r.auth === undefined || r.auth === "none" || r.auth === "optional")
         expect([r.name, r.perIp]).toEqual([r.name, expect.any(Number)]);
   });
 
