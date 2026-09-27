@@ -114,8 +114,10 @@ export function MobileDrawer() {
     point === points[2] ? "full" : point === points[1] ? "half" : "peek";
 
   // Opening a tab or drilling in from elsewhere (a shortcut, the calendar)
-  // raises a resting drawer so the result is visible.
-  const last = useRef({ tab, depth });
+  // raises a resting drawer so the result is visible. So does arriving on
+  // a drill-in (a seat-alert email's link), which the URL names from the
+  // first render: from nothing drilled in, that's deeper too.
+  const last = useRef({ tab, depth: 0 });
   useEffect(() => {
     const changed = last.current.tab !== tab || depth > last.current.depth;
     last.current = { tab, depth };

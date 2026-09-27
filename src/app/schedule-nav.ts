@@ -3,7 +3,7 @@ import {
   type AnyRouter,
   useRouter,
 } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { pickTerm } from "~/core/catalog";
 import {
   CONNECTION_PATH,
@@ -54,13 +54,15 @@ let router: AnyRouter | null = null;
 /** Hands the router to the non-React actions below; the scheduler's route calls it. */
 export function useScheduleRouter(): AnyRouter {
   const current = useRouter();
-  router = current;
-  useEffect(
-    () => () => {
+  // In an effect, not during render: React may unmount and remount the
+  // shell without rendering it again (StrictMode does, in dev), and the
+  // remount must hand the router over again.
+  useLayoutEffect(() => {
+    router = current;
+    return () => {
       if (router === current) router = null;
-    },
-    [current],
-  );
+    };
+  }, [current]);
   return current;
 }
 

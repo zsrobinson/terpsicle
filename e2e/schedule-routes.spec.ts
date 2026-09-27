@@ -277,4 +277,18 @@ test.describe("phone", () => {
     await expect(page).toHaveURL(/\/schedule\/courses\?/);
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
   });
+
+  test("a link straight to a course raises the drawer to show it", async ({
+    page,
+  }) => {
+    await arrive(page, "/schedule?demo=1&course=CMSC330");
+    await expect(openView(page)).toHaveText("CMSC330");
+    await expect(page.locator("[data-snap]")).toHaveAttribute(
+      "data-snap",
+      "half",
+    );
+    await expect(
+      page.getByRole("button", { name: "Back to Courses" }),
+    ).toBeInViewport();
+  });
 });
