@@ -57,15 +57,23 @@ export function AdminFrame({
             <Logo compact />
           </a>
         </WithTooltip>
-        <span className="font-semibold">Admin</span>
-        <nav aria-label="Admin" className="flex items-center gap-1">
+        {/* Phones: four pages and the icons fit at 390px only without the
+            word; the nav scrolls on its own before the page ever would. */}
+        <span className="font-semibold max-sm:sr-only">Admin</span>
+        <nav
+          aria-label="Admin"
+          className="flex min-w-0 items-center gap-1 overflow-x-auto"
+        >
           {PAGES.map((p) => (
             <WithTooltip key={p.to} label={p.hint}>
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
-                className={p.to === current ? "bg-hover text-fg" : undefined}
+                className={cn(
+                  "max-sm:px-1.5",
+                  p.to === current && "bg-hover text-fg",
+                )}
               >
                 <Link
                   to={p.to}
