@@ -250,7 +250,7 @@ function LocalState({
           <Button
             variant="link"
             size="row"
-            className="px-0 max-md:h-11"
+            className="px-0"
             onClick={() => actions.retry(item)}
           >
             Try again
@@ -260,7 +260,7 @@ function LocalState({
           <Button
             variant="link"
             size="row"
-            className="px-0 max-md:h-11"
+            className="px-0"
             onClick={() => actions.discard(item)}
           >
             Discard
@@ -352,12 +352,7 @@ function ReactionPicker({
     <Popover open={open} onOpenChange={setOpen}>
       <WithTooltip label="React">
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="React"
-            className="max-md:size-11"
-          >
+          <Button variant="ghost" size="icon-sm" aria-label="React">
             <SmilePlus />
           </Button>
         </PopoverTrigger>
@@ -375,7 +370,7 @@ function ReactionPicker({
                 size="icon-sm"
                 aria-label={REACTION_WORDS[reaction]}
                 aria-pressed={yours}
-                className="aria-pressed:bg-accent-soft max-md:size-11"
+                className="aria-pressed:bg-accent-soft"
                 onClick={() => {
                   onReact(item, reaction, !yours);
                   setOpen(false);
@@ -443,7 +438,6 @@ function Toolbar({
             variant="ghost"
             size="icon-sm"
             aria-label="Reply in a thread"
-            className="max-md:size-11"
             onClick={() => actions.openThread(item)}
           >
             <Reply />
@@ -453,12 +447,7 @@ function Toolbar({
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <WithTooltip label="More">
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="More"
-              className="max-md:size-11"
-            >
+            <Button variant="ghost" size="icon-sm" aria-label="More">
               <Ellipsis />
             </Button>
           </DropdownMenuTrigger>
@@ -540,7 +529,6 @@ function EditBox({
         <WithTooltip label="Save the edit" shortcut="↵">
           <Button
             size="sm"
-            className="max-md:h-11"
             disabled={busy || !draft.trim()}
             onClick={() => void save()}
           >
@@ -548,12 +536,7 @@ function EditBox({
           </Button>
         </WithTooltip>
         <WithTooltip label="Keep it as it was" shortcut="Esc">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onCancel}
-            className="max-md:h-11"
-          >
+          <Button variant="ghost" size="sm" onClick={onCancel}>
             Cancel
           </Button>
         </WithTooltip>
