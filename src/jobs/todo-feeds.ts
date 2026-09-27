@@ -1,6 +1,7 @@
 import { captureServerEvent } from "~/server/analytics";
 import { type TodoEnv, todoMode } from "~/server/todo/config";
 import { loadSealedLinks } from "~/server/todo/crypto";
+import { dueTomorrowOn, sendDueTomorrow } from "~/server/todo/due-tomorrow";
 import { refreshFeed } from "~/server/todo/refresh";
 import { dueFeeds, feedOwner, type TodoFeedRow } from "~/server/todo/store";
 import { type Job, runJob } from "./job";
@@ -14,8 +15,10 @@ export const TODO_FETCH_CONCURRENCY = 8;
  * Terpsicle Todo's feeds (docs/V3.md §3.5, `3,23,43 * * * *`): fetches the
  * active feeds that are due, oldest first, 8 at a time, with backoff after
  * failures, `broken` after ELMS stops sharing a link, and `paused` for feeds
- * nobody opens. It reports counts only, never a feed. `v3/todo-notify` adds
- * the 6pm "Due tomorrow" push to this run.
+ * nobody opens. Then, from 6pm to midnight in New York, it sends "Due
+ * tomorrow" (V3.md §4; src/server/todo/due-tomorrow.ts): the run that
+ * crosses 6pm sends, later ones catch up. It reports counts only, never a
+ * feed.
  */
 export const runTodoFeedsJob: Job = async (context) => {
   await runJob("todo-feeds", context, async () => {
@@ -43,6 +46,11 @@ export const runTodoFeedsJob: Job = async (context) => {
     const due = await dueFeeds(env.DB, now, TODO_FETCH_BATCH);
     counts.due = due.length;
     const sealedFor = await loadSealedLinks(env.DB, due.map(feedOwner));
+    // "Due tomorrow" keeps a feed on the 20-minute cadence (V3.md §3.5).
+    const reminded = await dueTomorrowOn(
+      env.DB,
+      due.map((row) => row.user_id),
+    );
     const errors: string[] = [];
 
     const one = async (row: TodoFeedRow) => {
@@ -54,7 +62,7 @@ export const runTodoFeedsJob: Job = async (context) => {
           now,
           random: Math.random(),
           opened: false,
-          dueTomorrowOn: false,
+          dueTomorrowOn: reminded.has(row.user_id),
         });
         switch (outcome.kind) {
           case "fetched":
@@ -91,6 +99,28 @@ export const runTodoFeedsJob: Job = async (context) => {
       { ...counts, durationMs: Date.now() - started },
       { now, ...(context.fetch ? { fetcher: context.fetch } : {}) },
     );
-    return { counts, errors };
+
+    // After the fetches, so tonight's reminder reads what ELMS says now.
+    let reminders = { due: 0, sent: 0, unsent: 0 };
+    try {
+      reminders = await sendDueTomorrow(context.env, {
+        now,
+        testMode: env.AUTH_TEST_MODE === "true",
+        ...(context.fetch ? { fetch: context.fetch } : {}),
+      });
+    } catch (error) {
+      errors.push(
+        `due tomorrow: ${error instanceof Error ? error.name : "error"}`,
+      );
+    }
+    return {
+      counts: {
+        ...counts,
+        dueTomorrow: reminders.due,
+        dueTomorrowSent: reminders.sent,
+        dueTomorrowUnsent: reminders.unsent,
+      },
+      errors,
+    };
   });
 };

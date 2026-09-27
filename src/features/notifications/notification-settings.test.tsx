@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   type PushDevice,
@@ -70,6 +71,15 @@ beforeEach(() => {
   api.devices.mockResolvedValue({ devices: [] });
 });
 
+// Sonner removes a dismissed toast on a timer; waiting for it here keeps that
+// timer from firing after the DOM is torn down.
+afterEach(async () => {
+  toast.dismiss();
+  await waitFor(() =>
+    expect(document.querySelector("[data-sonner-toast]")).toBeNull(),
+  );
+});
+
 describe("NotificationSettingsSection", () => {
   it("lists every type; the ones that send switch and save, the rest stay quiet", async () => {
     api.setSettings.mockResolvedValue({
@@ -134,6 +144,43 @@ describe("NotificationSettingsSection", () => {
     expect(
       screen.queryByRole("switch", { name: "Chat digest: Notification" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("asks for ELMS before Due tomorrow can switch on", async () => {
+    const user = renderSection();
+    const due = await screen.findByRole("switch", {
+      name: "Due tomorrow: Notification",
+    });
+    expect(due).toHaveAttribute("aria-disabled", "true");
+    expect(due).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.getByRole("link", { name: "Connect ELMS in Todo" }),
+    ).toHaveAttribute("href", "/todo/connect");
+    await user.click(due);
+    expect(api.setSettings).not.toHaveBeenCalled();
+  });
+
+  it("switches Due tomorrow once ELMS is connected", async () => {
+    api.settings.mockResolvedValue({
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, todoDue: { push: true } },
+      todoConnected: true,
+    });
+    api.setSettings.mockResolvedValue({
+      settings: DEFAULT_NOTIFICATION_SETTINGS,
+    });
+    const user = renderSection();
+    const due = await screen.findByRole("switch", {
+      name: "Due tomorrow: Notification",
+    });
+    expect(due).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.queryByRole("link", { name: "Connect ELMS in Todo" }),
+    ).toBeNull();
+    await user.click(due);
+    expect(due).toHaveAttribute("aria-checked", "false");
+    expect(api.setSettings).toHaveBeenCalledWith({
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, todoDue: { push: false } },
+    });
   });
 
   it("puts a switch back when saving fails", async () => {

@@ -111,6 +111,25 @@ export async function getFeed(
   return row ? TodoFeedRowSchema.parse(row) : null;
 }
 
+/**
+ * "Due tomorrow" was turned on: a feed paused while it was off (V3.md
+ * §3.5) is active again and fetched at the next run, so the reminder has
+ * fresh items to read.
+ */
+export async function resumePausedFeed(
+  db: D1Database,
+  userId: string,
+  now: Date,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE todo_feeds SET status = 'active', next_fetch_at = ?2
+       WHERE user_id = ?1 AND status = 'paused'`,
+    )
+    .bind(userId, now.toISOString())
+    .run();
+}
+
 /** Active feeds due by `now`, the longest-waiting first. */
 export async function dueFeeds(
   db: D1Database,
