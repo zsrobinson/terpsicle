@@ -81,10 +81,11 @@ function RailButton({
         onFocus={preload}
         className={cn(
           "relative flex w-[54px] flex-col items-center gap-1 rounded-lg py-2 transition-colors",
-          // Selected: a fill about three times as deep as hover's, and a 2px
-          // bar at the rail's edge, so a hovered tab never reads as selected.
+          // Selected: the kit's one selected fill (accent-soft, as a selected
+          // row or segment), and a 2px bar at the rail's edge, so a hovered
+          // tab never reads as selected.
           selected
-            ? "bg-fg/10 text-fg before:-left-1 before:absolute before:inset-y-3 before:w-0.5 before:rounded-full before:bg-fg"
+            ? "bg-accent-soft text-fg before:-left-1 before:absolute before:inset-y-3 before:w-0.5 before:rounded-full before:bg-fg"
             : "text-muted hover:bg-hover/50 hover:text-fg",
           current && !open && "text-fg",
         )}

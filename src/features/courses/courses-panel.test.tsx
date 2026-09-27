@@ -165,26 +165,15 @@ describe("Courses tab", () => {
           name: "Build your Spring 2027 schedule",
         }),
       ).toBeInTheDocument();
-      const build = within(guide).getByRole("group", {
-        name: "Build it yourself",
-      });
-      const generate = within(guide).getByRole("group", {
-        name: "Generate plans",
-      });
-      // Equally weighted: the same card, a one-line summary and a primary
-      // button each.
-      expect(build.className).toBe(generate.className);
-      const buildSummary = within(build).getByText(
-        "Search, pick sections, fix what's flagged.",
-      );
-      const generateSummary = within(generate).getByText(
-        "Tell it what you need, then pick a plan.",
-      );
-      expect(buildSummary.className).toBe(generateSummary.className);
-      const searchButton = within(build).getByRole("button", {
+      // Equally weighted: two filled buttons of one size, neither the
+      // default, under one line that names both.
+      expect(
+        within(guide).getByText(/^Two ways to start: pick sections yourself/),
+      ).toBeInTheDocument();
+      const searchButton = within(guide).getByRole("button", {
         name: "Search for a course",
       });
-      const generateButton = within(generate).getByRole("button", {
+      const generateButton = within(guide).getByRole("button", {
         name: "Generate plans",
       });
       expect(searchButton.className).toBe(generateButton.className);

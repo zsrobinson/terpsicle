@@ -15,6 +15,10 @@ export interface BackTo {
   params?: LinkProps["params"];
 }
 
+/** Back's look, as a link or a button. */
+const BACK =
+  "-ml-1 inline-flex w-fit items-center gap-0.5 font-medium text-muted text-sm transition-colors hover:text-fg max-md:-my-3 max-md:py-3";
+
 /**
  * The one back affordance: a chevron and the name of where you came from,
  * never a trail. On phones its target grows to 44px without moving anything.
@@ -31,14 +35,33 @@ export function BackLink({
       to={to}
       search={search}
       params={params}
-      className={cn(
-        "-ml-1 inline-flex w-fit items-center gap-0.5 font-medium text-muted text-sm transition-colors hover:text-fg max-md:-my-3 max-md:py-3",
-        className,
-      )}
+      className={cn(BACK, className)}
     >
       <ChevronLeft size={14} aria-hidden="true" />
       {label}
     </Link>
+  );
+}
+
+/**
+ * `BackLink`'s look for a Back that follows history rather than a route (the
+ * scheduler's drill-ins go back to wherever you came from).
+ */
+export function BackButton({
+  onClick,
+  className,
+  children,
+}: {
+  onClick: () => void;
+  className?: string;
+  /** Where Back goes: "Search", or `<span class="ident">CMSC351</span>`. */
+  children: ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} className={cn(BACK, className)}>
+      <ChevronLeft size={14} className="shrink-0" aria-hidden="true" />
+      {children}
+    </button>
   );
 }
 
