@@ -30,6 +30,7 @@ import type {
 import { parseSectionKey, sectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
 import { useSeatWatch } from "~/features/alerts/seat-watches";
+import { FourYearLine } from "~/features/plan-handoff/four-year-line";
 import {
   useActiveTerm,
   useCreditsLabel,
@@ -141,6 +142,7 @@ export function CoursesPanel() {
             )}
           </>
         ) : null}
+        {readOnly ? null : <FourYearLine plan={plan} />}
       </PanelBody>
     </div>
   );

@@ -71,6 +71,11 @@ export const ScheduleSearchSchema = z.object({
   term: param(TermIdSchema),
   /** The open plan tab (a local plan id; ignored when it isn't one of yours). */
   planId: param(LocalIdSchema),
+  /**
+   * `plan`: arrived by Plan's "View schedule" (docs/V3.md §2.12), which makes
+   * or opens `term`'s linked plan. Dropped once that's done.
+   */
+  from: param(z.literal("plan")),
 });
 export type ScheduleSearch = z.infer<typeof ScheduleSearchSchema>;
 

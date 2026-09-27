@@ -168,6 +168,17 @@ describe("history", () => {
     });
   });
 
+  it("leaves Plan's ?from= to the page it landed on, never a later move", async () => {
+    const { user } = await renderShell({
+      routes,
+      path: `/schedule/courses?term=${TEST_TERM_ID}&from=plan`,
+    });
+    await user.click(railTab("Search"));
+    expect(currentPath()).toBe(`/schedule/search?term=${TEST_TERM_ID}`);
+    act(() => openDrill({ kind: "course", courseCode: "CMSC351" }));
+    expect(currentPath()).not.toContain("from=");
+  });
+
   it("Back is the browser's Back, and Forward returns", async () => {
     const { router } = await renderShell({ routes });
     act(() => openDrill({ kind: "course", courseCode: "CMSC351" }));

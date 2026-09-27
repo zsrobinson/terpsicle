@@ -16,6 +16,7 @@ import { moveEntry } from "./actions";
 import { ENTRY_DRAG_TYPE, EntryBlock } from "./block";
 import { useModel, usePlanNav } from "./model";
 import { focusSearch } from "./search-panel";
+import { ViewSchedule } from "./view-schedule";
 
 // The semesters (V3 §2.13). Desktop: "Before UMD" across the top, then each
 // school year's fall and spring (and any summer or winter) side by side, two
@@ -127,7 +128,7 @@ export function TermColumn({
   /** h3 under a year's heading on desktop; h2 alone on a phone. */
   heading?: "h2" | "h3";
 }) {
-  const { doc, statusOf, summaries } = useModel();
+  const { doc, statusOf, summaries, handoffTerm } = useModel();
   const nav = usePlanNav();
   const { over, handlers } = useDrop(term);
   const entries = entriesInTerm(doc, term);
@@ -168,6 +169,7 @@ export function TermColumn({
       <div className="p-1.5 pt-1">
         <AddButton term={term} />
       </div>
+      {term === handoffTerm ? <ViewSchedule termId={term} /> : null}
     </section>
   );
 }

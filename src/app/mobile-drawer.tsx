@@ -200,10 +200,13 @@ export function MobileDrawer() {
       raiseAtOnce(content.current, setSnap);
   }, [keyboard, setSnap]);
 
-  // An empty plan's calendar has nothing on it, and the Courses tab has the
-  // first-visit guide: open far enough to show it, once, on arrival. Half
-  // when it fits there (most phones), full on short screens.
-  const empty = useCurrentPlan()?.plan.courses.length === 0;
+  // A plan with nothing placed has nothing on its calendar, and the Courses
+  // tab has the first-visit guide (and any bookmarks, as when Plan's "View
+  // schedule" makes the plan): open far enough to show it, once, on arrival.
+  // Half when it fits there (most phones), full on short screens.
+  const empty =
+    useCurrentPlan()?.plan.courses.every((c) => c.sectionCode === null) ===
+    true;
   const greeted = useRef(false);
   useEffect(() => {
     if (!empty || greeted.current) return;

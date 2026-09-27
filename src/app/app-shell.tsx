@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import type { TermId } from "~/core/schema";
 import { useSeatWatchesSync } from "~/features/alerts/seat-watches";
+import { usePlanHandoff } from "~/features/plan-handoff/use-plan-handoff";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCatalogPolling } from "~/state/data-hooks";
 import { useActiveTerm, useCurrentPlan } from "~/state/hooks";
@@ -69,6 +71,10 @@ export interface AppShellProps {
   sharedParam?: string | undefined;
   /** Drops `?plan=` from the URL (Save a copy, ✕, or a bad link). */
   onClearShared?: () => void;
+  /** `?from=plan`: the term Plan's "View schedule" hands over (docs/V3.md §2.12). */
+  handoff?: { readonly termId: TermId | undefined } | null;
+  /** Drops `?from=` once the handoff is done. */
+  onHandoffDone?: () => void;
 }
 
 export function AppShell(props: AppShellProps) {
@@ -81,13 +87,19 @@ export function AppShell(props: AppShellProps) {
   );
 }
 
-function Shell({ sharedParam, onClearShared }: AppShellProps) {
+function Shell({
+  sharedParam,
+  onClearShared,
+  handoff = null,
+  onHandoffDone = noop,
+}: AppShellProps) {
   const mobile = useIsMobile();
   const sidebarOpen = useUi((s) => s.sidebarOpen);
 
   useShellShortcuts();
   useDocumentTitle();
-  useDefaultPlan(Boolean(sharedParam));
+  const handingOff = usePlanHandoff(handoff, onHandoffDone);
+  useDefaultPlan(Boolean(sharedParam) || handingOff);
   useTermData();
   const shared = useSharedLink(sharedParam, onClearShared, mobile);
   const failure = useCatalogFailure();
@@ -189,11 +201,16 @@ function useShellShortcuts() {
   );
 }
 
-/** First visit (or a new term): make sure there's a plan to show. */
-function useDefaultPlan(linkInUrl: boolean) {
+function noop() {}
+
+/**
+ * First visit (or a new term): make sure there's a plan to show. `hold`
+ * waits: for a shared link, or for Plan's handoff to make the plan itself.
+ */
+function useDefaultPlan(hold: boolean) {
   const { termId } = useActiveTerm();
   const hydrated = useWorkspace((s) => s.hydrated);
-  const sharing = useShare((s) => s.shared !== null) || linkInUrl;
+  const sharing = useShare((s) => s.shared !== null) || hold;
   const ensurePlan = useWorkspace((s) => s.ensurePlan);
   useEffect(() => {
     // A shared link changes nothing until "Save a copy" (SPEC §3.11).
