@@ -76,6 +76,14 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
   Todo's events never carry an item's title, course, date or link, nor anything from the feed. `/todo` is on the no-autocapture list, and titles and course names are `data-private`.
 
+  | `four_year_created` | `source`: `empty` · `copy` (later `template` · `import`) | Which way into Plan people take. |
+  | `four_year_course_added` | `via`: `search` · `column` · `wildcard-resolve` | Whether search or a semester's "+ Add a course" is found, and how often placeholders become courses. |
+  | `four_year_course_moved` | `via`: `drag` · `menu` | Whether drag is discovered, or people use "Move to…". |
+  | `four_year_wildcard_added` / `four_year_wildcard_resolved` | `kind`: `pattern` · `gen-ed` | Whether placeholders earn their place. |
+  | `four_year_problem_opened` / `four_year_problem_fix_applied` | `kind` (a `FourYearProblemKind`) | Whether prerequisite and credit problems help. |
+
+  Plan's events never carry a course code, grade, GPA or a course's credits. `/plan` is on the no-autocapture list, and grades are `data-private`.
+
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
 - **No session recordings.** The owner decided against them (2026-09-26): `posthog.init` sets `disable_session_recording: true` whatever the PostHog project says, nothing calls `startSessionRecording()` (a test in `src/app/analytics.test.ts` checks every source file), and `before_send` drops any recording data (`$snapshot`) anyway. Keep replay off in the PostHog project too.
@@ -96,6 +104,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signin_result` | `outcome` (`signed-in`, a `SignInError` code, or `sub-conflict`), `hd` (the domain only, on success) | Server-side truth for sign-in success and failure, including failures the browser never reports, and the TERPmail versus UMD Gmail split. |
   | `sync_push` | `docs`, `fourYearDocs`, `conflicts` | Plan sync's load (and how much of it is Terpsicle Plan's four-year plans) and how often two devices change the same doc (a conflict makes a "(copy)" plan). Counts only. |
   | `todo_fetch_run` | `due`, `fetched`, `notModified`, `unchanged`, `failed`, `broken`, `paused`, `durationMs` | Terpsicle Todo's feed cadence and failure rates. Counts only: never a feed, link, person or item. |
+  | `feedback_received` | `kind` (`bug` · `idea`), `product`, `hasScreenshot`, `withContext`, `reply` | How much feedback arrives and whether people keep the screenshot and activity log on (docs/FEEDBACK.md). Never its words, its page or who sent it. |
 
   Seat-alert events never carry an address, token or IP, not even hashed: a count per term is all we need. Identity events carry no user id, directory ID, name, email or `sub`: the domain is the most specific thing they say.
 

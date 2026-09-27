@@ -240,6 +240,8 @@ export async function purgeAccounts(
     "SELECT id FROM users WHERE status = 'deleting' AND delete_after <= ?1";
   const cleanup = [
     `DELETE FROM sessions WHERE user_id IN (${due})`,
+    // Feedback stays, without who sent it (they can't be replied to now).
+    `UPDATE feedback SET user_id = NULL WHERE user_id IN (${due})`,
     `DELETE FROM user_identities WHERE user_id IN (${due})`,
     `DELETE FROM sync_docs WHERE user_id IN (${due})`,
     `DELETE FROM sync_heads WHERE user_id IN (${due})`,

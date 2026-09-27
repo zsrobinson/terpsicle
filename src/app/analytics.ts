@@ -20,6 +20,7 @@ import type {
   TravelMode,
   Wildcard,
 } from "~/core/schema";
+import type { FourYearProblemKind } from "~/core/schema/four-year";
 import { type ClientConfig, clientConfig, type DataSource } from "./config";
 
 type NoProperties = Record<string, never>;
@@ -143,6 +144,15 @@ export interface AnalyticsEvents {
   todo_item_checked: { done: boolean; via: "list" | "week" };
   todo_view_changed: { view: "day" | "course" | "week" };
   todo_file_imported: { items: number; skipped: number };
+  // Terpsicle Plan (V3.md §6). Never a course code, grade, GPA or a
+  // course's credits: which ways in and which controls get used.
+  four_year_created: { source: "empty" | "template" | "import" | "copy" };
+  four_year_course_added: { via: "search" | "column" | "wildcard-resolve" };
+  four_year_course_moved: { via: "drag" | "menu" };
+  four_year_wildcard_added: { kind: "pattern" | "gen-ed" };
+  four_year_wildcard_resolved: { kind: "pattern" | "gen-ed" };
+  four_year_problem_opened: { kind: FourYearProblemKind };
+  four_year_problem_fix_applied: { kind: FourYearProblemKind };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

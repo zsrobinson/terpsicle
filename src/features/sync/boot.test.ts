@@ -1,11 +1,11 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SyncPullInput, SyncPushInput } from "~/core/schema";
+import type { Plan, SyncPullInput, SyncPushInput } from "~/core/schema";
 import { aPlan, demoPlan, FakeSyncServer } from "~/fixtures";
 import { TerpsicleDb } from "~/state/db";
 import { newLocalId, nowIso } from "~/state/ids";
 import { hydrate, type Persistence, startPersisting } from "~/state/persist";
-import { resetStores, seedDemoWorkspace } from "~/state/testing";
+import { resetStores, seedDemoWorkspace, TEST_TERM_ID } from "~/state/testing";
 import { useWorkspace } from "~/state/workspace-store";
 import { startSync, stopSync } from "./boot";
 import type { SyncHost } from "./running";
@@ -179,6 +179,55 @@ describe("plan sync in the scheduler", () => {
     );
     expect(fake.plans().has("plan_later_01")).toBe(true);
     expect(localStorage.getItem(SYNC_RESET_KEY)).toBeNull();
+  });
+
+  it("drops the empty plan the app makes while the account's plans are on their way", async () => {
+    // Another device saved this term's plans to the account.
+    const theirs = [
+      aPlan({ id: "plan_acct_a", name: "Plan A" }),
+      aPlan({ id: "plan_acct_b", name: "Plan B", order: 1 }),
+    ];
+    fake.push({
+      docs: theirs.map((body) => ({
+        kind: "plan",
+        id: body.id,
+        baseRev: 0,
+        body,
+      })),
+    });
+    // A new device: the catalog's terms arrive while the first sign-in is
+    // pulling, so the app makes its own "Plan A" then, and that plan's write
+    // lands in IndexedDB only after the union has read it (held here).
+    let release = () => {};
+    let made = false;
+    server.current = {
+      push: (input) => fake.push(input),
+      pull: (input) => {
+        if (!made) {
+          made = true;
+          persistence.enqueue(
+            () =>
+              new Promise<void>((resolve) => {
+                release = resolve;
+              }),
+          );
+          useWorkspace.getState().ensurePlan(TEST_TERM_ID);
+          expect(useWorkspace.getState().plans).toHaveLength(1);
+        }
+        return fake.pull(input);
+      },
+    };
+
+    startSync(host, "tstudent");
+    await vi.waitFor(() => expect(status()).toBe("saved"), WAIT);
+    release();
+    await persistence.flushed();
+
+    const names = (plans: readonly Plan[]) =>
+      [...plans].sort((a, b) => a.order - b.order).map((p) => p.name);
+    expect(names(useWorkspace.getState().plans)).toEqual(["Plan A", "Plan B"]);
+    expect(names(await db.plans.toArray())).toEqual(["Plan A", "Plan B"]);
+    expect(fake.plans().size).toBe(2);
   });
 
   it("says offline, and saves once the server answers", async () => {

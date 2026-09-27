@@ -101,6 +101,14 @@ export function PrivacyPage() {
           </p>
         </Section>
 
+        <Section title="Plan">
+          <p>
+            Your four-year plan is saved in your browser, and for now nowhere
+            else: it doesn't reach our server, even when you're signed in.
+            Nobody else can see it, and we don't use it for anything.
+          </p>
+        </Section>
+
         <Section title="Todo">
           <p>
             To show your deadlines, we keep your ELMS calendar link on our

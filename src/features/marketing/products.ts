@@ -2,8 +2,8 @@ import { SCHEDULE_PATH } from "~/core/routing";
 import { PRODUCT_ORDER, type TangleProduct } from "./tangle";
 
 // The five products as the marketing page shows them, in color order
-// (docs/V3.md §1). Plan is being built: until it launches, its block says
-// "Coming soon" and links nowhere.
+// (docs/V3.md §1). A product that hasn't launched says "Coming soon" and
+// links nowhere; all five are out.
 
 export type MarketingProduct = TangleProduct;
 
@@ -14,7 +14,7 @@ export const LAUNCHED: Record<MarketingProduct, boolean> = {
   schedule: true,
   reviews: true,
   chat: true,
-  plan: false,
+  plan: true,
   todo: true,
 };
 

@@ -7,11 +7,17 @@ import {
 } from "~/fixtures";
 import { statusResolver, termSpan, termStatus } from "./status";
 import {
+  academicYearLabel,
+  academicYearOf,
   compareFourYearTerms,
+  defaultFirstTerm,
+  defaultTargetTerm,
   entriesInTerm,
   firstSemesterOf,
+  firstTermChoices,
   fourYearColumns,
   fourYearTermLabel,
+  fourYearTermShortLabel,
   isSemester,
   nextSemester,
   previousSemester,
@@ -121,5 +127,48 @@ describe("termStatus", () => {
     expect(statusOf("202608")).toBe("in-progress");
     expect(statusOf("202701")).toBe("planned");
     expect(statusOf("202601")).toBe("done");
+  });
+});
+
+describe("labels and defaults", () => {
+  it("names terms short for the phone's strip", () => {
+    expect(fourYearTermShortLabel("before")).toBe("Before");
+    expect(fourYearTermShortLabel("202608")).toBe("Fa 2026");
+    expect(fourYearTermShortLabel("202612")).toBe("Wi 2027");
+    expect(fourYearTermShortLabel("202705")).toBe("Su 2027");
+  });
+
+  it("groups a fall with the winter, spring and summer after it", () => {
+    expect(
+      ["202608", "202612", "202701", "202705", "202708"].map(academicYearOf),
+    ).toEqual([2026, 2026, 2026, 2026, 2027]);
+    expect(academicYearLabel(2026)).toBe("2026–27");
+    expect(academicYearLabel(2099)).toBe("2099–00");
+  });
+
+  it("starts a new plan at this school year's fall, or the coming one from May", () => {
+    expect(defaultFirstTerm("2026-09-25")).toBe("202608");
+    expect(defaultFirstTerm("2027-02-01")).toBe("202608");
+    expect(defaultFirstTerm("2027-05-20")).toBe("202708");
+  });
+
+  it("offers falls and springs back six years, newest first", () => {
+    const choices = firstTermChoices("2026-09-25");
+    expect(choices[0]).toBe("202608");
+    expect(choices[1]).toBe("202601");
+    expect(choices.at(-1)).toBe("202008");
+    expect(choices).toHaveLength(13);
+  });
+
+  it("adds to the semester in progress, else the first planned one", () => {
+    const columns = fourYearColumns(aFourYear());
+    const statusOf = statusResolver("2026-09-25", []);
+    expect(defaultTargetTerm(columns, statusOf)).toBe("202608");
+    expect(defaultTargetTerm(columns, statusResolver("2027-01-10", []))).toBe(
+      "202701",
+    );
+    expect(defaultTargetTerm(columns, statusResolver("2035-01-01", []))).toBe(
+      "203001",
+    );
   });
 });

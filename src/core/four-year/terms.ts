@@ -1,9 +1,10 @@
 import { termLabel } from "../catalog/terms";
-import type { TermId } from "../schema";
+import type { IsoDate, TermId } from "../schema";
 import type {
   FourYearDoc,
   FourYearEntry,
   FourYearTerm,
+  FourYearTermStatus,
 } from "../schema/four-year";
 
 // A four-year plan's columns (docs/V3.md §2.1): "Before UMD", eight fall and
@@ -86,4 +87,66 @@ export function firstSemesterOf(terms: Iterable<FourYearTerm>): TermId | null {
   for (const term of terms)
     if (isSemester(term) && (first === null || term < first)) first = term;
   return first;
+}
+
+/** The strip's short name: "Before", "Fa 2026", "Wi 2027". */
+export function fourYearTermShortLabel(term: FourYearTerm): string {
+  if (term === "before") return "Before";
+  const [season, year] = termLabel(term).split(" ");
+  return season && year ? `${season.slice(0, 2)} ${year}` : term;
+}
+
+/**
+ * The academic year a term belongs to, by the year its fall starts: Fall
+ * 2026, Winter 2027, Spring 2027 and Summer 2027 are all 2026.
+ */
+export function academicYearOf(termId: TermId): number {
+  const year = Number(termId.slice(0, 4));
+  return termId.endsWith("08") || termId.endsWith("12") ? year : year - 1;
+}
+
+/** "2026–27". */
+export function academicYearLabel(year: number): string {
+  return `${year}–${String((year + 1) % 100).padStart(2, "0")}`;
+}
+
+/**
+ * A new plan's first semester: most people start in a fall, so the fall of
+ * the school year you're in, or the coming one from May on (someone
+ * admitted in spring plans over the summer).
+ */
+export function defaultFirstTerm(today: IsoDate): TermId {
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+  return `${month >= 5 ? year : year - 1}08`;
+}
+
+/**
+ * What "I started in" offers: falls and springs from six years back
+ * (a fifth year, or a return after time off) to the coming fall.
+ */
+export function firstTermChoices(today: IsoDate): TermId[] {
+  const newest = defaultFirstTerm(today);
+  const oldest = `${Number(newest.slice(0, 4)) - 6}08`;
+  const out: TermId[] = [];
+  for (let term: TermId = oldest; term <= newest; term = nextSemester(term))
+    out.push(term);
+  return out.reverse();
+}
+
+/**
+ * Where a course goes when no semester is picked: the one in progress, else
+ * the first planned one, else the last column.
+ */
+export function defaultTargetTerm(
+  columns: readonly FourYearTerm[],
+  statusOf: (term: FourYearTerm) => FourYearTermStatus,
+): FourYearTerm {
+  const terms = columns.filter((t) => t !== "before");
+  return (
+    terms.find((t) => statusOf(t) === "in-progress") ??
+    terms.find((t) => statusOf(t) === "planned") ??
+    terms[terms.length - 1] ??
+    "before"
+  );
 }

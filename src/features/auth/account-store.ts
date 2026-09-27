@@ -40,6 +40,7 @@ export const FLAGS_OFF: Flags = {
   seatAlerts: false,
   push: false,
   todo: false,
+  plan: false,
   authTestMode: false,
 };
 
