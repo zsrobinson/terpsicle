@@ -90,7 +90,7 @@ const clock = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
 /**
- * The person's own plan as a report carries it: placed sections, saved
+ * The person's own plan as feedback carries it: placed sections, saved
  * courses and their blocks (labels included; the screenshot still covers
  * them). Never someone else's shared plan: the caller passes only their own.
  */

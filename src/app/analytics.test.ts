@@ -1,7 +1,7 @@
 import type { CaptureResult } from "posthog-js";
 import { afterEach, describe, expect, it } from "vitest";
 import { NO_AUTOCAPTURE_ROUTES } from "~/core/analytics";
-import { analyticsEnabled } from "./analytics";
+import { analyticsEnabled, onTrack, track } from "./analytics";
 import { parseClientConfig } from "./config";
 import { pagePrivateText, posthogOptions } from "./posthog-options";
 
@@ -30,6 +30,24 @@ describe("analyticsEnabled", () => {
     ["www (it redirects anyway)", production, "www.terpsicle.com"],
   ])("is off for %s", (_, config, hostname) => {
     expect(analyticsEnabled(config, hostname)).toBe(false);
+  });
+});
+
+describe("onTrack", () => {
+  afterEach(() => onTrack(null));
+
+  it("hears every event, with PostHog off", () => {
+    const heard: [string, object][] = [];
+    onTrack((event, properties) => heard.push([event, properties]));
+    track("sidebar_collapsed", {});
+    track("tab_opened", { tab: "search", via: "click" });
+    expect(heard).toEqual([
+      ["sidebar_collapsed", {}],
+      ["tab_opened", { tab: "search", via: "click" }],
+    ]);
+    onTrack(null);
+    track("sidebar_collapsed", {});
+    expect(heard).toHaveLength(2);
   });
 });
 
@@ -72,6 +90,7 @@ describe("posthogOptions", () => {
     const autocapture = options.autocapture;
     if (typeof autocapture !== "object") throw new Error("no autocapture");
     expect(autocapture.css_selector_ignorelist).toContain("[data-private]");
+    expect(autocapture.css_selector_ignorelist).toContain("[data-feedback-ui]");
     expect(autocapture.capture_copied_text).toBe(false);
     for (const route of NO_AUTOCAPTURE_ROUTES)
       expect(

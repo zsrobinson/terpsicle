@@ -1,5 +1,5 @@
 // Feedback's pure parts (docs/FEEDBACK.md): image checks, retention, paths,
-// the context a report carries and the screenshot's geometry.
+// the context feedback carries and the screenshot's geometry.
 export * from "./context";
 export * from "./image";
 export * from "./path";

@@ -148,6 +148,8 @@ export function Composer({
               onMouseEnter={() => mentions.setActive(i)}
               onClick={() => pick(who)}
               onKeyDown={() => {}}
+              // Classmates' names: boxed out of feedback screenshots.
+              data-private=""
               className={cn(
                 "cursor-default truncate px-3 py-1.5 text-fg text-sm max-md:py-3",
                 i === mentions.active && "bg-hover",

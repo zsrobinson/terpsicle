@@ -29,6 +29,9 @@ export function posthogOptions(
       // A custom list replaces PostHog's default, so its two are repeated.
       css_selector_ignorelist: [
         PRIVATE_SELECTOR,
+        // The feedback sheet, the admin's pins and their note box: the
+        // admin's notes sit in the dots' labels.
+        "[data-feedback-ui]",
         ".ph-no-autocapture",
         "[data-ph-no-autocapture]",
       ],

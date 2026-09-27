@@ -22,11 +22,16 @@ import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { type SheetMode, useDraft } from "./draft-store";
 import { usePins } from "./pin-store";
 import { RedactEditor } from "./redact-editor";
-import { ShotTooBigError, shotFromFile, takeScreenshot } from "./screenshot";
+import {
+  releaseShot,
+  ShotTooBigError,
+  shotFromFile,
+  takeScreenshot,
+} from "./screenshot";
 import {
   APP_VERSION,
   currentTheme,
-  reportPath,
+  feedbackPagePath,
   sendDraft,
   sendFailure,
   TOO_BIG,
@@ -66,6 +71,8 @@ function useFreshScreenshot() {
         (next) => {
           if (current)
             useDraft.getState().setShot({ status: "ready", shot: next });
+          // Closed while it was taken: nobody will see it.
+          else releaseShot(next);
         },
         (error: unknown) => {
           console.warn("Feedback screenshot failed", error);
@@ -435,7 +442,9 @@ export function FeedbackForm({
       await sendDraft({ ...draft, mode }, product, signedIn);
       onSent();
     } catch (e) {
-      setError(sendFailure(e));
+      setError(
+        sendFailure(e, draft.includeShot && draft.shot.status === "ready"),
+      );
     } finally {
       setSending(false);
     }
@@ -443,7 +452,7 @@ export function FeedbackForm({
 
   const context = [
     PRODUCT_NAMES[product],
-    reportPath(),
+    feedbackPagePath(),
     browserName(navigator.userAgent),
     currentTheme() === "dark" ? "Dark" : "Light",
     APP_VERSION,

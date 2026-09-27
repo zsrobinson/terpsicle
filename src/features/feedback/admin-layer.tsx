@@ -298,7 +298,11 @@ function NoteBox({
               toast.dismiss(toastId);
               void feedbackApi
                 .undo({ id: result.id, undoToken: result.undoToken })
-                .then(() => usePins.getState().load(pathname))
+                .then(({ status }) => {
+                  if (status !== "undone")
+                    toast("Too late to undo: the note's already in the inbox.");
+                  return usePins.getState().load(pathname);
+                })
                 .catch(() =>
                   toast("Couldn't undo. Check your connection and try again."),
                 );
@@ -308,7 +312,7 @@ function NoteBox({
       });
       onPinned();
     } catch (e) {
-      setError(sendFailure(e));
+      setError(sendFailure(e, false));
       setSaving(false);
     }
   };

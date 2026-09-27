@@ -97,7 +97,7 @@ export function RedactEditor({
             : "Drag around the part to keep."}
         </DialogDescription>
         <div className="mb-3 flex flex-wrap items-center gap-1">
-          <div role="radiogroup" aria-label="Tool" className="flex gap-1">
+          <div className="flex gap-1">
             {(
               [
                 ["hide", "Black out", EyeOff, "Drag to cover part of it"],
@@ -105,11 +105,9 @@ export function RedactEditor({
               ] as const
             ).map(([id, label, Icon, tip]) => (
               <WithTooltip key={id} label={tip}>
-                {/* biome-ignore lint/a11y/useSemanticElements: a segmented control, styled as buttons */}
                 <button
                   type="button"
-                  role="radio"
-                  aria-checked={tool === id}
+                  aria-pressed={tool === id}
                   onClick={() => setTool(id)}
                   className={cn(
                     "flex h-7 items-center gap-1.5 rounded-md border px-2 font-medium text-sm transition-colors",

@@ -30,8 +30,8 @@ export function currentTheme(): "light" | "dark" {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
-/** The page's path and search as a report keeps it (no share link's plan). */
-export function reportPath(): string {
+/** The page's path and search as feedback keeps it (no share link's plan). */
+export function feedbackPagePath(): string {
   return scrubUrl(window.location.pathname + window.location.search) || "/";
 }
 
@@ -63,14 +63,20 @@ export function gatherContext(now = new Date()): FeedbackContext {
 export const TOO_BIG =
   "Your screenshot's too big to send. Crop it or send without it.";
 
-/** What to say when sending didn't work. */
-export function sendFailure(error: unknown): string {
+/**
+ * What to say when sending didn't work. The Worker refuses a screenshot it
+ * can't take as "invalid-input", the only thing the sheet can get wrong.
+ */
+export function sendFailure(error: unknown, withShot: boolean): string {
   if (error instanceof ApiCallError) {
     if (error.reason === "rate-limited")
       return "You've sent a lot of feedback in the last hour. Try again later.";
     if (error.reason === "network")
       return "Couldn't send. Check your connection and try again.";
-    if (error.reason === "invalid-input") return TOO_BIG;
+    if (error.reason === "invalid-input")
+      return withShot
+        ? TOO_BIG
+        : "Couldn't send that. Shorten it a little and try again.";
   }
   return "Couldn't send just now. Try again in a moment.";
 }
@@ -94,7 +100,7 @@ export async function sendDraft(
   const result = await feedbackApi.send({
     kind,
     product,
-    path: reportPath(),
+    path: feedbackPagePath(),
     text: draft.text.trim(),
     ...(expected ? { expected } : {}),
     ...(shot

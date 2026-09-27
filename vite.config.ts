@@ -31,7 +31,7 @@ function checkoutMarker(): Plugin {
 }
 
 /**
- * The build's version for feedback reports (`__APP_VERSION__`): CI's commit,
+ * The build's version for feedback (`__APP_VERSION__`): CI's commit,
  * else the checkout's, else "dev".
  */
 function appVersion(): string {

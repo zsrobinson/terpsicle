@@ -169,9 +169,9 @@ export function PrivacyPage() {
           </p>
           <p>
             Screenshots are deleted 180 days after you send them, or 30 days
-            after we close the report, whichever comes first. Everything else is
-            deleted after a year. Right after sending, Undo takes it back
-            completely.
+            after we mark your feedback done, whichever comes first. Everything
+            else is deleted after a year. Right after sending, Undo takes it
+            back completely.
           </p>
         </Section>
 

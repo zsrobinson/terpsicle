@@ -4,7 +4,7 @@ How people tell us what's broken or missing, and how the owner leaves notes on a
 
 ## Where it is
 
-**Send feedback** is in the scheduler's top bar, before the account button, and in the header of every product page (Reviews, Chat, Plan, Todo, Settings), never on `/` or `/privacy` (`feedbackProduct` in `src/core/feedback/path.ts`). On desktop it's an icon and "Feedback" and opens a popover; on phones it's the icon alone and opens a drawer, except on the scheduler, whose phone bar is full: there it's an item in the account menu. Only the button loads with the page (`src/features/feedback/feedback-button.tsx`); the sheet, the screenshot code (`modern-screenshot`) and the admin's pins load on first hover or focus (`scripts/check-bundle.ts`). Closing the sheet keeps the draft in memory; after sending, the toast's Undo calls `feedback/undo` and puts the words back.
+**Send feedback** is in the scheduler's top bar, before the account button, and in the header of every product page (Reviews, Chat, Plan, Todo, Settings, Admin), never on `/` or `/privacy` (`feedbackProduct` in `src/core/feedback/path.ts`). On desktop it's an icon and "Feedback" and opens a popover; on phones it's the icon alone and opens a drawer, except on the scheduler, whose phone bar is full: there it's an item in the account menu. Only the button loads with the page (`src/features/feedback/feedback-button.tsx`); the sheet, and the screenshot code (`modern-screenshot`) load on first hover or focus, and the admin's pins load with the page for admins only (`scripts/check-bundle.ts`). Closing the sheet keeps the draft in memory; after sending, the toast's Undo calls `feedback/undo` and puts the words back.
 
 ## What's sent
 

@@ -135,12 +135,12 @@ export async function captureViewport(): Promise<{
 }> {
   const viewport = { width: window.innerWidth, height: window.innerHeight };
   const wanted = screenshotScale(viewport, window.devicePixelRatio);
-  // Measured before anything moves: these are the boxes painted on top.
-  const rects = privateRects();
   const [{ domToCanvas }, thaw] = await Promise.all([
     import("modern-screenshot"),
     freezeMaps(),
   ]);
+  // Measured right before the copy: these are the boxes painted on top.
+  const rects = privateRects();
   const { scrollX, scrollY } = window;
   let canvas: HTMLCanvasElement;
   try {
@@ -161,8 +161,9 @@ export async function captureViewport(): Promise<{
       },
       onCloneEachNode: (cloned) => {
         // Hidden in the copy as well as boxed on the image: belt and braces.
+        // Opacity, since a child can't undo it the way it can visibility.
         if (cloned instanceof HTMLElement && cloned.matches(PRIVATE))
-          cloned.style.visibility = "hidden";
+          cloned.style.opacity = "0";
       },
       timeout: 10_000,
     });

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MeUser } from "~/core/schema";
 import type { FeedbackSendInput } from "~/core/schema/feedback";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
+import { aMeUser } from "~/fixtures";
 import { ApiCallError } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
@@ -42,15 +43,8 @@ vi.mock("./screenshot", async (original) => {
   };
 });
 
-const STUDENT: MeUser = {
-  id: "tstudent",
-  name: "Test Student",
-  email: "tstudent@terpmail.umd.edu",
-  avatarUrl: null,
-  isAdmin: false,
-  createdAt: "2026-09-01T15:00:00.000Z",
-};
-const ADMIN: MeUser = { ...STUDENT, id: "tadmin", isAdmin: true };
+const STUDENT = aMeUser();
+const ADMIN = aMeUser({ id: "tadmin", isAdmin: true });
 
 function signedInAs(user: MeUser | null) {
   useAccount.setState({
