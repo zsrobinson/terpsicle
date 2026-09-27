@@ -5,7 +5,7 @@ import {
   RouterProvider,
   stringifySearchWith,
 } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -262,6 +262,21 @@ describe("the list", () => {
       link: null,
     }),
   ];
+
+  it("keeps the family bar, and focus in it, as the account and the list load", async () => {
+    fakeClient({ items });
+    useAccount.setState({ status: "loading", flags: FLAGS_OFF, user: null });
+    renderTodo();
+    const feedback = await screen.findByRole("button", { name: "Feedback" });
+    feedback.focus();
+    act(() => signedIn());
+    expect(
+      await screen.findByText("4 open · ELMS feed checked 14 min ago"),
+    ).toBeVisible();
+    // The same bar, not a new one: focus stayed where it was.
+    expect(feedback.isConnected).toBe(true);
+    expect(feedback).toHaveFocus();
+  });
 
   it("reads like the plan: open count, when ELMS was checked, and the days", async () => {
     fakeClient({ items });
