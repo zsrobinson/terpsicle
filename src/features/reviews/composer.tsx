@@ -7,6 +7,7 @@ import { termLabel } from "~/core/catalog/terms";
 import { LENGTH_LIMITS } from "~/core/moderation";
 import {
   reviewProblemWords,
+  reviewTermChoices,
   stageZeroProblems,
   writeResultWords,
 } from "~/core/reviews";
@@ -22,6 +23,7 @@ import {
   type ReviewWriteResult,
   type TermId,
 } from "~/core/schema";
+import { newYorkClock } from "~/core/todo/list";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
 import { Textarea } from "~/ui/input";
@@ -34,7 +36,6 @@ import {
 } from "~/ui/select";
 import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
-import { browserReader, loadTerms, useLoaded } from "./data";
 import { useReviews } from "./reviews-store";
 
 // The review form (V2 §7.4): stars, when you took it, your grade (optional)
@@ -52,8 +53,6 @@ export interface ComposerTarget {
   course: CourseCode;
 }
 
-/** Terms offered in "When did you take it?": the newest this many. */
-const TERM_CHOICES = 12;
 const NOT_SAID = "not-said";
 
 /** The kit's Select, a field's height: 44px on phones, 32px on a desktop. */
@@ -83,8 +82,10 @@ export function Composer({
   const [failure, setFailure] = useState<Failure | null>(null);
   const submit = useReviews((s) => s.submit);
   const edit = useReviews((s) => s.edit);
-  const terms = useLoaded("terms", async () =>
-    loadTerms(await browserReader()),
+  // The term under way and the ones before it, never one that hasn't
+  // started (the catalog leads with the term people register for next).
+  const [recentTerms] = useState(() =>
+    reviewTermChoices(newYorkClock(Date.now()).date),
   );
   const ids = {
     body: useId(),
@@ -153,12 +154,10 @@ export function Composer({
       : body.trim() === ""
         ? "Write your review first"
         : null;
-  const recentTerms =
-    terms.status === "ready" ? terms.data.slice(0, TERM_CHOICES) : [];
   const termOptions =
-    termId && !recentTerms.some((t) => t.id === termId)
-      ? [...recentTerms.map((t) => t.id), termId]
-      : recentTerms.map((t) => t.id);
+    termId && !recentTerms.includes(termId)
+      ? [...recentTerms, termId]
+      : recentTerms;
 
   // A Card: one thing that opens in place, with its own action.
   return (

@@ -32,7 +32,7 @@ import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { type View, ViewSwitch } from "~/ui/view-switch";
 import type { ComposerTarget } from "./composer";
-import { PAGE_ROW, ReviewsFrame } from "./frame";
+import { PAGE_NOTE, PAGE_ROW, ReviewsFrame } from "./frame";
 import { useReviewsLevel, useSignedIn } from "./level";
 import { GradesBlock, SummaryBlock } from "./planetterp-blocks";
 import { Stars } from "./rating";
@@ -172,7 +172,7 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
           {record ? (
             <GradesBlock record={record} gradesThrough={gradesThrough} />
           ) : (
-            <PanelNote className={PAGE_ROW}>
+            <PanelNote className={PAGE_NOTE}>
               PlanetTerp has no grades for {name ?? "them"} in {course}.
             </PanelNote>
           )}

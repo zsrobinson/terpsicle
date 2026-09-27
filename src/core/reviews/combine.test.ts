@@ -81,11 +81,11 @@ describe("reviewStanding", () => {
     });
   });
 
-  it("uses V2 §9.2's words while a person looks", () => {
+  it("calls it Held, the glossary's word, while a person looks", () => {
     const held = reviewStanding(
       aMyReview({ status: "held", reason: "misconduct-claim" }),
     );
-    expect(held).toMatchObject({ label: "Waiting", editable: true });
+    expect(held).toMatchObject({ label: "Held", editable: true });
     expect(held.detail).toBe(REVIEW_HELD_WORDS);
   });
 
@@ -98,7 +98,9 @@ describe("reviewStanding", () => {
       state: "waiting" as const,
       reason: "model-unavailable" as const,
     };
-    expect(reviewStanding(aMyReview({ pendingEdit })).detail).toContain(
+    const waiting = reviewStanding(aMyReview({ pendingEdit }));
+    expect(waiting.label).toBe("Posted, edit held");
+    expect(waiting.detail).toContain(
       "Readers see your earlier words until then.",
     );
     expect(

@@ -33,7 +33,7 @@ import { courseInstructors, instructorFor } from "./planetterp";
 
 const BAR_HEIGHT = 112;
 
-/** Darker for +, lighter for −: the order reads without a legend. */
+/** Darker for +, lighter for −, named in the legend under the bars. */
 const SHADE: Record<GradeSegment["modifier"], string> = {
   "+": "bg-fg/80",
   "": "bg-fg/55",
@@ -214,44 +214,74 @@ function pct(share: number): string {
 export function Bars({ bars }: { bars: readonly GradeBar[] }) {
   const tallest = Math.max(...bars.map((b) => b.share), 0.0001);
   return (
-    <div
-      className="mt-3 grid grid-cols-7 items-end gap-2"
-      role="img"
-      aria-label={bars.map((b) => `${b.letter} ${pct(b.share)}`).join(", ")}
-      data-testid="grade-bars"
-    >
-      {bars.map((bar) => (
-        <div key={bar.letter} className="flex flex-col items-center gap-1">
-          <span className="tnum text-xs text-muted">{pct(bar.share)}</span>
-          <div
-            className="flex w-full flex-col justify-end overflow-hidden rounded-sm bg-hover"
-            style={{ height: BAR_HEIGHT }}
-          >
-            {bar.segments.map((segment) =>
-              segment.count > 0 ? (
-                <WithTooltip
-                  key={segment.key}
-                  label={`${segment.key}: ${segment.count.toLocaleString()} student${segment.count === 1 ? "" : "s"} · ${pct(segment.share)}`}
-                >
-                  <div
-                    data-grade={segment.key}
-                    className={cn(
-                      "forced-fill w-full transition-opacity hover:opacity-80",
-                      bar.letter === "W" || bar.letter === "Other"
-                        ? "bg-fg/20"
-                        : SHADE[segment.modifier],
-                    )}
-                    style={{
-                      height: (segment.share / tallest) * BAR_HEIGHT,
-                    }}
-                  />
-                </WithTooltip>
-              ) : null,
-            )}
+    <>
+      <div
+        className="mt-3 grid grid-cols-7 items-end gap-2"
+        role="img"
+        aria-label={bars.map((b) => `${b.letter} ${pct(b.share)}`).join(", ")}
+        data-testid="grade-bars"
+      >
+        {bars.map((bar) => (
+          <div key={bar.letter} className="flex flex-col items-center gap-1">
+            <span className="tnum text-xs text-muted">{pct(bar.share)}</span>
+            <div
+              className="flex w-full flex-col justify-end overflow-hidden rounded-sm bg-hover"
+              style={{ height: BAR_HEIGHT }}
+            >
+              {bar.segments.map((segment) =>
+                segment.count > 0 ? (
+                  <WithTooltip
+                    key={segment.key}
+                    // The share is of everyone, not of the bar: an A at 26%
+                    // under an A bar at 50% would otherwise read as a mistake.
+                    label={`${segment.key}: ${segment.count.toLocaleString()} student${segment.count === 1 ? "" : "s"} · ${pct(segment.share)} of all grades`}
+                  >
+                    <div
+                      data-grade={segment.key}
+                      className={cn(
+                        "forced-fill w-full transition-opacity hover:opacity-80",
+                        bar.letter === "W" || bar.letter === "Other"
+                          ? "bg-fg/20"
+                          : SHADE[segment.modifier],
+                      )}
+                      style={{
+                        height: (segment.share / tallest) * BAR_HEIGHT,
+                      }}
+                    />
+                  </WithTooltip>
+                ) : null,
+              )}
+            </div>
+            <span className="font-medium ident text-sm">{bar.letter}</span>
           </div>
-          <span className="font-medium ident text-sm">{bar.letter}</span>
-        </div>
+        ))}
+      </div>
+      <ShadeLegend />
+    </>
+  );
+}
+
+/** What the three shades of a letter's bar mean. */
+function ShadeLegend() {
+  const keys = [
+    { modifier: "+", words: "A+, B+…" },
+    { modifier: "", words: "A, B…" },
+    { modifier: "−", words: "A−, B−…" },
+  ] as const;
+  return (
+    <ul
+      aria-label="Shades"
+      className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-muted text-xs"
+    >
+      {keys.map(({ modifier, words }) => (
+        <li key={modifier} className="flex items-center gap-1">
+          <span
+            aria-hidden="true"
+            className={cn("forced-fill size-2.5", SHADE[modifier])}
+          />
+          <span className="tnum">{words}</span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
