@@ -18,10 +18,11 @@ import { ViewSchedule, ViewTodos } from "./column-links";
 import { useModel, usePlanNav } from "./model";
 import { focusSearch } from "./search-panel";
 
-// The semesters (V3 §2.13). Desktop: "Before UMD" across the top, then each
-// school year's fall and spring (and any summer or winter) side by side, two
-// years to a row on a wide screen. Phone: a strip of semesters with their
-// credits, and one semester's list under it.
+// The semesters (V3 §2.13), the workbench's canvas. Desktop: "Before UMD"
+// across the top, then each school year's fall and spring (and any summer
+// or winter) side by side, two years to a row when the canvas is wide.
+// Phone: a strip of semesters with their credits, and one semester's list
+// under it.
 
 export const STATUS_WORDS: Record<FourYearTermStatus, string> = {
   done: "Done",
@@ -232,9 +233,9 @@ export function Board() {
   }
   const ordered = [...years.entries()].sort(([a], [b]) => a - b);
   return (
-    <div className="space-y-3">
+    <div className="@container space-y-3">
       <BeforeRow />
-      <div className="grid gap-x-3 gap-y-4 xl:grid-cols-2">
+      <div className="grid gap-x-3 gap-y-4 @4xl:grid-cols-2">
         {ordered.map(([year, terms], i) => (
           <section
             key={year}
@@ -244,12 +245,9 @@ export function Board() {
               <span className="font-medium text-fg">Year {i + 1}</span>
               <span className="tnum">{academicYearLabel(year)}</span>
             </h2>
-            <div
-              className="grid gap-1.5"
-              style={{
-                gridTemplateColumns: `repeat(${terms.length}, minmax(0, 1fr))`,
-              }}
-            >
+            {/* A year's semesters side by side, or stacked in a narrow
+                canvas (a tablet, with the sidebar open). */}
+            <div className="grid gap-1.5 @xl:auto-cols-[minmax(0,1fr)] @xl:grid-flow-col">
               {terms.map((term) => (
                 <TermColumn key={term} term={term} />
               ))}

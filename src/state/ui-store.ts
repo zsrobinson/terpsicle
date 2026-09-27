@@ -4,6 +4,7 @@ import {
   type CourseCode,
   clampSidebarWidth,
   DEFAULT_UI_PREFS,
+  type DrawerSnap,
   type DrillTarget,
   type Plan,
   type RailTab,
@@ -20,7 +21,7 @@ import {
 // is `UiPrefs` (DATA.md §5; the active plan per term lives in the workspace
 // store with the plans).
 
-export type DrawerSnap = "peek" | "half" | "full";
+export type { DrawerSnap };
 
 /** A request for a panel to focus something, e.g. `/` focusing the search box. */
 export interface FocusRequest {

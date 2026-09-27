@@ -3,21 +3,30 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { INITIAL_UI_STATE, useUi } from "~/state/ui-store";
 import { TooltipProvider } from "~/ui/tooltip";
-import { SidebarResizeHandle, sidebarWidthForKey } from "./sidebar-resize";
 import {
   COMPACT_SIDEBAR_QUERY,
   SIDEBAR_WIDTH_STORAGE_KEY,
   shownSidebarWidth,
-} from "./sidebar-width";
+} from "../sidebar-width";
+import { SidebarResizeHandle, sidebarWidthForKey } from "./sidebar-resize";
 
 // The sidebar's draggable edge (owner decision 3): 320–480px, by pointer or
 // keyboard, saved once per drag, and mirrored for the next first paint.
+// Bound to the scheduler's UI store here, as its shell binds it.
+
+function SchedulerHandle() {
+  const width = useUi((s) => s.sidebarWidth);
+  const setWidth = useUi((s) => s.setSidebarWidth);
+  return (
+    <SidebarResizeHandle controls="sidebar" width={width} onWidth={setWidth} />
+  );
+}
 
 function renderHandle() {
   render(
     <TooltipProvider>
       <aside id="sidebar">
-        <SidebarResizeHandle controls="sidebar" />
+        <SchedulerHandle />
       </aside>
     </TooltipProvider>,
   );

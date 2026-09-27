@@ -113,7 +113,6 @@ const OWN_H1 = new Set([
   "/src/components/ui/page-header.tsx",
   "/src/features/marketing/hero.tsx",
   "/src/features/four-year/empty-state.tsx",
-  "/src/features/four-year/header.tsx",
 ]);
 
 /** "file:line: match" for every offending match in `sources`. */

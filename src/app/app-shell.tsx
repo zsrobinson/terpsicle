@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { TermId } from "~/core/schema";
 import { useSeatWatchesSync } from "~/features/alerts/seat-watches";
 import { usePlanHandoff } from "~/features/plan-handoff/use-plan-handoff";
@@ -15,8 +15,6 @@ import { track } from "./analytics";
 import { CalendarRegion } from "./calendar/calendar-region";
 import { CatalogError, useCatalogFailure } from "./catalog-error";
 import { useDocumentTitle } from "./document-title";
-import { PEEK_HEIGHT } from "./drawer-heights";
-import { ChunkLoadError, PanelLoadBoundary } from "./panel-load-boundary";
 import { PlanTabs } from "./plan-tabs";
 import { Rail } from "./rail";
 import { useScheduleNavigation } from "./schedule-nav";
@@ -24,7 +22,6 @@ import { useScheduleView } from "./schedule-view";
 import { SharedPill } from "./shared-pill";
 import { useShortcut } from "./shortcuts";
 import { SidebarContent } from "./sidebar";
-import { SidebarResizeHandle } from "./sidebar-resize";
 import { SidebarStackProvider } from "./sidebar-stack";
 import { CALENDAR_MAIN_ID, SkipLinks } from "./skip-links";
 
@@ -35,36 +32,18 @@ import { TABS } from "./tabs";
 import { TermSwitcher } from "./term-switcher";
 import { TopBar } from "./top-bar";
 import { UndoToasts } from "./undo-toasts";
-import { MOBILE_QUERY, useIsMobile } from "./use-media-query";
+import { useIsMobile } from "./use-media-query";
+import { lazyDrawer, Workbench, WorkbenchSidebar } from "./workbench/layout";
 
-// The phone drawer (vaul) is its own chunk: desktops never load it, and
-// phones start fetching it as this module runs, alongside the app's data.
-// It's a layout, not a place, so it's a lazy component rather than a route.
-let drawer: Promise<typeof import("./mobile-drawer")> | undefined;
-function loadDrawer() {
-  drawer ??= import("./mobile-drawer")
-    .then((m) => {
-      // Vite's loader resolves a failed chunk to nothing once load-recovery
-      // has taken the error (to reload the page).
-      if (!m?.MobileDrawer) throw new Error("empty module");
-      return m;
-    })
-    .catch((error: unknown) => {
-      // A failed chunk (offline, a deploy in between) can be tried again.
-      drawer = undefined;
-      throw new ChunkLoadError(error);
-    });
-  return drawer;
-}
-if (typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches)
-  loadDrawer().catch(() => {});
-const MobileDrawer = lazy(() =>
-  loadDrawer().then((m) => ({ default: m.MobileDrawer })),
+// The phone drawer (vaul) is its own chunk, fetched at once on phones only.
+const MobileDrawer = lazyDrawer(() =>
+  import("./mobile-drawer").then((m) => m?.MobileDrawer),
 );
 
-// The layout in SPEC §2: top bar; rail, one sidebar panel and a calendar that
-// fills the rest. On phones, the same pieces with the sidebar in a bottom
-// drawer. State lives in src/state; this file wires it to the screen.
+// The layout in SPEC §2, on the workbench (./workbench): top bar; rail, one
+// sidebar panel and a calendar that fills the rest. On phones, the same
+// pieces with the sidebar in a bottom drawer. State lives in src/state;
+// this file wires it to the screen.
 
 export interface AppShellProps {
   /** `?plan=` from the URL: a shared plan to show read-only. */
@@ -94,7 +73,6 @@ function Shell({
   onHandoffDone = noop,
 }: AppShellProps) {
   const mobile = useIsMobile();
-  const sidebarOpen = useUi((s) => s.sidebarOpen);
 
   useShellShortcuts();
   useDocumentTitle();
@@ -113,65 +91,40 @@ function Shell({
     <TopBar compact={mobile} term={<TermSwitcher />} plans={shared.plans} />
   );
 
-  if (mobile) {
-    return (
-      <div data-app-shell="" className="flex h-dvh flex-col bg-bg text-fg">
-        <SkipLinks />
-        {topBar}
-        <main
-          id={CALENDAR_MAIN_ID}
-          tabIndex={-1}
-          className="min-h-0 flex-1 outline-none"
-          style={{ paddingBottom: PEEK_HEIGHT }}
-        >
-          {calendar}
-        </main>
-        <PanelLoadBoundary title="Sidebar">
-          <Suspense fallback={<DrawerPlaceholder />}>
-            <MobileDrawer />
-          </Suspense>
-        </PanelLoadBoundary>
-        <UndoToasts />
-      </div>
-    );
-  }
-
   return (
-    <div data-app-shell="" className="flex h-dvh flex-col bg-bg text-fg">
-      <SkipLinks />
-      {topBar}
-      <div className="flex min-h-0 flex-1">
-        <Rail />
-        <aside
-          id={SIDEBAR_ID}
-          aria-label="Sidebar"
-          hidden={!sidebarOpen}
-          className="relative flex w-sidebar shrink-0 flex-col border-hairline border-r"
-        >
-          <SidebarContent />
-          <SidebarResizeHandle controls={SIDEBAR_ID} />
-        </aside>
-        <main
-          id={CALENDAR_MAIN_ID}
-          tabIndex={-1}
-          className="min-w-0 flex-1 outline-none"
-        >
-          {calendar}
-        </main>
-      </div>
-      <UndoToasts />
-    </div>
+    <Workbench
+      mobile={mobile}
+      before={<SkipLinks />}
+      bar={topBar}
+      rail={<Rail />}
+      sidebar={<SchedulerSidebar />}
+      drawer={<MobileDrawer />}
+      canvas={calendar}
+      canvasId={CALENDAR_MAIN_ID}
+      after={<UndoToasts />}
+    />
   );
 }
 
-/** The drawer's resting edge while its code arrives, so nothing jumps. */
-function DrawerPlaceholder() {
+/**
+ * The desktop sidebar. Its width is subscribed to here, not in the shell, so
+ * a drag doesn't redraw the calendar. The handle waits for the saved prefs:
+ * the head script has already drawn the saved width, and the store's
+ * default would flash it back first.
+ */
+function SchedulerSidebar() {
+  const open = useUi((s) => s.sidebarOpen);
+  const width = useUi((s) => (s.restored ? s.sidebarWidth : null));
+  const setWidth = useUi((s) => s.setSidebarWidth);
   return (
-    <div
-      aria-hidden="true"
-      className="fixed inset-x-0 bottom-0 z-40 border-keyline border-t bg-bg shadow-drawer"
-      style={{ height: PEEK_HEIGHT }}
-    />
+    <WorkbenchSidebar
+      id={SIDEBAR_ID}
+      open={open}
+      width={width}
+      onWidth={setWidth}
+    >
+      <SidebarContent />
+    </WorkbenchSidebar>
   );
 }
 

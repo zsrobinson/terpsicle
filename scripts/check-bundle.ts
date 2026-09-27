@@ -95,8 +95,9 @@ export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
       why: "the text index loads when Search opens (use-course-search)",
     },
     {
-      pattern: /(^|\/)vaul\/|^src\/app\/mobile-drawer\.tsx$/,
-      why: "the phone drawer loads on phones only (app-shell)",
+      pattern:
+        /(^|\/)vaul\/|^src\/(app\/(mobile-drawer|workbench\/drawer)|features\/four-year\/plan-drawer)\.tsx$/,
+      why: "a workbench's phone drawer loads on phones only (lazyDrawer)",
     },
   ];
 
@@ -248,11 +249,20 @@ export const ROUTE_BUDGETS: readonly {
     budget: CHAT_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   },
-  {
-    route: "/plan",
+  // Plan's layout and every view's route: GenEd at `/plan/`, and each other
+  // view, which a link can open first.
+  ...[
+    "/plan",
+    "/plan/",
+    "/plan/problems",
+    "/plan/search",
+    "/plan/samples",
+    "/plan/import",
+  ].map((route) => ({
+    route,
     budget: PLAN_BUDGET,
     never: [...PLAN_ROUTE_NEVER_EAGER, ADMIN_NEVER_EAGER, TODO_NEVER_EAGER],
-  },
+  })),
   // Todo keeps `/`'s rules: no Dexie and no scheduler stores (course colors
   // are a raw IndexedDB read).
   ...["/todo/", "/todo/connect"].map((route) => ({

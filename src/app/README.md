@@ -4,6 +4,18 @@ The layout from `SPEC.md` §2: top bar, labeled rail, one sidebar panel with dri
 
 Features (`src/features/<feature>/`) plug into the shell through routes: each tab and drill-in is one (below).
 
+## The workbench (`workbench/`)
+
+The frame the scheduler is laid out in, shared with Plan (`CONTEXT.md`, "Workbench"; `docs/COHESION.md` §4). It knows nothing about either product: each passes its own bar, views and canvas.
+- `layout.tsx`: `Workbench` (bar; rail, sidebar and canvas on desktop; canvas and drawer on phones), `WorkbenchSidebar` (the aside and its resize handle) and `lazyDrawer` (a product's phone drawer, in its own chunk).
+- `rail.tsx`: `WorkbenchRail`, `RailButton` (with `railHint` for its tooltip) and `CountBadge`.
+- `drawer.tsx`: `WorkbenchDrawer` (vaul, its snaps, the keyboard and the pull-down) and its strip, `DrawerTabs` and `DrawerTab`. Phones only.
+- `back-bar.tsx`: `DrillBackBar`, a drill-in's one Back.
+- `status.tsx`: the bar's `CreditsStatus` and `ProblemsStatus`.
+- `sidebar-resize.tsx`: the handle below.
+
+The scheduler's own pieces (`rail.tsx`, `mobile-drawer.tsx`, `sidebar.tsx`, `top-bar.tsx`) wire its stores to these. Plan's are in `src/features/four-year` (`plan-page.tsx`, `plan-drawer.tsx`), and its views are routes too (`src/routes/plan.*.tsx`), shown through an `<Outlet />` in its sidebar: they don't need to stay mounted.
+
 ## Add a tab panel or a drill-in view
 
 Each rail tab and each drill-in is a route under `/schedule` (`src/routes/schedule.<tab>.tsx`, `schedule.course.$code.tsx`, …). The route file names the component; its feature folder holds it.
@@ -134,9 +146,10 @@ For the color dot, use `CourseColorPicker` from `~/features/courses/color-picker
 
 ## Sidebar width
 
-On desktop the sidebar's right edge drags between 320 and 480px (`SidebarResizeHandle` in `sidebar-resize.tsx`):
+On desktop the sidebar's right edge drags between 320 and 480px (`SidebarResizeHandle` in `workbench/sidebar-resize.tsx`):
 - Arrow keys move it 16px, Home and End jump to the limits, and a double-click resets it to 360px.
 - The width is `useUi`'s `sidebarWidth`, saved in `UiPrefs` once per drag, and applied as `--sidebar-width` on the document root. `w-sidebar` reads it.
+- It's one width for every workbench: Plan reads and writes the same `UiPrefs` field without the scheduler's stores (`src/state/sidebar-width-pref.ts`).
 - A localStorage mirror and a head script (`sidebar-width.ts`) set it before first paint, like the theme.
 - Panels shouldn't assume 360px: truncate by content, not by a fixed width.
 

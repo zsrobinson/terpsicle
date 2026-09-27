@@ -46,7 +46,7 @@ test("adds the Computer Science sample plan in one step, and undoes it", async (
 }) => {
   await page.goto("/plan");
   await page.getByRole("button", { name: "Pick a sample plan" }).click();
-  await expect(page).toHaveURL(/tab=templates/);
+  await expect(page).toHaveURL(/\/plan\/samples/);
 
   const card = page.getByRole("region", { name: "Computer Science" });
   await expect(
@@ -61,7 +61,7 @@ test("adds the Computer Science sample plan in one step, and undoes it", async (
   await expect(
     page.getByText("Added the Computer Science sample plan to 8 semesters"),
   ).toBeVisible();
-  await expect(page).not.toHaveURL(/tab=templates/);
+  await expect(page).not.toHaveURL(/\/plan\/samples/);
   // Placeholders count at once, courses once their departments load.
   await expect(page.getByText("104 of 120 credits").first()).toBeVisible();
   const first = await semester(page, isMobile, "Fall 2026");

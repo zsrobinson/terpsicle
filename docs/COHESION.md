@@ -88,7 +88,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [x] Settings and notifications (`v3/cohesion-settings-todo`).
 - [x] Todo (`v3/cohesion-settings-todo`).
 - [x] Reviews. (`v3/cohesion-reviews`: `PageHeader` and `ProductPage` on every page, `PageSection`s of `ListRow`s, a `ViewSwitch` of an instructor's courses, `Card`s for the composer, the report form, sign-in and the AI summary, the kit's `Select`, `SearchField` and a new `Textarea`, `InlineError` with Try again, `RowSkeleton`, and `EmptyState` on `/reviews/mine`.)
-- [ ] Plan.
+- [ ] Plan. (`v3/plan-workbench`: Plan is on the scheduler's workbench, `src/app/workbench`, with each view a route. Its contents move onto the kit next.)
 - [x] Chat.
 - [ ] Schedule.
 - [ ] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port. (`/privacy`, sign-in and not found are on the kit since `v3/cohesion-settings-todo`; `/` and the marketing port are left.)
@@ -131,7 +131,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
   - card versus section;
   - one inline error with Try again;
   - a footer only on note and reading pages.
-- **Plan moves onto the scheduler's workbench** (rail, sidebar, canvas; the same drawer on phones). All three directions shared this.
+- **Plan moves onto the scheduler's workbench** (rail, sidebar, canvas; the same drawer on phones). All three directions shared this. Built in `v3/plan-workbench`: the workbench's pieces are `src/app/workbench`, and Plan's views are routes (`/plan`, `/plan/search`, …).
 
 ## 5. How we work on this
 - **Cross-cutting work stays with the orchestrator.** The frame, the kit and the scheduler's move onto them are done in the orchestrator's own session, not handed off. At most two other sessions run at once, on parts of the code that don't overlap.

@@ -19,8 +19,6 @@ import {
 import type { RailTab } from "~/core/schema";
 import { ScheduleHistoryStateSchema } from "~/core/schema/schedule-url";
 import type { DrillEntry, DrillKind } from "~/state/drill";
-import { BackButton } from "~/ui/page-header";
-import { WithTooltip } from "~/ui/tooltip";
 import { goBack } from "./actions";
 import { DrillEntryProvider } from "./drill-entry";
 import { PanelSkeleton } from "./panel";
@@ -29,6 +27,7 @@ import { drillMono, drillName, useLatestLocation } from "./schedule-view";
 import { useShortcut } from "./shortcuts";
 import { useSidebarStack } from "./sidebar-stack";
 import { tabById } from "./tabs";
+import { DrillBackBar } from "./workbench/back-bar";
 
 // One panel at a time, with drill-in views stacked over it (SPEC §2). Each
 // tab and drill-in is a route; the sidebar shows its route's component (the
@@ -343,11 +342,7 @@ function DrillLayer({
   );
 }
 
-/**
- * "‹ Search   CMSC351": one Back, to wherever you came from (the browser's
- * Back does the same), labeled with that view's short name, then this view's
- * name. Going from course to course never builds a trail to aim at.
- */
+/** "‹ Search   CMSC351" (./workbench/back-bar), labeled from the history. */
 function BackBar({
   entry,
   under,
@@ -361,39 +356,14 @@ function BackBar({
   // The entry before this one, when it's the app's, labels Back.
   const state = useLatestLocation().state;
   const { backLabel, backMono } = ScheduleHistoryStateSchema.parse(state);
-  const name = drillName(entry);
   const to =
     active && backLabel ? { label: backLabel, mono: backMono ?? false } : under;
-  // From one plan's CMSC351 back to another's: "Back", not "CMSC351".
-  const same = to.label === name;
   return (
-    <div className="flex h-12 shrink-0 items-center gap-2 border-hairline border-b px-4">
-      <WithTooltip label={same ? "Back" : `Back to ${to.label}`} shortcut="Esc">
-        <BackButton
-          onClick={() => goBack()}
-          className="min-w-0 max-w-[60%] shrink-0"
-        >
-          {same ? (
-            "Back"
-          ) : (
-            <>
-              <span className="sr-only">Back to </span>
-              <span className={cn("truncate", to.mono && "ident")}>
-                {to.label}
-              </span>
-            </>
-          )}
-        </BackButton>
-      </WithTooltip>
-      <span
-        aria-current="page"
-        className={cn(
-          "min-w-0 truncate font-medium text-base",
-          drillMono(entry) && "ident",
-        )}
-      >
-        {name}
-      </span>
-    </div>
+    <DrillBackBar
+      back={to}
+      name={drillName(entry)}
+      mono={drillMono(entry)}
+      onBack={() => goBack()}
+    />
   );
 }

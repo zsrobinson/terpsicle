@@ -43,7 +43,7 @@ The one bar on every page: the wordmark and the five products as tabs (folded in
 How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: Todo), or full (a workbench, or Chat's split).
 
 **Workbench**:
-A product laid out like the scheduler: the rail of views, the sidebar and the canvas, with the same drawer on phones. Schedule and Plan are workbenches.
+A product laid out like the scheduler: the rail of views, the sidebar and the canvas, with the same drawer on phones. Schedule and Plan are workbenches. Code has it in `src/app/workbench`.
 
 **Term**:
 A semester Testudo lists (fall, spring, summer or winter). A term is **active** while Testudo lists it and **archived** after, shown under "Past terms".
@@ -285,11 +285,14 @@ A wildcard in a four-year plan ("CMSC4XX", "Any DSHS course"), dashed, counting 
 **Linked plan**:
 The scheduler plan a four-year plan's semester opens with "View schedule": the term's open plan, else its first tab (`linkedSchedulePlan`). One per term, never a copy; "From Plan A: 4 of 5 placed" counts it.
 
+**Plan view**:
+One of Plan's five views on its rail: GenEd, Problems, Search, Samples and Import (`1` to `5`). Each is a route (`/plan`, `/plan/problems`, …), and a course opens over it as a drill-in.
+
 **Transcript import**:
 Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser, and grades stay private.
 
 **Template**:
-A hand-made starting four-year plan for a major, credited to its source. Copy calls it a **sample plan**, in the side panel's Samples tab, and adding one fills only empty semesters.
+A hand-made starting four-year plan for a major, credited to its source. Copy calls it a **sample plan**, in Plan's Samples view, and adding one fills only empty semesters.
 _Avoid_: roadmap, preset
 
 ## Todo

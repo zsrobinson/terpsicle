@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { MOBILE_QUERY } from "~/app/use-media-query";
 import { courseSearchRow } from "~/core/catalog/course-index";
 import {
   EMPTY_TRANSCRIPT_CHECKS,
@@ -12,7 +13,6 @@ import {
 } from "~/core/four-year/transcript";
 import { PASTES } from "~/core/four-year/transcript/__fixtures__/pastes";
 import { canUndo } from "~/core/plans/history";
-import type { PlanSearch } from "~/core/schema";
 import { aCourseIndexEntry, aFourYear, aFourYearEntry } from "~/fixtures";
 import {
   INITIAL_COURSE_INDEX_STATE,
@@ -45,7 +45,7 @@ function paste(name: string): string {
 }
 
 function nav(go: PlanNav["go"] = vi.fn()): PlanNav {
-  return { search: { tab: "import" } as PlanSearch, go, back: vi.fn() };
+  return { search: { tab: "import" }, go, back: vi.fn() };
 }
 
 function Harness({ children, go }: { children: ReactNode; go: PlanNav["go"] }) {
@@ -103,7 +103,7 @@ function phoneWidth() {
   vi.spyOn(window, "matchMedia").mockImplementation(
     (query) =>
       ({
-        matches: false,
+        matches: query === MOBILE_QUERY,
         media: query,
         addEventListener: () => undefined,
         removeEventListener: () => undefined,

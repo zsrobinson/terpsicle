@@ -38,6 +38,9 @@ test("Plan links a course to its reviews, and the semester in progress to Todo",
     .getByRole("button", { name: "Add CMSC351 to Fall 2026", exact: true })
     .click();
 
+  // On a phone, Search left the drawer all the way up over the semesters.
+  if (isMobile)
+    await page.getByRole("button", { name: "Lower the panel" }).click();
   await fall.getByRole("button", { name: "CMSC351 options" }).click();
   await page.getByRole("menuitem", { name: "View reviews" }).click();
   await expect(page).toHaveURL(/\/reviews\/courses\/CMSC351$/);

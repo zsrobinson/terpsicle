@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { problemCountWords } from "./problems";
+import { problemCountWords } from "./count-words";
 
 describe("problemCountWords", () => {
   it("counts errors and warnings as problems, and info as notes", () => {

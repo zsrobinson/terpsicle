@@ -1,24 +1,13 @@
-import type { MouseEvent } from "react";
 import { useUi } from "~/state/ui-store";
-import { WithTooltip } from "~/ui/tooltip";
 import { SIDEBAR_PANEL_ID } from "./sidebar";
+import { SkipLinks as WorkbenchSkipLinks } from "./workbench/skip-links";
 
-// The first stops for a keyboard: jump past the top bar (and the rail) to the
-// calendar or the open panel. Hidden until focused. Real in-page links, with
-// the focusing done here so the URL doesn't change.
+// The scheduler's skip links (./workbench/skip-links): to the calendar, or
+// to the open panel, opening a collapsed sidebar or resting drawer first.
 
 export const CALENDAR_MAIN_ID = "calendar";
 
-const linkClass =
-  "sr-only border border-keyline bg-raised px-3 py-1.5 font-medium text-base shadow-pop focus:not-sr-only focus:fixed focus:top-2 focus:z-50";
-
-function toCalendar(event: MouseEvent) {
-  event.preventDefault();
-  document.getElementById(CALENDAR_MAIN_ID)?.focus();
-}
-
-function toSidebar(event: MouseEvent) {
-  event.preventDefault();
+function toSidebar() {
   const ui = useUi.getState();
   // A collapsed sidebar or resting drawer opens so there's something to reach.
   if (!ui.sidebarOpen) useUi.setState({ sidebarOpen: true });
@@ -35,25 +24,11 @@ function toSidebar(event: MouseEvent) {
 
 export function SkipLinks() {
   return (
-    <>
-      <WithTooltip label="Jump past the top bar to the calendar">
-        <a
-          href={`#${CALENDAR_MAIN_ID}`}
-          className={`${linkClass} focus:left-2`}
-          onClick={toCalendar}
-        >
-          Skip to calendar
-        </a>
-      </WithTooltip>
-      <WithTooltip label="Jump past the top bar to the open panel">
-        <a
-          href={`#${SIDEBAR_PANEL_ID}`}
-          className={`${linkClass} focus:left-40`}
-          onClick={toSidebar}
-        >
-          Skip to sidebar
-        </a>
-      </WithTooltip>
-    </>
+    <WorkbenchSkipLinks
+      canvasId={CALENDAR_MAIN_ID}
+      canvasName="calendar"
+      sidebarId={SIDEBAR_PANEL_ID}
+      onSidebar={toSidebar}
+    />
   );
 }

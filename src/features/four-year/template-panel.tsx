@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
 import { useId } from "react";
-import { useMediaQuery } from "~/app/use-media-query";
 import { wildcardLabel } from "~/core/catalog/wildcard";
 import {
   templateCredits,
@@ -21,8 +20,10 @@ import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { applyTemplate, newDocFromTemplate, setFirstTerm } from "./actions";
-import { PLAN_WIDE_QUERY, useModel, usePlanNav } from "./model";
+import { useModel, usePlanNav } from "./model";
 import { useTemplates } from "./template-files";
+import { PlanView } from "./views";
+import { showBoard } from "./workbench-store";
 
 // The Samples tab (`?tab=templates`, docs/V3.md §2.11): a major's courses
 // laid out semester by semester, credited to where they come from. Adding
@@ -84,7 +85,6 @@ function StartsIn() {
 function TemplateCard({ template }: { template: FourYearTemplate }) {
   const { doc } = useModel();
   const nav = usePlanNav();
-  const wide = useMediaQuery(PLAN_WIDE_QUERY);
   const headingId = useId();
   const terms = semesterIds(doc.firstTermId);
   const fit = templateFit(doc, template);
@@ -94,7 +94,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
     if (!applyTemplate(doc, template)) return;
     // The semesters are the result: show them, from the top on a phone.
     nav.go({ tab: undefined });
-    if (!wide) window.scrollTo({ top: 0 });
+    showBoard();
   };
   return (
     <section
@@ -165,7 +165,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
               onClick={() => {
                 newDocFromTemplate(template, doc.firstTermId);
                 nav.go({ tab: undefined });
-                if (!wide) window.scrollTo({ top: 0 });
+                showBoard();
               }}
             >
               Start a new plan from it
@@ -214,5 +214,14 @@ export function TemplatePanel() {
         state.templates.map((t) => <TemplateCard key={t.id} template={t} />)
       )}
     </div>
+  );
+}
+
+/** The Samples view, on its route (`/plan/samples`). */
+export function SamplesView() {
+  return (
+    <PlanView tab="templates">
+      <TemplatePanel />
+    </PlanView>
   );
 }

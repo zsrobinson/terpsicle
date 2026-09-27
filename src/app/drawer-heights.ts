@@ -1,4 +1,4 @@
-import type { DrawerSnap } from "~/state/ui-store";
+import type { DrawerSnap } from "~/core/schema";
 
 // The phone drawer's heights, apart from the drawer itself (mobile-drawer.tsx,
 // with vaul), which loads only on phones: the shell and the calendar size

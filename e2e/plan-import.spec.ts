@@ -55,7 +55,7 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   await page.getByRole("button", { name: "Paste your transcript" }).click();
   const box = page.getByLabel("Paste your unofficial transcript");
   await expect(box).toBeFocused();
-  await expect(page).toHaveURL(/tab=import/);
+  await expect(page).toHaveURL(/\/plan\/import/);
 
   // Not a transcript: a specific line, and nothing to import.
   await box.fill("Dear Sam, see you Tuesday.");
