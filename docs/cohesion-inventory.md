@@ -243,7 +243,7 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
   - bg-hover: `grades.tsx:184-195`
 - **Rail vs drawer tab buttons**: `rail.tsx:223-268` and `mobile-drawer.tsx:487-516`.
 - **PanelHeader re-typed by hand**: Plan course panel back bar `course-panel.tsx:57-67`.
-- **Search boxes, 3 styles** (Reviews uses `SearchField`):
+- **Search boxes, 2 styles** (Reviews and Chat use `SearchField`):
   - Schedule `h-9 border-hairline`, focus-outline (`search/search-panel.tsx:115`)
   - Plan: a bare input `h-11 md:h-8 border-hairline-strong focus-visible:border-fg` (`four-year/search-panel.tsx:256`)
 - **Text inputs** (no shared Input):
@@ -319,7 +319,7 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
     - Todo has the app's only spinner.
     - Plan shows a big grid of block skeletons.
 15. **Form controls have no shared primitives.**
-    - 4 search-box styles (`h-8`/`h-9`/`h-11`; hairline vs hairline-strong; different focus rules).
+    - 2 search-box styles besides `SearchField` (`h-9` hairline in Schedule, a bare `h-11 md:h-8` input in Plan).
     - At least 5 text-input styles.
     - Native `<select>` (Plan, admin) next to Radix Select (Chat, Schedule).
     - Two copies of the switch knob.
