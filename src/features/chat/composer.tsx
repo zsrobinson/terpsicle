@@ -1,5 +1,20 @@
+import { cn } from "cn";
 import { ArrowUp, Info } from "lucide-react";
-import { type KeyboardEvent, useId, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  insertMention,
+  type Mentionable,
+  mentionDraft,
+  mentionMatches,
+} from "~/core/chat";
 import { MODERATION_POLICY, precheck, REASON_WORDS } from "~/core/moderation";
 import { CHAT_TEXT_MAX } from "~/core/schema";
 import { Button } from "~/ui/button";
@@ -8,7 +23,9 @@ import { WithTooltip } from "~/ui/tooltip";
 
 // The composer (V2.md §8.6): plain text, Enter to send and Shift+Enter for a
 // new line. What the rules would hold shows under it as a quiet line before
-// you send, never as an error, and "What's allowed" is one tap away.
+// you send, never as an error, and "What's allowed" is one tap away. Typing
+// "@" offers the room's members (loaded the first time), and picking one
+// writes their full name, which is how the object finds who to notify.
 
 /** Show how much room is left once it's this little. */
 const SHOW_LEFT = 200;
@@ -19,6 +36,7 @@ export function Composer({
   disabledReason,
   onSend,
   onTyping,
+  loadMembers,
 }: {
   placeholder: string;
   /** The field's accessible name: "Message CMSC351 · everyone". */
@@ -27,11 +45,24 @@ export function Composer({
   disabledReason: string | null;
   onSend: (text: string) => void;
   onTyping: () => void;
+  /** The room's members, for @-mentions; without it, no autocomplete. */
+  loadMembers?: () => Promise<readonly Mentionable[]>;
 }) {
   const [draft, setDraft] = useState("");
+  const [caret, setCaret] = useState(0);
   const field = useRef<HTMLTextAreaElement>(null);
   const id = useId();
   const text = draft.trim();
+  const mentions = useMentions(draft, caret, loadMembers);
+  // Where the caret goes after a mention is put in, once React has the text.
+  const placeCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const at = placeCaret.current;
+    if (at === null || !field.current) return;
+    placeCaret.current = null;
+    field.current.setSelectionRange(at, at);
+    setCaret(at);
+  });
   // Only what would hold or remove it: flags never stop a message.
   const hint = useMemo(() => {
     if (!text) return null;
@@ -54,7 +85,39 @@ export function Composer({
     setDraft("");
     field.current?.focus();
   };
+  const pick = (who: Mentionable) => {
+    if (!mentions.draft) return;
+    const next = insertMention(draft, mentions.draft, caret, who.name);
+    // The name is in: its "@" offers nothing more.
+    mentions.dismiss();
+    setDraft(next.text);
+    placeCaret.current = next.caret;
+    field.current?.focus();
+  };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentions.open && !e.nativeEvent.isComposing) {
+      const n = mentions.matches.length;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        mentions.setActive(
+          (mentions.active + (e.key === "ArrowDown" ? 1 : n - 1)) % n,
+        );
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const who = mentions.matches[mentions.active];
+        if (who) pick(who);
+        return;
+      }
+      if (e.key === "Escape") {
+        // Closes the list only; the view's Esc waits for the next one.
+        e.preventDefault();
+        e.stopPropagation();
+        mentions.dismiss();
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       send();
@@ -62,8 +125,39 @@ export function Composer({
   };
   const left = CHAT_TEXT_MAX - draft.length;
 
+  const listId = `${id}-mentions`;
+  const optionId = (i: number) => `${id}-mention-${i}`;
   return (
-    <div className="border-hairline border-t px-4 pt-2 pb-3">
+    <div className="relative border-hairline border-t px-4 pt-2 pb-3">
+      {mentions.open ? (
+        <div
+          id={listId}
+          role="listbox"
+          aria-label="Mention someone in this room"
+          className="absolute right-4 bottom-full left-4 z-20 mb-1 max-w-80 overflow-hidden border border-keyline bg-raised py-1 shadow-pop"
+        >
+          {mentions.matches.map((who, i) => (
+            <div
+              key={who.directoryId}
+              id={optionId(i)}
+              role="option"
+              tabIndex={-1}
+              aria-selected={i === mentions.active}
+              // Before the field's blur, so the pick lands in the draft.
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => mentions.setActive(i)}
+              onClick={() => pick(who)}
+              onKeyDown={() => {}}
+              className={cn(
+                "cursor-default truncate px-3 py-1.5 text-fg text-sm max-md:py-3",
+                i === mentions.active && "bg-hover",
+              )}
+            >
+              {who.name}
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="flex items-end gap-2">
         <label htmlFor={id} className="sr-only">
           {label}
@@ -77,9 +171,16 @@ export function Composer({
           rows={Math.min(6, draft.split("\n").length)}
           onChange={(e) => {
             setDraft(e.target.value);
+            setCaret(e.target.selectionStart);
             if (e.target.value.trim()) onTyping();
           }}
+          onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
           onKeyDown={onKeyDown}
+          aria-autocomplete={loadMembers ? "list" : undefined}
+          aria-controls={mentions.open ? listId : undefined}
+          aria-activedescendant={
+            mentions.open ? optionId(mentions.active) : undefined
+          }
           className="min-h-9 w-full flex-1 resize-none border border-hairline-strong bg-bg px-2 py-1.5 text-base text-fg placeholder:text-faint focus-visible:border-fg max-md:min-h-11"
         />
         <WithTooltip label="Send" shortcut="↵">
@@ -107,6 +208,53 @@ export function Composer({
       </div>
     </div>
   );
+}
+
+/**
+ * The mention being typed and the members it matches. Members load the
+ * first time an "@" is typed; Esc closes the list until the next "@".
+ */
+function useMentions(
+  text: string,
+  caret: number,
+  load: (() => Promise<readonly Mentionable[]>) | undefined,
+) {
+  const [members, setMembers] = useState<readonly Mentionable[] | null>(null);
+  const [selected, setSelected] = useState({ key: "", index: 0 });
+  const [dismissedAt, setDismissedAt] = useState<number | null>(null);
+  const draft = load ? mentionDraft(text, caret) : null;
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const wanted = draft !== null && members === null;
+  useEffect(() => {
+    if (!wanted) return;
+    let live = true;
+    loadRef
+      .current?.()
+      .then((list) => {
+        if (live) setMembers(list);
+      })
+      .catch(() => {
+        // No list this time; the next "@" tries again.
+      });
+    return () => {
+      live = false;
+    };
+  }, [wanted]);
+  const matches = draft && members ? mentionMatches(members, draft.query) : [];
+  const open =
+    draft !== null && matches.length > 0 && dismissedAt !== draft.start;
+  // The highlight starts at the top again whenever the query changes.
+  const key = draft ? `${draft.start}:${draft.query}` : "";
+  return {
+    draft,
+    matches,
+    open,
+    active:
+      selected.key === key ? Math.min(selected.index, matches.length - 1) : 0,
+    setActive: (index: number) => setSelected({ key, index }),
+    dismiss: () => setDismissedAt(draft?.start ?? null),
+  };
 }
 
 /** "What's allowed": chat's rules, in the words reviews use too. */

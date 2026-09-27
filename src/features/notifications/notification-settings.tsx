@@ -56,7 +56,21 @@ export const TYPE_ROWS: readonly TypeRow[] = [
     type: "chat-mention",
     title: "Mentions in Chat",
     detail: "When a classmate mentions you in a class chat.",
-    sending: false,
+    sending: true,
+  },
+  {
+    type: "chat-reply",
+    title: "Replies in Chat",
+    detail:
+      "When a classmate replies in a thread you started. Muting a room stops these.",
+    sending: true,
+  },
+  {
+    type: "chat-digest",
+    title: "Chat digest",
+    detail:
+      "Once a day, an email listing mentions and replies you haven't read.",
+    sending: true,
   },
   {
     type: "todo-due",

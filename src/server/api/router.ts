@@ -135,6 +135,7 @@ import {
   setSettings as setNotificationSettings,
   testPush,
 } from "../notifications/api";
+import { EMAIL_OFF_ROUTE, handleEmailOff } from "../notifications/email-off";
 import { type PushEnv, pushConfig } from "../push/config";
 import {
   deleteReview,
@@ -707,6 +708,12 @@ export async function handleApi(
       now,
       origin: linkOrigin(url),
       waitUntil: (p) => ctx.waitUntil(p),
+      ipHash: () => keyedHash(env.DATA, clientIp(request)),
+    });
+  if (name === EMAIL_OFF_ROUTE)
+    return handleEmailOff(request, env, {
+      now,
+      origin: linkOrigin(url),
       ipHash: () => keyedHash(env.DATA, clientIp(request)),
     });
   if (!r) return apiError("not-found");

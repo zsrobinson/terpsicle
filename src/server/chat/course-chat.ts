@@ -15,6 +15,7 @@ import {
   canReadRoom,
   chatMessageId,
   chatModeration,
+  chatPlaceWords,
   chatRetention,
   isListedRoom,
   roomMemberCount,
@@ -44,6 +45,7 @@ import {
 } from "../moderation/service";
 import { type ChatCourse, loadChatCourse, loadTermDates } from "./catalog";
 import { chatTargetId } from "./moderation-handler";
+import { chatNotifier } from "./notify";
 import {
   type MessageRow,
   type MessageStatus,
@@ -56,6 +58,7 @@ import {
   memberCounts,
   planSections,
   readMarkers,
+  readNotifications,
   readProfiles,
   recordAuthorCourse,
   recordVisible,
@@ -534,6 +537,15 @@ export class CourseChat extends DurableObject<Env> {
       att.course,
       row.seq,
     );
+    await readNotifications(
+      this.env.DB,
+      att.user,
+      att.term,
+      att.course,
+      frame.room,
+      row.seq,
+      new Date().toISOString(),
+    );
   }
 
   // ---------- moderation ----------
@@ -768,6 +780,105 @@ export class CourseChat extends DurableObject<Env> {
     );
     if (row.reply_to) await this.#threadChanged(row.reply_to);
     await this.#recordVisible(row);
+    // Pushes go out after the room has the message (V2.md §8.4 step 4).
+    this.ctx.waitUntil(this.#notify(row));
+  }
+
+  /**
+   * Mentions and replies (V2.md §6.1): who the message is for hears about
+   * it, unless they're looking at this course's chat now. A failure here
+   * never undoes the message; it's logged and the person still has it
+   * unread.
+   */
+  async #notify(row: MessageRow): Promise<void> {
+    try {
+      const course = await this.#course();
+      if (!course) return;
+      const root = row.reply_to ? this.#store.message(row.reply_to) : null;
+      const actor = await this.#profile(row.author_id, PROFILE_TTL_MS);
+      await chatNotifier.message(this.env, {
+        row,
+        course,
+        actorName: actor?.author.name ?? row.author_name,
+        threadAuthor: root && root.status !== "removed" ? root.author_id : null,
+        connected: this.#looking(row.room_id, course),
+        now: new Date(),
+      });
+    } catch (error) {
+      console.warn({ chat: "notify failed", error: String(error) });
+    }
+  }
+
+  /** People with a socket on this course that can read the room: they're looking. */
+  #looking(room: RoomId, course: ChatCourse): Set<string> {
+    const out = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const att = this.#attachment(ws);
+      if (att?.hello && canReadRoom(course.tree, room, att.sections))
+        out.add(att.user);
+    }
+    return out;
+  }
+
+  /**
+   * The daily chat digest (V2.md §6.6) asks for the messages it lists, per
+   * reader: the ones still visible, in rooms the reader can still read,
+   * with their text and where they are. Deleted, held and removed ones are
+   * left out, and so is a section's room once its section left the
+   * reader's plans.
+   */
+  async digestMessages(target: {
+    termId: string;
+    courseCode: string;
+    readers: readonly { userId: string; ids: readonly string[] }[];
+  }): Promise<
+    {
+      userId: string;
+      messages: {
+        id: string;
+        text: string;
+        place: string;
+        threadRoot: string | null;
+      }[];
+    }[]
+  > {
+    this.#bind(target.termId, target.courseCode);
+    const course = await this.#course();
+    const out = [];
+    for (const { userId, ids } of target.readers) {
+      const rows = this.#store.exists
+        ? ids.flatMap((id) => {
+            const row = this.#store.message(id);
+            return row?.status === "visible" ? [row] : [];
+          })
+        : [];
+      const sections =
+        course && rows.some((r) => parseRoomId(r.room_id)?.kind !== "course")
+          ? await planSections(
+              this.env.DB,
+              userId,
+              target.termId,
+              target.courseCode,
+            )
+          : [];
+      out.push({
+        userId,
+        messages: rows
+          .filter(
+            (row) => course && canReadRoom(course.tree, row.room_id, sections),
+          )
+          .map((row) => ({
+            id: row.id,
+            text: row.body,
+            place: chatPlaceWords(
+              row.room_id,
+              course?.tree.byId.get(row.room_id) ?? null,
+            ),
+            threadRoot: row.reply_to,
+          })),
+      });
+    }
+    return out;
   }
 
   /** A message classmates saw that's gone for now (edited, held or removed). */

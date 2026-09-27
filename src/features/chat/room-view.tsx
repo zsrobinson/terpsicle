@@ -23,12 +23,14 @@ import {
   typingWords,
 } from "~/core/chat";
 import {
+  type ChatAuthor,
   type ChatMessageId,
   type ChatRoomState,
   ChatRulesSeenStoreSchema,
   type CourseCode,
 } from "~/core/schema";
 import { api } from "~/server/fns/api";
+import { chatApi } from "~/server/fns/chat-api";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
@@ -72,6 +74,21 @@ function markRulesSeen(courseCode: CourseCode): void {
   } catch {
     // Storage blocked: the rules show again next time, which is fine.
   }
+}
+
+/** Who can be @-mentioned here: the room's members (at most 200), you aside. */
+async function roomMembers(
+  room: Room,
+  you: string | undefined,
+): Promise<ChatAuthor[]> {
+  const result = await chatApi.members({
+    termId: room.termId,
+    courseCode: room.courseCode,
+    roomId: room.id,
+  });
+  // Thrown, so the next "@" asks again.
+  if (result.status !== "ok") throw new Error(result.status);
+  return result.members.filter((m) => m.directoryId !== you);
 }
 
 export function RoomView({
@@ -245,6 +262,9 @@ export function RoomView({
             placeholder={thread ? "Reply…" : `Message ${room.label}`}
             disabledReason={disabledReason}
             onTyping={() => session?.typing(room.id)}
+            loadMembers={() =>
+              roomMembers(room, conversation?.you?.directoryId)
+            }
             onSend={(text) => {
               void session?.send(room.id, text, thread).then((result) => {
                 if (!result.ok && result.code === "old-client")

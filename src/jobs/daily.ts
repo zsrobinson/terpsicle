@@ -1,6 +1,10 @@
 import { endPastTermWatches } from "~/server/alerts/service";
 import { deleteExpiredSessions, purgeDueAccounts } from "~/server/auth/purge";
 import { pruneFeedback } from "~/server/feedback/store";
+import {
+  pruneChatNotifications,
+  sendChatDigests,
+} from "~/server/notifications/digest";
 import { pruneDeliveries } from "~/server/notifications/store";
 import { pruneReviews } from "~/server/reviews/store";
 import { pruneTombstones } from "~/server/sync/store";
@@ -20,8 +24,8 @@ import { type Job, runJob } from "./job";
  * screenshots after 180 days or 30 after closing, items after a year or
  * once the owner's delete can't be undone. A purged author's reviews stay
  * up without one. Seat watches end once their term is no longer active
- * (V2.md §6.5).
- * Later PRs add the chat digest and the moderation digest.
+ * (V2.md §6.5). It sends the chat digest (V2.md §6.6) and prunes chat
+ * mentions and replies after 30 days.
  */
 export const runDailyJob: Job = async (context) => {
   await runJob("daily", context, async () => {
@@ -32,6 +36,18 @@ export const runDailyJob: Job = async (context) => {
     const tombstonesPruned = await pruneTombstones(env.DB, now);
     const reviews = await pruneReviews(env.DB, now);
     const todo = await pruneTodo(env.DB, now);
+    // A digest that fails is reported; the rest of the job still runs, and
+    // tomorrow's digest picks up what wasn't sent.
+    const digestErrors: string[] = [];
+    const digest = await sendChatDigests(env, { now }).catch(
+      (error: unknown) => {
+        digestErrors.push(
+          `chat digest: ${error instanceof Error ? error.name : "error"}`,
+        );
+        return { emailed: 0, notifications: 0 };
+      },
+    );
+    const chatNotificationsPruned = await pruneChatNotifications(env.DB, now);
     const deliveriesPruned = await pruneDeliveries(env.DB, now);
     const watches = await endPastTermWatches(env);
     const feedback = await pruneFeedback(env.DB, env.USER_CONTENT, now);
@@ -46,13 +62,16 @@ export const runDailyJob: Job = async (context) => {
         deletedReviewsRemoved: reviews.removed,
         todoItemsPruned: todo.items,
         todoDoneMarksPruned: todo.doneMarks,
+        chatDigestsEmailed: digest.emailed,
+        chatNotificationsDigested: digest.notifications,
+        chatNotificationsPruned,
         deliveriesPruned,
         seatWatchesEnded: watches.watches,
         feedbackUndoCleared: feedback.undoCleared,
         feedbackShotsExpired: feedback.shotsExpired,
         feedbackRemoved: feedback.removed,
       },
-      errors: purged.errors,
+      errors: [...purged.errors, ...digestErrors],
     };
   });
 };

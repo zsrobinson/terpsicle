@@ -42,8 +42,8 @@ export interface Notification {
    * name (`…:push`, `…:email`).
    */
   key: string;
-  /** What the push shows (`PushPayloadSchema` without `v` and `type`). */
-  push: Omit<PushPayload, "v" | "type">;
+  /** What the push shows (`PushPayloadSchema` without `v` and `type`); none for email-only types. */
+  push?: Omit<PushPayload, "v" | "type">;
   /** For types with an email channel (`seat-open`, `chat-digest`). */
   email?: NotificationEmail;
 }
@@ -120,9 +120,9 @@ async function notifyByPush(
   notification: Notification,
   options: NotifyOptions,
 ): Promise<ChannelOutcome> {
-  const { type } = notification;
+  const { type, push } = notification;
   // The digest is email only (channelOn never lets it here).
-  if (type === "chat-digest") return "none";
+  if (type === "chat-digest" || !push) return "none";
   const devices = await subscriptionsOf(env.DB, userId);
   if (devices.length === 0) return "none";
   const config = pushConfig(env, options.testMode ?? cronTestMode(env));
@@ -144,7 +144,7 @@ async function notifyByPush(
     config,
     devices,
     type,
-    () => notification.push,
+    () => push,
     options,
   );
   const status = sent > 0 ? "sent" : "failed";
