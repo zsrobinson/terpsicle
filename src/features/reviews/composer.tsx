@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Star } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useState } from "react";
 import { track } from "~/app/analytics";
 import { termLabel } from "~/core/catalog/terms";
 import { LENGTH_LIMITS } from "~/core/moderation";
@@ -54,6 +54,8 @@ export interface ComposerTarget {
 }
 
 const NOT_SAID = "not-said";
+
+const GRADE_OPTIONS = REVIEW_GRADES.map((g) => ({ value: g, label: g }));
 
 /** The kit's Select, a field's height: 44px on phones, 32px on a desktop. */
 const SELECT_TRIGGER = "w-40 md:h-8";
@@ -154,10 +156,18 @@ export function Composer({
       : body.trim() === ""
         ? "Write your review first"
         : null;
-  const termOptions =
-    termId && !recentTerms.includes(termId)
-      ? [...recentTerms, termId]
-      : recentTerms;
+  const hasTerm = termId !== null && recentTerms.includes(termId);
+  const termOptions = useMemo(
+    () =>
+      (termId && !hasTerm ? [...recentTerms, termId] : recentTerms).map(
+        (id) => ({ value: id, label: termLabel(id) }),
+      ),
+    [recentTerms, termId, hasTerm],
+  );
+  const pickGrade = useCallback((value: string | null) => {
+    const picked = ReviewGradeSchema.safeParse(value);
+    setGrade(picked.success ? picked.data : null);
+  }, []);
 
   // A Card: one thing that opens in place, with its own action.
   return (
@@ -187,57 +197,23 @@ export function Composer({
         <RatingPicker value={rating} onChange={setRating} />
 
         <div className="flex flex-wrap gap-3">
-          <div className="flex flex-col gap-1">
-            <label htmlFor={ids.term} className="text-muted text-sm">
-              When you took it
-            </label>
-            <Select
-              value={termId ?? NOT_SAID}
-              onValueChange={(value) =>
-                setTermId(value === NOT_SAID ? null : value)
-              }
-            >
-              <WithTooltip label="The term you took it (optional)">
-                <SelectTrigger id={ids.term} className={SELECT_TRIGGER}>
-                  <SelectValue />
-                </SelectTrigger>
-              </WithTooltip>
-              <SelectContent>
-                <SelectItem value={NOT_SAID}>Rather not say</SelectItem>
-                {termOptions.map((id) => (
-                  <SelectItem key={id} value={id}>
-                    {termLabel(id)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={ids.grade} className="text-muted text-sm">
-              Your grade
-            </label>
-            <Select
-              value={grade ?? NOT_SAID}
-              onValueChange={(value) => {
-                const picked = ReviewGradeSchema.safeParse(value);
-                setGrade(picked.success ? picked.data : null);
-              }}
-            >
-              <WithTooltip label="The grade you got (optional; it never changes the grade bars)">
-                <SelectTrigger id={ids.grade} className={SELECT_TRIGGER}>
-                  <SelectValue />
-                </SelectTrigger>
-              </WithTooltip>
-              <SelectContent className="max-h-72">
-                <SelectItem value={NOT_SAID}>Rather not say</SelectItem>
-                {REVIEW_GRADES.map((g) => (
-                  <SelectItem key={g} value={g}>
-                    {g}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <OptionalPick
+            id={ids.term}
+            label="When you took it"
+            tooltip="The term you took it (optional)"
+            value={termId}
+            options={termOptions}
+            onPick={setTermId}
+          />
+          <OptionalPick
+            id={ids.grade}
+            label="Your grade"
+            tooltip="The grade you got (optional; it never changes the grade bars)"
+            value={grade}
+            options={GRADE_OPTIONS}
+            onPick={pickGrade}
+            contentClassName="max-h-72"
+          />
         </div>
 
         <div className="space-y-1">
@@ -332,7 +308,56 @@ export function Composer({
   );
 }
 
-function RatingPicker({
+/**
+ * One optional pick, "Rather not say" first. Memoized: a closed Radix Select
+ * still renders its items, and this keeps them out of every keystroke in the
+ * review box.
+ */
+const OptionalPick = memo(function OptionalPick({
+  id,
+  label,
+  tooltip,
+  value,
+  options,
+  onPick,
+  contentClassName,
+}: {
+  id: string;
+  label: string;
+  tooltip: string;
+  value: string | null;
+  options: readonly { value: string; label: string }[];
+  onPick: (value: string | null) => void;
+  contentClassName?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-muted text-sm">
+        {label}
+      </label>
+      <Select
+        value={value ?? NOT_SAID}
+        onValueChange={(picked) => onPick(picked === NOT_SAID ? null : picked)}
+      >
+        <WithTooltip label={tooltip}>
+          <SelectTrigger id={id} className={SELECT_TRIGGER}>
+            <SelectValue />
+          </SelectTrigger>
+        </WithTooltip>
+        <SelectContent className={contentClassName}>
+          <SelectItem value={NOT_SAID}>Rather not say</SelectItem>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+});
+
+const RatingPicker = memo(function RatingPicker({
   value,
   onChange,
 }: {
@@ -375,7 +400,7 @@ function RatingPicker({
       </span>
     </div>
   );
-}
+});
 
 function FailureNote({ failure, body }: { failure: Failure; body: string }) {
   if (failure.kind === "words")
