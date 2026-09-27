@@ -112,7 +112,7 @@ Frame chrome:
 Fixed in `v2/kit-toasts`:
 - Every toast action is the shared `ToastAction`, and every Undo goes through `undoToast()` (`components/ui/toast.tsx`) with one 10-second window.
 - Failures use `noteToast()` and are never red.
-- Still open: Todo's check-off has no Undo toast.
+- Todo's check-off, Chat's Discard and the admin's pinned note have the same `undoToast` since `v3/behavior-undo`.
 
 ## 10. Buttons
 

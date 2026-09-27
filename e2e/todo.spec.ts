@@ -151,6 +151,14 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   await expect(page.getByText(/^5 open · /)).toBeVisible();
   await expect(page.getByRole("button", { name: "1 done" })).toBeVisible();
 
+  // A check has Undo, like every change: it comes back, then goes again.
+  await expect(page.getByText("Marked Project 2 done")).toBeVisible();
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText(/^6 open · /)).toBeVisible();
+  await expect(project).not.toBeChecked();
+  await project.click();
+  await expect(page.getByText(/^5 open · /)).toBeVisible();
+
   // Done marks are the server's: they survive a reload.
   await page.reload();
   await expect(page.getByText(/^5 open · /)).toBeVisible();

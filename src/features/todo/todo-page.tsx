@@ -34,7 +34,7 @@ import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
 import { PageSkeleton } from "~/ui/skeleton";
-import { noteToast } from "~/ui/toast";
+import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { type View, ViewSwitch } from "~/ui/view-switch";
 import { ConnectForm, ConnectSteps, WHAT_COMES_THROUGH } from "./connect-form";
@@ -238,7 +238,7 @@ function RefreshButton() {
         aria-label="Check ELMS now"
         disabled={refreshing}
         onClick={() => void refresh()}
-        className="max-md:-my-3 max-md:size-11"
+        className="max-md:-my-3"
       >
         <RefreshCw aria-hidden="true" className="size-3" />
       </Button>
@@ -248,6 +248,9 @@ function RefreshButton() {
 
 const TOO_SOON = "ELMS was checked in the last 5 minutes.";
 const NO_ANSWER = "ELMS didn't answer. We'll try again in 20 minutes.";
+
+/** One toast for checks: each check's Undo replaces the last one's. */
+const DONE_TOAST_ID = "todo-done";
 
 /** Signed in, before ELMS: what comes through and the three steps. */
 function InlineConnect() {
@@ -315,15 +318,27 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
     (item: TodoItem, via: "list" | "week") => {
       const next = !done.has(item.uid);
       track("todo_item_checked", { done: next, via });
-      const save = () =>
-        void setDone(item.uid, next).then((ok) => {
-          if (!ok)
-            noteToast("That didn't save", {
-              description: "Check your connection and try again.",
-              retry: save,
-            });
-        });
-      save();
+      const mark = (value: boolean) => {
+        const save = () =>
+          void setDone(item.uid, value).then((ok) => {
+            // Takes Undo's place: the check is back as it was.
+            if (!ok)
+              noteToast("That didn't save", {
+                id: DONE_TOAST_ID,
+                description: "Check your connection and try again.",
+                retry: save,
+              });
+          });
+        save();
+      };
+      mark(next);
+      // A check folds the item away, so it gets Undo like any change.
+      undoToast({
+        id: DONE_TOAST_ID,
+        message: `Marked ${item.title} ${next ? "done" : "not done"}`,
+        tooltip: next ? "Put it back on the list" : "Mark it done again",
+        onUndo: () => mark(!next),
+      });
     },
     [done, setDone],
   );

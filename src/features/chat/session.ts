@@ -5,6 +5,7 @@ import {
   conversationReducer,
   emptyConversation,
   listState,
+  localId,
   newestInRoom,
 } from "~/core/chat";
 import type {
@@ -251,8 +252,17 @@ export class CourseChatSession {
     return this.send(room, text, replyTo);
   }
 
-  discard(req: string): void {
-    this.#dispatch({ type: "discard", req });
+  /**
+   * Hides a refused send now. `send` drops it once the Undo toast is gone;
+   * `undo` brings it back, with Try again and Discard, as it was.
+   */
+  discardLater(req: string): { undo: () => void; send: () => void } {
+    const id = localId(req);
+    this.#dispatch({ type: "hide", id });
+    return {
+      undo: () => this.#dispatch({ type: "unhide", id }),
+      send: () => this.#dispatch({ type: "remove", id }),
+    };
   }
 
   async edit(
