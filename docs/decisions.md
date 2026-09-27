@@ -279,6 +279,11 @@ Revisit if: another route needs the same, or feedback needs sign-in.
 On phones the scheduler's top bar has no room for another button beside the plan's name, so "Send feedback" is an item in its account menu there, as the theme toggle is. Every other product's header shows the icon, with the wordmark hidden on phones to make room.
 Revisit if: the phone top bar is redesigned.
 
+### Feedback groups by Workers AI, issues without words
+2026-09-27 · agent · one feature
+"Group similar" and the daily job send open feedback's words to Workers AI (the small Llama chat's policy check uses) to group items about the same thing; each run replaces the open items' groups. "Open GitHub issue" carries only where to look (kind, product, route pattern, version, a link back), never the person's words, plan or screenshot. `scripts/feedback.ts` reads production D1 and R2 remotely, and writes only where it's told.
+Revisit if: groups turn out wrong often, or feedback grows past what one model call can sort.
+
 ### Push on before the device check
 2026-09-27 · owner · one feature
 Web push is on in production without waiting for the planned iPhone and Android trial; the owner checks real devices live. The VAPID pair was rotated when it went on (no device had subscribed), with the private key piped straight into the Worker secret, never printed.
@@ -300,4 +305,9 @@ Revisit if: the checklist in COHESION.md is done and a full first-time round fin
 2026-09-27 · agent · process
 A PR's "as built" notes go in its body. `DATA.md`, `STATUS.md`, `V2.md` and `V3.md` change only when a contract changes (a schema, storage, an API or a flag). Parallel PRs kept colliding in those files.
 Revisit if: agents start missing contract changes that the docs used to catch.
+
+### The family bar
+2026-09-27 · agent · app-wide
+Every page has one bar: the five products as labeled tabs from 1100px (the product menu below that), the product's context, then Feedback and one account menu, which holds the theme. This beats a menu-only switcher, because cohesion and cold arrivals are the goal (docs/COHESION.md §4).
+Revisit if: a sixth product arrives, or the scheduler's bar can't fit its term and plans beside the tabs at 1100–1300px.
 

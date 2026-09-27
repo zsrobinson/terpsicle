@@ -21,6 +21,8 @@
     "src/server/summaries/prompt.ts",
     "src/server/summaries/planetterp-api.ts",
     "src/server/alerts/email.ts",
+    // The feedback row as the inbox sees it (scripts/feedback.ts).
+    "src/server/feedback/item.ts",
     // The marks and the token reader (scripts/build-icons.ts).
     "src/app/brand/marks.ts",
     "src/app/brand/css-tokens.ts",

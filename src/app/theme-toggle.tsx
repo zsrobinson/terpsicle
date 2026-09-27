@@ -1,7 +1,6 @@
 import { Monitor, Moon, Sun } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useSyncExternalStore } from "react";
 import { type Theme, ThemeSchema } from "~/core/schema";
-import { useUi } from "~/state/ui-store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
 import { WithTooltip } from "~/ui/tooltip";
-import { setTheme } from "./actions";
+import { track } from "./analytics";
+import {
+  readThemePreference,
+  setThemePreference,
+  subscribeThemePreference,
+} from "./theme";
 
 const OPTIONS: readonly { theme: Theme; label: string; icon: typeof Sun }[] = [
   { theme: "system", label: "System", icon: Monitor },
@@ -20,9 +24,9 @@ const OPTIONS: readonly { theme: Theme; label: string; icon: typeof Sun }[] = [
 ];
 
 /**
- * A small icon at the foot of the rail (in the top bar on phones): set once,
- * rarely touched, so it stays out of the way of the plan. `children` go at
- * the end of its menu (on phones, "Install app").
+ * A small icon in the bar, only where there's no account menu to hold the
+ * theme (sign-in off, or /api/me still loading). `children` go at the end of
+ * its menu.
  */
 export function ThemeToggle({
   side,
@@ -31,7 +35,7 @@ export function ThemeToggle({
   side: "right" | "bottom";
   children?: ReactNode;
 }) {
-  const theme = useUi((s) => s.theme);
+  const theme = useThemePreference();
   const current = OPTIONS.find((o) => o.theme === theme) ?? OPTIONS[0];
   const Icon = current?.icon ?? Monitor;
   return (
@@ -61,7 +65,7 @@ export function ThemeToggle({
  * keeps room for the plan's name.
  */
 export function ThemeMenuItems() {
-  const theme = useUi((s) => s.theme);
+  const theme = useThemePreference();
   return (
     <>
       <DropdownMenuLabel>Theme</DropdownMenuLabel>
@@ -69,7 +73,9 @@ export function ThemeMenuItems() {
         value={theme}
         onValueChange={(value) => {
           const parsed = ThemeSchema.safeParse(value);
-          if (parsed.success) setTheme(parsed.data);
+          if (!parsed.success) return;
+          setThemePreference(parsed.data);
+          track("theme_changed", { theme: parsed.data });
         }}
       >
         {OPTIONS.map(({ theme: t, label, icon: OptionIcon }) => (
@@ -80,5 +86,14 @@ export function ThemeMenuItems() {
         ))}
       </DropdownMenuRadioGroup>
     </>
+  );
+}
+
+/** The theme picked on any page (its saved copy is the truth, theme.ts). */
+function useThemePreference() {
+  return useSyncExternalStore(
+    subscribeThemePreference,
+    readThemePreference,
+    () => "system" as const,
   );
 }

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Logo } from "~/app/logo";
 import {
   ADMIN_DECISIONS_PATH,
+  ADMIN_FEEDBACK_PATH,
   ADMIN_KIT_PATH,
   ADMIN_PATH,
   STAY_PARAM,
@@ -25,6 +26,11 @@ const PAGES = [
     to: ADMIN_DECISIONS_PATH,
     label: "Decisions",
     hint: "Everything moderation decided, and how often it held",
+  },
+  {
+    to: ADMIN_FEEDBACK_PATH,
+    label: "Feedback",
+    hint: "Bugs, ideas and pinned notes people sent",
   },
   {
     to: ADMIN_KIT_PATH,
@@ -71,9 +77,10 @@ export function AdminFrame({
             </WithTooltip>
           ))}
         </nav>
-        {/* The owner's notes on the panel itself ("Pin a note"). */}
+        {/* The owner's notes on the panel itself ("Pin a note"); the icon
+            alone, beside the Feedback page's own tab. */}
         <span className="ml-auto">
-          <FeedbackButton product="admin" pathname={current} />
+          <FeedbackButton product="admin" pathname={current} compact />
         </span>
       </header>
       <AdminGate>

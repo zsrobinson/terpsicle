@@ -263,3 +263,36 @@ test("the admin pins a note on an element, sees its dot, and undoes it", async (
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(dot).toHaveCount(0);
 });
+
+test("the inbox shows what was sent, and a status change undoes", async ({
+  page,
+  baseURL,
+  isMobile,
+}) => {
+  test.skip(isMobile, "the owner's inbox, on desktop");
+  const words = unique("The sidebar forgets its width");
+  await page.goto(`/auth/test?return=${encodeURIComponent("/admin/feedback")}`);
+  await page.getByRole("button", { name: "Sign in as Test Admin" }).click();
+  const sent = await page.request.post("/api/feedback/send", {
+    data: { kind: "bug", product: "schedule", path: "/schedule", text: words },
+    headers: { Origin: baseURL ?? "" },
+  });
+  expect(sent.status()).toBe(200);
+  const { id } = (await sent.json()) as { id: string };
+
+  await page.goto(`/admin/feedback?item=${id}`);
+  const item = page.locator(`[data-feedback-item="${id}"]`);
+  await expect(item.getByText(words)).toBeVisible();
+  await scan(page, "feedback inbox");
+  await item.getByRole("button", { name: "Planned" }).click();
+  await expect(page.getByText("Marked Planned")).toBeVisible();
+  await expect(item).toHaveAttribute("aria-label", "Bug, Planned");
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(item).toHaveAttribute("aria-label", "Bug, New");
+  await expect(
+    item.getByRole("link", { name: "Open GitHub issue" }),
+  ).toHaveAttribute(
+    "href",
+    /^https:\/\/github\.com\/zsrobinson\/terpsicle\/issues\/new\?/,
+  );
+});

@@ -1,5 +1,6 @@
 import { endPastTermWatches } from "~/server/alerts/service";
 import { deleteExpiredSessions, purgeDueAccounts } from "~/server/auth/purge";
+import { groupOpenFeedback } from "~/server/feedback/group";
 import { pruneFeedback } from "~/server/feedback/store";
 import {
   pruneChatNotifications,
@@ -25,7 +26,8 @@ import { type Job, runJob } from "./job";
  * once the owner's delete can't be undone. A purged author's reviews stay
  * up without one. Seat watches end once their term is no longer active
  * (V2.md §6.5). It sends the chat digest (V2.md §6.6) and prunes chat
- * mentions and replies after 30 days.
+ * mentions and replies after 30 days. It groups open feedback again with
+ * Workers AI (src/server/feedback/group.ts).
  */
 export const runDailyJob: Job = async (context) => {
   await runJob("daily", context, async () => {
@@ -51,6 +53,9 @@ export const runDailyJob: Job = async (context) => {
     const deliveriesPruned = await pruneDeliveries(env.DB, now);
     const watches = await endPastTermWatches(env);
     const feedback = await pruneFeedback(env.DB, env.USER_CONTENT, now);
+    // Grouping is a convenience: a model that doesn't answer leaves
+    // yesterday's groups, and the job goes on.
+    const grouping = await groupOpenFeedback(env, now).catch(() => null);
     return {
       counts: {
         accountsPurged: purged.accounts,
@@ -70,6 +75,8 @@ export const runDailyJob: Job = async (context) => {
         feedbackUndoCleared: feedback.undoCleared,
         feedbackShotsExpired: feedback.shotsExpired,
         feedbackRemoved: feedback.removed,
+        feedbackGroups: grouping?.groups ?? 0,
+        feedbackGrouped: grouping?.grouped ?? 0,
       },
       errors: [...purged.errors, ...digestErrors],
     };
