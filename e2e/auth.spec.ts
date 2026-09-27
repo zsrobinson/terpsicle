@@ -115,6 +115,17 @@ test("settings shows the profile read-only; the test admin gets Admin", async ({
   await expect(
     page.getByRole("link", { name: /Google Account/ }),
   ).toHaveAttribute("href", "https://myaccount.google.com/personal-info");
+  // The site's frame: the products and your account, so any product is one
+  // click back.
+  const header = page.getByRole("banner");
+  await expect(
+    header.getByRole("link", { name: "Account: Test Admin" }),
+  ).toHaveAttribute("aria-current", "page");
+  await header
+    .getByRole("navigation", { name: "Products" })
+    .getByRole("link", { name: "Reviews" })
+    .click();
+  await expect(page).toHaveURL(/\/reviews\/?$/);
 
   await open(page);
   await accountButton(page, "Test Admin").click();

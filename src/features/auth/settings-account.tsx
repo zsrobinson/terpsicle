@@ -2,12 +2,14 @@ import { ExternalLink } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { track } from "~/app/analytics";
-import { signInStartHref } from "~/core/auth";
+import { SIGN_IN_PITCH, signInStartHref } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
+import { SitePage } from "~/features/site/site-page";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { AccountPage, AccountSection } from "./account-page";
+import { AccountLink } from "./account-link";
+import { AccountSection } from "./account-page";
 import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
 import { SignInPanel } from "./sign-in-panel";
@@ -35,22 +37,33 @@ export function deletionDay(iso: string): string {
 
 /**
  * `/settings`: the account (V2.md §1.1) and the sections you're watching for
- * a seat (#watching, from the account menu). Notifications come later.
+ * a seat (#watching, from the account menu). Notifications come later. It
+ * sits in the site's frame, so every product is one click away.
  */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
   const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   return (
-    <AccountPage title="Settings" busy={status === "loading"}>
-      <AccountSection title="Account">
-        <AccountDetails />
-      </AccountSection>
-      {status === "signed-in" && seatAlerts ? (
-        <Suspense fallback={null}>
-          <SeatWatches />
-        </Suspense>
-      ) : null}
-    </AccountPage>
+    <SitePage
+      layout="reading"
+      actions={<AccountLink from="settings" signInTip={SIGN_IN_PITCH} />}
+    >
+      <h1 className="mb-4 font-semibold text-xl tracking-tight">Settings</h1>
+      <div
+        aria-live="polite"
+        aria-busy={status === "loading"}
+        className="space-y-4"
+      >
+        <AccountSection title="Account">
+          <AccountDetails />
+        </AccountSection>
+        {status === "signed-in" && seatAlerts ? (
+          <Suspense fallback={null}>
+            <SeatWatches />
+          </Suspense>
+        ) : null}
+      </div>
+    </SitePage>
   );
 }
 

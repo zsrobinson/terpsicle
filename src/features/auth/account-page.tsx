@@ -2,9 +2,8 @@ import type { ReactNode } from "react";
 import { Logo } from "~/app/logo";
 
 /**
- * The frame for /settings and /signin: the logo home, a title, and one
- * column. Pages outside the scheduler stay this plain until the brand
- * track's design lands.
+ * The frame for /signin: the logo home, a title, and one column. /settings
+ * uses the site's frame (`SitePage`) and borrows `AccountSection` from here.
  */
 export function AccountPage({
   title,
