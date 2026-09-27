@@ -75,6 +75,8 @@ export const PURGE_LEDGER = {
   moderation_author_stops:
     "untouched: no user id, only a queue item and when the stop ends",
   author_stops: "deleted",
+  // 0014_chat_spam_guard (pruned after an hour anyway)
+  chat_send_hashes: "deleted",
 } as const satisfies Record<string, string>;
 
 /**
@@ -254,6 +256,7 @@ export function accountStatements(
     byUser("chat_read_markers"),
     byUser("chat_room_prefs"),
     byUser("chat_author_courses"),
+    byUser("chat_send_hashes"),
     // The owner's stops on them (the users columns go with the row).
     byUser("author_stops"),
     // Notifications: settings, devices and chat notifications go; the

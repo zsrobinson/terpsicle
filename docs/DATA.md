@@ -537,6 +537,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0011_todo` (v3) | `todo_feeds` (the ELMS link, encrypted), `todo_items`, `todo_done` | Terpsicle Todo (V3.md §3.4) |
 | `0012_feedback` | `feedback`, `feedback_groups` | The feedback sheet (FEEDBACK.md) |
 | `0013_author_stops` | `moderation_author_stops` (per queue item: the stop's id and when it ends; no author), `author_stops` (per stop: who it's on, for Reviews' and Chat's stores; purged with the account) | "Stop this author" and its Undo (V2.md §10, MODERATION.md §6) |
+| `0014_chat_spam_guard` | `chat_send_hashes` (`user_id`, `room_id`, `text_hash`, `created_at`; kept an hour) | Chat's spam guard across rooms (MODERATION.md §2, §7.9) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -605,6 +606,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 | `chat_read_markers` | `(user_id, term_id, course_code, room_id)` | `seq` | Only moves forward. `chat/unread`'s count is `last_seq − seq`. |
 | `chat_room_prefs` | `(user_id, term_id, course_code, room_id)` | `muted` | |
 | `chat_author_courses` | `(user_id, term_id, course_code)` | | Where someone has written, for account deletion: recorded at their first send in a course, so held messages count. The purge calls `purgeAuthor` on each course's object and deletes the row once it answers. No foreign key. |
+| `chat_send_hashes` (`0014`) | none; indexed by `(user_id, created_at)` and `created_at` | `room_id`, `text_hash` (`textFingerprint`: 16 hex characters, a SimHash of the normalized words; null under 20 characters), `created_at` | The spam guard's log: one row per send or edit, written by the object before screening, never the words. Pruned an hour on by the every-5-minutes moderation cron; the purge deletes a person's rows. No foreign key. |
 
 **The object's SQLite** (made on its first write; an object nobody wrote in has no storage):
 - `meta`: `term_id`, `course_code`, `read_only_at` and `delete_at` (epoch ms, from `chatRetention`), `read_only_announced`.
@@ -615,7 +617,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 
 **The socket.** `GET /api/chat/socket?term=<termId>&course=<code>` with `Upgrade: websocket`: `503` while `CHAT_ENABLED` is `off`, `426` without the upgrade, `403` cross-origin, `401` signed out, `400` for a bad query, `429` past 600 sockets per person per hour, `404` for a term or course the catalog doesn't have. The object gets `X-Terpsicle-User`, `-Term`, `-Course` and `-Chat` (`on` or `read`) and trusts them: only the Worker can reach it. Keepalive `ping` gets `pong` without waking it. Close codes: `4001` the rooms turned read-only, `4002` the course's chat was deleted, `4003` sign in again; the app reconnects (or not) and the new `welcome` says the rest.
 
-**Sending:** check (can read the room, `CHAT_ENABLED` is `on`, the term isn't over, the room is listed, no admin block, the limits) → store as `checking` and ack → `moderate()` (kind `chat`, target `<termId>:<courseCode>:<messageId>`) → `visible` (broadcast), `held` (author only; `graded-work` or `flagged`), `removed` (author only), or still `checking` when only a failed model call held it (moderation's cron retries and calls Chat's handler). An edit is screened again, and classmates get `moderation {removed}` for the old text until the new one is visible. If `moderate()` throws, the object's alarm takes moderation's latest decision about that text, or screens it again, two minutes later.
+**Sending:** check (can read the room, `CHAT_ENABLED` is `on`, the term isn't over, the room is listed, no admin block, the limits) → store as `checking` and ack (the author sees it as sent) → the spam guard (`chat_send_hashes`; a repeat or flood holds it as `flagged` for the owner, urgent, with no model call) → `moderate()` (kind `chat`, target `<termId>:<courseCode>:<messageId>`) → `visible` (broadcast), `held` (author only; `graded-work` or `flagged`), `removed` (author only), or still `checking` when only a failed model call held it (moderation's cron retries and calls Chat's handler). An edit is screened again, and classmates get `moderation {removed}` for the old text until the new one is visible. If `moderate()` throws, the object's alarm takes moderation's latest decision about that text, or screens it again, two minutes later.
 
 **Reports** (`v2/chat-ui`): `reports/create` with `surface: "chat"` and the message's ref goes to its object (`src/server/chat/report-target.ts`, MODERATION.md §6). Reports that reach the hiding weight hold the message for its author only (`held`, `held_reason: reported`); the owner's approve shows it again.
 

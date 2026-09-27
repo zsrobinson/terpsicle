@@ -1,10 +1,13 @@
 # Moderation
 
-One shared, model-first service decides whether something a person wrote in Terpsicle Reviews or Terpsicle Chat can be shown. Clean posts publish on their own. Only uncertain or flagged ones reach the owner in `/admin`, so the human queue stays small (`v2-decisions`: "Moderation is model-first").
+One shared, model-first service decides whether something a person wrote in Terpsicle Reviews or Terpsicle Chat can be shown. Clean posts publish on their own. Only uncertain or flagged ones reach the owner in `/admin`, so the human queue stays small (`docs/decisions.md`: "Moderation is model-first").
+
+**Chat is lighter than Reviews** (the owner, 2026-09-27, `docs/decisions.md`: "Chat moderation is light, invisible and hard to spam"): "i just don't want any *really* nasty things there. i mostly want to make sure that it's not abused in ways like spamming something in a million different course channels". Phone numbers, emails, rooms, links, casual insults, homework talk, asking for help and code all publish in chat. Sharing answers is discouraged by the room rules and a one-time nudge, never held. What still stops a chat message: slurs, blocked words, Llama Guard's serious categories, attacks on a person, someone else's private details, clear spam, and the cross-room spam guard (§2). The author never sees a "checking" state; only a message that's actually held or removed gets one calm line under it.
 
 - Pure rules and policy text: `src/core/moderation/`
 - The service, models, storage and admin API: `src/server/moderation/`
 - Tables: `migrations/0004_moderation.sql` (V2 §9.4)
+- Chat's spam guard: `src/core/moderation/cross-room.ts` (the rules), `src/server/chat/spam-guard.ts` (D1, `migrations/0014_chat_spam_guard.sql`)
 - Retries and cleanup: `src/jobs/moderation.ts`, every 5 minutes
 - The eval set: `src/server/moderation/eval/cases.ts`; the live run: `scripts/moderation-eval.ts`
 
@@ -40,10 +43,10 @@ What the caller does with each decision:
 | Decision | Reviews | Chat |
 |---|---|---|
 | `publish` | Publish the review. | Deliver the message to the room. |
-| `hold` | Keep it unpublished; tell the author it's waiting for a person. | Show it only to its author, marked as waiting. |
-| `remove` | Don't publish. Show the author the reason (below). | Don't deliver. Show the author the reason. |
+| `hold` | Keep it unpublished; tell the author it's waiting for a person. | Show it only to its author, with one calm line ("Only you can see this for now, until a person looks at it."). |
+| `remove` | Don't publish. Show the author the reason (below). | Don't deliver. Tell only the author ("A person took this down."). |
 
-- **Before submitting,** the composer can run `precheck({kind, text})` from `~/core/moderation` to point at the exact words (every rule reason has a `span`) and say what to fix, with `REASON_WORDS[code]`. `LENGTH_LIMITS` gives the character limits. Nothing is stored by `precheck`.
+- **Before submitting,** the review composer runs `precheck({kind, text})` from `~/core/moderation` to point at the exact words (every rule reason has a `span`) and say what to fix, with `REASON_WORDS[code]`. `LENGTH_LIMITS` gives the character limits. Nothing is stored by `precheck`. The chat composer says nothing about checking; its only hint is `answersHint(text)`, a one-time nudge about graded answers (§3).
 - **"What's allowed":** `MODERATION_POLICY.review` and `MODERATION_POLICY.chat` hold the text for the panel next to each composer.
 - **Edits:** call `moderate()` again with the same `targetId`. A waiting hold is replaced (held again with the new text, or cleared when the edit passes).
 - **The current state** of an item, including a later decision by a retry or the owner: `currentDecision(db, kind, targetId)`.
@@ -53,25 +56,30 @@ What the caller does with each decision:
 
 ## 2. The pipeline
 
-1. **Rules** (`precheck`, no model). A `remove` from the rules (a slur, an empty or over-long post) ends it: no model is called.
-2. **Llama Guard** (`@cf/meta/llama-guard-3-8b`) for safety categories, on every post the rules didn't remove.
-3. **The policy model** for the site's own rules, with a strict JSON schema, on every post, in parallel with Guard (V2 §9.2).
-   - Reviews act on every label.
-   - A chat message the rules or Guard **flagged** acts on every chat label.
-   - A chat message nothing flagged acts only on `targets-person`. The rules already cover contact details, answers and links in chat. On the eval set, letting the small model's other scores act held or removed 4 of 23 good chat messages ("text me at …", lecture code, a textbook for sale), because it scores exactly what the rules deliberately allow. `chatPolicy: "flagged"` in `MODERATION_CONFIG` goes back to reading only flagged chat.
+0. **Chat's spam guard** (chat only, before anything else; in the `CourseChat` object's send and edit). Each room is its own Durable Object, so one person's messages across rooms are only visible in D1: `chat_send_hashes` keeps, per message or edit, the author, the room, the time and a fingerprint of the words (`textFingerprint`: a 64-bit SimHash of the normalized text, which near-same texts share and which can't be turned back into words), never the words. `crossRoomRule` (`src/core/moderation/cross-room.ts`) holds the message when:
+   - **`repeat`:** the same or a near-same text (fingerprints at most 10 of 64 bits apart; normalized texts under 20 characters never count) is in **3 or more different rooms within an hour**, this one included;
+   - **`flood`:** **more than 12 messages across more than 4 rooms within 10 minutes**, this one included.
 
-Each reason carries an action: `flag`, `hold` or `remove`. The decision is the most severe action. `flag` alone never holds anything; it widens what the policy model may act on.
+   A held message goes to the owner's queue through `queueForOwner` as `{code: "spam", source: "cross-room", action: "hold", crossRoom}`, **urgent**, and the decision log gets a `rules`/`hold` row. No model is called, so a spammer can't spend the daily cap. Its author sees it with the usual held line; classmates never get it. Rows older than an hour are pruned by the every-5-minutes moderation cron and deleted with the account. A D1 failure in the guard lets the message through to the usual screening (the models still read it). Reviews keep their own `burst` rule.
+1. **Rules** (`precheck`, no model). A `remove` from the rules (a slur, an empty or over-long post) ends it: no model is called. In chat, a message that's only a common short reply ("thanks!", "same", "+1") or has no letters or digits (an emoji) publishes here too (`isTrivialChat`): the cheapest clean message is one no model reads.
+2. **Llama Guard** (`@cf/meta/llama-guard-3-8b`) for safety categories, on every post the rules didn't decide.
+3. **The policy model** for the site's own rules, with a strict JSON schema, on every post, in parallel with Guard (V2 §9.2).
+   - Reviews score and act on every label.
+   - Chat scores only `targets-person`, `personal-info` and `spam`, a shorter prompt and answer than before. `targets-person` holds at 0.5. `spam` holds at 0.9 and never removes. `personal-info` holds at 0.9, and only when there's something to expose: a contact detail the rules found that isn't plainly the writer's own ("her cell is …"), or Guard's privacy category (`actingPolicyLabels`). Measured on 2026-09-27, the small chat model scored `personal-info` 1 on "text me at …" and on a message with no details at all, so the score alone can't tell a study group from a leak.
+   - `chatPolicy: "flagged"` in `MODERATION_CONFIG` reads chat only when the rules or Guard flagged it (cheaper, but it misses attacks on a person with no flagged word).
+
+Each reason carries an action: `flag`, `hold` or `remove`. The decision is the most severe action. `flag` alone never holds anything: it's logged, and with `chatPolicy: "flagged"` it's what makes the policy model read a chat message.
 
 **Fail closed, then retry.** A model error, a timeout, output that doesn't parse, or the daily cap each add a `system` reason that **holds** the post (`model-unavailable` or `daily-cap`). Nothing publishes without every check it needed. A post held *only* for those reasons waits in the queue as `retry`, which the owner never sees. The every-5-minutes cron (`src/jobs/moderation.ts`, beside seats) screens it again:
 - if it passes, it's published through the feature's handler and the row is deleted. It never reached a person;
 - if the retry finds a real problem, it goes to the owner at once;
 - if the check keeps failing, it goes to the owner after `MAX_RETRIES` (2) retries, so within about 10 minutes.
 
-The first retry comes within 5 minutes, as V2 §9.2 asks for chat; reviews get the same treatment. Only `model-unavailable` and `daily-cap` count as "held only for a failed check" (`needsRetry`): Reviews' `burst` is also a `system` reason, but it's for a person.
+The first retry comes within 5 minutes, as V2 §9.2 asks for chat; reviews get the same treatment. Only `model-unavailable` and `daily-cap` count as "held only for a failed check" (`needsRetry`): Reviews' `burst` is also a `system` reason, but it's for a person. A chat message waiting for a retry stays `checking`, which its author sees as sent: nothing tells them a check failed.
 
 **Hedging.** Workers AI usually answers in well under a second, but a few percent of Llama Guard calls take 5–10 s (measured 2026-09-26: 2 of 12 sequential calls). So each stage starts a second attempt when the first fails or hasn't answered after **1 s**, and takes whichever answers first. A stage gives up after 10 s in all. In the first eval run, a plain 5 s timeout lost 5 of 35 Guard calls; with the hedge, none have been lost since (about 700 posts). Chat p95 end to end was 2.6–3.1 s with a 2.5 s hedge and 0.9–1.4 s with 1 s (§8).
 
-**Cost cap.** Every model attempt counts against `MODERATION_DAILY_CAP` (2,000 per UTC day, V2 §13, in the `counters` table): hedges and retries included. Past it, posts hold and are retried. At today's prices a review costs about $0.0004 and a chat message about $0.0001, most of it Llama Guard's prompt, so a full day's cap is well under $1. A chat message now costs two calls, so 2,000 covers roughly 1,000 messages a day. The admin health header (V2 §10) shows calls today against the cap. Raise it when real traffic gets near.
+**Cost cap.** Every model attempt counts against `MODERATION_DAILY_CAP` (2,000 per UTC day, V2 §13, in the `counters` table): hedges and retries included. Past it, posts hold and are retried. At today's prices a review costs about $0.0004 and a chat message about $0.0001, most of it Llama Guard's prompt, so a full day's cap is well under $1. A chat message costs two calls (none for a short reply or one the spam guard holds), so 2,000 covers roughly 1,000 messages a day. The admin health header (V2 §10) shows calls today against the cap. Raise it when real traffic gets near.
 
 **Prompt injection.** Post text is fenced in `<post>` tags with `<` and `>` removed, and the model is told the post is data. The policy model only returns numbers, so an injected instruction can at worst move a score, and every score is validated.
 
@@ -82,15 +90,18 @@ The first retry comes within 5 minutes, as V2 §9.2 asks for chat; reviews get t
 | `empty`, `too-short`, `too-long` | length, after trimming (reviews 40–2,000, chat 1–2,000) | remove | remove |
 | `slur` | a small blocklist, whole words, after undoing leetspeak, separators and stretched letters | remove | remove |
 | `blocked-word` | slurs with reclaimed or innocent uses ("a chink in the armor") | hold | hold |
-| `insult` | everyday insults ("stupid", "loser") | flag | flag |
-| `link` | a link outside `umd.edu` and `terpsicle.com` | hold | flag |
-| `cheating-site` | a link to Chegg, Course Hero, Studocu, Brainly or Numerade | hold | hold |
-| `email`, `phone`, `address`, `uid` | contact details, street addresses, 9-digit UIDs | hold | hold, unless the writer is plainly sharing their own ("text me at …") |
-| `shares-answers` | a list of 3+ multiple-choice answers ("1. B 2. D 3. A"); "here are the answers/solutions/my code" | hold | hold |
-| `asks-for-answers` | "does anyone have the answers to hw 3", "hw 3 solutions", "answer key" | flag | flag |
-| `code-paste` | a pasted block of code while `activeAssignments` is true | hold | hold |
+| `insult` | everyday insults ("stupid", "loser") | flag | allowed |
+| `link` | a link outside `umd.edu` and `terpsicle.com` | hold | allowed |
+| `cheating-site` | a link to Chegg, Course Hero, Studocu, Brainly or Numerade | hold | flag (the composer's nudge) |
+| `email`, `phone`, `address` | contact details and street addresses (a building or room is normal) | hold | allowed, whoever's they are; someone else's only feed the policy model's `personal-info` (§2) |
+| `uid` | a 9-digit UID | hold | hold, unless the writer is plainly sharing their own |
+| `shares-answers` | a list of 3+ multiple-choice answers ("1. B 2. D 3. A"); "here are the answers/solutions/my code" | hold | flag (the composer's nudge) |
+| `asks-for-answers` | "does anyone have the answers to hw 3", "hw 3 solutions", "answer key" | flag | allowed |
+| `code-paste` | a pasted block of code while `activeAssignments` is true | hold | allowed |
 
-The integrity rules are deliberately conservative: people talk about homework, solutions and code for honest reasons all the time ("solutions are posted on ELMS"). Only patterns that are nearly always a problem hold on their own; the rest flag, and the policy model reads them in context. The golden tests in `moderation.test.ts` pin both sides, including innocent words the blocklist must never match ("Niger", "spices", "raccoon").
+"Allowed" means no reason at all: nothing holds, nothing flags, nothing is logged. A chat "flag" never holds; it's kept in the decision log, and `answersHint` uses it for the one-time nudge in the chat composer ("If these are answers to graded work, a hint helps more and keeps everyone's grade safe."), shown once per browser, after which the message sends as usual. The room rules ask kindly: "Help each other learn, but please don't post answers to graded work."
+
+The integrity rules are deliberately conservative for reviews: people talk about homework, solutions and code for honest reasons all the time ("solutions are posted on ELMS"). Only patterns that are nearly always a problem hold on their own; the rest flag, and the policy model reads them in context. The golden tests in `moderation.test.ts` pin both kinds, and the detectors themselves, including innocent words the blocklist must never match ("Niger", "spices", "raccoon").
 
 ## 4. Llama Guard categories
 
@@ -112,20 +123,20 @@ The integrity rules are deliberately conservative: people talk about homework, s
 | S14 Code interpreter abuse | `code-abuse` | flag |
 | unsafe, no category | `unsafe` | hold |
 
-Categories that fire on ordinary student complaints ("he robbed us of our grade", "a liar about the curve") only flag, so the policy model judges them with the site's own rules instead of queueing every harsh review. **Urgent** items sort to the top of the owner's queue.
+Chat and reviews share these actions: hate, threats and violence, sexual content, sex crimes, child safety, weapons and self-harm keep holding (or removing) chat too. Categories that fire on ordinary student complaints ("he robbed us of our grade", "a liar about the curve") only flag, so the policy model judges them with the site's own rules instead of queueing every harsh review. **Urgent** items sort to the top of the owner's queue: the urgent categories above, a reported threat, and everything the spam guard holds.
 
 ## 5. The policy model
 
-| Label | Kinds | Hold at | Remove at |
+| Label | Kinds | Reviews: hold / remove at | Chat: hold / remove at |
 |---|---|---|---|
-| `academic-integrity`: shares or asks for answers, solutions or code for graded work | both | 0.5 | never |
-| `targets-person`: attacks or mocks a person, names a student, comments on identity or looks | both | 0.5 | never |
-| `personal-info`: someone else's contact or private details | both | 0.5 | never |
-| `misconduct-claim`: states misconduct as fact (the main defamation risk) | reviews | 0.5 | never |
-| `spam`: ads, selling, scams, gibberish | both | 0.5 | 0.9 |
-| `off-topic`: not about the course at all | reviews | 0.6 | 0.9 |
+| `academic-integrity`: shares or asks for answers, solutions or code for graded work | reviews | 0.5 / never | not scored |
+| `targets-person`: attacks or mocks a person, names a student, comments on identity or looks | both | 0.5 / never | 0.5 / never |
+| `personal-info`: someone else's contact or private details | both | 0.5 / never | 0.9 / never, and only with a detail to expose (§2) |
+| `misconduct-claim`: states misconduct as fact (the main defamation risk) | reviews | 0.5 / never | not scored |
+| `spam`: ads, selling, scams, gibberish | both | 0.5 / 0.9 | 0.9 / never |
+| `off-topic`: not about the course at all | reviews | 0.6 / 0.9 | not scored |
 
-Only clear spam and clear non-reviews are removed without a person. Every other label holds: a wrong hold costs the owner a click, a wrong removal silences someone.
+Only clear spam and clear non-reviews are removed without a person, and only in reviews. Every other label holds: a wrong hold costs the owner a click, a wrong removal silences someone. Chat's bars are high because what the small model over-reads there (a study group's numbers, a link, a textbook for sale) is allowed. Chat's definitions say so too: sharing your own details or a room to meet in, pointing to a website or a study group, and selling a used textbook all score 0.
 
 **Models** (`POLICY_MODELS` in `models.ts`, V2 §9.2's measurement):
 - **Reviews:** `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, the model summaries already use. Reviews are few and each matters, and on held-out cases it caught a comment on an instructor's age that the 8B model scored 0.
@@ -168,7 +179,9 @@ The rest of the panel's API (`src/server/admin/`, V2 §10), also `auth: "admin"`
 The panel itself is `src/features/admin/` at `/admin` (the queue, with the health header and a "Decided" view with Undo per item) and `/admin/decisions` (the log, filters in the URL). Held text renders as plain text with each rule's match marked. "Paste a chat link" takes a thread link from Chat or a ref from the decision log for `admin/chat/remove`; a removal's "Also stop this author …" checkbox sends `authorAction`.
 
 **Reports** (V2 §9.3): `POST /api/reports/create {surface, ref, reason, note | null}`, `auth: "user"`, 30 per person per hour, in `src/server/moderation/reports.ts`.
-- Reasons: `personal-info`, `names-a-student`, `hate`, `threat`, `sexual`, `misconduct-claim`, `graded-work`, `off-topic`, `other`; a note of at most 300 characters.
+- Each surface takes its own reasons (`ReportCreateInputSchema`), with a note of at most 300 characters:
+  - **Reviews:** `personal-info`, `names-a-student`, `hate`, `threat`, `sexual`, `misconduct-claim`, `graded-work`, `off-topic`, `other`.
+  - **Chat, abuse only** (the owner, 2026-09-27): `hate` ("Harassment or hate"), `threat`, `sexual`, `spam`, `personal-info` ("Someone's private info") and `other` ("Something else"), which needs a note. Anything else is `400`.
 - Answers `reported` (also when this person already reported it: one report per person per item), `not-found` (nothing the reporter could be reading), or `own` (you wrote it).
 - Each surface finds its items through a `ReportTarget` (`reportTargets(env)`): Reviews' reads D1. Chat's (`src/server/chat/report-target.ts`, `v2/chat-ui`) reaches the message's `CourseChat` object from the ref (`<termId>:<courseCode>:<messageId>`): `reportTarget` finds a message the reporter can read (visible, or taken down by reports and maybe still on their screen), with its text for the snapshot and never its author; `hideReported` holds it for its author only (`held: reported`) until a person decides, and the owner's approve or remove reaches it through Chat's handler as usual.
 - Every report puts the item in the owner's queue (`queueForOwner`) with one `reported` label per report reason (`{code: "reported", source: "reports", report}`). The labels only flag it, unless the reports **hide** it: 3 different people, or 1 report of `threat`, `personal-info` or `names-a-student` (`shouldHide` in `src/core/moderation/reports.ts`). Hiding logs `reports:hide` and makes the labels holds. A reported threat is urgent.
@@ -182,6 +195,8 @@ The panel itself is `src/features/admin/` at `/admin` (the queue, with the healt
 | `MODERATION_DAILY_CAP` | `2000` (in `wrangler.jsonc`, V2 §13) | Model attempts per UTC day, hedges and retries included. |
 | `MODERATION_CONFIG` | unset | JSON overrides, validated by `ModerationConfigOverridesSchema`; anything invalid is ignored as a whole. |
 
+The spam guard's thresholds are constants (`CROSS_ROOM` in `src/core/moderation/cross-room.ts`), not config: they're the owner's numbers.
+
 ```jsonc
 // MODERATION_CONFIG: every key optional
 {
@@ -192,15 +207,16 @@ The panel itself is `src/features/admin/` at `/admin` (the queue, with the healt
   "hedgeAfterMs": 1000,
   "chatPolicy": "always",                         // or "flagged": skip the policy model for unflagged chat
   "guardActions": { "S5": "hold" },               // flag | hold | remove
-  "policyThresholds": { "spam": { "hold": 0.4, "remove": 0.95 } }
+  "policyThresholds": { "spam": { "hold": 0.4, "remove": 0.95 } },  // both kinds
+  "chatPolicyThresholds": { "personal-info": { "hold": 0.95 } }    // chat, over the line above
 }
 ```
 
 ## 8. The eval
 
-`src/server/moderation/eval/cases.ts` holds 47 invented, harmless review and chat snippets with the decision each should get; borderline ones list every acceptable decision. The last ten are **held out**: written after the prompt and thresholds were tuned, and not tuned against. Two chat cases about a named student (one mocking, one kind) were added with the always-on chat read.
+`src/server/moderation/eval/cases.ts` holds 55 invented, harmless review and chat snippets with the decision each should get; borderline ones list every acceptable decision. The last ten are **held out**: written after the prompt and thresholds were tuned, and not tuned against (one held-out chat case changed its wanted decision with the owner's lighter chat, not with tuning). Two chat cases about a named student (one mocking, one kind) were added with the always-on chat read. The lighter chat (2026-09-27) added study-group numbers and rooms, a groupmate's email, a resource link, homework talk and a casual insult (publish), and a threat, someone's home address and a slur (hold, hold, remove); answers, code and an answer site now publish. `CROSS_ROOM_CASES` holds the spam guard's cases (the same ad in three courses, near-same copies, a question in two rooms, "thanks!" everywhere, a flood, a busy talker).
 
-- **In CI** (`eval.test.ts`): the rules alone never hold or remove a case that should publish, and decide the cases marked `rules` exactly.
+- **In CI** (`eval.test.ts`): the rules alone never hold or remove a case that should publish, and decide the cases marked `rules` exactly; every spam-guard case gets its rule.
 - **Live** (never in CI): `pnpm tsx scripts/moderation-eval.ts`, with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. `ONLY=chat`, `VERBOSE=1` and `MODERATION_CONFIG` work as expected.
 
 Results on 2026-09-26:
@@ -237,9 +253,20 @@ Guard was `@cf/meta/llama-guard-3-8b` throughout, with the hedge. The "final" pr
 
 Reading every message adds little latency, because the policy model runs beside Guard and the tail is Guard's. The shipped row had 3 of 75 messages over 2 s (the slowest 8.6 s, when both of Guard's attempts were slow).
 
+**Lighter chat** (2026-09-27, the 33 chat cases; the first row two runs, the shipped row three, the full set once):
+
+| Chat setup | Acceptable | Good messages held or removed | Problems published | p50 / p95 |
+|---|---|---|---|---|
+| Three labels, `personal-info` and `spam` at 0.9, no gate | 30 of 33 | 3 ("text me at …", an answer site read as spam, "send me your code" scored as personal info) | 0 | 0.42 s / 1.2 s |
+| **Shipped:** the same, `personal-info` gated on a detail to expose, spam defined as promotion | 33 of 33 (all three runs) | 0 | 0 | 0.38–0.42 s / 0.56–0.81 s |
+| The full set (55: reviews unchanged) with the shipped chat | 55 of 55 | 0 | 0 | 0.49 s / 1.7 s |
+
+The small model's scores are nearly all 0, 0.5 or 1, so raising a bar from 0.5 to 0.9 changes little on its own; the gate and the definitions are what cleared the false holds.
+
 ## 9. Known limits and next steps
 
-- **Unflagged chat only acts on `targets-person`.** Answers, contact details and spam in chat that no rule and no Guard category catch still publish. Widening that set brings back the false holds measured in §8.
+- **Chat publishes answers and contact details on purpose** (the owner, 2026-09-27). Someone else's details hold only when the rules or Guard see a detail to expose and the model is very sure; a leak in words alone ("she lives above the Chipotle") relies on `targets-person` or a report.
+- **The spam guard sees only one person.** Many accounts posting the same thing aren't caught by it (each needs a real UMD sign-in, and the owner can stop an author). The first two copies of a repeated message publish; only the third and later hold. It counts rooms, so the same question in a course's room and a section room counts twice: three rooms of one course can trip it.
 - **Scores near 0.5 wobble.** One harsh-but-fair review flipped between publish and hold across runs. That costs the owner a click, not a wrong publish.
 - **Decision rows are kept.** V2 says a year; nothing prunes them yet (it's the daily job's, V2 §13).
 - **V2 §9 and §10 describe this API** (`moderate()`, per-label scores, `admin/moderation/*`) and point here for details.

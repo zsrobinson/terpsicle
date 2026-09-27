@@ -232,7 +232,7 @@ Keeping a course room in your chat list when the course isn't in your chat plan.
 _Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
 
 **Room rules**:
-The three lines a course's chat shows the first time you open it, and in room info.
+The three lines a course's chat shows the first time you open it, and in room info. Kind, and never "a bot checks your messages": they ask people not to post answers to graded work, and say how to report abuse.
 
 **Mention**:
 "@" and a classmate's name in a message ("@Hannah Lee"). Typing "@" offers the room's members; a mention of someone in the room notifies them, even in a room they muted.
@@ -253,7 +253,7 @@ Screening reviews and chat messages, model first, so only unclear cases reach a 
 Everyone who can read the room or page sees it.
 
 **Checking**:
-Being screened. Only its author sees it, with "Checking before classmates see it…".
+Being screened. A review's button says "Checking…". A chat message being checked looks sent to its author, with no note; classmates get it once it passes.
 
 **Held**:
 Waiting for a person. Only its author sees it, with a plain note saying why, never in red.
@@ -262,8 +262,12 @@ Waiting for a person. Only its author sees it, with a plain note saying why, nev
 Taken down. Nobody sees the text; its author is told.
 
 **Report**:
-A signed-in person flagging a review or message, with a reason. Enough reports hide it until a person decides.
+A signed-in person flagging a review or message, with a reason. Enough reports hide it until a person decides. Chat reports are for abuse only: harassment or hate, a threat, sexual content, spam, someone's private info, or something else (with a note).
 _Avoid_: feedback (that's the feedback sheet's)
+
+**Spam guard**:
+Chat's check across rooms: one person posting the same message in 3 or more rooms within an hour, or flooding many rooms at once, is held for the owner, urgent.
+_Avoid_: burst (that's Reviews' rule for many reviews of one instructor)
 
 **Moderation queue**:
 Held and reported items waiting for the owner in `/admin`. It's meant to stay small.

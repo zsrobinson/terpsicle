@@ -236,9 +236,9 @@ test("two classmates talk in their section's room", async ({
   const first = `Anyone want to study for the midterm? ${tag}`;
   await send(page, first);
   await expect(message(page, first)).toBeVisible();
-  await expect(
-    message(page, first).getByText("Checking before classmates see it…"),
-  ).toHaveCount(0);
+  // Nothing says it's being checked: it just looks sent.
+  await expect(message(page, first).getByTestId("held-note")).toHaveCount(0);
+  await expect(message(page, first).getByText(/checking/i)).toHaveCount(0);
 
   await classmate.page.goto(roomUrl(course, section));
   await dismissRules(classmate.page);
@@ -308,7 +308,7 @@ test("two classmates talk in their section's room", async ({
   await classmate.context.close();
 });
 
-test("held messages stay with their author, and reports reach a person", async ({
+test("answers get a nudge, held messages stay with their author, and abuse reports reach a person", async ({
   page,
   browser,
   isMobile,
@@ -327,18 +327,35 @@ test("held messages stay with their author, and reports reach a person", async (
   await dismissRules(page);
   await dismissRules(classmate.page);
 
-  // The rules hold what looks like answers to graded work, for a person.
+  // Answers to graded work get a gentle nudge in the composer, once, and
+  // still send: classmates see them, and nothing marks them as checked.
   const answers = `here are the answers to hw 3 ${tag}`;
-  await send(page, answers);
+  const field = page.getByRole("textbox", { name: /^Message/ });
+  await field.fill(answers);
+  const nudge = page.getByText(/a hint helps more/);
+  await expect(nudge).toBeVisible();
+  await field.press("Enter");
+  await expect(nudge).toHaveCount(0);
+  await expect(message(classmate.page, answers)).toBeVisible();
+  await expect(message(page, answers).getByTestId("held-note")).toHaveCount(0);
+  await field.fill(`here are the answers to hw 4 ${tag}`);
+  await expect(nudge).toHaveCount(0);
+  await field.fill("");
+
+  // A blocked word waits for a person: one calm line, for its author only.
+  const held = `found a chink in his argument ${tag}`;
+  await send(page, held);
   await expect(
-    message(page, answers).getByText(/It looks like it could be graded work/),
+    message(page, held).getByText(
+      "Only you can see this for now, until a person looks at it.",
+    ),
   ).toBeVisible();
 
   // A classmate never sees it; they see the next one, and report it.
   const later = `meet me behind the library ${tag}`;
   await send(page, later);
   await expect(message(classmate.page, later)).toBeVisible();
-  await expect(message(classmate.page, answers)).toHaveCount(0);
+  await expect(message(classmate.page, held)).toHaveCount(0);
 
   const reported = message(classmate.page, later);
   await messageAction(reported, "More", isMobile);
@@ -346,6 +363,16 @@ test("held messages stay with their author, and reports reach a person", async (
   const form = classmate.page.getByRole("form", {
     name: "Report this message",
   });
+  // Abuse only.
+  await expect(form.getByRole("radio")).toHaveCount(6);
+  await expect(
+    form.getByRole("radio", { name: /graded work|off-topic/i }),
+  ).toHaveCount(0);
+  // "Something else" needs a note first.
+  await form.getByRole("radio", { name: "Something else" }).check();
+  await expect(
+    form.getByRole("button", { name: "Send report" }),
+  ).toBeDisabled();
   await form.getByRole("radio", { name: "A threat" }).check();
   await form.getByRole("button", { name: "Send report" }).click();
   await expect(
@@ -355,7 +382,7 @@ test("held messages stay with their author, and reports reach a person", async (
   // A threat report takes it down until a person decides; its author is told, quietly.
   await expect(
     message(page, later).getByText(
-      /Classmates reported it, so a person will check it/,
+      /classmates reported it, so a person will look at it/,
     ),
   ).toBeVisible();
 

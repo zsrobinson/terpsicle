@@ -14,7 +14,7 @@ import {
   ThumbsUp,
   Trash2,
 } from "lucide-react";
-import { type KeyboardEvent, memo, useId, useState } from "react";
+import { type KeyboardEvent, memo, useEffect, useId, useState } from "react";
 import {
   CHAT_REPORT_REASON_WORDS,
   type ChatItem,
@@ -28,10 +28,11 @@ import {
 import {
   CHAT_TEXT_MAX,
   type ChatAuthor,
+  type ChatReportReason,
+  ChatReportReasonSchema,
   REACTIONS,
   REPORT_NOTE_MAX,
   type Reaction,
-  type ReportReason,
 } from "~/core/schema";
 import { Avatar } from "~/features/auth/avatar";
 import { Button } from "~/ui/button";
@@ -51,8 +52,9 @@ import { showNote } from "./undo";
 
 // One message (V2.md §8.6): the author's name and picture, the text as plain
 // text (never HTML), reactions, the thread under it, and what only its
-// author sees (still checking, held, removed) in muted words, never red.
-// Hover, focus or a tap shows its actions; a long press on a phone does too.
+// author sees (held or removed) in one muted line, never red. A message
+// still being checked looks sent (the owner, 2026-09-27). Hover, focus or a
+// tap shows its actions; a long press on a phone does too.
 
 export const REACTION_ICONS: Readonly<Record<Reaction, LucideIcon>> = {
   thumbs: ThumbsUp,
@@ -73,7 +75,7 @@ export interface MessageActions {
   discard: (item: ChatItem) => void;
   report: (
     item: ChatItem,
-    reason: ReportReason,
+    reason: ChatReportReason,
     note: string | null,
   ) => Promise<ReportOutcome>;
 }
@@ -167,7 +169,7 @@ export const MessageRow = memo(function MessageRow({
             data-private=""
             className={cn(
               "whitespace-pre-wrap break-words",
-              (item.local || (mine && !visible)) && "text-muted",
+              (item.local?.state === "failed" || held !== null) && "text-muted",
             )}
           >
             {item.text}
@@ -224,7 +226,27 @@ export const MessageRow = memo(function MessageRow({
   );
 });
 
-/** Sending, refused, or (yours only) held: said quietly under the text. */
+/**
+ * A send still on its way after this long says so; before it, a message
+ * looks sent (an answer usually takes a fraction of a second).
+ */
+export const SENDING_NOTE_AFTER_MS = 2_000;
+
+/** Whether `after` ms have passed since this mounted with `on` true. */
+function useAfter(on: boolean, after: number): boolean {
+  const [late, setLate] = useState(false);
+  useEffect(() => {
+    if (!on) {
+      setLate(false);
+      return;
+    }
+    const timer = setTimeout(() => setLate(true), after);
+    return () => clearTimeout(timer);
+  }, [on, after]);
+  return on && late;
+}
+
+/** Slow to send, refused, or (yours only) held: said quietly under the text. */
 function LocalState({
   item,
   held,
@@ -234,8 +256,9 @@ function LocalState({
   held: string | null;
   actions: MessageActions;
 }) {
+  const slow = useAfter(item.local?.state === "sending", SENDING_NOTE_AFTER_MS);
   if (item.local?.state === "sending")
-    return <p className="text-muted text-sm">Sending…</p>;
+    return slow ? <p className="text-muted text-sm">Sending…</p> : null;
   if (item.local?.state === "failed")
     return (
       <div className="flex flex-wrap items-center gap-x-2 text-sm">
@@ -545,27 +568,33 @@ function EditBox({
   );
 }
 
-const REASONS = Object.keys(CHAT_REPORT_REASON_WORDS) as ReportReason[];
+const REASONS = ChatReportReasonSchema.options;
 
 /**
- * Report, inline (V2 §8.6): a reason, an optional note, and a plain
- * thank-you. The same form as a review's report: a `Card` with the reasons
- * as the kit's rows, a native radio leading each.
+ * Report, inline (V2 §8.6): an abuse reason, a note (needed only for
+ * "Something else"), and a plain thank-you. The same form as a review's
+ * report: a `Card` with the reasons as the kit's rows, a native radio
+ * leading each.
  */
 function ReportForm({
   onSend,
   onCancel,
 }: {
-  onSend: (reason: ReportReason, note: string | null) => Promise<ReportOutcome>;
+  onSend: (
+    reason: ChatReportReason,
+    note: string | null,
+  ) => Promise<ReportOutcome>;
   onCancel: () => void;
 }) {
-  const [reason, setReason] = useState<ReportReason | null>(null);
+  const [reason, setReason] = useState<ChatReportReason | null>(null);
   const [note, setNote] = useState("");
   const [state, setState] = useState<
     "idle" | "busy" | Exclude<ReportOutcome, "reported">
   >("idle");
   const name = useId();
   const noteId = useId();
+  // "Something else" says what, so a person knows what to look for.
+  const needsNote = reason === "other" && !note.trim();
   if (state === "not-found" || state === "own")
     return (
       <p role="status" className="mt-1 text-muted text-sm">
@@ -586,7 +615,7 @@ function ReportForm({
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!reason) return;
+          if (!reason || needsNote) return;
           setState("busy");
           const outcome = await onSend(reason, note.trim() || null);
           // A toast, since a report can take the message off your screen.
@@ -646,7 +675,9 @@ function ReportForm({
         </fieldset>
         <div className="flex flex-col gap-1">
           <label htmlFor={noteId} className="text-muted text-sm">
-            Anything a person should know? (optional)
+            {reason === "other"
+              ? "Say what's wrong, so a person knows what to look for"
+              : "Anything a person should know? (optional)"}
           </label>
           <WithTooltip label="A note for the moderator; the author never sees it">
             <Textarea
@@ -668,11 +699,18 @@ function ReportForm({
         <div className="flex items-center gap-2">
           <WithTooltip
             label={
-              reason ? "A person checks every report" : "Pick a reason first"
+              !reason
+                ? "Pick a reason first"
+                : needsNote
+                  ? "Say what's wrong first"
+                  : "A person checks every report"
             }
           >
-            <span className="flex" tabIndex={reason ? -1 : 0}>
-              <Button type="submit" disabled={!reason || state === "busy"}>
+            <span className="flex" tabIndex={reason && !needsNote ? -1 : 0}>
+              <Button
+                type="submit"
+                disabled={!reason || needsNote || state === "busy"}
+              >
                 {state === "busy" ? "Sending…" : "Send report"}
               </Button>
             </span>

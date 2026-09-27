@@ -184,6 +184,26 @@ describe("the moderation job", () => {
     ]);
   });
 
+  it("prunes chat's spam-guard rows once they're past the hour", async () => {
+    const now = nextDay();
+    await env.DB.prepare("DELETE FROM chat_send_hashes").run();
+    for (const minutesAgo of [61, 59])
+      await env.DB.prepare(
+        "INSERT INTO chat_send_hashes (user_id, room_id, text_hash, created_at) VALUES ('tstudent', '202701:CMSC351', NULL, ?1)",
+      )
+        .bind(new Date(now.getTime() - minutesAgo * 60_000).toISOString())
+        .run();
+    await runModerationJob({
+      env: { ...env, AI: ai("clean") } as unknown as Env,
+      now,
+    });
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS n FROM chat_send_hashes").first(
+        "n",
+      ),
+    ).toBe(1);
+  });
+
   it("runs every job sharing a cron, even after one fails, then reports the failure", async () => {
     const order: string[] = [];
     const failing = async () => {

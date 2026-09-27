@@ -3,8 +3,8 @@
 import type {
   MyReview,
   ReasonCode,
-  ReportReason,
   ReviewProblemCode,
+  ReviewReportReason,
   ReviewWriteResult,
 } from "~/core/schema";
 import { LENGTH_LIMITS } from "../moderation/limits";
@@ -49,17 +49,18 @@ export const REVIEW_HELD_WORDS =
 // ---------- reports (V2 §9.3) ----------
 
 /** The report menu's choices, in the order it lists them. */
-export const REPORT_REASON_WORDS: Readonly<Record<ReportReason, string>> = {
-  "personal-info": "Shares someone's personal info",
-  "names-a-student": "Names a student",
-  hate: "Hate or harassment",
-  threat: "A threat",
-  sexual: "Sexual content",
-  "misconduct-claim": "Accuses someone of misconduct",
-  "graded-work": "Shares answers to graded work",
-  "off-topic": "Isn't about the course",
-  other: "Something else",
-};
+export const REPORT_REASON_WORDS: Readonly<Record<ReviewReportReason, string>> =
+  {
+    "personal-info": "Shares someone's personal info",
+    "names-a-student": "Names a student",
+    hate: "Hate or harassment",
+    threat: "A threat",
+    sexual: "Sexual content",
+    "misconduct-claim": "Accuses someone of misconduct",
+    "graded-work": "Shares answers to graded work",
+    "off-topic": "Isn't about the course",
+    other: "Something else",
+  };
 
 // ---------- where your review stands (reviews/mine) ----------
 

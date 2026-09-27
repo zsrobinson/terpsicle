@@ -244,9 +244,7 @@ test("the admin removes a chat message from its link and stops its author, then 
   await send(text);
   const mine = log.getByRole("article").filter({ hasText: text });
   await expect(mine).toBeVisible();
-  await expect(
-    mine.getByText("Checking before classmates see it…"),
-  ).toHaveCount(0);
+  await expect(mine.getByTestId("held-note")).toHaveCount(0);
 
   // Its thread's address is the message's link.
   await expect(async () => {
@@ -304,9 +302,7 @@ test("the admin removes a chat message from its link and stops its author, then 
   await send(after);
   const reply = author.getByRole("article").filter({ hasText: after });
   await expect(reply).toBeVisible();
-  await expect(
-    reply.getByText("Checking before classmates see it…"),
-  ).toHaveCount(0);
+  await expect(reply.getByTestId("held-note")).toHaveCount(0);
   await expect(author.getByText(/You can't post in Chat until/)).toHaveCount(0);
 
   // Nothing the admin saw names the author.

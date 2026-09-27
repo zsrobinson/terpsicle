@@ -2,7 +2,8 @@
 // the course room's id (`<termId>:<courseCode>`). It holds every room of the
 // course in its own SQLite, speaks the WebSocket protocol in
 // ~/core/schema/chat.ts over hibernatable sockets, screens every message
-// with the shared moderation service, and deletes itself on schedule.
+// with the spam guard and the shared moderation service, and deletes itself
+// on schedule.
 //
 // It's reachable only through the Worker (src/server/chat/socket.ts), which
 // checks the session and says who's asking in X-Terpsicle-* headers, and
@@ -41,6 +42,7 @@ import { applyStopStatement, recordStopStatement } from "../auth/stops";
 import {
   latestDecision,
   moderate,
+  queueForOwner,
   withdrawFromQueue,
 } from "../moderation/service";
 import { type ChatCourse, loadChatCourse, loadTermDates } from "./catalog";
@@ -51,6 +53,7 @@ import {
   type MessageStatus,
   ObjectStore,
 } from "./object-store";
+import { checkCrossRoom } from "./spam-guard";
 import {
   type ChatProfile,
   deleteCourseRows,
@@ -68,9 +71,10 @@ export type CourseChatNamespace = DurableObjectNamespace<CourseChat>;
 
 /**
  * How the object screens messages. An object, not bare imports, so worker
- * tests can stand in for the models (the object runs in the test's isolate).
+ * tests can stand in for the models or the spam guard (the object runs in
+ * the test's isolate).
  */
-export const chatScreening = { moderate, latestDecision };
+export const chatScreening = { moderate, latestDecision, checkCrossRoom };
 
 /** The headers the Worker forwards a socket with; the object trusts them. */
 export const CHAT_HEADERS = {
@@ -411,6 +415,7 @@ export class CourseChat extends DurableObject<Env> {
     await this.#scheduleAlarm(now);
     await this.#ack(ws, req, row);
     await this.#toAuthor(row, ws, "message");
+    if (await this.#spam(row, now)) return;
     await this.#screen(row);
   }
 
@@ -439,6 +444,7 @@ export class CourseChat extends DurableObject<Env> {
     await this.#toAuthor(edited, ws, "message");
     // Classmates don't see the new text until it's checked.
     if (row.status === "visible") await this.#withdrawn(row);
+    if (await this.#spam(edited, now)) return;
     await this.#screen(edited);
   }
 
@@ -549,6 +555,56 @@ export class CourseChat extends DurableObject<Env> {
   }
 
   // ---------- moderation ----------
+
+  /**
+   * The spam guard (docs/MODERATION.md §2): the same text in many rooms, or
+   * a flood across rooms, holds the message for the owner, urgent, without
+   * spending a model call on it. True when it held it. A D1 failure here
+   * lets the models screen it as usual.
+   */
+  async #spam(row: MessageRow, now: number): Promise<boolean> {
+    const term = this.#termId;
+    const course = this.#courseCode;
+    if (!term || !course) return false;
+    let rule: Awaited<ReturnType<typeof checkCrossRoom>>;
+    try {
+      rule = await chatScreening.checkCrossRoom(this.env.DB, {
+        userId: row.author_id,
+        room: row.room_id,
+        text: row.body,
+        now: new Date(now),
+      });
+    } catch (error) {
+      console.warn({ chat: "spam guard failed", error: String(error) });
+      return false;
+    }
+    if (!rule) return false;
+    const courseCode = CourseCodeSchema.safeParse(course);
+    await queueForOwner(
+      this.env,
+      {
+        kind: "chat",
+        targetId: chatTargetId(term, course, row.id),
+        text: row.body,
+        course: courseCode.success ? courseCode.data : null,
+        reasons: [
+          {
+            code: "spam",
+            source: "cross-room",
+            action: "hold",
+            crossRoom: rule,
+          },
+        ],
+        urgent: true,
+      },
+      {
+        now: new Date(now),
+        decision: { stage: "rules", verdict: "hold" },
+      },
+    );
+    await this.#apply(row.id, { state: "held", reason: "flagged" }, row.body);
+    return true;
+  }
 
   /**
    * Screens a message and applies the outcome. A failure leaves it

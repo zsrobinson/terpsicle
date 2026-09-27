@@ -232,15 +232,17 @@ const DEFINITIONS: Readonly<
     "off-topic":
       "is not about the course, its instructor or the experience of taking it at all.",
   },
+  // Chat scores only these three (POLICY_LABELS.chat), with high bars for
+  // the last two: study groups swap numbers and rooms, and people share
+  // links and sell textbooks.
   chat: {
-    "academic-integrity":
-      "shares answers, solutions, test questions or code for graded work, or asks others to share them. Asking about concepts, deadlines or how to approach a problem is fine, and so is pointing to solutions the course staff posted (on ELMS, for example): those score 0.",
+    "academic-integrity": "",
     "targets-person":
       "harasses, insults, threatens or mocks a specific person, or attacks anyone's identity. Friendly banter and complaints about a class are fine.",
     "personal-info":
-      "gives out someone else's phone number, email, address or private details. Sharing your own is fine.",
+      "exposes someone else's private details without their say: their home address, phone number, student ID or private messages. Sharing your own contact details, a building or room to meet in, or a professor's office hours is fine and scores 0.",
     "misconduct-claim": "",
-    spam: "is advertising, selling, self-promotion, scams, gibberish or repeated filler. Links to study materials are fine.",
+    spam: "is a scam, advertising for a business or service the writer is promoting, gibberish, or filler posted to get attention. Pointing classmates to a website, notes, a video or a study group, or selling a used textbook, is not spam and scores 0.",
     "off-topic": "",
   },
 };

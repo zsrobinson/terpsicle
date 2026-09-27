@@ -10,6 +10,7 @@ import type {
   PolicyLabel,
   ReasonCode,
 } from "~/core/schema";
+import { findContacts } from "./contact";
 
 /** The most severe action wins; flags never hold anything by themselves. */
 export function decide(
@@ -22,8 +23,9 @@ export function decide(
 
 /**
  * Whether the policy model should read this. Always for reviews (they're
- * few and each one matters); for chat only when something was flagged, to
- * keep a busy chat cheap.
+ * few and each one matters), and for every chat message by default
+ * (DEFAULT_CHAT_POLICY); `chatPolicy: "flagged"` reads only chat the rules
+ * or Guard flagged.
  */
 export function needsPolicy(
   kind: ModerationKind,
@@ -140,7 +142,25 @@ export const DEFAULT_POLICY_THRESHOLDS: PolicyThresholds = {
   "off-topic": { hold: 0.6, remove: 0.9 },
 };
 
-/** Labels the policy model scores for each kind. Chat can be off-topic. */
+/**
+ * Chat is lighter (the owner, 2026-09-27: "just no really bad abuse").
+ * Contact details, rooms and links are how study groups form, so only a
+ * very sure `personal-info` score holds: someone else's private details,
+ * not a phone number shared to meet up. Spam holds only when it's clear,
+ * and never removes: a textbook for sale shouldn't vanish. Targeting a
+ * person holds as in reviews.
+ */
+export const DEFAULT_CHAT_POLICY_THRESHOLDS: PolicyThresholds = {
+  ...DEFAULT_POLICY_THRESHOLDS,
+  "personal-info": { hold: 0.9 },
+  spam: { hold: 0.9 },
+};
+
+/**
+ * Labels the policy model scores for each kind. Chat doesn't score
+ * academic integrity (sharing answers is discouraged by the room rules, not
+ * held), misconduct claims or off-topic, so its prompt stays short.
+ */
 export const POLICY_LABELS: Readonly<Record<ModerationKind, PolicyLabel[]>> = {
   review: [
     "academic-integrity",
@@ -150,31 +170,42 @@ export const POLICY_LABELS: Readonly<Record<ModerationKind, PolicyLabel[]>> = {
     "spam",
     "off-topic",
   ],
-  chat: ["academic-integrity", "targets-person", "personal-info", "spam"],
+  chat: ["targets-person", "personal-info", "spam"],
+};
+
+/** Each kind's default thresholds. */
+export const POLICY_THRESHOLDS: Readonly<
+  Record<ModerationKind, PolicyThresholds>
+> = {
+  review: DEFAULT_POLICY_THRESHOLDS,
+  chat: DEFAULT_CHAT_POLICY_THRESHOLDS,
 };
 
 /**
- * The labels whose scores act on this post. A chat message nothing flagged
- * still gets read (DEFAULT_CHAT_POLICY), but only for targeting a person:
- * the rules already cover contact details, answers and links there, and on
- * the eval set the small model's other scores held a quarter of the good
- * unflagged messages ("text me at …", lecture code, a textbook for sale).
+ * The labels whose scores act on this post: all of them for reviews. For
+ * chat, `personal-info` acts only when there's something to expose: a
+ * contact detail that isn't plainly the writer's own ("her cell is …"), or
+ * Guard's privacy category. Measured live on 2026-09-27, the small chat
+ * model scored 1 on "text me at …" and on messages with no details at all.
  */
-export function policyLabelsFor(
+export function actingPolicyLabels(
   kind: ModerationKind,
+  text: string,
   reasons: readonly ModerationReason[],
 ): readonly PolicyLabel[] {
-  if (kind === "chat" && !reasons.some((r) => r.action === "flag"))
-    return UNFLAGGED_CHAT_LABELS;
-  return POLICY_LABELS[kind];
+  if (kind === "review") return POLICY_LABELS.review;
+  const exposes =
+    reasons.some((r) => r.code === "privacy") ||
+    findContacts(text).some((c) => !c.own);
+  return exposes
+    ? POLICY_LABELS.chat
+    : POLICY_LABELS.chat.filter((l) => l !== "personal-info");
 }
-
-export const UNFLAGGED_CHAT_LABELS: readonly PolicyLabel[] = ["targets-person"];
 
 export function policyReasons(
   kind: ModerationKind,
   scores: ModerationScores,
-  thresholds: PolicyThresholds = DEFAULT_POLICY_THRESHOLDS,
+  thresholds: PolicyThresholds = POLICY_THRESHOLDS[kind],
   labels: readonly PolicyLabel[] = POLICY_LABELS[kind],
 ): ModerationReason[] {
   const reasons: ModerationReason[] = [];
@@ -202,5 +233,13 @@ export const URGENT_CODES: ReadonlySet<ReasonCode> = new Set([
   "sex-crime",
 ]);
 
+/**
+ * Urgent: a serious safety category, or chat's spam guard, since spam
+ * across rooms is the abuse the owner most wants caught quickly.
+ */
 export const isUrgent = (reasons: readonly ModerationReason[]) =>
-  reasons.some((r) => URGENT_CODES.has(r.code) && r.action !== "flag");
+  reasons.some(
+    (r) =>
+      r.action !== "flag" &&
+      (URGENT_CODES.has(r.code) || r.source === "cross-room"),
+  );
