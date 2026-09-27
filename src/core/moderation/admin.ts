@@ -209,9 +209,9 @@ export interface ChatMessageRef {
 
 /**
  * The message a pasted link or id points at, for the owner's "Remove a chat
- * message" (V2 §10): a moderation ref (`202701:CMSC351:<id>`, as the
+ * message" (V2 §10): a moderation ref (`<term>:CMSC351:<id>`, as the
  * decision log shows it) or a Chat link to the message's thread
- * (`/chat?term=202701&course=CMSC351&…&thread=<id>`, where the term may be
+ * (`/chat?term=<term>&course=CMSC351&…&thread=<id>`, where the term may be
  * left to the room). Null otherwise.
  */
 export function parseChatMessageRef(pasted: string): ChatMessageRef | null {

@@ -82,7 +82,7 @@ export function ChatRemoveForm({
           </Button>
         </WithTooltip>
       </div>
-      <WithTooltip label="A thread link from Chat, or a ref like 202701:CMSC351:… from the decision log">
+      <WithTooltip label="A thread link from Chat, or a ref from the decision log (term, course and message id)">
         <input
           id={inputId}
           value={pasted}
