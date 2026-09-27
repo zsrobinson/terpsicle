@@ -8,16 +8,20 @@ import {
 // per major. Vite's glob makes each file its own chunk, loaded when the
 // Samples tab opens, so `/plan` doesn't carry them. Each is validated on
 // load, and one that doesn't validate is skipped and logged, never fatal.
+// Not a route loader: `/plan` renders the board and the open doc whatever
+// the tab, and a loader keyed on `tab` would hold the whole page's
+// navigation for one side-panel tab; this loads inside the tab instead.
 
 const FILES = import.meta.glob<unknown>("./templates/*.json", {
   import: "default",
 });
 
-let loading: Promise<readonly FourYearTemplate[]> | null = null;
-
-/** Every sample plan, by name. */
-export function loadTemplates(): Promise<readonly FourYearTemplate[]> {
-  loading ??= Promise.all(
+/**
+ * Every sample plan, by name. The browser's module map caches each import,
+ * so opening the tab again costs nothing.
+ */
+export async function loadTemplates(): Promise<readonly FourYearTemplate[]> {
+  const all = await Promise.all(
     Object.entries(FILES).map(async ([path, load]) => {
       const parsed = FourYearTemplateSchema.safeParse(await load());
       if (parsed.success) return parsed.data;
@@ -27,18 +31,10 @@ export function loadTemplates(): Promise<readonly FourYearTemplate[]> {
       );
       return null;
     }),
-  )
-    .then((all) =>
-      all
-        .filter((t): t is FourYearTemplate => t !== null)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    )
-    .catch((error: unknown) => {
-      // A chunk that failed to load (offline, a new deploy) can be retried.
-      loading = null;
-      throw error;
-    });
-  return loading;
+  );
+  return all
+    .filter((t): t is FourYearTemplate => t !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export type TemplatesState =

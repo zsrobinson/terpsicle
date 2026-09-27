@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { useMediaQuery } from "~/app/use-media-query";
 import {
   CREDITS_GOAL,
   CREDITS_GOAL_TOOLTIP,
@@ -9,7 +10,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { CoursePanel } from "./course-panel";
 import { GenEdPanel } from "./gen-ed-panel";
 import { ImportPanel } from "./import-panel";
-import { useModel, usePlanNav } from "./model";
+import { PLAN_WIDE_QUERY, useModel, usePlanNav } from "./model";
 import { ProblemsPanel } from "./problems-panel";
 import { focusSearch, SearchPanel } from "./search-panel";
 import { TemplatePanel } from "./template-panel";
@@ -89,6 +90,7 @@ export function SidePanel({
   const { problems } = useModel();
   const nav = usePlanNav();
   const tab = nav.search.tab ?? "gened";
+  const wide = useMediaQuery(PLAN_WIDE_QUERY);
   const course = nav.search.course;
   return (
     <aside
@@ -140,13 +142,13 @@ export function SidePanel({
         ))}
       </nav>
       {/* It scrolls on desktop, and a tab may have nothing focusable to
-          scroll to (a GenEd tab with every category covered). */}
+          scroll to (a GenEd tab with every category covered). On a phone
+          the page scrolls instead. */}
       <section
         aria-label={
           course ? `About ${course}` : TABS.find((t) => t.tab === tab)?.tip
         }
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard people scroll it from here
-        tabIndex={0}
+        tabIndex={wide ? 0 : undefined}
         className="scroll-thin min-h-0 flex-1 overflow-y-auto outline-none focus-visible:outline-2 focus-visible:outline-fg focus-visible:-outline-offset-2"
       >
         {course ? (

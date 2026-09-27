@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
-import type { PlanSearch } from "~/core/schema";
 import { aFourYear, aFourYearEntry } from "~/fixtures";
 import {
   INITIAL_COURSE_INDEX_STATE,
@@ -29,7 +28,7 @@ vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 const TODAY = "2026-09-26";
 
 function nav(go: PlanNav["go"]): PlanNav {
-  return { search: { tab: "templates" } as PlanSearch, go, back: vi.fn() };
+  return { search: { tab: "templates" }, go, back: vi.fn() };
 }
 
 function Harness({ children, go }: { children: ReactNode; go: PlanNav["go"] }) {
@@ -99,7 +98,7 @@ describe("the Samples tab", () => {
     ).getAllByRole("listitem");
     expect(semesters[0]).toHaveTextContent(/^Fall 202614 cr/);
     expect(semesters[0]).toHaveTextContent(
-      /MATH140.*CMSC131.*ENGL101.*Any DSHU/,
+      /MATH140.*CMSC131.*ENGL101.*Any DSHU course/,
     );
     expect(card).toHaveTextContent("8 semesters · 104 credits · 2026–27");
     expect(

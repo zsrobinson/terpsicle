@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
 import { useId } from "react";
 import { useMediaQuery } from "~/app/use-media-query";
+import { wildcardLabel } from "~/core/catalog/wildcard";
 import {
   templateCredits,
   templateFit,
@@ -39,7 +40,7 @@ function Chip({ entry }: { entry: FourYearTemplateEntry }) {
   const words =
     entry.wildcard.kind === "pattern"
       ? entry.wildcard.pattern
-      : `Any ${entry.wildcard.code}`;
+      : wildcardLabel(entry.wildcard);
   return (
     <li className="border border-hairline-strong border-dashed px-1 font-mono text-muted text-xs">
       {words}
@@ -206,8 +207,8 @@ export function TemplatePanel() {
         <Skeleton className="h-64 w-full" />
       ) : state.phase === "failed" ? (
         <p role="alert" className="text-sm">
-          The sample plans didn't load. Check your connection and open this tab
-          again.
+          The sample plans didn't load. Check your connection and reload the
+          page.
         </p>
       ) : (
         state.templates.map((t) => <TemplateCard key={t.id} template={t} />)
