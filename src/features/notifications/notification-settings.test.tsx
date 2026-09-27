@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   type PushDevice,
@@ -68,6 +69,15 @@ beforeEach(() => {
   });
   api.settings.mockResolvedValue({ settings: DEFAULT_NOTIFICATION_SETTINGS });
   api.devices.mockResolvedValue({ devices: [] });
+});
+
+// Sonner removes a dismissed toast on a timer; waiting for it here keeps that
+// timer from firing after the DOM is torn down.
+afterEach(async () => {
+  toast.dismiss();
+  await waitFor(() =>
+    expect(document.querySelector("[data-sonner-toast]")).toBeNull(),
+  );
 });
 
 describe("NotificationSettingsSection", () => {
