@@ -150,6 +150,14 @@ export interface AnalyticsEvents {
   four_year_wildcard_resolved: { kind: "pattern" | "gen-ed" };
   four_year_problem_opened: { kind: FourYearProblemKind };
   four_year_problem_fix_applied: { kind: FourYearProblemKind };
+  // The transcript import: counts and a boolean, never what was pasted.
+  transcript_parsed: {
+    recognized: boolean;
+    lines: number;
+    choices: number;
+    skipped: number;
+  };
+  transcript_imported: { lines: number; keptGrades: boolean };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

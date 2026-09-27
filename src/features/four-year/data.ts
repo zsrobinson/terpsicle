@@ -161,3 +161,15 @@ export function useIndexEntry(
   }, [connected, dept, ensure]);
   return useCourseIndex((s) => (code ? courseIndexEntry(s, code) : null));
 }
+
+/** What the loaded department files know right now, outside React (the import). */
+export function currentCourseLookup(): FourYearCourses {
+  const { depts, deptsState } = useCourseIndex.getState();
+  const ready = Object.entries(deptsState)
+    .filter(([, state]) => state === "ready")
+    .map(([dept]) => dept);
+  return fourYearCourses(
+    Object.values(depts).flatMap((d) => d?.courses ?? []),
+    ready,
+  );
+}

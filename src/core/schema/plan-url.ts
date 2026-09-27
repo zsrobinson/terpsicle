@@ -19,8 +19,8 @@ function param<T extends z.ZodType<unknown, string>>(schema: T) {
   return Text.pipe(schema).optional().catch(undefined);
 }
 
-/** The side panel's tabs. Import and Templates join with their PRs (V3 §11). */
-export const PlanTabSchema = z.enum(["gened", "problems", "search"]);
+/** The side panel's tabs. Templates joins with its PR (V3 §11). */
+export const PlanTabSchema = z.enum(["gened", "problems", "search", "import"]);
 export type PlanTab = z.infer<typeof PlanTabSchema>;
 
 export const PlanSearchSchema = z.object({

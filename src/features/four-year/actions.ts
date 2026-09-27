@@ -1,11 +1,13 @@
 import { track } from "~/app/analytics";
 import { wildcardLabel } from "~/core/catalog/wildcard";
 import { fourYearTermLabel } from "~/core/four-year/terms";
+import { importSummary } from "~/core/four-year/transcript";
 import { choicesForWildcard } from "~/core/four-year/wildcards";
 import type {
   CourseCode,
   CourseIndexEntry,
   GenEdCode,
+  Grade,
   LocalId,
   TermId,
   Wildcard,
@@ -44,6 +46,14 @@ export function createDoc(firstTermId: TermId): void {
     dispatch({ type: "create", id: newLocalId(), firstTermId, now: nowIso() })
   )
     track("four_year_created", { source: "empty" });
+}
+
+/** The empty state's "Import your transcript": a plan to import into. */
+export function createDocForImport(firstTermId: TermId): void {
+  if (
+    dispatch({ type: "create", id: newLocalId(), firstTermId, now: nowIso() })
+  )
+    track("four_year_created", { source: "import" });
 }
 
 export function duplicateDoc(doc: FourYearDoc): void {
@@ -268,4 +278,44 @@ export function applyFix(doc: FourYearDoc, problem: FourYearProblem): void {
           fix.label,
         );
   if (changed) track("four_year_problem_fix_applied", { kind: problem.kind });
+}
+
+/**
+ * The Import tab's one step (V3 §2.10): the transcript replaces the done and
+ * in-progress semesters, in one action that Undo takes back whole.
+ */
+export function importTranscript(
+  doc: FourYearDoc,
+  imported: {
+    replace: readonly FourYearTerm[];
+    entries: readonly FourYearEntry[];
+    grades: Readonly<Record<LocalId, Grade>>;
+    keptGrades: boolean;
+  },
+): boolean {
+  const changed = dispatch(
+    {
+      type: "import",
+      docId: doc.id,
+      replace: imported.replace,
+      entries: imported.entries,
+      grades: imported.grades,
+      now: nowIso(),
+    },
+    importSummary(imported.entries),
+  );
+  if (changed)
+    track("transcript_imported", {
+      lines: imported.entries.length,
+      keptGrades: imported.keptGrades,
+    });
+  return changed;
+}
+
+/** The ▾ menu's "Remove grades" (V3 §2.5): every grade in the plan, with Undo. */
+export function removeGrades(doc: FourYearDoc): void {
+  dispatch(
+    { type: "remove-grades", docId: doc.id, now: nowIso() },
+    `Removed the grades from ${doc.name}`,
+  );
 }
