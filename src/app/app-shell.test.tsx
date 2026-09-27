@@ -282,9 +282,12 @@ describe("Tabs whose route loads on first use", () => {
         },
       });
       await user.click(railTab("Export"));
-      expect(await screen.findByRole("alert")).toHaveTextContent(
+      // The kit's inline error: a quiet status in the panel, never an alert.
+      const words = await screen.findByText(
         "Couldn't load Export. Check your connection, then reload. Your plans are saved.",
       );
+      expect(words.closest("[role=status]")).not.toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
       expect(screen.getByRole("button", { name: "Reload" })).toBeVisible();
       expect(rail()).toBeVisible();
       error.mockRestore();
