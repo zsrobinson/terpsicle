@@ -18,6 +18,9 @@ export const Route = createFileRoute("/reviews/instructors/$id")({
   loaderDeps: ({ search }) => ({ course: search.course }),
   // The loader's data code is its own chunk, like the page: nothing of
   // Reviews loads with other pages (scripts/check-bundle.ts).
+  // Picking a course changes `?course=` and runs the loader again: the page
+  // stays put while it does, never a loading state.
+  pendingMs: Number.POSITIVE_INFINITY,
   codeSplitGroupings: [["loader"], ["component"], ["notFoundComponent"]],
   loader: async ({ params, deps, serverContext }) => {
     const data = await loadInstructorPage(
