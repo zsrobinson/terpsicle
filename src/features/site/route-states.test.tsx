@@ -92,7 +92,10 @@ function renderRoutes(path: string) {
 }
 
 const bar = () => screen.queryByRole("navigation", { name: "Products" });
-const loading = () => screen.queryByRole("status", { name: "Loading" });
+/** The bar drawn while a page loads: seen, but not pressed or read. */
+const placeholder = () =>
+  document.querySelector<HTMLElement>('[data-slot="bar-placeholder"]');
+const skeleton = () => document.querySelector('[data-slot="page-skeleton"]');
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -149,32 +152,34 @@ describe("RouteError", () => {
 });
 
 describe("RoutePending", () => {
-  it("shows the bar alone by default, until the page is ready", async () => {
+  it("shows the bar alone by default, as a placeholder, until the page is ready", async () => {
     const { open } = renderRoutes("/bar");
-    expect(
-      await screen.findByRole("navigation", { name: "Products" }),
-    ).toBeInTheDocument();
-    expect(loading()).toBeNull();
+    expect(await screen.findByRole("status")).toHaveTextContent("Loading");
+    // Drawn, but inert: the page brings the bar you can use.
+    expect(placeholder()).toHaveAttribute("inert");
+    expect(placeholder()).toHaveAttribute("aria-hidden", "true");
+    expect(bar()).toBeNull();
+    expect(skeleton()).toBeNull();
     open();
     expect(await screen.findByText("Loaded /bar")).toBeInTheDocument();
+    expect(placeholder()).toBeNull();
   });
 
   it("adds a reading skeleton where the route asks for one", async () => {
     const { open } = renderRoutes("/reading");
-    expect(
-      await screen.findByRole("status", { name: "Loading" }),
-    ).toBeInTheDocument();
-    expect(bar()).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent("Loading");
+    expect(placeholder()).not.toBeNull();
+    expect(skeleton()).not.toBeNull();
     open();
     expect(await screen.findByText("Loaded /reading")).toBeInTheDocument();
-    expect(loading()).toBeNull();
+    expect(skeleton()).toBeNull();
   });
 
   it("shows nothing for a page with a frame of its own", async () => {
     const { open, container } = renderRoutes("/own");
     // Give the router a turn to render its pending state.
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(bar()).toBeNull();
+    expect(placeholder()).toBeNull();
     expect(container.textContent).toBe("");
     open();
     expect(await screen.findByText("Loaded /own")).toBeInTheDocument();

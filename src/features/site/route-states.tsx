@@ -61,11 +61,33 @@ function useIsPage(id: string): boolean {
 
 // Its own tooltip provider: the root route's pending state renders before
 // the root layout, whose provider every other page sits in.
-function Frame({ children }: { children?: ReactNode }) {
+function Frame({
+  placeholder = false,
+  children,
+}: {
+  /**
+   * The bar while the page loads: the page brings its own bar, which
+   * replaces this one, so this one takes no taps or focus (a menu opened
+   * here would vanish) and says only "Loading".
+   */
+  placeholder?: boolean;
+  children?: ReactNode;
+}) {
   return (
     <TooltipProvider>
       <div className="flex min-h-dvh flex-col bg-bg text-fg">
-        <SiteHeader />
+        {placeholder ? (
+          <>
+            <div inert aria-hidden="true" data-slot="bar-placeholder">
+              <SiteHeader />
+            </div>
+            <p role="status" className="sr-only">
+              Loading
+            </p>
+          </>
+        ) : (
+          <SiteHeader />
+        )}
         {children}
       </div>
     </TooltipProvider>
@@ -78,11 +100,14 @@ export function RoutePending() {
   const isPage = useIsPage(id);
   if (!isPage) return <PageSkeleton className="p-4" />;
   if (pending === "none") return null;
-  if (pending === "bar") return <Frame />;
+  if (pending === "bar") return <Frame placeholder />;
   return (
-    <Frame>
+    <Frame placeholder>
       <ProductPage width="reading">
-        <PageSkeleton />
+        {/* The frame already says "Loading". */}
+        <div aria-hidden="true">
+          <PageSkeleton />
+        </div>
       </ProductPage>
     </Frame>
   );
