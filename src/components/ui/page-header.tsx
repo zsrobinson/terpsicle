@@ -1,7 +1,7 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ChevronLeft } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 // The top of every page and panel (docs/COHESION.md §1.4): a title, one
 // status line, a view switch and actions, with one Back. Same slots at both
@@ -48,17 +48,16 @@ export function BackLink({
  * scheduler's drill-ins go back to wherever you came from).
  */
 export function BackButton({
-  onClick,
   className,
   children,
-}: {
-  onClick: () => void;
-  className?: string;
+  ...props
+}: ComponentProps<"button"> & {
   /** Where Back goes: "Search", or `<span class="ident">CMSC351</span>`. */
   children: ReactNode;
 }) {
+  // The rest (and `ref`) reach the button, so a tooltip can wrap it.
   return (
-    <button type="button" onClick={onClick} className={cn(BACK, className)}>
+    <button type="button" {...props} className={cn(BACK, className)}>
       <ChevronLeft size={14} className="shrink-0" aria-hidden="true" />
       {children}
     </button>
