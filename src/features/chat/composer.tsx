@@ -188,13 +188,7 @@ export function Composer({
           className="min-h-8 flex-1 resize-none max-md:min-h-11"
         />
         <WithTooltip label="Send" shortcut="↵">
-          <Button
-            size="icon"
-            aria-label="Send"
-            disabled={!text}
-            onClick={send}
-            className="max-md:size-11"
-          >
+          <Button size="icon" aria-label="Send" disabled={!text} onClick={send}>
             <ArrowUp />
           </Button>
         </WithTooltip>

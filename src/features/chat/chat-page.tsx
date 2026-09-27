@@ -420,7 +420,6 @@ function CourseRoom({
         variant="ghost"
         size="icon-sm"
         aria-label="Close room info"
-        className="max-md:size-11"
         onClick={() => setInfoOpen(false)}
       >
         <X />

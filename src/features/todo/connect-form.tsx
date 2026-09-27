@@ -111,11 +111,7 @@ export function ConnectForm({
           />
         </WithTooltip>
         <WithTooltip label="Check the link with ELMS and start showing your deadlines">
-          <Button
-            type="submit"
-            disabled={busy || value.trim() === ""}
-            className="max-md:h-11"
-          >
+          <Button type="submit" disabled={busy || value.trim() === ""}>
             {busy ? "Checking with ELMS…" : submitLabel}
           </Button>
         </WithTooltip>

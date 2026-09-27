@@ -134,6 +134,11 @@ Revisit if: `v2/schedule-routes` makes route splitting handle it.
 Every control on a page has a tooltip through `WithTooltip`, and `e2e/tooltips.spec.ts` fails on one without. The items of an open menu or listbox don't need one: their text is their whole label, the trigger that opened them has the tooltip, and one per option would cover the next. An item whose label doesn't say enough still gets one (side `left`).
 Revisit if: people hover menu items looking for more, or the owner wants tooltips on every option.
 
+### Every kit control is 44px on phones
+2026-09-27 · agent · app-wide
+Below `md`, `Button` (every size), `SelectTrigger` and menu and select items are 44px, like `Input` and `SegmentedControl` already were. Pages don't add `max-md:h-11`. Chat, Todo and Plan had each hand-rolled this, and Schedule and Settings had 28–32px targets, so one product felt roomy and the next cramped. The cost is taller rows on phones (Problems' Switch, Generate's fields).
+Revisit if: a phone screen can't fit its content at 44px, or the calendar's own controls need the same rule.
+
 ## Schedule
 
 ### Scheduler views are routes, kept mounted by the sidebar
