@@ -47,7 +47,10 @@ export function ChatRemoveForm({
         ...(stop ? { authorAction: "stop" } : {}),
       });
       if (result.status === "ok") onRemoved(result.item, reason, stop);
-      else setNote("That message isn't there. Its author may have deleted it.");
+      else
+        setNote(
+          "That message isn't there, or it's already removed. Its author may have deleted it.",
+        );
     } catch (error) {
       toast("Couldn't remove that", { description: failureWords(error) });
     } finally {

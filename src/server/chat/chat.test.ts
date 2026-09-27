@@ -181,6 +181,7 @@ beforeEach(async () => {
       "moderation_decisions",
       "moderation_queue",
       "moderation_author_stops",
+      "author_stops",
       "reports",
       "users",
     ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
@@ -1797,7 +1798,11 @@ describe("the owner's actions", () => {
         })
       ).text,
     );
-    expect(removed.item.stoppedUntil).toBe(later);
+    // The item says when its own stop ends; the longer one stays in force.
+    expect(Date.parse(removed.item.stoppedUntil)).toBeLessThan(
+      Date.parse(later),
+    );
+    expect(await blockedUntil()).toBe(later);
     await admin("admin/moderation/undo", { id: removed.item.id });
     expect(await blockedUntil()).toBe(later);
   });

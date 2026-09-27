@@ -36,6 +36,7 @@ import {
   type RoomId,
   TermIdSchema,
 } from "~/core/schema";
+import { applyStopStatement, recordStopStatement } from "../auth/stops";
 import {
   latestDecision,
   moderate,
@@ -58,8 +59,6 @@ import {
   readProfiles,
   recordAuthorCourse,
   recordVisible,
-  restoreChatAuthor,
-  stopChatAuthor,
 } from "./store";
 
 export type CourseChatNamespace = DurableObjectNamespace<CourseChat>;
@@ -645,7 +644,8 @@ export class CourseChat extends DurableObject<Env> {
 
   /**
    * The owner's chat/remove (V2.md §10) found a message outside the queue:
-   * its words for the queue, never its author. Null when it's gone.
+   * its words for the queue, never its author. Null when it's gone or
+   * already removed.
    */
   async messageForOwner(target: {
     termId: string;
@@ -654,36 +654,35 @@ export class CourseChat extends DurableObject<Env> {
   }): Promise<{ text: string } | null> {
     this.#bind(target.termId, target.courseCode);
     const row = this.#store.message(target.messageId);
-    return row ? { text: row.body } : null;
+    // Already taken down: nothing left to remove (its item has the Undo).
+    return row && row.status !== "removed" ? { text: row.body } : null;
   }
 
   /**
    * "Stop this author posting in Chat" (V2.md §10), through one of their
-   * messages: the object knows who wrote it and sets the stop in D1, and
-   * answers only when it ends. Null when the message or its account is gone.
+   * messages: the object knows who wrote it, records the stop on them and
+   * puts it in force. False when the message is gone. Idempotent per stop.
    */
   async stopAuthor(target: {
     termId: string;
     courseCode: string;
     messageId: string;
-    until: string;
-  }): Promise<{ until: string; previous: string | null } | null> {
+    stop: { id: string; until: string };
+  }): Promise<boolean> {
     this.#bind(target.termId, target.courseCode);
     const row = this.#store.message(target.messageId);
-    if (!row) return null;
-    return stopChatAuthor(this.env.DB, row.author_id, target.until);
-  }
-
-  /** Undoes stopAuthor. A message deleted since leaves the stop to run out. */
-  async restoreAuthor(target: {
-    termId: string;
-    courseCode: string;
-    messageId: string;
-    stop: { until: string; previous: string | null };
-  }): Promise<void> {
-    this.#bind(target.termId, target.courseCode);
-    const row = this.#store.message(target.messageId);
-    if (row) await restoreChatAuthor(this.env.DB, row.author_id, target.stop);
+    if (!row) return false;
+    await this.env.DB.batch([
+      recordStopStatement(this.env.DB, {
+        id: target.stop.id,
+        surface: "chat",
+        userId: row.author_id,
+        until: target.stop.until,
+        now: new Date(),
+      }),
+      applyStopStatement(this.env.DB, "chat", target.stop.id),
+    ]);
+    return true;
   }
 
   /**

@@ -8,6 +8,8 @@ import {
   type ModerationReason,
   TermIdSchema,
 } from "~/core/schema";
+import { liftStopStatements } from "../auth/stops";
+import type { AuthorActor } from "../moderation/handlers";
 import type { CourseChatNamespace } from "./course-chat";
 
 /** What a chat message is called in moderation: `<termId>:<courseCode>:<messageId>`. */
@@ -65,28 +67,21 @@ export function chatModerationHandler(namespace: CourseChatNamespace) {
 
 /**
  * Chat's side of the owner's stop (V2.md §10): the message's object knows
- * its author and sets `chat_blocked_until`, answering only when it ends.
+ * its author and records the stop; lifting it needs only D1.
  */
-export function chatAuthorActor(namespace: CourseChatNamespace) {
-  const objectFor = (targetId: string) => {
-    const target = parseChatTargetId(targetId);
-    if (!target) return null;
-    const stub = namespace.get(
-      namespace.idFromName(courseRoomId(target.termId, target.courseCode)),
-    );
-    return { target, stub };
-  };
+export function chatAuthorActor(namespace: CourseChatNamespace): AuthorActor {
   return {
-    async stop(targetId: string, until: string) {
-      const found = objectFor(targetId);
-      return found ? found.stub.stopAuthor({ ...found.target, until }) : null;
+    async stop(targetId, stop) {
+      const target = parseChatTargetId(targetId);
+      if (!target) return false;
+      return namespace
+        .get(
+          namespace.idFromName(courseRoomId(target.termId, target.courseCode)),
+        )
+        .stopAuthor({ ...target, stop });
     },
-    async restore(
-      targetId: string,
-      stop: { until: string; previous: string | null },
-    ) {
-      const found = objectFor(targetId);
-      if (found) await found.stub.restoreAuthor({ ...found.target, stop });
+    async restore(stopId, { db, now }) {
+      await db.batch(liftStopStatements(db, "chat", stopId, now));
     },
   };
 }

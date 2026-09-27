@@ -59,22 +59,18 @@ export function moderationHandlers(
 
 /**
  * The owner's "stop this author" (V2 §7.5, §10), through an item: only the
- * feature knows who wrote it, so it applies the stop and answers when it
- * ends and what it replaced (for undo), never who. `stop` answers null when
- * there's nobody to stop (a purged account, a deleted post, a test sample).
+ * feature knows who wrote it, so it records and applies the stop under the
+ * id moderation gives it, and answers only whether there was anyone to stop
+ * (not a purged account, a deleted post or a test sample). Both idempotent.
  */
 export interface AuthorActor {
   stop(
     targetId: string,
-    until: string,
-    ctx: { db: D1Database },
-  ): Promise<{ until: string; previous: string | null } | null>;
-  /** Puts back what was there, unless the stop changed since. Idempotent. */
-  restore(
-    targetId: string,
-    stop: { until: string; previous: string | null },
-    ctx: { db: D1Database },
-  ): Promise<void>;
+    stop: { id: string; until: string },
+    ctx: { db: D1Database; now: Date },
+  ): Promise<boolean>;
+  /** Lifts that stop; another stop on the same person stays in force. */
+  restore(stopId: string, ctx: { db: D1Database; now: Date }): Promise<void>;
 }
 
 export type AuthorActors = Partial<Record<"review" | "chat", AuthorActor>>;

@@ -77,50 +77,6 @@ export async function readProfiles(
   return out;
 }
 
-// ---------- the owner's stop (V2.md §10) ----------
-
-const PreviousStopSchema = z.object({
-  previous: z.string().nullable(),
-});
-
-/**
- * "Stop this author posting in Chat for 7 days": `chat_blocked_until`
- * becomes `until`, or stays if a stop already runs longer. Answers when it
- * ends and what it was before (for undo); null without an account.
- */
-export async function stopChatAuthor(
-  db: D1Database,
-  userId: string,
-  until: string,
-): Promise<{ until: string; previous: string | null } | null> {
-  const found = await db
-    .prepare("SELECT chat_blocked_until AS previous FROM users WHERE id = ?1")
-    .bind(userId)
-    .first();
-  if (!found) return null;
-  const { previous } = PreviousStopSchema.parse(found);
-  const applied = previous !== null && previous > until ? previous : until;
-  await db
-    .prepare("UPDATE users SET chat_blocked_until = ?2 WHERE id = ?1")
-    .bind(userId, applied)
-    .run();
-  return { until: applied, previous };
-}
-
-/** Undoes stopChatAuthor, unless the stop has changed since. */
-export async function restoreChatAuthor(
-  db: D1Database,
-  userId: string,
-  stop: { until: string; previous: string | null },
-): Promise<void> {
-  await db
-    .prepare(
-      "UPDATE users SET chat_blocked_until = ?3 WHERE id = ?1 AND chat_blocked_until = ?2",
-    )
-    .bind(userId, stop.until, stop.previous)
-    .run();
-}
-
 // ---------- plans and membership (V2.md §8.2) ----------
 
 const PlanBodySchema = z.object({ body: z.string() });

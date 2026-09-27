@@ -66,7 +66,8 @@ export const PURGE_LEDGER = {
   feedback_groups: "untouched: no user data",
   // 0013_author_stops
   moderation_author_stops:
-    "untouched: no user id, only a queue item and when the stop ends (the stop itself is a users column, gone with the row)",
+    "untouched: no user id, only a queue item and when the stop ends",
+  author_stops: "deleted",
 } as const satisfies Record<string, string>;
 
 /**
@@ -246,6 +247,8 @@ export function accountStatements(
     byUser("chat_read_markers"),
     byUser("chat_room_prefs"),
     byUser("chat_author_courses"),
+    // The owner's stops on them (the users columns go with the row).
+    byUser("author_stops"),
     // Seat watches and the alerts sent for them.
     byUser("seat_watches"),
     byUser("seat_alert_sends"),

@@ -445,18 +445,17 @@ async function latestAdminDecision(
 // ---------- the owner's stops (migrations/0013_author_stops.sql) ----------
 
 /**
- * A stop the owner placed through an item, as the feature reported it:
- * when it ends and what it replaced. Never who.
+ * A stop the owner placed through an item: its id (shared with the feature's
+ * `author_stops` row) and when it ends. Never who.
  */
 export interface AuthorStop {
+  id: string;
   until: string;
-  previous: string | null;
 }
 
 const AuthorStopRowSchema = z.object({
   id: ModerationIdSchema,
   until: IsoDateTimeSchema,
-  previous_until: IsoDateTimeSchema.nullable(),
 });
 
 export function insertAuthorStop(
@@ -467,34 +466,26 @@ export function insertAuthorStop(
 ): D1PreparedStatement {
   return db
     .prepare(
-      `INSERT INTO moderation_author_stops (id, queue_id, until, previous_until, created_at)
-       VALUES (?1, ?2, ?3, ?4, ?5)`,
+      `INSERT INTO moderation_author_stops (id, queue_id, until, created_at)
+       VALUES (?1, ?2, ?3, ?4)`,
     )
-    .bind(
-      randomToken(16),
-      queueId,
-      stop.until,
-      stop.previous,
-      now.toISOString(),
-    );
+    .bind(stop.id, queueId, stop.until, now.toISOString());
 }
 
 /** The item's stop that's still in force (not undone), if any. */
 export async function activeAuthorStop(
   db: D1Database,
   queueId: string,
-): Promise<(AuthorStop & { id: string }) | null> {
+): Promise<AuthorStop | null> {
   const row = await db
     .prepare(
-      `SELECT id, until, previous_until FROM moderation_author_stops
+      `SELECT id, until FROM moderation_author_stops
        WHERE queue_id = ?1 AND undone_at IS NULL
        ORDER BY created_at DESC, rowid DESC LIMIT 1`,
     )
     .bind(queueId)
     .first();
-  if (!row) return null;
-  const stop = AuthorStopRowSchema.parse(row);
-  return { id: stop.id, until: stop.until, previous: stop.previous_until };
+  return row ? AuthorStopRowSchema.parse(row) : null;
 }
 
 export function markAuthorStopUndone(
@@ -503,7 +494,9 @@ export function markAuthorStopUndone(
   now: Date,
 ): D1PreparedStatement {
   return db
-    .prepare("UPDATE moderation_author_stops SET undone_at = ?2 WHERE id = ?1")
+    .prepare(
+      "UPDATE moderation_author_stops SET undone_at = ?2 WHERE id = ?1 AND undone_at IS NULL",
+    )
     .bind(id, now.toISOString());
 }
 

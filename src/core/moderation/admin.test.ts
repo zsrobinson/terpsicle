@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModerationReason } from "../schema";
 import {
-  AUTHOR_STOP_DAYS,
   authorStopUntil,
   decisionCursor,
   fillDays,
@@ -208,7 +207,6 @@ describe("waitedFor", () => {
 
 describe("authorStopUntil", () => {
   it("stops review writers for 30 days and chat posters for 7 (V2 §10)", () => {
-    expect(AUTHOR_STOP_DAYS).toEqual({ review: 30, chat: 7 });
     expect(authorStopUntil("review", NOW)).toBe("2027-02-09T12:00:00.000Z");
     expect(authorStopUntil("chat", NOW)).toBe("2027-01-17T12:00:00.000Z");
   });

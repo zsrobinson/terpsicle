@@ -852,6 +852,49 @@ describe("the owner's stop (V2 §7.5 rule 3)", () => {
     ).toBe(later);
   });
 
+  it("undoes two stops on one author in either order, each lifting only its own", async () => {
+    const blocked = () =>
+      env.DB.prepare(
+        "SELECT reviews_blocked_until AS until FROM users WHERE id = ?1",
+      )
+        .bind(author.id)
+        .first("until");
+    models("targets-person");
+    await author.submit(aReviewSubmitInput());
+    await author.submit(
+      aReviewSubmitInput({ course: "CMSC330", body: BODY_2 }),
+    );
+    models("clean");
+    const [first, second] = await openQueue(admin);
+    if (!first || !second) throw new Error("expected two queue items");
+    const a = await stop(first.id);
+    advance(DAY);
+    const b = await stop(second.id);
+    if (a.status !== "ok" || b.status !== "ok") throw new Error("not stopped");
+    expect(await blocked()).toBe(b.item.stoppedUntil);
+
+    // The earlier one first: the later one still holds.
+    await admin.json("admin/moderation/undo", { id: first.id });
+    expect(await blocked()).toBe(b.item.stoppedUntil);
+    await admin.json("admin/moderation/undo", { id: second.id });
+    expect(await blocked()).toBeNull();
+
+    // And the later one first: the earlier one takes over.
+    await stop(first.id);
+    const again = await stop(second.id);
+    if (again.status !== "ok") throw new Error("not stopped");
+    const earlier = (await admin.json("admin/moderation/queue", {
+      status: "closed",
+    })) as { items: { id: string; stoppedUntil: string | null }[] };
+    const firstUntil = earlier.items.find(
+      (i) => i.id === first.id,
+    )?.stoppedUntil;
+    await admin.json("admin/moderation/undo", { id: second.id });
+    expect(await blocked()).toBe(firstUntil);
+    await admin.json("admin/moderation/undo", { id: first.id });
+    expect(await blocked()).toBeNull();
+  });
+
   it("only stops with a removal, and has nobody to stop once the account is gone", async () => {
     const { id, item } = await heldItem();
     const approveAndStop = await admin.call("admin/moderation/resolve", {
@@ -869,11 +912,11 @@ describe("the owner's stop (V2 §7.5 rule 3)", () => {
       status: "ok",
       item: { resolution: { decision: "remove" }, stoppedUntil: null },
     });
-    expect(
-      await env.DB.prepare(
-        "SELECT COUNT(*) AS n FROM moderation_author_stops",
-      ).first("n"),
-    ).toBe(0);
+    for (const table of ["moderation_author_stops", "author_stops"])
+      expect(
+        await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first("n"),
+        table,
+      ).toBe(0);
   });
 });
 

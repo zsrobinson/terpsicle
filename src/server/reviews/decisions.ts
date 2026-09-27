@@ -3,13 +3,13 @@
 // (MODERATION_HANDLERS, docs/MODERATION.md §6). Idempotent: undo calls it
 // again, and a retry that failed partway runs it again.
 import { mainReason } from "~/core/reviews";
-import type { HandlerContext } from "../moderation/handlers";
+import { liftStopStatements } from "../auth/stops";
+import type { AuthorActor, HandlerContext } from "../moderation/handlers";
 import { openReports } from "../moderation/store";
 import {
   getReview,
   publish,
   reject,
-  restoreReviewAuthor,
   setPendingEdit,
   setWaiting,
   stopReviewAuthor,
@@ -82,16 +82,14 @@ export async function applyReviewDecision(
 }
 
 /**
- * Reviews' side of the owner's stop (V2 §7.5 rule 3): the store finds the
- * review's author and sets `reviews_blocked_until`, answering only when it
- * ends. The author never leaves the store.
+ * Reviews' side of the owner's stop (V2 §7.5 rule 3): the store records it
+ * on the review's author and puts it in force. The author never leaves the
+ * store; lifting works from the stop alone.
  */
-export const reviewAuthorActor = {
-  stop: (reviewId: string, until: string, { db }: { db: D1Database }) =>
-    stopReviewAuthor(db, reviewId, until),
-  restore: (
-    reviewId: string,
-    stop: { until: string; previous: string | null },
-    { db }: { db: D1Database },
-  ) => restoreReviewAuthor(db, reviewId, stop),
+export const reviewAuthorActor: AuthorActor = {
+  stop: (reviewId, stop, { db, now }) =>
+    stopReviewAuthor(db, reviewId, stop, now),
+  restore: async (stopId, { db, now }) => {
+    await db.batch(liftStopStatements(db, "review", stopId, now));
+  },
 };

@@ -26,6 +26,7 @@ import {
   ReviewRowSchema,
   type TermId,
 } from "~/core/schema";
+import { applyStopStatement } from "../auth/stops";
 
 /** Rejected words are cleared this long after the decision (V2 §7.3). */
 export const REJECTED_TEXT_DAYS = 30;
@@ -401,59 +402,38 @@ export async function reviewQueueContexts(
 
 // ---------- the owner's stop (V2 §7.5 rule 3) ----------
 
-const BlockedUntilSchema = z.object({
-  previous: IsoDateTimeSchema.nullable(),
-});
-
 /**
- * "Stop this author writing reviews for 30 days", through the review: its
- * author's `reviews_blocked_until` becomes `until`, or stays if a stop
- * already runs longer. Answers when it ends and what it was before (for
- * undo), never who; null when the review has no author any more (a purged
- * account) or doesn't exist.
+ * "Stop this author writing reviews for 30 days", through the review: the
+ * stop is recorded on its author and put in force (a later stop already
+ * running stays). False, and nothing stored, when the review has no author
+ * any more (a purged account) or doesn't exist. The author never leaves
+ * this file: the insert reads `author_id` in SQL.
  */
 export async function stopReviewAuthor(
   db: D1Database,
   reviewId: string,
-  until: string,
-): Promise<{ until: string; previous: string | null } | null> {
-  const found = await db
-    .prepare(
-      `SELECT u.reviews_blocked_until AS previous
-       FROM reviews r JOIN users u ON u.id = r.author_id WHERE r.id = ?1`,
-    )
-    .bind(reviewId)
-    .first();
-  if (!found) return null;
-  const { previous } = BlockedUntilSchema.parse(found);
-  const applied = previous !== null && previous > until ? previous : until;
-  await db
-    .prepare(
-      `UPDATE users SET reviews_blocked_until = ?2
-       WHERE id = (SELECT author_id FROM reviews WHERE id = ?1)`,
-    )
-    .bind(reviewId, applied)
-    .run();
-  return { until: applied, previous };
-}
-
-/**
- * Undoes stopReviewAuthor: puts back what was there, unless the stop has
- * changed since (another one, placed later, stays).
- */
-export async function restoreReviewAuthor(
-  db: D1Database,
-  reviewId: string,
-  stop: { until: string; previous: string | null },
-): Promise<void> {
-  await db
-    .prepare(
-      `UPDATE users SET reviews_blocked_until = ?3
-       WHERE id = (SELECT author_id FROM reviews WHERE id = ?1)
-         AND reviews_blocked_until = ?2`,
-    )
-    .bind(reviewId, stop.until, stop.previous)
-    .run();
+  stop: { id: string; until: string },
+  now: Date,
+): Promise<boolean> {
+  const [recorded] = await db.batch([
+    db
+      .prepare(
+        `INSERT INTO author_stops (id, surface, user_id, until, created_at)
+         SELECT ?1, 'review', author_id, ?3, ?4 FROM reviews
+         WHERE id = ?2 AND author_id IS NOT NULL
+         ON CONFLICT DO NOTHING`,
+      )
+      .bind(stop.id, reviewId, stop.until, iso(now)),
+    applyStopStatement(db, "review", stop.id),
+  ]);
+  if ((recorded?.meta.changes ?? 0) > 0) return true;
+  // Already recorded under this id (a retry): still in force.
+  return (
+    (await db
+      .prepare("SELECT 1 AS found FROM author_stops WHERE id = ?1")
+      .bind(stop.id)
+      .first()) !== null
+  );
 }
 
 /** New reviews of an instructor in the last day and the last 30 (the burst check). */

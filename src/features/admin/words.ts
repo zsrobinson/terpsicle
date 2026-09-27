@@ -13,7 +13,7 @@ import type {
   ReviewQueueContext,
   StoredVerdict,
 } from "~/core/schema";
-import { formatShortDate } from "~/core/time/format";
+import { stopEndWords } from "~/core/time/format";
 
 export const KIND_WORDS: Readonly<Record<ModerationKind, string>> = {
   review: "Review",
@@ -121,7 +121,7 @@ export function stopWords(kind: ModerationKind): string {
 
 /** "Author can't write reviews until Oct 26", after a stop. */
 export function stoppedWords(kind: ModerationKind, until: string): string {
-  const day = formatShortDate(until.slice(0, 10));
+  const day = stopEndWords(until);
   return kind === "review"
     ? `Author can't write reviews until ${day}`
     : `Author can't post in Chat until ${day}`;

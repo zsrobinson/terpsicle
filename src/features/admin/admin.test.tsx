@@ -546,7 +546,7 @@ describe("the queue", () => {
     await user.click(screen.getByRole("button", { name: "Spam or an ad" }));
     expect(
       await screen.findByText(
-        "That message isn't there. Its author may have deleted it.",
+        "That message isn't there, or it's already removed. Its author may have deleted it.",
       ),
     ).toBeVisible();
   });

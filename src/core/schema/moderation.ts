@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   CourseCodeSchema,
   IsoDateTimeSchema,
+  ReviewGradeSchema,
   TermIdSchema,
 } from "./primitives";
 
@@ -350,8 +351,7 @@ export const ReviewQueueContextSchema = z.object({
   instructor: z.string().min(1),
   rating: z.number().int().min(1).max(5),
   termId: TermIdSchema.nullable(),
-  /** A+ … F, W or P (REVIEW_GRADES, which lives with Reviews' schemas). */
-  grade: z.string().min(1).max(2).nullable(),
+  grade: ReviewGradeSchema.nullable(),
 });
 export type ReviewQueueContext = z.infer<typeof ReviewQueueContextSchema>;
 

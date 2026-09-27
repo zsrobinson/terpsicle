@@ -13,6 +13,7 @@ import type {
   ResolveResult,
   UndoInput,
 } from "~/core/schema";
+import { randomToken } from "../crypto";
 import { reviewQueueContexts } from "../reviews/store";
 import type { AuthorActors, ModerationHandlers } from "./handlers";
 import {
@@ -101,34 +102,46 @@ export async function resolveQueueItem(
           ]
         : [],
   });
-  // Then the author, if asked: only the feature knows who, and it answers
-  // only when the stop ends. Nobody to stop (a purged account, a sample):
-  // the removal stands on its own.
+  // Then the author, if asked: only the feature knows who, so it records
+  // the stop under an id from here and answers only whether anyone was
+  // there to stop (not a purged account or a sample).
   const actor = deps.actors[row.surface];
-  const stop =
+  const asked =
     input.authorAction === "stop" && decision === "remove" && actor
-      ? await actor.stop(row.ref, authorStopUntil(row.surface, deps.now), {
-          db,
-        })
+      ? {
+          id: randomToken(16),
+          until: authorStopUntil(row.surface, deps.now),
+        }
       : null;
-  await db.batch([
-    setQueueStatus(db, row.id, "closed", deps.now),
-    ...(stop ? [insertAuthorStop(db, row.id, stop, deps.now)] : []),
-    insertDecision(db, {
-      surface: row.surface,
-      ref: row.ref,
-      stage: "human",
-      verdict: decision === "publish" ? "allow" : "remove",
-      labels: stop ? [STOPPED] : [],
-      guard: null,
-      policy: null,
-      models: null,
-      latencyMs: null,
-      decidedBy: "admin",
-      reason: input.reason,
-      now: deps.now,
-    }),
-  ]);
+  const stop =
+    asked && (await actor?.stop(row.ref, asked, { db, now: deps.now }))
+      ? asked
+      : null;
+  try {
+    await db.batch([
+      setQueueStatus(db, row.id, "closed", deps.now),
+      ...(stop ? [insertAuthorStop(db, row.id, stop, deps.now)] : []),
+      insertDecision(db, {
+        surface: row.surface,
+        ref: row.ref,
+        stage: "human",
+        verdict: decision === "publish" ? "allow" : "remove",
+        labels: stop ? [STOPPED] : [],
+        guard: null,
+        policy: null,
+        models: null,
+        latencyMs: null,
+        decidedBy: "admin",
+        reason: input.reason,
+        now: deps.now,
+      }),
+    ]);
+  } catch (error) {
+    // Nothing recorded: take the stop back too, so none is left that the
+    // panel can't show or undo. The owner can try again.
+    if (stop) await actor?.restore(stop.id, { db, now: deps.now });
+    throw error;
+  }
   return ok(db, row.id);
 }
 
@@ -149,9 +162,11 @@ export async function undoQueueItem(
     now: deps.now,
     reasons: [undo],
   });
-  // The author's stop goes with the decision it came with.
+  // The author's stop goes with the decision it came with; any other stop
+  // on the same person stays.
   const stop = await activeAuthorStop(db, row.id);
-  if (stop) await deps.actors[row.surface]?.restore(row.ref, stop, { db });
+  if (stop)
+    await deps.actors[row.surface]?.restore(stop.id, { db, now: deps.now });
   await db.batch([
     setQueueStatus(db, row.id, "open", null),
     ...(stop ? [markAuthorStopUndone(db, stop.id, deps.now)] : []),
