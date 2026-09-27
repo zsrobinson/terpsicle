@@ -290,6 +290,7 @@ function Connecting({
         className="px-4"
         message="This course's chat isn't reachable right now."
         onRetry={onReconnect}
+        retryTooltip="Connect to this course's chat again"
       />
     );
   if (status === "offline")

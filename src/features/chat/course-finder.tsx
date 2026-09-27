@@ -109,6 +109,7 @@ export function CourseFinder({
             className="px-4 py-0"
             message="We couldn't load the course list. Check your connection and try again."
             onRetry={wake}
+            retryTooltip="Load the course list again"
           />
         ) : !rows ? (
           <RowSkeleton rows={2} label="Loading courses" />

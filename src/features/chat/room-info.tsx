@@ -100,6 +100,7 @@ export function RoomInfo({
             className="py-0"
             message="We couldn't load who's here."
             onRetry={() => setAttempt((n) => n + 1)}
+            retryTooltip="Load who's here again"
           />
         ) : (
           <>

@@ -64,6 +64,7 @@ export function RoomList({
             className="px-4"
             message="We couldn't load your classes. Check your connection and try again."
             onRetry={() => void useChatHome.getState().load(view.term ?? null)}
+            retryTooltip="Load your classes again"
           />
         ) : list.length === 0 ? (
           empty
