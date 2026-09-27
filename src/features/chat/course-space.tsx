@@ -253,7 +253,6 @@ function FollowButton({ courseCode }: { courseCode: CourseCode }) {
           variant="ghost"
           size="sm"
           disabled={busy}
-          className="max-md:h-11"
           onClick={() => void leave()}
         >
           Leave
@@ -266,7 +265,6 @@ function FollowButton({ courseCode }: { courseCode: CourseCode }) {
         variant="outline"
         size="sm"
         disabled={busy}
-        className="max-md:h-11"
         onClick={() => void join()}
       >
         Join

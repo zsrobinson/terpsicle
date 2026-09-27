@@ -63,7 +63,7 @@ function Row({ problem }: { problem: FourYearProblem }) {
                 <Button
                   variant="outline"
                   size="row"
-                  className="relative z-10 max-md:h-11"
+                  className="relative z-10"
                   onClick={() => applyFix(doc, problem)}
                 >
                   {problem.fix.label}

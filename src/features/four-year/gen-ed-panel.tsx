@@ -68,7 +68,6 @@ function Row({ p }: { p: GenEdProgress }) {
             <Button
               variant="ghost"
               size="row"
-              className="max-md:h-11"
               onClick={() => {
                 nav.go({
                   tab: "search",

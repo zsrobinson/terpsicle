@@ -35,7 +35,6 @@ import {
   renameDoc,
   setFirstTerm,
 } from "./actions";
-import { MENU_ITEM } from "./block";
 import { useDeptsLoading } from "./data";
 import { useModel, useProblemCounts } from "./model";
 import { useFourYear } from "./store";
@@ -109,11 +108,7 @@ function DocMenu({ onRename }: { onRename: () => void }) {
           <>
             <DropdownMenuLabel>Your four-year plans</DropdownMenuLabel>
             {docs.map((d) => (
-              <DropdownMenuItem
-                className={MENU_ITEM}
-                key={d.id}
-                onSelect={() => setActive(d.id)}
-              >
+              <DropdownMenuItem key={d.id} onSelect={() => setActive(d.id)}>
                 <span className="min-w-0 flex-1 truncate">{d.name}</span>
                 {d.id === doc.id ? <Check aria-hidden="true" /> : null}
               </DropdownMenuItem>
@@ -121,23 +116,15 @@ function DocMenu({ onRename }: { onRename: () => void }) {
             <DropdownMenuSeparator />
           </>
         ) : null}
-        <DropdownMenuItem className={MENU_ITEM} onSelect={onRename}>
-          Rename
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={MENU_ITEM}
-          onSelect={() => duplicateDoc(doc)}
-        >
+        <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => duplicateDoc(doc)}>
           Duplicate
         </DropdownMenuItem>
-        <DropdownMenuItem
-          className={MENU_ITEM}
-          onSelect={() => newDoc(doc.firstTermId)}
-        >
+        <DropdownMenuItem onSelect={() => newDoc(doc.firstTermId)}>
           New four-year plan
         </DropdownMenuItem>
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className={MENU_ITEM}>
+          <DropdownMenuSubTrigger>
             Starts in {fourYearTermLabel(doc.firstTermId)}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-[180px]">
@@ -146,11 +133,7 @@ function DocMenu({ onRename }: { onRename: () => void }) {
               onValueChange={(term) => setFirstTerm(doc, term)}
             >
               {firstTermChoices(today).map((term) => (
-                <DropdownMenuRadioItem
-                  className={MENU_ITEM}
-                  key={term}
-                  value={term}
-                >
+                <DropdownMenuRadioItem key={term} value={term}>
                   {fourYearTermLabel(term)}
                 </DropdownMenuRadioItem>
               ))}
@@ -159,14 +142,11 @@ function DocMenu({ onRename }: { onRename: () => void }) {
         </DropdownMenuSub>
         <DropdownMenuSeparator />
         {Object.keys(doc.grades).length > 0 ? (
-          <DropdownMenuItem
-            className={MENU_ITEM}
-            onSelect={() => removeGrades(doc)}
-          >
+          <DropdownMenuItem onSelect={() => removeGrades(doc)}>
             Remove grades
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem className={MENU_ITEM} onSelect={() => deleteDoc(doc)}>
+        <DropdownMenuItem onSelect={() => deleteDoc(doc)}>
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -107,7 +107,7 @@ function ResultRow({
               size="row"
               aria-label={actionLabel}
               // Above the row's About button, which covers the whole row.
-              className="relative z-10 max-md:h-11"
+              className="relative z-10"
               onClick={onAct}
             >
               {action}
@@ -296,7 +296,6 @@ export function SearchPanel() {
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Search every course"
-                className="max-md:size-11"
                 onClick={() =>
                   nav.go({
                     wildcard: undefined,
@@ -319,7 +318,6 @@ export function SearchPanel() {
             <WithTooltip label={`Add it to ${targetName}`} shortcut={ENTER}>
               <Button
                 size="row"
-                className="max-md:h-11"
                 aria-label={`Add ${offer.kind === "pattern" ? offer.pattern : wildcardLabel(offer)} to ${targetName}`}
                 onClick={() => addOffer(offer)}
               >

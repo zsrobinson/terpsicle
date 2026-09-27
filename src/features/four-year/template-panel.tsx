@@ -123,7 +123,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
           }
         >
           <Button
-            className="w-full max-md:h-11"
+            className="w-full"
             disabled={fit.fills.length === 0}
             onClick={add}
           >
@@ -136,7 +136,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
           >
             <Button
               variant="outline"
-              className="w-full max-md:h-11"
+              className="w-full"
               onClick={() => {
                 newDocFromTemplate(template, doc.firstTermId);
                 nav.go({ tab: undefined });

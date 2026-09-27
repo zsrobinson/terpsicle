@@ -103,7 +103,7 @@ Frame chrome:
   - Chat composer (`composer.tsx:276`) and reaction picker (`message-row.tsx:359`)
 - **Radix DropdownMenu**:
   - product, theme, account, term and plan-tab menus (app)
-  - Plan doc and block menus (`four-year/plan-bar.tsx`, `block.tsx`), with a local `MENU_ITEM = "max-md:min-h-11"` (`block.tsx`)
+  - Plan doc and block menus (`four-year/plan-bar.tsx`, `block.tsx`)
   - courses row menu + ContextMenu (`courses-panel.tsx:430`, `:451`)
   - grades (`grades.tsx:141`), filter chips (`filter-chips.tsx:198`), chat message menu (`message-row.tsx:460`)
 - **Radix Dialog**: used only by the PWA install dialog (`pwa/install-dialog.tsx:32`).
@@ -132,10 +132,9 @@ Shared `Button` (`components/ui/button.tsx`) in product code (excluding marketin
   - Todo: ghost 5, default 2, outline 2.
   - Settings (auth + notifications): outline 6, ghost 2.
   - PWA: 4. Site: 3. Admin: 13.
-- **Height overrides fight the size scale**:
-  - Todo keeps `max-md:size-11` on its refresh icon and `max-md:h-11` on Connect ELMS, which sits beside a 44px `Input` on phones, until `Button` has a phone size for them.
-  - Chat uses `max-md:h-11` and `max-md:size-11` (about 20 sites), and so does Plan (`four-year/`, since `v3/cohesion-plan`).
-  - Settings uses neither.
+- **Height overrides fight the size scale**: `Button`, `SelectTrigger` and menu items are 44px on phones from the kit now (`v3/touch-targets`), so the overrides on them are redundant. What's left, all in files other PRs had open:
+  - Todo's refresh icon (`todo/todo-page.tsx`, `max-md:-my-3 max-md:size-11`), Chat's `room-view.tsx` (4) and Reviews' `composer.tsx` `SELECT_TRIGGER`.
+  - Overrides on raw elements the kit doesn't size stay: Chat's reaction chips, "N replies", the term menu and row links; `ListRow`/`GroupHeader` links with `max-md:min-h-11`; Plan's semester footer links (`four-year/column-links.tsx`).
 - **Hand-rolled `<button>` elements with custom classes** (non-marketing), by folder:
   - app 18: rail and drawer tabs (the workbench's, one each for Schedule and Plan), plan tabs ×4, product menu, theme toggle, top-bar problems ×2, shared pill ×2, drill back, term switcher, toast actions ×2, `GroupHeader`.
   - calendar 9, course-details 8, generate 8, travel 8, chat 7, four-year 6, search 7, courses 5, blocks 4.
@@ -227,4 +226,4 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
     - At least 5 text-input styles.
     - Native `<select>` is left only in the marketing page's plan sample (`marketing/samples/plan-sample.tsx`); the products use Radix Select.
     - Two copies of the switch knob.
-    - Touch targets use `max-md:h-11` (Chat, Todo, Plan, whose menus use `MENU_ITEM`) vs nothing (Settings), until the kit's own phone sizes replace them.
+    - Touch targets: the kit's controls are 44px on phones (`v3/touch-targets`); a few per-page overrides remain (see "Height overrides fight the size scale" above).

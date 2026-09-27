@@ -124,7 +124,7 @@ export function RoomInfo({
                 <Button
                   variant="link"
                   size="row"
-                  className="self-start px-0 max-md:h-11"
+                  className="self-start px-0"
                   onClick={() => setAll(true)}
                 >
                   Show all {members.members.length}
@@ -190,7 +190,7 @@ function MuteButton({
         size="sm"
         aria-pressed={muted}
         disabled={busy}
-        className="self-start max-md:h-11"
+        className="self-start"
         onClick={() => void toggle(!muted)}
       >
         {muted ? <BellOff aria-hidden="true" /> : <Bell aria-hidden="true" />}
@@ -251,7 +251,7 @@ function LeaveOrWhy({
       <Button
         variant="outline"
         size="sm"
-        className="self-start max-md:h-11"
+        className="self-start"
         onClick={() => void leave()}
       >
         Leave {courseCode} chat

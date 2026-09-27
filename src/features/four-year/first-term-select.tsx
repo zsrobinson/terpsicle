@@ -39,12 +39,7 @@ export function FirstTermSelect({
       </label>
       <Select value={value} onValueChange={onChange}>
         <WithTooltip label={tooltip}>
-          <SelectTrigger
-            id={id}
-            // The trigger's own height is set by its size, so the phone's
-            // 44px goes on the same selector.
-            className="min-w-32 max-md:data-[size=default]:h-11"
-          >
+          <SelectTrigger id={id} className="min-w-32">
             <SelectValue />
           </SelectTrigger>
         </WithTooltip>
