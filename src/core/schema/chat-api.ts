@@ -22,7 +22,13 @@ import {
  * scheduler's "Join CMSC351 chat") follows the course once you're signed in.
  */
 export const ChatSearchSchema = z.object({
-  term: TermIdSchema.optional().catch(undefined),
+  // The router reads `?term=202608` as a number: taken back as text.
+  term: z
+    .union([z.string(), z.number()])
+    .transform(String)
+    .pipe(TermIdSchema)
+    .optional()
+    .catch(undefined),
   course: CourseCodeSchema.optional().catch(undefined),
   room: RoomIdSchema.optional().catch(undefined),
   thread: ChatMessageIdSchema.optional().catch(undefined),

@@ -9,6 +9,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { track } from "~/app/analytics";
 import type {
   Flags,
   TodoFeedState,
@@ -26,6 +27,12 @@ import { TodoPage, type TodoView } from "./todo-page";
 import { resetTodo, setTodoClient, type TodoClient } from "./todo-store";
 
 // 2026-09-25 is a Friday in New York; the fixture item is due Tuesday the 29th.
+
+vi.mock("~/app/analytics", async (original) => ({
+  ...(await original<typeof import("~/app/analytics")>()),
+  track: vi.fn(),
+}));
+
 const NOW = "2026-09-25T16:00:00.000Z";
 
 function fakeClient(list: Partial<TodoListResult> = {}) {
@@ -428,6 +435,12 @@ describe("the list", () => {
     expect(
       within(cmsc).getByRole("link", { name: "View chat" }),
     ).toHaveAttribute("href", "/chat?term=202608&course=CMSC216");
+    const user = userEvent.setup();
+    await user.click(within(cmsc).getByRole("link", { name: "View chat" }));
+    expect(track).toHaveBeenCalledWith("cross_link_clicked", {
+      from: "todo",
+      to: "chat",
+    });
     // Not from a course: no room to go to.
     expect(
       within(screen.getByRole("region", { name: "Study group" })).queryByRole(
@@ -475,6 +488,11 @@ describe("the list", () => {
     expect(
       screen.getByRole("heading", { name: "Sep 28 – Oct 4" }),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "View schedule" }));
+    expect(track).toHaveBeenCalledWith("cross_link_clicked", {
+      from: "todo",
+      to: "schedule",
+    });
   });
 
   it("asks ELMS again on open when the last read is old, and says when it's too soon", async () => {

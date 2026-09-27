@@ -5,7 +5,7 @@ import {
   anUnpublishedCalendar,
   aPublishedCalendar,
 } from "~/fixtures";
-import { seasonTermOf, statusResolver, termSpan, termStatus } from "./status";
+import { statusResolver, termSpan, termStatus } from "./status";
 import {
   academicYearLabel,
   academicYearOf,
@@ -119,16 +119,6 @@ describe("termStatus", () => {
     });
     expect(termStatus("202612", "2027-01-10", [])).toBe("in-progress");
     expect(termStatus("202612", "2026-12-20", [])).toBe("planned");
-  });
-
-  it("names the term a date falls in by season, without calendars", () => {
-    expect(seasonTermOf("2026-10-01")).toBe("202608");
-    expect(seasonTermOf("2026-12-31")).toBe("202608");
-    expect(seasonTermOf("2027-01-10")).toBe("202612");
-    expect(seasonTermOf("2027-01-25")).toBe("202701");
-    expect(seasonTermOf("2027-05-31")).toBe("202701");
-    expect(seasonTermOf("2027-06-01")).toBe("202705");
-    expect(seasonTermOf("2027-08-21")).toBe("202708");
   });
 
   it("remembers answers per term", () => {

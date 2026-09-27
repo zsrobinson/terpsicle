@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { crossLinkClicked } from "~/app/cross-link";
+import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { formatGpa } from "~/core/grades/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
 import {
@@ -95,7 +95,7 @@ export function CoursePage({ data }: { data: CoursePageData }) {
                   onClick={() => crossLinkClicked("reviews", "schedule")}
                   className="text-fg underline underline-offset-2"
                 >
-                  View schedule
+                  {viewWords("schedule")}
                 </Link>
               </WithTooltip>
             </>

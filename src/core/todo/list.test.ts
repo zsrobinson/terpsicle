@@ -3,6 +3,7 @@ import { aTodoFeedState, aTodoItem } from "~/fixtures";
 import {
   agoWords,
   compareItems,
+  courseChatTerm,
   dayLabel,
   dueTimeLabel,
   feedWords,
@@ -277,5 +278,28 @@ describe("the header's words", () => {
         NOW,
       ),
     ).toBe(true);
+  });
+});
+
+describe("courseChatTerm", () => {
+  const due = (dueDate: string) => aTodoItem({ dueDate });
+  it("is the term the next item is due in", () => {
+    expect(
+      courseChatTerm(
+        { open: [due("2026-09-20"), due("2026-10-02")], done: [] },
+        "2026-09-27",
+      ),
+    ).toBe("202608");
+    // Only overdue work: the latest of it.
+    expect(
+      courseChatTerm({ open: [due("2026-12-15")], done: [] }, "2027-02-10"),
+    ).toBe("202608");
+    expect(courseChatTerm({ open: [], done: [] }, "2026-09-27")).toBeNull();
+  });
+
+  it("counts January's first weeks as the spring they lead into", () => {
+    expect(
+      courseChatTerm({ open: [due("2027-01-20")], done: [] }, "2027-01-10"),
+    ).toBe("202701");
   });
 });

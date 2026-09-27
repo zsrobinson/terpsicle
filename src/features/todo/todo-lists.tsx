@@ -3,9 +3,15 @@ import { cn } from "cn";
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
-import { seasonTermOf } from "~/core/four-year/status";
-import type { CourseCode, CourseColor, IsoDate, TodoItem } from "~/core/schema";
+import type {
+  CourseCode,
+  CourseColor,
+  IsoDate,
+  TermId,
+  TodoItem,
+} from "~/core/schema";
 import {
+  courseChatTerm,
   dayLabel,
   doneWords,
   dueTimeLabel,
@@ -153,13 +159,13 @@ export function DayList(props: ListProps) {
   );
 }
 
-/** A course group's way into its chat room, for the term its work is due in. */
-function ViewChat({ code, date }: { code: CourseCode; date: IsoDate }) {
+/** A course group's way into its chat room (`courseChatTerm`). */
+function ViewChat({ code, term }: { code: CourseCode; term: TermId }) {
   return (
     <WithTooltip label={`Talk with the people in ${code}`}>
       <Link
         to="/chat"
-        search={{ term: seasonTermOf(date), course: code }}
+        search={{ term, course: code }}
         onClick={() => crossLinkClicked("todo", "chat")}
         className="inline-flex min-h-11 shrink-0 items-center text-muted text-sm underline-offset-2 hover:text-fg hover:underline md:min-h-0"
       >
@@ -191,6 +197,7 @@ export function CourseList(
       {groups.map((group) => {
         const first = group.open[0] ?? group.done[0];
         const color = first ? props.look(first).color : null;
+        const chatTerm = courseChatTerm(group, props.today);
         return (
           <section key={group.key} aria-label={group.code ?? group.key}>
             <div className="flex min-w-0 items-center gap-2 border-hairline border-b pb-1">
@@ -212,8 +219,8 @@ export function CourseList(
               <span className="tnum ml-auto shrink-0 text-muted text-sm">
                 {group.open.length} open
               </span>
-              {group.code !== null && props.chatOn && first ? (
-                <ViewChat code={group.code} date={first.dueDate} />
+              {group.code !== null && props.chatOn && chatTerm ? (
+                <ViewChat code={group.code} term={chatTerm} />
               ) : null}
             </div>
             {group.open.length > 0 ? (
