@@ -98,12 +98,8 @@ const RULES = {
  * here. Never add to this list: a new page picks a kit width.
  */
 const OWN_PAGE_WIDTH = new Set([
-  "/src/features/auth/account-page.tsx",
   "/src/features/chat/sign-in-moment.tsx",
   "/src/features/four-year/empty-state.tsx",
-  "/src/features/site/site-page.tsx",
-  "/src/features/todo/connect-page.tsx",
-  "/src/features/todo/todo-page.tsx",
 ]);
 
 /** "file:line: match" for every offending match in `sources`. */

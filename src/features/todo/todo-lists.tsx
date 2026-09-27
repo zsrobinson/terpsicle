@@ -101,7 +101,7 @@ function DayBlock({
   return (
     <div id={`day-${day.date}`} className="scroll-mt-4">
       {heading ? (
-        <h3 className="pt-3 pb-1 font-medium text-muted text-sm">
+        <h3 className="border-hairline border-b pt-3 pb-1 font-semibold text-muted text-sm">
           {day.label}
         </h3>
       ) : null}

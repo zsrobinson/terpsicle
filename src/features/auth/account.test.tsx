@@ -78,15 +78,28 @@ const wrap = (node: ReactNode) =>
     </TooltipProvider>,
   );
 
-/** /settings in a router, as the app renders it: the site header needs one. */
-async function settings() {
+/** A page in a router at `path`, as the app renders it: the family bar needs one. */
+async function inRouter(Page: () => ReactNode, path: string) {
   const router = createRouter({
-    routeTree: createRootRoute({ component: SettingsPage }),
-    history: createMemoryHistory({ initialEntries: ["/settings"] }),
+    routeTree: createRootRoute({ component: Page }),
+    history: createMemoryHistory({ initialEntries: [path] }),
   });
-  wrap(<RouterProvider router={router} />);
+  const rendered = wrap(<RouterProvider router={router} />);
+  await screen.findByRole("heading", { level: 1 });
+  return rendered;
+}
+
+/** /settings, as the app renders it. */
+async function settings() {
+  await inRouter(SettingsPage, "/settings");
   await screen.findByRole("heading", { name: "Settings", level: 1 });
 }
+
+/**
+ * The family bar. Testing Library also counts the page header's `<header>`
+ * as a banner; browsers don't, inside `main`.
+ */
+const familyBar = () => screen.getAllByRole("banner")[0] as HTMLElement;
 
 async function loaded(me: MeResult) {
   const client = fakeClient(me);
@@ -383,7 +396,7 @@ describe("/settings", () => {
   it("sits in the site's frame: every product, and your account, one click away", async () => {
     await loaded(signedIn());
     await settings();
-    const header = screen.getByRole("banner");
+    const header = familyBar();
     const products = within(header).getByRole("navigation", {
       name: "Products",
     });
@@ -414,7 +427,7 @@ describe("/settings", () => {
       flags: flags({ signIn: true }),
     });
     await settings();
-    const header = screen.getByRole("banner");
+    const header = familyBar();
     expect(
       within(header).getByRole("navigation", { name: "Products" }),
     ).toBeInTheDocument();
@@ -434,7 +447,10 @@ describe("/signin", () => {
       status: "signed-out",
       flags: flags({ signIn: true }),
     });
-    wrap(<SignInPage error="personal-account" returnTo="/chat" />);
+    await inRouter(
+      () => <SignInPage error="personal-account" returnTo="/chat" />,
+      "/signin",
+    );
     expect(
       screen.getByText(
         "That's a personal Google account. Choose your @terpmail.umd.edu or @umd.edu account.",
@@ -453,7 +469,10 @@ describe("/signin", () => {
       status: "signed-out",
       flags: flags({ signIn: true }),
     });
-    wrap(<SignInPage error="expired" returnTo="https://evil.example" />);
+    await inRouter(
+      () => <SignInPage error="expired" returnTo="https://evil.example" />,
+      "/signin",
+    );
     expect(
       screen.getByRole("link", { name: "Back to Terpsicle" }),
     ).toHaveAttribute("href", "/");
@@ -466,7 +485,10 @@ describe("/auth/test", () => {
       status: "signed-out",
       flags: flags({ signIn: true, authTestMode: true }),
     });
-    const { unmount } = wrap(<TestSignInPage returnTo="/settings" />);
+    const { unmount } = await inRouter(
+      () => <TestSignInPage returnTo="/settings" />,
+      "/auth/test",
+    );
     expect(
       screen
         .getAllByRole("button")
@@ -480,7 +502,7 @@ describe("/auth/test", () => {
     unmount();
 
     await loaded({ status: "signed-out", flags: flags({ signIn: true }) });
-    wrap(<TestSignInPage returnTo="/settings" />);
+    await inRouter(() => <TestSignInPage returnTo="/settings" />, "/auth/test");
     expect(
       screen.getByText("Test sign-in is only on test copies of Terpsicle."),
     ).toBeInTheDocument();

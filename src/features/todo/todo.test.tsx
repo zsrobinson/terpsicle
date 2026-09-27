@@ -66,12 +66,13 @@ function wrap(node: ReactNode) {
     routeTree: createRootRoute({ component: () => node }),
     history: createMemoryHistory({ initialEntries: ["/todo"] }),
   });
-  return render(
+  render(
     <TooltipProvider delayDuration={0}>
       <RouterProvider router={router} />
       <Toaster />
     </TooltipProvider>,
   );
+  return router;
 }
 
 function signedIn(on = true) {
@@ -89,9 +90,8 @@ function signedIn(on = true) {
   });
 }
 
-function renderTodo(view: TodoView = "day", onViewChange = vi.fn()) {
-  wrap(<TodoPage view={view} onViewChange={onViewChange} />);
-  return onViewChange;
+function renderTodo(view: TodoView = "day") {
+  return wrap(<TodoPage view={view} />);
 }
 
 beforeEach(() => {
@@ -114,8 +114,16 @@ describe("who's looking", () => {
       user: null,
     });
     renderTodo();
+    // The first visit's template: the page's one heading, the product's mark.
     expect(
-      await screen.findByText(/Sign in to see your ELMS deadlines here/),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Your deadlines and exams, in one list",
+      }),
+    ).toBeVisible();
+    expect(document.querySelector('[data-mark="todo"]')).not.toBeNull();
+    expect(
+      screen.getByText(/Sign in to see your ELMS deadlines here/),
     ).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Sign in with Google" }),
@@ -130,7 +138,7 @@ describe("who's looking", () => {
     signedIn(false);
     renderTodo();
     expect(
-      await screen.findByRole("heading", { name: "Terpsicle Todo" }),
+      await screen.findByRole("heading", { level: 1, name: "Todo" }),
     ).toBeVisible();
     expect(screen.getByText(/Coming soon/)).toBeVisible();
   });
@@ -411,17 +419,51 @@ describe("the list", () => {
     expect(screen.getByRole("region", { name: "Study group" })).toBeVisible();
   });
 
-  it("changes view with the switch", async () => {
+  it("changes view with the switch: each view is a URL", async () => {
     fakeClient({ items });
     signedIn();
-    const onViewChange = renderTodo();
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "By course" }));
-    expect(onViewChange).toHaveBeenCalledWith("course");
-    expect(screen.getByRole("button", { name: "By day" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
+    const router = renderTodo();
+    const views = await screen.findByRole("navigation", {
+      name: "Todo views",
+    });
+    const byCourse = within(views).getByRole("link", { name: "By course" });
+    expect(byCourse).toHaveAttribute("href", "/todo?view=course");
+    expect(within(views).getByRole("link", { name: "Week" })).toHaveAttribute(
+      "href",
+      "/todo?view=week",
     );
+    expect(within(views).getByRole("link", { name: "By day" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await userEvent.setup().click(byCourse);
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ view: "course" }),
+    );
+  });
+
+  it("says it's checking ELMS in words, not with a spinner", async () => {
+    const client = fakeClient({ items });
+    let answer = () => {};
+    client.refresh.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = () =>
+            resolve({ status: "too-soon", feed: aTodoFeedState() });
+        }),
+    );
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Check ELMS now" }),
+    );
+    expect(screen.getByText("4 open · Checking ELMS…")).toBeVisible();
+    expect(document.querySelector(".animate-spin")).toBeNull();
+    answer();
+    expect(
+      await screen.findByText("ELMS was checked in the last 5 minutes."),
+    ).toBeVisible();
   });
 
   it("shows the week with the Due lane", async () => {

@@ -1,14 +1,16 @@
-import { cn } from "cn";
+import { Link } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
 import {
   type ReactNode,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
 import { track } from "~/app/analytics";
+import { Mark } from "~/app/brand/mark";
+import { useMediaQuery } from "~/app/use-media-query";
 import type { IsoDate, TodoItem } from "~/core/schema";
 import {
   compareItems,
@@ -20,11 +22,21 @@ import {
   openWords,
 } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
-import { GoogleButton } from "~/features/auth/sign-in-panel";
-import { ComingSoonPage, SitePage } from "~/features/site/site-page";
+import { useSignInAction } from "~/features/auth/sign-in-panel";
+import {
+  ComingSoonPage,
+  type SiteLayout,
+  SitePage,
+} from "~/features/site/site-page";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { EmptyState } from "~/ui/empty-state";
+import { InlineError } from "~/ui/inline-error";
+import { PageHeader } from "~/ui/page-header";
+import { PageSection } from "~/ui/page-section";
+import { PageSkeleton } from "~/ui/skeleton";
+import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
+import { type View, ViewSwitch } from "~/ui/view-switch";
 import { ConnectForm, ConnectSteps, WHAT_COMES_THROUGH } from "./connect-form";
 import { todoCourseColors, useSchedulerCourses } from "./course-colors";
 import { TodoItemRow } from "./todo-item";
@@ -46,6 +58,13 @@ export type TodoView = "day" | "course" | "week";
 export const TODO_PATH = "/todo";
 export const TODO_CONNECT_PATH = "/todo/connect";
 
+/** The list's title: what the page shows, not the product's name. */
+const TITLE = "Deadlines and exams";
+
+/** An inline link in running text. */
+export const TEXT_LINK =
+  "text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg";
+
 /** New York's date and the time, ticking each minute for "checked 14 min ago". */
 export function useNow(): { now: number; today: IsoDate } {
   const [now, setNow] = useState(() => Date.now());
@@ -56,28 +75,31 @@ export function useNow(): { now: number; today: IsoDate } {
   return { now, today: newYorkClock(now).date };
 }
 
-/** Where Todo's pages go: the site's frame, wide. */
-export function TodoFrame({ children }: { children: ReactNode }) {
-  return <SitePage layout="app">{children}</SitePage>;
+/**
+ * Where Todo's pages go: the site's frame. The list is an app page (1120);
+ * the front door and the connect steps are a form, so a note (560).
+ */
+export function TodoFrame({
+  width = "app",
+  children,
+}: {
+  width?: SiteLayout;
+  children: ReactNode;
+}) {
+  return <SitePage layout={width}>{children}</SitePage>;
 }
 
 export function TodoOff() {
   return (
-    <ComingSoonPage title="Terpsicle Todo">
+    <ComingSoonPage title="Todo">
       Your deadlines and exams from ELMS, in one list.
     </ComingSoonPage>
   );
 }
 
-export function ListSkeleton() {
-  return (
-    <div className="space-y-3" data-testid="todo-loading">
-      <Skeleton className="h-5 w-48" />
-      {[0, 1, 2, 3].map((i) => (
-        <Skeleton key={i} className="h-10 w-full" />
-      ))}
-    </div>
-  );
+/** A page of deadlines on its way: the header's lines, then rows. */
+export function TodoSkeleton() {
+  return <PageSkeleton rows={4} label="Loading your deadlines" />;
 }
 
 const SAMPLE: readonly TodoItem[] = [
@@ -125,26 +147,21 @@ const SAMPLE: readonly TodoItem[] = [
   },
 ];
 
-/** Signed out: what Todo is, and Sign in (V3 §3.9). */
+/** Signed out: the first visit (V3 §3.9), Sign in, and what it looks like. */
 export function FrontDoor({ returnTo }: { returnTo: string }) {
   const colors = todoCourseColors(["CMSC216", "MATH240"], {});
+  const signIn = useSignInAction(returnTo, "todo");
   return (
-    <div className="mx-auto max-w-[560px] space-y-6 pt-[8vh]">
-      <div className="space-y-2">
-        <h1 className="font-semibold text-xl tracking-tight">Terpsicle Todo</h1>
-        <p className="text-fg">
-          Sign in to see your ELMS deadlines here. We'll remind you the evening
-          before something's due.
-        </p>
+    <>
+      <EmptyState
+        headingLevel={1}
+        mark={<Mark id="todo" size={40} />}
+        title="Your deadlines and exams, in one list"
+        line="Sign in to see your ELMS deadlines here. We'll remind you the evening before something's due."
+        primary={signIn}
+      />
+      <PageSection title="What it looks like" className="mt-4">
         <p className="text-muted text-sm">{WHAT_COMES_THROUGH}</p>
-      </div>
-      <div className="max-w-[320px]">
-        <GoogleButton returnTo={returnTo} from="todo" />
-      </div>
-      <figure className="border border-hairline bg-raised px-4 py-2">
-        <figcaption className="pb-1 text-muted text-xs">
-          What it looks like
-        </figcaption>
         <ul aria-label="A sample list">
           {SAMPLE.map((item) => (
             <TodoItemRow
@@ -162,53 +179,51 @@ export function FrontDoor({ returnTo }: { returnTo: string }) {
             />
           ))}
         </ul>
-      </figure>
-    </div>
+      </PageSection>
+    </>
   );
 }
 
-const VIEWS: readonly { view: TodoView; label: string; tip: string }[] = [
-  { view: "day", label: "By day", tip: "What's due each day" },
-  { view: "course", label: "By course", tip: "What's due in each course" },
-  { view: "week", label: "Week", tip: "The week, day by day" },
+const VIEWS: readonly View[] = [
+  {
+    id: "day",
+    label: "By day",
+    hint: "What's due each day",
+    to: TODO_PATH,
+    search: {},
+  },
+  {
+    id: "course",
+    label: "By course",
+    hint: "What's due in each course",
+    to: TODO_PATH,
+    search: { view: "course" },
+  },
+  {
+    id: "week",
+    label: "Week",
+    hint: "The week, day by day",
+    to: TODO_PATH,
+    search: { view: "week" },
+  },
 ];
 
-/** Phones have no week: "Week" hides, and By day stands in for it. */
-function ViewSwitch({
-  view,
-  onChange,
-}: {
-  view: TodoView;
-  onChange: (view: TodoView) => void;
-}) {
+/** Phones have no week: "Week" goes, and By day stands in for it. */
+function TodoViews({ view }: { view: TodoView }) {
+  const wide = useMediaQuery("(min-width: 768px)");
+  // Counted as the view changes, from the switch or Back.
+  const shown = useRef(view);
+  useEffect(() => {
+    if (shown.current === view) return;
+    shown.current = view;
+    track("todo_view_changed", { view });
+  }, [view]);
   return (
-    <fieldset aria-label="View" className="flex border border-hairline-strong">
-      {VIEWS.map((v) => (
-        <WithTooltip key={v.view} label={v.tip}>
-          <button
-            type="button"
-            aria-pressed={view === v.view}
-            onClick={() => {
-              if (view === v.view) return;
-              track("todo_view_changed", { view: v.view });
-              onChange(v.view);
-            }}
-            className={cn(
-              "h-11 px-3 text-sm transition-colors md:h-7",
-              view === v.view
-                ? "bg-accent-soft font-medium text-fg"
-                : "text-muted hover:bg-hover hover:text-fg",
-              v.view === "week" && "max-md:hidden",
-              v.view === "day" &&
-                view === "week" &&
-                "max-md:bg-accent-soft max-md:font-medium max-md:text-fg",
-            )}
-          >
-            {v.label}
-          </button>
-        </WithTooltip>
-      ))}
-    </fieldset>
+    <ViewSwitch
+      label="Todo views"
+      views={wide ? VIEWS : VIEWS.filter((v) => v.id !== "week")}
+      current={!wide && view === "week" ? "day" : view}
+    />
   );
 }
 
@@ -223,63 +238,51 @@ function RefreshButton() {
         aria-label="Check ELMS now"
         disabled={refreshing}
         onClick={() => void refresh()}
-        className="size-11 md:size-7"
+        className="max-md:-my-3 max-md:size-11"
       >
-        <RefreshCw
-          aria-hidden="true"
-          className={cn(refreshing && "motion-safe:animate-spin")}
-        />
+        <RefreshCw aria-hidden="true" className="size-3" />
       </Button>
     </WithTooltip>
   );
 }
 
-const REFRESH_NOTES = {
-  "too-soon": "ELMS was checked in the last 5 minutes.",
-  failed: "ELMS didn't answer. We'll try again in 20 minutes.",
-} as const;
+const TOO_SOON = "ELMS was checked in the last 5 minutes.";
+const NO_ANSWER = "ELMS didn't answer. We'll try again in 20 minutes.";
 
+/** Signed in, before ELMS: what comes through and the three steps. */
 function InlineConnect() {
   return (
-    <section aria-labelledby="todo-connect" className="max-w-[560px] space-y-4">
-      <h2 id="todo-connect" className="font-semibold text-lg">
-        Connect ELMS
-      </h2>
-      <p className="text-muted">{WHAT_COMES_THROUGH}</p>
-      <ConnectSteps />
-      <ConnectForm />
-      <p className="text-muted text-sm">
-        We keep the link encrypted. More about it, and adding a calendar file
-        instead:{" "}
-        <WithTooltip label="Connect ELMS, or add a calendar file">
-          <a
-            href={TODO_CONNECT_PATH}
-            className="text-fg underline underline-offset-4"
-          >
-            ELMS and files
-          </a>
-        </WithTooltip>
-      </p>
-    </section>
+    <TodoFrame width="note">
+      <PageHeader title={TITLE} status="ELMS isn't connected yet" />
+      <PageSection title="Connect ELMS">
+        <div className="flex flex-col gap-4">
+          <p className="text-muted">{WHAT_COMES_THROUGH}</p>
+          <ConnectSteps />
+          <ConnectForm />
+          <p className="text-muted text-sm">
+            We keep the link encrypted. More about it, and adding a calendar
+            file instead:{" "}
+            <WithTooltip label="Connect ELMS, or add a calendar file">
+              <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
+                ELMS and files
+              </Link>
+            </WithTooltip>
+          </p>
+        </div>
+      </PageSection>
+    </TodoFrame>
   );
 }
 
 /** The list once signed in: header, view, items. */
-export function TodoList({
-  view,
-  day,
-  onViewChange,
-}: {
-  view: TodoView;
-  day?: IsoDate;
-  onViewChange: (view: TodoView) => void;
-}) {
+export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
   const { now, today } = useNow();
   const phase = useTodo((s) => s.phase);
   const load = useTodo((s) => s.load);
   const feed = useTodo((s) => s.feed);
   const items = useTodo((s) => s.items);
   const done = useTodo((s) => s.done);
+  const refreshing = useTodo((s) => s.refreshing);
   const refreshNote = useTodo((s) => s.refreshNote);
   const setDone = useTodo((s) => s.setDone);
   const scheduler = useSchedulerCourses();
@@ -311,32 +314,34 @@ export function TodoList({
     (item: TodoItem, via: "list" | "week") => {
       const next = !done.has(item.uid);
       track("todo_item_checked", { done: next, via });
-      void setDone(item.uid, next).then((ok) => {
-        if (!ok)
-          toast("That didn't save", {
-            description: "Check your connection and try again.",
-          });
-      });
+      const save = () =>
+        void setDone(item.uid, next).then((ok) => {
+          if (!ok)
+            noteToast("That didn't save", {
+              description: "Check your connection and try again.",
+              retry: save,
+            });
+        });
+      save();
     },
     [done, setDone],
   );
 
-  if (phase === "idle" || phase === "loading") return <ListSkeleton />;
+  if (phase === "idle" || phase === "loading")
+    return (
+      <TodoFrame>
+        <TodoSkeleton />
+      </TodoFrame>
+    );
   if (phase === "failed")
     return (
-      <div className="space-y-3">
-        <p className="text-fg">
-          We couldn't load your list. Check your connection and try again.
-        </p>
-        <WithTooltip label="Load the list again">
-          <Button
-            variant="outline"
-            onClick={() => void load(today, Date.now())}
-          >
-            Try again
-          </Button>
-        </WithTooltip>
-      </div>
+      <TodoFrame>
+        <PageHeader title={TITLE} />
+        <InlineError
+          message="We couldn't load your list. Check your connection and try again."
+          onRetry={() => void load(today, Date.now())}
+        />
+      </TodoFrame>
     );
 
   if (!feed && items.length === 0) return <InlineConnect />;
@@ -356,64 +361,59 @@ export function TodoList({
     onToggle: (item) => onToggle(item, "list"),
   };
   const range = listRange(today);
+  // While ELMS is being asked, the status says so in words, not a spinner.
+  const checked = refreshing ? "Checking ELMS…" : words.checked;
 
   return (
-    <div className="space-y-4">
-      <header className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-        <div className="min-w-0 md:flex-1">
-          <h1 className="font-semibold text-xl tracking-tight">Todo</h1>
-          <p className="flex items-center gap-1 text-muted text-sm">
+    <TodoFrame>
+      <PageHeader
+        title={TITLE}
+        status={
+          <>
             <span className="tnum" role="status">
               {openWords(open)}
-              {words.checked ? ` · ${words.checked}` : ""}
+              {checked ? ` · ${checked}` : ""}
             </span>
             {feed && feed.status !== "broken" ? <RefreshButton /> : null}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ViewSwitch view={view} onChange={onViewChange} />
+          </>
+        }
+        views={<TodoViews view={view} />}
+        actions={
           <WithTooltip label="Connect, check or disconnect ELMS, or add a file">
-            <a
-              href={TODO_CONNECT_PATH}
-              className="flex h-11 items-center px-2 text-muted text-sm underline-offset-4 hover:text-fg hover:underline md:h-7"
-            >
-              ELMS link
-            </a>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to={TODO_CONNECT_PATH}>ELMS link</Link>
+            </Button>
           </WithTooltip>
-        </div>
-      </header>
+        }
+      />
 
       {words.problem ? (
-        <p className="text-fg text-sm">
+        <p className="text-fg">
           {words.problem}
           {feed?.status === "broken" ? (
             <>
               {" "}
               <WithTooltip label="Paste the link from Calendar Feed again">
-                <a
-                  href={TODO_CONNECT_PATH}
-                  className="underline underline-offset-4"
-                >
+                <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
                   Paste a new link
-                </a>
+                </Link>
               </WithTooltip>
             </>
           ) : null}
         </p>
-      ) : refreshNote ? (
-        <p className="text-muted text-sm">{REFRESH_NOTES[refreshNote]}</p>
+      ) : refreshNote === "failed" ? (
+        <InlineError message={NO_ANSWER} className="py-0" />
+      ) : refreshNote === "too-soon" ? (
+        <p className="text-muted text-sm">{TOO_SOON}</p>
       ) : null}
 
       {!feed ? (
         <p className="text-muted text-sm">
           These came from a file.{" "}
           <WithTooltip label="Paste your ELMS calendar link">
-            <a
-              href={TODO_CONNECT_PATH}
-              className="text-fg underline underline-offset-4"
-            >
+            <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
               Connect ELMS
-            </a>
+            </Link>
           </WithTooltip>{" "}
           to keep them up to date.
         </p>
@@ -440,36 +440,26 @@ export function TodoList({
       ) : (
         <DayList {...props} />
       )}
-    </div>
+    </TodoFrame>
   );
 }
 
 /** `/todo`, whoever's looking. */
-export function TodoPage({
-  view,
-  day,
-  onViewChange,
-}: {
-  view: TodoView;
-  day?: IsoDate;
-  onViewChange: (view: TodoView) => void;
-}) {
+export function TodoPage({ view, day }: { view: TodoView; day?: IsoDate }) {
   const status = useAccount((s) => s.status);
   const on = useAccount((s) => s.flags.todo);
   if (status === "loading")
     return (
       <TodoFrame>
-        <ListSkeleton />
+        <TodoSkeleton />
       </TodoFrame>
     );
   if (!on) return <TodoOff />;
-  return (
-    <TodoFrame>
-      {status === "signed-out" ? (
+  if (status === "signed-out")
+    return (
+      <TodoFrame width="note">
         <FrontDoor returnTo={TODO_PATH} />
-      ) : (
-        <TodoList view={view} day={day} onViewChange={onViewChange} />
-      )}
-    </TodoFrame>
-  );
+      </TodoFrame>
+    );
+  return <TodoList view={view} day={day} />;
 }

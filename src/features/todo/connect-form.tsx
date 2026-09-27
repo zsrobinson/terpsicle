@@ -3,6 +3,7 @@ import { type FormEvent, useId, useState } from "react";
 import { track } from "~/app/analytics";
 import { parseFeedLink } from "~/core/todo";
 import { Button } from "~/ui/button";
+import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
 import { useTodo } from "./todo-store";
 
@@ -35,7 +36,7 @@ export function ConnectSteps() {
             href="https://umd.instructure.com/calendar"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 underline underline-offset-4"
+            className="inline-flex items-center gap-1 underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
           >
             your ELMS calendar
             <ExternalLink size={12} aria-hidden="true" />
@@ -83,12 +84,12 @@ export function ConnectForm({
   };
 
   return (
-    <form onSubmit={(e) => void submit(e)} className="space-y-2">
-      <label htmlFor={inputId} className="block font-medium text-sm">
+    <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-1.5">
+      <label htmlFor={inputId} className="font-medium text-muted text-xs">
         ELMS calendar link
       </label>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <input
+        <Input
           id={inputId}
           type="url"
           inputMode="url"
@@ -101,20 +102,20 @@ export function ConnectForm({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           disabled={busy}
-          className="ph-no-capture h-11 min-w-0 flex-1 border border-hairline-strong bg-raised px-3 text-base text-fg placeholder:text-faint focus-visible:outline-2 focus-visible:outline-fg focus-visible:outline-offset-2 md:h-8"
+          className="ph-no-capture flex-1"
         />
         <WithTooltip label="Check the link with ELMS and start showing your deadlines">
           <Button
             type="submit"
             disabled={busy || value.trim() === ""}
-            className="h-11 md:h-8"
+            className="max-md:h-11"
           >
             {busy ? "Checking with ELMS…" : submitLabel}
           </Button>
         </WithTooltip>
       </div>
       {answer ? (
-        <p id={answerId} role="status" className="text-fg text-sm">
+        <p id={answerId} role="status" className="mt-0.5 text-fg text-sm">
           {ANSWERS[answer]}
         </p>
       ) : null}

@@ -2,6 +2,7 @@ import { Link, type LinkProps } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
+import { WithTooltip } from "./tooltip";
 
 // The top of every page and panel (docs/COHESION.md §1.4): a title, one
 // status line, a view switch and actions, with one Back. Same slots at both
@@ -18,6 +19,7 @@ export interface BackTo {
 /**
  * The one back affordance: a chevron and the name of where you came from,
  * never a trail. On phones its target grows to 44px without moving anything.
+ * Its tooltip says where it goes ("Back to Settings").
  */
 export function BackLink({
   label,
@@ -27,18 +29,20 @@ export function BackLink({
   className,
 }: BackTo & { className?: string }) {
   return (
-    <Link
-      to={to}
-      search={search}
-      params={params}
-      className={cn(
-        "-ml-1 inline-flex w-fit items-center gap-0.5 font-medium text-muted text-sm transition-colors hover:text-fg max-md:-my-3 max-md:py-3",
-        className,
-      )}
-    >
-      <ChevronLeft size={14} aria-hidden="true" />
-      {label}
-    </Link>
+    <WithTooltip label={`Back to ${label}`}>
+      <Link
+        to={to}
+        search={search}
+        params={params}
+        className={cn(
+          "-ml-1 inline-flex w-fit items-center gap-0.5 font-medium text-muted text-sm transition-colors hover:text-fg max-md:-my-3 max-md:py-3",
+          className,
+        )}
+      >
+        <ChevronLeft size={14} aria-hidden="true" />
+        {label}
+      </Link>
+    </WithTooltip>
   );
 }
 

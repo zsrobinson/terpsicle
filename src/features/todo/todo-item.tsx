@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { CourseCode, CourseColor, TodoItem } from "~/core/schema";
 import { dueTimeLabel, isElmsUrl } from "~/core/todo";
 import { tintStyle } from "~/features/calendar/tint";
+import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 
 // One deadline (docs/V3.md §3.9): a checkbox, the title, its course (tinted
@@ -128,55 +129,66 @@ export function TodoItemRow({
   showCourse?: boolean;
 }) {
   const link = item.link !== null && isElmsUrl(item.link) ? item.link : null;
+  // Flush with the page's column, the kit's row. The checkbox's and the
+  // link's targets reach into the row's padding, so a phone gets 44px
+  // without a taller row.
   return (
-    <li
+    <ListRow
+      as="li"
+      align="start"
       data-testid="todo-item"
-      className="flex items-start gap-1 border-hairline border-b last:border-b-0 md:gap-2"
+      className="px-0"
+      lead={
+        <TodoCheckbox
+          title={item.title}
+          done={done}
+          onToggle={onToggle}
+          disabled={preview}
+          className="-my-3 -mr-2 -ml-3 md:-my-1.5 md:-mr-1.5 md:-ml-2"
+        />
+      }
+      secondary={
+        <>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {showCourse ? (
+              <CourseTag code={course} label={item.courseLabel} color={color} />
+            ) : null}
+            <span className="tnum">{when ?? dueTimeLabel(item)}</span>
+            <span>{item.source === "elms" ? "From ELMS" : "From a file"}</span>
+            {item.gradescope ? <Tag>Gradescope</Tag> : null}
+            {item.exam ? <Tag dashed>Exam</Tag> : null}
+          </span>
+          {note ? <span className="mt-1 block">{note}</span> : null}
+        </>
+      }
+      action={
+        link && !preview ? (
+          <WithTooltip label="Open in ELMS">
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open ${item.title} in ELMS`}
+              className={cn(
+                TARGET,
+                "-my-3 text-muted transition-colors hover:bg-hover hover:text-fg md:-my-1.5",
+              )}
+            >
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          </WithTooltip>
+        ) : undefined
+      }
     >
-      <TodoCheckbox
-        title={item.title}
-        done={done}
-        onToggle={onToggle}
-        disabled={preview}
-        className="-ml-3 md:-ml-1.5"
-      />
-      <div className="min-w-0 flex-1 py-3 md:py-1.5">
-        <p
-          data-private=""
-          className={cn(
-            "break-words text-base",
-            done ? "text-muted line-through" : "text-fg",
-          )}
-        >
-          {item.title}
-        </p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted text-sm">
-          {showCourse ? (
-            <CourseTag code={course} label={item.courseLabel} color={color} />
-          ) : null}
-          <span className="tnum">{when ?? dueTimeLabel(item)}</span>
-          <span>{item.source === "elms" ? "From ELMS" : "From a file"}</span>
-          {item.gradescope ? <Tag>Gradescope</Tag> : null}
-          {item.exam ? <Tag dashed>Exam</Tag> : null}
-        </p>
-        {note ? <p className="mt-1 text-muted text-sm">{note}</p> : null}
-      </div>
-      {link && !preview ? (
-        <WithTooltip label="Open in ELMS">
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Open ${item.title} in ELMS`}
-            className={cn(
-              TARGET,
-              "-mr-3 text-muted transition-colors hover:bg-hover hover:text-fg md:-mr-1.5",
-            )}
-          >
-            <ExternalLink size={14} aria-hidden="true" />
-          </a>
-        </WithTooltip>
-      ) : null}
-    </li>
+      <p
+        data-private=""
+        className={cn(
+          "break-words font-medium",
+          done ? "text-muted line-through" : "text-fg",
+        )}
+      >
+        {item.title}
+      </p>
+    </ListRow>
   );
 }

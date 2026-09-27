@@ -1,5 +1,5 @@
 import { safeReturnPath } from "~/core/auth";
-import { Skeleton } from "~/ui/skeleton";
+import { RowSkeleton } from "~/ui/skeleton";
 import { AccountPage } from "./account-page";
 import { useAccount } from "./account-store";
 import { TestSignIn } from "./sign-in-panel";
@@ -16,7 +16,11 @@ export function TestSignInPage({ returnTo }: { returnTo: string | undefined }) {
   return (
     <AccountPage title="Test sign-in" busy={status === "loading"}>
       {status === "loading" ? (
-        <Skeleton className="h-9 w-full" />
+        <RowSkeleton
+          rows={1}
+          inset={false}
+          label="Checking whether you're signed in"
+        />
       ) : testMode ? (
         <TestSignIn returnTo={back} />
       ) : (
@@ -26,7 +30,7 @@ export function TestSignInPage({ returnTo }: { returnTo: string | undefined }) {
       )}
       <a
         href={back}
-        className="inline-flex text-fg underline-offset-4 hover:underline"
+        className="w-fit text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
       >
         Back to Terpsicle
       </a>
