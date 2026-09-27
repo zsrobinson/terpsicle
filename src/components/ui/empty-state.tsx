@@ -49,6 +49,11 @@ type EmptyStateProps = {
   align?: "start" | "center";
   /** `h1` when it's the whole page (a first visit); `h2` in a page; `h3` in a panel. */
   headingLevel?: 1 | 2 | 3;
+  /**
+   * One small question every path needs answered first, between the
+   * sentence and the actions (Plan's "I started at UMD in"). Rarely needed.
+   */
+  children?: ReactNode;
   className?: string;
 } & (
   | {
@@ -79,6 +84,7 @@ export function EmptyState(props: EmptyStateProps) {
     secondary,
     quiet,
     equal,
+    children,
     className,
   } = props;
   const Heading = `h${headingLevel}` as const;
@@ -101,6 +107,7 @@ export function EmptyState(props: EmptyStateProps) {
         </Heading>
         <p className="text-pretty text-muted">{line}</p>
       </div>
+      {children}
       <div
         className={cn(
           "mt-1 flex flex-wrap items-center gap-3",

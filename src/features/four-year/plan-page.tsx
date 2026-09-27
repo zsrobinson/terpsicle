@@ -16,10 +16,10 @@ import { useAccount } from "~/features/auth/account-store";
 import { InstallAppButton } from "~/features/pwa/install-entry";
 import { SitePage } from "~/features/site/site-page";
 import { readSidebarWidth } from "~/state/sidebar-width-pref";
-import { Skeleton } from "~/ui/skeleton";
+import { PageSkeleton } from "~/ui/skeleton";
 import { Board, PhoneBoard } from "./board";
 import { fourYearDb, startFourYear, useDocDepts } from "./data";
-import { EmptyState } from "./empty-state";
+import { PlanFirstVisit } from "./first-visit";
 import { ImportCheck, useImportRecognized } from "./import-panel";
 import { resetTranscriptImport } from "./import-state";
 import {
@@ -110,18 +110,6 @@ function usePlanSync(ready: boolean) {
       stop?.();
     };
   }, [ready, signedIn, userId]);
-}
-
-function Loading() {
-  return (
-    <div className="space-y-3" data-testid="plan-loading">
-      <Skeleton className="h-8 w-48" />
-      <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    </div>
-  );
 }
 
 /** ⌘Z and ⇧⌘Z, `/` Search, `1`–`5` the views, Esc closes a course. */
@@ -344,11 +332,13 @@ export function PlanPage({ nav, view }: { nav: PlanNav; view: ReactNode }) {
       {doc && phase !== "loading" ? (
         <Workspace nav={nav} view={view} />
       ) : (
-        <SitePage layout="wide">
+        // The first visit, and the moment before the plans are read, are
+        // a page like Todo's front door.
+        <SitePage layout="note">
           {phase === "loading" ? (
-            <Loading />
+            <PageSkeleton label="Loading your four-year plans" />
           ) : (
-            <EmptyState today={today} nav={nav} />
+            <PlanFirstVisit today={today} nav={nav} />
           )}
         </SitePage>
       )}

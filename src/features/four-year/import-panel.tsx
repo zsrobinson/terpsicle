@@ -28,6 +28,9 @@ import type { FourYearTerm } from "~/core/schema/four-year";
 import { useCourseIndex } from "~/state/course-index-store";
 import { newLocalId } from "~/state/ids";
 import { Button } from "~/ui/button";
+import { InlineError } from "~/ui/inline-error";
+import { Input, Textarea } from "~/ui/input";
+import { SegmentedControl } from "~/ui/segmented-control";
 import { WithTooltip } from "~/ui/tooltip";
 import { importTranscript } from "./actions";
 import { currentCourseLookup } from "./data";
@@ -100,45 +103,36 @@ function ChoiceGroup({
 }) {
   const options = row.line.genEds[group] ?? [];
   const chosen = checks.choices[row.key]?.[group];
-  const radioName = useId();
   return (
-    <fieldset className="flex flex-wrap items-center gap-1.5 pt-1">
-      <legend className="float-left mr-0.5 text-muted text-xs">
-        <span className="sr-only">{name} </span>Counts as
-      </legend>
-      {options.map((o) => {
-        const label = GEN_ED_LABELS[o.code];
-        return (
-          <WithTooltip
-            key={o.code}
-            label={`Count ${name} for ${o.code}${label ? ` (${label})` : ""}${o.condition ? `, ${o.condition}` : ""}`}
-          >
-            <label
-              className={cn(
-                "flex h-11 cursor-pointer items-center border px-2 font-mono text-xs transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-fg md:h-6",
-                chosen === o.code
-                  ? "border-product-plan bg-product-plan-soft text-fg"
-                  : "border-hairline-strong text-muted hover:bg-hover hover:text-fg",
-              )}
-            >
-              <input
-                type="radio"
-                name={radioName}
-                value={o.code}
-                checked={chosen === o.code}
-                onChange={() => onChoose(o.code)}
-                className="sr-only"
-              />
-              {o.code}
-              {o.condition ? "*" : ""}
-            </label>
-          </WithTooltip>
-        );
-      })}
+    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+      <span aria-hidden="true" className="text-muted text-xs">
+        Counts as
+      </span>
+      <SegmentedControl<GenEdCode | "">
+        label={`${name} counts as`}
+        // Nothing's chosen until the person picks: Testudo says "or".
+        value={chosen ?? ""}
+        onValueChange={(code) => {
+          if (code !== "") onChoose(code);
+        }}
+        options={options.map((o) => {
+          const label = GEN_ED_LABELS[o.code];
+          return {
+            value: o.code,
+            label: (
+              <span className="ident">
+                {o.code}
+                {o.condition ? "*" : ""}
+              </span>
+            ),
+            hint: `Count ${name} for ${o.code}${label ? ` (${label})` : ""}${o.condition ? `, ${o.condition}` : ""}`,
+          };
+        })}
+      />
       {chosen === undefined ? (
         <span className="text-muted text-xs">Pick one</span>
       ) : null}
-    </fieldset>
+    </div>
   );
 }
 
@@ -174,7 +168,7 @@ function MappingField({
         Which UMD course is it, if any?
       </label>
       <WithTooltip label="A UMD course code, like CHEM131. Leave it empty to keep it as credit.">
-        <input
+        <Input
           id={id}
           list={suggestions.length > 0 ? listId : undefined}
           value={text}
@@ -182,7 +176,7 @@ function MappingField({
           spellCheck={false}
           onChange={(event) => onType(event.target.value)}
           placeholder={pattern ? `${pattern.slice(0, 5)}…` : "Optional"}
-          className="h-11 w-36 border border-hairline-strong bg-raised px-2 font-mono text-base uppercase outline-none placeholder:normal-case placeholder:text-faint focus-visible:border-fg md:h-7 md:text-sm"
+          className="ident w-36 uppercase placeholder:font-sans placeholder:normal-case"
         />
       </WithTooltip>
       {suggestions.length > 0 ? (
@@ -259,7 +253,7 @@ function Row({
           <span
             className={cn(
               "min-w-0 truncate font-semibold",
-              line.code !== null && "font-mono",
+              line.code !== null && "ident",
             )}
           >
             {line.code ?? line.title}
@@ -438,7 +432,7 @@ export function ImportCheck({ columns = false }: { columns?: boolean }) {
                   // biome-ignore lint/suspicious/noArrayIndexKey: the list only changes with the paste
                   key={i}
                   data-private
-                  className="break-words font-mono text-muted text-xs"
+                  className="ident break-words text-muted text-xs"
                 >
                   {raw}
                 </li>
@@ -545,7 +539,7 @@ export function ImportPanel() {
         </p>
         <div className="space-y-1">
           <WithTooltip label="Paste the whole Unofficial Transcript page">
-            <textarea
+            <Textarea
               ref={input}
               id={IMPORT_INPUT_ID}
               data-private
@@ -557,7 +551,7 @@ export function ImportPanel() {
               spellCheck={false}
               rows={recognized ? 3 : 6}
               placeholder="Paste here"
-              className="block w-full resize-y border border-hairline-strong bg-raised px-2.5 py-2 font-mono text-base outline-none placeholder:font-sans placeholder:text-faint focus-visible:border-fg md:text-xs"
+              className="ident block resize-y placeholder:font-sans md:text-xs"
             />
           </WithTooltip>
           {text !== "" ? (
@@ -569,7 +563,7 @@ export function ImportPanel() {
                   setTranscriptText("");
                   input.current?.focus();
                 }}
-                className="ml-auto flex h-11 md:h-6"
+                className="ml-auto flex"
               >
                 <X aria-hidden="true" />
                 Clear the paste
@@ -629,14 +623,10 @@ export function ImportPanel() {
                 Testudo says "or", then import.
               </p>
             ) : null}
-            {error ? (
-              <p role="alert" className="text-sm">
-                {error}
-              </p>
-            ) : null}
+            {error ? <InlineError message={error} className="py-0" /> : null}
             <WithTooltip label="Add these to your plan. Undo takes it back.">
               <Button
-                className="h-11 w-full md:h-8"
+                className="w-full"
                 disabled={busy || pending > 0 || included.length === 0}
                 onClick={() => void run()}
               >

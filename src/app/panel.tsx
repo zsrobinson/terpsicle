@@ -40,13 +40,10 @@ const STICKY_LEVELS = 2;
 
 /** The scrolling part of a panel, under its header. */
 export function PanelBody({
-  label,
   focusable = false,
   className,
   children,
 }: {
-  /** Names it as a region, for a panel whose header doesn't. */
-  label?: string;
   /**
    * A stop for Tab, so the keyboard can scroll it: for a panel that may
    * have nothing focusable in it (GenEd with every category covered).
@@ -55,12 +52,10 @@ export function PanelBody({
   className?: string;
   children: ReactNode;
 }) {
-  const Body = label ? "section" : "div";
   return (
-    <Body
+    <div
       // The phone drawer measures this to pick a height that shows it.
       data-panel-body=""
-      aria-label={label}
       tabIndex={focusable ? 0 : undefined}
       className={cn(
         "scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-y-contain",
@@ -77,7 +72,7 @@ export function PanelBody({
       }}
     >
       {children}
-    </Body>
+    </div>
   );
 }
 

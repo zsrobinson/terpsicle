@@ -158,20 +158,28 @@ afterEach(() => {
 });
 
 describe("the first visit", () => {
-  it("offers two ways in, and starts a plan from the semester you pick", async () => {
+  it("offers two equal ways in and a quiet third, from the semester you pick", async () => {
     const user = renderPlan();
-    expect(await screen.findByText("Plan your four years")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Paste your transcript" }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Plan your four years",
+      }),
     ).toBeVisible();
+    for (const name of ["Import your transcript", "Start from a sample plan"])
+      expect(screen.getByRole("button", { name })).toHaveAttribute(
+        "data-slot",
+        "button",
+      );
     expect(screen.queryByText("Coming next")).toBeNull();
-    expect(screen.getByLabelText("I started at UMD in")).toHaveValue("202608");
+    const started = screen.getByLabelText("I started at UMD in");
+    expect(started).toHaveTextContent("Fall 2026");
 
-    await user.selectOptions(
-      screen.getByLabelText("I started at UMD in"),
-      "202508",
+    await user.click(started);
+    await user.click(await screen.findByRole("option", { name: "Fall 2025" }));
+    await user.click(
+      screen.getByRole("button", { name: "or add courses yourself" }),
     );
-    await user.click(screen.getByRole("button", { name: "Start planning" }));
 
     expect(await screen.findByText("My plan")).toBeVisible();
     for (const term of ["Before UMD", "Fall 2025", "Spring 2029"])

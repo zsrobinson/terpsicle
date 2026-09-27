@@ -24,6 +24,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
+import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   deleteDoc,
@@ -33,7 +34,6 @@ import {
   renameDoc,
   setFirstTerm,
 } from "./actions";
-import { MENU_ITEM } from "./block";
 import { useModel, useProblemCounts } from "./model";
 import { useFourYear } from "./store";
 import { planView } from "./views";
@@ -62,7 +62,7 @@ function RenameField({
     onDone();
   };
   return (
-    <input
+    <Input
       // biome-ignore lint/a11y/noAutofocus: it replaces the name the person just chose to rename
       autoFocus
       aria-label="Plan name"
@@ -75,7 +75,7 @@ function RenameField({
         if (event.key === "Enter") finish(true);
         if (event.key === "Escape") finish(false);
       }}
-      className="h-8 w-40 min-w-0 rounded-md border border-hairline-strong bg-raised px-2 font-medium text-base outline-none"
+      className="w-40 font-medium"
     />
   );
 }
@@ -107,11 +107,7 @@ function DocMenu({ onRename }: { onRename: () => void }) {
           <>
             <DropdownMenuLabel>Your four-year plans</DropdownMenuLabel>
             {docs.map((d) => (
-              <DropdownMenuItem
-                key={d.id}
-                className={MENU_ITEM}
-                onSelect={() => setActive(d.id)}
-              >
+              <DropdownMenuItem key={d.id} onSelect={() => setActive(d.id)}>
                 <span className="min-w-0 flex-1 truncate">{d.name}</span>
                 {d.id === doc.id ? <Check aria-hidden="true" /> : null}
               </DropdownMenuItem>
@@ -119,23 +115,15 @@ function DocMenu({ onRename }: { onRename: () => void }) {
             <DropdownMenuSeparator />
           </>
         ) : null}
-        <DropdownMenuItem className={MENU_ITEM} onSelect={onRename}>
-          Rename
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={MENU_ITEM}
-          onSelect={() => duplicateDoc(doc)}
-        >
+        <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => duplicateDoc(doc)}>
           Duplicate
         </DropdownMenuItem>
-        <DropdownMenuItem
-          className={MENU_ITEM}
-          onSelect={() => newDoc(doc.firstTermId)}
-        >
+        <DropdownMenuItem onSelect={() => newDoc(doc.firstTermId)}>
           New four-year plan
         </DropdownMenuItem>
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className={MENU_ITEM}>
+          <DropdownMenuSubTrigger>
             Starts in {fourYearTermLabel(doc.firstTermId)}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-[180px]">
@@ -144,11 +132,7 @@ function DocMenu({ onRename }: { onRename: () => void }) {
               onValueChange={(term) => setFirstTerm(doc, term)}
             >
               {firstTermChoices(today).map((term) => (
-                <DropdownMenuRadioItem
-                  key={term}
-                  value={term}
-                  className={MENU_ITEM}
-                >
+                <DropdownMenuRadioItem key={term} value={term}>
                   {fourYearTermLabel(term)}
                 </DropdownMenuRadioItem>
               ))}
@@ -157,14 +141,11 @@ function DocMenu({ onRename }: { onRename: () => void }) {
         </DropdownMenuSub>
         <DropdownMenuSeparator />
         {Object.keys(doc.grades).length > 0 ? (
-          <DropdownMenuItem
-            className={MENU_ITEM}
-            onSelect={() => removeGrades(doc)}
-          >
+          <DropdownMenuItem onSelect={() => removeGrades(doc)}>
             Remove grades
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem className={MENU_ITEM} onSelect={() => deleteDoc(doc)}>
+        <DropdownMenuItem onSelect={() => deleteDoc(doc)}>
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>

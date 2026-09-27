@@ -52,8 +52,9 @@ test("View schedule makes Spring's plan, View plan comes back, and the second tr
   isMobile,
 }) => {
   await page.goto("/plan");
-  await page.getByLabel("I started at UMD in").selectOption("202508");
-  await page.getByRole("button", { name: "Start planning" }).click();
+  await page.getByLabel("I started at UMD in").click();
+  await page.getByRole("option", { name: "Fall 2025" }).click();
+  await page.getByRole("button", { name: "or add courses yourself" }).click();
   await add(page, isMobile, "CMSC351", "Add CMSC351 to Spring 2027");
   await add(page, isMobile, "STAT400", "Add STAT400 to Spring 2027");
   await add(page, isMobile, "cmsc4xx", "Add CMSC4XX to Spring 2027");
@@ -133,8 +134,9 @@ test("a second visit in the same page fills the empty plan an earlier visit made
   isMobile,
 }) => {
   await page.goto("/plan");
-  await page.getByLabel("I started at UMD in").selectOption("202508");
-  await page.getByRole("button", { name: "Start planning" }).click();
+  await page.getByLabel("I started at UMD in").click();
+  await page.getByRole("option", { name: "Fall 2025" }).click();
+  await page.getByRole("button", { name: "or add courses yourself" }).click();
   await add(page, isMobile, "CMSC351", "Add CMSC351 to Spring 2027");
   await add(page, isMobile, "STAT400", "Add STAT400 to Spring 2027");
 

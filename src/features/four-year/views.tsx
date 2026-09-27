@@ -89,18 +89,19 @@ export function ProblemsBadge({ className }: { className?: string }) {
  */
 export function PlanView({
   tab,
+  status,
   children,
 }: {
   tab: PlanTab;
+  /** The header's one line: "5 of 11 categories covered", "1 problem". */
+  status?: ReactNode;
   children: ReactNode;
 }) {
   const view = planView(tab);
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <PanelHeader title={view.label} />
-      <PanelBody label={view.tip} focusable>
-        {children}
-      </PanelBody>
-    </div>
+    <section aria-label={view.tip} className="flex min-h-0 flex-1 flex-col">
+      <PanelHeader title={view.label} sub={status} />
+      <PanelBody focusable>{children}</PanelBody>
+    </section>
   );
 }

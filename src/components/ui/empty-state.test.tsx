@@ -33,6 +33,32 @@ describe("EmptyState", () => {
     expect(quiet).toHaveClass("underline");
   });
 
+  it("puts a question the paths share between the sentence and the actions", async () => {
+    renderInRouter(
+      <EmptyState
+        equal
+        title="Plan your four years"
+        line="Lay out every semester."
+        primary={{ label: "Import your transcript", to: "/plan" }}
+        secondary={{ label: "Start from a sample plan", to: "/plan" }}
+      >
+        <label>
+          I started at UMD in <input />
+        </label>
+      </EmptyState>,
+    );
+    const question = await screen.findByLabelText("I started at UMD in");
+    const line = screen.getByText("Lay out every semester.");
+    const action = screen.getByRole("link", { name: "Import your transcript" });
+    expect(
+      line.compareDocumentPosition(question) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      question.compareDocumentPosition(action) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("gives equal paths two filled buttons of one size, and a third way as the quiet link", async () => {
     const onImport = vi.fn();
     renderInRouter(

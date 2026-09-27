@@ -123,7 +123,9 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
     const laptop = await device(browser, baseURL);
     await laptop.clock.setFixedTime(new Date("2026-09-26T16:00:00Z"));
     await laptop.goto("/plan");
-    await laptop.getByRole("button", { name: "Paste your transcript" }).click();
+    await laptop
+      .getByRole("button", { name: "Import your transcript" })
+      .click();
     await laptop.getByLabel("Paste your unofficial transcript").fill(PASTE);
     await laptop
       .getByRole("group", { name: /PSYC100/ })

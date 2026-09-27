@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { isChunkLoadError } from "~/app/panel-load-boundary";
 import {
   type FourYearTemplate,
   FourYearTemplateSchema,
@@ -6,11 +7,10 @@ import {
 
 // Sample plans (docs/V3.md §2.11): hand-curated JSON in ./templates, one file
 // per major. Vite's glob makes each file its own chunk, loaded when the
-// Samples tab opens, so `/plan` doesn't carry them. Each is validated on
+// Samples view opens, so `/plan` doesn't carry them. Each is validated on
 // load, and one that doesn't validate is skipped and logged, never fatal.
-// Not a route loader: `/plan` renders the board and the open doc whatever
-// the tab, and a loader keyed on `tab` would hold the whole page's
-// navigation for one side-panel tab; this loads inside the tab instead.
+// Not the route's loader: the Samples route is preloaded with every view
+// (plan-page.tsx), and the files wait until the view is actually open.
 
 const FILES = import.meta.glob<unknown>("./templates/*.json", {
   import: "default",
@@ -40,25 +40,39 @@ export async function loadTemplates(): Promise<readonly FourYearTemplate[]> {
 export type TemplatesState =
   | { readonly phase: "loading" }
   | { readonly phase: "ready"; readonly templates: readonly FourYearTemplate[] }
-  | { readonly phase: "failed" };
+  | {
+      readonly phase: "failed";
+      /**
+       * A file that didn't arrive: a failed import stays failed until the
+       * page loads again, so trying again means reloading.
+       */
+      readonly chunk: boolean;
+    };
 
-/** The sample plans, loading them the first time they're shown. */
-export function useTemplates(): TemplatesState {
+/** The sample plans, loading them the first time they're shown; `retry` loads them again. */
+export function useTemplates(): TemplatesState & { retry: () => void } {
   const [state, setState] = useState<TemplatesState>({ phase: "loading" });
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let live = true;
+    // The attempt is what re-runs this.
+    void attempt;
     loadTemplates().then(
       (templates) => {
         if (live) setState({ phase: "ready", templates });
       },
       (error: unknown) => {
         console.error(error);
-        if (live) setState({ phase: "failed" });
+        if (live) setState({ phase: "failed", chunk: isChunkLoadError(error) });
       },
     );
     return () => {
       live = false;
     };
+  }, [attempt]);
+  const retry = useCallback(() => {
+    setState({ phase: "loading" });
+    setAttempt((n) => n + 1);
   }, []);
-  return state;
+  return { ...state, retry };
 }

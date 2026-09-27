@@ -9,7 +9,7 @@ import {
   useCourseIndex,
 } from "~/state/course-index-store";
 import { TooltipProvider } from "~/ui/tooltip";
-import { EmptyState } from "./empty-state";
+import { PlanFirstVisit } from "./first-visit";
 import {
   PlanModelProvider,
   type PlanNav,
@@ -205,9 +205,9 @@ describe("the Samples tab", () => {
 
   it("counts semesters from the plan's start, which the tab can change", async () => {
     const { user, card } = await renderPanel();
-    await user.selectOptions(
-      screen.getByLabelText("Your plan starts in"),
-      "202601",
+    await user.click(screen.getByLabelText("Your plan starts in"));
+    await user.click(
+      await screen.findByRole("option", { name: "Spring 2026" }),
     );
     expect(openDoc().firstTermId).toBe("202601");
     await waitFor(() =>
@@ -248,12 +248,12 @@ describe("the first visit", () => {
     const go = vi.fn();
     render(
       <TooltipProvider>
-        <EmptyState today={TODAY} nav={nav(go)} />
+        <PlanFirstVisit today={TODAY} nav={nav(go)} />
       </TooltipProvider>,
     );
     await userEvent
       .setup()
-      .click(screen.getByRole("button", { name: "Pick a sample plan" }));
+      .click(screen.getByRole("button", { name: "Start from a sample plan" }));
     expect(useFourYear.getState().history.present.docs).toHaveLength(1);
     expect(openDoc().firstTermId).toBe("202608");
     expect(go).toHaveBeenCalledWith({ tab: "templates" });

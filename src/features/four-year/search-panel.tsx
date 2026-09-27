@@ -1,6 +1,7 @@
 import { Check, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
+import { PanelNote } from "~/app/panel";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
 import {
   searchFourYearCourses,
@@ -12,7 +13,11 @@ import { type CourseSearchRow, GEN_ED_LABELS } from "~/core/schema";
 import { type FourYearTerm, WILDCARD_CREDITS } from "~/core/schema/four-year";
 import { useCourseIndex } from "~/state/course-index-store";
 import { Button } from "~/ui/button";
-import { Skeleton } from "~/ui/skeleton";
+import { InlineError } from "~/ui/inline-error";
+import { SearchField } from "~/ui/input";
+import { Kbd } from "~/ui/kbd";
+import { ListRow } from "~/ui/list-row";
+import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   addCourse,
@@ -80,15 +85,43 @@ function ResultRow({
     .filter((e) => e.kind === "course" && e.code === code && e.term !== addedTo)
     .map((e) => fourYearTermLabel(e.term));
   return (
-    <li className="flex items-center gap-1 border-hairline border-b pr-2">
+    <ListRow
+      as="li"
+      className="hover:bg-hover"
+      action={
+        addedTo ? (
+          <WithTooltip label={`Already in ${fourYearTermLabel(addedTo)}`}>
+            <span
+              data-testid="plan-search-added"
+              className="flex items-center gap-1 text-muted text-sm"
+            >
+              <Check size={13} aria-hidden="true" />
+              Added
+              <span className="sr-only"> to {fourYearTermLabel(addedTo)}</span>
+            </span>
+          </WithTooltip>
+        ) : (
+          <WithTooltip label={actionLabel} shortcut={top ? ENTER : undefined}>
+            <Button
+              variant="outline"
+              size="row"
+              aria-label={actionLabel}
+              onClick={onAct}
+            >
+              {action}
+            </Button>
+          </WithTooltip>
+        )
+      }
+    >
       <WithTooltip label={`About ${code}`}>
         <button
           type="button"
           onClick={() => nav.go({ course: code }, { drill: true })}
-          className="min-w-0 flex-1 px-4 py-1.5 text-left hover:bg-hover"
+          className="block w-full min-w-0 text-left"
         >
           <span className="flex items-baseline gap-2">
-            <span className="font-mono font-semibold">{code}</span>
+            <span className="ident font-semibold">{code}</span>
             <span className="tnum text-muted text-xs">
               {searchRowCredits(row)}
             </span>
@@ -100,37 +133,13 @@ function ResultRow({
           </span>
           <span className="block truncate text-muted text-sm">{title}</span>
           {genEds.length > 0 ? (
-            <span className="block truncate font-mono text-2xs text-muted">
+            <span className="ident block truncate text-2xs text-muted">
               {genEds.join(" · ")}
             </span>
           ) : null}
         </button>
       </WithTooltip>
-      {addedTo ? (
-        <WithTooltip label={`Already in ${fourYearTermLabel(addedTo)}`}>
-          <span
-            data-testid="plan-search-added"
-            className="flex h-11 shrink-0 items-center gap-1 px-2 text-muted text-sm md:h-6"
-          >
-            <Check size={13} aria-hidden="true" />
-            Added
-            <span className="sr-only"> to {fourYearTermLabel(addedTo)}</span>
-          </span>
-        </WithTooltip>
-      ) : (
-        <WithTooltip label={actionLabel} shortcut={top ? ENTER : undefined}>
-          <Button
-            variant="outline"
-            size="row"
-            aria-label={actionLabel}
-            className="h-11 md:h-6"
-            onClick={onAct}
-          >
-            {action}
-          </Button>
-        </WithTooltip>
-      )}
-    </li>
+    </ListRow>
   );
 }
 
@@ -222,13 +231,12 @@ export function SearchPanel() {
 
   const scopeLine = resolving ? (
     <>
-      Picking a course for{" "}
-      <span className="font-mono">{entryName(resolving)}</span> in{" "}
-      {fourYearTermLabel(resolving.term)}
+      Picking a course for <span className="ident">{entryName(resolving)}</span>{" "}
+      in {fourYearTermLabel(resolving.term)}
     </>
   ) : genEd ? (
     <>
-      Courses that count for <span className="font-mono">{genEd}</span>
+      Courses that count for <span className="ident">{genEd}</span>
       {GEN_ED_LABELS[genEd] ? ` (${GEN_ED_LABELS[genEd]})` : ""}
     </>
   ) : null;
@@ -236,35 +244,41 @@ export function SearchPanel() {
   return (
     <div className="flex flex-col">
       <div className="space-y-2 border-hairline border-b px-4 py-3">
-        <label htmlFor={SEARCH_INPUT_ID} className="sr-only">
-          Search courses
-        </label>
-        <WithTooltip
-          label={
-            resolving
-              ? "Search every course in Testudo. Enter picks the top one"
-              : "Search every course in Testudo. Enter adds the top one"
+        <SearchField
+          ref={input}
+          id={SEARCH_INPUT_ID}
+          aria-label="Search courses"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          value={query}
+          onChange={(event) => type(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+            event.preventDefault();
+            actOnTop();
+          }}
+          onClear={() => {
+            type("");
+            input.current?.focus();
+          }}
+          placeholder="CMSC351, a title, CMSC4XX or DSHS"
+          hint={
+            <WithTooltip
+              label={
+                resolving
+                  ? "Search every course in Testudo from anywhere. Enter picks the top one"
+                  : "Search every course in Testudo from anywhere. Enter adds the top one"
+              }
+              shortcut="/"
+            >
+              <span>
+                <Kbd>/</Kbd>
+              </span>
+            </WithTooltip>
           }
-          shortcut="/"
-        >
-          <input
-            ref={input}
-            id={SEARCH_INPUT_ID}
-            type="search"
-            autoComplete="off"
-            spellCheck={false}
-            value={query}
-            onChange={(event) => type(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" || event.nativeEvent.isComposing)
-                return;
-              event.preventDefault();
-              actOnTop();
-            }}
-            placeholder="CMSC351, a title, CMSC4XX or DSHS"
-            className="h-11 w-full border border-hairline-strong bg-raised px-2.5 text-base outline-none placeholder:text-faint focus-visible:border-fg md:h-8"
-          />
-        </WithTooltip>
+        />
         <p className="flex min-h-6 items-center gap-2 text-muted text-sm">
           <span className="min-w-0 flex-1">
             {scopeLine ?? (
@@ -280,7 +294,6 @@ export function SearchPanel() {
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Search every course"
-                className="size-11 md:size-6"
                 onClick={() =>
                   nav.go({
                     wildcard: undefined,
@@ -297,55 +310,47 @@ export function SearchPanel() {
       </div>
 
       {offer ? (
-        <div className="flex items-center gap-2 border-hairline border-b bg-panel py-1.5 pr-2 pl-4">
-          <span className="min-w-0 flex-1">
-            <span className="block">
-              Add a placeholder:{" "}
-              <span className="font-mono font-semibold">
-                {offer.kind === "pattern" ? offer.pattern : offer.code}
-              </span>
-            </span>
-            <span className="block truncate text-muted text-sm">
+        <ListRow
+          className="border-b"
+          action={
+            <WithTooltip label={`Add it to ${targetName}`} shortcut={ENTER}>
+              <Button
+                size="row"
+                aria-label={`Add ${offer.kind === "pattern" ? offer.pattern : wildcardLabel(offer)} to ${targetName}`}
+                onClick={() => addOffer(offer)}
+              >
+                <Plus aria-hidden="true" />
+                Add
+              </Button>
+            </WithTooltip>
+          }
+          secondary={
+            <span className="block truncate">
               {offer.kind === "pattern"
                 ? wildcardLabel(offer)
                 : `Any ${wildcardDetail(offer) ?? offer.code} course`}
               , {WILDCARD_CREDITS.default} cr until you pick one
             </span>
+          }
+        >
+          Add a placeholder:{" "}
+          <span className="ident font-semibold">
+            {offer.kind === "pattern" ? offer.pattern : offer.code}
           </span>
-          <WithTooltip label={`Add it to ${targetName}`} shortcut={ENTER}>
-            <Button
-              size="row"
-              aria-label={`Add ${offer.kind === "pattern" ? offer.pattern : wildcardLabel(offer)} to ${targetName}`}
-              className="h-11 md:h-6"
-              onClick={() => addOffer(offer)}
-            >
-              <Plus aria-hidden="true" />
-              Add
-            </Button>
-          </WithTooltip>
-        </div>
+        </ListRow>
       ) : null}
 
       {state === "error" && !rows ? (
-        <div className="space-y-2 px-4 py-4">
-          <p>
-            We couldn't load the course list. Check your connection and try
-            again.
-          </p>
-          <WithTooltip label="Load the course list again">
-            <Button variant="outline" size="sm" onClick={() => void ensure()}>
-              Try again
-            </Button>
-          </WithTooltip>
-        </div>
+        <InlineError
+          className="px-4"
+          message="We couldn't load the course list. Check your connection and try again."
+          onRetry={() => void ensure()}
+          retryTooltip="Load the course list again"
+        />
       ) : !result ? (
-        <div className="space-y-2 px-4 py-3" data-testid="plan-search-loading">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-9 w-full" />
-          ))}
-        </div>
+        <RowSkeleton rows={4} label="Loading the course list" />
       ) : result.total === 0 ? (
-        <p className="px-4 py-4 text-muted text-sm">
+        <PanelNote>
           {query.trim() === "" && !scopeLine
             ? "Type a course code, part of a title, a pattern like CMSC4XX or a GenEd code like DSHS."
             : resolving
@@ -353,7 +358,7 @@ export function SearchPanel() {
               : offer
                 ? null
                 : `Nothing matches "${query.trim()}".`}
-        </p>
+        </PanelNote>
       ) : (
         <>
           <ul aria-label="Courses">
@@ -388,10 +393,10 @@ export function SearchPanel() {
             )}
           </ul>
           {result.total > result.rows.length ? (
-            <p className="tnum px-4 py-3 text-muted text-xs">
+            <PanelNote className="tnum text-xs">
               Showing {result.rows.length} of {result.total}. Keep typing to
               narrow it down.
-            </p>
+            </PanelNote>
           ) : null}
         </>
       )}

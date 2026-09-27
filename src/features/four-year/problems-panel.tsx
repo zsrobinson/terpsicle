@@ -1,10 +1,14 @@
+import { cn } from "cn";
 import { track } from "~/app/analytics";
 import { MessageText } from "~/app/message-text";
+import { PanelNote } from "~/app/panel";
+import { problemCountWords } from "~/core/problems/count-words";
 import type { FourYearProblem } from "~/core/schema/four-year";
 import { Button } from "~/ui/button";
+import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { applyFix } from "./actions";
-import { useModel, usePlanNav } from "./model";
+import { useModel, usePlanNav, useProblemCounts } from "./model";
 import { PlanView } from "./views";
 
 // The Problems tab (V3 §2.8): prerequisites out of order, light semesters,
@@ -34,7 +38,38 @@ function Row({ problem }: { problem: FourYearProblem }) {
       ? subject.term
       : doc.entries.find((e) => e.id === subject?.entryId)?.term;
   return (
-    <li className="space-y-1 border-hairline border-b px-4 py-2">
+    <ListRow
+      as="li"
+      align="start"
+      lead={
+        // A warning's dot; a note has none (nothing turns red, V3 §2.8).
+        <span
+          aria-hidden="true"
+          className={cn(
+            "mt-1.5 block size-1.5",
+            problem.severity === "warning" && "bg-warn",
+          )}
+        />
+      }
+      secondary={
+        <>
+          <MessageText message={problem.detail} />
+          {problem.fix ? (
+            <span className="mt-1.5 block">
+              <WithTooltip label="Undo takes it back">
+                <Button
+                  variant="outline"
+                  size="row"
+                  onClick={() => applyFix(doc, problem)}
+                >
+                  {problem.fix.label}
+                </Button>
+              </WithTooltip>
+            </span>
+          ) : null}
+        </>
+      }
+    >
       <WithTooltip label="Show it in your semesters">
         <button
           type="button"
@@ -44,35 +79,12 @@ function Row({ problem }: { problem: FourYearProblem }) {
             if (term !== undefined) nav.go({ semester: term });
             requestAnimationFrame(() => reveal(problem));
           }}
-          className="flex w-full items-start gap-2 text-left font-medium hover:underline"
+          className="text-left font-medium hover:underline"
         >
-          {problem.severity === "warning" ? (
-            <span
-              aria-hidden="true"
-              className="mt-1.5 size-1.5 shrink-0 bg-warn"
-            />
-          ) : null}
-          <span>
-            <MessageText message={problem.title} />
-          </span>
+          <MessageText message={problem.title} />
         </button>
       </WithTooltip>
-      <p className="text-muted text-sm">
-        <MessageText message={problem.detail} />
-      </p>
-      {problem.fix ? (
-        <WithTooltip label="Undo takes it back">
-          <Button
-            variant="outline"
-            size="row"
-            className="h-11 md:h-6"
-            onClick={() => applyFix(doc, problem)}
-          >
-            {problem.fix.label}
-          </Button>
-        </WithTooltip>
-      ) : null}
-    </li>
+    </ListRow>
   );
 }
 
@@ -80,13 +92,10 @@ export function ProblemsPanel() {
   const { problems } = useModel();
   if (problems.length === 0)
     return (
-      <div className="space-y-1 px-4 py-4">
-        <p>No problems.</p>
-        <p className="text-muted text-sm">
-          Prerequisites out of order, light semesters, repeated courses and
-          courses Testudo hasn't offered lately show up here.
-        </p>
-      </div>
+      <PanelNote>
+        Prerequisites out of order, light semesters, repeated courses and
+        courses Testudo hasn't offered lately show up here.
+      </PanelNote>
     );
   return (
     <ul aria-label="Problems">
@@ -97,10 +106,15 @@ export function ProblemsPanel() {
   );
 }
 
+/** "1 problem · 2 notes", for the view's header: the bar's words. */
+function ProblemsStatusLine() {
+  return <>{problemCountWords(useProblemCounts())}</>;
+}
+
 /** The Problems view, on its route (`/plan/problems`). */
 export function ProblemsView() {
   return (
-    <PlanView tab="problems">
+    <PlanView tab="problems" status={<ProblemsStatusLine />}>
       <ProblemsPanel />
     </PlanView>
   );

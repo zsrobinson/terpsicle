@@ -54,12 +54,13 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
     page.getByRole("heading", { name: "Plan your four years" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Paste your transcript" }),
+    page.getByRole("button", { name: "Import your transcript" }),
   ).toBeVisible();
   await axe(page, "first visit");
 
-  await page.getByLabel("I started at UMD in").selectOption("202508");
-  await page.getByRole("button", { name: "Start planning" }).click();
+  await page.getByLabel("I started at UMD in").click();
+  await page.getByRole("option", { name: "Fall 2025" }).click();
+  await page.getByRole("button", { name: "or add courses yourself" }).click();
   await expect(page.getByRole("button", { name: /^My plan/ })).toBeVisible();
 
   // A course, from the semester's own "Add a course".

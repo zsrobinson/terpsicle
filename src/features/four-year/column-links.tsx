@@ -23,7 +23,7 @@ import { useModel } from "./model";
 const FOOT =
   "flex min-h-9 items-center gap-2 border-hairline border-t px-2 py-1.5 text-xs";
 const LINK =
-  "ml-auto inline-flex h-11 shrink-0 items-center gap-1 font-medium text-fg underline-offset-2 hover:underline md:h-7";
+  "ml-auto inline-flex h-7 shrink-0 items-center gap-1 font-medium text-fg underline-offset-2 hover:underline";
 
 export function ViewSchedule({ termId }: { termId: TermId }) {
   const { doc } = useModel();

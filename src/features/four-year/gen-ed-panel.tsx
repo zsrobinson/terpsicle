@@ -1,10 +1,12 @@
 import { cn } from "cn";
+import { PanelNote } from "~/app/panel";
 import {
   GEN_ED_REQUIREMENTS,
   type GenEdProgress,
   genEdProgressLabel,
 } from "~/core/four-year/gen-ed";
 import { Button } from "~/ui/button";
+import { GroupHeader, ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { useModel, usePlanNav } from "./model";
 import { focusSearch } from "./search-panel";
@@ -49,59 +51,55 @@ function Row({ p }: { p: GenEdProgress }) {
   const code = p.searchCodes[0];
   const codes = p.requirement.codes.join(", ");
   return (
-    <li className="flex items-center gap-2 px-4 py-1.5">
-      <Pips p={p} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate">
-          {p.requirement.label}{" "}
-          <span className="font-mono text-muted text-xs">{codes}</span>
-        </span>
-        <span className="tnum block text-muted text-xs">
+    <ListRow
+      as="li"
+      lead={<Pips p={p} />}
+      secondary={
+        <span className="tnum">
           {genEdProgressLabel(p)}
           {p.requirement.atLeast
             ? `, at least ${p.requirement.atLeast.count} ${p.requirement.atLeast.code}`
             : ""}
         </span>
+      }
+      trail={
+        !met && code ? (
+          <WithTooltip label={`Search for ${code} courses`}>
+            <Button
+              variant="ghost"
+              size="row"
+              onClick={() => {
+                nav.go({
+                  tab: "search",
+                  gened: code,
+                  wildcard: undefined,
+                  course: undefined,
+                  q: undefined,
+                });
+                focusSearch();
+              }}
+            >
+              Find a course
+            </Button>
+          </WithTooltip>
+        ) : undefined
+      }
+    >
+      <span className="block truncate">
+        {p.requirement.label}{" "}
+        <span className="ident text-muted text-xs">{codes}</span>
       </span>
-      {!met && code ? (
-        <WithTooltip label={`Search for ${code} courses`}>
-          <Button
-            variant="ghost"
-            size="row"
-            className="h-11 md:h-6"
-            onClick={() => {
-              nav.go({
-                tab: "search",
-                gened: code,
-                wildcard: undefined,
-                course: undefined,
-                q: undefined,
-              });
-              focusSearch();
-            }}
-          >
-            Find a course
-          </Button>
-        </WithTooltip>
-      ) : null}
-    </li>
+    </ListRow>
   );
 }
 
 export function GenEdPanel() {
   const { genEds } = useModel();
-  const met = genEds.progress.filter((p) => p.short === 0).length;
   return (
     <div className="pb-2">
-      <p className="tnum px-4 pt-3 pb-1 text-muted text-sm">
-        {met} of {GEN_ED_REQUIREMENTS.length} categories covered, counting
-        planned courses
-      </p>
       {GROUPS.map((group) => (
         <section key={group} aria-label={group}>
-          <h2 className="px-4 pt-3 pb-0.5 font-medium text-muted text-xs">
-            {group}
-          </h2>
+          <GroupHeader title={group} headingLevel={3} />
           <ul>
             {genEds.progress
               .filter((p) => p.requirement.group === group)
@@ -111,17 +109,29 @@ export function GenEdPanel() {
           </ul>
         </section>
       ))}
-      <p className="px-4 pt-3 text-muted text-xs">
+      <PanelNote className="text-xs">
         From Testudo's GenEd codes. Your degree audit is the official check.
-      </p>
+      </PanelNote>
     </div>
+  );
+}
+
+/** "5 of 11 categories covered", for the view's header. */
+export function GenEdStatus() {
+  const { genEds } = useModel();
+  const met = genEds.progress.filter((p) => p.short === 0).length;
+  return (
+    <span className="tnum">
+      {met} of {GEN_ED_REQUIREMENTS.length} categories covered, counting planned
+      courses
+    </span>
   );
 }
 
 /** The GenEd view, on its route (`/plan`). */
 export function GenEdView() {
   return (
-    <PlanView tab="gened">
+    <PlanView tab="gened" status={<GenEdStatus />}>
       <GenEdPanel />
     </PlanView>
   );

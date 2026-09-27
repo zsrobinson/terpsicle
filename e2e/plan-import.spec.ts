@@ -52,7 +52,7 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   isMobile,
 }) => {
   await page.goto("/plan");
-  await page.getByRole("button", { name: "Paste your transcript" }).click();
+  await page.getByRole("button", { name: "Import your transcript" }).click();
   const box = page.getByLabel("Paste your unofficial transcript");
   await expect(box).toBeFocused();
   await expect(page).toHaveURL(/\/plan\/import/);

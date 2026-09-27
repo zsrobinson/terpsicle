@@ -20,7 +20,7 @@ import {
 } from "~/state/course-index-store";
 import { TooltipProvider } from "~/ui/tooltip";
 import { removeGrades } from "./actions";
-import { EmptyState } from "./empty-state";
+import { PlanFirstVisit } from "./first-visit";
 import { ImportPanel } from "./import-panel";
 import { resetTranscriptImport, useTranscriptImport } from "./import-state";
 import {
@@ -407,13 +407,13 @@ describe("the first visit's import card", () => {
     const go = vi.fn();
     render(
       <TooltipProvider>
-        <EmptyState today={TODAY} nav={nav(go)} />
+        <PlanFirstVisit today={TODAY} nav={nav(go)} />
       </TooltipProvider>,
     );
     expect(screen.queryByText("Coming next")).toBeNull();
     await userEvent
       .setup()
-      .click(screen.getByRole("button", { name: "Paste your transcript" }));
+      .click(screen.getByRole("button", { name: "Import your transcript" }));
     expect(useFourYear.getState().history.present.docs).toHaveLength(1);
     expect(go).toHaveBeenCalledWith({ tab: "import" });
     expect(track).toHaveBeenCalledWith("four_year_created", {
