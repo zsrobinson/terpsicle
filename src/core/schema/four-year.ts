@@ -106,6 +106,62 @@ export const FourYearDocSchema = z.object({
 });
 export type FourYearDoc = z.infer<typeof FourYearDocSchema>;
 
+// ---------- sample plans (§2.11) ----------
+
+/** A sample plan's block: a course, or a placeholder with its credits. Ids and terms come when it's added. */
+export const FourYearTemplateEntrySchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("course"), code: CourseCodeSchema }),
+  z.object({
+    kind: z.literal("wildcard"),
+    wildcard: WildcardSchema,
+    credits: z
+      .number()
+      .int()
+      .min(WILDCARD_CREDITS.min)
+      .max(WILDCARD_CREDITS.max),
+  }),
+]);
+export type FourYearTemplateEntry = z.infer<typeof FourYearTemplateEntrySchema>;
+
+export const FourYearTemplateSemesterSchema = z.object({
+  /** Counted from the plan's first semester: 0 is its first fall (or spring), 7 its last. */
+  index: z.number().int().min(0).max(7),
+  /** What the source says the semester adds up to; the template test checks it. */
+  credits: z.number().int().min(1).max(20),
+  entries: z.array(FourYearTemplateEntrySchema).min(1).max(10),
+});
+export type FourYearTemplateSemester = z.infer<
+  typeof FourYearTemplateSemesterSchema
+>;
+
+/**
+ * A hand-curated sample plan (`src/features/four-year/templates/<id>.json`),
+ * never scraped. `credit` is the line shown with it, linking `sourceUrl`.
+ */
+export const FourYearTemplateSchema = z.object({
+  id: z.string().regex(/^[a-z]{2,10}-\d{4}$/, "Expected an id like cmsc-2026"),
+  /** The major, as people say it: "Computer Science". */
+  name: z.string().min(1).max(60),
+  /** Whose plan it is: "Department of Computer Science". */
+  department: z.string().min(1).max(120),
+  college: z.string().min(1).max(120),
+  /** The catalog year it follows: "2026–27". */
+  year: z.string().min(1).max(20),
+  /** One line on what it covers and leaves to you. */
+  summary: z.string().min(1).max(200),
+  /** "From the Department of Computer Science's …": where it comes from, in words. */
+  credit: z.string().min(1).max(200),
+  sourceUrl: z.url({ protocol: /^https$/ }),
+  semesters: z
+    .array(FourYearTemplateSemesterSchema)
+    .min(1)
+    .max(8)
+    .refine((s) => new Set(s.map((x) => x.index)).size === s.length, {
+      message: "each semester index appears once",
+    }),
+});
+export type FourYearTemplate = z.infer<typeof FourYearTemplateSchema>;
+
 /** Derived, never stored (§2.3): from the academic calendar and today's date. */
 export const FourYearTermStatusSchema = z.enum([
   "done",

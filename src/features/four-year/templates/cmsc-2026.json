@@ -1,0 +1,276 @@
+{
+  "id": "cmsc-2026",
+  "name": "Computer Science",
+  "department": "Department of Computer Science",
+  "college": "College of Computer, Mathematical, and Natural Sciences",
+  "year": "2026–27",
+  "summary": "The General Track's math, CS courses and GenEds over eight semesters, leaving 16 credits for your upper-level concentration and electives.",
+  "credit": "A sample laid out from the Department of Computer Science's General Track requirements, 2026–27.",
+  "sourceUrl": "https://undergrad.cs.umd.edu/degree-requirements-cs-major",
+  "semesters": [
+    {
+      "index": 0,
+      "credits": 14,
+      "entries": [
+        {
+          "kind": "course",
+          "code": "MATH140"
+        },
+        {
+          "kind": "course",
+          "code": "CMSC131"
+        },
+        {
+          "kind": "course",
+          "code": "ENGL101"
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DSHU"
+          },
+          "credits": 3
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "credits": 14,
+      "entries": [
+        {
+          "kind": "course",
+          "code": "MATH141"
+        },
+        {
+          "kind": "course",
+          "code": "CMSC132"
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "FSOC"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DSHS"
+          },
+          "credits": 3
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "credits": 15,
+      "entries": [
+        {
+          "kind": "course",
+          "code": "CMSC216"
+        },
+        {
+          "kind": "course",
+          "code": "CMSC250"
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DSNL"
+          },
+          "credits": 4
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "SCIS"
+          },
+          "credits": 3
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "credits": 13,
+      "entries": [
+        {
+          "kind": "course",
+          "code": "CMSC330"
+        },
+        {
+          "kind": "course",
+          "code": "CMSC351"
+        },
+        {
+          "kind": "course",
+          "code": "MATH240"
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DSHU"
+          },
+          "credits": 3
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "credits": 12,
+      "entries": [
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "pattern",
+            "pattern": "CMSC4XX"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "pattern",
+            "pattern": "CMSC4XX"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "pattern",
+            "pattern": "STAT4XX"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DSNS"
+          },
+          "credits": 3
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "credits": 12,
+      "entries": [
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "pattern",
+            "pattern": "CMSC4XX"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "pattern",
+            "pattern": "CMSC4XX"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "FSPW"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DSHS"
+          },
+          "credits": 3
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "credits": 12,
+      "entries": [
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "pattern",
+            "pattern": "CMSC4XX"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "pattern",
+            "pattern": "CMSC4XX"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "SCIS"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DVUP"
+          },
+          "credits": 3
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "credits": 12,
+      "entries": [
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "pattern",
+            "pattern": "CMSC4XX"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DSSP"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DSSP"
+          },
+          "credits": 3
+        },
+        {
+          "kind": "wildcard",
+          "wildcard": {
+            "kind": "gen-ed",
+            "code": "DVCC"
+          },
+          "credits": 3
+        }
+      ]
+    }
+  ]
+}

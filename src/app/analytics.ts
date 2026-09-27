@@ -161,6 +161,8 @@ export interface AnalyticsEvents {
     skipped: number;
   };
   transcript_imported: { lines: number; keptGrades: boolean };
+  // Which sample plan, by its id ("cmsc-2026"), never what's in it.
+  template_applied: { template: string };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

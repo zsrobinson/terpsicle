@@ -9,6 +9,7 @@ export * from "./reducer";
 export * from "./remote";
 export * from "./search";
 export * from "./status";
+export * from "./templates";
 export * from "./terms";
 export * from "./transcript";
 export * from "./wildcards";

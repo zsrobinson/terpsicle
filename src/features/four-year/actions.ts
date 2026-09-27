@@ -1,5 +1,11 @@
 import { track } from "~/app/analytics";
 import { wildcardLabel } from "~/core/catalog/wildcard";
+import {
+  templateAddedLabel,
+  templateFit,
+  templateRef,
+  templateSemesters,
+} from "~/core/four-year/templates";
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import { importSummary } from "~/core/four-year/transcript";
 import { choicesForWildcard } from "~/core/four-year/wildcards";
@@ -16,6 +22,7 @@ import {
   type FourYearDoc,
   type FourYearEntry,
   type FourYearProblem,
+  type FourYearTemplate,
   type FourYearTerm,
   WILDCARD_CREDITS,
 } from "~/core/schema/four-year";
@@ -54,6 +61,14 @@ export function createDocForImport(firstTermId: TermId): void {
     dispatch({ type: "create", id: newLocalId(), firstTermId, now: nowIso() })
   )
     track("four_year_created", { source: "import" });
+}
+
+/** The empty state's "Start from a sample plan": a plan to add one to. */
+export function createDocForTemplates(firstTermId: TermId): void {
+  if (
+    dispatch({ type: "create", id: newLocalId(), firstTermId, now: nowIso() })
+  )
+    track("four_year_created", { source: "template" });
 }
 
 export function duplicateDoc(doc: FourYearDoc): void {
@@ -318,4 +333,52 @@ export function removeGrades(doc: FourYearDoc): void {
     { type: "remove-grades", docId: doc.id, now: nowIso() },
     `Removed the grades from ${doc.name}`,
   );
+}
+
+/**
+ * The Samples tab's "Add" (V3 §2.11): fills the plan's empty semesters from
+ * its first one, and never touches a semester that has something.
+ */
+export function applyTemplate(
+  doc: FourYearDoc,
+  template: FourYearTemplate,
+): boolean {
+  const { fills } = templateFit(doc, template);
+  const changed = dispatch(
+    {
+      type: "apply-template",
+      docId: doc.id,
+      template: templateRef(template),
+      semesters: templateSemesters(template, newLocalId),
+      now: nowIso(),
+    },
+    templateAddedLabel(template, fills.length),
+  );
+  if (changed) track("template_applied", { template: template.id });
+  return changed;
+}
+
+/** "Start a new plan from it": a new four-year plan with the sample, in one step Undo takes back. */
+export function newDocFromTemplate(
+  template: FourYearTemplate,
+  firstTermId: TermId,
+): void {
+  if (
+    dispatch(
+      {
+        type: "create",
+        id: newLocalId(),
+        firstTermId,
+        now: nowIso(),
+        template: {
+          ref: templateRef(template),
+          semesters: templateSemesters(template, newLocalId),
+        },
+      },
+      `Started a new four-year plan from the ${template.name} sample plan`,
+    )
+  ) {
+    track("four_year_created", { source: "template" });
+    track("template_applied", { template: template.id });
+  }
 }
