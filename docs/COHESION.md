@@ -66,19 +66,19 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 
 ### Phase 2: build the system
 - [ ] `AppFrame`: the global bar (products, account, feedback) with a slot for the product's own context. It replaces both `SiteHeader` and the scheduler's `TopBar` framing.
-- [ ] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes.
+- [x] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes. (`v3/page-kit`: `PageHeader`, `ProductPage`, `ViewSwitch`, `EmptyState`, `ListRow` and `GroupHeader`, `Card`, `RowSkeleton` and `PageSkeleton`, `InlineError`. The panel's one-line note is now `PanelNote`.)
 - [ ] Controls the inventory found hand-rolled five times over (§6):
-  - `Input` and `SearchField`: one height, one border, one focus rule.
-  - `Select`: Radix everywhere; no native `<select>`.
-  - `Switch`.
-  - `SegmentedControl`: one selected look.
-  - `BackLink`: one back affordance.
-  - `Section`: one heading under a page title.
+  - [x] `Input` and `SearchField`: one height, one border, one focus rule.
+  - [ ] `Select`: Radix everywhere; no native `<select>`.
+  - [x] `Switch`.
+  - [x] `SegmentedControl`: one selected look.
+  - [x] `BackLink`: one back affordance.
+  - [x] `Section`: one heading under a page title. (It's `PageSection`: a section is a course's offering.)
 - [ ] One `undoToast()` helper: one action button, one icon, one 10-second window, and the shortcut in its tooltip. It replaces the seven toast-action copies. Failures get one treatment: never red, with a Try again where retrying can help.
 - [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
 - [ ] Routes get a shared `pendingComponent` and `errorComponent`. No page says "reload the page".
 - [ ] Guardrails:
-  - The design-tokens test also fails on raw `max-w-*` page containers and on `h1` elements outside `PageHeader`.
+  - The design-tokens test also fails on raw `max-w-*` page containers (done, with an allowlist of today's pages) and on `h1` elements outside `PageHeader` (not yet).
   - The `reviewer` agent checks for use of the kit.
   - A `scripts/shots.ts` takes the side-by-side grid of every product, so any PR can show the whole family.
 

@@ -8,9 +8,9 @@ Two global facts change how the diffs below should be read:
 
 Shared primitives:
 - `components/ui/`: `button`, `skeleton`, `popover`, `dialog`, `dropdown-menu`, `context-menu`, `select`, `sonner`, `tooltip`, `kbd`.
-- Panel anatomy in `app/panel.tsx`: `PanelHeader` :20, `PanelBody` :44, `SectionHeader` :78, `GroupHeader` :153, `ListRow` :221, `EmptyState` :274, `PanelFooter` :296, `PanelSkeleton` :333.
+- Panel anatomy in `app/panel.tsx`: `PanelHeader` :20, `PanelBody` :44, `SectionHeader` :78, `GroupHeader` :153, `ListRow` :221, `EmptyState` :274, `PanelFooter` :296, `PanelSkeleton` :333. (Fixed in `v3/page-kit`: `ListRow` and `GroupHeader` moved to `components/ui/list-row.tsx`, `PanelHeader` is `PageHeader size="panel"`, `EmptyState` is `PanelNote`.)
 - Frame in `features/site/site-page.tsx`: `SitePage` :39, `SiteHeader` :71, `ComingSoonPage` :133.
-- **There is no shared Input, Switch, SegmentedControl, PageHeader or Card.**
+- ~~**There is no shared Input, Switch, SegmentedControl, PageHeader or Card.**~~ Fixed in `v3/page-kit`: the page kit in `components/ui` (see `/admin/kit`).
 
 ---
 
@@ -297,12 +297,12 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
 
 ## 13. Duplicate implementations
 
-- **Two `EmptyState`s** with the same name: `app/panel.tsx:274` and `four-year/empty-state.tsx:24`.
+- ~~**Two `EmptyState`s** with the same name: `app/panel.tsx:274` and `four-year/empty-state.tsx:24`.~~ Fixed in `v3/page-kit`: the panel's is `PanelNote`, and `EmptyState` is the kit's first-visit template. Plan's local one moves onto it in Plan's Phase 3 PR.
 - **Three `Section`s**: `reviews/frame.tsx:93` (h2 `text-lg tracking-tight`, `border-b` under, `mt-8`), `todo/connect-page.tsx:32` (h2 `text-lg`, **`border-t` above**, `pt-4`), `site/privacy-page.tsx:10` (no border). There is also `AccountSection` (`account-page.tsx:37`, a boxed h2 `text-base`) and `SectionHeader` (panel).
-- **Three `ListSkeleton`s**: `todo-page.tsx:72`, `chat/room-list.tsx:231`, `travel-panel.tsx:269`. Also `RowsSkeleton` (`courses-panel.tsx:482`) next to `PanelSkeleton`.
+- **Three `ListSkeleton`s**: `todo-page.tsx:72`, `chat/room-list.tsx:231`, `travel-panel.tsx:269`. Also `RowsSkeleton` (`courses-panel.tsx:482`) next to `PanelSkeleton`. (`v3/page-kit` added the shared shape, `RowSkeleton` and `PageSkeleton`, and `PanelSkeleton` uses it; the copies move over in each product's Phase 3 PR.)
 - **Two `ToastAction`s**: `app/toast-action.tsx:5` and `four-year/toasts.tsx:16`. Four more inline copies are listed in §9.
 - **Segmented controls, at least 5**: Todo `ViewSwitch` (`todo-page.tsx:177`), travel pace and extra-time (`travel-settings.tsx:46`, `:109`), admin queue views (`queue-page.tsx:325`), Plan side tabs (underline style, `side-panel.tsx:110`), marketing reviews sample (`reviews-sample.tsx:118`).
-- **Switch knobs, 2**: `travel-settings.tsx:158` `Toggle` and `notification-settings.tsx:343` `Knob`. Identical markup except `mt-0.5`.
+- ~~**Switch knobs, 2**: `travel-settings.tsx:158` `Toggle` and `notification-settings.tsx:343` `Knob`. Identical markup except `mt-0.5`.~~ Fixed in `v3/page-kit`: both use `components/ui/switch.tsx` (Radix).
 - **Toggle chips with different "on" looks**:
   - ink fill: `filter-chips.tsx:32-38`, `sections.tsx:163-172`, `block-form.tsx:89-97` presets
   - accent fill: `must-haves.tsx:161-172`, `block-form.tsx:130-140`, `results.tsx:272-281`

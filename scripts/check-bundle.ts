@@ -136,7 +136,7 @@ export const REVIEWS_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
   ];
 
 /**
- * Gzipped JS + CSS for the admin panel (/admin, /admin/decisions), in bytes:
+ * Gzipped JS + CSS for the admin panel (/admin, /admin/decisions, /admin/kit), in bytes:
  * 224 KB when this was set (v2 admin-shell), `/`'s base plus the panel, plus
  * about 10% headroom; 213 KB once the panel stopped using Radix's menu and
  * select (sharing them split them out of /schedule's chunk, which cost
@@ -276,7 +276,7 @@ export const ROUTE_BUDGETS: readonly {
     budget: REVIEWS_BUDGET,
     never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
-  ...["/admin/", "/admin/decisions"].map((route) => ({
+  ...["/admin/", "/admin/decisions", "/admin/kit"].map((route) => ({
     route,
     budget: ADMIN_BUDGET,
     never: [...LANDING_NEVER_EAGER, PLAN_NEVER_EAGER],

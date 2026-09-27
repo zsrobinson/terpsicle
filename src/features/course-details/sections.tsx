@@ -4,7 +4,7 @@ import { memo, type ReactNode, useEffect, useRef, useState } from "react";
 import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
 import { TEXT, TONE_TEXT } from "~/app/emphasis";
-import { EmptyState, GroupHeader, ListRow, SectionHeader } from "~/app/panel";
+import { GroupHeader, ListRow, PanelNote, SectionHeader } from "~/app/panel";
 import {
   bySectionCode,
   collapsedGroupKey,
@@ -118,10 +118,10 @@ export function Sections(props: SectionsProps) {
   if (props.course.sections.length === 0)
     return (
       // Theses, research and internships: Testudo lists them without sections.
-      <EmptyState>
+      <PanelNote>
         Testudo lists no sections of {props.course.code} this term. The
         department can tell you how to register for it.
-      </EmptyState>
+      </PanelNote>
     );
   return <SectionList {...props} />;
 }
@@ -211,7 +211,7 @@ function SectionList(props: SectionsProps) {
           ? rows(props, only.sections.filter(visible))
           : null}
       {onlyFits && !course.sections.some(visible) ? (
-        <EmptyState
+        <PanelNote
           action={
             <WithTooltip label="Show every section">
               <Button
@@ -225,7 +225,7 @@ function SectionList(props: SectionsProps) {
           }
         >
           No section of {course.code} fits your plan.
-        </EmptyState>
+        </PanelNote>
       ) : null}
     </section>
   );

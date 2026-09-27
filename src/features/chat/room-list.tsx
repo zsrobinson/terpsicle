@@ -1,6 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { useMemo } from "react";
-import { EmptyState, PanelBody, PanelHeader } from "~/app/panel";
+import { PanelBody, PanelHeader, PanelNote } from "~/app/panel";
 import type { ChatListCourse } from "~/core/chat";
 import type { RoomId } from "~/core/schema";
 import { Button } from "~/ui/button";
@@ -44,7 +44,7 @@ export function RoomList({ view, go }: { view: ChatView; go: ChatGo }) {
         {status === "loading" || status === "idle" ? (
           <ListSkeleton />
         ) : status === "error" ? (
-          <EmptyState
+          <PanelNote
             action={
               <WithTooltip label="Load your classes again">
                 <Button
@@ -61,7 +61,7 @@ export function RoomList({ view, go }: { view: ChatView; go: ChatGo }) {
             }
           >
             We couldn't load your classes. Check your connection and try again.
-          </EmptyState>
+          </PanelNote>
         ) : list.length === 0 ? (
           <NoRooms go={go} />
         ) : (

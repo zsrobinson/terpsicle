@@ -17,9 +17,11 @@ export const RETURNING_FLAG_KEY = "terpsicle:returning";
 /** `/?stay`: the marketing page even for returning visitors ("About Terpsicle"). */
 export const STAY_PARAM = "stay";
 
-/** The owner's panel (docs/V2.md §10): `/admin` and `/admin/decisions`. */
+/** The owner's panel (docs/V2.md §10): `/admin`, `/admin/decisions` and the page kit. */
 export const ADMIN_PATH = "/admin";
 export const ADMIN_DECISIONS_PATH = "/admin/decisions";
+/** Every piece of the page kit, in every state (docs/COHESION.md §3, Phase 2). */
+export const ADMIN_KIT_PATH = "/admin/kit";
 
 /** Whether a path is one of the admin pages, which only admins may load. */
 export function isAdminPath(pathname: string): boolean {

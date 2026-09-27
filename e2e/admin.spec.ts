@@ -58,7 +58,7 @@ test("anyone else signed in gets the plain 404, and the API refuses them", async
 }) => {
   await signInAs(page, "Test Student", "/privacy");
   await expect(page).toHaveURL(/\/privacy$/);
-  for (const path of ["/admin", "/admin/decisions"]) {
+  for (const path of ["/admin", "/admin/decisions", "/admin/kit"]) {
     const response = await page.goto(path);
     expect(response?.status()).toBe(404);
     await expect(

@@ -4,11 +4,11 @@ import { useId } from "react";
 import { TEXT } from "~/app/emphasis";
 import { messageToText } from "~/app/message-text";
 import {
-  EmptyState,
   ListRow,
   MetaSep,
   PanelBody,
   PanelHeader,
+  PanelNote,
   SectionHeader,
 } from "~/app/panel";
 import { useScheduleView } from "~/app/schedule-view";
@@ -131,11 +131,11 @@ function Connections() {
   if (connections.length === 0)
     return (
       <section aria-label="Connections">
-        <EmptyState className="pt-4">
+        <PanelNote className="pt-4">
           {placed
             ? "No back-to-back classes in different buildings."
             : "Add classes to see how long it takes to get between them."}
-        </EmptyState>
+        </PanelNote>
       </section>
     );
 

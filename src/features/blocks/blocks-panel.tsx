@@ -2,10 +2,10 @@ import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { addBlock } from "~/app/actions";
 import {
-  EmptyState,
   ListRow,
   PanelBody,
   PanelHeader,
+  PanelNote,
   SectionHeader,
 } from "~/app/panel";
 import type { Block, LocalId } from "~/core/schema";
@@ -78,7 +78,7 @@ export function BlocksPanel() {
             </ul>
           </section>
         ) : readOnly ? (
-          <EmptyState>No blocks in this plan.</EmptyState>
+          <PanelNote>No blocks in this plan.</PanelNote>
         ) : null}
         {readOnly ? null : formOpen ? (
           <section aria-label="Add a block">

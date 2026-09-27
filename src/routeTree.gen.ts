@@ -17,6 +17,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminDecisionsRouteImport } from './routes/admin.decisions'
+import { Route as AdminKitRouteImport } from './routes/admin.kit'
 import { Route as AuthTestRouteImport } from './routes/auth/test'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
@@ -77,6 +78,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminDecisionsRoute = AdminDecisionsRouteImport.update({
   id: '/admin/decisions',
   path: '/admin/decisions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminKitRoute = AdminKitRouteImport.update({
+  id: '/admin/kit',
+  path: '/admin/kit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthTestRoute = AuthTestRouteImport.update({
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
+  '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
+  '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
+  '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -289,6 +298,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signin'
     | '/admin/decisions'
+    | '/admin/kit'
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signin'
     | '/admin/decisions'
+    | '/admin/kit'
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signin'
     | '/admin/decisions'
+    | '/admin/kit'
     | '/auth/test'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -382,6 +394,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SigninRoute: typeof SigninRoute
   AdminDecisionsRoute: typeof AdminDecisionsRoute
+  AdminKitRoute: typeof AdminKitRoute
   AuthTestRoute: typeof AuthTestRoute
   ReviewsMineRoute: typeof ReviewsMineRoute
   ReviewsPolicyRoute: typeof ReviewsPolicyRoute
@@ -451,6 +464,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/decisions'
       fullPath: '/admin/decisions'
       preLoaderRoute: typeof AdminDecisionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/kit': {
+      id: '/admin/kit'
+      path: '/admin/kit'
+      fullPath: '/admin/kit'
+      preLoaderRoute: typeof AdminKitRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/test': {
@@ -643,6 +663,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SigninRoute: SigninRoute,
   AdminDecisionsRoute: AdminDecisionsRoute,
+  AdminKitRoute: AdminKitRoute,
   AuthTestRoute: AuthTestRoute,
   ReviewsMineRoute: ReviewsMineRoute,
   ReviewsPolicyRoute: ReviewsPolicyRoute,

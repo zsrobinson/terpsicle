@@ -1,14 +1,21 @@
 import { Link } from "@tanstack/react-router";
+import { cn } from "cn";
 import type { ReactNode } from "react";
 import { Logo } from "~/app/logo";
-import { ADMIN_DECISIONS_PATH, ADMIN_PATH, STAY_PARAM } from "~/core/routing";
+import {
+  ADMIN_DECISIONS_PATH,
+  ADMIN_KIT_PATH,
+  ADMIN_PATH,
+  STAY_PARAM,
+} from "~/core/routing";
 import { FeedbackButton } from "~/features/feedback/feedback-button";
 import { Button } from "~/ui/button";
+import { PAGE_WIDTH } from "~/ui/product-page";
 import { WithTooltip } from "~/ui/tooltip";
 import { AdminGate } from "./admin-gate";
 
-// The frame for /admin and /admin/decisions (V2 §10): the logo, the panel's
-// two pages, and one column. Deliberately plain and light: it loads none of
+// The frame for the admin pages (V2 §10): the logo, the panel's pages, and
+// one column. Deliberately plain and light: it loads none of
 // the scheduler (so no theme menu, which lives in the scheduler's store; the
 // system theme applies, as on the other pages around the scheduler).
 
@@ -19,13 +26,21 @@ const PAGES = [
     label: "Decisions",
     hint: "Everything moderation decided, and how often it held",
   },
+  {
+    to: ADMIN_KIT_PATH,
+    label: "Kit",
+    hint: "Every piece of the page kit, in every state",
+  },
 ] as const;
 
 export function AdminFrame({
   current,
+  width = "reading",
   children,
 }: {
   current: (typeof PAGES)[number]["to"];
+  /** The page kit's widths; the kit's side-by-side demos need `app`. */
+  width?: "reading" | "app";
   children: ReactNode;
 }) {
   return (
@@ -62,7 +77,12 @@ export function AdminFrame({
         </span>
       </header>
       <AdminGate>
-        <main className="mx-auto w-full max-w-[720px] flex-1 px-4 pt-4 pb-8">
+        <main
+          className={cn(
+            "mx-auto w-full flex-1 px-4 pt-4 pb-8",
+            PAGE_WIDTH[width],
+          )}
+        >
           {children}
         </main>
       </AdminGate>

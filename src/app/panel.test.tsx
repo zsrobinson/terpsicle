@@ -3,11 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "~/ui/tooltip";
 import {
-  EmptyState,
   GroupHeader,
   ListRow,
   PanelFooter,
   PanelLabel,
+  PanelNote,
   SectionHeader,
 } from "./panel";
 
@@ -125,13 +125,13 @@ describe("ListRow", () => {
   });
 });
 
-describe("EmptyState and PanelFooter", () => {
+describe("PanelNote and PanelFooter", () => {
   it("render their content", () => {
     render(
       <>
-        <EmptyState action={<button type="button">Add a block</button>}>
+        <PanelNote action={<button type="button">Add a block</button>}>
           No blocks yet.
-        </EmptyState>
+        </PanelNote>
         <PanelFooter>
           <button type="button">Generate plans</button>
         </PanelFooter>
