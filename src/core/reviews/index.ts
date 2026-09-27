@@ -22,6 +22,7 @@ export {
   stageZeroProblems,
   weeklyLimitWait,
 } from "./rules";
+export { hasTermStarted, reviewTermChoices } from "./terms";
 export {
   createdMonth,
   MINTED_ID_BYTES,

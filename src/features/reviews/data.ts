@@ -235,7 +235,7 @@ export function loadTerms(reader: Reader): Promise<readonly Term[]> {
   });
 }
 
-/** The browser's reader, for components that load after the page (the composer). */
+/** The browser's reader, for what loads after the page (the home page's course search). */
 export async function browserReader(): Promise<Reader> {
   return readerFor(undefined);
 }
