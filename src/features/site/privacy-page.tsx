@@ -94,10 +94,13 @@ export function PrivacyPage() {
           <p>
             Class chats show your real name and Google profile picture to the
             other students in the room. Messages are stored so the room keeps
-            its history. The same kind of moderation model checks messages and
-            holds ones that break the rules, such as answers to graded work, for
-            the moderator to review. A term's rooms become read-only 10 days
-            after classes end, and are deleted 60 days after that.
+            its history. The same kind of moderation model checks messages for
+            serious abuse, such as threats, hate and spam, and holds those for
+            the moderator to review. To catch one message posted across many
+            courses, Terpsicle keeps a fingerprint of each message (which can't
+            be turned back into its words), with its course and time, for an
+            hour. A term's rooms become read-only 10 days after classes end, and
+            are deleted 60 days after that.
           </p>
         </Section>
 
@@ -122,6 +125,12 @@ export function PrivacyPage() {
           <p>
             If you add a calendar file, it's read in your browser. Only the
             deadlines in it are sent to us, never the file itself.
+          </p>
+          <p>
+            Tasks you add yourself are kept on our server too (what you type,
+            and the course and due date you pick), so they're on your other
+            devices. They never go to ELMS, and nobody else can see them. Delete
+            one any time.
           </p>
         </Section>
 
@@ -199,9 +208,10 @@ export function PrivacyPage() {
           <p>
             Terpsicle runs on Cloudflare, which stores synced plans, reviews,
             messages, seat watches, notification settings, your ELMS calendar
-            link (encrypted), the deadlines from it and your done marks. To
-            limit abuse, Terpsicle counts requests per network using a one-way
-            hash of your IP address, never the address itself.
+            link (encrypted), the deadlines from it, the tasks you add in Todo
+            and your done marks. To limit abuse, Terpsicle counts requests per
+            network using a one-way hash of your IP address, never the address
+            itself.
           </p>
         </Section>
 
@@ -210,10 +220,10 @@ export function PrivacyPage() {
             You can delete your account in Settings. Terpsicle waits 7 days, in
             case you change your mind (signing in cancels it), then deletes your
             profile and picture, synced plans, notification settings, seat
-            watches, chat messages, and your ELMS link, deadlines and done
-            marks. Reviews you posted stay up with no name attached; delete them
-            first if you want them gone. Plans saved in your browser stay until
-            you remove them.
+            watches, chat messages, and your ELMS link, deadlines, own tasks and
+            done marks. Reviews you posted stay up with no name attached; delete
+            them first if you want them gone. Plans saved in your browser stay
+            until you remove them.
           </p>
         </Section>
 

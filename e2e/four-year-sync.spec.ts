@@ -154,6 +154,40 @@ test("a four-year plan goes up at sign-in, and two devices see each other's edit
   await expect(phone.getByLabel("Undo", { exact: true })).toBeDisabled();
 });
 
+test("a second device opens the account's four-year plan, and keeps its own as a copy", async ({
+  browser,
+  baseURL,
+}) => {
+  const user = newUser();
+  const laptop = await device(browser, baseURL);
+  await signedInWithPlan(laptop, user);
+
+  // The phone made its own "My plan" before signing in.
+  const phone = await device(browser, baseURL);
+  await openPlan(phone);
+  await phone.getByLabel("I started at UMD in").click();
+  await phone.getByRole("option", { name: "Fall 2025" }).click();
+  await phone.getByRole("button", { name: "or add courses yourself" }).click();
+  await addCourse(phone, "MATH240");
+  await signIn(phone, user);
+
+  // QA P4: it opened "My plan (copy)", and the toast told two stories.
+  await expect(
+    phone.getByText("My plan from this device is saved as My plan (copy)"),
+  ).toBeVisible();
+  await expect(
+    phone.getByText(
+      "Your account already had one by that name. My plan from your account is open.",
+    ),
+  ).toBeVisible();
+  await saved(phone);
+  // The bar names the open plan: the account's, not the copy.
+  await expect(phone.getByRole("button", { name: /^My plan/ })).toBeVisible();
+  await expect(phone.getByRole("button", { name: /\(copy\)/ })).toHaveCount(0);
+  await expect(spring(phone).getByText("CMSC351")).toBeVisible();
+  await expect(spring(phone).getByText("MATH240")).toHaveCount(0);
+});
+
 test("the same four-year plan changed on two devices, one offline, keeps both", async ({
   browser,
   baseURL,

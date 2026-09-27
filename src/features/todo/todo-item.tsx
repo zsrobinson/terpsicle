@@ -1,7 +1,12 @@
 import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
-import type { CourseCode, CourseColor, TodoItem } from "~/core/schema";
+import type {
+  CourseCode,
+  CourseColor,
+  TodoItem,
+  TodoItemSource,
+} from "~/core/schema";
 import { dueTimeLabel, isElmsUrl } from "~/core/todo";
 import { tintStyle } from "~/features/calendar/tint";
 import { ListRow } from "~/ui/list-row";
@@ -15,6 +20,13 @@ import { WithTooltip } from "~/ui/tooltip";
 /** Said once, under the first Gradescope item and on the connect page (V3 §3.7). */
 export const GRADESCOPE_EXTENSIONS_NOTE =
   "Extensions you get in Gradescope don't show up in ELMS. Check Gradescope for your own due date.";
+
+/** Where an item came from, under its title. */
+const SOURCE_WORDS: Record<TodoItemSource, string> = {
+  elms: "From ELMS",
+  file: "From a file",
+  own: "Yours",
+};
 
 /** A 44px target on phones, a compact one with a pointer. */
 const TARGET = "flex size-11 shrink-0 items-center justify-center md:size-8";
@@ -118,6 +130,7 @@ export function TodoItemRow({
   relative,
   note,
   onToggle,
+  menu,
   preview = false,
   showCourse = true,
 }: {
@@ -126,7 +139,7 @@ export function TodoItemRow({
   /** The code it's filed under (re-matched against the person's plans). */
   course: CourseCode | null;
   color: CourseColor | null;
-  /** The due words; defaults to the time alone ("11:59pm"). */
+  /** The due words; defaults to the time alone ("11:59pm"), or nothing for no date. */
   when?: string;
   /**
    * Due today at a time: "Due in 3 hours" or, quietly, "Due 2 hours ago",
@@ -136,12 +149,16 @@ export function TodoItemRow({
   /** A quiet line under the item. */
   note?: string;
   onToggle?: () => void;
+  /** An own task's Edit and Delete, in the link's place. */
+  menu?: ReactNode;
   /** The front door's sample: nothing to press. */
   preview?: boolean;
   /** Off under a course's own heading. */
   showCourse?: boolean;
 }) {
   const link = item.link !== null && isElmsUrl(item.link) ? item.link : null;
+  // Under "No date", the heading already says it.
+  const time = when ?? (item.dueDate === null ? null : dueTimeLabel(item));
   // Flush with the page's column, the kit's row. The checkbox's and the
   // link's targets reach into the row's padding, so a phone gets 44px
   // without a taller row.
@@ -173,10 +190,10 @@ export function TodoItemRow({
                   <span className="sr-only">, at {dueTimeLabel(item)}</span>
                 </time>
               </WithTooltip>
-            ) : (
-              <span className="tnum">{when ?? dueTimeLabel(item)}</span>
-            )}
-            <span>{item.source === "elms" ? "From ELMS" : "From a file"}</span>
+            ) : time ? (
+              <span className="tnum">{time}</span>
+            ) : null}
+            <span>{SOURCE_WORDS[item.source]}</span>
             {item.gradescope ? <Tag>Gradescope</Tag> : null}
             {item.exam ? <Tag dashed>Exam</Tag> : null}
           </span>
@@ -184,7 +201,9 @@ export function TodoItemRow({
         </>
       }
       action={
-        link && !preview ? (
+        menu && !preview ? (
+          menu
+        ) : link && !preview ? (
           <WithTooltip label="Open in ELMS">
             <a
               href={link}

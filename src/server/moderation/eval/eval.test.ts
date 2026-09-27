@@ -1,9 +1,14 @@
 // The eval set's promises about the rules, checked in CI without a model.
 // The live run is scripts/moderation-eval.ts.
 import { describe, expect, it } from "vitest";
-import { decide, precheck } from "~/core/moderation";
+import {
+  crossRoomRule,
+  decide,
+  precheck,
+  textFingerprint,
+} from "~/core/moderation";
 import { CourseCodeSchema } from "~/core/schema";
-import { EVAL_CASES } from "./cases";
+import { CROSS_ROOM_CASES, EVAL_CASES } from "./cases";
 
 describe("moderation eval set", () => {
   it("has unique ids and valid courses", () => {
@@ -30,4 +35,21 @@ describe("moderation eval set", () => {
       if (byRules !== "publish") expect(acceptable).toContain(byRules);
     },
   );
+});
+
+describe("the spam guard's cases", () => {
+  const NOW = Date.UTC(2027, 1, 3, 15);
+  it.each(CROSS_ROOM_CASES.map((c) => [c.id, c] as const))("%s", (_, c) => {
+    const earlier = c.earlier.map((s) => ({
+      course: s.course,
+      fingerprint: textFingerprint(s.text),
+      at: NOW - s.minutesAgo * 60_000,
+    }));
+    const current = {
+      course: c.current.course,
+      fingerprint: textFingerprint(c.current.text),
+      at: NOW,
+    };
+    expect(crossRoomRule(current, earlier, NOW)).toBe(c.expect);
+  });
 });

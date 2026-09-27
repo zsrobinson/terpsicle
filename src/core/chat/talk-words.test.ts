@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { ChatReportReasonSchema } from "../schema";
 import {
+  CHAT_REPORT_REASON_WORDS,
   chatErrorWords,
   clockWords,
   dayWords,
@@ -52,10 +54,12 @@ describe("words", () => {
     expect(typingWords(["A B", "C D", "E F"])).toBe("3 people are typing…");
   });
 
-  it("tells an author why only they can see a message", () => {
+  it("tells an author why only they can see a message, in one short line", () => {
     expect(heldWords({ state: "visible" })).toBeNull();
-    expect(heldWords({ state: "held", reason: "checking" })).toBe(
-      "Checking before classmates see it…",
+    // Being checked looks sent: nothing says a bot is reading it.
+    expect(heldWords({ state: "held", reason: "checking" })).toBeNull();
+    expect(heldWords({ state: "held", reason: "flagged" })).toBe(
+      "Only you can see this for now, until a person looks at it.",
     );
     expect(heldWords({ state: "held", reason: "graded-work" })).toContain(
       "graded work",
@@ -64,6 +68,25 @@ describe("words", () => {
       "reported",
     );
     expect(heldWords({ state: "removed" })).toContain("took this down");
+    for (const reason of ["flagged", "graded-work", "reported"] as const) {
+      const words = heldWords({ state: "held", reason }) ?? "";
+      expect(words.length).toBeLessThanOrEqual(90);
+      expect(words).not.toMatch(/edit or delete|check it first/i);
+    }
+  });
+
+  it("offers only abuse as report reasons, in the menu's order", () => {
+    expect(Object.values(CHAT_REPORT_REASON_WORDS)).toEqual([
+      "Harassment or hate",
+      "A threat",
+      "Sexual content",
+      "Spam",
+      "Someone's private info",
+      "Something else",
+    ]);
+    expect(Object.keys(CHAT_REPORT_REASON_WORDS)).toEqual(
+      ChatReportReasonSchema.options,
+    );
   });
 
   it("explains refusals plainly", () => {

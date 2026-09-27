@@ -151,6 +151,7 @@ export interface AnalyticsEvents {
   todo_item_checked: { done: boolean; via: "list" | "week" };
   todo_view_changed: { view: "day" | "course" | "week" };
   todo_file_imported: { items: number; skipped: number };
+  todo_task_added: { date: boolean; time: boolean; course: boolean };
   // Terpsicle Plan (V3.md §6). Never a course code, grade, GPA or a
   // course's credits: which ways in and which controls get used.
   four_year_created: { source: "empty" | "template" | "import" | "copy" };

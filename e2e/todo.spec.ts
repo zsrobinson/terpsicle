@@ -71,10 +71,12 @@ async function signIn(page: Page, isMobile: boolean) {
   await page.getByRole("button", { name: `Sign in as ${person}` }).click();
   // Signed in, and `?signed-in=1` already stripped.
   await page.waitForURL((url) => url.pathname === "/todo" && url.search === "");
-  // Start from nothing: no feed and no file items from an earlier run.
+  // Start from nothing: no feed, no file items and no own tasks from an
+  // earlier run.
   expect(await post(page, "todo/disconnect")).toBe(200);
   expect(await post(page, "todo/import-file", { items: [] })).toBe(200);
   await showHiddenCourses(page);
+  await deleteOwnTasks(page);
   await page.reload();
 }
 
@@ -93,6 +95,24 @@ async function showHiddenCourses(page: Page) {
     expect(await post(page, "todo/hide-course", { key, hidden: false })).toBe(
       200,
     );
+}
+
+/** Deletes the person's own tasks: the ones with no date, and any in the list's range. */
+async function deleteOwnTasks(page: Page) {
+  const today = newYorkClock(Date.now()).date;
+  const uids = await page.evaluate(async (range) => {
+    const response = await fetch("/api/todo/list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(range),
+    });
+    const list = (await response.json()) as {
+      items: { uid: string; source: string }[];
+    };
+    return list.items.filter((i) => i.source === "own").map((i) => i.uid);
+  }, listRange(today));
+  for (const uid of uids)
+    expect(await post(page, "todo/delete-task", { uid })).toBe(200);
 }
 
 test("signed out, /todo is the front door", async ({ page }) => {
@@ -287,3 +307,77 @@ test("this week's progress, and hiding a course with Undo", async ({
   await expect(page.getByText(/^Hidden:/)).toHaveCount(0);
   expect(await post(page, "todo/disconnect")).toBe(200);
 });
+
+test("your own tasks: add one, date it, change it, delete it with Undo", async ({
+  page,
+  isMobile,
+}) => {
+  test.setTimeout(90_000);
+  await signIn(page, isMobile);
+
+  // Without ELMS, the first visit can start a list of your own.
+  await expect(
+    page.getByRole("heading", { name: "Connect ELMS to see your deadlines" }),
+  ).toBeVisible();
+  const newTask = page.getByRole("textbox", { name: "New task" });
+  await newTask.fill("Email my advisor");
+  await newTask.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Deadlines and exams", level: 1 }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No date" })).toBeVisible();
+  await expect(page.getByText("Email my advisor")).toBeVisible();
+  await expect(page.getByText("Yours")).toBeVisible();
+
+  // A dated one, in its day, with its time.
+  await page.getByRole("textbox", { name: "New task" }).fill("Office hours");
+  await page.getByLabel("Due date").fill(tomorrowDate());
+  await page.getByLabel("Time").fill("15:00");
+  await page.getByRole("button", { name: "Add" }).click();
+  const tomorrowSection = page.getByRole("region", { name: "Tomorrow" });
+  await expect(tomorrowSection.getByText("Office hours")).toBeVisible();
+  await expect(tomorrowSection.getByText("3pm")).toBeVisible();
+  await axe(page, "own tasks");
+
+  // Saved on the server: a reload keeps both.
+  await page.reload();
+  await expect(page.getByText("Office hours")).toBeVisible();
+  await expect(page.getByText("Email my advisor")).toBeVisible();
+
+  // Change it in place: a new title, and no date.
+  await page.getByRole("button", { name: "Office hours options" }).click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
+  const title = page.getByRole("textbox", { name: "Title" });
+  await expect(title).toBeFocused();
+  await title.fill("Office hours, bring Project 2");
+  await page.getByLabel("Due date").last().fill("");
+  await page.getByRole("button", { name: "Save" }).click();
+  const noDate = page.getByRole("region", { name: "No date" });
+  await expect(noDate.getByText("Office hours, bring Project 2")).toBeVisible();
+
+  // Delete: at once, no dialog, and Undo puts it back.
+  await page
+    .getByRole("button", { name: "Office hours, bring Project 2 options" })
+    .click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await expect(noDate.getByText("Office hours, bring Project 2")).toHaveCount(
+    0,
+  );
+  await expect(
+    liveToasts(page).getByText("Deleted Office hours, bring Project 2"),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await liveToasts(page).getByRole("button", { name: "Undo" }).click();
+  await expect(noDate.getByText("Office hours, bring Project 2")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Office hours, bring Project 2")).toBeVisible();
+  await deleteOwnTasks(page);
+});
+
+/** Tomorrow in New York, as a date field takes it. */
+function tomorrowDate(): string {
+  const today = newYorkClock(Date.now()).date;
+  const next = new Date(`${today}T12:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString().slice(0, 10);
+}

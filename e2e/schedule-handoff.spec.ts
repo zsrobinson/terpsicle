@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { lowerPlanDrawer } from "./plan-drawer";
 
 // Plan ↔ Schedule (docs/V3.md §2.12) on `pnpm dev:mock`: a four-year plan's
 // next semester makes a scheduler plan with its courses bookmarked, the
@@ -19,17 +20,6 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-/**
- * On a phone, Search raises the drawer all the way (the keyboard is up),
- * over the semesters: lower it, as a person would, to pick one.
- */
-async function lowerDrawer(page: Page) {
-  const drawer = page.locator("[data-vaul-drawer]");
-  await expect(drawer).toHaveAttribute("data-snap", "full");
-  await page.getByRole("button", { name: "Lower the panel" }).click();
-  await expect(drawer).toHaveAttribute("data-snap", "peek");
-}
-
 /** Spring 2027's column; on a phone, picked from the strip first. */
 async function spring(page: Page, isMobile: boolean) {
   if (isMobile) {
@@ -39,7 +29,7 @@ async function spring(page: Page, isMobile: boolean) {
     );
     await page
       .getByRole("navigation", { name: "Semesters" })
-      .getByRole("button", { name: "Sp 2027" })
+      .getByRole("button", { name: "Spring 2027" })
       .click();
   }
   return page.getByRole("region", { name: "Spring 2027", exact: true });
@@ -55,7 +45,7 @@ async function add(page: Page, isMobile: boolean, query: string, name: string) {
   await search.fill(query);
   await page.getByRole("button", { name, exact: true }).click();
   await expect(column.getByText(query.toUpperCase())).toBeVisible();
-  if (isMobile) await lowerDrawer(page);
+  if (isMobile) await lowerPlanDrawer(page);
 }
 
 test("View schedule makes Spring's plan, View four-year plan comes back, and the second trip opens the same plan", async ({

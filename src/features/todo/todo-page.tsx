@@ -12,7 +12,7 @@ import {
 import { track } from "~/app/analytics";
 import { Mark } from "~/app/brand/mark";
 import { useMediaQuery } from "~/app/use-media-query";
-import type { IsoDate, TodoItem } from "~/core/schema";
+import type { CourseCode, IsoDate, TodoItem } from "~/core/schema";
 import {
   compareItems,
   feedWords,
@@ -55,6 +55,7 @@ import {
   WHAT_COMES_THROUGH,
 } from "./connect-form";
 import { todoCourseColors, useSchedulerCourses } from "./course-colors";
+import { QuickAdd, TASK_TOAST_ID } from "./task-form";
 import { TodoItemRow } from "./todo-item";
 import {
   CourseList,
@@ -280,7 +281,13 @@ const HIDE_TOAST_ID = "todo-hide";
  * sits in the list's own column, so connecting doesn't move the page: the
  * list takes its place, at its width.
  */
-function FirstConnect() {
+function FirstConnect({
+  courses,
+  today,
+}: {
+  courses: readonly CourseCode[];
+  today: IsoDate;
+}) {
   return (
     <div className={cn("flex w-full flex-col gap-6", PAGE_WIDTH.note)}>
       <EmptyState
@@ -313,6 +320,13 @@ function FirstConnect() {
           </WithTooltip>
         </p>
       </div>
+      <PageSection title="Or start with your own tasks">
+        <p className="text-muted text-sm">
+          Add a task and your list starts here. Your tasks stay in Terpsicle and
+          never go to ELMS.
+        </p>
+        <QuickAdd courses={courses} today={today} />
+      </PageSection>
     </div>
   );
 }
@@ -330,6 +344,8 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
   const setDone = useTodo((s) => s.setDone);
   const hidden = useTodo((s) => s.hidden);
   const hideCourse = useTodo((s) => s.hideCourse);
+  const deleteTask = useTodo((s) => s.deleteTask);
+  const restoreTask = useTodo((s) => s.restoreTask);
   const scheduler = useSchedulerCourses();
   const chatOn = useAccount((s) => s.flags.chat !== "off");
 
@@ -343,17 +359,22 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
     document.getElementById(`day-${day}`)?.scrollIntoView({ block: "start" });
   }, [phase, day]);
 
-  const look = useMemo(() => {
+  const { look, taskCourses } = useMemo(() => {
     const courseOf = (item: TodoItem) =>
       itemCourse(item, scheduler.planCourses);
     const codes = new Set(
       items.map(courseOf).filter((c): c is string => c !== null),
     );
     const colors = todoCourseColors(codes, scheduler.colors);
-    return (item: TodoItem): ItemLook => {
+    const look = (item: TodoItem): ItemLook => {
       const course = courseOf(item);
       return { course, color: course ? (colors[course] ?? null) : null };
     };
+    // What an own task can be for: the feed's courses and your plans'.
+    const taskCourses = [
+      ...new Set([...codes, ...scheduler.planCourses]),
+    ].sort();
+    return { look, taskCourses };
   }, [items, scheduler]);
 
   // A hidden course's items show nowhere, and count in nothing.
@@ -420,6 +441,41 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
     [done, setDone],
   );
 
+  const onDeleteTask = useCallback(
+    (item: TodoItem) => {
+      const wasDone = done.has(item.uid);
+      const remove = () => {
+        const deleting = deleteTask(item.uid).then((ok) => {
+          // Takes Undo's place: the task is back on the list.
+          if (!ok)
+            noteToast("That didn't delete", {
+              id: TASK_TOAST_ID,
+              description: "Check your connection and try again.",
+              retry: remove,
+            });
+          return ok;
+        });
+        undoToast({
+          id: TASK_TOAST_ID,
+          message: `Deleted ${item.title}`,
+          tooltip: "Put it back on the list",
+          // After the delete has landed, so the two can't cross.
+          onUndo: () =>
+            void deleting.then(async (deleted) => {
+              if (!deleted) return;
+              if (!(await restoreTask(item, wasDone)))
+                noteToast("That didn't go back on the list", {
+                  id: TASK_TOAST_ID,
+                  description: "Check your connection and add it again.",
+                });
+            }),
+        });
+      };
+      remove();
+    },
+    [done, deleteTask, restoreTask],
+  );
+
   if (phase === "idle" || phase === "loading") return <TodoSkeleton />;
   if (phase === "failed")
     return (
@@ -432,14 +488,21 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
       </>
     );
 
-  if (!feed && items.length === 0) return <FirstConnect />;
+  if (!feed && items.length === 0)
+    return <FirstConnect courses={taskCourses} today={today} />;
 
   const open = openCount(shown, done);
   const progress = weekProgressWords(weekProgress(shown, done, today));
   const words = feedWords(feed, now);
   const noteUid =
     [...shown]
-      .filter((i) => i.gradescope && !done.has(i.uid) && i.dueDate >= today)
+      .filter(
+        (i) =>
+          i.gradescope &&
+          !done.has(i.uid) &&
+          i.dueDate !== null &&
+          i.dueDate >= today,
+      )
       .sort(compareItems)[0]?.uid ?? null;
   const props: ListProps = {
     items: shown,
@@ -449,6 +512,8 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
     look,
     noteUid,
     onToggle: (item) => onToggle(item, "list"),
+    taskCourses,
+    onDeleteTask,
   };
   const range = listRange(today);
   // While ELMS is being asked, the status says so in words, not a spinner.
@@ -503,15 +568,32 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
 
       {!feed ? (
         <p className="text-muted text-sm">
-          These came from a file.{" "}
-          <WithTooltip label="Paste your ELMS calendar link">
-            <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
-              Connect ELMS
-            </Link>
-          </WithTooltip>{" "}
-          to keep them up to date.
+          {items.some((i) => i.source === "file") ? (
+            <>
+              {items.some((i) => i.source === "own")
+                ? "Your deadlines came from a file."
+                : "These came from a file."}{" "}
+              <WithTooltip label="Paste your ELMS calendar link">
+                <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
+                  Connect ELMS
+                </Link>
+              </WithTooltip>{" "}
+              to keep them up to date.
+            </>
+          ) : (
+            <>
+              <WithTooltip label="Paste your ELMS calendar link">
+                <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
+                  Connect ELMS
+                </Link>
+              </WithTooltip>{" "}
+              to see your deadlines beside your tasks.
+            </>
+          )}
         </p>
       ) : null}
+
+      <QuickAdd courses={taskCourses} today={today} />
 
       {open === 0 ? <p className="text-fg">You're all caught up.</p> : null}
 

@@ -109,12 +109,13 @@ export function setFirstTerm(doc: FourYearDoc, firstTermId: TermId): void {
   );
 }
 
+/** Adds a course to a semester; the new entry's id, or null when it didn't. */
 export function addCourse(
   doc: FourYearDoc,
   code: string,
   term: FourYearTerm,
   via: "search" | "column",
-): void {
+): LocalId | null {
   const entry: FourYearEntry = {
     kind: "course",
     id: newLocalId(),
@@ -126,19 +127,22 @@ export function addCourse(
     transcript: null,
   };
   if (
-    dispatch(
+    !dispatch(
       { type: "add", docId: doc.id, entry, now: nowIso() },
       `Added ${code} to ${fourYearTermLabel(term)}`,
     )
   )
-    track("four_year_course_added", { via });
+    return null;
+  track("four_year_course_added", { via });
+  return entry.id;
 }
 
+/** Adds a placeholder to a semester; the new entry's id, or null. */
 export function addPlaceholder(
   doc: FourYearDoc,
   wildcard: Wildcard,
   term: FourYearTerm,
-): void {
+): LocalId | null {
   const entry: FourYearEntry = {
     kind: "wildcard",
     id: newLocalId(),
@@ -148,12 +152,14 @@ export function addPlaceholder(
     source: "typed",
   };
   if (
-    dispatch(
+    !dispatch(
       { type: "add", docId: doc.id, entry, now: nowIso() },
       `Added ${entryName(entry)} to ${fourYearTermLabel(term)}`,
     )
   )
-    track("four_year_wildcard_added", { kind: wildcard.kind });
+    return null;
+  track("four_year_wildcard_added", { kind: wildcard.kind });
+  return entry.id;
 }
 
 /**

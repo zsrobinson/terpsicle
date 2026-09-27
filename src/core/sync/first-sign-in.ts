@@ -88,6 +88,13 @@ export interface FirstSignInResult<T extends SyncedTables> {
     renamed: { id: LocalId; from: string; to: string }[];
     copies: { id: LocalId; of: LocalId }[];
     skipped: LocalId[];
+    /**
+     * The four-year doc to open on this device: the account's most recently
+     * changed one, since the account's plan is the one to show, not what
+     * this device made before signing in (QA P4); null when the account
+     * had none.
+     */
+    open: LocalId | null;
   };
 }
 
@@ -152,7 +159,13 @@ export function firstSignInUnion<T extends SyncedTables>(
     renamed: [],
     copies: [],
     skipped: [],
-    fourYear: { uploaded: [], renamed: [], copies: [], skipped: [] },
+    fourYear: {
+      uploaded: [],
+      renamed: [],
+      copies: [],
+      skipped: [],
+      open: null,
+    },
   };
   const upload = (plan: Plan) => {
     out.push(plan);
@@ -254,6 +267,12 @@ function fourYearUnion(input: {
   const { result, now } = input;
   const out: FourYearDoc[] = [...input.server.values()];
   const accountHasOne = out.length > 0;
+  result.open =
+    [...out].sort(
+      (a, b) =>
+        (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0) ||
+        byCreation(a, b),
+    )[0]?.id ?? null;
   const avoid = () => [
     ...out.map((d) => d.name),
     ...input.local.map((d) => d.name),

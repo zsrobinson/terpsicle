@@ -17,10 +17,12 @@ import { showNote, showUndo } from "./undo";
 // who they are, mute, leave, and how reporting works. Membership is on
 // trust, and it says so.
 
+// Kind, and nothing about a bot reading every message (the owner,
+// 2026-09-27): answers are asked against, not policed.
 export const ROOM_RULES = [
-  "Talk about the class, not the answers.",
-  "Use your real name; everyone here can see it.",
-  "A person checks anything flagged.",
+  "Help each other learn, but please don't post answers to graded work.",
+  "Everyone here sees your real name, like in class.",
+  "Report abuse from a message's menu; a person looks at every report.",
 ] as const;
 
 type Members =
@@ -150,8 +152,8 @@ export function RoomInfo({
           ))}
         </ul>
         <p className="text-muted">
-          To report a message, open its menu (…) and pick Report. A person
-          checks every report, and nobody sees who sent it.
+          To report harassment, threats, spam or someone's private info, open
+          the message's menu (…) and pick Report. Nobody sees who reported it.
         </p>
       </PageSection>
     </div>

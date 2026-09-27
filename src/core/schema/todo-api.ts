@@ -27,6 +27,8 @@ export const TODO_MAX_FILE_ITEMS = 1_000;
 export const TODO_LIST_MAX_DAYS = 120;
 /** The largest `todo/import-file` request, in bytes. */
 export const TODO_IMPORT_MAX_BYTES = 1_048_576;
+/** Your own tasks kept per person, at most. */
+export const TODO_MAX_TASKS = 500;
 
 /**
  * Why a fetch failed: a code from this fixed list, never a message, because
@@ -85,10 +87,25 @@ export const TodoFeedStateSchema = z.strictObject({
 });
 export type TodoFeedState = z.infer<typeof TodoFeedStateSchema>;
 
-/** One deadline or event, from the feed or a dropped file. */
+/**
+ * Where an item came from: the ELMS feed, a dropped file, or `own`, a task
+ * the person typed in Terpsicle (V3 §3.10), which never goes to ELMS.
+ */
+export const TodoItemSourceSchema = z.enum([
+  ...FeedSourceSchema.options,
+  "own",
+]);
+export type TodoItemSource = z.infer<typeof TodoItemSourceSchema>;
+
+/** An own task's uid: `own-` and a random part the app makes. */
+export const TodoTaskUidSchema = z
+  .string()
+  .regex(/^own-[A-Za-z0-9-]{8,64}$/, "An own task's uid");
+
+/** One deadline or event from the feed or a dropped file, or an own task. */
 export const TodoItemSchema = z.strictObject({
   uid: z.string().min(1).max(200),
-  source: FeedSourceSchema,
+  source: TodoItemSourceSchema,
   title: z.string().min(1).max(300),
   /** The ELMS course name, shown when there's no code. */
   courseLabel: z.string().min(1).max(300).nullable(),
@@ -104,7 +121,8 @@ export const TodoItemSchema = z.strictObject({
   /** The item mentions gradescope.com: tagged "Gradescope". */
   gradescope: z.boolean(),
   dueAt: IsoDateTimeSchema.nullable(),
-  dueDate: IsoDateSchema,
+  /** Null only for an own task with no date: it's listed under "No date". */
+  dueDate: IsoDateSchema.nullable(),
   /** An ELMS URL; never any other host. */
   link: z.url().nullable(),
 });
@@ -244,3 +262,49 @@ export const TodoHideCourseResultSchema = z.strictObject({
   status: z.literal("ok"),
 });
 export type TodoHideCourseResult = z.infer<typeof TodoHideCourseResultSchema>;
+
+// ---------- POST /api/todo/save-task ----------
+
+/** Minutes after midnight on New York's clock: 0 is 12am, 1439 is 11:59pm. */
+export const TodoDueTimeSchema = z.number().int().min(0).max(1_439);
+
+/**
+ * Adds an own task, or changes one: the same uid is the same task, so a
+ * retry or Undo's put-back can't make two. The title is plain text.
+ */
+export const TodoSaveTaskInputSchema = z
+  .strictObject({
+    uid: TodoTaskUidSchema,
+    title: z.string().trim().min(1).max(300),
+    courseCode: CourseCodeSchema.nullable(),
+    /** Null: "No date". */
+    dueDate: IsoDateSchema.nullable(),
+    /** New York's clock; null with a date is all day. */
+    dueTime: TodoDueTimeSchema.nullable(),
+  })
+  .refine((t) => t.dueTime === null || t.dueDate !== null, {
+    message: "A time needs a date",
+    path: ["dueTime"],
+  });
+export type TodoSaveTaskInput = z.infer<typeof TodoSaveTaskInputSchema>;
+
+export const TodoSaveTaskResultSchema = z.discriminatedUnion("status", [
+  z.strictObject({ status: z.literal("saved"), item: TodoItemSchema }),
+  /** A new task past {@link TODO_MAX_TASKS}. */
+  z.strictObject({ status: z.literal("too-many") }),
+  /** A date outside the ones Todo keeps: 30 days back to a year ahead. */
+  z.strictObject({ status: z.literal("out-of-range") }),
+]);
+export type TodoSaveTaskResult = z.infer<typeof TodoSaveTaskResultSchema>;
+
+// ---------- POST /api/todo/delete-task ----------
+
+/** Deletes an own task and its done mark; ELMS and file items can't be. */
+export const TodoDeleteTaskInputSchema = z.strictObject({
+  uid: TodoTaskUidSchema,
+});
+export type TodoDeleteTaskInput = z.infer<typeof TodoDeleteTaskInputSchema>;
+export const TodoDeleteTaskResultSchema = z.strictObject({
+  status: z.literal("ok"),
+});
+export type TodoDeleteTaskResult = z.infer<typeof TodoDeleteTaskResultSchema>;

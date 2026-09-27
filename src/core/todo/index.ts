@@ -8,5 +8,6 @@ export * from "./ics";
 export * from "./items";
 export * from "./link";
 export * from "./list";
+export * from "./tasks";
 export * from "./test-feed";
 export * from "./zones";

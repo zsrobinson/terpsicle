@@ -44,6 +44,10 @@ function kept(list: readonly { from: string; to: string }[]): string {
   return `${first.from} was kept as ${first.to}${more}.`;
 }
 
+const ALREADY_HAD = "Your account already had one by that name.";
+const BOTH_VERSIONS =
+  "Your account had a different version, and you have both now.";
+
 const YOURS = { owner: "Your", again: "your" };
 const THE_ACCOUNTS = { owner: "Your account's", again: "its", other: true };
 
@@ -53,32 +57,53 @@ export function syncToast(notice: SyncNotice): SyncToast | null {
     case "first-sign-in": {
       const renamed = notice.renamed.length > 0 ? kept(notice.renamed) : "";
       const copies = notice.copies.length > 0 ? kept(notice.copies) : "";
-      const details = [
-        renamed && `${renamed} Your account already had one by that name.`,
-        copies &&
-          `${copies} Your account had a different version, and you have both now.`,
-      ]
-        .filter(Boolean)
-        .join(" ");
-      if (notice.reset)
+      if (notice.reset) {
+        const details = [
+          renamed && `${renamed} ${ALREADY_HAD}`,
+          copies && `${copies} ${BOTH_VERSIONS}`,
+        ]
+          .filter(Boolean)
+          .join(" ");
         return details
           ? { title: "Your plans are up to date", description: details }
           : null;
-      const uploaded = counted(
-        notice.uploaded,
-        notice.fourYear.uploaded,
-        YOURS,
-      );
+      }
+      // Plan opens the account's four-year plan (QA P4). Say so when this
+      // device had one of its own, which is no longer the one open.
+      const open = notice.fourYear.open;
+      const switched = open !== null && notice.fourYear.uploaded > 0;
+      const opened = switched ? `${open.name} from your account is open.` : "";
       const accountOnly = counted(
         notice.fromAccount,
-        notice.fourYear.fromAccount,
+        notice.fourYear.fromAccount - (switched ? 1 : 0),
         THE_ACCOUNTS,
       );
       const also = accountOnly.words
         ? `${accountOnly.words} ${accountOnly.many ? "are" : "is"} here too.`
         : "";
-      const description =
-        [details, also].filter(Boolean).join(" ") || undefined;
+
+      // Something of this device's was saved under a new name: that's the
+      // news, and the title says it the one way (QA P4: "saved to your
+      // account" over "kept as My plan (copy)" read as two stories).
+      const [first, ...rest] = [...notice.renamed, ...notice.copies];
+      if (first) {
+        const more =
+          rest.length === 0
+            ? ""
+            : ` (and ${rest.length} more ${plans(rest.length)} the same way)`;
+        const why = notice.renamed.length > 0 ? ALREADY_HAD : BOTH_VERSIONS;
+        return {
+          title: `${first.from} from this device is saved as ${first.to}${more}`,
+          description: [why, opened, also].filter(Boolean).join(" "),
+        };
+      }
+
+      const uploaded = counted(
+        notice.uploaded,
+        notice.fourYear.uploaded,
+        YOURS,
+      );
+      const description = [opened, also].filter(Boolean).join(" ") || undefined;
       if (uploaded.words)
         return {
           title: `${uploaded.words} ${uploaded.many ? "are" : "is"} saved to your account`,
@@ -92,11 +117,8 @@ export function syncToast(notice: SyncNotice): SyncToast | null {
       if (fromAccount.words)
         return {
           title: `${fromAccount.words} from your account ${fromAccount.many ? "are" : "is"} here`,
-          ...(details ? { description: details } : {}),
         };
-      return details
-        ? { title: "Your plans are on your account", description: details }
-        : null;
+      return null;
     }
     case "conflict-copy":
       return {

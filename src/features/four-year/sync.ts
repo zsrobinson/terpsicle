@@ -42,6 +42,7 @@ export function startPlanSync(
             edited(before, after);
         }),
       apply: (docs) => store.getState().applyRemote(docs),
+      open: (id) => store.getState().setActive(id),
     },
     status: useSyncStatus,
     ids: { now: nowIso, newId: newLocalId },
