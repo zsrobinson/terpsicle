@@ -79,6 +79,7 @@ The week reads as five labeled day groups ("Monday", …). Each class, block, gh
 Run them with `pnpm test:e2e` (all) or `pnpm test:e2e e2e/a11y-beyond-axe.spec.ts`.
 
 ## Known limitations
+- **Esc and the phone drawer.** On a phone with a hardware keyboard, a family-bar menu opened in the first moment, before the scheduler's or Plan's drawer has loaded, doesn't close with Esc: the drawer registers as a later layer and takes the key. Tapping outside closes it, and a menu opened once the drawer is there closes with Esc as usual (`e2e/pwa.spec.ts` waits for the drawer for this reason).
 - **No manual screen-reader pass has been recorded yet.** The script below is for the first one.
 - **Course colors disappear in forced colors.** Codes and borders carry identity there; that's the platform's choice.
 - **The plan tab truncates hard at 320px wide** ("P…"). Its full name is its accessible name and tooltip, and the Courses panel's heading repeats it.

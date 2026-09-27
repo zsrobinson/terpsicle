@@ -57,8 +57,8 @@ Screenshots of every product, taken while signed in as the test student at deskt
 Each item is one PR unless it says otherwise. Check items off here in the PR that finishes them.
 
 ### Phase 0: land what's in flight
-- [ ] The feedback sheet and admin inbox (`v2/feedback-ui`, `v2/feedback-admin`).
-- [ ] `v3/schedule-handoff`, `v3/cross-links` and `v3/e2e`.
+- [x] The feedback sheet and admin inbox (`v2/feedback-ui`, `v2/feedback-admin`).
+- [x] `v3/schedule-handoff`, `v3/cross-links` and `v3/e2e`.
 - [x] Marketing scroll prototypes (the owner picks; the port waits until Phase 3, so it uses the new frame).
 
 ### Phase 1: decide the frame
@@ -67,9 +67,9 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 ### Phase 2: build the system
 - [x] `AppBar` (the family bar): products, account, feedback, and a slot for the product's own context. `SiteHeader` and the scheduler's `TopBar` are thin callers of it.
 - [x] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes. (`v3/page-kit`: `PageHeader`, `ProductPage`, `ViewSwitch`, `EmptyState`, `ListRow` and `GroupHeader`, `Card`, `RowSkeleton` and `PageSkeleton`, `InlineError`. The panel's one-line note is now `PanelNote`.)
-- [ ] Controls the inventory found hand-rolled five times over (§6):
+- [x] Controls the inventory found hand-rolled five times over (§6):
   - [x] `Input` and `SearchField`: one height, one border, one focus rule.
-  - [ ] `Select`: Radix everywhere; no native `<select>`.
+  - [x] `Select`: Radix everywhere; no native `<select>`. (The last one is in the marketing page's Plan sample, which the marketing redesign replaces.)
   - [x] `Switch`.
   - [x] `SegmentedControl`: one selected look.
   - [x] `BackLink`: one back affordance.
@@ -90,13 +90,13 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [x] Reviews. (`v3/cohesion-reviews`: `PageHeader` and `ProductPage` on every page, `PageSection`s of `ListRow`s, a `ViewSwitch` of an instructor's courses, `Card`s for the composer, the report form, sign-in and the AI summary, the kit's `Select`, `SearchField` and a new `Textarea`, `InlineError` with Try again, `RowSkeleton`, and `EmptyState` on `/reviews/mine`.)
 - [x] Plan. (`v3/plan-workbench`: Plan is on the scheduler's workbench, `src/app/workbench`, with each view a route. `v3/cohesion-plan`: its first visit is the kit's `EmptyState` with two equal paths, its selects the kit's `Select`, its panels `ListRow`s under `PanelHeader`s, a sample plan a `Card`, loading the kit's skeletons, failures `InlineError` with Try again, codes `ident`, and `Button`, `Input`, `SearchField`, `Textarea` and `SegmentedControl` without per-product sizes. Blocks and semesters stay boxed on the canvas, like the calendar's blocks.)
 - [x] Chat.
-- [ ] Schedule.
+- [x] Schedule. (#131 and #134: the kit's `EmptyState` first visit, `BackButton`, one selected look, `SearchField` and `Input`; `v3/behavior`: `InlineError` and the kit's skeletons in its panels and catalog.)
 - [ ] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port. (`/privacy`, sign-in and not found are on the kit since `v3/cohesion-settings-todo`; `/` and the marketing port are left.)
 - [x] Admin onto the frame. (`v3/cohesion-admin`: the family bar with "Admin" in its context slot, `PageHeader` and `ProductPage width="app"` on every admin page, admin's pages and the queue's views as `ViewSwitch`es of links, `ListRow`s and `GroupHeader`s, the kit's `Input`, `Select`, `Textarea` and `SegmentedControl`, `InlineError` with Try again and `RowSkeleton`.)
 
 ### Phase 4: shared patterns sweep
-- [ ] Words: one glossary pass over every string (titles, buttons, empty states, errors, toasts).
-- [ ] Behavior:
+- [x] Words: one glossary pass over every string (titles, buttons, empty states, errors, toasts). (`v3/words`, and Plan's in `v3/cohesion-plan`.)
+- [x] Behavior:
   - loading and error states everywhere (`v3/behavior`, and Plan's in #144: the kit's skeletons and `InlineError`, and Reload beside every "Reload to …");
   - Undo on every destructive action;
   - tooltips and shortcuts on every control (`v3/behavior-keys`: `e2e/tooltips.spec.ts` checks every page; menu options are the one exception, in `docs/decisions.md`);
