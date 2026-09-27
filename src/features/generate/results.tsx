@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ListRow, SectionHeader } from "~/app/panel";
 import { openDrill } from "~/app/schedule-nav";
 import type { CatalogIndex } from "~/core/catalog";
@@ -20,6 +20,7 @@ import type {
   Plan,
   SectionKey,
 } from "~/core/schema";
+import { type PlanPreview, useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -336,12 +337,19 @@ function ResultRow({
       : [];
   const seats = seatsShortLabel(result.stats);
   const summary = `${freeDaysLabel(free, result.stats)} · ${spanLabel(result.stats)}`;
+  const preview = usePreview(plan, result, request, label);
 
   return (
     <ListRow
       as="li"
       data-testid="generated-plan"
       className="hover:bg-hover"
+      // Like Search (#48): only a mouse previews. A finger's tap opens the
+      // result, which previews it anyway.
+      onPointerEnter={(e) => {
+        if (e.pointerType === "mouse") preview.show();
+      }}
+      onPointerLeave={preview.hide}
       lead={
         <WithTooltip label="Tick several to save them at once" side="right">
           <input
@@ -357,17 +365,20 @@ function ResultRow({
         <div className="flex flex-col items-end gap-1">
           <span className="text-faint text-xs">{rank}</span>
           {result.equivalents.count > 1 ? (
-            <span
-              title={equivalentsTip(result.equivalents)}
-              className="rounded-sm bg-accent-soft px-1 text-2xs text-muted"
-            >
-              ×{result.equivalents.count}
-            </span>
+            <WithTooltip label={equivalentsTip(result.equivalents)} side="left">
+              <span className="cursor-default rounded-sm bg-accent-soft px-1 text-2xs text-muted">
+                ×{result.equivalents.count}
+              </span>
+            </WithTooltip>
           ) : null}
         </div>
       }
     >
-      <WithTooltip label="Preview on the calendar and see details" side="right">
+      {/* Above, not beside: beside it would cover the preview. */}
+      <WithTooltip
+        label="See what changes, and save it as a new plan"
+        side="top"
+      >
         <button
           type="button"
           aria-label={`${label}: ${summary}`}
@@ -463,4 +474,38 @@ function ResultRow({
       </WithTooltip>
     </ListRow>
   );
+}
+
+/**
+ * A result on the calendar while the mouse is over it (QA S2), as Search
+ * previews a course's sections: the same preview its details show, gone
+ * when the pointer leaves. It only clears its own, so the details opened by
+ * a click keep theirs. Not on focus: Esc from the details hands focus back
+ * to the row, and the preview should go away with them.
+ */
+function usePreview(
+  plan: Plan | null,
+  result: GeneratedPlan,
+  request: GenerateRequest,
+  label: string,
+) {
+  const shown = useRef<PlanPreview | null>(null);
+  const hide = () => {
+    if (shown.current && useUi.getState().previewPlan === shown.current)
+      useUi.getState().setPreviewPlan(null);
+    shown.current = null;
+  };
+  const show = () => {
+    if (!plan) return;
+    const next: PlanPreview = {
+      plan: { ...plan, courses: coursesOf(result, request), name: label },
+      label,
+    };
+    shown.current = next;
+    useUi.getState().setPreviewPlan(next);
+  };
+  // A row that goes away while previewed (Edit, a filter) takes it along.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: unmount only
+  useEffect(() => hide, []);
+  return { show, hide };
 }

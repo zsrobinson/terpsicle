@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { clearGenerateCourses } from "./generate-form";
 
 // Accessibility past what axe can see (docs/ACCESSIBILITY.md): the calendar
 // from the keyboard, focus never hidden under sticky headers, forced colors,
@@ -199,6 +200,7 @@ test.describe("desktop", () => {
       .getByRole("navigation", { name: "Sidebar tabs" })
       .getByRole("button", { name: "Generate" })
       .click();
+    await clearGenerateCourses(page);
     const field = page.getByRole("combobox", { name: "Add a course" });
     for (const code of ["CMSC351", "CMSC330", "STAT400"]) {
       await field.fill(code);

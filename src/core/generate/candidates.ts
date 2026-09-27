@@ -42,7 +42,10 @@ export type QualityMap = ReadonlyMap<SectionKey, SectionQuality>;
 /** Sections that meet at the same times in the same buildings, offered as one choice. */
 export type SectionGroup = {
   readonly course: Course;
-  /** Section-number order; the first is the representative. */
+  /**
+   * The representative first (the member with the most open seats: the one
+   * a saved plan gets), then the rest in section-number order.
+   */
   readonly sections: readonly Section[];
   /** The representative's timed meetings, one per day, in week order. */
   readonly items: readonly MeetingItem[];
@@ -50,7 +53,7 @@ export type SectionGroup = {
   readonly dayIndexes: Uint8Array;
   readonly mask: WeekMask;
   readonly sparse: SparseMask;
-  /** Open seats across the group (any member will do); null when no counts are known. */
+  /** The representative's open seats; null when Testudo shows no counts for it. */
   readonly openSeats: number | null;
   /** The group's best member: you can register for whichever that is. */
   readonly rating: number | null;
@@ -160,18 +163,15 @@ export function candidateGroups(
     if (group) group.sections.push(section);
     else byKey.set(key, { sections: [section], violations });
   }
-  return [...byKey.values()].map(({ sections, violations }) => {
+  return [...byKey.values()].map(({ sections: members, violations }) => {
+    const sections = withRepresentativeFirst(course, members, options.seats);
     // biome-ignore lint/style/noNonNullAssertion: a group is created with its first section
     const rep = sections[0]!;
     const items = weekOrdered(course, rep);
-    let open: number | null = null;
     const ratings: (number | null)[] = [];
     const gpas: (number | null)[] = [];
     for (const s of sections) {
-      const key = sectionKey(course.code, s.code);
-      const counts = seatCounts(options.seats, key);
-      if (counts) open = (open ?? 0) + counts.open;
-      const q = options.quality.get(key);
+      const q = options.quality.get(sectionKey(course.code, s.code));
       ratings.push(q?.rating ?? null);
       gpas.push(q?.gpa ?? null);
     }
@@ -183,12 +183,51 @@ export function candidateGroups(
       dayIndexes: Uint8Array.from(items, (i) => dayIndex(i.day)),
       mask,
       sparse: toSparse(mask),
-      openSeats: open,
+      openSeats:
+        seatCounts(options.seats, sectionKey(course.code, rep.code))?.open ??
+        null,
       rating: best(ratings),
       gpa: best(gpas),
       violations,
     };
   });
+}
+
+/**
+ * How good a section's seats are for registering: the most open seats
+ * first, then unknown counts (Testudo may still have room), then full.
+ */
+function seatRank(seats: SeatsMap | null, key: SectionKey): number {
+  const counts = seatCounts(seats, key);
+  if (counts === null) return 0;
+  return counts.open > 0 ? counts.open : -1;
+}
+
+/**
+ * The group's sections with the one Save as new plan adds first: the one
+ * with the most open seats, so the seats a result shows are the seats of
+ * the section it saves (QA S1: it showed the group's total and saved a full
+ * one). Ties, and the rest, keep section-number order.
+ */
+function withRepresentativeFirst(
+  course: Course,
+  sections: readonly Section[],
+  seats: SeatsMap | null,
+): Section[] {
+  let best = 0;
+  let bestRank = Number.NEGATIVE_INFINITY;
+  sections.forEach((s, i) => {
+    const rank = seatRank(seats, sectionKey(course.code, s.code));
+    if (rank > bestRank) {
+      best = i;
+      bestRank = rank;
+    }
+  });
+  return [
+    ...sections.slice(best, best + 1),
+    ...sections.slice(0, best),
+    ...sections.slice(best + 1),
+  ];
 }
 
 /** Mean of the non-null values, for averaging instructors. */
