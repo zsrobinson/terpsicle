@@ -43,6 +43,21 @@ describe("weekProgress", () => {
     expect(weekProgressWords({ done: 0, total: 0 })).toBeNull();
   });
 
+  it("counts the coming week on a weekend, as the Week view opens on it", () => {
+    const items = [
+      item("friday", "2026-09-25"),
+      item("next-monday", "2026-09-28"),
+      item("next-friday", "2026-10-02"),
+    ];
+    // Sunday the 27th: the week ending is behind it, Week opens on the 28th.
+    const sunday = weekProgress(items, new Set(["next-monday"]), "2026-09-27");
+    expect(sunday).toEqual({ done: 1, total: 2 });
+    // Saturday too.
+    expect(weekProgress(items, new Set(), "2026-09-26").total).toBe(2);
+    // A Friday still counts its own week.
+    expect(weekProgress(items, new Set(), "2026-09-25").total).toBe(1);
+  });
+
   it("gives each course group its week, counting done work the list leaves out", () => {
     const groups = groupByCourse(
       [

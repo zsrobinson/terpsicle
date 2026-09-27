@@ -266,16 +266,19 @@ export interface Progress {
   total: number;
 }
 
-/** The Monday through Sunday of `today`'s week, the span progress counts. */
+/**
+ * The span progress counts: the week the Week view calls "This week"
+ * (`openingWeek`), so on a weekend it's the coming one, as there.
+ */
 function inThisWeek(date: IsoDate | null, today: IsoDate): boolean {
   if (date === null) return false;
-  const monday = weekStart(today);
+  const monday = openingWeek(today);
   return date >= monday && date <= addDays(monday, 6);
 }
 
 /**
- * This week's progress: the items due Monday through Sunday of `today`'s
- * week, done or not, and how many of them are done.
+ * This week's progress: the items due Monday through Sunday of the week
+ * the Week view opens on, done or not, and how many of them are done.
  */
 export function weekProgress(
   items: readonly TodoItem[],
