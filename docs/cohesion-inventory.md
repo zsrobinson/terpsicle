@@ -215,22 +215,10 @@ Frame chrome:
 
 ## 9. Toasts and undo
 
-There is one sonner `Toaster` (`components/ui/sonner.tsx`). Toast action buttons have **7 separate implementations**:
-
-| Site | Implementation | Differences |
-|---|---|---|
-| Schedule undo/redo | Shared `app/toast-action.tsx:5-34` via `app/undo-toasts.tsx:35-66` | `h-7 border-hairline`, icon 13, shortcut in the tooltip, held while focused, 10s |
-| Seat watches | Shared `ToastAction` (`alerts/seat-watches.tsx:91`) | Sonner default 8s |
-| App update | Inline copy of the same classes (`app/update-toast.tsx:20-26`) | RotateCw icon, 20s |
-| Chat | Inline copy (`chat/undo.tsx:24-30`) | 10s, no shortcut |
-| Plan | **Its own local `ToastAction`** (`four-year/toasts.tsx:16-38`) | `h-11 md:h-7`, no `rounded-md`, 10s; note toasts 5s (`:43-48`) |
-| Todo disconnect | Its own `UndoButton` (`todo/connect-page.tsx:41-54`) | No `rounded-md`, 8s |
-| Reviews delete | Inline (`reviews/delete-review.tsx:46-52`) | **No icon**, 8s |
-| Notifications device removal | Inline (`notification-settings.tsx:550-556`) | **No icon**, **6s** |
-| Account deletion | Sonner's built-in `action: {label, onClick}` (`settings-account.tsx:186-194`) | Styled by `actionButton: bg-accent` (`sonner.tsx:21`): the **only ink-filled toast action** |
-| Admin queue | `Button variant="outline" size="row"` (`admin/queue-page.tsx:142-155`) | Offset-shadow button inside a toast |
-
-Undo windows are 10s in Schedule, Chat, Plan and admin; 8s in Reviews, Todo and seat watches; 6s for notification devices. Todo's check-off has no undo toast. A failed save shows "That didn't save" with no action (`todo-page.tsx:316`).
+Fixed in `v2/kit-toasts`:
+- Every toast action is the shared `ToastAction`, and every Undo goes through `undoToast()` (`components/ui/toast.tsx`) with one 10-second window.
+- Failures use `noteToast()` and are never red.
+- Still open: Todo's check-off has no Undo toast.
 
 ## 10. Buttons
 
@@ -382,7 +370,7 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
    - Reviews rows have no px and use `py-1.5` / `py-2` / `py-3` on the same product.
    - Plan boxes every block individually, against ListRow's own rule "hairlines between rows, never boxes".
 9. **Page widths jump between products.** 720 (Reviews, Settings), 1120 (Todo, but its content is a nested 560), 1600 (Plan), full-bleed (Chat, Schedule), 440 (sign-in, Chat front door), 720 in a separate frame (Admin).
-10. **Toast Undo/Redo buttons have seven implementations.** They differ in icon (none on Reviews delete and notifications), height (`h-11 md:h-7` on Plan), box treatment (Plan and Todo omit `rounded-md`), fill (accent on account deletion), and component (an outline row Button on admin). Undo windows are 10s, 8s or 6s.
+10. ~~**Toast Undo/Redo buttons have seven implementations.**~~ Fixed in `v2/kit-toasts`.
 11. **Error handling differs by product.**
     - Schedule uses red `toast.error` and a `role=alert` block with a RotateCw retry.
     - Chat never uses red and shows an outline sm "Try again".
