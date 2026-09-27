@@ -14,7 +14,8 @@ import { useChatHome } from "./chat-home";
 
 // Chat's context in the family bar (docs/COHESION.md §4): the term whose
 // rooms you're in, after the divider, the way the scheduler shows its term.
-// With one term there's nothing to pick, so it's just the name.
+// With one term there's nothing to pick, so it's just the name. On a phone
+// the bar is tight: the name gives way before it runs into Feedback.
 
 export function ChatTermMenu() {
   const terms = useChatHome((s) => s.terms);
@@ -22,7 +23,11 @@ export function ChatTermMenu() {
   const term = terms.find((t) => t.id === termId);
   if (!term) return null;
   if (terms.length < 2)
-    return <span className="px-1.5 text-base text-muted">{term.name}</span>;
+    return (
+      <span className="min-w-0 truncate px-1.5 text-base text-muted max-md:px-0">
+        {term.name}
+      </span>
+    );
   const active = terms.filter((t) => t.status === "active");
   const past = terms.filter((t) => t.status !== "active");
   return (
@@ -32,9 +37,9 @@ export function ChatTermMenu() {
           <button
             type="button"
             aria-label={`Term: ${term.name}`}
-            className="flex h-7 shrink-0 items-center gap-1 px-1.5 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-md:h-11"
+            className="flex h-7 min-w-0 items-center gap-1 px-1.5 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-md:h-11 max-md:px-1"
           >
-            {term.name}
+            <span className="truncate">{term.name}</span>
             <ChevronDown size={12} aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>

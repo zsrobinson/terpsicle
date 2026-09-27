@@ -10,7 +10,7 @@ import { ProductPage } from "~/ui/product-page";
 // in. Sign-in comes back to the same room.
 
 export const CHAT_SIGN_IN_POINTS = [
-  "Your rooms come from the plans you sync: a room for the course, your professor's sections and your section.",
+  "Your rooms come from the classes you add in Schedule: a room for each course, your professor's sections and your section.",
   "Classmates see your Google name and picture next to what you write, and in the people list of each of your rooms. They never see your plans.",
   "We keep your messages until the term's rooms close, about ten weeks after classes end, then delete them.",
   "Messages are checked as you send them, and a person reads anything flagged or reported.",

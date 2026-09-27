@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { BellOff, Hash, Lock, Users } from "lucide-react";
+import { BellOff, CalendarClock, Hash, Lock, Users } from "lucide-react";
 import { type Room, unreadWords } from "~/core/chat";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
@@ -34,24 +34,28 @@ export function UnreadCount({
   );
 }
 
+/** Every kind of room has its icon: # the course, people, a section's meetings. */
 function RoomIcon({ room }: { room: Room }) {
   if (room.kind === "course")
     return <Hash size={14} aria-hidden="true" className="text-muted" />;
   if (room.kind === "professor")
     return <Users size={14} aria-hidden="true" className="text-muted" />;
-  return <span aria-hidden="true" className="inline-block size-3.5" />;
+  return <CalendarClock size={14} aria-hidden="true" className="text-muted" />;
 }
 
 /** "0303 · MWF 11am and TuTh 11am discussion": the code in mono. */
 export function RoomLabel({
   room,
+  wrap = false,
   className,
 }: {
   room: Room;
+  /** In a list, a section's meetings wrap rather than lose their end. */
+  wrap?: boolean;
   className?: string;
 }) {
   return (
-    <span className={cn("truncate", className)}>
+    <span className={cn(wrap ? "text-pretty" : "truncate", className)}>
       {room.code ? (
         <span className="ident font-semibold">{room.code}</span>
       ) : null}
@@ -120,6 +124,7 @@ export function RoomRow({
         >
           <RoomLabel
             room={room}
+            wrap
             className={cn(
               "block",
               unread > 0 && !muted && !locked && "font-semibold",

@@ -270,6 +270,16 @@ test("two classmates talk in their section's room", async ({
   await expect(
     message(page, first).getByRole("button", { name: /^1 reply · last/ }),
   ).toBeVisible();
+  // A thread's one way out is Back to its room (no second ×).
+  await expect(
+    classmate.page.getByRole("button", { name: "Close the thread" }),
+  ).toHaveCount(0);
+  await classmate.page
+    .getByRole("link", { name: `${course} ${section}`, exact: true })
+    .click();
+  await expect(
+    classmate.page.getByRole("heading", { name: "Thread" }),
+  ).toHaveCount(0);
 
   // Edit with undo, then delete with undo.
   const mine = message(page, first);

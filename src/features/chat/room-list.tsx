@@ -23,8 +23,9 @@ import { showNote } from "./undo";
 
 // The chat list (V2.md §8.6): your courses this term, each under a tinted
 // course bar with your rooms (course, professor, section) as rows, and
-// unread counts, like the scheduler's Courses tab. "Rooms from Plan A ▾"
-// picks which plan's sections are your rooms; the term is in the bar.
+// unread counts, like the scheduler's Courses tab. "Rooms from Plan A in
+// Schedule ▾" picks which plan's sections are your rooms; the term is in
+// the bar. It names Schedule because the plan open there may be another.
 
 /** Your classes this term and their rooms, as the list shows them. */
 export function useChatList(): ChatListCourse[] {
@@ -143,7 +144,7 @@ function CourseGroup({
   );
 }
 
-/** "Rooms from Plan A ▾": the plan whose sections are your rooms. */
+/** "Rooms from Plan A in Schedule ▾": the plan whose sections are your rooms. */
 function RoomsFrom() {
   const termId = useChatHome((s) => s.termId);
   const synced = useChatHome((s) => s.synced);
@@ -154,7 +155,7 @@ function RoomsFrom() {
   const chatPlan = useChatPlan();
   if (!termId || !chatPlan) return null;
   if (plans.length < 2 || synced.settings === null)
-    return <span>Rooms from {chatPlan.name}</span>;
+    return <span>Rooms from {chatPlan.name} in Schedule</span>;
   const pick = (planId: string) =>
     void useChatHome
       .getState()
@@ -164,13 +165,13 @@ function RoomsFrom() {
       });
   return (
     <Select value={chatPlan.id} onValueChange={pick}>
-      <WithTooltip label="Pick the plan whose sections are your rooms">
+      <WithTooltip label="Your rooms come from one of your Schedule plans. Pick which.">
         <SelectTrigger
           size="sm"
           aria-label="Rooms from"
           className="-ml-1.5 border-transparent bg-transparent text-muted hover:text-fg max-md:data-[size=sm]:h-11"
         >
-          <SelectValue>Rooms from {chatPlan.name}</SelectValue>
+          <SelectValue>Rooms from {chatPlan.name} in Schedule</SelectValue>
         </SelectTrigger>
       </WithTooltip>
       <SelectContent>
