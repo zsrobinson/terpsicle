@@ -46,6 +46,30 @@ export const TodoFetchErrorSchema = z.union([
 ]);
 export type TodoFetchError = z.infer<typeof TodoFetchErrorSchema>;
 
+/** A status ELMS answered with that isn't a 2xx or a redirect: `http-404`. */
+export const TodoHttpErrorSchema = z
+  .templateLiteral(["http-", z.number().int()])
+  .check(z.regex(/^http-[1-5]\d\d$/));
+export type TodoHttpError = z.infer<typeof TodoHttpErrorSchema>;
+
+/** Why fetching a link failed before there was a body to read: the fetcher's codes. */
+export const TodoFetchFailureSchema = z.union([
+  z.enum(["timeout", "network", "too-large", "bad-redirect"]),
+  TodoHttpErrorSchema,
+]);
+export type TodoFetchFailure = z.infer<typeof TodoFetchFailureSchema>;
+
+/**
+ * Why connecting failed, for the form's sentence and analytics: the
+ * fetcher's code, or `not-recognized` when ELMS answered 200 with something
+ * that isn't a calendar. Codes only: nothing here can hold the link.
+ */
+export const TodoConnectReasonSchema = z.union([
+  TodoFetchFailureSchema,
+  z.literal("not-recognized"),
+]);
+export type TodoConnectReason = z.infer<typeof TodoConnectReasonSchema>;
+
 export const TodoFeedStatusSchema = z.enum(["active", "paused", "broken"]);
 export type TodoFeedStatus = z.infer<typeof TodoFeedStatusSchema>;
 
@@ -102,9 +126,15 @@ export const TodoConnectResultSchema = z.discriminatedUnion("status", [
   }),
   z.strictObject({ status: z.literal("invalid-link") }),
   /** ELMS didn't answer (a timeout, a network error, a 5xx). */
-  z.strictObject({ status: z.literal("unreachable") }),
-  /** It answered, but not with a calendar (a 4xx or some other page). */
-  z.strictObject({ status: z.literal("not-a-calendar") }),
+  z.strictObject({
+    status: z.literal("unreachable"),
+    reason: TodoConnectReasonSchema,
+  }),
+  /** It answered, but not with a calendar (a 4xx, a redirect off ELMS, a page). */
+  z.strictObject({
+    status: z.literal("not-a-calendar"),
+    reason: TodoConnectReasonSchema,
+  }),
 ]);
 export type TodoConnectResult = z.infer<typeof TodoConnectResultSchema>;
 

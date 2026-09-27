@@ -16,7 +16,7 @@ export const TEST_FEED_TOKENS = {
 } as const;
 
 export function testFeedLink(token: string): string {
-  return `https://elms.umd.edu/feeds/calendars/user_${token}.ics`;
+  return `https://umd.instructure.com/feeds/calendars/user_${token}.ics`;
 }
 
 const stamp = (ms: number) =>

@@ -9,11 +9,20 @@ export const ELMS_HOSTS: readonly string[] = [
 ];
 
 /**
+ * The host that serves feeds. `elms.umd.edu` is UMD's landing page, not
+ * Canvas: it answers 404 for every feed path, so a feed link pasted with it
+ * is fetched from here instead.
+ */
+export const ELMS_FEED_HOST = "umd.instructure.com";
+
+/**
  * The feed link in its one accepted form,
- * `https://<ELMS host>/feeds/calendars/user_<token>.ics`, or null. `webcal://`
- * (which some browsers copy) becomes `https://`. Scheme and host are
- * case-insensitive, like any URL's; nothing else varies: no other host, port,
- * credentials, path, query or fragment passes.
+ * `https://umd.instructure.com/feeds/calendars/user_<token>.ics`, or null.
+ * The same path on `elms.umd.edu` is accepted and moved to
+ * `umd.instructure.com`, and `webcal://` (which some browsers copy) becomes
+ * `https://`. Scheme and host are case-insensitive, like any URL's; nothing
+ * else varies: no other host, port, credentials, path, query or fragment
+ * passes.
  */
 export function parseFeedLink(input: string): string | null {
   const match = /^(?:https|webcal):\/\/([^/]*)(\/.*)$/i.exec(input.trim());
@@ -22,7 +31,7 @@ export function parseFeedLink(input: string): string | null {
   const path = /^\/feeds\/calendars\/user_[A-Za-z0-9]{20,80}\.ics$/.exec(
     match?.[2] ?? "",
   );
-  return path ? `https://${host}${path[0]}` : null;
+  return path ? `https://${ELMS_FEED_HOST}${path[0]}` : null;
 }
 
 /** Whether a URL is plain https on an ELMS host (no port or credentials): a redirect we'll follow, or an item link we'll show. */

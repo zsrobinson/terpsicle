@@ -3,7 +3,7 @@
 // error code: never a message, since `fetch()` errors and responses can
 // carry the URL. Nothing here logs.
 
-import type { TodoFetchError } from "~/core/schema";
+import type { TodoFetchFailure } from "~/core/schema";
 import { isElmsUrl } from "~/core/todo";
 import { sha256Hex } from "../crypto";
 import {
@@ -20,7 +20,16 @@ import {
  * none) with 403 "Not Authorized", so without it no feed ever loads.
  */
 export const FEED_USER_AGENT = "Terpsicle/2 (+https://terpsicle.com)";
+/** A cron or refresh fetch: nobody's waiting on it, and it runs 8 at a time. */
 export const FEED_TIMEOUT_MS = 10_000;
+/**
+ * Connecting, while the person waits. Canvas builds a feed as it's asked,
+ * across every course, and a real student's can take several seconds, so
+ * the first fetch gets longer than the cron's. The Worker's wall time isn't
+ * a limit here (waiting on a subrequest isn't CPU), nor is the app's client,
+ * which sets no timeout of its own.
+ */
+export const CONNECT_TIMEOUT_MS = 25_000;
 export const FEED_MAX_BYTES = 5 * 1_048_576;
 export const FEED_MAX_REDIRECTS = 2;
 
@@ -44,7 +53,7 @@ export type FeedFetch =
       /** 16 hex of SHA-256 of the body. */
       hash: string;
     }
-  | { ok: false; code: TodoFetchError };
+  | { ok: false; code: TodoFetchFailure };
 
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
@@ -84,8 +93,8 @@ async function readCapped(
 
 /**
  * GETs a feed link, following at most two redirects, each of which must stay
- * on an ELMS host. 10 seconds for the whole thing; a body over 5 MB is
- * `too-large`.
+ * on an ELMS host. 10 seconds for the whole thing unless `timeoutMs` says
+ * otherwise; a body over 5 MB is `too-large`.
  */
 export async function fetchFeed(
   url: string,
@@ -175,7 +184,10 @@ export async function fetchSealedFeed(
   owner: FeedOwner,
   sealed: string,
   options: FeedFetchOptions,
-): Promise<{ result: FeedFetch; resealed: string | null }> {
+): Promise<{
+  result: FeedFetch | { ok: false; code: "key" };
+  resealed: string | null;
+}> {
   const url = await openFeedLink(keys, owner, sealed);
   if (url === null)
     return { result: { ok: false, code: "key" }, resealed: null };

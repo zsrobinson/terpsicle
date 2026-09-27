@@ -17,7 +17,6 @@ import {
   type TodoDisconnectResult,
   type TodoDoneInput,
   type TodoDoneResult,
-  type TodoFetchError,
   type TodoImportFileInput,
   type TodoImportFileResult,
   type TodoListInput,
@@ -25,6 +24,7 @@ import {
   type TodoRefreshResult,
 } from "~/core/schema";
 import {
+  connectFailure,
   fromFileItem,
   keepInWindow,
   newYorkDateOf,
@@ -45,7 +45,7 @@ import {
   sealFeedLink,
 } from "./crypto";
 import { dueTomorrowAtConnect, dueTomorrowOn } from "./due-tomorrow";
-import { fetchFeed } from "./fetch";
+import { CONNECT_TIMEOUT_MS, fetchFeed } from "./fetch";
 import { refreshFeed } from "./refresh";
 import {
   disconnectStatements,
@@ -82,19 +82,6 @@ async function begin(
   return { userId: user.id, mode };
 }
 
-/**
- * How a failed first fetch reads: ELMS didn't answer, or it answered with
- * something that isn't the calendar (a 4xx for a mistyped or reset link, a
- * redirect off ELMS, a page, something far too big).
- */
-function connectFailure(
-  code: TodoFetchError,
-): "unreachable" | "not-a-calendar" {
-  return code === "timeout" || code === "network" || /^http-5/.test(code)
-    ? "unreachable"
-    : "not-a-calendar";
-}
-
 export async function connect(
   env: TodoApiEnv,
   input: TodoConnectInput,
@@ -106,12 +93,18 @@ export async function connect(
   const url = parseFeedLink(input.url);
   if (!url) return { status: "invalid-link" };
 
-  const fetched = await fetchFeed(url, { fetch: mode.fetch });
-  if (!fetched.ok) return { status: connectFailure(fetched.code) };
+  // The person is waiting, and Canvas can take a while to build the feed.
+  const fetched = await fetchFeed(url, {
+    fetch: mode.fetch,
+    timeoutMs: CONNECT_TIMEOUT_MS,
+  });
+  // Nothing but the code goes back: the answer says why, never the link.
+  if (!fetched.ok) return connectFailure(fetched.code);
   // No validators were sent, so a 304 isn't an answer to this request.
-  if (fetched.notModified) return { status: "unreachable" };
+  if (fetched.notModified) return connectFailure("http-304");
   const parsed = parseIcs(fetched.text, "elms");
-  if (!parsed.recognized) return { status: "not-a-calendar" };
+  if (!parsed.recognized)
+    return { status: "not-a-calendar", reason: "not-recognized" };
 
   const { now } = ctx;
   const owner: FeedOwner = { userId, source: "elms" };

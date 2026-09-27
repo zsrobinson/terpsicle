@@ -1,7 +1,7 @@
 // Todo's routes end to end through the real router and D1 (docs/V3.md §3.2,
 // §3.7, §3.8), with ELMS faked from the parser's synthetic feeds.
 import { env } from "cloudflare:workers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type MeResult,
   type TodoConnectResult,
@@ -13,6 +13,7 @@ import {
 } from "~/core/schema";
 import { parseIcs, TEST_FEED_TOKENS, testFeedLink } from "~/core/todo";
 import { type ApiEnv, handleApi } from "../api/router";
+import { CONNECT_TIMEOUT_MS, FEED_TIMEOUT_MS } from "./fetch";
 import {
   clearTodo,
   type Device,
@@ -169,15 +170,49 @@ describe("todo/connect", () => {
   it("says why a first fetch failed and stores nothing", async () => {
     const phone = await device();
     elms.fail(503);
-    expect(await connect(phone)).toEqual({ status: "unreachable" });
+    expect(await connect(phone)).toEqual({
+      status: "unreachable",
+      reason: "http-503",
+    });
     elms.answer = () => {
       throw new TypeError("connection reset");
     };
-    expect(await connect(phone)).toEqual({ status: "unreachable" });
+    expect(await connect(phone)).toEqual({
+      status: "unreachable",
+      reason: "network",
+    });
     elms.fail(404);
-    expect(await connect(phone)).toEqual({ status: "not-a-calendar" });
+    expect(await connect(phone)).toEqual({
+      status: "not-a-calendar",
+      reason: "http-404",
+    });
+    elms.fail(403);
+    expect(await connect(phone)).toEqual({
+      status: "not-a-calendar",
+      reason: "http-403",
+    });
+    elms.answer = () =>
+      new Response(null, {
+        status: 302,
+        headers: { Location: "https://evil.example/feed.ics" },
+      });
+    expect(await connect(phone)).toEqual({
+      status: "not-a-calendar",
+      reason: "bad-redirect",
+    });
+    elms.answer = () =>
+      new Response("BEGIN:VCALENDAR", {
+        headers: { "Content-Length": String(6 * 1_048_576) },
+      });
+    expect(await connect(phone)).toEqual({
+      status: "not-a-calendar",
+      reason: "too-large",
+    });
     elms.serve("<!doctype html><title>Log in</title>");
-    expect(await connect(phone)).toEqual({ status: "not-a-calendar" });
+    expect(await connect(phone)).toEqual({
+      status: "not-a-calendar",
+      reason: "not-recognized",
+    });
     expect(await feedRow()).toBeNull();
     expect(
       await env.DB.prepare("SELECT COUNT(*) AS n FROM todo_items").first("n"),
@@ -238,6 +273,41 @@ describe("todo/connect", () => {
     });
     expect(row?.url_enc).toMatch(/^v1\.k1\./);
     expect(row?.url_enc).not.toContain(FEED_TOKEN);
+  });
+
+  it("fetches a link pasted on elms.umd.edu from umd.instructure.com", async () => {
+    const phone = await device();
+    const pasted = FEED_URL.replace("umd.instructure.com", "elms.umd.edu");
+    const result = await connect(phone, pasted);
+    expect(result.status).toBe("connected");
+    expect(elms.requests.map((r) => r.url)).toEqual([FEED_URL]);
+  });
+
+  it("waits longer for ELMS than a refresh does, then says it took too long", async () => {
+    const phone = await device();
+    let settled = false;
+    elms.answer = (request) =>
+      new Promise((_resolve, reject) => {
+        request.signal.addEventListener("abort", () =>
+          reject(new Error("aborted")),
+        );
+      });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const answer = connect(phone).finally(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(FEED_TIMEOUT_MS + 1_000);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(CONNECT_TIMEOUT_MS);
+      expect(await answer).toEqual({
+        status: "unreachable",
+        reason: "timeout",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(await feedRow()).toBeNull();
   });
 
   it("keeps done marks when reconnecting, for items that come back", async () => {
@@ -526,12 +596,12 @@ describe("test mode", () => {
       await at("/api/todo/connect", {
         url: testFeedLink(TEST_FEED_TOKENS.gone),
       }),
-    ).toEqual({ status: "not-a-calendar" });
+    ).toEqual({ status: "not-a-calendar", reason: "http-404" });
     expect(
       await at("/api/todo/connect", {
         url: testFeedLink(TEST_FEED_TOKENS.notCalendar),
       }),
-    ).toEqual({ status: "not-a-calendar" });
+    ).toEqual({ status: "not-a-calendar", reason: "not-recognized" });
     expect(elms.requests).toEqual([]);
     // terpsicle.com never gets test mode: without a key, it's off.
     expect(

@@ -117,8 +117,9 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
 
   await link.fill(testFeedLink(TEST_FEED_TOKENS.gone));
   await connect.click();
+  // Test mode's gone link answers 404: the reset-link sentence.
   await expect(
-    page.getByText(/ELMS didn't send a calendar for that link/),
+    page.getByText(/^ELMS doesn't know that link anymore/),
   ).toBeVisible();
   await expect(link).toHaveValue("");
 
