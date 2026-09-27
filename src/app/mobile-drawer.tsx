@@ -8,8 +8,9 @@ import { WithTooltip } from "~/ui/tooltip";
 import { openTab } from "./actions";
 import { PEEK_HEIGHT, snapHeights, TOP_BAR_HEIGHT } from "./drawer-heights";
 import { ProblemBadge } from "./rail";
-import { preloadTab, usePanelRegistry } from "./registry";
+import { closeToTab, currentView, preloadView } from "./schedule-nav";
 import { SIDEBAR_PANEL_ID, SidebarContent } from "./sidebar";
+import { useSidebarStack } from "./sidebar-stack";
 import { TABS, type Tab } from "./tabs";
 
 // Phones (SPEC §2): the same sidebar, in a bottom drawer that rests at peek,
@@ -96,12 +97,13 @@ function raiseAtOnce(inside: HTMLElement, setSnap: (snap: DrawerSnap) => void) {
 export function MobileDrawer() {
   const snap = useUi((s) => s.drawerSnap);
   const setSnap = useUi((s) => s.setDrawerSnap);
-  const tab = useUi((s) => s.tab);
-  const depth = useUi((s) => s.stack.length);
+  const { view, stack } = useSidebarStack();
+  const tab = view.tab;
+  const depth = stack.length;
   const viewport = useViewportHeight();
   const heights = snapHeights(viewport);
   const keyboard = useKeyboardInset();
-  useCalendarStaysVisible(depth);
+  useCalendarStaysVisible(depth, stack.at(-1)?.kind);
   usePageStaysPut();
   const points = [
     `${heights.peek}px`,
@@ -112,8 +114,10 @@ export function MobileDrawer() {
     point === points[2] ? "full" : point === points[1] ? "half" : "peek";
 
   // Opening a tab or drilling in from elsewhere (a shortcut, the calendar)
-  // raises a resting drawer so the result is visible.
-  const last = useRef({ tab, depth });
+  // raises a resting drawer so the result is visible. So does arriving on
+  // a drill-in (a seat-alert email's link), which the URL names from the
+  // first render: from nothing drilled in, that's deeper too.
+  const last = useRef({ tab, depth: 0 });
   useEffect(() => {
     const changed = last.current.tab !== tab || depth > last.current.depth;
     last.current = { tab, depth };
@@ -204,8 +208,12 @@ export function MobileDrawer() {
   useEffect(() => {
     if (!empty || greeted.current) return;
     greeted.current = true;
-    const ui = useUi.getState();
-    if (ui.tab !== "courses" || ui.stack.length > 0 || ui.drawerSnap !== "peek")
+    const here = currentView();
+    if (
+      here.tab !== "courses" ||
+      here.drill ||
+      useUi.getState().drawerSnap !== "peek"
+    )
       return;
     setSnap("half");
     // Measure once the half-height panel has laid out.
@@ -414,8 +422,9 @@ function Grabber({
 /** A tap on the open tab lowers the drawer, like the rail collapsing the sidebar. */
 function tapTab(tab: RailTab): void {
   const ui = useUi.getState();
-  if (tab === ui.tab && ui.drawerSnap !== "peek") {
-    if (ui.stack.length > 0) ui.backTo(0);
+  const view = currentView();
+  if (tab === view.tab && ui.drawerSnap !== "peek") {
+    if (view.drill) closeToTab();
     else ui.setDrawerSnap("peek");
     return;
   }
@@ -450,20 +459,19 @@ function usePageStaysPut() {
  */
 const READ_ON_THE_CALENDAR = new Set(["course", "generated-plan"]);
 
-function useCalendarStaysVisible(depth: number) {
+function useCalendarStaysVisible(depth: number, top: string | undefined) {
   const last = useRef(depth);
   useEffect(() => {
     const deeper = depth > last.current;
     last.current = depth;
     const ui = useUi.getState();
-    const top = ui.stack.at(-1);
-    if (deeper && top && READ_ON_THE_CALENDAR.has(top.kind))
+    if (deeper && top && READ_ON_THE_CALENDAR.has(top))
       if (ui.drawerSnap === "full") ui.setDrawerSnap("half");
-  }, [depth]);
+  }, [depth, top]);
 }
 
 function DrawerTabs() {
-  const current = useUi((s) => s.tab);
+  const current = useSidebarStack().view.tab;
   return (
     <nav
       aria-label="Tabs"
@@ -478,9 +486,9 @@ function DrawerTabs() {
 
 function DrawerTab({ tab, selected }: { tab: Tab; selected: boolean }) {
   const Icon = tab.icon;
-  const registry = usePanelRegistry();
-  // A touch fires pointerdown well before the tap's click.
-  const preload = () => preloadTab(registry, tab.id);
+  // A touch fires pointerdown well before the tap's click: the router starts
+  // loading the tab's route chunk then.
+  const preload = () => preloadView({ tab: tab.id, drill: null });
   return (
     <WithTooltip label={tab.label} shortcut={tab.shortcut} side="top">
       <button

@@ -7,6 +7,7 @@ import {
   PanelHeader,
   SectionHeader,
 } from "~/app/panel";
+import { useTabSearch } from "~/app/schedule-view";
 import { resolveCourseColors } from "~/core/color";
 import {
   draftCourseCodes,
@@ -14,6 +15,7 @@ import {
   requestItems,
 } from "~/core/generate/draft";
 import type { GenerateDraft, Relaxation } from "~/core/schema";
+import { GenerateTabSearchSchema } from "~/core/schema/schedule-url";
 import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { useActiveTerm, useCurrentPlan, useTermCatalog } from "~/state/hooks";
 import { useWorkspace } from "~/state/workspace-store";
@@ -25,7 +27,13 @@ import { MustHaveFields } from "./must-haves";
 import { NothingFits } from "./nothing-fits";
 import { CustomWeights, RankBySelect } from "./rank-by";
 import { Results } from "./results";
-import { runGenerate, stopGenerate, useGenerateRun } from "./run-store";
+import {
+  type GenerateView,
+  runGenerate,
+  showGenerateView,
+  stopGenerate,
+  useGenerateRun,
+} from "./run-store";
 import { saveResults } from "./save";
 import { useDraft } from "./use-draft";
 
@@ -42,6 +50,24 @@ function sameInputs(a: GenerateDraft, b: GenerateDraft): boolean {
 
 const plans = (n: number) => (n === 1 ? "1 plan" : `${n} plans`);
 
+/**
+ * Form or results: the URL's while the tab is on screen
+ * (`?view=results`), else what it showed last. Back and Forward change the
+ * URL's; the run store remembers it for the next time the tab opens. (The
+ * shell replaces a `?view=results` whose results are gone.)
+ */
+function useShownView(): GenerateView {
+  const url = useTabSearch("generate");
+  const remembered = useGenerateRun((s) => s.view);
+  const fromUrl = url
+    ? (GenerateTabSearchSchema.parse(url).view ?? "form")
+    : null;
+  useEffect(() => {
+    if (fromUrl) useGenerateRun.getState().setView(fromUrl);
+  }, [fromUrl]);
+  return fromUrl ?? remembered;
+}
+
 export function GeneratePanel() {
   const { term, termId } = useActiveTerm();
   const current = useCurrentPlan();
@@ -50,7 +76,7 @@ export function GeneratePanel() {
   const blocks = useWorkspace((s) => s.blocks);
   const status = useGenerateRun((s) => s.status);
   const runTermId = useGenerateRun((s) => s.termId);
-  const view = useGenerateRun((s) => s.view);
+  const view = useShownView();
   const selected = useGenerateRun((s) => s.selected);
   const inputRef = useFocusRequest<HTMLInputElement>("generate");
   const topRef = useRef<HTMLDivElement>(null);
@@ -97,8 +123,8 @@ export function GeneratePanel() {
     track("generate_relaxation_applied", { constraint: r.constraint });
     void runGenerate(termId, next, { relaxed: true });
   };
-  const edit = () => useGenerateRun.getState().setView("form");
-  const back = () => useGenerateRun.getState().setView("results");
+  const edit = () => showGenerateView("form");
+  const back = () => showGenerateView("results");
   const save = () => {
     if (!done) return;
     saveResults(

@@ -400,7 +400,7 @@ describe("seat watches by push (V2.md §6.5)", () => {
         type: "seat-open",
         title: "A seat opened in CMSC351 0101",
         body: "3 of 120 open. Register on Testudo before it's gone.",
-        url: `/schedule?term=${fixtureTermId}&course=CMSC351`,
+        url: `/schedule/course/CMSC351?term=${fixtureTermId}`,
         tag: `seat:${fixtureTermId}:${SECTION}`,
       },
     ]);

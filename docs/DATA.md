@@ -426,7 +426,7 @@ A signed-in person watches a section; the seats cron emails them when it reopens
 3. **Stop.** In the app: `alerts/unwatch`, from the bell, the problem's button, or the Watching list, with Undo (no confirmation, DESIGN §5). From the email: its one-click unsubscribe (below).
 4. **The end of a term.** The daily job (`endPastTermWatches`) deletes watches whose term isn't `active` in `terms.json` any more (archived or gone): seats stop updating then. Deleting an account deletes its watches (`ON DELETE CASCADE`).
 
-**The email** (`email.ts`): plain text plus simple table-based HTML, `Auto-Submitted: auto-generated`, from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`. It has the counts, Testudo's as-of time in Eastern, a link that opens the course (`/schedule?term=<id>&course=<code>`, which opens it over Courses in that term; `ScheduleSearchSchema`, §8.1), Testudo's page, and "See or stop your watches" (`/settings#watching`). Cron emails always link to terpsicle.com.
+**The email** (`email.ts`): plain text plus simple table-based HTML, `Auto-Submitted: auto-generated`, from `Terpsicle <alerts@terpsicle.com>` through the Email Service binding `EMAIL`. It has the counts, Testudo's as-of time in Eastern, a link that opens the course (`/schedule/course/<code>?term=<id>`; the older `/schedule?term=<id>&course=<code>` still redirects there, which opens it over Courses in that term; `ScheduleSearchSchema`, §8.1), Testudo's page, and "See or stop your watches" (`/settings#watching`). Cron emails always link to terpsicle.com.
 
 **One-click unsubscribe** (RFC 8058): `List-Unsubscribe: <https://terpsicle.com/api/alerts/one-click?u&t&s&k>` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. `k` is an HMAC of the user, term and section under the Worker's own key (`keyedHash`, the R2 key that also hashes IPs), so a link stops only that one watch and can't be made for anyone else's. The route sits outside the JSON table (mail providers POST a form):
 - `POST` stops the watch (idempotent) and answers a plain "Stopped";
@@ -679,22 +679,21 @@ At most 40 entries per list, and one entry per course across `sections` and `sav
 - Section keys missing from the catalog show up as cancelled problems in the shared view and are dropped on Save a copy, with a toast that names them.
 - The codec lives in `core/share`. A version the client doesn't know gets a specific error ("This link was made by a newer version of Terpsicle. Reload to open it.").
 
-### 8.1 The scheduler's other params
+### 8.1 The scheduler's URLs
 
-`/schedule` also carries where you are, validated by `ScheduleSearchSchema` (`core/schema/schedule-url.ts`); which change pushes a history entry is in `src/app/README.md`, "URL state". A bad value is dropped, never an error.
+Where you are is the path: `/schedule/<tab>` for a rail tab (`courses`, `search`, …), and `/schedule/course/<code>`, `/schedule/connection/<id>` or `/schedule/result/<id>` for a drill-in, with the tab it's over as `?tab=` (Courses when absent; a generated plan is over Generate). Which change pushes a history entry is in `src/app/README.md`, "URL state". Every param is validated by its route's schema (`core/schema/schedule-url.ts`); a bad value is dropped, never an error.
 
-| Param | Value |
-|---|---|
-| `term` | Term id. Omitted until the term list loads. |
-| `planId` | The open plan tab's local id; ignored when it isn't one of this browser's plans. |
-| `tab` | Rail tab (`courses`, `search`, …). The app's own URLs always name it; a link without it (`?term=&course=` from an email) opens over Courses. |
-| `course` · `connection` · `result` | The drill-in: a course code, a connection id, or a generated plan's id (only while that run's results are in memory). |
-| `view=results` | Generate shows its results rather than the form. |
-| `q` | Search's text. |
-| `gened` · `credits` · `level` · `openSeats` · `fits` | Search's filter chips: comma lists (`gened=DSHU,DSNL`, `level=300`) and `1` flags. |
-| `plan` · `demo` | The share link (above), and `pnpm dev:mock`'s demo switch. Kept as opened. |
+| Param | Where | Value |
+|---|---|---|
+| `term` | every view | Term id. Omitted until the term list loads. |
+| `planId` | every view | The open plan tab's local id; ignored when it isn't one of this browser's plans. |
+| `plan` · `demo` | every view | The share link (above), and `pnpm dev:mock`'s demo switch. Kept as opened. |
+| `tab` | drill-ins | The rail tab under it. |
+| `view=results` | `/schedule/generate` | Generate shows its results rather than the form. |
+| `q` | `/schedule/search` | Search's text. |
+| `gened` · `credits` · `level` · `openSeats` · `fits` | `/schedule/search` | Search's filter chips: comma lists (`gened=DSHU,DSNL`, `level=300`) and `1` flags. |
 
-History entries the app writes carry `ScheduleHistoryStateSchema` in their state: `inApp`, and the label of the view Back returns to.
+Old-style URLs, `/schedule?tab=&course=&connection=&result=&view=&q=…` (seat-alert emails, bookmarks), redirect to their route, replacing the entry; a plain `/schedule` (a share link, the installed app's start page) opens the saved view. History entries the app writes carry `ScheduleHistoryStateSchema` in their state: `inApp`, the label of the view Back returns to, and course details' sub-tab to jump to on arrival.
 
 ---
 

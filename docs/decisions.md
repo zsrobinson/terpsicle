@@ -131,6 +131,11 @@ Revisit if: `v2/schedule-routes` makes route splitting handle it.
 
 ## Schedule
 
+### Scheduler views are routes, kept mounted by the sidebar
+2026-09-27 · agent · one feature
+Each rail tab and drill-in is a route (`/schedule/search`, `/schedule/course/CMSC351?tab=search`) that the router splits, preloads and keeps in history. The sidebar renders their components itself instead of an `<Outlet />`, so panels and drill-in levels stay mounted (scroll, typed text, focus to return to). The term, open plan and Search's text stay in stores too (saved state, undo, a box that never waits on the router), written to the URL and following it on Back.
+Revisit if: the router can keep an outlet's past matches mounted (React's `<Activity>` through it), or a view needs no memory across Back.
+
 ### Back, not breadcrumbs
 2026-09-26 · owner · one feature
 Drill-ins get one "Back" to where you came from; drilling course to course doesn't stack crumbs.

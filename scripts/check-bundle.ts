@@ -66,10 +66,9 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
 export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
   [
     {
-      // Their panels.tsx registers them with lazyPanel; everything else in
-      // the folder is the panel's own.
-      pattern:
-        /^src\/features\/(generate|travel|blocks|export)\/(?!panels\.tsx$)/,
+      // Each is its tab's route (src/routes/schedule.<tab>.tsx), which the
+      // router splits into its own chunk.
+      pattern: /^src\/features\/(generate|travel|blocks|export)\//,
       why: "Generate, Travel, Blocks and Export load when first opened",
     },
     { pattern: /^src\/core\/ics\//, why: ".ics export loads with Export" },
@@ -210,24 +209,30 @@ export const ROUTE_BUDGETS: readonly {
   budget: number;
   never: readonly { pattern: RegExp; why: string }[];
 }[] = [
-  {
-    route: "/schedule",
-    budget: EAGER_BUDGET,
-    never: [
-      {
-        pattern: /^src\/state\/course-index-store\.ts$/,
-        why: "the course index loads with Plan, not the scheduler",
-      },
-      ...SCHEDULE_NEVER_EAGER,
-      ADMIN_NEVER_EAGER,
-      TODO_NEVER_EAGER,
-      PLAN_NEVER_EAGER,
-      {
-        pattern: /^src\/(features|core)\/chat\//,
-        why: "course details loads Chat's way in on demand, only while Chat is on",
-      },
-    ],
-  },
+  // The scheduler's layout, and the views a first visit lands on: plain
+  // `/schedule` opens Courses (or the saved tab), and a seat-alert email opens
+  // course details. Each tab and drill-in is a child route with its own chunk
+  // (loaded with its parent's).
+  ...["/schedule", "/schedule/courses", "/schedule/course/$code"].map(
+    (route) => ({
+      route,
+      budget: EAGER_BUDGET,
+      never: [
+        {
+          pattern: /^src\/state\/course-index-store\.ts$/,
+          why: "the course index loads with Plan, not the scheduler",
+        },
+        ...SCHEDULE_NEVER_EAGER,
+        ADMIN_NEVER_EAGER,
+        TODO_NEVER_EAGER,
+        PLAN_NEVER_EAGER,
+        {
+          pattern: /^src\/(features|core)\/chat\//,
+          why: "course details loads Chat's way in on demand, only while Chat is on",
+        },
+      ],
+    }),
+  ),
   {
     route: "/chat/",
     budget: CHAT_BUDGET,
@@ -334,7 +339,7 @@ export function linkedCss(code: string): string[] {
 }
 
 type RouteManifest = {
-  routes: Record<string, { preloads?: string[] }>;
+  routes: Record<string, { preloads?: string[]; children?: string[] }>;
 };
 
 /** TanStack Start's route manifest from the server build. */
@@ -360,8 +365,16 @@ function checkRoute(
 ): string[] {
   const client = path.join(ROOT, "dist/client");
   if (!routes[route]) return [`${route}: not in the route manifest`];
+  // A nested route loads with the routes it's nested in (`/schedule/courses`
+  // with `/schedule`).
+  const parentOf = (id: string) =>
+    Object.keys(routes).find((r) => routes[r]?.children?.includes(id));
+  const parents: string[] = [];
+  for (let p = parentOf(route); p && p !== "__root__"; p = parentOf(p))
+    parents.push(p);
   const preloads = [
     ...(routes.__root__?.preloads ?? []),
+    ...parents.flatMap((r) => routes[r]?.preloads ?? []),
     ...(routes[route]?.preloads ?? []),
   ].map((url) => url.replace(/^\//, ""));
   const entries = Object.keys(graph).filter((f) => graph[f]?.isEntry);

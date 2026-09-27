@@ -64,7 +64,7 @@ describe("persistence", () => {
       travel: { pace: "typical", accessible: false, extraMinutes: 0 },
     });
     expect(useUi.getState()).toMatchObject({
-      tab: "courses",
+      lastTab: "courses",
       sidebarOpen: true,
       theme: "system",
     });
@@ -89,11 +89,13 @@ describe("persistence", () => {
     w.setChatPlan(SPRING, "planBBBB");
     w.activatePlan(SPRING, "planAAAA");
     const ui = useUi.getState();
-    ui.clickTab("travel");
-    ui.drill({ kind: "course", courseCode: "CMSC351", tab: "grades" });
+    // The shell saves the view on screen (src/app/schedule-nav.ts).
+    useUi.setState({
+      lastTab: "travel",
+      lastDrill: { kind: "course", courseCode: "CMSC351", tab: "grades" },
+    });
     ui.setTheme("dark");
     ui.setLastTermId(SPRING);
-    ui.drill({ kind: "course", courseCode: "CMSC351" });
 
     const before = {
       plans: useWorkspace.getState().plans,
@@ -116,31 +118,10 @@ describe("persistence", () => {
     // Undo history is per visit.
     expect(after.past).toEqual([]);
     expect(useUi.getState()).toMatchObject({
-      tab: "travel",
+      lastTab: "travel",
       theme: "dark",
       lastTermId: SPRING,
-      stack: [{ kind: "course", courseCode: "CMSC351" }],
-    });
-  });
-
-  it("doesn't undo a tab opened while saved state was loading", async () => {
-    useUi.getState().clickTab("travel");
-    useUi.getState().setTheme("dark");
-    await persistence.flushed();
-    persistence.stop();
-    resetStores();
-
-    // The shell takes input before hydrate resolves: `/` opens Search.
-    const loading = hydrate(db);
-    useUi.getState().openTab("search");
-    await loading;
-    persistence = startPersisting(db);
-
-    expect(useUi.getState()).toMatchObject({
-      tab: "search",
-      stack: [],
-      // Everything else saved still loads.
-      theme: "dark",
+      lastDrill: { kind: "course", courseCode: "CMSC351", tab: "grades" },
     });
   });
 
@@ -213,21 +194,13 @@ describe("persistence", () => {
     persistence.stop();
     resetStores();
     await hydrate(db);
-    useUi.getState().drill({ kind: "course", courseCode: "CMSC351" });
+    useUi.setState({ lastDrill: { kind: "course", courseCode: "CMSC351" } });
     persistence = startPersisting(db);
     await reload();
-    expect(useUi.getState().stack).toEqual([
-      { kind: "course", courseCode: "CMSC351" },
-    ]);
-  });
-
-  it("remembers the innermost drill-in only", async () => {
-    useUi.getState().drill({ kind: "course", courseCode: "CMSC351" });
-    useUi.getState().drill({ kind: "connection", connectionId: "M:a>b" });
-    await reload();
-    expect(useUi.getState().stack).toEqual([
-      { kind: "connection", connectionId: "M:a>b" },
-    ]);
+    expect(useUi.getState().lastDrill).toEqual({
+      kind: "course",
+      courseCode: "CMSC351",
+    });
   });
 });
 

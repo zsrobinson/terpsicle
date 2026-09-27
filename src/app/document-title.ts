@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { useActiveTerm, useCurrentPlan } from "~/state/hooks";
-import { useUi } from "~/state/ui-store";
 import { planLabel } from "./plan-label";
-import { drillViewFor, usePanelRegistry } from "./registry";
+import { drillName, useScheduleView } from "./schedule-view";
 
 // The browser tab's title says where you are (WCAG 2.4.2): a screen reader
 // reads it when switching tabs or windows, and a tab bar full of
@@ -27,14 +26,10 @@ export function documentTitle({
 }
 
 export function useDocumentTitle(): void {
-  const registry = usePanelRegistry();
-  const top = useUi((s) => s.stack.at(-1));
+  const top = useScheduleView().drill;
   const current = useCurrentPlan();
   const { term } = useActiveTerm();
-  const drill = top
-    ? (drillViewFor(registry, top)?.name(top) ??
-      (top.kind === "course" ? top.courseCode : null))
-    : null;
+  const drill = top ? drillName(top) : null;
   const title = documentTitle({
     drill,
     plan: current ? planLabel(current) : null,

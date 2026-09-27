@@ -20,6 +20,7 @@ import { useShare } from "~/state/share-store";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { track } from "./analytics";
+import { currentView, goTo } from "./schedule-nav";
 import { applyThemePreference } from "./theme";
 
 // What people do in the shell, as plain functions: each changes the stores
@@ -106,8 +107,9 @@ export function deletePlan(planId: LocalId): void {
 
 /** A plan tab: a place of its own in history, so Back returns to the last one. */
 export function openPlan(termId: TermId, planId: LocalId): void {
+  const view = currentView();
+  goTo(view, { shared: { planId } });
   useWorkspace.getState().activatePlan(termId, planId);
-  useUi.getState().markNavigation();
 }
 
 /** `+` → Generate plans…: generating makes new plans, so it has its own tab (SPEC §3.9). */
@@ -126,55 +128,47 @@ export function startGenerate(): void {
 
 export function openTab(tab: RailTab, via: "click" | "shortcut"): void {
   const ui = useUi.getState();
-  if (ui.tab === tab && ui.sidebarOpen && ui.stack.length === 0) return;
-  ui.openTab(tab);
+  const view = currentView();
+  if (view.tab === tab && !view.drill && ui.sidebarOpen) return;
+  ui.setSidebarOpen(true);
+  goTo({ tab, drill: null });
   track("tab_opened", { tab, via });
 }
 
-/** The router's Back, while the URL sync runs (`schedule-url.ts`). */
-let historyBack: (() => void) | null = null;
-/** Until then, a Back already sent to the browser hasn't landed yet. */
-let backLandsBy = 0;
+export { goBack } from "./schedule-nav";
 
 /**
- * Back from a drill-in (its Back button, `Esc`): the browser's own Back when
- * the view before is one of ours, so the two are one thing and Forward
- * returns; otherwise (the app's first entry, or no URL in tests) the view
- * closes. False when there's nothing to go back from.
+ * A click on a rail tab (SPEC §2): another tab opens it; the open tab
+ * collapses the sidebar, or first goes back to the tab's own view if drilled
+ * in; a collapsed sidebar reopens.
  */
-export function goBack(): boolean {
-  const ui = useUi.getState();
-  if (ui.stack.length === 0) return false;
-  if (!ui.historyBack || !historyBack) return ui.back();
-  // A second Esc before the first lands would go back twice, maybe out of
-  // the app. The URL sync calls `backLanded` when it does.
-  if (performance.now() < backLandsBy) return true;
-  backLandsBy = performance.now() + 1000;
-  historyBack();
-  return true;
-}
-
-/** The URL sync hands over the router's Back while it runs (null when it stops). */
-export function setHistoryBack(back: (() => void) | null): void {
-  historyBack = back;
-  backLandsBy = 0;
-}
-
-/** The browser moved to another entry: Back can be sent again. */
-export function backLanded(): void {
-  backLandsBy = 0;
-}
-
-/** A click on a rail tab: opens, goes back to the tab's root, or collapses (SPEC §2). */
 export function clickRailTab(tab: RailTab): void {
-  const result = useUi.getState().clickTab(tab);
-  if (result === "collapsed") track("sidebar_collapsed", {});
-  else if (result === "opened") track("tab_opened", { tab, via: "click" });
+  const ui = useUi.getState();
+  const view = currentView();
+  if (tab !== view.tab || !ui.sidebarOpen) {
+    ui.setSidebarOpen(true);
+    goTo({ tab, drill: null });
+    track("tab_opened", { tab, via: "click" });
+  } else if (view.drill) goTo({ tab, drill: null });
+  else {
+    ui.setSidebarOpen(false);
+    track("sidebar_collapsed", {});
+  }
 }
 
 export function switchTerm(term: Term): void {
   const ui = useUi.getState();
   if (ui.lastTermId === term.id) return;
+  // Another term is going somewhere: its views over the old one don't apply.
+  goTo(
+    { tab: currentView().tab, drill: null },
+    {
+      shared: {
+        term: term.id,
+        planId: activePlanId(useWorkspace.getState(), term.id),
+      },
+    },
+  );
   ui.setLastTermId(term.id);
   track("term_switched", { status: term.status });
 }

@@ -2,8 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { Component, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "~/ui/tooltip";
-import { ChunkLoadError } from "./lazy-panel";
-import { PanelLoadBoundary } from "./panel-load-boundary";
+import { ChunkLoadError, PanelLoadBoundary } from "./panel-load-boundary";
 
 class Outer extends Component<{ children: ReactNode }, { caught: string }> {
   override state = { caught: "" };
@@ -45,6 +44,18 @@ describe("PanelLoadBoundary", () => {
       "Couldn't load Travel. Check your connection, then reload.",
     );
     expect(screen.queryByText(/Outer caught/)).toBeNull();
+  });
+
+  it("words a route's chunk that didn't arrive the same way", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    renderBoundary(
+      new TypeError(
+        "Failed to fetch dynamically imported module: /assets/schedule.travel-x.js",
+      ),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Couldn't load Travel.",
+    );
   });
 
   it("leaves a bug to the boundary above, not calling it a network problem", () => {

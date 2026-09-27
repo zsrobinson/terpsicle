@@ -1,11 +1,10 @@
 import { create } from "zustand";
 import type { GenerateRequest, GenerateResult, TermId } from "~/core/schema";
-import { useUi } from "./ui-store";
 
-// The Generate tab's state, apart from the code that runs a search: the
-// scheduler's URL sync reads and sets the view on every load, while the tab
-// itself, the generator and its worker client load when Generate is first
-// opened (scripts/check-bundle.ts). The actions are in
+// The Generate tab's state, apart from the code that runs a search: the shell
+// reads it for a generated plan's name and to drop a result that's gone,
+// while the tab itself, the generator and its worker client load when
+// Generate is first opened (scripts/check-bundle.ts). The actions are in
 // ~/features/generate/run-store.
 
 export type RunStatus =
@@ -28,9 +27,16 @@ export type RunStatus =
  */
 export type GenerateView = "form" | "results";
 
+/** A generated plan's name by its rank: "Option 3". */
+export const optionLabel = (rank: number) => `Option ${rank}`;
+
 export interface GenerateRunState {
   termId: TermId | null;
   status: RunStatus;
+  /**
+   * Which one the tab shows when next opened. While it's on screen the URL
+   * says (`/schedule/generate?view=results`); this remembers it.
+   */
   view: GenerateView;
   /** Result ids ticked for "Save N plans". */
   selected: readonly string[];
@@ -58,9 +64,6 @@ export const useGenerateRun = create<GenerateRunState>()((set, get) => ({
   },
   clearSelected: () => set({ selected: [] }),
   setView: (view) => {
-    if (get().view === view) return;
-    set({ view });
-    // Results and the form are two places: Back returns to the other.
-    useUi.getState().markNavigation();
+    if (get().view !== view) set({ view });
   },
 }));

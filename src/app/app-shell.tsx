@@ -1,5 +1,6 @@
-import { Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useSeatWatchesSync } from "~/features/alerts/seat-watches";
 import { InstallAppMenuItem } from "~/features/pwa/install-entry";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCatalogPolling } from "~/state/data-hooks";
@@ -14,15 +15,16 @@ import { CalendarRegion } from "./calendar/calendar-region";
 import { CatalogError, useCatalogFailure } from "./catalog-error";
 import { useDocumentTitle } from "./document-title";
 import { PEEK_HEIGHT } from "./drawer-heights";
-import { lazyModule, lazyPanel } from "./lazy-panel";
-import { PanelLoadBoundary } from "./panel-load-boundary";
+import { ChunkLoadError, PanelLoadBoundary } from "./panel-load-boundary";
 import { PlanTabs } from "./plan-tabs";
 import { Rail } from "./rail";
-import { FeatureEffects } from "./registry";
+import { useScheduleNavigation } from "./schedule-nav";
+import { useScheduleView } from "./schedule-view";
 import { SharedPill } from "./shared-pill";
 import { useShortcut } from "./shortcuts";
 import { SidebarContent } from "./sidebar";
 import { SidebarResizeHandle } from "./sidebar-resize";
+import { SidebarStackProvider } from "./sidebar-stack";
 import { CALENDAR_MAIN_ID, SkipLinks } from "./skip-links";
 
 /** The desktop sidebar's element, which its resize handle controls. */
@@ -37,10 +39,28 @@ import { MOBILE_QUERY, useIsMobile } from "./use-media-query";
 
 // The phone drawer (vaul) is its own chunk: desktops never load it, and
 // phones start fetching it as this module runs, alongside the app's data.
-const drawer = lazyModule(() => import("./mobile-drawer"));
+// It's a layout, not a place, so it's a lazy component rather than a route.
+let drawer: Promise<typeof import("./mobile-drawer")> | undefined;
+function loadDrawer() {
+  drawer ??= import("./mobile-drawer")
+    .then((m) => {
+      // Vite's loader resolves a failed chunk to nothing once load-recovery
+      // has taken the error (to reload the page).
+      if (!m?.MobileDrawer) throw new Error("empty module");
+      return m;
+    })
+    .catch((error: unknown) => {
+      // A failed chunk (offline, a deploy in between) can be tried again.
+      drawer = undefined;
+      throw new ChunkLoadError(error);
+    });
+  return drawer;
+}
 if (typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches)
-  drawer.load().catch(() => {});
-const MobileDrawer = lazyPanel(drawer, (m) => m.MobileDrawer);
+  loadDrawer().catch(() => {});
+const MobileDrawer = lazy(() =>
+  loadDrawer().then((m) => ({ default: m.MobileDrawer })),
+);
 
 // The layout in SPEC §2: top bar; rail, one sidebar panel and a calendar that
 // fills the rest. On phones, the same pieces with the sidebar in a bottom
@@ -53,7 +73,17 @@ export interface AppShellProps {
   onClearShared?: () => void;
 }
 
-export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
+export function AppShell(props: AppShellProps) {
+  useScheduleNavigation(useScheduleView());
+  useSeatWatchesSync();
+  return (
+    <SidebarStackProvider>
+      <Shell {...props} />
+    </SidebarStackProvider>
+  );
+}
+
+function Shell({ sharedParam, onClearShared }: AppShellProps) {
   const mobile = useIsMobile();
   const sidebarOpen = useUi((s) => s.sidebarOpen);
 
@@ -103,7 +133,6 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
           </Suspense>
         </PanelLoadBoundary>
         <UndoToasts />
-        <FeatureEffects />
       </div>
     );
   }
@@ -132,7 +161,6 @@ export function AppShell({ sharedParam, onClearShared }: AppShellProps) {
         </main>
       </div>
       <UndoToasts />
-      <FeatureEffects />
     </div>
   );
 }

@@ -200,6 +200,14 @@ export const RailTabSchema = z.enum([
 ]);
 export type RailTab = z.infer<typeof RailTabSchema>;
 
+/** Course details' sections a link can jump to on arrival. */
+export const CourseDetailsTabSchema = z.enum([
+  "instructors",
+  "grades",
+  "about",
+]);
+export type CourseDetailsTab = z.infer<typeof CourseDetailsTabSchema>;
+
 /**
  * The grade a review's author says they got; null is "Rather not say". Here
  * rather than with Reviews' schemas so moderation's queue can use it too.

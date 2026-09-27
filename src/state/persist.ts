@@ -10,10 +10,9 @@ import {
   validRows,
 } from "~/core/schema";
 import { diffById, type TerpsicleDb } from "./db";
-import { restorableTarget } from "./drill";
 import { useGenerateDrafts } from "./generate-drafts";
 import type { Workspace } from "./plan-ops";
-import { restoreNavigation, uiPrefsOf, useUi } from "./ui-store";
+import { uiPrefsOf, useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";
 
 // Loads the stores from IndexedDB, then writes every change back. Writes are
@@ -60,12 +59,10 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
     future: [],
   });
   useGenerateDrafts.setState({ drafts });
-  restoreNavigation({
-    tab: ui.tab,
-    sidebarOpen: ui.sidebarOpen,
-    stack: ui.drill ? [ui.drill] : [],
-  });
   useUi.setState({
+    lastTab: ui.tab,
+    lastDrill: ui.drill,
+    sidebarOpen: ui.sidebarOpen,
     theme: ui.theme,
     lastTermId: ui.lastTermId,
     collapsedGroups: ui.collapsedGroups,
@@ -83,7 +80,7 @@ function uiRow(): SettingsRow {
   return {
     key: "ui",
     value: {
-      ...uiPrefsOf(ui, restorableTarget(ui.stack.at(-1))),
+      ...uiPrefsOf(ui),
       activePlanByTerm: Object.fromEntries(
         Object.entries(useWorkspace.getState().activePlanByTerm).filter(
           (entry): entry is [string, string] => entry[1] !== undefined,

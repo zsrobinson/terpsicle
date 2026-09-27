@@ -16,6 +16,8 @@ export function sectionLabel(sectionKey: string): string {
 export function courseHref(termId: string, sectionKey: string): string {
   const parsed = parseSectionKey(sectionKey);
   const params = new URLSearchParams({ term: termId });
-  if (parsed) params.set("course", parsed.courseCode);
-  return `${SCHEDULE_PATH}?${params}`;
+  const course = parsed
+    ? `/course/${encodeURIComponent(parsed.courseCode)}`
+    : "/courses";
+  return `${SCHEDULE_PATH}${course}?${params}`;
 }
