@@ -1,7 +1,7 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ChevronLeft } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { WithTooltip } from "./tooltip";
 
 // The top of every page and panel (docs/COHESION.md §1.4): a title, one
@@ -15,6 +15,10 @@ export interface BackTo {
   search?: LinkProps["search"];
   params?: LinkProps["params"];
 }
+
+/** Back's look, as a link or a button. */
+const BACK =
+  "-ml-1 inline-flex w-fit items-center gap-0.5 font-medium text-muted text-sm transition-colors hover:text-fg max-md:-my-3 max-md:py-3";
 
 /**
  * The one back affordance: a chevron and the name of where you came from,
@@ -34,15 +38,33 @@ export function BackLink({
         to={to}
         search={search}
         params={params}
-        className={cn(
-          "-ml-1 inline-flex w-fit items-center gap-0.5 font-medium text-muted text-sm transition-colors hover:text-fg max-md:-my-3 max-md:py-3",
-          className,
-        )}
+        className={cn(BACK, className)}
       >
         <ChevronLeft size={14} aria-hidden="true" />
         {label}
       </Link>
     </WithTooltip>
+  );
+}
+
+/**
+ * `BackLink`'s look for a Back that follows history rather than a route (the
+ * scheduler's drill-ins go back to wherever you came from).
+ */
+export function BackButton({
+  className,
+  children,
+  ...props
+}: ComponentProps<"button"> & {
+  /** Where Back goes: "Search", or `<span class="ident">CMSC351</span>`. */
+  children: ReactNode;
+}) {
+  // The rest (and `ref`) reach the button, so a tooltip can wrap it.
+  return (
+    <button type="button" {...props} className={cn(BACK, className)}>
+      <ChevronLeft size={14} className="shrink-0" aria-hidden="true" />
+      {children}
+    </button>
   );
 }
 

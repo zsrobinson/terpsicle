@@ -502,9 +502,9 @@ function DrawerTab({ tab, selected }: { tab: Tab; selected: boolean }) {
         onFocus={preload}
         className={cn(
           "relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg py-1.5 transition-colors",
-          // The rail's selected look: a soft fill, no ring or shadow.
+          // The kit's one selected fill, as on the rail: no ring or shadow.
           selected
-            ? "bg-fg/10 text-fg"
+            ? "bg-accent-soft text-fg"
             : "text-muted hover:bg-hover/50 hover:text-fg",
         )}
       >

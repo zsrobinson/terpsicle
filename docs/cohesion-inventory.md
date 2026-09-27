@@ -19,7 +19,6 @@ Shared primitives:
 | Product | Where | Title markup | Subtitle/status | Right-side actions | Product mark |
 |---|---|---|---|---|---|
 | Schedule | `app/top-bar.tsx:46-48` | The h1 is the ProductMenu (umbrella mark + wordmark, `app/product-menu.tsx:46-60`). There is no page title. Panels use `PanelHeader` h2 `font-semibold text-base` (`panel.tsx:30-35`). | `PanelHeader` sub: `text-muted text-sm` | Credits, problems, sync and AccountButton in the top bar; panel `right` slot | Umbrella only |
-| Schedule first visit | `features/courses/first-visit.tsx:22-27` | **h3** `font-semibold text-xl`. It sits inside a panel whose h2 is `text-base`, so the h3 is larger than its parent. | `mt-0.5 text-muted text-sm` "Two ways to start…" | none | none |
 | Chat, signed in | `chat/room-list.tsx:42`, `chat/course-space.tsx:57-78`, `chat/room-view.tsx:160-222` | **No h1.** The list uses `PanelHeader` h2 text-base. The room header is a hand-rolled copy of PanelHeader's classes (`min-h-12 … border-b px-4 py-2`, h2 `truncate font-semibold text-base`). | The list sub is two Radix Selects (`room-list.tsx:132-205`) | Join/Leave (`course-space.tsx:223-288`); info/menu icons in the room | none |
 | Chat front door | `chat/sign-in-moment.tsx:16-31`, `:38-53` | h1 `text-xl tracking-tight` | `text-fg` tagline | — | `Mark id="chat" size={40}` |
 | Plan | `four-year/header.tsx:226-244` | The h1 wraps a **dropdown button** showing the plan's name, `font-semibold text-lg`, `h-11 md:h-8` (`:84-86`). Rename swaps in an input with `border-fg` (`:71`). | Inline "Saved in this browser" `text-muted text-sm` to the right of the title (`:201-223`), or `SyncStatusLabel` | Undo/Redo ghost icon-sm at `size-11 md:size-7` (`:166-196`) | none (the mark shows only on the empty state) |
@@ -35,10 +34,6 @@ Frame chrome:
 
 | Where | Component | Selected look |
 |---|---|---|
-| Schedule rail | `app/rail.tsx:77-97` (hand-rolled buttons, `aria-pressed`) | `bg-fg/10` plus a 2px edge bar; icon 17 over a `text-2xs` label |
-| Schedule phone drawer tabs | `app/mobile-drawer.tsx:473-516` (`DrawerTab`, a second copy of the rail button) | `bg-fg/10`, no edge bar |
-| Schedule plan tabs (top bar) | `app/plan-tabs.tsx:113-131` | `bg-hover`, `font-medium` |
-| Schedule drill-in back bar | `app/sidebar.tsx:370-399` | ChevronLeft + muted label, then current name `font-medium text-base` |
 | Plan side panel tabs | `four-year/side-panel.tsx:110-143` (hand-rolled `aria-current`) | **Underline tabs**: `border-b-2 border-fg`, `h-11 md:h-9`, count `text-xs` |
 | Plan phone semester strip | `four-year/board.tsx:288-306` | Bordered pills: `border-fg bg-accent-soft` vs `border-hairline bg-raised` |
 | Course details grades (the scheduler's; Reviews shows only the bars) | Radiogroup chips (`course-details/grades.tsx:127-135`, `:184-195`) | `bg-hover font-medium` |
