@@ -115,6 +115,10 @@ export interface AnalyticsEvents {
   // Web push on a device (V2.md §11), from /settings/notifications.
   push_enabled: NoProperties;
   push_disabled: NoProperties;
+  // The calendar feed (V2.md §6.7), from /settings/notifications. Never the
+  // link or anything in it.
+  calendar_feed_created: NoProperties;
+  calendar_feed_reset: NoProperties;
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
   signin_started: {
     from:
