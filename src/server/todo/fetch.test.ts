@@ -11,11 +11,19 @@ type Handler = (
 
 function fake(handler: Handler) {
   const seen: { url: string; init: RequestInit | undefined }[] = [];
-  const fetcher: typeof fetch = async (input, init) => {
+  // Like the Workers runtime's fetch, it refuses to run as another object's
+  // method ("Illegal invocation"), which is how production broke once.
+  const fetcher = async function (
+    this: unknown,
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ) {
+    if (this !== undefined && this !== globalThis)
+      throw new TypeError("Illegal invocation");
     const url = input instanceof Request ? input.url : String(input);
     seen.push({ url, init });
     return handler(url, init);
-  };
+  } as typeof fetch;
   return { fetch: fetcher, seen };
 }
 

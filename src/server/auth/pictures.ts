@@ -74,8 +74,11 @@ export async function refreshPicture(
   if (user.previousKey && user.pictureUrl === user.previousUrl) return;
   const url = PictureUrlSchema.safeParse(user.pictureUrl);
   if (!url.success) return;
+  // On its own, not as a method: the Workers runtime's fetch throws
+  // "Illegal invocation" with any other `this`.
+  const send = options.fetch;
   try {
-    const response = await options.fetch(pictureAt96(url.data), {
+    const response = await send(pictureAt96(url.data), {
       headers: { Accept: Object.keys(AVATAR_EXTENSIONS).join(", ") },
       redirect: "error",
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),

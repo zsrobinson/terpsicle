@@ -52,7 +52,7 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   isMobile,
 }) => {
   await page.goto("/plan");
-  await page.getByRole("button", { name: "Paste your transcript" }).click();
+  await page.getByRole("button", { name: "Import your transcript" }).click();
   const box = page.getByLabel("Paste your unofficial transcript");
   await expect(box).toBeFocused();
   await expect(page).toHaveURL(/\/plan\/import/);
@@ -77,11 +77,11 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
 
   // The "or" chooser, then the button is ready.
   await page
-    .getByRole("group", { name: /PSYC100/ })
+    .getByRole("radiogroup", { name: /PSYC100/ })
     .getByText("DSNS", { exact: true })
     .click();
   await page
-    .getByRole("group", { name: /AASP100/ })
+    .getByRole("radiogroup", { name: /AASP100/ })
     .getByText("DSHU", { exact: true })
     .click();
   // Transfer mapping: AP Chemistry counts as CHEM131 (not in the mock catalog).
@@ -102,7 +102,7 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   // and AP Calculus (MATH140 and MATH141) is Math and Analytic Reasoning.
   const gened = page.getByRole("region", { name: "GenEd progress" });
   await expect(
-    gened.getByText("5 of 11 categories covered", { exact: false }),
+    gened.getByText("5 of 11 covered, with planned courses"),
   ).toBeVisible();
 
   const fall = await semester(page, isMobile, "Fall 2024");

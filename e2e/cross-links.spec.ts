@@ -24,8 +24,9 @@ test("Plan links a course to its reviews, and the semester in progress to Todo",
   // In Fall 2026.
   await page.clock.setFixedTime(new Date("2026-09-26T16:00:00Z"));
   await page.goto("/plan");
-  await page.getByLabel("I started at UMD in").selectOption("202508");
-  await page.getByRole("button", { name: "Start planning" }).click();
+  await page.getByLabel("I started at UMD in").click();
+  await page.getByRole("option", { name: "Fall 2025" }).click();
+  await page.getByRole("button", { name: "or add courses yourself" }).click();
   if (isMobile)
     await page
       .getByRole("navigation", { name: "Semesters" })
