@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { CalendarDays, Copy, Link2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { EmptyState, PanelBody, PanelHeader, SectionHeader } from "~/app/panel";
+import { PanelBody, PanelHeader, PanelNote, SectionHeader } from "~/app/panel";
 import { planLabel } from "~/app/plan-label";
 import type { TermId } from "~/core/schema";
 import { WatchingList } from "~/features/alerts/watching-list";
@@ -94,9 +94,9 @@ export function ExportPanel() {
           count={empty ? undefined : sections.length}
         />
         {empty ? (
-          <EmptyState className="text-faint">
+          <PanelNote className="text-faint">
             Add a course to see the order to register in.
-          </EmptyState>
+          </PanelNote>
         ) : (
           <>
             <p className="px-4 py-2 text-muted text-sm">

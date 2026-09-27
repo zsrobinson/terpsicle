@@ -20,6 +20,7 @@ import { ApiCallError } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
+import { Switch } from "~/ui/switch";
 import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -318,45 +319,20 @@ function ChannelSwitch({
     : unavailableWords;
   return (
     <WithTooltip label={label}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={available && on}
-        aria-disabled={!available}
+      <Switch
+        checked={on}
+        unavailable={!available}
         aria-label={`${row.title}: ${words}`}
-        onClick={() => {
-          if (available) onToggle(!on);
-        }}
+        onCheckedChange={onToggle}
         className={cn(
-          "flex h-8 items-center gap-2 rounded-md border border-hairline bg-panel px-2 text-fg text-sm transition-colors",
-          available ? "hover:bg-hover" : "cursor-default text-muted",
+          "h-8 rounded-md border border-hairline bg-panel px-2 text-fg text-sm",
+          available ? "hover:bg-hover" : "text-muted",
         )}
       >
         <Icon size={13} aria-hidden="true" />
         {words}
-        <Knob on={available && on} />
-      </button>
+      </Switch>
     </WithTooltip>
-  );
-}
-
-/** A switch's track and knob; the button around it is the control. */
-function Knob({ on }: { on: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "flex h-[18px] w-[30px] shrink-0 items-center rounded-full p-0.5 transition-colors",
-        on ? "bg-accent" : "bg-hairline-strong",
-      )}
-    >
-      <span
-        className={cn(
-          "size-[14px] rounded-full bg-raised shadow-xs transition-transform",
-          on && "translate-x-3 bg-accent-fg",
-        )}
-      />
-    </span>
   );
 }
 

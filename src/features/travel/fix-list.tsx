@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { EmptyState, ListRow, MetaSep } from "~/app/panel";
+import { ListRow, MetaSep, PanelNote } from "~/app/panel";
 import type { ConnectionFix } from "~/core/problems";
 import type { CourseCode, SectionKey } from "~/core/schema";
 import { instructorsLabel } from "~/features/courses/section-words";
@@ -36,10 +36,10 @@ export function FixList({
   if (fixes.length === 0) {
     const names = [...new Set(courses.filter(Boolean))].join(" or ");
     return (
-      <EmptyState>
+      <PanelNote>
         No other section of {names} fixes this without causing a new problem.
         You could ask the instructor if arriving a few minutes late is OK.
-      </EmptyState>
+      </PanelNote>
     );
   }
 

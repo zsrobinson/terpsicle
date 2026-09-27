@@ -11,10 +11,10 @@ import { Fragment, type ReactElement, useMemo } from "react";
 import { TONE_TEXT } from "~/app/emphasis";
 import { MessageText, messageToText } from "~/app/message-text";
 import {
-  EmptyState,
   ListRow,
   PanelBody,
   PanelHeader,
+  PanelNote,
   SectionHeader,
 } from "~/app/panel";
 import { planLabel } from "~/app/plan-label";
@@ -135,10 +135,10 @@ export function CoursesPanel() {
                 ))}
               </ul>
             ) : (
-              <EmptyState className="pt-0 text-faint">
+              <PanelNote className="pt-0 text-faint">
                 Courses you're considering but haven't placed show up here.
                 Bookmark one from its details.
-              </EmptyState>
+              </PanelNote>
             )}
           </>
         ) : null}

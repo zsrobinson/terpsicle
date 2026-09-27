@@ -1,22 +1,28 @@
 import { cn } from "cn";
-import { ChevronDown } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
-import { Skeleton } from "~/ui/skeleton";
-import { WithTooltip } from "~/ui/tooltip";
+import type { ReactNode } from "react";
+import { PageHeader } from "~/ui/page-header";
+import { RowSkeleton } from "~/ui/skeleton";
+
+// The row and the group bar are the kit's (src/components/ui/list-row.tsx),
+// shared by every product; panels import them from here or from ~/ui.
+export { GroupHeader, ListRow } from "~/ui/list-row";
 
 // The anatomy every sidebar panel shares (docs/UX-REVIEW.md §2.3):
 //
 //   PanelHeader (48px, or the Back bar in a drill-in), outside the scroll
 //   PanelBody: the one scroll area
 //     SectionHeader "bar": sticky at top-0, "Sections  3 of 14 fit  …"
-//       GroupHeader: sticky under the bar, collapsible ("▾ Grace Kowalczyk …")
-//         ListRow …
+//       GroupHeader (~/ui): sticky under the bar, collapsible ("▾ Grace Kowalczyk …")
+//         ListRow (~/ui) …
 //     SectionHeader "label": a quiet heading for forms ("Must have")
 //   PanelFooter (optional): sticky at the bottom, the panel's primary action
 //
 // At most two sticky levels inside a PanelBody: a bar, then a group header.
 
-/** The 48px header at the top of a tab panel: a title, an optional muted line, and actions. */
+/**
+ * The 48px header at the top of a tab panel: a title, an optional muted line,
+ * and actions. The page kit's `PageHeader` at panel size, under its old name.
+ */
 export function PanelHeader({
   title,
   sub,
@@ -26,15 +32,7 @@ export function PanelHeader({
   sub?: ReactNode;
   right?: ReactNode;
 }) {
-  return (
-    <div className="flex min-h-12 shrink-0 items-center gap-2 border-hairline border-b px-4 py-2">
-      <div className="min-w-0 flex-1">
-        <h2 className="truncate font-semibold text-base">{title}</h2>
-        {sub ? <div className="truncate text-muted text-sm">{sub}</div> : null}
-      </div>
-      {right}
-    </div>
-  );
+  return <PageHeader size="panel" title={title} status={sub} actions={right} />;
 }
 
 /** At most two sticky levels inside a PanelBody: a bar, then a group header. */
@@ -146,132 +144,11 @@ export function PanelLabel({
 }
 
 /**
- * The header of a collapsible group of rows (an instructor's sections). The
- * left part toggles; `right` holds its own controls (never inside the
- * toggle). `sticky` pins it under a sticky SectionHeader bar.
+ * What a list or panel says when it's empty or can't load: a line or two, and
+ * maybe one action. No illustrations. A product's first visit is the kit's
+ * `EmptyState` (src/components/ui/empty-state.tsx) instead.
  */
-export function GroupHeader({
-  open,
-  onToggle,
-  toggleLabel,
-  title,
-  meta,
-  right,
-  sticky = false,
-  className,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  /** The toggle's tooltip: "Hide Grace Kowalczyk's sections". */
-  toggleLabel: string;
-  title: ReactNode;
-  /** Muted facts after the title: "★ 4.2 (61) · GPA 3.10". */
-  meta?: ReactNode;
-  right?: ReactNode;
-  sticky?: boolean;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex h-9 items-center gap-2 border-hairline border-b bg-panel px-4 text-sm",
-        sticky && "sticky top-9 z-10",
-        className,
-      )}
-    >
-      <WithTooltip label={toggleLabel}>
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={onToggle}
-          className="-ml-1 flex h-full min-w-0 flex-1 items-center gap-1.5 text-left"
-        >
-          <ChevronDown
-            size={13}
-            aria-hidden="true"
-            className={cn(
-              "shrink-0 text-muted transition-transform duration-150",
-              !open && "-rotate-90",
-            )}
-          />
-          <span className="truncate font-medium">{title}</span>
-          {meta ? (
-            <span className="tnum shrink-0 text-muted">{meta}</span>
-          ) : null}
-        </button>
-      </WithTooltip>
-      {right ? (
-        <div className="flex shrink-0 items-center gap-2 text-muted text-xs">
-          {right}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * One row of any list (docs/UX-REVIEW.md §2.4), in four columns:
- * - `lead`: identity (a code, a dot, a checkbox), fixed width per list;
- * - `children`: what it is, a primary line then at most two secondary lines;
- * - `trail`: a status or value, right-aligned and tabular;
- * - `action`: one small button or a word, fixed width (`w-14`).
- * Hairlines between rows, never boxes around them. The rest of the props go
- * to the row element (pointer handlers, `data-*`, `aria-*`).
- */
-export function ListRow({
-  lead,
-  children,
-  trail,
-  action,
-  density = "regular",
-  state,
-  as: Row = "div",
-  className,
-  ...rest
-}: Omit<ComponentProps<"div">, "children"> & {
-  lead?: ReactNode;
-  children: ReactNode;
-  trail?: ReactNode;
-  action?: ReactNode;
-  /** `compact`: one line, 28px; for long lists. */
-  density?: "regular" | "compact";
-  /** `current` is the plan's own item; `previewed` is what the calendar shows. */
-  state?: "current" | "previewed";
-  /** `li` inside a `ul`. */
-  as?: "div" | "li";
-}) {
-  return (
-    <Row
-      {...(rest as ComponentProps<"div"> & ComponentProps<"li">)}
-      data-state={state}
-      className={cn(
-        // No hairline under the list's last row. A row wrapped in its own
-        // <li> (for a context menu) is always its li's last child, so there
-        // it's the li that decides.
-        "flex items-center gap-3 border-hairline border-b px-4 transition-colors last:border-b-0 [li:not(:last-child)>&]:border-b",
-        density === "compact" ? "min-h-7 py-1" : "py-2",
-        state === "previewed"
-          ? "bg-hover"
-          : state === "current"
-            ? "bg-accent-soft"
-            : undefined,
-        className,
-      )}
-    >
-      {lead !== undefined ? <div className="shrink-0">{lead}</div> : null}
-      <div className="min-w-0 flex-1">{children}</div>
-      {trail !== undefined ? (
-        <div className="tnum shrink-0 text-right text-sm">{trail}</div>
-      ) : null}
-      {action !== undefined ? (
-        <div className="flex w-14 shrink-0 justify-center">{action}</div>
-      ) : null}
-    </Row>
-  );
-}
-
-/** What a list says when it's empty: a line or two, and maybe one action. No illustrations. */
-export function EmptyState({
+export function PanelNote({
   children,
   action,
   className,
@@ -327,32 +204,14 @@ export function MetaSep() {
 }
 
 /**
- * What a tab shows until its feature registers a panel: its title over a
- * neutral skeleton, with no copy about what's coming.
+ * What a tab shows until its feature registers a panel: its title over the
+ * kit's row skeleton, with no copy about what's coming.
  */
 export function PanelSkeleton({ title }: { title: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="panel-skeleton">
       <PanelHeader title={title} />
-      <div className="flex flex-col">
-        {[0.72, 0.58, 0.66].map((width) => (
-          <div
-            key={width}
-            className="flex flex-col gap-2 border-hairline border-b px-4 py-3"
-          >
-            <div className="flex items-center gap-2">
-              <Skeleton className="size-2 rounded-full" />
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="ml-auto h-1.5 w-12 rounded-full" />
-            </div>
-            <Skeleton
-              className="ml-4 h-3"
-              style={{ width: `${width * 100}%` }}
-            />
-            <Skeleton className="ml-4 h-2.5 w-1/3" />
-          </div>
-        ))}
-      </div>
+      <RowSkeleton label={`Loading ${title}`} />
     </div>
   );
 }

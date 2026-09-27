@@ -188,7 +188,7 @@ export function DecisionsPage({
 const ALL = "all";
 
 // A native select, not ~/ui/select: see RemoveMenu in ./queue-page.
-function Filter<T extends string>({
+export function Filter<T extends string>({
   label,
   hint,
   value,

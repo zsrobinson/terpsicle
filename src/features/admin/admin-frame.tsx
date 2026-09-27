@@ -1,14 +1,22 @@
 import { Link } from "@tanstack/react-router";
+import { cn } from "cn";
 import type { ReactNode } from "react";
 import { Logo } from "~/app/logo";
-import { ADMIN_DECISIONS_PATH, ADMIN_PATH, STAY_PARAM } from "~/core/routing";
+import {
+  ADMIN_DECISIONS_PATH,
+  ADMIN_FEEDBACK_PATH,
+  ADMIN_KIT_PATH,
+  ADMIN_PATH,
+  STAY_PARAM,
+} from "~/core/routing";
 import { FeedbackButton } from "~/features/feedback/feedback-button";
 import { Button } from "~/ui/button";
+import { PAGE_WIDTH } from "~/ui/product-page";
 import { WithTooltip } from "~/ui/tooltip";
 import { AdminGate } from "./admin-gate";
 
-// The frame for /admin and /admin/decisions (V2 §10): the logo, the panel's
-// two pages, and one column. Deliberately plain and light: it loads none of
+// The frame for the admin pages (V2 §10): the logo, the panel's pages, and
+// one column. Deliberately plain and light: it loads none of
 // the scheduler (so no theme menu, which lives in the scheduler's store; the
 // system theme applies, as on the other pages around the scheduler).
 
@@ -19,13 +27,26 @@ const PAGES = [
     label: "Decisions",
     hint: "Everything moderation decided, and how often it held",
   },
+  {
+    to: ADMIN_FEEDBACK_PATH,
+    label: "Feedback",
+    hint: "Bugs, ideas and pinned notes people sent",
+  },
+  {
+    to: ADMIN_KIT_PATH,
+    label: "Kit",
+    hint: "Every piece of the page kit, in every state",
+  },
 ] as const;
 
 export function AdminFrame({
   current,
+  width = "reading",
   children,
 }: {
   current: (typeof PAGES)[number]["to"];
+  /** The page kit's widths; the kit's side-by-side demos need `app`. */
+  width?: "reading" | "app";
   children: ReactNode;
 }) {
   return (
@@ -36,15 +57,23 @@ export function AdminFrame({
             <Logo compact />
           </a>
         </WithTooltip>
-        <span className="font-semibold">Admin</span>
-        <nav aria-label="Admin" className="flex items-center gap-1">
+        {/* Phones: four pages and the icons fit at 390px only without the
+            word; the nav scrolls on its own before the page ever would. */}
+        <span className="font-semibold max-sm:sr-only">Admin</span>
+        <nav
+          aria-label="Admin"
+          className="flex min-w-0 items-center gap-1 overflow-x-auto"
+        >
           {PAGES.map((p) => (
             <WithTooltip key={p.to} label={p.hint}>
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
-                className={p.to === current ? "bg-hover text-fg" : undefined}
+                className={cn(
+                  "max-sm:px-1.5",
+                  p.to === current && "bg-hover text-fg",
+                )}
               >
                 <Link
                   to={p.to}
@@ -56,13 +85,19 @@ export function AdminFrame({
             </WithTooltip>
           ))}
         </nav>
-        {/* The owner's notes on the panel itself ("Pin a note"). */}
+        {/* The owner's notes on the panel itself ("Pin a note"); the icon
+            alone, beside the Feedback page's own tab. */}
         <span className="ml-auto">
-          <FeedbackButton product="admin" pathname={current} />
+          <FeedbackButton product="admin" pathname={current} compact />
         </span>
       </header>
       <AdminGate>
-        <main className="mx-auto w-full max-w-[720px] flex-1 px-4 pt-4 pb-8">
+        <main
+          className={cn(
+            "mx-auto w-full flex-1 px-4 pt-4 pb-8",
+            PAGE_WIDTH[width],
+          )}
+        >
           {children}
         </main>
       </AdminGate>

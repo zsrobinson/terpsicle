@@ -8,6 +8,7 @@ import {
   type Pace,
   type TravelSettings,
 } from "~/core/schema";
+import { Switch } from "~/ui/switch";
 import { WithTooltip } from "~/ui/tooltip";
 import { setAccessible, setExtraMinutes, setPace } from "./actions";
 
@@ -83,12 +84,10 @@ export function TravelSettingsForm({ travel }: { travel: TravelSettings }) {
             : "Use UMD's accessible routes for every trip"
         }
       >
-        <button
-          type="button"
-          role="switch"
-          aria-checked={travel.accessible}
-          onClick={() => setAccessible(!travel.accessible)}
-          className="-mx-2 flex items-start gap-3 rounded-md px-2 py-1 text-left transition-colors hover:bg-hover"
+        <Switch
+          checked={travel.accessible}
+          onCheckedChange={setAccessible}
+          className="-mx-2 items-start gap-3 rounded-md px-2 py-1 hover:bg-hover"
         >
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5 font-medium text-base">
@@ -99,8 +98,7 @@ export function TravelSettingsForm({ travel }: { travel: TravelSettings }) {
               Ramps, elevators and accessible entrances, from UMD's campus map.
             </span>
           </span>
-          <Toggle on={travel.accessible} />
-        </button>
+        </Switch>
       </WithTooltip>
 
       <Field label="Extra time per trip" labelId={`${id}-extra`}>
@@ -151,25 +149,5 @@ function Field({
       </div>
       {children}
     </div>
-  );
-}
-
-/** The switch's track and knob; the whole row is the control. */
-function Toggle({ on }: { on: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "mt-0.5 flex h-[18px] w-[30px] shrink-0 items-center rounded-full p-0.5 transition-colors",
-        on ? "bg-accent" : "bg-hairline-strong",
-      )}
-    >
-      <span
-        className={cn(
-          "size-[14px] rounded-full bg-raised shadow-xs transition-transform",
-          on && "translate-x-3 bg-accent-fg",
-        )}
-      />
-    </span>
   );
 }

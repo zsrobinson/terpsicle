@@ -10,7 +10,7 @@ import {
 import { track } from "~/app/analytics";
 import { TONE_TEXT } from "~/app/emphasis";
 import { useFocusRequest } from "~/app/focus-request";
-import { EmptyState, ListRow, MetaSep } from "~/app/panel";
+import { ListRow, MetaSep, PanelNote } from "~/app/panel";
 import type { FitContext } from "~/core/fit";
 import type { Course } from "~/core/schema";
 // Not the ~/core/search barrel: it carries the text index, which loads
@@ -472,7 +472,7 @@ const EXAMPLES = ["cmsc 351", "statistics", "writing"] as const;
 
 function SearchHints({ onPick }: { onPick: (query: string) => void }) {
   return (
-    <EmptyState
+    <PanelNote
       action={
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-faint text-xs">Try</span>
@@ -501,7 +501,7 @@ function SearchHints({ onPick }: { onPick: (query: string) => void }) {
       >
         Tap a result to open it and see its sections.
       </span>
-    </EmptyState>
+    </PanelNote>
   );
 }
 

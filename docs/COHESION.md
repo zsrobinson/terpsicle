@@ -62,23 +62,23 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 - [x] Marketing scroll prototypes (the owner picks; the port waits until Phase 3, so it uses the new frame).
 
 ### Phase 1: decide the frame
-- [ ] Prototype two or three shell directions, plus a page-anatomy kit, in all five products and Settings, at desktop and phone, in both themes. Pick one, and record it in `docs/decisions.md` and §4 below.
+- [x] Prototype two or three shell directions, plus a page-anatomy kit, in all five products and Settings, at desktop and phone, in both themes. Pick one, and record it in `docs/decisions.md` and §4 below.
 
 ### Phase 2: build the system
-- [ ] `AppFrame`: the global bar (products, account, feedback) with a slot for the product's own context. It replaces both `SiteHeader` and the scheduler's `TopBar` framing.
-- [ ] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes.
+- [x] `AppBar` (the family bar): products, account, feedback, and a slot for the product's own context. `SiteHeader` and the scheduler's `TopBar` are thin callers of it.
+- [x] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes. (`v3/page-kit`: `PageHeader`, `ProductPage`, `ViewSwitch`, `EmptyState`, `ListRow` and `GroupHeader`, `Card`, `RowSkeleton` and `PageSkeleton`, `InlineError`. The panel's one-line note is now `PanelNote`.)
 - [ ] Controls the inventory found hand-rolled five times over (§6):
-  - `Input` and `SearchField`: one height, one border, one focus rule.
-  - `Select`: Radix everywhere; no native `<select>`.
-  - `Switch`.
-  - `SegmentedControl`: one selected look.
-  - `BackLink`: one back affordance.
-  - `Section`: one heading under a page title.
+  - [x] `Input` and `SearchField`: one height, one border, one focus rule.
+  - [ ] `Select`: Radix everywhere; no native `<select>`.
+  - [x] `Switch`.
+  - [x] `SegmentedControl`: one selected look.
+  - [x] `BackLink`: one back affordance.
+  - [x] `Section`: one heading under a page title. (It's `PageSection`: a section is a course's offering.)
 - [x] One `undoToast()` helper (`src/components/ui/toast.tsx`): one action button, one icon, one 10-second window (`UNDO_MS`), focus holds it open, and the shortcut sits in its tooltip. It replaces the seven toast-action copies. Failures go through `noteToast()`, which is never red and offers Try again where retrying can help. The scheduler and Plan keep their Undo/Redo pair on the shared `ToastAction`.
 - [ ] Touch targets come from `Button` sizes, never per-product `h-11 md:h-8` overrides. The sign-in button is a `Button`.
 - [ ] Routes get a shared `pendingComponent` and `errorComponent`. No page says "reload the page".
 - [ ] Guardrails:
-  - The design-tokens test also fails on raw `max-w-*` page containers and on `h1` elements outside `PageHeader`.
+  - The design-tokens test also fails on raw `max-w-*` page containers (done, with an allowlist of today's pages) and on `h1` elements outside `PageHeader` (not yet).
   - The `reviewer` agent checks for use of the kit.
   - A `scripts/shots.ts` takes the side-by-side grid of every product, so any PR can show the whole family.
 
@@ -108,7 +108,28 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
   Write down everything that confuses, fix it, and repeat. Done means a full round turns up nothing worth fixing, and the orchestrator is genuinely happy with every screen.
 
 ## 4. Decisions made here
-(Filled in as Phase 1 lands.)
+
+**The frame: the family bar** (2026-09-27; prototypes: https://claude.ai/artifact/AbCSuunT8MQBgjmn6Rq3o9).
+- **Tabs.** One 48px bar on every page (`AppBar`, `src/app/app-bar.tsx`). From 1100px it holds:
+  - the wordmark;
+  - the five products as labeled tabs, in color order, the one you're in tinted;
+  - a divider, then the product's context (the term and plan, a course, "Settings");
+  - its status (credits, problems);
+  - Feedback;
+  - the account.
+- **Menu.** Below 1100px the tabs fold into the product menu, whose trigger names the product you're in. The scheduler's phone bar keeps the umbrella alone, since the plan's name needs the room.
+- **Account menu.** It's one menu at every size: the account or Sign in, then the theme, then Install. On phones it also holds "Send feedback". The theme has no other home, except a small toggle where sign-in is off.
+- **Why the tabs and not the menu alone ("Crumb", the designer's pick).** Cohesion is the goal, and five labeled tabs say "one suite of five tools" at a glance. They also serve people who arrive cold (principle 3) and show the family on every public Reviews page. The menu still does the job wherever the tabs don't fit.
+- **The page kit follows the prototype's `kit.html`:**
+  - one page header;
+  - four page kinds (note 560, reading 720, app 1120, full);
+  - one view switch, where each view is a URL;
+  - one empty and first-visit template;
+  - one list row;
+  - card versus section;
+  - one inline error with Try again;
+  - a footer only on note and reading pages.
+- **Plan moves onto the scheduler's workbench** (rail, sidebar, canvas; the same drawer on phones). All three directions shared this.
 
 ## 5. How we work on this
 - **Cross-cutting work stays with the orchestrator.** The frame, the kit and the scheduler's move onto them are done in the orchestrator's own session, not handed off. At most two other sessions run at once, on parts of the code that don't overlap.

@@ -34,7 +34,6 @@ async function sessionCookie(page: Page) {
 
 test("sign in as a test person, see the account menu, and sign out", async ({
   page,
-  isMobile,
 }) => {
   // Somewhere in particular (a course open over Courses), so the sign-in has
   // a view to come back to.
@@ -50,18 +49,15 @@ test("sign in as a test person, see the account menu, and sign out", async ({
   expect(await page.context().cookies()).toEqual([]);
 
   await signInButton(page).click();
-  // A sheet on desktop; on phones, one menu holds sign-in and the theme.
-  const sheet = page.getByRole(isMobile ? "menu" : "dialog");
+  // One menu at every size holds sign-in and the theme.
+  const sheet = page.getByRole("menu");
   await expect(
     sheet.getByText("Sign in to join your class chats. Your plans sync too."),
   ).toBeVisible();
-  if (isMobile)
-    await expect(
-      sheet.getByRole("menuitemradio", { name: "Dark" }),
-    ).toBeVisible();
-  await sheet
-    .getByRole(isMobile ? "menuitem" : "link", { name: "Sign in (test mode)" })
-    .click();
+  await expect(
+    sheet.getByRole("menuitemradio", { name: "Dark" }),
+  ).toBeVisible();
+  await sheet.getByRole("menuitem", { name: "Sign in (test mode)" }).click();
 
   // The return is the scheduler with its query: the view to come back to.
   await expect(page).toHaveURL(
@@ -122,8 +118,8 @@ test("settings shows the profile read-only; the test admin gets Admin", async ({
   // click back.
   const header = page.getByRole("banner");
   await expect(
-    header.getByRole("link", { name: "Account: Test Admin" }),
-  ).toHaveAttribute("aria-current", "page");
+    header.getByRole("button", { name: "Account: Test Admin" }),
+  ).toBeVisible();
   await header
     .getByRole("navigation", { name: "Products" })
     .getByRole("link", { name: "Reviews" })

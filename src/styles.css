@@ -165,7 +165,7 @@
  *   text-sm    12/16  secondary lines in rows, labels, row buttons
  *   text-base  13/18  primary text, codes, body, panel titles, buttons
  *   text-lg    15/20  the drill-in title
- *   text-xl    18/24  the first-visit headline only
+ *   text-xl    18/24  titles: a page's h1 (PageHeader) and the first-visit headline (EmptyState)
  *
  * Spacing uses Tailwind's 4px steps, and only 1, 1.5 (inside chips), 2, 3, 4
  * and 6. Panels are px-4; rows py-2 (regular) or py-1 (compact); columns gap-3.

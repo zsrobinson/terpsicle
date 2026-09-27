@@ -36,6 +36,15 @@ _Avoid_: Open in Reviews, Go to Chat
 
 ## Shared
 
+**Family bar**:
+The one bar on every page: the wordmark and the five products as tabs (folded into the product menu on narrow screens), the product's context, then Feedback and the account. Code says `AppBar`.
+
+**Page kind**:
+How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: Todo), or full (a workbench, or Chat's split).
+
+**Workbench**:
+A product laid out like the scheduler: the rail of views, the sidebar and the canvas, with the same drawer on phones. Schedule and Plan are workbenches.
+
 **Term**:
 A semester Testudo lists (fall, spring, summer or winter). A term is **active** while Testudo lists it and **archived** after, shown under "Past terms".
 
@@ -100,6 +109,13 @@ _Avoid_: session recording, replay, telemetry
 **Pinned note**:
 An admin's note on one element of a page, left with the feedback sheet's "Pin a note" and shown as a numbered dot on that route, to admins only. Stored as feedback of kind `review` (a review of a deployment).
 _Avoid_: review note, comment (in the UI: "review" is Reviews' word)
+
+**Feedback inbox**:
+`/admin/feedback`, where the owner reads feedback and pinned notes, sets each one's status (New, Planned, Fixed, Won't fix, or Spam) and hands it on: "Copy for an agent" or "Open GitHub issue".
+_Avoid_: queue (that's moderation's)
+
+**Feedback group**:
+Open feedback items about the same thing, sorted together by "Group similar" (and the daily job) with a one-line summary the model wrote, shown with the sparkles.
 
 ## Schedule
 
@@ -310,6 +326,17 @@ Sign-in with fixture people (Test Student, Test Classmate, Test Admin) instead o
 
 **Flag**:
 A product's on switch in production (`REVIEWS_ENABLED`, `CHAT_ENABLED`, `TODO_ENABLED`, `PLAN_ENABLED`).
+
+**Page kit**:
+The shared pieces every product's pages are built from: page header, page widths, view switch, first-visit template, list row, card, page section, loading and error states, and the form controls. Shown in every state at `/admin/kit`.
+_Avoid_: design system (that's the whole line from tokens to pages)
+
+**Page width**:
+How wide a page's column is, picked by how it's read: **note** (560), **reading** (720), **app** (1120) or **full** (edge to edge). A page picks one and never invents its own.
+
+**First visit**:
+What a product shows before there's anything of yours in it: its mark, a headline, one sentence and its actions, the same template in all five.
+_Avoid_: onboarding, welcome screen
 
 **Load rule**:
 How much an agent may run locally: `tsc` once, biome on changed files, the relevant tests with one worker. CI is the verdict.
