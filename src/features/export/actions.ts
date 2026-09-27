@@ -1,4 +1,3 @@
-import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import type { SectionRef } from "~/core/catalog";
 import { buildIcs, icsFileName } from "~/core/ics";
@@ -11,6 +10,7 @@ import type {
   TermId,
 } from "~/core/schema";
 import { sharePayloadFromPlan, shareUrl } from "~/core/share";
+import { noteToast } from "~/ui/toast";
 
 // Export (SPEC §3.10): section codes, the share link and the .ics file.
 // Feedback is a toast; failures say what happened and what to do.
@@ -27,7 +27,7 @@ async function writeClipboard(text: string): Promise<boolean> {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    toast.error(
+    noteToast(
       "Couldn't copy: this browser blocked the clipboard. Allow it for this site and try again.",
       { id: "clipboard" },
     );
@@ -39,7 +39,7 @@ export async function copySectionCodes(plan: Pick<Plan, "courses">) {
   const codes = sectionCodes(plan);
   if (codes.length === 0) return;
   if (!(await writeClipboard(codes.join("\n")))) return;
-  toast(
+  noteToast(
     `Copied ${codes.length} section ${codes.length === 1 ? "code" : "codes"}`,
     { id: "export", description: "Paste them into Testudo when you register." },
   );
@@ -57,7 +57,7 @@ export async function copyShareLink(
     if (color) planColors[code] = color;
   const url = shareUrl(origin, sharePayloadFromPlan(plan, blocks, planColors));
   if (!(await writeClipboard(url))) return;
-  toast("Copied the share link", {
+  noteToast("Copied the share link", {
     id: "export",
     description: "Anyone with it sees this plan, read-only.",
   });
@@ -91,7 +91,7 @@ export function downloadIcs({
     now: now.toISOString(),
   });
   if (result.kind !== "ok") {
-    toast(
+    noteToast(
       result.kind === "not-published"
         ? `${termName}'s dates aren't published yet, so there's nothing to add. Try again once the provost posts the academic calendar.`
         : "None of these sections meet at set times, so there's nothing to add.",
@@ -120,7 +120,7 @@ export function downloadIcs({
     listNote(left("no-set-times"), "no set times"),
     listNote(left("no-meetings-in-term"), "no meetings in the term's dates"),
   ].filter(Boolean);
-  toast(`Downloaded ${fileName}`, {
+  noteToast(`Downloaded ${fileName}`, {
     id: "export",
     description: [
       ...notes,

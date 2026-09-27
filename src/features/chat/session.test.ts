@@ -160,13 +160,13 @@ describe("CourseChatSession", () => {
     expect(sockets).toHaveLength(1);
   });
 
-  it("holds a delete until its undo runs out, and undo brings it back", async () => {
+  it("holds a delete until it's sent, and undo brings it back", async () => {
     const socket = start();
     socket.serve({
       type: "message",
       message: aChatMessage({ id: "message01", author: me }),
     });
-    const undo = session.deleteLater(room, "message01", 10_000);
+    const { undo } = session.deleteLater(room, "message01");
     expect(listed(session.getSnapshot().conversation, room)).toEqual([]);
     undo();
     expect(
@@ -175,8 +175,13 @@ describe("CourseChatSession", () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(socket.last("delete")).toBeUndefined();
 
-    session.deleteLater(room, "message01", 10_000);
-    await vi.advanceTimersByTimeAsync(10_000);
+    // Nothing goes out on a timer: the Undo toast decides when (it waits
+    // while Undo has focus).
+    const { send } = session.deleteLater(room, "message01");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(socket.last("delete")).toBeUndefined();
+    send();
+    await vi.advanceTimersByTimeAsync(0);
     const del = socket.last("delete");
     expect(del).toMatchObject({ room, id: "message01" });
     socket.serve({ type: "ack", req: del?.req ?? "", message: null });
