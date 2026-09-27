@@ -13,6 +13,9 @@ export const Route = createFileRoute("/reviews/")({
   loaderDeps: ({ search }) => ({ q: search.q }),
   // The loader's data code is its own chunk, like the page: nothing of
   // Reviews loads with other pages (scripts/check-bundle.ts).
+  // Typing in the search changes `?q=` and runs the loader again: the page,
+  // and the text being typed, stay put while it does, never a loading state.
+  pendingMs: Number.POSITIVE_INFINITY,
   codeSplitGroupings: [["loader"], ["component"], ["notFoundComponent"]],
   loader: ({ deps, serverContext }) => loadReviewsHome(deps.q, serverContext),
   head: () => routeHead(reviewsHomeHead()),

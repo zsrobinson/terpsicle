@@ -20,6 +20,7 @@ import {
   FIXTURE_HASH,
   fixtureTermId,
 } from "~/fixtures";
+import { dismissToast } from "~/ui/toast";
 import { CoursePage } from "./course-page";
 import { deleteWithUndo } from "./delete-review";
 import { ReviewsHomePage } from "./home-page";
@@ -392,7 +393,7 @@ describe("your own review", () => {
     expect(await screen.findByText("Review deleted")).toBeInTheDocument();
     // The toast's close (timing out, or dismissed) commits it.
     await act(async () => {
-      toast.dismiss(`review-delete-${mine.id}`);
+      dismissToast(`review-delete-${mine.id}`);
     });
     await waitFor(() =>
       expect(client.reviews.delete).toHaveBeenCalledWith(

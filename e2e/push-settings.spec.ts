@@ -10,6 +10,7 @@ import {
 } from "../src/core/push";
 import { deviceLabel } from "../src/core/pwa/device-label";
 import { scan } from "./axe";
+import { liveToasts } from "./toasts";
 
 // Notifications at /settings/notifications on `pnpm dev:mock` (V2.md §6),
 // signed in with test mode: turn them on here, "Send me a test", see it
@@ -266,7 +267,7 @@ test("turn on notifications, send a test, see it, remove the device", async ({
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(thisDevice).toHaveCount(1);
     await thisDevice.getByRole("button", { name: "Remove" }).click();
-    await expect(page.getByText(`Removed ${label}`)).toBeHidden({
+    await expect(liveToasts(page).getByText(`Removed ${label}`)).toBeHidden({
       timeout: 15_000,
     });
     await page.reload();

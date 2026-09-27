@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { Bell, Mail } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { track } from "~/app/analytics";
 import {
   channelOn,
@@ -24,7 +23,7 @@ import { ListRow } from "~/ui/list-row";
 import { PageSection } from "~/ui/page-section";
 import { RowSkeleton } from "~/ui/skeleton";
 import { Switch } from "~/ui/switch";
-import { noteToast, undoToast } from "~/ui/toast";
+import { dismissToast, noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   currentEndpoint,
@@ -493,7 +492,7 @@ function Devices({
       settled = true;
       window.removeEventListener("pagehide", onHide);
       onRemoveEnd(device.id, false);
-      toast.dismiss(toastId);
+      dismissToast(toastId);
     };
     const toastId = `push-remove-${device.id}`;
     onRemoveStart(device.id);
