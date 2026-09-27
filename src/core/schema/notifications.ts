@@ -133,6 +133,11 @@ export const NotificationSettingsSetInputSchema = z.strictObject({
 });
 export const NotificationSettingsResultSchema = z.object({
   settings: NotificationSettingsSchema,
+  /**
+   * An ELMS feed is connected in Todo: "Due tomorrow" shows its switch only
+   * then (V3.md §4). Only `notifications/settings` says.
+   */
+  todoConnected: z.boolean().optional(),
 });
 export type NotificationSettingsResult = z.infer<
   typeof NotificationSettingsResultSchema

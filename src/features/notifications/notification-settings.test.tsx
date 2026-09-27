@@ -99,6 +99,43 @@ describe("NotificationSettingsSection", () => {
     expect(api.setSettings).toHaveBeenCalledOnce();
   });
 
+  it("asks for ELMS before Due tomorrow can switch on", async () => {
+    const user = renderSection();
+    const due = await screen.findByRole("switch", {
+      name: "Due tomorrow: Notification",
+    });
+    expect(due).toHaveAttribute("aria-disabled", "true");
+    expect(due).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.getByRole("link", { name: "Connect ELMS in Todo" }),
+    ).toHaveAttribute("href", "/todo/connect");
+    await user.click(due);
+    expect(api.setSettings).not.toHaveBeenCalled();
+  });
+
+  it("switches Due tomorrow once ELMS is connected", async () => {
+    api.settings.mockResolvedValue({
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, todoDue: { push: true } },
+      todoConnected: true,
+    });
+    api.setSettings.mockResolvedValue({
+      settings: DEFAULT_NOTIFICATION_SETTINGS,
+    });
+    const user = renderSection();
+    const due = await screen.findByRole("switch", {
+      name: "Due tomorrow: Notification",
+    });
+    expect(due).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.queryByRole("link", { name: "Connect ELMS in Todo" }),
+    ).toBeNull();
+    await user.click(due);
+    expect(due).toHaveAttribute("aria-checked", "false");
+    expect(api.setSettings).toHaveBeenCalledWith({
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, todoDue: { push: false } },
+    });
+  });
+
   it("puts a switch back when saving fails", async () => {
     api.setSettings.mockRejectedValue(new Error("offline"));
     const user = renderSection();

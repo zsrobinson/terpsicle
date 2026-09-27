@@ -124,7 +124,13 @@ export async function getSettings(
 ): Promise<NotificationSettingsResult | Response> {
   const userId = userOf(ctx);
   if (!userId) return apiError("unauthorized");
-  return { settings: await readSettings(env.DB, userId) };
+  const [settings, feed] = await Promise.all([
+    readSettings(env.DB, userId),
+    env.DB.prepare("SELECT 1 FROM todo_feeds WHERE user_id = ?1")
+      .bind(userId)
+      .first(),
+  ]);
+  return { settings, todoConnected: feed !== null };
 }
 
 export async function setSettings(

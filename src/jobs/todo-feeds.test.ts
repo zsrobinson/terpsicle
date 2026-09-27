@@ -4,6 +4,7 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { TodoConnectResultSchema } from "~/core/schema";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "~/core/schema/notifications";
 import { dueFeeds, todoHealth } from "~/server/todo/store";
 import {
   clearTodo,
@@ -211,8 +212,26 @@ describe("the todo-feeds cron", () => {
     expect(await feed()).toMatchObject({ status: "active", failure_count: 6 });
   });
 
-  it("slows to 6 hours after two weeks, and pauses after 120 days unopened", async () => {
+  it("keeps a feed with Due tomorrow on at 20 minutes, unopened or not", async () => {
+    // Connecting turned it on (V3.md §4).
     await connected();
+    await env.DB.prepare("UPDATE todo_feeds SET last_opened_at = ?1")
+      .bind(at(clock - 121 * DAY))
+      .run();
+    clock += 20 * MINUTE;
+    await run();
+    expect(await feed()).toMatchObject({
+      status: "active",
+      next_fetch_at: at(clock + 20 * MINUTE),
+    });
+  });
+
+  it("slows to 6 hours after two weeks, and pauses after 120 days unopened", async () => {
+    const phone = await connected();
+    // With Due tomorrow off: on, it keeps the feed fresh (above).
+    await phone.call("/api/notifications/settings/set", {
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, todoDue: { push: false } },
+    });
     await env.DB.prepare("UPDATE todo_feeds SET last_opened_at = ?1")
       .bind(at(clock - 15 * DAY))
       .run();

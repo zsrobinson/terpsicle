@@ -295,6 +295,7 @@ describe("notifications/settings", () => {
     const phone = await device();
     expect(await phone.call("/api/notifications/settings")).toEqual({
       settings: DEFAULT_NOTIFICATION_SETTINGS,
+      todoConnected: false,
     });
     const settings = {
       ...DEFAULT_NOTIFICATION_SETTINGS,
@@ -303,11 +304,13 @@ describe("notifications/settings", () => {
     await phone.call("/api/notifications/settings/set", { settings });
     expect(await phone.call("/api/notifications/settings")).toEqual({
       settings,
+      todoConnected: false,
     });
     // Another person still has the defaults.
     const other = await device("tclassmate");
     expect(await other.call("/api/notifications/settings")).toEqual({
       settings: DEFAULT_NOTIFICATION_SETTINGS,
+      todoConnected: false,
     });
     expect(
       (

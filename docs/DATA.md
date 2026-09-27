@@ -650,6 +650,7 @@ The design is `docs/V2.md` §6 (its "As built" under §6.4). Routes: `src/server
 
 - **Deleting an account** drops every push subscription at once (`account/delete`); the purge deletes settings, subscriptions and `notifications`, and sets deliveries' `user_id` to null.
 - **Signing out** with `pushEndpoint` deletes that device's row.
+- **Due tomorrow's dedupe key** (`v3/todo-notify`, V3.md §4): `todo-due:<user>:<New York date>` (`…:push`), one a day whatever retries happen.
 
 ## 8. Share links
 

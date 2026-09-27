@@ -44,6 +44,7 @@ import {
   saveFeedLinkStatement,
   sealFeedLink,
 } from "./crypto";
+import { dueTomorrowOn, turnOnAtConnect } from "./due-tomorrow";
 import { fetchFeed } from "./fetch";
 import { refreshFeed } from "./refresh";
 import {
@@ -114,6 +115,13 @@ export async function connect(
 
   const { now } = ctx;
   const owner: FeedOwner = { userId, source: "elms" };
+  // Connecting turns "Due tomorrow" on (V3.md §4), before the cadence reads it.
+  const dueTomorrow = await turnOnAtConnect(
+    env.DB,
+    userId,
+    (await getFeed(env.DB, userId)) === null,
+    now,
+  );
   const { kept } = keepInWindow(
     parsed.items,
     newYorkDateOf(now.getTime()),
@@ -124,7 +132,7 @@ export async function connect(
     saveFeedLinkStatement(env.DB, owner, sealed, now),
     feedSuccessStatement(env.DB, owner, {
       now,
-      next: nextFetch({ now, lastOpenedAt: now, dueTomorrowOn: false }),
+      next: nextFetch({ now, lastOpenedAt: now, dueTomorrowOn: dueTomorrow }),
       body: {
         etag: fetched.etag,
         lastModified: fetched.lastModified,
@@ -216,7 +224,7 @@ export async function refresh(
     now,
     random: Math.random(),
     opened: true,
-    dueTomorrowOn: false,
+    dueTomorrowOn: (await dueTomorrowOn(env.DB, [userId])).has(userId),
   });
   const after = await getFeed(env.DB, userId);
   return {

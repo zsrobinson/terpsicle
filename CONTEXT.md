@@ -275,7 +275,7 @@ The "Gradescope" tag on an item whose ELMS entry links to Gradescope. Terpsicle 
 "Add a calendar file": an `.ics` the student exported, read in the browser. Its items say "From a file" and don't update.
 
 **Due tomorrow**:
-Todo's one notification.
+Todo's one notification: at 6pm in College Park, one push listing what's due the next day and not done. Connecting ELMS turns it on.
 
 ## Working on Terpsicle
 
