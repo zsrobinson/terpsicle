@@ -83,6 +83,8 @@ export async function resetTables(): Promise<void> {
     [
       "reports",
       "moderation_queue",
+      "moderation_author_stops",
+      "author_stops",
       "moderation_decisions",
       "reviews",
       "instructor_names",

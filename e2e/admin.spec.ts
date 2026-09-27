@@ -184,3 +184,122 @@ test("the admin publishes, undoes, removes with a reason, then reads the log", a
     await scan(page, `admin decisions (${scheme})`);
   }
 });
+
+test("the admin removes a chat message from its link and stops its author, then undoes it", async ({
+  page,
+  browser,
+  isMobile,
+}, info) => {
+  // Two people, a live socket and moderation: longer than most specs.
+  test.slow();
+  const tag = `${info.project.name}-${Date.now().toString(36)}`;
+  // A made-up author of their own, so the stop can't reach the people the
+  // chat specs use while this runs.
+  const { viewport, hasTouch, baseURL } = info.project.use;
+  const authorContext = await browser.newContext({
+    ...(viewport ? { viewport } : {}),
+    isMobile,
+    ...(hasTouch !== undefined ? { hasTouch } : {}),
+    ...(baseURL ? { baseURL } : {}),
+  });
+  const author = await authorContext.newPage();
+  author.on("pageerror", (error) => errors.push(error.message));
+  await author.goto("/privacy");
+  const authorId = `e2e${Math.random().toString(36).slice(2, 12)}`;
+  const room = "/chat?term=202701&course=CMSC131&room=202701:CMSC131";
+  const next = await author.evaluate(
+    async ({ id, to }) => {
+      const response = await fetch("/api/auth/test-sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: id, return: to }),
+      });
+      const result: { return?: string } = await response.json();
+      return result.return ?? "";
+    },
+    { id: authorId, to: room },
+  );
+  await author.goto(next);
+  const log = author.getByRole("log", { name: "Messages" });
+  await expect(log).toBeVisible();
+  const gotIt = author.getByRole("button", { name: "Got it" });
+  if (await gotIt.isVisible()) await gotIt.click();
+
+  const send = async (text: string) => {
+    const field = author.getByRole("textbox", { name: /^Message|Reply/ });
+    await field.fill(text);
+    await field.press("Enter");
+  };
+  const text = `selling my notes, dm me ${tag}`;
+  await send(text);
+  const mine = log.getByRole("article").filter({ hasText: text });
+  await expect(mine).toBeVisible();
+  await expect(
+    mine.getByText("Checking before classmates see it…"),
+  ).toHaveCount(0);
+
+  // Its thread's address is the message's link.
+  await expect(async () => {
+    if (isMobile) await mine.locator("[data-message-body]").tap();
+    else await mine.hover();
+    await mine
+      .getByRole("button", { name: "Reply in a thread", exact: true })
+      .click({ timeout: 1_000 });
+  }).toPass();
+  await expect(author).toHaveURL(/thread=/);
+  const link = author.url();
+
+  // The admin pastes it, stops the author, and removes it.
+  await signInAs(page, "Test Admin", "/admin");
+  await page.getByRole("button", { name: "Paste a chat link" }).click();
+  const form = page.getByRole("region", { name: "Remove a chat message" });
+  await form.getByLabel("Message link or id").fill(link);
+  await expect(form.getByText("A message in CMSC131")).toBeVisible();
+  await form
+    .getByRole("checkbox", {
+      name: "Also stop this author posting in Chat for 7 days",
+    })
+    .check();
+  await form.getByRole("button", { name: "Spam or an ad" }).click();
+  await expect(page.getByText("Removed: Spam or an ad")).toBeVisible();
+  await expect(
+    page.getByText(/Chat message in CMSC131\. Author can't post in Chat until/),
+  ).toBeVisible();
+
+  // The author sees it taken down live (a reload leaves removed messages
+  // out), and a calm line when they try again.
+  await expect(
+    author.getByText("A person took this down. Only you can see it.").first(),
+  ).toBeVisible();
+  await send(`one more thing ${tag}`);
+  await expect(
+    author.getByText(/^You can't post in Chat until [A-Z][a-z]{2} \d{1,2}\.$/),
+  ).toBeVisible();
+
+  // Undo from Decided: back in the queue, and the author can post again.
+  await page
+    .getByRole("navigation", { name: "Queue" })
+    .getByRole("button", { name: "Decided" })
+    .click();
+  const decided = page.locator("[data-queue-item]").filter({ hasText: text });
+  await expect(
+    decided.getByText(
+      /Removed: Spam or an ad\. Author can't post in Chat until/,
+    ),
+  ).toBeVisible();
+  await decided.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Back in the queue")).toBeVisible();
+  await author.reload();
+  const after = `back again ${tag}`;
+  await send(after);
+  const reply = author.getByRole("article").filter({ hasText: after });
+  await expect(reply).toBeVisible();
+  await expect(
+    reply.getByText("Checking before classmates see it…"),
+  ).toHaveCount(0);
+  await expect(author.getByText(/You can't post in Chat until/)).toHaveCount(0);
+
+  // Nothing the admin saw names the author.
+  expect(await page.content()).not.toContain(authorId);
+  await authorContext.close();
+});

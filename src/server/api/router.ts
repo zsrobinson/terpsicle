@@ -43,6 +43,7 @@ import {
   UndoInputSchema,
 } from "~/core/schema";
 import {
+  AdminChatRemoveInputSchema,
   AdminHealthInputSchema,
   AdminSamplesInputSchema,
   DecisionListInputSchema,
@@ -66,6 +67,7 @@ import {
   PushTestInputSchema,
   PushUnsubscribeInputSchema,
 } from "~/core/schema/notifications";
+import { removeChatMessage } from "../admin/chat-remove";
 import { listDecisions } from "../admin/decisions";
 import { adminHealth } from "../admin/health";
 import { addSamples } from "../admin/samples";
@@ -116,6 +118,8 @@ import {
   undoQueueItem,
 } from "../moderation/admin";
 import {
+  type AuthorActors,
+  authorActors,
   type ModerationHandlers,
   moderationHandlers,
 } from "../moderation/handlers";
@@ -218,6 +222,8 @@ export type RouteContext = AlertsContext &
   IdentityRouteContext & {
     /** How the owner's moderation decisions reach Reviews and Chat. */
     moderationHandlers: ModerationHandlers;
+    /** How the owner's "stop this author" reaches them. */
+    authorActors: AuthorActors;
   };
 
 export interface ApiOptions {
@@ -225,6 +231,8 @@ export interface ApiOptions {
   fetch?: typeof fetch;
   /** Overrides moderationHandlers(env), for tests. */
   moderationHandlers?: ModerationHandlers;
+  /** Overrides authorActors(env), for tests. */
+  authorActors?: AuthorActors;
 }
 
 /**
@@ -583,6 +591,7 @@ export const ROUTES = {
       resolveQueueItem(env.DB, input, {
         now: ctx.now,
         handlers: ctx.moderationHandlers,
+        actors: ctx.authorActors,
       }),
   }),
   "admin/moderation/undo": route({
@@ -594,9 +603,22 @@ export const ROUTES = {
       undoQueueItem(env.DB, input, {
         now: ctx.now,
         handlers: ctx.moderationHandlers,
+        actors: ctx.authorActors,
       }),
   }),
   // The rest of the admin panel (V2 §10, src/server/admin).
+  "admin/chat/remove": route({
+    input: AdminChatRemoveInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) =>
+      removeChatMessage(env, input, {
+        now: ctx.now,
+        handlers: ctx.moderationHandlers,
+        actors: ctx.authorActors,
+      }),
+  }),
   "admin/decisions": route({
     input: DecisionListInputSchema,
     perIpPerHour: 600,
@@ -752,6 +774,7 @@ export async function handleApi(
     session,
     ...(options.fetch ? { fetch: options.fetch } : {}),
     moderationHandlers: options.moderationHandlers ?? moderationHandlers(env),
+    authorActors: options.authorActors ?? authorActors(env),
   });
   return reply(result instanceof Response ? result : json(result));
 }

@@ -1,6 +1,8 @@
 // The admin panel's words for moderation's codes (SPEC §3.13: plain words).
 // The reason codes' words are REASON_WORDS in ~/core/moderation/policy-text,
 // shared with the composers.
+import { termLabel } from "~/core/catalog/terms";
+import { AUTHOR_STOP_DAYS } from "~/core/moderation/admin";
 import type {
   AdminReason,
   DecisionStage,
@@ -8,8 +10,10 @@ import type {
   PolicyLabel,
   ReasonSource,
   ReportReason,
+  ReviewQueueContext,
   StoredVerdict,
 } from "~/core/schema";
+import { stopEndWords } from "~/core/time/format";
 
 export const KIND_WORDS: Readonly<Record<ModerationKind, string>> = {
   review: "Review",
@@ -106,4 +110,31 @@ export function percent(share: number): string {
 /** 1234 → "1,234". */
 export function count(n: number): string {
   return n.toLocaleString("en-US");
+}
+
+/** "Stop this author writing reviews for 30 days" (V2 §10), per surface. */
+export function stopWords(kind: ModerationKind): string {
+  return kind === "review"
+    ? `Also stop this author writing reviews for ${AUTHOR_STOP_DAYS.review} days`
+    : `Also stop this author posting in Chat for ${AUTHOR_STOP_DAYS.chat} days`;
+}
+
+/** "Author can't write reviews until Oct 26", after a stop. */
+export function stoppedWords(kind: ModerationKind, until: string): string {
+  const day = stopEndWords(until);
+  return kind === "review"
+    ? `Author can't write reviews until ${day}`
+    : `Author can't post in Chat until ${day}`;
+}
+
+/** "Ada Brandt · rated 2 of 5 · Fall 2026 · grade B": a held review's context. */
+export function reviewContextWords(review: ReviewQueueContext): string {
+  return [
+    review.instructor,
+    `rated ${review.rating} of 5`,
+    review.termId ? termLabel(review.termId) : null,
+    review.grade ? `grade ${review.grade}` : null,
+  ]
+    .filter((part) => part !== null)
+    .join(" · ");
 }
