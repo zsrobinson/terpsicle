@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SectionSnapshotSchema } from "./catalog";
 import {
   CourseCodeSchema,
+  CourseDetailsTabSchema,
   DaysSchema,
   ENDS_AFTER_START,
   endsAfterStart,
@@ -104,13 +105,6 @@ export const CourseColorPrefSchema = z.object({
 export type CourseColorPref = z.infer<typeof CourseColorPrefSchema>;
 
 // ---------- UI prefs and settings ----------
-
-export const CourseDetailsTabSchema = z.enum([
-  "instructors",
-  "grades",
-  "about",
-]);
-export type CourseDetailsTab = z.infer<typeof CourseDetailsTabSchema>;
 
 /** What the sidebar is drilled into. Generated results aren't persisted, so they aren't restorable. */
 export const DrillTargetSchema = z.discriminatedUnion("kind", [

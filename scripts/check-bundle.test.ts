@@ -69,8 +69,8 @@ describe("bundle check", () => {
       "assets/s.js": chunk(
         [],
         [
-          "src/features/generate/panels.tsx",
-          "src/features/travel/panels.tsx",
+          "src/routes/schedule.generate.tsx",
+          "src/routes/schedule.travel.tsx",
           "src/features/search/search-panel.tsx",
           "src/core/search/filters.ts",
           "src/app/drawer-heights.ts",

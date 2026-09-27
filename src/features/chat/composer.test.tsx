@@ -4,7 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "~/ui/tooltip";
 import { Composer } from "./composer";
 
-function composer(disabledReason: string | null = null) {
+const MEMBERS = [
+  { directoryId: "hlee", name: "Hannah Lee" },
+  { directoryId: "hkim", name: "Hannah Kim" },
+  { directoryId: "oali", name: "Omar Ali" },
+];
+
+function composer(
+  disabledReason: string | null = null,
+  loadMembers?: () => Promise<typeof MEMBERS>,
+) {
   const onSend = vi.fn();
   const onTyping = vi.fn();
   render(
@@ -15,6 +24,7 @@ function composer(disabledReason: string | null = null) {
         disabledReason={disabledReason}
         onSend={onSend}
         onTyping={onTyping}
+        {...(loadMembers ? { loadMembers } : {})}
       />
     </TooltipProvider>,
   );
@@ -59,5 +69,57 @@ describe("Composer", () => {
     );
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.getByText(/read-only now/)).toBeInTheDocument();
+  });
+
+  describe("@-mentions", () => {
+    it("offers the room's members after an @, and writes the full name", async () => {
+      const load = vi.fn(async () => MEMBERS);
+      const { onSend, user } = composer(null, load);
+      const field = screen.getByRole("textbox");
+      await user.type(field, "hi ");
+      expect(load).not.toHaveBeenCalled();
+      await user.type(field, "@han");
+      const list = await screen.findByRole("listbox", {
+        name: "Mention someone in this room",
+      });
+      expect(load).toHaveBeenCalledOnce();
+      const options = screen.getAllByRole("option");
+      expect(options.map((o) => o.textContent)).toEqual([
+        "Hannah Lee",
+        "Hannah Kim",
+      ]);
+      expect(options[0]).toHaveAttribute("aria-selected", "true");
+      expect(field).toHaveAttribute("aria-activedescendant", options[0]?.id);
+      // Enter picks rather than sends.
+      await user.keyboard("{ArrowDown}{Enter}");
+      expect(onSend).not.toHaveBeenCalled();
+      expect(list).not.toBeInTheDocument();
+      expect(field).toHaveValue("hi @Hannah Kim ");
+      await user.type(field, "see you there{Enter}");
+      expect(onSend).toHaveBeenCalledWith("hi @Hannah Kim see you there");
+    });
+
+    it("picks with a click, and closes on Esc until the next @", async () => {
+      const { user } = composer(null, async () => MEMBERS);
+      const field = screen.getByRole("textbox");
+      await user.type(field, "@o");
+      await user.click(await screen.findByRole("option", { name: "Omar Ali" }));
+      expect(field).toHaveValue("@Omar Ali ");
+      await user.type(field, "and @h");
+      await screen.findByRole("listbox");
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("listbox")).toBeNull();
+      await user.type(field, " @h");
+      expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    });
+
+    it("stays out of the way with no match, or without members", async () => {
+      const { onSend, user } = composer(null, async () => MEMBERS);
+      const field = screen.getByRole("textbox");
+      await user.type(field, "@zed");
+      expect(screen.queryByRole("listbox")).toBeNull();
+      await user.keyboard("{Enter}");
+      expect(onSend).toHaveBeenCalledWith("@zed");
+    });
   });
 });

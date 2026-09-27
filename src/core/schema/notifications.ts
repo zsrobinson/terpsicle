@@ -143,6 +143,15 @@ export type NotificationSettingsResult = z.infer<
   typeof NotificationSettingsResultSchema
 >;
 
+// ---------- POST /api/notifications/email-off?u&t&k (RFC 8058 one-click) ----------
+
+/** The signed link's query: whose email, which type, and the key that signs both. */
+export const EmailOffQuerySchema = z.object({
+  u: z.string().min(1).max(64),
+  t: NotificationTypeSchema,
+  k: z.string().regex(/^[0-9a-f]{64}$/),
+});
+
 // ---------- D1 rows ----------
 
 export const PushSubscriptionRowSchema = z.object({

@@ -4,20 +4,22 @@ import { useProblemCounts } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
 import { WithTooltip } from "~/ui/tooltip";
 import { clickRailTab } from "./actions";
-import { preloadTab, usePanelRegistry } from "./registry";
+import { preloadView } from "./schedule-nav";
 import { SIDEBAR_PANEL_ID } from "./sidebar";
+import { useSidebarStack } from "./sidebar-stack";
 import { TABS, type Tab } from "./tabs";
 import { ThemeToggle } from "./theme-toggle";
 
 // The labeled rail (SPEC §2). Clicking the open tab collapses the sidebar;
 // any tab reopens it. The active state is a soft fill and a thin edge bar, no
 // ring or shadow, kept light so the rail doesn't read like a chat app
-// (DESIGN §5).
+// (DESIGN §5). A tab is a route (/schedule/<tab>): clicking one navigates.
 
 export function Rail() {
-  const tab = useUi((s) => s.tab);
+  const { view } = useSidebarStack();
+  const tab = view.tab;
   const open = useUi((s) => s.sidebarOpen);
-  const drilled = useUi((s) => s.stack.length > 0);
+  const drilled = view.drill !== null;
   // On a short screen (a phone on its side gets this layout) the tabs run
   // past the bottom: the rail scrolls, with no scrollbar eating its width.
   return (
@@ -63,8 +65,9 @@ function RailButton({
 }) {
   const Icon = tab.icon;
   const selected = current && open;
-  const registry = usePanelRegistry();
-  const preload = () => preloadTab(registry, tab.id);
+  // The router loads the tab's route chunk on intent, so it's usually there
+  // by the click.
+  const preload = () => preloadView({ tab: tab.id, drill: null });
   return (
     <WithTooltip
       label={hint(tab, current, open, drilled)}

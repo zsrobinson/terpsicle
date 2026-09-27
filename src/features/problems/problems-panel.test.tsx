@@ -2,6 +2,8 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
+import { currentView } from "~/app/schedule-nav";
+import type { ShellRoutes } from "~/app/test-utils";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
@@ -9,9 +11,10 @@ import {
 } from "~/features/alerts/testing";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { aMeUser, demoPlanB, fixtureTermId } from "~/fixtures";
-import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
-import { panels } from "./panels";
+import { ProblemsPanel } from "./problems-panel";
+
+const panels: ShellRoutes = { tabs: { problems: ProblemsPanel } };
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 
@@ -63,7 +66,7 @@ describe("Problems tab", () => {
         name: "CMSC351 0301 has 3 seats left",
       }),
     );
-    expect(useUi.getState().stack.at(-1)).toEqual({
+    expect(currentView().drill).toEqual({
       kind: "course",
       courseCode: "CMSC351",
     });
@@ -77,7 +80,7 @@ describe("Problems tab", () => {
         name: "Tight connection from STAT400 to CMSC351",
       }),
     );
-    expect(useUi.getState().stack.at(-1)?.kind).toBe("connection");
+    expect(currentView().drill?.kind).toBe("connection");
   });
 
   it("applies a one-click fix, undoably", async () => {

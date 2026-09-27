@@ -33,8 +33,12 @@ const back = (page: Page, to: string) =>
   page.getByRole("button", { name: `Back to ${to}` });
 const historyLength = (page: Page) =>
   page.evaluate(() => window.history.length);
-const param = (page: Page, name: string) =>
-  new URL(page.url()).searchParams.get(name);
+/** The course whose details the URL names (`/schedule/course/CMSC351`). */
+const courseInUrl = (page: Page) =>
+  new URL(page.url()).pathname.match(/^\/schedule\/course\/([^/]+)$/)?.[1] ??
+  null;
+/** A rail tab's own URL: `/schedule/travel?…`. */
+const tabUrl = (tab: string) => new RegExp(`/schedule/${tab}\\?`);
 
 test.describe("desktop", () => {
   test.skip(({ isMobile }) => isMobile, "desktop layout");
@@ -50,15 +54,15 @@ test.describe("desktop", () => {
     // One Back, to where you came from: no trail of crumbs to aim at.
     await expect(back(page, "CMSC351")).toBeVisible();
     await expect(back(page, "Courses")).toHaveCount(0);
-    expect(param(page, "course")).toBe("CMSC330");
+    expect(courseInUrl(page)).toBe("CMSC330");
 
     await back(page, "CMSC351").click();
     await expect(openView(page)).toHaveText("CMSC351");
-    expect(param(page, "course")).toBe("CMSC351");
+    expect(courseInUrl(page)).toBe("CMSC351");
     await back(page, "Courses").click();
     await expect(openView(page)).toHaveCount(0);
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
-    expect(param(page, "course")).toBeNull();
+    expect(courseInUrl(page)).toBeNull();
   });
 
   test("the browser's Back and Forward match the app's Back", async ({
@@ -93,7 +97,7 @@ test.describe("desktop", () => {
   }) => {
     const tabs = page.getByRole("navigation", { name: "Sidebar tabs" });
     await tabs.getByRole("button", { name: "Travel" }).click();
-    await expect(page).toHaveURL(/tab=travel/);
+    await expect(page).toHaveURL(tabUrl("travel"));
     const plans = page.getByRole("navigation", { name: "Plans" });
     await plans.getByRole("button", { name: "Plan B", exact: true }).click();
     await expect(page).toHaveURL(/planId=plan_demo_b/);
@@ -103,7 +107,7 @@ test.describe("desktop", () => {
     await expect(page).toHaveURL(/planId=plan_demo_a/);
     await expect(page).toHaveTitle(/^Plan A/);
     await page.goBack();
-    await expect(page).toHaveURL(/tab=courses/);
+    await expect(page).toHaveURL(tabUrl("courses"));
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
   });
 
@@ -130,7 +134,7 @@ test.describe("desktop", () => {
     await page.keyboard.press("/");
     const box = page.getByRole("combobox", { name: "Search courses" });
     await expect(box).toBeFocused();
-    await expect(page).toHaveURL(/tab=search/);
+    await expect(page).toHaveURL(tabUrl("search"));
     const before = await historyLength(page);
 
     await box.pressSequentially("cmsc 351", { delay: 40 });
@@ -148,7 +152,7 @@ test.describe("desktop", () => {
     await expect(openView(page)).toHaveCount(0);
     await expect(box).toHaveValue("cmsc 351");
     await page.goBack();
-    await expect(page).toHaveURL(/tab=courses/);
+    await expect(page).toHaveURL(tabUrl("courses"));
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
   });
 
@@ -182,7 +186,7 @@ test.describe("desktop", () => {
     await expect(openView(page)).toHaveText("CMSC330");
     await page.goBack();
     await expect(openView(page)).toHaveCount(0);
-    await expect(page).toHaveURL(/\/schedule\?/);
+    await expect(page).toHaveURL(tabUrl("courses"));
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
   });
 });
@@ -218,6 +222,6 @@ test.describe("phone", () => {
     await back(page, "Courses").click();
     await expect(openView(page)).toHaveCount(0);
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
-    await expect(page).toHaveURL(/\/schedule\?/);
+    await expect(page).toHaveURL(tabUrl("courses"));
   });
 });

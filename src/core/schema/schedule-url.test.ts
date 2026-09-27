@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ScheduleSearchSchema } from "./schedule-url";
+import {
+  DrillSearchSchema,
+  LegacyScheduleSearchSchema,
+  ScheduleSearchSchema,
+  SearchTabSearchSchema,
+} from "./schedule-url";
 
 const parse = (search: Record<string, unknown>) =>
-  ScheduleSearchSchema.parse(search);
+  LegacyScheduleSearchSchema.parse(search);
 
 describe("the scheduler's search params", () => {
   it("reads a deep link, taking back numbers the router parsed", () => {
@@ -57,5 +62,15 @@ describe("the scheduler's search params", () => {
         connection: "M:ESJ>IRB",
       }),
     ).toEqual({ connection: "M:ESJ>IRB" });
+  });
+});
+
+describe("each route's own params", () => {
+  it("keeps only what that route reads", () => {
+    const search = { term: "202701", tab: "search", q: "cmsc", course: "X" };
+    expect(ScheduleSearchSchema.parse(search)).toEqual({ term: "202701" });
+    expect(SearchTabSearchSchema.parse(search)).toEqual({ q: "cmsc" });
+    expect(DrillSearchSchema.parse(search)).toEqual({ tab: "search" });
+    expect(DrillSearchSchema.parse({ tab: "calendar" })).toEqual({});
   });
 });

@@ -29,6 +29,25 @@ function anEvent(
 }
 
 describe("scrubPath", () => {
+  it("keeps the scheduler's drill-ins as their route pattern", () => {
+    expect(scrubPath("/schedule/course/CMSC351")).toBe(
+      "/schedule/course/:code",
+    );
+    expect(
+      scrubPath("/schedule/connection/M%3ASTAT400-0101%230%3ECMSC351-0301%230"),
+    ).toBe("/schedule/connection/:connectionId");
+    expect(scrubPath("/schedule/result/r3")).toBe("/schedule/result/:resultId");
+    // Tabs name nothing of the person's.
+    expect(scrubPath("/schedule/search")).toBe("/schedule/search");
+    expect(
+      scrubUrl(
+        "https://terpsicle.com/schedule/course/CMSC351?tab=search&term=202701",
+      ),
+    ).toBe(
+      "https://terpsicle.com/schedule/course/:code?tab=search&term=202701",
+    );
+  });
+
   it("keeps chat paths as their route pattern", () => {
     expect(scrubPath("/chat")).toBe("/chat");
     expect(scrubPath("/chat/202608/CMSC131")).toBe("/chat/:term/:course");
@@ -162,6 +181,18 @@ describe("scrubEvent", () => {
     );
     expect(out?.properties).toEqual({
       $current_url: `${ORIGIN}/chat/:term/:course`,
+    });
+  });
+
+  it("drops a course drill-in's title, which names the course", () => {
+    const out = scrubEvent(
+      anEvent({
+        $current_url: `${ORIGIN}/schedule/course/CMSC351?tab=courses`,
+        title: "CMSC351 · Terpsicle",
+      }),
+    );
+    expect(out?.properties).toEqual({
+      $current_url: `${ORIGIN}/schedule/course/:code?tab=courses`,
     });
   });
 

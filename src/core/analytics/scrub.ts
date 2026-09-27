@@ -6,7 +6,8 @@ import { isUnderRoute } from "./routes";
 // What PostHog may see of a URL, and the last check on every event before it
 // leaves the browser (PostHog's `before_send`; docs/ANALYTICS.md "Privacy").
 // A share link carries a whole plan, block labels included (DATA.md §8), and
-// a chat room's path names a course and a section (V2.md §11), so URLs keep
+// a chat room's path names a course and a section (V2.md §11), and so do the
+// scheduler's drill-ins (`/schedule/course/CMSC351`), so URLs keep
 // only their route and a few search params that describe the page.
 
 /**
@@ -39,6 +40,11 @@ export const MAX_PROPERTY_LENGTH = 200;
  */
 const PATH_PATTERNS: readonly { route: string; params: readonly string[] }[] = [
   { route: "/chat", params: [":term", ":course", ":room"] },
+  // The scheduler's drill-ins: a course, and a connection between two of
+  // the person's own sections. (`/schedule/result/…` is a run's own id.)
+  { route: "/schedule/course", params: [":code"] },
+  { route: "/schedule/connection", params: [":connectionId"] },
+  { route: "/schedule/result", params: [":resultId"] },
 ];
 
 /** Allowlisted values are short words or ids, never free text. */

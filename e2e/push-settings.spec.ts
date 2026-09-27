@@ -187,7 +187,7 @@ test("turn on notifications, send a test, see it, remove the device", async ({
       section.getByRole("switch", { name: "Seat openings: Notification" }),
     ).toHaveAttribute("aria-checked", "true");
     await expect(
-      section.getByRole("switch", { name: "Mentions in Chat: Notification" }),
+      section.getByRole("switch", { name: "Due tomorrow: Notification" }),
     ).toHaveAttribute("aria-disabled", "true");
     await expect(
       section.getByText("Notifications are off here."),

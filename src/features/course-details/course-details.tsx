@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { track } from "~/app/analytics";
+import { useDrillEntry } from "~/app/drill-entry";
 import { PanelBody, SectionHeader } from "~/app/panel";
-import type { DrillViewProps } from "~/app/registry";
 import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
 import { gradesSourceWords } from "~/core/grades";
@@ -28,7 +28,9 @@ import { Sections } from "./sections";
 // a click away from the sticky Sections bar. Opened the one way
 // (`openCourse`), from anywhere.
 
-export function CourseDetails({ entry }: DrillViewProps<"course">) {
+/** The course drill-in (`/schedule/course/$code`). */
+export function CourseDetails() {
+  const entry = useDrillEntry("course");
   const { termId, term } = useActiveTerm();
   const catalog = useTermCatalog(termId);
   const current = useCurrentPlan();

@@ -9,7 +9,15 @@ import {
   runInDurableObject,
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from "vitest";
 import { findTestUser } from "~/core/auth";
 import { addDays } from "~/core/ics";
 import { SLURS } from "~/core/moderation";
@@ -56,9 +64,11 @@ import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { upsertUser } from "../auth/store";
 import { moderationHandlers } from "../moderation/handlers";
+import { sendChatDigests } from "../notifications/digest";
 import { createWorker } from "../worker";
 import { CHAT_CLOSE, type CourseChat, chatScreening } from "./course-chat";
 import { chatTargetId } from "./moderation-handler";
+import { chatNotifier } from "./notify";
 
 const ORIGIN = "https://terpsicle.com";
 const TERM = "202701";
@@ -174,12 +184,17 @@ beforeEach(async () => {
       "chat_read_markers",
       "chat_room_prefs",
       "chat_author_courses",
+      "notifications",
+      "notification_settings",
+      "notification_deliveries",
       "sync_docs",
       "sync_heads",
       "counters",
       "sessions",
       "moderation_decisions",
       "moderation_queue",
+      "moderation_author_stops",
+      "author_stops",
       "reports",
       "users",
     ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
@@ -907,6 +922,8 @@ describe("sending", () => {
     const error = await a.client.error(req);
     expect(error.code).toBe("slow-down");
     expect(error.retryAfter).toBeGreaterThan(3_500);
+    // The frame says until when, for "You can't post in Chat until …".
+    expect(Date.parse(error.until ?? "")).toBeGreaterThan(Date.now());
   });
 
   it("keeps professor and section rooms to their sections", async () => {
@@ -1632,6 +1649,268 @@ describe("reports", () => {
   });
 });
 
+describe("the owner's actions", () => {
+  /**
+   * tadmin through the admin routes. Identity's test mode makes them the
+   * admin, and it only runs on localhost and previews.
+   */
+  async function owner() {
+    const admin = await signIn("tadmin");
+    const local = "http://localhost:3000";
+    return async (path: string, body: unknown) => {
+      const response = await handleApi(
+        new Request(`${local}/api/${path}`, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: {
+            "Content-Type": "application/json",
+            Origin: local,
+            "Sec-Fetch-Site": "same-origin",
+            Cookie: admin.cookie,
+          },
+        }),
+        {
+          ...env,
+          CHAT_ENABLED: "on",
+          AUTH_TEST_MODE: "true",
+        } as unknown as ApiEnv,
+        { waitUntil: () => {} },
+      );
+      return { status: response.status, text: await response.text() };
+    };
+  }
+
+  /** Nothing the owner was shown names tstudent. */
+  function expectNoAuthor(text: string) {
+    for (const secret of ["tstudent", "Test Student"])
+      expect(text).not.toContain(secret);
+  }
+
+  const blockedUntil = () =>
+    env.DB.prepare(
+      "SELECT chat_blocked_until FROM users WHERE id = 'tstudent'",
+    ).first<string | null>("chat_blocked_until");
+
+  it("stops a message's author for 7 days through the queue, and undo lifts it", async () => {
+    const { student, classmate } = await twoPeople();
+    const admin = await owner();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "buy my notes, cheap");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    const ref = chatTargetId(TERM, COURSE, id);
+    await classmate.api("reports/create", {
+      surface: "chat",
+      ref,
+      reason: "off-topic",
+      note: null,
+    });
+
+    const queue = await admin("admin/moderation/queue", { status: "open" });
+    expectNoAuthor(queue.text);
+    const item = JSON.parse(queue.text).items.find(
+      (i: { targetId: string }) => i.targetId === ref,
+    );
+    expect(item).toMatchObject({ kind: "chat", review: null });
+
+    // Only with a removal.
+    expect(
+      (
+        await admin("admin/moderation/resolve", {
+          id: item.id,
+          action: "approve",
+          reason: "fine",
+          authorAction: "stop",
+        })
+      ).status,
+    ).toBe(400);
+    const before = Date.now();
+    const resolved = await admin("admin/moderation/resolve", {
+      id: item.id,
+      action: "remove",
+      reason: "spam",
+      authorAction: "stop",
+    });
+    expect(resolved.status).toBe(200);
+    expectNoAuthor(resolved.text);
+    const { item: closed } = JSON.parse(resolved.text);
+    expect(closed.status).toBe("closed");
+    const until = Date.parse(closed.stoppedUntil);
+    expect(until - before).toBeGreaterThanOrEqual(7 * DAY - 60_000);
+    expect(until - before).toBeLessThanOrEqual(7 * DAY + 60_000);
+    expect(await blockedUntil()).toBe(closed.stoppedUntil);
+
+    // The author's next message waits, and says until when.
+    const req = a.client.req();
+    a.client.send({
+      type: "send",
+      req,
+      room: courseRoom,
+      text: "hi",
+      replyTo: null,
+    });
+    const refused = await a.client.error(req);
+    expect(refused).toMatchObject({
+      code: "slow-down",
+      until: closed.stoppedUntil,
+    });
+    expect(refused.retryAfter).toBeGreaterThan(6 * 86_400);
+
+    // The log says a stop happened, not who.
+    const log = await admin("admin/decisions", { surface: "chat" });
+    expectNoAuthor(log.text);
+    expect(JSON.parse(log.text).decisions[0]).toMatchObject({
+      stage: "human",
+      verdict: "remove",
+      reasons: [{ code: "author-stopped" }],
+    });
+    for (const table of [
+      "moderation_decisions",
+      "moderation_queue",
+      "moderation_author_stops",
+    ])
+      expectNoAuthor(
+        JSON.stringify(
+          (await env.DB.prepare(`SELECT * FROM ${table}`).all()).results,
+        ),
+      );
+
+    // Undo puts the message back in the queue and lifts the stop.
+    const undone = await admin("admin/moderation/undo", { id: item.id });
+    expect(JSON.parse(undone.text)).toMatchObject({
+      status: "ok",
+      item: { status: "open", stoppedUntil: null },
+    });
+    expect(await blockedUntil()).toBeNull();
+    expect(
+      (await a.client.sendText(courseRoom, "sorry all")).message,
+    ).not.toBeNull();
+  });
+
+  it("keeps a longer stop that was already running, and undo leaves it", async () => {
+    const { student } = await twoPeople();
+    const admin = await owner();
+    const later = new Date(Date.now() + 20 * DAY).toISOString();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "spam spam");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    await env.DB.prepare(
+      "UPDATE users SET chat_blocked_until = ?1 WHERE id = 'tstudent'",
+    )
+      .bind(later)
+      .run();
+    const removed = JSON.parse(
+      (
+        await admin("admin/chat/remove", {
+          termId: TERM,
+          courseCode: COURSE,
+          messageId: id,
+          reason: "spam",
+          authorAction: "stop",
+        })
+      ).text,
+    );
+    // The item says when its own stop ends; the longer one stays in force.
+    expect(Date.parse(removed.item.stoppedUntil)).toBeLessThan(
+      Date.parse(later),
+    );
+    expect(await blockedUntil()).toBe(later);
+    await admin("admin/moderation/undo", { id: removed.item.id });
+    expect(await blockedUntil()).toBe(later);
+  });
+
+  it("removes a message found outside the queue, logged without its author", async () => {
+    const { student, classmate } = await twoPeople();
+    const admin = await owner();
+    const a = await student.join([courseRoom]);
+    const b = await classmate.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "dm me for the exam key");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    await b.client.next("message", (f) => f.message.id === id);
+
+    const input = {
+      termId: TERM,
+      courseCode: COURSE,
+      messageId: id,
+      reason: "academic-integrity",
+    };
+    expect((await student.api("admin/chat/remove", input)).status).toBe(403);
+    const removed = await admin("admin/chat/remove", input);
+    expect(removed.status).toBe(200);
+    expectNoAuthor(removed.text);
+    expect(JSON.parse(removed.text)).toMatchObject({
+      status: "ok",
+      item: {
+        kind: "chat",
+        targetId: chatTargetId(TERM, COURSE, id),
+        text: "dm me for the exam key",
+        status: "closed",
+        resolution: { decision: "remove", reason: "academic-integrity" },
+        stoppedUntil: null,
+      },
+    });
+    // Classmates see it go; its author is told.
+    expect(await b.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      {
+        moderation: { state: "removed" },
+      },
+    );
+    expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      {
+        moderation: { state: "removed" },
+      },
+    );
+    expect((await b.client.history(courseRoom)).messages).toEqual([]);
+    const decisions = await env.DB.prepare(
+      "SELECT stage, verdict, decided_by, reason FROM moderation_decisions WHERE ref = ?1",
+    )
+      .bind(chatTargetId(TERM, COURSE, id))
+      .all();
+    expect(decisions.results).toEqual([
+      {
+        stage: "human",
+        verdict: "remove",
+        decided_by: "admin",
+        reason: "academic-integrity",
+      },
+    ]);
+    expectNoAuthor(
+      JSON.stringify(
+        (await env.DB.prepare("SELECT * FROM moderation_decisions").all())
+          .results,
+      ),
+    );
+
+    // Undo: back in the queue, held for its author only.
+    const undone = await admin("admin/moderation/undo", {
+      id: JSON.parse(removed.text).item.id,
+    });
+    expect(JSON.parse(undone.text)).toMatchObject({
+      status: "ok",
+      item: { status: "open" },
+    });
+    expect(await a.client.next("moderation", (f) => f.id === id)).toMatchObject(
+      {
+        moderation: { state: "held" },
+      },
+    );
+
+    // A message that isn't there.
+    expect(
+      JSON.parse(
+        (
+          await admin("admin/chat/remove", {
+            ...input,
+            messageId: "nosuchmessage1",
+          })
+        ).text,
+      ),
+    ).toEqual({ status: "not-found" });
+  });
+});
+
 describe("chat routes", () => {
   it("follow, unfollow and mute", async () => {
     const { student } = await twoPeople();
@@ -1725,5 +2004,481 @@ describe("chat routes", () => {
     expect(
       (await student.api("chat/unread", { termId: TERM }, "off")).status,
     ).toBe(503);
+  });
+});
+
+// ---------- mentions, replies and the digest (V2.md §6.1, §6.6) ----------
+
+describe("mentions and replies", () => {
+  let notifySpy: MockInstance<typeof chatNotifier.notify>;
+  let messageSpy: MockInstance<typeof chatNotifier.message>;
+  beforeEach(() => {
+    notifySpy = vi.spyOn(chatNotifier, "notify");
+    messageSpy = vi.spyOn(chatNotifier, "message");
+  });
+
+  /**
+   * Waits until the object has worked out who a message notifies (it does
+   * each time the message is published), `times` times, and finished.
+   */
+  async function notified(id: string, times = 1) {
+    await vi.waitFor(() =>
+      expect(
+        messageSpy.mock.calls.filter(([, input]) => input.row.id === id),
+      ).toHaveLength(times),
+    );
+    await Promise.all(messageSpy.mock.results.map((r) => r.value));
+  }
+
+  /** Sends, and waits until classmates can see it and the object has notified. */
+  async function published(
+    client: Client,
+    room: string,
+    text: string,
+    replyTo: string | null = null,
+  ) {
+    const ack = await client.sendText(room, text, replyTo);
+    const id = ack.message?.id ?? "";
+    await client.next("moderation", (f) => f.id === id);
+    await notified(id);
+    return id;
+  }
+
+  /** Who got a push, with its type and payload, in order. */
+  const pushes = () =>
+    notifySpy.mock.calls.map(([, userId, n]) => ({
+      userId,
+      type: n.type,
+      push: n.push,
+    }));
+
+  const rows = async () =>
+    (
+      await env.DB.prepare(
+        "SELECT user_id, type, room_id, actor_id, read_at FROM notifications ORDER BY user_id",
+      ).all()
+    ).results;
+
+  it("pushes to the person mentioned, among the room's members only", async () => {
+    const { student } = await twoPeople();
+    await signIn("tadmin"); // Signed in, but CMSC351 is in no plan of theirs.
+    const a = await student.join([courseRoom]);
+    const id = await published(
+      a.client,
+      courseRoom,
+      "@Test Classmate did you start the homework? @Test Admin @Test Student",
+    );
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+    expect(pushes()).toEqual([
+      {
+        userId: "tclassmate",
+        type: "chat-mention",
+        push: {
+          title: "Test Student mentioned you in CMSC351",
+          body: "@Test Classmate did you start the homework? @Test Admin @Test Student",
+          url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}`,
+          tag: `chat:${courseRoom}`,
+        },
+      },
+    ]);
+    expect(notifySpy.mock.calls[0]?.[2]).toMatchObject({
+      key: `chat-mention:tclassmate:${id}`,
+    });
+    expect(await rows()).toEqual([
+      {
+        user_id: "tclassmate",
+        type: "chat-mention",
+        room_id: courseRoom,
+        actor_id: "tstudent",
+        read_at: null,
+      },
+    ]);
+  });
+
+  it("keeps a section room's mentions to its section", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([room0101]);
+    // tclassmate is in 0201, so not in the 0101 room.
+    await published(a.client, room0101, "@Test Classmate hello?");
+    expect(pushes()).toEqual([]);
+    expect(await rows()).toEqual([]);
+  });
+
+  it("pushes the thread's author when someone replies", async () => {
+    const { student, classmate } = await twoPeople();
+    const b = await classmate.join([courseRoom]);
+    const root = await published(b.client, courseRoom, "anyone have notes?");
+    b.client.close();
+    const a = await student.join([courseRoom]);
+    const reply = await published(a.client, courseRoom, "yes, here", root);
+    // A reply to a reply joins the thread: still the thread's author.
+    await published(a.client, courseRoom, "and more", reply);
+    await vi.waitFor(() => expect(pushes()).toHaveLength(2));
+    expect(pushes()[0]).toEqual({
+      userId: "tclassmate",
+      type: "chat-reply",
+      push: {
+        title: "Test Student replied in CMSC351",
+        body: "yes, here",
+        url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}&thread=${root}`,
+        tag: `chat:${courseRoom}`,
+      },
+    });
+    // Replying in your own thread notifies nobody.
+    notifySpy.mockClear();
+    const own = await published(a.client, courseRoom, "top");
+    await published(a.client, courseRoom, "me again", own);
+    expect(pushes()).toEqual([]);
+  });
+
+  it("records but doesn't push to someone looking at the course's chat", async () => {
+    const { student, classmate } = await twoPeople();
+    const b = await classmate.join([courseRoom]);
+    const a = await student.join([courseRoom]);
+    await published(a.client, courseRoom, "@Test Classmate look");
+    await b.client.flush();
+    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
+    expect(pushes()).toEqual([]);
+  });
+
+  it("sends no reply push in a muted room, but mentions still push", async () => {
+    const { student, classmate } = await twoPeople();
+    await classmate.api("chat/mute", {
+      termId: TERM,
+      courseCode: COURSE,
+      roomId: courseRoom,
+      muted: true,
+    });
+    const b = await classmate.join([courseRoom]);
+    const root = await published(b.client, courseRoom, "question");
+    b.client.close();
+    const a = await student.join([courseRoom]);
+    await published(a.client, courseRoom, "answer", root);
+    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
+    expect(pushes()).toEqual([]);
+    await published(a.client, courseRoom, "@Test Classmate see above");
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+    expect(pushes()[0]?.type).toBe("chat-mention");
+  });
+
+  it("notifies once per person per message, even after an edit", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const id = await published(a.client, courseRoom, "@Test Classmate hi");
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+    const req = a.client.req();
+    a.client.send({
+      type: "edit",
+      req,
+      room: courseRoom,
+      id,
+      text: "@Test Classmate hi again",
+    });
+    await a.client.next("ack", (f) => f.req === req);
+    await a.client.next(
+      "moderation",
+      (f) => f.id === id && f.moderation.state === "visible",
+    );
+    await notified(id, 2);
+    expect(pushes()).toHaveLength(1);
+    expect(await rows()).toHaveLength(1);
+  });
+
+  it("names five people per message, over all its edits", async () => {
+    const { student } = await twoPeople();
+    // Six more classmates in the course, so there's someone to spare.
+    const others = Array.from({ length: 6 }, (_, i) => `e2enotify${i}`);
+    for (const id of others) {
+      const p = await signIn(id);
+      await env.DB.prepare("UPDATE users SET name = ?2 WHERE id = ?1")
+        .bind(id, `Person ${"ABCDEF"[Number(id.slice(-1))]}`)
+        .run();
+      await p.push([
+        aPlan({
+          id: `plan_${id}`,
+          courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0102" })],
+        }),
+      ]);
+    }
+    const a = await student.join([courseRoom]);
+    const id = await published(
+      a.client,
+      courseRoom,
+      "@Person A @Person B @Person C",
+    );
+    const req = a.client.req();
+    a.client.send({
+      type: "edit",
+      req,
+      room: courseRoom,
+      id,
+      text: "@Person D @Person E @Person F",
+    });
+    await a.client.next("ack", (f) => f.req === req);
+    await notified(id, 2);
+    expect(pushes().map((p) => p.userId)).toEqual([
+      "e2enotify0",
+      "e2enotify1",
+      "e2enotify2",
+      "e2enotify3",
+      "e2enotify4",
+    ]);
+  });
+
+  it("waits for moderation: a held message notifies nobody until it's approved", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "@Test Classmate [hold]");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
+    await a.client.flush();
+    expect(pushes()).toEqual([]);
+    await stub().applyDecision({
+      termId: TERM,
+      courseCode: COURSE,
+      messageId: id,
+      decision: "publish",
+    });
+    await vi.waitFor(() => expect(pushes()).toHaveLength(1));
+  });
+
+  it("stops pushing past 30 chat pushes an hour", async () => {
+    const { student } = await twoPeople();
+    const at = new Date().toISOString();
+    await env.DB.batch(
+      Array.from({ length: 30 }, (_, i) =>
+        env.DB.prepare(
+          `INSERT INTO notification_deliveries (user_id, type, channel, dedupe_key, status, sent_at)
+           VALUES ('tclassmate', 'chat-reply', 'push', ?1, 'sent', ?2)`,
+        ).bind(`earlier-${i}`, at),
+      ),
+    );
+    const a = await student.join([courseRoom]);
+    await published(a.client, courseRoom, "@Test Classmate one more");
+    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
+    expect(pushes()).toEqual([]);
+  });
+
+  it("reads mentions with the room", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const id = await published(a.client, courseRoom, "@Test Classmate hey");
+    await vi.waitFor(async () => expect(await rows()).toHaveLength(1));
+    const b = await classmate.join([courseRoom]);
+    b.client.send({ type: "read", room: courseRoom, upTo: id });
+    await b.client.flush();
+    expect((await rows())[0]?.read_at).not.toBeNull();
+  });
+});
+
+describe("the chat digest", () => {
+  type Mail = {
+    to: string;
+    subject: string;
+    text: string;
+    headers: Record<string, string>;
+  };
+  let mail: Mail[];
+  const digestEnv = () =>
+    ({
+      ...env,
+      EMAIL: {
+        send: async (m: Mail) => {
+          mail.push(m);
+          return { messageId: `m${mail.length}` };
+        },
+      },
+    }) as unknown as Parameters<typeof sendChatDigests>[0];
+
+  beforeEach(() => {
+    mail = [];
+    vi.spyOn(chatNotifier, "notify");
+  });
+
+  async function published(
+    client: Client,
+    text: string,
+    replyTo: string | null = null,
+  ) {
+    const ack = await client.sendText(courseRoom, text, replyTo);
+    const id = ack.message?.id ?? "";
+    await client.next("moderation", (f) => f.id === id);
+    await client.flush();
+    return id;
+  }
+
+  const digestOn = (p: Person) =>
+    p.api("notifications/settings/set", {
+      settings: {
+        v: 1,
+        seatOpen: { push: true, email: true },
+        chatMention: { push: true },
+        chatReply: { push: true },
+        chatDigest: { email: true },
+        todoDue: { push: false },
+      },
+    });
+
+  it("emails unread mentions and replies once, with the text as it is now", async () => {
+    const { student, classmate } = await twoPeople();
+    expect((await digestOn(classmate)).status).toBe(200);
+    const b = await classmate.join([courseRoom]);
+    const root = await published(b.client, "who's in the study group?");
+    b.client.close();
+    const a = await student.join([courseRoom]);
+    await published(a.client, "me!", root);
+    await published(a.client, "@Test Classmate bring the slides");
+    const gone = await published(a.client, "@Test Classmate [oops]");
+    const del = a.client.req();
+    a.client.send({ type: "delete", req: del, room: courseRoom, id: gone });
+    await a.client.next("ack", (f) => f.req === del);
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(3);
+    });
+
+    const now = new Date();
+    expect(await sendChatDigests(digestEnv(), { now })).toEqual({
+      emailed: 1,
+      notifications: 3,
+    });
+    expect(mail).toHaveLength(1);
+    const [m] = mail;
+    expect(m?.to).toBe("tclassmate@terpmail.umd.edu");
+    expect(m?.subject).toBe("2 unread in your class chats");
+    expect(m?.text).toContain(
+      "Test Student mentioned you in CMSC351: @Test Classmate bring the slides",
+    );
+    expect(m?.text).toContain("Test Student replied in CMSC351: me!");
+    expect(m?.text).not.toContain("[oops]");
+    expect(m?.text).toContain(`&thread=${root}`);
+    expect(m?.headers["List-Unsubscribe"]).toMatch(
+      /^<https:\/\/terpsicle\.com\/api\/notifications\/email-off\?u=tclassmate&t=chat-digest&k=[0-9a-f]+>$/,
+    );
+    // Emailed once: a second run the same day, or the next, sends nothing.
+    expect(await sendChatDigests(digestEnv(), { now })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    expect(mail).toHaveLength(1);
+  });
+
+  it("tries a failed send again the next day", async () => {
+    const { student, classmate } = await twoPeople();
+    await digestOn(classmate);
+    const a = await student.join([courseRoom]);
+    await published(a.client, "@Test Classmate are you there?");
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(1);
+    });
+    const failing = {
+      ...digestEnv(),
+      EMAIL: {
+        send: async () => {
+          throw Object.assign(new Error("down"), { code: "E_DOWN" });
+        },
+      },
+    } as unknown as Parameters<typeof sendChatDigests>[0];
+    const today = new Date();
+    expect(await sendChatDigests(failing, { now: today })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    // The same day again: that day's key is taken, so nothing goes yet.
+    expect(await sendChatDigests(digestEnv(), { now: today })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    const tomorrow = new Date(today.getTime() + 24 * 3_600_000);
+    expect(await sendChatDigests(digestEnv(), { now: tomorrow })).toEqual({
+      emailed: 1,
+      notifications: 1,
+    });
+    expect(mail[0]?.subject).toBe("1 unread in your class chats");
+  });
+
+  it("quotes no room the person can't read anymore", async () => {
+    const { student } = await twoPeople();
+    const admin = await signIn("tadmin");
+    const plan = aPlan({
+      id: "plan_admin_1",
+      courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0101" })],
+    });
+    await admin.push([plan]);
+    await digestOn(admin);
+    const a = await student.join([room0101]);
+    const ack = await a.client.sendText(room0101, "@Test Admin section news");
+    await a.client.next("moderation", (f) => f.id === ack.message?.id);
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(1);
+    });
+    // They move to 0201 before the digest goes.
+    await admin.push(
+      [
+        {
+          ...plan,
+          courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0201" })],
+        },
+      ],
+      undefined,
+      [1],
+    );
+    expect(await sendChatDigests(digestEnv(), { now: new Date() })).toEqual({
+      emailed: 0,
+      notifications: 1,
+    });
+    expect(mail).toEqual([]);
+  });
+
+  it("leaves out what's read, and people with the digest off", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const id = await published(a.client, "@Test Classmate one");
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(1);
+    });
+    // The digest is off by default.
+    expect(await sendChatDigests(digestEnv(), { now: new Date() })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    await digestOn(classmate);
+    const b = await classmate.join([courseRoom]);
+    b.client.send({ type: "read", room: courseRoom, upTo: id });
+    await b.client.flush();
+    expect(await sendChatDigests(digestEnv(), { now: new Date() })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
+    expect(mail).toEqual([]);
+  });
+
+  it("looks back two days, so a missed run is caught up but old news isn't sent", async () => {
+    const { student, classmate } = await twoPeople();
+    await digestOn(classmate);
+    const a = await student.join([courseRoom]);
+    await published(a.client, "@Test Classmate old news");
+    await vi.waitFor(async () => {
+      const { results } = await env.DB.prepare(
+        "SELECT id FROM notifications",
+      ).all();
+      expect(results).toHaveLength(1);
+    });
+    const later = new Date(Date.now() + 49 * 3_600_000);
+    expect(await sendChatDigests(digestEnv(), { now: later })).toEqual({
+      emailed: 0,
+      notifications: 0,
+    });
   });
 });

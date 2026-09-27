@@ -1,6 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { currentView, goTo } from "~/app/schedule-nav";
+import type { ShellRoutes } from "~/app/test-utils";
 import { renderShell } from "~/app/test-utils";
 import { encodeShare } from "~/core/share";
 import { resetSeatWatches, watching } from "~/features/alerts/testing";
@@ -8,8 +10,10 @@ import { aMeUser, aSeatWatch, aSharePayload } from "~/fixtures";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
-import { panels } from "./panels";
+import { CoursesPanel } from "./courses-panel";
 import { openPlanNow, renderPlanTab } from "./testing";
+
+const panels: ShellRoutes = { tabs: { courses: CoursesPanel } };
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 
@@ -68,7 +72,7 @@ describe("Courses tab", () => {
     const musc = within(saved).getByRole("button", { name: /^MUSC130/ });
     expect(musc).toHaveTextContent("Survey of Western Music Literature");
     await user.click(musc);
-    expect(useUi.getState().stack.at(-1)).toEqual({
+    expect(currentView().drill).toEqual({
       kind: "course",
       courseCode: "MUSC130",
     });
@@ -92,7 +96,7 @@ describe("Courses tab", () => {
   it("clicking a course opens its details", async () => {
     const { user } = await renderPlanTab([panels], "courses");
     await user.click(await screen.findByTestId("course-row-ECON200"));
-    expect(useUi.getState().stack.at(-1)).toEqual({
+    expect(currentView().drill).toEqual({
       kind: "course",
       courseCode: "ECON200",
     });
@@ -142,7 +146,7 @@ describe("Courses tab", () => {
 
   it("offers no bookmark hint in a shared plan, which can't bookmark", async () => {
     await renderShell({
-      panels: [panels],
+      routes: [panels],
       sharedParam: encodeShare(aSharePayload({ sections: ["CMSC351-0101"] })),
     });
     expect(await screen.findByTestId("course-row-CMSC351")).toBeInTheDocument();
@@ -186,15 +190,15 @@ describe("Courses tab", () => {
       expect(searchButton.className).toBe(generateButton.className);
 
       await user.click(searchButton);
-      expect(useUi.getState().tab).toBe("search");
+      expect(currentView().tab).toBe("search");
       expect(useUi.getState().focusRequest?.tab).toBe("search");
       expect(track).toHaveBeenCalledWith("first_visit_path_chosen", {
         path: "build",
       });
 
-      act(() => useUi.getState().openTab("courses"));
+      act(() => goTo({ tab: "courses", drill: null }));
       await user.click(generateButton);
-      expect(useUi.getState().tab).toBe("generate");
+      expect(currentView().tab).toBe("generate");
       expect(track).toHaveBeenCalledWith("first_visit_path_chosen", {
         path: "generate",
       });

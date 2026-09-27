@@ -1,5 +1,6 @@
 import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
+import { closeDrill, openDrill } from "~/app/schedule-nav";
 import type { Connection, ExtraMinutes, Pace, SectionKey } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
 import { useUi } from "~/state/ui-store";
@@ -35,7 +36,7 @@ export function setExtraMinutes(extraMinutes: ExtraMinutes): void {
 
 /** Opens connection details over whatever tab is open. */
 export function openConnection(connection: Connection): void {
-  useUi.getState().drill({ kind: "connection", connectionId: connection.id });
+  openDrill({ kind: "connection", connectionId: connection.id });
 }
 
 /**
@@ -59,6 +60,6 @@ export function applyConnectionFix(key: SectionKey): boolean {
   const switched = switchSection(parsed.courseCode, parsed.sectionCode, "list");
   // The connection's id names the old section, so these details no longer
   // describe anything in the plan; the Undo toast brings it back.
-  if (switched) useUi.getState().back();
+  if (switched) closeDrill();
   return switched;
 }

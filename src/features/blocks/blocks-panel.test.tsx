@@ -1,10 +1,13 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import type { ShellRoutes } from "~/app/test-utils";
 import { renderPlanTab } from "~/features/courses/testing";
 import { useWorkspace } from "~/state/workspace-store";
 import { blockProblem } from "./block-form";
-import { panels } from "./panels";
+import { BlocksPanel } from "./blocks-panel";
+
+const panels: ShellRoutes = { tabs: { blocks: BlocksPanel } };
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 

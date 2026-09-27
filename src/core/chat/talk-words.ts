@@ -5,6 +5,7 @@ import type {
   ReportReason,
   ThreadSummary,
 } from "../schema";
+import { campusDate, stopEndWords } from "../time/format";
 
 // Plain words for a conversation (SPEC §3.13, with contractions): times and
 // day dividers in College Park time, what your held messages say, who's
@@ -12,12 +13,6 @@ import type {
 
 const ZONE = "America/New_York";
 
-const DAY = new Intl.DateTimeFormat("en-CA", {
-  timeZone: ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
 const WEEKDAY = new Intl.DateTimeFormat("en-US", {
   timeZone: ZONE,
   weekday: "long",
@@ -38,7 +33,7 @@ const CLOCK = new Intl.DateTimeFormat("en-US", {
 
 /** "2026-09-25": the College Park date of an instant. */
 export function campusDay(iso: string): string {
-  return DAY.format(new Date(iso));
+  return campusDate(iso);
 }
 
 /** Whole days from one campus date to another. */
@@ -126,9 +121,12 @@ function waitWords(seconds: number): string {
 export function chatErrorWords(
   code: ChatErrorCode,
   retryAfter: number | null = null,
+  until: string | null = null,
 ): string {
   switch (code) {
     case "slow-down":
+      // The owner's stop: when it ends, not why (V2 §10; DESIGN §5).
+      if (until) return `You can't post in Chat until ${stopEndWords(until)}.`;
       return retryAfter
         ? `You're sending fast. Try again in ${waitWords(retryAfter)}.`
         : "You're sending fast. Try again in a moment.";

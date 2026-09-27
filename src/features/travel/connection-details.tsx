@@ -3,10 +3,10 @@ import { ArrowRight } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { openTab } from "~/app/actions";
 import { track } from "~/app/analytics";
+import { useDrillEntry } from "~/app/drill-entry";
 import { TEXT } from "~/app/emphasis";
 import { MessageText } from "~/app/message-text";
 import { PanelBody, SectionHeader } from "~/app/panel";
-import type { DrillViewProps } from "~/app/registry";
 import { connectionFixes } from "~/core/problems";
 import {
   type BuildingCode,
@@ -44,7 +44,9 @@ import {
 // sections that would fix it. Calm even when there isn't enough time: the
 // verdict is stated once, plainly, and the fixes are right there.
 
-export function ConnectionDetails({ entry }: DrillViewProps<"connection">) {
+/** The connection drill-in (`/schedule/connection/$connectionId`). */
+export function ConnectionDetails() {
+  const entry = useDrillEntry("connection");
   const current = useCurrentPlan();
   const catalog = useTermCatalog(current?.termId ?? null);
   const connections = usePlanConnections();

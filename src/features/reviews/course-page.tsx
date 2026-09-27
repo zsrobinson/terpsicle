@@ -89,8 +89,8 @@ export function CoursePage({ data }: { data: CoursePageData }) {
               Offered in {term.name} ·{" "}
               <WithTooltip label={`${code}'s sections in ${term.name}`}>
                 <Link
-                  to="/schedule"
-                  search={{ course: code }}
+                  to="/schedule/course/$code"
+                  params={{ code }}
                   className="text-fg underline underline-offset-2"
                 >
                   View schedule

@@ -1,12 +1,12 @@
 import type { GenEdCode } from "~/core/schema/primitives";
-import { listItems, type ScheduleSearch } from "~/core/schema/schedule-url";
+import { listItems, type SearchTabSearch } from "~/core/schema/schedule-url";
 import type { SearchFilters } from "./filters";
 
 // Search's filter chips in the scheduler's URL (`?gened=DSHU,DSNL&credits=3`),
 // so a filtered search survives a reload and Back undoes a chip.
 
 type FilterParams = Pick<
-  ScheduleSearch,
+  SearchTabSearch,
   "gened" | "credits" | "level" | "openSeats" | "fits"
 >;
 

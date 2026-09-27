@@ -236,6 +236,14 @@ describe("service worker: pages and files", () => {
     expect(
       await (await sw.request("/settings", { navigate: true }))?.text(),
     ).toBe("the schedule");
+    // So does any of the scheduler's views, which are the same page.
+    expect(
+      await (
+        await sw.request("/schedule/course/CMSC351?tab=search", {
+          navigate: true,
+        })
+      )?.text(),
+    ).toBe("the schedule");
   });
 
   it("else falls back to the page kept most recently, since every path is the same app", async () => {

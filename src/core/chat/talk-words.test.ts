@@ -78,4 +78,14 @@ describe("words", () => {
     );
     expect(chatErrorWords("read-only")).toContain("read-only");
   });
+
+  it("says when the owner's stop ends, on campus, and nothing about why", () => {
+    expect(
+      chatErrorWords("slow-down", 604_800, "2027-10-04T15:00:00.000Z"),
+    ).toBe("You can't post in Chat until Oct 4.");
+    // 1am UTC is still the evening before in College Park.
+    expect(
+      chatErrorWords("slow-down", 604_800, "2027-10-05T01:00:00.000Z"),
+    ).toBe("You can't post in Chat until Oct 4.");
+  });
 });
