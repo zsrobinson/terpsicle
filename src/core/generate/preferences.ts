@@ -64,7 +64,7 @@ export function activePreferences(levels: PreferenceLevels): RankFactor[] {
 export type PreferenceMark = {
   /** 0–1, higher is better: the factor's score in the ranking. */
   readonly score: number;
-  /** What the score stands for, in plain words: "4 days on campus". */
+  /** What the score stands for, short enough for a result row: "4 days", "10:30am avg start". */
   readonly words: string;
 };
 
@@ -88,15 +88,15 @@ function markWords(factor: RankFactor, score: number, s: PlanStats): string {
   switch (factor) {
     case "compact": {
       const gaps = roundTo5((1 - score) * WORST_GAP_MINUTES);
-      return gaps === 0 ? "No gaps" : `${formatDuration(gaps)} between classes`;
+      return gaps === 0 ? "No gaps" : `${formatDuration(gaps)} gaps`;
     }
     case "fewer-days":
-      return `${s.daysOnCampus} ${s.daysOnCampus === 1 ? "day" : "days"} on campus`;
+      return `${s.daysOnCampus} ${s.daysOnCampus === 1 ? "day" : "days"}`;
     case "later-starts":
-      // The scale stops at its ends, so the ends are "or earlier/later".
+      // The scale stops at noon: anything later scores the same, "12pm+".
       return score >= 1
-        ? `Starts ~${formatTime(LATE)} or later`
-        : `Starts ~${formatTime(roundTo5(EARLY + score * (LATE - EARLY)))}`;
+        ? `${formatTime(LATE)}+ avg start`
+        : `${formatTime(roundTo5(EARLY + score * (LATE - EARLY)))} avg start`;
     case "best-rated":
       return s.avgRating === null
         ? "No ratings"

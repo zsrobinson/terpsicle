@@ -43,7 +43,8 @@ import { WithTooltip } from "~/ui/tooltip";
 //   while on, one look for "only these" across the app) with a funnel and
 //   the number of plans each one took out, and they say "No…" or "Only…".
 // - Preferences put plans in order. They're pills that a click cycles
-//   off → on → counted double → off, filled lighter or darker to match.
+//   off → on (a light fill) → counted double (outlined, with a dark "2×")
+//   → off. Black fill stays the filters', here as in Search.
 
 /** Short, so the six fit two lines of the sidebar. The tooltip says more. */
 export const PREFERENCE_LABELS: Record<RankFactor, string> = {
@@ -83,7 +84,7 @@ const preferenceClass = (level: PreferenceLevel) =>
       ? "border-hairline text-muted hover:bg-hover hover:text-fg"
       : level === 1
         ? "border-hairline-strong bg-accent-soft text-fg hover:bg-hover"
-        : "border-fg bg-fg font-medium text-bg hover:bg-fg/85",
+        : "border-fg bg-accent-soft pr-0.5 font-medium text-fg hover:bg-hover",
   );
 
 /** What ranks the plans: a pill per factor, off, on or double. */
@@ -125,7 +126,10 @@ export function PreferenceChips({
             >
               {PREFERENCE_LABELS[f]}
               {level === 2 ? (
-                <span aria-hidden="true" className="tnum">
+                <span
+                  aria-hidden="true"
+                  className="tnum rounded-full bg-fg px-1 text-2xs text-bg leading-4"
+                >
                   2×
                 </span>
               ) : null}

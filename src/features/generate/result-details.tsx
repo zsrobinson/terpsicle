@@ -378,8 +378,8 @@ export function ResultDetails() {
               lead={<Code code={c.courseCode} />}
             >
               {c.kind === "unplaced"
-                ? `Bookmarked, not placed (in ${planName}: ${c.from})`
-                : `Not in this plan (in ${planName})`}
+                ? `Bookmarked, not placed (was ${c.from})`
+                : "Left out of this plan"}
             </ListRow>
           ))}
         </ul>

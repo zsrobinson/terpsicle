@@ -408,7 +408,7 @@ describe("Generate", () => {
       within(prefs).getByRole("button", { name: "Compact days: on" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(within(list).getAllByTestId("rank-marks")[0]).toHaveTextContent(
-      /between classes|No gaps/,
+      /gaps$/i,
     );
 
     // A click turns Later starts on; the list re-ranks without leaving.
@@ -436,7 +436,7 @@ describe("Generate", () => {
     ).toBeInTheDocument();
     expect(
       within(screen.getAllByTestId("rank-marks")[0] as HTMLElement).getByText(
-        /^Starts ~/,
+        / avg start$/,
       ),
     ).toBeVisible();
 

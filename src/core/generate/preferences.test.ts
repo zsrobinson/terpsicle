@@ -116,10 +116,12 @@ describe("preferenceMark", () => {
     const s = stats();
     expect(preferenceMark("compact", b, s)).toEqual({
       score: 0.875,
-      words: "2 hr 30 min between classes",
+      words: "2 hr 30 min gaps",
     });
-    expect(preferenceMark("fewer-days", b, s).words).toBe("4 days on campus");
-    expect(preferenceMark("later-starts", b, s).words).toBe("Starts ~10:30am");
+    expect(preferenceMark("fewer-days", b, s).words).toBe("4 days");
+    expect(preferenceMark("later-starts", b, s).words).toBe(
+      "10:30am avg start",
+    );
     expect(preferenceMark("best-rated", b, s).words).toBe("★ 4.1");
     expect(preferenceMark("higher-gpa", b, s).words).toBe("3.21 GPA");
     expect(preferenceMark("safest-seats", b, s).words).toBe("12 seats left");
@@ -139,16 +141,16 @@ describe("preferenceMark", () => {
     );
     expect(
       preferenceMark("fewer-days", b, stats({ daysOnCampus: 1 })).words,
-    ).toBe("1 day on campus");
+    ).toBe("1 day");
   });
 
   it("bounds the average start at the scale's ends", () => {
     const s = stats();
     expect(
       preferenceMark("later-starts", breakdown({ "later-starts": 0 }), s).words,
-    ).toBe("Starts ~8am");
+    ).toBe("8am avg start");
     expect(
       preferenceMark("later-starts", breakdown({ "later-starts": 1 }), s).words,
-    ).toBe("Starts ~12pm or later");
+    ).toBe("12pm+ avg start");
   });
 });

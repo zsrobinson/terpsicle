@@ -83,7 +83,7 @@ test("generate from Plan A's courses, re-rank with a chip, and add one as Plan C
     results
       .getByTestId("rank-marks")
       .first()
-      .getByText(/^Starts ~/),
+      .getByText(/ avg start$/),
   ).toBeVisible();
 
   // Hovering a result previews it, like Search; moving away ends it.
@@ -97,11 +97,12 @@ test("generate from Plan A's courses, re-rank with a chip, and add one as Plan C
   await expect(page.getByText("Previewing Option 1.")).toBeVisible();
   await expect(page.locator(OPEN_VIEW)).toContainText("Option 1");
   await expect(page.getByText("Compared with Plan A")).toBeVisible();
-  await expect(
-    page
-      .getByRole("list", { name: "Courses and sections" })
-      .getByRole("listitem"),
-  ).toHaveCount(4);
+  // A row per section, then the courses from Plan A it leaves out.
+  const sections = page.getByRole("list", { name: "Courses and sections" });
+  await expect(sections.locator("[data-testid^=result-section-]")).toHaveCount(
+    4,
+  );
+  await expect(sections.getByText("Left out of this plan")).toHaveCount(3);
 
   // Back to the list: the preview goes away with the details. (With the
   // mouse off the list: over a result, it would preview that one.)
@@ -161,7 +162,7 @@ test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
   await expect(
     filters.getByRole("button", { name: "No classes before: any time" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
   await expect(
     page
       .getByRole("group", { name: "Filters" })
