@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Check } from "lucide-react";
-import { MetaSep } from "~/app/panel";
+import { MetaSep } from "~/components/panel";
 import type { SectionRef } from "~/core/catalog";
 import type { FitContext } from "~/core/fit";
 import type { LocalId, SectionKey, TermId } from "~/core/schema";

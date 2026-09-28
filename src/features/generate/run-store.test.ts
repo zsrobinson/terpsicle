@@ -11,7 +11,7 @@ import {
   useGenerateRun,
 } from "./run-store";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 const draft = {
   ...EMPTY_DRAFT,

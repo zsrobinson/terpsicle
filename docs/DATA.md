@@ -754,7 +754,7 @@ Version 1's JSON, with short keys and defaults left out:
 
 ### 8.1 The scheduler's URLs
 
-Where you are is the path: `/schedule/<tab>` for a rail tab (`courses`, `search`, …), and `/schedule/course/<code>`, `/schedule/connection/<id>` or `/schedule/result/<id>` for a drill-in, with the tab it's over as `?tab=` (Courses when absent; a generated plan is over Generate). Which change pushes a history entry is in `src/app/README.md`, "URL state". Every param is validated by its route's schema (`core/schema/schedule-url.ts`); a bad value is dropped, never an error.
+Where you are is the path: `/schedule/<tab>` for a rail tab (`courses`, `search`, …), and `/schedule/course/<code>`, `/schedule/connection/<id>` or `/schedule/result/<id>` for a drill-in, with the tab it's over as `?tab=` (Courses when absent; a generated plan is over Generate). Which change pushes a history entry is in `src/features/schedule/README.md`, "URL state". Every param is validated by its route's schema (`core/schema/schedule-url.ts`); a bad value is dropped, never an error.
 
 | Param | Where | Value |
 |---|---|---|

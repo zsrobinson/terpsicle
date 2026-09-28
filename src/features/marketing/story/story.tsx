@@ -7,8 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Mark } from "~/app/brand/mark";
-import { useMediaQuery } from "~/app/use-media-query";
+import { Mark } from "~/components/brand/mark";
+import { useMediaQuery } from "~/hooks/use-media-query";
 import { WithTooltip } from "~/ui/tooltip";
 import { STEPS } from "../copy";
 import { HeroWords } from "../hero";

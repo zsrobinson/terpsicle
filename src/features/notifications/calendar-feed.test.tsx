@@ -2,14 +2,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
+import { track } from "~/lib/analytics";
 import { ApiCallError } from "~/server/fns/api";
 import { calendarFeedApi } from "~/server/fns/calendar-feed";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { CalendarFeedSection } from "./calendar-feed";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 vi.mock("~/server/fns/calendar-feed", () => ({
   calendarFeedApi: { link: vi.fn(), reset: vi.fn() },
 }));

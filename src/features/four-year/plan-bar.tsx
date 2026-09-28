@@ -2,15 +2,15 @@ import { useLocation } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Check, ChevronDown, Redo2, Undo2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { AppBar } from "~/app/app-bar";
-import { modKey } from "~/app/shortcuts";
-import { CreditsStatus, ProblemsStatus } from "~/app/workbench/status";
+import { AppBar } from "~/components/app-bar";
+import { CreditsStatus, ProblemsStatus } from "~/components/workbench/status";
 import { creditsHeadline } from "~/core/four-year/credits";
 import { firstTermChoices, fourYearTermLabel } from "~/core/four-year/terms";
 import { canRedo, canUndo } from "~/core/plans/history";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { useSyncStatus } from "~/features/sync/status";
 import { SyncStatusLabel } from "~/features/sync/status-view";
+import { modKey } from "~/lib/shortcuts";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,
@@ -40,7 +40,7 @@ import { useModel, useProblemCounts } from "./model";
 import { useFourYear } from "./store";
 import { planView } from "./views";
 
-// Plan's bar (V3 §2.13): the family bar (~/app/app-bar), as the scheduler's.
+// Plan's bar (V3 §2.13): the family bar (~/components/app-bar), as the scheduler's.
 // Its context is the open plan's name with its ▾ menu (switch, Rename,
 // Duplicate, New, the first semester, Delete with Undo), then undo and redo
 // (V3 §2.3). Its status is where the plan is saved (this browser, or the

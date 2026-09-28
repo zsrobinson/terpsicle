@@ -1,5 +1,3 @@
-import { track } from "~/app/analytics";
-import { currentView, goTo } from "~/app/schedule-nav";
 import { matchesWildcard, wildcardDept } from "~/core/catalog";
 import {
   activeMustHaves,
@@ -18,6 +16,8 @@ import {
   type GenerateRequest,
   type TermId,
 } from "~/core/schema";
+import { currentView, goTo } from "~/features/schedule/schedule-nav";
+import { track } from "~/lib/analytics";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import {
   type GenerateRunState,

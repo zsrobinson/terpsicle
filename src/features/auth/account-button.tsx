@@ -7,12 +7,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { track } from "~/app/analytics";
-import { ThemeMenuItems } from "~/app/theme-toggle";
+import { ThemeMenuItems } from "~/components/theme-toggle";
 import { signInPitch, signInStartHref } from "~/core/auth";
 import { type MeUser, SIGN_IN_START_PATH } from "~/core/schema";
 import { InstallAppMenuItem } from "~/features/pwa/install-entry";
 import { SyncStatusLine } from "~/features/sync/status-view";
+import { track } from "~/lib/analytics";
 import {
   DropdownMenu,
   DropdownMenuContent,

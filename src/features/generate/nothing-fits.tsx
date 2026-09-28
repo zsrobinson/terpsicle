@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
-import { MessageText, messageToText } from "~/app/message-text";
-import { ListRow, SectionHeader } from "~/app/panel";
+import { MessageText, messageToText } from "~/components/message-text";
+import { ListRow, SectionHeader } from "~/components/panel";
 import type { CatalogIndex } from "~/core/catalog";
 import type {
   CourseCode,

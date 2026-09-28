@@ -19,7 +19,7 @@ import { skipMarketingInBrowser } from "~/features/marketing/returning";
 // (src/server/routing.ts); the returning flag or saved plans in the head
 // script on a full load, or in `beforeLoad` when the router navigates here.
 // `/?stay` always shows it. The head script's text is the build's
-// (src/app/inline-scripts.ts), so the CSP's hash matches it.
+// (src/lib/inline-scripts.ts), so the CSP's hash matches it.
 //
 // The head also carries what search engines and link previews read: the
 // title, description, canonical URL, Open Graph and Twitter cards, and the

@@ -1,17 +1,17 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { currentView } from "~/app/schedule-nav";
-import type { ShellRoutes } from "~/app/test-utils";
 import { renderPlanTab } from "~/features/courses/testing";
+import { currentView } from "~/features/schedule/schedule-nav";
+import type { ShellRoutes } from "~/features/schedule/test-utils";
 import { aPlan, fixtureTermId, mockSection, snapshotOf } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import { useWorkspace } from "~/state/workspace-store";
 import { ConnectionDetails } from "./connection-details";
 import { useTravelSettingsOpen } from "./settings-store";
 import { TravelPanel } from "./travel-panel";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 const panels: ShellRoutes = {
   tabs: { travel: TravelPanel },

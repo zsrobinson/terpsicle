@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { GroupHeader, ListRow } from "./list-row";
 import { TooltipProvider } from "./tooltip";
 
-// The kit's row and group bar. src/app/panel.test.tsx covers what the
-// scheduler's panels rely on (it imports them through ~/app/panel).
+// The kit's row and group bar. src/components/panel.test.tsx covers what the
+// scheduler's panels rely on (it imports them through ~/components/panel).
 
 describe("ListRow", () => {
   it("puts the secondary line under the primary one and lines the columns up at the top", () => {

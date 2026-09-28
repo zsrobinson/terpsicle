@@ -1,6 +1,6 @@
 import { FileText, LayoutGrid } from "lucide-react";
 import { useState } from "react";
-import { Mark } from "~/app/brand/mark";
+import { Mark } from "~/components/brand/mark";
 import { defaultFirstTerm } from "~/core/four-year/terms";
 import type { IsoDate } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";

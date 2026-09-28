@@ -10,7 +10,7 @@ import { useAccount } from "~/features/auth/account-store";
 // reads and writes with the rest of the settings doc, so they're local while
 // signed out and the account's once signed in. Reviews' pages never load
 // IndexedDB up front (scripts/check-bundle.ts), so every page reads a
-// localStorage copy instead, the way the theme works (~/app/theme). Whatever
+// localStorage copy instead, the way the theme works (~/lib/theme). Whatever
 // writes the row writes the copy: a save here (./save), and plan sync
 // showing a change from the account (~/features/sync/boot).
 //

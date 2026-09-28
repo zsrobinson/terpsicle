@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
-import { MessageText } from "~/app/message-text";
+import { MessageText } from "~/components/message-text";
 import { displayTitle } from "~/core/four-year/display-title";
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import { resolvesWildcard } from "~/core/four-year/wildcards";

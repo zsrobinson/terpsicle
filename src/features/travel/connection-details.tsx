@@ -1,12 +1,8 @@
 import { cn } from "cn";
 import { ArrowRight } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { openTab } from "~/app/actions";
-import { track } from "~/app/analytics";
-import { useDrillEntry } from "~/app/drill-entry";
-import { TEXT } from "~/app/emphasis";
-import { MessageText } from "~/app/message-text";
-import { PanelBody, SectionHeader } from "~/app/panel";
+import { MessageText } from "~/components/message-text";
+import { PanelBody, SectionHeader } from "~/components/panel";
 import { connectionFixes } from "~/core/problems";
 import {
   type BuildingCode,
@@ -17,6 +13,10 @@ import {
 } from "~/core/schema";
 import { formatTime } from "~/core/time";
 import { travelMath, VERDICT_WORDS, verdictMessage } from "~/core/travel";
+import { openTab } from "~/features/schedule/actions";
+import { useDrillEntry } from "~/features/schedule/drill-entry";
+import { track } from "~/lib/analytics";
+import { TEXT } from "~/lib/emphasis";
 import { useCampus } from "~/state/data-hooks";
 import {
   useCurrentPlan,

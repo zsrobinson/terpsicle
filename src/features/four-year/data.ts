@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
 import { create } from "zustand";
-import { clientConfig } from "~/app/config";
 import {
   type FourYearCourses,
   fourYearCourses,
@@ -13,6 +12,7 @@ import type {
   TermId,
 } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
+import { clientConfig } from "~/lib/config";
 import { courseIndexEntry, useCourseIndex } from "~/state/course-index-store";
 import { createDexieCache } from "~/state/data-cache";
 import {

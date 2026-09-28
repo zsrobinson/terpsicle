@@ -19,7 +19,7 @@ import {
 } from "./notification-settings";
 import { turnOnHere } from "./this-device";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 vi.mock("~/server/fns/notifications", () => ({
   notificationsApi: {
     settings: vi.fn(),

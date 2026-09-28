@@ -1,9 +1,9 @@
 import { cn } from "cn";
-import { track } from "~/app/analytics";
-import { MessageText } from "~/app/message-text";
-import { PanelNote } from "~/app/panel";
+import { MessageText } from "~/components/message-text";
+import { PanelNote } from "~/components/panel";
 import { problemCountWords } from "~/core/problems/count-words";
 import type { FourYearProblem } from "~/core/schema/four-year";
+import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";

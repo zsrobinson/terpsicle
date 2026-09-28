@@ -1,4 +1,3 @@
-import { track } from "~/app/analytics";
 import {
   installPlatform,
   recordInstallDismissal,
@@ -10,6 +9,7 @@ import {
   readPushAskState,
   writePushAskState,
 } from "~/features/notifications/push-ask-prefs";
+import { track } from "~/lib/analytics";
 import { readInstallState, writeInstallState } from "./install-prefs";
 import { wasShownThisSession } from "./install-session";
 import {

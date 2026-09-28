@@ -103,7 +103,7 @@ describe("persistence", () => {
     w.dispatch({ type: "plan/make-main", planId: "planBBBB" }, "Made main");
     w.activatePlan(SPRING, "planAAAA");
     const ui = useUi.getState();
-    // The shell saves the view on screen (src/app/schedule-nav.ts).
+    // The shell saves the view on screen (src/features/schedule/schedule-nav.ts).
     useUi.setState({
       lastTab: "travel",
       lastDrill: { kind: "course", courseCode: "CMSC351", tab: "grades" },

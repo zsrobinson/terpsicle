@@ -2,7 +2,6 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
 import type { PushAskDevice } from "~/core/pwa";
 import {
   INSTALL_PROMPT_STORAGE_KEY,
@@ -10,6 +9,7 @@ import {
 } from "~/core/schema";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { requestInstallPrompt, useInstall } from "~/features/pwa/install-store";
+import { track } from "~/lib/analytics";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import {
@@ -22,7 +22,7 @@ import { PushAskCard } from "./push-ask-card";
 import { PushAskHost } from "./push-ask-host";
 import type { TurnOnResult } from "./this-device";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 const NOW = new Date("2026-09-28T12:00:00.000Z");
 

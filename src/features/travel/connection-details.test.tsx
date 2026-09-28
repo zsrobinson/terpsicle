@@ -1,9 +1,9 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { currentView, openDrill } from "~/app/schedule-nav";
-import type { ShellRoutes } from "~/app/test-utils";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
+import { currentView, openDrill } from "~/features/schedule/schedule-nav";
+import type { ShellRoutes } from "~/features/schedule/test-utils";
+import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import { useUi } from "~/state/ui-store";
 import { ConnectionDetails } from "./connection-details";
@@ -14,7 +14,7 @@ const panels: ShellRoutes = {
   drills: { connection: ConnectionDetails },
 };
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 // The demo plan's connections (src/fixtures/mock/plans.ts):
 // STAT400 in ESJ → CMSC351 in CSI, MWF: tight, and the fixtures have no

@@ -1,7 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { currentView, goTo } from "~/app/schedule-nav";
-import { routeAt } from "~/app/schedule-view";
 import { TAB_PATHS } from "~/core/routing/schedule-location";
 import type { TermId } from "~/core/schema";
 import {
@@ -11,13 +9,15 @@ import {
 import type { SearchFilters } from "~/core/search/filters";
 import type { SearchSort } from "~/core/search/sort";
 import { filtersFromParams, sameFilters } from "~/core/search/url";
+import { currentView, goTo } from "~/features/schedule/schedule-nav";
+import { routeAt } from "~/features/schedule/schedule-view";
 import { readActiveTermId } from "~/state/hooks";
 import { useSearchStore } from "./search-store";
 
 // Search's text and chips in its URL (`/schedule/search?q=cmsc&openSeats=1`),
 // so a reload, a copied link and Back land on the same search. Typing
 // replaces the entry, so Back skips every keystroke; a chip pushes one, so
-// Back undoes it (src/app/README.md, "URL state").
+// Back undoes it (src/features/schedule/README.md, "URL state").
 
 /** Writes the open term's search to the URL, while Search is on screen. */
 function write(termId: TermId, replace: boolean): void {

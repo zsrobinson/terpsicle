@@ -2,9 +2,9 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
 import { useAccount } from "~/features/auth/account-store";
 import { aFourYear, aFourYearEntry } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import {
   INITIAL_COURSE_INDEX_STATE,
   useCourseIndex,
@@ -21,7 +21,7 @@ import { activeDoc, INITIAL_FOUR_YEAR_STORE, useFourYear } from "./store";
 import { loadTemplates } from "./template-files";
 import { TemplatePanel } from "./template-panel";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 // The Samples tab (docs/V3.md §2.11) with the real Computer Science sample:
 // it fills empty semesters from the plan's first, never touches one that has

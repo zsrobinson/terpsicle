@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { Flag } from "lucide-react";
 import { useId, useState } from "react";
-import { track } from "~/app/analytics";
 import { REPORT_REASON_WORDS } from "~/core/reviews";
 import {
   REPORT_NOTE_MAX,
@@ -9,6 +8,7 @@ import {
   type ReviewReportReason,
   ReviewReportReasonSchema,
 } from "~/core/schema";
+import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
 import { Textarea } from "~/ui/input";

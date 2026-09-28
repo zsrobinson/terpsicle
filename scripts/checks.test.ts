@@ -4,14 +4,14 @@ import { findTermIds, isExempt } from "./check-term-ids";
 
 describe("findTermIds", () => {
   it.each(["202701", "202605", "202608", "202612"])("flags %s", (id) => {
-    expect(findTermIds("src/app/x.ts", `const t = "${id}";`)).toEqual([
-      `src/app/x.ts:1:12  "${id}"`,
+    expect(findTermIds("src/lib/x.ts", `const t = "${id}";`)).toEqual([
+      `src/lib/x.ts:1:12  "${id}"`,
     ]);
   });
 
   it("ignores numbers that aren't term ids", () => {
     expect(
-      findTermIds("src/app/x.ts", "const a = 202602; const b = 2026;"),
+      findTermIds("src/lib/x.ts", "const a = 202602; const b = 2026;"),
     ).toEqual([]);
   });
 
@@ -48,7 +48,7 @@ describe("findImportProblems", () => {
 
   it("flags imports from reference/", () => {
     const text = 'import { x } from "../../reference/prototype/src/core";';
-    expect(findImportProblems("src/app/x.ts", text)[0]).toContain(
+    expect(findImportProblems("src/lib/x.ts", text)[0]).toContain(
       "never import from reference/",
     );
   });

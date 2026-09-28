@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Mark } from "~/app/brand/mark";
-import { PanelNote } from "~/app/panel";
+import { Mark } from "~/components/brand/mark";
+import { PanelNote } from "~/components/panel";
 import { instructorSlug } from "~/core/reviews";
 import type { MyReview } from "~/core/schema";
 import { EmptyState } from "~/ui/empty-state";

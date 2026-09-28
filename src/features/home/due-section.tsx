@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { track } from "~/app/analytics";
 import { dueSoon } from "~/core/home";
 import type { TodoItem } from "~/core/schema";
 import {
@@ -14,6 +13,7 @@ import {
 } from "~/features/todo/course-colors";
 import { TodoItemRow } from "~/features/todo/todo-item";
 import { useTodo } from "~/features/todo/todo-store";
+import { track } from "~/lib/analytics";
 import { InlineError } from "~/ui/inline-error";
 import { noteToast, undoToast } from "~/ui/toast";
 import { HomeNote, HomeSection, HomeSkeleton } from "./section";

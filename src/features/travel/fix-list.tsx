@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ListRow, MetaSep, PanelNote } from "~/app/panel";
+import { ListRow, MetaSep, PanelNote } from "~/components/panel";
 import type { ConnectionFix } from "~/core/problems";
 import type { CourseCode, SectionKey } from "~/core/schema";
 import { instructorsLabel } from "~/features/courses/section-words";

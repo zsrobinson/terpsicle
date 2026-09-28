@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect } from "react";
-import { initAnalytics, track } from "~/app/analytics";
 import { SiteHeader } from "~/features/site/site-page";
+import { initAnalytics, track } from "~/lib/analytics";
 import { ProductPage } from "~/ui/product-page";
 
 // The frame of Terpsicle Reviews' pages (V2 §1.1): the family bar over a

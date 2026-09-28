@@ -10,7 +10,7 @@ import {
   type MarkTheme,
   PIXELS,
   TILE,
-} from "~/app/brand/marks";
+} from "~/lib/brand/marks";
 import {
   BADGE,
   badgePng,
@@ -87,7 +87,7 @@ describe("icon files (scripts/build-icons.ts)", () => {
   });
 });
 
-describe("marks (src/app/brand/marks.ts)", () => {
+describe("marks (src/lib/brand/marks.ts)", () => {
   it("are the owner's 9×9 drawings: tile, glyph and glyph at 50%", () => {
     for (const id of MARK_IDS) {
       const rows = PIXELS[id];

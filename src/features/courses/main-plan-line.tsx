@@ -1,6 +1,6 @@
-import { makeMainPlan, openPlan } from "~/app/actions";
-import { planLabel } from "~/app/plan-label";
 import { termLabel } from "~/core/catalog/terms";
+import { makeMainPlan, openPlan } from "~/features/schedule/actions";
+import { planLabel } from "~/features/schedule/plan-label";
 import { type CurrentPlan, useHasDrafts, useMainPlan } from "~/state/hooks";
 import { Button } from "~/ui/button";
 import { MainPlanMark } from "~/ui/term-tag";

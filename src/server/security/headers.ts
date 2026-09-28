@@ -43,7 +43,7 @@ export function cspNonce(): string {
 export interface CspOptions {
   /** This response's nonce, for TanStack's inline scripts (src/router.tsx). */
   nonce: string | null;
-  /** Hashes of our own inline scripts (src/app/inline-scripts.ts). */
+  /** Hashes of our own inline scripts (src/lib/inline-scripts.ts). */
   scriptHashes: readonly string[];
   reportOnly: boolean;
   /** Where reports go: an absolute URL. */

@@ -1,6 +1,6 @@
-import { track } from "~/app/analytics";
 import type { CourseCode, CourseColor } from "~/core/schema";
 import { sharePayloadFromPlan, shareUrl } from "~/core/share";
+import { track } from "~/lib/analytics";
 import { useCurrentPlan } from "~/state/hooks";
 import { ShareButton } from "./share-button";
 

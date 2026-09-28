@@ -9,12 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { track } from "~/app/analytics";
-import { Mark } from "~/app/brand/mark";
-import { crossLinkClicked } from "~/app/cross-link";
-import { useShortcut } from "~/app/shortcuts";
-import { useIsMobile } from "~/app/use-media-query";
-import { SkipLinks } from "~/app/workbench/skip-links";
+import { Mark } from "~/components/brand/mark";
+import { SkipLinks } from "~/components/workbench/skip-links";
 import { seasonTermOf, termLabel } from "~/core/catalog/terms";
 import { addDays } from "~/core/ics/dates";
 import { todoWeekStart, withTodoWeekStart } from "~/core/prefs";
@@ -47,6 +43,10 @@ import {
   SiteHeader,
   SitePage,
 } from "~/features/site/site-page";
+import { useIsMobile } from "~/hooks/use-media-query";
+import { track } from "~/lib/analytics";
+import { crossLinkClicked } from "~/lib/cross-link";
+import { useShortcut } from "~/lib/shortcuts";
 import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
 import { InlineError } from "~/ui/inline-error";

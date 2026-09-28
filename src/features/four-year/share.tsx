@@ -1,6 +1,6 @@
-import { track } from "~/app/analytics";
 import { fourYearShareUrl } from "~/core/share/four-year-share";
 import { ShareButton } from "~/features/share/share-button";
+import { track } from "~/lib/analytics";
 import { useModel } from "./model";
 
 // Plan's Share button (DATA.md §8.2): the open four-year plan as a link an

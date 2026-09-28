@@ -1,7 +1,7 @@
-import { openTab, startGenerate } from "~/app/actions";
-import { track } from "~/app/analytics";
-import { openDrill } from "~/app/schedule-nav";
 import type { CourseCode, Plan } from "~/core/schema";
+import { openTab, startGenerate } from "~/features/schedule/actions";
+import { openDrill } from "~/features/schedule/schedule-nav";
+import { track } from "~/lib/analytics";
 import { readActiveTermId } from "~/state/hooks";
 import { nowIso } from "~/state/ids";
 import { activePlanId } from "~/state/plan-ops";

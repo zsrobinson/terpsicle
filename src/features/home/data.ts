@@ -1,4 +1,3 @@
-import { clientConfig } from "~/app/config";
 import { buildCatalogIndex, type CatalogIndex } from "~/core/catalog";
 import { termTagCandidates } from "~/core/catalog/term-tag";
 import {
@@ -22,6 +21,7 @@ import {
 } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { type CampusMap, campusMap, decodeRoutes } from "~/core/travel";
+import { clientConfig } from "~/lib/config";
 import {
   createDataReader,
   createDataSource,

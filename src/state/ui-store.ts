@@ -16,7 +16,7 @@ import {
 
 // Shell state that isn't the URL's: whether the sidebar shows, theme and
 // term, the drawer, hover and preview. Which tab and drill-in are on screen
-// is the URL's alone (each is a route: src/app/README.md, "URL state"); the
+// is the URL's alone (each is a route: src/features/schedule/README.md, "URL state"); the
 // store only remembers the last one for the next visit. The persisted part
 // is `UiPrefs` (DATA.md §5; the active plan per term lives in the workspace
 // store with the plans).
