@@ -1,7 +1,7 @@
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { cn } from "cn";
 import * as React from "react";
-import { POPUP_CARD, POPUP_LAYER, POPUP_MOTION } from "./popup";
+import { POPUP_CARD, POPUP_LAYER, POPUP_MOTION, POPUP_POSITION } from "./popup";
 import {
   type AsChild,
   asChildRender,
@@ -185,6 +185,7 @@ function PopoverContent({
         alignOffset={alignOffset}
         // Keeps popovers off the screen's edge on phones.
         collisionPadding={collisionPadding}
+        positionMethod={POPUP_POSITION}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >

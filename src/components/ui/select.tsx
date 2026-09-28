@@ -2,7 +2,13 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "cn";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import * as React from "react";
-import { MENU_SEPARATOR, POPUP_CARD, POPUP_LAYER, POPUP_MOTION } from "./popup";
+import {
+  MENU_SEPARATOR,
+  POPUP_CARD,
+  POPUP_LAYER,
+  POPUP_MOTION,
+  POPUP_POSITION,
+} from "./popup";
 import {
   type CompatEvent,
   focusProp,
@@ -155,6 +161,7 @@ function SelectContent({
         align={align}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
+        positionMethod={POPUP_POSITION}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >

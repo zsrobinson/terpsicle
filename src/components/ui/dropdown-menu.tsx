@@ -2,7 +2,13 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { cn } from "cn";
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import * as React from "react";
-import { MENU_ITEM, MENU_POPUP, MENU_SEPARATOR, POPUP_LAYER } from "./popup";
+import {
+  MENU_ITEM,
+  MENU_POPUP,
+  MENU_SEPARATOR,
+  POPUP_LAYER,
+  POPUP_POSITION,
+} from "./popup";
 import {
   type AsChild,
   asChildRender,
@@ -95,6 +101,7 @@ function DropdownMenuContent({
         alignOffset={alignOffset}
         // Keeps menus off the screen's edge on phones.
         collisionPadding={collisionPadding}
+        positionMethod={POPUP_POSITION}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >
@@ -318,6 +325,7 @@ function DropdownMenuSubContent({
         sideOffset={sideOffset}
         alignOffset={alignOffset}
         collisionPadding={collisionPadding}
+        positionMethod={POPUP_POSITION}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >

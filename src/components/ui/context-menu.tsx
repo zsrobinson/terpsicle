@@ -1,7 +1,13 @@
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
 import { cn } from "cn";
 import * as React from "react";
-import { MENU_ITEM, MENU_POPUP, MENU_SEPARATOR, POPUP_LAYER } from "./popup";
+import {
+  MENU_ITEM,
+  MENU_POPUP,
+  MENU_SEPARATOR,
+  POPUP_LAYER,
+  POPUP_POSITION,
+} from "./popup";
 import {
   type AsChild,
   asChildRender,
@@ -79,6 +85,7 @@ function ContextMenuContent({
         align="start"
         sideOffset={2}
         collisionPadding={collisionPadding}
+        positionMethod={POPUP_POSITION}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >
