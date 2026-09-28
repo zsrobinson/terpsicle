@@ -51,6 +51,7 @@ import agnrSections from "~/ingest/__fixtures__/soc/202701/sections/AGNR.html?ra
 import cmscSections from "~/ingest/__fixtures__/soc/202701/sections/CMSC.html?raw";
 import buildingPopup from "~/ingest/__fixtures__/soc/buildings/SHM-2102.html?raw";
 import socIndex from "~/ingest/__fixtures__/soc/index.html?raw";
+import { planetTerpReviews } from "~/server/reviews/planetterp";
 import { runCalendarBuildingsJob } from "./calendar-buildings";
 import { runCatalogJob } from "./catalog";
 import { keepsReviewText, runPlanetTerpJob } from "./planetterp";
@@ -418,6 +419,72 @@ describe("planetterp job", () => {
     expect(await env.DATA.get(planetTerpReviewsKey("kruskal"))).toBeNull();
     expect(keepsReviewText({})).toBe(false);
     expect(keepsReviewText({ PLANETTERP_KEEP_REVIEW_TEXT: "true" })).toBe(true);
+  });
+
+  it("stores PlanetTerp's reviews for Reviews' pages, then only what changed", async () => {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    await runPlanetTerpJob({
+      env,
+      now: at("2026-09-26T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+    const stored = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM planetterp_reviews WHERE instructor_id = 'kruskal'",
+    ).first<{ n: number }>();
+    expect(stored?.n).toBeGreaterThan(100);
+    const first = await planetTerpReviews(env.DB, {
+      instructorId: "kruskal",
+      course: null,
+      cursor: null,
+      limit: 5,
+    });
+    expect(first.reviews).toHaveLength(5);
+    // Newest first, with no author: PlanetTerp publishes none.
+    const months = first.reviews.map((r) => r.createdMonth);
+    expect(months).toEqual([...months].sort().reverse());
+    for (const r of first.reviews)
+      expect(Object.keys(r).sort()).toEqual([
+        "body",
+        "course",
+        "createdMonth",
+        "expectedGrade",
+        "id",
+        "instructorId",
+        "rating",
+      ]);
+    const second = await planetTerpReviews(env.DB, {
+      instructorId: "kruskal",
+      course: null,
+      cursor: first.next,
+      limit: 5,
+    });
+    expect(second.reviews[0]?.id).not.toBe(first.reviews[0]?.id);
+    const byCourse = await planetTerpReviews(env.DB, {
+      instructorId: null,
+      course: "CMSC351",
+      cursor: null,
+      limit: 20,
+    });
+    expect(byCourse.reviews.every((r) => r.course === "CMSC351")).toBe(true);
+
+    // The next night PlanetTerp has nothing new: nothing is rewritten.
+    const before = await env.DB.prepare(
+      "SELECT updated_at FROM planetterp_review_sets WHERE instructor_id = 'kruskal'",
+    ).first<{ updated_at: string }>();
+    await runPlanetTerpJob({
+      env,
+      now: at("2026-09-27T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+    const after = await env.DB.prepare(
+      "SELECT updated_at FROM planetterp_review_sets WHERE instructor_id = 'kruskal'",
+    ).first<{ updated_at: string }>();
+    expect(after?.updated_at).toBe(before?.updated_at);
   });
 
   it("joins Testudo names to slugs and publishes grades per department", async () => {

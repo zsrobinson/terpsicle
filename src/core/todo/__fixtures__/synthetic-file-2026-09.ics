@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Synthetic//Gradescope calendar export//EN
+PRODID:-//Synthetic//Calendar export//EN
 X-WR-CALNAME:SYNTHETIC FIXTURE: a dropped .ics file with invented items
 BEGIN:VTIMEZONE
 TZID:America/New_York
@@ -20,84 +20,84 @@ RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
-UID:gradescope-2700101@export.invalid
+UID:export-2700101@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART;TZID=America/New_York:20261104T235900
 SUMMARY:Homework 6 [MATH240]
-URL:https://www.gradescope.com/courses/500001/assignments/2700101
+URL:https://www.example.edu/courses/500001/assignments/2700101
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700102@export.invalid
+UID:export-2700102@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART;TZID=America/New_York:20261101T013000
 SUMMARY:Lab 9 checkoff [CMSC216]
-URL:https://www.gradescope.com/courses/500002/assignments/2700102
+URL:https://www.example.edu/courses/500002/assignments/2700102
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700103@export.invalid
+UID:export-2700103@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART;TZID=America/New_York:20270314T023000
 SUMMARY:Project 5 [CMSC216]
-URL:https://www.gradescope.com/courses/500002/assignments/2700103
+URL:https://www.example.edu/courses/500002/assignments/2700103
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700104@export.invalid
+UID:export-2700104@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART;TZID=America/Chicago:20261015T235900
 SUMMARY:Worksheet 4 [PHYS161]
-URL:https://www.gradescope.com/courses/500003/assignments/2700104
+URL:https://www.example.edu/courses/500003/assignments/2700104
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700105@export.invalid
+UID:export-2700105@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART:20261020T120000
 SUMMARY:Pset 7 [MATH240]
 DESCRIPTION:Floating time\, no zone.
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700106@export.invalid
+UID:export-2700106@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART;VALUE=DATE:20261201
 DTEND;VALUE=DATE:20261202
 SUMMARY:Exam 2 [MATH240]
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700107@export.invalid
+UID:export-2700107@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART;TZID="Eastern Standard Time":20261210T235900
 SUMMARY:Final exam review session
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700108@export.invalid
+UID:export-2700108@export.invalid
 DTSTAMP:20260926T160000Z
 SEQUENCE:1
 DTSTART;TZID=America/New_York:20261112T235900
 SUMMARY:Homework 7 [MATH240]
-URL:https://www.gradescope.com/courses/500001/assignments/2700108
+URL:https://www.example.edu/courses/500001/assignments/2700108
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700108@export.invalid
+UID:export-2700108@export.invalid
 DTSTAMP:20260920T160000Z
 SEQUENCE:0
 DTSTART;TZID=America/New_York:20261110T235900
 SUMMARY:Homework 7 [MATH240]
-URL:https://www.gradescope.com/courses/500001/assignments/2700108
+URL:https://www.example.edu/courses/500001/assignments/2700108
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700109@export.invalid
+UID:export-2700109@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART;TZID=Mars/Olympus_Mons:20261015T120000
 SUMMARY:Somewhere else [PHYS161]
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700110@export.invalid
+UID:export-2700110@export.invalid
 DTSTAMP:20260926T160000Z
 STATUS:CANCELLED
 DTSTART;TZID=America/New_York:20261015T120000
 SUMMARY:Cancelled recitation [PHYS161]
 END:VEVENT
 BEGIN:VEVENT
-UID:gradescope-2700111@export.invalid
+UID:export-2700111@export.invalid
 DTSTAMP:20260926T160000Z
 DTSTART;TZID=America/New_York:20261016T100000
 DTEND;TZID=America/New_York:20261016T110000

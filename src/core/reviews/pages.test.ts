@@ -43,6 +43,31 @@ describe("buildPlanetTerpIndex", () => {
     });
   });
 
+  it("ranks professors by reviews, leaving out TAs and the unreviewed", () => {
+    const index = buildPlanetTerpIndex(
+      [
+        aPlanetTerpDept({
+          instructors: {
+            brandt: anInstructor({ reviewCount: 61, rating: 4.2 }),
+            kruskal: anInstructor({
+              slug: "kruskal",
+              name: "Clyde Kruskal",
+              reviewCount: 111,
+              rating: 2.6,
+            }),
+            ta: anInstructor({ slug: "ta", type: "ta", reviewCount: 500 }),
+            quiet: anInstructor({ slug: "quiet", reviewCount: 0 }),
+          },
+        }),
+      ],
+      new Map(),
+    );
+    expect(index.mostReviewed).toEqual([
+      ["kruskal", "Clyde Kruskal", 111, 2.6],
+      ["brandt", "Ada Brandt", 61, 4.2],
+    ]);
+  });
+
   it("ranks courses offered now by students, and leaves out the rest", () => {
     const index = buildPlanetTerpIndex(
       [

@@ -68,7 +68,6 @@ const fileItems = (): TodoFileItem[] =>
     title: i.title,
     courseLabel: i.courseLabel,
     kind: i.kind,
-    gradescope: i.gradescope,
     dueAt: i.dueAt,
     dueDate: i.dueDate,
     link: i.link,
@@ -242,7 +241,6 @@ describe("todo/connect", () => {
     expect(result.items[0]).toMatchObject({
       title: "Syllabus quiz",
       dueDate: "2026-08-31",
-      exam: true,
     });
     const byTitle = new Map(result.items.map((i) => [i.title, i]));
     // Course matching: the first code of a cross-listing, and none for a
@@ -262,9 +260,12 @@ describe("todo/connect", () => {
       courseLabel: "Sam Testudo",
       kind: "event",
     });
-    // The Gradescope tag, from the item's description.
-    expect(byTitle.get("Homework 4")).toMatchObject({ gradescope: true });
-    expect(result.items.filter((i) => i.gradescope)).toHaveLength(1);
+    // Nothing about an item comes from its description, and there's no
+    // Gradescope or exam guess to send.
+    expect(byTitle.get("Homework 4")).toEqual(
+      expect.not.objectContaining({ gradescope: expect.anything() }),
+    );
+    expect(result.items.every((i) => !("exam" in i))).toBe(true);
 
     const row = await feedRow();
     expect(row).toMatchObject({
@@ -498,7 +499,6 @@ describe("todo/import-file", () => {
     const stored = (await list(phone, "2026-09-01", "2026-12-29")).items;
     expect(stored.length).toBeGreaterThan(0);
     expect(stored.every((i) => i.source === "file")).toBe(true);
-    expect(stored.some((i) => i.gradescope)).toBe(true);
     // Links are ELMS's or nothing.
     expect(
       stored.every(
@@ -516,7 +516,6 @@ describe("todo/import-file", () => {
       title: "Project 2 from a file",
       courseLabel: null,
       kind: "assignment",
-      gradescope: true,
       dueAt: null,
       dueDate: "2026-09-29",
       link: null,
@@ -655,8 +654,6 @@ describe("own tasks", () => {
         courseCode: "CMSC216",
         sectionCode: null,
         kind: "assignment",
-        exam: false,
-        gradescope: false,
         dueAt: "2026-09-29T18:00:00.000Z",
         dueDate: "2026-09-29",
         link: null,

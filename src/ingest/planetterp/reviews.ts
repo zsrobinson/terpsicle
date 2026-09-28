@@ -4,6 +4,7 @@ import {
   JOBS_PREFIX,
   planetTerpReviewsKey,
   type Review,
+  ReviewGradeSchema,
   ReviewSchema,
   StoredReviewsSchema,
 } from "~/core/schema";
@@ -73,6 +74,48 @@ export function normalizeReviews(raw: readonly ReviewApi[]): Review[] {
             ? 1
             : 0,
   );
+}
+
+/** A review as `planetterp_reviews` stores it (migrations/0020). */
+export interface PlanetTerpReviewRecord {
+  id: string;
+  course: string | null;
+  rating: number;
+  expectedGrade: string | null;
+  body: string;
+  created: string;
+}
+
+/**
+ * An instructor's reviews as Reviews shows them (V2 §7.6), with the hash of
+ * the whole set, so a night only rewrites instructors whose reviews changed.
+ * Only what a page shows: the course, rating, the expected grade when it's
+ * a real one, the words and the date. Each id hashes the slug, date and
+ * words (PlanetTerp's reviews have none); an exact repeat is dropped.
+ */
+export async function planetTerpReviewRecords(
+  slug: string,
+  raw: readonly ReviewApi[],
+): Promise<{ records: PlanetTerpReviewRecord[]; hash: string }> {
+  const records: PlanetTerpReviewRecord[] = [];
+  const ids = new Set<string>();
+  for (const r of normalizeReviews(raw)) {
+    const id = await contentHash(`${slug}\n${r.created}\n${r.text}`);
+    if (ids.has(id)) continue;
+    ids.add(id);
+    const grade = ReviewGradeSchema.safeParse(
+      r.expectedGrade.trim().toUpperCase(),
+    );
+    records.push({
+      id,
+      course: r.course ? r.course.toUpperCase() : null,
+      rating: r.rating,
+      expectedGrade: grade.success ? grade.data : null,
+      body: r.text,
+      created: r.created,
+    });
+  }
+  return { records, hash: await contentHash(toJsonBytes(records)) };
 }
 
 export interface ReviewKeeper {

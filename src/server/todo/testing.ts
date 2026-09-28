@@ -35,7 +35,7 @@ export function todoEnv(overrides: Record<string, string> = {}): ApiEnv & Env {
 }
 
 export const ELMS_FEED = FEEDS["synthetic-elms-2026-09"]?.text ?? "";
-export const FILE_FEED = FEEDS["synthetic-file-gradescope"]?.text ?? "";
+export const FILE_FEED = FEEDS["synthetic-file-2026-09"]?.text ?? "";
 
 type Answer = (request: Request) => Response | Promise<Response>;
 

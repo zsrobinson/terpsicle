@@ -249,6 +249,16 @@ describe("anonymity payloads (V2 §7.5)", () => {
       instructorId: "brandt",
     });
     await record("recent", null, "reviews/recent", { limit: 12 });
+    // A page's reviews, as its server render and the browser read them.
+    const page = (await record("page (instructor)", null, "reviews/page", {
+      instructorId: "brandt",
+      course: null,
+    })) as { terpsicle: unknown[] | null };
+    expect(page.terpsicle?.length).toBeGreaterThan(0);
+    await record("page (course)", reader, "reviews/page", {
+      instructorId: null,
+      course: "CMSC351",
+    });
     await record("delete", author, "reviews/delete", { reviewId: published });
 
     expect(seen.length).toBeGreaterThan(15);

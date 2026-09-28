@@ -8,8 +8,8 @@ import type {
   TermId,
 } from "../schema";
 
-// What a feed item's words say: its course, whether it reads like an exam,
-// and (for a file that doesn't say) whether it's an assignment. docs/V3.md §3.6.
+// What a feed item's words say: its course, and (for a file that doesn't
+// say) whether it's an assignment. docs/V3.md §3.6.
 
 /**
  * Canvas titles end with the course in brackets:
@@ -65,19 +65,6 @@ export function pickFeedCourse(
   return codes.find((code) => inPlan.has(code)) ?? codes[0] ?? null;
 }
 
-const EXAM_WORDS = /\b(exams?|midterms?|finals?|quiz(?:zes)?|tests?)\b/i;
-/** Titles that use an exam word for something that isn't one. */
-const NOT_EXAMS =
-  /\bfinals?\s+(projects?|papers?|reports?|presentations?|essays?|portfolios?|drafts?|submissions?|reflections?)\b|\btest\s+cases?\b/gi;
-
-/**
- * Whether a title reads like an exam or quiz. A guess from keywords, never a
- * fact: it only marks the item "Exam" and dashes it on the week.
- */
-export function looksLikeExam(title: string): boolean {
-  return EXAM_WORDS.test(title.replace(NOT_EXAMS, " "));
-}
-
 // Exams aren't here: Canvas puts them on the calendar as events.
 const ASSIGNMENT_WORDS =
   /\b(due|assignments?|homeworks?|hw\s?\d*|projects?|labs?|quiz(?:zes)?|essays?|papers?|problem\s+sets?|psets?|submissions?|worksheets?|responses?|reflections?|drafts?|readings?)\b/i;
@@ -90,19 +77,13 @@ const ASSIGNMENT_WORDS =
 export function feedItemKind(
   uid: string,
   title: string,
-  gradescope: boolean,
 ): { kind: FeedItemKind; from: "uid" | "title" } {
   if (/^event-assignment-/i.test(uid))
     return { kind: "assignment", from: "uid" };
   if (/^event-calendar-event-/i.test(uid))
     return { kind: "event", from: "uid" };
-  const assignment = gradescope || ASSIGNMENT_WORDS.test(title);
+  const assignment = ASSIGNMENT_WORDS.test(title);
   return { kind: assignment ? "assignment" : "event", from: "title" };
-}
-
-/** Whether a URL or description mentions Gradescope's site (docs/V3.md §3.7). */
-export function mentionsGradescope(...texts: (string | null)[]): boolean {
-  return texts.some((text) => text !== null && /gradescope\.com/i.test(text));
 }
 
 /**

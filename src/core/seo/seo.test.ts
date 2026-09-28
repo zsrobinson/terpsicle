@@ -29,6 +29,7 @@ const course: CoursePageData = {
       name: "Clyde Kruskal",
       teaching: true,
       planetTerp: { rating: 3.4, reviewCount: 210 },
+      terpsicle: null,
       gpa: 2.6,
     },
     {
@@ -36,6 +37,7 @@ const course: CoursePageData = {
       name: "Ada Brandt",
       teaching: false,
       planetTerp: { rating: 4.2, reviewCount: 61 },
+      terpsicle: null,
       gpa: 3.1,
     },
   ],
@@ -121,9 +123,7 @@ describe("courseHead", () => {
     );
     expect(description).toContain("2 instructors, rated 3.4 to 4.2 out of 5.");
     expect(description.length).toBeLessThanOrEqual(DESCRIPTION_MAX);
-    expect(head.links[0]?.href).toBe(
-      "https://terpsicle.com/reviews/courses/CMSC351",
-    );
+    expect(head.links[0]?.href).toBe("https://terpsicle.com/reviews/cmsc351");
   });
 
   it("marks up the course and its breadcrumbs, with no borrowed rating", () => {
@@ -135,7 +135,7 @@ describe("courseHead", () => {
         {
           position: 2,
           name: "CMSC351",
-          item: "https://terpsicle.com/reviews/courses/CMSC351",
+          item: "https://terpsicle.com/reviews/cmsc351",
         },
       ],
     });
@@ -193,7 +193,7 @@ describe("instructorHead", () => {
     expect(head.links).toEqual([
       {
         rel: "canonical",
-        href: "https://terpsicle.com/reviews/instructors/kruskal",
+        href: "https://terpsicle.com/reviews/kruskal",
       },
     ]);
   });
@@ -204,7 +204,7 @@ describe("instructorHead", () => {
       "@context": "https://schema.org",
       "@type": "Person",
       name: "Clyde Kruskal",
-      url: "https://terpsicle.com/reviews/instructors/kruskal",
+      url: "https://terpsicle.com/reviews/kruskal",
       jobTitle: "Instructor",
       worksFor: {
         "@type": "CollegeOrUniversity",

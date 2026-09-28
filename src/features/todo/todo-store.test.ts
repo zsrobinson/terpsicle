@@ -123,8 +123,8 @@ describe("load", () => {
     expect(client.refresh).toHaveBeenCalledTimes(1);
     expect(client.list).toHaveBeenCalledTimes(2);
     expect(client.list).toHaveBeenCalledWith({
-      from: "2026-09-11",
-      to: "2027-01-08",
+      from: "2026-08-28",
+      to: "2026-12-25",
     });
   });
 });

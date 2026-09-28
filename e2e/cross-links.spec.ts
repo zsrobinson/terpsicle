@@ -44,7 +44,7 @@ test("Plan links a course to its reviews, and the semester in progress to Todo",
   if (isMobile) await lowerPlanDrawer(page);
   await fall.getByRole("button", { name: "CMSC351 options" }).click();
   await page.getByRole("menuitem", { name: "View reviews" }).click();
-  await expect(page).toHaveURL(/\/reviews\/courses\/CMSC351$/);
+  await expect(page).toHaveURL(/\/reviews\/cmsc351$/);
   await expect(
     page.getByRole("heading", { level: 1, name: /CMSC351/ }),
   ).toBeVisible();
@@ -52,8 +52,12 @@ test("Plan links a course to its reviews, and the semester in progress to Todo",
   await page.goBack();
   await fall.getByRole("link", { name: "View todos" }).click();
   await expect(page).toHaveURL(/\/todo$/);
+  // Todo's front door says what it does before signing in.
   await expect(
-    page.getByText(/Sign in, then paste your ELMS calendar link/),
+    page.getByRole("heading", {
+      level: 1,
+      name: "Your deadlines, on a calendar",
+    }),
   ).toBeVisible();
 });
 
@@ -79,22 +83,25 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   isMobile,
 }) => {
   await signIn(page);
+  // On a phone the side panel's ELMS part is folded above the calendar.
+  if (isMobile)
+    await page.getByRole("button", { name: /^Courses and ELMS/ }).click();
   await page
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
   await page.getByRole("button", { name: "Connect ELMS" }).click();
   await expect(page.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
 
-  // The views are links: each one is a URL (`?view=course`).
-  await page.getByRole("link", { name: "By course" }).click();
-  const cmsc = page.getByRole("region", { name: "CMSC216" });
-  await cmsc.getByRole("link", { name: "View chat" }).click();
-  await expect(page).toHaveURL(/\/chat\?term=\d{6}&course=CMSC216$/);
-
-  // The week is desktop's (a phone shows the days for it).
-  if (isMobile) return;
-  await page.goto("/todo?view=week");
+  // The week's header links to its classes.
   await page.getByRole("link", { name: "View schedule" }).click();
   await expect(page).toHaveURL(/\/schedule\//);
   await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+
+  // Each course in the side panel links to its chat room.
+  await page.goBack();
+  await expect(page.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
+  if (isMobile)
+    await page.getByRole("button", { name: /^Courses and ELMS/ }).click();
+  await page.getByRole("link", { name: "View chat for CMSC216" }).click();
+  await expect(page).toHaveURL(/\/chat\?term=\d{6}&course=CMSC216$/);
 });

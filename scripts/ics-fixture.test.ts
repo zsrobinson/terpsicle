@@ -52,7 +52,7 @@ describe("redactFeed", () => {
     expect(redacted).toContain("X-WR-CALNAME:RECORDED FIXTURE 2026-10-01");
   });
 
-  it("keeps what the parser reads: UIDs, dates, course labels, links and the Gradescope flag", () => {
+  it("keeps what the parser reads: UIDs, dates, course labels and links", () => {
     const before = parseIcs(FEED);
     const after = parseIcs(redacted);
     const shape = (p: typeof before) =>
@@ -75,20 +75,19 @@ describe("redactFeed", () => {
     ]);
   });
 
-  it("replaces every title with a fake on request, keeping exams as exams", () => {
+  it("replaces every title with a fake on request", () => {
     const fake = parseIcs(
       redactFeed(FEED, { fakeTitles: true, recordedOn: "2026-10-01" }),
     );
     expect(fake.items.map((i) => i.title)).toEqual([
       "Assignment 1",
-      "Exam 1",
       "Event 1",
+      "Event 2",
     ]);
-    expect(fake.items.map((i) => i.looksLikeExam)).toEqual([
-      false,
-      true,
-      false,
-    ]);
+  });
+
+  it("drops descriptions: nothing reads them", () => {
+    expect(redacted).not.toContain("DESCRIPTION");
   });
 
   it("writes CRLF lines folded at 75 characters", () => {

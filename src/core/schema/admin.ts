@@ -131,3 +131,37 @@ export const AdminChatRemoveInputSchema = z.strictObject({
   authorAction: AuthorActionSchema.optional(),
 });
 export type AdminChatRemoveInput = z.infer<typeof AdminChatRemoveInputSchema>;
+
+// ---------- /api/admin/grades/* ----------
+
+/**
+ * The Grade data page (V2 §10): the semesters whose grades aren't in yet
+ * (src/core/grades/requests.ts), and what the owner noted about each
+ * semester's Public Information Act request (`grade_requests`).
+ */
+export const AdminGradesInputSchema = z.strictObject({});
+
+export const GradeRequestNoteSchema = z.string().max(500);
+
+export const AdminGradeSemesterSchema = z.strictObject({
+  termId: TermIdSchema,
+  /** When the request went out; null until it has. */
+  sentOn: IsoDateSchema.nullable(),
+  note: GradeRequestNoteSchema,
+});
+export type AdminGradeSemester = z.infer<typeof AdminGradeSemesterSchema>;
+
+export const AdminGradesSchema = z.strictObject({
+  /** The newest semester PlanetTerp's grades include; null before any. */
+  gradesThrough: TermIdSchema.nullable(),
+  /** Oldest first. */
+  missing: z.array(AdminGradeSemesterSchema),
+});
+export type AdminGrades = z.infer<typeof AdminGradesSchema>;
+
+export const AdminGradeSaveInputSchema = AdminGradeSemesterSchema;
+export type AdminGradeSaveInput = z.infer<typeof AdminGradeSaveInputSchema>;
+
+export const AdminGradeSaveResultSchema = z.strictObject({
+  saved: AdminGradeSemesterSchema,
+});

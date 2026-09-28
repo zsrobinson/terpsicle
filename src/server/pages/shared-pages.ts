@@ -18,9 +18,10 @@ export const SIGNED_IN_PAGE_CACHE_CONTROL = "private, no-cache";
 
 const SHARED_PATHS = [
   /^\/reviews\/?$/,
-  /^\/reviews\/policy\/?$/,
-  /^\/reviews\/courses\/[^/]+\/?$/,
-  /^\/reviews\/instructors\/[^/]+\/?$/,
+  // An instructor's or a course's page, and the policy; never your own.
+  /^\/reviews\/(?!mine\/?$)[^/]+\/?$/,
+  // The old addresses, which move for good (301).
+  /^\/reviews\/(courses|instructors)\/[^/]+\/?$/,
 ];
 
 /** A path whose page reads nothing about the visitor. */
