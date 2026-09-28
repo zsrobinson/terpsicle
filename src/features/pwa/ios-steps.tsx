@@ -1,4 +1,5 @@
 import { Bell, type LucideIcon, Share, SquarePlus } from "lucide-react";
+import { ListRow } from "~/ui/list-row";
 
 // Safari's Share → Add to Home Screen, drawn small: Safari's toolbar with
 // Share picked out, then the share sheet's row. Decoration only; the steps
@@ -119,20 +120,24 @@ export function IosStepRows({
 }) {
   const numbered = steps.length > 1;
   return (
-    <ol className="flex flex-col border-hairline border-t">
+    <ol className="flex flex-col border-hairline border-y">
       {steps.map(({ words, icon: Icon }, i) => (
-        <li
+        <ListRow
+          as="li"
           key={words}
-          className="flex min-h-12 items-center gap-3 border-hairline border-b py-2"
+          // Flush with the sheet's words; 48px, a comfortable tap's height.
+          className="min-h-12 px-0"
+          lead={
+            numbered ? (
+              <span className="block w-4 text-muted text-sm tabular-nums">
+                {i + 1}
+              </span>
+            ) : undefined
+          }
+          trail={<Icon size={20} aria-hidden="true" className="text-fg" />}
         >
-          {numbered ? (
-            <span className="w-4 shrink-0 text-muted text-sm tabular-nums">
-              {i + 1}
-            </span>
-          ) : null}
-          <span className="flex-1 text-fg">{words}</span>
-          <Icon size={20} aria-hidden="true" className="shrink-0 text-fg" />
-        </li>
+          <span className="text-fg">{words}</span>
+        </ListRow>
       ))}
     </ol>
   );
