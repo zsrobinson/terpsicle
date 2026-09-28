@@ -114,6 +114,11 @@ export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
 export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
   [
     { pattern: /(^|\/)dexie\//, why: "only the scheduler opens Dexie" },
+    {
+      // The query client is on every page; its disk cache isn't.
+      pattern: /(^|\/)@tanstack\/query-persist-client-core\//,
+      why: "the query cache's persister loads with the data it keeps",
+    },
     { pattern: /^src\/state\//, why: "the app's stores load with /schedule" },
     { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
   ];
