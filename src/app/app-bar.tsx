@@ -6,6 +6,7 @@ import { STAY_PARAM } from "~/core/routing";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { AccountButton } from "~/features/auth/account-button";
 import { useAccount } from "~/features/auth/account-store";
+import { CoffeeButton, CoffeeMenuItem } from "~/features/coffee/coffee-button";
 import {
   FeedbackButton,
   openFeedbackSheet,
@@ -20,18 +21,23 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import { Mark } from "./brand/mark";
 import { Wordmark } from "./brand/wordmark";
+import { EarlyAccessChip } from "./early-access";
 import { ProductMenu } from "./product-menu";
 import { listedProducts, type ProductId } from "./products";
 import { ThemeToggle } from "./theme-toggle";
 import { useIsMobile } from "./use-media-query";
+import { useScrolled } from "./use-scrolled";
 
 // The one bar on every page (docs/COHESION.md §4, the "family bar"): the
-// wordmark and the five products as labeled tabs, in color order, then a
-// divider and the product's own context (the term and plan, a course…),
-// then its status, the bell (signed in), Feedback and the account. Below
-// 1100px the tabs fold into the product menu, whose trigger names the
-// product you're in; phones fold Feedback and the theme into the account
-// menu, and the bell too where the bar is crowded. The same bar, everywhere.
+// wordmark, the "Early access" chip and the five products as labeled tabs,
+// in color order, then a divider and the product's own context (the term
+// and plan, a course…), then its status, the bell (signed in), the coffee
+// button, Feedback and the account. Below 1100px the tabs fold into the
+// product menu, whose trigger names the product you're in, and the chip
+// stays only where the bar has no context (the menu says it too); phones
+// fold the coffee button and the theme into the account menu, and
+// Feedback and the bell too where the bar is crowded. The same bar,
+// everywhere.
 
 /** Where the tabs fit beside the scheduler's term and plans. */
 const WIDE = "min-[1100px]:flex";
@@ -54,6 +60,8 @@ export function AppBar({
   pathname,
   compact = false,
   heading = false,
+  crowdedBelow2xl = false,
+  borderOnScroll = false,
 }: {
   /** The product you're in; null on Settings and the site's own pages. */
   current: ProductId | null;
@@ -69,7 +77,16 @@ export function AppBar({
   compact?: boolean;
   /** The bar holds the page's h1 (the scheduler has no page title). */
   heading?: boolean;
+  /**
+   * Its context fills the bar below 1536px (the scheduler's term and plans):
+   * Feedback shows just its icon there, and below 1280px the Early access
+   * chip gives way and the coffee button moves into the account menu.
+   */
+  crowdedBelow2xl?: boolean;
+  /** Reviews' public pages: no rule under the bar until the page scrolls. */
+  borderOnScroll?: boolean;
 }) {
+  const scrolled = useScrolled(borderOnScroll);
   // Phones: where the bar also carries the product's context (the scheduler,
   // Chat's term), "Send feedback" and the bell move into the account menu so
   // the context reads whole; the avatar wears a dot for what's unread. Until
@@ -78,6 +95,12 @@ export function AppBar({
   const mobile = useIsMobile();
   const crowded = compact || (mobile && context != null);
   const feedbackInMenu = crowded && feedback !== null;
+  // A phone's bar has no room for another icon beside Feedback and the
+  // account: the coffee link is always in the account menu there.
+  const coffeeInMenu = (compact || mobile) && feedback !== null;
+  // A crowded bar at 1100–1279px needs the room for its plans (e2e/shell's
+  // "at 1100px" test): the chip hides and the coffee link moves to the menu.
+  const roomBelowXl = crowdedBelow2xl && !coffeeInMenu;
   const bellShown = useBellShown();
   const unreadNote = useUnreadNote();
   const Brand = heading ? "h1" : "div";
@@ -86,6 +109,7 @@ export function AppBar({
       data-slot="app-bar"
       className={cn(
         "flex h-12 shrink-0 items-center border-hairline border-b",
+        borderOnScroll && !scrolled && "border-b-transparent",
         compact ? "gap-1 px-2" : "gap-2 px-3",
       )}
     >
@@ -103,12 +127,19 @@ export function AppBar({
               </a>
             </WithTooltip>
           </Brand>
+          <EarlyAccessChip
+            className={roomBelowXl ? "max-xl:hidden" : undefined}
+          />
           <ProductTabs current={current} />
         </div>
       )}
       <Brand className={cn("flex shrink-0", compact ? null : NARROW)}>
         <ProductMenu current={current} compact={compact} />
       </Brand>
+      {compact || context ? null : (
+        // Phones keep the room; the product menu says it there.
+        <EarlyAccessChip className="ml-1 hidden sm:max-[1100px]:inline-flex" />
+      )}
       {context ? (
         <>
           <span
@@ -133,21 +164,36 @@ export function AppBar({
       >
         {status}
         <NotificationsBell showButton={!crowded} />
+        {feedback && !coffeeInMenu ? (
+          <CoffeeButton
+            labelFrom2xl={crowdedBelow2xl}
+            className={roomBelowXl ? "max-xl:hidden" : undefined}
+          />
+        ) : null}
         {feedback ? (
           <FeedbackButton
             product={feedback}
             pathname={pathname}
             compact={compact}
             showButton={!feedbackInMenu && !(crowded && accountLoading)}
+            labelFrom2xl={crowdedBelow2xl}
           />
         ) : null}
         <AccountButton
           compact={compact}
           fallback={<ThemeToggle side="bottom" />}
           items={
-            crowded ? (
-              <MenuItems feedback={feedbackInMenu} bell={bellShown} />
-            ) : null
+            <MenuItems
+              feedback={feedbackInMenu}
+              coffee={
+                coffeeInMenu
+                  ? "always"
+                  : roomBelowXl && feedback !== null
+                    ? "below-xl"
+                    : "never"
+              }
+              bell={crowded && bellShown}
+            />
           }
           note={crowded ? unreadNote : null}
         />
@@ -171,7 +217,7 @@ function ProductTabs({ current }: { current: ProductId | null }) {
               CURRENT[p.id],
             )}
           >
-            <Mark id={p.id} size={16} className="size-4" />
+            <Mark id={p.id} size={20} />
             {p.label}
           </Link>
         </WithTooltip>
@@ -180,12 +226,24 @@ function ProductTabs({ current }: { current: ProductId | null }) {
   );
 }
 
-/** What a crowded phone bar moves into the account menu. */
-function MenuItems({ feedback, bell }: { feedback: boolean; bell: boolean }) {
-  if (!feedback && !bell) return null;
+/** What a phone's bar moves into the account menu. */
+function MenuItems({
+  feedback,
+  coffee,
+  bell,
+}: {
+  feedback: boolean;
+  /** "below-xl": only where the bar hides its coffee button (CSS). */
+  coffee: "always" | "below-xl" | "never";
+  bell: boolean;
+}) {
+  if (!feedback && coffee === "never" && !bell) return null;
+  const onlyBelowXl = !feedback && !bell && coffee === "below-xl";
   return (
     <>
-      <DropdownMenuSeparator />
+      <DropdownMenuSeparator
+        className={onlyBelowXl ? "xl:hidden" : undefined}
+      />
       {bell ? <NotificationsMenuItem /> : null}
       {feedback ? (
         <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
@@ -193,6 +251,11 @@ function MenuItems({ feedback, bell }: { feedback: boolean; bell: boolean }) {
           Send feedback
         </DropdownMenuItem>
       ) : null}
+      {coffee === "never" ? null : (
+        <CoffeeMenuItem
+          className={coffee === "below-xl" ? "xl:hidden" : undefined}
+        />
+      )}
     </>
   );
 }

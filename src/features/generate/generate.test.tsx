@@ -569,9 +569,9 @@ describe("Generate", () => {
     expect(draft()?.items ?? []).toEqual([]);
 
     await user.clear(courseField());
-    await user.keyboard("CMSC4X");
+    await user.keyboard("CMSC4X1");
     const hint = await screen.findByText(
-      "Use three places for the number, as in CMSC4XX.",
+      "Put X only at the end, as in CMSC4XX.",
     );
     expect(courseField()).toHaveAttribute("aria-describedby", hint.id);
   });

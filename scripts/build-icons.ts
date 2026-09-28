@@ -4,10 +4,11 @@
 //
 //   pnpm tsx scripts/build-icons.ts
 //
-// Writes public/icons/: the favicon (SVG, following the viewer's theme, and a
-// 32px PNG), the iOS home-screen icon (180), the web app icons (192, 512,
-// and a maskable 512 whose glyph sits inside Android's 80% safe circle), and
-// the notification badge (72).
+// Writes public/icons/: the favicon (SVG and a 32px PNG), the iOS home-screen
+// icon (180), the web app icons (192, 512, and a maskable 512 whose glyph
+// sits inside Android's 80% safe circle), and the notification badge (72).
+// All of them are the umbrella's tile alone, with no offset (the owner,
+// 2026-09-28), and the same in both themes: the tile is black in both.
 // scripts/build-icons.test.ts fails when these files are out of date.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -23,9 +24,8 @@ export interface IconFile {
   size: number;
   variant: MarkVariant;
   /**
-   * The mark's own size, which sets its detail: at 16 and under, 70% shapes
-   * go solid and the offset is 1px. A favicon is drawn for the tab (16) and
-   * rendered sharper.
+   * The size the mark is drawn for, which sets its pixel grid: the glyph's
+   * units land on whole pixels at this size.
    */
   drawAt: number;
 }
@@ -35,8 +35,13 @@ export const ICON_DIR = "icons";
 export const FAVICON_SVG = `${ICON_DIR}/favicon.svg`;
 
 export const PNG_ICONS: readonly IconFile[] = [
-  { file: `${ICON_DIR}/favicon-32.png`, size: 32, variant: "page", drawAt: 16 },
-  // The OS rounds these itself, so the tile is the whole icon.
+  // Every icon is the tile alone: the OS (or the tab) frames it.
+  {
+    file: `${ICON_DIR}/favicon-32.png`,
+    size: 32,
+    variant: "bleed",
+    drawAt: 32,
+  },
   {
     file: `${ICON_DIR}/apple-touch-icon.png`,
     size: 180,
@@ -65,7 +70,8 @@ export const PNG_ICONS: readonly IconFile[] = [
 
 /**
  * Android's status-bar icon for a notification (src/server/service-worker.ts):
- * the glyph alone, white on clear, since only its alpha is used.
+ * the glyph alone, solid white on clear, since only its alpha is used (a 50%
+ * canopy would come out half there).
  */
 export const BADGE: IconFile = {
   file: `${ICON_DIR}/badge-72.png`,
@@ -84,6 +90,7 @@ const BADGE_COLORS: Record<MarkRole, string> = {
 export function badgeSvg(): string {
   return markSvg("umbrella", BADGE.drawAt, BADGE_COLORS, {
     variant: BADGE.variant,
+    solid: true,
   });
 }
 
@@ -114,16 +121,15 @@ function readThemes() {
   return readTokens(readFileSync(path.join(ROOT, "src/styles.css"), "utf8"));
 }
 
-/** The favicon: light by default, dark when the browser is. */
+/**
+ * The favicon: the 32px PNG's drawing, so it's crisp on a sharp screen. One
+ * drawing for both themes: a tab strip is never as black as the tile, and
+ * the white umbrella carries it either way.
+ */
 export function faviconSvg(): string {
-  const themes = readThemes();
-  const dark = umbrellaColors(themes.dark);
-  // CSS beats the presentation attributes; each rule sets only the paint
-  // its shapes already have (the keyline is a stroke, a halo both).
-  const style = `@media (prefers-color-scheme: dark){.tile{fill:${dark.tile}}.halo{stroke:${dark.tile}}.glyph{fill:${dark.glyph}}.keyline{stroke:${dark.keyline}}.offset{fill:${dark.offset}}}`;
-  return `${markSvg("umbrella", 16, umbrellaColors(themes.light), {
+  return `${markSvg("umbrella", 32, umbrellaColors(readThemes().light), {
+    variant: "bleed",
     title: "Terpsicle",
-    style,
   })}\n`;
 }
 

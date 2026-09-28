@@ -1,15 +1,30 @@
-import { KNOWN_GEN_EDS } from "../catalog/wildcard";
-import type { CourseSearchRow, GenEdCode, Wildcard } from "../schema";
+import type { CourseCode, CourseSearchRow, Wildcard } from "../schema";
+import {
+  isFiltering,
+  type SearchFilters,
+  searchRowFilter,
+} from "../search/filters";
+import type { CourseSearch } from "../search/search";
+import { parseCourseQuery, queryFilters } from "../search/tokens";
+import {
+  type WildcardSearchInfo,
+  wildcardSearchInfoFromRows,
+} from "../search/wildcards";
 import { searchRowMayResolve } from "./wildcards";
 
 // Plan's search over the course index's search file (docs/V3.md §2.2): about
-// 5,000 rows, small enough to scan on each keystroke. A code ("cmsc 35",
-// "CMSC351") matches by prefix; a GenEd code lists what counts for it;
-// anything else matches the title's words.
+// 5,000 rows, every term. It's the scheduler's engine (~/core/search), so a
+// code, a title's words ("intro psych"), a pattern ("cmsc4xx") and a filter
+// token ("DSHS", "400s") read the same in both. The rows have no
+// instructors, so only those don't match here.
+
+/** The engine's module, which Plan loads when Search first opens. */
+export type SearchEngine = Pick<
+  typeof import("../search/search"),
+  "createRowSearch" | "queryCourses"
+>;
 
 export type FourYearSearchFilter = {
-  /** "Find a course" from the GenEd tab: only courses that can count for it. */
-  readonly genEd?: GenEdCode | null;
   /** "Pick a course" for a placeholder: only courses that may resolve it. */
   readonly wildcard?: Wildcard | null;
 };
@@ -23,75 +38,71 @@ export type FourYearSearchResult = {
 /** How many results the list shows. */
 export const FOUR_YEAR_SEARCH_LIMIT = 50;
 
-const CODE_PREFIX = /^[A-Z]{1,4}(\d{0,3}[A-Z]?)?$/;
+type RowIndex = {
+  readonly search: CourseSearch;
+  readonly info: WildcardSearchInfo;
+  readonly byCode: ReadonlyMap<CourseCode, CourseSearchRow>;
+};
 
-function words(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w.length > 0);
+const indexes = new WeakMap<readonly CourseSearchRow[], RowIndex>();
+
+/** Built once per search file. */
+function rowIndex(
+  engine: SearchEngine,
+  rows: readonly CourseSearchRow[],
+): RowIndex {
+  let index = indexes.get(rows);
+  if (!index) {
+    index = {
+      search: engine.createRowSearch(rows),
+      info: wildcardSearchInfoFromRows(rows),
+      byCode: new Map(rows.map((r) => [r[0], r])),
+    };
+    indexes.set(rows, index);
+  }
+  return index;
 }
 
-function passes(row: CourseSearchRow, filter: FourYearSearchFilter): boolean {
-  if (filter.genEd && !row[4].includes(filter.genEd)) return false;
-  if (filter.wildcard && !searchRowMayResolve(filter.wildcard, row))
-    return false;
-  return true;
+/** Recognises GenEd codes and departments for the search box's filter tokens. */
+export function fourYearSearchInfo(
+  rows: readonly CourseSearchRow[],
+): WildcardSearchInfo {
+  return wildcardSearchInfoFromRows(rows);
 }
 
 /**
- * Courses for what someone typed, best first. An empty query lists every
- * course the filter allows (none without one), in code order.
+ * Courses for what someone typed and the chips, best first. With nothing
+ * typed, no chip and no placeholder, nothing; otherwise everything they
+ * allow, in code order.
  */
 export function searchFourYearCourses(
+  engine: SearchEngine,
   rows: readonly CourseSearchRow[],
   query: string,
+  filters: SearchFilters,
   filter: FourYearSearchFilter = {},
   limit: number = FOUR_YEAR_SEARCH_LIMIT,
 ): FourYearSearchResult {
-  const text = query.trim();
-  const code = text.toUpperCase().replace(/[\s-]+/g, "");
-  const filtered = !!(filter.genEd || filter.wildcard);
-  let matches: CourseSearchRow[];
-  if (text === "") {
-    matches = filtered ? rows.filter((r) => passes(r, filter)) : [];
-  } else if (KNOWN_GEN_EDS.includes(code) && !filter.genEd) {
-    // "DSHS": what counts for it, rather than titles with "dshs" in them.
-    matches = rows.filter((r) => r[4].includes(code) && passes(r, filter));
-  } else if (CODE_PREFIX.test(code)) {
-    const byCode = rows.filter(
-      (r) => r[0].startsWith(code) && passes(r, filter),
-    );
-    // "math" is a department and a word: codes first, then titles.
-    const byTitle =
-      /^[A-Z]{1,4}$/.test(code) && code.length > 2
-        ? titleMatches(rows, text, filter).filter((r) => !r[0].startsWith(code))
-        : [];
-    matches = [...byCode, ...byTitle];
-  } else {
-    matches = titleMatches(rows, text, filter);
-  }
+  const index = rowIndex(engine, rows);
+  const parsed = parseCourseQuery(query, index.info);
+  const effective = queryFilters(filters, parsed);
+  const scoped = !!filter.wildcard;
+  if (
+    parsed.text.trim() === "" &&
+    parsed.patterns.length === 0 &&
+    !isFiltering(effective) &&
+    !scoped
+  )
+    return { rows: [], total: 0 };
+  const passes = searchRowFilter(effective);
+  const wildcard = filter.wildcard;
+  const matches = engine.queryCourses(
+    index.search,
+    parsed,
+    (code) => index.byCode.get(code),
+    (row) => passes(row) && (!wildcard || searchRowMayResolve(wildcard, row)),
+  );
   return { rows: matches.slice(0, limit), total: matches.length };
-}
-
-/** Every word typed starts a word of the title; titles that start with the query first. */
-function titleMatches(
-  rows: readonly CourseSearchRow[],
-  text: string,
-  filter: FourYearSearchFilter,
-): CourseSearchRow[] {
-  const wanted = words(text);
-  if (wanted.length === 0) return [];
-  const lead = wanted.join(" ");
-  const starts: CourseSearchRow[] = [];
-  const rest: CourseSearchRow[] = [];
-  for (const row of rows) {
-    if (!passes(row, filter)) continue;
-    const title = words(row[1]);
-    if (!wanted.every((w) => title.some((t) => t.startsWith(w)))) continue;
-    (title.join(" ").startsWith(lead) ? starts : rest).push(row);
-  }
-  return [...starts, ...rest];
 }
 
 /** "3 cr", "1–4 cr". */

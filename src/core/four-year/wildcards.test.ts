@@ -45,7 +45,11 @@ describe("placeholders", () => {
       wildcard: { kind: "gen-ed", code: "DSHS" },
     });
     expect(parsePlaceholder("Any cmsc 4xx").kind).toBe("wildcard");
-    expect(parsePlaceholder("CMSC4X").kind).toBe("invalid");
+    expect(parsePlaceholder("CMSC4X")).toEqual({
+      kind: "wildcard",
+      wildcard: { kind: "pattern", pattern: "CMSC4XX" },
+    });
+    expect(parsePlaceholder("CMSC4X1").kind).toBe("invalid");
     expect(parsePlaceholder("anything").kind).toBe("none");
   });
 

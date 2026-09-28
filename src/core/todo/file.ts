@@ -47,7 +47,6 @@ export function readTodoFile(text: string, size: number): TodoFileRead {
       title: item.title,
       courseLabel: item.courseLabel,
       kind: item.kind,
-      gradescope: item.gradescope,
       dueAt: item.dueAt,
       dueDate: item.dueDate,
       link: item.link,

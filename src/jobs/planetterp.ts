@@ -1,5 +1,6 @@
 import { runPlanetTerp } from "~/ingest/planetterp/planetterp";
 import { type Job, jobHttp, jobLog, runJob } from "./job";
+import { createPlanetTerpReviewSink } from "./planetterp-reviews";
 import { createR2BlobStore } from "./r2-blob-store";
 
 /**
@@ -45,6 +46,7 @@ export const runPlanetTerpJob: Job = async (context) => {
       log: jobLog,
       gradeRequests: NIGHTLY_GRADE_REQUESTS,
       keepReviewText: keepsReviewText(context.env),
+      reviewSink: await createPlanetTerpReviewSink(context.env.DB, context.now),
     });
     const counts: Record<string, number> = {
       ...totals,

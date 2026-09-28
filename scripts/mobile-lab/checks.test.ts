@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attemptBroke,
   expectedDrawerTop,
   type Frame,
   isWebkitCompositorCrash,
@@ -230,5 +231,31 @@ describe("isWebkitCompositorCrash", () => {
         "Out of memory: Killed process 7001 (WPEWebProcess)",
       ),
     ).toBe(false);
+  });
+});
+
+describe("attemptBroke", () => {
+  // Whether to read the kernel's log for WPE's compositor crash.
+  it("is true when the scenario threw", () => {
+    expect(
+      attemptBroke({
+        error: "page.evaluate: Target page, context or browser has been closed",
+        steps: [{}],
+      }),
+    ).toBe(true);
+  });
+
+  it("is true when a step's screenshot or probe failed, though the scenario went on", () => {
+    // Run 2026-09-28T0830-webkit-36397291845, scroll-list-back's last step.
+    expect(
+      attemptBroke({
+        error: null,
+        steps: [{}, { error: "page.screenshot: Target crashed" }],
+      }),
+    ).toBe(true);
+  });
+
+  it("is false for a scenario that ran clean, warnings and all", () => {
+    expect(attemptBroke({ error: null, steps: [{}, {}] })).toBe(false);
   });
 });

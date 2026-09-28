@@ -23,6 +23,9 @@ export const ADMIN_DECISIONS_PATH = "/admin/decisions";
 /** The feedback inbox (docs/FEEDBACK.md). */
 export const ADMIN_FEEDBACK_PATH = "/admin/feedback";
 
+/** The semesters whose grade data to ask the university for (V2.md §10). */
+export const ADMIN_GRADES_PATH = "/admin/grades";
+
 /** Every piece of the page kit, in every state (docs/COHESION.md §3, Phase 2). */
 export const ADMIN_KIT_PATH = "/admin/kit";
 

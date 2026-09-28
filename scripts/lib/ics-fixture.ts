@@ -4,9 +4,7 @@
 // goes.
 import {
   type ContentLine,
-  looksLikeExam,
   matchFeedCourse,
-  mentionsGradescope,
   parseContentLine,
   splitFeedTitle,
   unescapeText,
@@ -39,7 +37,7 @@ const KEEP = new Set([
 ]);
 
 export interface RedactOptions {
-  /** Replace every title with a fixed fake ("Assignment 3", "Exam 1"). */
+  /** Replace every title with a fixed fake ("Assignment 3", "Event 1"). */
   fakeTitles: boolean;
   /** Goes in the calendar's name, so the fixture says what it is. */
   recordedOn: string;
@@ -76,9 +74,8 @@ function redactLine(
     case "SUMMARY":
       return `SUMMARY:${summary(unescapeText(line.value))}`;
     case "DESCRIPTION":
-      return mentionsGradescope(unescapeText(line.value))
-        ? "DESCRIPTION:Redacted. It mentioned gradescope.com."
-        : "DESCRIPTION:Redacted.";
+      // Nothing reads descriptions, and they're the professor's words.
+      return null;
     case "URL":
       // A personal calendar's URL names the Canvas user.
       return serialize("URL", line, line.value.replace(/user_\d+/g, "user_0"));
@@ -102,11 +99,9 @@ export function redactFeed(text: string, options: RedactOptions): string {
       const label = hasCourse ? courseLabel : courseLabel ? "Personal" : null;
       let kept = title;
       if (options.fakeTitles || !hasCourse) {
-        const word = looksLikeExam(title)
-          ? "Exam"
-          : uid.startsWith("event-assignment-")
-            ? "Assignment"
-            : "Event";
+        const word = uid.startsWith("event-assignment-")
+          ? "Assignment"
+          : "Event";
         const n = (counts.get(word) ?? 0) + 1;
         counts.set(word, n);
         kept = `${word} ${n}`;

@@ -8,7 +8,6 @@ import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { deleteWithUndo } from "./delete-review";
-import { PAGE_ROW } from "./frame";
 import type { ReviewsLevel } from "./level";
 import { Stars } from "./rating";
 import { ReportForm, ReportToggle } from "./report-button";
@@ -18,7 +17,16 @@ import { useReviews } from "./reviews-store";
 // ListRow draws the hairlines between. Anonymous (V2 §7.5): what a reader
 // gets has no author, so there's nothing to show; the author alone sees
 // "Yours" on their own. The words are plain text, never HTML: React escapes
-// them, and line breaks stay as typed.
+// them, and line breaks stay as typed. Set for reading: the words at 16px,
+// what the reviewer said about the class on the line over them.
+
+/** A review's row: roomy, since each is a short read of its own. */
+export const REVIEW_ROW = "px-0 py-4";
+/** The line over the words: the stars, the course, the term and the month. */
+const META = "flex flex-wrap items-center gap-x-3 gap-y-1 text-base";
+/** The words themselves. */
+export const REVIEW_BODY =
+  "whitespace-pre-line break-words text-prose text-pretty";
 
 /** "Took it Fall 2025 · Got an A-": what the author chose to say. */
 function contextWords(review: {
@@ -30,6 +38,13 @@ function contextWords(review: {
     review.grade ? gradeWords(review.grade) : null,
   ].filter((p) => p !== null);
   return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** "Expected an A-", PlanetTerp's question, for its reviews. */
+export function expectedWords(grade: string): string {
+  if (grade === "W") return "Expected to withdraw";
+  if (grade === "P") return "Expected to pass";
+  return `Expected ${/^[AF]/.test(grade) ? "an" : "a"} ${grade}`;
 }
 
 function gradeWords(grade: string): string {
@@ -60,8 +75,8 @@ export function ReviewCard({
   const [reporting, setReporting] = useState(false);
   if (reported)
     return (
-      <ListRow as="li" className={PAGE_ROW}>
-        <article className="text-muted text-sm">
+      <ListRow as="li" className={REVIEW_ROW}>
+        <article className="text-base text-muted">
           You reported this review. Thanks: a moderator will look at it.
         </article>
       </ListRow>
@@ -71,11 +86,11 @@ export function ReviewCard({
   return (
     // The date stays inside the article (not the row's trail): the article
     // is the whole review.
-    <ListRow as="li" align="start" className={PAGE_ROW}>
-      <article className="flex flex-col gap-1.5" data-review={review.id}>
-        {about ? <p className="text-muted text-sm">{about}</p> : null}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <Stars rating={review.rating} />
+    <ListRow as="li" align="start" className={REVIEW_ROW}>
+      <article className="flex flex-col gap-2" data-review={review.id}>
+        {about ? <p className="text-base text-muted">{about}</p> : null}
+        <div className={META}>
+          <Stars rating={review.rating} size={14} />
           {showCourse ? (
             <span className="ident font-medium">{review.course}</span>
           ) : null}
@@ -85,7 +100,7 @@ export function ReviewCard({
             {review.edited ? " · Edited" : ""}
           </span>
         </div>
-        <p className="whitespace-pre-line break-words leading-5" data-private>
+        <p className={REVIEW_BODY} data-private>
           {review.body}
         </p>
         <div className="flex flex-wrap items-center gap-1">
@@ -131,12 +146,12 @@ export function OwnReviewCard({
   const context = contextWords(review);
   const onlyYou = review.status !== "published";
   return (
-    <ListRow as="li" align="start" className={PAGE_ROW}>
-      <article className="flex flex-col gap-1.5" data-review={review.id}>
-        {about ? <p className="text-sm">{about}</p> : null}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+    <ListRow as="li" align="start" className={REVIEW_ROW}>
+      <article className="flex flex-col gap-2" data-review={review.id}>
+        {about ? <p className="text-base">{about}</p> : null}
+        <div className={META}>
           <span className="bg-hover px-1.5 font-medium">{standing.label}</span>
-          <Stars rating={review.rating} />
+          <Stars rating={review.rating} size={14} />
           {showCourse ? (
             <span className="ident font-medium">{review.course}</span>
           ) : null}
@@ -146,7 +161,7 @@ export function OwnReviewCard({
           ) : null}
         </div>
         {review.body ? (
-          <p className="whitespace-pre-line break-words leading-5" data-private>
+          <p className={REVIEW_BODY} data-private>
             {review.body}
           </p>
         ) : null}

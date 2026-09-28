@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   ADMIN_DECISIONS_PATH,
   ADMIN_FEEDBACK_PATH,
+  ADMIN_GRADES_PATH,
   ADMIN_KIT_PATH,
   ADMIN_PATH,
 } from "~/core/routing";
@@ -14,7 +15,7 @@ import { AdminGate } from "./admin-gate";
 // app-width page. Admin is no product, so no tab is current in the bar.
 
 /** Admin's pages, each a route. */
-export type AdminPage = "queue" | "decisions" | "feedback" | "kit";
+export type AdminPage = "queue" | "decisions" | "feedback" | "grades" | "kit";
 
 const PAGES: readonly View[] = [
   {
@@ -34,6 +35,12 @@ const PAGES: readonly View[] = [
     label: "Feedback",
     hint: "Bugs, ideas and pinned notes people sent",
     to: ADMIN_FEEDBACK_PATH,
+  },
+  {
+    id: "grades",
+    label: "Grade data",
+    hint: "Semesters to ask the university for",
+    to: ADMIN_GRADES_PATH,
   },
   {
     id: "kit",

@@ -8,9 +8,22 @@ import {
   type ReviewsServerData,
   type TerpsicleNumbers,
 } from "~/core/reviews";
-import type { ReviewsRecentInput, ReviewsRecentResult } from "~/core/schema";
+import {
+  FeatureVarsSchema,
+  PAGE_REVIEWS_MAX,
+  type PageReviews,
+  PLANETTERP_PAGE_MAX,
+  type PlanetTerpReviewsInput,
+  type PlanetTerpReviewsResult,
+  type ReviewsPageInput,
+  type ReviewsRecentInput,
+  type ReviewsRecentResult,
+} from "~/core/schema";
+import { toPublicReview } from "./api";
+import { planetTerpReviews } from "./planetterp";
 import {
   instructorWithDepts,
+  listPublishedForPage,
   publishedNumbersByInstructor,
   publishedNumbersForCourse,
   reviewedPairs,
@@ -53,6 +66,45 @@ export async function listRecent(
   input: ReviewsRecentInput,
 ): Promise<ReviewsRecentResult> {
   return { reviews: await recentReviews(env.DB, input.limit) };
+}
+
+/**
+ * A Reviews page's first reviews (`reviews/page`, and the server's render):
+ * all of ours about it, while REVIEWS_ENABLED lets anyone read them, and
+ * PlanetTerp's newest page, which don't depend on it.
+ */
+export async function pageReviews(
+  env: { DB: D1Database; REVIEWS_ENABLED?: string },
+  input: ReviewsPageInput,
+): Promise<PageReviews> {
+  const off = FeatureVarsSchema.parse(env).REVIEWS_ENABLED === "off";
+  const [ours, theirs] = await Promise.all([
+    off
+      ? null
+      : listPublishedForPage(env.DB, { ...input, limit: PAGE_REVIEWS_MAX }),
+    planetTerpReviews(env.DB, {
+      ...input,
+      cursor: null,
+      limit: PLANETTERP_PAGE_MAX,
+    }),
+  ]);
+  return {
+    terpsicle:
+      ours?.map((row) => ({
+        ...toPublicReview(row),
+        instructorId: row.instructor_id,
+      })) ?? null,
+    planetTerp: theirs.reviews,
+    next: theirs.next,
+  };
+}
+
+/** `planetterp/reviews`: the next page of PlanetTerp's. */
+export function morePlanetTerpReviews(
+  env: { DB: D1Database },
+  input: PlanetTerpReviewsInput,
+): Promise<PlanetTerpReviewsResult> {
+  return planetTerpReviews(env.DB, input);
 }
 
 const numbers = (row: { rating: number; count: number }): TerpsicleNumbers => ({

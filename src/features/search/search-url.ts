@@ -9,6 +9,7 @@ import {
   SearchTabSearchSchema,
 } from "~/core/schema/schedule-url";
 import type { SearchFilters } from "~/core/search/filters";
+import type { SearchSort } from "~/core/search/sort";
 import { filtersFromParams, sameFilters } from "~/core/search/url";
 import { readActiveTermId } from "~/state/hooks";
 import { useSearchStore } from "./search-store";
@@ -40,6 +41,14 @@ export function pickFilters(termId: TermId, filters: SearchFilters): void {
   write(termId, false);
 }
 
+/** The results' order: a place Back returns from, like a chip. */
+export function pickSort(termId: TermId, sort: SearchSort): void {
+  if ((useSearchStore.getState().byTerm[termId]?.sort ?? "relevance") === sort)
+    return;
+  useSearchStore.getState().setSort(termId, sort);
+  write(termId, false);
+}
+
 /**
  * Puts the box and chips where the URL says: when Search opens on a URL
  * (a reload, a link), and on Back and Forward. The app's own moves already
@@ -57,11 +66,17 @@ export function useSearchFromUrl(termId: TermId | null): void {
       const params = SearchTabSearchSchema.parse(raw);
       const query = params.q ?? "";
       const filters = filtersFromParams(params);
+      const sort = params.sort ?? "relevance";
       const store = useSearchStore.getState();
       const now = store.byTerm[term];
-      if (now?.query === query && sameFilters(now.filters, filters)) return;
+      if (
+        now?.query === query &&
+        now.sort === sort &&
+        sameFilters(now.filters, filters)
+      )
+        return;
       useSearchStore.setState({
-        byTerm: { ...store.byTerm, [term]: { query, filters } },
+        byTerm: { ...store.byTerm, [term]: { query, filters, sort } },
       });
     };
     adopt();

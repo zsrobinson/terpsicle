@@ -80,6 +80,12 @@ export function subscribeSyncedPrefs(listener: () => void): () => void {
 export async function saveSyncedPrefs(
   change: (prefs: SyncedPrefs) => SyncedPrefs,
 ): Promise<void> {
+  // Signed in, before plan sync's first step on this page: on a device's
+  // first sign-in that step joins the account and keeps the account's value
+  // for every pref both sides have, undoing this. It's made again once the
+  // step is done (settleAccountPrefs), when it's marked for the account.
+  if (!firstStep && useAccount.getState().status === "signed-in")
+    beforeFirstStep.push(change);
   showSyncedPrefs(change(syncedPrefs()));
   try {
     const { savePrefs } = await import("./save");
@@ -166,11 +172,32 @@ export const ACCOUNT_PREFS_WAIT_MS = 4_000;
 let settled = false;
 const settledListeners = new Set<() => void>();
 
-/** Plan sync's first step on this page has finished (`SyncHost.settled`). */
-export function settleAccountPrefs(): void {
+/** Plan sync's first step on this page is done: the account's prefs are here. */
+let firstStep = false;
+/** Changes made signed in before it, made again after it (`saveSyncedPrefs`). */
+let beforeFirstStep: ((prefs: SyncedPrefs) => SyncedPrefs)[] = [];
+
+function settle(): void {
   if (settled) return;
   settled = true;
   for (const listener of settledListeners) listener();
+}
+
+/**
+ * Plan sync's first step on this page has finished (`SyncHost.settled`).
+ * Changes made while it ran are made again over what it brought, in order,
+ * so they're this device's edits to the account's prefs, and go to it.
+ */
+export function settleAccountPrefs(): void {
+  settle();
+  if (firstStep) return;
+  firstStep = true;
+  const changes = beforeFirstStep;
+  beforeFirstStep = [];
+  if (changes.length > 0)
+    void saveSyncedPrefs((prefs) =>
+      changes.reduce((next, change) => change(next), prefs),
+    );
 }
 
 function subscribeSettled(listener: () => void): () => void {
@@ -193,7 +220,8 @@ export function useAccountPrefsSettled(): boolean {
   );
   useEffect(() => {
     if (status === "signed-out" || settled) return;
-    const timer = setTimeout(settleAccountPrefs, ACCOUNT_PREFS_WAIT_MS);
+    // Only the showing waits no longer: changes still wait for the step.
+    const timer = setTimeout(settle, ACCOUNT_PREFS_WAIT_MS);
     return () => clearTimeout(timer);
   }, [status]);
   return status === "signed-out" || done;
@@ -204,4 +232,6 @@ export function resetSyncedPrefsForTests(): void {
   current = null;
   claims = 0;
   settled = false;
+  firstStep = false;
+  beforeFirstStep = [];
 }

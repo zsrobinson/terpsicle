@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { ChevronDown, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { Plan, TermId } from "~/core/schema";
 import { useActivePlanId, useTermPlans } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
@@ -40,6 +40,37 @@ export function splitTabs(
   return { visible, overflow: plans.filter((p) => !visible.includes(p)) };
 }
 
+/**
+ * How many tabs the bar has room for, from 1 to `max`: tabs shrink to a
+ * thumb's width first, and only past that do they go into the overflow menu,
+ * instead of running under the bar's status (QA2: "Plan A" over "4 credits"
+ * at 1100px). Measured before paint; any change of room or plans starts over
+ * from `max`.
+ */
+function useTabsThatFit(max: number, names: string, paused: boolean) {
+  const ref = useRef<HTMLElement>(null);
+  const [fit, setFit] = useState(max);
+  const [room, setRoom] = useState(0);
+  useLayoutEffect(() => {
+    const parent = ref.current?.parentElement;
+    if (!parent || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setRoom(parent.clientWidth));
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: start over when the room, the plans or their names change
+  useLayoutEffect(() => setFit(max), [max, names, room, paused]);
+  useLayoutEffect(() => {
+    const nav = ref.current;
+    // Not while a tab is being renamed: its field is wider than the tab.
+    if (!nav || paused || fit <= 1) return;
+    if (nav.scrollWidth > nav.clientWidth + 1)
+      // Only if nothing started over in this same commit.
+      setFit((now) => (now === fit ? fit - 1 : now));
+  });
+  return { ref, fit };
+}
+
 export function PlanTabs({
   termId,
   maxVisible = 5,
@@ -53,14 +84,23 @@ export function PlanTabs({
     id: string;
     via: "menu" | "double-click";
   } | null>(null);
-  const { visible, overflow } = splitTabs(plans, activeId, maxVisible);
+  const room = useTabsThatFit(
+    maxVisible,
+    plans.map((p) => p.name).join("\n"),
+    editing !== null,
+  );
+  const { visible, overflow } = splitTabs(plans, activeId, room.fit);
   const active = plans.find((p) => p.id === activeId);
 
   return (
     // A list of buttons, not an ARIA tablist: the open plan's ▾ menu button
     // sits beside its tab, and a tablist may hold nothing but tabs. The open
     // plan is `aria-current`.
-    <nav aria-label="Plans" className="flex min-w-0 items-center gap-0.5">
+    <nav
+      ref={room.ref}
+      aria-label="Plans"
+      className="flex min-w-0 items-center gap-0.5"
+    >
       <ul className="flex min-w-0 items-center gap-0.5">
         {visible.map((plan) =>
           editing?.id === plan.id ? (
@@ -87,7 +127,7 @@ export function PlanTabs({
       {overflow.length > 0 ? (
         <OverflowMenu
           plans={overflow}
-          compact={maxVisible <= 1}
+          compact={room.fit <= 1}
           onOpen={(id) => openPlan(termId, id)}
         />
       ) : null}
@@ -225,7 +265,7 @@ function OverflowMenu({
   onOpen,
 }: {
   plans: readonly Plan[];
-  /** Phones: "+2" instead of "2 more", so the top bar fits. */
+  /** "+2" instead of "2 more" where only one tab fits (phones, a crowded bar). */
   compact: boolean;
   onOpen: (id: string) => void;
 }) {

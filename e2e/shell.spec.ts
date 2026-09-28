@@ -115,6 +115,44 @@ test.describe("desktop", () => {
     await expect(planTabs(page)).toHaveText(["Plan A", "Mornings off"]);
   });
 
+  test("at 1100px, plan tabs never run under the bar's status", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1100, height: 720 });
+    // Signed in, where the account and sync status take the most room.
+    await page.goto("/privacy");
+    await page.evaluate(async () => {
+      await fetch("/api/auth/test-sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: `e2enarrow${Math.random().toString(36).slice(2, 8)}`,
+          return: "/schedule",
+        }),
+      });
+    });
+    await open(page);
+    await expect(
+      page.getByRole("banner").getByRole("button", { name: /^Account/ }),
+    ).toBeVisible();
+    for (let i = 0; i < 4; i++) {
+      await page.getByRole("button", { name: "New plan" }).click();
+      await page.getByRole("menuitem", { name: /Empty plan/ }).click();
+    }
+    // The plans' last control ends before the status starts: the nav's own
+    // box stays in its column even when its tabs spill past it.
+    const last = page
+      .getByRole("navigation", { name: "Plans" })
+      .getByRole("button", { name: "New plan" });
+    const problems = page
+      .getByRole("banner")
+      .getByRole("button", { name: /problem/i })
+      .first();
+    const end = await last.boundingBox();
+    const status = await problems.boundingBox();
+    expect(end && status && end.x + end.width <= status.x).toBe(true);
+  });
+
   test("clicking the open tab collapses the sidebar; any tab reopens it", async ({
     page,
   }) => {
@@ -246,6 +284,18 @@ test.describe("phone", () => {
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("no viewport");
     const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
+    // A first visit's drawer rises to half by itself once the plan loads
+    // (the test above). A tap aimed while it rests at peek can land after
+    // it starts to slide, under the moving tab, and do nothing. So wait for
+    // the rise, then lower it with the open tab, so this tap is the one
+    // that raises it.
+    await expect(page.getByTestId("first-visit")).toBeVisible();
+    await expect(drawer(page)).toHaveAttribute("data-snap", "half");
+    await expect
+      .poll(() => drawerTop(page))
+      .toBeCloseTo(viewport.height / 2, -1);
+    await tabs.getByRole("button", { name: "Courses" }).tap();
+    await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
 
     await tabs.getByRole("button", { name: "Search" }).tap();
     await expect(drawer(page)).toHaveAttribute("data-snap", "half");

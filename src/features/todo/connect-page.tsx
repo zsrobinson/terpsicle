@@ -19,7 +19,6 @@ import {
   WHAT_COMES_THROUGH,
 } from "./connect-form";
 import { FileDrop } from "./file-drop";
-import { GRADESCOPE_EXTENSIONS_NOTE } from "./todo-item";
 import {
   TODO_CONNECT_PATH,
   TODO_PATH,
@@ -99,9 +98,9 @@ function Connection() {
         </>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <WithTooltip label="Back to your list of deadlines">
+        <WithTooltip label="Back to your calendar">
           <Button asChild>
-            <Link to={TODO_PATH}>See your deadlines</Link>
+            <Link to={TODO_PATH}>See your calendar</Link>
           </Button>
         </WithTooltip>
         <WithTooltip label="Stop reading ELMS and delete the link and its deadlines">
@@ -149,13 +148,6 @@ function SignedIn() {
           />
         )}
       </PageSection>
-      <PageSection title="Gradescope">
-        <p className="text-muted">
-          Gradescope work your professors link in ELMS comes through the feed,
-          tagged Gradescope. We never ask for your Gradescope or ELMS password.
-        </p>
-        <p className="text-fg">{GRADESCOPE_EXTENSIONS_NOTE}</p>
-      </PageSection>
       <PageSection title="Add a calendar file">
         <p className="text-muted">
           Have deadlines that aren't in ELMS? Export them as an .ics file and
@@ -184,7 +176,7 @@ export function ConnectPage() {
   );
   if (status !== "loading" && !on) return <TodoOff />;
   return (
-    <TodoFrame width="note">
+    <TodoFrame>
       <PageHeader
         title={
           status === "signed-out"

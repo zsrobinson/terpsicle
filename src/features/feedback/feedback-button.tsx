@@ -53,6 +53,7 @@ export function FeedbackButton({
   pathname,
   compact = false,
   showButton = true,
+  labelFrom2xl = false,
 }: {
   product: FeedbackProduct;
   /** Where the admin's pins are looked up. */
@@ -60,6 +61,8 @@ export function FeedbackButton({
   compact?: boolean;
   /** False where a menu opens it instead (`openFeedbackSheet`). */
   showButton?: boolean;
+  /** Just the icon below 1536px, where a bar with a context needs the room. */
+  labelFrom2xl?: boolean;
 }) {
   const admin = useAccount((s) => s.user?.isAdmin === true);
   const mobile = useIsMobile();
@@ -102,10 +105,16 @@ export function FeedbackButton({
             className={cn(
               "flex shrink-0 items-center justify-center gap-1.5 rounded-md text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
               iconOnly ? "size-8 max-[380px]:size-7" : "h-7 px-2",
+              !iconOnly && labelFrom2xl && "max-2xl:size-8 max-2xl:px-0",
             )}
           >
             <MessageSquareText size={iconOnly ? 16 : 14} aria-hidden="true" />
-            {iconOnly ? null : "Feedback"}
+            {iconOnly ? null : labelFrom2xl ? (
+              // Its name stays "Feedback" at every width.
+              <span className="max-2xl:sr-only">Feedback</span>
+            ) : (
+              "Feedback"
+            )}
           </button>
         </WithTooltip>
       ) : null}
