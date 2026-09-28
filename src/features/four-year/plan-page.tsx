@@ -299,11 +299,24 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
           drawer={<PlanDrawer view={view} onPreload={preload} />}
           canvas={
             <>
-              {/* Share at the top left, as over the scheduler's calendar. */}
-              <CanvasBar className="sticky top-0 z-10" start={<PlanShare />} />
+              {/* Share at the top left, as over the scheduler's calendar. A
+                  phone has no bar: Share sits beside the credits instead,
+                  so the semester below keeps its room above the drawer
+                  (an add shows its course without lowering Search). */}
+              {mobile ? null : (
+                <CanvasBar
+                  className="sticky top-0 z-10"
+                  start={<PlanShare />}
+                />
+              )}
               {mobile ? (
                 <div className="space-y-4 px-4 pt-3 pb-4">
-                  <CreditsSummary />
+                  <div className="flex items-start gap-3">
+                    <PlanShare />
+                    <div className="min-w-0 flex-1">
+                      <CreditsSummary />
+                    </div>
+                  </div>
                   <PhoneBoard selected={model.target} />
                   <DegreeAuditNote />
                 </div>

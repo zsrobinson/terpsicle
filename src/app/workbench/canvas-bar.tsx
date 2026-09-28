@@ -21,7 +21,7 @@ export function CanvasBar({
     <div
       data-canvas-bar=""
       className={cn(
-        "flex h-10 shrink-0 items-center gap-3 border-hairline border-b bg-panel px-2 text-sm max-md:h-12",
+        "@container/canvas flex h-10 shrink-0 items-center gap-3 border-hairline border-b bg-panel px-2 text-sm max-md:h-12",
         className,
       )}
     >

@@ -214,7 +214,7 @@ Revisit if: it annoys people.
 
 ### Share is a button over the canvas, not a tab row
 2026-09-28 · owner · one feature
-Sharing moves out of the Export tab to an outlined "Share" button at the top left of the calendar (Plan's semesters too), opening a popover with the link, Copy link and a note that the link is a copy held in the URL. The owner: "[icon Share] … opens a popover thing right below it". It sits in a canvas bar the calendar's hints share, not in the family bar (agent's placement), and on a phone it's the icon alone while a hint shows, so the hint still fits.
+Sharing moves out of the Export tab to an outlined "Share" button at the top left of the calendar (Plan's semesters too), opening a popover with the link, Copy link and a note that the link is a copy held in the URL. The owner: "[icon Share] … opens a popover thing right below it". It sits in a canvas bar the calendar's hints share, not in the family bar (agent's placement), and in a narrow bar (a phone, a tablet with the sidebar open) it's the icon alone while a hint shows, so the hint still fits. Share comes before the calendar in Tab order, as it does on screen.
 Revisit if: people don't find it, or the family bar gets a slot for product actions.
 
 ### Export is now Register

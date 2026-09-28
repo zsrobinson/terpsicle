@@ -89,7 +89,6 @@ export function Calendar() {
   useGhostKeys(view);
   useClearStalePreview(model);
   const bottomInset = useDrawerInset();
-  const mobile = useIsMobile();
   // What the plan on screen has marked Registered (not a previewed plan's).
   const registeredKeys = view.previewing ? null : current?.plan.registered;
   const registered = useMemo(
@@ -138,10 +137,8 @@ export function Calendar() {
       emptyLabel={empty ? EMPTY_WEEK : undefined}
       top={
         <>
-          {/* On a phone, Share gives its words up to a hint. */}
-          <CanvasBar
-            start={<ScheduleShare iconOnly={mobile && hint !== null} />}
-          >
+          {/* In a narrow bar, Share gives its word up to a hint. */}
+          <CanvasBar start={<ScheduleShare shrink={hint !== null} />}>
             {hint}
           </CanvasBar>
           <UntimedStrip sections={model.untimed} onOpen={openCourse} />

@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { Copy, Share2 } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 import { Button } from "~/ui/button";
@@ -19,7 +20,7 @@ export function ShareButton({
   title,
   note,
   onCopied,
-  iconOnly = false,
+  shrink = false,
   className,
 }: {
   /** The link, made fresh each time the popover opens. */
@@ -30,8 +31,12 @@ export function ShareButton({
   note: ReactNode;
   /** After a copy that worked: count it. */
   onCopied?: () => void;
-  /** The icon alone (a phone's canvas bar while a hint shows beside it). */
-  iconOnly?: boolean;
+  /**
+   * A hint shares the canvas bar: in a narrow bar (a phone, a tablet with
+   * the sidebar open) the word gives way and the icon stays, still named
+   * "Share", so the hint's sentence fits.
+   */
+  shrink?: boolean;
   className?: string;
 }) {
   const [url, setUrl] = useState("");
@@ -57,13 +62,18 @@ export function ShareButton({
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            size={iconOnly ? "icon-sm" : "sm"}
-            aria-label={iconOnly ? "Share" : undefined}
+            size="sm"
             data-share-button=""
-            className={className}
+            className={cn(
+              // A phone's 44px target, as the kit's icon size has.
+              shrink && "@max-2xl/canvas:max-md:min-w-11",
+              className,
+            )}
           >
             <Share2 aria-hidden="true" />
-            {iconOnly ? null : "Share"}
+            <span className={shrink ? "@max-2xl/canvas:sr-only" : undefined}>
+              Share
+            </span>
           </Button>
         </PopoverTrigger>
       </WithTooltip>

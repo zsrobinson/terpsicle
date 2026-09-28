@@ -8,13 +8,13 @@ import { ShareButton } from "./share-button";
 // with its term's blocks and its courses' colors. A shared plan open
 // read-only shares the same way, so a link can be passed on.
 
-export function ScheduleShare({ iconOnly = false }: { iconOnly?: boolean }) {
+export function ScheduleShare({ shrink = false }: { shrink?: boolean }) {
   const current = useCurrentPlan();
   if (!current) return null;
   const { plan, blocks, colors } = current;
   return (
     <ShareButton
-      iconOnly={iconOnly}
+      shrink={shrink}
       title={`Share ${plan.name}`}
       link={() => {
         const planColors: Record<CourseCode, CourseColor> = {};
