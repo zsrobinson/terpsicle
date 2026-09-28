@@ -380,9 +380,12 @@ function ResultRow({
       // Only a mouse previews. A finger's tap would preview too, on touch
       // down, and iOS Safari takes content that appears under a tap for a
       // hover menu and drops the click: the result didn't open (the mobile
-      // lab's open-results on iOS).
-      onPointerEnter={(e) => {
-        if (e.pointerType === "mouse") onHover();
+      // lab's open-results on iOS). And only a mouse that moves: results
+      // appearing under a resting pointer (where "Search for a course"
+      // was) would otherwise take the cursor, and Enter would open that row
+      // instead of the top one (QA2).
+      onPointerMove={(e) => {
+        if (e.pointerType === "mouse" && !active) onHover();
       }}
       state={active ? "previewed" : undefined}
       className="absolute inset-x-0 cursor-pointer hover:bg-hover"
