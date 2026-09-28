@@ -46,4 +46,4 @@ Read the real docs when a detail matters; they're at `https://tanstack.com/route
 
 **Crons.** Add the schedule to `triggers.crons` in `wrangler.jsonc` and the job to `CRON_JOBS` in `src/jobs/index.ts` (a test fails if they drift). Jobs take `now` from the controller, never `Date.now()`. Crons don't run on previews.
 
-**Server calls.** The JSON API is plain Worker routes in `src/server/api/router.ts` rather than `createServerFn`, on purpose (the file's header says why); add endpoints to that table with their `auth` field and schemas.
+**Server calls.** The JSON API is plain Worker routes run by `src/server/api/router.ts` rather than `createServerFn`, on purpose (the file's header says why). Add an endpoint to your area's table, `src/server/<area>/api-routes.ts`, with `route({...})`, its `auth` field, limits and schemas; a new area's table also goes in the router's `ROUTE_TABLES` and `ROUTES`.

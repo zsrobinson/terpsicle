@@ -1,5 +1,5 @@
 // Plan sync's JSON routes (docs/V2.md §5.3), registered in
-// src/server/api/router.ts with `auth: "user"`:
+// ./api-routes.ts with `auth: "user"`:
 //
 //   sync/push   saves docs, each with a rev compare-and-swap
 //   sync/pull   one page of docs saved since a cursor

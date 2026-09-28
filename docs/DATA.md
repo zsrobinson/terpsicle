@@ -363,7 +363,7 @@ V2.md §3 is the plan; this is what the browser keeps.
 
 **The API.** Everything the browser asks the server lives under `POST /api/<name>`:
 - JSON in, JSON out, `Cache-Control: no-store`;
-- routed in `src/server/worker.ts`, implemented in `src/server/api/router.ts`;
+- routed in `src/server/worker.ts`, run by `src/server/api/router.ts` from each area's table (`src/server/<area>/api-routes.ts`);
 - the browser calls it through `api` in `src/server/fns/api.ts`, the one server module UI code may import.
 
 Both ends validate with the same schemas from `~/core/schema`:
