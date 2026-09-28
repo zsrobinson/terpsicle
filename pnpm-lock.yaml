@@ -149,6 +149,9 @@ importers:
       aws4fetch:
         specifier: ^1.0.20
         version: 1.0.20
+      axe-core:
+        specifier: ^4.13.0
+        version: 4.13.0
       fake-indexeddb:
         specifier: ^6.2.5
         version: 6.2.5

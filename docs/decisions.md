@@ -54,6 +54,16 @@ Revisit if: Base UI lacks a primitive we need; wrap it in the kit and say why.
 On iPhone, kit controls (tabs, segments, switches, menu and sheet items, a sheet grabber's tap, Undo) tick through a native switch under the finger, the trick `@haptics/react` uses, copied into `src/components/ui` with credit (MIT) rather than taken as a dependency. Feature code never mentions haptics. iOS 26.5+ ticks only on a real tap, so drags, long presses and results can't tick.
 Revisit if: Safari ships a web haptics API.
 
+### Haptic overlays sit inside their control
+2026-09-28 · agent · app-wide
+`HapticTap` (`src/components/ui/haptic.tsx`) puts its switch inside the button, radio or switch it ticks for, as `@haptics/core` does: the finger has to land on a real switch, and only the control can hold one under it. axe's `nested-interactive` rule flags that. The overlay is `aria-hidden`, out of the tab order and rendered on iPhones only, so `haptic.test.tsx` pins the finding to the overlays rather than hiding it.
+Revisit if: a transparent `<label>` for a hidden switch proves to tick on iOS 26.5+ (it would clear the rule), or Safari ships a haptics API.
+
+### The segmented control stays a radio group
+2026-09-28 · agent · app-wide
+On Base UI, `SegmentedControl` is `RadioGroup` and `Radio`, not `ToggleGroup` as the iPhone plan sketched: on Radix it was already a `radiogroup` of `radio`s, and it stays one for screen readers and tests. Arrow keys now choose as they move, as radios do (before, they only moved focus).
+Revisit if: a choice is too costly to make on every arrow press; that one gets its own control.
+
 ### Motion through view transitions
 2026-09-28 · owner · app-wide
 The owner wants "great support for view transitions and all those animation improvements". Navigations animate through TanStack Router's view transitions, with one set of motion tokens (durations and curves), direction for Back and Forward, shared elements where something grows into its page, and Reduce Motion honored everywhere.
