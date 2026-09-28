@@ -87,6 +87,36 @@ describe("groupWords", () => {
     });
   });
 
+  it("keeps who and what off the lock screen with showText off", () => {
+    const hidden = { showText: false };
+    expect(groupWords(mention, one, hidden)).toEqual({
+      title: "New mention in CMSC351",
+      body: "",
+    });
+    expect(groupWords(mention, { count: 3, labels: [] }, hidden)).toEqual({
+      title: "3 mentions in CMSC351",
+      body: "",
+    });
+    const reply = { ...mention, type: "chat-reply" as const };
+    expect(groupWords(reply, one, hidden)).toEqual({
+      title: "New reply in CMSC351",
+      body: "",
+    });
+    expect(groupWords(reply, { count: 2, labels: [] }, hidden).title).toBe(
+      "2 replies to your question in CMSC351",
+    );
+    // Seats and Todo have no one's words to hide.
+    const seat = {
+      type: "seat-open" as const,
+      title: "A seat opened in CMSC351 0101",
+      body: "1 of 30 open.",
+    };
+    expect(groupWords(seat, one, hidden)).toEqual({
+      title: seat.title,
+      body: seat.body,
+    });
+  });
+
   it("says a classmate for an account that's gone, and nothing for text it can't read", () => {
     expect(groupWords({ ...mention, actor: null, text: null }, one)).toEqual({
       title: "A classmate in CMSC351",

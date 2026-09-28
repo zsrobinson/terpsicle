@@ -5,11 +5,14 @@
 // group, with its count and the badge) and, for types with email, an
 // email, and records each channel in notification_deliveries under the
 // event's dedupe key, so a retried job never sends twice. Nothing is
-// capped: grouping keeps a busy room to one notification.
+// capped: grouping keeps a busy room to one notification. In quiet hours a
+// push waits: its rows are marked, and releaseHeldPushes (./quiet.ts)
+// sends each group that waited at 8am.
 import {
   channelOn,
   deliveryKey,
   groupWords,
+  holdsPush,
   type InboxEvent,
   PUSH_DELIVERY,
   shouldRenotify,
@@ -18,6 +21,7 @@ import type { PushPayload, PushType } from "~/core/schema";
 import type {
   DeliveryStatus,
   InboxType,
+  NotificationSettings,
   NotificationType,
   PushSubscriptionRow,
   PushTestResult,
@@ -28,6 +32,7 @@ import { sendPush } from "../push/send";
 import { recordSend, subscriptionsOf } from "../push/store";
 import {
   groupState,
+  holdPush,
   type InboxRow,
   unreadCount,
   writeInboxRows,
@@ -52,7 +57,10 @@ export interface NotificationEmail {
 }
 
 export interface Notification {
-  /** `admin-urgent` has no settings: its push is always on (V2 §6.7, not sent yet). */
+  /**
+   * `admin-urgent` has no settings: its push and email are always on, and
+   * it comes through quiet hours (V2 §6.7; ../admin/alerts.ts sends it).
+   */
   type: NotificationType | "admin-urgent";
   /**
    * Unique per event, the same on every retry of it:
@@ -72,7 +80,7 @@ export interface Notification {
    * for someone who needn't be pushed (looking at the room now).
    */
   push?: { event: InboxEvent; url: string };
-  /** For types with an email channel (`seat-open`, `chat-digest`). */
+  /** For types with an email channel (`seat-open`, `chat-digest`, `admin-urgent`). */
   email?: NotificationEmail;
 }
 
@@ -80,9 +88,15 @@ export interface Notification {
  * What happened on a channel: `sent` (at least one device, or the email),
  * `failed`, `skipped` (switched off here: PUSH_ENABLED, or no EMAIL),
  * `off` (the person turned it off), `none` (no device with push on, or no
- * email given), `duplicate` (this event went before).
+ * email given), `duplicate` (this event went before), `held` (quiet
+ * hours: it goes at 8am, one push for its group).
  */
-export type ChannelOutcome = DeliveryStatus | "off" | "none" | "duplicate";
+export type ChannelOutcome =
+  | DeliveryStatus
+  | "off"
+  | "none"
+  | "duplicate"
+  | "held";
 
 export interface NotifyResult {
   /**
@@ -107,7 +121,7 @@ const cronTestMode = (env: NotifyEnv) => env.AUTH_TEST_MODE === "true";
  * Sends `payload` to each device, prunes the ones the push service says are
  * gone, and counts failures on the rest. Returns each device's outcome.
  */
-async function pushToDevices(
+export async function pushToDevices(
   env: NotifyEnv,
   config: Extract<PushConfig, { enabled: true }>,
   devices: readonly PushSubscriptionRow[],
@@ -160,12 +174,15 @@ async function groupedPush(
   groupKey: string,
   fresh: readonly string[],
   now: Date,
+  settings: NotificationSettings,
 ): Promise<Omit<PushPayload, "v" | "type">> {
   const [group, badge] = await Promise.all([
     groupState(env.DB, userId, groupKey, fresh),
     unreadCount(env.DB, userId),
   ]);
-  const words = groupWords(push.event, group);
+  const words = groupWords(push.event, group, {
+    showText: settings.showText,
+  });
   const event = group.events[0] ?? {
     actorId: null,
     createdAt: now.toISOString(),
@@ -186,6 +203,7 @@ async function notifyByPush(
   userId: string,
   notification: Notification,
   fresh: readonly string[],
+  settings: NotificationSettings,
   options: NotifyOptions,
 ): Promise<ChannelOutcome> {
   const { type, push } = notification;
@@ -195,6 +213,12 @@ async function notifyByPush(
   if (type === "chat-digest" || !push || groupKey === undefined) return "none";
   const devices = await subscriptionsOf(env.DB, userId);
   if (devices.length === 0) return "none";
+  // Night: the rows wait for 8am, marked; this event claims no delivery,
+  // so the push at 8am is the group's one.
+  if (holdsPush(settings, type, options.now)) {
+    await holdPush(env.DB, userId, fresh, options.now);
+    return "held";
+  }
   const config = pushConfig(env, options.testMode ?? cronTestMode(env));
   const claim = {
     userId,
@@ -217,6 +241,7 @@ async function notifyByPush(
     groupKey,
     fresh,
     options.now,
+    settings,
   );
   const { sent, statuses } = await pushToDevices(
     env,
@@ -295,15 +320,14 @@ export async function notify(
   const inbox =
     rows.length === 0 ? "none" : fresh.length > 0 ? "new" : "duplicate";
   const settings = await readSettings(env.DB, userId);
+  // The owner's urgent alerts have no settings: both channels, always.
   const want = (channel: "push" | "email") =>
-    type === "admin-urgent"
-      ? channel === "push"
-      : channelOn(settings, type, channel);
+    type === "admin-urgent" || channelOn(settings, type, channel);
   const [push, email] = await Promise.all([
     inbox === "duplicate"
       ? Promise.resolve<ChannelOutcome>("duplicate")
       : want("push")
-        ? notifyByPush(env, userId, notification, fresh, options)
+        ? notifyByPush(env, userId, notification, fresh, settings, options)
         : Promise.resolve<ChannelOutcome>(notification.push ? "off" : "none"),
     want("email")
       ? notifyByEmail(env, userId, notification, options)

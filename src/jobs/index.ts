@@ -3,6 +3,7 @@ import { runCatalogJob } from "./catalog";
 import { runDailyJob } from "./daily";
 import type { Job, JobName } from "./job";
 import { runModerationJob } from "./moderation";
+import { runNotificationsJob } from "./notifications";
 import { runPlanetTerpJob } from "./planetterp";
 import { runReviewsPublishJob } from "./reviews-publish";
 import { runSeatsJob } from "./seats";
@@ -13,7 +14,10 @@ import { runTodoFeedsJob } from "./todo-feeds";
 // cron: Workers can't reach UMD's token server (scripts/build-routes.ts).
 export const CRON_JOBS: Readonly<Record<string, { name: JobName; run: Job }>> =
   {
-    "*/5 * * * *": { name: "seats", run: allOf(runSeatsJob, runModerationJob) },
+    "*/5 * * * *": {
+      name: "seats",
+      run: allOf(runSeatsJob, runModerationJob, runNotificationsJob),
+    },
     "0 */6 * * *": { name: "catalog", run: runCatalogJob },
     "17 5 * * *": { name: "planetterp", run: runPlanetTerpJob },
     "23 6 * * 1": { name: "calendar-buildings", run: runCalendarBuildingsJob },

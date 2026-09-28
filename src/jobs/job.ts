@@ -19,6 +19,7 @@ export type JobName =
   | "calendar-buildings"
   | "daily"
   | "moderation"
+  | "notifications"
   | "todo-feeds"
   | "reviews-publish";
 

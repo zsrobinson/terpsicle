@@ -199,6 +199,13 @@ export type InboxItemRow = Omit<z.infer<typeof ItemRowSchema>, "labels"> & {
   labels: string[];
 };
 
+function itemRow(r: unknown): InboxItemRow | null {
+  const row = ItemRowSchema.safeParse(r);
+  if (!row.success) return null;
+  const labels = z.array(z.string()).safeParse(JSON.parse(row.data.labels));
+  return { ...row.data, labels: labels.success ? labels.data : [] };
+}
+
 /**
  * One page of the inbox, newest first: each group's unread rows as one
  * item, and its rows read together as another. `before` is the previous
@@ -236,13 +243,8 @@ export async function inboxPage(
       INBOX_PAGE_SIZE + 1,
     )
     .all();
-  const rows = results.flatMap((r) => {
-    // A row that doesn't read is left out, not fatal: the rest still show.
-    const row = ItemRowSchema.safeParse(r);
-    if (!row.success) return [];
-    const labels = z.array(z.string()).safeParse(JSON.parse(row.data.labels));
-    return [{ ...row.data, labels: labels.success ? labels.data : [] }];
-  });
+  // A row that doesn't read is left out, not fatal: the rest still show.
+  const rows = results.flatMap((r) => itemRow(r) ?? []);
   const page = rows.slice(0, INBOX_PAGE_SIZE);
   const last = page.at(-1);
   return {
@@ -294,4 +296,95 @@ export async function markRead(
   if (input.day) update("group_key = ?3", todoDueTag(input.day));
   if (statements.length > 0) await db.batch(statements);
   return unreadCount(db, userId);
+}
+
+// ---------- Quiet hours (V2 §6.7) ----------
+
+/** Marks rows whose push waits for 8am. */
+export async function holdPush(
+  db: D1Database,
+  userId: string,
+  ids: readonly string[],
+  now: Date,
+): Promise<void> {
+  if (ids.length === 0) return;
+  await db
+    .prepare(
+      `UPDATE notifications SET push_held_at = ?3
+       WHERE user_id = ?1 AND id IN (SELECT value FROM json_each(?2))`,
+    )
+    .bind(userId, JSON.stringify(ids), now.toISOString())
+    .run();
+}
+
+const HeldGroupSchema = z.object({
+  user_id: z.string(),
+  group_key: z.string(),
+});
+
+/** Groups with a push waiting, at most `limit` (a later run takes the rest). */
+export async function heldGroups(
+  db: D1Database,
+  limit: number,
+): Promise<{ userId: string; groupKey: string }[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT DISTINCT user_id, group_key FROM notifications
+       WHERE push_held_at IS NOT NULL LIMIT ?1`,
+    )
+    .bind(limit)
+    .all();
+  return results.flatMap((r) => {
+    const row = HeldGroupSchema.safeParse(r);
+    return row.success
+      ? [{ userId: row.data.user_id, groupKey: row.data.group_key }]
+      : [];
+  });
+}
+
+/**
+ * Takes a group's waiting push: clears its marks in one statement, so two
+ * runs can't both send it. True when one of them is still unread (read
+ * since, it sends nothing).
+ */
+export async function takeHeldGroup(
+  db: D1Database,
+  userId: string,
+  groupKey: string,
+): Promise<boolean> {
+  const { results } = await db
+    .prepare(
+      `UPDATE notifications SET push_held_at = NULL
+       WHERE user_id = ?1 AND group_key = ?2 AND push_held_at IS NOT NULL
+       RETURNING read_at`,
+    )
+    .bind(userId, groupKey)
+    .all<{ read_at: string | null }>();
+  return results.some((r) => r.read_at === null);
+}
+
+/** A group's unread rows as one inbox item (as `inboxPage` makes it), or null. */
+export async function unreadGroupItem(
+  db: D1Database,
+  userId: string,
+  groupKey: string,
+): Promise<InboxItemRow | null> {
+  const row = await db
+    .prepare(
+      `WITH items AS (
+         SELECT id, type, product, group_key, title, body, url, term_id,
+                course_code, room_id, thread_id, message_id, actor_id,
+                MAX(created_at) AS created_at, read_at, SUM(count) AS n,
+                json_group_array(label) FILTER (WHERE label IS NOT NULL) AS labels
+         FROM (SELECT * FROM notifications
+               WHERE user_id = ?1 AND group_key = ?2 AND read_at IS NULL
+               ORDER BY created_at DESC, id DESC)
+         GROUP BY group_key
+       )
+       SELECT i.*, u.name AS actor_name FROM items i
+       LEFT JOIN users u ON u.id = i.actor_id`,
+    )
+    .bind(userId, groupKey)
+    .first();
+  return row ? itemRow(row) : null;
 }
