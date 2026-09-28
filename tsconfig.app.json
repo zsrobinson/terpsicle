@@ -21,6 +21,7 @@
     // enforces it), so it typechecks in both this program and the Worker's.
     "src/server/fns",
     "src/router.tsx",
+    "src/router.test.tsx",
     "src/routeTree.gen.ts"
   ]
 }
