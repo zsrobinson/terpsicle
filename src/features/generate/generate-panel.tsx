@@ -224,7 +224,7 @@ export function GeneratePanel() {
           </p>
         ) : showing && catalog ? (
           <>
-            <div className="px-4 pt-2 pb-2.5">
+            <div className="px-4 pt-2 pb-3">
               <ChipBar filters={filterChips} preferences={preferenceChips} />
             </div>
             {showing.result.results.length > 0 ? (

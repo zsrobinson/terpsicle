@@ -110,14 +110,25 @@ test("generate from Plan A's courses, re-rank with a chip, and add one as Plan C
   await page.keyboard.press("Escape");
   await expect(page.getByText("Previewing Option 1.")).toHaveCount(0);
 
-  // The second one, added: it's the next plan, and it opens.
+  // The second one, added: it's the next plan, and it opens. (The bar folds
+  // the other plans into "+2" when it's short of room, so only the open
+  // tab is checked by name.)
   await results.getByRole("button", { name: /^Option 2: / }).click();
   await page.getByRole("button", { name: "Add as Plan C" }).click();
-  await expect(planTabs(page)).toHaveText(["Plan A", "Plan B", "Plan C"]);
+  const planC = planTabs(page).getByRole("button", {
+    name: "Plan C",
+    exact: true,
+  });
+  await expect(planC).toHaveAttribute("aria-current", "true");
+  const toast = page.locator("[data-sonner-toast]");
+  await expect(toast).toContainText("Added Plan C");
+
+  // Undo takes it away again, back to Plan A.
+  await toast.getByRole("button", { name: "Undo" }).click();
+  await expect(planC).toHaveCount(0);
   await expect(
-    planTabs(page).getByRole("button", { name: "Plan C", exact: true }),
+    planTabs(page).getByRole("button", { name: "Plan A", exact: true }),
   ).toHaveAttribute("aria-current", "true");
-  await expect(page.getByText("Added Plan C")).toBeVisible();
 });
 
 test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
