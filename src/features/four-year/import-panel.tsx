@@ -292,7 +292,9 @@ function Row({
             <p className="truncate text-muted text-sm">
               {catalogTitle ?? title}
             </p>
-            {catalogTitle ? (
+            {/* The transcript's own words, when they say something else. */}
+            {catalogTitle &&
+            catalogTitle.toLowerCase() !== title.toLowerCase() ? (
               <p className="truncate text-faint text-xs">{title}</p>
             ) : null}
           </>
