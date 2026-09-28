@@ -153,6 +153,67 @@ test.describe("desktop", () => {
     expect(end && status && end.x + end.width <= status.x).toBe(true);
   });
 
+  test("three plan tabs fit whole at 1440px and two at 1280px, never under the status", async ({
+    page,
+  }) => {
+    // Signed in (the account, bell and sync status take the most room), with
+    // the demo's courses (credits and problems in the status) and three plans
+    // loaded straight at 1440px, as someone opens the app.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/privacy");
+    await page.evaluate(async () => {
+      await fetch("/api/auth/test-sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: `e2eroom${Math.random().toString(36).slice(2, 8)}`,
+          return: "/schedule",
+        }),
+      });
+    });
+    await open(page, "/schedule?demo=1");
+    await expect(
+      page.getByRole("banner").getByRole("button", { name: /^Account/ }),
+    ).toBeVisible();
+    await expect(planTabs(page)).toHaveText(["Plan A", "Plan B"]);
+    await page.getByRole("button", { name: "New plan" }).click();
+    await page.getByRole("menuitem", { name: /Empty plan/ }).click();
+    const nav = page.getByRole("navigation", { name: "Plans" });
+    const problems = page
+      .getByRole("banner")
+      .getByRole("button", { name: /problem/i })
+      .first();
+    const clearOfStatus = async () => {
+      const end = await nav
+        .getByRole("button", { name: "New plan" })
+        .boundingBox();
+      const status = await problems.boundingBox();
+      return end !== null && status !== null && end.x + end.width <= status.x;
+    };
+    /** The visible tabs whose names show whole, not cut to "Pla…". */
+    const wholeTabs = () =>
+      nav.evaluate(
+        (el) =>
+          [...el.querySelectorAll("li .truncate")].filter(
+            (name) => name.scrollWidth <= name.clientWidth,
+          ).length,
+      );
+
+    await expect(planTabs(page)).toHaveText(["Plan A", "Plan B", "Plan C"]);
+    await expect.poll(wholeTabs).toBe(3);
+    await expect(nav.getByRole("button", { name: /more plans?$/ })).toHaveCount(
+      0,
+    );
+    expect(await clearOfStatus()).toBe(true);
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect.poll(wholeTabs).toBeGreaterThanOrEqual(2);
+    expect(await clearOfStatus()).toBe(true);
+
+    await page.setViewportSize({ width: 1100, height: 720 });
+    await expect.poll(clearOfStatus).toBe(true);
+  });
+
   test("clicking the open tab collapses the sidebar; any tab reopens it", async ({
     page,
   }) => {
