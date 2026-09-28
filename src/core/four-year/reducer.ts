@@ -67,6 +67,11 @@ export type FourYearAction =
     }
   /** "Copy of My plan", with the same entries and grades. */
   | { type: "duplicate"; docId: LocalId; id: LocalId; now: IsoDateTime }
+  /**
+   * A whole doc made elsewhere: "Save a copy" of a shared four-year plan.
+   * Its name becomes "Copy of …" when one of yours already has it.
+   */
+  | { type: "add-doc"; doc: FourYearDoc }
   | { type: "delete"; docId: LocalId }
   | { type: "rename"; docId: LocalId; name: string; now: IsoDateTime }
   /**
@@ -429,6 +434,14 @@ export function fourYearReducer(
       const docs = [...state.docs];
       docs.splice(docs.indexOf(source) + 1, 0, copy);
       return { docs };
+    }
+    case "add-doc": {
+      if (state.docs.some((d) => d.id === action.doc.id)) return state;
+      const taken = state.docs.map((d) => d.name);
+      const name = taken.includes(action.doc.name)
+        ? copyName(action.doc.name, taken)
+        : action.doc.name;
+      return { docs: [...state.docs, { ...action.doc, name }] };
     }
     case "delete":
       if (!state.docs.some((d) => d.id === action.docId)) return state;

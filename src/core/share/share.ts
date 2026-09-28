@@ -42,11 +42,13 @@ export type ShareDecodeResult =
   | { readonly ok: true; readonly payload: SharePayload }
   | { readonly ok: false; readonly error: ShareDecodeError };
 
-const MALFORMED: ShareDecodeError = {
+/** What a damaged link says, for every kind of share link. */
+export const MALFORMED: ShareDecodeError = {
   kind: "malformed",
   message: "This share link is incomplete or damaged. Ask for the link again.",
 };
-const NEWER: ShareDecodeError = {
+/** What a link from a newer build says; Reload beside it opens it. */
+export const NEWER: ShareDecodeError = {
   kind: "newer-version",
   message:
     "This link was made by a newer version of Terpsicle. Reload to open it.",

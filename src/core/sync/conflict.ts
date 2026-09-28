@@ -36,12 +36,16 @@ export function conflictCopyName(
 }
 
 /**
- * Whether two versions of a plan hold the same work: term, name and courses.
- * Tab order and timestamps don't count, so a moved tab never makes a copy.
+ * Whether two versions of a plan hold the same work: term, name, courses and
+ * the sections marked Registered. Tab order and timestamps don't count, so a
+ * moved tab never makes a copy.
  */
 export function samePlanContent(a: Plan, b: Plan): boolean {
   return (
-    a.termId === b.termId && a.name === b.name && sameJson(a.courses, b.courses)
+    a.termId === b.termId &&
+    a.name === b.name &&
+    sameJson(a.courses, b.courses) &&
+    sameJson(a.registered ?? [], b.registered ?? [])
   );
 }
 

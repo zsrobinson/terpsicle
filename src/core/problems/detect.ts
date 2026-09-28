@@ -284,12 +284,20 @@ function overlapProblems(
 
 // ---------- per section ----------
 
-function sectionProblems(ref: SectionRef, seats: SeatsMap | null): Detected[] {
+/**
+ * `registered`: the person marked it Registered, so they have their seat:
+ * being full, nearly full or restricted is no longer theirs to worry about.
+ */
+function sectionProblems(
+  ref: SectionRef,
+  seats: SeatsMap | null,
+  registered: boolean,
+): Detected[] {
   const { key, course: c, section: s } = ref;
   const code = c.code;
   const subjects: [Subject] = [sectionSubject(key)];
   const out: Detected[] = [];
-  const counts = seatCounts(seats, key);
+  const counts = registered ? null : seatCounts(seats, key);
   const level = seatLevel(counts);
   if (counts && level === "full")
     out.push({
@@ -327,7 +335,7 @@ function sectionProblems(ref: SectionRef, seats: SeatsMap | null): Detected[] {
         [code],
       ),
     );
-  if (s.restriction)
+  if (s.restriction && !registered)
     out.push(
       make(
         "restricted",
@@ -420,7 +428,10 @@ export function detectProblems(input: ProblemsInput): Detected[] {
     planConnections(placed, input.travel, input.campus),
     byKey,
   );
-  const perSection = placed.flatMap((r) => sectionProblems(r, input.seats));
+  const registered = new Set(plan.registered ?? []);
+  const perSection = placed.flatMap((r) =>
+    sectionProblems(r, input.seats, registered.has(r.key)),
+  );
   const all = [
     ...travel,
     ...catalogProblems,

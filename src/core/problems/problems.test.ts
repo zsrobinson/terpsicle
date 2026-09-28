@@ -373,6 +373,74 @@ describe("section problems", () => {
     );
   });
 
+  it("doesn't count a registered section as full, low or restricted", () => {
+    const registered = aPlan({
+      termId: TERM,
+      courses: [placed(course, "0101")],
+      registered: ["CMSC351-0101"],
+    });
+    for (const seat of [
+      aSeatTuple({ open: 0, total: 30, waitlist: 9 }),
+      aSeatTuple({ open: 1, total: 30 }),
+    ])
+      expect(
+        summary(
+          planProblems(
+            input([course], registered, {
+              seats: { "CMSC351-0101": seat },
+            }),
+          ),
+        ),
+      ).toEqual([]);
+    // A key for a section the plan doesn't have changes nothing.
+    const stale = aPlan({
+      termId: TERM,
+      courses: [placed(course, "0101")],
+      registered: ["CMSC351-0501"],
+    });
+    expect(
+      summary(
+        planProblems(
+          input([course], stale, {
+            seats: { "CMSC351-0101": aSeatTuple({ open: 0, total: 30 }) },
+          }),
+        ),
+      ).map(([, kind]) => kind),
+    ).toEqual(["full", "restricted"]);
+  });
+
+  it("never offers to switch a registered section away", () => {
+    const other = aCourse({
+      code: "ENGL393",
+      sections: [
+        aSection({ code: "0101", meetings: [aMeeting({ days: ["M"] })] }),
+        aSection({ code: "0201", meetings: [aMeeting({ days: ["W"] })] }),
+      ],
+    });
+    const mine = aCourse({
+      code: "CMSC330",
+      sections: [
+        aSection({ code: "0101", meetings: [aMeeting({ days: ["M"] })] }),
+        aSection({ code: "0201", meetings: [aMeeting({ days: ["F"] })] }),
+      ],
+    });
+    const courses = [placed(mine, "0101"), placed(other, "0101")];
+    const fixes = (registered: string[]) =>
+      planProblems(
+        input(
+          [mine, other],
+          aPlan({ termId: TERM, courses, registered }),
+        ),
+      )
+        .filter((p) => p.kind === "overlap")
+        .map((p) => p.fix?.sectionKey ?? null);
+    // Either course could move; with one registered, only the other does.
+    expect(fixes([])).toHaveLength(1);
+    expect(fixes(["CMSC330-0101"])).toEqual(["ENGL393-0201"]);
+    expect(fixes(["ENGL393-0101"])).toEqual(["CMSC330-0201"]);
+    expect(fixes(["CMSC330-0101", "ENGL393-0101"])).toEqual([null]);
+  });
+
   it("notes TBA instructors and sections with no set times", () => {
     expect(summary(planProblems(input([course], plan("0201"))))).toEqual([
       ["info", "instructor-tba", "Instructor TBA for CMSC351 0201", null],

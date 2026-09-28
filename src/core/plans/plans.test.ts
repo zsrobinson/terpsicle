@@ -359,6 +359,97 @@ describe("plans reducer", () => {
     });
   });
 
+  describe("registered sections", () => {
+    const placedIn = (courseCode: string, code: string) =>
+      ({
+        type: "course/add",
+        planId: "plan-0001",
+        courseCode,
+        section: { code, snapshot: snap },
+        now: T0,
+      }) as const;
+    const base = run([
+      create("plan-0001"),
+      placedIn("CMSC351", "0101"),
+      placedIn("ENGL393", "0312"),
+      {
+        type: "course/add",
+        planId: "plan-0001",
+        courseCode: "MUSC130",
+        section: null,
+        now: T0,
+      },
+    ]);
+    const mark = (
+      sectionKey: string,
+      registered = true,
+    ): Extract<PlanAction, { type: "section/registered" }> => ({
+      type: "section/registered",
+      planId: "plan-0001",
+      sectionKey,
+      registered,
+      now: T1,
+    });
+    const registered = (s: PlansState) => s.plans[0]?.registered;
+
+    it("marks and unmarks placed sections, in the order marked", () => {
+      const s = run([mark("ENGL393-0312"), mark("CMSC351-0101")], base);
+      expect(registered(s)).toEqual(["ENGL393-0312", "CMSC351-0101"]);
+      expect(s.plans[0]?.updatedAt).toBe(T1);
+      expect(PlanSchema.safeParse(s.plans[0]).success).toBe(true);
+      // Nothing registered leaves no field, as in plans saved before it.
+      const none = run([mark("ENGL393-0312", false)], run([mark("ENGL393-0312")], base));
+      expect(none.plans[0]).not.toHaveProperty("registered");
+    });
+
+    it("changes nothing for a repeat, or a section the plan hasn't placed", () => {
+      const once = run([mark("CMSC351-0101")], base);
+      expect(plansReducer(once, mark("CMSC351-0101"))).toBe(once);
+      expect(plansReducer(base, mark("CMSC351-0101", false))).toBe(base);
+      // Another section of a placed course, a saved course, another plan.
+      expect(plansReducer(base, mark("CMSC351-0201"))).toBe(base);
+      expect(plansReducer(base, mark("MUSC130-0101"))).toBe(base);
+      expect(
+        plansReducer(base, { ...mark("CMSC351-0101"), planId: "plan-9999" }),
+      ).toBe(base);
+    });
+
+    it("drops a switched section's mark on the next change", () => {
+      const s = run(
+        [
+          mark("CMSC351-0101"),
+          {
+            type: "course/switch",
+            planId: "plan-0001",
+            courseCode: "CMSC351",
+            section: { code: "0201", snapshot: snap2 },
+            now: T1,
+          },
+        ],
+        base,
+      );
+      // Still there (nothing reads a key the plan hasn't placed)…
+      expect(registered(s)).toEqual(["CMSC351-0101"]);
+      // …until the next mark tidies it away.
+      expect(registered(run([mark("ENGL393-0312")], s))).toEqual([
+        "ENGL393-0312",
+      ]);
+    });
+
+    it("keeps the marks on a duplicate", () => {
+      const s = run(
+        [
+          mark("CMSC351-0101"),
+          { type: "plan/duplicate", planId: "plan-0001", id: "plan-0002", now: T1 },
+        ],
+        base,
+      );
+      expect(s.plans.find((p) => p.id === "plan-0002")?.registered).toEqual([
+        "CMSC351-0101",
+      ]);
+    });
+  });
+
   describe("blocks", () => {
     const lunch = aBlock({ termId: SPRING, id: "block-0001" });
 
