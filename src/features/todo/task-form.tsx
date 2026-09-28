@@ -6,7 +6,6 @@ import {
   useId,
   useState,
 } from "react";
-import { track } from "~/app/analytics";
 import type { CourseCode, IsoDate } from "~/core/schema";
 import {
   listRange,
@@ -27,9 +26,9 @@ import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { useTodo } from "./todo-store";
 
-// Your own tasks (docs/V3.md §3.10): "Add a task…" at the top of the list,
-// and the same fields for changing one in place. The title is plain text,
-// `data-private` like every title, and never reaches analytics.
+// Changing one of your own tasks (docs/V3.md §3.10) in place: its title,
+// date, time and course (adding one is the composer's). The title is plain
+// text, `data-private` like every title, and never reaches analytics.
 
 /** The Select's value for "No course" (Radix needs a non-empty one). */
 const NO_COURSE = "none";
@@ -101,6 +100,7 @@ function TaskForm({
   titleLabel,
   alwaysOpen,
   autoFocus = false,
+  stacked = false,
   onSubmit,
   onCancel,
 }: {
@@ -114,6 +114,8 @@ function TaskForm({
   /** The date, time and course show before anything's typed. */
   alwaysOpen: boolean;
   autoFocus?: boolean;
+  /** One field under another, in a narrow place (a card's details). */
+  stacked?: boolean;
   /** Resolves true when the fields should empty (a task was added). */
   onSubmit: (fields: TaskFields) => Promise<boolean> | boolean;
   onCancel?: () => void;
@@ -170,7 +172,10 @@ function TaskForm({
     <form
       onSubmit={(e) => void submit(e)}
       onKeyDown={onKeyDown}
-      className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center"
+      className={cn(
+        "flex flex-col gap-2",
+        !stacked && "md:flex-row md:flex-wrap md:items-center",
+      )}
     >
       <label htmlFor={titleId} className="sr-only">
         {titleLabel}
@@ -196,7 +201,12 @@ function TaskForm({
       {open ? (
         // Two columns on a phone, with each field's name over it; one row
         // beside the title on a desktop, where the tooltips name them.
-        <div className="grid grid-cols-2 items-end gap-2 md:flex md:flex-wrap md:items-center">
+        <div
+          className={cn(
+            "grid grid-cols-2 items-end gap-2",
+            !stacked && "md:flex md:flex-wrap md:items-center",
+          )}
+        >
           <Field id={dateId} label="Due date">
             <WithTooltip label="When it's due. Leave it empty for no date.">
               <Input
@@ -272,60 +282,20 @@ function TaskForm({
   );
 }
 
-/** "Add a task…": at the top of the list, and on the first visit. */
-export function QuickAdd({
-  courses,
-  today,
-  className,
-}: {
-  courses: readonly CourseCode[];
-  today: IsoDate;
-  className?: string;
-}) {
-  const saveTask = useTodo((s) => s.saveTask);
-  const add = (fields: TaskFields): boolean => {
-    const uid = newTaskUid();
-    // Counted, never with the words: whether tasks get dates and courses.
-    track("todo_task_added", {
-      date: fields.dueDate !== null,
-      time: fields.dueTime !== null,
-      course: fields.courseCode !== null,
-    });
-    const save = () =>
-      void saveTask(uid, fields).then((status) => {
-        if (status !== "saved") saveFailedNote(status, save);
-      });
-    save();
-    // On the list at once; a failure takes it off again and says so.
-    return true;
-  };
-  return (
-    <div className={cn("py-1", className)}>
-      <TaskForm
-        courses={courses}
-        today={today}
-        titleLabel="New task"
-        submitLabel="Add"
-        submitHint="Add it to your list"
-        alwaysOpen={false}
-        onSubmit={add}
-      />
-    </div>
-  );
-}
-
 /** An own task's fields, in its row's place, while it's being changed. */
 export function TaskEditor({
   uid,
   initial,
   courses,
   today,
+  stacked = false,
   onClose,
 }: {
   uid: string;
   initial: TaskFields;
   courses: readonly CourseCode[];
   today: IsoDate;
+  stacked?: boolean;
   onClose: () => void;
 }) {
   const saveTask = useTodo((s) => s.saveTask);
@@ -348,6 +318,7 @@ export function TaskEditor({
       submitHint="Save the changes"
       alwaysOpen
       autoFocus
+      stacked={stacked}
       onSubmit={save}
       onCancel={onClose}
     />

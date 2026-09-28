@@ -119,7 +119,6 @@ describe("the feed link", () => {
         title: i.title,
         courseLabel: i.courseLabel,
         kind: i.kind,
-        gradescope: i.gradescope,
         dueAt: i.dueAt,
         dueDate: i.dueDate,
         link: i.link,

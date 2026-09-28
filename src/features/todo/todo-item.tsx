@@ -13,16 +13,12 @@ import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 
 // One deadline (docs/V3.md §3.9): a checkbox, the title, its course (tinted
-// with the scheduler's color), the due time, where it came from, the
-// Gradescope and Exam tags, and a link to it in ELMS. Titles and course names
-// come from professors and ELMS: plain text only, and `data-private`.
-
-/** Said once, under the first Gradescope item and on the connect page (V3 §3.7). */
-export const GRADESCOPE_EXTENSIONS_NOTE =
-  "Extensions you get in Gradescope don't show up in ELMS. Check Gradescope for your own due date.";
+// with the scheduler's color), the due time, where it came from, and a link
+// to it in ELMS. Titles and course names come from professors and ELMS:
+// plain text only, and `data-private`.
 
 /** Where an item came from, under its title. */
-const SOURCE_WORDS: Record<TodoItemSource, string> = {
+export const SOURCE_WORDS: Record<TodoItemSource, string> = {
   elms: "From ELMS",
   file: "From a file",
   own: "Yours",
@@ -102,25 +98,6 @@ export function CourseTag({
   );
 }
 
-function Tag({
-  children,
-  dashed = false,
-}: {
-  children: ReactNode;
-  dashed?: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        "shrink-0 border border-hairline-strong px-1 text-fg text-xs",
-        dashed && "border-dashed",
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function TodoItemRow({
   item,
   done,
@@ -128,7 +105,6 @@ export function TodoItemRow({
   color,
   when,
   relative,
-  note,
   onToggle,
   menu,
   preview = false,
@@ -146,8 +122,6 @@ export function TodoItemRow({
    * in the time's place, with the time in its tooltip.
    */
   relative?: string | null;
-  /** A quiet line under the item. */
-  note?: string;
   onToggle?: () => void;
   /** An own task's Edit and Delete, in the link's place. */
   menu?: ReactNode;
@@ -178,27 +152,22 @@ export function TodoItemRow({
         />
       }
       secondary={
-        <>
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {showCourse ? (
-              <CourseTag code={course} label={item.courseLabel} color={color} />
-            ) : null}
-            {relative ? (
-              <WithTooltip label={`Due today at ${dueTimeLabel(item)}`}>
-                <time dateTime={item.dueAt ?? undefined} className="tnum">
-                  {relative}
-                  <span className="sr-only">, at {dueTimeLabel(item)}</span>
-                </time>
-              </WithTooltip>
-            ) : time ? (
-              <span className="tnum">{time}</span>
-            ) : null}
-            <span>{SOURCE_WORDS[item.source]}</span>
-            {item.gradescope ? <Tag>Gradescope</Tag> : null}
-            {item.exam ? <Tag dashed>Exam</Tag> : null}
-          </span>
-          {note ? <span className="mt-1 block">{note}</span> : null}
-        </>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {showCourse ? (
+            <CourseTag code={course} label={item.courseLabel} color={color} />
+          ) : null}
+          {relative ? (
+            <WithTooltip label={`Due today at ${dueTimeLabel(item)}`}>
+              <time dateTime={item.dueAt ?? undefined} className="tnum">
+                {relative}
+                <span className="sr-only">, at {dueTimeLabel(item)}</span>
+              </time>
+            </WithTooltip>
+          ) : time ? (
+            <span className="tnum">{time}</span>
+          ) : null}
+          <span>{SOURCE_WORDS[item.source]}</span>
+        </span>
       }
       action={
         menu && !preview ? (

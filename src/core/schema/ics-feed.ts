@@ -7,8 +7,7 @@ import {
 } from "./primitives";
 
 // What `parseIcs` reads from an ELMS calendar feed or a dropped .ics file
-// (docs/V3.md §3.6, §3.7). Descriptions are read only for the Gradescope flag
-// and never kept.
+// (docs/V3.md §3.6, §3.7). Descriptions are never read.
 
 export const FeedSourceSchema = z.enum(["elms", "file"]);
 export type FeedSource = z.infer<typeof FeedSourceSchema>;
@@ -34,10 +33,6 @@ export const FeedItemSchema = z.object({
    * `title` is a guess from words in the title, for files that don't.
    */
   kindFrom: z.enum(["uid", "title"]),
-  /** The title reads like an exam or quiz. Always a guess from keywords: a display hint only. */
-  looksLikeExam: z.boolean(),
-  /** The item's URL or description mentions gradescope.com. */
-  gradescope: z.boolean(),
   /** When it's due (DTSTART); null for an all-day item. */
   dueAt: IsoDateTimeSchema.nullable(),
   /** The America/New_York date of `dueAt`, or the all-day date. */

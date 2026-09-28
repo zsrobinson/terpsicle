@@ -82,11 +82,11 @@ const BLOCKS: Record<MarketingProduct, Block> = {
     hint: "Try it: place ECON200 in a semester.",
   },
   todo: {
-    head: "Everything that's due, in one list.",
-    body: "Connect your ELMS calendar feed once and every assignment and exam lands here, by day. Gradescope work that's linked in ELMS comes through too, tagged. We'll never ask for your password.",
+    head: "Everything that's due, on a calendar.",
+    body: "Connect your ELMS calendar feed once and every assignment lands on its due date. Add your own tasks the way you'd say them: \"PS3 due fri 11:59pm\". We'll never ask for your password.",
     facts: [
-      "By day or by course.",
-      "Gradescope items tagged, exams set apart.",
+      "By week, by month, or as a list.",
+      "Each course's week, done and still to do.",
       "A push the evening before something's due, if you turn it on.",
     ],
     hint: "Try it: tick something off.",

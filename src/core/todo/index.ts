@@ -8,6 +8,8 @@ export * from "./ics";
 export * from "./items";
 export * from "./link";
 export * from "./list";
+export * from "./quick-add";
 export * from "./tasks";
 export * from "./test-feed";
+export * from "./weeks";
 export * from "./zones";

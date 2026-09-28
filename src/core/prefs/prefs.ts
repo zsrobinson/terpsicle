@@ -1,4 +1,4 @@
-import type { CourseCode, SyncedPrefs } from "../schema";
+import type { CourseCode, SyncedPrefs, TodoPrefs } from "../schema";
 
 // The other products' synced prefs (`SyncedPrefs`, docs/V2.md §5.1), read and
 // changed. Each change returns the same object when nothing changed, so a
@@ -50,4 +50,18 @@ export function withChatRulesSeen(
     ...prefs,
     chatRules: { seen: [...seen, ...added].slice(-CHAT_RULES_SEEN_MAX) },
   };
+}
+
+/** The day Todo's weeks start on: Monday unless the person picked Sunday. */
+export function todoWeekStart(prefs: SyncedPrefs): TodoPrefs["weekStart"] {
+  return prefs.todo?.weekStart ?? "monday";
+}
+
+/** The prefs with Todo's weeks starting on `weekStart`. */
+export function withTodoWeekStart(
+  prefs: SyncedPrefs,
+  weekStart: TodoPrefs["weekStart"],
+): SyncedPrefs {
+  if (prefs.todo?.weekStart === weekStart) return prefs;
+  return { ...prefs, todo: { ...prefs.todo, weekStart } };
 }
