@@ -1,10 +1,16 @@
+import type { UseQueryResult } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { termLabel } from "~/core/catalog/terms";
 import { unreadWords } from "~/core/chat/talk-words";
-import { type UnreadCourse, unreadByCourse } from "~/core/home";
-import type { TermId } from "~/core/schema";
-import { chatApi } from "~/server/fns/chat-api";
+import { unreadByCourse } from "~/core/home";
+import type {
+  ChatUnreadRoom,
+  CourseCode,
+  CourseColor,
+  TermId,
+} from "~/core/schema";
+import { CourseTag } from "~/features/todo/todo-item";
 import { InlineError } from "~/ui/inline-error";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
@@ -19,55 +25,47 @@ import {
 // "Chat" (docs/V3.md §1.5): your rooms with unread messages, a course at a
 // time, from `chat/unread` (one D1 query that wakes no room). Muted rooms
 // don't count. Each row opens the course's room with the newest message.
+// The page asks (`chatRoomsQuery`), since whether any room has a message
+// also decides Chat's callout.
 
 /** At most this many courses. */
 const SHOWN = 4;
 
-type Unread =
-  | { state: "loading" }
-  | { state: "failed" }
-  | { state: "ready"; courses: UnreadCourse[] };
-
-export function ChatSection({ termId }: { termId: TermId }) {
-  const [unread, setUnread] = useState<Unread>({ state: "loading" });
-  const [attempt, setAttempt] = useState(0);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` asks again (Try again)
-  useEffect(() => {
-    let live = true;
-    setUnread({ state: "loading" });
-    chatApi
-      .unread({ termId })
-      .then(({ rooms }) => {
-        if (live) setUnread({ state: "ready", courses: unreadByCourse(rooms) });
-      })
-      .catch(() => {
-        if (live) setUnread({ state: "failed" });
-      });
-    return () => {
-      live = false;
-    };
-  }, [termId, attempt]);
-
+export function ChatSection({
+  termId,
+  rooms,
+  colors,
+}: {
+  termId: TermId;
+  rooms: UseQueryResult<ChatUnreadRoom[]>;
+  colors: Readonly<Record<CourseCode, CourseColor>>;
+}) {
+  const courses = useMemo(
+    () => (rooms.data ? unreadByCourse(rooms.data) : []),
+    [rooms.data],
+  );
+  const total = courses.reduce((n, c) => n + c.unread, 0);
   return (
     <HomeSection
       product="chat"
       title="Chat"
+      meta={total > 0 ? unreadWords(total) : undefined}
       to="/chat"
       search={{ term: termId }}
       tooltip={`Your rooms for ${termLabel(termId)}`}
     >
-      {unread.state === "loading" ? (
-        <HomeSkeleton rows={2} label="Loading your rooms" />
-      ) : unread.state === "failed" ? (
+      {rooms.isPending ? (
+        <HomeSkeleton rows={1} label="Loading your rooms" />
+      ) : rooms.isError ? (
         <InlineError
           message="Couldn't check your rooms."
-          onRetry={() => setAttempt((n) => n + 1)}
+          onRetry={() => void rooms.refetch()}
         />
-      ) : unread.courses.length === 0 ? (
+      ) : courses.length === 0 ? (
         <HomeNote>You're all caught up.</HomeNote>
       ) : (
         <ul aria-label="Unread messages">
-          {unread.courses.slice(0, SHOWN).map((c) => (
+          {courses.slice(0, SHOWN).map((c) => (
             <ListRow
               key={c.courseCode}
               as="li"
@@ -85,7 +83,11 @@ export function ChatSection({ termId }: { termId: TermId }) {
                   onClick={() => homeLinkClicked("chat")}
                   className={ROW_LINK}
                 >
-                  <span className="ident font-semibold">{c.courseCode}</span>
+                  <CourseTag
+                    code={c.courseCode}
+                    label={null}
+                    color={colors[c.courseCode] ?? null}
+                  />
                 </Link>
               </WithTooltip>
             </ListRow>

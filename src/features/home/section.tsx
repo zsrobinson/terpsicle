@@ -23,12 +23,15 @@ export function HomeSection({
   params,
   tooltip,
   tag,
+  meta,
   children,
 }: {
   product: ProductId;
   title: string;
   /** After the title: the term's tag, as everywhere a term is named. */
   tag?: ReactNode;
+  /** Muted facts after the title: "5 of 9 done". */
+  meta?: ReactNode;
   /** Where "View …" goes. */
   to: LinkProps["to"];
   search?: LinkProps["search"];
@@ -50,6 +53,11 @@ export function HomeSection({
           />
           {title}
           {tag}
+          {meta ? (
+            <span className="tnum ml-2 font-normal text-muted text-sm">
+              {meta}
+            </span>
+          ) : null}
         </span>
       }
       aside={

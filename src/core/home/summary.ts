@@ -1,18 +1,14 @@
 import type { GenEdProgress } from "../four-year/gen-ed";
-import { addDays } from "../ics/dates";
 import type {
   ChatUnreadRoom,
   CourseCode,
-  IsoDate,
   Minutes,
   Plan,
   RoomId,
   SeatWatch,
   TermId,
-  TodoItem,
 } from "../schema";
 import { type SeatsMap, seatCounts } from "../seats/seats";
-import { compareItems } from "../todo/list";
 
 // The small facts Home shows from each product (docs/V3.md §1.5), one
 // line or a few rows each. Pure: the page reads the data and the clock.
@@ -22,37 +18,6 @@ export function greeting(minutes: Minutes): string {
   if (minutes < 12 * 60) return "Good morning";
   if (minutes < 17 * 60) return "Good afternoon";
   return "Good evening";
-}
-
-/** How many days "Due soon" looks ahead, today included: this week. */
-export const DUE_SOON_DAYS = 7;
-
-/** At most this many items in "Due soon". */
-export const DUE_SOON_MAX = 5;
-
-/**
- * "Due soon": open items due from today through the next six days, soonest
- * first. Items checked off here (`kept`) stay in their place, ticked, until
- * the page goes, so Undo has something to put back.
- */
-export function dueSoon(
-  items: readonly TodoItem[],
-  done: ReadonlySet<string>,
-  today: IsoDate,
-  kept: ReadonlySet<string> = new Set(),
-  max: number = DUE_SOON_MAX,
-): TodoItem[] {
-  const last = addDays(today, DUE_SOON_DAYS - 1);
-  return items
-    .filter(
-      (i) =>
-        i.dueDate !== null &&
-        i.dueDate >= today &&
-        i.dueDate <= last &&
-        (!done.has(i.uid) || kept.has(i.uid)),
-    )
-    .sort(compareItems)
-    .slice(0, max);
 }
 
 /** One course's unread messages across your rooms in it. */
@@ -130,15 +95,22 @@ export function seatsOpenWords(open: number): string {
 }
 
 /**
- * A plan in a few words: "4 courses · 2 registered", "1 course", or "No
- * courses yet". Registered counts the sections you ticked in Register.
+ * A plan in a few words: "4 courses · 15 credits · 2 registered", "1
+ * course", or "No courses yet". The credits are the scheduler's
+ * (`creditsLabel`), once the catalog says them; registered counts the
+ * sections you ticked in Register.
  */
-export function planLine(plan: Pick<Plan, "courses" | "registered">): string {
+export function planLine(
+  plan: Pick<Plan, "courses" | "registered">,
+  credits: string | null = null,
+): string {
   const n = plan.courses.length;
   if (n === 0) return "No courses yet";
-  const courses = `${n} ${n === 1 ? "course" : "courses"}`;
+  const parts = [`${n} ${n === 1 ? "course" : "courses"}`];
+  if (credits) parts.push(credits);
   const registered = plan.registered?.length ?? 0;
-  return registered > 0 ? `${courses} · ${registered} registered` : courses;
+  if (registered > 0) parts.push(`${registered} registered`);
+  return parts.join(" · ");
 }
 
 /** GenEd categories met, counting planned courses: "5 of 11". */
