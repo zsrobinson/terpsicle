@@ -54,6 +54,7 @@ export function AppBar({
   pathname,
   compact = false,
   heading = false,
+  crowdedBelow2xl = false,
 }: {
   /** The product you're in; null on Settings and the site's own pages. */
   current: ProductId | null;
@@ -69,6 +70,8 @@ export function AppBar({
   compact?: boolean;
   /** The bar holds the page's h1 (the scheduler has no page title). */
   heading?: boolean;
+  /** Its context fills the bar below 1536px (the scheduler's term and plans): Feedback shows just its icon there. */
+  crowdedBelow2xl?: boolean;
 }) {
   // Phones: where the bar also carries the product's context (the scheduler,
   // Chat's term), "Send feedback" and the bell move into the account menu so
@@ -139,6 +142,7 @@ export function AppBar({
             pathname={pathname}
             compact={compact}
             showButton={!feedbackInMenu && !(crowded && accountLoading)}
+            labelFrom2xl={crowdedBelow2xl}
           />
         ) : null}
         <AccountButton
