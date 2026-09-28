@@ -123,6 +123,10 @@ test("signed in: check off something due soon, then Undo", async ({ page }) => {
   await expect(toast).toContainText("done");
   await toast.getByRole("button", { name: "Undo" }).click();
   await expect(box).not.toBeChecked();
+  // Signed in, plans sync: no "on this device" (the date is today's here).
+  await expect(section(page, "Today")).toContainText(
+    /No schedule for \w+ \d{4} yet\.|between semesters/,
+  );
   // Chat's part is there too, signed in.
   await expect(section(page, "Chat")).toBeVisible();
   await expect(section(page, "Sign in for more")).toHaveCount(0);
