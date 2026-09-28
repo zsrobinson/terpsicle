@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { renderSeatOpenEmail, type SectionRef } from "./email";
+import {
+  renderSeatOpenEmail,
+  renderSeatsOpenEmail,
+  type SectionRef,
+} from "./email";
 
 const ref: SectionRef = {
   termId: "202701",
@@ -60,5 +64,43 @@ describe("the seat-open email", () => {
     );
     expect(email.headers).not.toHaveProperty("List-Unsubscribe");
     expect(email.headers).not.toHaveProperty("List-Unsubscribe-Post");
+  });
+});
+
+describe("the seats-run email (V2.md §6.7)", () => {
+  const other: SectionRef = {
+    ...ref,
+    courseCode: "MATH240",
+    sectionCode: "0203",
+    title: "Linear Algebra",
+  };
+  const off = `${origin}/api/notifications/email-off?u=tstudent&t=seat-open&k=abc`;
+
+  it("lists every section with its counts and links, in one email", () => {
+    const email = renderSeatsOpenEmail(
+      origin,
+      [
+        { ref, seats: { open: 2, total: 120, waitlist: null, asOf: null } },
+        { ref: other, seats: { open: 1, total: 40, waitlist: 3, asOf: null } },
+      ],
+      off,
+    );
+    expect(email.subject).toBe("Seats opened in 2 sections you're watching");
+    expect(email.text).toContain("CMSC351 0101: 2 of 120 open");
+    expect(email.text).toContain("MATH240 0203: 1 of 40 open");
+    expect(email.text).toContain(
+      `${origin}/schedule/course/MATH240?term=202701`,
+    );
+    expect(email.text).toContain(
+      "https://app.testudo.umd.edu/soc/202701/MATH/MATH240",
+    );
+    expect(email.html).toContain(
+      `href="${origin}/schedule/course/CMSC351?term=202701"`,
+    );
+    expect(email.html).not.toContain("<& friends>");
+    expect(email.headers["List-Unsubscribe"]).toBe(`<${off}>`);
+    expect(renderSeatsOpenEmail(origin, [], null).headers).not.toHaveProperty(
+      "List-Unsubscribe",
+    );
   });
 });

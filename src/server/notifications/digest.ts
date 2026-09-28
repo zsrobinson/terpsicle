@@ -33,7 +33,7 @@ const DAY_MS = 86_400_000;
 const DIGEST_LOOKBACK_MS = 2 * DAY_MS;
 /** Mentions and replies read per run, at most; the rest wait for tomorrow's. */
 const DIGEST_ROWS_MAX = 5_000;
-/** `notifications` rows are kept this long (V2.md §6.3). */
+/** `notifications` rows (the inbox, every type) are kept this long (V2.md §6.3, §6.7). */
 const NOTIFICATIONS_KEPT_MS = 30 * DAY_MS;
 
 const RowSchema = z.object({
@@ -122,7 +122,8 @@ export async function sendChatDigests(
      LEFT JOIN users a ON a.id = n.actor_id
      LEFT JOIN chat_read_markers k ON k.user_id = n.user_id AND k.term_id = n.term_id
        AND k.course_code = n.course_code AND k.room_id = n.room_id
-     WHERE n.read_at IS NULL AND n.emailed_at IS NULL AND n.created_at >= ?1
+     WHERE n.product = 'chat'
+       AND n.read_at IS NULL AND n.emailed_at IS NULL AND n.created_at >= ?1
        AND n.seq > COALESCE(k.seq, 0)
      ORDER BY n.user_id, n.created_at DESC, n.id
      LIMIT ?2`,
@@ -205,7 +206,7 @@ export async function sendChatDigests(
   return result;
 }
 
-/** The daily job: mentions and replies older than 30 days go. */
+/** The daily job: inbox rows older than 30 days go, chat's and the rest. */
 export async function pruneChatNotifications(
   db: D1Database,
   now: Date,

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { z } from "zod";
 import { initAnalytics } from "~/app/analytics";
 import { IsoDateSchema } from "~/core/schema";
+import { useReadDayNotifications } from "~/features/notifications/read-here";
 import { TodoPage } from "~/features/todo";
 
 // Terpsicle Todo (docs/V3.md §1.1, §3.9): `?view=course` groups by course and
@@ -35,6 +36,8 @@ function TodoRoute() {
   useEffect(() => {
     void initAnalytics();
   }, []);
+  // The day the "Due tomorrow" push opens reads it (V2.md §6.7).
+  useReadDayNotifications(day);
 
   return <TodoPage view={view ?? "day"} day={day} />;
 }

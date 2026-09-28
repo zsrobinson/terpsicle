@@ -13,8 +13,9 @@ import type { Room } from "./rooms";
 
 export type ChatNotificationType = "chat-mention" | "chat-reply";
 
-/** Chat pushes per person per hour, at most (V2.md §6.4); tags collapse the rest anyway. */
-export const CHAT_PUSHES_PER_HOUR = 30;
+// No cap on chat pushes (V2.md §6.7, the owner 2026-09-27): a room's
+// mentions and a thread's replies are one notification each, updated with
+// a count (~/core/notifications' groupWords), so a busy room stays calm.
 
 /** Characters of a message a push or a digest line shows. */
 export const CHAT_PREVIEW_CHARS = 120;
@@ -91,7 +92,7 @@ export function chatPlaceWords(roomId: RoomId, room: Room | null): string {
   return room?.words ? `${courseCode} · ${room.words}` : courseCode;
 }
 
-/** "Hannah Lee mentioned you in CMSC131 · 0303", "Hannah Lee replied in CMSC131". */
+/** The digest's words: "Hannah Lee mentioned you in CMSC131 · 0303", "Hannah Lee replied in CMSC131". */
 export function chatHeadline(
   type: ChatNotificationType,
   actor: string,
@@ -116,30 +117,6 @@ export function chatMessageHref(m: {
     room: m.roomId,
     ...(m.thread ? { thread: m.thread } : {}),
   });
-}
-
-/** Push tags are 64 characters at most; a long professor room is cut (a shared tag only collapses). */
-export function chatPushTag(roomId: RoomId): string {
-  return `chat:${roomId}`.slice(0, 64);
-}
-
-/** What the push shows: who and where, a preview of the text, and the room to open. */
-export function chatPush(m: {
-  type: ChatNotificationType;
-  actor: string;
-  place: string;
-  text: string;
-  termId: TermId;
-  courseCode: CourseCode;
-  roomId: RoomId;
-  thread: string | null;
-}): { title: string; body: string; url: string; tag: string } {
-  return {
-    title: chatHeadline(m.type, m.actor, m.place).slice(0, 120),
-    body: chatPreview(m.text),
-    url: chatMessageHref(m),
-    tag: chatPushTag(m.roomId),
-  };
 }
 
 /** "3 unread in your class chats". */

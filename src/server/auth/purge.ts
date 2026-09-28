@@ -57,7 +57,9 @@ export const PURGE_LEDGER = {
   notification_settings: "deleted",
   push_subscriptions:
     "deleted (account/delete already dropped them, a week earlier)",
-  notifications: "deleted: the person's chat mentions and replies",
+  // (rebuilt by 0017_notification_inbox)
+  notifications:
+    "deleted: the person's inbox (seat openings, mentions, replies, Due tomorrow); actor_id set to null on others' rows about their messages",
   notification_deliveries:
     "kept for dedupe and counts, user_id set to null; pruned after 90 days",
   // 0007_seat_watches
@@ -270,6 +272,13 @@ export function accountStatements(
     byUser("notification_settings"),
     byUser("push_subscriptions"),
     byUser("notifications"),
+    // Others' inbox rows about their messages keep no trace of who (the
+    // messages themselves went in step 1, so those rows drop out anyway).
+    db
+      .prepare(
+        `UPDATE notifications SET actor_id = NULL WHERE actor_id = ?1 AND ${STILL_DUE}`,
+      )
+      .bind(userId, at),
     db
       .prepare(
         `UPDATE notification_deliveries SET user_id = NULL WHERE user_id = ?1 AND ${STILL_DUE}`,

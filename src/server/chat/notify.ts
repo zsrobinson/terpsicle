@@ -1,37 +1,37 @@
-// Mentions and replies (V2.md §6.1, §8.4 step 4): once a message is visible
-// to its room, the CourseChat object records a `notifications` row for each
-// person it mentions and for the author of the thread it replies in, and
-// pushes to them through notify(), unless they're looking at the course's
-// chat now, or (for a reply) muted the room. One notification per person
-// per message, however often it's published again.
+// Mentions and replies (V2.md §6.1, §6.7, §8.4 step 4): once a message is
+// visible to its room, the CourseChat object notifies each person it
+// mentions and the author of the thread it replies in, through notify(),
+// which writes their inbox row and, unless they're looking at the course's
+// chat now or (for a reply) muted the room, pushes. A room's mentions and a
+// thread's replies are one notification each, updated with a count, so
+// nothing is capped. One notification per person per message, however
+// often it's published again.
 import {
   CHAT_MENTIONS_MAX,
-  CHAT_PUSHES_PER_HOUR,
   type ChatRecipient,
   canReadRoom,
+  chatMessageHref,
   chatNotificationKey,
   chatPlaceWords,
-  chatPush,
   chatRecipients,
   findMentions,
   roomSectionCodes,
 } from "~/core/chat";
+import { chatMentionTag, chatReplyTag } from "~/core/notifications";
 import { parseRoomId } from "~/core/schema";
 import { type NotifyEnv, notify } from "../notifications/notify";
-import { countDeliveries } from "../notifications/store";
 import type { ChatCourse } from "./catalog";
 import type { MessageRow } from "./object-store";
 import {
+  chatNotificationId,
   mentionedAlready,
   mutedIn,
   planSections,
-  recordChatNotification,
   roomMembers,
 } from "./store";
 
 /** Members a mention is looked up among; far above any course's head count. */
 const MENTION_LOOKUP_MAX = 5_000;
-const HOUR_MS = 3_600_000;
 
 export interface ChatNotifyInput {
   row: MessageRow;
@@ -85,24 +85,10 @@ async function stillReads(
   return canReadRoom(course.tree, row.room_id, sections);
 }
 
-/** Past the hourly cap, a chat push waits for the digest and the unread count. */
-async function underPushCap(
-  db: D1Database,
-  userId: string,
-  now: Date,
-): Promise<boolean> {
-  const since = new Date(now.getTime() - HOUR_MS);
-  const counts = await Promise.all(
-    (["chat-mention", "chat-reply"] as const).map((type) =>
-      countDeliveries(db, { userId, type, channel: "push", since }),
-    ),
-  );
-  return counts.reduce((a, b) => a + b, 0) < CHAT_PUSHES_PER_HOUR;
-}
-
 /**
  * Notifies everyone a newly visible message is for. Returns who it
- * recorded, with whether each was pushed to (for tests and logs).
+ * notified for the first time, with whether each was to be pushed (for
+ * tests and logs).
  */
 export async function notifyChatMessage(
   env: NotifyEnv,
@@ -147,42 +133,56 @@ export async function notifyChatMessage(
     row.room_id,
     course.tree.byId.get(row.room_id) ?? null,
   );
+  const url = chatMessageHref({
+    termId,
+    courseCode,
+    roomId: row.room_id,
+    thread: row.reply_to,
+  });
   const done: ChatRecipient[] = [];
   for (const r of recipients) {
-    const recorded = await recordChatNotification(env.DB, {
-      userId: r.userId,
-      type: r.type,
-      termId,
-      courseCode,
-      roomId: row.room_id,
-      seq: row.seq,
-      messageId: row.id,
-      actorId: row.author_id,
-      at: now.toISOString(),
-    });
-    if (!recorded) continue;
-    const push = r.push && (await underPushCap(env.DB, r.userId, now));
-    done.push({ ...r, push });
-    if (!push) continue;
-    await chatNotifier.notify(
+    const result = await chatNotifier.notify(
       env,
       r.userId,
       {
         type: r.type,
         key: chatNotificationKey(r.type, r.userId, row.id),
-        push: chatPush({
-          type: r.type,
-          actor: input.actorName,
-          place,
-          text: row.body,
-          termId,
-          courseCode,
-          roomId: row.room_id,
-          thread: row.reply_to,
-        }),
+        inbox: [
+          {
+            id: chatNotificationId(r.userId, termId, courseCode, row.id),
+            // A reply is in a thread, so it has the thread's first message.
+            groupKey:
+              r.type === "chat-reply" && row.reply_to !== null
+                ? chatReplyTag(row.reply_to)
+                : chatMentionTag(row.room_id),
+            termId,
+            courseCode,
+            chat: {
+              roomId: row.room_id,
+              threadId: row.reply_to,
+              seq: row.seq,
+              messageId: row.id,
+              actorId: row.author_id,
+            },
+          },
+        ],
+        ...(r.push
+          ? {
+              push: {
+                event: {
+                  type: r.type,
+                  actor: input.actorName,
+                  place,
+                  text: row.body,
+                },
+                url,
+              },
+            }
+          : {}),
       },
       { now },
     );
+    if (result.inbox === "new") done.push(r);
   }
   return done;
 }

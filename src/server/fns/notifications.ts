@@ -1,11 +1,16 @@
-// Notifications' routes (docs/V2.md §6.3), signed in only. Apart from
-// ~/server/fns/api so pages that never show notification settings don't
-// carry these calls.
+// Notifications' routes (docs/V2.md §6.3, §6.7), signed in only. Apart
+// from ~/server/fns/api so pages that never show notifications don't carry
+// these calls.
 import type { z } from "zod";
 import {
   NotificationSettingsInputSchema,
   NotificationSettingsResultSchema,
   NotificationSettingsSetInputSchema,
+  NotificationsInboxInputSchema,
+  NotificationsInboxResultSchema,
+  NotificationsReadInputSchema,
+  NotificationsUnreadInputSchema,
+  NotificationsUnreadResultSchema,
   OkResultSchema,
   PushDevicesInputSchema,
   PushDevicesResultSchema,
@@ -80,4 +85,37 @@ export const notificationsApi = {
     call("push/remove", PushRemoveInputSchema, OkResultSchema, input, options),
   test: (options?: ApiOptions) =>
     call("push/test", PushTestInputSchema, PushTestResultSchema, {}, options),
+  /** A page of the inbox, newest first (V2.md §6.7); pass the last page's `next` as `before`. */
+  inbox: (
+    input: z.input<typeof NotificationsInboxInputSchema> = {},
+    options?: ApiOptions,
+  ) =>
+    call(
+      "notifications/inbox",
+      NotificationsInboxInputSchema,
+      NotificationsInboxResultSchema,
+      input,
+      options,
+    ),
+  /** Marks items (by id), everything, a course's seat openings or a day's "Due tomorrow" read. */
+  read: (
+    input: z.input<typeof NotificationsReadInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "notifications/read",
+      NotificationsReadInputSchema,
+      NotificationsUnreadResultSchema,
+      input,
+      options,
+    ),
+  /** The unread count, cheap: for the bar's bell and the badge. */
+  unread: (options?: ApiOptions) =>
+    call(
+      "notifications/unread",
+      NotificationsUnreadInputSchema,
+      NotificationsUnreadResultSchema,
+      {},
+      options,
+    ),
 };

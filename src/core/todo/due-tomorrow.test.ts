@@ -89,7 +89,7 @@ describe("dueTomorrowPush", () => {
       title: "Project 2 is due tomorrow",
       body: "CMSC216 · 11:59pm",
       url: "/todo?day=2026-09-29",
-      tag: "todo-due",
+      tag: "todo-due:2026-09-29",
     });
     expect(dueTomorrowPush([reading], "2026-09-29").body).toBe("Due tomorrow");
   });
@@ -102,7 +102,7 @@ describe("dueTomorrowPush", () => {
       // An all-day item sorts first; it has no time to show.
       body: "Reading response, Project 2 (CMSC216) 11:59pm and 1 more",
       url: "/todo?day=2026-09-29",
-      tag: "todo-due",
+      tag: "todo-due:2026-09-29",
     });
     expect(dueTomorrowPush([webassign, project], "2026-09-29").body).toBe(
       "Project 2 (CMSC216) 11:59pm and WebAssign 5 (MATH240) 11:59pm",

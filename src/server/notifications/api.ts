@@ -8,10 +8,16 @@
 //   push/test                    "Send me a test"
 //   notifications/settings       read the settings
 //   notifications/settings/set   save them
+//   notifications/inbox          a page of the inbox (V2.md §6.7)
+//   notifications/read           mark items, or what a page is about, read
+//   notifications/unread         the unread count, cheap, for the bar
 import { isPushEndpoint } from "~/core/push";
 import type {
   NotificationSettings,
   NotificationSettingsResult,
+  NotificationsInboxResult,
+  NotificationsReadInput,
+  NotificationsUnreadResult,
   PushDevicesResult,
   PushSubscribeInput,
   PushSubscribeResult,
@@ -20,6 +26,7 @@ import type {
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
 import { type AuthEnv, isTestMode } from "../auth/config";
+import type { CourseChatNamespace } from "../chat/course-chat";
 import { pushConfig } from "../push/config";
 import {
   deleteByEndpoint,
@@ -28,10 +35,16 @@ import {
   subscriptionsOf,
 } from "../push/store";
 import { getFeed, resumePausedFeed } from "../todo/store";
+import { inboxPage, markRead, unreadCount } from "./inbox";
+import { inboxItems } from "./inbox-items";
 import { type NotifyEnv, sendTestPush } from "./notify";
 import { readSettings, writeSettings } from "./store";
 
-export type NotificationsEnv = NotifyEnv & AuthEnv;
+export type NotificationsEnv = NotifyEnv &
+  AuthEnv & {
+    /** Where the inbox reads chat rows' words; without it they show without text. */
+    COURSE_CHAT?: CourseChatNamespace;
+  };
 
 type Ctx = IdentityRouteContext & { fetch?: typeof fetch };
 
@@ -144,4 +157,41 @@ export async function setSettings(
   if (input.settings.todoDue.push && !before.todoDue.push)
     await resumePausedFeed(env.DB, userId, ctx.now);
   return { settings: input.settings };
+}
+
+export async function inbox(
+  env: NotificationsEnv,
+  input: { before?: string | undefined },
+  ctx: Ctx,
+): Promise<NotificationsInboxResult | Response> {
+  const userId = userOf(ctx);
+  if (!userId) return apiError("unauthorized");
+  const [page, unread] = await Promise.all([
+    inboxPage(env.DB, userId, input.before),
+    unreadCount(env.DB, userId),
+  ]);
+  return {
+    items: await inboxItems(env.COURSE_CHAT, userId, page.rows),
+    unread,
+    next: page.next,
+  };
+}
+
+export async function readInbox(
+  env: NotificationsEnv,
+  input: NotificationsReadInput,
+  ctx: Ctx,
+): Promise<NotificationsUnreadResult | Response> {
+  const userId = userOf(ctx);
+  if (!userId) return apiError("unauthorized");
+  return { unread: await markRead(env.DB, userId, input, ctx.now) };
+}
+
+export async function unreadInbox(
+  env: NotificationsEnv,
+  ctx: Ctx,
+): Promise<NotificationsUnreadResult | Response> {
+  const userId = userOf(ctx);
+  if (!userId) return apiError("unauthorized");
+  return { unread: await unreadCount(env.DB, userId) };
 }

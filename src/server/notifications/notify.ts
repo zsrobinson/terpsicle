@@ -1,12 +1,23 @@
-// The one way anything notifies a person (V2.md §6): seat watches, chat
-// mentions and replies, Todo's "Due tomorrow". `notify` reads their
-// settings, sends a web push to each of their devices and, for types with
-// email, an email, and records each channel in notification_deliveries
-// under the event's dedupe key, so a retried job never sends twice.
-import { channelOn, deliveryKey, PUSH_DELIVERY } from "~/core/notifications";
+// The one way anything notifies a person (V2.md §6, §6.7): seat watches,
+// chat mentions and replies, Todo's "Due tomorrow". `notify` writes the
+// event's inbox rows whatever the settings say, then reads the settings,
+// sends one web push per group to each device (worded for the whole
+// group, with its count and the badge) and, for types with email, an
+// email, and records each channel in notification_deliveries under the
+// event's dedupe key, so a retried job never sends twice. Nothing is
+// capped: grouping keeps a busy room to one notification.
+import {
+  channelOn,
+  deliveryKey,
+  groupWords,
+  type InboxEvent,
+  PUSH_DELIVERY,
+  shouldRenotify,
+} from "~/core/notifications";
 import type { PushPayload, PushType } from "~/core/schema";
 import type {
   DeliveryStatus,
+  InboxType,
   NotificationType,
   PushSubscriptionRow,
   PushTestResult,
@@ -15,6 +26,12 @@ import { ALERTS_FROM } from "../alerts/email";
 import { type PushConfig, type PushEnv, pushConfig } from "../push/config";
 import { sendPush } from "../push/send";
 import { recordSend, subscriptionsOf } from "../push/store";
+import {
+  groupState,
+  type InboxRow,
+  unreadCount,
+  writeInboxRows,
+} from "./inbox";
 import { claimDelivery, finishDelivery, readSettings } from "./store";
 
 export interface NotifyEnv extends PushEnv {
@@ -35,15 +52,26 @@ export interface NotificationEmail {
 }
 
 export interface Notification {
-  type: NotificationType;
+  /** `admin-urgent` has no settings: its push is always on (V2 §6.7, not sent yet). */
+  type: NotificationType | "admin-urgent";
   /**
    * Unique per event, the same on every retry of it:
-   * `seat-open:<userId>:<term>:<section>:<asOf>`. Each channel adds its
-   * name (`…:push`, `…:email`).
+   * `seat-open:<userId>:<term>:<snapshot>`. Each channel adds its name
+   * (`…:push`, `…:email`).
    */
   key: string;
-  /** What the push shows (`PushPayloadSchema` without `v` and `type`); none for email-only types. */
-  push?: Omit<PushPayload, "v" | "type">;
+  /**
+   * The inbox rows it writes, all in one group, whatever the settings say:
+   * one for most events, one per section for a seats run. None for the
+   * digest, an email about rows already there.
+   */
+  inbox?: readonly InboxRow[];
+  /**
+   * Push it (as the settings allow): the newest event's words, which
+   * `groupWords` turns into the group's, and where a click goes. Left out
+   * for someone who needn't be pushed (looking at the room now).
+   */
+  push?: { event: InboxEvent; url: string };
   /** For types with an email channel (`seat-open`, `chat-digest`). */
   email?: NotificationEmail;
 }
@@ -57,6 +85,11 @@ export interface Notification {
 export type ChannelOutcome = DeliveryStatus | "off" | "none" | "duplicate";
 
 export interface NotifyResult {
+  /**
+   * `new` when it wrote an inbox row, `duplicate` when every row was there
+   * already (this event went before: no push either), `none` without rows.
+   */
+  inbox: "new" | "duplicate" | "none";
   push: ChannelOutcome;
   email: ChannelOutcome;
 }
@@ -114,15 +147,52 @@ async function pushToDevices(
   };
 }
 
+/**
+ * The push for a group, as it stands once this event is in: the group's
+ * words and count, the badge, whether to buzz again, and the row a click
+ * reads (V2 §6.7).
+ */
+async function groupedPush(
+  env: NotifyEnv,
+  userId: string,
+  type: InboxType,
+  push: NonNullable<Notification["push"]>,
+  groupKey: string,
+  fresh: readonly string[],
+  now: Date,
+): Promise<Omit<PushPayload, "v" | "type">> {
+  const [group, badge] = await Promise.all([
+    groupState(env.DB, userId, groupKey, fresh),
+    unreadCount(env.DB, userId),
+  ]);
+  const words = groupWords(push.event, group);
+  const event = group.events[0] ?? {
+    actorId: null,
+    createdAt: now.toISOString(),
+  };
+  return {
+    ...words,
+    url: push.url,
+    tag: groupKey,
+    count: Math.max(1, group.count),
+    badge,
+    renotify: shouldRenotify(type, event, group.others),
+    ...(fresh[0] ? { id: fresh[0] } : {}),
+  };
+}
+
 async function notifyByPush(
   env: NotifyEnv,
   userId: string,
   notification: Notification,
+  fresh: readonly string[],
   options: NotifyOptions,
 ): Promise<ChannelOutcome> {
   const { type, push } = notification;
-  // The digest is email only (channelOn never lets it here).
-  if (type === "chat-digest" || !push) return "none";
+  const groupKey = notification.inbox?.[0]?.groupKey;
+  // The digest is email only (channelOn never lets it here), and a push
+  // stands for a group of inbox rows.
+  if (type === "chat-digest" || !push || groupKey === undefined) return "none";
   const devices = await subscriptionsOf(env.DB, userId);
   if (devices.length === 0) return "none";
   const config = pushConfig(env, options.testMode ?? cronTestMode(env));
@@ -139,12 +209,21 @@ async function notifyByPush(
   }
   const id = await claimDelivery(env.DB, { ...claim, status: "failed" });
   if (id === null) return "duplicate";
+  const payload = await groupedPush(
+    env,
+    userId,
+    type,
+    push,
+    groupKey,
+    fresh,
+    options.now,
+  );
   const { sent, statuses } = await pushToDevices(
     env,
     config,
     devices,
     type,
-    () => push,
+    () => payload,
     options,
   );
   const status = sent > 0 ? "sent" : "failed";
@@ -196,9 +275,10 @@ async function notifyByEmail(
 }
 
 /**
- * Notifies one person of one event, on every channel their settings allow.
- * Callers keep their own rules (seat watches' cooldown and daily cap, chat's
- * muted rooms); this keeps the settings, the devices and the dedupe.
+ * Notifies one person of one event: its inbox rows always, then every
+ * channel their settings allow. Callers keep their own rules (seat
+ * watches' cooldown and daily cap, chat's muted rooms); this keeps the
+ * inbox, the settings, the devices and the dedupe.
  */
 export async function notify(
   env: NotifyEnv,
@@ -206,18 +286,30 @@ export async function notify(
   notification: Notification,
   options: NotifyOptions,
 ): Promise<NotifyResult> {
+  const { type } = notification;
+  const rows = notification.inbox ?? [];
+  const fresh =
+    type === "chat-digest"
+      ? []
+      : await writeInboxRows(env.DB, userId, type, rows, options.now);
+  const inbox =
+    rows.length === 0 ? "none" : fresh.length > 0 ? "new" : "duplicate";
   const settings = await readSettings(env.DB, userId);
   const want = (channel: "push" | "email") =>
-    channelOn(settings, notification.type, channel);
+    type === "admin-urgent"
+      ? channel === "push"
+      : channelOn(settings, type, channel);
   const [push, email] = await Promise.all([
-    want("push")
-      ? notifyByPush(env, userId, notification, options)
-      : Promise.resolve<ChannelOutcome>("off"),
+    inbox === "duplicate"
+      ? Promise.resolve<ChannelOutcome>("duplicate")
+      : want("push")
+        ? notifyByPush(env, userId, notification, fresh, options)
+        : Promise.resolve<ChannelOutcome>(notification.push ? "off" : "none"),
     want("email")
       ? notifyByEmail(env, userId, notification, options)
       : Promise.resolve<ChannelOutcome>(notification.email ? "off" : "none"),
   ]);
-  return { push, email };
+  return { inbox, push, email };
 }
 
 /**

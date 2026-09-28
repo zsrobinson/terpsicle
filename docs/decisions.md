@@ -100,6 +100,11 @@ Revisit if: people turn quiet hours or the inbox off in large numbers, or iOS op
 The feed's token is an HMAC of the person's id and a random nonce under the R2 key (`keyedHash`); D1 keeps the nonce and the token's SHA-256. Settings can show the link again without storing it, and "Make a new link" is a new nonce. Chosen over a stored random token (a copy of D1 would hold every link), sealing it with Todo's key (ties the feed to Todo's secret) and a new link on every ask (would break calendars already subscribed). V2 §6.7 "As built".
 Revisit if: the R2 key is ever rotated (every link changes with it), or a Worker secret for links is added.
 
+### The badge counts unread groups, not events
+2026-09-27 · agent · notifications
+A group's unread rows (a room's mentions, a thread's replies, a term's seat openings) are one inbox item, and the bell and the app badge count items: "3 mentions in CMSC351" is 1, like the one notification it is on the phone. Rows read together stay one item. Spec: V2 §6.7 "As built".
+Revisit if: people say the number feels too low for a busy room, or the owner wants events counted.
+
 ### No session recording
 2026-09-26 · owner · app-wide
 No session recording anywhere ("creepy"): replay is off in code and in PostHog, and `/privacy` says so.
