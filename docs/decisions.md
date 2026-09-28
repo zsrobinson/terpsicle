@@ -29,10 +29,35 @@ Revisit if: a product is added or dropped.
 Everything is a path on terpsicle.com, with one manifest, one service worker at root scope, one push subscription per device and one session cookie.
 Revisit if: a product needs its own domain.
 
-### The installed app opens on Home, which nothing links to
+### Home is the first tab on phones and the wordmark on desktop
 2026-09-28 · owner · app-wide
-The manifest's `start_url` is `/home`: a few facts from each product that matter today, each linking into it ("really just as a hidden thing only navigable to by the start page of the PWA"). No bar, menu, footer or page links to it, and it's `noindex`. Apps installed before keep opening `/schedule`, which still works (docs/V3.md §1.5).
-Revisit if: people ask for Home in a browser tab; it would join the product menu, not the bar's tabs.
+The manifest's `start_url` is `/home`. Home is Terpsicle's first place: the first tab of the phone tab bar, and where the Terpsicle mark and wordmark in the family bar go on a desktop. It pulls the facts from each product that matter now (today's classes, this week's todos across classes, credit counts) and suggests setting up a product you don't use yet. The owner's layout idea: two-thirds for now, one-third for what's next. It stays `noindex`. (changed 2026-09-28: it was reachable only from the installed app; the owner: "just so you don't lose that page after clicking away from it".)
+Revisit if: people land on Home and look for Schedule.
+
+### Phones get a tab bar: Home and the five products
+2026-09-28 · owner · app-wide
+Below `md`, a bottom tab bar replaces the product menu: six labeled tabs, Home (the Terpsicle mark) first, then the products in color order, edge to edge, marks always in color. A sheet or drawer pulled all the way up hides it; at every other height it stays. The top bar keeps only the product's context. Mockups: the iPhone plan (https://claude.ai/artifact/2n51EifS1pjTzmBP8U8g7a).
+Revisit if: a seventh place arrives.
+
+### One bar at the top
+2026-09-28 · owner · app-wide
+"i'm not a big fan of having two different bars at the top." Share is an icon in the family bar beside the others, not a second bar over the canvas, and switching semesters or plans happens in a sheet, so the bar isn't cramped.
+Revisit if: a product needs more than one action there.
+
+### Base UI for every primitive, styled in Ink
+2026-09-28 · owner · app-wide
+Every kit primitive (menus, popovers, dialogs, selects, tooltips, switches, sheets and drawers) is built on Base UI (`@base-ui/react`). Radix, vaul and the shadcn CLI go away. Our look stays: Ink's soft gray highlights and our padding ("i do prefer our soft gray instead of the inverted color"). For a component we don't have yet, the styling on Base UI's docs site is the default to start from.
+Revisit if: Base UI lacks a primitive we need; wrap it in the kit and say why.
+
+### Haptics live in the kit
+2026-09-28 · owner · app-wide
+On iPhone, kit controls (tabs, segments, switches, menu and sheet items, a sheet grabber's tap, Undo) tick through a native switch under the finger, the trick `@haptics/react` uses, copied into `src/components/ui` with credit (MIT) rather than taken as a dependency. Feature code never mentions haptics. iOS 26.5+ ticks only on a real tap, so drags, long presses and results can't tick.
+Revisit if: Safari ships a web haptics API.
+
+### Motion through view transitions
+2026-09-28 · owner · app-wide
+The owner wants "great support for view transitions and all those animation improvements". Navigations animate through TanStack Router's view transitions, with one set of motion tokens (durations and curves), direction for Back and Forward, shared elements where something grows into its page, and Reduce Motion honored everywhere.
+Revisit if: a transition slows a navigation people repeat often.
 
 ### Use the platform first
 2026-09-26 · owner · app-wide
@@ -307,10 +332,10 @@ Revisit if: the owner brings the strands back.
 A dismissible dialog after the first sign-in, joining a chat or turning on a watch; remembered, with a long cooldown, never a banner, never when installed.
 Revisit if: it annoys people.
 
-### Share is a button over the canvas, not a tab row
+### Share is a button, not a tab row
 2026-09-28 · owner · one feature
-Sharing moves out of the Export tab to an outlined "Share" button at the top left of the calendar (Plan's semesters too), opening a popover with the link, Copy link and a note that the link is a copy held in the URL. The owner: "[icon Share] … opens a popover thing right below it". It sits in a canvas bar the calendar's hints share, not in the family bar (agent's placement), and in a narrow bar (a phone, a tablet with the sidebar open) it's the icon alone while a hint shows, so the hint still fits. Share comes before the calendar in Tab order, as it does on screen.
-Revisit if: people don't find it, or the family bar gets a slot for product actions.
+Sharing moves out of the Export tab to an outlined "Share" button at the top left of the calendar (Plan's semesters too), opening a popover with the link, Copy link and a note that the link is a copy held in the URL. The owner: "[icon Share] … opens a popover thing right below it". It opens from the family bar as an icon (see "One bar at the top"). (changed 2026-09-28: it was in a canvas bar of its own; the owner wanted one bar.)
+Revisit if: people don't find it.
 
 ### Export is now Register
 2026-09-28 · agent · one feature
@@ -545,6 +570,6 @@ Revisit if: agents start missing contract changes that the docs used to catch.
 
 ### The family bar
 2026-09-27 · agent · app-wide
-Every page has one bar: the five products as labeled tabs from 1100px (the product menu below that), the product's context, then Feedback and one account menu, which holds the theme. This beats a menu-only switcher, because cohesion and cold arrivals are the goal (docs/COHESION.md §4).
+Every page has one bar: the five products as labeled tabs from 1100px (the product menu from `md` to 1100px, the phone tab bar below `md`), the product's context, then Feedback and one account menu, which holds the theme. (changed 2026-09-28: phones moved to the tab bar.) This beats a menu-only switcher, because cohesion and cold arrivals are the goal (docs/COHESION.md §4).
 Revisit if: a sixth product arrives, or the scheduler's bar can't fit its term and plans beside the tabs at 1100–1300px.
 
