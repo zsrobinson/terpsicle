@@ -37,9 +37,11 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `deep_link_opened` | `outcome`: `ok` · `unknown-term` | How often seat-alert emails bring people back, and whether their terms still exist. |
   | `catalog_loaded` | `termId`, `fromCache`, `deptsFetched`, `ms` (until every department is in) | Whether the IndexedDB cache and manifest diffing keep repeat visits fast (BUILD §5), and how long a first visit waits for the whole catalog. |
   | `catalog_load_failed` | `termId` (null when the terms list failed), `reason`: `missing` · `network` · `invalid` · `newer-data` | Visits that saw the "couldn't load" state instead of a calendar, and which failure caused it. |
-  | `generate_run` | `courses` (listed by code), `wildcards` (each wildcard item's kind, `pattern` or `gen-ed`), `mustHaves` (names of the ones set), `rankBy`, `results`, `durationMs`, `truncated`, `relaxed` | How big Generate requests get, whether people use wildcards, which must-haves people set, how often nothing fits, and whether runs stay fast on real devices. |
+  | `generate_run` | `courses` (listed by code), `wildcards` (each wildcard item's kind, `pattern` or `gen-ed`), `mustHaves` (names of the filters on), `rankBy`, `preferences` (factors on, double ones first), `results`, `durationMs`, `truncated`, `relaxed`, `live` (a chip changed after a run) | How big Generate requests get, whether people use wildcards, which filters and preferences people set, how often nothing fits, whether live re-ranking gets used, and whether runs stay fast on real devices. |
   | `generate_result_previewed` | `rank` | Whether people look past the first few results (is the ranking right?). |
-  | `generate_plans_saved` | `count` | Whether Generate produces plans people keep, and whether saving several at once is used. |
+  | `generate_plans_saved` | `count` (always 1 since results are added one at a time) | Whether Generate produces plans people keep. |
+  | `generate_preference_changed` | `factor`, `level`: `0` off · `1` on · `2` double | Which preferences people rank by, and whether anyone finds 2×. |
+  | `generate_filter_changed` | `filter` (a must-have's name), `on` | Which filters people reach for in the chips. |
   | `generate_relaxation_applied` | `constraint` | Which suggested relaxations people take when nothing fits. |
   | `travel_settings_changed` | `setting`: `pace` · `accessible` · `extraMinutes`, and its new `value` | Which travel settings people change, and whether Accessible routes gets used. |
   | `travel_how_opened` | | Whether people want to see how estimates are made ("How?"). |
@@ -50,7 +52,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `pwa_installed` | | Installs from any way in, the browser's own menu included (`appinstalled`). |
 
   | `search_performed` | `queryLength`, `results`, `filtered` | Whether search finds things (how often zero results), and how long queries are. Debounced; the text itself is never sent. |
-  | `search_filter_changed` | `filter` | Which filter chips earn their place on the line. |
+  | `search_filter_changed` | `filter`, `via`: `chip` · `typed` | Which filter chips earn their place on the line, and whether people type them as filter tokens ("DSNS ") or pick them. |
+  | `search_sorted` | `sort`: `relevance` · `code` · `rating` · `seats` | Which orders people want beyond best match. |
   | `search_result_opened` | `position` | Whether ranking works: most opens should be in the first few results. |
   | `course_details_tab` | `tab` | What people open on the course details page (one page, no tabs, since the UX review; the name stays for continuity): `instructors` for a group's Reviews, `grades` for "Grades ↓", `about` for "More about this course". |
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
@@ -64,6 +67,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `push_disabled` | none | People turning them off there ("Turn off here"). |
   | `notifications_opened` | none | Whether people find the bell and open Notifications (V2.md §6.7). |
   | `notification_opened` | `type` (`seat-open`, `chat-mention`, `chat-reply`, `todo-due`, `admin-urgent`) | Which kinds of notification people open from the bell. Never its words, course or who it's about; the list is `data-private`. |
+  | `push_ask_shown` | `moment`: `chat-post` · `todo-connected` · `seat-watch` · `home-screen`; `kind`: `card` · `iphone-setup` · `home-screen` | How often each moment asks to turn notifications on (V2.md §6.7, "Asking"), and how: our card, the iPhone's three steps to the Home Screen, or the Home Screen app's own step. |
+  | `push_ask_result` | `moment`, `kind`, `outcome`: `on` · `dismissed` · `blocked` · `failed` | Whether asking at the moment works: `on` should be common; mostly `dismissed` means the moment or the words are wrong. `blocked` is the browser's prompt answered Block. |
   | `calendar_feed_created` | none | People making their calendar feed link, from Settings (V2.md §6.7). Never the link. |
   | `calendar_feed_reset` | none | People making a new link, which stops the old one. Never either link. |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
@@ -75,10 +80,11 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `report_created` | `surface`, `reason` | How often readers report, and why. Never what they reported. |
   | `todo_connect_result` | `outcome` (`connected`, `invalid-link`, `unreachable`, `not-a-calendar`), and with `unreachable` and `not-a-calendar` a `reason`: a fixed code, `timeout`, `network`, `bad-redirect`, `too-large`, `http-<status>` (`http-404`) or `not-recognized` (ELMS answered, but not with a calendar) | Where connecting ELMS fails, and why, so a failure can be traced without asking the student. The reason is a code from that list and nothing else: never the link, a message or the body. Calls to our own server that fail (signed out, offline) aren't sent. |
   | `todo_disconnected` | | Churn: sent once Disconnect's Undo is gone. |
-  | `todo_item_checked` | `done`, `via` (`list`, `week`) | Whether checking things off is the habit. |
-  | `todo_view_changed` | `view` (`day`, `course`, `week`) | Which views earn their place. |
-  | `todo_file_imported` | `items`, `skipped` (counts) | Whether the Gradescope fallback (a dropped `.ics`) is used. |
-  | `todo_task_added` | `date`, `time`, `course` (booleans: whether the task got one) | Whether "Add a task…" earns its place, and whether people date their tasks. Never the task's words, date or course. |
+  | `todo_item_checked` | `done`, `via` (`list`, `week`, `month`) | Whether checking things off is the habit, and in which view. |
+  | `todo_view_changed` | `view` (`week`, `month`, `list`) | Which of the calendar's views earn their place. |
+  | `todo_file_imported` | `items`, `skipped` (counts) | Whether calendar files (a dropped `.ics`) are used. |
+  | `todo_task_added` | `date`, `time`, `course` (booleans: whether the task got one), `typed` (boolean: the composer recognized a date, time or course in the words) | Whether "Add a task…" earns its place, whether people date their tasks, and whether they type the date rather than pick it. Never the task's words, date or course. |
+  | `todo_week_start_changed` | `start` (`monday`, `sunday`) | Whether Monday is the right default for Todo's weeks. |
 
   Todo's events never carry an item's or a task's title, course, date or link, nor anything from the feed. `/todo` is on the no-autocapture list, and titles and course names are `data-private`.
 
@@ -87,7 +93,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `four_year_course_moved` | `via`: `drag` · `menu` | Whether drag is discovered, or people use "Move to…". |
   | `four_year_wildcard_added` / `four_year_wildcard_resolved` | `kind`: `pattern` · `gen-ed` | Whether placeholders earn their place. |
   | `four_year_problem_opened` / `four_year_problem_fix_applied` | `kind` (a `FourYearProblemKind`) | Whether prerequisite and credit problems help. |
-  | `four_year_details_saved` | `genEds`: how many GenEds it was given | How often people describe a course Testudo doesn't list anymore. Never the code, title or which GenEds. |
+  | `four_year_details_saved` | `genEds`: how many GenEds it was given; `countsAs`: whether it counts as a UMD course; `of`: `course` (a code Testudo doesn't list) or `credit` (AP, exam or transfer credit with no UMD course) | How often people describe a course Testudo can't match, and whether "Counts as" is used. Never the code, title, the course it counts as, or which GenEds. |
   | `four_year_handoff` | `outcome`: `created-plan` · `opened-plan` | Whether "View schedule" leads somewhere: `created-plan` when the scheduler bookmarks the semester's courses in a new (or still empty) plan, `opened-plan` when it opens the term's plan as it is. Never which courses. |
   | `cross_link_clicked` | `from`, `to` (product ids: `schedule`, `reviews`, `chat`, `plan`, `todo`) | Which "View …" links between products get followed (V3 §1.2): Plan → Schedule, Todo and Reviews; Schedule → Plan; Todo → Chat and Schedule; Reviews → Schedule. Never the course, term or item behind the link. |
   | `transcript_parsed` | `recognized`, and counts: `lines` read, `choices` waiting on an "or", `skipped` lines | How often pastes read, and how much fixing they need. Sent once a paste settles, never with its text. |
@@ -99,6 +105,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `feedback_opened` | `product` | Whether people find "Send feedback", and from where. |
   | `feedback_sent` | `kind` (`bug` · `idea`), `product`, `hasScreenshot`, `withContext`, `reply` | Whether people keep the screenshot and "Include what I was doing" on, and how often they want a reply. Never the words, the page or the person (docs/FEEDBACK.md). |
   | `feedback_undone` | | How often Undo takes feedback back. |
+  | `coffee_opened` | | Whether people open the coffee button's popover beside Feedback. |
+  | `coffee_link_clicked` | `via` (`popover` · `menu`, the phone account menu's item) | How often it leads out to Buy Me a Coffee. Never who, or whether they bought one. |
 
   Feedback's events never carry what someone wrote, their page or who they are: `[data-feedback-ui]` (the sheet, the admin's pins and their notes) is on autocapture's ignore list too.
 

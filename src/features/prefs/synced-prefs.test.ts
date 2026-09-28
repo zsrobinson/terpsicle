@@ -1,7 +1,11 @@
 import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PREFS_STORAGE_KEY, withAiFeatures } from "~/core/prefs";
+import {
+  PREFS_STORAGE_KEY,
+  withAiFeatures,
+  withTodoWeekStart,
+} from "~/core/prefs";
 import { SETTINGS_DOC_KEY } from "~/core/sync";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { aMeUser } from "~/fixtures";
@@ -14,6 +18,7 @@ import {
   resetSyncedPrefsForTests,
   saveSyncedPrefs,
   settleAccountPrefs,
+  showSyncedPrefs,
   syncedPrefs,
   useAccountPrefsSettled,
 } from "./synced-prefs";
@@ -83,6 +88,79 @@ describe("saving the prefs", () => {
       rev: 3,
       dirty: true,
     });
+  });
+});
+
+describe("a change while the account's prefs are on their way", () => {
+  // A device's first sign-in: plan sync hasn't joined the account yet, so
+  // the sync row has no user and a change isn't marked for the account. The
+  // join keeps the account's value for every pref both sides have
+  // (`firstSignInUnion`), which would undo a change made on this page, signed
+  // in, a second earlier.
+  const signedIn = () =>
+    useAccount.setState({
+      status: "signed-in",
+      user: aMeUser({ id: "tstudent" }),
+    });
+
+  /** What plan sync's first step does on this device: the account's prefs, then settled. */
+  async function joinAccount(prefs: Record<string, unknown>) {
+    await db.settings.put({
+      key: "sync",
+      value: { userId: "tstudent", cursor: 1 },
+    });
+    await db.syncDocs.put({
+      key: SETTINGS_DOC_KEY,
+      rev: 2,
+      dirty: false,
+      inFlight: false,
+      base: null,
+    });
+    await db.settings.put({ key: "prefs", value: prefs });
+    showSyncedPrefs(prefs);
+    settleAccountPrefs();
+  }
+
+  it("keeps the change, and marks it for the account, once the join lands", async () => {
+    signedIn();
+    await saveSyncedPrefs((p) => withTodoWeekStart(p, "monday"));
+    await joinAccount({
+      todo: { weekStart: "sunday" },
+      ai: { features: false },
+    });
+    await vi.waitFor(async () => {
+      expect(syncedPrefs()).toEqual({
+        todo: { weekStart: "monday" },
+        ai: { features: false },
+      });
+      expect((await db.settings.get("prefs"))?.value).toEqual({
+        todo: { weekStart: "monday" },
+        ai: { features: false },
+      });
+      expect(await db.syncDocs.get(SETTINGS_DOC_KEY)).toMatchObject({
+        dirty: true,
+      });
+    });
+  });
+
+  it("lets the account's win for a change made signed out", async () => {
+    useAccount.setState({ status: "signed-out", user: null });
+    await saveSyncedPrefs((p) => withTodoWeekStart(p, "monday"));
+    signedIn();
+    await joinAccount({ todo: { weekStart: "sunday" } });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(syncedPrefs()).toEqual({ todo: { weekStart: "sunday" } });
+  });
+
+  it("doesn't replay a change made after the join", async () => {
+    signedIn();
+    await joinAccount({ todo: { weekStart: "sunday" } });
+    await saveSyncedPrefs((p) => withTodoWeekStart(p, "monday"));
+    await saveSyncedPrefs((p) => withTodoWeekStart(p, "sunday"));
+    showSyncedPrefs({ todo: { weekStart: "sunday" } });
+    settleAccountPrefs();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(syncedPrefs()).toEqual({ todo: { weekStart: "sunday" } });
   });
 });
 

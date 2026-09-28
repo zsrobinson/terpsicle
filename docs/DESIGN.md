@@ -180,9 +180,9 @@ The v2 brand came from a prototype track: a "Bulletin" paper round, then six var
 | `accent-soft` (the selected row) | `#E0DED3`, between base-100 and 150 | `#2E2D2B`, between base-900 and 850 |
 | `ok` / `warn` / `error` | green-700 / yellow-800 / red-600, on their 50 steps | green-300 / yellow-300 / red-300, on their 900 steps |
 
-- **Product colors, in color order:** Terpsicle (the scheduler) red, Reviews purple, Chat blue, Plan green, Todo yellow. `bg-product-<id>` is the 600 step in both themes, `text-product-<id>-fg` paper on it, and `bg-product-<id>-soft` the 50 step (dark: 900). Two exceptions keep the glyph readable: Plan's tile is green-700 (paper is 4.4:1 on green-600), and Todo's is yellow-400 with an ink glyph (8.1:1; paper fails on every yellow lighter than 700).
+- **Product colors, in color order:** Terpsicle (the scheduler) red, Reviews purple, Chat blue, Plan green, Todo yellow. `bg-product-<id>` is the 600 step in both themes, `text-product-<id>-fg` white on it, and `bg-product-<id>-soft` the 50 step (dark: 900). Since the owner's marks (2026-09-28), Plan's and Todo's tiles are their 600 steps too, with white glyphs (§7.5).
 - **Where product color goes (Ink: "tint only"):** the marks, the product menu and the marketing page. In the app it is never a button, a heading or a border.
-- **The marketing page** (`/`, `src/features/marketing`) is the brand at full volume, so it goes further than the app: each product's block sits on its soft fill (with the grain), the hero's five lines are drawn in `-line` and product-colored words in `-text` (both in `src/styles.css`, held to the same contrast test), and the headings carry a Riso misprint that settles into register.
+- **The marketing page** (`/`, `src/features/marketing`, §8) is the brand at full volume, so it goes further than the app: the story's section takes on the current step's soft fill (with the grain), product-colored words are `-text` (in `src/styles.css`, held to the same contrast test), and the headings carry a Riso misprint that settles into register.
 - **The selected row is neutral,** a half-step past `hover`, so the current item reads stronger than a hovered one. Ink tinted it with the scheduler's soft red, which is also the error fill, and selection must never read as an error.
 - **Course colors** are Flexoki too: fill 100 (dark 900), border and dot 400, text 900 (dark 150). The text is a step darker than Ink's 700/800 because a block's time and room lines are drawn at 70–80% opacity and must still clear 4.5:1. Flexoki has eight hues and red means an error here, so three of the ten course ids are oklab midpoints of neighbors, in Flexoki's widest hue gaps: green (green + cyan), cyan (cyan + blue) and indigo (blue + purple). The ten sit at least 22° apart, and every line of block text clears 4.5:1, placed, ghosted or dimmed.
 
@@ -208,11 +208,13 @@ Ink's "subtle" paper grain: a 220px fractal-noise tile, dark specks at 28% on pa
 
 ### 7.5 Marks
 
-Six marks on an 18-unit grid (`src/app/brand/marks.ts`): the **umbrella** (Terpsicle, the family), **Schedule**, **Reviews**, **Chat**, **Plan** and **Todo**. Plan and Todo appear on the marketing page for now; they join the product menu when they launch.
-- Each has a primary shape at 100% and a secondary at 70%, and fills the 12-unit live area. At 16px the 70% shape goes solid.
-- Schedule is two courses side by side, stepped in time. Reviews is a pixel star with a small sparkle. Chat is a bubble with a stepped tail and a reply. Plan is a two-step staircase (the semesters behind you) and the next step ahead. Todo is two list rows done and a third still open.
-- **Tiles:** a product's tile is its 600 step with a paper glyph and no keyline. The umbrella is the scheduler's glyph on a neutral tile: paper with an ink keyline (dark: base-900 with a base-300 keyline and a base-600 offset). It is never a black box on a black offset. Each mark names its glyph's paint (`GLYPH_PAINT`: paper, ink on Todo's yellow, or the theme's for the umbrella), and its keyline per theme: the umbrella's in both, Todo's in light only, where the yellow tile alone is 2.3:1 on paper.
-- The drawings are data. The owner may refine them: replace the shapes in `GLYPHS`, then run `pnpm tsx scripts/build-icons.ts`, which redraws the favicon (SVG, following the browser's theme, plus a 32px PNG), the 180px home-screen icon and the 192, 512 and maskable 512 app icons in `public/icons/`. A test fails when those files are stale.
+Six pixel marks, drawn by the owner (2026-09-28), each a 9×9 tile (`src/app/brand/marks.ts`): the **umbrella** (Terpsicle, the family), **Schedule**, **Reviews**, **Chat**, **Plan** and **Todo**.
+- **The drawings.** The umbrella is a canopy with its rim and handle. Schedule is two courses side by side, the second later in the day. Reviews is a quill, writing. Chat is a speech bubble with two lines of text and a tail. Plan is stacked semesters, one on top and two below. Todo is a checklist of three rows, each with its box.
+- **Two tones.** Each glyph is white at 100% and white at 50% over its tile, exactly as the owner's export has them. No anti-aliasing: every edge is on the grid (`shape-rendering: crispEdges`).
+- **Tiles.** The umbrella's tile is black in both themes, with a white glyph. A product's tile is its Flexoki 600 step in both themes (Plan and Todo included), with a white glyph. White, not paper: it's the export's, and it holds Plan's green at 4.5:1. A glyph is a graphic, so its bar is 3:1 (WCAG 1.4.11); Todo's white on yellow-600 is the lowest, at 3.5:1. Every tile clears 3:1 on paper, so none needs a keyline in light.
+- **Offset and keyline.** On a page, a mark sits on a 1-unit offset down and to the right, so it's 10 units across and is crisp at 20, 30 and 40px (the bar and its tabs use 20, the product menu 30, empty states 40). The umbrella's offset is gray (base-500; dark: base-700), since a black box never gets a black offset; a product tile's is ink (dark: base-700). In dark, the umbrella's black tile would vanish into the black page, so it takes a 1px base-600 keyline (3.7:1). Product tiles in dark stand off the page on their offsets.
+- **App icons.** The favicon (SVG and a 32px PNG), the 180px home-screen icon, the 192 and 512 app icons and the maskable 512 are the umbrella's tile alone, with no offset and no keyline, the same in both themes. The glyph lands on whole pixels: the grid is scaled by a whole number and centered, and the tile fills what's left. The maskable icon shows 11 units across, which puts the umbrella inside Android's 80% safe circle. The notification badge is the umbrella's silhouette, solid white on clear.
+- **The drawings are data.** The owner may redraw one: change its rows in `PIXELS` (`.` tile, `#` white, `+` white at 50%), then run `pnpm tsx scripts/build-icons.ts`, which redraws every file in `public/icons/` (and `pnpm tsx scripts/build-og-image.ts`, the link preview). A test fails when those files are stale.
 
 ### 7.6 The product menu
 
@@ -224,3 +226,24 @@ Every page has the family bar (docs/COHESION.md §4): from 1100px, the five prod
 
 - Colors: [Flexoki](https://stephango.com/flexoki) by Steph Ango, MIT License.
 - Type: Bricolage Grotesque (The Bricolage Grotesque Project Authors) and Geist Mono (Vercel), both SIL Open Font License 1.1, self-hosted from Fontsource.
+
+## 8. The marketing page (owner, 2026-09-28)
+
+After four prototype rounds the owner picked round 4's version B, "Guide", with its copy, and asked for the real page: "i definitely like the mockups of the scrolling schedule getting more things on top of it. i don't like the atom idea even one bit. i think we can have the above the fold thing just showing the plain schedule, and the "schedule" section "advertisting" that component shows the problems tab. i think it'd be nice if these thinks were at least a little interactive." The atom and the older tangle are gone (docs/decisions.md).
+
+**Structure** (`src/features/marketing`):
+- **The story** (`story/story.tsx`): the hero's words, then one step per product in color order, beside **the screen** (`story/screen.tsx`), a sample of Schedule with Plan A: the family bar's plan tabs, credits and problems, the rail, and the week drawn the way the calendar draws it (`story/week.tsx`). On a desktop the screen is `position: sticky` in the right column; on a phone it sticks to the top and the steps scroll under it. The page scrolls at the browser's own speed: sticky, never pinned.
+- **Stages:** 0 is the hero, the plain week. Each step's words reaching the middle of the window (on a phone, the middle of what the screen leaves uncovered) stage its product: the Problems tab slides out of the rail (a tab: it closes when you move on), then a rating card, the section's room, a semester of Plan and a few of Todo's cards land and stay. On a phone only the current piece shows. The steps above the screen, the problems chip and Tab (focus inside a step) reach every stage without scrolling.
+- **The section's fill** eases to the current product's soft color, with the grain.
+- **After the story:** "They're one product, not five tabs." (four handoffs, each a View link), then "Step one is free and takes a minute." and the footer.
+
+**The demos** (`story/pieces.tsx`, `story/plan-a.ts`) are small, obviously samples (the caption says so), keyboard-first, and local: nothing is saved or sent. Each change says what happened in the app's own toast, with Undo.
+- Problems: "Switch STAT400 to 0201" fixes the walking conflict (the pill leaves the week and the block moves), "Switch ENGL393 to 0205" the overlap, and "Watch for a seat" turns into "Watching" with the filled bell, on the calendar too. "Start over" puts Plan A back.
+- Reviews: the rating's tooltip shows where the number comes from. Chat: send a message; a classmate answers. Todo: check a due date off.
+- Plan A is the mock app's demo plan, with the mock catalog's sections, rooms and instructors (a test holds them together). Two things differ on purpose: CMSC351 0301 is full, so there's a seat to watch, and ENGL393's fix is 0205, which lands inside the hours on screen.
+
+**Signed in**, nothing asks for a sign-in again: the header offers "Open Terpsicle" and the account, the hero drops "Sign in with UMD" and says the plans sync, and the closing line changes. Until `/api/me` answers, the sign-in link holds its place unseen.
+
+**Speed and search:** everything but the demos is server-rendered at its final size, so nothing shifts; the pieces only move with transforms and their code loads in its own chunk once the steps come near. The headline's font and the week's mono face are preloaded. The head carries the title, description, canonical URL, Open Graph and Twitter cards, and JSON-LD (WebSite, Organization, WebApplication: free, runs in a browser, no rating). `public/og.png` is drawn from Plan A's week by `scripts/build-og-image.ts`.
+
+**Motion:** transform and opacity, 0.3–0.5s on a spring; the misprint settles once. Reduced motion gets every stage's final frame with no transition.

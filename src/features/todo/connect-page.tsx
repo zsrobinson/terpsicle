@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { feedWords } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { GoogleButton } from "~/features/auth/sign-in-panel";
+import { usePushAskCard } from "~/features/notifications/push-ask";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
@@ -17,7 +19,6 @@ import {
   WHAT_COMES_THROUGH,
 } from "./connect-form";
 import { FileDrop } from "./file-drop";
-import { GRADESCOPE_EXTENSIONS_NOTE } from "./todo-item";
 import {
   TODO_CONNECT_PATH,
   TODO_PATH,
@@ -41,6 +42,8 @@ function Connection() {
   const undoDisconnect = useTodo((s) => s.undoDisconnect);
   const confirmDisconnect = useTodo((s) => s.confirmDisconnect);
   const [connected, setConnected] = useState(false);
+  // Its card, once connecting asks (V2 §6.7).
+  usePushAskCard("todo-connected");
 
   // Undo's window is over: the toast goes with it.
   useEffect(() => {
@@ -91,12 +94,13 @@ function Connection() {
           <p className="text-muted text-sm">
             We check it about every 20 minutes.
           </p>
+          <PushAskCard moment="todo-connected" />
         </>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <WithTooltip label="Back to your list of deadlines">
+        <WithTooltip label="Back to your calendar">
           <Button asChild>
-            <Link to={TODO_PATH}>See your deadlines</Link>
+            <Link to={TODO_PATH}>See your calendar</Link>
           </Button>
         </WithTooltip>
         <WithTooltip label="Stop reading ELMS and delete the link and its deadlines">
@@ -144,13 +148,6 @@ function SignedIn() {
           />
         )}
       </PageSection>
-      <PageSection title="Gradescope">
-        <p className="text-muted">
-          Gradescope work your professors link in ELMS comes through the feed,
-          tagged Gradescope. We never ask for your Gradescope or ELMS password.
-        </p>
-        <p className="text-fg">{GRADESCOPE_EXTENSIONS_NOTE}</p>
-      </PageSection>
       <PageSection title="Add a calendar file">
         <p className="text-muted">
           Have deadlines that aren't in ELMS? Export them as an .ics file and
@@ -179,7 +176,7 @@ export function ConnectPage() {
   );
   if (status !== "loading" && !on) return <TodoOff />;
   return (
-    <TodoFrame width="note">
+    <TodoFrame>
       <PageHeader
         title={
           status === "signed-out"

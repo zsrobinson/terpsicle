@@ -32,7 +32,6 @@ interface TestEvent {
   day: number;
   /** Minutes after midnight in New York; null for all day. */
   minutes: number | null;
-  description?: string;
 }
 
 // Fixed UIDs, so done marks survive the dates moving each day.
@@ -72,7 +71,6 @@ const EVENTS: readonly TestEvent[] = [
     summary: "Homework 4 [MATH240-0201: Introduction to Linear Algebra]",
     day: 6,
     minutes: 23 * 60 + 59,
-    description: "Submit on Gradescope: https://www.gradescope.com/courses/1",
   },
 ];
 
@@ -97,7 +95,6 @@ export function testFeedIcs(today: IsoDate): string {
       start,
       `SUMMARY:${event.summary}`,
       `URL;VALUE=URI:https://elms.umd.edu/courses/990000/assignments/${course}`,
-      ...(event.description ? [`DESCRIPTION:${event.description}`] : []),
       "END:VEVENT",
     );
   }

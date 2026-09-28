@@ -16,7 +16,7 @@ test.afterEach(() => {
 
 const marketingHeading = (page: Page) =>
   page.getByRole("heading", {
-    name: "Your semester's a tangle of tabs. Let's straighten it out.",
+    name: "Plan the semester in five steps, in one place.",
     level: 1,
   });
 /** The scheduler's calendar: on screen on desktop and phones alike. */
@@ -69,7 +69,7 @@ test("a first visit sees the marketing page; after that, / opens the scheduler",
   await expect(marketingHeading(page)).toBeVisible();
 
   // The hero's button (the closing section repeats it).
-  await page.getByRole("link", { name: "Open the scheduler" }).first().click();
+  await page.getByRole("link", { name: "View schedule" }).first().click();
   await expect(page).toHaveURL(/\/schedule$/);
   await expect(scheduler(page)).toBeVisible();
   // The scheduler saved a plan and set the returning flag.
@@ -158,14 +158,17 @@ test("the bar names every product, and narrower, the menu does", async ({
     await expect(menu.getByRole("menuitem", { name })).toBeVisible();
   await menu.getByRole("menuitem", { name: /^Reviews/ }).click();
   await expect(
-    page.getByRole("heading", { name: "Terpsicle Reviews", level: 1 }),
+    page.getByRole("heading", {
+      name: "UMD course and instructor reviews",
+      level: 1,
+    }),
   ).toBeVisible();
 });
 
 for (const [path, heading, title] of [
   [
     "/reviews",
-    "Terpsicle Reviews",
+    "UMD course and instructor reviews",
     "UMD course and instructor reviews · Terpsicle",
   ],
   ["/chat", "A chat room for every class", "Chat · Terpsicle"],

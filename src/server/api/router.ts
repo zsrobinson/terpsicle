@@ -14,6 +14,7 @@ import {
   FeatureVarsSchema,
   MeInputSchema,
   type ModerationKind,
+  PlanetTerpReviewsInputSchema,
   QueueListInputSchema,
   ReportCreateInputSchema,
   ResolveInputSchema,
@@ -23,6 +24,7 @@ import {
   ReviewSubmitInputSchema,
   ReviewSummaryInputSchema,
   ReviewsMineInputSchema,
+  ReviewsPageInputSchema,
   ReviewsRecentInputSchema,
   SeatWatchInputSchema,
   SeatWatchListInputSchema,
@@ -47,6 +49,8 @@ import {
 } from "~/core/schema";
 import {
   AdminChatRemoveInputSchema,
+  AdminGradeSaveInputSchema,
+  AdminGradesInputSchema,
   AdminHealthInputSchema,
   AdminSamplesInputSchema,
   DecisionListInputSchema,
@@ -80,6 +84,7 @@ import {
 } from "~/core/schema/notifications";
 import { removeChatMessage } from "../admin/chat-remove";
 import { listDecisions } from "../admin/decisions";
+import { adminGrades, saveGradeRequest } from "../admin/grades";
 import { adminHealth } from "../admin/health";
 import { addSamples } from "../admin/samples";
 import {
@@ -161,7 +166,11 @@ import {
   type ReviewsEnv,
   submitReview,
 } from "../reviews/api";
-import { listRecent } from "../reviews/public";
+import {
+  listRecent,
+  morePlanetTerpReviews,
+  pageReviews,
+} from "../reviews/public";
 import { getReviewSummary, type SummaryEnv } from "../summaries/service";
 import { pull, push } from "../sync/api";
 import { type TodoEnv, todoAvailable } from "../todo/config";
@@ -388,6 +397,21 @@ export const ROUTES = {
     alerts: false,
     reviews: "read",
     handle: (env, input) => listReviews(env, input),
+  }),
+  // A Reviews page's first reviews, ours and PlanetTerp's (V2.md §7.6).
+  // PlanetTerp's show whatever REVIEWS_ENABLED says; ours only when it
+  // lets anyone read them, so there's no `reviews` gate here.
+  "reviews/page": route({
+    input: ReviewsPageInputSchema,
+    perIpPerHour: 1_200,
+    alerts: false,
+    handle: (env, input) => pageReviews(env, input),
+  }),
+  "planetterp/reviews": route({
+    input: PlanetTerpReviewsInputSchema,
+    perIpPerHour: 1_200,
+    alerts: false,
+    handle: (env, input) => morePlanetTerpReviews(env, input),
   }),
   // Which courses and instructors were reviewed lately, for /reviews.
   "reviews/recent": route({
@@ -720,6 +744,21 @@ export const ROUTES = {
     alerts: false,
     auth: "admin",
     handle: (env, _input, ctx) => adminHealth(env, ctx.now),
+  }),
+  // The Grade data page: semesters to ask the university for.
+  "admin/grades": route({
+    input: AdminGradesInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, _input, ctx) => adminGrades(env, ctx.now),
+  }),
+  "admin/grades/save": route({
+    input: AdminGradeSaveInputSchema,
+    perIpPerHour: 600,
+    alerts: false,
+    auth: "admin",
+    handle: (env, input, ctx) => saveGradeRequest(env, input, ctx.now),
   }),
   "admin/samples": route({
     input: AdminSamplesInputSchema,

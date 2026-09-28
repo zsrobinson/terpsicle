@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
 import { track } from "~/app/analytics";
 import { type ConnectAnswer, connectWords, parseFeedLink } from "~/core/todo";
+import { askForPush } from "~/features/notifications/push-ask";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
@@ -55,9 +56,12 @@ export function ConnectSteps() {
 export function ConnectForm({
   onConnected,
   submitLabel = "Connect ELMS",
+  stacked = false,
 }: {
   onConnected?: () => void;
   submitLabel?: string;
+  /** The button under the field at every width (Todo's side panel). */
+  stacked?: boolean;
 }) {
   const connect = useTodo((s) => s.connect);
   const [value, setValue] = useState("");
@@ -84,6 +88,8 @@ export function ConnectForm({
       case "connected":
         track("todo_connect_result", { outcome: "connected" });
         onConnected?.();
+        // Reminders just turned on (V3 §4): ask for them on this device.
+        void askForPush("todo-connected");
         return;
       case "invalid-link":
         track("todo_connect_result", { outcome: "invalid-link" });
@@ -114,7 +120,7 @@ export function ConnectForm({
       <label htmlFor={inputId} className="font-medium text-muted text-xs">
         ELMS calendar link
       </label>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className={cn("flex flex-col gap-2", !stacked && "sm:flex-row")}>
         {/* Above the field, so it never covers Connect ELMS below it on phones. */}
         <WithTooltip
           label="Paste the link from Calendar Feed in ELMS"
@@ -135,7 +141,7 @@ export function ConnectForm({
             disabled={busy}
             // Grow only in the row: in the phone's column, flex-1 would
             // shrink the field to nothing.
-            className="ph-no-capture sm:flex-1"
+            className={cn("ph-no-capture", !stacked && "sm:flex-1")}
           />
         </WithTooltip>
         <WithTooltip label="Check the link with ELMS and start showing your deadlines">

@@ -1,52 +1,18 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
-import { InstructorSearchSchema } from "~/core/schema";
-import { instructorHead, notFoundHead } from "~/core/seo";
-import { InstructorPage } from "~/features/reviews/instructor-page";
-import { ReviewsNotFound } from "~/features/reviews/not-found";
-import {
-  instructorSuggestions,
-  loadInstructorPage,
-} from "~/features/reviews/page-data";
-import { routeHead } from "~/features/reviews/route-head";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { instructorSlug } from "~/core/reviews/slugs";
+import { ReviewsPageSearchSchema } from "~/core/schema";
 
-// An instructor's numbers, AI summary and reviews (V2.md §1.1), rendered on
-// the server for search engines. `$id` is a PlanetTerp slug or a minted `t~`
-// id; `?course=CMSC351` narrows it (and canonicalizes to the whole page).
-// An unknown id is a real 404, with "Did you mean…".
+// The old address of an instructor's page. Pages moved one level up (owner,
+// 2026-09-28): /reviews/instructors/goldman_aaron?course=CMSC351 →
+// /reviews/goldman-aaron?course=CMSC351, for good.
 export const Route = createFileRoute("/reviews/instructors/$id")({
-  validateSearch: InstructorSearchSchema,
-  loaderDeps: ({ search }) => ({ course: search.course }),
-  // The loader's data code is its own chunk, like the page: nothing of
-  // Reviews loads with other pages (scripts/check-bundle.ts).
-  // Picking a course changes `?course=` and runs the loader again: the page
-  // stays put while it does, never a loading state.
-  pendingMs: Number.POSITIVE_INFINITY,
-  codeSplitGroupings: [["loader"], ["component"], ["notFoundComponent"]],
-  loader: async ({ params, deps, serverContext }) => {
-    const data = await loadInstructorPage(
-      params.id,
-      deps.course,
-      serverContext,
-    );
-    if (!data)
-      throw notFound({
-        data: {
-          suggestions: await instructorSuggestions(params.id, serverContext),
-        },
-      });
-    return data;
+  validateSearch: ReviewsPageSearchSchema,
+  beforeLoad: ({ params, search }) => {
+    throw redirect({
+      to: "/reviews/$slug",
+      params: { slug: instructorSlug(params.id) },
+      search: search.course ? { course: search.course } : {},
+      statusCode: 301,
+    });
   },
-  head: ({ loaderData }) =>
-    routeHead(
-      loaderData ? instructorHead(loaderData) : notFoundHead("Instructor"),
-    ),
-  component: InstructorRouteComponent,
-  notFoundComponent: ({ data }) => (
-    <ReviewsNotFound what="instructor" data={data} />
-  ),
 });
-
-function InstructorRouteComponent() {
-  const data = Route.useLoaderData();
-  return <InstructorPage key={data.id} data={data} />;
-}

@@ -322,6 +322,49 @@ describe("generatePlans", () => {
   });
 });
 
+describe("filter counts", () => {
+  const a = course("CMSC351", [
+    ["0101", ["M", "W", "F"], 600],
+    ["0201", ["M", "W", "F"], 660],
+    ["0301", ["Tu", "Th"], 600],
+  ]);
+  const fridaysOff = request({
+    items: [required("CMSC351")],
+    mustHaves: { ...DEFAULT_MUST_HAVES, daysOff: ["F"], earliestStart: 540 },
+  });
+
+  it("says how many plans each filter that's on takes out", () => {
+    const result = generatePlans(fridaysOff, data([a]), {
+      countFilters: true,
+    });
+    expect(result.totalFound).toBe(1);
+    // Travel time is on by default; one course never walks anywhere.
+    expect(result.filterCounts).toEqual([
+      { constraint: "earliest-start", removed: 0, atLeast: false },
+      { constraint: "days-off", removed: 2, atLeast: false },
+      { constraint: "enough-travel-time", removed: 0, atLeast: false },
+    ]);
+  });
+
+  it("counts nothing unless asked, when nothing fits, or when the run was cut short", () => {
+    expect(generatePlans(fridaysOff, data([a])).filterCounts).toEqual([]);
+    const none = request({
+      items: [required("CMSC351")],
+      mustHaves: { ...DEFAULT_MUST_HAVES, earliestStart: 1200 },
+    });
+    expect(
+      generatePlans(none, data([a]), { countFilters: true }).filterCounts,
+    ).toEqual([]);
+    const cut = generatePlans(
+      { ...fridaysOff, limits: { maxResults: 10, maxSteps: 1 } },
+      data([a]),
+      { countFilters: true },
+    );
+    expect(cut.truncated).toBe(true);
+    expect(cut.filterCounts).toEqual([]);
+  });
+});
+
 describe("pick-N groups", () => {
   it("keeps plans for every course of a pick-1 group, even ones the best plans skip", () => {
     // Ten ways to take MATH140 back to back with PSYC100; SOCY100 only ever

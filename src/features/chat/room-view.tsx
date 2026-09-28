@@ -31,6 +31,8 @@ import {
   ChatRulesSeenStoreSchema,
   type CourseCode,
 } from "~/core/schema";
+import { askForPush } from "~/features/notifications/push-ask";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import {
   saveSyncedPrefs,
   useAccountPrefsSettled,
@@ -159,6 +161,16 @@ export function RoomView({
   const welcomed = conversation?.you != null;
   const readable = roomState !== undefined;
 
+  // Opening one of your rooms: the install prompt's `chat-joined` moment
+  // (V2 §3.4), whose own rules keep it to once a session and rarer.
+  useEffect(() => {
+    if (!welcomed || !readable) return;
+    void import("~/features/pwa/install-store").then(
+      (m) => m.requestInstallPrompt("chat-joined"),
+      () => {},
+    );
+  }, [welcomed, readable]);
+
   useEffect(() => {
     if (!session || !readable) return;
     // A thread opened by link needs its first message, from the room's page.
@@ -278,6 +290,7 @@ export function RoomView({
           {rulesSeen.seen === false && !thread && !disabledReason ? (
             <PostingHere onClose={rulesSeen.markSeen} />
           ) : null}
+          <PushAskCard moment="chat-post" className="mx-4 mb-2" />
           <Composer
             key={`${room.id}>${thread ?? ""}`}
             label={thread ? "Reply in the thread" : `Message ${room.label}`}
@@ -293,6 +306,9 @@ export function RoomView({
                   noteToast(chatErrorWords(result.code), { reload: true });
                 // You've posted here: the note has done its job, like "Got it".
                 if (result.ok && rulesSeen.seen === false) rulesSeen.markSeen();
+                // You've posted: the moment an answer is worth hearing
+                // about (V2 §6.7). It asks once, however many you send.
+                if (result.ok) void askForPush("chat-post");
               });
             }}
           />

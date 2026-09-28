@@ -77,7 +77,7 @@ export function chooseGenEd(key: string, group: number, code: GenEdCode): void {
   }));
 }
 
-/** A mapping field's text; only a valid code maps the row. */
+/** A "Counts as" field's text; only a valid code maps the row (the import keeps only codes Testudo lists). */
 export function mapRow(key: string, typed: string): void {
   set((s) => {
     const code = normalizeCourseCode(typed);

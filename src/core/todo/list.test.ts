@@ -8,17 +8,13 @@ import {
   dueTimeLabel,
   dueWords,
   feedWords,
-  groupByCourse,
   groupByDay,
   isStale,
   itemCourse,
   listRange,
   newYorkClock,
   openCount,
-  openingWeek,
   TODO_OPEN_REFRESH_MS,
-  weekDates,
-  weekStart,
 } from "./list";
 
 // 2026-09-29 is a Tuesday.
@@ -29,8 +25,10 @@ const item = (uid: string, dueDate: string, extra = {}) =>
   aTodoItem({ uid, dueDate, dueAt: null, title: uid, ...extra });
 
 describe("listRange", () => {
-  it("reaches two weeks back and fits inside todo/list's 120 days", () => {
-    expect(listRange(TODAY)).toEqual({ from: "2026-09-15", to: "2027-01-12" });
+  it("reaches four weeks back, for the chart, and fits inside todo/list's 120 days", () => {
+    expect(listRange(TODAY)).toEqual({ from: "2026-09-01", to: "2026-12-29" });
+    const { from, to } = listRange(TODAY);
+    expect((Date.parse(to) - Date.parse(from)) / 86_400_000).toBeLessThan(120);
   });
 });
 
@@ -69,28 +67,6 @@ describe("days and weeks", () => {
     expect(dayLabel("2026-09-30", TODAY)).toBe("Tomorrow");
     expect(dayLabel("2026-09-28", TODAY)).toBe("Yesterday");
     expect(dayLabel("2026-10-02", TODAY)).toBe("Friday, Oct 2");
-  });
-
-  it("opens on this week on a weekday, and the coming one at the weekend", () => {
-    expect(openingWeek("2026-09-28")).toBe("2026-09-28"); // Monday
-    expect(openingWeek("2026-10-02")).toBe("2026-09-28"); // Friday
-    expect(openingWeek("2026-10-03")).toBe("2026-10-05"); // Saturday
-    expect(openingWeek("2026-09-27")).toBe("2026-09-28"); // Sunday
-  });
-
-  it("runs weeks Monday to Sunday", () => {
-    expect(weekStart(TODAY)).toBe("2026-09-28");
-    expect(weekStart("2026-10-04")).toBe("2026-09-28");
-    expect(weekStart("2026-09-28")).toBe("2026-09-28");
-    expect(weekDates("2026-09-28")).toEqual([
-      "2026-09-28",
-      "2026-09-29",
-      "2026-09-30",
-      "2026-10-01",
-      "2026-10-02",
-      "2026-10-03",
-      "2026-10-04",
-    ]);
   });
 
   it("sorts by date, all-day first, then time, then title", () => {
@@ -165,7 +141,7 @@ describe("groupByDay", () => {
   });
 });
 
-describe("itemCourse and groupByCourse", () => {
+describe("itemCourse", () => {
   const crossListed = aTodoItem({
     uid: "x",
     courseLabel: "CMSC216/ENEE222-0101: Computer Systems",
@@ -178,42 +154,6 @@ describe("itemCourse and groupByCourse", () => {
     expect(
       itemCourse({ courseLabel: "Advising", courseCode: null }, new Set()),
     ).toBeNull();
-  });
-
-  it("groups by course, open work first, with no-course items last", () => {
-    const items = [
-      item("math", TODAY, {
-        courseLabel: "MATH240-0201: Linear Algebra",
-        courseCode: "MATH240",
-      }),
-      item("cmsc", "2026-10-01"),
-      item("cmsc-done", TODAY),
-      item("advising", TODAY, { courseLabel: "Advising", courseCode: null }),
-      item("personal", TODAY, { courseLabel: null, courseCode: null }),
-      item("engl-done", TODAY, {
-        courseLabel: "ENGL101-0501: Academic Writing",
-        courseCode: "ENGL101",
-      }),
-      item("old-done", "2026-09-20"),
-    ];
-    const groups = groupByCourse(
-      items,
-      new Set(["cmsc-done", "engl-done", "old-done"]),
-      TODAY,
-    );
-    expect(
-      groups.map((g) => [
-        g.key,
-        g.open.map((i) => i.uid),
-        g.done.map((i) => i.uid),
-      ]),
-    ).toEqual([
-      ["CMSC216", ["cmsc"], ["cmsc-done"]],
-      ["MATH240", ["math"], []],
-      ["Advising", ["advising"], []],
-      ["Other", ["personal"], []],
-      ["ENGL101", [], ["engl-done"]],
-    ]);
   });
 });
 
@@ -294,35 +234,25 @@ describe("courseChatTerm", () => {
   const due = (dueDate: string) => aTodoItem({ dueDate });
   it("is the term the next item is due in", () => {
     expect(
-      courseChatTerm(
-        { open: [due("2026-09-20"), due("2026-10-02")], done: [] },
-        "2026-09-27",
-      ),
+      courseChatTerm([due("2026-10-02"), due("2026-09-20")], "2026-09-27"),
     ).toBe("202608");
-    // Only overdue work: the latest of it.
+    // Only past work: the latest of it.
     expect(
-      courseChatTerm({ open: [due("2026-12-15")], done: [] }, "2027-02-10"),
+      courseChatTerm([due("2026-12-15"), due("2026-11-01")], "2027-02-10"),
     ).toBe("202608");
-    expect(courseChatTerm({ open: [], done: [] }, "2026-09-27")).toBeNull();
+    expect(courseChatTerm([], "2026-09-27")).toBeNull();
   });
 
   it("counts January's first weeks as the spring they lead into", () => {
-    expect(
-      courseChatTerm({ open: [due("2027-01-20")], done: [] }, "2027-01-10"),
-    ).toBe("202701");
+    expect(courseChatTerm([due("2027-01-20")], "2027-01-10")).toBe("202701");
   });
 
   it("is today's term for own tasks with no date", () => {
-    expect(
-      courseChatTerm({ open: [anOwnTask()], done: [] }, "2026-09-27"),
-    ).toBe("202608");
+    expect(courseChatTerm([anOwnTask()], "2026-09-27")).toBe("202608");
     // A dated item still decides.
-    expect(
-      courseChatTerm(
-        { open: [anOwnTask(), due("2027-01-20")], done: [] },
-        "2026-12-20",
-      ),
-    ).toBe("202701");
+    expect(courseChatTerm([anOwnTask(), due("2027-01-20")], "2026-12-20")).toBe(
+      "202701",
+    );
   });
 });
 
@@ -359,20 +289,7 @@ describe("own tasks with no date", () => {
     ).not.toContain("no-date");
   });
 
-  it("join their course's group, after its dated work, and say No date", () => {
-    const groups = groupByCourse(
-      [
-        undated("read ahead", { courseCode: "CMSC216" }),
-        item("project", "2026-10-01"),
-        undated("errand"),
-      ],
-      new Set(),
-      TODAY,
-    );
-    expect(groups.map((g) => [g.key, g.open.map((i) => i.title)])).toEqual([
-      ["CMSC216", ["project", "read ahead"]],
-      ["Other", ["errand"]],
-    ]);
+  it("say No date", () => {
     expect(dueWords(undated("x"), TODAY)).toBe("No date");
     expect(dueWords(item("x", "2026-10-02"), TODAY)).toBe(
       "Friday, Oct 2 · All day",

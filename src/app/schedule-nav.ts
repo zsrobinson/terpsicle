@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { pickTerm } from "~/core/catalog";
+import { chipParams } from "~/core/generate/url";
 import {
   CONNECTION_PATH,
   COURSE_PATH,
@@ -27,6 +28,7 @@ import { useSearchStore } from "~/features/search/search-store";
 import { useCatalog } from "~/state/catalog-store";
 import type { DrillEntry } from "~/state/drill";
 import { restorableTarget, sameDrillSubject } from "~/state/drill";
+import { useGenerateDrafts } from "~/state/generate-drafts";
 import { useGenerateRun } from "~/state/generate-run-store";
 import { activePlanId } from "~/state/plan-ops";
 import { useUi } from "~/state/ui-store";
@@ -105,17 +107,30 @@ function currentState(): ScheduleHistoryState {
 /** Search's text and chips as last left in a term, for its tab's URL. */
 function searchParams(termId: string | null) {
   const typed = termId ? useSearchStore.getState().byTerm[termId] : undefined;
-  return typed ? { q: typed.query, ...filterParams(typed.filters) } : {};
+  return typed
+    ? {
+        q: typed.query,
+        ...filterParams(typed.filters),
+        sort: typed.sort === "relevance" ? undefined : typed.sort,
+      }
+    : {};
 }
 
-/** Generate shows its results when they're this term's and last shown. */
+/**
+ * Generate's filter and preference chips as last left in a term, and its
+ * results when they're this term's and last shown.
+ */
 function generateParams(termId: string | null) {
   const run = useGenerateRun.getState();
-  return run.view === "results" &&
+  const draft = termId ? useGenerateDrafts.getState().drafts[termId] : null;
+  return {
+    ...(draft ? chipParams(draft) : {}),
+    ...(run.view === "results" &&
     run.termId === termId &&
     run.status.kind === "done"
-    ? { view: "results" as const }
-    : {};
+      ? { view: "results" as const }
+      : {}),
+  };
 }
 
 /** Where a view is, with the params its tab carries back. */
@@ -258,7 +273,7 @@ export function openDrill(entry: DrillEntry): void {
 
 /**
  * Closes the top view, showing the one under it: a new place, so it pushes
- * (Save as new plan, a travel fix). False when already at the tab's root.
+ * (Add as Plan C, a travel fix). False when already at the tab's root.
  */
 export function closeDrill(): boolean {
   const view = currentView();

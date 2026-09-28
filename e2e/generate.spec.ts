@@ -3,8 +3,8 @@ import { clearGenerateCourses } from "./generate-form";
 import { OPEN_VIEW } from "./sidebar";
 
 // Generate on `pnpm dev:mock?demo=1` (SPEC §3.9): start from Plan A's
-// courses, generate, preview a result on the calendar, save two as plans;
-// and when nothing fits, apply a suggested relaxation.
+// courses, generate, re-rank with a chip, preview a result on the calendar
+// and add it as Plan C; and when nothing fits, apply a suggested relaxation.
 
 test.skip(({ isMobile }) => isMobile, "desktop flows");
 
@@ -44,7 +44,7 @@ async function addCourse(page: Page, code: string) {
   await expect(page.getByTestId(`gen-course-${code}`)).toBeVisible();
 }
 
-test("generate from Plan A's courses, preview one, and save two as plans", async ({
+test("generate from Plan A's courses, re-rank with a chip, and add one as Plan C", async ({
   page,
 }) => {
   // `+` → Generate plans… opens the tab with the course field focused.
@@ -71,19 +71,38 @@ test("generate from Plan A's courses, preview one, and save two as plans", async
   const results = page.getByRole("list", { name: "Generated plans" });
   await expect(results.getByRole("listitem").first()).toBeVisible();
 
+  // The chips sit over the results; a preference re-ranks them in place.
+  const prefs = page.getByRole("group", { name: "Preferences" });
+  await prefs.getByRole("button", { name: "Later starts: off" }).click();
+  await expect(
+    prefs.getByRole("button", { name: "Later starts: on" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(/prefer=/);
+  await expect(results).toHaveAttribute("aria-busy", "false");
+  await expect(
+    results
+      .getByTestId("rank-marks")
+      .first()
+      .getByText(/ avg start$/),
+  ).toBeVisible();
+
   // Hovering a result previews it, like Search; moving away ends it.
   await results.getByTestId("generated-plan").nth(1).hover();
   await expect(page.getByText("Previewing Option 2.")).toBeVisible();
   await page.getByRole("heading", { name: "Generate" }).first().hover();
   await expect(page.getByText("Previewing Option 2.")).toHaveCount(0);
 
-  // Clicking a result previews it and drills into its details.
-  await results.getByRole("button").first().click();
+  // A result's arrow previews it and opens every course and section.
+  await results.getByRole("button", { name: /^Option 1: / }).click();
   await expect(page.getByText("Previewing Option 1.")).toBeVisible();
   await expect(page.locator(OPEN_VIEW)).toContainText("Option 1");
-  await expect(
-    page.getByText("Changes from Plan A", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Compared with Plan A")).toBeVisible();
+  // A row per section, then the courses from Plan A it leaves out.
+  const sections = page.getByRole("list", { name: "Courses and sections" });
+  await expect(sections.locator("[data-testid^=result-section-]")).toHaveCount(
+    4,
+  );
+  await expect(sections.getByText("Left out of this plan")).toHaveCount(3);
 
   // Back to the list: the preview goes away with the details. (With the
   // mouse off the list: over a result, it would preview that one.)
@@ -91,23 +110,25 @@ test("generate from Plan A's courses, preview one, and save two as plans", async
   await page.keyboard.press("Escape");
   await expect(page.getByText("Previewing Option 1.")).toHaveCount(0);
 
-  await page
-    .getByRole("checkbox", { name: "Select Option 1", exact: true })
-    .check();
-  await page
-    .getByRole("checkbox", { name: "Select Option 2", exact: true })
-    .check();
-  await page.getByRole("button", { name: "Save 2 plans" }).click();
-  await expect(planTabs(page)).toHaveText([
-    "Plan A",
-    "Plan B",
-    "Plan C",
-    "Plan D",
-  ]);
+  // The second one, added: it's the next plan, and it opens. (The bar folds
+  // the other plans into "+2" when it's short of room, so only the open
+  // tab is checked by name.)
+  await results.getByRole("button", { name: /^Option 2: / }).click();
+  await page.getByRole("button", { name: "Add as Plan C" }).click();
+  const planC = planTabs(page).getByRole("button", {
+    name: "Plan C",
+    exact: true,
+  });
+  await expect(planC).toHaveAttribute("aria-current", "true");
+  const toast = page.locator("[data-sonner-toast]");
+  await expect(toast).toContainText("Added Plan C");
+
+  // Undo takes it away again, back to Plan A.
+  await toast.getByRole("button", { name: "Undo" }).click();
+  await expect(planC).toHaveCount(0);
   await expect(
-    planTabs(page).getByRole("button", { name: "Plan C", exact: true }),
+    planTabs(page).getByRole("button", { name: "Plan A", exact: true }),
   ).toHaveAttribute("aria-current", "true");
-  await expect(page.getByText("Saved 2 plans")).toBeVisible();
 });
 
 test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
@@ -118,13 +139,21 @@ test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
   await clearGenerateCourses(page);
   await addCourse(page, "CMSC351");
   await addCourse(page, "CMSC330");
-  await page.getByRole("combobox", { name: "Start after" }).click();
-  await page.getByRole("option", { name: "1pm" }).click();
+  const filters = page.getByRole("group", { name: "Filters" });
+  await filters
+    .getByRole("button", { name: "No classes before: any time" })
+    .click();
+  await page
+    .getByRole("menuitemradio", { name: "No classes before 1pm" })
+    .click();
   await page.getByRole("button", { name: "Generate plans" }).click();
 
-  // The form gives way to a one-line summary of what was asked.
+  // The form gives way to a line of the courses, with the chips under it.
+  await expect(page.getByText("2 courses", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("2 courses · from 1pm · compact days"),
+    filters.getByRole("button", {
+      name: "No classes before: No classes before 1pm",
+    }),
   ).toBeVisible();
   const nothing = page.getByTestId("nothing-fits");
   await expect(nothing).toContainText("Nothing fits all of that.");
@@ -140,10 +169,14 @@ test("when nothing fits, apply a suggested relaxation", async ({ page }) => {
   await expect(
     page.getByRole("list", { name: "Generated plans" }).getByRole("listitem"),
   ).not.toHaveCount(0);
-  await expect(page.getByText("2 courses · compact days")).toBeVisible();
-  // The loosened must-have is in the form too.
-  await page.getByRole("button", { name: "Edit" }).click();
-  await expect(page.getByRole("combobox", { name: "Start after" })).toHaveText(
-    "Any time",
-  );
+  // The loosened filter is off in the chips, and in the form too.
+  await expect(
+    filters.getByRole("button", { name: "No classes before: any time" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(
+    page
+      .getByRole("group", { name: "Filters" })
+      .getByRole("button", { name: "No classes before: any time" }),
+  ).toBeVisible();
 });

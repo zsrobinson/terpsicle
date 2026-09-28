@@ -10,6 +10,7 @@ import {
   planetTerpFreshnessWords,
 } from "~/core/grades";
 import { combinedRatingWords, combineRatings } from "~/core/reviews";
+import { instructorPagePath } from "~/core/reviews/slugs";
 import {
   type Course,
   type CourseCode,
@@ -318,7 +319,7 @@ function ReadThem({
         label={`All of ${name}'s reviews and grades in ${course}, in Terpsicle Reviews`}
       >
         <a
-          href={`/reviews/instructors/${encodeURIComponent(slug)}?course=${course}`}
+          href={`${instructorPagePath(slug)}?course=${course}`}
           onClick={() => crossLinkClicked("schedule", "reviews")}
           className={link}
         >

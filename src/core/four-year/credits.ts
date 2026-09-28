@@ -4,7 +4,11 @@ import type {
   FourYearEntry,
   FourYearTerm,
 } from "../schema/four-year";
-import { type FourYearCourses, isRepeatable } from "./course-lookup";
+import {
+  countsAsCode,
+  type FourYearCourses,
+  isRepeatable,
+} from "./course-lookup";
 import type { StatusOf } from "./status";
 import { entriesInTerm } from "./terms";
 
@@ -46,8 +50,9 @@ export function entryCredits(
 }
 
 /**
- * Course entries a later attempt replaces: a course taken twice counts once,
- * the later attempt, unless Testudo says it's repeatable.
+ * Entries a later attempt replaces: a course taken twice counts once, the
+ * later attempt, unless Testudo says it's repeatable. Credit that counts as
+ * a course is an attempt at it, so taking the course again replaces it.
  */
 export function supersededAttempts(
   doc: Pick<FourYearDoc, "entries">,
@@ -57,12 +62,13 @@ export function supersededAttempts(
   const out = new Set<LocalId>();
   // Entries are in column order, so a later one is a later attempt.
   for (const entry of doc.entries) {
-    if (entry.kind !== "course") continue;
-    const course = lookup.courses.get(entry.code);
+    const code = countsAsCode(lookup, entry);
+    if (code === null) continue;
+    const course = lookup.courses.get(code);
     if (course && isRepeatable(course)) continue;
-    const earlier = latest.get(entry.code);
+    const earlier = latest.get(code);
     if (earlier !== undefined) out.add(earlier);
-    latest.set(entry.code, entry.id);
+    latest.set(code, entry.id);
   }
   return out;
 }

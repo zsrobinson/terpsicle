@@ -292,6 +292,24 @@ function round(n: number): number {
 }
 
 /**
+ * Whether an attempt at a scenario went wrong in a way a crashed page
+ * process could explain, so run.ts reads the kernel's log for WPE's
+ * compositor crash (isWebkitCompositorCrash). Playwright names the crash
+ * only sometimes: a screenshot inside a step says "Target crashed", and the
+ * step records it and the scenario goes on; a call mid-scenario says
+ * "Target page, context or browser has been closed".
+ */
+export function attemptBroke(attempt: {
+  error: string | null;
+  steps: readonly { error?: string }[];
+}): boolean {
+  return (
+    attempt.error !== null ||
+    attempt.steps.some((step) => step.error !== undefined)
+  );
+}
+
+/**
  * Playwright's WebKit on Linux (the WPE port) now and then crashes its
  * page process in the compositor thread: a null dereference in
  * libWPEWebKit's ThreadedCompositor, logged by the kernel at the same

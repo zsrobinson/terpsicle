@@ -55,10 +55,15 @@ export function setAccount({
   });
 }
 
-/** A fake reviews API: every call is a spy; `lists` answers reviews/list. */
+/**
+ * A fake reviews API: every call is a spy. `page` answers reviews/page (a
+ * page's first reviews), `planetTerp` the next pages of PlanetTerp's.
+ */
 export function fakeReviewsClient(
   overrides: {
     list?: ReviewsClient["reviews"]["list"];
+    page?: ReviewsClient["reviews"]["page"];
+    planetTerp?: ReviewsClient["reviews"]["planetTerp"];
     recent?: ReviewsClient["reviews"]["recent"];
     mine?: ReviewsClient["reviews"]["mine"];
     submit?: ReviewsClient["reviews"]["submit"];
@@ -71,6 +76,13 @@ export function fakeReviewsClient(
     reviews: {
       list: vi.fn(
         overrides.list ?? (async () => ({ reviews: [], next: null })),
+      ),
+      page: vi.fn(
+        overrides.page ??
+          (async () => ({ terpsicle: [], planetTerp: [], next: null })),
+      ),
+      planetTerp: vi.fn(
+        overrides.planetTerp ?? (async () => ({ reviews: [], next: null })),
       ),
       mine: vi.fn(overrides.mine ?? (async () => ({ reviews: [] }))),
       recent: vi.fn(overrides.recent ?? (async () => ({ reviews: [] }))),

@@ -1,3 +1,4 @@
+import { useRouterState } from "@tanstack/react-router";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -5,7 +6,7 @@ import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { aMeUser, anInboxItem } from "~/fixtures";
 import { notificationsApi } from "~/server/fns/notifications";
 import { renderInRouter } from "~/ui/test-utils";
-import { NotificationsBell } from "./bell";
+import { forgetBell, NotificationsBell } from "./bell";
 import { forgetInbox } from "./inbox";
 import { useUnread } from "./unread-store";
 
@@ -59,6 +60,7 @@ const bell = () => screen.findByTestId("notifications-bell");
 
 beforeEach(() => {
   vi.clearAllMocks();
+  forgetBell();
   forgetInbox();
   useUnread.setState({ unread: null });
   api.unread.mockResolvedValue({ unread: 2 });
@@ -242,5 +244,58 @@ describe("Notifications", () => {
       .filter((el) => !el.closest("[data-tooltip]"))
       .map((el) => el.textContent);
     expect(untipped).toEqual([]);
+  });
+});
+
+/** Each page brings its own bar: a new page, a new bell in the old one's place. */
+function PagesBar() {
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  return <NotificationsBell key={path} />;
+}
+
+describe("a page change, which swaps the bar", () => {
+  // The router shows the new address while the old page is still up, and
+  // the old bar works until the new page's replaces it: what's done with
+  // the old bell in between (e2e/notifications-bell.spec.ts) carries over.
+  async function renderPages() {
+    signIn();
+    const user = userEvent.setup();
+    const { router } = renderInRouter(<PagesBar />, "/reviews");
+    const before = await bell();
+    const nextPage = async () => {
+      await router.navigate({ to: "/settings/notifications" });
+      await waitFor(() =>
+        expect(screen.getByTestId("notifications-bell")).not.toBe(before),
+      );
+      return screen.getByTestId("notifications-bell");
+    };
+    return { user, before, nextPage };
+  }
+
+  it("keeps the list open, and Esc hands focus to the new bell", async () => {
+    const { user, before, nextPage } = await renderPages();
+    await user.click(before);
+    await within(
+      await screen.findByRole("dialog", { name: "Notifications" }),
+    ).findByText("Maya in CMSC351");
+    const after = await nextPage();
+    expect(after).toHaveAttribute("aria-expanded", "true");
+    const list = await screen.findByRole("dialog", { name: "Notifications" });
+    await within(list).findByText("Maya in CMSC351");
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Notifications" }),
+      ).toBeNull(),
+    );
+    await waitFor(() => expect(after).toHaveFocus());
+  });
+
+  it("gives focus on the old bell to the new one", async () => {
+    const { before, nextPage } = await renderPages();
+    before.focus();
+    const after = await nextPage();
+    expect(after).toHaveFocus();
+    expect(screen.queryByRole("dialog", { name: "Notifications" })).toBeNull();
   });
 });

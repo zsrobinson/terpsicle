@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COURSE_COLORS } from "~/core/schema";
 import { readTokens, type Theme } from "./brand/css-tokens";
-import { GLYPH_PAINT, hasKeyline, MARK_IDS } from "./brand/marks";
+import { hasKeyline, MARK_IDS } from "./brand/marks";
 
 // The design system as a test (docs/UX-REVIEW.md §2): every UI file uses the
 // type scale, the spacing rhythm and the color tokens, so a panel built next
@@ -374,7 +374,20 @@ describe("the palette", () => {
     ).toEqual([]);
   });
 
-  it("keeps the marks' glyphs readable on their tiles, and the menu's text on product fills", () => {
+  it("keeps the menu's text readable on product fills", () => {
+    expect(
+      lowContrast(
+        PRODUCTS.flatMap((p): [string, string][] => [
+          ["fg", `product-${p}-soft`],
+          ["muted", `product-${p}-soft`],
+        ]),
+        4.5,
+      ),
+    ).toEqual([]);
+  });
+
+  // A glyph is a graphic, not text, so its bar is 3:1 (WCAG 1.4.11).
+  it("keeps the marks' glyphs at 3:1 on their tiles", () => {
     expect(
       lowContrast(
         [
@@ -383,55 +396,57 @@ describe("the palette", () => {
             `product-${p}-fg`,
             `product-${p}`,
           ]),
-          ...PRODUCTS.flatMap((p): [string, string][] => [
-            ["fg", `product-${p}-soft`],
-            ["muted", `product-${p}-soft`],
-          ]),
         ],
-        4.5,
+        3,
       ),
     ).toEqual([]);
   });
 
-  it("keeps a mark's 70% shape at 3:1 on its tile", () => {
+  it("keeps a glyph's 50% tone apart from both its tile and its 100% tone", () => {
+    const tiles = [
+      ["umbrella-tile", "umbrella-glyph"],
+      ...PRODUCTS.map((p) => [`product-${p}`, `product-${p}-fg`]),
+    ];
     const low = MODES.flatMap((mode) => {
       const t = THEMES[mode];
-      return PRODUCTS.flatMap((p) => {
-        const tile = t[`product-${p}`] ?? "";
-        const ratio = contrast(
-          over(t[`product-${p}-fg`] ?? "", 0.7, tile),
-          tile,
-        );
-        return ratio < 3 ? [`${mode} ${p} ${ratio.toFixed(2)}`] : [];
+      return tiles.flatMap(([tileName = "", glyphName = ""]) => {
+        const tile = t[tileName] ?? "";
+        const glyph = t[glyphName] ?? "";
+        const half = over(glyph, 0.5, tile);
+        const ratios = [contrast(half, tile), contrast(half, glyph)];
+        return ratios.some((r) => r < 1.5)
+          ? [`${mode} ${tileName} ${ratios.map((r) => r.toFixed(2))}`]
+          : [];
       });
     });
     expect(low).toEqual([]);
   });
 
-  it("paints each glyph as marks.ts says: paper, or ink on Todo's yellow", () => {
+  it("paints every glyph white, as the owner's marks are", () => {
     for (const mode of MODES) {
       const t = THEMES[mode];
-      for (const p of PRODUCTS) {
-        const paint = GLYPH_PAINT[p] === "ink" ? "#100f0f" : "#fffcf0";
-        expect(t[`product-${p}-fg`]?.toLowerCase(), `${mode} ${p}`).toBe(paint);
-      }
+      for (const name of [
+        "umbrella-glyph",
+        ...PRODUCTS.map((p) => `product-${p}-fg`),
+      ])
+        expect(t[name]?.toLowerCase(), `${mode} ${name}`).toBe("#ffffff");
     }
   });
 
-  it("gives a tile that doesn't stand off paper a keyline, in light", () => {
-    // In dark, every tile sits on the base-700 offset, which carries its edge.
-    const t = THEMES.light;
+  it("stands every tile off the page: on its own in light, by a keyline or offset in dark", () => {
+    const light = THEMES.light;
     for (const p of PRODUCTS) {
-      const edge = contrast(t[`product-${p}`] ?? "", t.bg ?? "");
-      if (edge >= 3) continue;
-      expect(hasKeyline(p, "light"), `${p} tile ${edge.toFixed(2)}`).toBe(true);
-      expect(
-        contrast(t[`product-${p}-keyline`] ?? "", t.bg ?? ""),
-      ).toBeGreaterThanOrEqual(3);
+      const edge = contrast(light[`product-${p}`] ?? "", light.bg ?? "");
+      expect(edge, `${p} tile on paper`).toBeGreaterThanOrEqual(3);
+      expect(hasKeyline(p, "light"), p).toBe(false);
     }
-    // Todo's is the one: its keyline is light-only (DESIGN.md §7.5).
-    expect(hasKeyline("todo", "light")).toBe(true);
-    expect(hasKeyline("todo", "dark")).toBe(false);
+    expect(
+      contrast(light["umbrella-tile"] ?? "", light.bg ?? ""),
+    ).toBeGreaterThanOrEqual(3);
+    // In dark, a product tile sits on the base-700 offset, which carries its
+    // edge. The umbrella's black tile on the black page needs its keyline.
+    expect(hasKeyline("umbrella", "light")).toBe(false);
+    expect(hasKeyline("umbrella", "dark")).toBe(true);
   });
 
   it("keeps product-colored words readable, and the marketing page's lines visible", () => {
@@ -469,7 +484,6 @@ describe("the palette", () => {
         [
           ["keyline", "bg"],
           ["umbrella-keyline", "bg"],
-          ["product-todo-keyline", "bg"],
         ],
         3,
       ),

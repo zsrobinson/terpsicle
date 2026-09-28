@@ -7,7 +7,11 @@ import {
   TermIdSchema,
 } from "./primitives";
 import { MessageSchema, SeveritySchema } from "./problems";
-import { GradeSchema, TranscriptTermSchema } from "./transcript";
+import {
+  GradeSchema,
+  TranscriptTermSchema,
+  TranscriptViaSchema,
+} from "./transcript";
 import { WildcardSchema } from "./wildcard";
 
 // Terpsicle Plan's four-year doc (docs/V3.md §2.3). `FourYear` in code, since
@@ -23,7 +27,8 @@ export type FourYearTerm = z.infer<typeof FourYearTermSchema>;
 /**
  * What a person says about a course Testudo doesn't list anymore (an honors
  * seminar that rotated out, an old topics course), so Plan can count it: its
- * title and the GenEds it was meant to cover, each of which applies.
+ * title, the GenEds it was meant to cover (each of which applies) and the
+ * UMD course it counts as, if any.
  */
 export const FourYearCourseDetailsSchema = z.object({
   title: z.string().min(1).max(120).nullable(),
@@ -33,6 +38,11 @@ export const FourYearCourseDetailsSchema = z.object({
     .refine((codes) => new Set(codes).size === codes.length, {
       message: "GenEd codes must be unique",
     }),
+  /**
+   * "Counts as": the UMD course it stands for, which it then meets
+   * prerequisites and repeats as (the honors fix's MATH241). Absent in older docs.
+   */
+  countsAs: CourseCodeSchema.nullable().optional(),
 });
 export type FourYearCourseDetails = z.infer<typeof FourYearCourseDetailsSchema>;
 
@@ -53,7 +63,7 @@ export const FourYearCourseEntrySchema = z.object({
   transcript: z
     .object({
       title: z.string().min(1).max(120),
-      via: z.enum(["umd", "ap", "transfer"]),
+      via: TranscriptViaSchema,
     })
     .nullable(),
   /** Only for a code the index doesn't know; used only while it doesn't. Absent in older docs. */
@@ -72,7 +82,11 @@ export const FourYearWildcardEntrySchema = z.object({
 });
 export type FourYearWildcardEntry = z.infer<typeof FourYearWildcardEntrySchema>;
 
-/** AP or transfer credit with no UMD equivalent ("CHEM 1XX, 4 credits"). Always "Before UMD". */
+/**
+ * AP, exam or transfer credit with no UMD equivalent ("CHEM 1XX, 4
+ * credits"), always "Before UMD". Its title is the transcript's; the person
+ * can change its credits and GenEds, and say which UMD course it counts as.
+ */
 export const FourYearCreditEntrySchema = z.object({
   kind: z.literal("credit"),
   id: LocalIdSchema,
@@ -81,6 +95,16 @@ export const FourYearCreditEntrySchema = z.object({
   credits: z.number().min(0).max(40),
   genEds: z.array(GenEdCodeSchema),
   source: z.literal("transcript"),
+  /** AP, another exam, or another school. Absent in older docs, which said "AP or transfer credit". */
+  via: TranscriptViaSchema.exclude(["umd"]).optional(),
+  /** The department placeholder Testudo gave it ("CHEM1XX"), if any. */
+  equivalentPattern: z
+    .string()
+    .regex(/^[A-Z]{4}[0-9X]{3}$/)
+    .nullable()
+    .optional(),
+  /** "Counts as": the UMD course it stands for, for prerequisites and repeats. */
+  countsAs: CourseCodeSchema.nullable().optional(),
 });
 export type FourYearCreditEntry = z.infer<typeof FourYearCreditEntrySchema>;
 
@@ -196,6 +220,7 @@ export const FourYearProblemKindSchema = z.enum([
   "repeated-course",
   "unknown-course",
   "not-offered-lately",
+  "unmatched-credit",
 ]);
 export type FourYearProblemKind = z.infer<typeof FourYearProblemKindSchema>;
 
@@ -206,6 +231,7 @@ export const FOUR_YEAR_PROBLEM_SEVERITY = {
   "repeated-course": "info",
   "unknown-course": "warning",
   "not-offered-lately": "info",
+  "unmatched-credit": "info",
 } as const satisfies Record<
   FourYearProblemKind,
   z.infer<typeof SeveritySchema>
@@ -227,7 +253,7 @@ export const FourYearFixSchema = z.discriminatedUnion("kind", [
     term: FourYearTermSchema,
     label: z.string().min(1),
   }),
-  /** "Count it as MATH241": an honors code Testudo dropped takes its base course's details. */
+  /** "Count it as MATH241": an honors code Testudo dropped counts as its base course, with its details. */
   z.object({
     kind: z.literal("details"),
     code: CourseCodeSchema,

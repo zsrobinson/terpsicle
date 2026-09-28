@@ -1,5 +1,6 @@
 import { INLINE_SCRIPTS } from "virtual:terpsicle/inline-scripts";
 import bricolage from "@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-opsz-normal.woff2?url";
+import geistMono from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { SCHEDULE_PATH } from "~/core/routing";
 import marketingCss from "~/features/marketing/marketing.css?url";
@@ -23,7 +24,8 @@ import { skipMarketingInBrowser } from "~/features/marketing/returning";
 // The head also carries what search engines and link previews read: the
 // title, description, canonical URL, Open Graph and Twitter cards, and the
 // JSON-LD (a data block, which the CSP doesn't govern). The headline is the
-// page's largest paint, so its font is preloaded.
+// page's largest paint, so its font is preloaded, and so is the mono face
+// the sample week's course codes are set in, beside it above the fold.
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -46,6 +48,13 @@ export const Route = createFileRoute("/")({
       {
         rel: "preload",
         href: bricolage,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        href: geistMono,
         as: "font",
         type: "font/woff2",
         crossOrigin: "anonymous",

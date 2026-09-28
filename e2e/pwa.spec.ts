@@ -9,11 +9,13 @@ import {
   type Route,
   test,
 } from "@playwright/test";
+import { scan } from "./axe";
 
 // The installable app on `pnpm dev:mock`: the manifest, icons and head tags,
 // /sw.js and what it does once registered, Chrome's own installability
-// check (what Lighthouse reports), and the install prompt: offered once when
-// a seat watch turns on, never again after it's closed.
+// check (what Lighthouse reports), and the install prompt: offered once at a
+// key moment, never again after it's closed (on an iPhone tab, a seat watch
+// asks with the three steps to the Home Screen instead, V2 §6.7).
 
 const IPHONE_SAFARI =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1";
@@ -121,6 +123,9 @@ async function browserOffersInstall(page: Page) {
     window.dispatchEvent(event);
   });
 }
+
+const iphoneSetup = (page: Page) =>
+  page.getByRole("dialog", { name: "Get notifications on your iPhone" });
 
 const installDialog = (page: Page) =>
   page.getByRole("dialog", { name: "Put Terpsicle on your home screen" });
@@ -247,29 +252,59 @@ test.describe("install prompt", () => {
   test.describe("on iPhone", () => {
     test.use({ userAgent: IPHONE_SAFARI });
 
+    // V2 §6.7: on an iPhone tab, a seat watch's ask is the three steps to
+    // the Home Screen, which are the install prompt's steps too.
     test("shows the steps once when a seat watch turns on, then never again", async ({
       page,
       context,
     }) => {
       await watchesASeat(page);
       await expect(watchingToast(page)).toBeVisible({ timeout: 15_000 });
+      const sheet = iphoneSetup(page);
+      await expect(sheet).toBeVisible();
+      await expect(sheet).toContainText(
+        "iPhone only sends notifications to apps on your Home Screen.",
+      );
+      await expect(sheet).toContainText("Tap Share in Safari's bar");
+      await expect(sheet).toContainText("Choose Add to Home Screen");
+      await expect(sheet).toContainText(
+        "Open Terpsicle from your Home Screen. We'll ask once, right there.",
+      );
+      for (const colorScheme of ["light", "dark"] as const) {
+        await page.emulateMedia({ colorScheme });
+        await scan(page, `the iPhone setup sheet (${colorScheme})`);
+      }
+      await page.emulateMedia({ colorScheme: "light" });
+      await sheet.getByRole("button", { name: "Got it" }).click();
+      await expect(sheet).toBeHidden();
+
+      // The same tab, and then a new one: neither the sheet nor the install
+      // dialog again.
+      for (const next of [page, await context.newPage()]) {
+        await watchesAnotherSeat(next);
+        await expect(watchingToast(next)).toBeVisible({ timeout: 15_000 });
+        // The sheet's code loads lazily: give it time to show if it would.
+        await next.waitForTimeout(1000);
+        await expect(iphoneSetup(next)).toHaveCount(0);
+        await expect(installDialog(next)).toHaveCount(0);
+      }
+    });
+
+    test("shows the install dialog's steps at a sign-in's first on this device", async ({
+      page,
+    }) => {
+      await page.goto(`/auth/test?return=${encodeURIComponent("/schedule")}`);
+      await page
+        .getByRole("button", { name: "Sign in as Test Student" })
+        .click();
       const dialog = installDialog(page);
-      await expect(dialog).toBeVisible();
+      await expect(dialog).toBeVisible({ timeout: 15_000 });
       await expect(dialog).toContainText(
         "Open it from your home screen, like an app",
       );
       await expect(dialog).toContainText("Tap Add to Home Screen");
       await dialog.getByRole("button", { name: "Got it" }).click();
       await expect(dialog).toBeHidden();
-
-      // The same tab, and then a new one: not again.
-      for (const next of [page, await context.newPage()]) {
-        await watchesAnotherSeat(next);
-        await expect(watchingToast(next)).toBeVisible({ timeout: 15_000 });
-        // The dialog's code loads lazily: give it time to show if it would.
-        await next.waitForTimeout(1000);
-        await expect(installDialog(next)).toHaveCount(0);
-      }
     });
   });
 

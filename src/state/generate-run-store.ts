@@ -35,35 +35,28 @@ export interface GenerateRunState {
   termId: TermId | null;
   status: RunStatus;
   /**
+   * A chip changed and the results are being ranked again: the last ones
+   * stay on screen, dimmed, until the new ones land (SPEC §3.9, "Live
+   * results").
+   */
+  refreshing: boolean;
+  /**
    * Which one the tab shows when next opened. While it's on screen the URL
    * says (`/schedule/generate?view=results`); this remembers it.
    */
   view: GenerateView;
-  /** Result ids ticked for "Save N plans". */
-  selected: readonly string[];
-  toggleSelected: (resultId: string) => void;
-  clearSelected: () => void;
   setView: (view: GenerateView) => void;
 }
 
 export const INITIAL_RUN_STATE = {
   termId: null,
   status: { kind: "idle" },
+  refreshing: false,
   view: "form",
-  selected: [],
 } satisfies Partial<GenerateRunState>;
 
 export const useGenerateRun = create<GenerateRunState>()((set, get) => ({
   ...INITIAL_RUN_STATE,
-  toggleSelected: (resultId) => {
-    const { selected } = get();
-    set({
-      selected: selected.includes(resultId)
-        ? selected.filter((id) => id !== resultId)
-        : [...selected, resultId],
-    });
-  },
-  clearSelected: () => set({ selected: [] }),
   setView: (view) => {
     if (get().view !== view) set({ view });
   },

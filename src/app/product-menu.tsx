@@ -12,6 +12,7 @@ import {
 import { WithTooltip } from "~/ui/tooltip";
 import { Mark } from "./brand/mark";
 import { Wordmark } from "./brand/wordmark";
+import { EARLY_ACCESS, EARLY_ACCESS_NOTE } from "./early-access";
 import {
   listedProducts,
   PRODUCTS,
@@ -25,7 +26,8 @@ import {
 // marks. The one you're in wears its soft color and a check. No
 // paths, counts or badges: nothing here pulls you into another product.
 // Then the marketing page at `/?stay`, which returning visitors would
-// otherwise skip. Plain links: the shell also renders outside a router
+// otherwise skip, and the "Early access" note (the bar's chip, which
+// phones don't show). Plain links: the shell also renders outside a router
 // (tests), and `/`'s head script needs a full load to see ?stay.
 
 const CURRENT: Record<ProductId, string> = {
@@ -64,7 +66,7 @@ export function ProductMenu({
                 <span aria-hidden="true" className="text-faint">
                   /
                 </span>
-                <Mark id={here.id} size={16} />
+                <Mark id={here.id} size={20} />
                 <span className="font-semibold text-base">{here.label}</span>
               </>
             ) : null}
@@ -90,6 +92,10 @@ export function ProductMenu({
             <a href={`/?${STAY_PARAM}`}>About Terpsicle</a>
           </DropdownMenuItem>
         </WithTooltip>
+        <p className="px-2 pt-1 pb-1.5 text-muted text-xs">
+          <span className="font-medium text-fg">{EARLY_ACCESS}:</span>{" "}
+          {EARLY_ACCESS_NOTE}
+        </p>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -104,8 +110,8 @@ function ProductItem({
 }) {
   const body = (
     <>
-      {/* size-7: menu items shrink unsized icons to 14px. */}
-      <Mark id={product.id} size={28} className="size-7" />
+      {/* Sized: menu items shrink unsized icons to 14px. 30px is 3px units. */}
+      <Mark id={product.id} size={30} className="size-7.5" />
       <span className="min-w-0 flex-1">
         <span className="block font-semibold">{product.label}</span>
         <span className="block text-muted text-xs">{product.hint}</span>

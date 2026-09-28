@@ -9,8 +9,10 @@ import type {
   Pace,
   ProblemFix,
   ProblemKind,
+  PushAskMoment,
   RailTab,
   RankBy,
+  RankFactor,
   Relaxable,
   ReportReason,
   SignInError,
@@ -75,21 +77,32 @@ export interface AnalyticsEvents {
     /** The must-haves that narrowed the search, by name. */
     mustHaves: Relaxable[];
     rankBy: RankBy["preset"];
+    /** The preferences that were on, double ones first. */
+    preferences: RankFactor[];
     results: number;
     durationMs: number;
     /** Stopped at the step budget ("Showing the best 200"). */
     truncated: boolean;
     /** Started from a suggested relaxation. */
     relaxed: boolean;
+    /** Started by a chip changing after an earlier run (live results). */
+    live: boolean;
   };
   generate_result_previewed: { rank: number };
   generate_plans_saved: { count: number };
+  /** A preference chip clicked: the level it went to (0 off, 1 on, 2 double). */
+  generate_preference_changed: { factor: RankFactor; level: 0 | 1 | 2 };
+  /** A filter chip turned on, off or changed. */
+  generate_filter_changed: { filter: Relaxable; on: boolean };
   generate_relaxation_applied: { constraint: Relaxable };
   /** Debounced; the query's length only, never its text. */
   search_performed: { queryLength: number; results: number; filtered: boolean };
   search_filter_changed: {
     filter: "gen-eds" | "credits" | "fits" | "open-seats" | "level";
+    /** `typed`: a filter token in the box ("DSNS "), or Backspace taking one off. */
+    via: "chip" | "typed";
   };
+  search_sorted: { sort: "relevance" | "code" | "rating" | "seats" };
   /** 0-based position in the results. */
   search_result_opened: { position: number };
   course_details_tab: { tab: "instructors" | "grades" | "about" };
@@ -122,6 +135,16 @@ export interface AnalyticsEvents {
   // it. Never the words, the course or who.
   notifications_opened: NoProperties;
   notification_opened: { type: InboxType };
+  /** Asking to turn notifications on at a moment (V2 §6.7): which, and how. */
+  push_ask_shown: {
+    moment: PushAskMoment;
+    kind: "card" | "iphone-setup" | "home-screen";
+  };
+  push_ask_result: {
+    moment: PushAskMoment;
+    kind: "card" | "iphone-setup" | "home-screen";
+    outcome: "on" | "dismissed" | "blocked" | "failed";
+  };
   // The calendar feed (V2.md §6.7), from /settings/notifications. Never the
   // link or anything in it.
   calendar_feed_created: NoProperties;
@@ -159,10 +182,17 @@ export interface AnalyticsEvents {
         reason: TodoConnectReason;
       };
   todo_disconnected: NoProperties;
-  todo_item_checked: { done: boolean; via: "list" | "week" };
-  todo_view_changed: { view: "day" | "course" | "week" };
+  todo_item_checked: { done: boolean; via: "list" | "week" | "month" };
+  todo_view_changed: { view: "week" | "month" | "list" };
   todo_file_imported: { items: number; skipped: number };
-  todo_task_added: { date: boolean; time: boolean; course: boolean };
+  /** `typed`: the composer recognized a date, time or course in the words. */
+  todo_task_added: {
+    date: boolean;
+    time: boolean;
+    course: boolean;
+    typed: boolean;
+  };
+  todo_week_start_changed: { start: "monday" | "sunday" };
   // Terpsicle Plan (V3.md §6). Never a course code, grade, GPA or a
   // course's credits: which ways in and which controls get used.
   four_year_created: { source: "empty" | "template" | "import" | "copy" };
@@ -172,7 +202,11 @@ export interface AnalyticsEvents {
   four_year_wildcard_resolved: { kind: "pattern" | "gen-ed" };
   four_year_problem_opened: { kind: FourYearProblemKind };
   four_year_problem_fix_applied: { kind: FourYearProblemKind };
-  four_year_details_saved: { genEds: number };
+  four_year_details_saved: {
+    genEds: number;
+    countsAs: boolean;
+    of: "course" | "credit";
+  };
   four_year_handoff: { outcome: "created-plan" | "opened-plan" };
   // Every "View …" link between products (V3.md §6): product ids only,
   // never the course, term or item it leads to.
@@ -197,6 +231,10 @@ export interface AnalyticsEvents {
     reply: boolean;
   };
   feedback_undone: NoProperties;
+  // The coffee button (src/features/coffee): whether anyone opens it, and
+  // follows it out. Nothing about who.
+  coffee_opened: NoProperties;
+  coffee_link_clicked: { via: "popover" | "menu" };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

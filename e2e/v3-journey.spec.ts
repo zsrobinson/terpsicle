@@ -17,6 +17,7 @@ import {
 } from "../src/core/push";
 import { newYorkClock } from "../src/core/todo/list";
 import { TEST_FEED_TOKENS, testFeedLink } from "../src/core/todo/test-feed";
+import { payloadOf } from "./push-message";
 
 // v3 end to end (docs/V3.md §11, `v3/e2e`) on `pnpm dev:mock`, in test mode.
 // One person, signed out at first:
@@ -214,6 +215,8 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
       },
     });
     expect(await subscribed.json()).toEqual({ status: "ok" });
+    // The second device is a laptop-sized window: the paste is right there
+    // in Todo's side panel.
     await phone.goto("/todo");
     await phone
       .getByLabel("ELMS calendar link")
@@ -221,8 +224,10 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
     await phone.getByRole("button", { name: "Connect ELMS" }).click();
     await expect(phone.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
 
-    // 7. Project 2, due tomorrow, is done: it folds into "1 done", and it
-    // stays done after a reload, since done marks are the account's.
+    // 7. Project 2, due tomorrow, is done: it folds into "1 done" on the
+    // list, and it stays done after a reload, since done marks are the
+    // account's.
+    await phone.goto("/todo?view=list");
     await phone.getByRole("checkbox", { name: "Done: Project 2" }).click();
     await expect(phone.getByText(/^5 open · ELMS feed checked/)).toBeVisible();
     await expect(phone.getByRole("button", { name: "1 done" })).toBeVisible();
@@ -248,7 +253,8 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
           uaPublic,
           authSecret,
         });
-        if (plain) out.push(JSON.parse(new TextDecoder().decode(plain)));
+        if (plain)
+          out.push(payloadOf(JSON.parse(new TextDecoder().decode(plain))));
       }
       return out;
     };

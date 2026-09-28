@@ -200,6 +200,20 @@ export const RailTabSchema = z.enum([
 ]);
 export type RailTab = z.infer<typeof RailTabSchema>;
 
+/**
+ * What Generate ranks by (SPEC §3.9 "Preferences"). Here rather than with
+ * the generator's schemas so Generate's URL can name them.
+ */
+export const RankFactorSchema = z.enum([
+  "compact",
+  "fewer-days",
+  "later-starts",
+  "best-rated",
+  "higher-gpa",
+  "safest-seats",
+]);
+export type RankFactor = z.infer<typeof RankFactorSchema>;
+
 /** Course details' sections a link can jump to on arrival. */
 export const CourseDetailsTabSchema = z.enum([
   "instructors",

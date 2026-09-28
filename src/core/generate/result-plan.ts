@@ -8,7 +8,7 @@ import type {
   SectionCode,
 } from "../schema";
 
-// A generated result as a plan: what "Save as new plan" stores, what the
+// A generated result as a plan: what "Add as Plan C" stores, what the
 // calendar previews, and how it differs from the plan on screen.
 
 /**

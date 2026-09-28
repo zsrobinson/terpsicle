@@ -33,7 +33,14 @@ export function CombinedRatingBadge({
 }
 
 /** Five stars, `rating` of them filled, for one review. */
-export function Stars({ rating }: { rating: number }) {
+export function Stars({
+  rating,
+  size = 12,
+}: {
+  rating: number;
+  /** 12 in a row; 14 over a review's words; 22 beside the big number. */
+  size?: number;
+}) {
   return (
     <span
       role="img"
@@ -43,7 +50,7 @@ export function Stars({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
-          size={12}
+          size={size}
           aria-hidden="true"
           className={
             n <= rating ? "fill-current text-warn" : "text-hairline-strong"

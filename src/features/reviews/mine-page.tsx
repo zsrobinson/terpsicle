@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Mark } from "~/app/brand/mark";
 import { PanelNote } from "~/app/panel";
+import { instructorSlug } from "~/core/reviews";
 import type { MyReview } from "~/core/schema";
 import { EmptyState } from "~/ui/empty-state";
 import { InlineError } from "~/ui/inline-error";
@@ -98,8 +99,8 @@ export function MyReviewsPage() {
                       label={`Reviews of ${r.instructorName} in ${r.course}`}
                     >
                       <Link
-                        to="/reviews/instructors/$id"
-                        params={{ id: r.instructorId }}
+                        to="/reviews/$slug"
+                        params={{ slug: instructorSlug(r.instructorId) }}
                         search={{ course: r.course }}
                         className="font-medium hover:underline"
                       >

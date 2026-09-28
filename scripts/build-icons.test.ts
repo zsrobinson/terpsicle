@@ -4,9 +4,12 @@ import { Resvg } from "@resvg/resvg-js";
 import { describe, expect, it } from "vitest";
 import {
   drawMark,
+  glyphPath,
   MARK_IDS,
   type MarkId,
   type MarkTheme,
+  PIXELS,
+  TILE,
 } from "~/app/brand/marks";
 import {
   BADGE,
@@ -45,7 +48,7 @@ describe("icon files (scripts/build-icons.ts)", () => {
     expect(badge.equals(badgePng()), BADGE.file).toBe(true);
   });
 
-  it("draw the notification badge as white glyph on clear", () => {
+  it("draw the notification badge as a solid white glyph on clear", () => {
     const { width, pixels } = new Resvg(badgeSvg(), {
       fitTo: { mode: "width", value: BADGE.size },
     }).render();
@@ -53,11 +56,12 @@ describe("icon files (scripts/build-icons.ts)", () => {
       const i = (y * width + x) * 4;
       return [...pixels.subarray(i, i + 4)];
     };
-    // A corner is clear; the first course's middle is solid white.
+    // A corner is clear; the canopy (50% on a tile) and the handle are
+    // solid white. 72px: 8px units.
     expect(at(0, 0)[3]).toBe(0);
-    expect(at(Math.round(width * 0.25), Math.round(width * 0.3))).toEqual([
-      255, 255, 255, 255,
-    ]);
+    expect(at(4.5 * 8, 3.5 * 8)).toEqual([255, 255, 255, 255]);
+    expect(at(4.5 * 8, 7.5 * 8)).toEqual([255, 255, 255, 255]);
+    expect(at(1.5 * 8, 7.5 * 8)[3]).toBe(0);
   });
 
   it("keep the maskable icon's glyph inside the 80% safe circle", () => {
@@ -84,45 +88,65 @@ describe("icon files (scripts/build-icons.ts)", () => {
 });
 
 describe("marks (src/app/brand/marks.ts)", () => {
-  it("have a 100% shape and a 70% one, and go solid at 16px", () => {
+  it("are the owner's 9×9 drawings: tile, glyph and glyph at 50%", () => {
     for (const id of MARK_IDS) {
-      const at = (size: number) =>
-        drawMark(id, size).layers.flatMap((l) =>
-          l.kind === "path" ? [l.opacity] : [],
-        );
-      expect(at(32).sort(), id).toEqual([0.7, 1]);
-      expect(at(16), id).toEqual([1, 1]);
+      const rows = PIXELS[id];
+      expect(rows, id).toHaveLength(TILE);
+      for (const row of rows) expect(row, id).toMatch(/^[.#+]{9}$/);
+      // A 1-unit border of tile all round, as drawn.
+      expect(rows[0], id).toBe(".........");
+      expect(rows[8], id).toBe(".........");
+      for (const row of rows) expect(`${row[0]}${row[8]}`, id).toBe("..");
+      const tones = drawMark(id, 20).layers.flatMap((l) =>
+        l.kind === "path" ? [l.opacity] : [],
+      );
+      expect(tones, id).toEqual([1, 0.5]);
     }
   });
 
-  it("draw Todo's keyline in light only, and the umbrella's in both", () => {
+  it("turn each row's runs into rectangles on the grid", () => {
+    expect(glyphPath("chat", "#")).toMatch(/^M1 1h7v1h-7Z/);
+    expect(glyphPath("umbrella", "#")).toBe(
+      "M2 5h5v1h-5ZM4 6h1v1h-1ZM4 7h1v1h-1Z",
+    );
+  });
+
+  it("draw the umbrella's keyline in dark only, and no product's", () => {
     const keylines = (id: MarkId, theme?: MarkTheme) =>
-      drawMark(id, 28, "page", theme).layers.filter(
-        (l) => l.role === "keyline",
-      );
-    expect(keylines("todo", "light")).toHaveLength(1);
-    expect(keylines("todo", "dark")).toHaveLength(0);
+      drawMark(id, 20, { theme }).layers.filter((l) => l.role === "keyline");
+    expect(keylines("umbrella", "dark")).toHaveLength(1);
+    expect(keylines("umbrella", "light")).toHaveLength(0);
     // A page switches themes with CSS, so it gets the layer, marked.
-    expect(keylines("todo")).toMatchObject([{ only: "light" }]);
-    expect(keylines("umbrella")).toHaveLength(1);
-    expect(keylines("umbrella")[0]).not.toHaveProperty("only");
-    for (const id of ["schedule", "reviews", "chat", "plan"] as const)
+    expect(keylines("umbrella")).toMatchObject([{ only: "dark" }]);
+    for (const id of MARK_IDS.filter((m) => m !== "umbrella"))
       expect(keylines(id), id).toHaveLength(0);
   });
 
-  it("put the offset 2px out on the page and none on an app icon", () => {
-    // In the sizes the app uses; the 18-unit grid draws in a 19-unit view.
-    for (const size of [20, 28, 40]) {
-      const offset = drawMark("chat", size).layers.find(
-        (l) => l.role === "offset",
-      );
-      if (offset?.kind !== "rect") throw new Error("No offset");
-      expect((offset.x - 1) * (size / 19)).toBeCloseTo((2 * 18) / 19);
-    }
-    expect(
-      drawMark("umbrella", 180, "bleed").layers.some(
-        (l) => l.role === "offset",
-      ),
-    ).toBe(false);
+  it("put a page mark on a 1-unit offset, crisp at 20px, and no offset on an app icon", () => {
+    const { viewBox, layers } = drawMark("chat", 20);
+    // 10 units in 20px: every unit is 2px, the offset included.
+    expect(viewBox).toBe("0 0 10 10");
+    expect(layers.find((l) => l.role === "offset")).toMatchObject({
+      x: 1,
+      y: 1,
+      size: TILE,
+    });
+    for (const variant of ["bleed", "maskable"] as const)
+      expect(
+        drawMark("umbrella", 180, { variant }).layers.some(
+          (l) => l.role === "offset",
+        ),
+        variant,
+      ).toBe(false);
+  });
+
+  it("land an app icon's glyph on whole pixels", () => {
+    // 192 = 21 × 9 + 3: 21px units, the tile's grid 1px in from the left.
+    expect(drawMark("umbrella", 192, { variant: "bleed" }).viewBox).toBe(
+      "-0.0476 -0.0476 9.1429 9.1429",
+    );
+    expect(drawMark("umbrella", 180, { variant: "bleed" }).viewBox).toBe(
+      "0 0 9 9",
+    );
   });
 });

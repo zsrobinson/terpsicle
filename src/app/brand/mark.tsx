@@ -1,11 +1,11 @@
 import { drawMark, type MarkId, type MarkLayer, type MarkRole } from "./marks";
 
-// A mark in the page, colored by tokens, so it follows the theme (the
-// umbrella's tile is paper in light and near-black in dark; product tiles
-// keep their color and swap the offset). The drawing is in ./marks. Each
-// glyph has its own paint token (`product-<id>-fg`: paper, or ink on Todo's
-// yellow; marks.ts GLYPH_PAINT), and a keyline drawn in one theme only
-// (Todo's, in light) hides in the other.
+// A mark in the page, colored by tokens, so it follows the theme (every
+// tile keeps its color; the offsets and the umbrella's dark-only keyline
+// change). The drawing is in ./marks. Each glyph has its own paint token
+// (`product-<id>-fg`, `umbrella-glyph`), and a keyline drawn in one theme
+// only hides in the other. Pixels stay pixels: no anti-aliasing, so a mark
+// is crisp at 20, 30 and 40px.
 
 /** Fill (and, for the keyline, stroke) classes per mark and role. */
 const PAINT: Record<
@@ -63,10 +63,7 @@ const PAINT: Record<
       fill: "fill-product-todo-fg",
       stroke: "stroke-product-todo-fg",
     },
-    keyline: {
-      fill: "fill-product-todo-keyline",
-      stroke: "stroke-product-todo-keyline",
-    },
+    keyline: { fill: "fill-keyline", stroke: "stroke-keyline" },
     offset: { fill: "fill-mark-offset", stroke: "stroke-mark-offset" },
   },
 };
@@ -75,8 +72,9 @@ const PAINT: Record<
 const ONLY_IN = { light: "dark:hidden", dark: "hidden dark:inline" } as const;
 
 /**
- * One of the six marks at `size` px. With a `label` it's an image with that
- * name; without one it's decoration beside words that already say it.
+ * One of the six marks at `size` px (20, 30 or 40 keeps it crisp). With a
+ * `label` it's an image with that name; without one it's decoration beside
+ * words that already say it.
  */
 export function Mark({
   id,
@@ -100,7 +98,13 @@ export function Mark({
       paint={paint[layer.role]}
     />
   ));
-  const common = { width: size, height: size, viewBox, className };
+  const common = {
+    width: size,
+    height: size,
+    viewBox,
+    className,
+    shapeRendering: "crispEdges",
+  };
   return label ? (
     <svg role="img" aria-label={label} data-mark={id} {...common}>
       {shapes}
@@ -142,15 +146,6 @@ function Layer({
           className={
             layer.only ? `${paint.stroke} ${ONLY_IN[layer.only]}` : paint.stroke
           }
-        />
-      );
-    case "halo":
-      return (
-        <path
-          d={layer.d}
-          strokeWidth={layer.width}
-          strokeLinejoin="miter"
-          className={`${paint.fill} ${paint.stroke}`}
         />
       );
     case "path":

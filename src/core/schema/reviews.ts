@@ -340,3 +340,115 @@ export const ReviewsRecentResultSchema = z.strictObject({
   ),
 });
 export type ReviewsRecentResult = z.infer<typeof ReviewsRecentResultSchema>;
+
+// ---------- a page's reviews: ours and PlanetTerp's (V2 §7.6) ----------
+
+const MonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+
+/**
+ * One of ours on a Reviews page, with who it's about: a course's page mixes
+ * instructors. Still no author (§7.5); the instructor is the subject.
+ */
+export const PageReviewSchema = PublicReviewSchema.extend({
+  instructorId: InstructorIdSchema,
+});
+export type PageReview = z.infer<typeof PageReviewSchema>;
+
+/** A PlanetTerp review's id: 16 hex of the SHA-256 of its slug, date and words. */
+export const PlanetTerpReviewIdSchema = z
+  .string()
+  .regex(/^[0-9a-f]{16}$/, "Expected a PlanetTerp review id");
+
+/**
+ * A PlanetTerp review as Reviews shows it, marked as PlanetTerp's (owner,
+ * 2026-09-28). PlanetTerp publishes no author, and neither do we. The date
+ * is a month, like ours, so the two read alike.
+ */
+export const PlanetTerpReviewSchema = z.strictObject({
+  id: PlanetTerpReviewIdSchema,
+  instructorId: InstructorIdSchema,
+  /** Null when the reviewer didn't say, or wrote something that isn't a code. */
+  course: CourseCodeSchema.nullable(),
+  rating: ReviewRatingSchema,
+  /** The grade they expected, when it's a real one ("95" and "d" aren't). */
+  expectedGrade: ReviewGradeSchema.nullable(),
+  body: z.string(),
+  createdMonth: MonthSchema,
+});
+export type PlanetTerpReview = z.infer<typeof PlanetTerpReviewSchema>;
+
+/** Where the next page of PlanetTerp reviews starts: `<created>|<id>`. */
+export const PlanetTerpCursorSchema = z
+  .string()
+  .regex(
+    /^\d{4}-\d{2}-\d{2}T[\d:.]+Z\|[0-9a-f]{16}$/,
+    "Expected a PlanetTerp cursor",
+  );
+export type PlanetTerpCursor = z.infer<typeof PlanetTerpCursorSchema>;
+
+/** PlanetTerp reviews per page. */
+export const PLANETTERP_PAGE_MAX = 20;
+
+/** Our reviews a page reads at once: its rating counts them all. */
+export const PAGE_REVIEWS_MAX = 200;
+
+/** An instructor's page, a course's page, or one instructor in one course. */
+const pageTarget = {
+  instructorId: InstructorIdSchema.nullable(),
+  course: CourseCodeSchema.nullable(),
+};
+const hasTarget = (t: { instructorId: unknown; course: unknown }) =>
+  t.instructorId !== null || t.course !== null;
+
+/** `reviews/page`: the first of a page's reviews, from both sources. */
+export const ReviewsPageInputSchema = z
+  .strictObject(pageTarget)
+  .refine(hasTarget, "Name an instructor or a course");
+export type ReviewsPageInput = z.infer<typeof ReviewsPageInputSchema>;
+
+export const PageReviewsSchema = z.strictObject({
+  /** Ours, newest first; null while REVIEWS_ENABLED is off. */
+  terpsicle: z.array(PageReviewSchema).nullable(),
+  /** PlanetTerp's first page, newest first. */
+  planetTerp: z.array(PlanetTerpReviewSchema),
+  /** Pass to `planetterp/reviews` for more; null when that's all. */
+  next: PlanetTerpCursorSchema.nullable(),
+});
+export type PageReviews = z.infer<typeof PageReviewsSchema>;
+
+/** `planetterp/reviews`: the next page of PlanetTerp's. */
+export const PlanetTerpReviewsInputSchema = z
+  .strictObject({
+    ...pageTarget,
+    cursor: PlanetTerpCursorSchema.nullable(),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(PLANETTERP_PAGE_MAX)
+      .default(PLANETTERP_PAGE_MAX),
+  })
+  .refine(hasTarget, "Name an instructor or a course");
+export type PlanetTerpReviewsInput = z.infer<
+  typeof PlanetTerpReviewsInputSchema
+>;
+
+export const PlanetTerpReviewsResultSchema = z.strictObject({
+  reviews: z.array(PlanetTerpReviewSchema),
+  next: PlanetTerpCursorSchema.nullable(),
+});
+export type PlanetTerpReviewsResult = z.infer<
+  typeof PlanetTerpReviewsResultSchema
+>;
+
+/** A `planetterp_reviews` row (migrations/0020_reviews_public.sql). */
+export const PlanetTerpReviewRowSchema = z.object({
+  id: PlanetTerpReviewIdSchema,
+  instructor_id: InstructorIdSchema,
+  course: z.string().nullable(),
+  rating: ReviewRatingSchema,
+  expected_grade: z.string().nullable(),
+  body: z.string(),
+  created_at: IsoDateTimeSchema,
+});
+export type PlanetTerpReviewRow = z.infer<typeof PlanetTerpReviewRowSchema>;

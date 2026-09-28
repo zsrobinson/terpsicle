@@ -14,7 +14,7 @@ export { GroupHeader, ListRow } from "~/ui/list-row";
 //     SectionHeader "bar": sticky at top-0, "Sections  3 of 14 fit  …"
 //       GroupHeader (~/ui): sticky under the bar, collapsible ("▾ Grace Kowalczyk …")
 //         ListRow (~/ui) …
-//     SectionHeader "label": a quiet heading for forms ("Must have")
+//     SectionHeader "label": a quiet heading for forms ("Filters")
 //   PanelFooter (optional): sticky at the bottom, the panel's primary action
 //
 // At most two sticky levels inside a PanelBody: a bar, then a group header.
@@ -94,6 +94,7 @@ export function SectionHeader({
   right,
   variant = "bar",
   sticky = false,
+  level = 3,
   className,
 }: {
   title: ReactNode;
@@ -104,8 +105,14 @@ export function SectionHeader({
   variant?: "bar" | "label";
   /** Bar only. */
   sticky?: boolean;
+  /**
+   * 3 under a panel's own h2 (the scheduler's sidebar); 2 where the panel's
+   * sections sit beside the page's h1 with no heading above them (Todo's).
+   */
+  level?: 2 | 3;
   className?: string;
 }) {
+  const Heading = level === 2 ? "h2" : "h3";
   if (variant === "label")
     return (
       <div
@@ -115,9 +122,9 @@ export function SectionHeader({
         )}
       >
         {/* A heading, so a screen reader can jump between a form's parts
-            ("Courses", "Must have", "Rank by") like between panels. */}
+            ("Courses", "Filters", "Preferences") like between panels. */}
         <span className="flex items-baseline gap-1.5">
-          <h3 className="font-medium">{title}</h3>
+          <Heading className="font-medium">{title}</Heading>
           {count !== undefined ? (
             <span className="tnum font-normal">{count}</span>
           ) : null}
@@ -133,7 +140,7 @@ export function SectionHeader({
         className,
       )}
     >
-      <h3 className="font-medium">{title}</h3>
+      <Heading className="font-medium">{title}</Heading>
       {count !== undefined ? (
         <span className="tnum text-muted">{count}</span>
       ) : null}
@@ -182,7 +189,7 @@ export function PanelNote({
 
 /**
  * The bottom of a panel, pinned while its body scrolls: the one place for
- * the panel's primary action ("Generate plans", "Save as new plan"). Put it
+ * the panel's primary action ("Generate plans", "Add as Plan C"). Put it
  * after the PanelBody, not inside it.
  */
 export function PanelFooter({

@@ -1,11 +1,5 @@
 import type { FeedItem, FeedSource, IcsParse, IsoDate } from "../schema";
-import {
-  feedItemKind,
-  looksLikeExam,
-  matchFeedCourse,
-  mentionsGradescope,
-  splitFeedTitle,
-} from "./feed";
+import { feedItemKind, matchFeedCourse, splitFeedTitle } from "./feed";
 import { isElmsUrl } from "./link";
 import { NEW_YORK, newYorkDateOf, resolveZone, zonedToUtc } from "./zones";
 
@@ -152,9 +146,7 @@ function readEvent(
   const { title, courseLabel } = splitFeedTitle(summary);
   const courses = matchFeedCourse(courseLabel);
   const url = get("URL")?.value.trim() || null;
-  const description = unescapeText(get("DESCRIPTION")?.value ?? "");
-  const gradescope = mentionsGradescope(url, description);
-  const kind = feedItemKind(uid, title, gradescope);
+  const kind = feedItemKind(uid, title);
   const sequence = Number.parseInt(get("SEQUENCE")?.value ?? "", 10);
 
   return {
@@ -168,8 +160,6 @@ function readEvent(
       sectionCode: courses[0]?.sectionCode ?? null,
       kind: kind.kind,
       kindFrom: kind.from,
-      looksLikeExam: looksLikeExam(title),
-      gradescope,
       dueAt: start.kind === "instant" ? new Date(start.ms).toISOString() : null,
       dueDate: start.kind === "instant" ? newYorkDateOf(start.ms) : start.date,
       endAt:

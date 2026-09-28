@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ListRow, SectionHeader } from "~/app/panel";
 import { openDrill } from "~/app/schedule-nav";
@@ -10,6 +11,11 @@ import {
   hasChoices,
   type SectionDifference,
 } from "~/core/generate/describe";
+import {
+  activePreferences,
+  preferenceLevels,
+  preferenceMark,
+} from "~/core/generate/preferences";
 import { changesFrom } from "~/core/generate/result-plan";
 import type {
   CourseCode,
@@ -18,11 +24,13 @@ import type {
   GenerateRequest,
   GenerateResult,
   Plan,
+  RankFactor,
   SectionKey,
 } from "~/core/schema";
 import { type PlanPreview, useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
+import { PREFERENCE_LABELS } from "./chips";
 import {
   differenceLabel,
   differenceWhen,
@@ -37,13 +45,15 @@ import {
   wildcardNote,
 } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
-import { useGenerateRun } from "./run-store";
-import { coursesOf } from "./save";
+import { coursesOf, nextPlanNameIn } from "./save";
+import { ScoreBar } from "./score-bar";
 
 // The ranked list (SPEC §3.9, prototype screenshot 08). Neighbors often look
 // alike, so each row leads with what sets it apart: free days and hours, the
 // pick-N and optional courses it includes, and the sections where it differs
-// from Option 1. Stats sit in aligned columns underneath, like a Linear list.
+// from Option 1. Under that, a mark per preference that's on says why it
+// ranks where it does; with none on, stats sit in aligned columns, like a
+// Linear list. The arrow opens its details, where it's added as a plan.
 
 const PAGE = 50;
 /** Sections named per row before "+2 more". */
@@ -65,6 +75,7 @@ export function Results({
   colors,
   plan,
   termName,
+  refreshing = false,
 }: {
   request: GenerateRequest;
   result: GenerateResult;
@@ -72,13 +83,20 @@ export function Results({
   colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
   plan: Plan | null;
   termName: string;
+  /** A chip changed: these are about to be replaced. */
+  refreshing?: boolean;
 }) {
   const [shown, setShown] = useState(PAGE);
   const [filter, setFilter] = useState<string | null>(null);
-  const selected = useGenerateRun((s) => s.selected);
-  const toggle = useGenerateRun((s) => s.toggleSelected);
   const { results } = result;
   const top = results[0];
+  // The ranking these came from, not the chips' latest: the marks explain
+  // this order until the new one lands.
+  const ranked = useMemo(
+    () => activePreferences(preferenceLevels(request.rankBy)),
+    [request.rankBy],
+  );
+  const nextName = nextPlanNameIn(request.termId);
 
   const rows = useMemo(
     (): Row[] =>
@@ -142,7 +160,7 @@ export function Results({
           // the count above can be under the cap and "best 200" would jar.
           result.capped || result.truncated ? (
             <WithTooltip
-              label={`These are the best ${request.limits.maxResults} of ${result.totalFound.toLocaleString()} combinations${result.truncated ? " found before the search stopped" : ""}, with the same weeks merged. Add must-haves to narrow them down.`}
+              label={`These are the best ${request.limits.maxResults} of ${result.totalFound.toLocaleString()} combinations${result.truncated ? " found before the search stopped" : ""}, with the same weeks merged. Add filters to narrow them down.`}
             >
               <span className="tnum cursor-default text-muted text-xs">
                 Best of {result.totalFound.toLocaleString()}
@@ -200,7 +218,12 @@ export function Results({
       ))}
       <ul
         aria-label="Generated plans"
+        aria-busy={refreshing}
         className={cn(
+          "transition-opacity",
+          // The last results stay put, dimmed, while a chip's run finishes:
+          // the list never blinks empty.
+          refreshing && "opacity-60",
           // The bar's own hairline closes it when nothing sits between.
           (choices.length > 0 || unfit.length > 0 || notes.length > 0) &&
             "border-hairline border-t",
@@ -219,8 +242,8 @@ export function Results({
             index={index}
             colors={colors}
             plan={plan}
-            selected={selected.includes(row.result.id)}
-            onToggle={() => toggle(row.result.id)}
+            ranked={ranked}
+            nextName={nextName}
           />
         ))}
       </ul>
@@ -299,8 +322,8 @@ function ResultRow({
   index,
   colors,
   plan,
-  selected,
-  onToggle,
+  ranked,
+  nextName,
 }: {
   row: Row;
   top: GeneratedPlan | undefined;
@@ -311,8 +334,10 @@ function ResultRow({
   index: CatalogIndex;
   colors: Readonly<Partial<Record<CourseCode, CourseColor>>>;
   plan: Plan | null;
-  selected: boolean;
-  onToggle: () => void;
+  /** The preferences the list is ranked by, double ones first. */
+  ranked: readonly RankFactor[];
+  /** What adding it would name it: "Plan C". */
+  nextName: string;
 }) {
   const { result, rank, chosen } = row;
   // What the person left open: the pick-N and optional courses it takes,
@@ -337,115 +362,134 @@ function ResultRow({
       : [];
   const seats = seatsShortLabel(result.stats);
   const summary = `${freeDaysLabel(free, result.stats)} · ${spanLabel(result.stats)}`;
+  const why = ranked.map((f) => ({
+    factor: f,
+    ...preferenceMark(f, result.breakdown, result.stats),
+  }));
   const preview = usePreview(plan, result, request, label);
 
   return (
     <ListRow
       as="li"
       data-testid="generated-plan"
-      className="hover:bg-hover"
+      // The arrow's click area covers the row (its `after:`), so the whole
+      // row opens the details with one button and one tab stop.
+      className="relative hover:bg-hover"
       // Like Search (#48): only a mouse previews. A finger's tap opens the
       // result, which previews it anyway.
       onPointerEnter={(e) => {
         if (e.pointerType === "mouse") preview.show();
       }}
       onPointerLeave={preview.hide}
-      lead={
-        <WithTooltip label="Tick several to save them at once" side="right">
-          <input
-            type="checkbox"
-            aria-label={`Select ${label}`}
-            checked={selected}
-            onChange={onToggle}
-            className="block size-3.5 accent-accent"
-          />
-        </WithTooltip>
-      }
       trail={
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-faint text-xs">{rank}</span>
-          {result.equivalents.count > 1 ? (
-            <WithTooltip label={equivalentsTip(result.equivalents)} side="left">
-              <span className="cursor-default rounded-sm bg-accent-soft px-1 text-2xs text-muted">
-                ×{result.equivalents.count}
-              </span>
-            </WithTooltip>
-          ) : null}
+        <div className="flex items-center gap-1.5">
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-faint text-xs">{rank}</span>
+            {result.equivalents.count > 1 ? (
+              <WithTooltip
+                label={equivalentsTip(result.equivalents)}
+                side="left"
+              >
+                <span className="relative z-10 cursor-default rounded-sm bg-accent-soft px-1 text-2xs text-muted">
+                  ×{result.equivalents.count}
+                </span>
+              </WithTooltip>
+            ) : null}
+          </div>
+          {/* Above, not beside: beside it would cover the preview. */}
+          <WithTooltip
+            label={`See every course and section, then add it as ${nextName}`}
+            side="top"
+          >
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`${label}: ${summary}${why.length > 0 ? `. ${why.map((w) => `${PREFERENCE_LABELS[w.factor]}: ${w.words}`).join(". ")}` : ""}`}
+              onClick={() =>
+                openDrill({ kind: "generated-plan", resultId: result.id })
+              }
+              className="after:absolute after:inset-0 after:content-['']"
+            >
+              <ArrowRight aria-hidden="true" />
+            </Button>
+          </WithTooltip>
         </div>
       }
     >
-      {/* Above, not beside: beside it would cover the preview. */}
-      <WithTooltip
-        label="See what changes, and save it as a new plan"
-        side="top"
-      >
-        <button
-          type="button"
-          aria-label={`${label}: ${summary}`}
-          onClick={() =>
-            openDrill({ kind: "generated-plan", resultId: result.id })
-          }
-          className="grid w-full min-w-0 grid-cols-[76px_minmax(0,1fr)] gap-x-3 text-left"
-        >
-          <div className="h-14">
-            <MiniWeek
-              sections={result.sections}
-              index={index}
-              colors={colors}
-              marks={marks}
-            />
-          </div>
-          <div className="tnum min-w-0 text-sm">
-            <div className="truncate font-medium text-base">{summary}</div>
-            {showChoices ? (
-              <div
-                className="truncate text-muted"
-                title={
-                  result.filled.length > 0
-                    ? filledTip(result.filled)
-                    : undefined
-                }
-              >
-                {included.length ? (
-                  <>
-                    with{" "}
-                    <span className="ident text-fg">
-                      {included.join(" + ")}
-                    </span>
-                  </>
-                ) : (
-                  "No optional courses"
-                )}
-              </div>
-            ) : null}
+      <div className="grid w-full min-w-0 grid-cols-[76px_minmax(0,1fr)] gap-x-3 text-left">
+        <div className="h-14">
+          <MiniWeek
+            sections={result.sections}
+            index={index}
+            colors={colors}
+            marks={marks}
+          />
+        </div>
+        <div className="tnum min-w-0 text-sm">
+          <div className="truncate font-medium text-base">{summary}</div>
+          {showChoices ? (
             <div
               className="truncate text-muted"
-              title={diffs.map(differenceLabel).join(", ") || undefined}
+              title={
+                result.filled.length > 0 ? filledTip(result.filled) : undefined
+              }
             >
-              {rank === 1 ? (
-                "Best match"
-              ) : diffs.length > 0 ? (
+              {included.length ? (
                 <>
-                  {diffs.slice(0, DIFFS_SHOWN).map((d, i) => (
-                    <span key={`${d.courseCode}-${d.sectionCode}`}>
-                      {i > 0 ? ", " : null}
-                      <span className="ident">
-                        {d.courseCode} {d.sectionCode}
-                      </span>{" "}
-                      {differenceWhen(d)}
-                    </span>
-                  ))}
-                  {diffs.length > DIFFS_SHOWN ? (
-                    <span className="text-faint">
-                      {" "}
-                      +{diffs.length - DIFFS_SHOWN}
-                    </span>
-                  ) : null}
+                  with{" "}
+                  <span className="ident text-fg">{included.join(" + ")}</span>
                 </>
               ) : (
-                "Otherwise as Option 1"
+                "No optional courses"
               )}
             </div>
+          ) : null}
+          <div
+            className="truncate text-muted"
+            title={diffs.map(differenceLabel).join(", ") || undefined}
+          >
+            {rank === 1 ? (
+              "Best match"
+            ) : diffs.length > 0 ? (
+              <>
+                {diffs.slice(0, DIFFS_SHOWN).map((d, i) => (
+                  <span key={`${d.courseCode}-${d.sectionCode}`}>
+                    {i > 0 ? ", " : null}
+                    <span className="ident">
+                      {d.courseCode} {d.sectionCode}
+                    </span>{" "}
+                    {differenceWhen(d)}
+                  </span>
+                ))}
+                {diffs.length > DIFFS_SHOWN ? (
+                  <span className="text-faint">
+                    {" "}
+                    +{diffs.length - DIFFS_SHOWN}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              "Otherwise as Option 1"
+            )}
+          </div>
+          {why.length > 0 ? (
+            // Why it ranks here: a mark per preference, its score as a bar.
+            <div
+              data-testid="rank-marks"
+              className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted text-xs"
+            >
+              {why.map((w) => (
+                <span
+                  key={w.factor}
+                  title={PREFERENCE_LABELS[w.factor]}
+                  className="flex min-w-0 items-center gap-1"
+                >
+                  <ScoreBar score={w.score} />
+                  <span className="truncate">{w.words}</span>
+                </span>
+              ))}
+            </div>
+          ) : (
             <div className="grid grid-cols-[2rem_3.25rem_minmax(0,1fr)] gap-x-2 text-muted text-xs">
               {/* No reviews or grades: the cell stays empty (and the columns
                   aligned) rather than saying "– GPA". */}
@@ -469,9 +513,9 @@ function ResultRow({
                 {seats ?? `${result.stats.credits} credits`}
               </span>
             </div>
-          </div>
-        </button>
-      </WithTooltip>
+          )}
+        </div>
+      </div>
     </ListRow>
   );
 }

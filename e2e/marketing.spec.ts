@@ -1,12 +1,13 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { scan } from "./axe";
 
-// The marketing page at `/` (src/features/marketing): the detangle hero and
-// its reduced-motion end state, the five live samples from the keyboard,
-// what search engines and link previews read, robots and the sitemap, and
-// axe in both themes. Routing for returning visitors is in landing.spec.ts.
+// The marketing page at `/` (src/features/marketing): the hero over the
+// plain week, the screen that stays while the steps scroll past and what
+// each step puts on it, the demos from the keyboard, what search engines
+// and link previews read, robots and the sitemap, and axe in both themes.
+// Routing for returning visitors is in landing.spec.ts.
 
-const HEADLINE = "Your semester's a tangle of tabs. Let's straighten it out.";
+const HEADLINE = "Plan the semester in five steps, in one place.";
 const TITLE =
   "Terpsicle: the UMD class scheduler, with reviews, chats and more";
 const PRODUCTS = ["Schedule", "Reviews", "Chat", "Plan", "Todo"];
@@ -20,129 +21,156 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-/** The hero's drawing on screen: wide on desktop, tall on a phone. */
-function figure(page: Page): Locator {
-  return page.locator("[data-tangle] > div:visible");
-}
-
-/** The lines' path data, in the drawing on screen. */
-async function lines(page: Page): Promise<string[]> {
-  return figure(page)
-    .locator("path[data-line]")
-    .evaluateAll((els) => els.map((el) => el.getAttribute("d") ?? ""));
-}
-
-/**
- * The lines once they stop moving: the marks arrive while the mess is still
- * settling, so "done" comes a little before the last frame.
- */
-async function settledLines(page: Page): Promise<string[]> {
-  let last = await lines(page);
-  for (let i = 0; i < 40; i++) {
-    await page.waitForTimeout(150);
-    const next = await lines(page);
-    if (next.join() === last.join()) return next;
-    last = next;
-  }
-  return last;
-}
-
-/** Waits until the page has hydrated: the samples answer from then on. */
+/** Waits until the page has hydrated: the demos answer from then on. */
 async function ready(page: Page): Promise<void> {
   await expect(page.locator('[data-marketing="ready"]')).toBeAttached({
     timeout: 20_000,
   });
 }
 
-/** A block, scrolled into view once the page answers. */
-async function block(page: Page, id: string): Promise<Locator> {
-  await ready(page);
-  const section = page.locator(`section#${id}`);
-  await section.locator("[data-sample]").scrollIntoViewIfNeeded();
-  return section;
+/** The screen's stage, from its data attribute. */
+const stageOf = (page: Page) => page.locator(".mk-screen");
+
+/** Scrolls step `n`'s words to where the page stages them. */
+async function scrollToStep(page: Page, n: number): Promise<void> {
+  await page.evaluate((n) => {
+    const el = document.querySelector(`[data-step="${n}"]`);
+    if (!el) throw new Error(`No step ${n}`);
+    const r = el.getBoundingClientRect();
+    const wide = window.innerWidth >= 1024;
+    window.scrollTo({
+      top: wide
+        ? window.scrollY + r.top + r.height / 2 - window.innerHeight / 2
+        : window.scrollY + r.top - window.innerHeight * 0.55 + 20,
+      behavior: "instant",
+    });
+  }, n);
 }
 
-test("the hero tangles first, then straightens into five rails that end in the products", async ({
+test("the hero shows the plain week, and each step puts its product on it as it scrolls by", async ({
   page,
 }) => {
   await page.goto("/?stay");
   await expect(
     page.getByRole("heading", { level: 1, name: HEADLINE }),
   ).toBeVisible();
-  // The inline script has claimed the drawing and started from the tangle.
-  const tangle = page.locator("[data-tangle]");
-  await expect(tangle).toHaveAttribute("data-tangle", /playing|done/);
-  const mid = await lines(page);
-  // Then it settles: straight rails, and the marks in place.
-  await expect(tangle).toHaveAttribute("data-tangle", "done", {
-    timeout: 10_000,
-  });
-  const done = await settledLines(page);
-  expect(done).not.toEqual(mid);
-  const ends = figure(page).getByRole("list", {
-    name: "The five parts of Terpsicle",
-  });
-  await expect(ends.getByRole("link")).toHaveText(
-    PRODUCTS.map((p) => new RegExp(`^${p}`)),
-  );
-  for (const end of await ends.locator(".mk-end").all())
-    await expect(end).toHaveCSS("opacity", "1", { timeout: 3000 });
-  // Straight: every line's last point is at the drawing's far edge, level.
-  for (const d of done) {
-    const last = d.split("C").at(-1)?.trim().split(" ").slice(-2) ?? [];
-    expect(last).toHaveLength(2);
+  // Above the fold: the week, and nothing on it yet.
+  const week = page.locator("[data-week]");
+  await expect(week).toBeInViewport();
+  await expect(week).toHaveAttribute("aria-label", /^Plan A's week: CMSC351/);
+  await expect(stageOf(page)).toHaveAttribute("data-stage", "0");
+  await ready(page);
+
+  const steps = page.getByRole("navigation", { name: "Steps" });
+  await expect(steps.getByRole("button")).toHaveText(PRODUCTS);
+  const pieces = ["problems", "reviews", "chat", "plan", "todo"];
+  for (let n = 1; n <= 5; n++) {
+    await scrollToStep(page, n);
+    await expect(stageOf(page)).toHaveAttribute("data-stage", String(n));
+    await expect(
+      steps.getByRole("button", { name: PRODUCTS[n - 1] }),
+    ).toHaveAttribute("aria-pressed", "true");
+    // The screen stays in view while the words scroll.
+    await expect(week).toBeInViewport({ ratio: 0.3 });
+    await expect(
+      page.locator(`[data-piece="${pieces[n - 1]}"]`),
+    ).toHaveAttribute("data-on", "");
   }
-  // All five are out: nothing says "Coming soon", and Plan links to /plan.
-  await expect(page.locator("main")).not.toContainText("Coming soon");
+  // Back up: the pieces leave again.
+  await scrollToStep(page, 2);
+  await expect(stageOf(page)).toHaveAttribute("data-stage", "2");
+  await expect(page.locator('[data-piece="todo"]')).not.toHaveAttribute(
+    "data-on",
+  );
+  // Every link goes where it says.
+  await expect(
+    page.getByRole("link", { name: "View todos" }).first(),
+  ).toHaveAttribute("href", "/todo");
   await expect(
     page.getByRole("link", { name: "View four-year plan" }).first(),
   ).toHaveAttribute("href", "/plan");
-  await expect(page.getByRole("link", { name: "View todos" })).toHaveAttribute(
-    "href",
-    "/todo",
-  );
-
-  // Replay tangles it again and straightens it once more.
-  await page.getByRole("button", { name: "Replay" }).click();
-  await expect(tangle).toHaveAttribute("data-tangle", "playing");
-  expect(await lines(page)).not.toEqual(done);
-  await expect(tangle).toHaveAttribute("data-tangle", "done", {
-    timeout: 10_000,
-  });
-  expect(await settledLines(page)).toEqual(done);
 });
 
 test("the page never scrolls sideways on a phone", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?stay");
-  await page.waitForLoadState("networkidle");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
+  await ready(page);
+  for (const n of [0, 1, 3, 5]) {
+    await scrollToStep(page, n);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  }
 });
 
 test.describe("with reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
 
-  test("the hero is straight at once, over a ghost of the tangle, with no replay", async ({
+  test("the demos work from the keyboard, with nothing animating", async ({
     page,
+    isMobile,
   }) => {
     await page.goto("/?stay");
-    await expect(page.locator("[data-tangle]")).toHaveAttribute(
-      "data-tangle",
-      "done",
-    );
-    const fig = figure(page);
-    await expect(fig.locator(".mk-ghost")).toHaveCount(5);
-    await expect(fig.locator(".mk-ghost").first()).toBeVisible();
-    for (const end of await fig.locator(".mk-end").all())
-      await expect(end).toHaveCSS("opacity", "1");
-    // The server's rails, untouched: nothing was redrawn.
-    const drawn = await lines(page);
-    expect(drawn.every((d) => d.startsWith("M"))).toBe(true);
-    await expect(page.getByRole("button", { name: "Replay" })).toBeHidden();
+    await ready(page);
+    const steps = page.getByRole("navigation", { name: "Steps" });
+
+    // Schedule: the Problems tab. The walking conflict first.
+    await steps.getByRole("button", { name: "Schedule" }).focus();
+    await page.keyboard.press("Enter");
+    const walk = page.getByRole("button", { name: "Switch STAT400 to 0201" });
+    await walk.focus();
+    await page.keyboard.press("Enter");
+    await expect(walk).toHaveCount(0);
+    await expect(page.locator("[data-week] .mk-pill")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Plan A has 2 problems" }),
+    ).toBeVisible();
+    await expect(page.getByText("Switched STAT400 to 0201")).toBeVisible();
+    // Undo puts it back.
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(
+      page.getByRole("button", { name: "Plan A has 3 problems" }),
+    ).toBeVisible();
+    await expect(page.locator("[data-week] .mk-pill")).toHaveCount(3);
+
+    // The seat watch.
+    const watch = page.getByRole("button", {
+      name: "Watch CMSC351 0301 for a seat",
+    });
+    await watch.focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("button", { name: "Watching CMSC351 0301" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    // Chat: send a message.
+    await steps.getByRole("button", { name: "Chat" }).click();
+    const box = page.getByRole("textbox", { name: "Message CMSC351 0301" });
+    await box.fill("Room?");
+    await box.press("Enter");
+    const log = page.getByRole("list", { name: "Messages in CMSC351 0301" });
+    await expect(log.getByText("Room?")).toBeVisible();
+    await expect(log.getByText("Sounds good, see you there.")).toBeVisible();
+
+    // Todo: check one off.
+    await steps.getByRole("button", { name: "Todo" }).click();
+    const hw = page.getByRole("checkbox", { name: "Done: Homework 4" });
+    await hw.focus();
+    await page.keyboard.press("Space");
+    await expect(hw).toBeChecked();
+
+    // Start over puts the sample back (under the screen on a desktop; a
+    // phone's screen has no room for it, and Undo is there).
+    await steps.getByRole("button", { name: "Schedule" }).click();
+    if (!isMobile) {
+      await page.getByRole("button", { name: "Start over" }).click();
+      await expect(
+        page.getByRole("button", { name: "Watch CMSC351 0301 for a seat" }),
+      ).toBeVisible();
+    }
+
     expect(
       await page.evaluate(
         () =>
@@ -151,80 +179,19 @@ test.describe("with reduced motion", () => {
       ),
     ).toBe(0);
   });
-
-  test("the samples work, from the keyboard too", async ({ page }) => {
-    await page.goto("/?stay");
-
-    const schedule = await block(page, "schedule");
-    await schedule.getByRole("button", { name: "Add ENGL393 0101" }).focus();
-    await page.keyboard.press("Enter");
-    await expect(schedule.getByText("1 problem")).toBeVisible();
-    await schedule.getByRole("button", { name: "Switch to 0404" }).click();
-    await expect(schedule.getByText("No problems")).toBeVisible();
-
-    const reviews = await block(page, "reviews");
-    const haddad = reviews.getByRole("button", { name: "Rana Haddad" });
-    await haddad.focus();
-    await page.keyboard.press("Space");
-    await expect(haddad).toHaveAttribute("aria-pressed", "true");
-    await expect(reviews.getByText(/Moves fast and skips/)).toBeVisible();
-
-    const chat = await block(page, "chat");
-    const messages = chat.getByRole("list", {
-      name: "Messages in CMSC351 0301",
-    });
-    await expect(messages.getByRole("listitem")).toHaveCount(6);
-    await chat
-      .getByRole("textbox", { name: "Message CMSC351 0301" })
-      .fill("Room?");
-    await page.keyboard.press("Enter");
-    await expect(messages.getByText("Room?")).toBeVisible();
-    await expect(
-      messages.getByText("Sounds good, see you there."),
-    ).toBeVisible();
-
-    const plan = await block(page, "plan");
-    await plan.getByRole("combobox", { name: "into" }).selectOption("f28");
-    await plan.getByRole("button", { name: "Place" }).focus();
-    await page.keyboard.press("Enter");
-    await expect(
-      plan.getByRole("region", { name: "Fall 2028" }).getByText("ECON200"),
-    ).toBeVisible();
-
-    const todo = await block(page, "todo");
-    const hw = todo.getByRole("checkbox", { name: /Homework 4/ });
-    await hw.focus();
-    await page.keyboard.press("Space");
-    await expect(hw).toBeChecked();
-    await expect(todo.getByText("5 open", { exact: true })).toBeVisible();
-  });
 });
 
-test("chat messages arrive one at a time", async ({ page }) => {
-  await page.goto("/?stay");
-  const chat = await block(page, "chat");
-  const messages = chat.getByRole("list", { name: "Messages in CMSC351 0301" });
-  await expect(messages.getByText(/^After, 11:59 pm/)).toBeVisible();
-  // The room's exchange is there and the last message isn't yet: they come
-  // one at a time.
-  await expect(messages.getByText(/^Midterm study group/)).toHaveCount(0);
-  await expect(messages.getByText(/^Midterm study group/)).toBeVisible({
-    timeout: 10_000,
-  });
-});
-
-test("Open the scheduler goes to the scheduler; sign-in is a plain link", async ({
+test("View schedule goes to the scheduler; sign-in is a plain link", async ({
   page,
 }) => {
   await page.goto("/?stay");
+  await ready(page);
   await expect(
-    page
-      .getByRole("main")
-      .getByRole("link", { name: "Sign in with your UMD account" }),
+    page.getByRole("main").getByRole("link", { name: "Sign in with UMD" }),
   ).toHaveAttribute("href", "/signin");
   await page
     .getByRole("main")
-    .getByRole("link", { name: "Open the scheduler" })
+    .getByRole("link", { name: "View schedule" })
     .first()
     .click();
   await expect(page).toHaveURL(/\/schedule$/);
@@ -242,10 +209,12 @@ test("what search engines and link previews read", async ({
     /&#x27;/g,
     "'",
   );
-  // Server-rendered: the headline, the blocks and the samples are in the HTML.
+  // Server-rendered: the headline, every step's words and the week.
   expect(html).toContain(HEADLINE);
-  expect(html).toContain('id="todo"');
-  expect(html).toContain("Plan A · Spring 2027");
+  for (const id of ["schedule", "reviews", "chat", "plan", "todo"])
+    expect(html).toContain(`id="${id}"`);
+  expect(html).toContain("Build the week, and let it check itself.");
+  expect(html).toContain("Plan A's week: CMSC351 0301");
   expect(html.match(/<h1\b/g)).toHaveLength(1);
   // The contact address never appears whole.
   expect(html).not.toContain(["admin", "terpsicle.com"].join("@"));
@@ -273,12 +242,16 @@ test("what search engines and link previews read", async ({
   expect(ld["@graph"].map((n) => n["@type"])).toEqual([
     "WebSite",
     "Organization",
+    "WebApplication",
   ]);
-  // The headline's font is preloaded, and it's the one the page uses.
-  const preload = await page
+  // The headline's font and the week's mono face are preloaded.
+  const preloads = await page
     .locator('head link[rel="preload"][as="font"]')
-    .getAttribute("href");
-  expect(preload).toMatch(/bricolage-grotesque-latin-opsz/);
+    .evaluateAll((els) => els.map((el) => el.getAttribute("href") ?? ""));
+  expect(preloads.some((h) => /bricolage-grotesque-latin-opsz/.test(h))).toBe(
+    true,
+  );
+  expect(preloads.some((h) => /geist-mono-latin-wght/.test(h))).toBe(true);
   const og = await request.get("/og.png");
   expect(og.status()).toBe(200);
   expect(og.headers()["content-type"]).toContain("image/png");
@@ -297,7 +270,7 @@ test("robots.txt and the sitemap", async ({ request }) => {
 });
 
 for (const theme of ["light", "dark"] as const) {
-  test(`is accessible in ${theme}`, async ({ page }) => {
+  test(`is accessible in ${theme}, at every stage`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
     await page.goto("/?stay");
     await expect(
@@ -306,6 +279,13 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.locator("html")).toHaveClass(
       theme === "dark" ? /dark/ : /^$/,
     );
+    await ready(page);
     await scan(page, `marketing, ${theme}`);
+    // Each step's tint and each piece, as they land.
+    for (const n of [1, 3, 5]) {
+      await scrollToStep(page, n);
+      await expect(stageOf(page)).toHaveAttribute("data-stage", String(n));
+      await scan(page, `marketing step ${n}, ${theme}`);
+    }
   });
 }

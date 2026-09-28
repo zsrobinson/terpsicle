@@ -51,10 +51,10 @@ export function padPattern(dept: DeptCode, digits: string): WildcardPattern {
 }
 
 /**
- * Reads what someone typed: a pattern ("CMSC4XX", "cmsc 4xx"), a gen-ed code
- * ("DSHS", from `genEds`), or neither. "CMSC4X" and "CMSC4X1" are
- * `invalid`, with a message; "BUSI758X" is a course code (X as its suffix
- * letter), so it's `none`.
+ * Reads what someone typed: a pattern ("CMSC4XX", "cmsc 4xx", and "cmsc4x",
+ * whose missing places are X), a gen-ed code ("DSHS", from `genEds`), or
+ * neither. "CMSC4X1" and "CMSC4XXX" are `invalid`, with a message;
+ * "BUSI758X" is a course code (X as its suffix letter), so it's `none`.
  */
 export function parseWildcard(
   input: string,
@@ -69,17 +69,21 @@ export function parseWildcard(
     if (!number.slice(0, 3).includes("X")) return NONE;
     const lead = /^\d*/.exec(number)?.[0] ?? "";
     const example = padPattern(dept, lead);
-    if (number.length !== 3)
-      return {
-        kind: "invalid",
-        message: `Use three places for the number, as in ${example}.`,
-      };
     if (!DIGITS_THEN_XS.test(number))
       return {
         kind: "invalid",
         message: `Put X only at the end, as in ${example}.`,
       };
-    return { kind: "wildcard", wildcard: { kind: "pattern", pattern: text } };
+    if (number.length > 3)
+      return {
+        kind: "invalid",
+        message: `Use three places for the number, as in ${example}.`,
+      };
+    // A short one is a prefix ("cmsc4x", owner 2026-09-28): the rest is X.
+    return {
+      kind: "wildcard",
+      wildcard: { kind: "pattern", pattern: example },
+    };
   }
   if (/^[A-Z]{4}$/.test(text) && [...genEds].includes(text))
     return { kind: "wildcard", wildcard: { kind: "gen-ed", code: text } };

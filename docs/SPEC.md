@@ -133,7 +133,12 @@ Nobody should have to touch the app when a new semester appears.
   - **About:** description, prerequisites and restrictions as text (not enforced), cross-listings.
 
 ### 3.5 Search
-- Search by course code, title or instructor, with typo tolerance.
+- **One course search everywhere** (owner, 2026-09-28: "familiarity carries over"). Schedule's Search, Plan's Search and Generate's course field share one engine (`~/core/search`), one box (`CourseSearchField`), one line of chips (`FilterChips`) and one result row (`CourseResultRow`, all in `src/components/ui`). Each matches on what it has loaded: Plan's course index has no instructors or sections, so it can't find by instructor and has no Fits my plan or Open seats chip, and says nothing about either.
+- Search by course code, title or instructor, with typo tolerance. Every word matches the start of a word ("intro psych" finds Introduction to Psychology), and small words ("to", "of", "the") don't have to be there.
+- **Code patterns:** after a four-letter department, `x` is any digit: `cmsc4xx` lists every CMSC 400-level (special topics and honors included), `cmsc42x` the 420s, and `cmsc4x` reads as `cmsc4xx`. With words it narrows them ("cmsc4xx data"). It's the wildcards' own matcher (`parseWildcard`), so Generate and Plan's placeholders read the same patterns.
+- **Filter tokens:** a word that names a filter chip, and isn't a department or course code, filters at once, and on space or Enter it becomes its chip and leaves the box: a GenEd ("DSNS", checked against the term's departments), a level ("400s", "400-level") or credits ("3cr", "4credits"; "5cr" or more is "5+"). Backspace in an empty box takes the newest typed chip off (then the line's last). "open" and "online" aren't tokens: they're words in titles. Generate has no chips, so there a GenEd stays in the box, narrowing the courses under its "Any DSHS course". The empty state and the chips' tooltips say how.
+- **Keys, the same in every box:** ↓ ↑ move through the results and stop at the ends; Enter turns a trailing token into its chip, or acts on the highlighted result (the top one when none is); Esc clears the box, and in an empty box it's the page's (leave, go back).
+- **Sort** (Schedule's Search, under the box beside the count): Best match (default), Course code, Instructor rating and Open seats, in the URL (`?sort=`). Rating is the best PlanetTerp rating among the course's instructors this term; open seats sum its sections'. Only data already loaded: ratings come from the departments whose PlanetTerp file has loaded (it loads when you open one of their courses), and the option says "Ratings for 3 of 12 departments so far" rather than fetching per row. A course with nothing to sort by goes last, in best-match order. Sorted by rating or seats, each row shows its number.
 - **Filters:** one line of chips under the search box (at the sidebar's usual width; a narrower sidebar or a phone wraps them rather than cutting one off). Each is a dropdown or toggle, and fills with color when active:
   - Gen-eds ▾ (multi-select);
   - Credits ▾;
@@ -187,21 +192,24 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
   - **Gen-eds:** a course matches when it can count for the code. A choice ("DSHS or DSHU") counts for each. A conditional code ("DSNL if taken with GEOL110") doesn't count, since a wildcard can't promise the condition.
   - A wildcard never picks a course that's listed on its own, a course with no sections this term, or the same course as another wildcard.
   - Each result names the course it took ("with CMSC420 + ANTH210"), and its details list them under "Picked for your wildcards".
-  - Nothing to pick from is said plainly: the suggestion reads "Spring 2027 has no ARTT courses." and can't be added; after a run, "None of the 37 CMSC 400-level courses fits your must-haves and required courses." A required wildcard gets the relaxation "Make any … optional".
+  - Nothing to pick from is said plainly: the suggestion reads "Spring 2027 has no ARTT courses." and can't be added; after a run, "None of the 37 CMSC 400-level courses fits your filters and required courses." A required wildcard gets the relaxation "Make any … optional".
   - To stay fast, a wildcard offers the search at most 40 section groups: sections that break a must-have or overlap every section of a required course go first, then each course's best section by the ranking, a course at a time. When that leaves some out, the results say so ("Tried the 40 most promising of 408 DSHS courses").
-- **Must-haves:**
-  - earliest start and latest end;
-  - days off;
-  - enough time between classes (on by default);
-  - open seats only;
-  - respect my blocks (on);
-  - credit range.
-- **Rank by:** compact days, fewer days on campus, later starts, best-rated instructors, higher average GPA, safest seats. A "Custom" option exposes weight sliders.
-- **Results:** a ranked list. Each result has a mini-week thumbnail and plain stats (days on campus, first class, average rating, fewest open seats).
-  - Results that differ only in time-identical sections are merged ("×3 equivalent"). Saving one adds the merged section with the most open seats, and the seats a result shows are that section's.
-  - Hovering a result (with a mouse) previews it on the calendar, as Search does. Clicking one previews it and drills into its details (changes, problems).
-  - Actions: **Save as new plan**. Multiple results can be saved at once (checkboxes → "Save 3 plans"); until one is ticked, the footer says what the checkboxes do.
-- **When nothing fits:** suggested relaxations with the count each would unlock ("Allow classes before 10am → 38 plans"), plus the closest near-misses with their conflicts marked.
+- **Filters and preferences are chips (owner, 2026-09-28).** Two kinds that must never be mistaken for each other: filters take plans out, preferences put them in order.
+- **Filters** (the must-haves in code) are Search's filter chips: square, filled while on, with a funnel and "No…"/"Only…" words. Each one that's on says how many plans it took out ("No Fridays −38", from a what-if run without it; "−38+" when that run hit its budget; nothing when it took none).
+  - No classes before a time, and after one (a menu of hours);
+  - days off ("No Fridays", "No Mon, Fri");
+  - Only open seats;
+  - Time to walk: enough time between classes, at your pace in Travel (on by default);
+  - Not in my blocks (on; off and dimmed with no blocks);
+  - a credit range ("12–16 credits", in a popover).
+- **Preferences** are pills, one per factor: Compact days, Fewer days (on campus), Later starts, Best-rated (instructors), Higher GPAs, Safest seats. A click, Enter or Space cycles one off (outlined) → on (a light fill) → 2× (outlined dark, with a dark "2×": it counts double) → off. A black fill is only ever a filter, here as in Search. Compact days starts on. With none on, the plans rank by an even mix. They're stored as the ranking the generator takes: one on is its preset; more are weights, 2× twice 1×.
+- **The chips are the URL** (`/schedule/generate?prefer=later-starts,best-rated*2&off=F&seats=1`), each absent at its default, so Back undoes a chip and a copied link keeps them.
+- **Results:** a ranked list under one line of the courses asked for ("4 courses · Edit") and both rows of chips, compact, each led by its icon. Changing a chip re-ranks the list in place (**live results**): the run waits for clicks to settle for a moment, runs in the worker, and the last results stay on screen, dimmed, until the new ones land. Only a changed course list waits for "Generate again".
+  - Each result has a mini-week thumbnail, what sets it apart, and a mark for each preference that's on: a short bar for its score beside the number behind it ("Starts ~10:30am", "4 days on campus", "★ 4.1", "12 seats left"). With none on, it shows plain stats (average rating, GPA, fewest open seats).
+  - Results that differ only in time-identical sections are merged ("×3 equivalent"). Adding one adds the merged section with the most open seats, and the seats a result shows are that section's.
+  - Hovering a result (with a mouse) previews it on the calendar, as Search does. Its arrow (and a click anywhere on the row) previews it and drills into its details.
+- **A result's details** list every course and section: title, section, instructor with PlanetTerp rating and average GPA (what we have), each meeting's days, times and room, seats, the wildcard it's for, and what changed from the open plan ("New", "Was 0101"). Then the walks between classes with their verdicts, and its problems. The one action, at the bottom, is **Add as Plan C** (the next default plan name): it opens the new plan, with Undo. There's no multi-select.
+- **When nothing fits:** suggested relaxations with the count each would unlock ("Allow classes before 10am → 38 plans"), plus the closest near-misses with their conflicts marked. The chips stay above, so a filter can be turned off right there.
 - It runs in a Web Worker, stays responsive, and stops at a budget with "showing the best 200".
 
 ### 3.10 Export

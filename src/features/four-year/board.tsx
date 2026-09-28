@@ -15,7 +15,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { moveEntry } from "./actions";
 import { ENTRY_DRAG_TYPE, EntryBlock } from "./block";
 import { ViewSchedule, ViewTodos } from "./column-links";
-import { useModel, usePlanNav } from "./model";
+import { CLOSE_DRILL, useModel, usePlanNav } from "./model";
 import { focusSearch } from "./search-panel";
 
 // The semesters (V3 §2.13), the workbench's canvas. Desktop: "Before UMD"
@@ -99,9 +99,11 @@ function AddButton({
           nav.go({
             tab: "search",
             semester: term,
-            course: undefined,
+            ...CLOSE_DRILL,
             wildcard: undefined,
             gened: undefined,
+            credits: undefined,
+            level: undefined,
             q: undefined,
           });
           focusSearch("column");
@@ -112,7 +114,7 @@ function AddButton({
         )}
       >
         <Plus aria-hidden="true" />
-        {term === "before" ? "Add AP or transfer credit" : "Add a course"}
+        {term === "before" ? "Add AP, exam or transfer credit" : "Add a course"}
       </Button>
     </WithTooltip>
   );
@@ -185,7 +187,7 @@ export function TermColumn({
   );
 }
 
-/** AP and transfer credit, across the top. */
+/** AP, exam and transfer credit, across the top. */
 function BeforeRow() {
   const { doc, summaries } = useModel();
   const nav = usePlanNav();
@@ -209,7 +211,7 @@ function BeforeRow() {
         <h2 id="term-before" className="font-semibold">
           Before UMD
         </h2>
-        <span className="text-muted text-xs">AP and transfer credit</span>
+        <span className="text-muted text-xs">AP, exam and transfer credit</span>
         <span className="tnum ml-auto text-muted text-xs">
           {summary && summary.entries > 0 ? columnLabel(summary) : null}
         </span>

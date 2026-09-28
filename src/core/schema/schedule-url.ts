@@ -3,9 +3,11 @@ import { z } from "zod";
 import {
   CourseCodeSchema,
   CourseDetailsTabSchema,
+  DaySchema,
   GenEdCodeSchema,
   LocalIdSchema,
   RailTabSchema,
+  RankFactorSchema,
   TermIdSchema,
 } from "./primitives";
 
@@ -49,6 +51,9 @@ function list(item: z.ZodType) {
     .catch(undefined);
 }
 
+/** `list` for other routes' search schemas (plan-url.ts). */
+export const searchList = (item: z.ZodType) => list(item);
+
 /** A list param's items. */
 export function listItems(value: string | undefined): string[] {
   return value ? value.split(",") : [];
@@ -88,12 +93,62 @@ export const SearchTabSearchSchema = z.object({
   level: list(z.string().regex(/^[1-8]00$/)),
   openSeats: Flag,
   fits: Flag,
+  /** The results' order; relevance when absent. */
+  sort: param(z.enum(["code", "rating", "seats"])),
 });
 export type SearchTabSearch = z.infer<typeof SearchTabSearchSchema>;
 
-/** `/schedule/generate`: its results rather than the form. */
+/** A preference chip in the URL: `later-starts`, or `best-rated*2` for double. */
+const PreferParamSchema = z
+  .string()
+  .regex(/^[a-z-]+(\*2)?$/)
+  .refine((s) => RankFactorSchema.safeParse(s.replace("*2", "")).success);
+
+/** A time of day in minutes, as a number (the router writes it back as one). */
+const MinutesParam = z
+  .union([z.number(), z.string().regex(/^\d+$/)])
+  .transform(Number)
+  .pipe(z.number().int().min(0).max(1439))
+  .optional()
+  .catch(undefined);
+
+/** A credit bound: 0–30, halves allowed. */
+const CreditsParam = z
+  .union([z.number(), z.string().regex(/^\d+(\.\d)?$/)])
+  .transform(Number)
+  .pipe(z.number().min(0).max(30))
+  .optional()
+  .catch(undefined);
+
+/** `0` when a filter that's on by default is off; absent when on. */
+const Off = z
+  .union([z.literal(0), z.literal("0")])
+  .transform(() => 0 as const)
+  .optional()
+  .catch(undefined);
+
+/**
+ * `/schedule/generate`: its results rather than the form, and its chips
+ * (SPEC §3.9), so a reload, a copied link and Back keep them. Each param is
+ * absent at its default. Converted by ~/core/generate/url.
+ */
 export const GenerateTabSearchSchema = z.object({
   view: param(z.literal("results")),
+  /** Preferences on (`compact,best-rated*2`); `none` when every one is off. */
+  prefer: list(z.union([z.literal("none"), PreferParamSchema])),
+  /** Filters: no classes before or after these times. */
+  start: MinutesParam,
+  end: MinutesParam,
+  /** Filter: no classes on these days (`M,F`). */
+  off: list(DaySchema),
+  /** Filter: only sections with open seats. */
+  seats: Flag,
+  /** Filters on by default, turned off: time to walk, and my blocks. */
+  walk: Off,
+  blocks: Off,
+  /** Filter: the credit range. */
+  minCredits: CreditsParam,
+  maxCredits: CreditsParam,
 });
 export type GenerateTabSearch = z.infer<typeof GenerateTabSearchSchema>;
 

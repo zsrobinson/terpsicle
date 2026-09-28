@@ -18,6 +18,7 @@ import {
 import { runTodoFeedsJob } from "~/jobs/todo-feeds";
 import { TEST_VAPID_KEYS } from "../push/config";
 import { resetPushCachesForTests } from "../push/send";
+import { payloadOf } from "../push/testing";
 import { sendDueTomorrow } from "./due-tomorrow";
 import {
   clearTodo,
@@ -80,7 +81,8 @@ async function aPhone() {
       uaPublic,
       authSecret,
     });
-    if (plain) received.push(JSON.parse(new TextDecoder().decode(plain)));
+    const payload = payloadOf(plain);
+    if (payload) received.push(payload);
     return new Response(null, { status: 201 });
   };
   return {

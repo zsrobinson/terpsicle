@@ -123,6 +123,47 @@ test.describe("desktop", () => {
     await expect.poll(() => matchCount(page)).toBe(all);
   });
 
+  test("a typed GenEd becomes its chip, x is a digit, and results sort", async ({
+    page,
+  }) => {
+    await page.keyboard.press("/");
+    // "DSNS " is the Gen-eds chip, and the box is free again.
+    await searchBox(page).pressSequentially("dsns ");
+    await expect(searchBox(page)).toHaveValue("");
+    await expect(
+      page.getByRole("button", { name: "Gen-eds: DSNS" }),
+    ).toBeVisible();
+    await expect(page.locator('[data-course-result="PSYC100"]')).toBeVisible();
+    // Backspace in the empty box takes it off.
+    await searchBox(page).press("Backspace");
+    await expect(page.getByRole("button", { name: "Gen-eds" })).toBeVisible();
+
+    // cmsc4xx: every CMSC 400-level, and cmsc4x reads the same.
+    await searchBox(page).fill("cmsc4xx");
+    await expect(results(page)).toBeVisible();
+    const all = await matchCount(page);
+    for (const code of await page
+      .locator("[data-course-result]")
+      .evaluateAll((rows) =>
+        rows.map((r) => r.getAttribute("data-course-result")),
+      ))
+      expect(code).toMatch(/^CMSC4/);
+    await searchBox(page).fill("cmsc4x");
+    await expect.poll(() => matchCount(page)).toBe(all);
+
+    // Sorted by open seats, each row says its count, most first.
+    await page.getByRole("button", { name: "Sort: Best match" }).click();
+    await page.getByRole("menuitemradio", { name: /^Open seats/ }).click();
+    await expect(page).toHaveURL(/sort=seats/);
+    const open = await page
+      .locator("[data-course-result]")
+      .evaluateAll((rows) =>
+        rows.map((r) => Number(/(\d+) open/.exec(r.textContent ?? "")?.[1])),
+      );
+    expect(open.length).toBeGreaterThan(1);
+    expect(open).toEqual([...open].sort((a, b) => b - a));
+  });
+
   test("every filter chip shows whole at the sidebar's usual width", async ({
     page,
   }) => {
