@@ -57,9 +57,7 @@ test("the head runs the app edge to edge, in the app's colors", async ({
   await expect(
     page.locator('meta[name="apple-mobile-web-app-status-bar-style"]'),
   ).toHaveAttribute("content", "default");
-  await expect(
-    page.locator('meta[name="theme-color"][media]'),
-  ).toHaveCount(2);
+  await expect(page.locator('meta[name="theme-color"][media]')).toHaveCount(2);
 });
 
 test("the toolbar color follows a picked theme, and the system on System", async ({
@@ -114,6 +112,39 @@ test("the app never bounces as a page; a page you read does", async ({
   expect(await overscroll()).toBe("auto");
 });
 
+test("a press shows at once, in the soft gray, where hovering can't", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto("/reviews");
+  await hydrated(page);
+  await page.getByRole("searchbox").fill("cmsc");
+  // A result row: plain until it's hovered or pressed.
+  const row = page
+    .locator('li[class~="hover:bg-hover"]')
+    .filter({ has: page.getByRole("link", { name: /^CMSC/ }) })
+    .first();
+  await expect(row).toBeVisible();
+  const background = () =>
+    row.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const hover = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.backgroundColor = "var(--hover)";
+    document.body.append(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  });
+  const box = await row.boundingBox();
+  if (!box) throw new Error("no result row");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  // With a mouse, the hover's own fade has begun and runs out first.
+  if (!isMobile) await expect.poll(background).toBe(hover);
+  await page.mouse.down();
+  // On a phone nothing hovers: the press alone paints it, with no fade in.
+  expect(await background()).toBe(hover);
+});
+
 test("the bar clears the notch", async ({ page }) => {
   await page.goto("/reviews");
   await hydrated(page);
@@ -130,7 +161,7 @@ test("the bar clears the notch", async ({ page }) => {
 });
 
 test.describe("Share", () => {
-  /** Stands in for the system's share sheet; `null` takes it away. */
+  /** Stands in for the system's share sheet, or takes it away. */
   async function shareSheet(page: Page, present: boolean) {
     await page.addInitScript((present) => {
       const shared: ShareData[] = [];
@@ -151,11 +182,10 @@ test.describe("Share", () => {
   }
 
   const shared = (page: Page) =>
-    page.evaluate(
-      () =>
-        (window as unknown as { __shared: ShareData[] }).__shared.map(
-          (data) => data.url ?? "",
-        ),
+    page.evaluate(() =>
+      (window as unknown as { __shared: ShareData[] }).__shared.map(
+        (data) => data.url ?? "",
+      ),
     );
 
   async function openSchedule(page: Page) {

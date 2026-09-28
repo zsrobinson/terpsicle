@@ -585,7 +585,8 @@
  * buttons press into their shadow instead (~/ui/button).
  */
 @layer utilities {
-  .hover\:bg-hover:active {
+  .hover\:bg-hover:active,
+  .hover\:bg-hover\/50:active {
     background-color: var(--hover);
     transition-duration: 0s;
   }
