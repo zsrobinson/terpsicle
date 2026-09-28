@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { scan } from "./axe";
+import { lowerPlanDrawer } from "./plan-drawer";
 
 // Transfer and exam credit Testudo can't match (docs/V3.md §2.10), on
 // `pnpm dev:mock`: a synthetic transcript with IB credit, a community
@@ -123,6 +124,7 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   await expect(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
 
   // The block keeps its own title and says what it counts as.
+  if (isMobile) await lowerPlanDrawer(page);
   const after = await semester(page, isMobile, "Before UMD");
   await expect(after.getByText("PHYSICAL GEOLOGY")).toBeVisible();
   await expect(after.getByText("Counts as GEOL100")).toBeVisible();

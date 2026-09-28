@@ -100,11 +100,15 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   // GenEd progress counts what came in: ENGL101 by AP is Academic Writing,
   // and AP Calculus (MATH140 and MATH141) is Math and Analytic Reasoning.
   // ARTH200 and PHIL140 aren't in the mock catalog, so the transcript's
-  // DSHU counts for them: Humanities.
+  // DSHU counts for them: Humanities. AP Chemistry stays credit with the
+  // transcript's DSNL, which with AP Physics's DSNS is Natural Sciences.
   const gened = page.getByRole("region", { name: "GenEd progress" });
   await expect(
-    gened.getByText("6 of 11 covered, with planned courses"),
+    gened.getByText("7 of 11 covered, with planned courses"),
   ).toBeVisible();
+  await expect(
+    gened.getByRole("listitem").filter({ hasText: "Natural Sciences" }),
+  ).toContainText("Done");
   await expect(
     gened.getByRole("listitem").filter({ hasText: "Humanities" }),
   ).toContainText("Done");
