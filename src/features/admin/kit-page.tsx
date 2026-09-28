@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState } from "react";
 import { Mark } from "~/components/brand/mark";
+import { PanelBody } from "~/components/panel";
 import { ADMIN_KIT_PATH } from "~/core/routing";
 import { GEN_ED_LABELS } from "~/core/schema";
 import type { KitPart } from "~/core/schema/admin-kit";
@@ -880,18 +881,23 @@ function ControlParts() {
           size="panel"
           title={
             <SheetTitle asChild>
-              <span>Notifications</span>
+              <span id={`${id}-notes`}>Notifications</span>
             </SheetTitle>
           }
         />
-        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {KIT_NOTES.map(([who, what]) => (
-            <li key={who + what} className="border-hairline border-b px-4 py-2">
-              <span className="block font-medium">{who}</span>
-              <span className="block text-muted text-sm">{what}</span>
-            </li>
-          ))}
-        </ul>
+        <PanelBody focusable labelledBy={`${id}-notes`}>
+          <ul>
+            {KIT_NOTES.map(([who, what]) => (
+              <li
+                key={who + what}
+                className="border-hairline border-b px-4 py-2"
+              >
+                <span className="block font-medium">{who}</span>
+                <span className="block text-muted text-sm">{what}</span>
+              </li>
+            ))}
+          </ul>
+        </PanelBody>
       </Sheet>
       <PageSection title="Fields" aside="Input · SearchField">
         <Demo

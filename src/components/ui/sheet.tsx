@@ -34,8 +34,9 @@ function SheetTitle({
   /** Names the sheet by the child element instead of an `<h2>` of its own. */
   asChild?: boolean;
 }) {
-  if (asChild && isValidElement(children))
-    return <Drawer.Title render={children} {...props} />;
+  if (asChild && isValidElement<{ id?: string }>(children))
+    // The child's own id, if it has one, is the one the sheet points at.
+    return <Drawer.Title render={children} id={children.props.id} {...props} />;
   return <Drawer.Title {...props}>{children}</Drawer.Title>;
 }
 
@@ -206,7 +207,7 @@ function Grabber({
         // haptic: wire HapticTap once v3/kit-controls-haptics lands (a tap
         // that steps a detent ticks; the drag that ends on one can't).
         onClick={onStep}
-        className="relative mx-auto flex h-5 w-16 shrink-0 items-center justify-center rounded-full pt-1"
+        className="relative mx-auto flex h-6 w-16 shrink-0 items-center justify-center rounded-full"
       >
         {bar}
       </button>

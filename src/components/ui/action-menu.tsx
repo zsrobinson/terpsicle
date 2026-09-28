@@ -124,6 +124,8 @@ function ActionMenu({
         </WithTooltip>
         <Menu.Portal>
           <Menu.Positioner
+            // A floating layer, reached from its trigger (e2e/axe.ts).
+            data-floating=""
             className="z-50 outline-none"
             side="bottom"
             align={align}

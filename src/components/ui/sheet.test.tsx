@@ -56,6 +56,19 @@ describe("Sheet", () => {
     expect(screen.getAllByRole("heading")).toHaveLength(1);
   });
 
+  it("is named by a heading that has an id of its own", async () => {
+    render(
+      <Sheet open onOpenChange={() => undefined}>
+        <SheetTitle asChild>
+          <span id="plans-title">Plans</span>
+        </SheetTitle>
+      </Sheet>,
+    );
+    expect(
+      await screen.findByRole("dialog", { name: "Plans" }),
+    ).toHaveAttribute("aria-labelledby", "plans-title");
+  });
+
   it("closes with Esc", async () => {
     const user = userEvent.setup();
     render(<Harness />);
