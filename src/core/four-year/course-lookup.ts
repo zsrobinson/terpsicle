@@ -1,7 +1,13 @@
-import type { CourseCode, CourseIndexEntry, DeptCode } from "../schema";
+import type {
+  CourseCode,
+  CourseIndexEntry,
+  DeptCode,
+  GenEdCode,
+} from "../schema";
 import type {
   FourYearCourseDetails,
   FourYearCourseEntry,
+  FourYearEntry,
 } from "../schema/four-year";
 
 // What the four-year planner knows about courses: the course index's
@@ -52,6 +58,22 @@ export function courseDetails(
   return entry.details;
 }
 
+/**
+ * The UMD course an entry counts as, for prerequisites and repeats: a
+ * course's own code, or the one its course info says it counts as while
+ * Testudo doesn't list it; a transfer credit's "Counts as". Null for a
+ * placeholder, and for credit that counts as no course.
+ */
+export function countsAsCode(
+  lookup: FourYearCourses,
+  entry: FourYearEntry,
+): CourseCode | null {
+  if (entry.kind === "course")
+    return courseDetails(lookup, entry)?.countsAs ?? entry.code;
+  if (entry.kind === "credit") return entry.countsAs ?? null;
+  return null;
+}
+
 const HONORS_CODE = /^([A-Z]{4}\d{3})H$/;
 
 /**
@@ -66,19 +88,28 @@ export function honorsBase(
   return base === undefined ? null : (lookup.courses.get(base) ?? null);
 }
 
-/**
- * An index entry's details, for a code that stands in for it. Only its
- * one-option GenEd groups: where Testudo says "or", the person picks.
- */
-export function detailsFromCourse(
-  course: CourseIndexEntry,
-): FourYearCourseDetails {
+/** A course's one-option GenEds: where Testudo says "or", the person picks. */
+export function fixedGenEds(course: CourseIndexEntry): GenEdCode[] {
   const genEds = course.genEds.flatMap((group) =>
     group.length === 1 && group[0] && !group[0].condition
       ? [group[0].code]
       : [],
   );
-  return { title: course.title, genEds: [...new Set(genEds)].slice(0, 8) };
+  return [...new Set(genEds)].slice(0, 8);
+}
+
+/**
+ * An index entry's details, for a code that stands in for it: its title,
+ * its one-option GenEds, and counting as it.
+ */
+export function detailsFromCourse(
+  course: CourseIndexEntry,
+): FourYearCourseDetails {
+  return {
+    title: course.title,
+    genEds: fixedGenEds(course),
+    countsAs: course.code,
+  };
 }
 
 /**

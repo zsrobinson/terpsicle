@@ -151,7 +151,9 @@ function ResultRow({
         <WithTooltip label={`About ${code}`}>
           <button
             type="button"
-            onClick={() => nav.go({ course: code }, { drill: true })}
+            onClick={() =>
+              nav.go({ course: code, credit: undefined }, { drill: true })
+            }
             className="block w-full min-w-0 text-left after:absolute after:inset-0"
           >
             {lines}

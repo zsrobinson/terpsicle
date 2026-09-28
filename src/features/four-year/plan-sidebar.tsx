@@ -8,7 +8,8 @@ import {
 } from "~/core/four-year/credits";
 import { WithTooltip } from "~/ui/tooltip";
 import { CoursePanel } from "./course-panel";
-import { useModel, usePlanNav } from "./model";
+import { CreditPanel } from "./credit-panel";
+import { CLOSE_DRILL, useModel, usePlanNav } from "./model";
 import { planView } from "./views";
 
 // Plan's sidebar (V3 §2.13), on the workbench: credits on top, then the
@@ -108,7 +109,12 @@ export function PlanSidebarContent({
   compact?: boolean;
 }) {
   const nav = usePlanNav();
-  const course = nav.search.course;
+  const { doc } = useModel();
+  const { course, credit } = nav.search;
+  const creditEntry = credit
+    ? doc.entries.find((e) => e.kind === "credit" && e.id === credit)
+    : undefined;
+  const back = { label: planView(nav.search.tab).label, mono: false };
   return (
     <div
       id={PLAN_SIDEBAR_ID}
@@ -127,13 +133,29 @@ export function PlanSidebarContent({
           className="flex min-h-0 flex-1 flex-col"
         >
           <DrillBackBar
-            back={{ label: planView(nav.search.tab).label, mono: false }}
+            back={back}
             name={course}
             mono
-            onBack={() => nav.back({ course: undefined })}
+            onBack={() => nav.back(CLOSE_DRILL)}
           />
           <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
             <CoursePanel code={course} />
+          </div>
+        </section>
+      ) : credit ? (
+        <section
+          aria-label={
+            creditEntry?.kind === "credit" ? creditEntry.title : "Credit"
+          }
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <DrillBackBar
+            back={back}
+            name={creditEntry?.kind === "credit" ? creditEntry.title : "Credit"}
+            onBack={() => nav.back(CLOSE_DRILL)}
+          />
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            <CreditPanel entryId={credit} />
           </div>
         </section>
       ) : (

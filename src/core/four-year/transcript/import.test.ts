@@ -339,23 +339,33 @@ describe("buildTranscriptImport", () => {
     expect(credits).toEqual([
       expect.objectContaining({
         term: "before",
-        title: "AP CHEMISTRY (CHEM 1XX)",
+        title: "AP CHEMISTRY",
         credits: 4,
         genEds: ["DSNL"],
         source: "transcript",
+        via: "ap",
+        equivalentPattern: "CHEM1XX",
       }),
       expect.objectContaining({
-        title: "WORLD RELIGIONS (RELS 1XX)",
+        title: "WORLD RELIGIONS",
         credits: 3,
         genEds: ["DSHU"],
+        via: "transfer",
+        equivalentPattern: "RELS1XX",
       }),
-      expect.objectContaining({ title: "PUBLIC SPEAKING", genEds: [] }),
+      expect.objectContaining({
+        title: "PUBLIC SPEAKING",
+        genEds: [],
+        equivalentPattern: null,
+      }),
     ]);
+    // Nobody has said what they count as yet: that's what Problems asks.
+    for (const c of credits) expect(c).not.toHaveProperty("countsAs");
     // Credit entries carry no grade (V3 §2.3: only course entries have one).
     for (const c of credits) expect(grades[c.id]).toBeUndefined();
   });
 
-  it("imports a mapped transfer line as the course it was mapped to", () => {
+  it("keeps a mapped line as its own credit, counting as the course it was mapped to", () => {
     const { rows } = transcriptRows(parse("synthetic-ap-transfer"));
     const chem = row(rows, "AP CHEMISTRY");
     const { entries } = buildTranscriptImport(
@@ -365,15 +375,36 @@ describe("buildTranscriptImport", () => {
     );
     expect(entries).toContainEqual(
       expect.objectContaining({
-        kind: "course",
+        kind: "credit",
         term: "before",
-        code: "CHEM131",
+        title: "AP CHEMISTRY",
         credits: 4,
-        transcript: { title: "AP CHEMISTRY", via: "ap" },
+        genEds: ["DSNL"],
+        countsAs: "CHEM131",
       }),
     );
     expect(
-      entries.some((e) => e.kind === "credit" && e.title.startsWith("AP CHEM")),
+      entries.some((e) => e.kind === "course" && e.code === "CHEM131"),
+    ).toBe(false);
+  });
+
+  it("imports exam credit and electives from the transfer paste", () => {
+    const { rows } = transcriptRows(parse("synthetic-transfer-credit"));
+    const { entries } = buildTranscriptImport(rows, checks(), {
+      lookup,
+      newId: ids(),
+    });
+    expect(entries).toContainEqual(
+      expect.objectContaining({
+        kind: "credit",
+        title: "IB ENGLISH A LIT HL",
+        via: "exam",
+        equivalentPattern: null,
+      }),
+    );
+    // Not evaluated yet: left out until ticked in.
+    expect(
+      entries.some((e) => e.kind === "credit" && e.title.startsWith("ANATOMY")),
     ).toBe(false);
   });
 

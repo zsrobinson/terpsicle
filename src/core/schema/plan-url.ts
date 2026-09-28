@@ -38,6 +38,8 @@ export const PlanSearchSchema = z.object({
   semester: param(z.union([TermIdSchema, z.literal("before")])),
   /** A course open in the sidebar, over the view. */
   course: param(CourseCodeSchema),
+  /** AP, exam or transfer credit open in the sidebar (its entry id), over the view. */
+  credit: param(LocalIdSchema),
   /** Search narrowed to the courses that can replace this placeholder block. */
   wildcard: param(LocalIdSchema),
   /**

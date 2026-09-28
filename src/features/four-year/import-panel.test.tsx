@@ -146,11 +146,12 @@ afterEach(() => {
 });
 
 describe("paste", () => {
-  it("says where to copy from, and that nothing leaves the browser", () => {
+  it("says where to copy from, and that the transcript stays in the browser", () => {
     renderPanel();
+    expect(screen.getByText(/open Unofficial Transcript/)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /open Unofficial Transcript.*Nothing leaves your browser until you import/,
+        "Your transcript is read here, in your browser, and never saved or sent. Only the courses you import are saved.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -260,7 +261,7 @@ describe("check", () => {
     ).toHaveLength(2);
   });
 
-  it("maps transfer credit to a course, or keeps it as credit", async () => {
+  it("says what transfer credit counts as, or keeps it as credit", async () => {
     const { paste: type, user } = renderPanel();
     await type(paste("synthetic-ap-transfer"));
     const field = screen.getByLabelText(/Testudo lists it as CHEM 1XX/);
@@ -273,7 +274,7 @@ describe("check", () => {
     ).toBeInTheDocument();
     await user.type(field, "31");
     expect(
-      screen.getByText("Imports as CHEM131, Chemistry I."),
+      screen.getByText("Counts as CHEM131, Chemistry I."),
     ).toBeInTheDocument();
   });
 
