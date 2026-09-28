@@ -85,6 +85,7 @@ beforeEach(async () => {
     [
       "seat_watches",
       "seat_alert_sends",
+      "notifications",
       "notification_deliveries",
       "notification_settings",
       "push_subscriptions",
@@ -401,13 +402,112 @@ describe("seat watches by push (V2.md §6.5)", () => {
         title: "A seat opened in CMSC351 0101",
         body: "3 of 120 open. Register on Testudo before it's gone.",
         url: `/schedule/course/CMSC351?term=${fixtureTermId}`,
-        tag: `seat:${fixtureTermId}:${SECTION}`,
+        tag: `seat:${fixtureTermId}`,
+        count: 1,
+        badge: 1,
+        renotify: true,
+        id: `seat-open:tstudent:${fixtureTermId}:${SECTION}:2026-10-01T15:05:00.000Z`,
       },
     ]);
     // A retried run sends neither again.
     expect(await go()).toMatchObject({ sent: 0 });
     expect(phone.received).toHaveLength(1);
     expect(sent).toHaveLength(1);
+  });
+
+  it("sends one push and one email for every section a run opens (V2.md §6.7)", async () => {
+    const { testEnv, sent } = pushEnv();
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+    await student.watch(OTHER);
+    const phone = await aDevice();
+    const asOf = "2026-10-01T15:05:00.000Z";
+    const both: SeatsFile = {
+      ...mockSeats,
+      asOf,
+      seats: {
+        ...mockSeats.seats,
+        [SECTION]: [2, 120, 0, null],
+        [OTHER]: [1, mockSeats.seats[OTHER]?.[1] ?? 1, 0, null],
+      },
+    };
+    const go = () =>
+      notifySeatChanges(testEnv, mockSeats, both, {
+        now: now(),
+        fetch: phone.fetcher,
+      });
+    expect(await go()).toEqual({ checked: 2, sent: 2 });
+    expect(phone.received).toHaveLength(1);
+    expect(phone.received[0]).toMatchObject({
+      type: "seat-open",
+      title: "Seats opened in 2 sections you're watching",
+      tag: `seat:${fixtureTermId}`,
+      count: 2,
+      badge: 1,
+    });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.subject).toBe("Seats opened in 2 sections you're watching");
+    expect(sent[0]?.text).toContain("CMSC351 0101: 2 of 120 open");
+    expect(sent[0]?.text).toContain("AAAS100 0101: 1 of");
+    // One header can't stop two watches: it turns seat emails off instead.
+    expect(sent[0]?.headers?.["List-Unsubscribe"]).toMatch(
+      /^<https:\/\/terpsicle\.com\/api\/notifications\/email-off\?u=tstudent&t=seat-open&k=[0-9a-f]+>$/,
+    );
+    // Each section counts toward the daily cap, and starts its cooldown.
+    const sends = await env.DB.prepare(
+      "SELECT section_key FROM seat_alert_sends ORDER BY section_key",
+    ).all();
+    expect(sends.results).toEqual([
+      { section_key: OTHER },
+      { section_key: SECTION },
+    ]);
+    const listed = await student.list();
+    expect(
+      listed.status === "ok" && listed.watches.map((w) => w.lastNotifiedAt),
+    ).toEqual([now().toISOString(), now().toISOString()]);
+    // A retried run sends nothing more.
+    expect(await go()).toMatchObject({ sent: 0 });
+    expect(phone.received).toHaveLength(1);
+    expect(sent).toHaveLength(1);
+  });
+
+  it("puts a seat opening in the inbox even with push and email off", async () => {
+    const { testEnv, sent } = pushEnv();
+    const student = await signIn("tstudent", testEnv);
+    await student.watch(SECTION);
+    const phone = await aDevice();
+    await writeSettings(
+      env.DB,
+      "tstudent",
+      {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        seatOpen: { push: false, email: false },
+      },
+      now(),
+    );
+    await notifySeatChanges(
+      testEnv,
+      mockSeats,
+      reopen(SECTION, 2, now().toISOString()),
+      { now: now(), fetch: phone.fetcher },
+    );
+    expect(phone.received).toEqual([]);
+    expect(sent).toEqual([]);
+    const inbox = await (
+      await student.request("notifications/inbox", {})
+    ).json();
+    expect(inbox).toMatchObject({
+      unread: 1,
+      items: [
+        {
+          type: "seat-open",
+          product: "schedule",
+          title: "A seat opened in CMSC351 0101",
+          body: "2 of 120 open. Register on Testudo before it's gone.",
+          url: `/schedule/course/CMSC351?term=${fixtureTermId}`,
+        },
+      ],
+    });
   });
 
   it("follows the person's settings: push only, or nothing", async () => {

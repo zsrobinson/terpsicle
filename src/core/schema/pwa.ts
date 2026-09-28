@@ -46,14 +46,36 @@ export const PushPayloadSchema = z.object({
   url: SitePathSchema,
   /**
    * A newer notification with the same tag replaces the older one, so a
-   * busy room shows one notification, not twenty ("chat:<term>:CMSC131:…").
+   * busy room shows one notification, not twenty. One tag per group (V2
+   * §6.7): "chat-mention:<room>", "chat-reply:<thread>", "seat:<term>",
+   * "todo-due:<date>", "admin-urgent".
    */
   tag: z.string().min(1).max(64),
+  /** Events the tag's notification stands for now ("3 mentions in CMSC351"). */
+  count: z.number().int().min(1).max(100_000).optional(),
+  /** Unread in the inbox after this event: the app badge (V2 §6.7). */
+  badge: z.number().int().min(0).max(100_000).optional(),
+  /**
+   * Buzz again when this replaces a notification still showing (V2 §6.7).
+   * A notification that replaces none buzzes anyway.
+   */
+  renotify: z.boolean().optional(),
+  /** The inbox row, so a click reads it (`notifications/read`). */
+  id: z.string().min(1).max(200).optional(),
 });
 export type PushPayload = z.infer<typeof PushPayloadSchema>;
 
 /** Where push subscriptions are saved (V2 §6.3); the service worker re-saves one that changes. */
 export const PUSH_SUBSCRIBE_PATH = "/api/push/subscribe";
+
+/** Where a notification click reads its inbox row (V2 §6.7), from the service worker. */
+export const NOTIFICATIONS_READ_PATH = "/api/notifications/read";
+
+/**
+ * What the service worker posts to open pages once a notification click
+ * has read something (`{type, unread}`), so a bell can match the badge.
+ */
+export const SW_NOTIFICATIONS_READ_MESSAGE = "notifications-read";
 
 /** The key moments that ask for the install prompt (V2 §3.4). */
 export const InstallTriggerSchema = z.enum([

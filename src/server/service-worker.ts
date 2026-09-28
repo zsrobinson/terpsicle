@@ -2,8 +2,10 @@ import { deviceLabel } from "~/core/pwa";
 import {
   NOTIFICATION_BADGE,
   NOTIFICATION_ICON,
+  NOTIFICATIONS_READ_PATH,
   PUSH_SUBSCRIBE_PATH,
   PWA_START_URL,
+  SW_NOTIFICATIONS_READ_MESSAGE,
   SW_SKIP_WAITING_MESSAGE,
 } from "~/core/schema";
 
@@ -29,9 +31,14 @@ import {
 //   stale-while-revalidate copy would hide it for a poll (DATA.md §2.5, §5.1).
 // - A new version waits until the app asks it to take over ("Update ready"
 //   → Reload, src/app/service-worker-registration.ts) or every tab closes.
-// - Push: shows the payload (`PushPayloadSchema`); a click focuses a window
-//   already on its URL, else takes an open one there, else opens one. A
-//   subscription the browser replaces is saved again.
+// - Push: shows the payload (`PushPayloadSchema`), one notification per tag
+//   (V2 §6.7: the server words it for the whole group, with its count),
+//   buzzing again only when the payload says so, and sets the app badge to
+//   the inbox's unread count. A click focuses a window already on its URL,
+//   else takes an open one there, else opens one; it also closes the tag,
+//   reads its inbox item (`notifications/read`, with the session cookie)
+//   and tells open pages the new unread count. A subscription the browser
+//   replaces is saved again.
 //
 // To retire it, serve a /sw.js whose activate handler calls
 // `self.registration.unregister()`; browsers check /sw.js on every
@@ -73,13 +80,22 @@ export interface SwWindowClient {
   focus(): Promise<unknown>;
   /** Resolves null (or rejects) when the page isn't one this worker controls. */
   navigate(url: string): Promise<unknown>;
+  postMessage(message: unknown): void;
 }
 export interface SwNotificationOptions {
   body: string;
   tag?: string;
   icon: string;
   badge: string;
-  data: { url: string };
+  /** Buzz again though it replaces a notification with its tag. */
+  renotify?: boolean;
+  /** `id`: the inbox row a click reads. */
+  data: { url: string; tag?: string; id?: string };
+}
+/** A notification showing now, as `getNotifications` gives it. */
+export interface SwShownNotification {
+  data: unknown;
+  close(): void;
 }
 export interface SwScope {
   location: { origin: string };
@@ -105,12 +121,20 @@ export interface SwScope {
     listener: (event: SwPushSubscriptionChangeEvent) => void,
   ): void;
   skipWaiting(): Promise<void>;
-  navigator: { userAgent: string };
+  /** The Badging API is on some browsers' workers only. */
+  navigator: {
+    userAgent: string;
+    setAppBadge?: (count: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
   registration: {
     showNotification(
       title: string,
       options: SwNotificationOptions,
     ): Promise<void>;
+    getNotifications(filter: {
+      tag: string;
+    }): Promise<readonly SwShownNotification[]>;
     pushManager: {
       subscribe(options: {
         userVisibleOnly: true;
@@ -151,6 +175,10 @@ export interface ServiceWorkerConfig {
   badge: string;
   skipWaitingMessage: string;
   subscribePath: string;
+  /** Where a click reads its inbox row. */
+  readPath: string;
+  /** What open pages hear once a click has read something. */
+  readMessage: string;
 }
 
 export interface ShownPush {
@@ -160,6 +188,10 @@ export interface ShownPush {
   body: string;
   url: string;
   tag: string;
+  count?: number;
+  badge?: number;
+  renotify?: boolean;
+  id?: string;
 }
 
 // Stringified into /sw.js (the service worker can't load zod), so it must
@@ -169,7 +201,8 @@ export interface ShownPush {
 export function readPushPayload(raw: unknown): ShownPush | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw))
     return null;
-  const { v, type, title, body, url, tag } = raw as Record<string, unknown>;
+  const { v, type, title, body, url, tag, count, badge, renotify, id } =
+    raw as Record<string, unknown>;
   if (v !== 1) return null;
   if (
     type !== "seat-open" &&
@@ -187,7 +220,28 @@ export function readPushPayload(raw: unknown): ShownPush | null {
   if (typeof url !== "string" || url.length > 2048 || !/^\/(?!\/)/.test(url))
     return null;
   if (typeof tag !== "string" || tag.length < 1 || tag.length > 64) return null;
-  return { v, type, title: cleanTitle, body, url, tag };
+  const whole = (n: unknown, min: number) =>
+    typeof n === "number" && Number.isInteger(n) && n >= min && n <= 100_000;
+  if (count !== undefined && !whole(count, 1)) return null;
+  if (badge !== undefined && !whole(badge, 0)) return null;
+  if (renotify !== undefined && typeof renotify !== "boolean") return null;
+  if (
+    id !== undefined &&
+    (typeof id !== "string" || id.length < 1 || id.length > 200)
+  )
+    return null;
+  return {
+    v,
+    type,
+    title: cleanTitle,
+    body,
+    url,
+    tag,
+    ...(count === undefined ? {} : { count: count as number }),
+    ...(badge === undefined ? {} : { badge: badge as number }),
+    ...(renotify === undefined ? {} : { renotify }),
+    ...(id === undefined ? {} : { id }),
+  };
 }
 
 // Stringified into /sw.js, so it must be self-contained: no imports, no
@@ -322,15 +376,41 @@ export function installServiceWorker(
     // Every push must show something (browsers require it), so a payload we
     // can't read still says where to look.
     const push = readPush(raw);
+    // The app icon's number is the inbox's unread count (V2 §6.7), where the
+    // browser has the Badging API.
+    const setBadge = async (count: number) => {
+      try {
+        if (count > 0) await sw.navigator.setAppBadge?.(count);
+        else await sw.navigator.clearAppBadge?.();
+      } catch {
+        // A badge is a nicety: never let it stop the notification.
+      }
+    };
     event.waitUntil(
       push
-        ? sw.registration.showNotification(push.title, {
-            body: push.body,
-            tag: push.tag,
-            icon: config.icon,
-            badge: config.badge,
-            data: { url: push.url },
-          })
+        ? (async () => {
+            // One notification per tag: the push is already worded for the
+            // whole group ("3 mentions in CMSC351") and replaces the one
+            // showing, which buzzes again only when the push says to.
+            const showing = await sw.registration.getNotifications({
+              tag: push.tag,
+            });
+            await sw.registration.showNotification(push.title, {
+              body: push.body,
+              tag: push.tag,
+              icon: config.icon,
+              badge: config.badge,
+              ...(push.renotify && showing.length > 0
+                ? { renotify: true }
+                : {}),
+              data: {
+                url: push.url,
+                tag: push.tag,
+                ...(push.id ? { id: push.id } : {}),
+              },
+            });
+            if (push.badge !== undefined) await setBadge(push.badge);
+          })()
         : sw.registration.showNotification("Terpsicle", {
             body: "Open the app for details.",
             icon: config.icon,
@@ -342,36 +422,80 @@ export function installServiceWorker(
 
   sw.addEventListener("notificationclick", (event) => {
     event.notification.close();
-    const data = event.notification.data as { url?: unknown } | null;
+    const data = event.notification.data as {
+      url?: unknown;
+      tag?: unknown;
+      id?: unknown;
+    } | null;
     const path =
       data && typeof data.url === "string" && /^\/(?!\/)/.test(data.url)
         ? data.url
         : config.startUrl;
     const target = new URL(path, origin).href;
-    event.waitUntil(
-      (async () => {
-        const windows = await sw.clients.matchAll({
+    const tag = data && typeof data.tag === "string" ? data.tag : null;
+    const id = data && typeof data.id === "string" ? data.id : null;
+
+    // A click reads its inbox item (the session cookie goes along: same
+    // origin), closes whatever else shows under its tag, and brings the
+    // badge and any open page's bell down to what's left unread.
+    const read = async () => {
+      if (tag)
+        for (const other of await sw.registration.getNotifications({ tag }))
+          other.close();
+      if (!id) return;
+      try {
+        const response = await doFetch(
+          new Request(`${origin}${config.readPath}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: [id] }),
+          }),
+        );
+        if (!response.ok) return;
+        const answer = (await response.json()) as { unread?: unknown };
+        const unread = answer.unread;
+        if (typeof unread !== "number") return;
+        try {
+          if (unread > 0) await sw.navigator.setAppBadge?.(unread);
+          else await sw.navigator.clearAppBadge?.();
+        } catch {
+          // No badge here.
+        }
+        const pages = await sw.clients.matchAll({
           type: "window",
           includeUncontrolled: true,
         });
-        const there = windows.find((w) => w.url === target);
-        if (there) {
-          await there.focus();
-          return;
+        for (const page of pages)
+          page.postMessage({ type: config.readMessage, unread });
+      } catch {
+        // Offline or signed out: the page reads it when it opens.
+      }
+    };
+
+    const go = async () => {
+      const windows = await sw.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      const there = windows.find((w) => w.url === target);
+      if (there) {
+        await there.focus();
+        return;
+      }
+      // Reuse an open Terpsicle window rather than stacking up new ones.
+      const open = windows[0];
+      if (open) {
+        try {
+          await open.focus();
+          if (await open.navigate(target)) return;
+        } catch {
+          // Not one this worker controls: open a new window instead.
         }
-        // Reuse an open Terpsicle window rather than stacking up new ones.
-        const open = windows[0];
-        if (open) {
-          try {
-            await open.focus();
-            if (await open.navigate(target)) return;
-          } catch {
-            // Not one this worker controls: open a new window instead.
-          }
-        }
-        await sw.clients.openWindow(target);
-      })(),
-    );
+      }
+      await sw.clients.openWindow(target);
+    };
+
+    event.waitUntil(Promise.all([go(), read()]));
   });
 
   // The browser replaced (or dropped) the push subscription: subscribe again
@@ -429,6 +553,8 @@ export function serviceWorkerScript(precache: readonly string[]): string {
     badge: NOTIFICATION_BADGE,
     skipWaitingMessage: SW_SKIP_WAITING_MESSAGE,
     subscribePath: PUSH_SUBSCRIBE_PATH,
+    readPath: NOTIFICATIONS_READ_PATH,
+    readMessage: SW_NOTIFICATIONS_READ_MESSAGE,
   };
   return `(${installServiceWorker.toString()})(self, caches, (request) => fetch(request), ${readPushPayload.toString()}, ${deviceLabel.toString()}, ${JSON.stringify(config)});\n`;
 }

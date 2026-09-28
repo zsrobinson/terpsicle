@@ -133,6 +133,22 @@ test("an @-mention pushes to the classmate it names", async ({
       },
     });
     expect(await subscribed.json()).toEqual({ status: "ok" });
+    // Earlier runs' mentions in this course, read, so this run's group
+    // starts at one (each project has its own course, so its own group).
+    const inbox = await theirs.request.post("/api/notifications/inbox", {
+      headers: sameOrigin(theirs),
+      data: {},
+    });
+    const earlier = (
+      (await inbox.json()) as { items: { id: string; url: string }[] }
+    ).items
+      .filter((i) => i.url.includes(`course=${course}`))
+      .map((i) => i.id);
+    if (earlier.length > 0)
+      await theirs.request.post("/api/notifications/read", {
+        headers: sameOrigin(theirs),
+        data: { ids: earlier },
+      });
     await classmate.close();
 
     // tstudent mentions them from the course room, with the autocomplete.
@@ -154,7 +170,7 @@ test("an @-mention pushes to the classmate it names", async ({
     await field.press("Enter");
 
     // The push, decrypted with the device's key: who, where, and the room.
-    const payload = async () => {
+    const payload = async (words: string) => {
       for (const d of service.received.filter((r) => r.path === path)) {
         const plain = await decryptPushPayload({
           body: new Uint8Array(d.body),
@@ -163,18 +179,43 @@ test("an @-mention pushes to the classmate it names", async ({
           authSecret,
         });
         const data = plain ? JSON.parse(new TextDecoder().decode(plain)) : null;
-        if (data?.body?.includes(tag)) return data;
+        if (data?.body?.includes(words)) return data;
       }
       return null;
     };
-    await expect.poll(payload, { timeout: 15_000 }).not.toBeNull();
-    expect(await payload()).toEqual({
+    const url = `/chat?term=${TERM}&course=${course}&room=${encodeURIComponent(room)}`;
+    await expect.poll(() => payload(tag), { timeout: 15_000 }).not.toBeNull();
+    expect(await payload(tag)).toEqual({
       v: 1,
       type: "chat-mention",
-      title: `Test Student mentioned you in ${course}`,
+      title: `Test Student in ${course}`,
       body: `@Test Classmate are you coming? ${tag}`,
-      url: `/chat?term=${TERM}&course=${course}&room=${encodeURIComponent(room)}`,
-      tag: `chat:${room}`,
+      url,
+      tag: `chat-mention:${room}`,
+      count: 1,
+      badge: expect.any(Number),
+      renotify: true,
+      id: expect.any(String),
+    });
+
+    // A second mention updates the same tag with a count, without buzzing
+    // again (same person), rather than stacking another notification.
+    // Mentions come from the text, so typing the name in full is enough.
+    const again = `${tag}-again`;
+    await field.fill(`@Test Classmate also bring the notes ${again}`);
+    await field.press("Enter");
+    await expect.poll(() => payload(again), { timeout: 15_000 }).not.toBeNull();
+    expect(await payload(again)).toEqual({
+      v: 1,
+      type: "chat-mention",
+      title: `2 mentions in ${course}`,
+      body: `Test Student: @Test Classmate also bring the notes ${again}`,
+      url,
+      tag: `chat-mention:${room}`,
+      count: 2,
+      badge: expect.any(Number),
+      renotify: false,
+      id: expect.any(String),
     });
   } finally {
     await classmate.close().catch(() => {});

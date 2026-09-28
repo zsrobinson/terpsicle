@@ -1,4 +1,10 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
 import { currentView, goTo } from "~/app/schedule-nav";
@@ -110,6 +116,17 @@ describe("Search tab", () => {
     expect(useUi.getState().hoverCourse).toBe("CMSC351");
     await user.unhover(row);
     expect(useUi.getState().hoverCourse).toBeNull();
+  });
+
+  it("a result appearing under a resting pointer doesn't take the cursor", async () => {
+    // Results render where "Search for a course" was clicked: the browser
+    // fires pointerenter, but the mouse never moved (QA2).
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc 351");
+    const row = await screen.findByRole("option", { name: /^CMSC351/ });
+    fireEvent.pointerEnter(row, { pointerType: "mouse" });
+    expect(useUi.getState().hoverCourse).toBeNull();
+    expect(row).toHaveAttribute("aria-selected", "false");
   });
 
   it("a finger on a result doesn't preview it", async () => {

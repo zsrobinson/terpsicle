@@ -10,6 +10,12 @@ import {
   FeedbackButton,
   openFeedbackSheet,
 } from "~/features/feedback/feedback-button";
+import {
+  NotificationsBell,
+  NotificationsMenuItem,
+  useBellShown,
+  useUnreadNote,
+} from "~/features/notifications/bell";
 import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import { Mark } from "./brand/mark";
@@ -22,9 +28,10 @@ import { useIsMobile } from "./use-media-query";
 // The one bar on every page (docs/COHESION.md §4, the "family bar"): the
 // wordmark and the five products as labeled tabs, in color order, then a
 // divider and the product's own context (the term and plan, a course…),
-// then its status, Feedback and the account. Below 1100px the tabs fold into
-// the product menu, whose trigger names the product you're in; phones fold
-// Feedback and the theme into the account menu. The same bar, everywhere.
+// then its status, the bell (signed in), Feedback and the account. Below
+// 1100px the tabs fold into the product menu, whose trigger names the
+// product you're in; phones fold Feedback and the theme into the account
+// menu, and the bell too where the bar is crowded. The same bar, everywhere.
 
 /** Where the tabs fit beside the scheduler's term and plans. */
 const WIDE = "min-[1100px]:flex";
@@ -67,12 +74,15 @@ export function AppBar({
   crowdedBelowXl?: boolean;
 }) {
   // Phones: where the bar also carries the product's context (the scheduler,
-  // Chat's term), "Send feedback" moves into the account menu so the context
-  // reads whole. Until /api/me answers, neither shows, so nothing flashes.
+  // Chat's term), "Send feedback" and the bell move into the account menu so
+  // the context reads whole; the avatar wears a dot for what's unread. Until
+  // /api/me answers, neither shows, so nothing flashes.
   const accountLoading = useAccount((s) => s.status === "loading");
   const mobile = useIsMobile();
   const crowded = compact || (mobile && context != null);
   const feedbackInMenu = crowded && feedback !== null;
+  const bellShown = useBellShown();
+  const unreadNote = useUnreadNote();
   const Brand = heading ? "h1" : "div";
   return (
     <header
@@ -125,6 +135,7 @@ export function AppBar({
         )}
       >
         {status}
+        <NotificationsBell showButton={!crowded} />
         {feedback ? (
           <FeedbackButton
             product={feedback}
@@ -137,7 +148,12 @@ export function AppBar({
         <AccountButton
           compact={compact}
           fallback={<ThemeToggle side="bottom" />}
-          items={feedbackInMenu ? <FeedbackMenuItem /> : null}
+          items={
+            crowded ? (
+              <MenuItems feedback={feedbackInMenu} bell={bellShown} />
+            ) : null
+          }
+          note={crowded ? unreadNote : null}
         />
       </div>
     </header>
@@ -168,14 +184,19 @@ function ProductTabs({ current }: { current: ProductId | null }) {
   );
 }
 
-function FeedbackMenuItem() {
+/** What a crowded phone bar moves into the account menu. */
+function MenuItems({ feedback, bell }: { feedback: boolean; bell: boolean }) {
+  if (!feedback && !bell) return null;
   return (
     <>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
-        <MessageSquareText aria-hidden="true" className="text-muted" />
-        Send feedback
-      </DropdownMenuItem>
+      {bell ? <NotificationsMenuItem /> : null}
+      {feedback ? (
+        <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
+          <MessageSquareText aria-hidden="true" className="text-muted" />
+          Send feedback
+        </DropdownMenuItem>
+      ) : null}
     </>
   );
 }

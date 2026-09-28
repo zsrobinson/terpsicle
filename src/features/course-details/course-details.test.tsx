@@ -12,6 +12,7 @@ import {
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { openCourse } from "~/features/courses/actions";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
+import { forgetReads } from "~/features/notifications/read-here";
 import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { SearchPanel } from "~/features/search/search-panel";
 import {
@@ -21,6 +22,7 @@ import {
   mockDataSource,
 } from "~/fixtures";
 import { api } from "~/server/fns/api";
+import { notificationsApi } from "~/server/fns/notifications";
 import { useCatalog } from "~/state/catalog-store";
 import {
   createBucketDataSource,
@@ -40,6 +42,9 @@ const panels: ShellRoutes = { drills: { course: CourseDetails } };
 const searchPanels: ShellRoutes = { tabs: { search: SearchPanel } };
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/server/fns/notifications", () => ({
+  notificationsApi: { read: vi.fn(async () => ({ unread: 0 })) },
+}));
 vi.mock("~/server/fns/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/server/fns/api")>();
   return {
@@ -108,6 +113,24 @@ describe("Course details", () => {
     seatAlertsAccount(aMeUser());
     fakeSeatWatchesClient();
     forgetReviewSummaries();
+    forgetReads();
+    vi.mocked(notificationsApi.read).mockClear();
+  });
+
+  it("reads the course's seat openings while it's open, signed in only (V2.md §6.7)", async () => {
+    await renderDetails("CMSC351");
+    await waitFor(() =>
+      expect(notificationsApi.read).toHaveBeenCalledWith({
+        course: { termId: TEST_TERM_ID, courseCode: "CMSC351" },
+      }),
+    );
+    expect(notificationsApi.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads nothing signed out", async () => {
+    seatAlertsAccount(null);
+    await renderDetails("CMSC351");
+    expect(notificationsApi.read).not.toHaveBeenCalled();
   });
 
   it("says so plainly when Testudo lists no sections", async () => {

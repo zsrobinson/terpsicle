@@ -460,10 +460,15 @@ export async function deleteCourseRows(
       "chat_read_markers",
       "chat_room_prefs",
       "chat_author_courses",
+      // The inbox's chat rows only: the course's seat openings aren't Chat's.
       "notifications",
     ].map((table) =>
       db
-        .prepare(`DELETE FROM ${table} WHERE term_id = ?1 AND course_code = ?2`)
+        .prepare(
+          `DELETE FROM ${table} WHERE term_id = ?1 AND course_code = ?2${
+            table === "notifications" ? " AND product = 'chat'" : ""
+          }`,
+        )
         .bind(termId, courseCode),
     ),
   );
@@ -493,49 +498,18 @@ export async function mutedIn(
   );
 }
 
-export interface ChatNotificationRow {
-  userId: string;
-  type: "chat-mention" | "chat-reply";
-  termId: TermId;
-  courseCode: CourseCode;
-  roomId: RoomId;
-  seq: number;
-  messageId: string;
-  actorId: string;
-  at: string;
-}
-
 /**
- * Records a mention or reply for read state and the digest. One per person
- * per message, however often it's published again (an edit is screened
- * again): false when they already have one for it.
+ * A mention's or reply's inbox row id (notify() writes the row): one per
+ * person per message, however often it's published again (an edit is
+ * screened again), so a second version adds nothing.
  */
-export async function recordChatNotification(
-  db: D1Database,
-  n: ChatNotificationRow,
-): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `INSERT INTO notifications
-         (id, user_id, type, term_id, course_code, room_id, seq, message_id, actor_id, created_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
-       ON CONFLICT (id) DO NOTHING
-       RETURNING id`,
-    )
-    .bind(
-      `${n.userId}:${n.termId}:${n.courseCode}:${n.messageId}`,
-      n.userId,
-      n.type,
-      n.termId,
-      n.courseCode,
-      n.roomId,
-      n.seq,
-      n.messageId,
-      n.actorId,
-      n.at,
-    )
-    .first<{ id: string }>();
-  return row !== null;
+export function chatNotificationId(
+  userId: string,
+  termId: TermId,
+  courseCode: CourseCode,
+  messageId: string,
+): string {
+  return `${userId}:${termId}:${courseCode}:${messageId}`;
 }
 
 /** Who a message has mentioned so far, over every version of it. */

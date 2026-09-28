@@ -55,3 +55,26 @@ for (const path of ["/schedule?demo=1", "/reviews", "/todo"]) {
     expect(short).toEqual([]);
   });
 }
+
+test("signed in, the bell is thumb-sized too", async ({ page }) => {
+  await page.goto("/privacy");
+  const status = await page.evaluate(async () => {
+    const response = await fetch("/api/auth/test-sign-in", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "tstudent", return: "/reviews" }),
+    });
+    return response.status;
+  });
+  expect(status).toBe(200);
+  await page.goto("/reviews");
+  await expect(page.getByTestId("notifications-bell")).toBeVisible({
+    timeout: 20_000,
+  });
+  const targets = await barTargets(page);
+  expect(targets.map((t) => t.name)).toContainEqual(
+    expect.stringMatching(/^Notifications/),
+  );
+  const short = targets.filter((t) => t.width < 24 || !t.hits.every(Boolean));
+  expect(short).toEqual([]);
+});

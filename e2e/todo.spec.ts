@@ -154,6 +154,10 @@ test("connect ELMS, check things off, switch views, disconnect with Undo", async
   ).toBeVisible();
   const link = page.getByLabel("ELMS calendar link");
   const connect = page.getByRole("button", { name: "Connect ELMS" });
+  // The field keeps the kit's height in the phone's stacked layout (QA2).
+  expect((await link.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(
+    isMobile ? 44 : 32,
+  );
   await axe(page, "not connected");
 
   await link.fill("https://elms.umd.edu/calendar");

@@ -69,6 +69,9 @@ import {
 import {
   NotificationSettingsInputSchema,
   NotificationSettingsSetInputSchema,
+  NotificationsInboxInputSchema,
+  NotificationsReadInputSchema,
+  NotificationsUnreadInputSchema,
   PushDevicesInputSchema,
   PushRemoveInputSchema,
   PushSubscribeInputSchema,
@@ -138,6 +141,9 @@ import type { ModerationEnv } from "../moderation/service";
 import {
   getSettings as getNotificationSettings,
   type NotificationsEnv,
+  inbox as notificationsInbox,
+  readInbox as notificationsRead,
+  unreadInbox as notificationsUnread,
   devices as pushDevices,
   subscribe as pushSubscribe,
   unsubscribe as pushUnsubscribe,
@@ -570,6 +576,30 @@ export const ROUTES = {
     alerts: false,
     auth: "user",
     handle: (env, input, ctx) => setNotificationSettings(env, input, ctx),
+  }),
+  // The inbox (V2.md §6.7). The bell opens it; reading the thing itself
+  // (a course, Todo's day) and notification clicks read it; the bar polls
+  // the count on focus and every two minutes while visible.
+  "notifications/inbox": route({
+    input: NotificationsInboxInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => notificationsInbox(env, input, ctx),
+  }),
+  "notifications/read": route({
+    input: NotificationsReadInputSchema,
+    perUserPerHour: 1_200,
+    alerts: false,
+    auth: "user",
+    handle: (env, input, ctx) => notificationsRead(env, input, ctx),
+  }),
+  "notifications/unread": route({
+    input: NotificationsUnreadInputSchema,
+    perUserPerHour: 600,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => notificationsUnread(env, ctx),
   }),
   // Feedback (docs/FEEDBACK.md). Anyone can send it; who sent it is kept
   // only when they ask for a reply.

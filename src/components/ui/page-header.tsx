@@ -123,6 +123,7 @@ export function PageHeader({
     );
   return (
     <header
+      data-slot="page-header"
       className={cn(
         "flex shrink-0 flex-col gap-3 border-hairline border-b pb-3 md:flex-row md:items-end md:justify-between md:gap-4",
         className,

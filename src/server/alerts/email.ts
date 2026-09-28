@@ -175,3 +175,82 @@ export function renderSeatOpenEmail(
     headers,
   };
 }
+
+/** One section in a seats run's email. */
+export interface OpenedSection {
+  ref: SectionRef;
+  seats: SeatCountsForEmail;
+}
+
+/**
+ * One email for every watched section that opened in one seats run (V2.md
+ * §6.7): "Seats opened in 3 sections you're watching", each with its
+ * counts and links. A single section keeps `renderSeatOpenEmail`. One
+ * header can't stop several watches, so `offUrl` is the signed
+ * `notifications/email-off` link that turns seat emails off (pushes, the
+ * inbox and the watches stay); null leaves the one-click headers out.
+ */
+export function renderSeatsOpenEmail(
+  origin: string,
+  sections: readonly OpenedSection[],
+  offUrl: string | null,
+): RenderedEmail {
+  const manage = watchesUrl(origin);
+  const labels = sections.map((s) => label(s.ref));
+  const subject = `Seats opened in ${sections.length} sections you're watching`;
+  const intro = `${subject}: ${labels.join(", ")}. Register on Testudo soon; seats go fast.`;
+  const facts: [string, string][] = sections.map((s) => [
+    label(s.ref),
+    `${s.seats.open} of ${s.seats.total} open`,
+  ]);
+  const headers: Record<string, string> = {
+    "Auto-Submitted": "auto-generated",
+  };
+  if (offUrl) {
+    headers["List-Unsubscribe"] = `<${offUrl}>`;
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+  }
+  return {
+    subject,
+    text: text([
+      intro,
+      "",
+      ...facts.map(([k, v]) => `${k}: ${v}`),
+      "",
+      ...sections.flatMap((s) => [
+        `${label(s.ref)} (${s.ref.title}) in Terpsicle: ${courseUrl(origin, s.ref)}`,
+        `On Testudo: ${testudoUrl(s.ref)}`,
+      ]),
+      "",
+      `You're watching these sections for a seat. See or stop your watches: ${manage}`,
+      "Terpsicle · https://terpsicle.com",
+    ]),
+    html: layout(
+      intro,
+      [
+        { kind: "p", text: intro },
+        { kind: "facts", rows: facts },
+        ...sections.flatMap((s): Block[] => [
+          {
+            kind: "link",
+            text: `Open ${label(s.ref)} in Terpsicle`,
+            href: courseUrl(origin, s.ref),
+          },
+          {
+            kind: "link",
+            text: `See ${label(s.ref)} on Testudo`,
+            href: testudoUrl(s.ref),
+          },
+        ]),
+      ],
+      [
+        {
+          kind: "muted",
+          text: "You're watching these sections for a seat on Terpsicle.",
+        },
+        { kind: "link", text: "See or stop your watches", href: manage },
+      ],
+    ),
+    headers,
+  };
+}

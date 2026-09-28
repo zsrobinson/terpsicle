@@ -169,7 +169,11 @@ describe("the 6pm send", () => {
         title: "2 things due tomorrow",
         body: "Lab 4 (CMSC216) 1pm and Project 2 (CMSC216) 11:59pm",
         url: "/todo?day=2026-09-29",
-        tag: "todo-due",
+        tag: "todo-due:2026-09-29",
+        count: 2,
+        badge: 1,
+        renotify: false,
+        id: "todo-due:tstudent:2026-09-28",
       },
     ]);
     // Later runs that evening, and after 8pm when UTC is on the next day.

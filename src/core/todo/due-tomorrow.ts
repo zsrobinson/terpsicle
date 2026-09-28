@@ -1,4 +1,5 @@
 import { addDays } from "../ics/dates";
+import { todoDueTag } from "../notifications/inbox";
 import type { IsoDate, TodoItem } from "../schema";
 import { compareItems, dueTimeLabel, newYorkClock } from "./list";
 
@@ -58,7 +59,8 @@ export function dueTomorrowPush(
 ): { title: string; body: string; url: string; tag: string } {
   const sorted = [...items].sort(compareItems);
   const url = `/todo?day=${tomorrow}`;
-  const tag = "todo-due";
+  // One group per due date (V2 §6.7); the inbox reads it with that day.
+  const tag = todoDueTag(tomorrow);
   const [first] = sorted;
   if (sorted.length === 1 && first) {
     const parts = [first.courseCode, first.dueAt ? dueTimeLabel(first) : null];

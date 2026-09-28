@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, type Mock, vi } from "vitest";
 import { deviceLabel } from "~/core/pwa";
 import { PushPayloadSchema } from "~/core/schema";
 import {
@@ -48,7 +48,7 @@ type Listener = (event: never) => void;
 
 /** A window the notification click can find. */
 function aWindow(url: string, { controlled = true } = {}): SwWindowClient {
-  const client: SwWindowClient = {
+  const client: SwWindowClient & { postMessage: Mock } = {
     url,
     focus: vi.fn(async (): Promise<unknown> => client),
     navigate: vi.fn(async (to: string): Promise<unknown> => {
@@ -56,6 +56,7 @@ function aWindow(url: string, { controlled = true } = {}): SwWindowClient {
       client.url = to;
       return client;
     }),
+    postMessage: vi.fn(),
   };
   return client;
 }
@@ -67,6 +68,13 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
   let network: (request: Request) => Promise<Response> = async () =>
     new Response("");
   const shown: { title: string; options: SwNotificationOptions }[] = [];
+  /** What the device shows now: one per tag, as browsers keep them. */
+  const showing: {
+    title: string;
+    options: SwNotificationOptions;
+    close: Mock;
+  }[] = [];
+  const badges: (number | "cleared")[] = [];
   const opened: string[] = [];
   let windows: SwWindowClient[] = [];
   const skipWaiting = vi.fn(async () => {});
@@ -82,11 +90,32 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
     navigator: {
       userAgent:
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1",
+      setAppBadge: async (count: number) => {
+        badges.push(count);
+      },
+      clearAppBadge: async () => {
+        badges.push("cleared");
+      },
     },
     registration: {
       showNotification: async (title, options) => {
         shown.push({ title, options });
+        const same = showing.findIndex((n) => n.options.tag === options.tag);
+        if (options.tag !== undefined && same >= 0) showing.splice(same, 1);
+        const entry = {
+          title,
+          options,
+          close: vi.fn(() => {
+            const at = showing.indexOf(entry);
+            if (at >= 0) showing.splice(at, 1);
+          }),
+        };
+        showing.push(entry);
       },
+      getNotifications: async ({ tag }: { tag: string }) =>
+        showing
+          .filter((n) => n.options.tag === tag)
+          .map((n) => ({ data: n.options.data, close: n.close })),
       pushManager: { subscribe },
     },
     clients: {
@@ -108,6 +137,8 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
     badge: "/icons/badge-72.png",
     skipWaitingMessage: "skip-waiting",
     subscribePath: "/api/push/subscribe",
+    readPath: "/api/notifications/read",
+    readMessage: "notifications-read",
     ...over,
   };
   installServiceWorker(
@@ -179,6 +210,8 @@ function setUp(over: Partial<ServiceWorkerConfig> = {}) {
     }) => dispatch("pushsubscriptionchange", event),
     subscribe,
     shown,
+    showing,
+    badges,
     opened,
     skipWaiting,
     setWindows: (list: SwWindowClient[]) => {
@@ -450,10 +483,76 @@ describe("service worker: push", () => {
           icon: "/icons/icon-192.png",
           badge: "/icons/badge-72.png",
           tag: "seat:202701:CMSC131-0101",
-          data: { url: "/schedule?course=CMSC131" },
+          data: {
+            url: "/schedule?course=CMSC131",
+            tag: "seat:202701:CMSC131-0101",
+          },
         },
       },
     ]);
+    // No badge in the payload: the app's number stays as it is.
+    expect(sw.badges).toEqual([]);
+  });
+
+  it("keeps one notification per tag, rewritten for the group", async () => {
+    const sw = setUp();
+    const mention = {
+      v: 1,
+      type: "chat-mention",
+      tag: "chat-mention:202701:CMSC351",
+      url: "/chat?term=202701&course=CMSC351&room=202701%3ACMSC351",
+    };
+    await sw.push({
+      ...mention,
+      title: "Maya in CMSC351",
+      body: "are we meeting at 7?",
+      count: 1,
+      badge: 1,
+      renotify: true,
+      id: "n1",
+    });
+    await sw.push({
+      ...mention,
+      title: "2 mentions in CMSC351",
+      body: "Maya: also bring the notes",
+      count: 2,
+      badge: 1,
+      renotify: false,
+      id: "n2",
+    });
+    expect(sw.showing.map((n) => [n.title, n.options.body])).toEqual([
+      ["2 mentions in CMSC351", "Maya: also bring the notes"],
+    ]);
+    // The first replaced nothing, so it buzzes without being told to; the
+    // second, from the same person, replaces quietly.
+    expect(sw.shown.map((n) => n.options.renotify)).toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(sw.shown[1]?.options.data).toEqual({
+      url: mention.url,
+      tag: mention.tag,
+      id: "n2",
+    });
+    await sw.push({
+      ...mention,
+      title: "3 mentions in CMSC351",
+      body: "Jon: me too",
+      count: 3,
+      badge: 2,
+      renotify: true,
+      id: "n3",
+    });
+    // Someone new: it replaces the notification and buzzes again.
+    expect(sw.shown[2]?.options.renotify).toBe(true);
+    expect(sw.showing).toHaveLength(1);
+    expect(sw.badges).toEqual([1, 1, 2]);
+  });
+
+  it("clears the app badge at 0", async () => {
+    const sw = setUp();
+    await sw.push({ ...aPush, badge: 0 });
+    expect(sw.badges).toEqual(["cleared"]);
   });
 
   it("still says something for a payload it can't read", async () => {
@@ -484,6 +583,16 @@ describe("service worker: push", () => {
       { ...aPush, type: "todo-due" },
       { ...aPush, type: "test" },
       { ...aPush, extra: true },
+      { ...aPush, count: 3, badge: 0, renotify: true, id: "n1" },
+      { ...aPush, count: 0 },
+      { ...aPush, count: 1.5 },
+      { ...aPush, count: "2" },
+      { ...aPush, badge: -1 },
+      { ...aPush, badge: 100_001 },
+      { ...aPush, renotify: "yes" },
+      { ...aPush, id: "" },
+      { ...aPush, id: "x".repeat(201) },
+      { ...aPush, id: 7 },
       { ...aPush, v: 2 },
       { ...aPush, v: "1" },
       { ...aPush, type: "chat-digest" },
@@ -605,6 +714,59 @@ describe("service worker: notification clicks", () => {
     sw.setWindows([aWindow(`${ORIGIN}/`, { controlled: false })]);
     await sw.click({ url: "/schedule" }).done;
     expect(sw.opened).toEqual([`${ORIGIN}/chat/cmsc131`, `${ORIGIN}/schedule`]);
+  });
+
+  it("reads its inbox item with the session, closes its tag, and passes on the unread count", async () => {
+    const sw = setUp();
+    const sent: Request[] = [];
+    sw.fetchWith(async (r) => {
+      sent.push(r);
+      return Response.json({ unread: 2 });
+    });
+    const tag = "chat-mention:202701:CMSC351";
+    await sw.push({
+      ...aPush,
+      type: "chat-mention",
+      tag,
+      url: "/chat/cmsc351",
+      id: "n2",
+    });
+    const page = aWindow(`${ORIGIN}/schedule`);
+    sw.setWindows([page]);
+    const click = sw.click({ url: "/chat/cmsc351", tag, id: "n2" });
+    await click.done;
+    expect(click.close).toHaveBeenCalled();
+    expect(sw.showing).toEqual([]);
+    expect(sent).toHaveLength(1);
+    const [request] = sent;
+    expect(request?.url).toBe(`${ORIGIN}/api/notifications/read`);
+    // Same origin, so the browser sends the session cookie and the Origin
+    // (e2e/pwa-push.spec.ts checks that for real).
+    expect(request?.method).toBe("POST");
+    expect(await request?.json()).toEqual({ ids: ["n2"] });
+    expect(sw.badges).toEqual([2]);
+    expect(page.postMessage).toHaveBeenCalledWith({
+      type: "notifications-read",
+      unread: 2,
+    });
+    expect(page.url).toBe(`${ORIGIN}/chat/cmsc351`);
+  });
+
+  it("still opens the page when the read fails, and reads nothing without an id", async () => {
+    const sw = setUp();
+    const sent: Request[] = [];
+    sw.fetchWith(async (r) => {
+      sent.push(r);
+      throw new TypeError("Failed to fetch");
+    });
+    await sw.click({ url: "/todo?day=2026-09-29", tag: "t", id: "n1" }).done;
+    await sw.click({ url: "/schedule" }).done;
+    expect(sent).toHaveLength(1);
+    expect(sw.badges).toEqual([]);
+    expect(sw.opened).toEqual([
+      `${ORIGIN}/todo?day=2026-09-29`,
+      `${ORIGIN}/schedule`,
+    ]);
   });
 
   it("only ever opens Terpsicle", async () => {

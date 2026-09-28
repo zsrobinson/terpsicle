@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { aCourse, aSection } from "~/fixtures";
+import { chatMentionTag } from "../notifications";
 import { courseRoomId, professorRoomId, sectionRoomId } from "../schema";
 import {
   chatDigestLine,
   chatDigestSubject,
+  chatMessageHref,
   chatNotificationKey,
   chatPlaceWords,
   chatPreview,
-  chatPush,
-  chatPushTag,
   chatRecipients,
 } from "./notify";
 import { roomsForCourse } from "./rooms";
@@ -105,47 +105,36 @@ describe("the words", () => {
     expect(chatPreview("x".repeat(200))).toBe(`${"x".repeat(119)}…`);
   });
 
-  it("builds a push that opens the room, or the thread for a reply", () => {
+  // The push's words and tags are ~/core/notifications' (groupWords, the
+  // tags); where it opens is here.
+  it("opens the room, or the thread for a reply", () => {
     const room = sectionRoomId(TERM, "CMSC131", "0303");
     expect(
-      chatPush({
-        type: "chat-reply",
-        actor: "Hannah Lee",
-        place: "CMSC131 · 0303",
-        text: "check that you compare the names with .equals",
+      chatMessageHref({
         termId: TERM,
         courseCode: "CMSC131",
         roomId: room,
         thread: "01J0000000000000000000000A",
       }),
-    ).toEqual({
-      title: "Hannah Lee replied in CMSC131 · 0303",
-      body: "check that you compare the names with .equals",
-      url: `/chat?term=202701&course=CMSC131&room=${encodeURIComponent(room)}&thread=01J0000000000000000000000A`,
-      tag: "chat:202701:CMSC131:0303",
-    });
-    const mention = chatPush({
-      type: "chat-mention",
-      actor: "Omar Ali",
-      place: "CMSC131",
-      text: "@Hannah Lee hi",
-      termId: TERM,
-      courseCode: "CMSC131",
-      roomId: courseRoomId(TERM, "CMSC131"),
-      thread: null,
-    });
-    expect(mention.title).toBe("Omar Ali mentioned you in CMSC131");
-    expect(mention.url).toBe(
-      "/chat?term=202701&course=CMSC131&room=202701%3ACMSC131",
+    ).toBe(
+      `/chat?term=202701&course=CMSC131&room=${encodeURIComponent(room)}&thread=01J0000000000000000000000A`,
     );
+    expect(
+      chatMessageHref({
+        termId: TERM,
+        courseCode: "CMSC131",
+        roomId: courseRoomId(TERM, "CMSC131"),
+        thread: null,
+      }),
+    ).toBe("/chat?term=202701&course=CMSC131&room=202701%3ACMSC131");
   });
 
-  it("keeps tags to 64 characters", () => {
+  it("groups a long professor room's mentions under a 64-character tag", () => {
     const long = professorRoomId(TERM, "CMSC131", [
       "Alexandra Konstantinopoulou-Whitfield",
       "Bartholomew Featherstonehaugh",
     ]);
-    expect(chatPushTag(long)).toHaveLength(64);
+    expect(chatMentionTag(long)).toHaveLength(64);
   });
 
   it("keys a notification by type, person and message", () => {
