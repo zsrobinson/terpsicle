@@ -76,7 +76,7 @@ Revisit if: Terpsicle leaves early access, or the owner drops the coffee link.
 
 ### Crowded bars give their context the room below 1536px
 2026-09-28 · agent · one feature
-On a bar marked `crowdedBelow2xl` (the scheduler's and Plan's), below 1536px the Early access chip hides, the coffee button becomes "Buy me a coffee" in the account menu, Feedback shows just its icon and the product tabs' padding tightens, so three plan tabs show whole at 1440px and two at 1280px (e2e/shell.spec.ts). The chip stays on every other bar and in the product menu.
+On a bar marked `crowdedBelow2xl` (the scheduler's and Plan's), below 1536px the coffee button becomes "Buy me a coffee" in the account menu, Feedback shows just its icon and the product tabs' padding tightens, so three plan tabs show whole at 1440px and two at 1280px (e2e/shell.spec.ts). The Early access chip hides below 1536px on every bar, not only these two (changed 2026-09-28, QA round 4, the orchestrator): hidden on two bars alone, it moved the five product tabs about 78px whenever you went between Schedule or Plan and another product. From 1536px it sits beside the wordmark on every bar, as the owner placed it; narrower, the product menu and `/`'s header say it (e2e/brand-bar.spec.ts checks the tabs don't move).
 Revisit if: the scheduler's bar changes its context or status, or the owner wants the chip on every bar at every width.
 
 ### Sign in with Google, UMD only

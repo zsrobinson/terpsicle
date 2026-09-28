@@ -41,14 +41,14 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 _Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected designs)
 
 **Family bar**:
-The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. On phones, and on the scheduler's and Plan's bars below 1536px (where the Early access chip also gives its room to the product's context), the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
+The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. The Early access chip shows from 1536px, on every bar alike, so the product tabs sit in the same place on every product; narrower, the product menu says it. On phones, and on the scheduler's and Plan's bars below 1536px, the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
 
 **Mark**:
 One of the six pixel drawings on a 9×9 tile: the umbrella (Terpsicle itself, black) and one per product, in its color. The app icons and favicon are the umbrella's tile alone. Code says `Mark`, drawn from `src/app/brand/marks.ts`.
 _Avoid_: logo (that's the umbrella and the wordmark together), icon (for a product's mark)
 
 **Early access**:
-The small chip beside the wordmark saying Terpsicle's still in active development and may change. Phones show it in the product menu instead.
+The small chip beside the wordmark saying Terpsicle's still in active development and may change, from 1536px wide; narrower screens and phones show it in the product menu instead, and `/`'s header always has it.
 _Avoid_: beta, preview
 
 **Coffee button**:

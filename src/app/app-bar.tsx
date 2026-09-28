@@ -33,8 +33,9 @@ import { useScrolled } from "./use-scrolled";
 // in color order, then a divider and the product's own context (the term
 // and plan, a course…), then its status, the bell (signed in), the coffee
 // button, Feedback and the account. Below 1100px the tabs fold into the
-// product menu, whose trigger names the product you're in, and the chip
-// stays only where the bar has no context (the menu says it too); phones
+// product menu, whose trigger names the product you're in. The chip shows
+// from 1536px, on every bar alike, so the tabs never move between products;
+// narrower, the product menu says it. Phones
 // fold the coffee button and the theme into the account menu, and
 // Feedback and the bell too where the bar is crowded. The same bar,
 // everywhere.
@@ -79,9 +80,9 @@ export function AppBar({
   heading?: boolean;
   /**
    * Its context fills the bar below 1536px (the scheduler's term and plans):
-   * there Feedback shows just its icon, the Early access chip gives way (the
-   * product menu and every other bar carry it) and the coffee button moves
-   * into the account menu, so three plan tabs fit at 1440px and two at 1280.
+   * there Feedback shows just its icon and the coffee button moves into the
+   * account menu, so three plan tabs fit at 1440px and two at 1280. (The
+   * Early access chip gives way below 1536px on every bar.)
    */
   crowdedBelow2xl?: boolean;
   /** Reviews' public pages: no rule under the bar until the page scrolls. */
@@ -100,7 +101,7 @@ export function AppBar({
   // account: the coffee link is always in the account menu there.
   const coffeeInMenu = (compact || mobile) && feedback !== null;
   // A crowded bar below 1536px gives its plans the room (e2e/shell's plan
-  // tab widths): the chip hides and the coffee link moves to the menu.
+  // tab widths): the coffee link moves to the menu.
   const roomBelow2xl = crowdedBelow2xl && !coffeeInMenu;
   const bellShown = useBellShown();
   const unreadNote = useUnreadNote();
@@ -130,19 +131,16 @@ export function AppBar({
               </a>
             </WithTooltip>
           </Brand>
-          <EarlyAccessChip
-            className={roomBelow2xl ? "max-2xl:hidden" : undefined}
-          />
+          {/* From 1536px only, on every bar: below that the scheduler's and
+              Plan's bars need its room, and a chip on the other bars alone
+              would move the tabs as you switch products. */}
+          <EarlyAccessChip className="max-2xl:hidden" />
           <ProductTabs current={current} />
         </div>
       )}
       <Brand className={cn("flex shrink-0", compact ? null : NARROW)}>
         <ProductMenu current={current} compact={compact} />
       </Brand>
-      {compact || context ? null : (
-        // Phones keep the room; the product menu says it there.
-        <EarlyAccessChip className="ml-1 hidden sm:max-[1100px]:inline-flex" />
-      )}
       {context ? (
         <>
           <span
