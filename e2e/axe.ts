@@ -24,7 +24,8 @@ const EXCLUDE = [".maplibregl-canvas"];
 // stack above everything. They're reached from their trigger (focus moves
 // in, or aria-describedby), never by landmark, so the rule doesn't apply to
 // them. Every other rule still checks them.
-const FLOATING = "[data-radix-popper-content-wrapper]";
+// Base UI's positioners carry the kit's `data-floating`.
+const FLOATING = "[data-radix-popper-content-wrapper], [data-floating]";
 
 export async function scan(page: Page, what: string) {
   // Let entry animations (drill-in slide, popovers) finish: axe reads
