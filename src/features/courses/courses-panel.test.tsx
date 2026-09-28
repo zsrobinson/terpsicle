@@ -27,7 +27,7 @@ describe("Courses tab", () => {
   it("lists the plan's courses with section, title, instructor, days and seats", async () => {
     await renderPlanTab([panels], "courses");
     expect(
-      await screen.findByRole("heading", { name: "Plan A" }),
+      await screen.findByRole("heading", { name: /^Plan A/ }),
     ).toBeInTheDocument();
     expect(screen.getByText("5 courses · 16 credits")).toBeInTheDocument();
     const row = await screen.findByTestId("course-row-CMSC351");
@@ -53,6 +53,48 @@ describe("Courses tab", () => {
     expect(
       screen.getByRole("button", { name: "CMSC351 color: Violet" }),
     ).toBeInTheDocument();
+  });
+
+  it("says which plan is main, and on a draft offers to make it main", async () => {
+    const { user } = await renderPlanTab([panels], "courses");
+    // Plan A, the first tab, is main: its title says so, and no line.
+    expect(
+      await screen.findByRole("heading", { name: "Plan A Main plan" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("draft-line")).toBeNull();
+
+    const planB = useWorkspace
+      .getState()
+      .plans.find((p) => p.termId === TEST_TERM_ID && p.name !== "Plan A");
+    if (!planB) throw new Error("no second plan");
+    act(() => useWorkspace.getState().activatePlan(TEST_TERM_ID, planB.id));
+    expect(
+      await screen.findByRole("heading", { name: `${planB.name} Draft` }),
+    ).toBeInTheDocument();
+    const line = screen.getByTestId("draft-line");
+    expect(line).toHaveTextContent(
+      /^Your main plan for Spring 2027 is Plan A\. Chat, Plan, Todo and your calendar use that one\./,
+    );
+    await user.click(
+      within(line).getByRole("button", { name: `Make ${planB.name} main` }),
+    );
+    expect(useWorkspace.getState().mainPlans).toEqual({
+      [TEST_TERM_ID]: planB.id,
+    });
+    expect(track).toHaveBeenCalledWith("plan_made_main", { via: "panel" });
+    expect(
+      await screen.findByRole("heading", { name: `${planB.name} Main plan` }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("draft-line")).toBeNull();
+
+    // The line's link opens the main plan.
+    act(() => useWorkspace.getState().undo());
+    await user.click(
+      within(await screen.findByTestId("draft-line")).getByRole("button", {
+        name: "Plan A",
+      }),
+    );
+    expect(openPlanNow()?.name).toBe("Plan A");
   });
 
   it("colors a row's problem words by severity: not enough time is an error", async () => {

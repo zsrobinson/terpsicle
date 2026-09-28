@@ -3,15 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   fourYearColumnFor,
   type HandoffEntry,
-  linkedSchedulePlan,
   pickFourYearDoc,
 } from "~/core/four-year/handoff";
+import { mainPlanFor } from "~/core/plans/main-plan";
 import {
   type CourseCode,
+  MainPlansSchema,
   type Plan,
   PlanSchema,
   type TermId,
-  UiPrefsSchema,
   type Wildcard,
 } from "~/core/schema";
 import {
@@ -24,7 +24,7 @@ import { TerpsicleDb } from "./db";
 // The link between a four-year plan and the scheduler (docs/V3.md §2.12),
 // read straight from IndexedDB so neither page loads the other's stores:
 // the scheduler reads the four-year doc's column for a term, and Plan reads
-// the term's linked scheduler plan. Both are Dexie live queries, so a change
+// the term's main plan (V2 §5.5). Both are Dexie live queries, so a change
 // in another tab (Plan open beside the scheduler) shows without a reload.
 
 /**
@@ -99,26 +99,27 @@ export async function readFourYearColumn(
   return { hasDoc: true, ...fourYearColumnFor({ entries }, termId) };
 }
 
-/** The part of the scheduler's `ui` settings row the link needs. */
-const OpenPlansSchema = UiPrefsSchema.pick({ activePlanByTerm: true });
+/** A term's main plan, and whether it has other plans (drafts) beside it. */
+export type TermMainPlan = { readonly plan: Plan; readonly drafts: boolean };
 
-/** The term's linked scheduler plan (`linkedSchedulePlan`), or null when it has none. */
-export async function readLinkedSchedulePlan(
+/** The term's main plan (`mainPlanFor`), or null when it has no plan. */
+export async function readMainPlan(
   db: TerpsicleDb,
   termId: TermId,
-): Promise<Plan | null> {
-  const [rows, uiRow] = await Promise.all([
+): Promise<TermMainPlan | null> {
+  const [rows, mainPlansRow] = await Promise.all([
     db.plans.where("termId").equals(termId).toArray(),
-    db.settings.get("ui"),
+    db.settings.get("mainPlans"),
   ]);
   const plans = rows.flatMap((row) => {
     const parsed = PlanSchema.safeParse(row);
     return parsed.success ? [parsed.data] : [];
   });
-  const ui = OpenPlansSchema.safeParse(uiRow?.value);
-  return linkedSchedulePlan(
+  const mainPlans = MainPlansSchema.safeParse(mainPlansRow?.value);
+  const plan = mainPlanFor(
     termId,
     plans,
-    ui.success ? ui.data.activePlanByTerm : {},
+    mainPlans.success ? mainPlans.data : {},
   );
+  return plan ? { plan, drafts: plans.length > 1 } : null;
 }

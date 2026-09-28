@@ -68,6 +68,10 @@ A product laid out like the scheduler: the rail of views, the sidebar and the ca
 **Term**:
 A semester Testudo lists (fall, spring, summer or winter). A term is **active** while Testudo lists it and **archived** after, shown under "Past terms".
 
+**Term tag**:
+The small tag beside a term's name wherever it's named: **Now** (an ink border) on the term in session, **Next** (a hairline) on the first fall or spring still to start, the one you're registering for. Other terms get none; winter and summer are only ever Now. Worked out from the academic calendar, as Plan's term status is, so every product agrees. Code says `TermTag`.
+_Avoid_: current term, upcoming, this semester (as a label)
+
 **Course**:
 A catalog course, named by its code (`CMSC351`).
 
@@ -183,7 +187,14 @@ _Avoid_: "reload the page" with no button beside it
 A named set of sections, blocks and bookmarks for one term, kept in the browser (Plan A, Plan B). In copy, "plan" alone means this, never the four-year kind.
 
 **Plan tab**:
-A plan's tab in the top bar, with Rename, Duplicate and Delete in its ▾ menu.
+A plan's tab in the top bar, with Rename, Duplicate, Make main plan and Delete in its ▾ menu. Where only the open tab fits, the other plans are in that menu too ("Open Plan A").
+
+**Main plan**:
+The one plan per term you're actually taking, marked with a small square in Schedule's red once the term has two or more plans. Chat's rooms, Plan's "View schedule", Todo's courses and the calendar feed all read it, and every device agrees on it (it's synced). The first plan of a term is main until you pick another with **Make main plan** (the tab's ▾ menu, a draft's Courses panel, or Chat's "Rooms from" menu), always with Undo; deleting it passes main to the next tab. Code says `mainPlans` (the settings doc) and `mainPlanFor`.
+_Avoid_: chat plan, linked plan, primary plan, active plan (the open tab is the **open** plan)
+
+**Draft**:
+Any plan in a term that isn't its main plan. Only Schedule shows drafts; its Courses and Register panels say "Draft" and name the main plan in one quiet line.
 
 **Rail tab**:
 One of the seven sidebar tabs: Courses, Search, Problems, Travel, Blocks, Generate, Register (`1` to `7`).
@@ -248,6 +259,9 @@ The one-click remedy a problem offers: "Switch to 0205" when a section solves it
 **Generate**:
 Making new plans from the courses you need, filters and preferences. It creates plans; it never edits one.
 _Avoid_: AI (it's an algorithm)
+
+**Generate from four-year plan**:
+Generate's full-width button, under "Plan A's courses" and "Pick N of these", when the four-year plan has courses for the term: it adds the semester's courses (required) and its placeholders (as wildcards) to the list and generates. The courses it draws from are listed under it.
 
 **Generate result**:
 One ranked candidate plan from Generate, with a mini week, plain stats and a mark for each preference that's on. Its arrow opens its details, where "Add as Plan C" (the next plan name) makes it a plan.
@@ -324,14 +338,15 @@ The room for one section, named by its meetings. Only courses with two or more s
 _Avoid_: lecture room
 
 **Your rooms**:
-The rooms the chat list shows: your chat plan's (each section's course, professor and section rooms; a bookmarked course's course room) and the course rooms you've joined. Other sections' and professors' rooms aren't listed at all. A course whose room you opened without joining sits last until you join or leave it.
+The rooms the chat list shows: your main plan's (each section's course, professor and section rooms; a bookmarked course's course room) and the course rooms you've joined. Other sections' and professors' rooms aren't listed at all. A course whose room you opened without joining sits last until you join or leave it.
 _Avoid_: locked rooms, a course's room tree
 
-**Chat plan**:
-The synced plan a term's rooms come from ("Rooms from Plan A in Schedule ▾"). Copy names Schedule, since the plan open there may be another; signed out, it says "the classes you add in Schedule", never "sync".
+**Rooms from**:
+The chat list's line naming the plan a term's rooms come from: its main plan ("Rooms from Plan A, your main plan ▾"; with one plan, "Rooms from Plan A, your Fall 2026 plan"). Picking another plan there makes it main everywhere, with Undo. Signed out, Chat says "the classes you add in Schedule", never "sync".
+_Avoid_: chat plan (it's the main plan, since 2026-09-28)
 
 **Join**:
-Keeping a course room in your chat list when the course isn't in your chat plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it.
+Keeping a course room in your chat list when the course isn't in your main plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it.
 _Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
 
 **Posting here**:
@@ -397,8 +412,9 @@ Where a term in a four-year plan stands: done, in progress or planned, worked ou
 **Placeholder**:
 A wildcard in a four-year plan ("CMSC4XX", "Any DSHS course"), dashed, counting 3 credits by default until you pick a real course.
 
-**Linked plan**:
-The scheduler plan a four-year plan's semester opens with "View schedule": the term's open plan, else its first tab (`linkedSchedulePlan`). One per term, never a copy; "From Plan A: 4 of 5 placed" counts it.
+**View schedule (from a semester)**:
+Opens the term's main plan in Schedule (or makes "Plan A" with the semester's courses when the term has none). Never a copy; "From Plan A: 4 of 5 placed" counts it ("From Plan A, main · 4 of 5 placed" when the term has drafts too).
+_Avoid_: linked plan (it's the main plan, since 2026-09-28)
 
 **Plan view**:
 One of Plan's five views on its rail: GenEd, Problems, Search, Samples and Import (`1` to `5`). Each is a route (`/plan`, `/plan/problems`, …), and a course opens over it as a drill-in.

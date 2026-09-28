@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { Asterisk, Minus, Plus, X } from "lucide-react";
 import { type Ref, useMemo } from "react";
+import { Mark } from "~/app/brand/mark";
 import {
   type CatalogIndex,
   noMatchesMessage,
@@ -23,6 +24,7 @@ import type {
   GenerateDraftItem,
   GenWildcardItem,
   Plan,
+  Wildcard,
 } from "~/core/schema";
 import { dotStyle } from "~/features/calendar/tint";
 import { newLocalId } from "~/state/ids";
@@ -46,6 +48,7 @@ export function CourseList({
   colors,
   plan,
   prefilledFrom,
+  fourYear,
   inputRef,
 }: {
   items: readonly GenerateDraftItem[];
@@ -59,6 +62,15 @@ export function CourseList({
   plan: Plan | null;
   /** The plan the list came from, while it's still that plan's courses. */
   prefilledFrom?: string | null;
+  /**
+   * The four-year plan's semester for this term, when it has anything:
+   * "Generate from four-year plan" fills the list from it and generates.
+   */
+  fourYear?: {
+    readonly courses: readonly CourseCode[];
+    readonly placeholders: readonly Wildcard[];
+    readonly onGenerate: () => void;
+  } | null;
   inputRef?: Ref<HTMLInputElement>;
 }) {
   const listed = useMemo(() => new Set(draftCourseCodes(items)), [items]);
@@ -187,7 +199,7 @@ export function CourseList({
           Solid is required, dashed is optional. Click a course to switch.
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
         {plan && fromPlan.length > 0 ? (
           <WithTooltip
             label={`Adds ${fromPlan.map((c) => c.courseCode).join(", ")}: placed courses required, bookmarked ones optional`}
@@ -195,13 +207,13 @@ export function CourseList({
             <Button
               variant="outline"
               size="sm"
-              className="text-sm"
+              className="min-w-0 text-sm"
               onClick={() =>
                 setItems((xs) => [...xs, ...planCourseItems(fromPlan)])
               }
             >
               <Plus className="size-3.5" />
-              {plan.name}'s courses
+              <span className="truncate">{plan.name}'s courses</span>
             </Button>
           </WithTooltip>
         ) : null}
@@ -209,7 +221,7 @@ export function CourseList({
           <Button
             variant="outline"
             size="sm"
-            className="text-sm"
+            className="min-w-0 text-sm"
             onClick={() =>
               setItems((xs) => [
                 ...xs,
@@ -218,10 +230,81 @@ export function CourseList({
             }
           >
             <Plus className="size-3.5" />
-            Pick N of these
+            <span className="truncate">Pick N of these</span>
           </Button>
         </WithTooltip>
       </div>
+      {fourYear ? (
+        <FromFourYear
+          {...fourYear}
+          termName={termName}
+          chip={(code) => chip(code).color}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * "Generate from four-year plan", full width under the two above, and what
+ * it draws from under it: the semester's courses and placeholders.
+ */
+function FromFourYear({
+  courses,
+  placeholders,
+  onGenerate,
+  termName,
+  chip,
+}: {
+  courses: readonly CourseCode[];
+  placeholders: readonly Wildcard[];
+  onGenerate: () => void;
+  termName: string;
+  chip: (code: CourseCode) => CourseColor;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5" data-testid="from-four-year">
+      <WithTooltip
+        label={`Fill the list from your four-year plan's ${termName} and generate plans`}
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full text-sm"
+          onClick={onGenerate}
+        >
+          <Mark id="plan" size={14} />
+          Generate from four-year plan
+        </Button>
+      </WithTooltip>
+      <ul
+        aria-label={`From your four-year plan's ${termName}`}
+        className="flex flex-wrap gap-1"
+      >
+        {courses.map((code) => (
+          <li
+            key={code}
+            className="flex h-6 items-center gap-1.5 rounded-md border border-hairline px-1.5 ident text-muted text-xs"
+          >
+            <span
+              className="size-1.5 shrink-0 rounded-full"
+              style={dotStyle(chip(code))}
+            />
+            {code}
+          </li>
+        ))}
+        {placeholders.map((wildcard, i) => (
+          <li
+            // A placeholder can be there twice (two "Any DSHS course").
+            // biome-ignore lint/suspicious/noArrayIndexKey: identical placeholders have nothing else to tell them apart
+            key={`${wildcardId(wildcard)}-${i}`}
+            className="flex h-6 items-center gap-1 rounded-md border border-hairline border-dashed px-1.5 text-muted text-xs"
+          >
+            <Asterisk className="size-3 shrink-0 text-faint" aria-hidden />
+            {wildcardLabel(wildcard)}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

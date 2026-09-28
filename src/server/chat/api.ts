@@ -1,6 +1,6 @@
 // Chat's JSON routes (V2.md §8.5), registered in src/server/api/router.ts
 // with `auth: "user"`. None of them wakes a CourseChat object: the chat list
-// reads D1's room index, and members come from chat plans.
+// reads D1's room index, and members come from main plans.
 import { canReadRoom, roomSectionCodes } from "~/core/chat";
 import {
   CHAT_MAX_FOLLOWS,

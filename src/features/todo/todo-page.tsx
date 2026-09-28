@@ -547,7 +547,12 @@ function TodoWorkspace({
                 <span aria-hidden="true">·</span>
                 <ScheduleLink
                   term={term}
-                  label={`Your ${termLabel(term)} classes`}
+                  planId={scheduler.mainPlans[term]?.id}
+                  label={
+                    scheduler.mainPlans[term]
+                      ? `Opens ${scheduler.mainPlans[term].name}, your main plan for ${termLabel(term)}`
+                      : `Your ${termLabel(term)} classes`
+                  }
                   onClick={() => crossLinkClicked("todo", "schedule")}
                 />
               </>

@@ -13,6 +13,7 @@ import {
   draftCourseCodes,
   relaxDraft,
   requestItems,
+  withFourYearColumn,
 } from "~/core/generate/draft";
 import { type GenerateChips, sameChips } from "~/core/generate/url";
 import type {
@@ -23,6 +24,11 @@ import type {
   Relaxation,
 } from "~/core/schema";
 import { GenerateTabSearchSchema } from "~/core/schema/schedule-url";
+import {
+  fourYearLinkDb,
+  readFourYearColumn,
+  useLiveQuery,
+} from "~/state/four-year-link";
 import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { useActiveTerm, useCurrentPlan, useTermCatalog } from "~/state/hooks";
 import { useWorkspace } from "~/state/workspace-store";
@@ -95,6 +101,12 @@ export function GeneratePanel() {
   const inputRef = useFocusRequest<HTMLInputElement>("generate");
   const topRef = useRef<HTMLDivElement>(null);
   useGenerateFromUrl(termId, plan);
+  // The four-year plan's semester for this term, live: Plan in another tab.
+  const column = useLiveQuery(termId, () =>
+    termId
+      ? readFourYearColumn(fourYearLinkDb(), termId)
+      : Promise.resolve(null),
+  );
 
   const blockCount = useMemo(
     () => blocks.filter((b) => b.termId === termId).length,
@@ -136,6 +148,23 @@ export function GeneratePanel() {
   const run = () => {
     if (termId) void runGenerate(termId, draft);
   };
+  const fourYear =
+    column && column.courses.length + column.placeholders.length > 0
+      ? {
+          courses: column.courses,
+          placeholders: column.placeholders,
+          onGenerate: () => {
+            if (!termId) return;
+            const next = {
+              ...draft,
+              items: withFourYearColumn(draft.items, column),
+            };
+            update(() => next);
+            track("four_year_handoff", { outcome: "generated" });
+            void runGenerate(termId, next);
+          },
+        }
+      : null;
   const relax = (r: Relaxation) => {
     if (!termId) return;
     const next = relaxDraft(
@@ -259,6 +288,7 @@ export function GeneratePanel() {
               colors={colors}
               plan={current?.plan ?? null}
               prefilledFrom={prefilled ? (plan?.name ?? null) : null}
+              fourYear={fourYear}
               inputRef={inputRef}
             />
             <SectionHeader

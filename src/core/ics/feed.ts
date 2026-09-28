@@ -1,9 +1,11 @@
 import type { SectionRef } from "../catalog/catalog-index";
 import { seasonTermOf } from "../catalog/terms";
+import { mainPlanFor } from "../plans/main-plan";
 import type {
   AcademicCalendar,
   IsoDate,
   IsoDateTime,
+  MainPlans,
   Plan,
   TermId,
   TimedMeeting,
@@ -27,7 +29,7 @@ import {
 // both. UIDs never change for the same meeting or deadline, so a calendar
 // updates in place when the plan or the list does.
 
-/** What a feed holds for one term: its first synced plan's placed sections. */
+/** What a feed holds for one term: its main plan's placed sections. */
 export type FeedTerm = {
   readonly termId: TermId;
   /** Null (or not published) leaves the term's classes out: no dates to repeat on. */
@@ -101,25 +103,17 @@ export function feedTermIds(today: IsoDate): TermId[] {
   return out;
 }
 
-/** Tab order, the way the scheduler shows a term's plans. */
-function byTab(a: Plan, b: Plan): number {
-  return (
-    a.order - b.order ||
-    a.createdAt.localeCompare(b.createdAt) ||
-    a.id.localeCompare(b.id)
-  );
-}
-
 /**
- * The synced plan whose classes the feed carries for `termId`: today, the
- * term's first tab. The one place that decides it, so a "main plan" per term
- * can take over here. Null when the person has no plan in the term.
+ * The synced plan whose classes the feed carries for `termId`: the term's
+ * main plan (the settings doc's choice, else the first tab). Null when the
+ * person has no plan in the term.
  */
 export function feedPlanFor(
   termId: TermId,
   plans: readonly Plan[],
+  mainPlans: Readonly<MainPlans>,
 ): Plan | null {
-  return [...plans.filter((p) => p.termId === termId)].sort(byTab)[0] ?? null;
+  return mainPlanFor(termId, plans, mainPlans);
 }
 
 // ---------- classes ----------

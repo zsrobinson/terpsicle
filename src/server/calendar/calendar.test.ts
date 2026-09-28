@@ -30,10 +30,12 @@ import {
   aPlanCourse,
   aPublishedCalendar,
   aSection,
+  aSettingsDoc,
   aTerm,
   aTermsFile,
   aTodoItem,
   FIXTURE_HASH,
+  fixtureTermId,
 } from "~/fixtures";
 import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
@@ -466,6 +468,44 @@ describe("GET /cal/<token>.ics", () => {
     );
     const { url } = await student.link();
     expect(await (await fetchFeed(url)).text()).toContain("PHYS261 Lab");
+  });
+
+  it("holds the main plan's classes, not the first tab's, once another is main", async () => {
+    const student = await signIn("tstudent");
+    await savePlan(
+      "tstudent",
+      aPlan({
+        id: "plan_first",
+        order: 0,
+        courses: [aPlanCourse({ courseCode: "CMSC351", sectionCode: "0101" })],
+      }),
+    );
+    await savePlan(
+      "tstudent",
+      aPlan({
+        id: "plan_second",
+        name: "Plan B",
+        order: 1,
+        courses: [aPlanCourse({ courseCode: "PHYS261", sectionCode: "0101" })],
+      }),
+    );
+    rev += 1;
+    await env.DB.prepare(
+      `INSERT INTO sync_docs (user_id, kind, doc_id, term_id, rev, deleted, body, updated_at)
+       VALUES ('tstudent', 'settings', 'settings', NULL, ?1, 0, ?2, ?3)`,
+    )
+      .bind(
+        rev,
+        JSON.stringify(
+          aSettingsDoc({ mainPlans: { [fixtureTermId]: "plan_second" } }),
+        ),
+        now().toISOString(),
+      )
+      .run();
+    const { url } = await student.link();
+    const body = await (await fetchFeed(url)).text();
+    expect(body).toContain("PHYS261 Lab");
+    expect(body).not.toContain("CMSC351");
   });
 
   it("answers HEAD without a body", async () => {

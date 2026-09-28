@@ -1,4 +1,5 @@
 import {
+  type AcademicCalendar,
   type IsoDate,
   SEASON_BY_MONTH_CODE,
   type Term,
@@ -14,6 +15,11 @@ export function termLabel(termId: string): string {
   if (!season || !Number.isFinite(year)) return termId;
   const name = season.charAt(0).toUpperCase() + season.slice(1);
   return `${name} ${season === "winter" ? year + 1 : year}`;
+}
+
+/** "Spring 2027" → "Spring ’27": a term's name where a bar is short of room. */
+export function shortTermName(name: string): string {
+  return name.replace(/ \d{2}(\d{2})$/, " ’$1");
 }
 
 /**
@@ -36,6 +42,36 @@ export function seasonSpan(termId: TermId): { start: IsoDate; end: IsoDate } {
   const year = Number(termId.slice(0, 4)) + (code === "12" ? 1 : 0);
   const [start, end] = SEASON_SPAN[code];
   return { start: `${year}-${start}`, end: `${year}-${end}` };
+}
+
+/** Grades post and finals end within two weeks of the last day of classes. */
+export const GRADES_GRACE_DAYS = 14;
+
+/** A date `days` later, on UTC midnights so daylight saving never shifts it. */
+function datePlusDays(date: IsoDate, days: number): IsoDate {
+  const [y, m, d] = date.split("-").map(Number);
+  const ms = Date.UTC(y ?? 1970, (m ?? 1) - 1, (d ?? 1) + days);
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/**
+ * A term's span: first day of classes through the end of the grace period,
+ * from its published calendar, else its season's usual months. Plan's term
+ * status and the term tags both read it, so they always agree. Here rather
+ * than beside them so the scheduler's first load doesn't pull in the .ics
+ * date code for it.
+ */
+export function termSpan(
+  termId: TermId,
+  calendars: readonly AcademicCalendar[],
+): { start: IsoDate; end: IsoDate } {
+  const calendar = calendars.find((c) => c.termId === termId);
+  if (calendar?.status === "published")
+    return {
+      start: calendar.classesStart,
+      end: datePlusDays(calendar.classesEnd, GRADES_GRACE_DAYS),
+    };
+  return seasonSpan(termId);
 }
 
 /**

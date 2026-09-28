@@ -45,7 +45,7 @@ describe("dexieSyncStorage", () => {
       blocks: [aBlock()],
       colors: { CMSC351: "teal" },
       travel: { pace: "faster" },
-      chatPlans: {},
+      mainPlans: {},
     });
   });
 
@@ -65,7 +65,7 @@ describe("dexieSyncStorage", () => {
       tables: {
         ...s.tables,
         plans: [{ ...planA, name: "Renamed" }],
-        chatPlans: { "202701": planA.id },
+        mainPlans: { "202701": planA.id },
       },
     }));
     expect((await db.plans.toArray()).map((p) => p.name)).toEqual(["Renamed"]);
@@ -90,7 +90,7 @@ describe("dexieSyncStorage", () => {
       dirty: true,
       inFlight: false,
     });
-    expect(again.tables.chatPlans).toEqual({ "202701": planA.id });
+    expect(again.tables.mainPlans).toEqual({ "202701": planA.id });
     expect(settingsDocOf(again.tables).blocks).toEqual([aBlock()]);
   });
 
@@ -110,7 +110,7 @@ describe("dexieSyncStorage", () => {
     // A step that changes something else leaves the row alone.
     await storage.update((s) => ({
       ...s,
-      tables: { ...s.tables, chatPlans: { "202701": planA.id } },
+      tables: { ...s.tables, mainPlans: { "202701": planA.id } },
     }));
     expect((await db.settings.get("prefs"))?.value).toEqual(prefs);
 

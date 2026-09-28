@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import {
-  type ChatPlans,
   DEFAULT_TRAVEL_SETTINGS,
   type LocalId,
   type TermId,
@@ -16,8 +15,8 @@ import {
   type WorkspaceAction,
 } from "./plan-ops";
 
-// The person's own data: plans, blocks, course colors, travel settings, and
-// which plan is open in each term. Every change to the workspace goes through
+// The person's own data: plans, blocks, course colors, travel settings,
+// which plan is open in each term and which is each term's main plan. Every change to the workspace goes through
 // `commit`, which keeps a snapshot for undo (SPEC §3.1: undo instead of
 // confirmation dialogs). Persistence is in persist.ts; toasts are the app's job
 // (it watches `notice`).
@@ -36,17 +35,19 @@ export interface ChangeNotice {
   label: string;
   /** Destructive or structural changes get a toast with an Undo button. */
   toast: boolean;
+  /** A second line for the toast: what else the change did. */
+  description?: string;
 }
 
 export interface CommitOptions {
   /** Show the Undo toast. Default true; quiet edits (rename) pass false. */
   toast?: boolean;
+  /** The toast's second line ("Plan A is your main plan for Spring 2027 again."). */
+  description?: string;
 }
 
 export interface WorkspaceState extends Workspace {
   travel: TravelSettings;
-  /** Which plan's sections are your chat rooms, per term (V2 §8.2). Synced, not undoable. */
-  chatPlans: ChatPlans;
   /** False until persisted state has loaded; don't create defaults before then. */
   hydrated: boolean;
   past: readonly UndoEntry[];
@@ -77,8 +78,6 @@ export interface WorkspaceState extends Workspace {
   ensurePlan: (termId: TermId) => void;
   /** Travel settings are preferences: saved, not undoable. */
   setTravel: (patch: Partial<TravelSettings>) => void;
-  /** Picks (or clears, `null`) the term's chat plan. Not undoable. */
-  setChatPlan: (termId: TermId, planId: LocalId | null) => void;
 }
 
 /** Enough to undo a long session of poking around. */
@@ -89,7 +88,14 @@ const notice = (
   kind: ChangeNotice["kind"],
   label: string,
   toast: boolean,
-): ChangeNotice => ({ seq: ++seq, kind, label, toast });
+  description?: string,
+): ChangeNotice => ({
+  seq: ++seq,
+  kind,
+  label,
+  toast,
+  ...(description ? { description } : {}),
+});
 
 export function workspaceOf(s: Workspace): Workspace {
   return {
@@ -97,13 +103,13 @@ export function workspaceOf(s: Workspace): Workspace {
     blocks: s.blocks,
     colors: s.colors,
     activePlanByTerm: s.activePlanByTerm,
+    mainPlans: s.mainPlans,
   };
 }
 
 export const INITIAL_WORKSPACE_STATE = {
   ...EMPTY_WORKSPACE,
   travel: DEFAULT_TRAVEL_SETTINGS,
-  chatPlans: {},
   hydrated: false,
   past: [],
   future: [],
@@ -121,7 +127,12 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => ({
       ...workspaceOf(next),
       past: [...get().past, { label, before }].slice(-UNDO_LIMIT),
       future: [],
-      notice: notice("commit", label, options?.toast ?? true),
+      notice: notice(
+        "commit",
+        label,
+        options?.toast ?? true,
+        options?.description,
+      ),
     });
   },
 
@@ -178,12 +189,6 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => ({
   },
 
   setTravel: (patch) => set({ travel: { ...get().travel, ...patch } }),
-
-  setChatPlan: (termId, planId) => {
-    const { [termId]: current, ...rest } = get().chatPlans;
-    if ((current ?? null) === planId) return;
-    set({ chatPlans: planId === null ? rest : { ...rest, [termId]: planId } });
-  },
 }));
 
 /** The open plan's id in a term (see `activePlanId`). */

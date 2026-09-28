@@ -20,6 +20,7 @@ import {
 } from "~/app/workbench/layout";
 import { RailButton, railHint, WorkbenchRail } from "~/app/workbench/rail";
 import { SkipLinks } from "~/app/workbench/skip-links";
+import { defaultFirstTerm } from "~/core/four-year/terms";
 import { PLAN_VIEW_PATHS } from "~/core/routing/plan-location";
 import {
   type DrawerSnap,
@@ -35,6 +36,7 @@ import { InstallAppButton } from "~/features/pwa/install-entry";
 import { SitePage } from "~/features/site/site-page";
 import { readSidebarWidth } from "~/state/sidebar-width-pref";
 import { PageSkeleton } from "~/ui/skeleton";
+import { createDocForImport, createDocForTemplates } from "./actions";
 import { Board, PhoneBoard } from "./board";
 import { fourYearDb, startFourYear, useDocDepts } from "./data";
 import { ImportCheck, useImportRecognized } from "./import-panel";
@@ -386,6 +388,30 @@ function useSidebarWidth() {
   }, []);
 }
 
+/**
+ * A link straight to Import or Samples (`/plan/import`) with no plan yet:
+ * the view opens on a new plan, as its first-visit button would, rather
+ * than the first visit hiding it. Only as the page loads: deleting your
+ * last plan later still leaves the first visit.
+ */
+function useArrivalWithoutPlan(
+  ready: boolean,
+  hasPlan: boolean,
+  nav: PlanNav,
+  today: IsoDate,
+) {
+  const checked = useRef(false);
+  const tab = nav.search.tab;
+  useEffect(() => {
+    if (!ready || checked.current) return;
+    checked.current = true;
+    if (hasPlan) return;
+    if (tab === "import") createDocForImport(defaultFirstTerm(today));
+    else if (tab === "templates")
+      createDocForTemplates(defaultFirstTerm(today));
+  }, [ready, hasPlan, tab, today]);
+}
+
 export function PlanPage({ nav, view }: { nav: PlanNav; view: ReactNode }) {
   const phase = useFourYear((s) => s.phase);
   const doc = useActiveFourYear();
@@ -404,6 +430,7 @@ export function PlanPage({ nav, view }: { nav: PlanNav; view: ReactNode }) {
     };
   }, []);
   usePlanSync(loaded && phase === "ready");
+  useArrivalWithoutPlan(loaded && phase === "ready", doc !== null, nav, today);
   // The toasts stay put as the page changes under them (Delete, then Undo).
   return (
     <>

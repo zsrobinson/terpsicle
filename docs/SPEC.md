@@ -46,7 +46,8 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
 - **Top bar:**
   - logo · term switcher · plan tabs · `+`;
   - right side: credits, and a problem count that opens Problems.
-  - The active plan tab has a ▾ menu: Rename, Duplicate, Delete. Double-click to rename.
+  - The term switcher tags the term in session **Now** and the next fall or spring **Next** (`docs/V2.md` §5.5), and its menu names each term's main plan.
+  - The active plan tab has a ▾ menu: Rename, Duplicate, Make main plan (on a draft), Delete. Double-click to rename. With two or more plans, the **main plan**'s tab starts with a small red square (`docs/V2.md` §5.5); where only the open tab fits, the other plans are in its ▾ menu too.
   - `+` opens: **Empty plan**, **Copy of <current>**, **Generate plans…**.
 - **Rail:** icons with text labels: Courses, Search, Problems, Travel, Blocks, Generate, Register. Clicking the active tab again **collapses the sidebar** (click any tab to reopen). There is no separate collapse button.
 - **Sidebar:** one panel at a time. Opening details (a course, a connection, a generated plan) **drills in** over the current tab, under **one Back** ("‹ Search  CMSC351", v2): a chevron and the short name of the view you came from, never a trail of crumbs, even going from course to course. Back, `Esc` and the browser's Back are the same thing, and return to exactly where you were.

@@ -32,6 +32,7 @@ import {
   createFeed,
   feedOwner,
   getFeed,
+  mainPlansOf,
   markFetched,
   plansInTerms,
   replaceFeed,
@@ -132,17 +133,22 @@ async function readCalendar(
   return parsed.success ? parsed.data : null;
 }
 
-/** Each term's classes, from its feed plan's placed sections as the catalog has them now. */
+/** Each term's classes, from its main plan's placed sections as the catalog has them now. */
 async function feedTerms(
   env: CalendarFeedEnv,
   userId: string,
   termIds: readonly TermId[],
 ): Promise<FeedTerm[]> {
-  const plans = await plansInTerms(env.DB, userId, termIds);
+  const [plans, mainPlans] = await Promise.all([
+    plansInTerms(env.DB, userId, termIds),
+    mainPlansOf(env.DB, userId),
+  ]);
   const findSection = catalogReader(env.DATA);
   const terms: FeedTerm[] = [];
   for (const termId of termIds) {
-    const placed = (feedPlanFor(termId, plans)?.courses ?? []).flatMap((c) =>
+    const placed = (
+      feedPlanFor(termId, plans, mainPlans)?.courses ?? []
+    ).flatMap((c) =>
       c.sectionCode === null ? [] : [sectionKey(c.courseCode, c.sectionCode)],
     );
     if (placed.length === 0) continue;

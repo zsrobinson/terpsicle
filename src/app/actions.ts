@@ -1,4 +1,6 @@
 import { snapshotOf } from "~/core/catalog";
+import { termLabel } from "~/core/catalog/terms";
+import { isMainPlan, mainPlansAfterDelete } from "~/core/plans";
 import {
   type Block,
   type CourseCode,
@@ -91,8 +93,14 @@ export function renamePlan(
 }
 
 export function deletePlan(planId: LocalId): void {
-  const plan = useWorkspace.getState().plans.find((p) => p.id === planId);
+  const { plans, mainPlans } = useWorkspace.getState();
+  const plan = plans.find((p) => p.id === planId);
   if (!plan) return;
+  // Deleting the main plan passes main to the next tab, and the toast says which.
+  const heirId = mainPlansAfterDelete(mainPlans, plans, planId)[plan.termId];
+  const heir = isMainPlan(plan, plans, mainPlans)
+    ? plans.find((p) => p.id === heirId)
+    : undefined;
   useWorkspace.getState().dispatch(
     {
       type: "plan/delete",
@@ -101,8 +109,31 @@ export function deletePlan(planId: LocalId): void {
       now: nowIso(),
     },
     `Deleted ${plan.name}`,
+    heir
+      ? {
+          description: `${heir.name} is your main plan for ${termLabel(plan.termId)} now.`,
+        }
+      : undefined,
   );
   track("plan_deleted", {});
+}
+
+/**
+ * Makes a plan its term's main plan (V2 §5.5): the one Chat, Plan, Todo and
+ * the calendar feed read. Undoable, with a toast that says what it affects.
+ */
+export function makeMainPlan(planId: LocalId, via: "menu" | "panel"): void {
+  const { plans, mainPlans } = useWorkspace.getState();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan || isMainPlan(plan, plans, mainPlans)) return;
+  useWorkspace
+    .getState()
+    .dispatch(
+      { type: "plan/make-main", planId },
+      `${plan.name} is your main plan for ${termLabel(plan.termId)}`,
+      { description: "Chat, Plan, Todo and your calendar use it now." },
+    );
+  track("plan_made_main", { via });
 }
 
 /** A plan tab: a place of its own in history, so Back returns to the last one. */

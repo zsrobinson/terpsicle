@@ -206,7 +206,7 @@ const settingsArb: fc.Arbitrary<SettingsDoc> = fc
     aSettingsDoc({
       ...s,
       travel: { ...DEFAULT_TRAVEL_SETTINGS, accessible },
-      chatPlans: chat ? { [SPRING]: chat } : {},
+      mainPlans: chat ? { [SPRING]: chat } : {},
       prefs: {
         ...(ai === undefined ? {} : { ai: { features: ai } }),
         ...(later === undefined ? {} : { later: { view: later } }),
@@ -249,7 +249,7 @@ function localTables(
     blocks: s.blocks,
     colors: s.colors,
     travel: s.travel,
-    chatPlans: s.chatPlans,
+    mainPlans: s.mainPlans,
     fourYear,
     prefs: s.prefs,
   };
@@ -742,7 +742,7 @@ class Device {
       blocks: [],
       colors: {},
       travel: DEFAULT_TRAVEL_SETTINGS,
-      chatPlans: {},
+      mainPlans: {},
       fourYear: [],
       prefs: {},
     };

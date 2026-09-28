@@ -8,9 +8,9 @@ import {
   PanelSkeleton,
   SectionHeader,
 } from "~/app/panel";
-import { planLabel } from "~/app/plan-label";
 import type { TermId } from "~/core/schema";
 import { WatchingList } from "~/features/alerts/watching-list";
+import { DraftLine, PlanHeading } from "~/features/courses/main-plan-line";
 import { useCatalog } from "~/state/catalog-store";
 import { useAcademicCalendar } from "~/state/data-hooks";
 import {
@@ -57,8 +57,9 @@ export function RegisterPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PanelHeader title="Register" sub={planLabel(current)} />
+      <PanelHeader title="Register" sub={<PlanHeading current={current} />} />
       <PanelBody className="pb-4">
+        <DraftLine current={current} />
         {empty ? (
           <PanelNote className="text-faint">
             Add a course to see what to register for, and in what order.

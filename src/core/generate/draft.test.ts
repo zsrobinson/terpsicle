@@ -13,6 +13,7 @@ import {
   relaxDraft,
   removeWildcard,
   requestItems,
+  withFourYearColumn,
 } from "./draft";
 
 describe("requestItems", () => {
@@ -186,5 +187,46 @@ describe("planCourseItems", () => {
       { kind: "course", courseCode: "CMSC351", required: true },
       { kind: "course", courseCode: "MUSC130", required: false },
     ]);
+  });
+});
+
+describe("withFourYearColumn", () => {
+  const dshs = { kind: "gen-ed" as const, code: "DSHS" };
+  const cmsc4 = { kind: "pattern" as const, pattern: "CMSC4XX" };
+
+  it("adds the semester's courses required and its placeholders as wildcards", () => {
+    expect(
+      withFourYearColumn([], {
+        courses: ["CMSC351", "MATH240"],
+        placeholders: [dshs, cmsc4, dshs],
+      }),
+    ).toEqual([
+      { kind: "course", courseCode: "CMSC351", required: true },
+      { kind: "course", courseCode: "MATH240", required: true },
+      { kind: "wildcard", wildcard: dshs, required: true, count: 2 },
+      { kind: "wildcard", wildcard: cmsc4, required: true, count: 1 },
+    ]);
+  });
+
+  it("keeps what's there and asks for nothing twice", () => {
+    const items = [
+      { kind: "course" as const, courseCode: "CMSC351", required: false },
+      { kind: "wildcard" as const, wildcard: dshs, required: false, count: 1 },
+    ];
+    const next = withFourYearColumn(items, {
+      courses: ["CMSC351", "ENGL393"],
+      placeholders: [dshs],
+    });
+    expect(next).toEqual([
+      ...items,
+      { kind: "course", courseCode: "ENGL393", required: true },
+    ]);
+    // Again: nothing more.
+    expect(
+      withFourYearColumn(next, {
+        courses: ["CMSC351", "ENGL393"],
+        placeholders: [dshs],
+      }),
+    ).toEqual(next);
   });
 });

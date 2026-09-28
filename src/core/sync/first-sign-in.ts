@@ -228,14 +228,15 @@ export function firstSignInUnion<T extends SyncedTables>(
     now,
   });
 
-  // A chat plan choice for a plan that was left out would point at nothing.
+  // A main plan choice for a plan that was left out would point at nothing.
   const skipped = new Set(result.skipped);
   const localSettings = settingsDocOf(local);
-  localSettings.chatPlans = Object.fromEntries(
-    Object.entries(localSettings.chatPlans).filter(
+  localSettings.mainPlans = Object.fromEntries(
+    Object.entries(localSettings.mainPlans).filter(
       ([, id]) => !skipped.has(id),
     ),
   );
+  localSettings.chatPlans = localSettings.mainPlans;
   const settings = serverSettings
     ? mergeSettings({
         base: null,

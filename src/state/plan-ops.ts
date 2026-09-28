@@ -3,15 +3,20 @@
 // left without a plan.
 import {
   plansInTerm as corePlansInTerm,
+  mainPlansAfterDelete,
+  mainPlansBeforeMove,
   type PlanAction,
   type PlansState,
   plansReducer,
+  withMainPlan,
 } from "~/core/plans";
-import type { LocalId, Plan, TermId } from "~/core/schema";
+import type { LocalId, MainPlans, Plan, TermId } from "~/core/schema";
 
-/** Everything undo covers: plans, blocks, colors and which plan is open. */
+/** Everything undo covers: plans, blocks, colors, which plan is open and which is main. */
 export interface Workspace extends PlansState {
   activePlanByTerm: Readonly<Partial<Record<TermId, LocalId>>>;
+  /** Each term's main plan (V2 §5.5), synced in the settings doc. */
+  mainPlans: Readonly<MainPlans>;
 }
 
 export const EMPTY_WORKSPACE: Workspace = {
@@ -19,6 +24,7 @@ export const EMPTY_WORKSPACE: Workspace = {
   blocks: [],
   colors: {},
   activePlanByTerm: {},
+  mainPlans: {},
 };
 
 export type WorkspaceAction =
@@ -30,7 +36,9 @@ export type WorkspaceAction =
       replacementId: LocalId;
       now: string;
     }
-  | { type: "plan/activate"; termId: TermId; planId: LocalId };
+  | { type: "plan/activate"; termId: TermId; planId: LocalId }
+  /** Makes the plan its term's main plan. */
+  | { type: "plan/make-main"; planId: LocalId };
 
 export function plansInTerm(
   plans: readonly Plan[],
@@ -57,7 +65,13 @@ function setActive(w: Workspace, termId: TermId, id: LocalId): Workspace {
 
 function core(w: Workspace, action: PlanAction): Workspace {
   const next = plansReducer(w, action);
-  return next === w ? w : { ...next, activePlanByTerm: w.activePlanByTerm };
+  return next === w
+    ? w
+    : { ...next, activePlanByTerm: w.activePlanByTerm, mainPlans: w.mainPlans };
+}
+
+function setMainPlans(w: Workspace, mainPlans: Workspace["mainPlans"]) {
+  return mainPlans === w.mainPlans ? w : { ...w, mainPlans };
 }
 
 /** Applies one action. An action that changes nothing returns `w` itself. */
@@ -70,6 +84,20 @@ export function reduceWorkspace(
       const plan = w.plans.find((p) => p.id === action.planId);
       if (!plan || plan.termId !== action.termId) return w;
       return setActive(w, action.termId, action.planId);
+    }
+    case "plan/make-main": {
+      const plan = w.plans.find((p) => p.id === action.planId);
+      return plan ? setMainPlans(w, withMainPlan(w.mainPlans, plan)) : w;
+    }
+    case "plan/move": {
+      const plan = w.plans.find((p) => p.id === action.planId);
+      const next = core(w, action);
+      if (!plan || next === w) return w;
+      // A term going by its first tab keeps its main plan when tabs move.
+      return setMainPlans(
+        next,
+        mainPlansBeforeMove(w.mainPlans, w.plans, plan.termId),
+      );
     }
     case "plan/create": {
       const next = core(w, action);
@@ -86,7 +114,11 @@ export function reduceWorkspace(
       const inTerm = plansInTerm(w.plans, plan.termId);
       const index = inTerm.findIndex((p) => p.id === plan.id);
       const rest = inTerm.filter((p) => p.id !== plan.id);
-      const next = core(w, { type: "plan/delete", planId: plan.id });
+      // Deleting the main plan passes main to the next tab.
+      const next = setMainPlans(
+        core(w, { type: "plan/delete", planId: plan.id }),
+        mainPlansAfterDelete(w.mainPlans, w.plans, plan.id),
+      );
       if (rest.length === 0) {
         // A term always has a plan to show; undo brings the deleted one back.
         return reduceWorkspace(next, {

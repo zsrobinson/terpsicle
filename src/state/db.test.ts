@@ -95,7 +95,7 @@ describe("Dexie v2", () => {
     expect(w.blocks).toHaveLength(1);
     expect(w.colors).toEqual({ CMSC351: "teal" });
     expect(w.travel.pace).toBe("faster");
-    expect(w.chatPlans).toEqual({});
+    expect(w.mainPlans).toEqual({});
 
     expect(await db.table("settings").get("seatAlerts")).toBeUndefined();
     db.close();
@@ -272,9 +272,7 @@ describe("Dexie v5", () => {
   class WithStorage extends TerpsicleDb {
     constructor(dbName: string, local: ReturnType<typeof storage>) {
       super(dbName);
-      this.version(LOCAL_DB_VERSION)
-        .stores({})
-        .upgrade(registeredFromChecklist(local));
+      this.version(5).stores({}).upgrade(registeredFromChecklist(local));
     }
   }
 
@@ -314,6 +312,57 @@ describe("Dexie v5", () => {
     expect(await db.syncDocs.get("plan:planAAAA")).toMatchObject({
       dirty: false,
     });
+    db.close();
+  });
+});
+
+describe("Dexie v6", () => {
+  afterEach(async () => {
+    await Dexie.delete(name);
+  });
+
+  async function seedV5(chatPlans: unknown): Promise<void> {
+    const v5 = new Dexie(name);
+    v5.version(1).stores(DB_V1_STORES);
+    v5.version(2).stores({ syncDocs: "key", seatAlerts: null });
+    v5.version(3).stores({ fourYear: "id" });
+    v5.version(4).stores({});
+    v5.version(5).stores({});
+    await v5.open();
+    await v5
+      .table("plans")
+      .bulkPut([
+        aPlan({ id: "planAAAA" }),
+        aPlan({ id: "planBBBB", name: "Plan B", order: 1 }),
+      ]);
+    await v5.table("settings").put({ key: "chatPlans", value: chatPlans });
+    v5.close();
+  }
+
+  it("renames the chat plans row: each term's main plan", async () => {
+    name = `v6-${++count}`;
+    await seedV5({ "202701": "planBBBB" });
+    const db = new TerpsicleDb(name);
+    await db.open();
+    expect(db.verno).toBe(LOCAL_DB_VERSION);
+    expect(await db.settings.get("mainPlans")).toEqual({
+      key: "mainPlans",
+      value: { "202701": "planBBBB" },
+    });
+    expect(await db.table("settings").get("chatPlans")).toBeUndefined();
+    resetStores();
+    await hydrate(db);
+    expect(useWorkspace.getState().mainPlans).toEqual({ "202701": "planBBBB" });
+    db.close();
+  });
+
+  it("drops a row that doesn't read", async () => {
+    name = `v6-${++count}`;
+    await seedV5("not a map");
+    const db = new TerpsicleDb(name);
+    await db.open();
+    expect(await db.settings.get("mainPlans")).toBeUndefined();
+    expect(await db.table("settings").get("chatPlans")).toBeUndefined();
     db.close();
   });
 });

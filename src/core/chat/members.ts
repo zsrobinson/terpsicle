@@ -1,17 +1,18 @@
+import { mainPlanFor } from "../plans/main-plan";
 import type {
-  ChatPlans,
   CourseCode,
+  MainPlans,
   Plan,
   SectionCode,
   TermId,
 } from "../schema";
 
-// Who's in a course's rooms, from people's synced plans (V2.md §8.2). Per
-// term, one plan is your chat plan: the settings doc's `chatPlans` choice,
-// or else the term's first tab. Its courses are your rooms; `chat_members`
+// Who's in a course's rooms, from people's synced plans (V2.md §8.2). Your
+// rooms in a term come from its main plan (~/core/plans/main-plan: the
+// settings doc's `mainPlans` choice, or else the first tab); `chat_members`
 // in D1 holds one row per course of it, rewritten on every sync push.
 
-/** A `chat_members` row without its user: a course of a chat plan. */
+/** A `chat_members` row without its user: a course of a main plan. */
 export type ChatMember = {
   readonly termId: TermId;
   readonly courseCode: CourseCode;
@@ -19,38 +20,13 @@ export type ChatMember = {
   readonly sectionCode: SectionCode | "";
 };
 
-/** Tab order, the way the scheduler shows a term's plans. */
-function byTab(a: Plan, b: Plan): number {
-  return (
-    a.order - b.order ||
-    a.createdAt.localeCompare(b.createdAt) ||
-    a.id.localeCompare(b.id)
-  );
-}
-
-/**
- * The plan whose sections are your rooms in `termId`: the one `chatPlans`
- * names when it's still one of the term's plans, otherwise the first tab.
- * Null when you have no plan in the term.
- */
-export function chatPlanFor(
-  termId: TermId,
-  plans: readonly Plan[],
-  chatPlans: ChatPlans,
-): Plan | null {
-  const inTerm = plans.filter((p) => p.termId === termId);
-  const chosen = chatPlans[termId];
-  const named = chosen ? inTerm.find((p) => p.id === chosen) : undefined;
-  return named ?? [...inTerm].sort(byTab)[0] ?? null;
-}
-
-/** One row per course of the term's chat plan, in plan order. */
+/** One row per course of the term's main plan, in plan order. */
 export function chatMembersFor(
   termId: TermId,
   plans: readonly Plan[],
-  chatPlans: ChatPlans,
+  mainPlans: Readonly<MainPlans>,
 ): ChatMember[] {
-  const plan = chatPlanFor(termId, plans, chatPlans);
+  const plan = mainPlanFor(termId, plans, mainPlans);
   return (plan?.courses ?? []).map((c) => ({
     termId,
     courseCode: c.courseCode,
@@ -61,7 +37,7 @@ export function chatMembersFor(
 /**
  * Every section of `courseCode` placed in any of your plans for the term,
  * sorted. Professor and section rooms are open to you with one of their
- * sections in any plan, not just the chat plan (V2 §8.2): it's on trust.
+ * sections in any plan, not just the main plan (V2 §8.2): it's on trust.
  */
 export function sectionsInPlans(
   termId: TermId,

@@ -1,11 +1,11 @@
 import {
   BlockSchema,
-  ChatPlansSchema,
   CourseColorPrefSchema,
   DEFAULT_TRAVEL_SETTINGS,
   type LocalSyncDoc,
   LocalSyncDocSchema,
   LocalSyncMetaSchema,
+  MainPlansSchema,
   PlanSchema,
   type SettingsDoc,
   SyncedPrefsSchema,
@@ -56,7 +56,7 @@ export interface SyncStorage {
   /** Forgets the account (flags, cursor, base). Plans stay. */
   clearSync(): Promise<void>;
   /**
-   * Removes plans, blocks, colors, travel, chat plans, four-year plans and
+   * Removes plans, blocks, colors, travel, main plans, four-year plans and
    * the other products' prefs too (sign out and remove).
    */
   clearAll(): Promise<void>;
@@ -67,7 +67,7 @@ export const EMPTY_TABLES: SyncedTables = {
   blocks: [],
   colors: {},
   travel: DEFAULT_TRAVEL_SETTINGS,
-  chatPlans: {},
+  mainPlans: {},
   fourYear: [],
   prefs: {},
 };
@@ -158,7 +158,7 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
         db.courseColors.toArray(),
         db.settings.bulkGet([
           "travel",
-          "chatPlans",
+          "mainPlans",
           SETTINGS_SYNC_ROW,
           SETTINGS_PREFS_ROW,
         ]),
@@ -166,9 +166,9 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
         db.fourYear.toArray(),
       ],
     );
-    const [travelRow, chatPlansRow, syncRow, prefsRow] = settings;
+    const [travelRow, mainPlansRow, syncRow, prefsRow] = settings;
     const travel = TravelSettingsSchema.safeParse(travelRow?.value);
-    const chatPlans = ChatPlansSchema.safeParse(chatPlansRow?.value);
+    const mainPlans = MainPlansSchema.safeParse(mainPlansRow?.value);
     const prefs = SyncedPrefsSchema.safeParse(prefsRow?.value);
     const meta = LocalSyncMetaSchema.safeParse(syncRow?.value);
     const flags: Partial<Record<DocKey, DocSync>> = {};
@@ -195,7 +195,7 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
           ]),
         ),
         travel: travel.success ? travel.data : DEFAULT_TRAVEL_SETTINGS,
-        chatPlans: chatPlans.success ? chatPlans.data : {},
+        mainPlans: mainPlans.success ? mainPlans.data : {},
         fourYear: validFourYearRows(fourYear),
         prefs: prefs.success ? prefs.data : {},
       },
@@ -229,8 +229,8 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
     }
     if (a.travel !== b.travel)
       await db.settings.put({ key: "travel", value: a.travel });
-    if (a.chatPlans !== b.chatPlans)
-      await db.settings.put({ key: "chatPlans", value: { ...a.chatPlans } });
+    if (a.mainPlans !== b.mainPlans)
+      await db.settings.put({ key: "mainPlans", value: { ...a.mainPlans } });
     if (a.prefs !== b.prefs)
       await db.settings.put({ key: SETTINGS_PREFS_ROW, value: { ...a.prefs } });
     if (a.fourYear !== b.fourYear) {
@@ -299,7 +299,7 @@ export function dexieSyncStorage(db: TerpsicleDb): SyncStorage {
           db.fourYear.clear(),
           db.settings.bulkDelete([
             "travel",
-            "chatPlans",
+            "mainPlans",
             SETTINGS_SYNC_ROW,
             SETTINGS_FOUR_YEAR_ROW,
             SETTINGS_PREFS_ROW,

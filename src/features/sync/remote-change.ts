@@ -23,7 +23,7 @@ export interface RemoteChange {
    * scheduler leaves them to IndexedDB.
    */
   readonly fourYear?: readonly (readonly [LocalId, FourYearDoc | null])[];
-  /** The settings doc: blocks, colors, travel, chat plans and the prefs. */
+  /** The settings doc: blocks, colors, travel, main plans and the prefs. */
   readonly settings?: SettingsDoc;
   /**
    * The account's plans arrived in these terms (a pull, the first sign-in),
@@ -46,15 +46,23 @@ export function withRemoteChange<W extends Workspace>(
   let plans = w.plans;
   for (const [id, plan] of change.plans ?? [])
     plans = withPlan(plans, id, plan);
-  let { blocks, colors } = w;
+  let { blocks, colors, mainPlans } = w;
   if (change.settings) {
     if (!sameJson(blocks, change.settings.blocks))
       blocks = change.settings.blocks;
     if (!sameJson(colors, change.settings.colors))
       colors = change.settings.colors;
+    if (!sameJson(mainPlans, change.settings.mainPlans))
+      mainPlans = change.settings.mainPlans;
   }
-  if (plans === w.plans && blocks === w.blocks && colors === w.colors) return w;
-  return { ...w, plans, blocks, colors };
+  if (
+    plans === w.plans &&
+    blocks === w.blocks &&
+    colors === w.colors &&
+    mainPlans === w.mainPlans
+  )
+    return w;
+  return { ...w, plans, blocks, colors, mainPlans };
 }
 
 /**
@@ -80,7 +88,8 @@ function sameWorkspace(a: Workspace, b: Workspace): boolean {
     sameJson(a.plans, b.plans) &&
     sameJson(a.blocks, b.blocks) &&
     sameJson(a.colors, b.colors) &&
-    sameJson(a.activePlanByTerm, b.activePlanByTerm)
+    sameJson(a.activePlanByTerm, b.activePlanByTerm) &&
+    sameJson(a.mainPlans, b.mainPlans)
   );
 }
 
@@ -131,6 +140,7 @@ export function applyRemoteChange(
     blocks: state.blocks,
     colors: state.colors,
     activePlanByTerm: state.activePlanByTerm,
+    mainPlans: state.mainPlans,
   };
   const workspace = withUnseenDefaultsDropped(
     withRemoteChange(current, change),
@@ -143,23 +153,17 @@ export function applyRemoteChange(
           blocks: workspace.blocks,
           colors: workspace.colors,
           travel: state.travel,
-          chatPlans: state.chatPlans,
+          mainPlans: workspace.mainPlans,
           // The store doesn't hold the prefs: the host shows them (boot.ts).
           prefs: change.settings.prefs,
         },
         change.settings,
       )
-    : { travel: state.travel, chatPlans: state.chatPlans };
-  if (
-    workspace === current &&
-    settings.travel === state.travel &&
-    settings.chatPlans === state.chatPlans
-  )
-    return;
+    : { travel: state.travel };
+  if (workspace === current && settings.travel === state.travel) return;
   store.setState({
     ...workspace,
     travel: settings.travel,
-    chatPlans: settings.chatPlans,
     past: rebaseHistory(state.past, change, workspace),
     future: rebaseHistory(state.future, change, workspace),
   });

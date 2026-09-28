@@ -14,6 +14,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `plan_created` | `source`: `empty` · `copy` · `generate` · `shared` | Do people keep several plans, and which way of starting one do they use? Weighs the two first-visit paths against each other. |
   | `plan_deleted` | | Do people prune plans, or only add them? |
   | `plan_renamed` | `via`: `menu` · `double-click` | Whether double-click rename is discovered, or only the ▾ menu. |
+  | `plan_made_main` | `via`: `menu` · `panel` | Whether people pick a main plan, and from the tab's ▾ menu or the Courses panel's draft line. |
   | `tab_opened` | `tab`, `via`: `click` · `shortcut` | Which sidebar tabs get used, and whether anyone uses the `1`–`7` / `/` shortcuts. |
   | `sidebar_collapsed` | | Whether people want more calendar room (clicking the open rail tab). |
   | `term_switched` | `status`: `active` · `archived` | How often people leave the default term, and whether past terms are worth keeping. |
@@ -97,7 +98,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `four_year_wildcard_added` / `four_year_wildcard_resolved` | `kind`: `pattern` · `gen-ed` | Whether placeholders earn their place. |
   | `four_year_problem_opened` / `four_year_problem_fix_applied` | `kind` (a `FourYearProblemKind`) | Whether prerequisite and credit problems help. |
   | `four_year_details_saved` | `genEds`: how many GenEds it was given; `countsAs`: whether it counts as a UMD course; `of`: `course` (a code Testudo doesn't list) or `credit` (AP, exam or transfer credit with no UMD course) | How often people describe a course Testudo can't match, and whether "Counts as" is used. Never the code, title, the course it counts as, or which GenEds. |
-  | `four_year_handoff` | `outcome`: `created-plan` · `opened-plan` | Whether "View schedule" leads somewhere: `created-plan` when the scheduler bookmarks the semester's courses in a new (or still empty) plan, `opened-plan` when it opens the term's plan as it is. Never which courses. |
+  | `four_year_handoff` | `outcome`: `created-plan` · `opened-plan` · `generated` | Whether "View schedule" leads somewhere: `created-plan` when the scheduler bookmarks the semester's courses in a new (or still empty) plan, `opened-plan` when it opens the term's main plan as it is; `generated` when Generate's "Generate from four-year plan" fills its list from the semester and runs. Never which courses. |
   | `cross_link_clicked` | `from`, `to` (product ids: `schedule`, `reviews`, `chat`, `plan`, `todo`) | Which "View …" links between products get followed (V3 §1.2): Plan → Schedule, Todo and Reviews; Schedule → Plan; Todo → Chat and Schedule; Reviews → Schedule. Never the course, term or item behind the link. |
   | `transcript_parsed` | `recognized`, and counts: `lines` read, `choices` waiting on an "or", `skipped` lines | How often pastes read, and how much fixing they need. Sent once a paste settles, never with its text. |
   | `transcript_imported` | `lines` (entries imported), `keptGrades` | How many pastes become plans, and whether people keep grades. |
