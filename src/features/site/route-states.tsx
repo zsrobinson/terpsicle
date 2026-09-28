@@ -126,14 +126,16 @@ function ScheduleBarPlaceholder() {
       feedback="schedule"
       pathname={SCHEDULE_PATH}
       context={
-        <span className="flex items-center gap-3">
-          <Skeleton className="h-4 w-20" />
+        // Clipped, not overflowing: the server's wide shape on a phone's
+        // width has less room than its skeletons, which slid under Feedback.
+        <span className="flex min-w-0 items-center gap-3 overflow-hidden">
+          <Skeleton className="h-4 w-20 shrink-0" />
           {compact ? null : (
             <span aria-hidden="true" className="text-faint">
               /
             </span>
           )}
-          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-16 shrink-0" />
         </span>
       }
     />
