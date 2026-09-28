@@ -1,15 +1,20 @@
 import { cn } from "cn";
 import {
   Bell,
+  ChevronDown,
+  Copy,
   ExternalLink,
   Info,
   Layers,
   MessageSquare,
   MoreHorizontal,
+  Plus,
   RefreshCw,
   Search,
+  Share2,
   Sparkles,
   Star,
+  Trash2,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState } from "react";
 import { Mark } from "~/app/brand/mark";
@@ -20,10 +25,39 @@ import { NO_FILTERS, type SearchFilters } from "~/core/search/filters";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "~/ui/context-menu";
+import {
   COURSE_SEARCH_TIP,
   CourseResultRow,
   CourseSearchField,
 } from "~/ui/course-search";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "~/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuItemText,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
 import { EmptyState } from "~/ui/empty-state";
 import { FilterChips } from "~/ui/filter-chips";
 import { InlineError } from "~/ui/inline-error";
@@ -31,6 +65,7 @@ import { Input, SearchField } from "~/ui/input";
 import { GroupHeader, ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
+import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { PAGE_WIDTH, PageFooter, type PageWidth } from "~/ui/product-page";
 import { SegmentedControl } from "~/ui/segmented-control";
 import {
@@ -77,6 +112,13 @@ const VIEWS: readonly View[] = [
     hint: "Fields, switches, segmented controls and buttons",
     to: ADMIN_KIT_PATH,
     search: { view: "controls" },
+  },
+  {
+    id: "popups",
+    label: "Popups",
+    hint: "Menus, popovers, dialogs and tooltips",
+    to: ADMIN_KIT_PATH,
+    search: { view: "popups" },
   },
 ];
 
@@ -144,6 +186,7 @@ export function KitPage({ view }: { view: KitView }) {
       {show("page") ? <PageParts /> : null}
       {show("lists") ? <ListParts /> : null}
       {show("controls") ? <ControlParts /> : null}
+      {show("popups") ? <PopupParts /> : null}
     </div>
   );
 }
@@ -1039,6 +1082,227 @@ function ControlParts() {
           <WithTooltip label="Open the sheet from the bottom edge">
             <Button variant="outline" onClick={() => setSheet(true)}>
               Open the sheet
+            </Button>
+          </WithTooltip>
+        </Demo>
+      </PageSection>
+    </>
+  );
+}
+
+// ── Popups ──────────────────────────────────────────────────────────────
+
+/**
+ * Every floating layer, each behind the control that opens it, in the
+ * product's words: the plan menu, a row's right-click menu, Share, the
+ * install dialog and tooltips with their shortcuts.
+ */
+function PopupParts() {
+  const [plan, setPlan] = useState("a");
+  const [openSeats, setOpenSeats] = useState(true);
+  const [accessible, setAccessible] = useState(false);
+  const [dialog, setDialog] = useState(false);
+  return (
+    <>
+      <PageSection title="Menus" aside="DropdownMenu · ContextMenu">
+        <Pair>
+          <Demo
+            className="p-4"
+            caption="A menu: a label, a choice of one, checks, a shortcut, a submenu and a destructive item."
+          >
+            <DropdownMenu>
+              <WithTooltip label="Other plans and options">
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" data-kit-menu="">
+                    Plan A
+                    <ChevronDown aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </WithTooltip>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>Spring 2027</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={plan} onValueChange={setPlan}>
+                  <DropdownMenuRadioItem value="a">
+                    Plan A
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="b">
+                    Plan B
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={openSeats}
+                  onCheckedChange={setOpenSeats}
+                >
+                  Open seats only
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={accessible}
+                  onCheckedChange={setAccessible}
+                >
+                  Accessible routes
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <Plus aria-hidden="true" />
+                  New plan
+                  <DropdownMenuShortcut>N</DropdownMenuShortcut>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <DropdownMenuItemText
+                    label="Generate plans…"
+                    hint="Every schedule that fits your courses"
+                  />
+                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Move to…</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem>Fall 2026</DropdownMenuItem>
+                    <DropdownMenuItem>Spring 2027</DropdownMenuItem>
+                    <DropdownMenuItem disabled>Fall 2027</DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Rename</DropdownMenuItem>
+                <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                <DropdownMenuItem variant="destructive">
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Demo>
+          <Demo caption="A row's right-click menu: the same items as its ⋯ menu.">
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <ListRow
+                  data-kit-context=""
+                  secondary="Right-click for its menu"
+                  trail="4 cr"
+                >
+                  <span className="ident">CMSC216</span> Introduction to
+                  Computer Systems
+                </ListRow>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem>
+                  <Info aria-hidden="true" className="text-muted" />
+                  More about this course
+                </ContextMenuItem>
+                <ContextMenuItem>
+                  <Layers aria-hidden="true" className="text-muted" />
+                  Show all sections
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem>
+                  <Trash2 aria-hidden="true" className="text-muted" />
+                  Remove
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          </Demo>
+        </Pair>
+      </PageSection>
+
+      <PageSection title="Popover and dialog" aside="Popover · Dialog">
+        <Pair>
+          <Demo
+            className="p-4"
+            caption="A popover: a raised card by its trigger, for a small task."
+          >
+            <Popover>
+              <WithTooltip label="Share a link to this plan">
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" data-kit-popover="">
+                    <Share2 aria-hidden="true" />
+                    Share
+                  </Button>
+                </PopoverTrigger>
+              </WithTooltip>
+              <PopoverContent
+                aria-label="Share Plan A"
+                className="w-[380px] max-w-[calc(100vw-16px)] space-y-3"
+              >
+                <h2 className="font-semibold text-base">Share Plan A</h2>
+                <div className="flex gap-2">
+                  <Input
+                    aria-label="Share link"
+                    readOnly
+                    value="terpsicle.com/schedule?plan=eyJ0…"
+                    className="ident flex-1 md:text-sm"
+                  />
+                  <WithTooltip label="Copy the link">
+                    <Button>
+                      <Copy aria-hidden="true" />
+                      Copy link
+                    </Button>
+                  </WithTooltip>
+                </div>
+                <p className="text-muted text-sm">
+                  The link carries a copy of this plan.
+                </p>
+              </PopoverContent>
+            </Popover>
+          </Demo>
+          <Demo
+            className="p-4"
+            caption="A dialog, for something a person chose to open. Never to confirm: that's Undo."
+          >
+            <WithTooltip label="Open the install dialog">
+              <Button
+                variant="outline"
+                size="sm"
+                data-kit-dialog=""
+                onClick={() => setDialog(true)}
+              >
+                Install Terpsicle
+              </Button>
+            </WithTooltip>
+            <Dialog open={dialog} onOpenChange={setDialog}>
+              <DialogContent>
+                <DialogTitle>Put Terpsicle on your home screen</DialogTitle>
+                <DialogDescription className="mt-2">
+                  It opens like an app, works offline and tells you when a seat
+                  opens.
+                </DialogDescription>
+                <div className="mt-5 flex justify-end gap-2">
+                  <WithTooltip label="Close without installing">
+                    <Button variant="ghost" onClick={() => setDialog(false)}>
+                      Not now
+                    </Button>
+                  </WithTooltip>
+                  <WithTooltip label="Add Terpsicle to your home screen">
+                    <Button onClick={() => setDialog(false)}>Install</Button>
+                  </WithTooltip>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </Demo>
+        </Pair>
+      </PageSection>
+
+      <PageSection title="Tooltips" aside="WithTooltip">
+        <Demo
+          className="flex flex-wrap items-center gap-2 p-4"
+          caption="Every control has one, with its shortcut when it has one. Never on touch."
+        >
+          <WithTooltip label="Search courses" shortcut="/">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Search courses"
+              data-kit-tooltip=""
+            >
+              <Search aria-hidden="true" />
+            </Button>
+          </WithTooltip>
+          <WithTooltip label="Notifications" side="bottom">
+            <Button variant="ghost" size="icon" aria-label="Notifications">
+              <Bell aria-hidden="true" />
+            </Button>
+          </WithTooltip>
+          <WithTooltip label="Check for new data" shortcut="R">
+            <Button variant="ghost" size="icon" aria-label="Check for new data">
+              <RefreshCw aria-hidden="true" />
             </Button>
           </WithTooltip>
         </Demo>

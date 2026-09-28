@@ -4,6 +4,6 @@ import { z } from "zod";
 // route's search schema loads without the admin panel's other schemas.
 
 /** The page kit's parts; no view shows everything. */
-export const KIT_VIEWS = ["page", "lists", "controls"] as const;
+export const KIT_VIEWS = ["page", "lists", "controls", "popups"] as const;
 export const KitViewSchema = z.enum(KIT_VIEWS);
 export type KitPart = z.infer<typeof KitViewSchema>;
