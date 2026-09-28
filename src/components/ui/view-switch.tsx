@@ -1,5 +1,6 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { cn } from "cn";
+import { HapticTap } from "./haptic";
 import { Hinted, SEGMENT, SEGMENTS } from "./segmented-control";
 
 // The one sub-navigation pattern (docs/COHESION.md §1.8): ways to look at the
@@ -23,18 +24,21 @@ export interface View {
 
 /**
  * Two to seven views of one thing, in the page header's right (or under a
- * panel header). The current one carries `aria-current="page"`.
+ * panel header). The current one carries `aria-current="page"`. With
+ * `haptic` (the default), a finger switching views ticks on iPhone.
  */
 export function ViewSwitch({
   views,
   current,
   label = "Views",
+  haptic = true,
   className,
 }: {
   views: readonly View[];
   current: string;
   /** The navigation's accessible name ("Todo views"). */
   label?: string;
+  haptic?: boolean;
   className?: string;
 }) {
   return (
@@ -54,6 +58,8 @@ export function ViewSwitch({
             className={SEGMENT}
           >
             {view.label}
+            {/* Tapping the current view goes nowhere: no tick. */}
+            {haptic && view.id !== current ? <HapticTap /> : null}
           </Link>
         </Hinted>
       ))}

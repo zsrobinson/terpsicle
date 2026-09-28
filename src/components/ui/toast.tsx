@@ -1,6 +1,7 @@
 import { Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { HapticTap } from "~/ui/haptic";
 import { RELOAD_TOOLTIP, type ReloadTarget, reloadPage } from "~/ui/reload";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -67,12 +68,17 @@ function vacate(id: string, sonnerId: string): void {
   if (onScreen.get(id) === sonnerId) onScreen.delete(id);
 }
 
-/** A toast's button, with its tooltip and shortcut (every control has one). */
+/**
+ * A toast's button, with its tooltip and shortcut (every control has one).
+ * A finger pressing it ticks on iPhone (`haptic`, on by default): the
+ * reversal gets the tick, never the destructive change before it.
+ */
 export function ToastAction({
   label,
   tooltip = label,
   shortcut,
   icon = <Undo2 size={13} aria-hidden="true" />,
+  haptic = true,
   onClick,
   onFocus,
   onBlur,
@@ -82,6 +88,7 @@ export function ToastAction({
   tooltip?: string;
   shortcut?: string;
   icon?: ReactNode;
+  haptic?: boolean;
   onClick: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -94,10 +101,11 @@ export function ToastAction({
         onFocus={onFocus}
         onBlur={onBlur}
         // 44px on phones, where the toast is a thumb's reach from the edge.
-        className="ml-auto flex h-11 shrink-0 items-center gap-1.5 border border-hairline bg-raised px-2.5 font-medium text-base text-fg transition-colors hover:bg-hover md:h-7"
+        className="relative ml-auto flex h-11 shrink-0 items-center gap-1.5 border border-hairline bg-raised px-2.5 font-medium text-base text-fg transition-colors hover:bg-hover md:h-7"
       >
         {icon}
         {label}
+        {haptic ? <HapticTap /> : null}
       </button>
     </WithTooltip>
   );

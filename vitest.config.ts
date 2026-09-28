@@ -74,6 +74,8 @@ export default defineConfig({
           css: { include: [/styles\.css\?raw/] },
           include: [
             "src/{features,components,hooks,lib,state,routes,worker}/**/*.test.{ts,tsx}",
+            // The router's own wiring (its query client): src/router.tsx.
+            "src/router.test.tsx",
           ],
           setupFiles: ["src/lib/test-setup.ts"],
         },

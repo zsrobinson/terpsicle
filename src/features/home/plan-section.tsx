@@ -1,7 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import type { FourYearCourses } from "~/core/four-year/course-lookup";
-import { creditsHeadline, creditTotals } from "~/core/four-year/credits";
+import {
+  CREDITS_GOAL,
+  creditsHeadline,
+  creditTotals,
+} from "~/core/four-year/credits";
 import { allocateGenEds } from "~/core/four-year/gen-ed";
 import { statusResolver } from "~/core/four-year/status";
 import { genEdsCovered } from "~/core/home";
@@ -11,11 +15,13 @@ import { ListRow } from "~/ui/list-row";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { loadFourYearCourses } from "./data";
+import { HomeMeter } from "./meter";
 import { HomeSection, homeLinkClicked, ROW_LINK } from "./section";
 
 // "Plan" (docs/V3.md §1.5): the four-year plan's credits and GenEds in one
-// line, counted as Plan counts them. Only when there's a four-year plan on
-// this device: Home shows what you have, it doesn't sell a product.
+// line, counted as Plan counts them, the credits with a bar toward 120.
+// Only when there's a four-year plan on this device; without one, Plan's
+// callout may stand in its place (./callouts).
 
 export function PlanSection({
   doc,
@@ -35,6 +41,7 @@ export function PlanSection({
       allocateGenEds(doc, lookup, statusOf).progress,
     );
     return {
+      total: totals.total,
       credits: creditsHeadline(totals),
       genEds: `${genEds.covered} of ${genEds.of} GenEds covered`,
     };
@@ -60,7 +67,12 @@ export function PlanSection({
           }
           trail={
             line ? (
-              <span className="text-fg">{line.credits}</span>
+              <HomeMeter
+                value={line.total}
+                max={CREDITS_GOAL}
+                words={line.credits}
+                className="text-fg"
+              />
             ) : (
               <Skeleton className="h-3 w-24" />
             )
