@@ -1,5 +1,6 @@
 import { track } from "~/app/analytics";
 import { wildcardLabel } from "~/core/catalog/wildcard";
+import { displayTitle } from "~/core/four-year/display-title";
 import type { FourYearAction } from "~/core/four-year/reducer";
 import {
   templateAddedLabel,
@@ -48,7 +49,7 @@ export function entryName(entry: FourYearEntry): string {
     return entry.wildcard.kind === "pattern"
       ? entry.wildcard.pattern
       : wildcardLabel(entry.wildcard);
-  return entry.title;
+  return displayTitle(entry.title);
 }
 
 export function createDoc(firstTermId: TermId): void {
@@ -359,8 +360,8 @@ export function setCreditInfo(
       now: nowIso(),
     },
     info.countsAs
-      ? `${entry.title} counts as ${info.countsAs}`
-      : `Saved ${entry.title}`,
+      ? `${displayTitle(entry.title)} counts as ${info.countsAs}`
+      : `Saved ${displayTitle(entry.title)}`,
   );
   if (saved)
     track("four_year_details_saved", {

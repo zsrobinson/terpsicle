@@ -117,10 +117,10 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   await expect(fall.getByText("CMSC131")).toBeVisible();
   await expect(fall.getByText("CMSC100")).toHaveCount(0);
   const before = await semester(page, isMobile, "Before UMD");
-  await expect(before.getByText("AP CHEMISTRY")).toBeVisible();
+  await expect(before.getByText("AP Chemistry")).toBeVisible();
   await expect(before.getByText("CHEM 1XX")).toBeVisible();
   await expect(before.getByText("CHEM131")).toHaveCount(0);
-  await expect(before.getByText(/PUBLIC SPEAKING/)).toBeVisible();
+  await expect(before.getByText(/Public Speaking/)).toBeVisible();
   await axe(page, "an imported plan");
 
   // One step: undo takes the whole import back, redo brings it again.

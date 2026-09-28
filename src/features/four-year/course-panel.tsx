@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { MessageText } from "~/app/message-text";
+import { displayTitle } from "~/core/four-year/display-title";
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import { resolvesWildcard } from "~/core/four-year/wildcards";
 import { type CourseCode, GEN_ED_LABELS } from "~/core/schema";
@@ -67,7 +68,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
             <Skeleton className="mt-1 h-4 w-2/3" />
           ) : course === null ? (
             details?.title ? (
-              <p>{details.title}</p>
+              <p>{displayTitle(details.title)}</p>
             ) : (
               <p className="text-muted">
                 {code} isn't in Testudo's course list.

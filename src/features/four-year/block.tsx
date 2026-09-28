@@ -6,6 +6,7 @@ import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
 import { isUnknownCourse } from "~/core/four-year/course-lookup";
 import { entryCredits } from "~/core/four-year/credits";
+import { displayTitle } from "~/core/four-year/display-title";
 import type { GenEdPick } from "~/core/four-year/gen-ed";
 import {
   entriesInTerm,
@@ -359,7 +360,8 @@ function CourseTitle({ entry }: { entry: FourYearCourseEntry }) {
     );
   if (isUnknownCourse(lookup, code)) {
     // The person's title, then the transcript's, then what's missing.
-    const title = entry.details?.title ?? entry.transcript?.title ?? null;
+    const raw = entry.details?.title ?? entry.transcript?.title ?? null;
+    const title = raw === null ? null : displayTitle(raw);
     return (
       <>
         <span className="block truncate text-muted text-sm">
@@ -449,7 +451,9 @@ export function EntryBlock({
     ) : (
       <>
         <span className="flex items-baseline gap-2">
-          <span className="truncate font-semibold">{entry.title}</span>
+          <span className="truncate font-semibold">
+            {displayTitle(entry.title)}
+          </span>
           <span className="tnum ml-auto shrink-0 text-muted text-sm">
             {creditsText}
           </span>
@@ -474,7 +478,7 @@ export function EntryBlock({
       ? `About ${entry.code}`
       : entry.kind === "wildcard"
         ? `Pick a course for ${entryName(entry)}`
-        : `What ${entry.title} counts as`;
+        : `What ${displayTitle(entry.title)} counts as`;
 
   if (readOnly)
     return (

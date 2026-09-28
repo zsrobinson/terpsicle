@@ -24,6 +24,7 @@ import {
   isUnknownCourse,
 } from "./course-lookup";
 import { columnSummary, earnedNothing, FULL_TIME_CREDITS } from "./credits";
+import { displayTitle } from "./display-title";
 import { firstSemesterMeetingPrereqs, unmetPrereqGroups } from "./prereqs";
 import { moveEntry, removeEntry, setEntryDetails } from "./reducer";
 import type { StatusOf } from "./status";
@@ -278,7 +279,11 @@ function unmatchedCreditProblem(entry: FourYearCreditEntry): FourYearProblem[] {
     problem(
       "unmatched-credit",
       [{ kind: "entry", entryId: entry.id }],
-      [text(`${entry.title} came in as ${patternLabel(pattern)}`)],
+      [
+        text(
+          `${displayTitle(entry.title)} came in as ${patternLabel(pattern)}`,
+        ),
+      ],
       [
         text(
           `Testudo counts it as a ${kind} course without naming one, so it meets no prerequisites. If your degree audit names the course, say which.`,
