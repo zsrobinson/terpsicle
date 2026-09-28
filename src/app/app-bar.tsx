@@ -108,6 +108,8 @@ export function AppBar({
   return (
     <header
       data-slot="app-bar"
+      // Which product's bar this is ("site" off the products), for tests.
+      data-bar={current ?? "site"}
       className={cn(
         "flex h-12 shrink-0 items-center border-hairline border-b",
         borderOnScroll && !scrolled && "border-b-transparent",

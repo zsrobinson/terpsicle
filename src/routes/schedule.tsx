@@ -16,6 +16,8 @@ export const Route = createFileRoute("/schedule")({
   // Everything lives in the browser (IndexedDB, web worker); the Worker only
   // serves the shell (BUILD.md §4).
   ssr: false,
+  // While it loads, the scheduler's own bar, not the family bar's other shape.
+  staticData: { pending: "schedule" },
   validateSearch: ScheduleSearchSchema,
   component: SchedulePage,
 });
