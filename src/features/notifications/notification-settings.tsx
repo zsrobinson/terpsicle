@@ -1,7 +1,8 @@
 import { cn } from "cn";
-import { Bell, Mail } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { track } from "~/app/analytics";
+import { Mark } from "~/app/brand/mark";
+import type { MarkId } from "~/app/brand/marks";
 import {
   channelOn,
   NOTIFICATION_CHANNELS,
@@ -35,14 +36,25 @@ import {
   turnOnHere,
 } from "./this-device";
 
-// /settings/notifications (V2.md §6.2): what to send, this device, and the
-// devices with notifications on, each a section of the page. Loaded only for
-// someone signed in.
+// /settings/notifications (V2.md §6.2, §6.7): the switches grouped by
+// product (Schedule, Chat, Todo), then "When and how" (quiet hours, seats
+// through them, message text on the lock screen), then this device and
+// the devices with notifications on. Each type's switches sit in two
+// columns, Notification and Email, as the Settings artboard lays them out.
+// Loaded only for someone signed in.
+
+type Product = Extract<MarkId, "schedule" | "chat" | "todo">;
 
 interface TypeRow {
   type: NotificationType;
+  product: Product;
   title: string;
   detail: string;
+  /**
+   * What the Email column says for a type with no email switch: its email
+   * comes in the digest, or it has none.
+   */
+  noEmail?: "digest";
   /**
    * Whether anything sends this type yet. Rows stay visible and quiet until
    * their feature calls `notify` (src/server/notifications/notify.ts).
@@ -53,36 +65,47 @@ interface TypeRow {
 export const TYPE_ROWS: readonly TypeRow[] = [
   {
     type: "seat-open",
+    product: "schedule",
     title: "Seat openings",
     detail: "When a section you're watching gets an open seat.",
     sending: true,
   },
   {
     type: "chat-mention",
-    title: "Mentions in Chat",
-    detail: "When a classmate mentions you in a class chat.",
+    product: "chat",
+    title: "Mentions",
+    detail: "When a classmate mentions you.",
+    noEmail: "digest",
     sending: true,
   },
   {
     type: "chat-reply",
-    title: "Replies in Chat",
-    detail:
-      "When a classmate replies in a thread you started. Muting a room stops these.",
+    product: "chat",
+    title: "Replies to your threads",
+    detail: "Muting a room stops these too.",
+    noEmail: "digest",
     sending: true,
   },
   {
     type: "chat-digest",
-    title: "Chat digest",
-    detail:
-      "Once a day, an email listing mentions and replies you haven't read.",
+    product: "chat",
+    title: "Daily digest",
+    detail: "Once a day, an email of mentions and replies you haven't read.",
     sending: true,
   },
   {
     type: "todo-due",
+    product: "todo",
     title: "Due tomorrow",
-    detail: "At 6pm, when something in Todo is due the next day.",
+    detail: "At 6pm, when something is due the next day.",
     sending: true,
   },
+];
+
+const PRODUCTS: readonly { id: Product; name: string }[] = [
+  { id: "schedule", name: "Schedule" },
+  { id: "chat", name: "Chat" },
+  { id: "todo", name: "Todo" },
 ];
 
 const CHANNEL_WORDS: Record<Channel, string> = {
@@ -170,12 +193,18 @@ export function NotificationSettingsSection() {
 
   return (
     <>
-      <TypeRows
-        settings={settings}
-        onChange={setSettings}
-        pushOn={pushOn}
-        todoConnected={todoConnected}
-      />
+      {PRODUCTS.map((product, i) => (
+        <ProductRows
+          key={product.id}
+          product={product}
+          columns={i === 0}
+          settings={settings}
+          onChange={setSettings}
+          pushOn={pushOn}
+          todoConnected={todoConnected}
+        />
+      ))}
+      <WhenAndHow settings={settings} onChange={setSettings} pushOn={pushOn} />
       {pushOn && publicKey ? (
         <ThisDevice publicKey={publicKey} devices={shown} onChanged={refresh} />
       ) : (
@@ -196,18 +225,15 @@ export function NotificationSettingsSection() {
   );
 }
 
-function TypeRows({
-  settings,
-  onChange,
-  pushOn,
-  todoConnected,
-}: {
-  settings: NotificationSettings;
-  onChange: (next: NotificationSettings) => void;
-  pushOn: boolean;
-  /** "Due tomorrow" needs an ELMS feed in Todo (V3.md §4). */
-  todoConnected: boolean;
-}) {
+/**
+ * Saves a change at once, and puts it back with a line saying so when the
+ * server didn't take it. One per group of switches, so the line shows by
+ * the switch that failed.
+ */
+function useSave(
+  settings: NotificationSettings,
+  onChange: (next: NotificationSettings) => void,
+) {
   const [error, setError] = useState<string | null>(null);
   const save = async (next: NotificationSettings) => {
     const before = settings;
@@ -220,55 +246,158 @@ function TypeRows({
       setError(TRY_AGAIN);
     }
   };
+  return { error, save };
+}
+
+/** The two columns' width: a switch, or a short word, centered in each. */
+const COLUMNS =
+  "grid grid-cols-[4.5rem_4.5rem] items-center gap-2 sm:grid-cols-[6rem_6rem]";
+
+/** "Notification" and "Email" over the switch columns. */
+function ColumnHeads() {
   return (
-    <PageSection title="What to send">
+    <div aria-hidden="true" className={cn(COLUMNS, "text-center")}>
+      <span>{CHANNEL_WORDS.push}</span>
+      <span>{CHANNEL_WORDS.email}</span>
+    </div>
+  );
+}
+
+/** One row of switches: the words at the left, a cell per column. */
+function SettingRow({
+  title,
+  detail,
+  push,
+  email,
+}: {
+  title: string;
+  detail: ReactNode;
+  push: ReactNode;
+  email?: ReactNode;
+}) {
+  return (
+    <ListRow
+      as="li"
+      className="px-0"
+      secondary={detail}
+      trail={
+        <div className={COLUMNS}>
+          <div className="flex justify-center">{push}</div>
+          <div className="flex justify-center">{email}</div>
+        </div>
+      }
+    >
+      <div className="font-medium">{title}</div>
+    </ListRow>
+  );
+}
+
+/** A channel a type doesn't have: a quiet word, or a dash. */
+function NoChannel({ words }: { words: string | null }) {
+  return words ? (
+    <span className="text-center text-muted text-xs">{words}</span>
+  ) : (
+    <span className="text-muted text-xs">
+      <span aria-hidden="true">—</span>
+      <span className="sr-only">None</span>
+    </span>
+  );
+}
+
+/** What seat openings do in quiet hours, after their detail. */
+function seatQuietWords(settings: NotificationSettings): string {
+  if (!settings.quietHours.on) return "";
+  return settings.seatThroughQuiet
+    ? " Comes through quiet hours."
+    : " Waits for 8am in quiet hours.";
+}
+
+function ProductRows({
+  product,
+  columns,
+  settings,
+  onChange,
+  pushOn,
+  todoConnected,
+}: {
+  product: { id: Product; name: string };
+  /** The first group carries the columns' names. */
+  columns: boolean;
+  settings: NotificationSettings;
+  onChange: (next: NotificationSettings) => void;
+  pushOn: boolean;
+  /** "Due tomorrow" needs an ELMS feed in Todo (V3.md §4). */
+  todoConnected: boolean;
+}) {
+  const { error, save } = useSave(settings, onChange);
+  const rows = TYPE_ROWS.filter((row) => row.product === product.id);
+  return (
+    <PageSection
+      title={
+        <span className="flex items-center gap-2">
+          <Mark id={product.id} size={16} />
+          {product.name}
+        </span>
+      }
+      aside={columns ? <ColumnHeads /> : undefined}
+    >
       <ul>
-        {TYPE_ROWS.map((row) => {
+        {rows.map((row) => {
           const needsTodo = row.type === "todo-due" && !todoConnected;
+          const cell = (channel: Channel) =>
+            NOTIFICATION_CHANNELS[row.type].includes(channel) ? (
+              <ChannelSwitch
+                row={row}
+                channel={channel}
+                on={!needsTodo && channelOn(settings, row.type, channel)}
+                available={
+                  row.sending && !needsTodo && (channel !== "push" || pushOn)
+                }
+                unavailableWords={
+                  needsTodo ? "Connect ELMS in Todo first" : undefined
+                }
+                onToggle={(on) =>
+                  void save(withChannel(settings, row.type, channel, on))
+                }
+              />
+            ) : (
+              <NoChannel
+                words={
+                  channel === "email" && row.noEmail === "digest"
+                    ? "In the digest"
+                    : null
+                }
+              />
+            );
           return (
-            <ListRow key={row.type} as="li" className="px-0">
-              <div className="font-medium">{row.title}</div>
-              <p className="mt-0.5 text-muted text-sm">
-                {row.detail}
-                {!row.sending ? (
-                  <span className="text-muted"> Coming soon.</span>
-                ) : needsTodo ? (
-                  <span className="text-muted">
-                    {" "}
-                    <WithTooltip label="Open Todo's connect page">
-                      <a
-                        href="/todo/connect"
-                        className="underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
-                      >
-                        Connect ELMS in Todo
-                      </a>
-                    </WithTooltip>{" "}
-                    to get this.
-                  </span>
-                ) : null}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {NOTIFICATION_CHANNELS[row.type].map((channel) => (
-                  <ChannelSwitch
-                    key={channel}
-                    row={row}
-                    channel={channel}
-                    on={!needsTodo && channelOn(settings, row.type, channel)}
-                    available={
-                      row.sending &&
-                      !needsTodo &&
-                      (channel !== "push" || pushOn)
-                    }
-                    unavailableWords={
-                      needsTodo ? "Connect ELMS in Todo first" : undefined
-                    }
-                    onToggle={(on) =>
-                      void save(withChannel(settings, row.type, channel, on))
-                    }
-                  />
-                ))}
-              </div>
-            </ListRow>
+            <SettingRow
+              key={row.type}
+              title={row.title}
+              detail={
+                <>
+                  {row.detail}
+                  {row.type === "seat-open" ? seatQuietWords(settings) : null}
+                  {!row.sending ? (
+                    <span> Coming soon.</span>
+                  ) : needsTodo ? (
+                    <span>
+                      {" "}
+                      <WithTooltip label="Open Todo's connect page">
+                        <a
+                          href="/todo/connect"
+                          className="underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+                        >
+                          Connect ELMS in Todo
+                        </a>
+                      </WithTooltip>{" "}
+                      to get this.
+                    </span>
+                  ) : null}
+                </>
+              }
+              push={cell("push")}
+              email={cell("email")}
+            />
           );
         })}
       </ul>
@@ -277,12 +406,128 @@ function TypeRows({
   );
 }
 
+/**
+ * Quiet hours, seat openings through them, and message text on the lock
+ * screen (V2.md §6.7). They shape pushes, so they sit in the Notification
+ * column.
+ */
+function WhenAndHow({
+  settings,
+  onChange,
+  pushOn,
+}: {
+  settings: NotificationSettings;
+  onChange: (next: NotificationSettings) => void;
+  pushOn: boolean;
+}) {
+  const { error, save } = useSave(settings, onChange);
+  const quiet = settings.quietHours.on;
+  return (
+    <PageSection title="When and how">
+      <ul>
+        <SettingRow
+          title="Quiet hours, 11pm to 8am"
+          detail="Notifications wait and arrive together at 8am."
+          push={
+            <SettingSwitch
+              label="Quiet hours"
+              on={quiet}
+              available={pushOn}
+              tooltip={
+                quiet
+                  ? "Turn off quiet hours: notifications come any time"
+                  : "Turn on quiet hours: notifications wait until 8am"
+              }
+              onToggle={(on) => void save({ ...settings, quietHours: { on } })}
+            />
+          }
+        />
+        <SettingRow
+          title="Seat openings come through"
+          detail="A seat can be gone by morning, so these don't wait."
+          push={
+            <SettingSwitch
+              label="Seat openings come through quiet hours"
+              on={settings.seatThroughQuiet}
+              available={pushOn && quiet}
+              unavailableWords={
+                pushOn ? "Quiet hours are off, so nothing waits" : undefined
+              }
+              tooltip={
+                settings.seatThroughQuiet
+                  ? "Hold seat openings until 8am too"
+                  : "Let seat openings through quiet hours"
+              }
+              onToggle={(on) =>
+                void save({ ...settings, seatThroughQuiet: on })
+              }
+            />
+          }
+        />
+        <SettingRow
+          title="Show message text"
+          detail={`Off: "New mention in CMSC351", without the words, on your lock screen.`}
+          push={
+            <SettingSwitch
+              label="Show message text"
+              on={settings.showText}
+              available={pushOn}
+              tooltip={
+                settings.showText
+                  ? "Keep who and what off your lock screen"
+                  : "Show who wrote and what they said"
+              }
+              onToggle={(on) => void save({ ...settings, showText: on })}
+            />
+          }
+        />
+      </ul>
+      {error ? <InlineError message={error} className="py-0" /> : null}
+    </PageSection>
+  );
+}
+
+/** The kit's switch as a cell: just the track, named for its row. */
+const CELL_SWITCH =
+  "h-8 justify-center rounded-md px-2 max-md:h-11 max-md:w-full";
+
+function SettingSwitch({
+  label,
+  on,
+  available,
+  unavailableWords = "Coming soon",
+  tooltip,
+  onToggle,
+}: {
+  /** The switch's name, for screen readers: the row's words. */
+  label: string;
+  on: boolean;
+  available: boolean;
+  /** The tooltip while it can't be switched. */
+  unavailableWords?: string | undefined;
+  /** The tooltip while it can: what pressing it does. */
+  tooltip: string;
+  onToggle: (on: boolean) => void;
+}) {
+  return (
+    <WithTooltip label={available ? tooltip : unavailableWords}>
+      <Switch
+        checked={on}
+        unavailable={!available}
+        aria-label={label}
+        onCheckedChange={onToggle}
+        className={cn(CELL_SWITCH, available && "hover:bg-hover")}
+      />
+    </WithTooltip>
+  );
+}
+
 function ChannelSwitch({
   row,
   channel,
   on,
   available,
-  unavailableWords = "Coming soon",
+  unavailableWords,
   onToggle,
 }: {
   row: TypeRow;
@@ -294,26 +539,15 @@ function ChannelSwitch({
   onToggle: (on: boolean) => void;
 }) {
   const words = CHANNEL_WORDS[channel];
-  const Icon = channel === "push" ? Bell : Mail;
-  const label = available
-    ? `${on ? "Turn off" : "Turn on"} ${row.title.toLowerCase()} by ${words.toLowerCase()}`
-    : unavailableWords;
   return (
-    <WithTooltip label={label}>
-      <Switch
-        checked={on}
-        unavailable={!available}
-        aria-label={`${row.title}: ${words}`}
-        onCheckedChange={onToggle}
-        className={cn(
-          "h-8 rounded-md border border-hairline bg-panel px-2 text-fg text-sm",
-          available ? "hover:bg-hover" : "text-muted",
-        )}
-      >
-        <Icon size={13} aria-hidden="true" />
-        {words}
-      </Switch>
-    </WithTooltip>
+    <SettingSwitch
+      label={`${row.title}: ${words}`}
+      on={on}
+      available={available}
+      unavailableWords={unavailableWords}
+      tooltip={`${on ? "Turn off" : "Turn on"} ${row.title.toLowerCase()} by ${words.toLowerCase()}`}
+      onToggle={onToggle}
+    />
   );
 }
 
@@ -402,7 +636,16 @@ function ThisDevice({
 
   return (
     <PageSection title="This device">
-      <p className={onHere ? "text-fg" : "text-muted"}>{status}</p>
+      <div>
+        <p className={onHere ? "text-fg" : "text-muted"}>{status}</p>
+        {devices.length > 0 ? (
+          <p className="mt-0.5 text-muted text-sm">
+            {devices.length === 1
+              ? "1 device in all"
+              : `${devices.length} devices in all`}
+          </p>
+        ) : null}
+      </div>
       <div className="flex flex-wrap gap-2">
         {support === "ok" && !onHere && permission !== "denied" ? (
           <WithTooltip label="Your browser asks first">

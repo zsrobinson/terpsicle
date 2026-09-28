@@ -20,6 +20,11 @@ export function NotificationsPage() {
       <PageHeader
         title="Notifications"
         back={{ label: "Settings", to: "/settings" }}
+        status={
+          status === "signed-in"
+            ? "Everything also shows in the bell, whatever you turn off here."
+            : undefined
+        }
       />
       <div
         aria-live="polite"

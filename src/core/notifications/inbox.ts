@@ -6,6 +6,10 @@
 import { chatPreview } from "../chat/notify";
 import type { IsoDate } from "../schema";
 import type { InboxProduct, InboxType } from "../schema/notifications";
+import { heldWords, readHeldLabel } from "./admin-alert";
+import { listWords } from "./list-words";
+
+export { listWords };
 
 /** Push tags are 64 characters at most; a long room id is cut (a shared tag only groups). */
 const TAG_MAX = 64;
@@ -59,14 +63,6 @@ export interface InboxGroup {
   labels: readonly string[];
 }
 
-/** "A", "A and B", "A, B and C", "A, B, C and 2 more". */
-export function listWords(items: readonly string[], shown = 3): string {
-  if (items.length <= 1) return items[0] ?? "";
-  if (items.length <= shown)
-    return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
-  return `${items.slice(0, shown).join(", ")} and ${items.length - shown} more`;
-}
-
 /**
  * The words a group shows, in the inbox and on the push that stands for
  * it (V2 §6.7): alone, "Maya in CMSC351" with the message, "Maya replied
@@ -74,15 +70,33 @@ export function listWords(items: readonly string[], shown = 3): string {
  * in CMSC351" with the newest ("Maya: …"), "4 replies to your question in
  * CMSC351", "Seats opened in 3 sections you're watching" with the list.
  * No title starts with "Terpsicle".
+ *
+ * `showText: false` (a push, for someone who keeps chat off their lock
+ * screen) leaves out who and what: "New mention in CMSC351", "3 mentions
+ * in CMSC351", with no body.
  */
 export function groupWords(
   latest: InboxEvent,
   group: InboxGroup,
+  options: { showText?: boolean } = {},
 ): { title: string; body: string } {
   const n = Math.max(1, group.count);
   switch (latest.type) {
     case "chat-mention":
     case "chat-reply": {
+      if (options.showText === false)
+        return {
+          title: title(
+            latest.type === "chat-mention"
+              ? n === 1
+                ? `New mention in ${latest.place}`
+                : `${n} mentions in ${latest.place}`
+              : n === 1
+                ? `New reply in ${latest.place}`
+                : `${n} replies to your question in ${latest.place}`,
+          ),
+          body: "",
+        };
       const actor = latest.actor ?? "A classmate";
       const text = latest.text === null ? null : chatPreview(latest.text);
       if (n === 1)
@@ -112,8 +126,15 @@ export function groupWords(
         body: listWords(sections),
       };
     }
+    case "admin-urgent": {
+      // Each row is one held item; the group's words cover them all.
+      const items = group.labels.flatMap((l) => readHeldLabel(l) ?? []);
+      if (items.length === 0)
+        return { title: title(latest.title), body: latest.body };
+      const words = heldWords(items);
+      return { title: title(words.title), body: words.body };
+    }
     case "todo-due":
-    case "admin-urgent":
       return { title: title(latest.title), body: latest.body };
   }
 }

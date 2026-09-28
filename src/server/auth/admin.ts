@@ -2,7 +2,7 @@
 // file tracked in git and bundled into the Worker. This is the only check.
 
 import adminsText from "~/config/admins.txt?raw";
-import { findTestUser, parseAdmins } from "~/core/auth";
+import { findTestUser, parseAdmins, TEST_USERS } from "~/core/auth";
 
 /** The raw file, for the test that keeps it valid. */
 export const ADMINS_FILE = adminsText;
@@ -22,4 +22,17 @@ export function isAdmin(
     ADMINS.has(userId) ||
     (options.authTestMode && findTestUser(userId)?.isAdmin === true)
   );
+}
+
+/**
+ * Every admin, for the owner's alerts (V2 §6.7): config/admins.txt, and in
+ * test mode the fixture admins too. Only those who have signed in have an
+ * account to alert.
+ */
+export function adminIds(options: { authTestMode: boolean }): string[] {
+  const ids = new Set<string>(ADMINS);
+  if (options.authTestMode)
+    for (const user of TEST_USERS)
+      if (user.isAdmin) ids.add(user.identity.directoryId);
+  return [...ids];
 }

@@ -100,6 +100,11 @@ Revisit if: people turn quiet hours or the inbox off in large numbers, or iOS op
 A group's unread rows (a room's mentions, a thread's replies, a term's seat openings) are one inbox item, and the bell and the app badge count items: "3 mentions in CMSC351" is 1, like the one notification it is on the phone. Rows read together stay one item. Spec: V2 §6.7 "As built".
 Revisit if: people say the number feels too low for a busy room, or the owner wants events counted.
 
+### Owner alerts come through quiet hours, within 5 minutes
+2026-09-28 · agent · notifications
+Urgent moderation items (the spam guard, a serious safety category, a reported threat) push and email each admin whatever the hour: they have no settings, and some can't wait for 8am. The every-5-minutes cron sends them rather than each place that queues an item, so one alert an hour groups what came in between ("Held for you: spam in 3 courses") and an item decided before it goes never alerts. Spec: V2 §6.7 "As built".
+Revisit if: the owner wants to sleep through them, or 5 minutes is too slow for a credible threat.
+
 ### No session recording
 2026-09-26 · owner · app-wide
 No session recording anywhere ("creepy"): replay is off in code and in PostHog, and `/privacy` says so.

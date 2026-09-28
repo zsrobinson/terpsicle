@@ -95,11 +95,17 @@ function chatItem(
   };
 }
 
-/** The page's items, worded for their groups ("3 mentions in CMSC351"). */
+/**
+ * The page's items, worded for their groups ("3 mentions in CMSC351").
+ * `showText: false` words chat items as a lock screen shows them (the push
+ * sent at 8am for a group that waited through quiet hours); the inbox
+ * itself always shows the words.
+ */
 export async function inboxItems(
   chat: CourseChatNamespace | undefined,
   userId: string,
   rows: readonly InboxItemRow[],
+  options: { showText?: boolean } = {},
 ): Promise<InboxItem[]> {
   const words = await chatWords(chat, userId, rows);
   return rows.flatMap((row): InboxItem[] => {
@@ -127,7 +133,11 @@ export async function inboxItems(
         id: row.id,
         type: row.type,
         product: row.product,
-        ...groupWords(shown.event, { count: row.n, labels: row.labels }),
+        ...groupWords(
+          shown.event,
+          { count: row.n, labels: row.labels },
+          options,
+        ),
         url: shown.url,
         count: row.n,
         createdAt: row.created_at,
