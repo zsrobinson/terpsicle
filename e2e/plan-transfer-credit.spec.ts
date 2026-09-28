@@ -104,9 +104,7 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   await expect(page).toHaveURL(/credit=/);
   const form = page.getByRole("form", { name: "What it counts as" });
   // The department's 100-level courses come first.
-  await expect(
-    form.getByRole("button", { name: /^GEOL100/ }),
-  ).toBeVisible();
+  await expect(form.getByRole("button", { name: /^GEOL100/ })).toBeVisible();
   await form.getByLabel("Counts as").fill("geol 100");
   await form.getByRole("button", { name: /^GEOL100/ }).click();
   await expect(form.getByText("GEOL100", { exact: true })).toBeVisible();
@@ -121,7 +119,9 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   await expect(
     page.getByText("PHYSICAL GEOLOGY counts as GEOL100"),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Save changes" }),
+  ).toBeDisabled();
 
   // The block keeps its own title and says what it counts as.
   if (isMobile) await lowerPlanDrawer(page);
