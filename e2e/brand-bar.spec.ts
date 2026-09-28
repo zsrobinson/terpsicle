@@ -19,6 +19,13 @@ test.afterEach(() => {
 const bar = (page: Page) => page.locator('[data-slot="app-bar"]');
 const NOTE = "Terpsicle's still in active development, so things may change.";
 
+/** The page's code is running: "Sign in" appears once /api/me answers. */
+async function hydrated(page: Page) {
+  await expect(
+    bar(page).getByRole("button", { name: "Sign in" }),
+  ).toBeVisible();
+}
+
 async function signIn(page: Page, path: string) {
   await page.goto(`/auth/test?return=${encodeURIComponent(path)}`);
   await page.getByRole("button", { name: "Sign in as Test Student" }).click();
@@ -30,12 +37,13 @@ test("the bar says Early access, and the product menu says why", async ({
   isMobile,
 }) => {
   await page.goto("/reviews");
+  await hydrated(page);
   const chip = bar(page).getByTestId("early-access").filter({ visible: true });
   if (isMobile) {
     // A phone's bar keeps the room; the product menu says it.
     await expect(chip).toHaveCount(0);
     await bar(page)
-      .getByRole("button", { name: /Terpsicle/ })
+      .getByRole("button", { name: /^Terpsicle/ })
       .click();
     await expect(page.getByRole("menu").getByText(NOTE)).toBeVisible();
   } else {
@@ -51,6 +59,7 @@ test("the coffee button opens its note and links out", async ({
   isMobile,
 }) => {
   await page.goto("/reviews");
+  await hydrated(page);
   await expect(page.getByTestId("feedback-button")).toBeVisible();
   let link = page.getByRole("link", { name: "Buy me a coffee" });
   if (isMobile) {

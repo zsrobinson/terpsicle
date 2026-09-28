@@ -70,6 +70,8 @@ export function CoffeeButton({
             className={cn(
               "flex shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
               labelFrom2xl ? "size-7 max-2xl:size-8" : "size-7",
+              // Phones (MOBILE_QUERY) before the page's code knows it's one.
+              "max-[769px]:hidden",
             )}
           >
             <CoffeeHeart size={16} aria-hidden="true" />
