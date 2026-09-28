@@ -62,6 +62,52 @@ describe("findImportProblems", () => {
   });
 });
 
+describe("the haptic rule", () => {
+  it("flags the haptic trick imported outside the kit, by alias or path", () => {
+    expect(
+      findImportProblems(
+        "src/features/todo/x.tsx",
+        'import { HapticTap } from "~/ui/haptic";',
+      ),
+    ).toEqual([
+      'src/features/todo/x.tsx:1:22  "~/ui/haptic": only src/components/ui may import the haptic trick; use a kit control\'s `haptic` prop (docs/decisions.md, "Haptics live in the kit")',
+    ]);
+    expect(
+      findImportProblems(
+        "src/routes/x.tsx",
+        'import { HapticTap } from "../components/ui/haptic.tsx";',
+      ),
+    ).toHaveLength(1);
+    expect(
+      findImportProblems(
+        "src/components/ui/deeper/x.tsx",
+        'import { HapticTap } from "../haptic";',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("allows it inside the kit, and other kit modules anywhere", () => {
+    expect(
+      findImportProblems(
+        "src/components/ui/button.tsx",
+        'import { HapticTap } from "./haptic";',
+      ),
+    ).toEqual([]);
+    expect(
+      findImportProblems(
+        "src/components/ui/toast.tsx",
+        'import { HapticTap } from "~/ui/haptic";',
+      ),
+    ).toEqual([]);
+    expect(
+      findImportProblems(
+        "src/features/todo/x.tsx",
+        'import { Button } from "~/ui/button";\nimport { h } from "./haptic";',
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("the sealed feed link rule", () => {
   const text =
     'db.prepare("SELECT url_enc FROM todo_feeds");\nawait openFeedLink(keys, owner, sealed);';

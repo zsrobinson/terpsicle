@@ -226,6 +226,7 @@ Every page has the family bar (docs/COHESION.md §4): from 1100px, the five prod
 
 - Colors: [Flexoki](https://stephango.com/flexoki) by Steph Ango, MIT License.
 - Type: Bricolage Grotesque (The Bricolage Grotesque Project Authors) and Geist Mono (Vercel), both SIL Open Font License 1.1, self-hosted from Fontsource.
+- iPhone haptics: the native-switch trick from [`@haptics/core`](https://github.com/howdoiusekeyboard/haptics), Copyright (c) 2026 Howdoiusekeyboard, MIT License, rewritten in `src/components/ui/haptic.tsx`.
 
 ## 8. The marketing page (owner, 2026-09-28)
 

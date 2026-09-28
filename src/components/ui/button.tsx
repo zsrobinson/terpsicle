@@ -1,7 +1,8 @@
+import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
-import { Slot } from "radix-ui";
-import type * as React from "react";
+import * as React from "react";
+import { HapticTap } from "./haptic";
 
 // shadcn/ui button in the Ink brand (docs/DESIGN.md §7): square, with a hard
 // offset shadow on the filled and outline variants. A press shifts the button
@@ -39,22 +40,74 @@ const buttonVariants = cva(
   },
 );
 
+type ButtonProps = React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    /**
+     * Another element to draw as the button, such as a link: Base UI's
+     * `render` (`render={<Link to="/plan" />}`), with the button's classes
+     * and the children given here.
+     */
+    render?: React.ReactElement<Record<string, unknown>>;
+    /**
+     * Draws the only child as the button instead (the Radix way). Kept for
+     * one wave while features move to `render`.
+     */
+    asChild?: boolean;
+    /**
+     * A tick on iPhone when a finger presses it (`./haptic`). Off by
+     * default: turn it on for a commit that changes the plan ("Add 0101",
+     * "Switch"), never on ghost or link buttons.
+     */
+    haptic?: boolean;
+  };
+
 function Button({
   className,
   variant,
   size,
+  render,
   asChild = false,
+  haptic = false,
+  children,
+  ref,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot.Root : "button";
-  return (
-    <Comp
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
+}: ButtonProps) {
+  // `asChild` is `render` with the child's own children.
+  const child =
+    asChild && React.isValidElement<{ children?: React.ReactNode }>(children)
+      ? children
+      : undefined;
+  const content = child ? child.props.children : children;
+  const inner = haptic ? (
+    <>
+      {content}
+      <HapticTap />
+    </>
+  ) : (
+    content
   );
+  // The element's own children would win the merge, so they're swapped for
+  // the ones with the overlay.
+  const element =
+    child && haptic ? React.cloneElement(child, {}, inner) : child;
+  return useRender({
+    defaultTagName: "button",
+    render: element ?? render,
+    ref,
+    props: {
+      "data-slot": "button",
+      // Base UI would make a bare <button> type="button"; ours stay plain,
+      // so one in a form still submits it, as before.
+      type: undefined,
+      className: cn(
+        buttonVariants({ variant, size }),
+        haptic && "relative",
+        className,
+      ),
+      ...props,
+      children: inner,
+    },
+  });
 }
 
 export { Button, buttonVariants };
