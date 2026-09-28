@@ -19,6 +19,7 @@ import {
   planetTerpUrl,
   type ReviewSummary,
 } from "~/core/schema";
+import { countWords } from "~/core/words";
 import { AiMenu } from "~/features/ai/ai-menu";
 import { AiSparkles } from "~/features/ai/ai-sparkles";
 import { useAiFeatures } from "~/features/ai/use-ai-features";
@@ -282,15 +283,13 @@ export function InstructorReviews({
 
 /** "Summary of 48 PlanetTerp reviews", or of both sources' reviews. */
 export function summarySourceWords(summary: ReviewSummary): string {
-  const plural = (n: number) => (n === 1 ? "" : "s");
   const terpsicle = summary.sources?.terpsicle ?? 0;
   if (terpsicle === 0) {
-    const n = summary.basedOnReviewCount;
-    return `Summary of ${n} PlanetTerp review${plural(n)}`;
+    return `Summary of ${countWords(summary.basedOnReviewCount, "PlanetTerp review")}`;
   }
   const planetterp = summary.sources?.planetterp ?? 0;
   if (planetterp === 0)
-    return `Summary of ${terpsicle} Terpsicle review${plural(terpsicle)}`;
+    return `Summary of ${countWords(terpsicle, "Terpsicle review")}`;
   const n = planetterp + terpsicle;
   return `Summary of ${n} reviews: ${planetterp} on PlanetTerp, ${terpsicle} on Terpsicle`;
 }

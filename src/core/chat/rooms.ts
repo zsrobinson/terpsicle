@@ -21,8 +21,8 @@ import {
   sectionRoomId,
   type TermId,
 } from "../schema";
+import { countWords } from "../words";
 import {
-  countWords,
   courseRoomDescription,
   dotJoin,
   instructorsWords,

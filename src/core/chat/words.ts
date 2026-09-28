@@ -29,11 +29,6 @@ export function instructorsWords(
   return `${first} and ${rest.length + 1} others`;
 }
 
-/** "1 section", "4 sections". */
-export function countWords(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
-}
-
 /** "2–3:15pm", "11:30am–12:20pm": the start's am/pm goes when the end has the same. */
 export function compactTimeRange(start: Minutes, end: Minutes): string {
   const from = formatTime(start);

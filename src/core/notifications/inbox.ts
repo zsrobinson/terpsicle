@@ -6,10 +6,8 @@
 import { chatPreview } from "../chat/notify";
 import type { IsoDate } from "../schema";
 import type { InboxProduct, InboxType } from "../schema/notifications";
+import { listWords } from "../words";
 import { heldWords, readHeldLabel } from "./admin-alert";
-import { listWords } from "./list-words";
-
-export { listWords };
 
 /** Push tags are 64 characters at most; a long room id is cut (a shared tag only groups). */
 const TAG_MAX = 64;
@@ -123,7 +121,7 @@ export function groupWords(
         return { title: title(latest.title), body: latest.body };
       return {
         title: `Seats opened in ${sections.length} sections you're watching`,
-        body: listWords(sections),
+        body: listWords(sections, 3),
       };
     }
     case "admin-urgent": {

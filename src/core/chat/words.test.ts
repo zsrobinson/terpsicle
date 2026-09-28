@@ -3,7 +3,6 @@ import { anUntimedMeeting, aTbaMeeting, aTimedMeeting } from "~/fixtures";
 import { REACTIONS } from "../schema";
 import {
   compactTimeRange,
-  countWords,
   instructorShortName,
   instructorsWords,
   placeWords,
@@ -88,11 +87,6 @@ describe("sectionCodesWords", () => {
       "0101, 0103 and 0201",
     );
   });
-});
-
-it("counts in plain words", () => {
-  expect(countWords(1, "section")).toBe("1 section");
-  expect(countWords(4, "lecture")).toBe("4 lectures");
 });
 
 it("names every reaction", () => {

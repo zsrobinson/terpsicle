@@ -14,17 +14,15 @@ import type {
   WildcardReport,
 } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTime } from "~/core/time";
+import { countWords } from "~/core/words";
 
 // Plain-words summaries of a generated plan (SPEC §3.13).
 
 export { optionLabel } from "~/state/generate-run-store";
 
-const plural = (n: number, one: string, many = `${one}s`) =>
-  `${n} ${n === 1 ? one : many}`;
-
 /** "Fri off", "Tue, Thu off", or "5 days" when no weekday is free. */
 export function freeDaysLabel(free: readonly Day[], stats: PlanStats): string {
-  if (free.length === 0) return plural(stats.daysOnCampus, "day");
+  if (free.length === 0) return countWords(stats.daysOnCampus, "day");
   return `${free.map((d) => DAY_SHORT_NAMES[d]).join(", ")} off`;
 }
 
@@ -56,7 +54,7 @@ export function seatsShortLabel(stats: PlanStats): string | null {
 
 /** "16 credits · ★ 4.1 average · 3.21 average GPA · Fewest seats: 3 open" */
 export function statsLine(stats: PlanStats): string {
-  const parts = [plural(stats.credits, "credit")];
+  const parts = [countWords(stats.credits, "credit")];
   if (stats.avgRating !== null)
     parts.push(`★ ${stats.avgRating.toFixed(1)} average`);
   if (stats.avgGpa !== null)
@@ -102,7 +100,7 @@ export function coursesSummary(items: GenerateRequest["items"]): string {
   const parts: string[] = [];
   if (courses.length > 0)
     parts.push(
-      plural(courses.length, "course") +
+      countWords(courses.length, "course") +
         (optional.length > 0 ? ` (${optional.length} optional)` : ""),
     );
   for (const item of items)

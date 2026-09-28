@@ -1,5 +1,6 @@
 import { seasonSpan, termLabel } from "../catalog/terms";
 import type { IsoDate, TermId } from "../schema";
+import { listWords } from "../words";
 
 // Grade data comes from the university itself: PlanetTerp asks for each
 // semester's grade distributions with a Maryland Public Information Act
@@ -70,9 +71,7 @@ export function semestersMissingGrades(
 
 /** "Fall 2025 and Spring 2026" */
 function termList(terms: readonly TermId[]): string {
-  const names = terms.map(termLabel);
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return listWords(terms.map(termLabel));
 }
 
 /** The subject and body of a standard request for `terms`. */

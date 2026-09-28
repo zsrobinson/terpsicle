@@ -13,6 +13,7 @@ import type {
   FourYearEntry,
   FourYearTerm,
 } from "../../schema/four-year";
+import { countWords } from "../../words";
 import type { FourYearCourses } from "../course-lookup";
 import type { StatusOf } from "../status";
 import { compareFourYearTerms } from "../terms";
@@ -279,9 +280,6 @@ export function importReplaceTerms(
   return columns.filter((t) => statusOf(t) !== "planned");
 }
 
-const plural = (n: number, one: string, many: string) =>
-  `${n} ${n === 1 ? one : many}`;
-
 /** The import's toast: "Imported 16 courses from 4 semesters". */
 export function importSummary(entries: readonly FourYearEntry[]): string {
   const semesters = new Set(
@@ -289,10 +287,10 @@ export function importSummary(entries: readonly FourYearEntry[]): string {
   ).size;
   const before = entries.some((e) => e.term === "before");
   const from = [
-    semesters > 0 ? plural(semesters, "semester", "semesters") : null,
+    semesters > 0 ? countWords(semesters, "semester", "semesters") : null,
     before ? "Before UMD" : null,
   ]
     .filter((s) => s !== null)
     .join(" and ");
-  return `Imported ${plural(entries.length, "course", "courses")} from ${from}`;
+  return `Imported ${countWords(entries.length, "course", "courses")} from ${from}`;
 }

@@ -1,6 +1,7 @@
 // One rating from PlanetTerp's reviews and ours (V2 §7.6): a count-weighted
 // mean, with the parts kept so the tooltip can show the math (DESIGN §5,
 // "honest numbers"). Grade distributions never mix: they stay PlanetTerp's.
+import { countWords } from "../words";
 
 export type RatingSourceId = "planetterp" | "terpsicle";
 
@@ -52,9 +53,6 @@ export function terpsicleRating(
   };
 }
 
-const plural = (n: number, word: string) =>
-  `${n.toLocaleString("en-US")} ${word}${n === 1 ? "" : "s"}`;
-
 /** "4.2": ratings are shown to one decimal, everywhere. */
 export const formatStars = (rating: number): string => rating.toFixed(1);
 
@@ -67,12 +65,12 @@ export function combinedRatingWords(combined: CombinedRating): string {
   if (rating === null || parts.length === 0) return "No reviews yet";
   const [only] = parts;
   if (parts.length === 1 && only)
-    return `${formatStars(rating)} from ${plural(reviewCount, "review")} on ${SOURCE_NAMES[only.source]}`;
+    return `${formatStars(rating)} from ${countWords(reviewCount, "review")} on ${SOURCE_NAMES[only.source]}`;
   const each = parts
     .map(
       (p) =>
         `${formatStars(p.rating ?? 0)} from ${p.reviewCount.toLocaleString("en-US")} on ${SOURCE_NAMES[p.source]}`,
     )
     .join(", ");
-  return `${formatStars(rating)} from ${plural(reviewCount, "review")}: ${each}`;
+  return `${formatStars(rating)} from ${countWords(reviewCount, "review")}: ${each}`;
 }

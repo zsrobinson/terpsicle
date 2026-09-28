@@ -26,6 +26,7 @@ import {
   type TranscriptSkipReason,
 } from "~/core/schema";
 import type { FourYearTerm } from "~/core/schema/four-year";
+import { countWords } from "~/core/words";
 import { useCourseIndex } from "~/state/course-index-store";
 import { newLocalId } from "~/state/ids";
 import { Button } from "~/ui/button";
@@ -369,19 +370,16 @@ function TermGroup({
   );
 }
 
-const plural = (n: number, one: string, many: string) =>
-  `${n} ${n === 1 ? one : many}`;
-
 /** "21 courses from 4 semesters and Before UMD" */
 function importScope(rows: readonly TranscriptRow[]): string {
   const semesters = new Set(
     rows.filter((r) => r.line.term !== "before").map((r) => r.line.term),
   ).size;
   const from = [
-    semesters > 0 ? plural(semesters, "semester", "semesters") : null,
+    semesters > 0 ? countWords(semesters, "semester", "semesters") : null,
     rows.some((r) => r.line.term === "before") ? "Before UMD" : null,
   ].filter((x) => x !== null);
-  const courses = plural(rows.length, "course", "courses");
+  const courses = countWords(rows.length, "course", "courses");
   return from.length > 0 ? `${courses} from ${from.join(" and ")}` : courses;
 }
 
@@ -649,8 +647,8 @@ export function ImportPanel() {
             ) : null}
             {pending > 0 ? (
               <p role="status" className="text-sm">
-                Pick a GenEd for {plural(pending, "course", "courses")} where
-                Testudo says "or", then import.
+                Pick a GenEd for {countWords(pending, "course", "courses")}{" "}
+                where Testudo says "or", then import.
               </p>
             ) : null}
             {error ? <InlineError message={error} className="py-0" /> : null}
@@ -662,7 +660,7 @@ export function ImportPanel() {
               >
                 {included.length === 0
                   ? "Nothing to import"
-                  : `Import ${plural(included.length, "course", "courses")}`}
+                  : `Import ${countWords(included.length, "course", "courses")}`}
               </Button>
             </WithTooltip>
           </div>
