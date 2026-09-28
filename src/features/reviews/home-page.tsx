@@ -116,7 +116,8 @@ export function ReviewsHomePage({
         <PageSection
           size="display"
           title="Your classes"
-          aside="From the plans saved in this browser"
+          // Signed in, plan sync keeps every device's plans here too.
+          aside="From your plans in Schedule"
         >
           <ul className="flex flex-wrap gap-2">
             {yours.map((code) => (
