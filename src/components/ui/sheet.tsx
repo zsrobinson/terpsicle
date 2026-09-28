@@ -6,6 +6,7 @@ import {
   type ReactNode,
   useState,
 } from "react";
+import { HapticTap } from "./haptic";
 import { WithTooltip } from "./tooltip";
 
 // The phone sheet (docs/COHESION.md §1.5): what a desktop popover becomes
@@ -204,12 +205,12 @@ function Grabber({
         type="button"
         aria-label={label}
         data-slot="sheet-grabber"
-        // haptic: wire HapticTap once v3/kit-controls-haptics lands (a tap
-        // that steps a detent ticks; the drag that ends on one can't).
         onClick={onStep}
         className="relative mx-auto flex h-6 w-16 shrink-0 items-center justify-center rounded-full"
       >
         {bar}
+        {/* A tap that steps a detent ticks; the drag that ends on one can't. */}
+        <HapticTap />
       </button>
     </WithTooltip>
   );

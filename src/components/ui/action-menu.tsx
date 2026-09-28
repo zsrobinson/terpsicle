@@ -19,6 +19,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { HapticTap } from "./haptic";
 import type { Sheet as SheetComponent } from "./sheet";
 import { quietTooltips, WithTooltip } from "./tooltip";
 
@@ -334,10 +335,11 @@ function ActionMenuItem({
         data-variant={variant}
         className={cn(menuItemClass, tone)}
       >
-        {/* haptic: wire HapticTap once v3/kit-controls-haptics lands (not on destructive items) */}
         {icon}
         <ItemText label={children} hint={hint} />
         <Shortcut keys={shortcut} />
+        {/* A choice ticks; a destructive one stays silent (its Undo ticks). */}
+        {variant === "destructive" ? null : <HapticTap />}
       </Menu.Item>
     );
   return (
@@ -353,9 +355,9 @@ function ActionMenuItem({
       }}
       className={cn(sheetItemClass, tone)}
     >
-      {/* haptic: wire HapticTap once v3/kit-controls-haptics lands (not on destructive items) */}
       {icon}
       <ItemText label={children} hint={hint} />
+      {variant === "destructive" ? null : <HapticTap />}
     </button>
   );
 }
@@ -380,13 +382,13 @@ function ActionMenuLinkItem({
   const shape = useContext(ShapeContext);
   const content = (
     <>
-      {/* haptic: wire HapticTap once v3/kit-controls-haptics lands */}
       {icon}
       <ItemText label={children} hint={hint} />
       {current ? (
         <Check className={cn(shape.kind === "sheet" && "size-4")} />
       ) : null}
       {shape.kind === "menu" && !current ? <Shortcut keys={shortcut} /> : null}
+      <HapticTap />
     </>
   );
   if (shape.kind === "menu")
@@ -494,7 +496,6 @@ function ActionMenuRadioItem({
         closeOnClick
         className={cn(menuItemClass, "pr-7")}
       >
-        {/* haptic: wire HapticTap once v3/kit-controls-haptics lands */}
         {icon}
         <ItemText label={children} hint={hint} />
         <span className="pointer-events-none absolute right-2 flex size-3.5 items-center justify-center">
@@ -502,6 +503,7 @@ function ActionMenuRadioItem({
             <Check />
           </Menu.RadioItemIndicator>
         </span>
+        <HapticTap />
       </Menu.RadioItem>
     );
   const checked = radio?.value === value;
@@ -518,10 +520,10 @@ function ActionMenuRadioItem({
       }}
       className={cn(sheetItemClass, checked && "bg-accent-soft")}
     >
-      {/* haptic: wire HapticTap once v3/kit-controls-haptics lands */}
       {icon}
       <ItemText label={children} hint={hint} />
       {checked ? <Check className="size-4" /> : null}
+      <HapticTap />
     </button>
   );
 }
@@ -548,7 +550,6 @@ function ActionMenuCheckboxItem({
         disabled={disabled}
         className={cn(menuItemClass, "pr-7")}
       >
-        {/* haptic: wire HapticTap once v3/kit-controls-haptics lands */}
         {icon}
         <ItemText label={children} hint={hint} />
         <Shortcut keys={shortcut} />
@@ -557,6 +558,7 @@ function ActionMenuCheckboxItem({
             <Check />
           </Menu.CheckboxItemIndicator>
         </span>
+        <HapticTap />
       </Menu.CheckboxItem>
     );
   return (
@@ -570,10 +572,10 @@ function ActionMenuCheckboxItem({
       }}
       className={sheetItemClass}
     >
-      {/* haptic: wire HapticTap once v3/kit-controls-haptics lands */}
       {icon}
       <ItemText label={children} hint={hint} />
       {checked ? <Check className="size-4" /> : null}
+      <HapticTap />
     </button>
   );
 }

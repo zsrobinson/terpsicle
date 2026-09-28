@@ -112,6 +112,33 @@ describe("Sheet", () => {
     );
   });
 
+  it("ticks on an iPhone when the grabber's tap steps a detent, once", async () => {
+    // Pretend to be an iPhone, as haptic.test.tsx does.
+    const iPhone: Record<string, unknown> = {
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 26_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Mobile/15E148 Safari/604.1",
+      maxTouchPoints: 5,
+      vibrate: undefined,
+    };
+    const shadowed = Object.keys(iPhone);
+    for (const [key, value] of Object.entries(iPhone))
+      Object.defineProperty(navigator, key, { value, configurable: true });
+    try {
+      const user = userEvent.setup();
+      render(<Harness detents={["medium", "large"]} />);
+      const sheet = await screen.findByRole("dialog");
+      const grabber = screen.getByRole("button", { name: "Raise the sheet" });
+      const ticks = grabber.querySelectorAll("input[data-haptic-tap]");
+      expect(ticks).toHaveLength(1);
+      const tick = ticks[0];
+      if (!(tick instanceof HTMLElement)) throw new Error("no switch");
+      await user.click(tick);
+      expect(sheet).toHaveAttribute("data-detent", "large");
+    } finally {
+      for (const key of shadowed) Reflect.deleteProperty(navigator, key);
+    }
+  });
+
   it("goes to large when a field takes focus, before the keyboard covers it", async () => {
     const user = userEvent.setup();
     render(<Harness detents={["medium", "large"]} />);

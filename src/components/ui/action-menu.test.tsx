@@ -223,3 +223,54 @@ describe("ActionMenu on a phone", () => {
     expect(first).toHaveFocus();
   });
 });
+
+describe("ActionMenu on an iPhone", () => {
+  // Pretend to be one, as haptic.test.tsx does, and put navigator back after.
+  const shadowed: string[] = [];
+  afterEach(() => {
+    for (const key of shadowed.splice(0))
+      Reflect.deleteProperty(navigator, key);
+  });
+  function pretendIPhone() {
+    const values = {
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 26_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Mobile/15E148 Safari/604.1",
+      maxTouchPoints: 5,
+      vibrate: undefined,
+    };
+    for (const [key, value] of Object.entries(values)) {
+      Object.defineProperty(navigator, key, { value, configurable: true });
+      shadowed.push(key);
+    }
+  }
+  const overlay = (item: HTMLElement) =>
+    item.querySelector("input[data-haptic-tap]");
+
+  it("ticks on a choice, once per item, and never on a destructive one", async () => {
+    screenIs(true);
+    pretendIPhone();
+    const user = userEvent.setup();
+    const onNew = vi.fn();
+    render(<Plans onNew={onNew} />);
+    await user.click(screen.getByRole("button", { name: "Plan A" }));
+    await screen.findByRole("menuitemradio", { name: /Plan B/ });
+    for (const item of screen.getAllByRole("menuitemradio"))
+      expect(item.querySelectorAll("input[data-haptic-tap]")).toHaveLength(1);
+    expect(
+      overlay(screen.getByRole("menuitemcheckbox", { name: "Show weekends" })),
+    ).not.toBeNull();
+    expect(
+      overlay(screen.getByRole("menuitem", { name: /Generate plans/ })),
+    ).not.toBeNull();
+    expect(
+      overlay(screen.getByRole("menuitem", { name: "Delete Plan A" })),
+    ).toBeNull();
+
+    // A finger lands on the switch: the item's own click runs, once.
+    const tick = overlay(screen.getByRole("menuitem", { name: /New plan/ }));
+    if (!(tick instanceof HTMLElement)) throw new Error("no switch");
+    await user.click(tick);
+    expect(onNew).toHaveBeenCalledOnce();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
