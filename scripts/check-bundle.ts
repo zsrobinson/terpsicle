@@ -176,9 +176,11 @@ export const TODO_BUDGET = 248 * 1024;
  * §1.5), in bytes: `/`'s base plus Todo's store and row, the published-data
  * reader, and the core it counts with (travel, problems, Plan's credits and
  * GenEds): 327 KB when this was set (v3/home; `/` was 291 KB then), plus
- * about 10% headroom. Same rule for raising it.
+ * about 10% headroom. Same rule for raising it. Raised 22 KB, the measured
+ * cost, when the kit's popups moved to Base UI (v3/kit-base-ui-popups:
+ * 347.2 → 369.1 KB).
  */
-export const HOME_BUDGET = 360 * 1024;
+export const HOME_BUDGET = 382 * 1024;
 
 /** Todo loads with /todo, never with the scheduler. */
 const TODO_NEVER_EAGER = {
