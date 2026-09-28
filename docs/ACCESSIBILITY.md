@@ -6,7 +6,7 @@ Terpsicle targets **WCAG 2.2 AA** on desktop and phone, in both themes. This pag
 
 ### Structure and names
 - **Landmarks:** a banner (the top bar), the rail's "Sidebar tabs" navigation, the "Sidebar" (complementary), and `main` (the calendar, a "Week calendar" region). Two skip links come first: "Skip to calendar" and "Skip to sidebar".
-- **Headings:** one `h1` (the logo), an `h2` per panel ("Plan A", "Search", a course's title in its details), and an `h3` per section ("Sections", "Grades", "Bookmarked", "Must have").
+- **Headings:** one `h1` (the logo), an `h2` per panel ("Plan A", "Search", a course's title in its details), and an `h3` per section ("Sections", "Grades", "Bookmarked", "Filters").
 - **Lists:** courses, search results (a listbox), each group of sections in course details, problems, connections, generated plans and the registration checklist.
 - **Names that say which one.** In a list of 92 sections, each button says its section: "Add 0101", "Switch to 0205", "Get an email when a seat opens, ENGL101 0205". Each name starts with the words on screen, so voice control works (WCAG 2.5.3).
 - **States:** `aria-pressed` on the rail tabs, filter chips and day toggles; `aria-expanded` on groups and disclosures; `aria-current` on the open plan, the current section and the open drill-in's name beside Back; `aria-selected` on the highlighted search result.

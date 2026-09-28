@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useEffect, useMemo, useState } from "react";
 import { track } from "~/app/analytics";
 import { useDrillEntry } from "~/app/drill-entry";
@@ -5,10 +6,24 @@ import { MessageText } from "~/app/message-text";
 import { ListRow, PanelBody, PanelFooter, SectionHeader } from "~/app/panel";
 import { closeDrill } from "~/app/schedule-nav";
 import { wildcardFromId, wildcardLabel } from "~/core/catalog";
+import type { SectionRef } from "~/core/catalog/catalog-index";
+import {
+  activePreferences,
+  preferenceLevels,
+  preferenceMark,
+} from "~/core/generate/preferences";
+import { sectionQuality } from "~/core/generate/quality";
 import { changesFrom, type PlanChange } from "~/core/generate/result-plan";
 import { planProblems } from "~/core/problems";
-import type { Plan, SectionKey } from "~/core/schema";
-import { formatTime } from "~/core/time";
+import type { Meeting, Plan, SectionKey } from "~/core/schema";
+import { seatCounts, seatStatus } from "~/core/seats";
+import { DAY_SHORT_NAMES, formatTime } from "~/core/time";
+import { planConnections, verdictMessage } from "~/core/travel";
+import {
+  meetingKindWords,
+  meetingWords,
+} from "~/features/course-details/words";
+import { useCatalog } from "~/state/catalog-store";
 import {
   useCurrentPlan,
   usePlanProblems,
@@ -18,14 +33,18 @@ import {
 import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
+import { PREFERENCE_LABELS } from "./chips";
 import { optionLabel, statsLine } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
 import { useGenerateRun } from "./run-store";
-import { coursesOf, saveResults } from "./save";
+import { addResultAsPlan, coursesOf, nextPlanNameIn } from "./save";
+import { ScoreBar } from "./score-bar";
 
-// One generated plan, drilled into (SPEC §3.9, prototype screenshot 09): the
-// calendar previews it while this is open; here is what changes from the
-// open plan and its problems, with Save as new plan in the footer.
+// One generated plan, drilled into by its row's arrow (SPEC §3.9, prototype
+// screenshot 09): the calendar previews it while this is open. Here is every
+// course and section with what we know of it (instructor, rating, grades,
+// times, seats), what it changes from the open plan, the walks between
+// classes and its problems, and at the bottom one action: "Add as Plan C".
 
 /** The result and its rank in the latest run, if it's still there. */
 function useResult(resultId: string) {
@@ -38,38 +57,19 @@ function useResult(resultId: string) {
   }, [status, resultId]);
 }
 
-/** The section side of a change row: "0101 → 0312", "added 0201". */
-function ChangeText({ change: c }: { change: PlanChange }) {
-  switch (c.kind) {
+/** How a course's section differs from the open plan: "New", "Was 0101". */
+function changeWords(change: PlanChange | undefined): string | null {
+  if (!change) return null;
+  switch (change.kind) {
     case "added":
-      return (
-        <>
-          <span className="text-muted">added </span>
-          <span className="ident">{c.to}</span>
-        </>
-      );
+      return "New";
     case "switched":
-      return (
-        <span className="ident">
-          <span className="text-muted">{c.from} → </span>
-          {c.to}
-        </span>
-      );
+      return `Was ${change.from}`;
     case "placed":
-      return (
-        <>
-          <span className="text-muted">placed </span>
-          <span className="ident">{c.to}</span>
-        </>
-      );
+      return "Was bookmarked";
     case "unplaced":
-      return (
-        <span className="text-muted">
-          <span className="ident">{c.from}</span> → bookmarked
-        </span>
-      );
     case "dropped":
-      return <span className="text-muted">not in this plan</span>;
+      return null;
   }
 }
 
@@ -78,37 +78,44 @@ function Code({ code }: { code: string }) {
   return <span className="block w-16 ident font-semibold">{code}</span>;
 }
 
+/** One meeting on its own line: "Lec  MWF 10–10:50am  IRB 0324". */
+function MeetingLine({ meeting }: { meeting: Meeting }) {
+  const when = meetingWords(meeting, { kind: false, place: false });
+  const place = meeting.online
+    ? meeting.timed
+      ? "Online"
+      : ""
+    : [meeting.building, meeting.room].filter(Boolean).join(" ");
+  return (
+    <span className="flex min-w-0 items-baseline gap-1.5">
+      <span className="w-7 shrink-0 text-muted text-xs">
+        {meetingKindWords(meeting.kind).short}
+      </span>
+      <span className="tnum shrink-0">{when}</span>
+      {place ? <span className="truncate text-muted">{place}</span> : null}
+    </span>
+  );
+}
+
 /**
- * "ENGL393: 28 other sections meet at the same times · Show", opening the
- * section numbers in place (UX-REVIEW §4.8): a wall of codes up front
- * buried the rest of the details.
+ * "28 other sections meet at the same times · Show", opening the section
+ * numbers in place (UX-REVIEW §4.8): a wall of codes up front buried the
+ * rest of the details.
  */
-function SameTimesRow({
-  courseCode,
-  others,
-}: {
-  courseCode: string;
-  others: readonly string[];
-}) {
+function SameTimes({ others }: { others: readonly string[] }) {
   const [open, setOpen] = useState(false);
   const n = others.length;
   return (
-    <ListRow
-      as="li"
-      className="items-start text-base"
-      lead={<Code code={courseCode} />}
-    >
-      <span className="text-muted">
-        {n === 1 ? "1 other section meets" : `${n} other sections meet`} at the
-        same times ·{" "}
-      </span>
+    <div className="text-muted text-sm">
+      {n === 1 ? "1 other section meets" : `${n} other sections meet`} at the
+      same times ·{" "}
       <WithTooltip
         label={open ? "Hide the section numbers" : "Show the section numbers"}
       >
         <Button
           variant="link"
           size="sm"
-          className="h-auto p-0 text-base"
+          className="h-auto p-0 text-sm"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
@@ -116,12 +123,12 @@ function SameTimesRow({
         </Button>
       </WithTooltip>
       {open ? (
-        <p className="mt-1 text-muted text-sm">
+        <p className="mt-0.5">
           <span className="ident text-fg">{others.join(", ")}</span>. Rooms may
           differ. Switch any time in course details.
         </p>
       ) : null}
-    </ListRow>
+    </div>
   );
 }
 
@@ -131,6 +138,7 @@ export function ResultDetails() {
   const found = useResult(entry.resultId);
   const current = useCurrentPlan();
   const catalog = useTermCatalog(found?.request.termId ?? null);
+  const instructors = useCatalog((s) => s.instructors);
   const { travel, campus } = useTravel();
   const currentProblems = usePlanProblems();
 
@@ -149,6 +157,32 @@ export function ResultDetails() {
   const changes = useMemo(
     () => (plan ? changesFrom(plan, courses) : []),
     [plan, courses],
+  );
+  const refs = useMemo(
+    (): SectionRef[] =>
+      found && catalog
+        ? found.result.sections.flatMap((k) => {
+            const ref = catalog.index.sections.get(k);
+            return ref ? [ref] : [];
+          })
+        : [],
+    [found, catalog],
+  );
+  // Ratings and GPAs per section, joined the way the ranking joined them.
+  const quality = useMemo(
+    () =>
+      sectionQuality(
+        refs.map((r) => r.course),
+        Object.values(instructors).flatMap((d) => (d ? [d] : [])),
+      ),
+    [refs, instructors],
+  );
+  const walks = useMemo(
+    () =>
+      planConnections(refs, travel, campus).filter(
+        (c) => c.verdict !== "unknown",
+      ),
+    [refs, travel, campus],
   );
   const problems = useMemo(
     () =>
@@ -195,12 +229,16 @@ export function ResultDetails() {
   for (const c of changes)
     if (c.kind === "added" || c.kind === "switched" || c.kind === "placed")
       marks.set(`${c.courseCode}-${c.to}`, "changed");
-  const instructorsOf = (courseCode: string, sectionCode: string) =>
-    catalog.index.sections
-      .get(`${courseCode}-${sectionCode}`)
-      ?.section.instructors.join(", ");
+  const changeOf = new Map(changes.map((c) => [c.courseCode, c]));
+  const left = changes.filter(
+    (c) => c.kind === "dropped" || c.kind === "unplaced",
+  );
+  const filledFor = new Map(result.filled.map((f) => [f.courseCode, f]));
   const chosen = new Set<string>(result.sections);
   const s = result.stats;
+  const why = activePreferences(preferenceLevels(request.rankBy));
+  const name = nextPlanNameIn(request.termId);
+  const planName = current.plan.name;
 
   return (
     <>
@@ -211,7 +249,7 @@ export function ResultDetails() {
             {problems.length === 1
               ? "1 problem"
               : `${problems.length} problems`}{" "}
-            (vs {before} in {current.plan.name}) · {s.daysOnCampus}{" "}
+            (vs {before} in {planName}) · {s.daysOnCampus}{" "}
             {s.daysOnCampus === 1 ? "day" : "days"} on campus
           </p>
           <div className="mt-3 h-[88px]">
@@ -228,72 +266,155 @@ export function ResultDetails() {
               : ""}
             {statsLine(s)}
           </p>
+          {why.length > 0 ? (
+            <ul
+              aria-label="How it ranks"
+              className="mt-2 flex flex-col gap-0.5 text-sm"
+            >
+              {why.map((f) => {
+                const m = preferenceMark(f, result.breakdown, s);
+                return (
+                  <li key={f} className="flex items-center gap-2">
+                    <ScoreBar score={m.score} />
+                    <span className="w-24 shrink-0 text-muted">
+                      {PREFERENCE_LABELS[f]}
+                    </span>
+                    <span className="tnum min-w-0 truncate">{m.words}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
 
-        <SectionHeader title={`Changes from ${current.plan.name}`} />
-        <ul aria-label={`Changes from ${current.plan.name}`}>
-          {changes.length > 0 ? (
-            changes.map((c) => {
-              const who =
-                c.kind === "added" ||
-                c.kind === "switched" ||
-                c.kind === "placed"
-                  ? instructorsOf(c.courseCode, c.to)
-                  : undefined;
-              return (
-                <ListRow
-                  as="li"
-                  key={c.courseCode}
-                  className="text-base"
-                  lead={<Code code={c.courseCode} />}
+        <SectionHeader
+          title="Courses"
+          count={refs.length}
+          right={
+            <span className="truncate text-muted text-xs">
+              Compared with {planName}
+            </span>
+          }
+        />
+        <ul aria-label="Courses and sections">
+          {refs.map(({ course, section }) => {
+            const key: SectionKey = `${course.code}-${section.code}`;
+            const q = quality.get(key);
+            const seats = seatStatus(seatCounts(catalog.seats?.seats, key));
+            const change = changeWords(changeOf.get(course.code));
+            const filled = filledFor.get(course.code);
+            const wildcard = filled ? wildcardFromId(filled.wildcard) : null;
+            const same =
+              result.equivalents.byCourse
+                .find((c) => c.courseCode === course.code)
+                ?.sectionCodes.filter(
+                  (code) => !chosen.has(`${course.code}-${code}`),
+                ) ?? [];
+            return (
+              <ListRow
+                as="li"
+                key={key}
+                align="start"
+                data-testid={`result-section-${key}`}
+                className="text-base"
+                lead={<Code code={course.code} />}
+              >
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <span className="min-w-0 truncate" title={course.title}>
+                    {course.title}
+                  </span>
+                  {change ? (
+                    <span className="shrink-0 rounded-sm bg-accent-soft px-1 text-muted text-xs">
+                      {change}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="tnum truncate text-muted text-sm">
+                  <span className="ident text-fg">{section.code}</span>
+                  {" · "}
+                  {section.instructors.length > 0
+                    ? section.instructors.join(", ")
+                    : "Instructor TBA"}
+                  {q?.rating != null ? ` · ★ ${q.rating.toFixed(1)}` : ""}
+                  {q?.gpa != null ? ` · ${q.gpa.toFixed(2)} GPA` : ""}
+                </div>
+                <div className="mt-0.5 flex flex-col text-sm">
+                  {section.meetings.length > 0 ? (
+                    section.meetings.map((m, i) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: meetings are positional and never reorder
+                      <MeetingLine key={i} meeting={m} />
+                    ))
+                  ) : (
+                    <span className="text-muted">
+                      Contact the department for times
+                    </span>
+                  )}
+                </div>
+                <div
+                  className={cn(
+                    "text-sm",
+                    seats.level === "full" || seats.level === "low"
+                      ? "text-warn"
+                      : "text-muted",
+                  )}
                 >
-                  <div className="truncate" title={who || undefined}>
-                    <ChangeText change={c} />
-                    {who ? <span className="text-muted"> · {who}</span> : null}
-                  </div>
-                </ListRow>
-              );
-            })
-          ) : (
-            <ListRow as="li" className="text-base text-muted">
-              No changes.
-            </ListRow>
-          )}
-          {result.equivalents.byCourse.map((c) => (
-            <SameTimesRow
+                  {seats.words}
+                  {wildcard ? (
+                    <span className="text-muted">
+                      {" "}
+                      · for {wildcardLabel(wildcard)}
+                    </span>
+                  ) : null}
+                </div>
+                {same.length > 0 ? <SameTimes others={same} /> : null}
+              </ListRow>
+            );
+          })}
+          {left.map((c) => (
+            <ListRow
+              as="li"
               key={c.courseCode}
-              courseCode={c.courseCode}
-              others={c.sectionCodes.filter(
-                (code) => !chosen.has(`${c.courseCode}-${code}`),
-              )}
-            />
+              className="text-base text-muted"
+              lead={<Code code={c.courseCode} />}
+            >
+              {c.kind === "unplaced"
+                ? `Bookmarked, not placed (was ${c.from})`
+                : "Left out of this plan"}
+            </ListRow>
           ))}
         </ul>
 
-        {result.filled.length > 0 ? (
+        {walks.length > 0 ? (
           <>
-            <SectionHeader title="Picked for your wildcards" />
-            <ul aria-label="Picked for your wildcards">
-              {result.filled.map((f) => {
-                const wildcard = wildcardFromId(f.wildcard);
-                const title = catalog.index.courses.get(f.courseCode)?.title;
-                return (
-                  <ListRow
-                    as="li"
-                    key={f.courseCode}
-                    className="text-base"
-                    lead={<Code code={f.courseCode} />}
+            <SectionHeader title="Walks" count={walks.length} />
+            <ul aria-label="Walks between classes">
+              {walks.map((c) => (
+                <ListRow
+                  as="li"
+                  key={c.id}
+                  align="start"
+                  className="text-base"
+                  lead={
+                    <span className="block w-16 text-muted">
+                      {DAY_SHORT_NAMES[c.day]}
+                    </span>
+                  }
+                >
+                  <div className="ident">
+                    {c.from.building} → {c.to.building}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-sm",
+                      c.verdict === "insufficient" || c.verdict === "tight"
+                        ? "text-warn"
+                        : "text-muted",
+                    )}
                   >
-                    <div className="truncate" title={title}>
-                      <span className="text-muted">for </span>
-                      {wildcard ? wildcardLabel(wildcard) : f.wildcard}
-                      {title ? (
-                        <span className="text-muted"> · {title}</span>
-                      ) : null}
-                    </div>
-                  </ListRow>
-                );
-              })}
+                    <MessageText message={verdictMessage(c)} />
+                  </div>
+                </ListRow>
+              ))}
             </ul>
           </>
         ) : null}
@@ -317,16 +438,18 @@ export function ResultDetails() {
         ) : null}
       </PanelBody>
       <PanelFooter>
-        <WithTooltip label="Adds it as a new plan tab and opens it. You can undo.">
+        <WithTooltip
+          label={`Adds it as ${name}, a new plan tab, and opens it. You can undo.`}
+        >
           <Button
             className="flex-1"
             onClick={() => {
-              saveResults([result], request);
+              addResultAsPlan(result, request);
               useUi.getState().setPreviewPlan(null);
               closeDrill();
             }}
           >
-            Save as new plan
+            Add as {name}
           </Button>
         </WithTooltip>
       </PanelFooter>

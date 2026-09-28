@@ -40,6 +40,8 @@ export function runGenerate(
       quality: sectionQuality(input.courses, input.ratings),
     },
     {
+      // The chips say what each filter takes out (SPEC §3.9 "Filters").
+      countFilters: true,
       ...(onProgress ? { onProgress } : {}),
       ...(shouldCancel ? { shouldCancel } : {}),
     },

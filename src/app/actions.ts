@@ -38,7 +38,7 @@ export function createEmptyPlan(termId: TermId): void {
 }
 
 /**
- * A new plan with the given courses, e.g. Generate's "Save as new plan".
+ * A new plan with the given courses, e.g. Generate's "Add as Plan C".
  * Opens it and returns its id; undoable like any other change.
  */
 export function createPlanFrom(
@@ -51,7 +51,7 @@ export function createPlanFrom(
     .getState()
     .dispatch(
       { type: "plan/create", id, termId, name, courses, now: nowIso() },
-      name ? `Saved ${name}` : "Saved a new plan",
+      name ? `Added ${name}` : "Added a new plan",
     );
   track("plan_created", { source });
   return id;

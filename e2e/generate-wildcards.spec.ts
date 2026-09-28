@@ -74,9 +74,7 @@ test("generate with CMSC4XX and any DSHS course", async ({
 
   await page.getByRole("button", { name: "Generate plans" }).click();
   await expect(
-    page.getByText(
-      "1 course + Any CMSC 400-level + Any DSHS course · compact days",
-    ),
+    page.getByText("1 course + Any CMSC 400-level + Any DSHS course"),
   ).toBeVisible();
   const results = page.getByRole("list", { name: "Generated plans" });
   const first = results.getByTestId("generated-plan").first();
@@ -87,7 +85,8 @@ test("generate with CMSC4XX and any DSHS course", async ({
 
   await first.getByRole("button").click();
   await expect(page.locator(OPEN_VIEW)).toContainText("Option 1");
-  const picked = page.getByRole("list", { name: "Picked for your wildcards" });
+  // Each course a wildcard took says which wildcard it's for.
+  const picked = page.getByRole("list", { name: "Courses and sections" });
   await expect(picked).toContainText("for Any CMSC 400-level");
   await expect(picked).toContainText("for Any DSHS course");
 });

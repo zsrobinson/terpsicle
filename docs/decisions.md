@@ -227,6 +227,16 @@ Revisit if: people sort by rating often and find it thin; a small all-department
 An untouched Generate form shows the open plan's courses (placed required, bookmarked optional), derived and never stored, so a list someone has changed or emptied always wins. It bends DESIGN §5's "don't prefill" because these are the person's own courses, not guesses: an empty form with a disabled button read as broken to someone who already had a plan (QA round 1, S16).
 Revisit if: people mostly clear the prefilled list before generating.
 
+### Generate's chips: filters take out, preferences rank
+2026-09-28 · owner · one feature
+"click on a chip to enable or disable that given factor … and maybe a double click for a 2x mattering for it, then cycling back to none. … the filters should also carry over some similar UI … but should be clear that they completely filter, not sort." The must-haves are filter chips (Search's square look, a funnel, "No…"/"Only…" words and how many plans each took out); the ranking is preference pills that cycle off → on → 2× → off. The same chips sit over the results, which re-rank live. A single click cycles all three (an agent's call on "double click"): it works on touch and with Enter or Space, and a click never waits to see whether a second one follows.
+Revisit if: people miss the 2× state, or ask for finer weights.
+
+### Add one generated plan at a time
+2026-09-28 · owner · one feature
+"i don't like the multiselect to add things. scrap that, instead should have an icon button as an arrow to see more detail about the plan … and at the bottom allow to 'Add as Plan A' or whatever the next default schedule name is." Results have no checkboxes; each row's arrow opens its details (every course and section, with ratings, grades, times, seats and walks), whose one action is "Add as Plan C". It opens the new plan, with Undo.
+Revisit if: people want several results at once again (the owner's "Generate from four-year plan" comes separately).
+
 ### Returning people skip marketing
 2026-09-26 · owner · one feature
 First visits to `/` see the marketing page; anyone with saved plans or a session goes to `/schedule`, and the installed app starts there.

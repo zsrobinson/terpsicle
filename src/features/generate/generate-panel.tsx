@@ -14,7 +14,14 @@ import {
   relaxDraft,
   requestItems,
 } from "~/core/generate/draft";
-import type { GenerateDraft, Relaxation } from "~/core/schema";
+import { type GenerateChips, sameChips } from "~/core/generate/url";
+import type {
+  FilterCount,
+  GenerateDraft,
+  GenerateRequest,
+  Relaxable,
+  Relaxation,
+} from "~/core/schema";
 import { GenerateTabSearchSchema } from "~/core/schema/schedule-url";
 import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { useActiveTerm, useCurrentPlan, useTermCatalog } from "~/state/hooks";
@@ -22,31 +29,36 @@ import { useWorkspace } from "~/state/workspace-store";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { WithTooltip } from "~/ui/tooltip";
+import { ChipBar, FilterChipsForGenerate, PreferenceChips } from "./chips";
 import { CourseList } from "./course-list";
-import { requestSummary } from "./labels";
-import { MustHaveFields } from "./must-haves";
+import { pickChips, useGenerateFromUrl } from "./generate-url";
+import { coursesSummary } from "./labels";
 import { NothingFits } from "./nothing-fits";
-import { CustomWeights, RankBySelect } from "./rank-by";
 import { Results } from "./results";
 import {
+  chipsChangedSinceRun,
   type GenerateView,
   runGenerate,
+  runLive,
   showGenerateView,
   stopGenerate,
   useGenerateRun,
 } from "./run-store";
-import { saveResults } from "./save";
 import { useDraft } from "./use-draft";
 
-// The Generate tab (SPEC §3.9, UX-REVIEW §4.8): the form, then the ranked
-// plans under a one-line summary of what was asked. The one primary action
-// (Generate plans, or Save N plans) sits in the panel footer. Generating
-// creates plans; it never edits the open one. No sparkles: this is search,
-// not an LLM (DESIGN §4).
+// The Generate tab (SPEC §3.9, UX-REVIEW §4.8): the courses, then filter
+// chips (what takes plans out) and preference chips (what puts them in
+// order); then the ranked plans, with the same chips over them so a click
+// re-ranks the list in place. The one primary action (Generate plans) sits
+// in the panel footer; a plan is added from its details. Generating creates
+// plans; it never edits the open one. No sparkles: this is search, not an
+// LLM (DESIGN §4).
 
-/** Two drafts ask for the same run (the form hasn't changed since). */
-function sameInputs(a: GenerateDraft, b: GenerateDraft): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+/** The form asks for the courses a run was for: only the chips may differ. */
+function sameItems(request: GenerateRequest, draft: GenerateDraft): boolean {
+  return (
+    JSON.stringify(request.items) === JSON.stringify(requestItems(draft.items))
+  );
 }
 
 const plans = (n: number) => (n === 1 ? "1 plan" : `${n} plans`);
@@ -77,11 +89,12 @@ export function GeneratePanel() {
   const [draft, update, prefilled] = useDraft(termId, plan);
   const blocks = useWorkspace((s) => s.blocks);
   const status = useGenerateRun((s) => s.status);
+  const refreshing = useGenerateRun((s) => s.refreshing);
   const runTermId = useGenerateRun((s) => s.termId);
   const view = useShownView();
-  const selected = useGenerateRun((s) => s.selected);
   const inputRef = useFocusRequest<HTMLInputElement>("generate");
   const topRef = useRef<HTMLDivElement>(null);
+  useGenerateFromUrl(termId, plan);
 
   const blockCount = useMemo(
     () => blocks.filter((b) => b.termId === termId).length,
@@ -93,16 +106,24 @@ export function GeneratePanel() {
   const busy = mine.kind === "loading" || mine.kind === "running";
   const done = mine.kind === "done" ? mine : null;
   const showing = done && view === "results" ? done : null;
-  const stale =
-    done !== null &&
-    !sameInputs(
-      {
-        items: done.request.items,
-        mustHaves: done.request.mustHaves,
-        rankBy: done.request.rankBy,
-      },
-      { ...draft, items: requestItems(draft.items) },
-    );
+  // Only a changed course list waits for "Generate again": the chips re-run
+  // on their own.
+  const stale = done !== null && !sameItems(done.request, draft);
+  // What each filter took out, while the chips still say what was run.
+  const counts = useMemo(
+    (): ReadonlyMap<Relaxable, FilterCount> | null =>
+      done && sameChips(done.request, draft)
+        ? new Map(done.result.filterCounts.map((c) => [c.constraint, c]))
+        : null,
+    [done, draft],
+  );
+
+  // Live results: a chip changed since the last run, so run again (the
+  // run store waits for a burst of clicks to settle).
+  useEffect(() => {
+    if (termId && !shared && chipsChangedSinceRun(termId, draft))
+      runLive(termId, draft);
+  }, [termId, shared, draft]);
 
   // Each view starts at its top: the results replace the form in place.
   const lastView = useRef(view);
@@ -125,24 +146,37 @@ export function GeneratePanel() {
     track("generate_relaxation_applied", { constraint: r.constraint });
     void runGenerate(termId, next, { relaxed: true });
   };
+  const chips = (next: Partial<GenerateChips>) => {
+    if (termId) pickChips(termId, plan, { ...draft, ...next });
+  };
   const edit = () => showGenerateView("form");
   const back = () => showGenerateView("results");
-  const save = () => {
-    if (!done) return;
-    saveResults(
-      done.result.results.filter((r) => selected.includes(r.id)),
-      done.request,
-    );
-    useGenerateRun.getState().clearSelected();
-  };
 
   const colors = useMemo(
-    // One color per course across every row, as saving would pick them.
+    // One color per course across every row, as adding one would pick them.
     () =>
       resolveCourseColors(draftCourseCodes(draft.items), current?.colors ?? {}),
     [draft.items, current?.colors],
   );
   const termName = term?.name ?? "this term";
+
+  const filterChips = (
+    <FilterChipsForGenerate
+      mustHaves={draft.mustHaves}
+      blockCount={blockCount}
+      counts={counts}
+      onChange={(mustHaves, filter, on) => {
+        chips({ mustHaves });
+        track("generate_filter_changed", { filter, on });
+      }}
+    />
+  );
+  const preferenceChips = (
+    <PreferenceChips
+      rankBy={draft.rankBy}
+      onChange={(rankBy) => chips({ rankBy })}
+    />
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -153,20 +187,23 @@ export function GeneratePanel() {
       <p role="status" className="sr-only">
         {busy
           ? "Generating plans…"
-          : done
-            ? done.result.results.length === 0
-              ? "No plans fit."
-              : `Found ${done.result.results.length === 1 ? "1 plan" : `${done.result.results.length} plans`}.`
-            : ""}
+          : refreshing
+            ? "Updating the plans…"
+            : done
+              ? done.result.results.length === 0
+                ? "No plans fit."
+                : `Found ${plans(done.result.results.length)}.`
+              : ""}
       </p>
       {!shared && showing && catalog ? (
-        // What was asked, pinned above the list rather than scrolling half
-        // under the results' sticky bar (QA S10).
+        // What was asked for, pinned above the list rather than scrolling
+        // half under the results' sticky bar (QA S10). The chips below say
+        // the rest.
         <div className="flex shrink-0 items-baseline gap-2 border-hairline border-b px-4 py-2">
-          <p className="min-w-0 flex-1 text-muted text-sm">
-            {requestSummary(showing.request)}
+          <p className="min-w-0 flex-1 truncate text-muted text-sm">
+            {coursesSummary(showing.request.items)}
           </p>
-          <WithTooltip label="Change courses, must-haves or ranking">
+          <WithTooltip label="Change the courses">
             <Button
               variant="link"
               size="sm"
@@ -186,24 +223,30 @@ export function GeneratePanel() {
             own.
           </p>
         ) : showing && catalog ? (
-          showing.result.results.length > 0 ? (
-            <Results
-              request={showing.request}
-              result={showing.result}
-              index={catalog.index}
-              colors={colors}
-              plan={current?.plan ?? null}
-              termName={termName}
-            />
-          ) : (
-            <NothingFits
-              result={showing.result}
-              index={catalog.index}
-              colors={colors}
-              termName={termName}
-              onRelax={relax}
-            />
-          )
+          <>
+            <div className="px-4 pt-2 pb-3">
+              <ChipBar filters={filterChips} preferences={preferenceChips} />
+            </div>
+            {showing.result.results.length > 0 ? (
+              <Results
+                request={showing.request}
+                result={showing.result}
+                index={catalog.index}
+                colors={colors}
+                plan={current?.plan ?? null}
+                termName={termName}
+                refreshing={refreshing}
+              />
+            ) : (
+              <NothingFits
+                result={showing.result}
+                index={catalog.index}
+                colors={colors}
+                termName={termName}
+                onRelax={relax}
+              />
+            )}
+          </>
         ) : (
           <>
             <SectionHeader variant="label" title="Courses" />
@@ -218,28 +261,22 @@ export function GeneratePanel() {
               prefilledFrom={prefilled ? (plan?.name ?? null) : null}
               inputRef={inputRef}
             />
-            <SectionHeader variant="label" title="Must have" />
-            <MustHaveFields
-              mustHaves={draft.mustHaves}
-              blockCount={blockCount}
-              onChange={(mustHaves) => update((d) => ({ ...d, mustHaves }))}
-            />
             <SectionHeader
               variant="label"
-              title="Rank by"
+              title="Filters"
+              right={<span className="font-normal">Take plans out</span>}
+            />
+            <div className="px-4">{filterChips}</div>
+            <SectionHeader
+              variant="label"
+              title="Preferences"
               right={
-                <RankBySelect
-                  rankBy={draft.rankBy}
-                  onChange={(rankBy) => update((d) => ({ ...d, rankBy }))}
-                />
+                <span className="font-normal">
+                  Put plans in order. Click again for 2×
+                </span>
               }
             />
-            {draft.rankBy.preset === "custom" ? (
-              <CustomWeights
-                weights={draft.rankBy.weights}
-                onChange={(rankBy) => update((d) => ({ ...d, rankBy }))}
-              />
-            ) : null}
+            <div className="px-4">{preferenceChips}</div>
             {mine.kind === "error" ? (
               <InlineError
                 className="px-4 pt-4"
@@ -253,33 +290,7 @@ export function GeneratePanel() {
           </>
         )}
       </PanelBody>
-      {shared ? null : showing ? (
-        selected.length > 0 ? (
-          <PanelFooter>
-            <WithTooltip label="Each becomes a new plan tab. You can undo.">
-              <Button className="flex-1" onClick={save}>
-                Save {plans(selected.length)}
-              </Button>
-            </WithTooltip>
-            <WithTooltip label="Untick every plan">
-              <Button
-                variant="ghost"
-                onClick={() => useGenerateRun.getState().clearSelected()}
-              >
-                Clear
-              </Button>
-            </WithTooltip>
-          </PanelFooter>
-        ) : showing.result.results.length > 1 ? (
-          // What the checkboxes are for, where their Save button will be
-          // (QA S14: only a tooltip said so).
-          <PanelFooter>
-            <p className="py-1.5 text-muted text-sm">
-              Tick plans to save several at once, or open one to see it first.
-            </p>
-          </PanelFooter>
-        ) : null
-      ) : (
+      {shared || showing ? null : (
         <PanelFooter>
           {busy ? (
             <>
@@ -297,7 +308,8 @@ export function GeneratePanel() {
               </span>
             </>
           ) : done && !stale ? (
-            // Nothing changed since the last run: its results are still right.
+            // The same courses: its results are still right, and the chips
+            // keep them up to date.
             <WithTooltip label="Back to the results for these choices">
               <Button className="flex-1" onClick={back}>
                 {done.result.results.length > 0
@@ -326,7 +338,7 @@ export function GeneratePanel() {
             </WithTooltip>
           )}
           {done && stale && !busy ? (
-            <WithTooltip label="Back to the plans for your earlier choices">
+            <WithTooltip label="Back to the plans for your earlier courses">
               <Button variant="ghost" onClick={back}>
                 See earlier plans
               </Button>
