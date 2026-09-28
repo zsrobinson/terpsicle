@@ -1,4 +1,6 @@
 // Rendering helpers for the shell's UI tests. Not used by the app.
+
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -26,6 +28,7 @@ import {
   SearchTabSearchSchema,
 } from "~/core/schema/schedule-url";
 import type { DrillEntry, DrillKind } from "~/state/drill";
+import { createTestQueryClient } from "~/state/query/testing";
 import { loadStores } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { Toaster } from "~/ui/sonner";
@@ -164,16 +167,19 @@ export async function renderShell({
   current = router;
   await router.load();
   let setShellProps: (next: AppShellProps) => void = () => {};
+  const queryClient = createTestQueryClient();
   function Tree() {
     const [shellProps, set] = useState<AppShellProps>(props);
     setShellProps = set;
     return (
-      <TooltipProvider delayDuration={0}>
-        <PropsContext.Provider value={shellProps}>
-          <RouterProvider router={router} />
-        </PropsContext.Provider>
-        <Toaster />
-      </TooltipProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <PropsContext.Provider value={shellProps}>
+            <RouterProvider router={router} />
+          </PropsContext.Provider>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
     );
   }
   render(<Tree />);

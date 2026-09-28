@@ -39,6 +39,16 @@ Revisit if: people ask for Home in a browser tab; it would join the product menu
 Lean on TanStack Start and Router, Cloudflare and our libraries before building infrastructure ourselves ("i shouldn't have to worry about the page load things"). The scheduler's panel registry, `lazyPanel` and URL sync move to real nested routes in `v2/schedule-routes`.
 Revisit if: the framework can't do something; say what in the PR.
 
+### TanStack Query for server data and its caching
+2026-09-28 · owner · app-wide
+"we should *absolutely* be relying on tanstack query as its the standard thing for all of this… tanstack is our friend." Every copy of server data (published `/data` files, `/api` answers) goes through a `queryOptions` factory and the one `QueryClient` in router context: its stale times, refetch on focus, polling (`refetchInterval`), retries, optimistic mutations and persister, not hand-rolled ones. Local-first data (plans, four-year docs, synced prefs in Dexie, and the sync engine), URL state and UI state stay out. Areas move over one PR at a time (`refactor/query-foundation` first: review numbers).
+Revisit if: never on its own.
+
+### The query cache persists published data only, per query
+2026-09-28 · agent · app-wide
+The disk copy is TanStack's per-query persister (`experimental_createQueryPersister`) over its own IndexedDB database, `terpsicle-query`, one row per query, busted per schema family. Only published-file factories opt in; nothing per person is written (Todo never is). The whole-client persister would rewrite about a megabyte of catalog on every change.
+Revisit if: the persister's API leaves `experimental_`, or something per person needs to work offline.
+
 ### Back and Forward undo navigation
 2026-09-26 · owner · app-wide
 Whatever a person expects Back to undo (the open course, the tab, a filter, a chat room, a settings page) lives in the path or search params and pushes a history entry. Transient UI never pushes, and typing in search replaces. The browser's Back and the in-app Back are one thing.

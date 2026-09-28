@@ -94,7 +94,7 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 │   ├── app/                    the scheduler's shell (top bar, rail, sidebar + drill-in, drawer, calendar region; README.md) and what every product shares: the family bar, workbench/, analytics, theme, shortcuts, PWA
 │   ├── features/<name>/        one folder per feature, every product's (course-details, generate, reviews, chat, four-year for Plan, todo, notifications, …)
 │   ├── components/ui/          the page kit and shadcn/Radix controls every product composes (docs/COHESION.md)
-│   ├── state/                  the scheduler's data layer: Zustand stores, Dexie persistence, undo, published-data loading
+│   ├── state/                  the data layer: Zustand stores, Dexie persistence, undo, published-data loading, and query/ (TanStack Query factories and the query cache's persister)
 │   ├── worker/                 Comlink web worker (the generator)
 │   ├── core/                   PURE domain logic, one module per area (README.md has the map)
 │   ├── ingest/                 sources → normalized catalog (soc, planetterp, buildings, routes, calendar, publish); platform-agnostic

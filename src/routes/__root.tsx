@@ -1,5 +1,5 @@
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   HeadContent,
   Outlet,
   Scripts,
@@ -9,6 +9,7 @@ import { ActivityLogBoot } from "~/app/activity-log-boot";
 import { InlineScript } from "~/app/inline-script";
 import { Pwa } from "~/app/pwa";
 import { pwaLinks, pwaMeta, themeColorMeta } from "~/app/pwa-head";
+import type { RouterContext } from "~/app/query-client";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { AccountBoot } from "~/features/auth/account-boot";
@@ -17,7 +18,7 @@ import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import appCss from "../styles.css?url";
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },

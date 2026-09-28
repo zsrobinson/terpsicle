@@ -26,7 +26,7 @@ import { useAiFeatures } from "~/features/ai/use-ai-features";
 import { useAccount } from "~/features/auth/account-store";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { usePlanetTerpStatus, useTerpsicleReviews } from "~/state/data-hooks";
-import { terpsicleInstructor } from "~/state/reviews-store";
+import { terpsicleInstructor } from "~/state/query/review-numbers";
 import { InlineError } from "~/ui/inline-error";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";

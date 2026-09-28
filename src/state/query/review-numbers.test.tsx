@@ -1,0 +1,335 @@
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  type DeptCode,
+  REVIEWS_MANIFEST_KEY,
+  reviewsDeptKey,
+} from "~/core/schema";
+import {
+  aPlanetTerpDept,
+  aReviewsDept,
+  aReviewsManifest,
+  mockDataSource,
+  mockMintedNames,
+} from "~/fixtures";
+import { useTerpsicleReviews } from "../data-hooks";
+import {
+  createBucketDataSource,
+  DataError,
+  type DataSource,
+} from "../data-source";
+import {
+  createMemoryQueryStorage,
+  PUBLISHED_MAX_AGE_MS,
+  setQueryStorage,
+} from "./persister";
+import { connectPublished, publishedKey, retryPublished } from "./published";
+import {
+  REVIEWS_MANIFEST_STALE_MS,
+  reviewsManifestQuery,
+  terpsicleInstructor,
+} from "./review-numbers";
+import { createTestQueryClient } from "./testing";
+
+// Terpsicle reviews' numbers through the query cache (DATA.md §5.4): the
+// hook course details reads, against the mock bucket and a fake server,
+// with the persister writing to memory.
+
+const hash = (n: number) => n.toString(16).padStart(16, "0");
+const numbers = (reviewCount: number) => ({
+  rating: 4.5,
+  reviewCount,
+  latestReviewMonth: "2026-09",
+});
+
+function aServer() {
+  const files = new Map<string, unknown>();
+  const reads: string[] = [];
+  let offline = false;
+  const source: DataSource = {
+    kind: "live",
+    async readJson(key) {
+      reads.push(key);
+      if (offline) throw new DataError(key, "network", "offline");
+      if (!files.has(key)) throw new DataError(key, "missing", "missing");
+      return structuredClone(files.get(key));
+    },
+    async readBinary(key) {
+      throw new DataError(key, "missing", "missing");
+    },
+  };
+  const publish = (n: number) => {
+    files.set(
+      REVIEWS_MANIFEST_KEY,
+      aReviewsManifest({ departments: [{ code: "CMSC", hash: hash(n) }] }),
+    );
+    files.set(
+      reviewsDeptKey("CMSC", hash(n)),
+      aReviewsDept({ instructors: { brandt: numbers(n) } }),
+    );
+  };
+  publish(1);
+  return {
+    files,
+    source,
+    publish,
+    setOffline: (value: boolean) => {
+      offline = value;
+    },
+    take: () => reads.splice(0),
+  };
+}
+
+let storage: ReturnType<typeof createMemoryQueryStorage>;
+
+/** A page: a fresh client over the same storage, as a reload would be. */
+function aPage(source: DataSource) {
+  connectPublished(source);
+  const client = createTestQueryClient();
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const show = (dept: DeptCode | null, enabled = true) =>
+    renderHook(() => useTerpsicleReviews(dept, enabled), { wrapper });
+  return { client, show };
+}
+
+/** Waits for the persister's background writes. */
+const saved = () => waitFor(() => expect(storage.rows.size).toBeGreaterThan(0));
+
+/** Makes every saved row look `ms` older, as if the page were opened later. */
+function age(ms: number) {
+  for (const [key, row] of storage.rows) {
+    const r = row as { state: { dataUpdatedAt: number } };
+    storage.rows.set(key, {
+      ...r,
+      state: { ...r.state, dataUpdatedAt: r.state.dataUpdatedAt - ms },
+    });
+  }
+}
+
+beforeEach(() => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  storage = createMemoryQueryStorage();
+  setQueryStorage(storage);
+});
+afterEach(() => {
+  connectPublished(null);
+  setQueryStorage(null);
+  vi.restoreAllMocks();
+});
+
+describe("useTerpsicleReviews in mock mode", () => {
+  it("serves the mock bucket's numbers, minted instructors included", async () => {
+    const { show } = aPage(createBucketDataSource(mockDataSource));
+    const cmsc = show("CMSC");
+    await waitFor(() => expect(cmsc.result.current).not.toBeNull());
+    const minted = mockMintedNames.find((name) =>
+      terpsicleInstructor(cmsc.result.current, null, name),
+    );
+    expect(minted).toBeDefined();
+  });
+
+  it("is null for a department with nothing published, and while Reviews is off", async () => {
+    const { client, show } = aPage(createBucketDataSource(mockDataSource));
+    const none = show("ZZZZ");
+    await waitFor(() =>
+      expect(
+        client.getQueryState(publishedKey("mock", REVIEWS_MANIFEST_KEY))
+          ?.status,
+      ).toBe("success"),
+    );
+    expect(none.result.current).toBeNull();
+    expect(show("CMSC", false).result.current).toBeNull();
+  });
+});
+
+describe("useTerpsicleReviews with the persister", () => {
+  it("reads one file per key, however many ask", async () => {
+    const server = aServer();
+    const { show } = aPage(server.source);
+    const a = show("CMSC");
+    const b = show("CMSC");
+    await waitFor(() => expect(a.result.current).not.toBeNull());
+    expect(b.result.current).toBe(a.result.current);
+    expect(server.take().sort()).toEqual(
+      [REVIEWS_MANIFEST_KEY, reviewsDeptKey("CMSC", hash(1))].sort(),
+    );
+  });
+
+  it("shows the saved copy next time, without asking while it's fresh", async () => {
+    const server = aServer();
+    const first = aPage(server.source).show("CMSC");
+    await waitFor(() => expect(first.result.current).not.toBeNull());
+    await saved();
+    server.take();
+
+    server.setOffline(true);
+    const next = aPage(server.source).show("CMSC");
+    await waitFor(() =>
+      expect(next.result.current?.instructors.brandt?.reviewCount).toBe(1),
+    );
+    expect(server.take()).toEqual([]);
+  });
+
+  it("checks a stale saved manifest, refetches a changed file and forgets the old one", async () => {
+    const server = aServer();
+    const first = aPage(server.source).show("CMSC");
+    await waitFor(() => expect(first.result.current).not.toBeNull());
+    await waitFor(() => expect(storage.rows.size).toBe(2));
+
+    server.publish(2);
+    age(REVIEWS_MANIFEST_STALE_MS + 1);
+    server.take();
+    const next = aPage(server.source).show("CMSC");
+    await waitFor(() =>
+      expect(next.result.current?.instructors.brandt?.reviewCount).toBe(2),
+    );
+    expect(server.take().sort()).toEqual(
+      [REVIEWS_MANIFEST_KEY, reviewsDeptKey("CMSC", hash(2))].sort(),
+    );
+    await waitFor(() =>
+      expect(
+        [...storage.rows.keys()].filter((k) => k.includes("/dept/")),
+      ).toEqual([expect.stringContaining(reviewsDeptKey("CMSC", hash(2)))]),
+    );
+  });
+
+  it("follows the server when a saved manifest names a file it deleted", async () => {
+    const server = aServer();
+    const first = aPage(server.source).show("MATH");
+    await waitFor(() => expect(storage.rows.size).toBe(1));
+    first.unmount();
+
+    server.publish(2);
+    server.files.delete(reviewsDeptKey("CMSC", hash(1)));
+    // More than a day old: the server may have deleted what it names.
+    age(25 * 60 * 60 * 1000);
+    const next = aPage(server.source).show("CMSC");
+    await waitFor(() =>
+      expect(next.result.current?.instructors.brandt?.reviewCount).toBe(2),
+    );
+  });
+
+  it("drops a saved copy older than the cache keeps", async () => {
+    const server = aServer();
+    const first = aPage(server.source).show("CMSC");
+    await waitFor(() => expect(first.result.current).not.toBeNull());
+    await saved();
+    age(PUBLISHED_MAX_AGE_MS + 1);
+    server.take();
+
+    const next = aPage(server.source).show("CMSC");
+    await waitFor(() => expect(next.result.current).not.toBeNull());
+    expect(server.take()).toContain(REVIEWS_MANIFEST_KEY);
+  });
+
+  it("drops a saved copy that doesn't read, and fetches again", async () => {
+    const server = aServer();
+    const first = aPage(server.source).show("CMSC");
+    await waitFor(() => expect(first.result.current).not.toBeNull());
+    await saved();
+    for (const key of storage.rows.keys()) storage.rows.set(key, { junk: 1 });
+    server.take();
+
+    const next = aPage(server.source).show("CMSC");
+    await waitFor(() => expect(next.result.current).not.toBeNull());
+    expect(server.take().sort()).toEqual(
+      [REVIEWS_MANIFEST_KEY, reviewsDeptKey("CMSC", hash(1))].sort(),
+    );
+  });
+
+  it("keeps mock and live apart on one origin", async () => {
+    const server = aServer();
+    const live = aPage(server.source).show("CMSC");
+    await waitFor(() => expect(live.result.current).not.toBeNull());
+    const liveNumbers = live.result.current;
+    live.unmount();
+    await saved();
+    const mock = aPage(createBucketDataSource(mockDataSource)).show("CMSC");
+    await waitFor(() => expect(mock.result.current).not.toBeNull());
+    expect(liveNumbers?.instructors).toEqual({ brandt: numbers(1) });
+    expect(mock.result.current?.instructors).not.toEqual({
+      brandt: numbers(1),
+    });
+  });
+});
+
+describe("failures", () => {
+  it("shows nothing when the manifest can't load, and loads on the next try", async () => {
+    const server = aServer();
+    server.setOffline(true);
+    const { client, show } = aPage(server.source);
+    const view = show("CMSC");
+    const state = () =>
+      client.getQueryState(publishedKey("live", REVIEWS_MANIFEST_KEY));
+    // The network retries twice, a second apart then two.
+    await waitFor(() => expect(state()?.status).toBe("error"), {
+      timeout: 5_000,
+    });
+    expect(view.result.current).toBeNull();
+
+    server.setOffline(false);
+    await client.refetchQueries();
+    await waitFor(() => expect(view.result.current).not.toBeNull());
+  });
+
+  it("doesn't retry a file that's missing, broken or in a newer format", async () => {
+    const server = aServer();
+    server.files.set(REVIEWS_MANIFEST_KEY, {
+      ...aReviewsManifest(),
+      schemaVersion: 99,
+    });
+    const client: QueryClient = createTestQueryClient();
+    await expect(
+      client.fetchQuery(reviewsManifestQuery(server.source)),
+    ).rejects.toThrow(/schema version 99/);
+    expect(server.take()).toEqual([REVIEWS_MANIFEST_KEY]);
+
+    const missing = new DataError("k", "missing", "gone");
+    const broken = new DataError("k", "invalid", "bad");
+    const offline = new DataError("k", "network", "offline");
+    expect(retryPublished(0, missing)).toBe(false);
+    expect(retryPublished(0, broken)).toBe(false);
+    expect(retryPublished(1, offline)).toBe(true);
+    expect(retryPublished(2, offline)).toBe(false);
+  });
+});
+
+describe("terpsicleInstructor", () => {
+  const planetTerp = aPlanetTerpDept({ names: { "ada brandt": "brandt" } });
+
+  it("joins through PlanetTerp's names", () => {
+    expect(
+      terpsicleInstructor(aReviewsDept(), planetTerp, "Ada Brandt"),
+    ).toEqual({ id: "brandt", numbers: aReviewsDept().instructors.brandt });
+  });
+
+  it("uses a minted instructor only for names PlanetTerp doesn't know", () => {
+    const ours = aReviewsDept({
+      instructors: { "t~abcde23456": numbers(2) },
+      names: { "pat quill": "t~abcde23456", "ada brandt": "t~zzzzz23456" },
+    });
+    expect(terpsicleInstructor(ours, planetTerp, "Pat Quill")).toEqual({
+      id: "t~abcde23456",
+      numbers: numbers(2),
+    });
+    expect(terpsicleInstructor(ours, planetTerp, "Ada Brandt")?.id).toBe(
+      "brandt",
+    );
+  });
+
+  it("lets the owner's fix beat PlanetTerp's join", () => {
+    const ours = aReviewsDept({ names: { "ada brandt": "brandt_ada" } });
+    expect(terpsicleInstructor(ours, planetTerp, "Ada Brandt")).toEqual({
+      id: "brandt_ada",
+      numbers: null,
+    });
+  });
+
+  it("is null for a name nobody knows", () => {
+    expect(terpsicleInstructor(null, null, "Nobody")).toBeNull();
+  });
+});
