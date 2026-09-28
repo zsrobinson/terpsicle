@@ -348,7 +348,9 @@ export function WriteButton({
   const words = label ?? (existing ? "Edit your review" : "Write a review");
   if (!target)
     return (
-      <span className="text-base text-muted">Pick a course to review it</span>
+      <span className="text-base text-muted">
+        Pick a course below to review it
+      </span>
     );
   return (
     <WithTooltip

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Mark } from "~/app/brand/mark";
 import { defaultFirstTerm } from "~/core/four-year/terms";
 import type { IsoDate } from "~/core/schema";
+import { useAccount } from "~/features/auth/account-store";
 import { EmptyState } from "~/ui/empty-state";
 import {
   createDoc,
@@ -27,13 +28,19 @@ export function PlanFirstVisit({
   nav: PlanNav;
 }) {
   const [first, setFirst] = useState(() => defaultFirstTerm(today));
+  // Signed in, the plan syncs (V3 §2.4): "all in this browser" would be wrong.
+  const signedIn = useAccount((s) => s.status === "signed-in");
   return (
     <EmptyState
       equal
       headingLevel={1}
       mark={<Mark id="plan" size={40} />}
       title="Plan your four years"
-      line="Lay out every semester, see your credits add up to 120 and keep track of your GenEds. It's all in this browser, with nothing to sign up for, and a transcript you import never leaves it."
+      line={
+        signedIn
+          ? "Lay out every semester, see your credits add up to 120 and keep track of your GenEds. It's saved to your account, and a transcript you import never leaves your browser."
+          : "Lay out every semester, see your credits add up to 120 and keep track of your GenEds. It's all in this browser, with nothing to sign up for, and a transcript you import never leaves it."
+      }
       primary={{
         label: "Import your transcript",
         icon: <FileText aria-hidden="true" />,

@@ -57,6 +57,7 @@ export function HomePage() {
             now={tags.now}
             calendars={calendars}
             campus={campus}
+            signedIn={signedIn}
           />
           {signedIn && flags.todo ? <DueSection clock={clock} /> : null}
           {signedIn && flags.chat !== "off" && chatTerm ? (

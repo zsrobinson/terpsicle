@@ -5,7 +5,7 @@ import { track } from "~/app/analytics";
 import { modKey } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
 import { displayTitle } from "~/core/four-year/display-title";
-import { fourYearTermLabel } from "~/core/four-year/terms";
+import { fourYearTermLabel, latestTermOf } from "~/core/four-year/terms";
 import {
   buildTranscriptImport,
   EMPTY_TRANSCRIPT_CHECKS,
@@ -547,7 +547,10 @@ export function ImportPanel() {
       return;
     }
     resetTranscriptImport();
-    nav.go({ tab: undefined });
+    // A phone shows one semester: the latest imported one, not Now's
+    // (likely empty), so what just arrived is what you see.
+    const latest = wide ? null : latestTermOf(entries);
+    nav.go(latest ? { tab: undefined, semester: latest } : { tab: undefined });
     showBoard();
   };
 

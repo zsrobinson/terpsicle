@@ -51,7 +51,7 @@ import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
-import { PAGE_WIDTH } from "~/ui/product-page";
+import { PAGE_WIDTH, PageFooter } from "~/ui/product-page";
 import { PageSkeleton, RowSkeleton } from "~/ui/skeleton";
 import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
@@ -133,10 +133,10 @@ const WHAT_TODO_DOES =
 function FrontDoor({ returnTo }: { returnTo: string }) {
   const signIn = useSignInAction(returnTo, "todo");
   return (
-    <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+    <div className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div
         className={cn(
-          "mx-auto flex w-full flex-col gap-8 px-4 pt-6 pb-8",
+          "mx-auto flex w-full flex-1 flex-col gap-8 px-4 pt-6 pb-8",
           PAGE_WIDTH.app,
         )}
       >
@@ -149,6 +149,8 @@ function FrontDoor({ returnTo }: { returnTo: string }) {
         />
         <SamplePreview />
       </div>
+      {/* A page you read, like Chat's and Plan's front doors. */}
+      <PageFooter className={PAGE_WIDTH.app} />
     </div>
   );
 }

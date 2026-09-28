@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
+import { useAccount } from "~/features/auth/account-store";
 import { aFourYear, aFourYearEntry } from "~/fixtures";
 import {
   INITIAL_COURSE_INDEX_STATE,
@@ -266,6 +267,36 @@ describe("the first visit", () => {
     expect(track).toHaveBeenCalledWith("four_year_created", {
       source: "template",
     });
+  });
+
+  it("says where the plan is kept: this browser signed out, the account signed in", () => {
+    useFourYear.setState({ ...INITIAL_FOUR_YEAR_STORE, phase: "ready" });
+    useAccount.setState({ status: "signed-out", user: null });
+    const { unmount } = render(
+      <TooltipProvider>
+        <PlanFirstVisit today={TODAY} nav={nav(vi.fn())} />
+      </TooltipProvider>,
+    );
+    expect(
+      screen.getByText(/It's all in this browser, with nothing to sign up for/),
+    ).toBeInTheDocument();
+    unmount();
+
+    useAccount.setState({ status: "signed-in" });
+    render(
+      <TooltipProvider>
+        <PlanFirstVisit today={TODAY} nav={nav(vi.fn())} />
+      </TooltipProvider>,
+    );
+    expect(
+      screen.queryByText(/in this browser, with nothing to sign up for/),
+    ).toBeNull();
+    expect(
+      screen.getByText(
+        /It's saved to your account, and a transcript you import never leaves your browser/,
+      ),
+    ).toBeInTheDocument();
+    useAccount.setState({ status: "loading" });
   });
 
   it("starts the sample plan's four-year plan in the semester you pick", async () => {
