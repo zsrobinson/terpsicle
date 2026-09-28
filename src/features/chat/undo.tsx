@@ -27,7 +27,7 @@ export function showNote(label: string, retry?: () => void): void {
   noteToast(label, retry ? { retry } : {});
 }
 
-/** The time, updated every `everyMs`, for "Today" and "2 min ago". */
+/** The time, updated every `everyMs`, for day dividers ("Today") and who's typing. */
 export function useNow(everyMs = 30_000): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {

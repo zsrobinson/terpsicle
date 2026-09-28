@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
 import {
-  agoWords,
   compareItems,
   courseChatTerm,
   dayLabel,
@@ -164,18 +163,6 @@ describe("the header's words", () => {
     ).toBe(1);
   });
 
-  it("says how long ago", () => {
-    const at = (minutes: number) =>
-      new Date(NOW - minutes * 60_000).toISOString();
-    expect(agoWords(at(0), NOW)).toBe("just now");
-    expect(agoWords(at(-5), NOW)).toBe("just now");
-    expect(agoWords(at(14), NOW)).toBe("14 min ago");
-    expect(agoWords(at(60), NOW)).toBe("1 hour ago");
-    expect(agoWords(at(185), NOW)).toBe("3 hours ago");
-    expect(agoWords(at(24 * 60), NOW)).toBe("1 day ago");
-    expect(agoWords(at(3 * 24 * 60), NOW)).toBe("3 days ago");
-  });
-
   it("says when the feed was read, and whether the last try failed", () => {
     const ago14 = new Date(NOW - 14 * 60_000).toISOString();
     expect(feedWords(null, NOW)).toEqual({ checked: null, problem: null });
@@ -184,7 +171,14 @@ describe("the header's words", () => {
         aTodoFeedState({ lastSuccessAt: ago14, lastFetchAt: ago14 }),
         NOW,
       ),
-    ).toEqual({ checked: "ELMS feed checked 14 min ago", problem: null });
+    ).toEqual({ checked: "ELMS feed checked 14 minutes ago", problem: null });
+    const ago185 = new Date(NOW - 185 * 60_000).toISOString();
+    expect(
+      feedWords(
+        aTodoFeedState({ lastSuccessAt: ago185, lastFetchAt: ago185 }),
+        NOW,
+      ).checked,
+    ).toBe("ELMS feed checked 3 hours ago");
     expect(
       feedWords(
         aTodoFeedState({
@@ -195,7 +189,7 @@ describe("the header's words", () => {
         NOW,
       ),
     ).toEqual({
-      checked: "ELMS feed checked 14 min ago",
+      checked: "ELMS feed checked 14 minutes ago",
       problem: "ELMS didn't answer. We'll try again in 20 minutes.",
     });
     expect(

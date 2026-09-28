@@ -69,7 +69,7 @@ Published data beyond the term catalog, in `~/state/data-hooks`. Each hook start
 
 | Hook | Returns |
 |---|---|
-| `useSeatsFreshness(termId)` | `{ state, text, asOf }`. Put `text` above a section list: "Seats as of 2 min ago" (`live`, from Testudo's as-of time), "Seats stopped updating when this term was archived." (`archived`), "Offline · showing saved data" (`offline`), "Seats unknown" (`unknown`), or "" while `loading`. It re-renders every 30 s. |
+| `useSeatsFreshness(termId)` | `{ state, text, asOf }`. Put `text` above a section list: "Seats as of 2 minutes ago" (`live`, from Testudo's as-of time, in `relativeWords`), "Seats stopped updating when this term was archived." (`archived`), "Offline · showing saved data" (`offline`), "Seats unknown" (`unknown`), or "" while `loading`. It re-renders every 30 s. |
 | `useInstructors(dept)` | `{ data, state }`: the department's PlanetTerp file (`instructors` by slug, `names` for the Testudo-name join, `grades` per course), or `null` when PlanetTerp has none. |
 | `useAcademicCalendar(termId)` | `{ calendar, state }`: the provost calendar for .ics export. `status: "not-published"`, or `ready` with no calendar (no file yet), means the dates aren't out: say so plainly. Cached, so it works offline. |
 | `useCampus()` | `{ campus, state }`: core's `CampusMap` (routes and off-campus codes), `EMPTY_CAMPUS` until loaded. |

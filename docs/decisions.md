@@ -49,6 +49,11 @@ Revisit if: a view needs state that can't fit in a URL.
 Copy uses contractions everywhere ("It's supposed to feel a little personal"). Links between products read "View schedule", "View reviews", "View chat", never "Open in Reviews".
 Revisit if: never on its own.
 
+### Relative times read "3 hours ago", from one helper
+2026-09-28 · owner · app-wide
+"stick with '3 hours ago'. we should likely have shared helpers for things like this across all the tabs." Every relative time comes from `relativeWords` ("just now", "3 minutes ago", "3 hours ago", "yesterday", "3 days ago", then the date), and every span of time from `spanWords` ("3 hours"), both in `~/core/words`. No "3 hr", "3 h" or "2m", the bell's meta line included.
+Revisit if: a place truly can't fit the words; add a named compact variant beside them, never a private copy.
+
 ### No backward compatibility yet
 2026-09-26 · owner · app-wide
 The app isn't public, so old share links and routes can simply change.

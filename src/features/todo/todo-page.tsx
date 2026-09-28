@@ -89,7 +89,7 @@ const SIDEBAR_ID = "todo-sidebar";
 /** How many weeks each course's chart shows, ending with the week shown. */
 const CHART_WEEKS = 4;
 
-/** New York's date and the time, ticking each minute for "checked 14 min ago". */
+/** New York's date and the time, ticking each minute for "checked 14 minutes ago". */
 export function useNow(): { now: number; today: IsoDate } {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
