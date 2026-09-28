@@ -56,8 +56,12 @@ The cup-with-a-heart button beside Feedback. It opens a short note and a "Buy me
 _Avoid_: donate, tip
 
 **Sheet**:
-What a popover becomes on a phone: a panel that slides up from the bottom edge, closed with a swipe down, a tap above it or Esc (Notifications, Send feedback). Code says `Sheet`. Not the scheduler's drawer, which is always there.
+What a popover becomes on a phone: a panel that slides up from the bottom edge while the page dims and scales back behind it, closed with a swipe down, a tap above it or Esc (Notifications, Send feedback). A sheet is as tall as what's in it, or has two heights: half the screen (medium) and full (large), stepped by a drag or a tap on its grabber. Code says `Sheet`. Not the scheduler's drawer, which is always there.
 _Avoid_: modal, bottom sheet
+
+**Action menu**:
+A menu written once that's a menu under its button from 768px up and a sheet of the same items on a phone, headed by the menu's title (the plans, the account, the term, a sort). Code says `ActionMenu`.
+_Avoid_: dropdown
 
 **Page kind**:
 How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: admin), or full (a workbench and Todo, or Chat's split).

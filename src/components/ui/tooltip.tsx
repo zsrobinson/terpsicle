@@ -74,7 +74,7 @@ function TooltipContent({
             "flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
             // A fade in only (the `--dur-pop` motion token). No exit: a
             // closing tooltip would stay on screen over what comes next.
-            "transition-opacity duration-(--dur-pop) ease-(--ease-pop) data-starting-style:opacity-0 data-instant:transition-none",
+            "transition-opacity duration-(--dur-pop) ease-pop data-starting-style:opacity-0 data-instant:transition-none",
             className,
           )}
           {...props}

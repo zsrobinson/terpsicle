@@ -107,6 +107,12 @@ export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
         /(^|\/)vaul\/|^src\/(features\/schedule\/mobile-drawer|components\/workbench\/drawer|features\/four-year\/plan-drawer)\.tsx$/,
       why: "a workbench's phone drawer loads on phones only (lazyDrawer)",
     },
+    {
+      // Every page carries only the sheet's indent (ui/sheet-indent.tsx).
+      pattern:
+        /(^|\/)@base-ui\/react\/drawer\/(?!(provider|indent|indent-background)\/|popup\/DrawerPopupCssVars\.|backdrop\/DrawerBackdropCssVars\.)|^src\/components\/ui\/sheet\.tsx$/,
+      why: "a sheet's drawer loads with the first sheet (ActionMenu's on phones only)",
+    },
   ];
 
 /**

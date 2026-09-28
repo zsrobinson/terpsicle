@@ -36,7 +36,7 @@ function DialogContent({
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop
         data-slot="dialog-overlay"
-        className="fixed inset-0 z-50 bg-bg/60 transition-opacity duration-(--dur-pop) ease-(--ease-pop) data-ending-style:opacity-0 data-starting-style:opacity-0"
+        className="fixed inset-0 z-50 bg-bg/60 transition-opacity duration-(--dur-pop) ease-pop data-ending-style:opacity-0 data-starting-style:opacity-0"
       />
       <DialogPrimitive.Popup
         ref={popup}

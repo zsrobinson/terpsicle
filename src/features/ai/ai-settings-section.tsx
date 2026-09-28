@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useAccount } from "~/features/auth/account-store";
-import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
+import { showSyncedPrefs, syncedPrefs } from "~/features/prefs/synced-prefs";
 import { PageSection } from "~/ui/page-section";
 import { Switch } from "~/ui/switch";
 import { WithTooltip } from "~/ui/tooltip";
@@ -50,10 +50,13 @@ export function AiSettingsSection() {
 function useDeviceCopy(): void {
   useEffect(() => {
     let cancelled = false;
+    // A change made on the page while the read was out is newer than what it
+    // brings back (a switch flipped on a slow phone): keep the change.
+    const before = syncedPrefs();
     void import("~/features/prefs/save")
       .then((m) => m.devicePrefs())
       .then((prefs) => {
-        if (!cancelled) showSyncedPrefs(prefs);
+        if (!cancelled && syncedPrefs() === before) showSyncedPrefs(prefs);
       })
       .catch(() => {
         // IndexedDB blocked: the copy is all there is.

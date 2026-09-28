@@ -11,10 +11,13 @@ export const POPUP_CARD =
 /**
  * Enter and exit: a quick fade from 98% (the `--dur-pop` motion token), from
  * the point it grew out of. Base UI sets the starting and ending styles, and
- * `data-instant` when a close shouldn't animate (a pick, Esc).
+ * `data-instant` when a close shouldn't animate (a pick, Esc). Under Reduce
+ * Motion it only fades, as iOS does (the `!` beats styles.css's blanket
+ * `transition: none`). ActionMenu's desktop menu uses these too, so every
+ * menu looks and moves the same.
  */
 export const POPUP_MOTION =
-  "origin-(--transform-origin) transition-[opacity,scale] duration-(--dur-pop) ease-(--ease-pop) data-starting-style:scale-[0.98] data-starting-style:opacity-0 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-instant:transition-none";
+  "origin-(--transform-origin) transition-[opacity,scale] duration-(--dur-pop) ease-pop data-starting-style:scale-[0.98] data-starting-style:opacity-0 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-instant:transition-none motion-reduce:transition-opacity! motion-reduce:duration-(--dur-pop)! motion-reduce:data-starting-style:scale-100 motion-reduce:data-ending-style:scale-100 motion-reduce:data-instant:transition-none!";
 
 /** A menu's card: at least 180px wide, scrolling past the screen's edge. */
 export const MENU_POPUP = `${POPUP_CARD} ${POPUP_MOTION} min-w-[180px] max-h-(--available-height) overflow-y-auto overflow-x-hidden p-1`;

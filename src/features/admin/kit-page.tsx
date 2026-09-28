@@ -18,10 +18,19 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState } from "react";
 import { Mark } from "~/components/brand/mark";
+import { PanelBody } from "~/components/panel";
 import { ADMIN_KIT_PATH } from "~/core/routing";
 import { GEN_ED_LABELS } from "~/core/schema";
 import type { KitPart } from "~/core/schema/admin-kit";
 import { NO_FILTERS, type SearchFilters } from "~/core/search/filters";
+import {
+  ActionMenu,
+  ActionMenuCheckboxItem,
+  ActionMenuItem,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+  ActionMenuSeparator,
+} from "~/ui/action-menu";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
 import {
@@ -885,10 +894,13 @@ function ControlParts() {
   const [pace, setPace] = useState<"slower" | "typical" | "faster">("typical");
   const [routes, setRoutes] = useState<"standard" | "accessible">("accessible");
   const [term, setTerm] = useState("spring");
-  const [sheet, setSheet] = useState(false);
+  const [sheet, setSheet] = useState<"fit" | "detents" | null>(null);
   return (
     <>
-      <Sheet open={sheet} onOpenChange={setSheet}>
+      <Sheet
+        open={sheet === "fit"}
+        onOpenChange={(open) => setSheet(open ? "fit" : null)}
+      >
         <PageHeader
           size="panel"
           title={
@@ -900,6 +912,33 @@ function ControlParts() {
         <p className="px-4 py-3 text-muted text-sm">
           Nothing new. Notifications show up here, pushed or not.
         </p>
+      </Sheet>
+      <Sheet
+        open={sheet === "detents"}
+        onOpenChange={(open) => setSheet(open ? "detents" : null)}
+        detents={["medium", "large"]}
+      >
+        <PageHeader
+          size="panel"
+          title={
+            <SheetTitle asChild>
+              <span id={`${id}-notes`}>Notifications</span>
+            </SheetTitle>
+          }
+        />
+        <PanelBody focusable labelledBy={`${id}-notes`}>
+          <ul>
+            {KIT_NOTES.map(([who, what]) => (
+              <li
+                key={who + what}
+                className="border-hairline border-b px-4 py-2"
+              >
+                <span className="block font-medium">{who}</span>
+                <span className="block text-muted text-sm">{what}</span>
+              </li>
+            ))}
+          </ul>
+        </PanelBody>
       </Sheet>
       <PageSection title="Fields" aside="Input · SearchField">
         <Demo
@@ -1074,18 +1113,32 @@ function ControlParts() {
         </Demo>
       </PageSection>
 
-      <PageSection title="Sheet" aside="Sheet · SheetTitle">
-        <Demo
-          className="flex flex-col items-start gap-3 p-4"
-          caption="What a desktop popover becomes on a phone: a drawer from the bottom edge, named by its panel header."
-        >
-          <WithTooltip label="Open the sheet from the bottom edge">
-            <Button variant="outline" onClick={() => setSheet(true)}>
-              Open the sheet
-            </Button>
-          </WithTooltip>
-        </Demo>
+      <PageSection title="Sheet" aside="Sheet · SheetTitle · SheetIndent">
+        <Pair>
+          <Demo
+            className="flex flex-col items-start gap-3 p-4"
+            caption="What a desktop popover becomes on a phone: a drawer from the bottom edge, named by its panel header, as tall as what's in it. Swipe it down, tap above it or press Esc."
+          >
+            <WithTooltip label="Open the sheet from the bottom edge">
+              <Button variant="outline" onClick={() => setSheet("fit")}>
+                Open the sheet
+              </Button>
+            </WithTooltip>
+          </Demo>
+          <Demo
+            className="flex flex-col items-start gap-3 p-4"
+            caption="With detents: it opens at half the screen, and a drag or a tap on the grabber takes it to full. On a phone the page scales back behind it."
+          >
+            <WithTooltip label="Open a sheet at half the screen">
+              <Button variant="outline" onClick={() => setSheet("detents")}>
+                Open the sheet at medium
+              </Button>
+            </WithTooltip>
+          </Demo>
+        </Pair>
       </PageSection>
+
+      <ActionMenuParts />
     </>
   );
 }
@@ -1308,5 +1361,124 @@ function PopupParts() {
         </Demo>
       </PageSection>
     </>
+  );
+}
+
+const KIT_NOTES: readonly (readonly [string, string])[] = [
+  ["A seat opened in CMSC351", "0201 · 1 of 40 seats · 2 minutes ago"],
+  [
+    "Test Student in CMSC330",
+    "Is the project due Friday or Monday? · 5 minutes ago",
+  ],
+  ["ELMS: Problem set 4", "Due tomorrow at 11:59pm · 1 hour ago"],
+  ["A seat opened in MATH240", "0112 · 2 of 30 seats · 3 hours ago"],
+  ["Your review was published", "CMSC351 · yesterday"],
+  ["Test Student in MATH240", "Anyone want to study Thursday? · yesterday"],
+  ["ELMS: Quiz 3", "Due Wednesday at 9am · 2 days ago"],
+  ["A seat opened in ENGL101", "0304 · 1 of 19 seats · 2 days ago"],
+  ["Plan A was saved to your account", "Spring 2027 · 3 days ago"],
+  ["ELMS: Midterm 1", "Thursday at 12:30pm in ESJ 0202 · 4 days ago"],
+  ["Test Student in CMSC351", "Office hours moved to IRB 1116 · 5 days ago"],
+  ["A seat opened in PHYS161", "0203 · 3 of 36 seats · 6 days ago"],
+];
+
+const KIT_PLANS = {
+  a: { name: "Plan A", hint: "5 courses · 16 credits" },
+  b: { name: "Plan B", hint: "3 courses · 9 credits" },
+} as const;
+
+/** The kit's menu, which is a sheet on a phone. */
+function ActionMenuParts() {
+  const [plan, setPlan] = useState<keyof typeof KIT_PLANS>("a");
+  const [sort, setSort] = useState("time");
+  const [weekends, setWeekends] = useState(false);
+  const current = KIT_PLANS[plan];
+  return (
+    <PageSection
+      title="Action menu"
+      aside="ActionMenu · …Item · …RadioItem · …CheckboxItem"
+    >
+      <Pair>
+        <Demo
+          className="flex flex-wrap items-center gap-2 p-4"
+          caption="A menu under its trigger from 768px up; below, the same items in a sheet headed by the menu's title, the chosen one checked. One API for the product, account, term, plan and sort menus."
+        >
+          <ActionMenu
+            title="Plans"
+            description="Spring 2027"
+            tooltip="Switch plans, or make a new one"
+            trigger={<Button variant="outline">{current.name}</Button>}
+          >
+            <ActionMenuRadioGroup
+              value={plan}
+              onValueChange={(next) => setPlan(next === "b" ? "b" : "a")}
+            >
+              {(["a", "b"] as const).map((id) => (
+                <ActionMenuRadioItem
+                  key={id}
+                  value={id}
+                  hint={KIT_PLANS[id].hint}
+                >
+                  {KIT_PLANS[id].name}
+                </ActionMenuRadioItem>
+              ))}
+            </ActionMenuRadioGroup>
+            <ActionMenuSeparator />
+            <ActionMenuItem icon={<Plus aria-hidden="true" />} shortcut="N">
+              New plan
+            </ActionMenuItem>
+            <ActionMenuItem icon={<Copy aria-hidden="true" />}>
+              Duplicate {current.name}
+            </ActionMenuItem>
+            <ActionMenuSeparator />
+            <ActionMenuItem variant="destructive">
+              Delete {current.name}
+            </ActionMenuItem>
+          </ActionMenu>
+          <ActionMenu
+            title="Sort and show"
+            tooltip="Sort the list, and choose what it shows"
+            align="end"
+            trigger={
+              <Button variant="ghost" size="icon" aria-label="Sort and show">
+                <MoreHorizontal aria-hidden="true" />
+              </Button>
+            }
+          >
+            <ActionMenuRadioGroup
+              label="Sort by"
+              value={sort}
+              onValueChange={setSort}
+            >
+              <ActionMenuRadioItem value="time">Time</ActionMenuRadioItem>
+              <ActionMenuRadioItem value="code">
+                Course code
+              </ActionMenuRadioItem>
+              <ActionMenuRadioItem value="credits">Credits</ActionMenuRadioItem>
+            </ActionMenuRadioGroup>
+            <ActionMenuSeparator />
+            <ActionMenuCheckboxItem
+              checked={weekends}
+              onCheckedChange={setWeekends}
+              shortcut="W"
+            >
+              Show weekends
+            </ActionMenuCheckboxItem>
+          </ActionMenu>
+        </Demo>
+        <Demo
+          className="flex flex-col gap-1 p-4 text-sm"
+          caption="What the menus beside it hold now. Nothing here saves."
+        >
+          <span>
+            Plan: <span className="font-medium">{current.name}</span>
+          </span>
+          <span>
+            Sort: <span className="font-medium">{sort}</span> · weekends{" "}
+            {weekends ? "shown" : "hidden"}
+          </span>
+        </Demo>
+      </Pair>
+    </PageSection>
   );
 }
