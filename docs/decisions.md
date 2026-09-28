@@ -242,6 +242,16 @@ Revisit if: people want several results at once again (the owner's "Generate fro
 First visits to `/` see the marketing page; anyone with saved plans or a session goes to `/schedule`, and the installed app starts there.
 Revisit if: the marketing page gets something returning people need.
 
+### The marketing page: a week that gathers the products
+2026-09-28 · owner · one feature
+`/` is the round-4 "Guide" (version B) with its copy: the hero shows the plain week, then one step per product beside one sticky screen of the scheduler, where each step's piece lands on the week as it scrolls by. Schedule's step shows the Problems tab. The demos are small and local: fix a problem by switching sections (the walking conflict first), watch a full section for a seat, send a message into a sample room, check off a due date. Words and structure: docs/DESIGN.md §8.
+Revisit if: the owner asks for another round, or a product's own UI moves far from its piece.
+
+### No atom, no tangle on the marketing page
+2026-09-28 · owner · one feature
+The electron-orbit "atom" is rejected ("i don't like the atom idea even one bit"), and the detangle hero it followed is gone with its inline script. The strands concept stays out of the page's motion; motion is the screen gathering the products.
+Revisit if: the owner brings the strands back.
+
 ### Install prompt after key moments
 2026-09-26 · owner · one feature
 A dismissible dialog after the first sign-in, joining a chat or turning on a watch; remembered, with a long cooldown, never a banner, never when installed.

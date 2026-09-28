@@ -40,7 +40,7 @@ test("the dev server has compiled the scheduler, its views and the marketing pag
   await page.goto("/?stay");
   await expect(
     page.getByRole("heading", {
-      name: "Your semester's a tangle of tabs. Let's straighten it out.",
+      name: "Plan the semester in five steps, in one place.",
       level: 1,
     }),
   ).toBeVisible({ timeout: 60_000 });

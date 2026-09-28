@@ -25,6 +25,7 @@ const TABS = [
 ];
 
 const SIGNED_OUT = [
+  "/?stay",
   "/schedule/course/CMSC351?demo=1",
   "/reviews",
   "/reviews/cmsc351",

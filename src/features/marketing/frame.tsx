@@ -7,7 +7,7 @@ import { ContactEmail } from "~/features/site/contact-email";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 
-// The marketing page's header and footer, and the closing call to action.
+// The marketing page's header and footer.
 
 /**
  * Signed in, the header offers the way back in and the account, never "Sign
@@ -51,30 +51,6 @@ export function MarketingHeader() {
         )}
       </nav>
     </header>
-  );
-}
-
-export function ClosingSection() {
-  return (
-    <section
-      aria-labelledby="closing-title"
-      className="mk-section border-hairline border-t"
-    >
-      <div className="mk-wrap flex flex-col items-start gap-6">
-        <h2 id="closing-title" className="mk-display mk-h2">
-          Start with the schedule.
-        </h2>
-        <p className="mk-body">
-          It's free, it works signed out, and your plans stay in your browser
-          until you sign in. Then they sync, and your class chats open up.
-        </p>
-        <WithTooltip label="No account needed">
-          <Button asChild className="mk-cta">
-            <a href={SCHEDULE_PATH}>Open the scheduler</a>
-          </Button>
-        </WithTooltip>
-      </div>
-    </section>
   );
 }
 

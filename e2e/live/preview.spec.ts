@@ -174,7 +174,7 @@ test("/ shows the marketing page to a first visit, and /privacy loads", async ({
   await page.goto("/");
   // The hero's button; the closing section repeats it.
   await expect(
-    page.getByRole("link", { name: "Open the scheduler" }).first(),
+    page.getByRole("link", { name: "View schedule" }).first(),
   ).toBeVisible();
   await page.goto("/privacy");
   await expect(

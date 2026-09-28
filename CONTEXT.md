@@ -36,6 +36,10 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 
 ## Shared
 
+**Marketing page**:
+`/` for a first visit (returning people go to `/schedule`). Its **story** is the hero, then one **step** per product in color order, beside **the screen**: a sample of Schedule with Plan A that stays in view (sticky) while the steps scroll past. Each step's **piece** lands on the screen: the Problems tab, a rating card, a section's room, a semester of Plan, a few of Todo's cards. Everything on the screen is a sample: nothing is saved or sent.
+_Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected designs)
+
 **Family bar**:
 The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. On phones, and on the scheduler's bar below 1280px (where the Early access chip also gives its room to the plans), the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
 
