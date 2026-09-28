@@ -84,7 +84,7 @@ export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
       ) : chat === "off" ? (
         <ChatClosed />
       ) : status === "signed-out" ? (
-        <SignInMoment returnTo={chatHref(view)} />
+        <SignInMoment returnTo={chatHref(view)} course={view.course} />
       ) : (
         <ChatApp view={view} go={go} />
       )}
