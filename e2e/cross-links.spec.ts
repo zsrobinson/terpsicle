@@ -44,7 +44,7 @@ test("Plan links a course to its reviews, and the semester in progress to Todo",
   if (isMobile) await lowerPlanDrawer(page);
   await fall.getByRole("button", { name: "CMSC351 options" }).click();
   await page.getByRole("menuitem", { name: "View reviews" }).click();
-  await expect(page).toHaveURL(/\/reviews\/courses\/CMSC351$/);
+  await expect(page).toHaveURL(/\/reviews\/cmsc351$/);
   await expect(
     page.getByRole("heading", { level: 1, name: /CMSC351/ }),
   ).toBeVisible();

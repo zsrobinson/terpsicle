@@ -243,7 +243,22 @@ A signed-in student's rating and text for a course and professor. Readers, moder
 The LLM summary of a professor's reviews, with theme chips. It carries the sparkles.
 
 **PlanetTerp**:
-The outside site whose ratings and grade data we show, with credit and a link.
+The outside site whose ratings, reviews and grade data we show, with credit and a link.
+
+**PlanetTerp review**:
+A review written on PlanetTerp, shown on Reviews' pages among ours, newest first, with a "PlanetTerp" chip whose tooltip says where it's from and which links there. No author, as on PlanetTerp. The nightly PlanetTerp job keeps them current.
+_Avoid_: imported review, external review
+
+**Page address**:
+Where an instructor's or a course's page lives: one level under `/reviews`, `/reviews/kruskal` or `/reviews/cmsc351`. An instructor's is PlanetTerp's slug with its underscore as a hyphen (`goldman-aaron`); a course's is its code in lowercase.
+_Avoid_: slug (in copy), `/reviews/instructors/…` (the old address, which moves)
+
+**Most reviewed**:
+The professors with the most PlanetTerp reviews. Listed on `/reviews` beside **most taken**, as equals.
+_Avoid_: popular, top-rated
+
+**Review your instructors**:
+The quiet list on `/reviews`, signed in, of the instructors of the sections in your schedules for terms that are over (or in their last six weeks), each one tap from the form. Never a banner.
 
 **Most taken**:
 The courses offered now that the most students have taken, by PlanetTerp's grade data. Listed on `/reviews`.
@@ -252,6 +267,13 @@ _Avoid_: popular, trending
 **Recently reviewed**:
 The courses and instructors with a new review on Terpsicle, by month. Listed on `/reviews`; it names pairs, never reviews.
 _Avoid_: latest reviews
+
+**Grade data**:
+The admin page (`/admin/grades`) listing the fall and spring semesters whose grades aren't in PlanetTerp's data yet, with the words of a **grade request** and a place to note when each went out.
+
+**Grade request**:
+A Maryland Public Information Act request to the university's Office of General Counsel for a semester's grade distributions, one row per section. How PlanetTerp gets its grades.
+_Avoid_: FOIA request (that's federal)
 
 ## Chat
 

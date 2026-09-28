@@ -541,7 +541,7 @@ describe("links to the other products", () => {
     );
     expect(
       await screen.findByRole("menuitem", { name: "View reviews" }),
-    ).toHaveAttribute("href", "/reviews/courses/CMSC351");
+    ).toHaveAttribute("href", "/reviews/cmsc351");
     await user.click(screen.getByRole("menuitem", { name: "View reviews" }));
     expect(track).toHaveBeenCalledWith("cross_link_clicked", {
       from: "plan",

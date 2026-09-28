@@ -289,6 +289,97 @@ const SUMMARIES: Readonly<
   },
 };
 
+/** Openings, middles and closings for mock PlanetTerp reviews: invented, about nobody. */
+const REVIEW_PARTS = {
+  open: [
+    "Lectures were clear and well organized.",
+    "Honestly one of the better classes I've taken here.",
+    "The material is hard, and the pace doesn't let up.",
+    "Nice person, but the lectures ramble.",
+    "Great at explaining the why behind each idea.",
+    "Exams were fair if you did the homework.",
+    "I went in nervous and came out liking the subject.",
+  ],
+  middle: [
+    "Office hours helped a lot, so go early in the week.",
+    "Homework takes a few hours, and it's the best practice for the exams.",
+    "The projects were long but taught me the most.",
+    "Slides are posted, but the examples on the board matter more.",
+    "Grading felt slow, and feedback came late.",
+    "Quizzes every week keep you honest.",
+    "The TAs were great and discussion was worth going to.",
+  ],
+  close: [
+    "Would take again.",
+    "Start the assignments early and you'll be fine.",
+    "Not easy, but fair.",
+    "Go to lecture: not everything is in the notes.",
+    "I'd recommend it if the time works for you.",
+    "",
+  ],
+} as const;
+
+const EXPECTED = ["A", "A-", "B+", "B", "A+", "", "C", "P", "W", "95"];
+
+/** Mock PlanetTerp reviews per instructor, at most, so local D1 stays small. */
+const MOCK_REVIEWS_EACH = 14;
+
+/**
+ * Mock PlanetTerp reviews, shaped as PlanetTerp's API lists them
+ * (`professors?reviews=true`), for the local D1 in `pnpm dev:mock`
+ * (scripts/seed-mock-data.ts). Invented words about invented people.
+ */
+export const mockPlanetTerpReviews: readonly {
+  slug: string;
+  name: string;
+  reviews: {
+    course: string | null;
+    review: string;
+    rating: number;
+    expected_grade: string;
+    created: string;
+  }[];
+}[] = [...built.instructors.values()]
+  .filter((i) => i.reviewCount > 0 && i.latestReviewAt)
+  .map((i) => {
+    const rand = seededRandom(`reviews:${i.slug}`);
+    const courses = mockPlanetTerpDepts.flatMap((d) =>
+      Object.entries(d.courses).flatMap(([code, g]) =>
+        g.byInstructor[i.slug] ? [code] : [],
+      ),
+    );
+    const pick = <T>(list: readonly T[]): T =>
+      list[randomInt(rand, 0, list.length - 1)] as T;
+    const latest = Date.parse(i.latestReviewAt ?? MOCK_LATEST_REVIEW_AT);
+    const reviews = Array.from(
+      { length: Math.min(i.reviewCount, MOCK_REVIEWS_EACH) },
+      (_, n) => {
+        // Around the instructor's rating, clamped to 1–5.
+        const rating = Math.max(
+          1,
+          Math.min(5, Math.round((i.rating ?? 3) + (rand() - 0.5) * 2.4)),
+        );
+        const created = new Date(
+          latest - (n * 45 + randomInt(rand, 0, 30)) * 86_400_000,
+        );
+        return {
+          course: courses.length > 0 && rand() > 0.1 ? pick(courses) : null,
+          review: [
+            pick(REVIEW_PARTS.open),
+            pick(REVIEW_PARTS.middle),
+            pick(REVIEW_PARTS.close),
+          ]
+            .filter(Boolean)
+            .join(" "),
+          rating,
+          expected_grade: pick(EXPECTED),
+          created: created.toISOString(),
+        };
+      },
+    );
+    return { slug: i.slug, name: i.name, reviews };
+  });
+
 /** Mock review summaries (model "mock-fixture"), keyed by slug. Invented text about invented people. */
 export const mockReviewSummaries: readonly ReviewSummary[] = Object.entries(
   SUMMARIES,

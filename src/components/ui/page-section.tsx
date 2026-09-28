@@ -13,6 +13,7 @@ export function PageSection({
   title,
   aside,
   headingLevel = 2,
+  size = "page",
   children,
   className,
 }: {
@@ -21,6 +22,8 @@ export function PageSection({
   aside?: ReactNode;
   /** `h2` under a page's `h1`; `h3` inside another section. */
   headingLevel?: 2 | 3;
+  /** `display`: a public reading page's section, set larger and roomier. */
+  size?: "page" | "display";
   children: ReactNode;
   className?: string;
 }) {
@@ -31,13 +34,37 @@ export function PageSection({
         // A rule between sections; the first one in its column, or the one
         // right under a page header, has the header's rule (or its
         // container's edge) above it already.
-        "flex flex-col gap-2 border-hairline border-t pt-3 first:border-t-0 first:pt-0 [[data-slot=page-header]+&]:border-t-0 [[data-slot=page-header]+&]:pt-0",
+        "flex flex-col border-hairline border-t first:border-t-0 first:pt-0 [[data-slot=page-header]+&]:border-t-0 [[data-slot=page-header]+&]:pt-0",
+        size === "display" ? "gap-4 pt-6" : "gap-2 pt-3",
         className,
       )}
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <Heading className="font-semibold text-base">{title}</Heading>
-        {aside ? <div className="text-muted text-xs">{aside}</div> : null}
+      <div
+        className={cn(
+          "flex items-baseline justify-between gap-3",
+          // A phone puts the aside under the larger title, not beside it.
+          size === "display" &&
+            "max-sm:flex-col max-sm:items-start max-sm:gap-1",
+        )}
+      >
+        <Heading
+          className={
+            size === "display"
+              ? "font-semibold text-2xl tracking-tight"
+              : "font-semibold text-base"
+          }
+        >
+          {title}
+        </Heading>
+        {aside ? (
+          <div
+            className={
+              size === "display" ? "text-base text-muted" : "text-muted text-xs"
+            }
+          >
+            {aside}
+          </div>
+        ) : null}
       </div>
       {children}
     </section>

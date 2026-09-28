@@ -16,7 +16,7 @@ import { liveToasts } from "./toasts";
 // Keiko Ashdown ("ashdown_keiko") teaches CMSC351 in the mock term, with 142
 // PlanetTerp reviews.
 
-const INSTRUCTOR = "/reviews/instructors/ashdown_keiko?course=CMSC351";
+const INSTRUCTOR = "/reviews/ashdown-keiko?course=CMSC351";
 const SUMMARY =
   "Students say the lectures are clear and the exams are fair, but the problem sets take a long time.";
 

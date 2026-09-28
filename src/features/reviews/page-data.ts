@@ -1,9 +1,15 @@
 import {
   type CoursePageData,
+  courseFromSlug,
   coursePageData,
+  courseSlug,
+  type InstructorMatch,
   type InstructorPageData,
+  instructorIdCandidates,
   instructorPageData,
+  instructorSlug,
   matchCourses,
+  matchInstructors,
   type RecentReview,
   type Suggestion,
 } from "~/core/reviews";
@@ -15,8 +21,11 @@ import {
   type DeptCode,
   type InstructorId,
   InstructorIdSchema,
+  instructorNameKey,
   MintedInstructorIdSchema,
+  type PageReviews,
   type PlanetTerpDept,
+  type PlanetTerpIndex,
 } from "~/core/schema";
 import { suggestCourses, suggestInstructors } from "~/core/seo";
 import {
@@ -24,6 +33,7 @@ import {
   loadCourseSearch,
   loadCurrentCourse,
   loadCurrentTerm,
+  loadOurNumbers,
   loadPlanetTerp,
   loadPlanetTerpIndex,
   type Reader,
@@ -33,10 +43,10 @@ import { reviewsClient } from "./reviews-store";
 
 // What each public Reviews route's loader returns (src/routes/reviews.*).
 // The server's render hydrates with its own data, so its HTML and the page
-// agree; after a navigation in the browser the same loader runs there, but
-// without Terpsicle's D1 numbers (`terpsicle` is null), which only the head's
-// description and the course's JSON-LD use. Null means "not found": the
-// route answers 404.
+// agree, reviews and all; after a navigation in the browser the same loader
+// runs there, reading the published files and `reviews/page`. Our numbers
+// come from D1 on the server and from the hourly `reviews/` files in the
+// browser. Null means "not found": the route answers 404.
 
 /** Departments' files an instructor page reads, at most. */
 const INSTRUCTOR_DEPTS_MAX = 4;
@@ -54,12 +64,24 @@ export async function loadCoursePage(
   serverContext?: PageRequestContext,
 ): Promise<CoursePageData | null> {
   const reader = await readerFor(serverContext);
+  const dept = code.slice(0, 4);
   const [entry, current, planetTerp, terpsicle] = await Promise.all([
     loadCourseEntry(reader, code),
     loadCurrentCourse(reader, code),
-    loadPlanetTerp(reader, code.slice(0, 4)),
+    loadPlanetTerp(reader, dept),
     reader.reviews?.courseNumbers(code) ?? null,
   ]);
+  const ids = Object.keys(
+    planetTerp.dept?.courses[code]?.byInstructor ?? {},
+  ).concat(
+    (current?.course?.sections ?? []).flatMap((s) =>
+      s.instructors.flatMap((name) => {
+        const id = planetTerp.dept?.names[instructorNameKey(name)];
+        return id ? [id] : [];
+      }),
+    ),
+  );
+  const ourNumbers = await loadOurNumbers(reader, [...new Set(ids)], [dept]);
   return coursePageData({
     code,
     entry,
@@ -68,6 +90,7 @@ export async function loadCoursePage(
     gradesThrough: planetTerp.gradesThrough,
     source: planetTerp.source,
     terpsicle,
+    ourNumbers,
   });
 }
 
@@ -112,8 +135,7 @@ export async function loadInstructorPage(
   }
   const planetTerp = await loadPlanetTerp(reader, depts[0] ?? "");
   const terpsicle =
-    (await reader.reviews?.instructorNumbers([instructorId]))?.[instructorId] ??
-    null;
+    (await loadOurNumbers(reader, [instructorId], depts))[instructorId] ?? null;
   const input = {
     id: instructorId,
     course: courseCode,
@@ -170,6 +192,81 @@ async function planetTerpFiles(
   return loaded.flatMap((l) => (l.dept ? [l.dept] : []));
 }
 
+// ---------- /reviews/$slug: either ----------
+
+/** What `/reviews/$slug` shows: a course's page or an instructor's. */
+export type ReviewsPageData =
+  | { kind: "course"; course: CoursePageData; reviews: PageReviews }
+  | {
+      kind: "instructor";
+      instructor: InstructorPageData;
+      reviews: PageReviews;
+    };
+
+export type ReviewsPageLoad =
+  | ReviewsPageData
+  /** The page lives at another address (`CMSC351`, `goldman_aaron`). */
+  | { kind: "moved"; slug: string }
+  | { kind: "missing"; what: "course" | "instructor" };
+
+/**
+ * A course's page when the address is a course code (the pattern alone
+ * says so), else an instructor's. An instructor's address with a hyphen may
+ * be PlanetTerp's underscore, so PlanetTerp's index says which it is.
+ */
+export async function loadReviewsPage(
+  slug: string,
+  course: string | undefined,
+  serverContext?: PageRequestContext,
+): Promise<ReviewsPageLoad> {
+  const code = courseFromSlug(slug);
+  if (code) {
+    if (slug !== courseSlug(code))
+      return { kind: "moved", slug: courseSlug(code) };
+    const [data, reviews] = await Promise.all([
+      loadCoursePage(code, serverContext),
+      readerFor(serverContext).then((r) =>
+        r.pageReviews({ instructorId: null, course: code }),
+      ),
+    ]);
+    return data
+      ? { kind: "course", course: data, reviews }
+      : { kind: "missing", what: "course" };
+  }
+  const id = await resolveInstructor(slug, serverContext);
+  if (id === null) return { kind: "missing", what: "instructor" };
+  if (instructorSlug(id) !== slug)
+    return { kind: "moved", slug: instructorSlug(id) };
+  const courseCode = course ? parseCourseParam(course) : null;
+  const [data, reviews] = await Promise.all([
+    loadInstructorPage(id, course, serverContext),
+    readerFor(serverContext).then((r) =>
+      r.pageReviews({ instructorId: id, course: courseCode }),
+    ),
+  ]);
+  return data
+    ? { kind: "instructor", instructor: data, reviews }
+    : { kind: "missing", what: "instructor" };
+}
+
+/** The instructor an address names; null when it can't be anyone. */
+async function resolveInstructor(
+  slug: string,
+  serverContext: PageRequestContext | undefined,
+): Promise<InstructorId | null> {
+  // Addresses are lowercase, as PlanetTerp's slugs are: /reviews/Kruskal moves.
+  const candidates = instructorIdCandidates(slug.toLowerCase());
+  if (candidates.length <= 1) return candidates[0] ?? null;
+  const index = await loadPlanetTerpIndex(await readerFor(serverContext)).catch(
+    () => null,
+  );
+  return (
+    candidates.find((id) => index?.instructors[id] !== undefined) ??
+    candidates[0] ??
+    null
+  );
+}
+
 // ---------- /reviews ----------
 
 /** Rows a search shows at once; a department's code shows all of its courses. */
@@ -181,10 +278,20 @@ export interface ReviewsHomeData {
   departments: { code: DeptCode; name: string; courseCount: number }[];
   /** [code, title, students], offered now. */
   mostTaken: [CourseCode, string, number][];
+  /** [id, name, reviews, rating]: the professors most reviewed on PlanetTerp. */
+  mostReviewed: PlanetTerpIndex["mostReviewed"];
   recent: RecentReview[];
   /** `?q=`'s matches, so the server's HTML lists them. */
-  results: CourseSearchRow[];
+  results: SearchResults;
 }
+
+/** What a search found: instructors and courses, as equals. */
+export interface SearchResults {
+  instructors: InstructorMatch[];
+  courses: CourseSearchRow[];
+}
+
+export const NO_RESULTS: SearchResults = { instructors: [], courses: [] };
 
 /** Pairs the home page lists under "Recently reviewed". */
 const RECENT_SHOWN = 8;
@@ -196,10 +303,21 @@ export function isDeptQuery(q: string): boolean {
 
 export function searchResults(
   rows: readonly CourseSearchRow[],
+  index: PlanetTerpIndex | null,
   q: string,
-): CourseSearchRow[] {
+): SearchResults {
   const found = matchCourses(rows, q);
-  return isDeptQuery(q) ? found : found.slice(0, SEARCH_RESULTS);
+  return {
+    // A department's code browses its courses: nobody's name is four letters of code.
+    instructors:
+      isDeptQuery(q) && found.length > 0
+        ? []
+        : matchInstructors(index?.instructors ?? {}, q).slice(
+            0,
+            SEARCH_RESULTS,
+          ),
+    courses: isDeptQuery(q) ? found : found.slice(0, SEARCH_RESULTS),
+  };
 }
 
 export async function loadReviewsHome(
@@ -221,8 +339,9 @@ export async function loadReviewsHome(
       courseCount: d.courseCount,
     })),
     mostTaken: index?.mostTaken ?? [],
+    mostReviewed: index?.mostReviewed ?? [],
     recent,
-    results: q?.trim() ? searchResults(rows, q) : [],
+    results: q?.trim() ? searchResults(rows, index, q) : NO_RESULTS,
   };
 }
 

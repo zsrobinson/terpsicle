@@ -8,10 +8,11 @@ import { liveToasts } from "./toasts";
 // can't finish and every new review waits for a person, as it would when
 // the model is down: the held state is what a writer sees here.
 //
-// Keiko Ashdown ("ashdown_keiko") teaches CMSC351 in the mock term, with 142
-// PlanetTerp reviews at 3.1.
+// Keiko Ashdown ("ashdown_keiko", at /reviews/ashdown-keiko) teaches CMSC351
+// in the mock term, with 142 PlanetTerp reviews at 3.1; `pnpm dev:mock` seeds
+// a few invented ones of them into local D1, as the nightly job would.
 
-const INSTRUCTOR = "/reviews/instructors/ashdown_keiko?course=CMSC351";
+const INSTRUCTOR = "/reviews/ashdown-keiko?course=CMSC351";
 const BODY =
   "Lectures were clear and the problem sets matched the exams closely. Office hours were worth it.";
 const HELD =
@@ -64,39 +65,53 @@ async function deleteMyReviews(page: Page) {
   });
 }
 
-test("anyone can find a course and read an instructor's numbers", async ({
+test("anyone can find a course or an instructor and read their reviews", async ({
   page,
 }) => {
   await page.goto("/reviews");
   await expect(
-    page.getByRole("heading", { name: "Terpsicle Reviews", level: 1 }),
+    page.getByRole("heading", {
+      name: "UMD course and instructor reviews",
+      level: 1,
+    }),
   ).toBeVisible();
   await hydrated(page);
-  await page.getByPlaceholder(/Find a course/).fill("cmsc 351");
-  await page.getByRole("link", { name: /CMSC351\s*Algorithms/ }).click();
-
+  const search = page.getByPlaceholder(/Search instructors and courses/);
+  // Instructors and courses are found alike.
+  await search.fill("ashdown");
   await expect(
-    page.getByRole("heading", { name: "CMSC351 · Algorithms", level: 1 }),
+    page
+      .getByRole("list", { name: "Instructors" })
+      .getByRole("link", { name: "Keiko Ashdown" }),
+  ).toHaveAttribute("href", "/reviews/ashdown-keiko");
+  await search.fill("cmsc 351");
+  await page
+    .getByRole("list", { name: "Courses" })
+    .getByRole("link", { name: /CMSC351\s*Algorithms/ })
+    .click();
+
+  await expect(page).toHaveURL(/\/reviews\/cmsc351$/);
+  await expect(
+    page.getByRole("heading", { name: "CMSC351 Algorithms", level: 1 }),
   ).toBeVisible();
   await expect(page.getByTestId("grade-bars")).toBeVisible();
-  await page.getByRole("link", { name: "Keiko Ashdown" }).click();
+  await page.getByRole("link", { name: "Keiko Ashdown" }).first().click();
 
-  await expect(page).toHaveURL(
-    /\/reviews\/instructors\/ashdown_keiko\?course=CMSC351$/,
-  );
+  await expect(page).toHaveURL(/\/reviews\/ashdown-keiko\?course=CMSC351$/);
   await expect(
     page.getByRole("heading", { name: "Keiko Ashdown", level: 1 }),
   ).toBeVisible();
-  await expect(page.getByTestId("rating-math")).toHaveText(
-    "from 142 reviews on PlanetTerp",
+  // PlanetTerp's 142, and ours from the published numbers (the mock bucket
+  // has some for her) while the page shows one course.
+  await expect(page.getByTestId("rating-math")).toContainText(
+    /(3\.1 from 142|142 reviews) on PlanetTerp/,
   );
-  // PlanetTerp's words stay on PlanetTerp: a credited link, never the text.
+  // PlanetTerp's reviews are here, each marked and linking to PlanetTerp.
+  const theirs = page.locator('article[data-source="planetterp"]');
+  await expect(theirs.first()).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /142 reviews on PlanetTerp/ }),
+    theirs.first().getByRole("link", { name: "PlanetTerp" }),
   ).toHaveAttribute("href", "https://planetterp.com/professor/ashdown_keiko");
-  await expect(
-    page.getByText("No reviews of CMSC351 on Terpsicle yet.", { exact: false }),
-  ).toBeVisible();
 
   // Phones: nothing runs off the side.
   const overflow = await page.evaluate(
@@ -187,15 +202,18 @@ test("reporting asks for a sign-in, then sends the reason", async ({
   isMobile,
 }) => {
   test.skip(isMobile, "the same form on phones");
-  // Nothing publishes without Workers AI, so the list answers with one
-  // review here; the report itself goes to the real server, which says the
-  // review isn't up.
-  await page.route("**/api/reviews/list", (route) =>
+  // Nothing publishes without Workers AI, so the page's reviews answer with
+  // one of ours here; the report itself goes to the real server, which says
+  // the review isn't up. The server renders a page's first reviews itself,
+  // so this is the page as the browser loads it: after a click from the
+  // course.
+  await page.route("**/api/reviews/page", (route) =>
     route.fulfill({
       json: {
-        reviews: [
+        terpsicle: [
           {
             id: "e2eReviewNotPosted0001",
+            instructorId: "ashdown_keiko",
             course: "CMSC351",
             termId: null,
             rating: 2,
@@ -205,11 +223,18 @@ test("reporting asks for a sign-in, then sends the reason", async ({
             edited: false,
           },
         ],
+        planetTerp: [],
         next: null,
       },
     }),
   );
-  await page.goto(INSTRUCTOR);
+  const openFromCourse = async () => {
+    await page.getByRole("link", { name: "Keiko Ashdown" }).first().click();
+    await expect(page).toHaveURL(/\/reviews\/ashdown-keiko/);
+  };
+  await page.goto("/reviews/cmsc351");
+  await hydrated(page);
+  await openFromCourse();
   await page.getByRole("button", { name: "Report" }).click();
   await expect(
     page.getByText("Sign in with your UMD account to report a review.", {
@@ -217,7 +242,8 @@ test("reporting asks for a sign-in, then sends the reason", async ({
     }),
   ).toBeVisible();
 
-  await signIn(page, "Test Classmate", INSTRUCTOR);
+  await signIn(page, "Test Classmate", "/reviews/cmsc351");
+  await openFromCourse();
   await page.getByRole("button", { name: "Report" }).click();
   const form = page.getByRole("form", { name: "Report this review" });
   await form.getByRole("radio", { name: "Names a student" }).click();
@@ -245,12 +271,10 @@ test("course details in the scheduler link to the instructor's reviews", async (
   const read = page.getByRole("link", { name: "View reviews" }).first();
   await expect(read).toHaveAttribute(
     "href",
-    /^\/reviews\/instructors\/[^?]+\?course=CMSC351$/,
+    /^\/reviews\/[^/?]+\?course=CMSC351$/,
   );
   await read.click();
-  await expect(page).toHaveURL(
-    /\/reviews\/instructors\/ashdown_keiko\?course=CMSC351$/,
-  );
+  await expect(page).toHaveURL(/\/reviews\/ashdown-keiko\?course=CMSC351$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
@@ -260,9 +284,9 @@ for (const scheme of ["light", "dark"] as const)
     for (const path of [
       "/reviews",
       "/reviews?q=CMSC",
-      "/reviews/courses/CMSC351",
+      "/reviews/cmsc351",
       INSTRUCTOR,
-      "/reviews/instructors/keiko-ashdown",
+      "/reviews/keiko-ashdown",
       "/reviews/policy",
     ]) {
       await page.goto(path);

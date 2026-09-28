@@ -266,13 +266,23 @@ Revisit if: people don't find reviews from the scheduler.
 
 ### Search markup never borrows PlanetTerp's ratings
 2026-09-26 · agent · one feature
-JSON-LD `aggregateRating` appears only on course pages and only from Terpsicle's own published reviews: Google forbids ratings aggregated from other sites, and Person isn't a review-snippet type. Instructor pages carry Person and BreadcrumbList markup only, and `?course=` views canonicalize to the instructor's page.
+JSON-LD `aggregateRating` appears only on course pages and only from Terpsicle's own published reviews: Google forbids ratings aggregated from other sites, and Person isn't a review-snippet type. Instructor pages carry Person and BreadcrumbList markup only, and `?course=` views canonicalize to the instructor's page. No `review` items either: Google requires each one's author, and ours have none on purpose. (Checked again 2026-09-28, when our reviews started rendering on the server, so the rating's reviews are on the page as the guidelines require.)
 Revisit if: PlanetTerp agrees to let us use its ratings, or Google's rules change.
 
-### PlanetTerp text stays off
-2026-09-26 · owner · one feature
-PlanetTerp numbers show with credit; storing their review text waits until PlanetTerp agrees.
-Revisit if: PlanetTerp agrees.
+### PlanetTerp reviews are shown, marked as theirs
+2026-09-28 · owner · one feature
+"let's actually display reviews from planetterp; i'm going to say it's okay." Their reviews appear among ours, newest first, each with a "PlanetTerp" chip (tooltip and link), no author. The nightly PlanetTerp job keeps them in D1 and rewrites only the instructors whose reviews changed. (changed 2026-09-28: "PlanetTerp text stays off" said text waited on PlanetTerp's OK.)
+Revisit if: PlanetTerp asks us to stop.
+
+### Reviews pages live one level under /reviews
+2026-09-28 · owner · one feature
+`/reviews/kruskal` and `/reviews/cmsc351`, not `/reviews/instructors/…` ("too much to look normal when showing up on google"). A course code's pattern tells the two apart; an instructor's address is PlanetTerp's slug with a hyphen for its underscore (`goldman-aaron`), since search engines read a hyphen as a space. The old addresses move with a 301.
+Revisit if: an instructor's slug ever matches a course code, or `/reviews/<word>` is needed for a page of ours.
+
+### Reviews before grades, and Reviews reads as a public site
+2026-09-28 · owner · one feature
+"reviews are more important to display than grades"; instructors and courses are equals. Reviews' pages use the kit's `display` sizes (bigger type, roomier sections), the product's purple as an accent, and a bar with no rule until the page scrolls.
+Revisit if: the other products want a public page too.
 
 ### Published review numbers carry a month, never a time or text
 2026-09-26 · agent · one feature

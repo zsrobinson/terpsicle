@@ -12,10 +12,11 @@ import {
 import {
   aManifest,
   aMyReview,
+  aPageReview,
   aPlanetTerpDept,
   aPlanetTerpIndex,
   aPlanetTerpManifest,
-  aPublicReview,
+  aPlanetTerpReview,
   aTermsFile,
   FIXTURE_HASH,
   fixtureTermId,
@@ -29,9 +30,9 @@ import { MyReviewsPage } from "./mine-page";
 import { ReviewsNotFound } from "./not-found";
 import {
   instructorSuggestions,
-  loadCoursePage,
   loadInstructorPage,
   loadReviewsHome,
+  loadReviewsPage,
 } from "./page-data";
 import { useReviews } from "./reviews-store";
 import {
@@ -68,21 +69,50 @@ afterEach(() => {
 
 /** Brandt's page as the route renders it: the loader, then the page. */
 async function instructor(course: string | null = "CMSC351") {
-  const data = await loadInstructorPage("brandt", course ?? undefined);
-  if (!data) throw new Error("the loader didn't find brandt");
-  return renderPage(<InstructorPage data={data} />);
+  const page = await loadReviewsPage("brandt", course ?? undefined);
+  if (page.kind !== "instructor")
+    throw new Error("the loader didn't find brandt");
+  return renderPage(
+    <InstructorPage
+      data={page.instructor}
+      reviews={page.reviews}
+      write={false}
+    />,
+  );
 }
+
+/** CMSC351's page as the route renders it. */
+async function course() {
+  const page = await loadReviewsPage("cmsc351", undefined);
+  if (page.kind !== "course") throw new Error("the loader didn't find CMSC351");
+  return renderPage(
+    <CoursePage data={page.course} reviews={page.reviews} write={null} />,
+    "/reviews/cmsc351",
+  );
+}
+
+/** reviews/page's answer: ours, then PlanetTerp's first page. */
+const answer =
+  (
+    terpsicle: ReturnType<typeof aPageReview>[] | null,
+    planetTerp: ReturnType<typeof aPlanetTerpReview>[] = [],
+    next: string | null = null,
+  ) =>
+  async () => ({ terpsicle, planetTerp, next });
 
 describe("an instructor's page", () => {
   it("combines PlanetTerp's rating with ours, and shows the math", async () => {
     setAccount({ reviews: "on" });
-    fakeReviewsClient({
-      list: async () => ({
-        reviews: [aPublicReview({ rating: 5 })],
-        next: null,
+    fakeReviewsClient({ page: answer([aPageReview({ rating: 5 })]) });
+    // Every course: PlanetTerp's index says which departments list her.
+    publishFiles({
+      "planetterp/manifest.json": aPlanetTerpManifest({
+        index: { hash: FIXTURE_HASH },
       }),
+      [`planetterp/dept/CMSC.${FIXTURE_HASH}.json`]: aPlanetTerpDept(),
+      [planetTerpIndexKey(FIXTURE_HASH)]: aPlanetTerpIndex(),
     });
-    await instructor();
+    await instructor(null);
     expect(
       await screen.findByRole("heading", { name: "Ada Brandt" }),
     ).toBeInTheDocument();
@@ -90,28 +120,100 @@ describe("an instructor's page", () => {
     expect(await screen.findByTestId("rating-math")).toHaveTextContent(
       "from 62 reviews: 4.2 from 61 on PlanetTerp, 5.0 from 1 on Terpsicle",
     );
-    expect(
-      screen.getByRole("link", { name: /^61 more reviews on PlanetTerp/ }),
-    ).toHaveAttribute("href", "https://planetterp.com/professor/brandt");
-    // PlanetTerp's grade bars for the course, credited.
-    expect(screen.getByTestId("grade-bars")).toBeInTheDocument();
+    // Grades come after the reviews, and are PlanetTerp's, credited.
     expect(screen.getByText(/from PlanetTerp\.$/)).toBeInTheDocument();
+  });
+
+  it("lists PlanetTerp's reviews among ours, newest first, each marked", async () => {
+    setAccount({ reviews: "on" });
+    fakeReviewsClient({
+      page: answer(
+        [aPageReview({ createdMonth: "2026-10", body: "Ours, the newest." })],
+        [
+          aPlanetTerpReview({
+            createdMonth: "2025-12",
+            body: "Theirs, from last year.",
+          }),
+        ],
+      ),
+    });
+    const { container } = await instructor();
+    const cards = await waitFor(() => {
+      const found = container.querySelectorAll("article[data-review]");
+      if (found.length < 2) throw new Error("not both yet");
+      return [...found] as HTMLElement[];
+    });
+    expect(cards.map((c) => c.dataset.source ?? "terpsicle")).toEqual([
+      "terpsicle",
+      "planetterp",
+    ]);
+    const theirs = cards[1] as HTMLElement;
+    expect(theirs).toHaveTextContent("Theirs, from last year.");
+    expect(theirs).toHaveTextContent("Expected an A");
+    const chip = within(theirs).getByRole("link", { name: "PlanetTerp" });
+    expect(chip).toHaveAttribute(
+      "href",
+      "https://planetterp.com/professor/brandt",
+    );
+    await userEvent.setup().hover(chip);
+    expect(
+      await screen.findByRole("tooltip", { name: /Written on PlanetTerp/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("reads on through PlanetTerp's with Show more, and tries again", async () => {
+    setAccount({ reviews: "on" });
+    let calls = 0;
+    const client = fakeReviewsClient({
+      page: answer(
+        [],
+        [aPlanetTerpReview({ body: "The first page." })],
+        "2025-12-01T00:00:00.000Z|0123456789abcdef",
+      ),
+      planetTerp: async () => {
+        calls += 1;
+        if (calls === 1) throw new Error("offline");
+        return {
+          reviews: [
+            aPlanetTerpReview({
+              id: "fedcba9876543210",
+              createdMonth: "2024-02",
+              body: "An older one.",
+            }),
+          ],
+          next: null,
+        };
+      },
+    });
+    const user = userEvent.setup();
+    await instructor();
+    await user.click(await screen.findByRole("button", { name: "Show more" }));
+    expect(
+      await screen.findByText(
+        "Couldn't load more reviews. Check your connection.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("An older one.")).toBeInTheDocument();
+    expect(client.reviews.planetTerp).toHaveBeenLastCalledWith({
+      instructorId: "brandt",
+      course: "CMSC351",
+      cursor: "2025-12-01T00:00:00.000Z|0123456789abcdef",
+    });
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
 
   it("shows words as plain text, and nothing about who wrote them", async () => {
     setAccount({ reviews: "on", user: STUDENT });
     fakeReviewsClient({
-      list: async () => ({
-        reviews: [
-          aPublicReview({
-            body: `${BODY} <b>Really</b> <img src=x onerror=alert(1)>`,
-            termId: "202508",
-            grade: "B+",
-            edited: true,
-          }),
-        ],
-        next: null,
-      }),
+      page: answer([
+        aPageReview({
+          body: `${BODY} <b>Really</b> <img src=x onerror=alert(1)>`,
+          termId: "202508",
+          grade: "B+",
+          edited: true,
+        }),
+      ]),
     });
     const { container } = await instructor();
     const card = await waitFor(() => {
@@ -129,25 +231,22 @@ describe("an instructor's page", () => {
     expect(within(card).queryByText("Yours")).toBeNull();
   });
 
-  it("shows PlanetTerp only while Reviews is off here", async () => {
+  it("shows PlanetTerp's only while Reviews is off here", async () => {
     setAccount({ reviews: "off" });
-    const client = fakeReviewsClient();
+    fakeReviewsClient({
+      page: answer(null, [aPlanetTerpReview({ body: "Theirs." })]),
+    });
     await instructor();
-    expect(
-      await screen.findByRole("link", { name: /61 reviews on PlanetTerp/ }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Reviews on Terpsicle")).toBeNull();
+    expect(await screen.findByText("Theirs.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Write a review/ })).toBeNull();
-    expect(client.reviews.list).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Report" })).toBeNull();
   });
 
   it("reads but doesn't write while Reviews is read-only", async () => {
     setAccount({ reviews: "read", user: STUDENT });
-    fakeReviewsClient({
-      list: async () => ({ reviews: [aPublicReview()], next: null }),
-    });
+    fakeReviewsClient({ page: answer([aPageReview()]) });
     await instructor();
-    expect(await screen.findByText(aPublicReview().body)).toBeInTheDocument();
+    expect(await screen.findByText(aPageReview().body)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Write a review/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Report" })).toBeInTheDocument();
   });
@@ -164,7 +263,7 @@ describe("an instructor's page", () => {
       screen
         .getAllByRole("link", { name: "CMSC351" })
         .map((link) => link.getAttribute("href")),
-    ).toContain("/reviews/courses/CMSC351");
+    ).toContain("/reviews/cmsc351");
     // Each course is a view, and a URL.
     const views = screen.getByRole("navigation", { name: "Courses" });
     expect(
@@ -172,34 +271,25 @@ describe("an instructor's page", () => {
     ).toHaveAttribute("aria-current", "page");
     expect(
       within(views).getByRole("link", { name: "All courses" }),
-    ).toHaveAttribute("href", "/reviews/instructors/brandt");
+    ).toHaveAttribute("href", "/reviews/brandt");
   });
 
-  it("says when reviews didn't load, and tries again", async () => {
-    setAccount({ reviews: "on" });
-    let calls = 0;
-    fakeReviewsClient({
-      list: async () => {
-        calls += 1;
-        if (calls === 1) throw new Error("offline");
-        return { reviews: [aPublicReview()], next: null };
-      },
-    });
-    const user = userEvent.setup();
-    await instructor();
+  it("opens the form when the address asks (Review your instructors)", async () => {
+    setAccount({ reviews: "on", user: STUDENT });
+    fakeReviewsClient();
+    const page = await loadReviewsPage("brandt", "CMSC351");
+    if (page.kind !== "instructor") throw new Error("no brandt");
+    await renderPage(
+      <InstructorPage data={page.instructor} reviews={page.reviews} write />,
+    );
     expect(
-      await screen.findByText("Couldn't load reviews. Check your connection."),
+      await screen.findByRole("form", { name: "Write a review" }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/reload the page/)).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByText(aPublicReview().body)).toBeInTheDocument();
   });
 
   it("asks you to sign in to write or report, in place", async () => {
     setAccount({ reviews: "on" });
-    fakeReviewsClient({
-      list: async () => ({ reviews: [aPublicReview()], next: null }),
-    });
+    fakeReviewsClient({ page: answer([aPageReview()]) });
     const user = userEvent.setup();
     await instructor();
     await user.click(
@@ -301,7 +391,7 @@ describe("writing a review", () => {
     expect(screen.getByText("Held")).toBeInTheDocument();
     // Yours is right there, so nothing asks you to be the first.
     expect(
-      screen.getByText("No one else has reviewed CMSC351 on Terpsicle yet."),
+      screen.getByText("No one else has reviewed CMSC351 yet."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Yours could be the first/)).toBeNull();
   });
@@ -366,10 +456,7 @@ describe("your own review", () => {
   it("edits in place, starting from what you wrote", async () => {
     setAccount({ reviews: "on", user: STUDENT });
     const client = fakeReviewsClient({
-      list: async () => ({
-        reviews: [aPublicReview({ id: mine.id })],
-        next: null,
-      }),
+      page: answer([aPageReview({ id: mine.id })]),
       mine: async () => ({ reviews: [mine] }),
     });
     const user = userEvent.setup();
@@ -398,10 +485,7 @@ describe("your own review", () => {
   it("deletes with Undo instead of asking first", async () => {
     setAccount({ reviews: "on", user: STUDENT });
     const client = fakeReviewsClient({
-      list: async () => ({
-        reviews: [aPublicReview({ id: mine.id })],
-        next: null,
-      }),
+      page: answer([aPageReview({ id: mine.id })]),
       mine: async () => ({ reviews: [mine] }),
     });
     const user = userEvent.setup();
@@ -419,15 +503,6 @@ describe("your own review", () => {
   it("tells the server once Undo has passed", async () => {
     setAccount({ reviews: "on", user: STUDENT });
     const client = fakeReviewsClient();
-    useReviews.setState({
-      lists: {
-        brandt: {
-          status: "ready",
-          reviews: [aPublicReview({ id: mine.id })],
-          complete: true,
-        },
-      },
-    });
     // The toaster, which runs the toast's timer and close.
     await renderPage(<div />);
     act(() => deleteWithUndo(mine.id));
@@ -445,21 +520,16 @@ describe("your own review", () => {
         undefined,
       ),
     );
-    await waitFor(() =>
-      expect(useReviews.getState().lists.brandt).toMatchObject({
-        reviews: [],
-      }),
-    );
+    // The page reads its reviews again.
+    await waitFor(() => expect(useReviews.getState().changes).toBe(1));
   });
 });
 
 describe("reporting", () => {
   it("sends the reason and folds the review away with thanks", async () => {
     setAccount({ reviews: "on", user: STUDENT });
-    const review = aPublicReview();
-    const client = fakeReviewsClient({
-      list: async () => ({ reviews: [review], next: null }),
-    });
+    const review = aPageReview();
+    const client = fakeReviewsClient({ page: answer([review]) });
     const user = userEvent.setup();
     await instructor();
     await user.click(await screen.findByRole("button", { name: "Report" }));
@@ -490,23 +560,32 @@ describe("a course's page", () => {
   it("lists who's taught it with their numbers, linking to each", async () => {
     setAccount({ reviews: "on" });
     fakeReviewsClient();
-    const data = await loadCoursePage("CMSC351");
-    if (!data) throw new Error("the loader didn't find CMSC351");
-    await renderPage(<CoursePage data={data} />, "/reviews/courses/CMSC351");
-    const link = await screen.findByRole("link", { name: "Ada Brandt" });
-    expect(link).toHaveAttribute(
-      "href",
-      "/reviews/instructors/brandt?course=CMSC351",
-    );
+    await course();
+    const [link] = await screen.findAllByRole("link", { name: "Ada Brandt" });
+    expect(link).toHaveAttribute("href", "/reviews/brandt?course=CMSC351");
     expect(screen.getAllByTestId("grade-bars")).toHaveLength(1);
+  });
+
+  it("lists every instructor's reviews, each saying who it's about", async () => {
+    setAccount({ reviews: "on" });
+    fakeReviewsClient({
+      page: answer(
+        [aPageReview({ body: "Ours about Brandt." })],
+        [aPlanetTerpReview({ body: "Theirs about Brandt." })],
+      ),
+    });
+    const { container } = await course();
+    expect(await screen.findByText("Ours about Brandt.")).toBeInTheDocument();
+    expect(screen.getByText("Theirs about Brandt.")).toBeInTheDocument();
+    const cards = container.querySelectorAll("article[data-review]");
+    for (const card of cards)
+      expect(card).toHaveTextContent(/^About Ada Brandt/);
   });
 
   it("asks who taught you from its one Write a review", async () => {
     setAccount({ reviews: "on", user: STUDENT });
     fakeReviewsClient();
-    const data = await loadCoursePage("CMSC351");
-    if (!data) throw new Error("the loader didn't find CMSC351");
-    await renderPage(<CoursePage data={data} />, "/reviews/courses/CMSC351");
+    await course();
     expect(
       screen.getByRole("heading", { name: /^CMSC351/, level: 1 }),
     ).toBeInTheDocument();
@@ -524,9 +603,7 @@ describe("a course's page", () => {
   it("asks you to sign in right after you pick, when you aren't", async () => {
     setAccount({ reviews: "on" });
     fakeReviewsClient();
-    const data = await loadCoursePage("CMSC351");
-    if (!data) throw new Error("the loader didn't find CMSC351");
-    await renderPage(<CoursePage data={data} />, "/reviews/courses/CMSC351");
+    await course();
     const user = userEvent.setup();
     await user.click(
       await screen.findByRole("button", { name: /Write a review/ }),
@@ -569,20 +646,85 @@ describe("/reviews", () => {
     await renderPage(<ReviewsHomePage data={data} q="" />);
     expect(
       screen.getByRole("link", { name: /CMSC351\s*Algorithms/ }),
-    ).toHaveAttribute("href", "/reviews/courses/CMSC351");
+    ).toHaveAttribute("href", "/reviews/cmsc351");
     expect(screen.getByText("13,592")).toBeInTheDocument();
+    // Instructors and courses as equals.
     expect(
-      screen.getByRole("link", { name: /CMSC351\s*·\s*Ada Brandt/ }),
-    ).toHaveAttribute("href", "/reviews/instructors/brandt?course=CMSC351");
+      screen.getByRole("heading", { name: "Most reviewed", level: 2 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ada Brandt" })).toHaveAttribute(
+      "href",
+      "/reviews/brandt",
+    );
+    expect(
+      screen.getByRole("link", { name: /Ada Brandt\s*in\s*CMSC351/ }),
+    ).toHaveAttribute("href", "/reviews/brandt?course=CMSC351");
     expect(
       screen.getByRole("link", { name: /CMSC\s*Computer Science/ }),
     ).toHaveAttribute("href", "/reviews?q=CMSC");
     expect(
-      screen.getByRole("heading", { name: "Where the numbers come from" }),
+      screen.getByRole("heading", { name: "Where this comes from" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Write a review/ }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("/reviews search", () => {
+  it("finds instructors and courses alike, and the server's HTML has them", async () => {
+    setAccount({ reviews: "on" });
+    fakeReviewsClient();
+    publishFiles({
+      "planetterp/manifest.json": aPlanetTerpManifest({
+        index: { hash: FIXTURE_HASH },
+      }),
+      [planetTerpIndexKey(FIXTURE_HASH)]: aPlanetTerpIndex({
+        instructors: {
+          brandt: ["Ada Brandt", ["CMSC"]],
+          canada_jo: ["Jo Canada", ["MATH"]],
+        },
+      }),
+    });
+    const data = await loadReviewsHome("ada");
+    expect(data.results.instructors).toEqual([
+      ["brandt", "Ada Brandt"],
+      ["canada_jo", "Jo Canada"],
+    ]);
+    await renderPage(<ReviewsHomePage data={data} q="ada" />);
+    const instructors = screen.getByRole("list", { name: "Instructors" });
+    expect(
+      within(instructors).getByRole("link", { name: "Jo Canada" }),
+    ).toHaveAttribute("href", "/reviews/canada-jo");
+  });
+});
+
+describe("addresses", () => {
+  it("move to one address per page, and tell courses from instructors", async () => {
+    publishFiles({
+      "planetterp/manifest.json": aPlanetTerpManifest({
+        index: { hash: FIXTURE_HASH },
+      }),
+      [`planetterp/dept/CMSC.${FIXTURE_HASH}.json`]: aPlanetTerpDept(),
+      [planetTerpIndexKey(FIXTURE_HASH)]: aPlanetTerpIndex(),
+    });
+    fakeReviewsClient();
+    expect(await loadReviewsPage("CMSC351", undefined)).toEqual({
+      kind: "moved",
+      slug: "cmsc351",
+    });
+    expect(await loadReviewsPage("Brandt", undefined)).toEqual({
+      kind: "moved",
+      slug: "brandt",
+    });
+    expect((await loadReviewsPage("brandt", undefined)).kind).toBe(
+      "instructor",
+    );
+    expect((await loadReviewsPage("cmsc351", undefined)).kind).toBe("course");
+    expect(await loadReviewsPage("zzzz999", undefined)).toEqual({
+      kind: "missing",
+      what: "course",
+    });
   });
 });
 
@@ -598,14 +740,14 @@ describe("a page nobody publishes", () => {
     expect(await loadInstructorPage("ada-brandt", undefined)).toBeNull();
     const suggestions = await instructorSuggestions("ada-brandt");
     await renderPage(
-      <ReviewsNotFound what="instructor" data={{ suggestions }} />,
+      <ReviewsNotFound data={{ what: "instructor", suggestions }} />,
     );
     expect(
       screen.getByRole("heading", { name: "Instructor not found" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ada Brandt" })).toHaveAttribute(
       "href",
-      "/reviews/instructors/brandt",
+      "/reviews/brandt",
     );
   });
 });

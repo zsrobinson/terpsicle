@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { clientConfig } from "~/app/config";
 import { pickTerm } from "~/core/catalog/terms";
-import type { ReviewsServerData } from "~/core/reviews";
+import type { ReviewsServerData, TerpsicleNumbers } from "~/core/reviews";
 import type { PageRequestContext, PublishedFiles } from "~/core/routing";
 import {
   COURSE_INDEX_MANIFEST_KEY,
@@ -15,12 +15,19 @@ import {
   courseIndexDeptKey,
   courseSearchKey,
   type DeptCode,
+  type InstructorId,
   type Manifest,
+  type PageReviews,
   type PlanetTerpDept,
   type PlanetTerpIndex,
   PlanetTerpIndexSchema,
   type PlanetTerpSource,
   planetTerpIndexKey,
+  REVIEWS_MANIFEST_KEY,
+  ReviewsDeptSchema,
+  ReviewsManifestSchema,
+  type ReviewsPageInput,
+  reviewsDeptKey,
   type Term,
   type TermId,
 } from "~/core/schema";
@@ -31,6 +38,7 @@ import {
   type DataSource,
   readParsed,
 } from "~/state/data-source";
+import { reviewsClient } from "./reviews-store";
 
 // Published data for the /reviews pages: PlanetTerp's department files and
 // index, the course index (titles, and every course for search) and this
@@ -86,6 +94,21 @@ export interface Reader {
   memo: <T>(key: string, load: () => Promise<T>) => Promise<T>;
   /** Terpsicle's numbers, on the server only (null there while Reviews is off). */
   reviews: ReviewsServerData | null;
+  /** A page's first reviews: D1 on the server, `reviews/page` in the browser. */
+  pageReviews: (input: ReviewsPageInput) => Promise<PageReviews>;
+}
+
+/** Your write or delete changed a page's reviews: ask for them again. */
+export function forgetPageReviews(): void {
+  for (const key of cache.keys())
+    if (key.startsWith("page-reviews:")) cache.delete(key);
+}
+
+/** The browser asks the API, once per page and visit. */
+function browserPageReviews(input: ReviewsPageInput): Promise<PageReviews> {
+  return once(`page-reviews:${input.instructorId}:${input.course}`, () =>
+    reviewsClient().reviews.page(input),
+  );
 }
 
 /** The reader for a loader: `serverContext` is set only in a server render. */
@@ -93,7 +116,12 @@ export async function readerFor(
   serverContext: PageRequestContext | undefined,
 ): Promise<Reader> {
   if (!serverContext)
-    return { source: await dataSource(), memo: once, reviews: null };
+    return {
+      source: await dataSource(),
+      memo: once,
+      reviews: null,
+      pageReviews: browserPageReviews,
+    };
   // Same-origin /data is this Worker's R2; mock mode and `pnpm dev` (whose
   // data comes from production) read as the browser does.
   const fromR2 =
@@ -105,6 +133,7 @@ export async function readerFor(
       : await dataSource(),
     memo: (_key, load) => load(),
     reviews: serverContext.reviews,
+    pageReviews: (input) => serverContext.pageReviews(input),
   };
 }
 
@@ -172,6 +201,61 @@ export function loadPlanetTerpIndex(
       ),
     );
   });
+}
+
+/**
+ * Our numbers for these instructors, every course: from D1 on the server,
+ * else from the published `reviews/` files of these departments (hourly).
+ * Empty while Reviews is off or when nothing's published.
+ */
+export async function loadOurNumbers(
+  reader: Reader,
+  ids: readonly InstructorId[],
+  depts: readonly DeptCode[],
+): Promise<Readonly<Record<InstructorId, TerpsicleNumbers>>> {
+  if (ids.length === 0) return {};
+  if (reader.reviews) return reader.reviews.instructorNumbers(ids);
+  const manifest = await reader
+    .memo("reviews:manifest", () =>
+      orNull(
+        readParsed(
+          reader.source,
+          REVIEWS_MANIFEST_KEY,
+          ReviewsManifestSchema,
+          "reviews",
+        ),
+      ),
+    )
+    .catch(() => null);
+  const files = await Promise.all(
+    [...new Set(depts)].map((dept) => {
+      const entry = manifest?.departments.find((d) => d.code === dept);
+      return entry
+        ? reader
+            .memo(`reviews:${dept}`, () =>
+              orNull(
+                readParsed(
+                  reader.source,
+                  reviewsDeptKey(dept, entry.hash),
+                  ReviewsDeptSchema,
+                  "reviews",
+                ),
+              ),
+            )
+            .catch(() => null)
+        : null;
+    }),
+  );
+  const out: Record<InstructorId, TerpsicleNumbers> = {};
+  for (const id of ids)
+    for (const file of files) {
+      const numbers = file?.instructors[id];
+      if (numbers) {
+        out[id] = { rating: numbers.rating, reviewCount: numbers.reviewCount };
+        break;
+      }
+    }
+  return out;
 }
 
 function courseIndexManifest(reader: Reader) {

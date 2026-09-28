@@ -7,7 +7,8 @@ export {
   type RatingSourceId,
   terpsicleRating,
 } from "./combine";
-export { matchCourses } from "./find";
+export { type InstructorMatch, matchCourses, matchInstructors } from "./find";
+export { mergeReviews, type ShownReview } from "./merge";
 export * from "./pages";
 export { buildPlanetTerpIndex } from "./planetterp-index";
 export {
@@ -22,6 +23,7 @@ export {
   stageZeroProblems,
   weeklyLimitWait,
 } from "./rules";
+export * from "./slugs";
 export { hasTermStarted, reviewTermChoices } from "./terms";
 export {
   createdMonth,
@@ -29,6 +31,12 @@ export {
   mintedInstructorId,
   reviewTextKey,
 } from "./text";
+export {
+  type InstructorToReview,
+  instructorsToReview,
+  isReviewableTerm,
+  reviewedKey,
+} from "./to-review";
 export {
   notPostedWords,
   REPORT_REASON_WORDS,

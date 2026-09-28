@@ -663,10 +663,7 @@ describe("Course details", () => {
         await waitFor(() =>
           expect(
             within(jada).getByRole("link", { name: "View reviews" }),
-          ).toHaveAttribute(
-            "href",
-            "/reviews/instructors/abernathy_jada?course=CMSC351",
-          ),
+          ).toHaveAttribute("href", "/reviews/abernathy-jada?course=CMSC351"),
         );
         expect(
           within(jada).queryByRole("link", { name: "Read them on PlanetTerp" }),
