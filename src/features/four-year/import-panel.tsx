@@ -508,13 +508,21 @@ export function ImportPanel() {
       const code = rowCode(r, checks);
       if (code) depts.add(code.slice(0, 4));
     }
-    const lookup = await loadCourseLookup(client, [...depts]);
+    // And the course list: "Counts as" only a course Testudo lists (the
+    // field says so as you type). Both before the doc is read again below.
+    const [lookup, listed] = await Promise.all([
+      loadCourseLookup(client, [...depts]).catch(() => null),
+      loadCourseSearch(client),
+    ]);
+    if (!lookup)
+      return setImportStatus(
+        false,
+        "We couldn't reach terpsicle.com to look up these courses. Check your connection and try again.",
+      );
     const current = activeDoc(useFourYear.getState());
     // The terms to replace were worked out for this doc: if another opened
     // while departments loaded, stop rather than replace the wrong ones.
     if (current?.id !== doc.id) return setImportStatus(false, null);
-    // "Counts as" only a course Testudo lists (the field says so as you type).
-    const listed = await loadCourseSearch(client);
     const known = listed ? new Set(listed.map((r) => r[0])) : null;
     const mappings = Object.fromEntries(
       Object.entries(checks.mappings).filter(

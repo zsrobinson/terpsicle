@@ -48,7 +48,6 @@ import {
   setGenEdChoice,
 } from "./actions";
 import { creditKind } from "./credit-panel";
-import { useDeptFailed } from "./data";
 import { CLOSE_DRILL, useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 
@@ -348,9 +347,9 @@ function CountsAsLine({ code }: { code: string | null }) {
 
 /** The second line: the catalog's title, or what we know instead. */
 function CourseTitle({ entry }: { entry: FourYearCourseEntry }) {
-  const { lookup } = useModel();
+  const { lookup, deptsFailed } = useModel();
   const { code } = entry;
-  const failed = useDeptFailed(code.slice(0, 4));
+  const failed = deptsFailed.has(code.slice(0, 4));
   const course = lookup.courses.get(code);
   if (course)
     return (

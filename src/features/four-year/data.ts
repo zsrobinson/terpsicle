@@ -4,7 +4,7 @@ import {
   useQueries,
   useQuery,
 } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { create } from "zustand";
 import {
   type FourYearCourses,
@@ -24,7 +24,9 @@ import { clientConfig } from "~/lib/config";
 import {
   createDataReader,
   createDataSource,
+  DataError,
   type DataSource,
+  SchemaVersionError,
 } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
 import {
@@ -142,6 +144,9 @@ export function docDepts(doc: Pick<FourYearDoc, "entries"> | null): DeptCode[] {
   return [...depts].sort();
 }
 
+const isMissing = (error: unknown) =>
+  error instanceof DataError && error.reason === "missing";
+
 /** What the index knows about some departments: the lookup core's checks read. */
 export interface IndexDepts {
   lookup: FourYearCourses;
@@ -181,12 +186,17 @@ export function useIndexDepts(depts: readonly DeptCode[]): IndexDepts {
         else if (file?.data) {
           ready.push(dept);
           entries.push(...file.data.courses);
-        } else if (file?.isError) failed.add(dept);
-        else loading = true;
+        } else if (file?.isError) {
+          // A saved manifest can name a file the server has since deleted:
+          // the page's check of the manifest brings its new hash, so until
+          // that lands it's loading, not failed.
+          if (isMissing(file.error) && manifest.isFetching) loading = true;
+          else failed.add(dept);
+        } else loading = true;
       });
       return { lookup: fourYearCourses(entries, ready), loading, failed };
     },
-    [key, manifest.data, manifest.isError, source],
+    [key, manifest.data, manifest.isError, manifest.isFetching, source],
   );
   return useQueries({
     queries: depts.map((dept) =>
@@ -203,24 +213,6 @@ export function useDocDepts(doc: FourYearDoc | null): IndexDepts {
 }
 
 /**
- * True while a department the doc needs is still loading: its problems
- * aren't known yet ("isn't in Testudo" would be a guess).
- */
-export function useDeptsLoading(doc: FourYearDoc | null): boolean {
-  return useDocDepts(doc).loading;
-}
-
-/** Everything the doc's department files know, for core's checks. */
-export function useCourseLookup(doc: FourYearDoc | null): FourYearCourses {
-  return useDocDepts(doc).lookup;
-}
-
-/** Whether a department's file failed to load (its titles can't show). */
-export function useDeptFailed(dept: DeptCode): boolean {
-  return useIndexDepts([dept]).failed.has(dept);
-}
-
-/**
  * One course's index entry, loading its department: `undefined` while it
  * loads, `null` when the index doesn't have it.
  */
@@ -234,10 +226,42 @@ export function useIndexEntry(
   return lookup.courses.get(code) ?? null;
 }
 
+/**
+ * Whether the server publishes the index in a newer format than this tab
+ * reads (DATA.md §2.3): the page is out of date, and reloading fixes it.
+ */
+export function useIndexStale(): boolean {
+  const source = usePublishedSource((s) => s.source);
+  const { error } = useQuery({
+    ...courseIndexManifestQuery(source),
+    enabled: false,
+  });
+  return error instanceof SchemaVersionError && error.newer;
+}
+
+/**
+ * Once the index is in a newer format than this tab reads, reloads the
+ * next time the page is shown, as the scheduler does for its catalog
+ * (`useCatalogPolling`): reading the new format needs the new build.
+ */
+export function useReloadWhenIndexStale(): void {
+  const stale = useIndexStale();
+  useEffect(() => {
+    if (!stale) return;
+    const onShown = () => {
+      if (document.visibilityState === "visible") window.location.reload();
+    };
+    document.addEventListener("visibilitychange", onShown);
+    return () => document.removeEventListener("visibilitychange", onShown);
+  }, [stale]);
+}
+
 /** Every course's search row, loaded on first use; null until it's in. */
 export function useCourseSearch(): {
   rows: readonly CourseSearchRow[] | null;
   failed: boolean;
+  /** The failure is a newer format: reload rather than try again. */
+  stale: boolean;
   /** Asks again: the manifest if that's what failed, else the file. */
   retry: () => void;
 } {
@@ -246,9 +270,14 @@ export function useCourseSearch(): {
   const search = useQuery(
     courseSearchQuery(source, manifest.data?.search.hash),
   );
+  const failed =
+    search.data === undefined && (manifest.isError || search.isError);
+  const newer = (error: unknown) =>
+    error instanceof SchemaVersionError && error.newer;
   return {
     rows: search.data?.courses ?? null,
-    failed: search.data === undefined && (manifest.isError || search.isError),
+    failed,
+    stale: failed && (newer(manifest.error) || newer(search.error)),
     retry: () =>
       void (manifest.data === undefined
         ? manifest.refetch()
@@ -256,19 +285,26 @@ export function useCourseSearch(): {
   };
 }
 
-/** What these departments' files know, loading them first; outside React. */
+/**
+ * What these departments' files know, loading them first; outside React.
+ * A department whose file is broken or gone is left out (its codes aren't
+ * guessed at). Throws when the server can't be reached for the index or
+ * any of them: what comes back would be missing what it needs.
+ */
 export async function loadCourseLookup(
   client: QueryClient,
   depts: readonly DeptCode[],
 ): Promise<FourYearCourses> {
   const source = usePublishedSource.getState().source;
   if (!source || depts.length === 0) return fourYearCourses([], []);
-  const files = await ensureIndexDepts(client, source, depts).catch(
-    () => new Map(),
+  const { loaded, failed } = await ensureIndexDepts(client, source, depts);
+  const unreachable = [...failed.values()].find(
+    (e) => e instanceof DataError && e.reason === "network",
   );
+  if (unreachable) throw unreachable;
   const entries: CourseIndexEntry[] = [];
   const ready: DeptCode[] = [];
-  for (const [dept, file] of files) {
+  for (const [dept, file] of loaded) {
     ready.push(dept);
     if (file) entries.push(...file.courses);
   }
@@ -280,8 +316,10 @@ export async function loadIndexEntry(
   client: QueryClient,
   code: CourseCode,
 ): Promise<CourseIndexEntry | null> {
-  const lookup = await loadCourseLookup(client, [code.slice(0, 4)]);
-  return lookup.courses.get(code) ?? null;
+  const lookup = await loadCourseLookup(client, [code.slice(0, 4)]).catch(
+    () => null,
+  );
+  return lookup?.courses.get(code) ?? null;
 }
 
 /** Every course's search row, outside React; null when it can't load. */

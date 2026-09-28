@@ -1,4 +1,4 @@
-import type { QueryClient } from "@tanstack/react-query";
+import { onlineManager, type QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   COURSE_INDEX_MANIFEST_KEY,
@@ -103,8 +103,8 @@ async function settled(client: QueryClient) {
 }
 
 const title = async (client: QueryClient, source: DataSource) =>
-  (await ensureIndexDepts(client, source, ["CMSC"])).get("CMSC")?.courses[0]
-    ?.title;
+  (await ensureIndexDepts(client, source, ["CMSC"])).loaded.get("CMSC")
+    ?.courses[0]?.title;
 
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -126,7 +126,10 @@ describe("the course index in mock mode", () => {
     const search = await ensureCourseSearch(client, source);
     expect(search.some((r) => r[0] === "CMSC131")).toBe(true);
 
-    const depts = await ensureIndexDepts(client, source, ["CMSC", "ZZZZ"]);
+    const { loaded: depts } = await ensureIndexDepts(client, source, [
+      "CMSC",
+      "ZZZZ",
+    ]);
     expect(
       depts.get("CMSC")?.courses.find((c) => c.code === "CMSC131")?.offered,
     ).toEqual([fixtureTermId, archivedFixtureTermId]);
@@ -224,6 +227,45 @@ describe("the course index with the persister", () => {
     expect(
       (await ensureCourseSearch(client, server.source)).map((r) => r[0]),
     ).toEqual(["CMSC351"]);
+  });
+
+  it("loads each department on its own: one that fails leaves the rest", async () => {
+    const server = aServer();
+    server.files.set(
+      COURSE_INDEX_MANIFEST_KEY,
+      aCourseIndexManifest({
+        search: { hash: hash(1) },
+        departments: [
+          { code: "CMSC", hash: hash(1) },
+          { code: "MATH", hash: hash(1) },
+        ],
+      }),
+    );
+    // MATH's file is listed but broken.
+    server.files.set(courseIndexDeptKey("MATH", hash(1)), { junk: true });
+    const { loaded, failed } = await ensureIndexDepts(aPage(), server.source, [
+      "CMSC",
+      "MATH",
+      "ZZZZ",
+    ]);
+    expect([...loaded.keys()].sort()).toEqual(["CMSC", "ZZZZ"]);
+    expect(loaded.get("CMSC")?.courses[0]?.title).toBe("Algorithms");
+    expect([...failed.keys()]).toEqual(["MATH"]);
+  });
+
+  it("fails at once offline with nothing saved, rather than waiting for the connection", async () => {
+    const server = aServer();
+    server.setOffline(true);
+    onlineManager.setOnline(false);
+    try {
+      // The factories' own retry policy: no waiting while offline.
+      await expect(ensureCourseSearch(aPage(), server.source)).rejects.toThrow(
+        /offline/,
+      );
+      expect(server.take()).toEqual([COURSE_INDEX_MANIFEST_KEY]);
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it("doesn't retry an index in a newer format", async () => {

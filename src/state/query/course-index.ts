@@ -108,26 +108,53 @@ async function withManifest<T>(
 }
 
 /**
- * Loads these departments' files, outside React. A department the index
- * doesn't list maps to null: nothing of it was ever seen.
+ * Loads these departments' files, outside React, each on its own: one
+ * that fails goes in `failed` with why, and the rest still load. A
+ * department the index doesn't list is loaded as null: nothing of it was
+ * ever seen. Throws only when the manifest itself can't load.
  */
 export async function ensureIndexDepts(
   client: QueryClient,
   source: DataSource,
   depts: readonly DeptCode[],
-): Promise<Map<DeptCode, CourseIndexDept | null>> {
+): Promise<{
+  loaded: Map<DeptCode, CourseIndexDept | null>;
+  failed: Map<DeptCode, unknown>;
+}> {
   const unique = [...new Set(depts)];
-  const files = await withManifest(client, source, (manifest) =>
-    Promise.all(
-      unique.map(async (dept) => {
-        const entry = manifestDept(manifest, dept);
-        return entry
-          ? client.ensureQueryData(courseIndexDeptQuery(source, entry))
-          : null;
-      }),
-    ),
-  );
-  return new Map(unique.map((dept, i) => [dept, files[i] ?? null]));
+  const query = courseIndexManifestQuery(source);
+  const load = (manifest: CourseIndexManifest, dept: DeptCode) => {
+    const entry = manifestDept(manifest, dept);
+    return entry
+      ? client.ensureQueryData(courseIndexDeptQuery(source, entry))
+      : Promise.resolve(null);
+  };
+  const manifest = await client.ensureQueryData(query);
+  const loaded = new Map<DeptCode, CourseIndexDept | null>();
+  const failed = new Map<DeptCode, unknown>();
+  const first = await Promise.allSettled(unique.map((d) => load(manifest, d)));
+  first.forEach((result, i) => {
+    const dept = unique[i] as DeptCode;
+    if (result.status === "fulfilled") loaded.set(dept, result.value);
+    else failed.set(dept, result.reason);
+  });
+  const missing = [...failed].filter(([, e]) => isMissing(e)).map(([d]) => d);
+  if (missing.length === 0) return { loaded, failed };
+  // A saved manifest can name files the server has since deleted: ask for
+  // the manifest again, once, and try those with the new hashes.
+  const fresh = await client
+    .fetchQuery({ ...query, staleTime: 0 })
+    .catch(() => manifest);
+  if (fresh === manifest) return { loaded, failed };
+  const again = await Promise.allSettled(missing.map((d) => load(fresh, d)));
+  again.forEach((result, i) => {
+    const dept = missing[i] as DeptCode;
+    if (result.status === "fulfilled") {
+      loaded.set(dept, result.value);
+      failed.delete(dept);
+    } else failed.set(dept, result.reason);
+  });
+  return { loaded, failed };
 }
 
 /** Every course's search row, outside React. */

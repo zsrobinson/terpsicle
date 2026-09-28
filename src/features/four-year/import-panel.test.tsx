@@ -1,3 +1,4 @@
+import { onlineManager } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -13,6 +14,7 @@ import { canUndo } from "~/core/plans/history";
 import { aCourseIndexEntry, aFourYear, aFourYearEntry } from "~/fixtures";
 import { MOBILE_QUERY } from "~/hooks/use-media-query";
 import { track } from "~/lib/analytics";
+import { DataError } from "~/state/data-source";
 import { courseIndexSource } from "~/state/query/course-index-testing";
 import { connectPublished } from "~/state/query/published";
 import { TooltipProvider } from "~/ui/tooltip";
@@ -212,8 +214,11 @@ describe("check", () => {
     await type(paste("synthetic-ap-transfer"));
     const fall = screen.getByRole("region", { name: "Fall 2024" });
     // CMSC100 isn't in the search file above; CMSC131 is.
-    const flags = await within(fall).findAllByText(/Not in Testudo's catalog/);
-    expect(flags).toHaveLength(4);
+    await waitFor(() =>
+      expect(
+        within(fall).getAllByText(/Not in Testudo's catalog/),
+      ).toHaveLength(4),
+    );
   });
 
   it("waits for each 'or' to be chosen before importing", async () => {
@@ -322,6 +327,71 @@ describe("import", () => {
     expect(openDoc().entries).toHaveLength(0);
     useFourYear.getState().redo();
     expect(openDoc().entries).toHaveLength(21);
+  });
+
+  it("stops if another plan opens while the course list loads", async () => {
+    // The course list answers only when let go.
+    const index = courseIndexSource([
+      aCourseIndexEntry({ code: "CHEM131", title: "Chemistry I" }),
+    ]);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    connectPublished({
+      ...index,
+      readJson: async (key, options) => {
+        if (key.startsWith("courses/search.")) await gate;
+        return index.readJson(key, options);
+      },
+    });
+    const { user } = await checked();
+    const first = openDoc();
+    await user.click(screen.getByRole("button", { name: "Import 21 courses" }));
+    // Meanwhile, another plan opens.
+    const other = aFourYear({ id: "fouryear_other", name: "Other plan" });
+    act(() =>
+      useFourYear.setState((s) => ({
+        activeId: other.id,
+        history: {
+          ...s.history,
+          present: { docs: [...s.history.present.docs, other] },
+        },
+      })),
+    );
+    await act(async () => release());
+    await waitFor(() =>
+      expect(useTranscriptImport.getState().busy).toBe(false),
+    );
+    const docs = useFourYear.getState().history.present.docs;
+    expect(docs.find((d) => d.id === first.id)?.entries).toHaveLength(0);
+    expect(docs.find((d) => d.id === other.id)?.entries).toHaveLength(0);
+  });
+
+  it("says it couldn't reach the server when offline, and imports nothing", async () => {
+    const { user } = await checked();
+    // Offline from here, with nothing of these departments saved: the
+    // real retry policy, so nothing waits for the connection.
+    const index = courseIndexSource([]);
+    connectPublished({
+      ...index,
+      readJson: async (key) => {
+        throw new DataError(key, "network", "offline");
+      },
+    });
+    onlineManager.setOnline(false);
+    try {
+      await user.click(
+        screen.getByRole("button", { name: "Import 21 courses" }),
+      );
+      expect(
+        await screen.findByText(
+          "We couldn't reach terpsicle.com to look up these courses. Check your connection and try again.",
+        ),
+      ).toBeInTheDocument();
+      expect(useTranscriptImport.getState().busy).toBe(false);
+      expect(openDoc().entries).toHaveLength(0);
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it("sends analytics a count and a boolean, never what was imported", async () => {

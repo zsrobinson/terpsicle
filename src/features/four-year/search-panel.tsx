@@ -194,7 +194,12 @@ export function SearchPanel() {
     nav.go({ gened, credits, level });
   };
   const input = useRef<HTMLInputElement>(null);
-  const { rows, failed: searchFailed, retry: retrySearch } = useCourseSearch();
+  const {
+    rows,
+    failed: searchFailed,
+    stale: searchStale,
+    retry: retrySearch,
+  } = useCourseSearch();
   const client = useQueryClient();
   const engine = useSearchEngine();
   const info = useMemo(() => (rows ? fourYearSearchInfo(rows) : null), [rows]);
@@ -380,7 +385,13 @@ export function SearchPanel() {
         </ListRow>
       ) : null}
 
-      {searchFailed ? (
+      {searchStale ? (
+        <InlineError
+          className="px-4"
+          message="Terpsicle has been updated since this page opened. Reload to load the course list."
+          reload
+        />
+      ) : searchFailed ? (
         <InlineError
           className="px-4"
           message="We couldn't load the course list. Check your connection and try again."
