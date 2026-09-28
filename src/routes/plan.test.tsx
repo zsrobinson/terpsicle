@@ -392,9 +392,18 @@ describe("a saved plan", () => {
         name: "Find a course",
       })[0] as HTMLElement,
     );
-    expect(await screen.findByText(/Courses that count for/)).toHaveTextContent(
-      "Courses that count for FSAW",
-    );
+    // Search opens with that GenEd's chip on, listing only what counts for it.
+    expect(
+      await screen.findByRole("button", { name: "Gen-eds: FSAW" }),
+    ).toBeVisible();
+    const courses = await screen.findByRole("list", { name: "Courses" });
+    const rows = within(courses).getAllByRole("listitem");
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row).toHaveTextContent("FSAW");
+    // One GenEd alone offers its placeholder, as typing "FSAW" does.
+    expect(
+      screen.getByRole("button", { name: /^Add Any FSAW course to / }),
+    ).toBeVisible();
   });
 
   it("shows problems quietly in their tab", async () => {
