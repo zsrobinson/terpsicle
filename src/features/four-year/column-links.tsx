@@ -9,16 +9,19 @@ import {
 } from "~/core/four-year/handoff";
 import type { TermId } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
-import { readLinkedSchedulePlan, useLiveQuery } from "~/state/four-year-link";
+import { readMainPlan, useLiveQuery } from "~/state/four-year-link";
+import { MainPlanMark } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
 import { fourYearDb, useFourYearFacts } from "./data";
 import { useModel } from "./model";
 
 // The links at the foot of two columns (docs/V3.md §1.2). The next
 // semester's (§2.12): "From Plan A: 4 of 5 placed" when the scheduler has a
-// plan for the term, and "View schedule", which makes or opens that plan;
-// read live from IndexedDB, so placing a section in the scheduler in another
-// tab updates the count here. The semester in progress: "View todos".
+// plan for the term ("From Plan A, main · …" with the red square when it
+// has drafts too; V2 §5.5), and "View schedule", which makes or opens its
+// main plan; read live from IndexedDB, so placing a section in the scheduler
+// in another tab updates the count here. The semester in progress: "View
+// todos".
 
 const FOOT =
   "flex min-h-9 items-center gap-2 border-hairline border-t px-2 py-1.5 text-xs";
@@ -28,9 +31,10 @@ const LINK =
 export function ViewSchedule({ termId }: { termId: TermId }) {
   const { doc } = useModel();
   const db = fourYearDb();
-  const linked = useLiveQuery(db ? termId : null, () =>
-    db ? readLinkedSchedulePlan(db, termId) : Promise.resolve(null),
+  const main = useLiveQuery(db ? termId : null, () =>
+    db ? readMainPlan(db, termId) : Promise.resolve(null),
   );
+  const linked = main?.plan ?? null;
   const latestTermId = useFourYearFacts((s) => s.latestTermId);
   const { courses } = fourYearColumnFor(doc, termId);
   const term = termLabel(termId);
@@ -42,17 +46,24 @@ export function ViewSchedule({ termId }: { termId: TermId }) {
           words that say what it counts (QA P3). */}
       <span
         data-testid="linked-plan-count"
-        className="tnum min-w-0 text-balance text-muted"
+        className="tnum flex min-w-0 items-center gap-1.5 text-balance text-muted"
       >
-        {linked && courses.length > 0
-          ? placedLine(linked.name, placedInPlan(courses, linked))
-          : null}
+        {main && linked && courses.length > 0 ? (
+          <>
+            {main.drafts ? <MainPlanMark className="size-1.5" /> : null}
+            {placedLine(
+              linked.name,
+              placedInPlan(courses, linked),
+              main.drafts,
+            )}
+          </>
+        ) : null}
       </span>
       {listed ? (
         <WithTooltip
           label={
             linked
-              ? `Open ${linked.name} for ${term} in Schedule`
+              ? `Open ${linked.name}, your main plan for ${term}, in Schedule`
               : `Start a ${term} schedule with this semester's courses`
           }
         >

@@ -14,7 +14,7 @@ import {
 } from "./rooms";
 
 // The chat list (V2.md §8.2, §8.6): your courses for a term, each with your
-// rooms and their unread counts. Your rooms come from your chat plan (a
+// rooms and their unread counts. Your rooms come from your main plan (a
 // placed section's course, professor and section rooms; a saved course's
 // course room) and from course rooms you follow. Counts come from
 // chat/unread, which only lists rooms that have messages. Rooms that aren't
@@ -49,7 +49,7 @@ export type ChatListCourse = {
 
 export interface ChatListInput {
   termId: TermId;
-  chatPlan: Plan | null;
+  mainPlan: Plan | null;
   follows: readonly CourseCode[];
   unread: readonly ChatUnreadRoom[];
   courses: ReadonlyMap<CourseCode, Course>;
@@ -63,7 +63,7 @@ export function chatListCourseCodes(
 ): CourseCode[] {
   return [
     ...new Set([
-      ...(input.chatPlan?.courses.map((c) => c.courseCode) ?? []),
+      ...(input.mainPlan?.courses.map((c) => c.courseCode) ?? []),
       ...input.follows,
       ...input.unread.map((r) => r.courseCode),
     ]),
@@ -71,7 +71,7 @@ export function chatListCourseCodes(
 }
 
 export function chatList(input: ChatListInput): ChatListCourse[] {
-  const { termId, chatPlan, unread, courses } = input;
+  const { termId, mainPlan, unread, courses } = input;
   const byRoom = new Map<RoomId, ChatUnreadRoom>(
     unread.map((r) => [r.room, r]),
   );
@@ -111,8 +111,8 @@ export function chatList(input: ChatListInput): ChatListCourse[] {
     });
   };
 
-  if (chatPlan?.termId === termId)
-    for (const entry of chatPlan.courses)
+  if (mainPlan?.termId === termId)
+    for (const entry of mainPlan.courses)
       add(
         entry.courseCode,
         entry.sectionCode ? "plan" : "saved",

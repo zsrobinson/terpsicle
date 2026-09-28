@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shortTermName } from "./term-switcher";
+import { shortTermName } from "~/core/catalog/terms";
 
 describe("shortTermName", () => {
   it("shortens the year for the smallest phones", () => {

@@ -44,7 +44,7 @@ export function isListedRoom(tree: RoomTree, roomId: RoomId): boolean {
 }
 
 /**
- * How many people have the room's sections in their chat plan, from counts
+ * How many people have the room's sections in their main plan, from counts
  * per section code ("" for courses saved for later): everyone in the course
  * for the course room, the sum over a professor's sections for theirs.
  */

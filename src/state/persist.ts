@@ -40,7 +40,7 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
   const travel =
     rows.find((r) => r.key === "travel")?.value ?? DEFAULT_TRAVEL_SETTINGS;
   const drafts = rows.find((r) => r.key === "generate")?.value ?? {};
-  const chatPlans = rows.find((r) => r.key === "chatPlans")?.value ?? {};
+  const mainPlans = rows.find((r) => r.key === "mainPlans")?.value ?? {};
 
   useWorkspace.setState({
     plans: validRows("plans", PlanSchema, plans),
@@ -52,8 +52,8 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
       ]),
     ),
     activePlanByTerm: ui.activePlanByTerm,
+    mainPlans,
     travel,
-    chatPlans,
     hydrated: true,
     past: [],
     future: [],
@@ -174,9 +174,9 @@ export function startPersisting(
       const travel = next.travel;
       enqueue(() => db.settings.put({ key: "travel", value: travel }));
     }
-    if (next.chatPlans !== prev.chatPlans) {
-      const chatPlans = next.chatPlans;
-      enqueue(() => db.settings.put({ key: "chatPlans", value: chatPlans }));
+    if (w.mainPlans !== p.mainPlans) {
+      const mainPlans = { ...w.mainPlans };
+      enqueue(() => db.settings.put({ key: "mainPlans", value: mainPlans }));
     }
     if (w.activePlanByTerm !== p.activePlanByTerm) writeUiIfChanged();
   });

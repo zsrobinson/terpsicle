@@ -14,8 +14,9 @@ export function showUndo(
   label: string,
   onUndo: () => void,
   onDone?: () => void,
+  description?: string,
 ): void {
-  undoToast({ id: UNDO_TOAST_ID, message: label, onUndo, onDone });
+  undoToast({ id: UNDO_TOAST_ID, message: label, description, onUndo, onDone });
 }
 
 /**

@@ -196,12 +196,15 @@ test("on a phone, a bar with the product's context sends Feedback to the menu", 
   isMobile,
 }) => {
   test.skip(!isMobile, "phones only");
-  // Chat's bar carries its term, which reads whole instead of "Sprin…".
+  // Chat's bar carries its term ("Spring ’27" and its tag, on a phone),
+  // which reads whole instead of "Sprin…".
   await page.goto(`/auth/test?return=${encodeURIComponent("/chat")}`);
   await page.getByRole("button", { name: "Sign in as Test Student" }).click();
   await page.waitForURL((url) => url.pathname.startsWith("/chat"));
   const bar = page.locator('[data-slot="app-bar"]');
-  const term = bar.getByText(/^(Spring|Summer|Fall|Winter) \d{4}$/);
+  const term = bar
+    .getByText(/^(Spring|Summer|Fall|Winter) (\d{4}|’\d{2})$/)
+    .filter({ visible: true });
   await expect(term).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("feedback-button")).toHaveCount(0);
   const whole = await term.evaluate((el) => el.scrollWidth <= el.clientWidth);
@@ -249,7 +252,7 @@ test("the admin pins a note on an element, sees its dot, and undoes it", async (
     page.getByText("Click anything to pin a note on it"),
   ).toBeVisible();
 
-  const target = page.getByRole("heading", { name: "Plan A", level: 2 });
+  const target = page.getByRole("heading", { name: /^Plan A/, level: 2 });
   await target.hover();
   await expect(page.getByTestId("feedback-pick-outline")).toBeVisible();
   await target.click();

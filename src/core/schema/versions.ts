@@ -57,6 +57,7 @@ export const FOUR_YEAR_SHARE_VERSION = 1;
  * 3: Terpsicle Plan's `fourYear` table, and the sync cursor back to 0.
  * 4: the sync cursor back to 0 again, once sync carries four-year docs.
  * 5: the Register tab's ticks move from localStorage into plans' `registered`.
+ * 6: the `chatPlans` settings row becomes `mainPlans` (each term's main plan).
  */
 export const LOCAL_DB_NAME = "terpsicle";
-export const LOCAL_DB_VERSION = 5;
+export const LOCAL_DB_VERSION = 6;

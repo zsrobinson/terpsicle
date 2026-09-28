@@ -1,10 +1,10 @@
 import {
   type Block,
-  type ChatPlans,
   type CourseCode,
   type CourseColor,
   type FourYearSyncDoc,
   type LocalId,
+  type MainPlans,
   type Plan,
   type PlanDoc,
   type PlanSyncDoc,
@@ -83,7 +83,7 @@ export interface SyncedTables {
   readonly blocks: readonly Block[];
   readonly colors: Readonly<Record<CourseCode, CourseColor>>;
   readonly travel: TravelSettings;
-  readonly chatPlans: Readonly<ChatPlans>;
+  readonly mainPlans: Readonly<MainPlans>;
   /** Terpsicle Plan's four-year docs (V3 §2.3), grades and all. */
   readonly fourYear: readonly FourYearDoc[];
   /**
@@ -97,7 +97,7 @@ export interface SyncedTables {
 /** The tables the settings doc is made of. */
 export type SettingsTables = Pick<
   SyncedTables,
-  "blocks" | "colors" | "travel" | "chatPlans" | "prefs"
+  "blocks" | "colors" | "travel" | "mainPlans" | "prefs"
 >;
 
 export function settingsDocOf(t: SettingsTables): SettingsDoc {
@@ -105,7 +105,9 @@ export function settingsDocOf(t: SettingsTables): SettingsDoc {
     blocks: [...t.blocks],
     colors: { ...t.colors },
     travel: t.travel,
-    chatPlans: { ...t.chatPlans },
+    mainPlans: { ...t.mainPlans },
+    // The same map under its old name, for builds from before main plans.
+    chatPlans: { ...t.mainPlans },
     prefs: { ...t.prefs },
   };
 }
@@ -122,19 +124,19 @@ export function withSettingsDoc<T extends SettingsTables>(
   const blocks = sameJson(current.blocks, doc.blocks) ? t.blocks : doc.blocks;
   const colors = sameJson(current.colors, doc.colors) ? t.colors : doc.colors;
   const travel = sameJson(t.travel, doc.travel) ? t.travel : doc.travel;
-  const chatPlans = sameJson(current.chatPlans, doc.chatPlans)
-    ? t.chatPlans
-    : doc.chatPlans;
+  const mainPlans = sameJson(current.mainPlans, doc.mainPlans)
+    ? t.mainPlans
+    : doc.mainPlans;
   const prefs = sameJson(current.prefs, doc.prefs) ? t.prefs : doc.prefs;
   if (
     blocks === t.blocks &&
     colors === t.colors &&
     travel === t.travel &&
-    chatPlans === t.chatPlans &&
+    mainPlans === t.mainPlans &&
     prefs === t.prefs
   )
     return t;
-  return { ...t, blocks, colors, travel, chatPlans, prefs };
+  return { ...t, blocks, colors, travel, mainPlans, prefs };
 }
 
 /**
@@ -216,7 +218,7 @@ export function changedDocKeys(
     (prev.blocks !== next.blocks ||
       prev.colors !== next.colors ||
       prev.travel !== next.travel ||
-      prev.chatPlans !== next.chatPlans ||
+      prev.mainPlans !== next.mainPlans ||
       prev.prefs !== next.prefs) &&
     !sameJson(settingsDocOf(prev), settingsDocOf(next));
   if (settingsChanged) keys.push(SETTINGS_DOC_KEY);

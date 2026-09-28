@@ -15,7 +15,8 @@ import {
   aSavedCourse,
   fixtureTermId,
 } from "~/fixtures";
-import { handoffCourses, linkedSchedulePlan, placedInPlan } from "./handoff";
+import { mainPlanFor } from "../plans/main-plan";
+import { handoffCourses, placedInPlan } from "./handoff";
 import {
   choicesForWildcard,
   parsePlaceholder,
@@ -114,15 +115,15 @@ describe("handoff", () => {
   const b = aPlan({ id: "plan_bbbbbbbb", name: "Plan B", order: 1 });
   const other = aPlan({ id: "plan_otherterm", termId: "202608", order: 0 });
 
-  it("links the term's active plan, else its first tab", () => {
-    expect(linkedSchedulePlan(fixtureTermId, [b, a, other], {})).toBe(a);
+  it("links the term's main plan, else its first tab", () => {
+    expect(mainPlanFor(fixtureTermId, [b, a, other], {})).toBe(a);
+    expect(mainPlanFor(fixtureTermId, [a, b], { [fixtureTermId]: b.id })).toBe(
+      b,
+    );
     expect(
-      linkedSchedulePlan(fixtureTermId, [a, b], { [fixtureTermId]: b.id }),
-    ).toBe(b);
-    expect(
-      linkedSchedulePlan(fixtureTermId, [a, b], { [fixtureTermId]: other.id }),
+      mainPlanFor(fixtureTermId, [a, b], { [fixtureTermId]: other.id }),
     ).toBe(a);
-    expect(linkedSchedulePlan("202708", [a, b, other], {})).toBeNull();
+    expect(mainPlanFor("202708", [a, b, other], {})).toBeNull();
   });
 
   it("hands over courses once each and names the placeholders", () => {

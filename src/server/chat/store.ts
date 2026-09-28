@@ -7,10 +7,10 @@ import { chatMembersFor, sectionsInPlans } from "~/core/chat";
 import {
   type ChatAuthor,
   type ChatMembersResult,
-  type ChatPlans,
   type ChatUnreadRoom,
   type CourseCode,
   DirectoryIdSchema,
+  type MainPlans,
   type Plan,
   PlanDocSchema,
   type RoomId,
@@ -121,7 +121,7 @@ const DocRowSchema = z.object({
 /**
  * Rewrites the person's `chat_members` for the terms a push touched, from
  * the stored docs: the terms of the plans it saved or deleted, and, when it
- * saved the settings doc (whose `chatPlans` may have moved), every term
+ * saved the settings doc (whose `mainPlans` may have moved), every term
  * they're a member in or have chosen a plan for.
  *
  * It runs after the push's own batch, so it reads what was actually stored,
@@ -151,7 +151,7 @@ export async function refreshChatMembers(
       .bind(userId, saved.settings ? 1 : 0),
     db
       .prepare(
-        `SELECT j.key AS term_id FROM sync_docs, json_each(sync_docs.body, '$.chatPlans') AS j
+        `SELECT j.key AS term_id FROM sync_docs, json_each(sync_docs.body, '$.mainPlans') AS j
          WHERE user_id = ?1 AND kind = 'settings' AND ?2`,
       )
       .bind(userId, saved.settings ? 1 : 0),
@@ -177,7 +177,7 @@ export async function refreshChatMembers(
   ]);
   const at = HeadRowSchema.parse(head?.results[0] ?? { head: 0 }).head;
   const plans: Plan[] = [];
-  let chatPlans: ChatPlans = {};
+  let mainPlans: MainPlans = {};
   for (const r of docs?.results ?? []) {
     const row = DocRowSchema.parse(r);
     const body: unknown = JSON.parse(row.body);
@@ -186,10 +186,10 @@ export async function refreshChatMembers(
       if (plan.success) plans.push(plan.data);
     } else {
       const settings = SettingsDocSchema.safeParse(body);
-      if (settings.success) chatPlans = settings.data.chatPlans;
+      if (settings.success) mainPlans = settings.data.mainPlans;
     }
   }
-  const rows = [...terms].flatMap((t) => chatMembersFor(t, plans, chatPlans));
+  const rows = [...terms].flatMap((t) => chatMembersFor(t, plans, mainPlans));
 
   // Both statements are skipped unless the head is still the one read.
   const unchanged = `(SELECT head FROM sync_heads WHERE user_id = ?1) = ?2`;
@@ -211,7 +211,7 @@ export async function refreshChatMembers(
   ]);
 }
 
-/** People per section code in the course ("" for saved-for-later), from chat plans. */
+/** People per section code in the course ("" for saved-for-later), from main plans. */
 export async function memberCounts(
   db: D1Database,
   termId: TermId,
@@ -235,7 +235,7 @@ export async function memberCounts(
 
 /**
  * The people in a room, by name: everyone in the course for the course
- * room, otherwise those whose chat plan places one of `sections`.
+ * room, otherwise those whose main plan places one of `sections`.
  */
 export async function roomMembers(
   db: D1Database,
@@ -397,8 +397,8 @@ const UnreadRowSchema = z.object({
 
 /**
  * Your rooms with messages in a term, with unread counts, from one query:
- * the course rooms of your chat plan's courses and the ones you follow,
- * plus the professor and section rooms of your chat plan's sections.
+ * the course rooms of your main plan's courses and the ones you follow,
+ * plus the professor and section rooms of your main plan's sections.
  */
 export async function unreadRooms(
   db: D1Database,

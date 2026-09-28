@@ -1,29 +1,40 @@
 import { cn } from "cn";
 import { ChevronDown, Plus } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
+import { termLabel } from "~/core/catalog/terms";
 import type { Plan, TermId } from "~/core/schema";
-import { useActivePlanId, useTermPlans } from "~/state/hooks";
+import {
+  useActivePlanId,
+  useHasDrafts,
+  useMainPlan,
+  useTermPlans,
+} from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuItemText,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
+import { MainPlanMark } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   copyPlan,
   createEmptyPlan,
   deletePlan,
+  makeMainPlan,
   openGenerate,
   openPlan,
   renamePlan,
 } from "./actions";
 
 // Plan tabs in the top bar (SPEC §2, §3.1): the open tab has a ▾ menu
-// (Rename, Duplicate, Delete), double-click renames in place, tabs past
-// `maxVisible` go into a menu, and `+` offers Empty / Copy / Generate.
+// (Rename, Duplicate, Make main plan, Delete), double-click renames in
+// place, tabs past `maxVisible` go into a menu, and `+` offers Empty / Copy
+// / Generate. With two or more plans, the main plan's tab carries a small
+// red square (V2 §5.5); the others are drafts.
 
 /** Which plans get a tab. The open plan always does, in its own place. */
 export function splitTabs(
@@ -80,6 +91,10 @@ export function PlanTabs({
 }) {
   const plans = useTermPlans(termId);
   const activeId = useActivePlanId(termId);
+  // No mark with one plan: there's nothing to choose between.
+  const mainId = useMainPlan(termId)?.id;
+  const marked = useHasDrafts(termId) ? mainId : undefined;
+  const mainNote = useId();
   const [editing, setEditing] = useState<{
     id: string;
     via: "menu" | "double-click";
@@ -91,6 +106,9 @@ export function PlanTabs({
   );
   const { visible, overflow } = splitTabs(plans, activeId, room.fit);
   const active = plans.find((p) => p.id === activeId);
+  // Room for the open tab alone (a phone): the other plans go in its ▾
+  // menu rather than a menu of their own, so its name keeps the room.
+  const folded = room.fit <= 1 && overflow.length > 0;
 
   return (
     // A list of buttons, not an ARIA tablist: the open plan's ▾ menu button
@@ -118,20 +136,30 @@ export function PlanTabs({
               key={plan.id}
               plan={plan}
               active={plan.id === activeId}
+              main={plan.id === marked}
+              mainNote={mainNote}
+              drafts={marked !== undefined}
+              others={folded ? overflow : []}
+              mainId={marked}
               onOpen={() => openPlan(termId, plan.id)}
+              onOpenOther={(id) => openPlan(termId, id)}
               onRename={(via) => setEditing({ id: plan.id, via })}
             />
           ),
         )}
       </ul>
-      {overflow.length > 0 ? (
+      {overflow.length > 0 && !folded ? (
         <OverflowMenu
           plans={overflow}
-          compact={room.fit <= 1}
+          mainId={marked}
           onOpen={(id) => openPlan(termId, id)}
         />
       ) : null}
       <NewPlanMenu termId={termId} current={active} />
+      {/* What the main plan's tab is, for its aria-describedby. */}
+      <span id={mainNote} hidden>
+        Your main plan
+      </span>
     </nav>
   );
 }
@@ -139,15 +167,33 @@ export function PlanTabs({
 function PlanTab({
   plan,
   active,
+  main,
+  mainNote,
+  drafts,
+  others,
+  mainId,
   onOpen,
+  onOpenOther,
   onRename,
 }: {
   plan: Plan;
   active: boolean;
+  /** The id of the words that say it's the main plan. */
+  mainNote: string;
+  /** The open tab's ▾ menu lists these first, when there's no room for their tabs. */
+  others: readonly Plan[];
+  /** The marked main plan's id, for `others`. */
+  mainId: string | undefined;
+  onOpenOther: (id: string) => void;
+  /** The term's main plan, with two or more plans (so it's marked). */
+  main: boolean;
+  /** The term has two or more plans: a draft's menu offers Make main plan. */
+  drafts: boolean;
   onOpen: () => void;
   onRename: (via: "menu" | "double-click") => void;
 }) {
   const renaming = useRef(false);
+  const term = termLabel(plan.termId);
   return (
     <li
       className={cn(
@@ -157,32 +203,49 @@ function PlanTab({
       )}
     >
       <WithTooltip
-        label={active ? "Double-click to rename" : `Open ${plan.name}`}
+        label={
+          main
+            ? `Your main plan for ${term}: Chat, Plan, Todo and your calendar use it.${active ? " Double-click to rename." : ""}`
+            : active
+              ? "Double-click to rename"
+              : `Open ${plan.name}`
+        }
       >
         <button
           type="button"
           aria-current={active ? "true" : undefined}
+          // Named for the plan alone; being main is its description.
+          aria-describedby={main ? mainNote : undefined}
           onClick={onOpen}
           onDoubleClick={() => onRename("double-click")}
           className={cn(
             // Never narrower than a thumb, however long the other tabs are.
             // The name truncates, not the button, whose touch area (styles.css)
             // reaches past its edges.
-            "flex h-8 min-w-11 max-w-[160px] items-center rounded-md pl-2.5 text-base outline-offset-[-2px]",
-            active ? "pr-1 font-medium" : "pr-2.5 text-muted hover:text-fg",
+            "flex h-8 min-w-11 max-w-[160px] items-center gap-1 rounded-md text-base outline-offset-[-2px]",
+            // The mark starts the main plan's tab, so it takes a little less room before it.
+            main ? "pl-2" : "pl-2.5 max-sm:pl-2",
+            active
+              ? "pr-1 font-medium max-sm:pr-0"
+              : "pr-2.5 text-muted hover:text-fg",
           )}
         >
+          {main ? <MainPlanMark /> : null}
           <span className="truncate">{plan.name}</span>
         </button>
       </WithTooltip>
       {active ? (
         <DropdownMenu>
-          <WithTooltip label="Plan options">
+          <WithTooltip
+            label={
+              others.length > 0 ? "Other plans and options" : "Plan options"
+            }
+          >
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 aria-label={`${plan.name} options`}
-                className="mr-1 flex size-6 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-raised hover:text-fg data-[state=open]:bg-raised data-[state=open]:text-fg"
+                className="mr-1 flex size-6 shrink-0 max-sm:mr-0.5 items-center justify-center rounded text-muted transition-colors hover:bg-raised hover:text-fg data-[state=open]:bg-raised data-[state=open]:text-fg"
               >
                 <ChevronDown size={13} aria-hidden="true" />
               </button>
@@ -195,6 +258,23 @@ function PlanTab({
               renaming.current = false;
             }}
           >
+            {others.length > 0 ? (
+              <>
+                {others.map((p) => (
+                  <DropdownMenuItem
+                    key={p.id}
+                    onSelect={() => onOpenOther(p.id)}
+                  >
+                    {p.id === mainId ? <MainPlanMark /> : null}
+                    <span className="truncate">Open {p.name}</span>
+                    {p.id === mainId ? (
+                      <span className="sr-only">, your main plan</span>
+                    ) : null}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             <DropdownMenuItem
               onSelect={() => {
                 renaming.current = true;
@@ -206,6 +286,21 @@ function PlanTab({
             <DropdownMenuItem onSelect={() => copyPlan(plan.id)}>
               Duplicate
             </DropdownMenuItem>
+            {drafts && !main ? (
+              <DropdownMenuItem
+                className="max-w-[300px] items-start"
+                onSelect={() => makeMainPlan(plan.id, "menu")}
+              >
+                <MainPlanMark className="mt-1.5" />
+                <span className="min-w-0 flex-1">
+                  <span className="block">Make main plan</span>
+                  <span className="block text-muted text-xs">
+                    Chat, Plan, Todo and your calendar will use {plan.name} for{" "}
+                    {term}.
+                  </span>
+                </span>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               variant="destructive"
               onSelect={() => deletePlan(plan.id)}
@@ -261,12 +356,12 @@ function RenameInput({
 
 function OverflowMenu({
   plans,
-  compact,
+  mainId,
   onOpen,
 }: {
   plans: readonly Plan[];
-  /** "+2" instead of "2 more" where only one tab fits (phones, a crowded bar). */
-  compact: boolean;
+  /** The marked main plan, when it's one of these. */
+  mainId: string | undefined;
   onOpen: (id: string) => void;
 }) {
   return (
@@ -278,19 +373,19 @@ function OverflowMenu({
             aria-label={`${plans.length} more ${plans.length === 1 ? "plan" : "plans"}`}
             className="tnum flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
-            {compact ? `+${plans.length}` : `${plans.length} more`}
-            <ChevronDown
-              size={12}
-              aria-hidden="true"
-              className="max-[380px]:hidden"
-            />
+            {plans.length} more
+            <ChevronDown size={12} aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
       </WithTooltip>
       <DropdownMenuContent>
         {plans.map((p) => (
           <DropdownMenuItem key={p.id} onSelect={() => onOpen(p.id)}>
+            {p.id === mainId ? <MainPlanMark /> : null}
             <span className="truncate">{p.name}</span>
+            {p.id === mainId ? (
+              <span className="sr-only">, your main plan</span>
+            ) : null}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

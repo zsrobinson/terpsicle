@@ -84,7 +84,7 @@ describe("persistence", () => {
     });
   });
 
-  it("round-trips plans, blocks, colors, travel, chat plans and UI prefs", async () => {
+  it("round-trips plans, blocks, colors, travel, main plans and UI prefs", async () => {
     const w = useWorkspace.getState();
     w.dispatch(
       { type: "plan/create", id: "planAAAA", termId: SPRING, now: NOW },
@@ -100,7 +100,7 @@ describe("persistence", () => {
       colors: { CMSC351: "violet" },
     }));
     w.setTravel({ pace: "faster", accessible: true });
-    w.setChatPlan(SPRING, "planBBBB");
+    w.dispatch({ type: "plan/make-main", planId: "planBBBB" }, "Made main");
     w.activatePlan(SPRING, "planAAAA");
     const ui = useUi.getState();
     // The shell saves the view on screen (src/app/schedule-nav.ts).
@@ -127,7 +127,7 @@ describe("persistence", () => {
       accessible: true,
       extraMinutes: 0,
     });
-    expect(after.chatPlans).toEqual({ [SPRING]: "planBBBB" });
+    expect(after.mainPlans).toEqual({ [SPRING]: "planBBBB" });
     expect(after.activePlanByTerm).toEqual({ [SPRING]: "planAAAA" });
     // Undo history is per visit.
     expect(after.past).toEqual([]);

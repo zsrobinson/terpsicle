@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mainPlanFor } from "~/core/plans";
 import { archivedFixtureTermId, fixtureTermId } from "~/fixtures";
 import {
   activePlanId,
@@ -121,5 +122,68 @@ describe("reduceWorkspace", () => {
     });
     expect(w.colors).toEqual({ CMSC351: "teal" });
     expect(activePlanId(w, SPRING)).toBe("planAAAA");
+  });
+});
+
+describe("main plans in the workspace", () => {
+  const three = apply(
+    EMPTY_WORKSPACE,
+    create("planAAAA"),
+    create("planBBBB"),
+    create("planCCCC"),
+  );
+  const mainId = (w: Workspace) =>
+    mainPlanFor(SPRING, w.plans, w.mainPlans)?.id;
+  const remove = (planId: string): WorkspaceAction => ({
+    type: "plan/delete",
+    planId,
+    replacementId: "freshAAA",
+    now: NOW,
+  });
+
+  it("starts with the first plan as main, and makes another main", () => {
+    expect(mainId(three)).toBe("planAAAA");
+    const w = apply(three, { type: "plan/make-main", planId: "planBBBB" });
+    expect(w.mainPlans).toEqual({ [SPRING]: "planBBBB" });
+    // Already main: nothing changes, so nothing to undo.
+    expect(apply(w, { type: "plan/make-main", planId: "planBBBB" })).toBe(w);
+  });
+
+  it("passes main to the next tab when the main plan is deleted", () => {
+    const w = apply(three, { type: "plan/make-main", planId: "planBBBB" });
+    expect(mainId(apply(w, remove("planBBBB")))).toBe("planCCCC");
+    expect(mainId(apply(three, remove("planAAAA")))).toBe("planBBBB");
+    // A draft going leaves main alone.
+    expect(apply(w, remove("planCCCC")).mainPlans).toBe(w.mainPlans);
+  });
+
+  it("gives a term's fresh plan main when its last plan goes", () => {
+    const one = apply(EMPTY_WORKSPACE, create("planAAAA"), {
+      type: "plan/make-main",
+      planId: "planAAAA",
+    });
+    const w = apply(one, remove("planAAAA"));
+    expect(mainId(w)).toBe("freshAAA");
+  });
+
+  it("keeps main where it is when tabs move", () => {
+    const w = apply(three, {
+      type: "plan/move",
+      planId: "planCCCC",
+      toIndex: 0,
+    });
+    expect(plansInTerm(w.plans, SPRING)[0]?.id).toBe("planCCCC");
+    expect(mainId(w)).toBe("planAAAA");
+  });
+
+  it("keeps main plans through core actions", () => {
+    const w = apply(three, { type: "plan/make-main", planId: "planCCCC" });
+    const renamed = apply(w, {
+      type: "plan/rename",
+      planId: "planAAAA",
+      name: "Mine",
+      now: NOW,
+    });
+    expect(renamed.mainPlans).toBe(w.mainPlans);
   });
 });

@@ -88,7 +88,7 @@ describe("the prefs' shape", () => {
       blocks: [],
       colors: {},
       travel: { pace: "typical", accessible: false, extraMinutes: 0 },
-      chatPlans: {},
+      mainPlans: {},
     });
     expect(doc.prefs).toEqual({});
   });

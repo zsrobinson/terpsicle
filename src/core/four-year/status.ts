@@ -1,28 +1,12 @@
-import { seasonSpan } from "../catalog/terms";
-import { addDays } from "../ics/dates";
-import type { AcademicCalendar, IsoDate, TermId } from "../schema";
+import { termSpan } from "../catalog/terms";
+import type { AcademicCalendar, IsoDate } from "../schema";
 import type { FourYearTerm, FourYearTermStatus } from "../schema/four-year";
 
 // Whether a column is done, in progress or planned (docs/V3.md §2.3). Derived
 // from the academic calendar and today's date, never stored, so a plan moves
 // on by itself when a semester ends.
 
-/** Grades post and finals end within two weeks of the last day of classes. */
-export const GRADES_GRACE_DAYS = 14;
-
-/** A term's span: first day of classes through the end of the grace period. */
-export function termSpan(
-  termId: TermId,
-  calendars: readonly AcademicCalendar[],
-): { start: IsoDate; end: IsoDate } {
-  const calendar = calendars.find((c) => c.termId === termId);
-  if (calendar?.status === "published")
-    return {
-      start: calendar.classesStart,
-      end: addDays(calendar.classesEnd, GRADES_GRACE_DAYS),
-    };
-  return seasonSpan(termId);
-}
+export { GRADES_GRACE_DAYS, termSpan } from "../catalog/terms";
 
 /** "Before UMD" is always done. */
 export function termStatus(

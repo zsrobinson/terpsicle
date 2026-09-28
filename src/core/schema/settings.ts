@@ -8,7 +8,7 @@ import {
 import { FourYearPrefsSchema, UiPrefsSchema } from "./local";
 import { SyncedPrefsSchema } from "./prefs";
 import { TermIdSchema } from "./primitives";
-import { ChatPlansSchema, LocalSyncMetaSchema } from "./sync";
+import { LocalSyncMetaSchema, MainPlansSchema } from "./sync";
 import { TravelSettingsSchema } from "./travel";
 
 // Rows of the `settings` table (DATA.md §5), one per key.
@@ -49,8 +49,8 @@ export const SettingsRowSchema = z.discriminatedUnion("key", [
   z.object({ key: z.literal("ui"), value: UiPrefsSchema }),
   z.object({ key: z.literal("travel"), value: TravelSettingsSchema }),
   z.object({ key: z.literal("generate"), value: GenerateDraftsSchema }),
-  /** Synced in the settings doc: which plan is your chat plan, per term. */
-  z.object({ key: z.literal("chatPlans"), value: ChatPlansSchema }),
+  /** Synced in the settings doc: each term's main plan (V2 §5.5). */
+  z.object({ key: z.literal("mainPlans"), value: MainPlansSchema }),
   /** Which four-year plan Terpsicle Plan has open. Local only. */
   z.object({ key: z.literal("fourYear"), value: FourYearPrefsSchema }),
   /**

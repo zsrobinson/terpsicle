@@ -1,29 +1,35 @@
+import { ChevronDown } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 import { PanelBody, PanelNote } from "~/app/panel";
+import { termLabel } from "~/core/catalog/terms";
 import type { ChatListCourse } from "~/core/chat";
 import { type CourseCode, parseRoomId, type RoomId } from "~/core/schema";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
 import { InlineError } from "~/ui/inline-error";
 import { GroupHeader } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/ui/select";
 import { RowSkeleton } from "~/ui/skeleton";
+import { MainPlanMark } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
-import { chatListOf, termPlans, useChatHome, useChatPlan } from "./chat-home";
+import { chatListOf, termPlans, useChatHome, useMainPlan } from "./chat-home";
 import type { ChatGo, ChatView } from "./nav";
 import { RoomRow, UnreadCount } from "./room-row";
-import { showNote } from "./undo";
+import { showNote, showUndo } from "./undo";
 
 // The chat list (V2.md §8.6): your courses this term, each under a tinted
 // course bar with your rooms (course, professor, section) as rows, and
-// unread counts, like the scheduler's Courses tab. "Rooms from Plan A in
-// Schedule ▾" picks which plan's sections are your rooms; the term is in
-// the bar. It names Schedule because the plan open there may be another.
+// unread counts, like the scheduler's Courses tab. "Rooms from Plan A, your
+// main plan ▾" says where your rooms come from and changes the main plan
+// (V2 §5.5); the term is in the bar, tagged Now or Next, since Schedule is
+// usually on the next one.
 // It's Chat's one sidebar: opening a room never swaps it for another
 // (the owner, 2026-09-28), and it only lists rooms that are yours.
 
@@ -144,43 +150,84 @@ function CourseGroup({
   );
 }
 
-/** "Rooms from Plan A in Schedule ▾": the plan whose sections are your rooms. */
+/**
+ * "Rooms from Plan A, your main plan ▾": your rooms are the main plan's
+ * sections (V2 §5.5), for the term in the bar beside it (tagged Now or
+ * Next). With one plan it names the term instead: "Rooms from Plan A, your
+ * Fall 2026 plan". With two or more, picking another here makes it the main
+ * plan everywhere, with Undo.
+ */
 function RoomsFrom() {
   const termId = useChatHome((s) => s.termId);
+  const terms = useChatHome((s) => s.terms);
   const synced = useChatHome((s) => s.synced);
   const plans = useMemo(
     () => termPlans(synced.plans, termId),
     [synced, termId],
   );
-  const chatPlan = useChatPlan();
-  if (!termId || !chatPlan) return null;
+  const main = useMainPlan();
+  if (!termId || !main) return null;
+  const term = terms.find((t) => t.id === termId)?.name ?? termLabel(termId);
   if (plans.length < 2 || synced.settings === null)
-    return <span>Rooms from {chatPlan.name} in Schedule</span>;
-  const pick = (planId: string) =>
+    return (
+      <span>
+        Rooms from {main.name}, your {term} plan
+      </span>
+    );
+  const pick = (planId: string) => {
+    const before = main.id;
+    const next = plans.find((p) => p.id === planId);
+    if (!next || planId === before) return;
     void useChatHome
       .getState()
-      .setChatPlan(planId)
+      .setMainPlan(planId)
       .then((ok) => {
-        if (!ok) showNote("We couldn't switch plans.", () => pick(planId));
+        if (!ok)
+          return showNote("We couldn't change your main plan.", () =>
+            pick(planId),
+          );
+        showUndo(
+          `${next.name} is your main plan for ${term}`,
+          () => void useChatHome.getState().setMainPlan(before),
+          undefined,
+          "Schedule, Plan, Todo and your calendar use it now.",
+        );
       });
+  };
   return (
-    <Select value={chatPlan.id} onValueChange={pick}>
-      <WithTooltip label="Your rooms come from one of your Schedule plans. Pick which.">
-        <SelectTrigger
-          size="sm"
-          aria-label="Rooms from"
-          className="-ml-1.5 border-transparent bg-transparent text-muted hover:text-fg max-md:data-[size=sm]:h-11"
-        >
-          <SelectValue>Rooms from {chatPlan.name} in Schedule</SelectValue>
-        </SelectTrigger>
+    <DropdownMenu>
+      <WithTooltip
+        label={`Your rooms come from your main plan for ${term}. Pick another to change it everywhere.`}
+      >
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Rooms from ${main.name}, your main plan`}
+            className="-ml-1.5 flex h-7 max-w-full items-center gap-1.5 px-1.5 text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-md:h-11"
+          >
+            <MainPlanMark className="size-1.5" />
+            <span className="truncate">
+              Rooms from {main.name}, your main plan
+            </span>
+            <ChevronDown size={12} aria-hidden="true" className="shrink-0" />
+          </button>
+        </DropdownMenuTrigger>
       </WithTooltip>
-      <SelectContent>
-        {plans.map((p) => (
-          <SelectItem key={p.id} value={p.id}>
-            {p.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <DropdownMenuContent align="start" className="w-[280px]">
+        <DropdownMenuLabel>{term} · your main plan</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={main.id} onValueChange={pick}>
+          {plans.map((p) => (
+            <DropdownMenuRadioItem key={p.id} value={p.id}>
+              <span className="truncate">{p.name}</span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <p className="px-2 py-1.5 text-muted text-xs">
+          Picking one makes it your main plan everywhere: Schedule, Plan, Todo
+          and your calendar too.
+        </p>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

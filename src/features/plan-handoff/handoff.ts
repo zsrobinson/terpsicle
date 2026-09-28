@@ -1,10 +1,6 @@
 import { track } from "~/app/analytics";
-import {
-  addedLine,
-  handoffToast,
-  linkedSchedulePlan,
-  planHandoff,
-} from "~/core/four-year/handoff";
+import { addedLine, handoffToast, planHandoff } from "~/core/four-year/handoff";
+import { mainPlanFor } from "~/core/plans";
 import type { CourseCode, LocalId, TermId } from "~/core/schema";
 import {
   type FourYearColumn,
@@ -42,16 +38,16 @@ function bookmark(
 }
 
 /**
- * Makes or opens the term's linked plan for the four-year plan's column.
+ * Makes or opens the term's main plan for the four-year plan's column.
  * A term with no plan gets "Plan A" with the column's courses bookmarked
  * (Undo takes them back out, leaving the empty Plan A any first visit
- * shows); a term with plans opens the linked one, unchanged.
+ * shows); a term with plans opens its main plan, unchanged.
  */
 export function applyHandoff(termId: TermId, column: FourYearColumn): void {
   const step = planHandoff(
     termId,
     useWorkspace.getState().plans,
-    useWorkspace.getState().activePlanByTerm,
+    useWorkspace.getState().mainPlans,
     column.courses,
   );
   if (step.kind === "none") return;
@@ -64,7 +60,7 @@ export function applyHandoff(termId: TermId, column: FourYearColumn): void {
   // the empty plan a first visit makes, and Undo returns to that.
   if (step.kind === "create") useWorkspace.getState().ensurePlan(termId);
   const w = useWorkspace.getState();
-  const plan = linkedSchedulePlan(termId, w.plans, w.activePlanByTerm);
+  const plan = mainPlanFor(termId, w.plans, w.mainPlans);
   if (!plan) return;
   bookmark(
     plan.id,

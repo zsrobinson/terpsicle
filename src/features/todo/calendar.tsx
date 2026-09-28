@@ -623,13 +623,16 @@ export function MonthPicker({
   );
 }
 
-/** "View schedule" in the week's header: its classes, in the scheduler. */
+/** "View schedule" in the week's header: its classes, in the scheduler, on the term's main plan. */
 export function ScheduleLink({
   term,
+  planId,
   label,
   onClick,
 }: {
   term: string;
+  /** The term's main plan, opened there (V2 §5.5). */
+  planId?: string;
   label: string;
   onClick: () => void;
 }) {
@@ -637,7 +640,7 @@ export function ScheduleLink({
     <WithTooltip label={label}>
       <Link
         to="/schedule"
-        search={{ term }}
+        search={planId ? { term, planId } : { term }}
         onClick={onClick}
         className="text-muted underline-offset-2 hover:text-fg hover:underline max-md:py-3"
       >
