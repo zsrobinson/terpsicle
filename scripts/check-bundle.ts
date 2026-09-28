@@ -63,6 +63,12 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
     why: "the feedback sheet loads on first hover or focus of Send feedback",
   },
   {
+    // Only the bell and its count are eager (docs/V2.md §6.7).
+    pattern:
+      /^src\/(features\/notifications\/inbox\.tsx|server\/fns\/notifications\.ts)$/,
+    why: "Notifications' list and client load on the bell's first hover, focus or open",
+  },
+  {
     // Only its status (a tiny store and the top bar's icon) is eager.
     pattern: /^src\/features\/sync\/(?!status)/,
     why: "plan sync loads only once someone is signed in",

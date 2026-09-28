@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/ui/select";
+import { Sheet, SheetTitle } from "~/ui/sheet";
 import { PageSkeleton, RowSkeleton } from "~/ui/skeleton";
 import { Switch } from "~/ui/switch";
 import { WithTooltip } from "~/ui/tooltip";
@@ -764,8 +765,22 @@ function ControlParts() {
   const [pace, setPace] = useState<"slower" | "typical" | "faster">("typical");
   const [routes, setRoutes] = useState<"standard" | "accessible">("accessible");
   const [term, setTerm] = useState("spring");
+  const [sheet, setSheet] = useState(false);
   return (
     <>
+      <Sheet open={sheet} onOpenChange={setSheet}>
+        <PageHeader
+          size="panel"
+          title={
+            <SheetTitle asChild>
+              <span>Notifications</span>
+            </SheetTitle>
+          }
+        />
+        <p className="px-4 py-3 text-muted text-sm">
+          Nothing new. Notifications show up here, pushed or not.
+        </p>
+      </Sheet>
       <PageSection title="Fields" aside="Input · SearchField">
         <Demo
           className="flex flex-col gap-3 p-4"
@@ -934,6 +949,19 @@ function ControlParts() {
             Row
           </Button>
           <Button disabled>Off</Button>
+        </Demo>
+      </PageSection>
+
+      <PageSection title="Sheet" aside="Sheet · SheetTitle">
+        <Demo
+          className="flex flex-col items-start gap-3 p-4"
+          caption="What a desktop popover becomes on a phone: a drawer from the bottom edge, named by its panel header."
+        >
+          <WithTooltip label="Open the sheet from the bottom edge">
+            <Button variant="outline" onClick={() => setSheet(true)}>
+              Open the sheet
+            </Button>
+          </WithTooltip>
         </Demo>
       </PageSection>
     </>

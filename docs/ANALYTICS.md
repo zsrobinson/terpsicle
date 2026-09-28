@@ -62,6 +62,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
   | `push_enabled` | none | People turning on notifications on a device, from Settings. |
   | `push_disabled` | none | People turning them off there ("Turn off here"). |
+  | `notifications_opened` | none | Whether people find the bell and open Notifications (V2.md §6.7). |
+  | `notification_opened` | `type` (`seat-open`, `chat-mention`, `chat-reply`, `todo-due`, `admin-urgent`) | Which kinds of notification people open from the bell. Never its words, course or who it's about; the list is `data-private`. |
   | `calendar_feed_created` | none | People making their calendar feed link, from Settings (V2.md §6.7). Never the link. |
   | `calendar_feed_reset` | none | People making a new link, which stops the old one. Never either link. |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
