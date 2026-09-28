@@ -49,14 +49,8 @@ export const GoogleIdClaimsSchema = z.object({
   name: z.string().optional(),
   given_name: z.string().optional(),
   family_name: z.string().optional(),
-  picture: z.string().optional(),
 });
 export type GoogleIdClaims = z.infer<typeof GoogleIdClaimsSchema>;
-
-/** Google profile pictures only (`lh3.googleusercontent.com` and kin). */
-export const PictureUrlSchema = z
-  .url({ protocol: /^https$/, hostname: /\.googleusercontent\.com$/ })
-  .max(2048);
 
 /** A person's display name, as Google gives it (never blank). */
 export const DisplayNameSchema = z.string().trim().min(1).max(200);
@@ -67,7 +61,6 @@ export const IdentitySchema = z.strictObject({
   email: z.string().max(254),
   hd: UmdDomainSchema,
   name: DisplayNameSchema,
-  pictureUrl: PictureUrlSchema.nullable(),
   /** Google's subject; null for test-mode users (V2.md §4.6). */
   sub: z.string().min(1).max(255).nullable(),
 });
@@ -151,21 +144,11 @@ export const FeatureVarsSchema = z.object({
     .transform((value) => value === "true"),
 });
 
-/**
- * Our cached copy of someone's Google picture: same-origin, named by its
- * content, served only to signed-in people (docs/AUTH.md, "Pictures").
- */
-export const AvatarUrlSchema = z
-  .string()
-  .regex(/^\/avatars\/[a-z0-9]{2,16}\/[0-9a-f]{16}\.(jpg|png|webp)$/);
-
 export const MeUserSchema = z.object({
   /** The directory ID. */
   id: DirectoryIdSchema,
   name: DisplayNameSchema,
   email: z.string(),
-  /** Our cached copy of the Google picture; null shows initials. */
-  avatarUrl: AvatarUrlSchema.nullable(),
   isAdmin: z.boolean(),
   createdAt: IsoDateTimeSchema,
 });
@@ -244,8 +227,6 @@ export const UserRowSchema = z.object({
   email: z.string(),
   hd: UmdDomainSchema,
   name: DisplayNameSchema,
-  picture_url: z.string().nullable(),
-  picture_key: z.string().nullable(),
   status: UserStatusSchema,
   delete_after: IsoDateTimeSchema.nullable(),
   chat_blocked_until: IsoDateTimeSchema.nullable(),
@@ -273,24 +254,6 @@ export const SessionRowSchema = z.object({
   expires_at: IsoDateTimeSchema,
 });
 export type SessionRow = z.infer<typeof SessionRowSchema>;
-
-/** Picture types we cache and serve, with their extensions (never SVG). */
-export const AVATAR_EXTENSIONS = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-} as const;
-export const AvatarContentTypeSchema = z.enum([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
-export type AvatarContentType = z.infer<typeof AvatarContentTypeSchema>;
-
-/** `avatars/<userId>/<hash16>.<ext>`: an R2 USER_CONTENT key, and its URL. */
-export const AvatarKeySchema = z
-  .string()
-  .regex(/^avatars\/[a-z0-9]{2,16}\/[0-9a-f]{16}\.(jpg|png|webp)$/);
 
 // ---------- Worker configuration ----------
 

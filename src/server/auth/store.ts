@@ -17,7 +17,7 @@ export type UpsertResult =
 
 /**
  * Inserts the person, or refreshes what Google says about them: the name,
- * picture URL and address always come from the latest sign-in (nothing is
+ * and address always come from the latest sign-in (nothing is
  * edited in Terpsicle). Keyed on the directory ID, so terp@terpmail.umd.edu
  * and terp@umd.edu land on one row; each Google `sub` is recorded in
  * user_identities. Signing in also cancels a pending deletion.
@@ -40,26 +40,18 @@ export async function upsertUser(
   }
   const row = await db
     .prepare(
-      `INSERT INTO users (id, email, hd, name, picture_url, status, created_at, last_sign_in_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, 'active', ?6, ?6)
+      `INSERT INTO users (id, email, hd, name, status, created_at, last_sign_in_at)
+       VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?5)
        ON CONFLICT (id) DO UPDATE SET
          email = excluded.email,
          hd = excluded.hd,
          name = excluded.name,
-         picture_url = excluded.picture_url,
          status = 'active',
          delete_after = NULL,
          last_sign_in_at = excluded.last_sign_in_at
        RETURNING *`,
     )
-    .bind(
-      identity.directoryId,
-      identity.email,
-      identity.hd,
-      identity.name,
-      identity.pictureUrl,
-      at,
-    )
+    .bind(identity.directoryId, identity.email, identity.hd, identity.name, at)
     .first();
   if (identity.sub !== null) {
     await db
@@ -194,17 +186,5 @@ export async function markDeleting(
       "UPDATE users SET status = 'deleting', delete_after = ?2 WHERE id = ?1",
     )
     .bind(userId, deleteAfter.toISOString())
-    .run();
-}
-
-/** Points the user at our cached picture (a USER_CONTENT key), or none. */
-export async function setPictureKey(
-  db: D1Database,
-  userId: string,
-  key: string | null,
-): Promise<void> {
-  await db
-    .prepare("UPDATE users SET picture_key = ?2 WHERE id = ?1")
-    .bind(userId, key)
     .run();
 }

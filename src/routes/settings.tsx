@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { initAnalytics } from "~/app/analytics";
 import { SettingsPage } from "~/features/auth/settings-account";
 
-// Account settings (V2.md §1.1): your Google name and picture, the email and
+// Account settings (V2.md §1.1): your Google name, the email and
 // directory ID, sign out, delete the account.
 export const Route = createFileRoute("/settings")({
   ssr: false,

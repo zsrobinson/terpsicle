@@ -111,7 +111,7 @@ test("settings shows the profile read-only; the test admin gets Admin", async ({
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByText("tadmin@terpmail.umd.edu")).toBeVisible();
   await expect(
-    page.getByText(/Your name and photo come from your Google account/),
+    page.getByText(/Your name comes from your Google account/),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: /Google Account/ }),

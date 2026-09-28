@@ -38,7 +38,6 @@ const ADMIN: MeUser = {
   id: "tadmin",
   name: "Test Admin",
   email: "tadmin@terpmail.umd.edu",
-  avatarUrl: null,
   isAdmin: true,
   createdAt: "2026-10-01T15:00:00.000Z",
 };

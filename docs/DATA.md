@@ -61,7 +61,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `reviews/manifest.json` (v2) | `ReviewsManifestSchema` | `reviews-publish` job (hourly) | fixed |
 | `reviews/dept/<DEPT>.<hash>.json` (v2) | `ReviewsDeptSchema`: Terpsicle-review ratings per instructor id, and the names PlanetTerp's join doesn't cover (§4.6). Never review text | `reviews-publish` job | hashed |
 
-**v2, bucket `terpsicle-user-content`** (binding `USER_CONTENT`; previews use `terpsicle-user-content-preview`): `avatars/<userId>/<hash16>.<ext>`, cached Google profile pictures, served at `/avatars/*` only with a session and never through `/data` (`docs/V2.md` §4.5). `feedback/<yyyy-mm>/<id>.<ext>` and `<id>-element.<ext>`: feedback screenshots, served only to the admin at `/admin/feedback/shot/<id>[/element]` (`docs/FEEDBACK.md`). The `reviews/` family adds `reviews` to `SCHEMA_VERSIONS`; `ReviewSummarySchema` gains optional `sources` (additive).
+**v2, bucket `terpsicle-user-content`** (binding `USER_CONTENT`; previews use `terpsicle-user-content-preview`): `avatars/<userId>/…` held cached Google profile pictures until 2026-09-28; there are no pictures now, and the daily job deletes what's left (`docs/V2.md` §4.5). `feedback/<yyyy-mm>/<id>.<ext>` and `<id>-element.<ext>`: feedback screenshots, served only to the admin at `/admin/feedback/shot/<id>[/element]` (`docs/FEEDBACK.md`). The `reviews/` family adds `reviews` to `SCHEMA_VERSIONS`; `ReviewSummarySchema` gains optional `sources` (additive).
 
 ### 2.2 Content hashing
 - Hash = SHA-256 of the exact UTF-8 bytes written (`JSON.stringify(value)`, no whitespace), first 16 hex chars.
@@ -514,10 +514,10 @@ They carry counts, reasons and term ids only. They never carry an address, token
 
 Rooms aren't stored: `roomsForCourse(termId, course)` in `core/chat` derives them from the catalog, and a room gets storage only with its first message. They follow course details' one level of grouping: a course room; with 2+ sections, a room per section; and with more than one professor, a room per named professor between the course and their sections (TBA sections sit under the course room). There are no lecture rooms. One `CourseChat` Durable Object per course per term (named by the course room id) holds every room of that course, and the app keeps one WebSocket per open course.
 
-- **`ChatMessage`:** `id`, `room`, `author` (directory ID, the Google name and our `/avatars/…` copy of the picture, as they are now; the name the author wrote under if the account is gone), `text` (trimmed, 1–2,000 chars), `createdAt`, `editedAt`, `replyTo` (the thread's first message; threads are one level deep), `thread` (reply count and last reply time), `reactions` (who reacted, per reaction in the fixed set `REACTIONS`) and `moderation`: `visible`, `held {reason}` (only the author sees it; `checking` · `graded-work` · `flagged` · `reported`) or `removed`.
+- **`ChatMessage`:** `id`, `room`, `author` (directory ID and the Google name, as they are now; no picture since protocol 2; the name the author wrote under if the account is gone), `text` (trimmed, 1–2,000 chars), `createdAt`, `editedAt`, `replyTo` (the thread's first message; threads are one level deep), `thread` (reply count and last reply time), `reactions` (who reacted, per reaction in the fixed set `REACTIONS`) and `moderation`: `visible`, `held {reason}` (only the author sees it; `checking` · `graded-work` · `flagged` · `reported`) or `removed`.
 - **Client frames** (`ChatClientFrameSchema`, strict): `hello {protocol, rooms}` first, then `history {room, thread, before, limit}`, `send {room, text, replyTo}`, `edit`, `delete`, `react {id, reaction, on}`, `typing {room}` and `read {room, upTo}`. Requests carry a client `req` id.
 - **Server frames** (`ChatServerFrameSchema`): `welcome {you, rooms: [{room, members, unread, writable}]}`, `page {messages (oldest first), more}`, `ack {req, message}` (the message as its author now sees it; null after a delete), `error {req, code, retryAfter}`, `message` (new or changed; replaces the copy with that id), `deleted`, `reactions`, `moderation` (every change to the author; `removed` to everyone who had seen it) and `typing`.
-- `CHAT_PROTOCOL_VERSION` is bumped on a breaking change; an older client's `hello` gets `error {code: "old-client"}` and reloads.
+- `CHAT_PROTOCOL_VERSION` (2 since authors lost `picture`) is bumped on a breaking change; an older client's `hello` gets `error {code: "old-client"}` and reloads.
 - A `send`'s `req` is also its idempotency key: resending the same `req` (after a reconnect) gets the first message back. Clients pick a random one per message.
 
 ### 7.5 v2 tables (D1 `terpsicle`)
@@ -542,6 +542,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0016_todo_hidden` | `todo_hidden` (the course groups a person hid in Todo) | "Hide CMSC216" (V3.md §3.11) |
 | `0017_notification_inbox` | rebuilds `notifications` into the inbox: every type, with `product`, `group_key`, `count`, words for types whose words aren't user-written, and `thread_id` | Notifications, delivered better (V2.md §6.7, §7.11 here) |
 | `0019_quiet_hours` | `notifications.push_held_at` and a partial index on it | Quiet hours: a push that waits for 8am (V2.md §6.7, §7.11 here) |
+| `0020_no_pictures` | nulls `users.picture_url` and `picture_key` (dropped by a later migration, once no older build reads them) | No profile pictures (V2.md §4.5) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -551,13 +552,13 @@ How it works, and how to use it from other routes: `docs/AUTH.md`. Rows are vali
 
 | Table | Key | Columns | Notes |
 |---|---|---|---|
-| `users` | `id`: the directory ID (`DirectoryIdSchema`, `^[a-z0-9]{2,16}$`) | `email` and `hd` (the address used last), `name`, `picture_url` (Google's), `picture_key` (our copy in R2), `status` (`active` · `deleting`), `delete_after`, `chat_blocked_until`, `reviews_blocked_until`, `created_at`, `last_sign_in_at` | `terp@terpmail.umd.edu` and `terp@umd.edu` are one row, `terp`. Name, picture and email are overwritten at every sign-in; nothing edits them in Terpsicle. Other tables reference `users (id) ON DELETE CASCADE`. |
+| `users` | `id`: the directory ID (`DirectoryIdSchema`, `^[a-z0-9]{2,16}$`) | `email` and `hd` (the address used last), `name`, `picture_url` and `picture_key` (unused, always null since `0020`), `status` (`active` · `deleting`), `delete_after`, `chat_blocked_until`, `reviews_blocked_until`, `created_at`, `last_sign_in_at` | `terp@terpmail.umd.edu` and `terp@umd.edu` are one row, `terp`. Name, picture and email are overwritten at every sign-in; nothing edits them in Terpsicle. Other tables reference `users (id) ON DELETE CASCADE`. |
 | `user_identities` | `(provider, sub)` | `hd`, `email` (that tenant's address), `user_id`, `created_at` | One per Google account the person has used, so both of a student worker's addresses are kept. A `sub` already tied to another directory ID is refused. |
 | `sessions` | `id_hash`: hex SHA-256 of the cookie's token | `user_id`, `created_at`, `last_seen_at`, `expires_at` | 30 days after the last refresh. A session seen over a day ago gets a new token (`POST /api/me`, and routes with `auth`); the replaced one works for one more minute. |
 
 - **Cookies** (all `__Host-`, `Secure; HttpOnly; SameSite=Lax; Path=/`): `__Host-session` (32 random bytes, 30 days, set only at sign-in), `__Host-oauth` (the signed Google round trip, 10 minutes) and `__Host-hint` (the address last signed in with, for Google's `login_hint`; cleared at sign-out and deletion).
-- **Pictures:** R2 `USER_CONTENT` (`terpsicle-user-content`; previews `terpsicle-user-content-preview`) at `avatars/<userId>/<hash16>.<ext>`, fetched at 96 px when Google's URL changes, JPEG, PNG or WebP under 200 KB. `users.picture_key` is that key and `/<key>` its URL; only signed-in people get it.
-- **Deletion:** `account/delete` sets `status = 'deleting'` and `delete_after` a week out and ends every session; signing in before then sets `active` again. The daily job (`7 13 * * *`, `src/jobs/daily.ts`) deletes the pictures, then the rows, of accounts past `delete_after`, and expired sessions.
+- **No pictures** (2026-09-28): nothing is fetched or stored. The daily job deletes the old copies left under R2 `USER_CONTENT`'s `avatars/` (`src/server/auth/legacy-pictures.ts`).
+- **Deletion:** `account/delete` sets `status = 'deleting'` and `delete_after` a week out and ends every session; signing in before then sets `active` again. The daily job (`7 13 * * *`, `src/jobs/daily.ts`) deletes the rows of accounts past `delete_after`, and expired sessions.
 - **Admins** aren't a table: `config/admins.txt`, bundled into the Worker.
 
 ### 7.7 Plan sync (landed: `migrations/0005_sync.sql`, `0010_four_year_sync.sql`)

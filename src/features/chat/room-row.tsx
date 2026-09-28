@@ -1,12 +1,11 @@
 import { cn } from "cn";
-import { BellOff, CalendarClock, Hash, Lock, Users } from "lucide-react";
+import { BellOff, CalendarClock, Hash, Users } from "lucide-react";
 import { type Room, unreadWords } from "~/core/chat";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 
-// A room in a list (the chat list, a course's room tree), on the kit's row:
-// its code in mono and its words, where it meets, and its unread count. Rows
-// you can't open yet say why on hover and stay quiet (DESIGN §5: no alarms).
+// A room in the chat list, on the kit's row: its code in mono and its words,
+// where it meets, and its unread count. Only your rooms are ever listed.
 
 /** A row's one control, answering for the whole row (which is `relative`). */
 export const ROW_LINK = "after:absolute after:inset-0";
@@ -75,60 +74,38 @@ export function RoomRow({
   unread = 0,
   muted = false,
   current = false,
-  locked = null,
-  indent = false,
   onOpen,
 }: {
   room: Room;
   unread?: number;
   muted?: boolean;
   current?: boolean;
-  /** Why it can't be opened yet ("Add 0101 to a plan to join"), or null. */
-  locked?: string | null;
-  indent?: boolean;
   onOpen: () => void;
 }) {
-  const tooltip = locked ?? room.description;
-  const counted = !locked && (unread > 0 || muted);
+  const counted = unread > 0 || muted;
   return (
     <ListRow
       state={current ? "current" : undefined}
       lead={
         <span className="flex w-4 justify-center">
-          {locked ? (
-            <Lock size={13} aria-hidden="true" className="text-faint" />
-          ) : (
-            <RoomIcon room={room} />
-          )}
+          <RoomIcon room={room} />
         </span>
       }
       secondary={room.detail ? room.detail : undefined}
       trail={counted ? <UnreadCount count={unread} muted={muted} /> : undefined}
-      className={cn(
-        "relative max-md:min-h-11",
-        locked ? "text-faint" : current ? undefined : "hover:bg-hover",
-        indent && "pl-8",
-      )}
+      className={cn("relative max-md:min-h-11", !current && "hover:bg-hover")}
     >
-      <WithTooltip label={tooltip} side="right">
+      <WithTooltip label={room.description} side="right">
         <button
           type="button"
           aria-current={current ? "page" : undefined}
-          aria-disabled={locked ? true : undefined}
-          onClick={locked ? undefined : onOpen}
-          className={cn(
-            ROW_LINK,
-            "block w-full min-w-0 text-left",
-            locked && "cursor-default",
-          )}
+          onClick={onOpen}
+          className={cn(ROW_LINK, "block w-full min-w-0 text-left")}
         >
           <RoomLabel
             room={room}
             wrap
-            className={cn(
-              "block",
-              unread > 0 && !muted && !locked && "font-semibold",
-            )}
+            className={cn("block", unread > 0 && !muted && "font-semibold")}
           />
         </button>
       </WithTooltip>

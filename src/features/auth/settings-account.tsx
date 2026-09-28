@@ -18,7 +18,7 @@ import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
 import { SignInPanel } from "./sign-in-panel";
 
-/** Where people change the name and photo we show (we never edit them). */
+/** Where people change the name we show (we never edit it). */
 export const GOOGLE_PROFILE_URL = "https://myaccount.google.com/personal-info";
 
 const SETTINGS_PATH = "/settings";
@@ -112,7 +112,7 @@ function AccountDetails() {
     return (
       <div className="flex flex-col gap-3 text-muted">
         <div className="flex items-center gap-3">
-          <Avatar name={user.name} src={user.avatarUrl} size="lg" />
+          <Avatar name={user.name} size="lg" />
           <div className="min-w-0">
             <p data-private="" className="truncate font-medium text-fg">
               {user.name}
@@ -126,8 +126,8 @@ function AccountDetails() {
           </div>
         </div>
         <p>
-          Your name and photo come from your Google account. Change them there,
-          then sign in again to update them.{" "}
+          Your name comes from your Google account. Change it there, then sign
+          in again to update it. Terpsicle doesn't use your Google photo.{" "}
           <WithTooltip label="Opens Google's account page">
             <a
               href={GOOGLE_PROFILE_URL}

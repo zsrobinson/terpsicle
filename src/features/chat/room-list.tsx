@@ -1,9 +1,7 @@
-import { cn } from "cn";
-import { ChevronRight } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 import { PanelBody, PanelNote } from "~/app/panel";
 import type { ChatListCourse } from "~/core/chat";
-import type { RoomId } from "~/core/schema";
+import { type CourseCode, parseRoomId, type RoomId } from "~/core/schema";
 import { InlineError } from "~/ui/inline-error";
 import { GroupHeader } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
@@ -18,7 +16,7 @@ import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, termPlans, useChatHome, useChatPlan } from "./chat-home";
 import type { ChatGo, ChatView } from "./nav";
-import { ROW_LINK, RoomRow, UnreadCount } from "./room-row";
+import { RoomRow, UnreadCount } from "./room-row";
 import { showNote } from "./undo";
 
 // The chat list (V2.md §8.6): your courses this term, each under a tinted
@@ -26,9 +24,16 @@ import { showNote } from "./undo";
 // unread counts, like the scheduler's Courses tab. "Rooms from Plan A in
 // Schedule ▾" picks which plan's sections are your rooms; the term is in
 // the bar. It names Schedule because the plan open there may be another.
+// It's Chat's one sidebar: opening a room never swaps it for another
+// (the owner, 2026-09-28), and it only lists rooms that are yours.
 
-/** Your classes this term and their rooms, as the list shows them. */
-export function useChatList(): ChatListCourse[] {
+/**
+ * Your classes this term and their rooms, as the list shows them, with the
+ * course whose room is open last if it isn't one of yours.
+ */
+export function useChatList(
+  viewing: CourseCode | null = null,
+): ChatListCourse[] {
   const termId = useChatHome((s) => s.termId);
   const synced = useChatHome((s) => s.synced);
   const unread = useChatHome((s) => s.unread);
@@ -36,8 +41,9 @@ export function useChatList(): ChatListCourse[] {
   const follows = useChatHome((s) => s.follows);
   const mutes = useChatHome((s) => s.mutes);
   return useMemo(
-    () => chatListOf({ termId, synced, unread, courses, follows, mutes }),
-    [termId, synced, unread, courses, follows, mutes],
+    () =>
+      chatListOf({ termId, synced, unread, courses, follows, mutes }, viewing),
+    [termId, synced, unread, courses, follows, mutes, viewing],
   );
 }
 
@@ -52,7 +58,10 @@ export function RoomList({
   empty: ReactNode;
 }) {
   const status = useChatHome((s) => s.status);
-  const list = useChatList();
+  const viewing = view.room
+    ? (parseRoomId(view.room)?.courseCode ?? null)
+    : null;
+  const list = useChatList(viewing);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -96,33 +105,24 @@ function CourseGroup({
   go: ChatGo;
 }) {
   const { courseCode, course, rooms } = entry;
+  // Just a heading: its rooms are right under it, so there's nowhere else
+  // to go (a course's other rooms aren't yours, so they aren't listed).
   return (
     <li className="border-hairline border-b last:border-b-0">
       <GroupHeader
         headingLevel={3}
-        className="relative transition-colors hover:bg-hover max-md:h-11"
+        className="max-md:h-11"
         title={
-          <WithTooltip label={`Every room in ${courseCode}`}>
-            <button
-              type="button"
-              onClick={() => go({ course: courseCode })}
-              className={cn(ROW_LINK, "block max-w-full truncate text-left")}
-            >
-              <span className="ident">{courseCode}</span>
-              {course ? (
-                <span className="ml-2 font-normal text-muted">
-                  {course.title}
-                </span>
-              ) : null}
-            </button>
-          </WithTooltip>
+          <span className="block max-w-full truncate">
+            <span className="ident">{courseCode}</span>
+            {course ? (
+              <span className="ml-2 font-normal text-muted">
+                {course.title}
+              </span>
+            ) : null}
+          </span>
         }
-        right={
-          <>
-            <UnreadCount count={entry.unread} />
-            <ChevronRight size={14} aria-hidden="true" />
-          </>
-        }
+        right={<UnreadCount count={entry.unread} />}
       />
       {course === null ? (
         <PanelNote>{courseCode} isn't in this term's catalog.</PanelNote>

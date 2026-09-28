@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { AvatarUrlSchema } from "./auth";
 import {
   type CourseCode,
   DirectoryIdSchema,
@@ -119,19 +118,15 @@ export const CHAT_TEXT_MAX = 2000;
 export const ChatTextSchema = z.string().trim().min(1).max(CHAT_TEXT_MAX);
 
 /**
- * Who wrote a message: real names and Google pictures (no pseudonyms). The
- * object fills it in from `users` as it is now (docs/AUTH.md: show the stored
- * name and picture, never your own copy), so it follows the Google account.
+ * Who wrote a message: real names (no pseudonyms, and no pictures: initials
+ * stand in). The object fills it in from `users` as it is now (docs/AUTH.md:
+ * show the stored name, never your own copy), so it follows the Google
+ * account.
  */
 export const ChatAuthorSchema = z.object({
   directoryId: DirectoryIdSchema,
   /** The Google account's name. */
   name: z.string().trim().min(1).max(120),
-  /**
-   * Our same-origin copy of the Google picture (`/avatars/…`, docs/AUTH.md
-   * "Pictures"), never Google's own URL; null when there's none.
-   */
-  picture: AvatarUrlSchema.nullable(),
 });
 export type ChatAuthor = z.infer<typeof ChatAuthorSchema>;
 
@@ -211,8 +206,9 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 /**
  * Bumped on any breaking change to the frames below. A client whose `hello`
  * carries an older version gets `error {code: "old-client"}` and reloads.
+ * 2: authors lost `picture` (no profile pictures, 2026-09-28).
  */
-export const CHAT_PROTOCOL_VERSION = 1;
+export const CHAT_PROTOCOL_VERSION = 2;
 
 /** Frames per history page, at most. */
 export const CHAT_PAGE_MAX = 100;

@@ -134,15 +134,7 @@ describe("ChatMessageSchema", () => {
       { ...aChatMessage(), moderation: { state: "pending" } },
       { ...aChatMessage(), reactions: { heart: ["noorh"] } },
       { ...aChatMessage(), reactions: { thumbs: [] } },
-      aChatMessage({
-        author: aChatAuthor({ picture: "http://example.com/a" }),
-      }),
-      // Google's own URL: Chat shows our same-origin copy (docs/AUTH.md).
-      aChatMessage({
-        author: aChatAuthor({
-          picture: "https://lh3.googleusercontent.com/a/fixture-noor",
-        }),
-      }),
+      aChatMessage({ author: aChatAuthor({ name: " " }) }),
     ])
       expect(ChatMessageSchema.safeParse(bad).success).toBe(false);
   });

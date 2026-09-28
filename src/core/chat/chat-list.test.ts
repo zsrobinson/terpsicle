@@ -76,6 +76,50 @@ describe("chatList", () => {
     ]);
   });
 
+  it("lists only rooms that are yours: never another section's or professor's", () => {
+    const [cmsc] = chatList({
+      termId: fixtureTermId,
+      chatPlan: plan,
+      follows: [],
+      unread: [],
+      courses,
+    });
+    const ids = cmsc?.rooms.map((r) => r.room.id) ?? [];
+    expect(ids).not.toContain(sectionRoomId(fixtureTermId, "CMSC351", "0201"));
+    expect(ids).not.toContain(
+      professorRoomId(fixtureTermId, "CMSC351", ["Lee Moss"]),
+    );
+  });
+
+  it("keeps the course you're looking at in the list, last, until you join or leave", () => {
+    const list = chatList({
+      termId: fixtureTermId,
+      chatPlan: plan,
+      follows: [],
+      unread: [],
+      courses,
+      viewing: "ENGL101",
+    });
+    expect(list.map((c) => [c.courseCode, c.reason])).toEqual([
+      ["CMSC351", "plan"],
+      ["MUSC130", "saved"],
+      ["ENGL101", "viewing"],
+    ]);
+    expect(list[2]?.rooms.map((r) => r.room.id)).toEqual([
+      courseRoomId(fixtureTermId, "ENGL101"),
+    ]);
+    // Already yours: it stays where it was, for the reason it was.
+    const again = chatList({
+      termId: fixtureTermId,
+      chatPlan: plan,
+      follows: [],
+      unread: [],
+      courses,
+      viewing: "CMSC351",
+    });
+    expect(again.map((c) => c.reason)).toEqual(["plan", "saved"]);
+  });
+
   it("counts unread messages, leaving muted rooms out of the total", () => {
     const list = chatList({
       termId: fixtureTermId,

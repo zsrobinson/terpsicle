@@ -31,7 +31,6 @@ export const STUDENT: MeUser = {
   id: "tstudent",
   name: "Test Student",
   email: "tstudent@terpmail.umd.edu",
-  avatarUrl: null,
   isAdmin: false,
   createdAt: "2026-10-01T15:00:00.000Z",
 };

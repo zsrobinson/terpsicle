@@ -247,7 +247,7 @@ export type RouteContext = AlertsContext &
   };
 
 export interface ApiOptions {
-  /** Outbound fetch for Google and pictures; tests mock it. */
+  /** Outbound fetch for Google; tests mock it. */
   fetch?: typeof fetch;
   /** Overrides moderationHandlers(env), for tests. */
   moderationHandlers?: ModerationHandlers;

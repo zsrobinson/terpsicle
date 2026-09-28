@@ -19,7 +19,7 @@ const BASE = "https://return.invalid";
 /**
  * A same-origin path, or `fallback`. Rejects absolute and protocol-relative
  * URLs (`//evil.com`, `/\evil.com`), control characters, anything over 512
- * characters, and `/api/*` and `/avatars/*` (a sign-in must land on a page).
+ * characters, and `/api/*` (a sign-in must land on a page).
  */
 export function safeReturnPath(
   raw: string | null | undefined,
@@ -36,7 +36,7 @@ export function safeReturnPath(
     return fallback;
   }
   if (url.origin !== BASE) return fallback;
-  if (/^\/(api|avatars)(\/|$)/.test(url.pathname)) return fallback;
+  if (/^\/api(\/|$)/.test(url.pathname)) return fallback;
   return `${url.pathname}${url.search}${url.hash}`;
 }
 

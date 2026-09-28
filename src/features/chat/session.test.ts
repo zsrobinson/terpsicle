@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listed } from "~/core/chat";
 import {
+  CHAT_PROTOCOL_VERSION,
   type ChatClientFrame,
   type ChatServerFrame,
   courseRoomId,
@@ -52,7 +53,7 @@ class FakeSocket implements SocketLike {
 
 const welcome: ChatServerFrame = {
   type: "welcome",
-  protocol: 1,
+  protocol: CHAT_PROTOCOL_VERSION,
   you: me,
   rooms: [{ room, members: 3, unread: 0, writable: true }],
 };
@@ -96,7 +97,7 @@ describe("CourseChatSession", () => {
     );
     expect(socket.sent[0]).toEqual({
       type: "hello",
-      protocol: 1,
+      protocol: CHAT_PROTOCOL_VERSION,
       rooms: [room],
     });
     expect(session.getSnapshot().status).toBe("open");

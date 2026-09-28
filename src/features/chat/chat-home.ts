@@ -76,7 +76,7 @@ export interface ChatHomeState {
   refreshUnread: () => Promise<void>;
   /** Loads `courseRows` once; after an error, asking again tries again. */
   ensureCourseRows: () => Promise<void>;
-  /** Makes sure a course's catalog entry is loaded (a course space opened by link). */
+  /** Makes sure a course's catalog entry is loaded (a room opened by link or Find a course). */
   ensureCourse: (courseCode: CourseCode) => Promise<Course | null>;
   follow: (courseCode: CourseCode) => Promise<"ok" | "too-many" | "failed">;
   unfollow: (courseCode: CourseCode) => Promise<boolean>;
@@ -362,9 +362,12 @@ export function chatListOf(
     ChatHomeState,
     "termId" | "synced" | "unread" | "courses" | "follows" | "mutes"
   >,
+  /** The course whose room is open, listed last if it isn't yours. */
+  viewing: CourseCode | null = null,
 ): ChatListCourse[] {
   if (!state.termId) return [];
   return chatList({
+    viewing,
     termId: state.termId,
     chatPlan: chatPlanFor(
       state.termId,

@@ -318,7 +318,7 @@ export const EVAL_CASES: readonly EvalCase[] = [
     why: "Hyperbole, not self-harm.",
   },
 
-  // Answers publish in chat now: the room rules ask kindly, and the author
+  // Answers publish in chat now: "Posting here" says your name is on it, and the author
   // may get a one-time nudge. They were held until 2026-09-27.
   {
     id: "chat-asks-for-answers",

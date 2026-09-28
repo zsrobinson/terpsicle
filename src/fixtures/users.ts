@@ -22,8 +22,11 @@ export const FIXTURE_TOKEN_NOW = new Date("2026-10-01T15:01:00.000Z");
 
 const ISSUED_AT = Date.parse("2026-10-01T15:00:00.000Z") / 1000;
 
-/** A TERPmail undergraduate: `hd` is terpmail.umd.edu. */
-const terpmail: GoogleIdClaims = {
+/**
+ * A TERPmail undergraduate: `hd` is terpmail.umd.edu. Google's profile scope
+ * adds a `picture`, which Terpsicle ignores (no profile pictures).
+ */
+const terpmail: GoogleIdClaims & { picture: string } = {
   iss: "https://accounts.google.com",
   azp: FIXTURE_CLIENT_ID,
   aud: FIXTURE_CLIENT_ID,
@@ -62,8 +65,6 @@ export const ID_TOKEN_PAYLOADS = {
     sub: "104857395827394857201",
     hd: "umd.edu",
     email: "testudo@umd.edu",
-    picture:
-      "https://lh3.googleusercontent.com/a/ACg8ocKtestudoUMD000000000000000=s96-c",
   },
   /** A personal Gmail account: no `hd` at all. */
   personalGmail: {
@@ -135,8 +136,6 @@ export function anIdentity(overrides: Partial<Identity> = {}): Identity {
     email: "testudo@terpmail.umd.edu",
     hd: "terpmail.umd.edu",
     name: "Testudo Terrapin",
-    pictureUrl:
-      "https://lh3.googleusercontent.com/a/ACg8ocJtestudo0000000000000000000=s96-c",
     sub: "110169484474386276334",
     ...overrides,
   };

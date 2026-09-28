@@ -121,7 +121,6 @@ function signedIn(on = true, chat: Flags["chat"] = "off") {
       id: "tstudent",
       name: "Test Student",
       email: "tstudent@terpmail.umd.edu",
-      avatarUrl: null,
       isAdmin: false,
       createdAt: "2026-09-01T00:00:00.000Z",
     },

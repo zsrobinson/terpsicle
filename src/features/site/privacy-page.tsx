@@ -57,11 +57,11 @@ export function PrivacyPage() {
         <Section title="Signing in">
           <p>
             Schedule works without an account. To sign in, you use your UMD
-            Google account (umd.edu or terpmail.umd.edu). Google gives Terpsicle
-            your name, your UMD email address and your profile picture. Your
-            directory ID (the part of your email before the @) identifies your
-            account. Terpsicle keeps its own copy of your picture and shows it
-            only to people who are signed in.
+            Google account (umd.edu or terpmail.umd.edu). Terpsicle keeps your
+            name and your UMD email address from Google. Your directory ID (the
+            part of your email before the @) identifies your account. Terpsicle
+            doesn't collect or show your profile picture: your initials stand in
+            for it.
           </p>
           <p>
             Once you sign in, your plans and settings (like whether AI summaries
@@ -93,11 +93,11 @@ export function PrivacyPage() {
 
         <Section title="Chat">
           <p>
-            Class chats show your real name and Google profile picture to the
-            other students in the room. Messages are stored so the room keeps
-            its history. The same kind of moderation model checks messages for
-            serious abuse, such as threats, hate and spam, and holds those for
-            the moderator to review. To catch one message posted across many
+            Class chats show your real name (and your initials, never a picture)
+            to the other students in the room. Messages are stored so the room
+            keeps its history. The same kind of moderation model checks messages
+            for serious abuse, such as threats, hate and spam, and holds those
+            for the moderator to review. To catch one message posted across many
             courses, Terpsicle keeps a fingerprint of each message (which can't
             be turned back into its words), with its course and time, for an
             hour. A term's rooms become read-only 10 days after classes end, and
@@ -228,12 +228,12 @@ export function PrivacyPage() {
           <p>
             You can delete your account in Settings. Terpsicle waits 7 days, in
             case you change your mind (signing in cancels it), then deletes your
-            profile and picture, synced plans, notification settings, seat
-            watches, chat messages, your calendar feed link, and your ELMS link,
-            deadlines, own tasks and done marks. Your calendar feed stops
-            working as soon as you delete your account. Reviews you posted stay
-            up with no name attached; delete them first if you want them gone.
-            Plans saved in your browser stay until you remove them.
+            profile, synced plans, notification settings, seat watches, chat
+            messages, your calendar feed link, and your ELMS link, deadlines,
+            own tasks and done marks. Your calendar feed stops working as soon
+            as you delete your account. Reviews you posted stay up with no name
+            attached; delete them first if you want them gone. Plans saved in
+            your browser stay until you remove them.
           </p>
         </Section>
 

@@ -508,7 +508,6 @@ describe("GET /api/chat/socket", () => {
     expect(welcome.you).toEqual({
       directoryId: "tstudent",
       name: "Test Student",
-      picture: null,
     });
     expect(welcome.protocol).toBe(CHAT_PROTOCOL_VERSION);
   });
@@ -2092,16 +2091,14 @@ describe("chat routes", () => {
       status: "ok",
       total: 2,
       members: [
-        { directoryId: "tclassmate", name: "Test Classmate", picture: null },
-        { directoryId: "tstudent", name: "Test Student", picture: null },
+        { directoryId: "tclassmate", name: "Test Classmate" },
+        { directoryId: "tstudent", name: "Test Student" },
       ],
     });
     expect(await list(brandtRoom)).toEqual({
       status: "ok",
       total: 1,
-      members: [
-        { directoryId: "tstudent", name: "Test Student", picture: null },
-      ],
+      members: [{ directoryId: "tstudent", name: "Test Student" }],
     });
     expect(await list(room0201)).toEqual({ status: "not-a-member" });
     expect(

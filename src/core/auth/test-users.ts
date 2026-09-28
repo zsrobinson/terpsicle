@@ -22,7 +22,6 @@ const testUser = (
     email: `${directoryId}@terpmail.umd.edu`,
     hd: "terpmail.umd.edu",
     name,
-    pictureUrl: null,
     sub: null,
   },
   isAdmin,

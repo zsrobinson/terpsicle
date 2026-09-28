@@ -98,7 +98,7 @@ function AccountMenu({
               }
               className={`${triggerClass} relative px-1.5`}
             >
-              <Avatar name={user.name} src={user.avatarUrl} />
+              <Avatar name={user.name} />
               {note ? (
                 <span
                   aria-hidden="true"
@@ -183,7 +183,7 @@ function AccountItems({ user }: { user: MeUser }) {
   return (
     <>
       <DropdownMenuLabel className="flex items-center gap-2 py-2">
-        <Avatar name={user.name} src={user.avatarUrl} />
+        <Avatar name={user.name} />
         <span className="min-w-0">
           <span
             data-private=""

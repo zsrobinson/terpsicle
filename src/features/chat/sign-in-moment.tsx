@@ -11,9 +11,9 @@ import { ProductPage } from "~/ui/product-page";
 
 export const CHAT_SIGN_IN_POINTS = [
   "Your rooms come from the classes you add in Schedule: a room for each course, your professor's sections and your section.",
-  "Classmates see your Google name and picture next to what you write, and in the people list of each of your rooms. They never see your plans.",
+  "Classmates see your name from Google next to what you write, and in each room's people list. There are no profile pictures, and nobody sees your plans.",
   "We keep your messages until the term's rooms close, about ten weeks after classes end, then delete them.",
-  "Messages are kept to the room's rules, and a person reads anything reported.",
+  "A person reads anything that's reported.",
 ] as const;
 
 export function SignInMoment({ returnTo }: { returnTo: string }) {

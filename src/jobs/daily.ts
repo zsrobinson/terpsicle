@@ -1,4 +1,5 @@
 import { endPastTermWatches } from "~/server/alerts/service";
+import { sweepLegacyPictures } from "~/server/auth/legacy-pictures";
 import { deleteExpiredSessions, purgeDueAccounts } from "~/server/auth/purge";
 import { groupOpenFeedback } from "~/server/feedback/group";
 import { pruneFeedback } from "~/server/feedback/store";
@@ -15,8 +16,7 @@ import { type Job, runJob } from "./job";
 /**
  * The daily housekeeping job (V2.md §13, `7 13 * * *`). Today: purges
  * accounts whose week of grace after "Delete account" has ended (everything
- * of theirs: chat messages in each course's object, pictures in R2, then
- * every D1 row; src/server/auth/purge.ts lists each table), expired
+ * of theirs: chat messages in each course's object, then every D1 row; src/server/auth/purge.ts lists each table), expired
  * sessions, deleted plans' tombstones 30 days on (V2.md §5.2), and
  * reviews' words: rejected ones cleared and deleted rows removed 30 days on
  * (V2.md §7.3), and Todo items due over 30 days ago with their stale done
@@ -27,7 +27,9 @@ import { type Job, runJob } from "./job";
  * up without one. Seat watches end once their term is no longer active
  * (V2.md §6.5). It sends the chat digest (V2.md §6.6) and prunes chat
  * mentions and replies after 30 days. It groups open feedback again with
- * Workers AI (src/server/feedback/group.ts).
+ * Workers AI (src/server/feedback/group.ts). Until `avatars/` is empty, it
+ * deletes the profile pictures kept before they were dropped
+ * (src/server/auth/legacy-pictures.ts).
  */
 export const runDailyJob: Job = async (context) => {
   await runJob("daily", context, async () => {
@@ -53,6 +55,7 @@ export const runDailyJob: Job = async (context) => {
     const deliveriesPruned = await pruneDeliveries(env.DB, now);
     const watches = await endPastTermWatches(env);
     const feedback = await pruneFeedback(env.DB, env.USER_CONTENT, now);
+    const legacyPicturesDeleted = await sweepLegacyPictures(env.USER_CONTENT);
     // Grouping is a convenience: a model that doesn't answer leaves
     // yesterday's groups, and the job goes on.
     const grouping = await groupOpenFeedback(env, now).catch(() => null);
@@ -76,6 +79,7 @@ export const runDailyJob: Job = async (context) => {
         feedbackUndoCleared: feedback.undoCleared,
         feedbackShotsExpired: feedback.shotsExpired,
         feedbackRemoved: feedback.removed,
+        legacyPicturesDeleted,
         feedbackGroups: grouping?.groups ?? 0,
         feedbackGrouped: grouping?.grouped ?? 0,
       },

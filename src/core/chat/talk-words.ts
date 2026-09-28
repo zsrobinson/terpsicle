@@ -88,14 +88,14 @@ export function typingWords(names: readonly string[]): string {
 
 const HELD: Readonly<Record<Exclude<HeldReason, "checking">, string>> = {
   "graded-work":
-    "Only you can see this for now: it may be graded work, so a person will look at it.",
-  flagged: "Only you can see this for now, until a person looks at it.",
+    "Held for review: it may be graded work. Only you can see it until a person checks it.",
+  flagged: "Held for review. Only you can see it until a person checks it.",
   reported:
-    "Only you can see this for now: classmates reported it, so a person will look at it.",
+    "Held for review after a report. Only you can see it until a person checks it.",
 };
 
 /**
- * The one quiet line under your own message that classmates can't see, or
+ * The one plain line under your own message that classmates can't see, or
  * null. Only its author ever sees these, and only when a message is really
  * held or removed: one still being checked reads as sent, like any other
  * (the owner, 2026-09-27: nobody should have to think about a bot reading
@@ -105,7 +105,7 @@ const HELD: Readonly<Record<Exclude<HeldReason, "checking">, string>> = {
 export function heldWords(moderation: Moderation): string | null {
   if (moderation.state === "visible") return null;
   if (moderation.state === "removed")
-    return "A person took this down. Only you can see it.";
+    return "Taken down after review. Only you can see it.";
   if (moderation.reason === "checking") return null;
   return HELD[moderation.reason];
 }

@@ -48,7 +48,7 @@ export function blockedSummary(
   if (!url) return "unknown";
   const scheme = url.protocol.slice(0, -1);
   if (BLOCKED_KEYWORDS.has(scheme)) return scheme;
-  // Our own paths can name a person (/avatars/<id>/…), so not even those.
+  // Our own paths can name a person or carry a secret, so not even those.
   return url.origin === origin ? "self" : originOf(url);
 }
 

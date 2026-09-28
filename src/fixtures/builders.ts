@@ -938,7 +938,6 @@ export function aMeUser(overrides: Partial<MeUser> = {}): MeUser {
     id: "tstudent",
     name: "Test Student",
     email: "tstudent@terpmail.umd.edu",
-    avatarUrl: null,
     isAdmin: false,
     createdAt: "2026-09-01T00:00:00.000Z",
     ...overrides,
@@ -1036,7 +1035,6 @@ export function aChatAuthor(overrides: Partial<ChatAuthor> = {}): ChatAuthor {
   return {
     directoryId: "noorh",
     name: "Noor Haddad",
-    picture: "/avatars/noorh/0f1e2d3c4b5a6978.jpg",
     ...overrides,
   };
 }

@@ -1,5 +1,4 @@
 import { cn } from "cn";
-import { useState } from "react";
 
 /** "Testudo Terrapin" → "TT"; one word → its first letter. */
 export function initials(name: string): string {
@@ -10,42 +9,30 @@ export function initials(name: string): string {
 }
 
 /**
- * Someone's Google picture (our cached copy), or their initials when there
- * isn't one or it fails to load. Decorative: the name is always next to it.
+ * Someone's initials in ink (the owner: black, not gray; paper in dark).
+ * Terpsicle never shows or keeps profile pictures (docs/decisions.md), so
+ * this is everyone's mark. Decorative: the name is always next to it.
  * `data-private` keeps it out of analytics (docs/ANALYTICS.md "Privacy").
  */
 export function Avatar({
   name,
-  src,
   size = "sm",
 }: {
   name: string;
-  src: string | null;
   size?: "sm" | "md" | "lg";
 }) {
-  const [failed, setFailed] = useState(false);
   const box =
     size === "lg"
       ? "size-12 text-base"
       : size === "md"
         ? "size-8 text-xs"
         : "size-6 text-2xs";
-  if (src && !failed)
-    return (
-      <img
-        src={src}
-        alt=""
-        data-private=""
-        onError={() => setFailed(true)}
-        className={cn("shrink-0 rounded-full bg-hover object-cover", box)}
-      />
-    );
   return (
     <span
       aria-hidden="true"
       data-private=""
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full bg-hover font-medium text-muted",
+        "flex shrink-0 items-center justify-center rounded-full bg-accent font-medium text-accent-fg",
         box,
       )}
     >

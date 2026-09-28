@@ -25,7 +25,6 @@ describe("safeReturnPath", () => {
     ["/\tevil"],
     ["/api/me"],
     ["/api"],
-    ["/avatars/testudo/0123456789abcdef.jpg"],
     ["javascript:alert(1)"],
     [`/${"a".repeat(512)}`],
   ])("falls back for %j", (raw) => {

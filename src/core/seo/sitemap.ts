@@ -43,7 +43,6 @@ export const SITEMAP_MAX_URLS = 50_000;
 export const DISALLOWED_PATHS: readonly string[] = [
   "/api/",
   "/admin",
-  "/avatars/",
   "/auth/",
   "/settings",
   "/signin",

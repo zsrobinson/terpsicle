@@ -14,7 +14,7 @@ import { APEX_HOST } from "../apex";
 export interface AuthEnv {
   DB: D1Database;
   DATA: R2Bucket;
-  /** Cached profile pictures (pictures.ts); absent in the seat-alert harness. */
+  /** Feedback screenshots (src/server/feedback); absent in the seat-alert harness. */
   USER_CONTENT?: R2Bucket;
   SIGN_IN_ENABLED?: string;
   GOOGLE_CLIENT_ID?: string;

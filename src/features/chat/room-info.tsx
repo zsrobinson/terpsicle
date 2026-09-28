@@ -14,15 +14,15 @@ import { isMuted, useChatHome } from "./chat-home";
 import { showNote, showUndo } from "./undo";
 
 // Room info (V2.md §8.2, §8.6): who the room is for and how many are in it,
-// who they are, mute, leave, and how reporting works. Membership is on
-// trust, and it says so.
+// who they are (names and initials; no pictures), mute, leave, and
+// "Posting here". Membership is on trust, and it says so.
 
-// Kind, and nothing about a bot reading every message (the owner,
-// 2026-09-27): answers are asked against, not policed.
+// "Posting here": neutral and matter-of-fact, never a lecture (the owner,
+// 2026-09-28: "like you're a cop"), and nothing about a bot reading every
+// message (2026-09-27). Your name being on it says the rest.
 export const ROOM_RULES = [
-  "Help each other learn, but please don't post answers to graded work.",
-  "Everyone here sees your real name, like in class.",
-  "Report abuse from a message's menu; a person looks at every report.",
+  "Your name is on everything you post here, so posting answers to graded work is a bad idea.",
+  "Report is in each message's menu (…). A person reads every report, and nobody sees who sent it.",
 ] as const;
 
 type Members =
@@ -113,7 +113,7 @@ export function RoomInfo({
                   as="li"
                   density="compact"
                   className="px-0"
-                  lead={<Avatar name={m.name} src={m.picture} />}
+                  lead={<Avatar name={m.name} />}
                 >
                   <span className="block truncate" data-private="">
                     {m.name}
@@ -145,16 +145,12 @@ export function RoomInfo({
         <LeaveOrWhy courseCode={courseCode} room={room} />
       </section>
 
-      <PageSection headingLevel={3} title="Room rules">
-        <ul className="list-disc pl-4 text-muted">
+      <PageSection headingLevel={3} title="Posting here">
+        <ul className="flex flex-col gap-1 text-muted">
           {ROOM_RULES.map((rule) => (
             <li key={rule}>{rule}</li>
           ))}
         </ul>
-        <p className="text-muted">
-          To report harassment, threats, spam or someone's private info, open
-          the message's menu (…) and pick Report. Nobody sees who reported it.
-        </p>
       </PageSection>
     </div>
   );

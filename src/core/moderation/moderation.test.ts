@@ -502,16 +502,17 @@ describe("policy text", () => {
     expect(MODERATION_POLICY.chat.title).toBe("What's allowed");
   });
 
-  it("asks kindly about answers in chat, and never says a bot reads every message", () => {
+  it("says plainly why answers in chat are a bad idea, without a lecture or a bot", () => {
     const chat = MODERATION_POLICY.chat;
     const all = [
       chat.intro,
       chat.process,
       ...chat.sections.flatMap((s) => [s.heading, ...s.items]),
     ].join(" ");
-    expect(all).toMatch(/please don't/i);
-    expect(all).toMatch(/answers to graded work/);
+    expect(all).toMatch(/answers to graded work/i);
+    expect(all).toMatch(/your name is on/i);
+    // Neutral, not a cop (the owner, 2026-09-28).
+    expect(all).not.toMatch(/please|help(s)? more|grade safe|kindly/i);
     expect(all).not.toMatch(/checked automatically|automatic check|bot/i);
-    expect(all).toMatch(/kept to these rules/);
   });
 });
