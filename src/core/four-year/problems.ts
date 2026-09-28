@@ -7,13 +7,16 @@ import {
 import {
   FOUR_YEAR_PROBLEM_SEVERITY,
   type FourYearCourseEntry,
+  type FourYearCreditEntry,
   type FourYearDoc,
+  type FourYearEntry,
   type FourYearFix,
   type FourYearProblem,
   type FourYearProblemKind,
   type FourYearSubject,
 } from "../schema/four-year";
 import {
+  countsAsCode,
   detailsFromCourse,
   type FourYearCourses,
   honorsBase,
@@ -92,14 +95,16 @@ function prereqProblems(
   const unmet = unmetPrereqGroups(doc, entry, lookup);
   const first = unmet[0];
   if (!first) return [];
-  const later = doc.entries.find(
-    (e) =>
-      e.kind === "course" &&
-      first.includes(e.code) &&
-      compareFourYearTerms(e.term, entry.term) >= 0,
-  );
+  const later = doc.entries.flatMap((e) => {
+    const code = countsAsCode(lookup, e);
+    return code !== null &&
+      first.includes(code) &&
+      compareFourYearTerms(e.term, entry.term) >= 0
+      ? [{ term: e.term, code }]
+      : [];
+  })[0];
   let title: Message;
-  if (unmet.length === 1 && later?.kind === "course")
+  if (unmet.length === 1 && later)
     title = [
       course(entry.code),
       text(
@@ -172,15 +177,17 @@ function repeatedProblems({
   statusOf,
 }: FourYearProblemsInput): FourYearProblem[] {
   const out: FourYearProblem[] = [];
-  const firstSeen = new Map<CourseCode, FourYearCourseEntry>();
+  const firstSeen = new Map<CourseCode, FourYearEntry>();
   for (const entry of doc.entries) {
-    if (entry.kind !== "course") continue;
-    const info = lookup.courses.get(entry.code);
+    // Credit that counts as a course repeats it like the course would.
+    const code = countsAsCode(lookup, entry);
+    if (code === null) continue;
+    const info = lookup.courses.get(code);
     if (info && isRepeatable(info)) continue;
-    const earlier = firstSeen.get(entry.code);
+    const earlier = firstSeen.get(code);
     // Retaking a course that earned nothing is the point of a retake.
     if (!earlier || earnedNothing(doc, earlier)) {
-      firstSeen.set(entry.code, entry);
+      firstSeen.set(code, entry);
       continue;
     }
     const fix: FourYearFix | null =
@@ -195,7 +202,7 @@ function repeatedProblems({
           { kind: "entry", entryId: earlier.id },
         ],
         [
-          course(entry.code),
+          course(code),
           text(
             earlier.term === entry.term
               ? ` is in ${fourYearTermLabel(entry.term)} twice`
@@ -227,7 +234,9 @@ function unknownProblem(
       [
         text("Testudo doesn't list it anymore, but it lists "),
         course(base.code),
-        text(`, ${base.title}. Count it as that to get its GenEds.`),
+        text(
+          `, ${base.title}. Count it as that for its GenEds and prerequisites.`,
+        ),
       ],
       {
         kind: "details",
@@ -243,10 +252,40 @@ function unknownProblem(
     [course(entry.code), text(" isn't in Testudo")],
     [
       text(
-        "Check the code. If it's an older course Testudo doesn't list anymore, add its course info so its credits and GenEds count.",
+        "Check the code. If it's an older course Testudo doesn't list anymore, add its course info so its credits and GenEds count, and say what it counts as.",
       ),
     ],
   );
+}
+
+/** "CHEM1XX" → "CHEM 1XX", as Testudo prints it. */
+function patternLabel(pattern: string): string {
+  return `${pattern.slice(0, 4)} ${pattern.slice(4)}`;
+}
+
+/**
+ * Transfer or AP credit Testudo gave as a department's level ("CHEM 1XX")
+ * rather than a course: it meets no prerequisite until the person says which
+ * course it counts as. Saying (a course, or none) answers it.
+ */
+function unmatchedCreditProblem(entry: FourYearCreditEntry): FourYearProblem[] {
+  const pattern = entry.equivalentPattern;
+  if (!pattern || entry.countsAs !== undefined) return [];
+  const dept = pattern.slice(0, 4);
+  const digit = pattern.charAt(4);
+  const kind = /\d/.test(digit) ? `${digit}00-level ${dept}` : dept;
+  return [
+    problem(
+      "unmatched-credit",
+      [{ kind: "entry", entryId: entry.id }],
+      [text(`${entry.title} came in as ${patternLabel(pattern)}`)],
+      [
+        text(
+          `Testudo counts it as a ${kind} course without naming one, so it meets no prerequisites. If your degree audit names the course, say which one it counts as.`,
+        ),
+      ],
+    ),
+  ];
 }
 
 /** The last `RECENT_SEMESTERS` fall and spring semesters up to `latest`. */
@@ -291,6 +330,7 @@ function notOfferedProblem(
 function rawProblems(input: FourYearProblemsInput): FourYearProblem[] {
   const out: FourYearProblem[] = [];
   for (const entry of input.doc.entries) {
+    if (entry.kind === "credit") out.push(...unmatchedCreditProblem(entry));
     if (entry.kind !== "course") continue;
     if (isUnknownCourse(input.lookup, entry.code)) {
       // Details answer it: the person has said what the course was.
