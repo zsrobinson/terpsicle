@@ -8,7 +8,7 @@ import { bellCount, bellLabel } from "~/core/notifications/bell";
 import { useAccount } from "~/features/auth/account-store";
 import { DropdownMenuItem } from "~/ui/dropdown-menu";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
-import { useUnread, useUnreadPolling } from "./unread-store";
+import { useUnread, useUnreadPolling } from "./queries";
 
 // The bell in the family bar (docs/V2.md §6.7), signed in only: the unread
 // count, and Notifications behind it, a popover on desktop and a sheet on
@@ -109,7 +109,7 @@ export function NotificationsBell({
 }) {
   const shown = useBellShown();
   useUnreadPolling(shown);
-  const unread = useUnread((s) => s.unread) ?? 0;
+  const unread = useUnread() ?? 0;
   const mobile = useIsMobile();
   const button = useRef<HTMLButtonElement | null>(null);
   const bellRef = useCallback((bell: HTMLButtonElement) => {
@@ -178,7 +178,7 @@ function BellCount({ unread }: { unread: number }) {
 
 /** The account menu's way in, where a phone's bar has no room for the bell. */
 export function NotificationsMenuItem() {
-  const unread = useUnread((s) => s.unread) ?? 0;
+  const unread = useUnread() ?? 0;
   return (
     <DropdownMenuItem
       onSelect={() => openNotifications()}
@@ -196,7 +196,7 @@ export function NotificationsMenuItem() {
 
 /** Words for the avatar when the bell is in its menu: "3 unread notifications". */
 export function useUnreadNote(): string | null {
-  const unread = useUnread((s) => s.unread) ?? 0;
+  const unread = useUnread() ?? 0;
   if (unread === 0) return null;
   return unread === 1
     ? "1 unread notification"

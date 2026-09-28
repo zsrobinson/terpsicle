@@ -1,14 +1,15 @@
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { aMeUser, anInboxItem } from "~/fixtures";
 import { notificationsApi } from "~/server/fns/notifications";
+import { createTestQueryClient } from "~/state/query/testing";
 import { renderInRouter } from "~/ui/test-utils";
 import { forgetBell, NotificationsBell } from "./bell";
-import { forgetInbox } from "./inbox";
-import { useUnread } from "./unread-store";
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 vi.mock("~/server/fns/notifications", () => ({
@@ -49,9 +50,16 @@ function signIn() {
   });
 }
 
+let client: QueryClient;
+
+/** A page's tree, inside its query client as the router's Wrap puts it. */
+const withQuery = (node: ReactNode) => (
+  <QueryClientProvider client={client}>{node}</QueryClientProvider>
+);
+
 async function renderBell() {
   const user = userEvent.setup();
-  const view = renderInRouter(<NotificationsBell />, "/reviews");
+  const view = renderInRouter(withQuery(<NotificationsBell />), "/reviews");
   return { user, ...view };
 }
 
@@ -61,8 +69,7 @@ const bell = () => screen.findByTestId("notifications-bell");
 beforeEach(() => {
   vi.clearAllMocks();
   forgetBell();
-  forgetInbox();
-  useUnread.setState({ unread: null });
+  client = createTestQueryClient();
   api.unread.mockResolvedValue({ unread: 2 });
   api.inbox.mockResolvedValue({
     items: [mention, seat, oldDue],
@@ -83,7 +90,7 @@ describe("the bell", () => {
       user: null,
       flags: { ...FLAGS_OFF, signIn: true },
     });
-    renderInRouter(<NotificationsBell />, "/reviews");
+    renderInRouter(withQuery(<NotificationsBell />), "/reviews");
     // The router renders asynchronously: wait for its first render.
     await waitFor(() => expect(document.body.childElementCount).toBe(1));
     expect(screen.queryByTestId("notifications-bell")).toBeNull();
@@ -218,7 +225,10 @@ describe("Notifications", () => {
     });
     const { user, list } = await open();
     await user.click(within(list).getByRole("button", { name: "Show older" }));
-    expect(api.inbox).toHaveBeenLastCalledWith({ before: "cursor-1" });
+    expect(api.inbox).toHaveBeenLastCalledWith(
+      { before: "cursor-1" },
+      expect.anything(),
+    );
     expect(
       await within(list).findByText("Lab 6 is due tomorrow"),
     ).toBeVisible();
@@ -260,7 +270,7 @@ describe("a page change, which swaps the bar", () => {
   async function renderPages() {
     signIn();
     const user = userEvent.setup();
-    const { router } = renderInRouter(<PagesBar />, "/reviews");
+    const { router } = renderInRouter(withQuery(<PagesBar />), "/reviews");
     const before = await bell();
     const nextPage = async () => {
       await router.navigate({ to: "/settings/notifications" });
