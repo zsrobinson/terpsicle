@@ -77,6 +77,9 @@ Published data beyond the term catalog, in `~/state/data-hooks`. Each hook start
 | `useCampus()` | `{ campus, state }`: core's `CampusMap` (routes and off-campus codes), `EMPTY_CAMPUS` until loaded. |
 | `useRouteGeometry(from, to, mode)` | `{ geometry, state }`: a connection's walking path for a map. `geometry` stays `null` when there's no file: hide the map, never draw a straight line. |
 | `useCatalogPolling(termId)` | The seat poll. The shell runs it for the term on screen, so features don't need to. |
+| `useTerpsicleReviews(dept, enabled)` | A department's Terpsicle review numbers, or `null` (loading, nothing published, failed, or `enabled` false). Read through the query cache, below. |
+
+**Server data goes through TanStack Query** (`docs/decisions.md`, "TanStack Query for server data and its caching"). `getRouter()` (`src/router.tsx`) makes one `QueryClient` (`~/lib/query-client.ts`), puts it in router context (loaders read `context.queryClient`), and `@tanstack/react-router-ssr-query` wraps the app in its provider. Each area keeps `queryOptions` factories beside its data: published files in `~/state/query/` (`publishedFile` for hashed files, `publishedPointer` for manifests; review numbers are the first, `review-numbers.ts`), persisted to IndexedDB by `~/state/query/persister.ts` (`DATA.md` §5.5). A component calls `useQuery(factory(...))`; a loader calls `context.queryClient.ensureQueryData(factory(...))`. Don't add a `once`, an in-flight map, a `visibilitychange` refetch or a poll timer: those are the factory's `staleTime`, Query's dedupe, `refetchOnWindowFocus` and `refetchInterval`. `app.tsx` hands published queries their data source (`connectPublished`); tests render inside `QueryClientProvider` with `createTestQueryClient()` (`renderShell` does).
 
 Stores (Zustand) for everything else:
 

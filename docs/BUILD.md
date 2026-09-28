@@ -96,8 +96,8 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 │   ├── components/             views every product shares: the family bar (app-bar), product menu, theme toggle, panel pieces, brand/ (Mark, Wordmark, logo), workbench/
 │   │   └── ui/                 the page kit and shadcn/Radix controls every product composes (docs/COHESION.md)
 │   ├── hooks/                  React hooks every product shares (use-media-query, use-scrolled)
-│   ├── lib/                    non-view code every product shares: analytics, the activity log, config, theme, shortcuts, products and cross-links, head scripts, brand/ marks and tokens
-│   ├── state/                  the scheduler's data layer: Zustand stores, Dexie persistence, undo, published-data loading
+│   ├── lib/                    non-view code every product shares: analytics, the activity log, config, theme, shortcuts, products and cross-links, head scripts, brand/ marks and tokens, the TanStack Query client
+│   ├── state/                  the data layer: Zustand stores, Dexie persistence, undo, published-data loading, and query/ (TanStack Query factories and the query cache's persister)
 │   ├── worker/                 Comlink web worker (the generator)
 │   ├── core/                   PURE domain logic, one module per area (README.md has the map)
 │   ├── ingest/                 sources → normalized catalog (soc, planetterp, buildings, routes, calendar, publish); platform-agnostic

@@ -1,5 +1,5 @@
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   HeadContent,
   Outlet,
   Scripts,
@@ -13,11 +13,12 @@ import { pwaLinks, pwaMeta, themeColorMeta } from "~/features/pwa/pwa-head";
 import { NotFoundPage } from "~/features/site/not-found-page";
 import { ActivityLogBoot } from "~/lib/activity-log-boot";
 import { InlineScript } from "~/lib/inline-script";
+import type { RouterContext } from "~/lib/query-client";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import appCss from "../styles.css?url";
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },

@@ -29,10 +29,7 @@ import {
   createDataReader,
   type DataSource,
 } from "~/state/data-source";
-import {
-  INITIAL_REVIEW_NUMBERS_STATE,
-  useReviewNumbers,
-} from "~/state/reviews-store";
+import { connectPublished } from "~/state/query/published";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { CourseDetails } from "./course-details";
@@ -217,9 +214,7 @@ describe("Course details", () => {
     });
 
     it("combines PlanetTerp's rating with Terpsicle's once Reviews is readable", async () => {
-      useReviewNumbers
-        .getState()
-        .connect(createBucketDataSource(mockDataSource));
+      connectPublished(createBucketDataSource(mockDataSource));
       useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "read" } });
       try {
         const { user } = await renderDetails();
@@ -250,7 +245,7 @@ describe("Course details", () => {
         });
       } finally {
         useAccount.setState({ flags: FLAGS_OFF });
-        useReviewNumbers.setState(INITIAL_REVIEW_NUMBERS_STATE);
+        connectPublished(null);
       }
     });
 

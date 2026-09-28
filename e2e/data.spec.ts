@@ -62,6 +62,60 @@ test("the catalog is saved in IndexedDB for the next visit", async ({
   expect(files).toBeGreaterThan(0);
 });
 
+test("Terpsicle's review numbers come through the query cache and are saved", async ({
+  page,
+}) => {
+  await page.goto("/schedule/course/CMSC351");
+  // 88 on PlanetTerp at 4.6, and the mock's 9 on Terpsicle at 3.33.
+  await expect(
+    page.getByRole("button", {
+      name: /^Jada Abernathy ?rated 4\.5 of 5, 97 reviews/,
+    }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(() => page.evaluate(readQueryCache), { timeout: 15_000 })
+    .toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('"mock","reviews/manifest.json"'),
+        expect.stringMatching(/"mock","reviews\/dept\/CMSC\.[0-9a-f]+\.json"/),
+      ]),
+    );
+
+  // Next visit, the numbers are there with the rest of the page.
+  await page.reload();
+  await expect(
+    page.getByRole("button", {
+      name: /^Jada Abernathy ?rated 4\.5 of 5, 97 reviews/,
+    }),
+  ).toBeVisible();
+});
+
+/** The query cache's row keys (DATA.md §5.5), without holding its database open. */
+function readQueryCache(): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open("terpsicle-query");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      if (!db.objectStoreNames.contains("rows")) {
+        db.close();
+        resolve([]);
+        return;
+      }
+      const tx = db.transaction("rows");
+      const keys = tx.objectStore("rows").getAllKeys();
+      tx.oncomplete = () => {
+        db.close();
+        resolve(keys.result.map(String));
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error);
+      };
+    };
+  });
+}
+
 /**
  * The app's IndexedDB cache: pointer keys and the number of files (runs in
  * the page). Closes its connection, so it never blocks the app's own.

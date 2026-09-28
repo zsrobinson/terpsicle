@@ -9,6 +9,7 @@ UMD academic planning tools at terpsicle.com. Five products, in color order: **S
 Before you write infrastructure (routing, URL or state sync, lazy loading, caching, retries, scheduling, forms), check what the framework or platform already does. Prefer it, even if that means reshaping the feature. If you still hand-roll it, say why in the PR body. How-tos: the `framework-first` skill.
 
 - **TanStack Start and Router:** routes and nested routes, `validateSearch` with search params as state, loaders, automatic code splitting, `Link` preloading (`defaultPreload: "intent"`), `useNavigate` and history, and SSR where a route uses it.
+- **TanStack Query:** every copy of server data (published `/data` files, `/api` answers): `queryOptions` factories per area, `useQuery`, `ensureQueryData` in loaders, stale times, refetch on focus, `refetchInterval` for polling, retries, `useMutation` for optimistic writes, and the per-query persister for published data offline. No hand-rolled `once`, in-flight maps, `visibilitychange` refetches or poll timers. Local-first data in Dexie (plans, four-year docs, synced prefs) stays out.
 - **Cloudflare:** Workers, D1, R2, Durable Objects, Cron Triggers, Workers AI and Email.
 - **Libraries:** Radix (through shadcn/ui) for components, Tailwind, zod, Dexie, zustand for app state that isn't URL state, and PostHog.
 

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type {
   AcademicCalendar,
@@ -13,7 +14,8 @@ import type {
 import type { CampusMap } from "~/core/travel";
 import { relativeWords } from "~/core/words";
 import { type LoadState, useCatalog } from "./catalog-store";
-import { useReviewNumbers } from "./reviews-store";
+import { usePublishedSource } from "./query/published";
+import { reviewsDeptQuery, reviewsManifestQuery } from "./query/review-numbers";
 
 // Hooks for published data beyond the term catalog. Each one starts its own
 // load (cached, validated, once per session) and re-renders when it lands.
@@ -129,8 +131,8 @@ export function useInstructors(dept: DeptCode | null): {
 }
 
 /**
- * A department's Terpsicle review numbers (V2 §7.6), loaded on first use.
- * Null while loading, when nothing is published for it, when the file
+ * A department's Terpsicle review numbers (V2 §7.6), loaded on first use
+ * through the query cache (./query/review-numbers.ts). Null while loading, when nothing is published for it, when the file
  * didn't load (PlanetTerp's numbers then stand alone), and whenever
  * `enabled` is false (`REVIEWS_ENABLED` off).
  */
@@ -138,15 +140,18 @@ export function useTerpsicleReviews(
   dept: DeptCode | null,
   enabled: boolean,
 ): ReviewsDept | null {
-  const data = useReviewNumbers((s) =>
-    dept && enabled ? (s.depts[dept] ?? null) : null,
-  );
-  const source = useReviewNumbers((s) => s.source);
-  const ensure = useReviewNumbers((s) => s.ensureDepts);
-  useEffect(() => {
-    if (source && dept && enabled) void ensure([dept]);
-  }, [source, dept, enabled, ensure]);
-  return data;
+  const source = usePublishedSource((s) => s.source);
+  const on = enabled && dept !== null;
+  const manifest = useQuery({
+    ...reviewsManifestQuery(source),
+    enabled: on,
+  });
+  // A department the manifest doesn't list has no Terpsicle reviews yet.
+  const entry = on
+    ? manifest.data?.departments.find((d) => d.code === dept)
+    : undefined;
+  const file = useQuery(reviewsDeptQuery(source, entry));
+  return entry ? (file.data ?? null) : null;
 }
 
 /**
