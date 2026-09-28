@@ -17,14 +17,24 @@ const TAGS = [
 // The route map is a MapLibre <canvas>: axe can't read pixels, and its
 // tile labels come from the map style, not our tokens. The map has a text
 // alternative (the connection's words above it), so leave the canvas out.
-const EXCLUDE = [".maplibregl-canvas"];
+//
+// Base UI's focus guards: empty spans around an open popup that hand focus
+// straight on (into the popup, or back to its trigger). They're focusable
+// on purpose and hidden from screen readers on purpose, which is the pair
+// `aria-hidden-focus` reports; there's nothing in them to read or use.
+const EXCLUDE = [".maplibregl-canvas", "[data-base-ui-focus-guard]"];
 
 // The `region` rule (all content inside a landmark) only: menus, popovers
 // and tooltips are floating layers portaled to the end of <body> so they
 // stack above everything. They're reached from their trigger (focus moves
 // in, or aria-describedby), never by landmark, so the rule doesn't apply to
 // them. Every other rule still checks them.
-const FLOATING = "[data-radix-popper-content-wrapper]";
+// (Base UI portals each one in a `data-base-ui-portal` div, which axe
+// otherwise reports in the popup's place.)
+const FLOATING = [
+  "[data-radix-popper-content-wrapper]",
+  "[data-base-ui-portal]",
+];
 
 export async function scan(page: Page, what: string) {
   // Let entry animations (drill-in slide, popovers) finish: axe reads
@@ -33,7 +43,8 @@ export async function scan(page: Page, what: string) {
   let everything = new AxeBuilder({ page })
     .withTags(TAGS)
     .disableRules("region");
-  let region = new AxeBuilder({ page }).withRules("region").exclude(FLOATING);
+  let region = new AxeBuilder({ page }).withRules("region");
+  for (const selector of FLOATING) region = region.exclude(selector);
   for (const selector of EXCLUDE) {
     everything = everything.exclude(selector);
     region = region.exclude(selector);

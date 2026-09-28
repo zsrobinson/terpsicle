@@ -31,7 +31,9 @@ describe("ContextMenu", () => {
     fireEvent.contextMenu(row, { clientX: 20, clientY: 20 });
     expect(await screen.findByRole("menu")).toBeInTheDocument();
     expect(row).toHaveAttribute("data-state", "open");
-    await userEvent.setup().click(screen.getByRole("menuitem", { name: "Remove" }));
+    await userEvent
+      .setup()
+      .click(screen.getByRole("menuitem", { name: "Remove" }));
     expect(remove).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });

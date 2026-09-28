@@ -121,9 +121,9 @@ function SelectTrigger({
       {...triggerState(open)}
     >
       {children}
-      <SelectPrimitive.Icon
-        render={<ChevronDownIcon className="size-3.5 shrink-0 text-muted" />}
-      />
+      <SelectPrimitive.Icon className="flex shrink-0">
+        <ChevronDownIcon className="size-3.5 text-muted" />
+      </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
 }
