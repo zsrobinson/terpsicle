@@ -277,7 +277,7 @@ const menuItemClass =
 // The phone's rows: 44px targets, the soft gray under a finger, the chosen
 // one in accent-soft with its check (the mockups' plans sheet).
 const sheetItemClass =
-  "relative flex min-h-11 w-full select-none items-center gap-2.5 px-4 py-2 text-left text-base outline-none active:bg-hover focus-visible:bg-hover aria-disabled:opacity-40 [-webkit-tap-highlight-color:transparent] [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0";
+  "relative flex min-h-11 w-full select-none items-center gap-3 px-4 py-2 text-left text-base outline-none active:bg-hover focus-visible:bg-hover aria-disabled:opacity-40 [-webkit-tap-highlight-color:transparent] [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0";
 
 /** The label, with an optional muted line under it. */
 function ItemText({ label, hint }: { label: ReactNode; hint?: ReactNode }) {

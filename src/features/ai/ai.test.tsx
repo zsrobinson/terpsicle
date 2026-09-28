@@ -27,6 +27,22 @@ import { AiSparkles } from "./ai-sparkles";
 // model while it's off.
 
 vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
+// This device's prefs, read as Settings opens, can be held back to arrive
+// late, as on a slow phone.
+const deviceRead = vi.hoisted(() => ({
+  held: null as Promise<void> | null,
+}));
+vi.mock("~/features/prefs/save", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/features/prefs/save")>();
+  return {
+    ...actual,
+    devicePrefs: async () => {
+      const prefs = await actual.devicePrefs();
+      await deviceRead.held;
+      return prefs;
+    },
+  };
+});
 vi.mock("~/server/fns/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/server/fns/api")>();
   return { ...actual, api: { ...actual.api, reviewSummary: vi.fn() } };
@@ -181,6 +197,34 @@ describe("Settings → AI features", () => {
     await user.click(toggle);
     expect(toggle).toBeChecked();
     await waitFor(() => expect(summaries()).toHaveLength(1));
+  });
+
+  it("keeps a switch flipped before this device's copy arrives", async () => {
+    let release = () => {};
+    deviceRead.held = new Promise((resolve) => {
+      release = resolve;
+    });
+    try {
+      const user = userEvent.setup();
+      wrap(<AiSettingsSection />);
+      const toggle = screen.getByRole("switch", { name: "Show AI summaries" });
+      expect(toggle).toBeChecked();
+      await user.click(toggle);
+      expect(toggle).not.toBeChecked();
+      // The read Settings started as it opened lands after the change: it
+      // mustn't put the old value back.
+      await act(async () => {
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      expect(toggle).not.toBeChecked();
+      await waitFor(async () =>
+        expect(await devicePrefs()).toEqual({ ai: { features: false } }),
+      );
+    } finally {
+      deviceRead.held = null;
+      release();
+    }
   });
 
   it("reads this device's choice, even when the page's copy is gone", async () => {
