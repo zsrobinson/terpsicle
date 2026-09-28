@@ -93,7 +93,9 @@ export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
       why: "the generator's worker client loads with Generate",
     },
     {
-      pattern: /(^|\/)@radix-ui\/react-select\//,
+      // Base UI is one package: its Select's own modules, not the shared
+      // parts (floating, utils) the menus and tooltips load anyway.
+      pattern: /(^|\/)@base-ui\/react\/select\//,
       why: "selects are only in Generate and Blocks",
     },
     {
@@ -289,13 +291,13 @@ export const ROUTE_BUDGETS: readonly {
     budget: PLAN_BUDGET,
     never: [
       // Samples asks when the four-year plan starts with the kit's Select,
-      // so a link straight to it carries Radix's select (as Generate's does
-      // on /schedule). Every other Plan route stays without it: the first
-      // visit, which asks too, is its own chunk (v3/cohesion-plan).
+      // so a link straight to it carries Base UI's select (as Generate's
+      // does on /schedule). Every other Plan route stays without it: the
+      // first visit, which asks too, is its own chunk (v3/cohesion-plan).
       ...PLAN_ROUTE_NEVER_EAGER.filter(
         (r) =>
           route !== "/plan/samples" ||
-          !r.pattern.test("node_modules/@radix-ui/react-select/index.mjs"),
+          !r.pattern.test("node_modules/@base-ui/react/select/index.mjs"),
       ),
       ADMIN_NEVER_EAGER,
       TODO_NEVER_EAGER,

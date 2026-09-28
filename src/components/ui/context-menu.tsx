@@ -73,6 +73,11 @@ function ContextMenuContent({
   return (
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Positioner
+        // Where Radix put it: its top-left corner just right of the pointer,
+        // not Base UI's default of 5px above it.
+        side="right"
+        align="start"
+        sideOffset={2}
         collisionPadding={collisionPadding}
         className={POPUP_LAYER}
         {...radixPositionerProps}
