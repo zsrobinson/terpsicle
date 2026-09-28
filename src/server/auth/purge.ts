@@ -81,6 +81,8 @@ export const PURGE_LEDGER = {
   todo_tasks: "deleted: the person's own tasks",
   // 0016_todo_hidden
   todo_hidden: "deleted: the courses the person hid in Todo",
+  // 0018_calendar_feeds (it stops serving once the account is deleting)
+  calendar_feeds: "deleted: the link's hash and nonce",
 } as const satisfies Record<string, string>;
 
 /**
@@ -288,6 +290,8 @@ export function accountStatements(
     byUser("todo_done"),
     byUser("todo_hidden"),
     byUser("todo_feeds"),
+    // The calendar feed's link.
+    byUser("calendar_feeds"),
     // Identity, the account last.
     byUser("sessions"),
     byUser("user_identities"),
