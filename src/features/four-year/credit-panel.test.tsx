@@ -97,17 +97,17 @@ describe("CreditPanel", () => {
     expect(screen.getByText("AP credit · 4 credits")).toBeInTheDocument();
     const form = screen.getByRole("form", { name: "What it counts as" });
     // The placeholder's courses come first, before anything's typed.
-    const offered = within(form).getByRole("list", {
+    const offered = within(form).getByRole("listbox", {
       name: "Courses it could count as",
     });
     expect(
       within(offered)
-        .getAllByRole("button")
-        .map((b) => b.textContent),
-    ).toEqual(["CHEM131Chemistry I", "CHEM135Chemistry for Engineers"]);
+        .getAllByRole("option")
+        .map((o) => o.textContent?.slice(0, 7)),
+    ).toEqual(["CHEM131", "CHEM135"]);
     expect(within(form).queryByText("MATH241")).toBeNull();
 
-    await user.click(within(offered).getByRole("button", { name: /CHEM131/ }));
+    await user.click(within(offered).getByRole("option", { name: /CHEM131/ }));
     await user.click(within(form).getByRole("button", { name: "Save" }));
 
     expect(openEntry("entry_chem")).toMatchObject({
@@ -127,7 +127,9 @@ describe("CreditPanel", () => {
   it("finds a course by typing, and Enter picks the top one", async () => {
     const user = open([chem], <CreditPanel entryId="entry_chem" />);
     const field = screen.getByLabelText("Counts as");
-    await user.type(field, "calc{Enter}");
+    await user.type(field, "calc");
+    await screen.findByRole("option", { name: /MATH241/ });
+    await user.keyboard("{Enter}");
     expect(screen.getByText("MATH241", { exact: true })).toBeInTheDocument();
     expect(openEntry("entry_chem")).not.toHaveProperty("countsAs");
   });
@@ -165,7 +167,9 @@ describe("course info", () => {
     const user = open([honors], <CoursePanel code="CHEM131H" />);
     const form = screen.getByRole("form", { name: "Add course info" });
     await user.type(within(form).getByLabelText("Counts as"), "chem131");
-    await user.click(within(form).getByRole("button", { name: /^CHEM131/ }));
+    await user.click(
+      await within(form).findByRole("option", { name: /^CHEM131/ }),
+    );
     await user.click(
       within(form).getByRole("button", { name: "Save course info" }),
     );

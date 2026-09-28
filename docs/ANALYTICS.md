@@ -50,7 +50,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `pwa_installed` | | Installs from any way in, the browser's own menu included (`appinstalled`). |
 
   | `search_performed` | `queryLength`, `results`, `filtered` | Whether search finds things (how often zero results), and how long queries are. Debounced; the text itself is never sent. |
-  | `search_filter_changed` | `filter` | Which filter chips earn their place on the line. |
+  | `search_filter_changed` | `filter`, `via`: `chip` · `typed` | Which filter chips earn their place on the line, and whether people type them as filter tokens ("DSNS ") or pick them. |
+  | `search_sorted` | `sort`: `relevance` · `code` · `rating` · `seats` | Which orders people want beyond best match. |
   | `search_result_opened` | `position` | Whether ranking works: most opens should be in the first few results. |
   | `course_details_tab` | `tab` | What people open on the course details page (one page, no tabs, since the UX review; the name stays for continuity): `instructors` for a group's Reviews, `grades` for "Grades ↓", `about` for "More about this course". |
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
@@ -75,10 +76,11 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `report_created` | `surface`, `reason` | How often readers report, and why. Never what they reported. |
   | `todo_connect_result` | `outcome` (`connected`, `invalid-link`, `unreachable`, `not-a-calendar`), and with `unreachable` and `not-a-calendar` a `reason`: a fixed code, `timeout`, `network`, `bad-redirect`, `too-large`, `http-<status>` (`http-404`) or `not-recognized` (ELMS answered, but not with a calendar) | Where connecting ELMS fails, and why, so a failure can be traced without asking the student. The reason is a code from that list and nothing else: never the link, a message or the body. Calls to our own server that fail (signed out, offline) aren't sent. |
   | `todo_disconnected` | | Churn: sent once Disconnect's Undo is gone. |
-  | `todo_item_checked` | `done`, `via` (`list`, `week`) | Whether checking things off is the habit. |
-  | `todo_view_changed` | `view` (`day`, `course`, `week`) | Which views earn their place. |
-  | `todo_file_imported` | `items`, `skipped` (counts) | Whether the Gradescope fallback (a dropped `.ics`) is used. |
-  | `todo_task_added` | `date`, `time`, `course` (booleans: whether the task got one) | Whether "Add a task…" earns its place, and whether people date their tasks. Never the task's words, date or course. |
+  | `todo_item_checked` | `done`, `via` (`list`, `week`, `month`) | Whether checking things off is the habit, and in which view. |
+  | `todo_view_changed` | `view` (`week`, `month`, `list`) | Which of the calendar's views earn their place. |
+  | `todo_file_imported` | `items`, `skipped` (counts) | Whether calendar files (a dropped `.ics`) are used. |
+  | `todo_task_added` | `date`, `time`, `course` (booleans: whether the task got one), `typed` (boolean: the composer recognized a date, time or course in the words) | Whether "Add a task…" earns its place, whether people date their tasks, and whether they type the date rather than pick it. Never the task's words, date or course. |
+  | `todo_week_start_changed` | `start` (`monday`, `sunday`) | Whether Monday is the right default for Todo's weeks. |
 
   Todo's events never carry an item's or a task's title, course, date or link, nor anything from the feed. `/todo` is on the no-autocapture list, and titles and course names are `data-private`.
 
@@ -99,6 +101,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `feedback_opened` | `product` | Whether people find "Send feedback", and from where. |
   | `feedback_sent` | `kind` (`bug` · `idea`), `product`, `hasScreenshot`, `withContext`, `reply` | Whether people keep the screenshot and "Include what I was doing" on, and how often they want a reply. Never the words, the page or the person (docs/FEEDBACK.md). |
   | `feedback_undone` | | How often Undo takes feedback back. |
+  | `coffee_opened` | | Whether people open the coffee button's popover beside Feedback. |
+  | `coffee_link_clicked` | `via` (`popover` · `menu`, the phone account menu's item) | How often it leads out to Buy Me a Coffee. Never who, or whether they bought one. |
 
   Feedback's events never carry what someone wrote, their page or who they are: `[data-feedback-ui]` (the sheet, the admin's pins and their notes) is on autocapture's ignore list too.
 

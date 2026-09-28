@@ -89,7 +89,10 @@ export interface AnalyticsEvents {
   search_performed: { queryLength: number; results: number; filtered: boolean };
   search_filter_changed: {
     filter: "gen-eds" | "credits" | "fits" | "open-seats" | "level";
+    /** `typed`: a filter token in the box ("DSNS "), or Backspace taking one off. */
+    via: "chip" | "typed";
   };
+  search_sorted: { sort: "relevance" | "code" | "rating" | "seats" };
   /** 0-based position in the results. */
   search_result_opened: { position: number };
   course_details_tab: { tab: "instructors" | "grades" | "about" };
@@ -159,10 +162,17 @@ export interface AnalyticsEvents {
         reason: TodoConnectReason;
       };
   todo_disconnected: NoProperties;
-  todo_item_checked: { done: boolean; via: "list" | "week" };
-  todo_view_changed: { view: "day" | "course" | "week" };
+  todo_item_checked: { done: boolean; via: "list" | "week" | "month" };
+  todo_view_changed: { view: "week" | "month" | "list" };
   todo_file_imported: { items: number; skipped: number };
-  todo_task_added: { date: boolean; time: boolean; course: boolean };
+  /** `typed`: the composer recognized a date, time or course in the words. */
+  todo_task_added: {
+    date: boolean;
+    time: boolean;
+    course: boolean;
+    typed: boolean;
+  };
+  todo_week_start_changed: { start: "monday" | "sunday" };
   // Terpsicle Plan (V3.md §6). Never a course code, grade, GPA or a
   // course's credits: which ways in and which controls get used.
   four_year_created: { source: "empty" | "template" | "import" | "copy" };
@@ -201,6 +211,10 @@ export interface AnalyticsEvents {
     reply: boolean;
   };
   feedback_undone: NoProperties;
+  // The coffee button (src/features/coffee): whether anyone opens it, and
+  // follows it out. Nothing about who.
+  coffee_opened: NoProperties;
+  coffee_link_clicked: { via: "popover" | "menu" };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

@@ -1,32 +1,35 @@
-import { ExternalLink, PenLine } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "@tanstack/react-router";
+import { PenLine } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { PanelNote } from "~/app/panel";
+import { mergeReviews } from "~/core/reviews";
 import type {
   CourseCode,
   InstructorId,
   MyReview,
-  PublicReview,
+  PageReviews,
+  PlanetTerpCursor,
+  PlanetTerpReview,
 } from "~/core/schema";
-import { planetTerpUrl } from "~/core/schema";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { PageSection } from "~/ui/page-section";
-import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer, type ComposerTarget } from "./composer";
+import { forgetPageReviews } from "./data";
 import { PAGE_NOTE } from "./frame";
 import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
+import { PlanetTerpReviewCard } from "./planetterp-review";
 import { OwnReviewCard, ReviewCard } from "./review-card";
-import { useReviews } from "./reviews-store";
+import { reviewsClient, useReviews } from "./reviews-store";
 import { SignInPrompt } from "./sign-in-prompt";
 
-// An instructor's reviews on Terpsicle, under their numbers: your own first
-// (with where each stands), then everyone's, newest first, then the credited
-// way to PlanetTerp's. PlanetTerp's review text is never shown here (V2 §7.1).
-// "Write a review" is the page header's action; the form opens here.
-
-/** Reviews shown before "Show more". */
-const PAGE = 20;
+// A page's reviews: ours and PlanetTerp's as one list, newest first, each of
+// PlanetTerp's marked as theirs (V2 §7.6). The route's loader read the first
+// of them, so they're in the server's HTML; "Show more" reads on through
+// PlanetTerp's. On an instructor's page your own come first, with where
+// each stands, and "Write a review" (the page header's action) opens the
+// form here.
 
 /** What the composer is open on: a new review, one of yours, or nothing. */
 export type Composing = MyReview | "new" | null;
@@ -49,24 +52,26 @@ export function useMine(): MyReview[] {
   return signedIn === true && mine.status === "ready" ? mine.reviews : [];
 }
 
-/** An instructor's published reviews, loaded when Reviews is on here. */
-export function useInstructorReviews(id: InstructorId | null) {
-  const level = useReviewsLevel();
-  const list = useReviews((s) => (id ? s.lists[id] : undefined));
-  const ensureList = useReviews((s) => s.ensureList);
-  useEffect(() => {
-    if (id && (level === "read" || level === "on")) void ensureList(id);
-  }, [id, level, ensureList]);
-  return list;
+/** Items not waiting out a delete's Undo. */
+export function useVisible<T extends { id: string }>(items: readonly T[]): T[] {
+  const deleting = useReviews((s) => s.deleting);
+  return useMemo(() => items.filter((r) => !deleting[r.id]), [items, deleting]);
 }
 
-/** Reviews not waiting out a delete's Undo. */
-export function useVisible(reviews: readonly PublicReview[]): PublicReview[] {
-  const deleting = useReviews((s) => s.deleting);
-  return useMemo(
-    () => reviews.filter((r) => !deleting[r.id]),
-    [reviews, deleting],
-  );
+/**
+ * After you write, edit or delete a review here, the page reads its
+ * reviews again (its loader, through `reviews/page`).
+ */
+export function useReloadOnChange(): void {
+  const router = useRouter();
+  const changes = useReviews((s) => s.changes);
+  const seen = useRef(changes);
+  useEffect(() => {
+    if (changes === seen.current) return;
+    seen.current = changes;
+    forgetPageReviews();
+    void router.invalidate();
+  }, [changes, router]);
 }
 
 /** Yours of this instructor (and course), not waiting out a delete's Undo. */
@@ -96,34 +101,150 @@ export function existingReview(
     : null;
 }
 
+/** More of PlanetTerp's, a page at a time, after the loader's first. */
+function useMorePlanetTerp(
+  reviews: PageReviews,
+  query: { instructorId: InstructorId | null; course: CourseCode | null },
+) {
+  const [more, setMore] = useState<PlanetTerpReview[]>([]);
+  const [next, setNext] = useState<PlanetTerpCursor | null>(reviews.next);
+  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  // New loader data (another course, or after a write) starts over.
+  useEffect(() => {
+    setMore([]);
+    setNext(reviews.next);
+    setState("idle");
+  }, [reviews]);
+  const loadMore = async () => {
+    if (!next || state === "loading") return;
+    setState("loading");
+    try {
+      const page = await reviewsClient().reviews.planetTerp({
+        ...query,
+        cursor: next,
+      });
+      setMore((m) => [...m, ...page.reviews]);
+      setNext(page.next);
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  };
+  return {
+    planetTerp: useMemo(
+      () => [...reviews.planetTerp, ...more],
+      [reviews.planetTerp, more],
+    ),
+    next,
+    state,
+    loadMore,
+  };
+}
+
+/** The list itself: ours and PlanetTerp's, then "Show more". */
+export function ReviewList({
+  reviews,
+  query,
+  level,
+  showCourse,
+  about,
+  hideId,
+  onEdit,
+  empty,
+}: {
+  reviews: PageReviews;
+  query: { instructorId: InstructorId | null; course: CourseCode | null };
+  level: ReviewsLevel;
+  showCourse: boolean;
+  /** Who each is about, where a list mixes instructors. */
+  about?: (instructorId: InstructorId) => ReactNode;
+  /** The review the form is editing, left out of the list. */
+  hideId?: string;
+  onEdit?: (review: MyReview) => void;
+  /** What to say when there are none. */
+  empty: ReactNode;
+}) {
+  const mine = useMine();
+  const ownById = new Map(mine.map((r) => [r.id, r]));
+  const ours = useVisible(reviews.terpsicle ?? []);
+  const more = useMorePlanetTerp(reviews, query);
+  const shown = mergeReviews(ours, more.planetTerp, more.next === null).filter(
+    (r) => r.review.id !== hideId,
+  );
+  if (shown.length === 0)
+    return <PanelNote className={PAGE_NOTE}>{empty}</PanelNote>;
+  return (
+    <div className="flex flex-col gap-3">
+      <ul>
+        {shown.map((r) =>
+          r.source === "terpsicle" ? (
+            <ReviewCard
+              key={r.review.id}
+              review={r.review}
+              own={ownById.get(r.review.id) ?? null}
+              level={level}
+              showCourse={showCourse}
+              onEdit={onEdit}
+              about={about?.(r.review.instructorId)}
+            />
+          ) : (
+            <PlanetTerpReviewCard
+              key={r.review.id}
+              review={r.review}
+              showCourse={showCourse}
+              about={about?.(r.review.instructorId)}
+            />
+          ),
+        )}
+      </ul>
+      {more.state === "error" ? (
+        <InlineError
+          message="Couldn't load more reviews. Check your connection."
+          onRetry={() => void more.loadMore()}
+        />
+      ) : more.next ? (
+        <WithTooltip label="Show older reviews">
+          <Button
+            variant="outline"
+            className="w-fit"
+            disabled={more.state === "loading"}
+            onClick={() => void more.loadMore()}
+          >
+            {more.state === "loading" ? "Loading…" : "Show more"}
+          </Button>
+        </WithTooltip>
+      ) : null}
+    </div>
+  );
+}
+
+/** An instructor's reviews, with your own and the form. */
 export function ReviewsSection({
   instructorId,
   course,
+  reviews,
+  count,
   target,
   composing,
   onCompose,
-  planetTerpSlug,
-  planetTerpCount,
 }: {
   instructorId: InstructorId;
   /** Only this course's reviews; null for all of them. */
   course: CourseCode | null;
+  reviews: PageReviews;
+  /** How many there are in all, when known. */
+  count: number | null;
   /** What the composer writes about; null until a course is picked. */
   target: ComposerTarget | null;
   /** The page's "Write a review" and each review's Edit open the form here. */
   composing: Composing;
   onCompose: (next: Composing) => void;
-  /** PlanetTerp's slug and count, for the credited link. */
-  planetTerpSlug: string | null;
-  planetTerpCount: number;
 }) {
   const level = useReviewsLevel();
   const signedIn = useSignedIn();
-  const list = useInstructorReviews(instructorId);
-  const reloadList = useReviews((s) => s.reloadList);
   const ownHere = useOwnHere(instructorId, course);
-  const [shown, setShown] = useState(PAGE);
   const formRef = useRef<HTMLDivElement>(null);
+  useReloadOnChange();
 
   // The header's button can be a screen away: bring the form to it.
   useEffect(() => {
@@ -131,30 +252,7 @@ export function ReviewsSection({
       formRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [composing]);
 
-  const ownById = new Map(ownHere.map((r) => [r.id, r]));
   const existing = existingReview(ownHere, target);
-  const all = useVisible(list?.status === "ready" ? list.reviews : []);
-  const reviews =
-    course === null ? all : all.filter((r) => r.course === course);
-
-  const planetTerpLink =
-    planetTerpSlug && planetTerpCount > 0 ? (
-      <PlanetTerpLink
-        slug={planetTerpSlug}
-        count={planetTerpCount}
-        more={list?.status === "ready" && list.reviews.length > 0}
-      />
-    ) : null;
-
-  if (level === "loading")
-    return (
-      <PageSection title="Reviews">
-        <RowSkeleton rows={2} inset={false} label="Loading reviews" />
-      </PageSection>
-    );
-  if (level === "off" || list?.status === "off")
-    return <PageSection title="Reviews">{planetTerpLink}</PageSection>;
-
   const edit = (review: MyReview) => onCompose(review);
   const composer =
     composing === "new" && signedIn !== true ? (
@@ -175,11 +273,12 @@ export function ReviewsSection({
 
   return (
     <PageSection
-      title="Reviews on Terpsicle"
-      aside={list?.status === "ready" ? reviews.length : undefined}
+      size="display"
+      title="Reviews"
+      aside={count ? count.toLocaleString("en-US") : undefined}
     >
       {composer ? (
-        <div ref={formRef} className="scroll-mt-4">
+        <div ref={formRef} className="scroll-mt-16">
           {composer}
         </div>
       ) : null}
@@ -196,93 +295,32 @@ export function ReviewsSection({
           ))}
         </ul>
       ) : null}
-      {list === undefined || list.status === "loading" ? (
-        <RowSkeleton rows={3} inset={false} label="Loading reviews" />
-      ) : list.status === "error" ? (
-        <InlineError
-          message="Couldn't load reviews. Check your connection."
-          onRetry={() => void reloadList(instructorId)}
-        />
-      ) : reviews.length === 0 ? (
-        <PanelNote className={PAGE_NOTE}>
-          {/* Yours may be right above, held: it isn't the first "yet". */}
-          {ownHere.length > 0
-            ? course
-              ? `No one else has reviewed ${course} on Terpsicle yet.`
-              : "No one else has reviewed them on Terpsicle yet."
-            : course
-              ? `No reviews of ${course} on Terpsicle yet.`
-              : "No reviews on Terpsicle yet."}
-          {level === "on" && target && ownHere.length === 0
-            ? " Took it? Yours could be the first."
-            : ""}
-        </PanelNote>
-      ) : (
-        <div>
-          <ul>
-            {reviews
-              .slice(0, shown)
-              .map((r) =>
-                composing !== null &&
-                composing !== "new" &&
-                composing.id === r.id ? null : (
-                  <ReviewCard
-                    key={r.id}
-                    review={r}
-                    own={ownById.get(r.id) ?? null}
-                    level={level}
-                    showCourse={course === null}
-                    onEdit={edit}
-                  />
-                ),
-              )}
-          </ul>
-          {reviews.length > shown ? (
-            <WithTooltip
-              label={`Show ${Math.min(PAGE, reviews.length - shown)} more`}
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2"
-                onClick={() => setShown((n) => n + PAGE)}
-              >
-                Show more
-              </Button>
-            </WithTooltip>
-          ) : null}
-        </div>
-      )}
-      {planetTerpLink}
+      <ReviewList
+        reviews={reviews}
+        query={{ instructorId, course }}
+        level={level}
+        showCourse={course === null}
+        hideId={
+          composing !== null && composing !== "new" ? composing.id : undefined
+        }
+        onEdit={edit}
+        empty={
+          <>
+            {/* Yours may be right above, held: it isn't the first "yet". */}
+            {ownHere.length > 0
+              ? course
+                ? `No one else has reviewed ${course} yet.`
+                : "No one else has reviewed them yet."
+              : course
+                ? `No reviews of ${course} yet.`
+                : "No reviews yet."}
+            {level === "on" && target && ownHere.length === 0
+              ? " Took it? Yours could be the first."
+              : ""}
+          </>
+        }
+      />
     </PageSection>
-  );
-}
-
-/** "48 more on PlanetTerp ↗": credited, and the only way to their words. */
-export function PlanetTerpLink({
-  slug,
-  count,
-  more,
-}: {
-  slug: string;
-  count: number;
-  more: boolean;
-}) {
-  const words = `${count.toLocaleString("en-US")} ${more ? "more " : ""}${count === 1 ? "review" : "reviews"} on PlanetTerp`;
-  return (
-    <p className="text-muted text-sm">
-      <WithTooltip label="Read them on PlanetTerp, which we're not part of">
-        <a
-          href={planetTerpUrl(slug)}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-fg"
-        >
-          {words}
-          <ExternalLink size={11} aria-hidden="true" />
-        </a>
-      </WithTooltip>
-    </p>
   );
 }
 
@@ -310,7 +348,7 @@ export function WriteButton({
   const words = label ?? (existing ? "Edit your review" : "Write a review");
   if (!target)
     return (
-      <span className="text-muted text-sm">Pick a course to review it</span>
+      <span className="text-base text-muted">Pick a course to review it</span>
     );
   return (
     <WithTooltip
@@ -328,7 +366,7 @@ export function WriteButton({
           {words}
         </Button>
       ) : (
-        <Button onClick={onWrite}>
+        <Button size="lg" onClick={onWrite}>
           <PenLine aria-hidden="true" />
           {words}
         </Button>

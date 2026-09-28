@@ -1,8 +1,6 @@
 import { create } from "zustand";
 import type {
-  InstructorId,
   MyReview,
-  PublicReview,
   ReportCreateInput,
   ReportCreateResult,
   ReviewEditInput,
@@ -10,25 +8,12 @@ import type {
   ReviewSubmitInput,
   ReviewWriteResult,
 } from "~/core/schema";
-import { ApiCallError, api } from "~/server/fns/api";
+import { api } from "~/server/fns/api";
 
-// Terpsicle's own reviews in the browser: each instructor's published list
-// (reviews/list, anonymous), your reviews (reviews/mine), and writing,
-// deleting and reporting. PlanetTerp's numbers come from ./data.ts.
-
-/**
- * Pages of reviews/list read per instructor. Their count and mean feed the
- * combined rating until the reviews/ R2 family publishes our numbers
- * (V2 §7.6, v2/reviews-publish); past this, the newest are shown and counted.
- */
-export const MAX_LIST_PAGES = 10;
-
-export type ListState =
-  | { status: "loading" }
-  | { status: "ready"; reviews: PublicReview[]; complete: boolean }
-  /** REVIEWS_ENABLED is off here: show PlanetTerp only. */
-  | { status: "off" }
-  | { status: "error" };
+// Terpsicle's own reviews in the browser: your reviews (reviews/mine), and
+// writing, deleting and reporting. What a page lists comes from its route's
+// loader (page-data.ts), rendered on the server; `changes` counts what you
+// changed here, so the page can load its reviews again.
 
 export type MineState =
   | { status: "idle" | "loading" | "error" }
@@ -49,17 +34,14 @@ export function reviewsClient(): ReviewsClient {
 }
 
 export interface ReviewsState {
-  lists: Readonly<Record<InstructorId, ListState>>;
   mine: MineState;
+  /** Goes up after each write or delete: the page's reviews are out of date. */
+  changes: number;
   /** Deleted here, waiting out the Undo toast before the server hears. */
   deleting: Readonly<Record<ReviewId, true>>;
   /** Reported from this page: shown folded, with thanks. */
   reported: Readonly<Record<ReviewId, true>>;
 
-  /** Loads an instructor's reviews once per visit. */
-  ensureList: (id: InstructorId) => Promise<void>;
-  /** Loads them again (after writing one). */
-  reloadList: (id: InstructorId) => Promise<void>;
   loadMine: () => Promise<void>;
   submit: (input: ReviewSubmitInput) => Promise<ReviewWriteResult>;
   edit: (input: ReviewEditInput) => Promise<ReviewWriteResult>;
@@ -76,28 +58,6 @@ export interface ReviewsState {
   ) => Promise<ReportCreateResult>;
 }
 
-async function readAll(id: InstructorId): Promise<ListState> {
-  const reviews: PublicReview[] = [];
-  let cursor: ReviewId | null = null;
-  for (let page = 0; page < MAX_LIST_PAGES; page++) {
-    const result = await client.reviews.list({
-      instructorId: id,
-      course: null,
-      cursor,
-      limit: 20,
-    });
-    reviews.push(...result.reviews);
-    cursor = result.next;
-    if (cursor === null) return { status: "ready", reviews, complete: true };
-  }
-  return { status: "ready", reviews, complete: false };
-}
-
-const offOrError = (error: unknown): ListState =>
-  error instanceof ApiCallError && error.reason === "unavailable"
-    ? { status: "off" }
-    : { status: "error" };
-
 const without = <T>(
   record: Readonly<Record<string, T>>,
   key: string,
@@ -107,42 +67,18 @@ const without = <T>(
 };
 
 export const useReviews = create<ReviewsState>()((set, get) => {
-  const load = async (id: InstructorId) => {
-    set((s) => ({ lists: { ...s.lists, [id]: { status: "loading" } } }));
-    let next: ListState;
-    try {
-      next = await readAll(id);
-    } catch (error) {
-      next = offOrError(error);
-    }
-    set((s) => ({ lists: { ...s.lists, [id]: next } }));
-  };
-
-  /** A write changed what you see: refresh your reviews, and its list. */
+  /** A write changed what you see: refresh your reviews, and the page's. */
   const afterWrite = async (reviewId: ReviewId | null) => {
     if (reviewId === null) return;
     await get().loadMine();
-    const mine = get().mine;
-    const id =
-      mine.status === "ready"
-        ? mine.reviews.find((r) => r.id === reviewId)?.instructorId
-        : undefined;
-    if (id && get().lists[id]) await load(id);
+    set((s) => ({ changes: s.changes + 1 }));
   };
 
   return {
-    lists: {},
     mine: { status: "idle" },
+    changes: 0,
     deleting: {},
     reported: {},
-
-    ensureList: async (id) => {
-      const current = get().lists[id];
-      if (current && current.status !== "error") return;
-      await load(id);
-    },
-
-    reloadList: (id) => load(id),
 
     loadMine: async () => {
       // A first load, or Try again after one failed: show it loading.
@@ -189,14 +125,7 @@ export const useReviews = create<ReviewsState>()((set, get) => {
       }
       set((s) => ({
         deleting: without(s.deleting, id),
-        lists: Object.fromEntries(
-          Object.entries(s.lists).map(([key, list]) => [
-            key,
-            list.status === "ready"
-              ? { ...list, reviews: list.reviews.filter((r) => r.id !== id) }
-              : list,
-          ]),
-        ),
+        changes: s.changes + 1,
         mine:
           s.mine.status === "ready"
             ? {
@@ -223,8 +152,8 @@ export const useReviews = create<ReviewsState>()((set, get) => {
 /** Tests start from nothing loaded. */
 export function resetReviews(): void {
   useReviews.setState({
-    lists: {},
     mine: { status: "idle" },
+    changes: 0,
     deleting: {},
     reported: {},
   });

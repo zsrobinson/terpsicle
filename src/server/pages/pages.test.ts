@@ -52,11 +52,23 @@ describe("shared pages", () => {
       "/reviews",
       "/reviews/",
       "/reviews/policy",
+      "/reviews/cmsc351",
+      "/reviews/kruskal",
+      "/reviews/goldman-aaron/",
+      // The old addresses, which answer with a 301.
       "/reviews/courses/CMSC351",
       "/reviews/instructors/kruskal",
     ])
       expect(isSharedPagePath(path), path).toBe(true);
-    for (const path of ["/reviews/mine", "/", "/schedule", "/admin", "/chat"])
+    for (const path of [
+      "/reviews/mine",
+      "/reviews/mine/",
+      "/reviews/kruskal/more",
+      "/",
+      "/schedule",
+      "/admin",
+      "/chat",
+    ])
       expect(isSharedPagePath(path), path).toBe(false);
   });
 

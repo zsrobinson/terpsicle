@@ -472,9 +472,13 @@ const SectionRow = memo(function SectionRow({
     .filter(Boolean)
     .join(" · ");
 
-  // ↑/↓ on the calendar move the preview; keep its row in view.
+  // ↑/↓ on the calendar move the preview; keep its row in view. Not when
+  // the pointer previewed it: that row is in view already, and a scroll
+  // call would stop a smooth scroll that slid it under a still pointer
+  // ("Grades ↓" stopped short of the grades).
+  const pointerOn = useRef(false);
   useEffect(() => {
-    if (previewed && !pinned)
+    if (previewed && !pinned && !pointerOn.current)
       ref.current?.scrollIntoView?.({ block: "nearest" });
   }, [previewed, pinned]);
 
@@ -488,8 +492,12 @@ const SectionRow = memo(function SectionRow({
       aria-current={current ? "true" : undefined}
       className="items-start gap-2"
       state={previewed ? "previewed" : current ? "current" : undefined}
-      onPointerEnter={() => setPreview(current ? null : key)}
+      onPointerEnter={() => {
+        pointerOn.current = true;
+        setPreview(current ? null : key);
+      }}
       onPointerLeave={() => {
+        pointerOn.current = false;
         if (useUi.getState().previewSection === key) setPreview(null);
       }}
       lead={

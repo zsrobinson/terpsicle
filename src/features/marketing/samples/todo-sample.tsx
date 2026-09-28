@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { WithTooltip } from "~/ui/tooltip";
 import { dot, SampleCard, type SampleProps, type Tint } from "./sample";
 
-// Todo in small: what's due this week from the ELMS feed, by day, with
-// Gradescope work tagged and exams set apart. Tick things off. Courses are
-// the fixtures'; the assignments are made up.
+// Todo in small: what's due this week from the ELMS feed, by day. Tick
+// things off. Courses are the fixtures'; the assignments are made up.
 
 interface Item {
   id: string;
@@ -12,7 +10,6 @@ interface Item {
   course: string;
   tint: Tint;
   due: string;
-  kind?: "exam" | "gradescope";
 }
 
 const DAYS: { name: string; items: Item[] }[] = [
@@ -25,7 +22,6 @@ const DAYS: { name: string; items: Item[] }[] = [
         course: "STAT400",
         tint: "amber",
         due: "11:59 pm",
-        kind: "gradescope",
       },
       {
         id: "draft",
@@ -52,7 +48,6 @@ const DAYS: { name: string; items: Item[] }[] = [
         course: "CMSC330",
         tint: "lime",
         due: "11:59 pm",
-        kind: "gradescope",
       },
     ],
   },
@@ -65,7 +60,6 @@ const DAYS: { name: string; items: Item[] }[] = [
         course: "MATH240",
         tint: "orange",
         due: "8:00 am",
-        kind: "exam",
       },
       {
         id: "resp",
@@ -131,18 +125,6 @@ export function TodoSample(_: SampleProps) {
                       className={`min-w-0 flex-1 truncate text-base ${checked ? "text-faint line-through" : ""}`}
                     >
                       {item.title}
-                      {item.kind === "exam" ? (
-                        <span className="ml-2 border border-hairline-strong px-1 font-semibold text-2xs text-muted no-underline">
-                          Exam
-                        </span>
-                      ) : null}
-                      {item.kind === "gradescope" ? (
-                        <WithTooltip label="Linked from ELMS to Gradescope">
-                          <span className="ml-2 border border-hairline-strong px-1 font-semibold text-2xs text-muted">
-                            Gradescope
-                          </span>
-                        </WithTooltip>
-                      ) : null}
                     </span>
                     <span className="font-mono text-muted text-xs">
                       {item.course}

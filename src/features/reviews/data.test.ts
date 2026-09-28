@@ -31,6 +31,11 @@ describe("publishedSource", () => {
       source: publishedSource(files),
       memo: (_key, load) => load(),
       reviews: null,
+      pageReviews: async () => ({
+        terpsicle: null,
+        planetTerp: [],
+        next: null,
+      }),
     };
     expect(await loadPlanetTerp(reader, "CMSC")).toEqual({
       dept: null,

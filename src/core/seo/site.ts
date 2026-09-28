@@ -1,3 +1,6 @@
+import { coursePagePath, instructorPagePath } from "../reviews/slugs";
+import type { CourseCode, InstructorId } from "../schema";
+
 // Where the site lives, for anything a search engine or a link preview reads:
 // canonical URLs, Open Graph, JSON-LD and the sitemap always name the
 // production origin, even on a preview or localhost (Cloudflare serves
@@ -13,10 +16,12 @@ export function siteUrl(path: string): string {
 
 export const reviewsHomePath = "/reviews";
 
-export function coursePath(code: string): string {
-  return `/reviews/courses/${code}`;
+/** `/reviews/cmsc351` (src/core/reviews/slugs.ts). */
+export function coursePath(code: CourseCode): string {
+  return coursePagePath(code);
 }
 
-export function instructorPath(id: string): string {
-  return `/reviews/instructors/${encodeURIComponent(id)}`;
+/** `/reviews/kruskal`, `/reviews/goldman-aaron` (src/core/reviews/slugs.ts). */
+export function instructorPath(id: InstructorId): string {
+  return instructorPagePath(id);
 }

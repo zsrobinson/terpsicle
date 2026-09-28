@@ -15,6 +15,7 @@ import {
   aPlanetTerpManifest,
   FIXTURE_HASH,
 } from "~/fixtures";
+import { replacePlanetTerpReviews } from "../reviews/planetterp";
 import { serveSeoFile } from "./routes";
 
 const get = async (path: string, bindings: Env = env) => {
@@ -65,7 +66,7 @@ describe("sitemap", () => {
     const xml = await (await get("/sitemap.xml")).text();
     for (const [code] of aCourseSearchFile().courses)
       expect(xml).toContain(
-        `<loc>https://terpsicle.com/reviews/courses/${code}</loc>`,
+        `<loc>https://terpsicle.com/reviews/${code.toLowerCase()}</loc>`,
       );
   });
 
@@ -77,8 +78,35 @@ describe("sitemap", () => {
         REVIEWS_ENABLED: "off",
       } as unknown as Env)
     ).text();
+    expect(xml).toContain("<loc>https://terpsicle.com/reviews/kruskal</loc>");
+  });
+
+  it("dates each page by the month of its newest review, from either source", async () => {
+    await env.DB.batch(
+      replacePlanetTerpReviews(
+        env.DB,
+        "kruskal",
+        [
+          {
+            id: "0123456789abcdef",
+            course: "CMSC351",
+            rating: 3,
+            expectedGrade: null,
+            body: "Hard but fair.",
+            created: "2026-04-29T15:02:11.000Z",
+          },
+        ],
+        "hash",
+        new Date("2026-09-26T05:17:00.000Z"),
+      ),
+    );
+    const xml = await (await get("/sitemap.xml")).text();
+    // A month, as readers see dates: never the day a review went up.
     expect(xml).toContain(
-      "<loc>https://terpsicle.com/reviews/instructors/kruskal</loc>",
+      "<loc>https://terpsicle.com/reviews/kruskal</loc><lastmod>2026-04</lastmod>",
+    );
+    expect(xml).toContain(
+      "<loc>https://terpsicle.com/reviews/cmsc351</loc><lastmod>2026-04</lastmod>",
     );
   });
 

@@ -500,6 +500,61 @@ export async function listPublished(
   return results.map(parseRow);
 }
 
+/**
+ * A page's published reviews, newest first: an instructor's (every course),
+ * a course's (every instructor), or one instructor in one course.
+ */
+export async function listPublishedForPage(
+  db: D1Database,
+  query: {
+    instructorId: InstructorId | null;
+    course: CourseCode | null;
+    limit: number;
+  },
+): Promise<ReviewRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT ${COLUMNS} FROM reviews
+       WHERE status = 'published'
+         AND (?1 IS NULL OR instructor_id = ?1)
+         AND (?2 IS NULL OR course = ?2)
+       ORDER BY published_at DESC, id DESC
+       LIMIT ?3`,
+    )
+    .bind(query.instructorId, query.course, query.limit)
+    .all();
+  return results.map(parseRow);
+}
+
+/**
+ * The month of each page's newest published review, for the sitemap's
+ * `lastmod`: instructors by id, courses by code.
+ */
+export async function latestPublishedByPage(db: D1Database): Promise<{
+  instructors: Map<InstructorId, string>;
+  courses: Map<CourseCode, string>;
+}> {
+  const [byInstructor, byCourse] = await db.batch<{
+    key: string;
+    latest: string;
+  }>([
+    db.prepare(
+      `SELECT instructor_id AS key, MAX(created_at) AS latest FROM reviews
+       WHERE status = 'published' GROUP BY instructor_id`,
+    ),
+    db.prepare(
+      `SELECT course AS key, MAX(created_at) AS latest FROM reviews
+       WHERE status = 'published' GROUP BY course`,
+    ),
+  ]);
+  return {
+    instructors: new Map(
+      (byInstructor?.results ?? []).map((r) => [r.key, r.latest]),
+    ),
+    courses: new Map((byCourse?.results ?? []).map((r) => [r.key, r.latest])),
+  };
+}
+
 const NumbersRowSchema = z.object({
   id: InstructorIdSchema,
   rating: z.number().min(1).max(5),

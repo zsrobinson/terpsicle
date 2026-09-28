@@ -1,23 +1,24 @@
-import { type KeyboardEvent, useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
   searchFourYearCourses,
   searchRowCredits,
 } from "~/core/four-year/search";
 import { fitsEquivalentPattern } from "~/core/four-year/transcript";
 import type { CourseCode, CourseSearchRow } from "~/core/schema";
+import { NO_FILTERS } from "~/core/search/filters";
 import { useCourseIndex } from "~/state/course-index-store";
+import { useSearchEngine } from "~/state/search-engine";
 import { Button } from "~/ui/button";
-import { SearchField } from "~/ui/input";
-import { ListRow } from "~/ui/list-row";
+import { CourseResultRow, CourseSearchField } from "~/ui/course-search";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 
 // "Counts as" (V3 §2.8, §2.10): the UMD course a course Testudo can't match
-// stands for. It's picked from Plan's course search over the course index,
-// so only a course Testudo lists can be picked; with a "CHEM 1XX"
-// placeholder, the department's courses at that level come first.
+// stands for, picked with the kit's course search (the box, keys, engine and
+// rows every course search shares), so only a course Testudo lists can be
+// picked. With a "CHEM 1XX" placeholder, its courses are offered first.
 
-/** How many courses the field suggests at a time. */
+/** How many courses the field offers at a time. */
 const SHOWN = 5;
 
 function useSearchRows(): readonly CourseSearchRow[] | null {
@@ -47,8 +48,11 @@ export function CountsAsField({
   pattern: string | null;
 }) {
   const id = useId();
+  const listId = `${id}-courses`;
   const [query, setQuery] = useState("");
+  const [active, setActive] = useState(-1);
   const rows = useSearchRows();
+  const engine = useSearchEngine();
   const byCode = useMemo(
     () => new Map((rows ?? []).map((r) => [r[0], r] as const)),
     [rows],
@@ -56,7 +60,9 @@ export function CountsAsField({
   const results = useMemo(() => {
     if (!rows) return [];
     if (query.trim() !== "")
-      return searchFourYearCourses(rows, query, {}, SHOWN).rows;
+      return engine
+        ? searchFourYearCourses(engine, rows, query, NO_FILTERS, {}, SHOWN).rows
+        : [];
     const offered = suggested.flatMap((c) => {
       const row = byCode.get(c);
       return row ? [row] : [];
@@ -65,11 +71,13 @@ export function CountsAsField({
       ? rows.filter((r) => fitsEquivalentPattern(r[0], pattern))
       : [];
     return [...offered, ...fitting].slice(0, SHOWN);
-  }, [rows, byCode, query, suggested, pattern]);
+  }, [rows, engine, byCode, query, suggested, pattern]);
 
-  const pick = (code: CourseCode) => {
+  const pick = (code: CourseCode | undefined) => {
+    if (!code) return;
     onChange(code);
     setQuery("");
+    setActive(-1);
   };
 
   if (value !== null) {
@@ -101,70 +109,60 @@ export function CountsAsField({
     );
   }
 
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter") return;
-    // Enter picks the top course, as in Plan's Search; never submits the form.
-    event.preventDefault();
-    const top = results[0];
-    if (top) pick(top[0]);
-  };
-
+  const searching = query.trim() !== "";
   return (
     <div className="space-y-1">
       <label htmlFor={id} className="block font-medium text-sm">
         Counts as
       </label>
-      <WithTooltip label="Search by course code or title. Enter picks the top course.">
-        <SearchField
-          id={id}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onClear={() => setQuery("")}
-          onKeyDown={onKeyDown}
-          placeholder="A UMD course code or title"
-          autoComplete="off"
-          spellCheck={false}
-          aria-describedby={`${id}-note`}
-        />
-      </WithTooltip>
+      <CourseSearchField
+        id={id}
+        query={query}
+        onQueryChange={(next) => {
+          setQuery(next);
+          setActive(-1);
+        }}
+        count={results.length}
+        active={active}
+        onActiveChange={setActive}
+        onPick={(i) => pick(results[i]?.[0])}
+        combobox={{ listId, optionId: (i) => `${listId}-${i}` }}
+        label="Counts as"
+        placeholder="A UMD course code or title"
+        tooltip="Search by course code or title. Enter picks the top course"
+        aria-describedby={`${id}-note`}
+      />
       <p id={`${id}-note`} className="text-muted text-xs">
         Leave it empty if it doesn't count as a UMD course.
       </p>
-      {rows === null ? (
+      {rows === null || (searching && engine === null) ? (
         <Skeleton className="h-8 w-full" />
       ) : results.length > 0 ? (
-        <ul
+        <div
+          id={listId}
+          role="listbox"
           aria-label="Courses it could count as"
-          className="border border-hairline"
+          className="border border-hairline bg-raised"
         >
-          {results.map((row) => (
-            <ListRow
+          {results.map((row, i) => (
+            <CourseResultRow
               key={row[0]}
-              as="li"
+              id={`${listId}-${i}`}
+              role="option"
+              aria-selected={i === active}
+              tabIndex={-1}
               density="compact"
-              className="relative hover:bg-hover"
-              trail={
-                <span className="tnum text-muted text-xs">
-                  {searchRowCredits(row)}
-                </span>
-              }
-            >
-              <WithTooltip label={`Count ${name} as ${row[0]}`}>
-                <button
-                  type="button"
-                  onClick={() => pick(row[0])}
-                  className="flex w-full min-w-0 items-baseline gap-2 text-left after:absolute after:inset-0"
-                >
-                  <span className="ident shrink-0 font-semibold">{row[0]}</span>
-                  <span className="min-w-0 truncate text-muted text-sm">
-                    {row[1]}
-                  </span>
-                </button>
-              </WithTooltip>
-            </ListRow>
+              code={row[0]}
+              title={row[1]}
+              meta={searchRowCredits(row)}
+              state={i === active ? "previewed" : undefined}
+              className="cursor-pointer hover:bg-hover"
+              onMouseEnter={() => setActive(i)}
+              onClick={() => pick(row[0])}
+            />
           ))}
-        </ul>
-      ) : query.trim() !== "" ? (
+        </div>
+      ) : searching ? (
         <p className="text-muted text-sm">
           No course in Testudo matches that. Try its code, like CHEM131.
         </p>

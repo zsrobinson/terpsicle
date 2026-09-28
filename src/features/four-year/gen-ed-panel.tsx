@@ -65,6 +65,8 @@ function Row({ p }: { p: GenEdProgress }) {
                 nav.go({
                   tab: "search",
                   gened: code,
+                  credits: undefined,
+                  level: undefined,
                   wildcard: undefined,
                   ...CLOSE_DRILL,
                   q: undefined,

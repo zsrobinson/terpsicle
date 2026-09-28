@@ -4,18 +4,29 @@ import { create } from "zustand";
 import { PanelNote } from "~/app/panel";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
 import {
+  fourYearSearchInfo,
   searchFourYearCourses,
-  searchRowCredits,
 } from "~/core/four-year/search";
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import { parsePlaceholder } from "~/core/four-year/wildcards";
-import { type CourseSearchRow, GEN_ED_LABELS } from "~/core/schema";
+import type { CourseSearchRow, Wildcard } from "~/core/schema";
 import { type FourYearTerm, WILDCARD_CREDITS } from "~/core/schema/four-year";
+import {
+  isFiltering,
+  NO_FILTERS,
+  type SearchFilters,
+} from "~/core/search/filters";
+import { filterParams, filtersFromParams } from "~/core/search/url";
 import { useCourseIndex } from "~/state/course-index-store";
+import { useSearchEngine } from "~/state/search-engine";
 import { Button } from "~/ui/button";
+import {
+  COURSE_SEARCH_TIP,
+  CourseResultRow,
+  CourseSearchField,
+} from "~/ui/course-search";
+import { FilterChips, type FilterName } from "~/ui/filter-chips";
 import { InlineError } from "~/ui/inline-error";
-import { SearchField } from "~/ui/input";
-import { Kbd } from "~/ui/kbd";
 import { ListRow } from "~/ui/list-row";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
@@ -31,11 +42,16 @@ import { PlanView } from "./views";
 import { showAdded } from "./workbench-store";
 
 // The Search tab (V3 §2.9, §2.13): every course in the course index, any
-// term. Typing CMSC4XX or "any DSHS" offers a placeholder first. From a
-// placeholder's "Pick a course", results are what can replace it; from the
-// GenEd tab's "Find a course", what counts for that GenEd.
+// term, on the same engine, box, chips and rows as the scheduler's Search
+// (~/core/search, ~/ui/course-search). Typing CMSC4XX or "any DSHS", or
+// one GenEd chip alone, offers a placeholder first. From a placeholder's
+// "Pick a course", results are what can replace it; from the GenEd tab's
+// "Find a course", its GenEd's chip is on.
 
 export const SEARCH_INPUT_ID = "plan-search";
+
+/** The chips the course index can answer: it has no sections. */
+const PLAN_FILTERS: readonly FilterName[] = ["gen-eds", "credits", "level"];
 
 /**
  * Asks the search box for focus: "Add a course", "Find a course", "Pick a
@@ -58,36 +74,50 @@ export function focusSearch(via: "search" | "column" = "search"): void {
   useSearchFocus.setState((s) => ({ asked: s.asked + 1, via }));
 }
 
-/** Enter in the box acts on the top result; its button's tooltip says so. */
+/** Enter in the box acts on the highlighted result, else the top one. */
 const ENTER = "↵";
 
+const rowId = (index: number) => `plan-search-result-${index}`;
+
 function ResultRow({
+  index,
   row,
   action,
   actionLabel,
   onAct,
   addedTo = null,
-  top = false,
+  active,
+  enter,
 }: {
+  index: number;
   row: CourseSearchRow;
   action: string;
   actionLabel: string;
   onAct: () => void;
   /** The semester it's already in, when that's the one you're adding to: no second copy. */
   addedTo?: FourYearTerm | null;
-  /** The top result, which Enter in the search box acts on. */
-  top?: boolean;
+  /** Highlighted by the arrow keys. */
+  active: boolean;
+  /** Enter in the box would act on it. */
+  enter: boolean;
 }) {
   const nav = usePlanNav();
   const { doc } = useModel();
-  const [code, title, , , genEds] = row;
+  const [code, title, min, max, genEds] = row;
   // "Added" already names the semester you're adding to.
   const where = doc.entries
     .filter((e) => e.kind === "course" && e.code === code && e.term !== addedTo)
     .map((e) => fourYearTermLabel(e.term));
   return (
-    <ListRow
+    <CourseResultRow
       as="li"
+      id={rowId(index)}
+      code={code}
+      title={title}
+      credits={{ min, max }}
+      genEds={genEds}
+      note={where.length > 0 ? `In ${where.join(", ")}` : undefined}
+      state={active ? "previewed" : undefined}
       className="relative hover:bg-hover"
       action={
         addedTo ? (
@@ -102,7 +132,7 @@ function ResultRow({
             </span>
           </WithTooltip>
         ) : (
-          <WithTooltip label={actionLabel} shortcut={top ? ENTER : undefined}>
+          <WithTooltip label={actionLabel} shortcut={enter ? ENTER : undefined}>
             <Button
               variant="outline"
               size="row"
@@ -117,34 +147,20 @@ function ResultRow({
         )
       }
     >
-      <WithTooltip label={`About ${code}`}>
-        <button
-          type="button"
-          onClick={() =>
-            nav.go({ course: code, credit: undefined }, { drill: true })
-          }
-          className="block w-full min-w-0 text-left after:absolute after:inset-0"
-        >
-          <span className="flex items-baseline gap-2">
-            <span className="ident font-semibold">{code}</span>
-            <span className="tnum text-muted text-xs">
-              {searchRowCredits(row)}
-            </span>
-            {where.length > 0 ? (
-              <span className="ml-auto truncate text-muted text-xs">
-                In {where.join(", ")}
-              </span>
-            ) : null}
-          </span>
-          <span className="block truncate text-muted text-sm">{title}</span>
-          {genEds.length > 0 ? (
-            <span className="ident block truncate text-2xs text-muted">
-              {genEds.join(" · ")}
-            </span>
-          ) : null}
-        </button>
-      </WithTooltip>
-    </ListRow>
+      {(lines) => (
+        <WithTooltip label={`About ${code}`}>
+          <button
+            type="button"
+            onClick={() =>
+              nav.go({ course: code, credit: undefined }, { drill: true })
+            }
+            className="block w-full min-w-0 text-left after:absolute after:inset-0"
+          >
+            {lines}
+          </button>
+        </WithTooltip>
+      )}
+    </CourseResultRow>
   );
 }
 
@@ -166,11 +182,23 @@ export function SearchPanel() {
     written.current = next;
     nav.go({ q: next === "" ? undefined : next }, { replace: true });
   };
+  const { gened, credits, level } = nav.search;
+  const filters = useMemo(
+    () => filtersFromParams({ gened, credits, level }),
+    [gened, credits, level],
+  );
+  // A chip is a place Back returns from, as in the scheduler's Search.
+  const setFilters = (next: SearchFilters) => {
+    const { gened, credits, level } = filterParams(next);
+    nav.go({ gened, credits, level });
+  };
   const input = useRef<HTMLInputElement>(null);
   const rows = useCourseIndex((s) => s.search);
   const state = useCourseIndex((s) => s.searchState);
   const ensure = useCourseIndex((s) => s.ensureSearch);
   const connected = useCourseIndex((s) => s.source !== null);
+  const engine = useSearchEngine();
+  const info = useMemo(() => (rows ? fourYearSearchInfo(rows) : null), [rows]);
 
   useEffect(() => {
     if (connected) void ensure();
@@ -181,7 +209,6 @@ export function SearchPanel() {
     : undefined;
   const resolving =
     placeholderEntry?.kind === "wildcard" ? placeholderEntry : null;
-  const genEd = resolving ? null : (nav.search.gened ?? null);
 
   const asked = useSearchFocus((s) => s.asked);
   useEffect(() => {
@@ -193,16 +220,14 @@ export function SearchPanel() {
 
   const result = useMemo(
     () =>
-      rows
-        ? searchFourYearCourses(rows, query, {
-            genEd,
+      rows && engine
+        ? searchFourYearCourses(engine, rows, query, filters, {
             wildcard: resolving?.wildcard ?? null,
           })
         : null,
-    [rows, query, genEd, resolving],
+    [rows, engine, query, filters, resolving],
   );
-  const parsed = resolving ? null : parsePlaceholder(query);
-  const offer = parsed?.kind === "wildcard" ? parsed.wildcard : null;
+  const offer = resolving ? null : placeholderOffer(query, filters);
   const targetName = fourYearTermLabel(target);
   const inTarget = useMemo(
     () =>
@@ -214,98 +239,108 @@ export function SearchPanel() {
     [doc, target],
   );
 
-  const addOffer = (wildcard: NonNullable<typeof offer>) => {
+  // The keyboard's row: the placeholder offer, then the courses.
+  const [active, setActive] = useState(-1);
+  const first = offer ? 1 : 0;
+  const count = first + (result?.rows.length ?? 0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on these inputs only
+  useEffect(() => setActive(-1), [query, filters, resolving]);
+  useEffect(() => {
+    if (active >= 0)
+      document.getElementById(rowId(active))?.scrollIntoView?.({
+        block: "nearest",
+      });
+  }, [active]);
+
+  const addOffer = (wildcard: Wildcard) => {
     showAdded(addPlaceholder(doc, wildcard, target));
     type("");
+    if (!query.trim()) setFilters(NO_FILTERS);
   };
   const pick = (code: string) => {
     if (!resolving) return;
     void pickForPlaceholder(resolving.id, code);
     nav.go({ wildcard: undefined, q: undefined });
   };
-  /** Enter: what the top result's button does (the placeholder offer comes first). */
-  const actOnTop = () => {
-    if (offer) return addOffer(offer);
-    const code = result?.rows[0]?.[0];
-    if (!code) return;
-    if (resolving) return pick(code);
+  const add = (code: string) => {
     if (inTarget.has(code))
       return showPlanNote(`${code}'s already in ${targetName}`);
     showAdded(addCourse(doc, code, target, useSearchFocus.getState().via));
   };
-
-  const scopeLine = resolving ? (
-    <>
-      Picking a course for <span className="ident">{entryName(resolving)}</span>{" "}
-      in {fourYearTermLabel(resolving.term)}
-    </>
-  ) : genEd ? (
-    <>
-      Courses that count for <span className="ident">{genEd}</span>
-      {GEN_ED_LABELS[genEd] ? ` (${GEN_ED_LABELS[genEd]})` : ""}
-    </>
-  ) : null;
+  /** Enter: what the row's button does. */
+  const actOn = (index: number) => {
+    if (offer && index === 0) return addOffer(offer);
+    const code = result?.rows[index - first]?.[0];
+    if (!code) return;
+    if (resolving) return pick(code);
+    add(code);
+  };
+  const enterRow = active >= 0 ? active : 0;
+  const activeWords = describeRow(
+    active,
+    offer,
+    result?.rows[active - first],
+    resolving ? "picks it" : `adds it to ${targetName}`,
+  );
 
   return (
     <div className="flex flex-col">
       <div className="space-y-2 border-hairline border-b px-4 py-3">
-        <SearchField
-          ref={input}
+        <CourseSearchField
+          inputRef={input}
           id={SEARCH_INPUT_ID}
-          aria-label="Search courses"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          value={query}
-          onChange={(event) => type(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-            event.preventDefault();
-            actOnTop();
-          }}
-          onClear={() => {
-            type("");
-            input.current?.focus();
-          }}
-          placeholder="CMSC351, a title, CMSC4XX or DSHS"
-          hint={
-            <WithTooltip
-              label={
-                resolving
-                  ? "Search every course in Testudo from anywhere. Enter picks the top one"
-                  : "Search every course in Testudo from anywhere. Enter adds the top one"
-              }
-              shortcut="/"
-            >
-              <span>
-                <Kbd>/</Kbd>
-              </span>
-            </WithTooltip>
+          query={query}
+          onQueryChange={type}
+          tokens={
+            info
+              ? { info, filters, onFiltersChange: (next) => setFilters(next) }
+              : undefined
           }
+          count={count}
+          active={active}
+          onActiveChange={setActive}
+          onPick={actOn}
+          placeholder="Course, title, CMSC4XX or GenEd"
+          tooltip={COURSE_SEARCH_TIP.withoutInstructors}
+          shortcut={{
+            key: "/",
+            label: resolving
+              ? "Search every course in Testudo from anywhere. Enter picks the top one"
+              : "Search every course in Testudo from anywhere. Enter adds the top one",
+          }}
         />
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {activeWords}
+        </p>
+        {resolving ? null : (
+          <FilterChips
+            filters={filters}
+            onChange={(next) => setFilters(next)}
+            show={PLAN_FILTERS}
+          />
+        )}
         <p className="flex min-h-6 items-center gap-2 text-muted text-sm">
           <span className="min-w-0 flex-1">
-            {scopeLine ?? (
+            {resolving ? (
+              <>
+                Picking a course for{" "}
+                <span className="ident">{entryName(resolving)}</span> in{" "}
+                {fourYearTermLabel(resolving.term)}
+              </>
+            ) : (
               <>
                 Adding to <span className="text-fg">{targetName}</span>. Pick
                 another semester's "Add a course" to change it.
               </>
             )}
           </span>
-          {scopeLine ? (
+          {resolving ? (
             <WithTooltip label="Search every course">
               <Button
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Search every course"
-                onClick={() =>
-                  nav.go({
-                    wildcard: undefined,
-                    gened: undefined,
-                    q: undefined,
-                  })
-                }
+                onClick={() => nav.go({ wildcard: undefined, q: undefined })}
               >
                 <X aria-hidden="true" />
               </Button>
@@ -316,9 +351,14 @@ export function SearchPanel() {
 
       {offer ? (
         <ListRow
+          id={rowId(0)}
           className="border-b"
+          state={active === 0 ? "previewed" : undefined}
           action={
-            <WithTooltip label={`Add it to ${targetName}`} shortcut={ENTER}>
+            <WithTooltip
+              label={`Add it to ${targetName}`}
+              shortcut={enterRow === 0 ? ENTER : undefined}
+            >
               <Button
                 size="row"
                 aria-label={`Add ${offer.kind === "pattern" ? offer.pattern : wildcardLabel(offer)} to ${targetName}`}
@@ -356,48 +396,63 @@ export function SearchPanel() {
         <RowSkeleton rows={4} label="Loading the course list" />
       ) : result.total === 0 ? (
         <PanelNote>
-          {query.trim() === "" && !scopeLine
-            ? "Type a course code, part of a title, a pattern like CMSC4XX or a GenEd code like DSHS."
+          {query.trim() === "" && !resolving && !isFiltering(filters)
+            ? "Type a course code or words from its title. CMSC4XX lists a department's 400-levels, and a GenEd like DSHS, a level like 400s or credits like 3cr turns into its filter."
             : resolving
               ? `Nothing in Testudo matches ${entryName(resolving)}${query.trim() ? ` and "${query.trim()}"` : ""}.`
               : offer
                 ? null
-                : `Nothing matches "${query.trim()}".`}
+                : query.trim()
+                  ? `Nothing matches "${query.trim()}".`
+                  : "Nothing matches these filters. Turn one off to see more."}
         </PanelNote>
       ) : (
         <>
+          <div className="flex h-7 items-center gap-2 border-hairline border-b px-4 text-muted text-xs">
+            <span className="tnum mr-auto">
+              {result.total} {result.total === 1 ? "course" : "courses"}
+            </span>
+            {isFiltering(filters) && !resolving ? (
+              <WithTooltip label="Turn every filter off">
+                <button
+                  type="button"
+                  onClick={() => setFilters(NO_FILTERS)}
+                  className="-mr-1.5 flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg"
+                >
+                  <X size={11} aria-hidden="true" />
+                  Clear filters
+                </button>
+              </WithTooltip>
+            ) : null}
+          </div>
           <ul aria-label="Courses">
-            {result.rows.map((row, i) =>
-              resolving ? (
+            {result.rows.map((row, i) => {
+              const index = first + i;
+              return resolving ? (
                 <ResultRow
                   key={row[0]}
+                  index={index}
                   row={row}
                   action="Pick"
                   actionLabel={`Use ${row[0]} for ${entryName(resolving)}`}
                   onAct={() => pick(row[0])}
-                  top={i === 0}
+                  active={active === index}
+                  enter={enterRow === index}
                 />
               ) : (
                 <ResultRow
                   key={row[0]}
+                  index={index}
                   row={row}
                   action="Add"
                   actionLabel={`Add ${row[0]} to ${targetName}`}
-                  onAct={() =>
-                    showAdded(
-                      addCourse(
-                        doc,
-                        row[0],
-                        target,
-                        useSearchFocus.getState().via,
-                      ),
-                    )
-                  }
+                  onAct={() => add(row[0])}
                   addedTo={inTarget.has(row[0]) ? target : null}
-                  top={i === 0 && !offer}
+                  active={active === index}
+                  enter={enterRow === index}
                 />
-              ),
-            )}
+              );
+            })}
           </ul>
           {result.total > result.rows.length ? (
             <PanelNote className="tnum text-xs">
@@ -409,6 +464,42 @@ export function SearchPanel() {
       )}
     </div>
   );
+}
+
+/**
+ * The placeholder a search offers: what's typed ("CMSC4XX", "any DSHS"),
+ * or, with nothing typed, one GenEd chip on its own (typing "DSHS " turns
+ * it into the chip, and the offer stays).
+ */
+function placeholderOffer(
+  query: string,
+  filters: SearchFilters,
+): Wildcard | null {
+  const parsed = parsePlaceholder(query);
+  if (parsed.kind === "wildcard") return parsed.wildcard;
+  const [only, ...more] = filters.genEds;
+  if (
+    query.trim() === "" &&
+    only &&
+    more.length === 0 &&
+    filters.credits.length === 0 &&
+    filters.levels.length === 0
+  )
+    return { kind: "gen-ed", code: only };
+  return null;
+}
+
+/** What the arrow keys landed on, said aloud: rows here aren't options. */
+function describeRow(
+  active: number,
+  offer: Wildcard | null,
+  row: CourseSearchRow | undefined,
+  enterDoes: string,
+): string {
+  if (active < 0) return "";
+  if (offer && active === 0)
+    return `Placeholder ${offer.kind === "pattern" ? offer.pattern : offer.code}. Enter adds it.`;
+  return row ? `${row[0]}, ${row[1]}. Enter ${enterDoes}.` : "";
 }
 
 /** The Search view, on its route (`/plan/search`). */

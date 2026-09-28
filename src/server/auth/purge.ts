@@ -85,6 +85,11 @@ export const PURGE_LEDGER = {
   todo_hidden: "deleted: the courses the person hid in Todo",
   // 0018_calendar_feeds (it stops serving once the account is deleting)
   calendar_feeds: "deleted: the link's hash and nonce",
+  // 0020_reviews_public: PlanetTerp's reviews (no author), and the owner's
+  // notes on grade requests
+  planetterp_reviews: "untouched: PlanetTerp's words, no user data",
+  planetterp_review_sets: "untouched: no user data",
+  grade_requests: "untouched: the owner's notes, no user id",
 } as const satisfies Record<string, string>;
 
 /**

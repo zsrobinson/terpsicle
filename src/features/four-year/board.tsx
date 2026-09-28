@@ -102,6 +102,8 @@ function AddButton({
             ...CLOSE_DRILL,
             wildcard: undefined,
             gened: undefined,
+            credits: undefined,
+            level: undefined,
             q: undefined,
           });
           focusSearch("column");

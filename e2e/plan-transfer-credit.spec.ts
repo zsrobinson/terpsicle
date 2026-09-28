@@ -104,9 +104,9 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   await expect(page).toHaveURL(/credit=/);
   const form = page.getByRole("form", { name: "What it counts as" });
   // The department's 100-level courses come first.
-  await expect(form.getByRole("button", { name: /^GEOL100/ })).toBeVisible();
+  await expect(form.getByRole("option", { name: /^GEOL100/ })).toBeVisible();
   await form.getByLabel("Counts as").fill("geol 100");
-  await form.getByRole("button", { name: /^GEOL100/ }).click();
+  await form.getByRole("option", { name: /^GEOL100/ }).click();
   await expect(form.getByText("GEOL100", { exact: true })).toBeVisible();
   await expect(form.getByLabel("Credits")).toHaveValue("3");
   // The transcript's GenEds stay what UMD granted.
@@ -115,7 +115,7 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
     "true",
   );
   await axe(page, "a transfer credit's drill-in");
-  await form.getByRole("button", { name: "Save" }).click();
+  await form.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
     page.getByText("PHYSICAL GEOLOGY counts as GEOL100"),
   ).toBeVisible();

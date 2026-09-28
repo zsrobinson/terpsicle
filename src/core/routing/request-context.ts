@@ -1,4 +1,5 @@
 import type { ReviewsServerData } from "../reviews/pages";
+import type { PageReviews, ReviewsPageInput } from "../schema";
 
 // What the Worker hands TanStack Start for each page it renders
 // (`app.fetch(request, { context })`); route loaders read it as
@@ -15,4 +16,9 @@ export interface PageRequestContext {
   published: PublishedFiles;
   /** Null while REVIEWS_ENABLED is off. */
   reviews: ReviewsServerData | null;
+  /**
+   * A Reviews page's first reviews, as `reviews/page` answers: PlanetTerp's
+   * always, ours while REVIEWS_ENABLED lets anyone read them.
+   */
+  pageReviews(input: ReviewsPageInput): Promise<PageReviews>;
 }

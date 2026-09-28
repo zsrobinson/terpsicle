@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import { PenLine } from "lucide-react";
 import {
+  type ReactNode,
   type RefObject,
   useEffect,
   useId,
@@ -10,7 +11,8 @@ import {
   useState,
 } from "react";
 import { PanelNote } from "~/app/panel";
-import type { CourseCode, CourseSearchRow } from "~/core/schema";
+import { combineRatings, courseSlug, instructorSlug } from "~/core/reviews";
+import type { CourseCode, InstructorId } from "~/core/schema";
 import { formatMonthYear } from "~/core/time/format";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
@@ -20,19 +22,38 @@ import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { browserReader, loadCourseSearch, useLoaded } from "./data";
+import {
+  browserReader,
+  loadCourseSearch,
+  loadPlanetTerpIndex,
+  useLoaded,
+} from "./data";
 import { PAGE_ROW, ReviewsFrame, ROW_LINK } from "./frame";
 import { useReviewsLevel, useSignedIn } from "./level";
-import { isDeptQuery, type ReviewsHomeData, searchResults } from "./page-data";
+import {
+  isDeptQuery,
+  type ReviewsHomeData,
+  type SearchResults,
+  searchResults,
+} from "./page-data";
+import { CombinedRatingBadge } from "./rating";
+import { ReviewYourInstructors } from "./to-review";
 import { readPlanCourses } from "./your-classes";
 
-// /reviews (V2 §1.1), for someone who's never been here: find a course (the
-// search's text is `?q=`, so a department link is a search), the courses
-// most people take, what was reviewed lately, every department, and where
-// the numbers come from. Dense and calm: lists, not cards.
+// /reviews (V2 §1.1), Reviews' front door, which people often reach from a
+// search engine: a public website, not a dashboard (owner, 2026-09-28). One
+// search finds instructors and courses alike, as equals; then who you could
+// review, the most-reviewed instructors beside the most-taken courses, what
+// was reviewed lately and every department.
 
-/** Most-taken courses shown. */
-const MOST_TAKEN_SHOWN = 12;
+/** Rows each of the two lists shows. */
+const SHOWN = 10;
+
+/**
+ * The two lists side by side start level: neither draws the rule a section
+ * draws between it and the one before, which only the first would skip.
+ */
+const SIDE_BY_SIDE = "border-t-0 pt-0";
 
 export function ReviewsHomePage({
   data,
@@ -52,12 +73,15 @@ export function ReviewsHomePage({
   return (
     <ReviewsFrame page="home">
       <PageHeader
-        title="Terpsicle Reviews"
-        status="Ratings, grades and reviews for UMD courses and instructors. Anyone can read them."
+        size="display"
+        eyebrow="Terpsicle Reviews"
+        title="UMD course and instructor reviews"
+        status="What students say about University of Maryland instructors and courses, here and on PlanetTerp. Free to read, no sign-in."
         actions={
           level === "on" ? (
-            <WithTooltip label="Find the course you took, then pick your instructor">
+            <WithTooltip label="Find who taught you, or the course you took">
               <Button
+                size="lg"
                 onClick={() => {
                   setWriting(true);
                   searchRef.current?.focus();
@@ -70,18 +94,22 @@ export function ReviewsHomePage({
           ) : undefined
         }
       />
-      <CourseSearch
+      <Search
         initialQuery={q}
         initialResults={data.results}
         inputRef={searchRef}
         placeholder={
           writing
-            ? "Which course did you take? CMSC351, algorithms…"
+            ? "Who taught you, or which course? Kruskal, CMSC351…"
             : undefined
         }
       />
+
+      <ReviewYourInstructors />
+
       {yours.length > 0 ? (
         <PageSection
+          size="display"
           title="Your classes"
           aside="From the plans saved in this browser"
         >
@@ -89,8 +117,11 @@ export function ReviewsHomePage({
             {yours.map((code) => (
               <li key={code}>
                 <WithTooltip label={`Reviews and grades for ${code}`}>
-                  <Button variant="outline" size="sm" className="ident" asChild>
-                    <Link to="/reviews/courses/$code" params={{ code }}>
+                  <Button variant="outline" className="ident" asChild>
+                    <Link
+                      to="/reviews/$slug"
+                      params={{ slug: courseSlug(code) }}
+                    >
                       {code}
                     </Link>
                   </Button>
@@ -101,125 +132,111 @@ export function ReviewsHomePage({
         </PageSection>
       ) : null}
 
-      {/* min-w-0: long titles truncate instead of widening a column. */}
-      <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 [&>*]:min-w-0">
-        {data.mostTaken.length > 0 ? (
-          <PageSection title="Most taken">
+      {/* Instructors and courses as equals, side by side. min-w-0: long
+          titles truncate instead of widening a column. */}
+      <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 [&>*]:min-w-0">
+        {data.mostReviewed.length > 0 ? (
+          <PageSection
+            size="display"
+            title="Most reviewed"
+            className={SIDE_BY_SIDE}
+          >
             <ul>
-              {data.mostTaken
-                .slice(0, MOST_TAKEN_SHOWN)
-                .map(([code, title, students]) => (
+              {data.mostReviewed
+                .slice(0, SHOWN)
+                .map(([id, name, count, rating]) => (
                   <ListRow
-                    key={code}
+                    key={id}
                     as="li"
                     className={cn(PAGE_ROW, "relative")}
                     trail={
-                      <span className="text-muted">
-                        {students.toLocaleString("en-US")}
-                      </span>
+                      <CombinedRatingBadge
+                        combined={combineRatings([
+                          { source: "planetterp", rating, reviewCount: count },
+                        ])}
+                      />
                     }
                   >
-                    <CourseLink code={code} title={title} />
+                    <InstructorLink id={id} name={name} />
                   </ListRow>
                 ))}
             </ul>
-            <p className="text-faint text-xs">
-              Offered now, by how many students PlanetTerp's grade data counts.
+            <p className="text-faint text-sm">
+              Instructors with the most reviews on PlanetTerp.
             </p>
           </PageSection>
         ) : null}
 
-        <div className="flex flex-col gap-4">
-          {data.recent.length > 0 ? (
-            <PageSection title="Recently reviewed">
-              <ul>
-                {data.recent.map((r) => (
-                  <ListRow
-                    key={`${r.course}:${r.instructorId}`}
-                    as="li"
-                    className={cn(PAGE_ROW, "relative")}
-                    trail={
-                      <span className="text-muted">
-                        {formatMonthYear(r.month)}
-                      </span>
-                    }
-                  >
-                    <WithTooltip
-                      label={`Reviews of ${r.instructorName} in ${r.course}`}
-                    >
-                      <Link
-                        to="/reviews/instructors/$id"
-                        params={{ id: r.instructorId }}
-                        search={{ course: r.course }}
-                        className={cn(
-                          ROW_LINK,
-                          "block truncate hover:underline",
-                        )}
-                      >
-                        <span className="ident font-medium">{r.course}</span>{" "}
-                        <span className="text-muted">·</span> {r.instructorName}
-                      </Link>
-                    </WithTooltip>
-                  </ListRow>
-                ))}
-              </ul>
-            </PageSection>
-          ) : null}
-
-          <PageSection title="Where the numbers come from">
-            <div className="space-y-2 text-muted leading-5">
-              {level === "read" || level === "on" ? (
-                <p>
-                  Ratings combine PlanetTerp's student reviews, with thanks, and
-                  reviews written here, weighted by how many each has. An
-                  instructor's page spells out the math.
-                </p>
-              ) : (
-                <p>
-                  Ratings are PlanetTerp's student reviews, with thanks. The
-                  number in parentheses is how many there are.
-                </p>
-              )}
-              <p>
-                Grades are PlanetTerp's, from UMD's own grade data. AI summaries
-                of PlanetTerp's reviews are marked, and can get things wrong.
-              </p>
-              {level === "read" || level === "on" ? (
-                <p>
-                  Reviews here are anonymous to readers. Writing one takes a UMD
-                  sign-in, and a check before it's posted.
-                </p>
-              ) : null}
-            </div>
-            <nav
-              aria-label="More about Reviews"
-              className="flex flex-wrap gap-x-4 gap-y-1 text-sm"
-            >
-              <WithTooltip label="What reviews can and can't say, and how checks work">
-                <Link
-                  to="/reviews/policy"
-                  className="font-medium text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+        {data.mostTaken.length > 0 ? (
+          <PageSection
+            size="display"
+            title="Most taken"
+            className={SIDE_BY_SIDE}
+          >
+            <ul>
+              {data.mostTaken.slice(0, SHOWN).map(([code, title, students]) => (
+                <ListRow
+                  key={code}
+                  as="li"
+                  className={cn(PAGE_ROW, "relative")}
+                  trail={
+                    <span className="tnum text-muted">
+                      {students.toLocaleString("en-US")}
+                    </span>
+                  }
                 >
-                  What's allowed
-                </Link>
-              </WithTooltip>
-              {signedIn === true && level !== "off" ? (
-                <WithTooltip label="Everything you've written, and where each stands">
+                  <CourseLink code={code} title={title} />
+                </ListRow>
+              ))}
+            </ul>
+            <p className="text-faint text-sm">
+              Courses offered now, by how many students PlanetTerp's grade data
+              counts.
+            </p>
+          </PageSection>
+        ) : null}
+      </div>
+
+      {data.recent.length > 0 ? (
+        <PageSection size="display" title="Recently reviewed">
+          <ul>
+            {data.recent.map((r) => (
+              <ListRow
+                key={`${r.course}:${r.instructorId}`}
+                as="li"
+                className={cn(PAGE_ROW, "relative")}
+                trail={
+                  <span className="tnum text-muted">
+                    {formatMonthYear(r.month)}
+                  </span>
+                }
+              >
+                <WithTooltip
+                  label={`Reviews of ${r.instructorName} in ${r.course}`}
+                >
                   <Link
-                    to="/reviews/mine"
-                    className="font-medium text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+                    to="/reviews/$slug"
+                    params={{ slug: instructorSlug(r.instructorId) }}
+                    search={{ course: r.course }}
+                    className={cn(
+                      ROW_LINK,
+                      "block truncate text-lg hover:underline",
+                    )}
                   >
-                    Your reviews
+                    <span className="font-medium">{r.instructorName}</span>{" "}
+                    <span className="text-muted">in</span>{" "}
+                    <span className="ident">{r.course}</span>
                   </Link>
                 </WithTooltip>
-              ) : null}
-            </nav>
-          </PageSection>
-        </div>
-      </div>
+              </ListRow>
+            ))}
+          </ul>
+        </PageSection>
+      ) : null}
 
       {data.departments.length > 0 ? (
         <PageSection
+          size="display"
           title="Departments"
           aside={
             data.term
@@ -227,7 +244,7 @@ export function ReviewsHomePage({
               : data.departments.length
           }
         >
-          <ul className="gap-x-6 sm:columns-2 lg:columns-3">
+          <ul className="gap-x-6 sm:columns-2">
             {data.departments.map((d) => (
               <ListRow
                 key={d.code}
@@ -241,10 +258,10 @@ export function ReviewsHomePage({
                     search={{ q: d.code }}
                     className={cn(
                       ROW_LINK,
-                      "flex min-w-0 items-baseline gap-2 hover:underline",
+                      "flex min-w-0 items-baseline gap-2 text-base hover:underline",
                     )}
                   >
-                    <span className="ident w-11 shrink-0 font-medium">
+                    <span className="ident w-12 shrink-0 font-medium">
                       {d.code}
                     </span>
                     <span className="truncate text-muted">{d.name}</span>
@@ -256,11 +273,67 @@ export function ReviewsHomePage({
         </PageSection>
       ) : null}
 
-      <p className="text-faint text-xs">
-        Ratings and grades include PlanetTerp's, with thanks. Terpsicle isn't
-        affiliated with the University of Maryland.
-      </p>
+      <PageSection size="display" title="Where this comes from">
+        <div className="flex flex-col gap-3 text-lg text-muted">
+          <p>
+            Reviews come from students here and on PlanetTerp, a separate UMD
+            review site, shown with thanks. Each of PlanetTerp's is marked as
+            theirs. Ratings combine both, weighted by how many each has.
+          </p>
+          <p>
+            Grades are PlanetTerp's, from the university's own grade data. AI
+            summaries of PlanetTerp's reviews are marked, and can get things
+            wrong.
+          </p>
+          {level === "read" || level === "on" ? (
+            <p>
+              Reviews here are anonymous to readers. Writing one takes a UMD
+              sign-in, and a check before it's posted.
+            </p>
+          ) : null}
+        </div>
+        <nav
+          aria-label="More about Reviews"
+          className="flex flex-wrap gap-x-4 gap-y-1 text-base"
+        >
+          <WithTooltip label="What reviews can and can't say, and how checks work">
+            <Link
+              to="/reviews/policy"
+              className="font-medium text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+            >
+              What's allowed
+            </Link>
+          </WithTooltip>
+          {signedIn === true && level !== "off" ? (
+            <WithTooltip label="Everything you've written, and where each stands">
+              <Link
+                to="/reviews/mine"
+                className="font-medium text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+              >
+                Your reviews
+              </Link>
+            </WithTooltip>
+          ) : null}
+        </nav>
+        <p className="text-faint text-sm">
+          Terpsicle isn't affiliated with the University of Maryland.
+        </p>
+      </PageSection>
     </ReviewsFrame>
+  );
+}
+
+function InstructorLink({ id, name }: { id: InstructorId; name: string }) {
+  return (
+    <WithTooltip label={`${name}'s reviews and grades`}>
+      <Link
+        to="/reviews/$slug"
+        params={{ slug: instructorSlug(id) }}
+        className={cn(ROW_LINK, "block truncate text-lg hover:underline")}
+      >
+        {name}
+      </Link>
+    </WithTooltip>
   );
 }
 
@@ -268,29 +341,41 @@ function CourseLink({ code, title }: { code: CourseCode; title: string }) {
   return (
     <WithTooltip label={`Reviews and grades for ${code}`}>
       <Link
-        to="/reviews/courses/$code"
-        params={{ code }}
+        to="/reviews/$slug"
+        params={{ slug: courseSlug(code) }}
         className={cn(
           ROW_LINK,
-          "flex min-w-0 items-baseline gap-2 hover:underline",
+          "flex min-w-0 items-baseline gap-2 text-lg hover:underline",
         )}
       >
         <span className="ident shrink-0 font-medium">{code}</span>
-        <span className="truncate text-muted">{title}</span>
+        <span className="truncate text-base text-muted">{title}</span>
       </Link>
     </WithTooltip>
   );
 }
 
-function CourseSearch({
+/** The course list and PlanetTerp's index, read once the search is used. */
+function useSearchData(wanted: boolean) {
+  return useLoaded(wanted ? "reviews-search" : null, async () => {
+    const reader = await browserReader();
+    const [rows, index] = await Promise.all([
+      loadCourseSearch(reader),
+      loadPlanetTerpIndex(reader).catch(() => null),
+    ]);
+    return { rows, index };
+  });
+}
+
+function Search({
   initialQuery,
   initialResults,
   inputRef,
   placeholder,
 }: {
   initialQuery: string;
-  /** The server's matches for `initialQuery`, until the course list loads. */
-  initialResults: readonly CourseSearchRow[];
+  /** The server's matches for `initialQuery`, until the lists load. */
+  initialResults: SearchResults;
   inputRef: RefObject<HTMLInputElement | null>;
   placeholder: string | undefined;
 }) {
@@ -303,22 +388,18 @@ function CourseSearch({
     );
     if (initialQuery !== "") setWanted(true);
   }, [initialQuery]);
-  const rows = useLoaded(wanted ? "course-search" : null, async () =>
-    loadCourseSearch(await browserReader()),
-  );
+  const lists = useSearchData(wanted);
   const navigate = useNavigate();
   const listId = useId();
   const results = useMemo(
     () =>
-      rows.status === "ready"
-        ? searchResults(rows.data, query)
+      lists.status === "ready"
+        ? searchResults(lists.data.rows, lists.data.index, query)
         : query === initialQuery
           ? initialResults
-          : [],
-    [rows, query, initialQuery, initialResults],
+          : { instructors: [], courses: [] },
+    [lists, query, initialQuery, initialResults],
   );
-  const open = (code: CourseCode) =>
-    void navigate({ to: "/reviews/courses/$code", params: { code } });
   // Typing replaces: Back leaves the page, not each letter.
   const search = (text: string) => {
     setQuery(text);
@@ -329,19 +410,33 @@ function CourseSearch({
     });
   };
   const typed = query.trim();
+  const found = results.instructors.length + results.courses.length;
   return (
     <form
-      aria-label="Find a course"
+      aria-label="Search reviews"
+      className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        const first = results[0];
-        if (first && !isDeptQuery(typed)) open(first[0]);
+        if (isDeptQuery(typed) && results.courses.length > 1) return;
+        const [instructor] = results.instructors;
+        const [course] = results.courses;
+        // A code typed goes to the course; a name, to the instructor.
+        if (course && (/\d/.test(typed) || !instructor))
+          void navigate({
+            to: "/reviews/$slug",
+            params: { slug: courseSlug(course[0]) },
+          });
+        else if (instructor)
+          void navigate({
+            to: "/reviews/$slug",
+            params: { slug: instructorSlug(instructor[0]) },
+          });
       }}
     >
       <label htmlFor={`${listId}-input`} className="sr-only">
-        Find a course
+        Search instructors and courses
       </label>
-      <WithTooltip label="Search by course code, title or department">
+      <WithTooltip label="Search by an instructor's name, or a course's code, title or department">
         <SearchField
           ref={inputRef}
           id={`${listId}-input`}
@@ -352,49 +447,72 @@ function CourseSearch({
             inputRef.current?.focus();
           }}
           onFocus={() => setWanted(true)}
-          placeholder={placeholder ?? "Find a course: CMSC351, algorithms…"}
+          placeholder={
+            placeholder ?? "Search instructors and courses: Kruskal, CMSC351…"
+          }
           autoComplete="off"
           aria-controls={listId}
+          className="h-12 pl-4 text-lg md:h-12"
         />
       </WithTooltip>
-      {typed === "" ? null : rows.status === "error" ? (
+      {typed === "" ? null : lists.status === "error" ? (
         <InlineError
-          message="Couldn't load the course list. Check your connection."
-          onRetry={rows.retry}
-          className="px-2.5"
+          message="Couldn't load the search. Check your connection."
+          onRetry={lists.retry}
         />
-      ) : results.length > 0 ? null : rows.status === "ready" ? (
-        <PanelNote className="px-2.5">No course matches “{typed}”.</PanelNote>
+      ) : found > 0 ? null : lists.status === "ready" ? (
+        <PanelNote className="p-0 text-base">
+          No instructor or course matches “{typed}”.
+        </PanelNote>
       ) : (
-        <RowSkeleton
-          rows={3}
-          inset={false}
-          label="Loading courses"
-          className="mt-1 px-2.5"
-        />
+        <RowSkeleton rows={3} inset={false} label="Loading the search" />
       )}
-      <ul id={listId} aria-label="Courses" className="mt-1">
-        {typed !== "" && rows.status === "error"
-          ? null
-          : results.map(([code, title]) => (
+      <div id={listId} className="flex flex-col gap-4">
+        {results.instructors.length > 0 ? (
+          <ResultGroup title="Instructors">
+            {results.instructors.map(([id, name]) => (
+              <ListRow
+                key={id}
+                as="li"
+                className="relative px-2.5 hover:bg-hover"
+              >
+                <InstructorLink id={id} name={name} />
+              </ListRow>
+            ))}
+          </ResultGroup>
+        ) : null}
+        {results.courses.length > 0 ? (
+          <ResultGroup title="Courses">
+            {results.courses.map(([code, title]) => (
               <ListRow
                 key={code}
                 as="li"
                 className="relative px-2.5 hover:bg-hover"
               >
-                <WithTooltip label={`Reviews and grades for ${code}`}>
-                  <Link
-                    to="/reviews/courses/$code"
-                    params={{ code }}
-                    className={cn(ROW_LINK, "flex items-baseline gap-2")}
-                  >
-                    <span className="ident font-medium">{code}</span>
-                    <span className="truncate text-muted">{title}</span>
-                  </Link>
-                </WithTooltip>
+                <CourseLink code={code} title={title} />
               </ListRow>
             ))}
-      </ul>
+          </ResultGroup>
+        ) : null}
+      </div>
     </form>
+  );
+}
+
+function ResultGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1">
+      <h2 id={id} className="font-medium text-muted text-sm">
+        {title}
+      </h2>
+      <ul aria-labelledby={id}>{children}</ul>
+    </div>
   );
 }

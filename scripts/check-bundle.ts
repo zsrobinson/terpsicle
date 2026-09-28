@@ -293,17 +293,13 @@ export const ROUTE_BUDGETS: readonly {
     budget: LANDING_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
-  ...[
-    "/reviews/",
-    "/reviews/instructors/$id",
-    "/reviews/courses/$code",
-    "/reviews/mine",
-    "/reviews/policy",
-  ].map((route) => ({
-    route,
-    budget: REVIEWS_BUDGET,
-    never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
-  })),
+  ...["/reviews/", "/reviews/$slug", "/reviews/mine", "/reviews/policy"].map(
+    (route) => ({
+      route,
+      budget: REVIEWS_BUDGET,
+      never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
+    }),
+  ),
   ...["/admin/", "/admin/decisions", "/admin/kit"].map((route) => ({
     route,
     budget: ADMIN_BUDGET,

@@ -41,7 +41,14 @@ export function SitePage({
  * (`~/app/app-bar`), with the product this path belongs to and its feedback.
  * Chat's page uses it too, above its own full-height layout.
  */
-export function SiteHeader({ notFound = false }: { notFound?: boolean }) {
+export function SiteHeader({
+  notFound = false,
+  borderOnScroll = false,
+}: {
+  notFound?: boolean;
+  /** Reviews' public pages: the bar's rule shows once the page scrolls. */
+  borderOnScroll?: boolean;
+}) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   // The Worker renders a 404 at its own path (NOT_FOUND_PATH) and the page
   // hydrates at the address asked for (`/admin` for a non-admin), so a 404's
@@ -55,6 +62,7 @@ export function SiteHeader({ notFound = false }: { notFound?: boolean }) {
       feedback={notFound ? null : feedbackProduct(path)}
       pathname={path}
       context={notFound ? null : pageContext(path)}
+      borderOnScroll={borderOnScroll}
     />
   );
 }

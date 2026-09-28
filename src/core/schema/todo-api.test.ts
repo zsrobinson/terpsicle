@@ -40,7 +40,6 @@ describe("todo API schemas", () => {
       title: "Homework 1",
       courseLabel: null,
       kind: "assignment",
-      gradescope: false,
       dueAt: null,
       dueDate: "2026-10-01",
       link: null,

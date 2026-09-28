@@ -7,8 +7,8 @@ import { GenEdCodeSchema } from "./primitives";
 /**
  * A department and a course number with its last one, two or three digits
  * as X: "CMSC4XX" (any CMSC 400-level), "CMSC42X", "ARTTXXX" (any ARTT).
- * X only fills the end, so "CMSC4X1" isn't one, and all three places are
- * needed, so neither is "CMSC4X".
+ * X only fills the end, so "CMSC4X1" isn't one. The stored form has all
+ * three places; typing "CMSC4X" reads as CMSC4XX (`parseWildcard`).
  */
 export const WildcardPatternSchema = z
   .string()
