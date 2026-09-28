@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { MessageText } from "~/app/message-text";
 import { PanelNote } from "~/app/panel";
+import { displayTitle } from "~/core/four-year/display-title";
 import type { LocalId } from "~/core/schema";
 import type { FourYearCreditEntry } from "~/core/schema/four-year";
 import { CreditInfoForm } from "./course-details-form";
@@ -54,7 +55,7 @@ export function CreditPanel({ entryId }: { entryId: LocalId }) {
   return (
     <div className="space-y-3 px-4 py-3">
       <div>
-        <h2 className="font-semibold text-lg">{entry.title}</h2>
+        <h2 className="font-semibold text-lg">{displayTitle(entry.title)}</h2>
         <p className="text-muted text-sm">
           {creditKind(entry)} · {credits}
         </p>

@@ -16,13 +16,13 @@ import { sectionQuality } from "~/core/generate/quality";
 import { changesFrom, type PlanChange } from "~/core/generate/result-plan";
 import { planProblems } from "~/core/problems";
 import type { Meeting, Plan, SectionKey } from "~/core/schema";
-import { seatCounts, seatStatus } from "~/core/seats";
 import { DAY_SHORT_NAMES, formatTime } from "~/core/time";
 import { planConnections, verdictMessage } from "~/core/travel";
 import {
   meetingKindWords,
   meetingWords,
 } from "~/features/course-details/words";
+import { SeatMeter } from "~/features/courses/seat-meter";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCurrentPlan,
@@ -300,7 +300,6 @@ export function ResultDetails() {
           {refs.map(({ course, section }) => {
             const key: SectionKey = `${course.code}-${section.code}`;
             const q = quality.get(key);
-            const seats = seatStatus(seatCounts(catalog.seats?.seats, key));
             const change = changeWords(changeOf.get(course.code));
             const filled = filledFor.get(course.code);
             const wildcard = filled ? wildcardFromId(filled.wildcard) : null;
@@ -350,15 +349,13 @@ export function ResultDetails() {
                     </span>
                   )}
                 </div>
-                <div
-                  className={cn(
-                    "text-sm",
-                    seats.level === "full" || seats.level === "low"
-                      ? "text-warn"
-                      : "text-muted",
-                  )}
-                >
-                  {seats.words}
+                <div className="text-sm">
+                  {/* The seat words course details and Register show, in their colors. */}
+                  <SeatMeter
+                    seats={catalog.seats?.seats ?? null}
+                    sectionKey={key}
+                    meter={false}
+                  />
                   {wildcard ? (
                     <span className="text-muted">
                       {" "}

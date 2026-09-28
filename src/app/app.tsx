@@ -8,7 +8,7 @@ import {
 } from "~/features/prefs/synced-prefs";
 import type { SyncHost } from "~/features/sync/running";
 import { useSyncStatus } from "~/features/sync/status";
-import { useCatalog } from "~/state/catalog-store";
+import { termsSettled, useCatalog } from "~/state/catalog-store";
 import { createDexieCache } from "~/state/data-cache";
 import { createDataReader, createDataSource } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
@@ -111,7 +111,11 @@ function useBootstrap(config: ClientConfig) {
           if (next.plans !== prev.plans) markReturning(next.plans.length);
         });
         // Plan sync loads only with a session, so signed-out visitors
-        // download none of it (scripts/check-bundle.ts).
+        // download none of it (scripts/check-bundle.ts). It starts once the
+        // term list has settled: a first visit's Plan A waits for a term,
+        // and a device's first sign-in joins only what exists by then, so
+        // starting sooner saved Plan A later with no "saved to your
+        // account" toast.
         const host: SyncHost = {
           db,
           persistence,
@@ -128,7 +132,10 @@ function useBootstrap(config: ClientConfig) {
         const follow = () => {
           const { status, user } = useAccount.getState();
           if (status === "signed-in" && user)
-            void import("~/features/sync/boot").then((module) => {
+            void Promise.all([
+              import("~/features/sync/boot"),
+              termsSettled(),
+            ]).then(([module]) => {
               // Signed out (or someone else) while it loaded.
               if (cancelled || useAccount.getState().user?.id !== user.id)
                 return;

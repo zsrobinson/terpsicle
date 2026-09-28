@@ -208,7 +208,7 @@ describe("check", () => {
       within(fall).getByText("Object-Oriented Programming I"),
     ).toBeInTheDocument();
     expect(
-      within(fall).getByText("OBJECT-ORIENTED PROG I"),
+      within(fall).getByText("Object-Oriented Prog I"),
     ).toBeInTheDocument();
     for (const term of [
       "Before UMD",

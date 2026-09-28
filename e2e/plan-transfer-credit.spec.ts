@@ -77,13 +77,13 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   const before = page.getByRole("region", { name: "Before UMD" });
   await expect(before.getByText("Exam", { exact: true })).toBeVisible();
   await expect(
-    before.getByText("INTRODUCTION TO GLOBAL ISSUES", { exact: true }),
+    before.getByText("Introduction to Global Issues", { exact: true }),
   ).toBeVisible();
   await expect(
     before.getByText(/UMD hasn't finished evaluating it/),
   ).toBeVisible();
   await expect(
-    page.getByRole("checkbox", { name: "Import ANATOMY AND PHYSIOLOGY I" }),
+    page.getByRole("checkbox", { name: "Import Anatomy and Physiology I" }),
   ).not.toBeChecked();
   await page.getByRole("button", { name: "Import 4 courses" }).click();
   await expect(
@@ -98,7 +98,7 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   const problems = page.getByRole("list", { name: "Problems" });
   const row = problems
     .getByRole("listitem")
-    .filter({ hasText: "PHYSICAL GEOLOGY came in as GEOL 1XX" });
+    .filter({ hasText: "Physical Geology came in as GEOL 1XX" });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Choose what it counts as" }).click();
   await expect(page).toHaveURL(/credit=/);
@@ -117,7 +117,7 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   await axe(page, "a transfer credit's drill-in");
   await form.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
-    page.getByText("PHYSICAL GEOLOGY counts as GEOL100"),
+    page.getByText("Physical Geology counts as GEOL100"),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Save changes" }),
@@ -126,7 +126,7 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   // The block keeps its own title and says what it counts as.
   if (isMobile) await lowerPlanDrawer(page);
   const after = await semester(page, isMobile, "Before UMD");
-  await expect(after.getByText("PHYSICAL GEOLOGY")).toBeVisible();
+  await expect(after.getByText("Physical Geology")).toBeVisible();
   await expect(after.getByText("Counts as GEOL100")).toBeVisible();
 
   // Undo takes it back, and Problems asks again.
@@ -134,6 +134,6 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   await expect(after.getByText("Counts as GEOL100")).toHaveCount(0);
   await page.goto("/plan/problems");
   await expect(
-    page.getByText("PHYSICAL GEOLOGY came in as GEOL 1XX"),
+    page.getByText("Physical Geology came in as GEOL 1XX"),
   ).toBeVisible();
 });

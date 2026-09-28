@@ -562,7 +562,18 @@ function TodoWorkspace({
       }
       views={<TodoViews view={view} anchor={anchor} />}
       actions={
-        view === "list" ? null : (
+        view === "list" ? (
+          // The list has no periods, but keeps their room, so Week, Month
+          // and List stay put when you switch between them.
+          <div className="invisible" aria-hidden="true" inert>
+            <PeriodNav
+              view="week"
+              anchor={anchor}
+              today={today}
+              weekStart={weekStart}
+            />
+          </div>
+        ) : (
           <PeriodNav
             view={view}
             anchor={anchor}

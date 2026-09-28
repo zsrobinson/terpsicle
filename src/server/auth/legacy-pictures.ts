@@ -4,9 +4,8 @@
 // left there, a page at a time, so nothing of them stays stored.
 //
 // Follow-up: once `avatars/` is empty in production and preview, delete this
-// file and its call in src/jobs/daily.ts, and drop `users.picture_url` and
-// `users.picture_key` (migration 0020 only nulls them, so the build still
-// serving during that deploy kept working).
+// file and its call in src/jobs/daily.ts. (The `users` columns that pointed
+// at these copies are gone: migration 0022_drop_unused_columns.)
 
 /** Where the pictures lived in `USER_CONTENT`. */
 export const LEGACY_PICTURES_PREFIX = "avatars/";

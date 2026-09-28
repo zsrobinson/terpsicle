@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { fixedGenEds, honorsBase } from "~/core/four-year/course-lookup";
 import { entryCredits } from "~/core/four-year/credits";
+import { displayTitle } from "~/core/four-year/display-title";
 import { GEN_ED_REQUIREMENTS } from "~/core/four-year/gen-ed";
 import {
   type CourseCode,
@@ -243,7 +244,7 @@ export function CourseDetailsForm({
   );
   const picked = useIndexEntry(countsAs);
   const [title, setTitle] = useState(
-    saved?.title ?? first?.transcript?.title ?? "",
+    saved?.title ?? displayTitle(first?.transcript?.title ?? ""),
   );
   const [credits, setCreditsText] = useState(
     first?.credits !== null && first?.credits !== undefined
@@ -427,7 +428,7 @@ export function CreditInfoForm({ entry }: { entry: FourYearCreditEntry }) {
               if (course) setGenEds(inOrder(fixedGenEds(course)));
             });
         }}
-        name={entry.title}
+        name={displayTitle(entry.title)}
         suggested={[]}
         pattern={entry.equivalentPattern ?? null}
       />
@@ -455,8 +456,8 @@ export function CreditInfoForm({ entry }: { entry: FourYearCreditEntry }) {
         saveLabel={decided ? "Save changes" : "Save"}
         saveTip={
           countsAs
-            ? `Count ${entry.title} as ${countsAs}`
-            : `Keep ${entry.title} as credit with no UMD course`
+            ? `Count ${displayTitle(entry.title)} as ${countsAs}`
+            : `Keep ${displayTitle(entry.title)} as credit with no UMD course`
         }
         disabledWhy={problem ?? (unchanged ? "Nothing's changed" : null)}
         clear={null}

@@ -76,7 +76,7 @@ Revisit if: UMD changes its Google domains. (changed 2026-09-28: no pictures)
 
 ### No profile pictures
 2026-09-28 · owner · app-wide
-"it doesn't seem like profile pictures sync from google at all, but i actually think that's a good thing and we actually shouldn't do that. because of that, we can just remove any need to support or store them at all." Terpsicle doesn't fetch, store or show Google's picture; everyone is an ink monogram of their initials. Migration 0020 nulls `users.picture_url` and `picture_key` (a later one drops them once no older build reads them), and the daily job empties R2's `avatars/`. `CHAT_PROTOCOL_VERSION` went to 2, since message authors lost `picture`.
+"it doesn't seem like profile pictures sync from google at all, but i actually think that's a good thing and we actually shouldn't do that. because of that, we can just remove any need to support or store them at all." Terpsicle doesn't fetch, store or show Google's picture; everyone is an ink monogram of their initials. Migration 0021_no_pictures nulls `users.picture_url` and `picture_key`, and 0022_drop_unused_columns drops them once no older build reads them, and the daily job empties R2's `avatars/`. `CHAT_PROTOCOL_VERSION` went to 2, since message authors lost `picture`.
 Revisit if: never on its own.
 
 ### Schedule works signed out
@@ -440,7 +440,7 @@ Revisit if: Gradescope offers students an API or feed.
 
 ### No Gradescope detection
 2026-09-28 · owner · one feature
-Todo leaves Gradescope out entirely: no tag on items whose ELMS entry mentions gradescope.com, no note about extensions, and descriptions aren't read at all. The owner: "the gradescope integration doesn't sound like it's anything like i thought we might be able to do (hooking in directly and seeing those in there) so i think we just leave that sort of detection or whatever completely ommitted." Gradescope work linked in ELMS still comes through the feed like any assignment, and dropping a calendar file stays. This replaces "Gradescope through ELMS and files" (2026-09-26). The D1 columns `todo_items.exam` and `gradescope` stay, unused, until a later migration drops them.
+Todo leaves Gradescope out entirely: no tag on items whose ELMS entry mentions gradescope.com, no note about extensions, and descriptions aren't read at all. The owner: "the gradescope integration doesn't sound like it's anything like i thought we might be able to do (hooking in directly and seeing those in there) so i think we just leave that sort of detection or whatever completely ommitted." Gradescope work linked in ELMS still comes through the feed like any assignment, and dropping a calendar file stays. This replaces "Gradescope through ELMS and files" (2026-09-26). The D1 columns `todo_items.exam` and `gradescope` stayed, unused, until that build was deployed; 0022_drop_unused_columns drops them.
 Revisit if: Gradescope offers students an API or feed.
 
 ### No exam marking
