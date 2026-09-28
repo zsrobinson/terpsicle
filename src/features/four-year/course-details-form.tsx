@@ -202,12 +202,15 @@ function UseCourseInfo({
   course,
   what,
   onUse,
+  same,
 }: {
   course: CourseIndexEntry | null | undefined;
   what: "credits and GenEds" | "GenEds";
   onUse: (course: CourseIndexEntry) => void;
+  /** Whether the form already says what the course would: nothing to use. */
+  same: (course: CourseIndexEntry) => boolean;
 }) {
-  if (!course) return null;
+  if (!course || same(course)) return null;
   return (
     <WithTooltip label={`Fill these in from ${course.code}, ${course.title}`}>
       <Button
@@ -313,6 +316,11 @@ export function CourseDetailsForm({
         course={picked}
         what="credits and GenEds"
         onUse={fillFrom}
+        same={(course) =>
+          sameSet(fixedGenEds(course), genEds) &&
+          String(course.credits.min) === credits &&
+          course.title === title.trim()
+        }
       />
 
       <Field id={`${id}-title`} label="Title">
@@ -427,6 +435,7 @@ export function CreditInfoForm({ entry }: { entry: FourYearCreditEntry }) {
         course={picked}
         what="GenEds"
         onUse={(course) => setGenEds(inOrder(fixedGenEds(course)))}
+        same={(course) => sameSet(fixedGenEds(course), genEds)}
       />
 
       <CreditsInput

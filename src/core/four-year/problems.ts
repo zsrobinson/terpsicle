@@ -281,7 +281,7 @@ function unmatchedCreditProblem(entry: FourYearCreditEntry): FourYearProblem[] {
       [text(`${entry.title} came in as ${patternLabel(pattern)}`)],
       [
         text(
-          `Testudo counts it as a ${kind} course without naming one, so it meets no prerequisites. If your degree audit names the course, say which one it counts as.`,
+          `Testudo counts it as a ${kind} course without naming one, so it meets no prerequisites. If your degree audit names the course, say which.`,
         ),
       ],
     ),

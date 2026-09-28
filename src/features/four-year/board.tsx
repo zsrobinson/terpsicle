@@ -112,7 +112,7 @@ function AddButton({
         )}
       >
         <Plus aria-hidden="true" />
-        {term === "before" ? "Add AP or transfer credit" : "Add a course"}
+        {term === "before" ? "Add AP, exam or transfer credit" : "Add a course"}
       </Button>
     </WithTooltip>
   );
@@ -185,7 +185,7 @@ export function TermColumn({
   );
 }
 
-/** AP and transfer credit, across the top. */
+/** AP, exam and transfer credit, across the top. */
 function BeforeRow() {
   const { doc, summaries } = useModel();
   const nav = usePlanNav();
@@ -209,7 +209,7 @@ function BeforeRow() {
         <h2 id="term-before" className="font-semibold">
           Before UMD
         </h2>
-        <span className="text-muted text-xs">AP and transfer credit</span>
+        <span className="text-muted text-xs">AP, exam and transfer credit</span>
         <span className="tnum ml-auto text-muted text-xs">
           {summary && summary.entries > 0 ? columnLabel(summary) : null}
         </span>
