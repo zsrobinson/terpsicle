@@ -10,23 +10,17 @@ import {
   feedPlanFor,
   feedTermIds,
 } from "~/core/ics";
-import {
-  type AcademicCalendar,
-  AcademicCalendarSchema,
-  calendarKey,
-  sectionKey,
-  type TermId,
-} from "~/core/schema";
+import { sectionKey, type TermId } from "~/core/schema";
 import type {
   CalendarFeedResetResult,
   CalendarFeedResult,
 } from "~/core/schema/calendar-feed";
 import { isHiddenItem, newYorkDateOf } from "~/core/todo";
-import { catalogReader } from "../alerts/catalog";
 import { clientIp } from "../api/http";
 import type { RouteContext } from "../api/router";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
+import { findSection, memoJson, readCalendar } from "../published";
 import { doneAmong, hiddenCourses, listItems, listTasks } from "../todo/store";
 import {
   createFeed,
@@ -123,16 +117,6 @@ function plain(status: number, text: string, headers: HeadersInit = {}) {
 
 const notFound = () => plain(404, "Not found");
 
-async function readCalendar(
-  bucket: R2Bucket,
-  termId: TermId,
-): Promise<AcademicCalendar | null> {
-  const object = await bucket.get(calendarKey(termId));
-  if (!object) return null;
-  const parsed = AcademicCalendarSchema.safeParse(await object.json());
-  return parsed.success ? parsed.data : null;
-}
-
 /** Each term's classes, from its main plan's placed sections as the catalog has them now. */
 async function feedTerms(
   env: CalendarFeedEnv,
@@ -143,7 +127,7 @@ async function feedTerms(
     plansInTerms(env.DB, userId, termIds),
     mainPlansOf(env.DB, userId),
   ]);
-  const findSection = catalogReader(env.DATA);
+  const catalog = memoJson(env.DATA);
   const terms: FeedTerm[] = [];
   for (const termId of termIds) {
     const placed = (
@@ -154,7 +138,7 @@ async function feedTerms(
     if (placed.length === 0) continue;
     const [calendar, found] = await Promise.all([
       readCalendar(env.DATA, termId),
-      Promise.all(placed.map((key) => findSection(termId, key))),
+      Promise.all(placed.map((key) => findSection(catalog, termId, key))),
     ]);
     // A section the catalog no longer lists was cancelled: it doesn't meet.
     const sections = found.flatMap((f, i): SectionRef[] => {

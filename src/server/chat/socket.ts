@@ -11,7 +11,7 @@ import { apiError } from "../api/http";
 import type { AuthEnv } from "../auth/config";
 import { requireUser } from "../auth/guard";
 import { hit, secondsLeft } from "../counters";
-import { findTerm } from "./catalog";
+import { findTerm } from "../published";
 import { CHAT_HEADERS, type CourseChatNamespace } from "./course-chat";
 
 export const CHAT_SOCKET_PATH = "/api/chat/socket";

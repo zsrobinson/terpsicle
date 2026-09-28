@@ -4,6 +4,7 @@
 // REVIEWS_ENABLED allows reading. A server render never fetches /data.
 import type { PageRequestContext, PublishedFiles } from "~/core/routing";
 import { FeatureVarsSchema } from "~/core/schema";
+import { r2Json } from "../published";
 import { pageReviews, reviewsServerData } from "../reviews/public";
 
 /**
@@ -17,15 +18,11 @@ const HASHED = /\.[0-9a-f]{16}\.json$/;
 const KEPT_FILES = 32;
 const kept = new Map<string, unknown>();
 
-async function readR2Json(bucket: R2Bucket, key: string): Promise<unknown> {
-  const object = await bucket.get(key);
-  return object ? object.json() : null;
-}
-
 export function r2PublishedFiles(bucket: R2Bucket): PublishedFiles {
+  const readR2Json = r2Json(bucket);
   return {
     async readJson(key) {
-      if (!HASHED.test(key)) return readR2Json(bucket, key);
+      if (!HASHED.test(key)) return readR2Json(key);
       if (kept.has(key)) {
         const hit = kept.get(key);
         // Newest last: a Map keeps insertion order.
@@ -33,7 +30,7 @@ export function r2PublishedFiles(bucket: R2Bucket): PublishedFiles {
         kept.set(key, hit);
         return hit;
       }
-      const value = await readR2Json(bucket, key);
+      const value = await readR2Json(key);
       if (value === null) return null;
       kept.set(key, value);
       for (const oldest of kept.keys()) {

@@ -22,7 +22,7 @@ import {
   GUARD_MODEL,
   runGuard,
 } from "../moderation/models";
-import { readPlanetTerpDept } from "../planetterp";
+import { readPlanetTerpDept, readPublished } from "../published";
 import {
   getInstructor,
   publishedForSummary,
@@ -238,11 +238,13 @@ export async function readStoredReviews(
   bucket: R2Bucket,
   slug: string,
 ): Promise<PromptReview[] | null> {
-  const object = await bucket.get(planetTerpReviewsKey(slug));
-  if (!object) return null;
-  const parsed = StoredReviewsSchema.safeParse(await object.json());
-  if (!parsed.success || parsed.data.slug !== slug) return null;
-  return parsed.data.reviews.map((r) => ({
+  const stored = await readPublished(
+    bucket,
+    planetTerpReviewsKey(slug),
+    StoredReviewsSchema,
+  );
+  if (stored?.slug !== slug) return null;
+  return stored.reviews.map((r) => ({
     course: r.course,
     text: r.text,
     rating: r.rating,
