@@ -347,6 +347,10 @@
                   {
                     "group": ["cloudflare:*"],
                     "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/app/**", "~/features/**", "~/ui", "~/ui/**"],
+                    "message": "The data layer sits under the UI: src/state and src/worker never import the shell, features or the kit (BUILD.md \u00a73)."
                   }
                 ]
               }
@@ -383,6 +387,46 @@
                   {
                     "group": ["cloudflare:*"],
                     "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/fixtures", "~/fixtures/**"],
+                    "message": "Only the data layer (src/state, src/worker) and tests load fixtures; components get data from state."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // The page kit every product composes (docs/COHESION.md): it takes
+      // what it shows as props and imports only ~/core, so no product's
+      // stores or shell come along with it.
+      "includes": ["src/components/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/jobs/**",
+                      "~/server/**",
+                      "~/app/**",
+                      "~/features/**",
+                      "~/state/**",
+                      "~/worker/**"
+                    ],
+                    "message": "The page kit (src/components/ui) imports only ~/core: pass data in as props (BUILD.md §3)."
+                  },
+                  {
+                    "group": ["cloudflare:*"],
+                    "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md §3)."
                   },
                   {
                     "group": ["~/fixtures", "~/fixtures/**"],

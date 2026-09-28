@@ -85,39 +85,45 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 ```
 .
 ├── CLAUDE.md
-├── docs/                       SPEC, DESIGN, BUILD, RESEARCH, STATUS, review-answers.json, PLAN (history)
+├── docs/                       SPEC, DESIGN, BUILD, DATA, V2, V3, decisions, COHESION, per-area docs (AUTH, MODERATION, ANALYTICS, …), STATUS, PLAN (history)
 ├── reference/                  prototype + v1 snippets: read-only, excluded from build/lint/tests
+├── config/                     tracked settings the Worker bundles (admins.txt)
 ├── src/
 │   ├── server.ts               Worker entry: { fetch, scheduled }
-│   ├── routes/                 TanStack file routes: / (marketing), /schedule (the app; share and deep links are search params), stubs, /privacy, /alerts/*
-│   ├── app/                    shell: top bar, rail, sidebar + drill-in, mobile drawer, calendar
-│   ├── features/<name>/        courses, search, course-details, problems, travel, blocks, generate, export, share
-│   ├── components/ui/          shadcn components
-│   ├── state/                  Zustand stores, Dexie persistence, undo
-│   ├── worker/                 Comlink web worker (catalog index, search, generator)
-│   ├── core/                   PURE domain logic: schema, time, travel, fit, problems, plans, generate, search, share, ics, catalog
+│   ├── routes/                 TanStack file routes, one per page and view: / (marketing), /home, /schedule/* (each rail tab and drill-in), /reviews/*, /chat, /plan/*, /todo/*, /settings, /signin, /privacy, /admin/*
+│   ├── app/                    the scheduler's shell (top bar, rail, sidebar + drill-in, drawer, calendar region; README.md) and what every product shares: the family bar, workbench/, analytics, theme, shortcuts, PWA
+│   ├── features/<name>/        one folder per feature, every product's (course-details, generate, reviews, chat, four-year for Plan, todo, notifications, …)
+│   ├── components/ui/          the page kit and shadcn/Radix controls every product composes (docs/COHESION.md)
+│   ├── state/                  the scheduler's data layer: Zustand stores, Dexie persistence, undo, published-data loading
+│   ├── worker/                 Comlink web worker (the generator)
+│   ├── core/                   PURE domain logic, one module per area (README.md has the map)
 │   ├── ingest/                 sources → normalized catalog (soc, planetterp, buildings, routes, calendar, publish); platform-agnostic
 │   ├── jobs/                   cron handlers wiring ingest to R2/D1 (Worker-only)
-│   ├── server/                 server fns, D1 access, email, LLM summaries (Worker-only)
+│   ├── server/                 the Worker: the JSON API (api/), one folder per area (auth, chat, reviews, todo, …), and fns/, the browser's typed client for it
 │   └── fixtures/               deterministic mock term + builders (aCourse, aSection, aPlan, …)
-├── scripts/                    Node CLIs: run ingest locally, build routes, record parser fixtures, seed R2
+├── scripts/                    Node CLIs: run ingest locally, build routes, record parser fixtures, seed R2, import checks
 ├── e2e/                        Playwright specs (against dev:mock)
 ├── wrangler.jsonc
 ├── env/                        Vite client env files (.env, .env.mock, .env.development)
 ├── migrations/                 D1 migrations
 ├── vite.config.ts · vitest.config.ts · playwright.config.ts · biome.jsonc · tsconfig*.json
-└── .github/workflows/          ci.yml (PRs), deploy.yml (push to main)
+└── .github/workflows/          ci.yml (PRs), deploy.yml (push to main), routes.yml, mobile-lab.yml, preview-cleanup.yml
 ```
 
-**Import boundaries** (Biome `noRestrictedImports` overrides per folder, checked in CI):
+**Import boundaries** (Biome `noRestrictedImports` overrides per folder, plus `scripts/check-imports.ts` for relative paths, the clock in core and the sealed feed link; checked in CI):
 
 | Folder | May import | Must not import |
 |---|---|---|
-| `src/core` | zod, small pure libraries | react, DOM, `cloudflare:*`, fetch, or any other `src/*` folder |
+| `src/core` | zod, small pure libraries | react, DOM, `cloudflare:*`, fetch, the clock, or any other `src/*` folder |
 | `src/ingest` | `core`, parsing libraries | react, `cloudflare:*`, `app`/`features`/`state` |
-| `src/jobs`, `src/server` | `core`, `ingest`, `cloudflare:workers` | react, `app`/`features`/`state` |
-| `src/app`, `src/features`, `src/state`, `src/worker` | `core`, `components/ui`, React stack | `ingest`, `jobs`, `server` (except typed server-fn imports), `cloudflare:*` |
+| `src/jobs`, `src/server` | `core`, `ingest`, `cloudflare:workers`, `~/config` | react, `app`/`features`/`state` |
+| `src/server/fns` (runs in the browser) | `core`, zod | `cloudflare:*`, `ingest`, `jobs`, the rest of `server` |
+| `src/app`, `src/features`, `src/routes` | `core`, `components/ui`, `state`, `worker`, each other, React stack | `ingest`, `jobs`, `server` (except `server/fns`), `cloudflare:*`, `fixtures` |
+| `src/components/ui` (the page kit) | `core`, React stack | `app`, `features`, `state`, `worker`, `server` (fns too), `ingest`, `jobs`, `fixtures`: what it shows comes in as props |
+| `src/state`, `src/worker` (the data layer) | `core`, `server/fns`, `fixtures` (mock mode), React stack | `app`, `features`, `components/ui`, `ingest`, `jobs`, the rest of `server`, `cloudflare:*` |
 | `src/fixtures` | `core` | everything else |
+
+Tests may also import `~/fixtures`. So the layers run one way: core, then the data layer and the kit, then features and the shell, then routes.
 
 Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtures`, `~/ui` (→ `components/ui`), and `~/config/*` (→ the root `config/`, tracked settings the Worker bundles, like `config/admins.txt`).
 
