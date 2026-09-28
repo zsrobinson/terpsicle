@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
@@ -17,7 +18,6 @@ import {
   type SearchFilters,
 } from "~/core/search/filters";
 import { filterParams, filtersFromParams } from "~/core/search/url";
-import { useCourseIndex } from "~/state/course-index-store";
 import { useSearchEngine } from "~/state/search-engine";
 import { Button } from "~/ui/button";
 import {
@@ -36,6 +36,7 @@ import {
   entryName,
   pickForPlaceholder,
 } from "./actions";
+import { useCourseSearch } from "./data";
 import { useModel, usePlanNav } from "./model";
 import { showPlanNote } from "./toasts";
 import { PlanView } from "./views";
@@ -193,16 +194,15 @@ export function SearchPanel() {
     nav.go({ gened, credits, level });
   };
   const input = useRef<HTMLInputElement>(null);
-  const rows = useCourseIndex((s) => s.search);
-  const state = useCourseIndex((s) => s.searchState);
-  const ensure = useCourseIndex((s) => s.ensureSearch);
-  const connected = useCourseIndex((s) => s.source !== null);
+  const {
+    rows,
+    failed: searchFailed,
+    stale: searchStale,
+    retry: retrySearch,
+  } = useCourseSearch();
+  const client = useQueryClient();
   const engine = useSearchEngine();
   const info = useMemo(() => (rows ? fourYearSearchInfo(rows) : null), [rows]);
-
-  useEffect(() => {
-    if (connected) void ensure();
-  }, [connected, ensure]);
 
   const placeholderEntry = nav.search.wildcard
     ? doc.entries.find((e) => e.id === nav.search.wildcard)
@@ -259,7 +259,7 @@ export function SearchPanel() {
   };
   const pick = (code: string) => {
     if (!resolving) return;
-    void pickForPlaceholder(resolving.id, code);
+    void pickForPlaceholder(resolving.id, code, client);
     nav.go({ wildcard: undefined, q: undefined });
   };
   const add = (code: string) => {
@@ -385,11 +385,17 @@ export function SearchPanel() {
         </ListRow>
       ) : null}
 
-      {state === "error" && !rows ? (
+      {searchStale ? (
+        <InlineError
+          className="px-4"
+          message="Terpsicle has been updated since this page opened. Reload to load the course list."
+          reload
+        />
+      ) : searchFailed ? (
         <InlineError
           className="px-4"
           message="We couldn't load the course list. Check your connection and try again."
-          onRetry={() => void ensure()}
+          onRetry={retrySearch}
           retryTooltip="Load the course list again"
         />
       ) : !result ? (

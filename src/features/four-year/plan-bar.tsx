@@ -35,7 +35,6 @@ import {
   renameDoc,
   setFirstTerm,
 } from "./actions";
-import { useDeptsLoading } from "./data";
 import { useModel, useProblemCounts } from "./model";
 import { useFourYear } from "./store";
 import { planView } from "./views";
@@ -243,9 +242,8 @@ export function PlanBar({
   compact: boolean;
   onOpenProblems: () => void;
 }) {
-  const { doc, totals } = useModel();
+  const { totals, deptsLoading: checking } = useModel();
   const counts = useProblemCounts();
-  const checking = useDeptsLoading(doc);
   // Where an admin's pinned notes are looked up: the view's own path.
   const pathname = useLocation({ select: (l) => l.pathname });
   return (

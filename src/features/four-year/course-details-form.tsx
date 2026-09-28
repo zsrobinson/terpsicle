@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { fixedGenEds, honorsBase } from "~/core/four-year/course-lookup";
@@ -243,6 +244,7 @@ export function CourseDetailsForm({
     saved?.countsAs ?? null,
   );
   const picked = useIndexEntry(countsAs);
+  const client = useQueryClient();
   const [title, setTitle] = useState(
     saved?.title ?? displayTitle(first?.transcript?.title ?? ""),
   );
@@ -305,7 +307,7 @@ export function CourseDetailsForm({
           setCountsAs(next);
           // No GenEds picked yet: start from the course's info.
           if (next && genEds.length === 0)
-            void loadIndexEntry(next).then((course) => {
+            void loadIndexEntry(client, next).then((course) => {
               if (course) fillFrom(course);
             });
         }}
@@ -380,6 +382,7 @@ export function CreditInfoForm({ entry }: { entry: FourYearCreditEntry }) {
     entry.countsAs ?? null,
   );
   const picked = useIndexEntry(countsAs);
+  const client = useQueryClient();
   const [credits, setCreditsText] = useState(String(entry.credits));
   const [genEds, setGenEds] = useState<readonly GenEdCode[]>(
     inOrder(entry.genEds),
@@ -424,7 +427,7 @@ export function CreditInfoForm({ entry }: { entry: FourYearCreditEntry }) {
           setCountsAs(next);
           // The transcript's GenEds are what UMD granted; fill only an empty list.
           if (next && genEds.length === 0)
-            void loadIndexEntry(next).then((course) => {
+            void loadIndexEntry(client, next).then((course) => {
               if (course) setGenEds(inOrder(fixedGenEds(course)));
             });
         }}
