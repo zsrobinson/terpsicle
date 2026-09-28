@@ -52,13 +52,12 @@ export function PushAskSheet({
       data-push-ask={kind}
       className="mx-auto w-full max-w-md"
       // Focus starts on the main action, without popping its tooltip unasked.
-      onOpenAutoFocus={(event) => {
-        event.preventDefault();
+      initialFocus={() => {
         quietTooltips();
-        primary.current?.focus();
+        return primary.current ?? true;
       }}
     >
-      <div className="flex flex-col gap-4 overflow-y-auto px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="flex flex-col gap-4 overflow-y-auto px-4 pt-3 pb-4">
         <div className="flex flex-col gap-2">
           <Mark id={MARK[moment]} size={40} />
           <SheetTitle className="font-semibold text-lg tracking-tight">

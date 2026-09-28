@@ -294,7 +294,11 @@ describe("on iPhone", () => {
       "2Choose Add to Home Screen",
       "3Open Terpsicle from your Home Screen. We'll ask once, right there.",
     ]);
-    expect(screen.getByRole("button", { name: "Got it" })).toHaveFocus();
+    // Focus starts on the main action. Base UI's sheet puts it there a frame
+    // after it opens (its focus manager queues it), not as it mounts.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Got it" })).toHaveFocus(),
+    );
     // The same ask as the install prompt's iPhone steps: not both today.
     expect(requestInstallPrompt("chat-joined", NOW)).toBe(false);
 
