@@ -28,9 +28,10 @@ export function PageSection({
   return (
     <section
       className={cn(
-        // A rule between sections; the first one in its column has the page
-        // header's rule (or its container's edge) above it already.
-        "flex flex-col gap-2 border-hairline border-t pt-3 first:border-t-0 first:pt-0",
+        // A rule between sections; the first one in its column, or the one
+        // right under a page header, has the header's rule (or its
+        // container's edge) above it already.
+        "flex flex-col gap-2 border-hairline border-t pt-3 first:border-t-0 first:pt-0 [[data-slot=page-header]+&]:border-t-0 [[data-slot=page-header]+&]:pt-0",
         className,
       )}
     >
