@@ -8,7 +8,7 @@ import {
 import { Button } from "~/ui/button";
 import { GroupHeader, ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
-import { CLOSE_DRILL, useModel, usePlanNav } from "./model";
+import { CLOSE_DRILL, useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 import { PlanView } from "./views";
 
@@ -47,6 +47,7 @@ function Pips({ p }: { p: GenEdProgress }) {
 
 function Row({ p }: { p: GenEdProgress }) {
   const nav = usePlanNav();
+  const readOnly = usePlanReadOnly();
   const met = p.short === 0;
   const code = p.searchCodes[0];
   const codes = p.requirement.codes.join(", ");
@@ -56,7 +57,7 @@ function Row({ p }: { p: GenEdProgress }) {
       lead={<Pips p={p} />}
       secondary={<span className="tnum">{genEdProgressLabel(p)}</span>}
       trail={
-        !met && code ? (
+        !met && code && !readOnly ? (
           <WithTooltip label={`Search for ${code} courses`}>
             <Button
               variant="ghost"

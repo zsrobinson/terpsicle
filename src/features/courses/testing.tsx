@@ -1,4 +1,4 @@
-// Test helpers for the plan tabs (Courses, Problems, Blocks, Export). Not
+// Test helpers for the plan tabs (Courses, Problems, Blocks, Register). Not
 // used by the app.
 import { act, screen } from "@testing-library/react";
 import { renderShell, type ShellRoutes, showTab } from "~/app/test-utils";

@@ -45,10 +45,18 @@ export const ROUTES_BINARY_VERSION = 1;
 export const SHARE_PAYLOAD_VERSION = 1;
 
 /**
+ * A four-year share link's version: the number before the dot in its
+ * `plan` value (`1.eJx…`). Each version has its own wire schema, kept for
+ * as long as links made with it may be opened (~/core/share/four-year-share).
+ */
+export const FOUR_YEAR_SHARE_VERSION = 1;
+
+/**
  * Dexie database. Bump with an upgrade function whenever a table's shape
  * changes. 2: plan sync's `syncDocs`; `seatAlerts` moved to a settings row.
  * 3: Terpsicle Plan's `fourYear` table, and the sync cursor back to 0.
  * 4: the sync cursor back to 0 again, once sync carries four-year docs.
+ * 5: the Register tab's ticks move from localStorage into plans' `registered`.
  */
 export const LOCAL_DB_NAME = "terpsicle";
-export const LOCAL_DB_VERSION = 4;
+export const LOCAL_DB_VERSION = 5;

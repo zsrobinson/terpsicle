@@ -292,6 +292,14 @@ describe("resolvePlanConflict", () => {
     });
   });
 
+  it("counts the sections marked Registered as work", () => {
+    const placed = { ...planA, courses: [aPlanCourse()] };
+    const marked = { ...placed, registered: ["CMSC351-0101"] };
+    expect(samePlanContent(placed, marked)).toBe(false);
+    // None and an empty list are the same: older plans have no field.
+    expect(samePlanContent(placed, { ...placed, registered: [] })).toBe(true);
+  });
+
   it("keeps both when they differ: the server's stays, this device's becomes a copy", () => {
     const local = { ...planA, courses: [aPlanCourse()] };
     const server = { ...planA, name: "Plan A", courses: [aSavedCourse()] };

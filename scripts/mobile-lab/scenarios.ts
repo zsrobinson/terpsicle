@@ -37,7 +37,7 @@ const TABS = [
   "Travel",
   "Blocks",
   "Generate",
-  "Export",
+  "Register",
 ];
 
 /** vaul's snap animation is 0.5 s. */

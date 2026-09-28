@@ -124,14 +124,14 @@ test("add a block from the Blocks form", async ({ page }) => {
   ).toBeVisible();
 });
 
-test.describe("export", () => {
+test.describe("register", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
   test("copy section codes", async ({ page }) => {
     await openDemo(page);
-    await openTab(page, "Export");
+    await openTab(page, "Register");
     await page
-      .getByRole("button", { name: /Copy course and section codes/ })
+      .getByRole("button", { name: /Copy all course and section codes/ })
       .click();
     await expect(page.getByText("Copied 5 section codes")).toBeVisible();
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
@@ -144,9 +144,41 @@ test.describe("export", () => {
     ]);
   });
 
+  test("mark a section Registered: its block says so, and it isn't a problem", async ({
+    page,
+  }) => {
+    await openDemo(page);
+    await openTab(page, "Register");
+    const row = page.getByTestId("checklist-ENGL393-0101");
+    await row.getByRole("button", { name: "Copy 0101" }).click();
+    await expect(page.getByText("Copied 0101")).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      "0101",
+    );
+    await row
+      .getByRole("checkbox", { name: "Registered for ENGL393 0101" })
+      .check();
+    await expect(row).toContainText("Registered");
+    await expect(
+      calendar(page)
+        .getByRole("button", { name: /^ENGL393 0101.*, registered/ })
+        .first(),
+    ).toBeVisible();
+    // Saved with the plan: a fresh load (without `demo`, which would put the
+    // demo plans back) still has it.
+    await page.goto("/schedule/register");
+    await expect(
+      page.getByRole("checkbox", { name: "Registered for ENGL393 0101" }),
+    ).toBeChecked();
+    await openTab(page, "Problems");
+    await expect(
+      sidebar(page).getByText(/ENGL393 0101 has \d+ seats? left/),
+    ).toHaveCount(0);
+  });
+
   test("download the .ics", async ({ page }) => {
     await openDemo(page);
-    await openTab(page, "Export");
+    await openTab(page, "Register");
     const button = page.getByRole("button", { name: /Add to your calendar/ });
     await expect(button).not.toHaveAttribute("aria-disabled", "true");
     const [download] = await Promise.all([
@@ -163,12 +195,17 @@ test.describe("export", () => {
     expect(ics.match(/BEGIN:VEVENT/g)?.length ?? 0).toBeGreaterThan(5);
   });
 
-  test("copy the share link, then open it", async ({ page }) => {
+  test("copy the share link from Share, then open it", async ({ page }) => {
     await openDemo(page);
-    await openTab(page, "Export");
-    await page.getByRole("button", { name: /Copy share link/ }).click();
-    await expect(page.getByText("Copied the share link")).toBeVisible();
+    await calendar(page).getByRole("button", { name: "Share" }).click();
+    const popover = page.getByRole("dialog", { name: "Share Plan A" });
+    await expect(popover).toContainText("in the URL itself");
+    await popover.getByRole("button", { name: "Copy link" }).click();
+    await expect(page.getByText("Copied link")).toBeVisible();
     const link = await page.evaluate(() => navigator.clipboard.readText());
+    await expect(
+      popover.getByRole("textbox", { name: "Share link" }),
+    ).toHaveValue(link);
     expect(new URL(link).pathname).toBe("/schedule");
     expect(new URL(link).searchParams.has("plan")).toBe(true);
 
@@ -184,7 +221,9 @@ test.describe("export", () => {
         .getByRole("button", { name: /^CMSC351 0301/ })
         .first(),
     ).toBeVisible();
-    // Read-only: no edit controls in the Courses tab.
+    // Read-only: no edit controls in the Courses tab. (Search first: the
+    // open tab's own button would collapse the sidebar.)
+    await openTab(page, "Search");
     await openTab(page, "Courses");
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
     await expect(

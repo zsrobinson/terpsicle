@@ -52,7 +52,10 @@ export interface AnalyticsEvents {
   problem_opened: { kind: ProblemKind };
   problem_fix_applied: { kind: ProblemFix["kind"]; problem: ProblemKind };
   export_codes_copied: { count: number };
-  share_link_copied: NoProperties;
+  share_link_copied: { product: "schedule" | "plan" };
+  four_year_shared_opened: { outcome: "ok" | "invalid" | "newer-version" };
+  four_year_shared_saved: NoProperties;
+  registration_code_copied: NoProperties;
   ics_downloaded: { events: number };
   registration_item_checked: NoProperties;
   seat_watch_started: { signedInFirst: boolean };

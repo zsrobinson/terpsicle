@@ -1,6 +1,6 @@
 import { cn } from "cn";
-import { CalendarDays, Copy, Link2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { CalendarDays, Copy } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
 import {
   PanelBody,
   PanelHeader,
@@ -23,12 +23,15 @@ import {
 import { useSeatWatches } from "~/state/seat-watches";
 import { InlineError } from "~/ui/inline-error";
 import { WithTooltip } from "~/ui/tooltip";
-import { copySectionCodes, copyShareLink, downloadIcs } from "./actions";
+import { copySectionCodes, downloadIcs } from "./actions";
 import { RegistrationChecklist } from "./registration-checklist";
 
-// The Export tab (SPEC §3.10): everything for registration day and after.
+// The Register tab (SPEC §3.10): registration day's checklist. What to
+// register for, in order, with Testudo's codes, a Registered mark and a seat
+// watch per section; then, once you're in, the .ics file. Sharing is the
+// Share button over the calendar.
 
-export function ExportPanel() {
+export function RegisterPanel() {
   const current = useCurrentPlan();
   const { term } = useActiveTerm();
   const catalog = useTermCatalog(current?.termId ?? null);
@@ -36,12 +39,17 @@ export function ExportPanel() {
   const fit = useFitContext();
   // Cached and offline-safe; no file for the term reads as "not published".
   const calendar = useAcademicCalendar(current?.termId ?? null);
+  const registeredKeys = current?.plan.registered;
+  const registered = useMemo(
+    () => new Set(registeredKeys ?? []),
+    [registeredKeys],
+  );
 
-  if (!current) return <PanelSkeleton title="Export" />;
-  const { plan, blocks, colors, termId, readOnly } = current;
-  const placed = plan.courses.filter((c) => c.sectionCode !== null).length;
+  if (!current) return <PanelSkeleton title="Register" />;
+  const { plan, termId, readOnly } = current;
   const termName = term?.name ?? "This term";
-  const empty = placed === 0;
+  const empty = sections.length === 0;
+  const done = sections.filter((s) => registered.has(s.key)).length;
   const calendarReady = calendar.state === "ready";
   const notPublished =
     calendarReady &&
@@ -49,69 +57,11 @@ export function ExportPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PanelHeader title="Export" sub={planLabel(current)} />
+      <PanelHeader title="Register" sub={planLabel(current)} />
       <PanelBody className="pb-4">
-        <div>
-          <ActionRow
-            icon={<Copy size={15} />}
-            label="Copy course and section codes"
-            hint={
-              empty
-                ? "Add a course first"
-                : "Paste them into Testudo when you register"
-            }
-            tooltip="One per line, like CMSC351 0101"
-            disabled={empty}
-            onClick={() => void copySectionCodes(plan)}
-          />
-          <ActionRow
-            icon={<Link2 size={15} />}
-            label="Copy share link"
-            hint="Anyone with the link sees this plan, read-only"
-            tooltip="The plan is in the link itself; nothing is uploaded"
-            onClick={() => void copyShareLink(plan, blocks, colors)}
-          />
-          <ActionRow
-            icon={<CalendarDays size={15} />}
-            label="Add to your calendar (.ics)"
-            hint={
-              notPublished
-                ? `${termName}'s dates aren't published yet. Check back once the provost posts the academic calendar.`
-                : calendar.state === "error"
-                  ? "The term's dates didn't load"
-                  : empty
-                    ? "Add a course first"
-                    : "Weekly classes from the first day, with breaks and holidays skipped"
-            }
-            tooltip="Download a file for Google Calendar, Apple Calendar or Outlook"
-            disabled={empty || !calendarReady || notPublished}
-            onClick={() => {
-              if (!calendarReady) return;
-              downloadIcs({
-                termId,
-                termName,
-                sections,
-                calendar: calendar.calendar,
-              });
-            }}
-          />
-          {calendar.state === "error" ? (
-            <InlineError
-              className="px-4"
-              message="Couldn't load the term's dates, so there's no calendar file yet. Check your connection and try again."
-              onRetry={() => void useCatalog.getState().ensureCalendar(termId)}
-              retryTooltip="Load the term's dates again"
-            />
-          ) : null}
-        </div>
-
-        <SectionHeader
-          title="Registration checklist"
-          count={empty ? undefined : sections.length}
-        />
         {empty ? (
           <PanelNote className="text-faint">
-            Add a course to see the order to register in.
+            Add a course to see what to register for, and in what order.
           </PanelNote>
         ) : (
           <>
@@ -119,17 +69,70 @@ export function ExportPanel() {
               Register in this order: the sections most likely to fill go first.
               If one fills, try its backup, which also fits your plan.
             </p>
+            <SectionHeader
+              title="What to register for"
+              count={
+                readOnly
+                  ? sections.length
+                  : `${done} of ${sections.length} registered`
+              }
+            />
             <RegistrationChecklist
               planId={plan.id}
+              termId={termId}
               sections={sections}
+              registered={registered}
               seats={catalog?.seats?.seats ?? null}
               fit={fit}
               readOnly={readOnly}
             />
+            <div className="border-hairline border-t">
+              <ActionRow
+                icon={<Copy size={15} />}
+                label="Copy all course and section codes"
+                hint="One per line, like CMSC351 0101"
+                tooltip="Copy every section in this plan, for Testudo"
+                onClick={() => void copySectionCodes(plan)}
+              />
+            </div>
           </>
         )}
 
         <Watching termId={termId} />
+
+        <SectionHeader title="After you register" />
+        <ActionRow
+          icon={<CalendarDays size={15} />}
+          label="Add to your calendar (.ics)"
+          hint={
+            notPublished
+              ? `${termName}'s dates aren't published yet. Check back once the provost posts the academic calendar.`
+              : calendar.state === "error"
+                ? "The term's dates didn't load"
+                : empty
+                  ? "Add a course first"
+                  : "Weekly classes from the first day, with breaks and holidays skipped"
+          }
+          tooltip="Download a file for Google Calendar, Apple Calendar or Outlook"
+          disabled={empty || !calendarReady || notPublished}
+          onClick={() => {
+            if (!calendarReady) return;
+            downloadIcs({
+              termId,
+              termName,
+              sections,
+              calendar: calendar.calendar,
+            });
+          }}
+        />
+        {calendar.state === "error" ? (
+          <InlineError
+            className="px-4"
+            message="Couldn't load the term's dates, so there's no calendar file yet. Check your connection and try again."
+            onRetry={() => void useCatalog.getState().ensureCalendar(termId)}
+            retryTooltip="Load the term's dates again"
+          />
+        ) : null}
       </PanelBody>
     </div>
   );
@@ -170,7 +173,7 @@ function ActionRow({
         aria-disabled={disabled}
         // aria-disabled, not disabled: the tooltip and hint still explain why.
         className={cn(
-          "flex w-full items-center gap-3 border-hairline border-b px-4 py-2 text-left transition-colors last:border-b-0",
+          "flex w-full items-center gap-3 px-4 py-2 text-left transition-colors",
           disabled ? "cursor-default" : "hover:bg-hover",
         )}
       >

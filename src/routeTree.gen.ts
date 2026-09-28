@@ -27,6 +27,7 @@ import { Route as PlanImportRouteImport } from './routes/plan.import'
 import { Route as PlanProblemsRouteImport } from './routes/plan.problems'
 import { Route as PlanSamplesRouteImport } from './routes/plan.samples'
 import { Route as PlanSearchRouteImport } from './routes/plan.search'
+import { Route as PlanSharedRouteImport } from './routes/plan_.shared'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
 import { Route as ReviewsSlugRouteImport } from './routes/reviews.$slug'
 import { Route as ReviewsMineRouteImport } from './routes/reviews.mine'
@@ -37,6 +38,7 @@ import { Route as ScheduleCoursesRouteImport } from './routes/schedule.courses'
 import { Route as ScheduleExportRouteImport } from './routes/schedule.export'
 import { Route as ScheduleGenerateRouteImport } from './routes/schedule.generate'
 import { Route as ScheduleProblemsRouteImport } from './routes/schedule.problems'
+import { Route as ScheduleRegisterRouteImport } from './routes/schedule.register'
 import { Route as ScheduleSearchRouteImport } from './routes/schedule.search'
 import { Route as ScheduleTravelRouteImport } from './routes/schedule.travel'
 import { Route as SettingsNotificationsRouteImport } from './routes/settings_.notifications'
@@ -138,6 +140,11 @@ const PlanSearchRoute = PlanSearchRouteImport.update({
   path: '/search',
   getParentRoute: () => PlanRoute,
 } as any)
+const PlanSharedRoute = PlanSharedRouteImport.update({
+  id: '/plan_/shared',
+  path: '/plan/shared',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
   id: '/reviews/',
   path: '/reviews/',
@@ -186,6 +193,11 @@ const ScheduleGenerateRoute = ScheduleGenerateRouteImport.update({
 const ScheduleProblemsRoute = ScheduleProblemsRouteImport.update({
   id: '/problems',
   path: '/problems',
+  getParentRoute: () => ScheduleRoute,
+} as any)
+const ScheduleRegisterRoute = ScheduleRegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => ScheduleRoute,
 } as any)
 const ScheduleSearchRoute = ScheduleSearchRouteImport.update({
@@ -256,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/plan/problems': typeof PlanProblemsRoute
   '/plan/samples': typeof PlanSamplesRoute
   '/plan/search': typeof PlanSearchRoute
+  '/plan/shared': typeof PlanSharedRoute
   '/reviews/$slug': typeof ReviewsSlugRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -264,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/schedule/export': typeof ScheduleExportRoute
   '/schedule/generate': typeof ScheduleGenerateRoute
   '/schedule/problems': typeof ScheduleProblemsRoute
+  '/schedule/register': typeof ScheduleRegisterRoute
   '/schedule/search': typeof ScheduleSearchRoute
   '/schedule/travel': typeof ScheduleTravelRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
@@ -294,6 +308,7 @@ export interface FileRoutesByTo {
   '/plan/problems': typeof PlanProblemsRoute
   '/plan/samples': typeof PlanSamplesRoute
   '/plan/search': typeof PlanSearchRoute
+  '/plan/shared': typeof PlanSharedRoute
   '/reviews/$slug': typeof ReviewsSlugRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -302,6 +317,7 @@ export interface FileRoutesByTo {
   '/schedule/export': typeof ScheduleExportRoute
   '/schedule/generate': typeof ScheduleGenerateRoute
   '/schedule/problems': typeof ScheduleProblemsRoute
+  '/schedule/register': typeof ScheduleRegisterRoute
   '/schedule/search': typeof ScheduleSearchRoute
   '/schedule/travel': typeof ScheduleTravelRoute
   '/settings/notifications': typeof SettingsNotificationsRoute
@@ -335,6 +351,7 @@ export interface FileRoutesById {
   '/plan/problems': typeof PlanProblemsRoute
   '/plan/samples': typeof PlanSamplesRoute
   '/plan/search': typeof PlanSearchRoute
+  '/plan_/shared': typeof PlanSharedRoute
   '/reviews/$slug': typeof ReviewsSlugRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
@@ -343,6 +360,7 @@ export interface FileRoutesById {
   '/schedule/export': typeof ScheduleExportRoute
   '/schedule/generate': typeof ScheduleGenerateRoute
   '/schedule/problems': typeof ScheduleProblemsRoute
+  '/schedule/register': typeof ScheduleRegisterRoute
   '/schedule/search': typeof ScheduleSearchRoute
   '/schedule/travel': typeof ScheduleTravelRoute
   '/settings_/notifications': typeof SettingsNotificationsRoute
@@ -377,6 +395,7 @@ export interface FileRouteTypes {
     | '/plan/problems'
     | '/plan/samples'
     | '/plan/search'
+    | '/plan/shared'
     | '/reviews/$slug'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -385,6 +404,7 @@ export interface FileRouteTypes {
     | '/schedule/export'
     | '/schedule/generate'
     | '/schedule/problems'
+    | '/schedule/register'
     | '/schedule/search'
     | '/schedule/travel'
     | '/settings/notifications'
@@ -415,6 +435,7 @@ export interface FileRouteTypes {
     | '/plan/problems'
     | '/plan/samples'
     | '/plan/search'
+    | '/plan/shared'
     | '/reviews/$slug'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -423,6 +444,7 @@ export interface FileRouteTypes {
     | '/schedule/export'
     | '/schedule/generate'
     | '/schedule/problems'
+    | '/schedule/register'
     | '/schedule/search'
     | '/schedule/travel'
     | '/settings/notifications'
@@ -455,6 +477,7 @@ export interface FileRouteTypes {
     | '/plan/problems'
     | '/plan/samples'
     | '/plan/search'
+    | '/plan_/shared'
     | '/reviews/$slug'
     | '/reviews/mine'
     | '/reviews/policy'
@@ -463,6 +486,7 @@ export interface FileRouteTypes {
     | '/schedule/export'
     | '/schedule/generate'
     | '/schedule/problems'
+    | '/schedule/register'
     | '/schedule/search'
     | '/schedule/travel'
     | '/settings_/notifications'
@@ -492,6 +516,7 @@ export interface RootRouteChildren {
   AdminGradesRoute: typeof AdminGradesRoute
   AdminKitRoute: typeof AdminKitRoute
   AuthTestRoute: typeof AuthTestRoute
+  PlanSharedRoute: typeof PlanSharedRoute
   ReviewsSlugRoute: typeof ReviewsSlugRoute
   ReviewsMineRoute: typeof ReviewsMineRoute
   ReviewsPolicyRoute: typeof ReviewsPolicyRoute
@@ -633,6 +658,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanSearchRouteImport
       parentRoute: typeof PlanRoute
     }
+    '/plan_/shared': {
+      id: '/plan_/shared'
+      path: '/plan/shared'
+      fullPath: '/plan/shared'
+      preLoaderRoute: typeof PlanSharedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reviews/': {
       id: '/reviews/'
       path: '/reviews'
@@ -701,6 +733,13 @@ declare module '@tanstack/react-router' {
       path: '/problems'
       fullPath: '/schedule/problems'
       preLoaderRoute: typeof ScheduleProblemsRouteImport
+      parentRoute: typeof ScheduleRoute
+    }
+    '/schedule/register': {
+      id: '/schedule/register'
+      path: '/register'
+      fullPath: '/schedule/register'
+      preLoaderRoute: typeof ScheduleRegisterRouteImport
       parentRoute: typeof ScheduleRoute
     }
     '/schedule/search': {
@@ -800,6 +839,7 @@ interface ScheduleRouteChildren {
   ScheduleExportRoute: typeof ScheduleExportRoute
   ScheduleGenerateRoute: typeof ScheduleGenerateRoute
   ScheduleProblemsRoute: typeof ScheduleProblemsRoute
+  ScheduleRegisterRoute: typeof ScheduleRegisterRoute
   ScheduleSearchRoute: typeof ScheduleSearchRoute
   ScheduleTravelRoute: typeof ScheduleTravelRoute
   ScheduleIndexRoute: typeof ScheduleIndexRoute
@@ -814,6 +854,7 @@ const ScheduleRouteChildren: ScheduleRouteChildren = {
   ScheduleExportRoute: ScheduleExportRoute,
   ScheduleGenerateRoute: ScheduleGenerateRoute,
   ScheduleProblemsRoute: ScheduleProblemsRoute,
+  ScheduleRegisterRoute: ScheduleRegisterRoute,
   ScheduleSearchRoute: ScheduleSearchRoute,
   ScheduleTravelRoute: ScheduleTravelRoute,
   ScheduleIndexRoute: ScheduleIndexRoute,
@@ -838,6 +879,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminGradesRoute: AdminGradesRoute,
   AdminKitRoute: AdminKitRoute,
   AuthTestRoute: AuthTestRoute,
+  PlanSharedRoute: PlanSharedRoute,
   ReviewsSlugRoute: ReviewsSlugRoute,
   ReviewsMineRoute: ReviewsMineRoute,
   ReviewsPolicyRoute: ReviewsPolicyRoute,

@@ -157,6 +157,17 @@ export function useModel(): PlanModel {
   return model;
 }
 
+/**
+ * A four-year plan someone shared (/plan/shared): the same semesters and
+ * blocks, with nothing to press that would change it.
+ */
+const ReadOnlyContext = createContext(false);
+export const PlanReadOnlyProvider = ReadOnlyContext.Provider;
+
+export function usePlanReadOnly(): boolean {
+  return useContext(ReadOnlyContext);
+}
+
 /** Problems by severity, for the scheduler's words ("1 problem · 2 notes"). */
 export function useProblemCounts(): Record<Severity, number> {
   const { problems } = useModel();

@@ -109,6 +109,20 @@ describe("docs", () => {
     ).toBe(s);
   });
 
+  it("adds a whole doc (Save a copy), named apart from yours", () => {
+    const shared = aFourYear({
+      id: "fouryear_shared",
+      entries: [aFourYearEntry()],
+    });
+    const s = run(state, { type: "add-doc", doc: shared });
+    expect(s.docs.map((d) => d.name)).toEqual(["My plan", "Copy of My plan"]);
+    expect(s.docs[1]).toEqual({ ...shared, name: "Copy of My plan" });
+    const fresh = run(EMPTY_FOUR_YEAR_STATE, { type: "add-doc", doc: shared });
+    expect(only(fresh).name).toBe("My plan");
+    // The same doc again changes nothing.
+    expect(run(s, { type: "add-doc", doc: shared })).toBe(s);
+  });
+
   it("renames, ignoring blank and unchanged names, and deletes", () => {
     const renamed = run(state, {
       type: "rename",

@@ -19,7 +19,7 @@ export const TAB_PATHS = {
   travel: "/schedule/travel",
   blocks: "/schedule/blocks",
   generate: "/schedule/generate",
-  export: "/schedule/export",
+  register: "/schedule/register",
 } as const satisfies Record<RailTab, string>;
 export type TabPath = (typeof TAB_PATHS)[RailTab];
 

@@ -39,7 +39,7 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
 │Travel │  with one Back)          │                                             │
 │Blocks │                          │                                             │
 │Generate│                         │                                             │
-│Export │                          │                                             │
+│Register│                         │                                             │
 └──────┴──────────────────────────┴─────────────────────────────────────────────┘
 ```
 
@@ -48,7 +48,7 @@ A class scheduler for University of Maryland students. It's fast and clear, and 
   - right side: credits, and a problem count that opens Problems.
   - The active plan tab has a ▾ menu: Rename, Duplicate, Delete. Double-click to rename.
   - `+` opens: **Empty plan**, **Copy of <current>**, **Generate plans…**.
-- **Rail:** icons with text labels: Courses, Search, Problems, Travel, Blocks, Generate, Export. Clicking the active tab again **collapses the sidebar** (click any tab to reopen). There is no separate collapse button.
+- **Rail:** icons with text labels: Courses, Search, Problems, Travel, Blocks, Generate, Register. Clicking the active tab again **collapses the sidebar** (click any tab to reopen). There is no separate collapse button.
 - **Sidebar:** one panel at a time. Opening details (a course, a connection, a generated plan) **drills in** over the current tab, under **one Back** ("‹ Search  CMSC351", v2): a chevron and the short name of the view you came from, never a trail of crumbs, even going from course to course. Back, `Esc` and the browser's Back are the same thing, and return to exactly where you were.
 - **URL (v2):** the scheduler's URL says where you are (term, plan, tab, open course, Search's text and filters), so reload, Back/Forward and a copied link land on the same view. Going somewhere adds a history entry; typing doesn't. The table is in `src/app/README.md`, "URL state".
 - **Calendar:** always visible on desktop, and it **stretches to fill the screen**. Hour height is computed from the available height, so the plan's hours fit without scrolling; it only scrolls when the window is too short for a readable minimum (~36px per hour). Nothing sits below the grid (no tips or footers).
@@ -99,13 +99,14 @@ Nobody should have to touch the app when a new semester appears.
 - **Showing every section.** Opening a course (from anywhere):
   - Every other section of that course appears as a **dashed ghost**, labeled with section code and instructor, plus "Full" or "Overlaps" where true. Other classes dim.
   - Click a ghost to switch. Hover a ghost or a section row, or use `↑`/`↓`, to preview it solid. `↵` switches.
-  - A one-line hint strip above the grid explains this while it's active.
+  - A one-line hint beside Share, in the canvas bar above the grid, explains this while it's active.
+  - A click or tap on empty time closes the course (as `Esc` does) instead of starting a block; Back reopens it. Blocks are drawn only while no course is open.
   - **Courses with many sections:** sections with identical meeting times collapse into one ghost ("0101–0106 · 6 sections"), and that ghost's popover lists them. Ghost labels shrink to just the code when narrow. If more than ~12 distinct ghosts remain, the calendar shows the first 12 by section order, and the sidebar list shows the rest.
 - **Search hover:** hovering a search result shows all of that course's sections as ghosts. This is how people compare across upper-level courses with one section each.
 - **Travel pills** between every back-to-back pair of classes in different buildings: "6 min" with a route icon.
   - Neutral when fine, amber when tight (needs ≥ 75% of the gap), red when there isn't enough time.
   - Hover for the numbers; click to open connection details.
-- **Drag to block time:** drag on an empty part of the grid; a small popup asks for a label, with presets (Lunch, Work, Gym, Club). This is discoverable through a hover tooltip on empty grid space and the Blocks tab, never through text under the calendar.
+- **Drag to block time:** with no course open, drag on an empty part of the grid; a small popup asks for a label, with presets (Lunch, Work, Gym, Club). This is discoverable through a hover tooltip on empty grid space and the Blocks tab, never through text under the calendar.
 
 ### 3.4 Course details (drill-in)
 - **Header:** code, credits, gen-eds, title; **Bookmark** (bookmark icon) for a course not in the plan, "Bookmarked" once it is, and Remove from plan / Bookmark instead for a placed one.
@@ -162,6 +163,7 @@ Nobody should have to touch the app when a new semester appears.
   - few seats left;
   - restricted section.
 - **Info:** online with no set times; instructor TBA.
+- A section marked **Registered** (§3.10) is never full, few seats left or restricted: you have your seat.
 - Each problem opens the related course or connection. It also offers a one-click fix ("Switch to 0205") when a section fixes it without creating new problems.
 - A full section's fix is **"Watch for a seat"** (bell icon), not a switch: full sections stay a choice. Once on, the watch takes care of it: the problem becomes a note, "Watching for a seat in CMSC351 0101", whose button says "Watching" with a filled bell (and stops it, with Undo), as the section's row and the Courses tab do. The watch needs sign-in, and signing in is part of the fix when signed out (§3.12).
 
@@ -212,13 +214,20 @@ Generating **creates plans**; it doesn't edit one. Entry points: the Generate ta
 - **When nothing fits:** suggested relaxations with the count each would unlock ("Allow classes before 10am → 38 plans"), plus the closest near-misses with their conflicts marked. The chips stay above, so a filter can be turned off right there.
 - It runs in a Web Worker, stays responsive, and stops at a budget with "showing the best 200".
 
-### 3.10 Export
-- **Registration checklist:** the current plan's sections in suggested registration order (the section most likely to fill goes first). Each has a checkbox, seats, and a **backup section** that also fits the plan.
-- **Copy course and section codes.**
-- **Copy share link.** The plan is encoded in the URL, with no server.
-- **Add to your calendar (.ics):** weekly events from the first real meeting day, the correct time zone, breaks and holidays excluded (from the provost's academic calendar), and stable event IDs.
+### 3.10 Register (was Export until 2026-09-28)
+Registration day's checklist (`/schedule/register`; old `/schedule/export` links land here).
+- **What to register for:** the current plan's sections in suggested registration order (the section most likely to fill goes first). Each row has:
+  - a **Registered** checkbox ("2 of 5 registered" over the list);
+  - its course and section codes, each a button that copies it, for Testudo's Drop/Add fields ("Copied 0101");
+  - its seats, and a **seat watch** bell when it's low or full (§3.12);
+  - a **backup section** that also fits the plan.
+- **Registered** is part of the plan (it syncs, and ⌘Z undoes a tick, with no toast). A registered section isn't a problem for being full, nearly full or restricted (§3.6), a fix never switches it away, its row says "Registered" instead of its seats, and its calendar block shows a small check (tooltip "Registered").
+- **Copy all course and section codes**, one per line.
+- **After you register:** **Add to your calendar (.ics)**: weekly events from the first real meeting day, the correct time zone, breaks and holidays excluded (from the provost's academic calendar), and stable event IDs.
+- Sharing isn't here: it's the Share button over the calendar (§3.11).
 
-### 3.11 Shared links
+### 3.11 Share and shared links
+- **Share:** an outlined "Share" button at the top left of the calendar, in the canvas bar the calendar's hints share (in a narrow bar, a phone or a tablet with the sidebar open, the icon alone while a hint shows; on a phone the hint takes up to two lines). It opens a popover right below it: the link in a read-only field, **Copy link** ("Copied link"), and one sentence: the link holds a copy of this plan in the URL itself, so it won't change when you edit the plan later. The plan is encoded in the URL, with no server. Plan has the same button over its semesters (`docs/V3.md` §2.14).
 - Opening a share link shows the shared plan **read-only, in place of your plan tabs**: a light-red rounded pill in the top bar reading "Shared plan · Save a copy · ✕".
 - Nothing about you changes until you click Save a copy. ✕ returns to your plans.
 - There are no names (we don't know who shared it).
@@ -230,7 +239,7 @@ Seat alerts are a signed-in feature (`docs/V2.md` §6.5). The owner calls it **S
 - **Signed in:** one click starts the watch, with Undo in the toast ("Watching CMSC351 0101. We'll email you when a seat opens."). No email to type, no confirmation link.
 - **Signed out:** the bell opens a small sign-in sheet ("Sign in to get seat alerts."). The app remembers the section for this tab and turns the watch on when the person comes back signed in.
 - **Watching shows everywhere the section does:** a filled bell and "Watching" on its row in course details and in the Courses tab; a small bell on its calendar block, with "Watching for a seat" in the tooltip; and in Problems, where the full problem becomes a note, "Watching for a seat in CMSC351 0101" (it's taken care of, so it no longer counts as a problem).
-- **The Watching list:** Settings → "Watching for a seat" (`/settings#watching`, "Watching for a seat" in the account menu), and in Export while there are any. Stop is immediate, with Undo. No confirmation dialogs anywhere.
+- **The Watching list:** Settings → "Watching for a seat" (`/settings#watching`, "Watching for a seat" in the account menu), and in Register while there are any. Stop is immediate, with Undo. No confirmation dialogs anywhere.
 - **When a seat opens:** an email from `alerts@terpsicle.com` when a full section reopens, at most once per 30 minutes per watch and 20 a day per person. Web push joins when `v2/push` lands. The email's one-click unsubscribe (RFC 8058) stops that watch; its links go to the course and to the Watching list.
 - **Limits:** 30 watches per person. Watches end when their term does.
 - It ships when it's end-to-end tested, and not before (`e2e/seat-watches.spec.ts`).

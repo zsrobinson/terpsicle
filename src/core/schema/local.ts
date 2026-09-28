@@ -9,8 +9,9 @@ import {
   IsoDateTimeSchema,
   LocalIdSchema,
   MinutesSchema,
-  RailTabSchema,
+  SavedRailTabSchema,
   SectionCodeSchema,
+  SectionKeySchema,
   TermIdSchema,
 } from "./primitives";
 import { SchemaFamilySchema } from "./versions";
@@ -55,8 +56,31 @@ export const PlanSchema = z.object({
   courses: z
     .array(PlanCourseSchema)
     .refine(uniqueCourses, { message: "A course appears twice in the plan" }),
+  /**
+   * The placed sections you've marked Registered in the Register tab, by
+   * section key. A registered section isn't a problem for being full,
+   * waitlisted or restricted. Absent in plans saved before it existed (and
+   * when nothing is registered); keys of sections no longer placed are
+   * dropped on the next change.
+   */
+  registered: z
+    .array(SectionKeySchema)
+    .max(40)
+    .refine((keys) => new Set(keys).size === keys.length, {
+      message: "A section is registered twice",
+    })
+    .optional(),
 });
 export type Plan = z.infer<typeof PlanSchema>;
+
+/**
+ * The Register tab's ticks as localStorage kept them before version 5 of
+ * the database moved them into `Plan.registered`: plan id → section keys.
+ */
+export const LegacyChecklistSchema = z.record(
+  z.string(),
+  z.array(SectionKeySchema),
+);
 
 // ---------- blocks ----------
 
@@ -144,7 +168,7 @@ export function clampSidebarWidth(px: number): number {
 }
 
 export const UiPrefsSchema = z.object({
-  tab: RailTabSchema,
+  tab: SavedRailTabSchema,
   /** Clicking the active rail tab collapses the sidebar. */
   sidebarOpen: z.boolean(),
   drill: DrillTargetSchema.nullable(),

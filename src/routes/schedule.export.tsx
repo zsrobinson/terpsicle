@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ExportPanel } from "~/features/export/export-panel";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-// The Export tab (SPEC §3.10), with the .ics builder. Its panel shows in the
-// sidebar (src/app/sidebar.tsx), in its own chunk, loaded on first use or on
-// intent (hovering its rail tab).
+// The Register tab was Export until 2026-09-28 (docs/decisions.md): links and
+// bookmarks from before land on it, replacing the entry.
 export const Route = createFileRoute("/schedule/export")({
-  component: ExportPanel,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/schedule/register", search, replace: true });
+  },
 });

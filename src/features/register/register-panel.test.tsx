@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { switchSection } from "~/app/actions";
 import { track } from "~/app/analytics";
 import type { ShellRoutes } from "~/app/test-utils";
-import { decodeShare, SHARE_PARAM } from "~/core/share";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
@@ -13,9 +12,18 @@ import {
 import { renderPlanTab } from "~/features/courses/testing";
 import { aMeUser, aSeatWatch, fixtureTermId } from "~/fixtures";
 import { useCatalog } from "~/state/catalog-store";
-import { ExportPanel } from "./export-panel";
+import { activePlanId } from "~/state/plan-ops";
+import { useWorkspace } from "~/state/workspace-store";
+import { RegisterPanel } from "./register-panel";
 
-const panels: ShellRoutes = { tabs: { export: ExportPanel } };
+const panels: ShellRoutes = { tabs: { register: RegisterPanel } };
+
+/** The open plan's Registered marks. */
+function registeredMarks(): readonly string[] | undefined {
+  const w = useWorkspace.getState();
+  const id = activePlanId(w, fixtureTermId);
+  return w.plans.find((p) => p.id === id)?.registered;
+}
 
 vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
 
@@ -29,7 +37,7 @@ function stubClipboard() {
   });
 }
 
-describe("Export tab", () => {
+describe("Register tab", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.mocked(track).mockClear();
@@ -42,7 +50,7 @@ describe("Export tab", () => {
   });
 
   it("orders the checklist by who fills first, each with a backup or none", async () => {
-    await renderPlanTab([panels], "export");
+    await renderPlanTab([panels], "register");
     const list = await screen.findByRole("list", {
       name: "Registration checklist",
     });
@@ -75,7 +83,7 @@ describe("Export tab", () => {
   });
 
   it("says a one-section course has no other section, not that no backup fits", async () => {
-    await renderPlanTab([panels], "export");
+    await renderPlanTab([panels], "register");
     act(() => {
       switchSection("CMSC425", "0101", "list");
     });
@@ -84,23 +92,43 @@ describe("Export tab", () => {
     expect(row).not.toHaveTextContent("No backup fits");
   });
 
-  it("remembers checked rows per plan", async () => {
-    const { user } = await renderPlanTab([panels], "export");
-    const box = await screen.findByRole("checkbox", { name: "CMSC351 0301" });
+  it("marks a section Registered in the plan itself, quietly and undoably", async () => {
+    const { user } = await renderPlanTab([panels], "register");
+    const box = await screen.findByRole("checkbox", {
+      name: "Registered for CMSC351 0301",
+    });
     await user.click(box);
     expect(box).toBeChecked();
+    expect(registeredMarks()).toEqual(["CMSC351-0301"]);
     expect(track).toHaveBeenCalledWith("registration_item_checked", {});
-    expect(localStorage.getItem("terpsicle:registration-checklist")).toContain(
-      "CMSC351-0301",
-    );
+    const row = screen.getByTestId("checklist-CMSC351-0301");
+    expect(row).toHaveTextContent("Registered");
+    expect(screen.getByText("1 of 5 registered")).toBeInTheDocument();
+    // No toast for a tick; ⌘Z takes it back.
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    await user.keyboard("{Control>}z{/Control}");
+    await waitFor(() => expect(box).not.toBeChecked());
+    expect(registeredMarks()).toBeUndefined();
+  });
+
+  it("copies the course or the section code, for Testudo's two fields", async () => {
+    const { user } = await renderPlanTab([panels], "register");
+    stubClipboard();
+    const row = await screen.findByTestId("checklist-CMSC351-0301");
+    await user.click(within(row).getByRole("button", { name: "Copy 0301" }));
+    expect(writeText).toHaveBeenLastCalledWith("0301");
+    expect(await screen.findByText("Copied 0301")).toBeVisible();
+    await user.click(within(row).getByRole("button", { name: "Copy CMSC351" }));
+    expect(writeText).toHaveBeenLastCalledWith("CMSC351");
+    expect(track).toHaveBeenCalledWith("registration_code_copied", {});
   });
 
   it("copies section codes the way Testudo takes them", async () => {
-    const { user } = await renderPlanTab([panels], "export");
+    const { user } = await renderPlanTab([panels], "register");
     stubClipboard();
     await user.click(
       await screen.findByRole("button", {
-        name: /Copy course and section codes/,
+        name: /Copy all course and section codes/,
       }),
     );
     expect(writeText).toHaveBeenCalledWith(
@@ -118,11 +146,11 @@ describe("Export tab", () => {
 
   it("says so when the clipboard is blocked", async () => {
     writeText.mockRejectedValue(new Error("denied"));
-    const { user } = await renderPlanTab([panels], "export");
+    const { user } = await renderPlanTab([panels], "register");
     stubClipboard();
     await user.click(
       await screen.findByRole("button", {
-        name: /Copy course and section codes/,
+        name: /Copy all course and section codes/,
       }),
     );
     expect(
@@ -132,29 +160,6 @@ describe("Export tab", () => {
       "export_codes_copied",
       expect.anything(),
     );
-  });
-
-  it("copies a share link that decodes back to the plan", async () => {
-    const { user } = await renderPlanTab([panels], "export");
-    stubClipboard();
-    await user.click(
-      await screen.findByRole("button", { name: /Copy share link/ }),
-    );
-    const url = new URL(writeText.mock.calls[0]?.[0] ?? "");
-    const decoded = decodeShare(url.searchParams.get(SHARE_PARAM) ?? "");
-    expect(decoded.ok && decoded.payload).toMatchObject({
-      termId: fixtureTermId,
-      name: "Plan A",
-      sections: [
-        "CMSC351-0301",
-        "CMSC330-0103",
-        "STAT400-0101",
-        "ENGL393-0101",
-        "ECON200-0101",
-      ],
-      saved: ["MUSC130", "PHIL140"],
-    });
-    expect(track).toHaveBeenCalledWith("share_link_copied", {});
   });
 
   it("downloads an .ics of the plan", async () => {
@@ -167,7 +172,7 @@ describe("Export tab", () => {
     const click = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
-    const { user } = await renderPlanTab([panels], "export");
+    const { user } = await renderPlanTab([panels], "register");
     const button = await screen.findByRole("button", {
       name: /Add to your calendar/,
     });
@@ -188,7 +193,7 @@ describe("Export tab", () => {
   });
 
   it("says when the term's dates didn't load, and Try again loads them", async () => {
-    const { user } = await renderPlanTab([panels], "export");
+    const { user } = await renderPlanTab([panels], "register");
     const button = await screen.findByRole("button", {
       name: /Add to your calendar/,
     });
@@ -221,7 +226,7 @@ describe("Export tab", () => {
 
     it("lists watches; Stop is immediate, with Undo", async () => {
       const client = fakeSeatWatchesClient([here, otherTerm]);
-      const { user } = await renderPlanTab([panels], "export");
+      const { user } = await renderPlanTab([panels], "register");
       act(() => watching(aMeUser(), here, otherTerm));
       const list = await screen.findByRole("region", {
         name: "Watching for a seat",
@@ -254,7 +259,7 @@ describe("Export tab", () => {
     });
 
     it("hides the list with no watches, signed out, or while seat alerts are off", async () => {
-      await renderPlanTab([panels], "export");
+      await renderPlanTab([panels], "register");
       act(() => watching(aMeUser()));
       expect(
         screen.queryByRole("region", { name: "Watching for a seat" }),

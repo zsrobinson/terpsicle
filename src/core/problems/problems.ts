@@ -89,6 +89,12 @@ function attachFixes(
   const placedCode = (courseCode: CourseCode) =>
     input.plan.courses.find((c) => c.courseCode === courseCode)?.sectionCode ??
     null;
+  // A section you've registered for is yours: a fix never switches it away.
+  const registered = new Set(input.plan.registered ?? []);
+  const isRegistered = (courseCode: CourseCode) => {
+    const code = placedCode(courseCode);
+    return code !== null && registered.has(sectionKey(courseCode, code));
+  };
 
   return detected.map(
     ({ signature, switchable, presetFix, ...problem }): Problem => {
@@ -96,6 +102,7 @@ function attachFixes(
       if (fix === null) {
         let best: Candidate | null = null;
         for (const courseCode of switchable) {
+          if (isRegistered(courseCode)) continue;
           const current = placedCode(courseCode);
           const course = input.index.courses.get(courseCode);
           for (const alt of course?.sections ?? []) {

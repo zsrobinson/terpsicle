@@ -8,9 +8,11 @@ import type {
   Plan,
   PlanCourse,
   SectionCode,
+  SectionKey,
   SectionSnapshot,
   TermId,
 } from "../schema";
+import { sectionKey } from "../schema";
 import { cleanPlanName, copyName, nextPlanName } from "./naming";
 
 // The pure reducer behind the plans store. Everything a person can undo goes
@@ -96,6 +98,17 @@ export type PlanAction =
       snapshot: SectionSnapshot;
       now: IsoDateTime;
     }
+  /**
+   * Marks one of the plan's placed sections Registered (or not). Keys of
+   * sections no longer placed are dropped at the same time.
+   */
+  | {
+      type: "section/registered";
+      planId: LocalId;
+      sectionKey: SectionKey;
+      registered: boolean;
+      now: IsoDateTime;
+    }
   | { type: "color/set"; courseCode: CourseCode; color: CourseColor }
   | { type: "block/add"; block: Block }
   | {
@@ -139,6 +152,46 @@ function updatePlan(
     plans: state.plans.map((p) =>
       p === plan ? { ...p, courses: [...courses], updatedAt: now } : p,
     ),
+  };
+}
+
+/** The plan's placed sections' keys. */
+function placedKeys(plan: Plan): Set<SectionKey> {
+  return new Set(
+    plan.courses.flatMap((c) =>
+      c.sectionCode === null ? [] : [sectionKey(c.courseCode, c.sectionCode)],
+    ),
+  );
+}
+
+function setRegistered(
+  state: PlansState,
+  action: Extract<PlanAction, { type: "section/registered" }>,
+): PlansState {
+  const plan = state.plans.find((p) => p.id === action.planId);
+  if (!plan) return state;
+  const placed = placedKeys(plan);
+  const before = plan.registered ?? [];
+  const kept = before.filter(
+    (k) => placed.has(k) && (action.registered || k !== action.sectionKey),
+  );
+  const next =
+    action.registered &&
+    placed.has(action.sectionKey) &&
+    !kept.includes(action.sectionKey)
+      ? [...kept, action.sectionKey]
+      : kept;
+  if (next.length === before.length && next.every((k, i) => k === before[i]))
+    return state;
+  const { registered: _, ...rest } = plan;
+  const updated: Plan = {
+    ...rest,
+    ...(next.length > 0 ? { registered: next } : {}),
+    updatedAt: action.now,
+  };
+  return {
+    ...state,
+    plans: state.plans.map((p) => (p === plan ? updated : p)),
   };
 }
 
@@ -325,6 +378,8 @@ export function plansReducer(
           snapshot: action.snapshot,
         });
       });
+    case "section/registered":
+      return setRegistered(state, action);
     case "color/set":
       if (state.colors[action.courseCode] === action.color) return state;
       return {

@@ -31,7 +31,7 @@ export const Route = createFileRoute("/schedule/travel")({
 - **The sidebar renders it, not an `<Outlet />`.** Tab panels once visited and drill-in levels under the top one stay mounted, hidden (see "Build a panel"), which an outlet would unmount. `sidebar.tsx` shows each route's component in its own layer.
 - **A drill-in reads its entry with `useDrillEntry(kind)`** (`drill-entry.tsx`), not from the route's params: a level kept mounted under the top one isn't the URL's any more. Add its kind to `DrillEntry` in `~/state/drill`, its path to `~/core/routing/schedule-location`, its URL to `viewAt`/`locationOf` (`schedule-view.ts`, `schedule-nav.ts`) and its short name to `drillName`.
 - **Search params** a tab reads are its route's `validateSearch`, a zod schema from `~/core/schema/schedule-url` (`SearchTabSearchSchema`, `GenerateTabSearchSchema`). Read them with `useTabSearch(tab)`, which is null while the tab is hidden, so a hidden panel keeps what it showed.
-- **Tabs:** `courses`, `search`, `problems`, `travel`, `blocks`, `generate`, `export`. A route without a component shows a neutral skeleton.
+- **Tabs:** `courses`, `search`, `problems`, `travel`, `blocks`, `generate`, `register` (`export` until 2026-09-28: saved prefs and old links read as `register`, and `/schedule/export` redirects). A route without a component shows a neutral skeleton.
 - **Drill kinds:** `course` and `connection` (restored on the next visit, `UiPrefs.drill`) and `generated-plan` (for the session: results aren't saved).
 - **App-wide work a feature owns** (the seat-watch sync in `alerts`) is a hook the shell calls in `app-shell.tsx`.
 
@@ -106,7 +106,7 @@ Seat alerts (`~/features/alerts/seat-alerts`, backed by the `useSeatAlerts` stor
 | `subscribeSeatAlert(email, termId, sectionKey)` | Watch: returns an outcome (never throws) and writes a pending row. `subscribeMessage(outcome)` words it, including "You're already watching this." from the local list. |
 | `useLastSeatAlertEmail()` | The address used last in this browser, to prefill the field. |
 | `useSeatAlertsAvailable()` | False once the server says seat alerts are off. |
-| `useSeatAlertList(termId?)`, `stopSeatAlert(termId, sectionKey)` | Export's list and its Stop watching (after the inline confirmation). |
+| `useSeatAlertList(termId?)`, `stopSeatAlert(termId, sectionKey)` | Register's list and its Stop watching (after the inline confirmation). |
 
 `SeatMeter` (`~/features/courses/seat-meter`) draws seats as a meter plus words for any section key.
 
@@ -195,7 +195,9 @@ Every piece of scheduler UI state, and where it lives:
 | Toasts (Undo) | no | | Undo is ⌘Z, never Back. |
 | Disclosures inside a view ("More about this course", reviews, "Only fits", "Show" section numbers) | no | | Kept while the view is mounted. |
 | Generate's courses | no | | A draft being filled in: saved per term (`generate` settings row), with its chips. |
-| Ticked results ("Save 3 plans"), Export's checklist ticks | no | | |
+| Ticked results ("Save 3 plans") | no | | |
+| Register's Registered marks | no (the plan's `registered`, with undo) | | Part of the plan: synced and counted by Problems. |
+| The Share popover | no | | |
 | Focus | no | | Follows drill-ins (`useDrillFocus`). |
 
 ## Keyboard
@@ -220,5 +222,7 @@ Accessibility (what's supported, how it's tested, a manual screen-reader script)
 ## The calendar
 
 `calendar/week-frame.tsx` draws the frame: day headers, the hour gutter and lines, and an hour height that fills the space (never under 36px per hour; then it scrolls). Pass `days`, `startMinute`, `endMinute`, and render contents through `children(layout)`, positioning with `layout.yOf(minute)` and `layout.hourHeight`. `calendar-region.tsx` puts `src/features/calendar` in it: the model is built by the pure `buildCalendarModel` in `layout.ts` (tested and benchmarked there), and drawn by `calendar.tsx`.
+
+Above the grid, the canvas bar (`workbench/canvas-bar.tsx`, Plan's too) holds Share at its left (`~/features/share/schedule-share`; in a narrow bar the icon alone while a hint shows, by a container query) and the hint of the moment beside it (`strips.tsx`), at one height, so a hint never moves the grid. While a course's details are open, a click or tap on empty time closes them (`closeToTab`, as the open course's block does) and no drag starts a block; blocks are drawn only outside that mode.
 
 In `pnpm dev:mock`, `/schedule?demo=1` loads the fixtures' demo plans (a returning student's Plan A and B, blocks and colors) for e2e and screenshots. Real first visits stay empty, and production builds drop the switch.

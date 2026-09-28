@@ -152,9 +152,18 @@ export const GenerateTabSearchSchema = z.object({
 });
 export type GenerateTabSearch = z.infer<typeof GenerateTabSearchSchema>;
 
+/**
+ * A rail tab in a link. `export` is the Register tab's old name (it was
+ * Export until 2026-09-28), which links and emails from before still say.
+ */
+const TabParam = z
+  .string()
+  .transform((tab) => (tab === "export" ? "register" : tab))
+  .pipe(RailTabSchema);
+
 /** A drill-in (`/schedule/course/CMSC351`): the rail tab it opens over. */
 export const DrillSearchSchema = z.object({
-  tab: param(RailTabSchema),
+  tab: param(TabParam),
 });
 export type DrillSearch = z.infer<typeof DrillSearchSchema>;
 
@@ -165,7 +174,7 @@ export type DrillSearch = z.infer<typeof DrillSearchSchema>;
  * (`canonicalScheduleLocation` in ~/core/routing).
  */
 export const LegacyScheduleSearchSchema = ScheduleSearchSchema.extend({
-  tab: param(RailTabSchema),
+  tab: param(TabParam),
   /** Course details, drilled in over the tab. */
   course: param(z.string().trim().toUpperCase().pipe(CourseCodeSchema)),
   /** Connection details (`M:ESJ>IRB`). */

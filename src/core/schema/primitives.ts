@@ -196,9 +196,18 @@ export const RailTabSchema = z.enum([
   "travel",
   "blocks",
   "generate",
-  "export",
+  "register",
 ]);
 export type RailTab = z.infer<typeof RailTabSchema>;
+
+/**
+ * A rail tab as saved prefs and old links spell it: the Register tab was
+ * "export" until 2026-09-28 (docs/decisions.md), so that reads as "register".
+ */
+export const SavedRailTabSchema = z.preprocess(
+  (value) => (value === "export" ? "register" : value),
+  RailTabSchema,
+);
 
 /**
  * What Generate ranks by (SPEC §3.9 "Preferences"). Here rather than with

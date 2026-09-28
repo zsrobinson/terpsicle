@@ -80,6 +80,55 @@ test("drag on empty time to block it, and label it", async ({ page }) => {
   ).toBeVisible();
 });
 
+/** A point on `day`'s column with nothing drawn on it (no class, ghost or pill). */
+async function emptyPoint(page: Page, day: string) {
+  const column = calendar(page).locator(`[data-day="${day}"]`);
+  const point = await column.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    for (let y = box.top + 6; y < box.bottom - 6; y += 8) {
+      const x = box.left + box.width / 2;
+      if (document.elementFromPoint(x, y) === el) return { x, y };
+    }
+    return null;
+  });
+  if (!point) throw new Error(`nothing empty on ${day}`);
+  return point;
+}
+
+test("while a course's sections show, a click on empty time closes them instead of blocking time", async ({
+  page,
+}) => {
+  await calendar(page)
+    .getByRole("button", { name: /^CMSC351 0301/ })
+    .first()
+    .click();
+  await expect(
+    page.getByText(/Showing every section of CMSC351/),
+  ).toBeVisible();
+  await expect(page.locator(OPEN_VIEW)).toContainText("CMSC351");
+
+  // A drag there doesn't start a block either.
+  const from = await emptyPoint(page, "W");
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 4, from.y + 3, { steps: 3 });
+  await page.mouse.up();
+  await expect(page.getByRole("dialog", { name: "New block" })).toHaveCount(0);
+  await expect(page.locator(OPEN_VIEW)).toHaveCount(0);
+  await expect(page.getByText(/Showing every section of/)).toHaveCount(0);
+  await expect(calendar(page).locator("[data-ghost]")).toHaveCount(0);
+
+  // Back reopens it: closing a view is a place in history.
+  await page.goBack();
+  await expect(page.locator(OPEN_VIEW)).toContainText("CMSC351");
+
+  // A plain click does the same.
+  const at = await emptyPoint(page, "M");
+  await page.mouse.click(at.x, at.y);
+  await expect(page.locator(OPEN_VIEW)).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "New block" })).toHaveCount(0);
+});
+
 test("change a course's color, then undo it", async ({ page }) => {
   await calendar(page)
     .getByRole("button", { name: /^CMSC351 0301/ })

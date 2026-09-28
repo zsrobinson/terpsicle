@@ -182,7 +182,19 @@ A named set of sections, blocks and bookmarks for one term, kept in the browser 
 A plan's tab in the top bar, with Rename, Duplicate and Delete in its ▾ menu.
 
 **Rail tab**:
-One of the seven sidebar tabs: Courses, Search, Problems, Travel, Blocks, Generate, Export (`1` to `7`).
+One of the seven sidebar tabs: Courses, Search, Problems, Travel, Blocks, Generate, Register (`1` to `7`).
+
+**Register (tab)**:
+The rail tab for registration day (`/schedule/register`): what to register for, in the order to register, with each section's codes to copy, a Registered mark, its seats and a seat watch, then "Add to your calendar". It was Export until 2026-09-28; code and old links may still say `export`.
+_Avoid_: Export, checklist tab
+
+**Registered**:
+A placed section you've marked as registered for in Testudo, in the Register tab. It's part of the plan: it syncs, it's no longer a problem for being full, and its calendar block shows a small check.
+_Avoid_: checked, done, enrolled
+
+**Canvas bar**:
+The strip across the top of a workbench's canvas (the calendar, Plan's semesters): Share at its left, and the calendar's hint of the moment beside it. Code says `CanvasBar`.
+_Avoid_: toolbar, hint strip
 
 **Panel**:
 What the sidebar shows for the open rail tab.
@@ -244,8 +256,12 @@ _Avoid_: must-have (in UI copy), constraint
 A chip that ranks Generate's results without taking any out: Compact days, Fewer days, Later starts, Best-rated, Higher GPAs, Safest seats. A click cycles it off → on → 2× (counts double) → off.
 _Avoid_: weight, sort, rank by (in UI copy)
 
+**Share**:
+The outlined "Share" button at the top left of the canvas bar, in Schedule and Plan. It opens a popover with the plan's share link, "Copy link" ("Copied link") and a note that the link is a copy held in the URL, which won't follow later edits.
+_Avoid_: export, publish, send
+
 **Share link**:
-A URL that carries a whole plan. It opens read-only as a **shared plan** with "Save a copy".
+A URL that carries a whole plan. It opens read-only as a **shared plan** with "Save a copy". Plan's is a **four-year share link** (`/plan/shared`), for an advisor, without grades.
 
 ## Reviews
 
@@ -362,6 +378,9 @@ The owner, the only admin and moderator. Contact is admin [at] terpsicle.com.
 
 **Four-year plan**:
 One person's courses laid out term by term through graduation, with a "Before" column for AP and transfer credit. Copy says "Plan"; people may keep a few.
+
+**Shared four-year plan**:
+A four-year plan opened from its share link at `/plan/shared`: read-only, readable without an account ("Shared four-year plan · Read-only"), with "Save a copy". Never carries grades.
 
 **Term status**:
 Where a term in a four-year plan stands: done, in progress or planned, worked out from the academic calendar. Not the catalog's active or archived.

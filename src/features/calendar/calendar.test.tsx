@@ -163,13 +163,14 @@ describe("calendar", () => {
     await renderDemo();
     act(() => goTo({ tab: "search", drill: null }));
     const idle = screen.getByText("Hover a result to see its sections here.");
-    const row = idle.parentElement;
-    expect(row).toHaveClass("h-9");
+    // The hint sits in the canvas bar, beside Share, which keeps one height.
+    const bar = idle.closest("[data-canvas-bar]");
+    expect(bar).toHaveClass("h-10");
     act(() => useUi.getState().setHoverCourse("CMSC330"));
-    // Same height, new words: nothing under it moves.
+    // Same bar, new words: nothing under it moves.
     expect(
-      screen.getByText(/Showing every section of/).parentElement,
-    ).toHaveClass("h-9");
+      screen.getByText(/Showing every section of/).closest("[data-canvas-bar]"),
+    ).toBe(bar);
     expect(screen.getByText("Mon")).toBeVisible();
     act(() => useUi.getState().setHoverCourse(null));
     expect(

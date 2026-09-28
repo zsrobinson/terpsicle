@@ -204,7 +204,9 @@ export const useFourYear = create<FourYearStore>()((set, get) => {
       const created =
         action.type === "create" || action.type === "duplicate"
           ? action.id
-          : null;
+          : action.type === "add-doc"
+            ? action.doc.id
+            : null;
       save(history.present.docs);
       set({
         history,
