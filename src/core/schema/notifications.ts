@@ -42,6 +42,12 @@ export const NotificationSettingsSchema = z.object({
   chatReply: z.object({ push: z.boolean() }),
   chatDigest: z.object({ email: z.boolean() }),
   todoDue: z.object({ push: z.boolean() }).default({ push: false }),
+  /** Pushes wait from 11pm to 8am, New York (V2 §6.7). */
+  quietHours: z.object({ on: z.boolean() }).default({ on: true }),
+  /** Seat openings push through quiet hours: a seat can be gone by morning. */
+  seatThroughQuiet: z.boolean().default(true),
+  /** A chat push shows who and what; off, it reads "New mention in CMSC351". */
+  showText: z.boolean().default(true),
 });
 export type NotificationSettings = z.infer<typeof NotificationSettingsSchema>;
 
@@ -52,6 +58,9 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   chatReply: { push: true },
   chatDigest: { email: false },
   todoDue: { push: false },
+  quietHours: { on: true },
+  seatThroughQuiet: true,
+  showText: true,
 };
 
 /** A subscription's public key: a base64url P-256 point (65 bytes, 87 characters). */

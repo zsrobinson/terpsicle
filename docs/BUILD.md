@@ -40,7 +40,8 @@ Cloudflare Worker "terpsicle"  (one deployable: src/server.ts)
 │ scheduled (Cron Triggers)                                                             │
 │   (every job reads terms.json and loops over active terms; nothing names a term)      │
 │   */5 * * * *     seats: sections for every dept → seats.<hash>.json + changes.json   │
-│                   → seat-alert emails (D1 lookup)                                     │
+│                   → seat-alert emails (D1 lookup); moderation retries; quiet hours'   │
+│                   8am pushes and the owner's urgent alerts (src/jobs/notifications.ts)│
 │   0 */6 * * *     catalog: SOC term list → terms.json; per term: depts + courses +     │
 │                   sections → per-dept chunks + manifest; archive terms Testudo dropped │
 │   17 5 * * *      PlanetTerp: ratings, reviews metadata, grades                        │

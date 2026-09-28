@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationSettingsSchema,
   type PushDevice,
 } from "~/core/schema/notifications";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
@@ -115,12 +116,12 @@ describe("NotificationSettingsSection", () => {
     });
     const user = renderSection();
     const mention = await screen.findByRole("switch", {
-      name: "Mentions in Chat: Notification",
+      name: "Mentions: Notification",
     });
     const reply = screen.getByRole("switch", {
-      name: "Replies in Chat: Notification",
+      name: "Replies to your threads: Notification",
     });
-    const digest = screen.getByRole("switch", { name: "Chat digest: Email" });
+    const digest = screen.getByRole("switch", { name: "Daily digest: Email" });
     expect(mention).toHaveAttribute("aria-checked", "true");
     expect(reply).toHaveAttribute("aria-checked", "true");
     // The digest starts off (V2.md §6.1).
@@ -142,8 +143,98 @@ describe("NotificationSettingsSection", () => {
       },
     });
     expect(
-      screen.queryByRole("switch", { name: "Chat digest: Notification" }),
+      screen.queryByRole("switch", { name: "Daily digest: Notification" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("groups the switches by product, then When and how", async () => {
+    renderSection();
+    const headings = (await screen.findAllByRole("heading", { level: 2 })).map(
+      (h) => h.textContent,
+    );
+    expect(headings.slice(0, 4)).toEqual([
+      "Schedule",
+      "Chat",
+      "Todo",
+      "When and how",
+    ]);
+    const chat = screen
+      .getByRole("heading", { name: "Chat" })
+      .closest("section");
+    if (!chat) throw new Error("no Chat section");
+    for (const title of ["Mentions", "Replies to your threads", "Daily digest"])
+      expect(within(chat).getByText(title)).toBeInTheDocument();
+    // Mentions and replies have no email of their own: the digest has them.
+    expect(within(chat).getAllByText("In the digest")).toHaveLength(2);
+  });
+
+  it("switches quiet hours, seats through them, and message text", async () => {
+    api.setSettings.mockResolvedValue({
+      settings: DEFAULT_NOTIFICATION_SETTINGS,
+    });
+    const user = renderSection();
+    const quiet = await screen.findByRole("switch", { name: "Quiet hours" });
+    const seats = screen.getByRole("switch", {
+      name: "Seat openings come through quiet hours",
+    });
+    const text = screen.getByRole("switch", { name: "Show message text" });
+    // On by default (V2.md §6.7).
+    expect(quiet).toHaveAttribute("aria-checked", "true");
+    expect(seats).toHaveAttribute("aria-checked", "true");
+    expect(text).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByText(
+        /When a section you're watching gets an open seat\. Comes through quiet hours\./,
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(seats);
+    expect(api.setSettings).toHaveBeenLastCalledWith({
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, seatThroughQuiet: false },
+    });
+    expect(
+      screen.getByText(/Waits for 8am in quiet hours\./),
+    ).toBeInTheDocument();
+
+    await user.click(text);
+    expect(api.setSettings).toHaveBeenLastCalledWith({
+      settings: {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        seatThroughQuiet: false,
+        showText: false,
+      },
+    });
+
+    // Quiet hours off: nothing waits, so seats' own switch can't change.
+    await user.click(quiet);
+    expect(api.setSettings).toHaveBeenLastCalledWith({
+      settings: {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        quietHours: { on: false },
+        seatThroughQuiet: false,
+        showText: false,
+      },
+    });
+    expect(seats).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText(/quiet hours\.$/)).not.toBeInTheDocument();
+    await user.click(seats);
+    expect(api.setSettings).toHaveBeenCalledTimes(3);
+  });
+
+  it("reads settings saved before quiet hours with their defaults", async () => {
+    api.settings.mockResolvedValue({
+      settings: NotificationSettingsSchema.parse({
+        v: 1,
+        seatOpen: { push: true, email: true },
+        chatMention: { push: true },
+        chatReply: { push: true },
+        chatDigest: { email: false },
+      }),
+    });
+    renderSection();
+    expect(
+      await screen.findByRole("switch", { name: "Quiet hours" }),
+    ).toHaveAttribute("aria-checked", "true");
   });
 
   it("asks for ELMS before Due tomorrow can switch on", async () => {

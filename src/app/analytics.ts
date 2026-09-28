@@ -24,6 +24,7 @@ import type {
 } from "~/core/schema";
 import type { FeedbackProduct, FeedbackSendKind } from "~/core/schema/feedback";
 import type { FourYearProblemKind } from "~/core/schema/four-year";
+import type { InboxType } from "~/core/schema/notifications";
 import { type ClientConfig, clientConfig, type DataSource } from "./config";
 import type { ProductId } from "./products";
 
@@ -118,6 +119,10 @@ export interface AnalyticsEvents {
   // Web push on a device (V2.md §11), from /settings/notifications.
   push_enabled: NoProperties;
   push_disabled: NoProperties;
+  // The bell (V2.md §6.7): opened, and which kind of row was opened from
+  // it. Never the words, the course or who.
+  notifications_opened: NoProperties;
+  notification_opened: { type: InboxType };
   /** Asking to turn notifications on at a moment (V2 §6.7): which, and how. */
   push_ask_shown: {
     moment: PushAskMoment;

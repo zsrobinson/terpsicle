@@ -79,6 +79,7 @@ import type {
   FourYearTemplate,
   FourYearWildcardEntry,
 } from "~/core/schema/four-year";
+import type { InboxItem } from "~/core/schema/notifications";
 
 /** Term id of the mock catalog's active, default term (Spring 2027). */
 export const fixtureTermId = "202701";
@@ -940,6 +941,22 @@ export function aMeUser(overrides: Partial<MeUser> = {}): MeUser {
     avatarUrl: null,
     isAdmin: false,
     createdAt: "2026-09-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+/** An unread mention in CMSC351's course room, as `notifications/inbox` lists it. */
+export function anInboxItem(overrides: Partial<InboxItem> = {}): InboxItem {
+  return {
+    id: "n_mention_1",
+    type: "chat-mention",
+    product: "chat",
+    title: "Maya in CMSC351",
+    body: "are we meeting at McKeldin at 7? I booked 2nd floor",
+    url: `/chat?term=${fixtureTermId}&course=CMSC351&room=${fixtureTermId}%3ACMSC351`,
+    count: 1,
+    createdAt: "2026-09-27T22:28:00.000Z",
+    readAt: null,
     ...overrides,
   };
 }

@@ -62,6 +62,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
   | `push_enabled` | none | People turning on notifications on a device, from Settings. |
   | `push_disabled` | none | People turning them off there ("Turn off here"). |
+  | `notifications_opened` | none | Whether people find the bell and open Notifications (V2.md §6.7). |
+  | `notification_opened` | `type` (`seat-open`, `chat-mention`, `chat-reply`, `todo-due`, `admin-urgent`) | Which kinds of notification people open from the bell. Never its words, course or who it's about; the list is `data-private`. |
   | `push_ask_shown` | `moment`: `chat-post` · `todo-connected` · `seat-watch` · `home-screen`; `kind`: `card` · `iphone-setup` · `home-screen` | How often each moment asks to turn notifications on (V2.md §6.7, "Asking"), and how: our card, the iPhone's three steps to the Home Screen, or the Home Screen app's own step. |
   | `push_ask_result` | `moment`, `kind`, `outcome`: `on` · `dismissed` · `blocked` · `failed` | Whether asking at the moment works: `on` should be common; mostly `dismissed` means the moment or the words are wrong. `blocked` is the browser's prompt answered Block. |
   | `calendar_feed_created` | none | People making their calendar feed link, from Settings (V2.md §6.7). Never the link. |

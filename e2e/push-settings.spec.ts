@@ -183,7 +183,9 @@ test("turn on notifications, send a test, see it, remove the device", async ({
     );
 
     const section = page.getByRole("main");
-    await expect(section.getByText("What to send")).toBeVisible();
+    await expect(
+      section.getByRole("heading", { name: "Schedule" }),
+    ).toBeVisible();
     // Seat openings send; types whose features don't yet stay quiet.
     await expect(
       section.getByRole("switch", { name: "Seat openings: Notification" }),
