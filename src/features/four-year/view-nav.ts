@@ -1,5 +1,5 @@
 import type { PlanTab } from "~/core/schema";
-import type { PlanNav } from "./model";
+import { CLOSE_DRILL, isDrilled, type PlanNav } from "./model";
 import { focusSearch } from "./search-panel";
 import { usePlanWorkbench } from "./workbench-store";
 
@@ -9,8 +9,8 @@ import { usePlanWorkbench } from "./workbench-store";
 
 /** Goes to a view, closing any course open over it; Search takes focus. */
 function go(nav: PlanNav, tab: PlanTab): void {
-  if (tab !== nav.search.tab || nav.search.course)
-    nav.go({ tab, course: undefined });
+  if (tab !== nav.search.tab || isDrilled(nav.search))
+    nav.go({ tab, ...CLOSE_DRILL });
   if (tab === "search") focusSearch();
 }
 
@@ -32,7 +32,7 @@ export function clickRailView(nav: PlanNav, tab: PlanTab): void {
   if (tab !== nav.search.tab || !ui.sidebarOpen) {
     ui.setSidebarOpen(true);
     go(nav, tab);
-  } else if (nav.search.course) nav.go({ course: undefined });
+  } else if (isDrilled(nav.search)) nav.go(CLOSE_DRILL);
   else ui.setSidebarOpen(false);
 }
 
@@ -40,7 +40,7 @@ export function clickRailView(nav: PlanNav, tab: PlanTab): void {
 export function tapDrawerView(nav: PlanNav, tab: PlanTab): void {
   const ui = usePlanWorkbench.getState();
   if (tab === nav.search.tab && ui.drawerSnap !== "peek") {
-    if (nav.search.course) nav.go({ course: undefined });
+    if (isDrilled(nav.search)) nav.go(CLOSE_DRILL);
     else ui.setDrawerSnap("peek");
     return;
   }

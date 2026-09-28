@@ -11,7 +11,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { addCourse, entryName, pickForPlaceholder } from "./actions";
 import { CourseDetailsForm } from "./course-details-form";
 import { useIndexEntry } from "./data";
-import { useModel, usePlanNav } from "./model";
+import { CLOSE_DRILL, useModel, usePlanNav } from "./model";
 import { showAdded } from "./workbench-store";
 
 // A course, open in the sidebar (`?course=CMSC351`): what the index knows
@@ -89,7 +89,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
             <Button
               onClick={() => {
                 void pickForPlaceholder(resolving.id, code);
-                nav.go({ wildcard: undefined, course: undefined });
+                nav.go({ wildcard: undefined, ...CLOSE_DRILL });
               }}
               disabled={!resolvesWildcard(resolving.wildcard, course)}
             >

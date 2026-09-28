@@ -21,6 +21,7 @@ import type {
 } from "~/core/schema";
 import {
   type FourYearCourseDetails,
+  type FourYearCreditEntry,
   type FourYearDoc,
   type FourYearEntry,
   type FourYearProblem,
@@ -324,11 +325,48 @@ export function setDetails(
     },
     details === null
       ? `Cleared ${code}'s course info`
-      : `Saved ${code}'s course info`,
+      : details.countsAs
+        ? `${code} counts as ${details.countsAs}`
+        : `Saved ${code}'s course info`,
   );
   if (saved)
     track("four_year_details_saved", {
       genEds: details?.genEds.length ?? 0,
+      countsAs: !!details?.countsAs,
+      of: "course",
+    });
+}
+
+/**
+ * What AP, exam or transfer credit with no UMD course counts as, and its
+ * credits and GenEds. Null `countsAs` says it's no UMD course.
+ */
+export function setCreditInfo(
+  doc: FourYearDoc,
+  entry: FourYearCreditEntry,
+  info: {
+    countsAs: CourseCode | null;
+    credits: number;
+    genEds: readonly GenEdCode[];
+  },
+): void {
+  const saved = dispatch(
+    {
+      type: "set-credit",
+      docId: doc.id,
+      entryId: entry.id,
+      ...info,
+      now: nowIso(),
+    },
+    info.countsAs
+      ? `${entry.title} counts as ${info.countsAs}`
+      : `Saved ${entry.title}`,
+  );
+  if (saved)
+    track("four_year_details_saved", {
+      genEds: info.genEds.length,
+      countsAs: info.countsAs !== null,
+      of: "credit",
     });
 }
 

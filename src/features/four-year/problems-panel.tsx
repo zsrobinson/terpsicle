@@ -43,6 +43,11 @@ function Row({ problem }: { problem: FourYearProblem }) {
     problem.kind === "unknown-course" && entry?.kind === "course"
       ? entry.code
       : null;
+  // Credit Testudo gave as "CHEM 1XX": what it counts as is in its drill-in.
+  const credit =
+    problem.kind === "unmatched-credit" && entry?.kind === "credit"
+      ? entry
+      : null;
   return (
     <ListRow
       as="li"
@@ -63,7 +68,7 @@ function Row({ problem }: { problem: FourYearProblem }) {
       secondary={
         <>
           <MessageText message={problem.detail} />
-          {problem.fix || describe ? (
+          {problem.fix || describe || credit ? (
             <span className="mt-1.5 flex flex-wrap gap-1.5">
               {problem.fix ? (
                 <WithTooltip label="Undo takes it back">
@@ -79,17 +84,39 @@ function Row({ problem }: { problem: FourYearProblem }) {
               ) : null}
               {describe ? (
                 <WithTooltip
-                  label={`Say what ${describe} was: its title, credits and GenEds`}
+                  label={`Say what ${describe} was: its title, credits, GenEds and what it counts as`}
                 >
                   <Button
                     variant={problem.fix ? "ghost" : "outline"}
                     size="row"
                     className="relative z-10"
                     onClick={() =>
-                      nav.go({ course: describe }, { drill: true })
+                      nav.go(
+                        { course: describe, credit: undefined },
+                        { drill: true },
+                      )
                     }
                   >
                     Add course info
+                  </Button>
+                </WithTooltip>
+              ) : null}
+              {credit ? (
+                <WithTooltip
+                  label={`Say which UMD course ${credit.title} counts as, if any`}
+                >
+                  <Button
+                    variant="outline"
+                    size="row"
+                    className="relative z-10"
+                    onClick={() =>
+                      nav.go(
+                        { credit: credit.id, course: undefined },
+                        { drill: true },
+                      )
+                    }
+                  >
+                    Choose what it counts as
                   </Button>
                 </WithTooltip>
               ) : null}
@@ -121,8 +148,9 @@ export function ProblemsPanel() {
   if (problems.length === 0)
     return (
       <PanelNote>
-        Prerequisites out of order, light semesters, repeated courses and
-        courses Testudo hasn't offered lately show up here.
+        Prerequisites out of order, light semesters, repeated courses, courses
+        Testudo hasn't offered lately and transfer credit it didn't match show
+        up here.
       </PanelNote>
     );
   return (
