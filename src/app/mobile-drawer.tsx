@@ -28,8 +28,13 @@ export function MobileDrawer() {
   // Opening a tab or drilling in from elsewhere (a shortcut, the calendar)
   // raises a resting drawer so the result is visible. So does arriving on
   // a drill-in (a seat-alert email's link), which the URL names from the
-  // first render: from nothing drilled in, that's deeper too.
-  const last = useRef({ tab, depth: 0 });
+  // first render: from nothing drilled in, that's deeper too. So does
+  // arriving on any tab but Courses (a link to Search with its text, or to
+  // Problems): the link named it to show it. Courses keeps the calendar.
+  const last = useRef<{ tab: RailTab; depth: number }>({
+    tab: "courses",
+    depth: 0,
+  });
   useEffect(() => {
     const changed = last.current.tab !== tab || depth > last.current.depth;
     last.current = { tab, depth };
