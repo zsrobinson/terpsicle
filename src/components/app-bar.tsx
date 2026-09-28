@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { MessageSquareText } from "lucide-react";
 import type { ReactNode } from "react";
-import { STAY_PARAM } from "~/core/routing";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { AccountButton } from "~/features/auth/account-button";
 import { useAccount } from "~/features/auth/account-store";
@@ -29,7 +28,7 @@ import { ProductMenu } from "./product-menu";
 import { ThemeToggle } from "./theme-toggle";
 
 // The one bar on every page (docs/COHESION.md §4, the "family bar"): the
-// wordmark, the "Early access" chip and the five products as labeled tabs,
+// wordmark (a link to Home), the "Early access" chip and the five products as labeled tabs,
 // in color order, then a divider and the product's own context (the term
 // and plan, a course…), then its status, the bell (signed in), the coffee
 // button, Feedback and the account. Below 1100px the tabs fold into the
@@ -120,15 +119,13 @@ export function AppBar({
       {compact ? null : (
         <div className={cn("hidden items-center gap-1", WIDE)}>
           <Brand className="flex">
-            <WithTooltip label="About Terpsicle">
-              {/* ?stay: returning visitors would otherwise skip to the scheduler. */}
-              <a
-                href={`/?${STAY_PARAM}`}
-                className="flex h-8 items-center gap-2 px-1"
-              >
+            {/* The wordmark goes Home (docs/decisions.md, "Home is the first
+                tab on phones and the wordmark on desktop"). */}
+            <WithTooltip label="Home">
+              <Link to="/home" className="flex h-8 items-center gap-2 px-1">
                 <Mark id="umbrella" size={20} label="Terpsicle" />
                 <Wordmark />
-              </a>
+              </Link>
             </WithTooltip>
           </Brand>
           {/* From 1536px only, on every bar: below that the scheduler's and

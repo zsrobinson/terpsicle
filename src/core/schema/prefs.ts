@@ -23,6 +23,15 @@ export const TodoPrefsSchema = z.object({
 export type TodoPrefs = z.infer<typeof TodoPrefsSchema>;
 
 /**
+ * Home's setup callouts you've closed (`CalloutId`s in ~/core/home). Plain
+ * strings, so a callout a newer build adds survives an older one.
+ */
+export const HomePrefsSchema = z.object({
+  dismissed: z.array(z.string().min(1).max(40)).max(20),
+});
+export type HomePrefs = z.infer<typeof HomePrefsSchema>;
+
+/**
  * Loose on purpose: a key this build doesn't know (a newer build's, another
  * product's) passes through untouched, so no build drops what it can't read.
  */
@@ -30,5 +39,6 @@ export const SyncedPrefsSchema = z.looseObject({
   ai: AiPrefsSchema.optional(),
   chatRules: ChatRulesPrefsSchema.optional(),
   todo: TodoPrefsSchema.optional(),
+  home: HomePrefsSchema.optional(),
 });
 export type SyncedPrefs = z.infer<typeof SyncedPrefsSchema>;

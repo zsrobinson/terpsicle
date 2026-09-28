@@ -1,4 +1,4 @@
-import { weekdayOf } from "../ics/dates";
+import { addDays, weekdayOf } from "../ics/dates";
 import {
   type AcademicCalendar,
   type BuildingCode,
@@ -196,4 +196,28 @@ export function walkWords(walk: TodayWalk): string {
   if (walk.verdict === "insufficient")
     return `Not enough time: ${base}, ${walk.gapMinutes} min between`;
   return base;
+}
+
+/** How far ahead "Today" looks for the next day with classes. */
+export const NEXT_CLASS_DAY_MAX = 7;
+
+/**
+ * The next day after `today` that the plan has classes, within a week:
+ * what "Today" shows once today's are over ("Tomorrow", "Monday"). Null
+ * when there's none that soon (a break, the term's end). The calendar
+ * decides breaks, as for today.
+ */
+export function nextClassDay(
+  plan: Pick<Plan, "courses">,
+  today: IsoDate,
+  calendar: AcademicCalendar | null,
+  travel: TravelSettings,
+  campus: CampusMap,
+): { date: IsoDate; classes: readonly TodayClass[] } | null {
+  for (let i = 1; i <= NEXT_CLASS_DAY_MAX; i += 1) {
+    const date = addDays(today, i);
+    const day = classesOn(plan, date, calendar, travel, campus);
+    if (day.kind === "classes") return { date, classes: day.classes };
+  }
+  return null;
 }
