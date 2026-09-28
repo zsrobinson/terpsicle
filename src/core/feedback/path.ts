@@ -27,6 +27,8 @@ const FEEDBACK_PAGES: readonly [string, FeedbackProduct][] = [
   ["/todo", "todo"],
   ["/settings", "settings"],
   ["/admin", "admin"],
+  // Home belongs to no one product: the site's.
+  ["/home", "site"],
 ];
 
 /**

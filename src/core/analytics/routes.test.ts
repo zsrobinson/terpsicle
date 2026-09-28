@@ -35,6 +35,7 @@ describe("noAutocaptureUrlPatterns", () => {
     "https://terpsicle.com/reviews/mine#top",
     "https://terpsicle.com/plan",
     "https://terpsicle.com/todo/connect",
+    "https://terpsicle.com/home",
     "https://terpsicle.com/signin?error=cancelled",
     "https://terpsicle.com/auth/test",
     "http://localhost:3000/plan",

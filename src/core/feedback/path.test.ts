@@ -34,6 +34,7 @@ describe("feedbackProduct", () => {
     expect(feedbackProduct("/reviews/courses/CMSC131")).toBe("reviews");
     expect(feedbackProduct("/chat/202608/CMSC131/0101")).toBe("chat");
     expect(feedbackProduct("/settings/notifications")).toBe("settings");
+    expect(feedbackProduct("/home")).toBe("site");
     expect(feedbackProduct("/todo/connect")).toBe("todo");
     expect(feedbackProduct("/plan")).toBe("plan");
     expect(feedbackProduct("/admin/decisions")).toBe("admin");

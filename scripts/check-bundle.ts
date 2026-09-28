@@ -158,6 +158,14 @@ export const ADMIN_BUDGET = 245 * 1024;
  */
 export const TODO_BUDGET = 248 * 1024;
 
+/**
+ * Gzipped JS + CSS for /home (the installed app's start page, docs/V3.md
+ * §1.5), in bytes: `/`'s base plus Todo's store and row, the published-data
+ * reader, and the core it counts with (travel, problems, Plan's credits and
+ * GenEds). Set in v3/home with about 10% headroom. Same rule for raising it.
+ */
+export const HOME_BUDGET = 290 * 1024;
+
 /** Todo loads with /todo, never with the scheduler. */
 const TODO_NEVER_EAGER = {
   pattern: /^src\/(features\/todo\/|server\/fns\/todo\.ts$)/,
@@ -288,6 +296,13 @@ export const ROUTE_BUDGETS: readonly {
     budget: TODO_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
+  // Home reads this device's plans raw (no Dexie, no scheduler stores) and
+  // published files through Reviews' reader.
+  {
+    route: "/home",
+    budget: HOME_BUDGET,
+    never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
+  },
   ...["/", "/settings", "/signin", "/privacy"].map((route) => ({
     route,
     budget: LANDING_BUDGET,

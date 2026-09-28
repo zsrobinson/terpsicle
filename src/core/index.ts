@@ -9,6 +9,7 @@ export * from "./fit";
 export * from "./four-year";
 export * from "./generate";
 export * from "./grades";
+export * from "./home";
 export * from "./ics";
 export * from "./moderation";
 export * from "./plans";

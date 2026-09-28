@@ -147,7 +147,7 @@ test.describe("installable app", () => {
     expect(manifest).toMatchObject({
       id: "/",
       name: "Terpsicle",
-      start_url: "/schedule",
+      start_url: "/home",
       scope: "/",
       display: "standalone",
       theme_color: expect.stringMatching(/^#/),
@@ -167,10 +167,13 @@ test.describe("installable app", () => {
       expect(icon.headers()["content-type"], src).toBe("image/png");
     }
 
-    // The installed app opens here: it must be the scheduler, not a 404.
-    const start = await request.get("/schedule");
-    expect(start.status()).toBe(200);
-    expect(start.headers()["content-type"]).toContain("text/html");
+    // The installed app opens on Home, and apps installed before it came
+    // still open on the scheduler: both must be pages, not a 404.
+    for (const path of ["/home", "/schedule"]) {
+      const start = await request.get(path);
+      expect(start.status(), path).toBe(200);
+      expect(start.headers()["content-type"], path).toContain("text/html");
+    }
 
     // Every page links the manifest, the landing page included (V2 §3.1).
     await page.goto("/");
