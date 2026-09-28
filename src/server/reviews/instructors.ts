@@ -10,7 +10,7 @@ import {
   instructorNameKey,
   type PlanetTerpDept,
 } from "~/core/schema";
-import { readPlanetTerpDept } from "../planetterp";
+import { readPlanetTerpDept } from "../published";
 import {
   ensurePlanetTerpInstructor,
   getInstructor,

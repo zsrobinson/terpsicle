@@ -3,17 +3,13 @@
 // emails, and ending watches once their term is over. The router checks the
 // session and the per-person limits; these functions assume both passed.
 import {
-  ManifestSchema,
-  manifestKey,
   parseSectionKey,
   SEAT_WATCH_MAX_PER_USER,
-  SeatsFileSchema,
   type SeatUnwatchResult,
   type SeatWatchInput,
   type SeatWatchListInput,
   type SeatWatchListResult,
   type SeatWatchResult,
-  seatsKey,
   seatWatchFromRow,
   TERMS_KEY,
   TermsFileSchema,
@@ -22,7 +18,12 @@ import { captureServerEvent } from "../analytics";
 import type { Session } from "../auth/session";
 import { hit } from "../counters";
 import { keyedHash, sameHex } from "../crypto";
-import { catalogReader, type WatchedSection } from "./catalog";
+import {
+  currentOpenSeats,
+  findSection,
+  readPublished,
+  type WatchedSection,
+} from "../published";
 import type { SectionRef } from "./email";
 import {
   countWatches,
@@ -78,26 +79,6 @@ export function sectionRef(found: WatchedSection): SectionRef {
   };
 }
 
-/** Open seats for a section right now, from the published seats file. */
-export async function currentOpenSeats(
-  bucket: R2Bucket,
-  termId: string,
-  sectionKey: string,
-): Promise<number | null> {
-  const manifestObject = await bucket.get(manifestKey(termId));
-  const manifest = manifestObject
-    ? ManifestSchema.safeParse(await manifestObject.json())
-    : null;
-  if (!manifest?.success || !manifest.data.seats) return null;
-  const seatsObject = await bucket.get(
-    seatsKey(termId, manifest.data.seats.hash),
-  );
-  const seats = seatsObject
-    ? SeatsFileSchema.safeParse(await seatsObject.json())
-    : null;
-  return seats?.success ? (seats.data.seats[sectionKey]?.[0] ?? null) : null;
-}
-
 type UserContext = AlertsContext & { session: Session | null };
 
 /** The router only calls these with a session (`auth: "user"`). */
@@ -117,7 +98,7 @@ export async function watch(
   if (existing)
     return { status: "watching", watch: seatWatchFromRow(existing) };
 
-  const found = await catalogReader(env.DATA)(input.termId, input.sectionKey);
+  const found = await findSection(env.DATA, input.termId, input.sectionKey);
   if (found?.term.status !== "active") return { status: "unknown-section" };
   if ((await countWatches(env.DB, user)) >= SEAT_WATCH_MAX_PER_USER)
     return { status: "too-many", max: SEAT_WATCH_MAX_PER_USER };
@@ -258,11 +239,10 @@ export async function endPastTermWatches(
   env: Pick<AlertsEnv, "DB" | "DATA" | "POSTHOG_TOKEN">,
   options: { waitUntil?: (promise: Promise<unknown>) => void } = {},
 ): Promise<{ terms: number; watches: number }> {
-  const object = await env.DATA.get(TERMS_KEY);
-  const terms = object ? TermsFileSchema.safeParse(await object.json()) : null;
-  if (!terms?.success) return { terms: 0, watches: 0 };
+  const terms = await readPublished(env.DATA, TERMS_KEY, TermsFileSchema);
+  if (!terms) return { terms: 0, watches: 0 };
   const active = new Set(
-    terms.data.terms.filter((t) => t.status === "active").map((t) => t.id),
+    terms.terms.filter((t) => t.status === "active").map((t) => t.id),
   );
   const ended = (await watchedTerms(env.DB)).filter((t) => !active.has(t));
   const watches = await deleteTermWatches(env.DB, ended);

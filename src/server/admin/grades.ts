@@ -14,12 +14,15 @@ import type {
   AdminGradeSemester,
   AdminGrades,
 } from "~/core/schema/admin";
+import { readPublished } from "../published";
 
 async function gradesThrough(bucket: R2Bucket): Promise<TermId | null> {
-  const object = await bucket.get(PLANETTERP_MANIFEST_KEY);
-  if (!object) return null;
-  const manifest = PlanetTerpManifestSchema.safeParse(await object.json());
-  return manifest.success ? manifest.data.gradesThrough : null;
+  const manifest = await readPublished(
+    bucket,
+    PLANETTERP_MANIFEST_KEY,
+    PlanetTerpManifestSchema,
+  );
+  return manifest?.gradesThrough ?? null;
 }
 
 export async function adminGrades(

@@ -13,7 +13,7 @@ import { emailOffUrl } from "../notifications/email-off";
 import { countInboxEvents } from "../notifications/inbox";
 import { type NotifyEnv, notify } from "../notifications/notify";
 import { countDeliveries, readSettings } from "../notifications/store";
-import { catalogReader } from "./catalog";
+import { findSection, memoJson } from "../published";
 import {
   courseUrl,
   type OpenedSection,
@@ -89,7 +89,7 @@ export async function notifySeatChanges(
   const origin = options.origin ?? ALERTS_ORIGIN;
   const nowIso = now.toISOString();
   const since = new Date(now.getTime() - 86_400_000);
-  const findSection = catalogReader(env.DATA);
+  const catalog = memoJson(env.DATA);
   // One dedupe key per seats snapshot, so a retried cron run can't send twice.
   const snapshot = after.asOf ?? windowStart(now, 30 * 60).toISOString();
 
@@ -112,7 +112,7 @@ export async function notifySeatChanges(
       counts.get(w.user_id) ?? (await alertsToday(env.DB, w.user_id, since));
     counts.set(w.user_id, sentToday);
     if (sentToday >= ALERT_LIMITS.alertsPerUserPerDay) continue;
-    const found = await findSection(w.term_id, w.section_key);
+    const found = await findSection(catalog, w.term_id, w.section_key);
     if (!found) continue;
     counts.set(w.user_id, sentToday + 1);
     opened.set(w.user_id, [
