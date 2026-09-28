@@ -470,10 +470,15 @@ describe("callback", () => {
     expect(
       (await env.USER_CONTENT.list({ prefix: "avatars/" })).objects,
     ).toEqual([]);
+    // The users row has nowhere to keep one (0022_drop_unused_columns).
     const row = await env.DB.prepare(
-      "SELECT picture_url, picture_key FROM users WHERE id = 'testudo'",
+      "SELECT * FROM users WHERE id = 'testudo'",
     ).first();
-    expect(row).toEqual({ picture_url: null, picture_key: null });
+    expect(row).not.toBeNull();
+    expect(
+      Object.keys(row ?? {}).filter((c) => /picture|avatar/.test(c)),
+    ).toEqual([]);
+    expect(JSON.stringify(row)).not.toContain("googleusercontent");
   });
 });
 

@@ -180,8 +180,8 @@ These never refresh sessions or set cookies. For a GET that only reads (like an 
 Terpsicle doesn't collect, store or show profile pictures (the owner, 2026-09-28: "we can just remove any need to support or store them at all"; `docs/decisions.md`). The `profile` scope stays for the name; Google's `picture` claim is dropped with the rest of the token. Everyone is their initials in an ink circle (`Avatar` in `src/features/auth/avatar.tsx`).
 
 Until then, sign-in copied the picture into R2 `USER_CONTENT` at `avatars/<userId>/…` and served it at `/avatars/*`. Now:
-- `/avatars/*` isn't a route, and `users.picture_url` and `picture_key` are always null (migration `0020_no_pictures`, which only nulls them so the build serving during the deploy kept working; a later migration drops them).
-- The daily job deletes what's left under `avatars/`, up to 5,000 objects a run (`sweepLegacyPictures`). Once it's empty in production and preview, that file, its call and the columns go.
+- `/avatars/*` isn't a route, and `users` has no picture columns: `0021_no_pictures` nulled `picture_url` and `picture_key` (only nulled, so the build serving during that deploy kept working), and `0022_drop_unused_columns` dropped them.
+- The daily job deletes what's left under `avatars/`, up to 5,000 objects a run (`sweepLegacyPictures`). Once it's empty in production and preview, that file and its call go.
 
 ## Test mode (PR previews, `pnpm dev:mock`, e2e)
 

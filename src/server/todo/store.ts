@@ -55,8 +55,6 @@ export const TodoItemRowSchema = z.object({
   course_code: CourseCodeSchema.nullable(),
   section_code: SectionCodeSchema.nullable(),
   kind: FeedItemKindSchema,
-  // `exam` and `gradescope` are still columns (DEFAULT 0) but nothing reads
-  // or writes them since v3/todo-calendar (docs/decisions.md).
   due_at: IsoDateTimeSchema.nullable(),
   due_date: IsoDateSchema,
   link: z.string().nullable(),
