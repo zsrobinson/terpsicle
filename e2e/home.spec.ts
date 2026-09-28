@@ -53,7 +53,7 @@ test("signed out in the fall: Spring 2027's plan and problems, and what signing 
   await expect(section(page, "Today")).toContainText(
     "No schedule for Fall 2026 on this device.",
   );
-  const next = section(page, "Spring 2027");
+  const next = section(page, "Spring 2027 Next");
   await expect(next).toContainText("Plan A");
   await expect(next).toContainText("Next");
   await expect(next).toContainText(/\d+ problems?|No problems/);
@@ -85,7 +85,7 @@ test("in the term: what's left of today, with the walk between buildings", async
   await expect(classes).toContainText("CMSC351");
   await expect(classes).toContainText(/min walk from [A-Z]+/);
   // Next is Fall 2027, which the demo has no plan for.
-  await expect(section(page, "Fall 2027")).toContainText(
+  await expect(section(page, "Fall 2027 Next")).toContainText(
     "No plan for Fall 2027 yet.",
   );
 });
@@ -123,6 +123,10 @@ test("signed in: check off something due soon, then Undo", async ({ page }) => {
   await expect(toast).toContainText("done");
   await toast.getByRole("button", { name: "Undo" }).click();
   await expect(box).not.toBeChecked();
+  // Signed in, plans sync: no "on this device" (the date is today's here).
+  await expect(section(page, "Today")).toContainText(
+    /No schedule for \w+ \d{4} yet\.|between semesters/,
+  );
   // Chat's part is there too, signed in.
   await expect(section(page, "Chat")).toBeVisible();
   await expect(section(page, "Sign in for more")).toHaveCount(0);

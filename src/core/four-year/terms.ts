@@ -81,6 +81,20 @@ export function entriesInTerm(
   return doc.entries.filter((e) => e.term === term);
 }
 
+/**
+ * The latest term some entries are in ("Before UMD" only when that's all);
+ * null for none. A phone opens its strip there after an import.
+ */
+export function latestTermOf(
+  entries: Iterable<Pick<FourYearEntry, "term">>,
+): FourYearTerm | null {
+  let latest: FourYearTerm | null = null;
+  for (const { term } of entries)
+    if (latest === null || compareFourYearTerms(term, latest) > 0)
+      latest = term;
+  return latest;
+}
+
 /** The earliest fall or spring among some terms; null when there's none. */
 export function firstSemesterOf(terms: Iterable<FourYearTerm>): TermId | null {
   let first: TermId | null = null;

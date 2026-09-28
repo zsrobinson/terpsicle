@@ -227,6 +227,20 @@ describe("ChatPage", () => {
     expect(screen.getByRole("main")).not.toHaveTextContent(/sync/i);
   });
 
+  it("names the course you came to join while you're signed out", async () => {
+    useAccount.setState({
+      status: "signed-out",
+      flags: { ...FLAGS_OFF, signIn: true, chat: "on" },
+      user: null,
+    });
+    await page({ term: "202701", course: "CMSC351", join: 1 });
+    expect(
+      screen.getByText(
+        "Talk with the people in CMSC351 and your other classes. Sign in to join its room.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("says so, quietly, while Chat is off", async () => {
     useAccount.setState({ status: "signed-out", flags: FLAGS_OFF, user: null });
     await page();

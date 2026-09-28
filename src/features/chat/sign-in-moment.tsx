@@ -1,5 +1,6 @@
 import { Mark } from "~/app/brand/mark";
 import { SCHEDULE_PATH } from "~/core/routing";
+import type { CourseCode } from "~/core/schema";
 import { useSignInAction } from "~/features/auth/sign-in-panel";
 import { EmptyState } from "~/ui/empty-state";
 import { PageSection } from "~/ui/page-section";
@@ -16,7 +17,14 @@ export const CHAT_SIGN_IN_POINTS = [
   "A person reads anything that's reported.",
 ] as const;
 
-export function SignInMoment({ returnTo }: { returnTo: string }) {
+export function SignInMoment({
+  returnTo,
+  course,
+}: {
+  returnTo: string;
+  /** The course you came to join ("Join CMSC351 chat"), if any. */
+  course?: CourseCode;
+}) {
   const signIn = useSignInAction(returnTo, "chat");
   return (
     <ProductPage width="note">
@@ -24,7 +32,11 @@ export function SignInMoment({ returnTo }: { returnTo: string }) {
         headingLevel={1}
         mark={<Mark id="chat" size={40} />}
         title="A chat room for every class"
-        line="Talk with the people in your classes. Sign in to see your rooms."
+        line={
+          course
+            ? `Talk with the people in ${course} and your other classes. Sign in to join its room.`
+            : "Talk with the people in your classes. Sign in to see your rooms."
+        }
         primary={signIn}
       />
       <PageSection title="Before you sign in" className="mt-4">

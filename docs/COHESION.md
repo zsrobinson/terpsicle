@@ -130,7 +130,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
   - one list row;
   - card versus section;
   - one inline error with Try again;
-  - a footer only on note and reading pages.
+  - a footer only on note and reading pages, and on a product's signed-out front door, which is read like one (Chat's, Plan's and Todo's, though Todo's sample week takes the app width). Home is an app page: no footer.
 - **Plan moves onto the scheduler's workbench** (rail, sidebar, canvas; the same drawer on phones). All three directions shared this. Built in `v3/plan-workbench`: the workbench's pieces are `src/app/workbench`, and Plan's views are routes (`/plan`, `/plan/search`, …).
 
 ## 5. How we work on this

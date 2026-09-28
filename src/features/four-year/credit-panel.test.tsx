@@ -124,6 +124,15 @@ describe("CreditPanel", () => {
     expect(canUndo(useFourYear.getState().history)).toBe(true);
   });
 
+  it('says what Testudo listed once: no "came in as" note under it', () => {
+    open([chem], <CreditPanel entryId="entry_chem" />);
+    expect(screen.getByText(/Testudo lists it as/)).toHaveTextContent(
+      "Testudo lists it as CHEM1XX",
+    );
+    expect(screen.queryByText(/came in as/)).toBeNull();
+    expect(screen.queryByText("Worth knowing")).toBeNull();
+  });
+
   it("finds a course by typing, and Enter picks the top one", async () => {
     const user = open([chem], <CreditPanel entryId="entry_chem" />);
     const field = screen.getByLabelText("Counts as");

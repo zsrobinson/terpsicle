@@ -173,6 +173,12 @@ describe("who's looking", () => {
     // A picture: nothing in it can be pressed.
     expect(screen.queryByRole("checkbox")).toBeNull();
     expect(client.list).not.toHaveBeenCalled();
+    // A page you read, like Chat's and Plan's front doors: the footer.
+    const footer = screen.getByRole("contentinfo");
+    expect(within(footer).getByRole("link", { name: "Privacy" })).toBeVisible();
+    expect(
+      within(footer).getByRole("link", { name: "About Terpsicle" }),
+    ).toBeVisible();
   });
 
   it("says it's coming when Todo is off", async () => {

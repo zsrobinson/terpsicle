@@ -19,6 +19,7 @@ import {
   fourYearTermLabel,
   fourYearTermShortLabel,
   isSemester,
+  latestTermOf,
   nextSemester,
   previousSemester,
   semesterIds,
@@ -170,5 +171,23 @@ describe("labels and defaults", () => {
     expect(defaultTargetTerm(columns, statusResolver("2035-01-01", []))).toBe(
       "203001",
     );
+  });
+});
+
+describe("latestTermOf", () => {
+  it("is the latest term the entries are in, for a phone's strip after an import", () => {
+    expect(
+      latestTermOf([
+        aFourYearEntry({ term: "202408" }),
+        aFourYearEntry({ term: "202501" }),
+        aFourYearEntry({ term: "before" }),
+        aFourYearEntry({ term: "202412" }),
+      ]),
+    ).toBe("202501");
+  });
+
+  it("is Before UMD when that's all there is, and null for nothing", () => {
+    expect(latestTermOf([aFourYearEntry({ term: "before" })])).toBe("before");
+    expect(latestTermOf([])).toBeNull();
   });
 });

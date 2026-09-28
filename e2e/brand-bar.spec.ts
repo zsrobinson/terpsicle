@@ -39,6 +39,7 @@ test("the bar says Early access, and the product menu says why", async ({
   await page.goto("/reviews");
   await hydrated(page);
   const chip = bar(page).getByTestId("early-access").filter({ visible: true });
+  if (!isMobile) await page.setViewportSize({ width: 1600, height: 900 });
   if (isMobile) {
     // A phone's bar keeps the room; the product menu says it.
     await expect(chip).toHaveCount(0);
@@ -85,6 +86,44 @@ test("the coffee button opens its note and links out", async ({
   );
   await expect(link).toHaveAttribute("target", "_blank");
   await expect(link).toHaveAttribute("rel", /noopener/);
+});
+
+test("below 1536px no bar shows the chip, so the product tabs sit in the same place on every product", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "the phone bar folds the tabs into the product menu");
+  const tabsLeft = async () => {
+    const box = await bar(page)
+      .getByRole("navigation", { name: "Products" })
+      .boundingBox();
+    return box?.x;
+  };
+  for (const width of [1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const lefts: (number | undefined)[] = [];
+    for (const path of ["/schedule?demo=1", "/reviews", "/plan", "/todo"]) {
+      await page.goto(path);
+      await hydrated(page);
+      await expect(
+        bar(page).getByTestId("early-access").filter({ visible: true }),
+      ).toHaveCount(0);
+      lefts.push(await tabsLeft());
+    }
+    expect(new Set(lefts).size, `tabs at ${width}px: ${lefts}`).toBe(1);
+  }
+  // From 1536px the chip's back beside the wordmark, on every bar alike.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const lefts: (number | undefined)[] = [];
+  for (const path of ["/schedule?demo=1", "/reviews"]) {
+    await page.goto(path);
+    await hydrated(page);
+    await expect(
+      bar(page).getByTestId("early-access").filter({ visible: true }),
+    ).toHaveCount(1);
+    lefts.push(await tabsLeft());
+  }
+  expect(new Set(lefts).size, `tabs at 1600px: ${lefts}`).toBe(1);
 });
 
 test("below 1536px the scheduler's bar gives its plans the room: the coffee link is in the menu", async ({

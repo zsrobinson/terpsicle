@@ -113,6 +113,14 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
     gened.getByRole("listitem").filter({ hasText: "Humanities" }),
   ).toContainText("Done");
 
+  // A phone opens on the latest semester that came in, not Now's empty one.
+  if (isMobile)
+    await expect(
+      page
+        .getByRole("navigation", { name: "Semesters" })
+        .getByRole("button", { name: /^Summer 2025/ }),
+    ).toHaveAttribute("aria-current", "true");
+
   const fall = await semester(page, isMobile, "Fall 2024");
   await expect(fall.getByText("CMSC131")).toBeVisible();
   await expect(fall.getByText("CMSC100")).toHaveCount(0);

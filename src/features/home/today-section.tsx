@@ -32,6 +32,7 @@ export function TodaySection({
   now,
   calendars,
   campus,
+  signedIn,
 }: {
   clock: HomeClock;
   local: HomeLocal | null;
@@ -39,6 +40,8 @@ export function TodaySection({
   now: TermId | null;
   calendars: readonly AcademicCalendar[];
   campus: CampusMap | null;
+  /** Signed in, plans sync: "on this device" would undersell them. */
+  signedIn: boolean;
 }) {
   const plan =
     local && now ? mainPlanFor(now, local.plans, local.mainPlans) : null;
@@ -60,6 +63,7 @@ export function TodaySection({
           calendar={calendars.find((c) => c.termId === now) ?? null}
           campus={campus}
           travel={local.travel}
+          signedIn={signedIn}
         />
       )}
     </HomeSection>
@@ -73,6 +77,7 @@ function TodayBody({
   calendar,
   campus,
   travel,
+  signedIn,
 }: {
   clock: HomeClock;
   plan: Plan | null;
@@ -80,14 +85,15 @@ function TodayBody({
   calendar: AcademicCalendar | null;
   campus: CampusMap | null;
   travel: HomeLocal["travel"];
+  signedIn: boolean;
 }) {
   if (now === null)
     return <HomeNote>No classes today: it's between semesters.</HomeNote>;
   if (plan === null)
     return (
       <HomeNote>
-        No schedule for {termLabel(now)} on this device. Add your classes in
-        Schedule to see them here.
+        No schedule for {termLabel(now)} {signedIn ? "yet" : "on this device"}.
+        Add your classes in Schedule to see them here.
       </HomeNote>
     );
   const day: ClassDay = classesOn(
