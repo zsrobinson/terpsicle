@@ -22,7 +22,7 @@ import {
   aTermsFile,
   fixtureTermId,
 } from "~/fixtures";
-import { type CatalogEvent, useCatalog } from "./catalog-store";
+import { type CatalogEvent, termsSettled, useCatalog } from "./catalog-store";
 import { createMemoryCache, SCHEMA_VERSIONS_KEY } from "./data-cache";
 import { useCatalogPolling, useSeatsFreshness } from "./data-hooks";
 import {
@@ -590,5 +590,60 @@ describe("no cache", () => {
     await waitFor(() =>
       expect(useCatalog.getState().byTerm[ACTIVE]?.complete).toBe(true),
     );
+  });
+});
+
+describe("termsSettled", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Whether the promise has resolved yet, read after a timer step. */
+  const settledYet = (promise: Promise<void>) => {
+    let done = false;
+    void promise.then(() => {
+      done = true;
+    });
+    return () => done;
+  };
+
+  it("waits for the term list to load, then for the render after", async () => {
+    vi.useFakeTimers();
+    useCatalog.setState({ termsState: "loading" });
+    const done = settledYet(termsSettled(10_000));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(done()).toBe(false);
+    useCatalog.setState({ termsState: "ready" });
+    expect(done()).toBe(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(done()).toBe(true);
+  });
+
+  it("goes ahead when the list fails", async () => {
+    vi.useFakeTimers();
+    useCatalog.setState({ termsState: "loading" });
+    const done = settledYet(termsSettled(10_000));
+    useCatalog.setState({ termsState: "error" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(done()).toBe(true);
+  });
+
+  it("goes ahead after its time anyway", async () => {
+    vi.useFakeTimers();
+    useCatalog.setState({ termsState: "loading" });
+    const done = settledYet(termsSettled(10_000));
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(done()).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.runOnlyPendingTimersAsync();
+    expect(done()).toBe(true);
+  });
+
+  it("goes ahead at once when the list is already there", async () => {
+    vi.useFakeTimers();
+    useCatalog.setState({ termsState: "ready" });
+    const done = settledYet(termsSettled(10_000));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(done()).toBe(true);
   });
 });

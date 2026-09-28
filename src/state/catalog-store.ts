@@ -943,3 +943,32 @@ export const useCatalog = create<CatalogState>()((set, get) => {
 
 /** Department of a course code (DATA.md §1). */
 export const deptOf = (code: CourseCode): DeptCode => code.slice(0, 4);
+
+/** How long anything waiting on the term list waits before going ahead. */
+export const TERMS_SETTLE_MS = 10_000;
+
+/**
+ * Resolves once the term list has loaded or failed, or after `ms` anyway,
+ * then once more after the render that follows (a macrotask), so effects
+ * that need a term have run: a first visit's Plan A is made only once a term
+ * is known (`useDefaultPlan`).
+ */
+export function termsSettled(ms: number = TERMS_SETTLE_MS): Promise<void> {
+  const settled = () => {
+    const { termsState } = useCatalog.getState();
+    return termsState === "ready" || termsState === "error";
+  };
+  return new Promise<void>((resolve) => {
+    let stop = () => {};
+    const done = () => {
+      clearTimeout(timer);
+      stop();
+      setTimeout(resolve, 0);
+    };
+    const timer = setTimeout(done, ms);
+    if (settled()) return done();
+    stop = useCatalog.subscribe(() => {
+      if (settled()) done();
+    });
+  });
+}
