@@ -15,7 +15,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { moveEntry } from "./actions";
 import { ENTRY_DRAG_TYPE, EntryBlock } from "./block";
 import { ViewSchedule, ViewTodos } from "./column-links";
-import { useModel, usePlanNav } from "./model";
+import { useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 
 // The semesters (V3 §2.13), the workbench's canvas. Desktop: "Before UMD"
@@ -131,7 +131,9 @@ export function TermColumn({
 }) {
   const { doc, statusOf, summaries, handoffTerm } = useModel();
   const nav = usePlanNav();
-  const { over, handlers } = useDrop(term);
+  const readOnly = usePlanReadOnly();
+  const drop = useDrop(term);
+  const { over, handlers } = readOnly ? { over: false, handlers: {} } : drop;
   const entries = entriesInTerm(doc, term);
   const status = statusOf(term);
   const summary = summaries.get(term);
@@ -176,11 +178,21 @@ export function TermColumn({
           <EntryBlock key={entry.id} entry={entry} status={status} />
         ))}
       </ul>
-      <div className="p-1.5 pt-1">
-        <AddButton term={term} />
-      </div>
-      {term === handoffTerm ? <ViewSchedule termId={term} /> : null}
-      {status === "in-progress" ? <ViewTodos /> : null}
+      {readOnly ? (
+        entries.length === 0 ? (
+          <p className="px-2 pb-2 text-faint text-sm">No courses yet</p>
+        ) : (
+          <div className="pb-1.5" />
+        )
+      ) : (
+        <>
+          <div className="p-1.5 pt-1">
+            <AddButton term={term} />
+          </div>
+          {term === handoffTerm ? <ViewSchedule termId={term} /> : null}
+          {status === "in-progress" ? <ViewTodos /> : null}
+        </>
+      )}
     </section>
   );
 }
@@ -189,7 +201,9 @@ export function TermColumn({
 function BeforeRow() {
   const { doc, summaries } = useModel();
   const nav = usePlanNav();
-  const { over, handlers } = useDrop("before");
+  const readOnly = usePlanReadOnly();
+  const drop = useDrop("before");
+  const { over, handlers } = readOnly ? { over: false, handlers: {} } : drop;
   const entries = entriesInTerm(doc, "before");
   const summary = summaries.get("before");
   const picked =
@@ -224,8 +238,10 @@ function BeforeRow() {
               <EntryBlock key={entry.id} entry={entry} status="done" />
             ))}
           </ul>
+        ) : readOnly ? (
+          <p className="px-0.5 pb-0.5 text-faint text-sm">None</p>
         ) : null}
-        <AddButton term="before" compact />
+        {readOnly ? null : <AddButton term="before" compact />}
       </div>
     </section>
   );

@@ -44,3 +44,13 @@ export const PlanSearchSchema = z.object({
   q: param(z.string().max(100)),
 });
 export type PlanSearch = z.infer<typeof PlanSearchSchema>;
+
+/**
+ * `/plan/shared?plan=1.…`: a four-year plan someone shared, read-only
+ * (DATA.md §8.2). The value is checked by its codec, which says what's wrong
+ * with a bad one, so here it's only text of a sane length.
+ */
+export const PlanSharedSearchSchema = z.object({
+  plan: param(z.string().min(1).max(12_000)),
+});
+export type PlanSharedSearch = z.infer<typeof PlanSharedSearchSchema>;

@@ -2,8 +2,19 @@ import "fake-indexeddb/auto";
 import Dexie from "dexie";
 import { afterEach, describe, expect, it } from "vitest";
 import { LOCAL_DB_VERSION } from "~/core/schema";
-import { aBlock, aFourYear, aPlan } from "~/fixtures";
-import { DB_V1_STORES, TerpsicleDb } from "./db";
+import {
+  aBlock,
+  aFourYear,
+  aPlan,
+  aPlanCourse,
+  aSavedCourse,
+} from "~/fixtures";
+import {
+  DB_V1_STORES,
+  LEGACY_CHECKLIST_KEY,
+  registeredFromChecklist,
+  TerpsicleDb,
+} from "./db";
 import { hydrate } from "./persist";
 import { resetStores } from "./testing";
 import { useWorkspace } from "./workspace-store";
@@ -197,7 +208,7 @@ describe("Dexie v4", () => {
 
     const db = new TerpsicleDb(name);
     await db.open();
-    expect(db.verno).toBe(4);
+    expect(db.verno).toBe(LOCAL_DB_VERSION);
     expect(await db.settings.get("sync")).toEqual({
       key: "sync",
       value: { userId: "u_1", cursor: 0 },
@@ -210,6 +221,99 @@ describe("Dexie v4", () => {
       inFlight: false,
     });
     expect(await db.syncDocs.count()).toBe(1);
+    db.close();
+  });
+});
+
+// Dexie v4 → v5 (Registered): the Register tab's ticks leave localStorage
+// for each plan's `registered`, and a synced plan they change is unsaved.
+describe("Dexie v5", () => {
+  afterEach(async () => {
+    await Dexie.delete(name);
+  });
+
+  const placed = aPlan({
+    id: "planAAAA",
+    courses: [
+      aPlanCourse({ courseCode: "CMSC351", sectionCode: "0101" }),
+      aPlanCourse({ courseCode: "ENGL393", sectionCode: "0312" }),
+      aSavedCourse("MUSC130"),
+    ],
+  });
+
+  async function seedV4(): Promise<void> {
+    const v4 = new Dexie(name);
+    v4.version(1).stores(DB_V1_STORES);
+    v4.version(2).stores({ syncDocs: "key", seatAlerts: null });
+    v4.version(3).stores({ fourYear: "id" });
+    v4.version(4).stores({});
+    await v4.open();
+    await v4
+      .table("plans")
+      .bulkPut([placed, aPlan({ id: "planBBBB", name: "Plan B", order: 1 })]);
+    await v4.table("syncDocs").bulkPut([
+      { key: "plan:planAAAA", rev: 7, dirty: false, inFlight: false },
+      { key: "plan:planBBBB", rev: 3, dirty: false, inFlight: false },
+    ]);
+    v4.close();
+  }
+
+  /** A localStorage with `ticks` saved the way the old checklist did. */
+  function storage(ticks: unknown) {
+    const items = new Map([[LEGACY_CHECKLIST_KEY, JSON.stringify(ticks)]]);
+    return {
+      getItem: (key: string) => items.get(key) ?? null,
+      removeItem: (key: string) => void items.delete(key),
+      items,
+    };
+  }
+
+  /** The current database, upgraded with `local` as its localStorage. */
+  class WithStorage extends TerpsicleDb {
+    constructor(dbName: string, local: ReturnType<typeof storage>) {
+      super(dbName);
+      this.version(LOCAL_DB_VERSION)
+        .stores({})
+        .upgrade(registeredFromChecklist(local));
+    }
+  }
+
+  it("moves the ticks into the plans and marks them unsaved", async () => {
+    name = `v5-${++count}`;
+    await seedV4();
+    const local = storage({
+      // A switched section's tick and an unknown plan's are dropped.
+      planAAAA: ["ENGL393-0312", "CMSC351-0101", "CMSC351-0201"],
+      planZZZZ: ["CMSC351-0101"],
+    });
+    const db = new WithStorage(name, local);
+    await db.open();
+    expect(db.verno).toBe(LOCAL_DB_VERSION);
+    expect((await db.plans.get("planAAAA"))?.registered).toEqual([
+      "ENGL393-0312",
+      "CMSC351-0101",
+    ]);
+    expect(await db.plans.get("planBBBB")).not.toHaveProperty("registered");
+    expect(await db.syncDocs.get("plan:planAAAA")).toMatchObject({
+      rev: 7,
+      dirty: true,
+    });
+    expect(await db.syncDocs.get("plan:planBBBB")).toMatchObject({
+      dirty: false,
+    });
+    expect(local.items.has(LEGACY_CHECKLIST_KEY)).toBe(false);
+    db.close();
+  });
+
+  it("upgrades with no ticks, or ones that don't read", async () => {
+    name = `v5-${++count}`;
+    await seedV4();
+    const db = new WithStorage(name, storage("not a checklist"));
+    await db.open();
+    expect(await db.plans.get("planAAAA")).toEqual(placed);
+    expect(await db.syncDocs.get("plan:planAAAA")).toMatchObject({
+      dirty: false,
+    });
     db.close();
   });
 });

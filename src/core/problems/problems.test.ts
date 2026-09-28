@@ -427,10 +427,7 @@ describe("section problems", () => {
     const courses = [placed(mine, "0101"), placed(other, "0101")];
     const fixes = (registered: string[]) =>
       planProblems(
-        input(
-          [mine, other],
-          aPlan({ termId: TERM, courses, registered }),
-        ),
+        input([mine, other], aPlan({ termId: TERM, courses, registered })),
       )
         .filter((p) => p.kind === "overlap")
         .map((p) => p.fix?.sectionKey ?? null);

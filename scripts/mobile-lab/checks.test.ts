@@ -112,7 +112,7 @@ describe("stepChecks", () => {
 
   it("needs every rail tab on screen or scrollable to", () => {
     const rail = (scrolls: boolean) => ({
-      cut: ["Generate", "Export"],
+      cut: ["Generate", "Register"],
       scrolls,
     });
     expect(failed(aProbe({ rail: rail(false) }))).toContain(

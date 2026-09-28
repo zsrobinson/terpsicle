@@ -1,11 +1,11 @@
 import {
   CircleAlert,
+  ClipboardCheck,
   Layers,
   LayoutList,
   type LucideIcon,
   Route,
   Search,
-  Share2,
   Square,
 } from "lucide-react";
 import type { RailTab } from "~/core/schema";
@@ -26,7 +26,9 @@ export const TABS: readonly Tab[] = [
   { id: "travel", label: "Travel", icon: Route, shortcut: "4" },
   { id: "blocks", label: "Blocks", icon: Square, shortcut: "5" },
   { id: "generate", label: "Generate", icon: Layers, shortcut: "6" },
-  { id: "export", label: "Export", icon: Share2, shortcut: "7" },
+  // Export until 2026-09-28: sharing moved to the Share button over the
+  // calendar, and what's left is registration day's checklist.
+  { id: "register", label: "Register", icon: ClipboardCheck, shortcut: "7" },
 ];
 
 export function tabById(id: RailTab): Tab {

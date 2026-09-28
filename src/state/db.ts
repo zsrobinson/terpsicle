@@ -4,11 +4,13 @@ import {
   type CachedFile,
   type CachedManifest,
   type CourseColorPref,
+  LegacyChecklistSchema,
   LOCAL_DB_NAME,
   LOCAL_DB_VERSION,
   type LocalSyncDoc,
   LocalSyncMetaSchema,
   type Plan,
+  PlanSchema,
   type SettingsRow,
 } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
@@ -64,6 +66,71 @@ export async function resetPullCursor(tx: Transaction): Promise<void> {
     await settings.put({ key: "sync", value: { ...meta.data, cursor: 0 } });
 }
 
+/**
+ * Where the Register tab kept its ticks before they were part of the plan
+ * (`{planId: sectionKey[]}` in localStorage, one browser only).
+ */
+export const LEGACY_CHECKLIST_KEY = "terpsicle:registration-checklist";
+
+function readLegacyChecklist(
+  storage: Pick<Storage, "getItem"> | null,
+): Record<string, string[]> {
+  try {
+    const raw = storage?.getItem(LEGACY_CHECKLIST_KEY);
+    const parsed = LegacyChecklistSchema.safeParse(raw ? JSON.parse(raw) : {});
+    return parsed.success ? parsed.data : {};
+  } catch {
+    return {};
+  }
+}
+
+function browserStorage(): Storage | null {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Version 5 (Registered, 2026-09-28): the Register tab's ticks move from
+ * this browser's localStorage into each plan's `registered`, so they sync
+ * and count for Problems. Ticks for sections a plan no longer has are
+ * dropped. A signed-in device marks each changed plan unsaved, so its next
+ * sync pushes the marks. Nothing else changes shape.
+ */
+export function registeredFromChecklist(
+  storage: Pick<Storage, "getItem" | "removeItem"> | null = browserStorage(),
+): (tx: Transaction) => Promise<void> {
+  return async (tx) => {
+    const ticks = readLegacyChecklist(storage);
+    for (const [planId, keys] of Object.entries(ticks)) {
+      const row: unknown = await tx.table("plans").get(planId);
+      const plan = PlanSchema.safeParse(row);
+      if (!plan.success || keys.length === 0) continue;
+      const placed = new Set(
+        plan.data.courses.flatMap((c) =>
+          c.sectionCode === null ? [] : [`${c.courseCode}-${c.sectionCode}`],
+        ),
+      );
+      const registered = [
+        ...new Set([...(plan.data.registered ?? []), ...keys]),
+      ].filter((k) => placed.has(k));
+      if (registered.length === 0) continue;
+      await tx.table("plans").put({ ...plan.data, registered });
+      const syncKey = `plan:${planId}`;
+      const flags: unknown = await tx.table("syncDocs").get(syncKey);
+      if (typeof flags === "object" && flags !== null)
+        await tx.table("syncDocs").put({ ...flags, dirty: true });
+    }
+    try {
+      storage?.removeItem(LEGACY_CHECKLIST_KEY);
+    } catch {
+      // Blocked storage: the stale ticks stay, and nothing reads them.
+    }
+  };
+}
+
 export class TerpsicleDb extends Dexie {
   plans!: EntityTable<Plan, "id">;
   blocks!: EntityTable<Block, "id">;
@@ -81,7 +148,10 @@ export class TerpsicleDb extends Dexie {
     this.version(2).stores(V2_CHANGES);
     this.version(3).stores(V3_CHANGES).upgrade(resetPullCursor);
     // Version 4 (four-year sync, V3 §2.13): no table changes.
-    this.version(LOCAL_DB_VERSION).stores({}).upgrade(resetPullCursor);
+    this.version(4).stores({}).upgrade(resetPullCursor);
+    this.version(LOCAL_DB_VERSION)
+      .stores({})
+      .upgrade(registeredFromChecklist());
   }
 }
 

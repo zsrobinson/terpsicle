@@ -46,7 +46,7 @@ import {
   setCredits,
   setGenEdChoice,
 } from "./actions";
-import { useModel, usePlanNav } from "./model";
+import { useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 
 // A block: one course, placeholder or transfer credit in a semester (V3
@@ -358,7 +358,9 @@ export function EntryBlock({
 }) {
   const { doc, lookup, genEds, problemsByEntry } = useModel();
   const nav = usePlanNav();
-  const problems = problemsByEntry.get(entry.id) ?? [];
+  const readOnly = usePlanReadOnly();
+  // A shared plan's reader has no Problems view to say what an inset means.
+  const problems = readOnly ? [] : (problemsByEntry.get(entry.id) ?? []);
   const credits = entryCredits(entry, lookup);
   const known =
     entry.kind !== "course" ||
@@ -432,6 +434,27 @@ export function EntryBlock({
       : entry.kind === "wildcard"
         ? `Pick a course for ${entryName(entry)}`
         : entry.title;
+
+  if (readOnly)
+    return (
+      <li
+        data-entry-id={entry.id}
+        className={cn(
+          "space-y-0.5 border px-2 py-1.5",
+          entry.kind === "wildcard"
+            ? "border-hairline-strong border-dashed"
+            : "border-hairline",
+          done ? "text-muted" : "bg-raised",
+        )}
+      >
+        {main}
+        {entry.kind === "course" ? (
+          <Chips picks={genEds.picks.get(entry.id) ?? []} />
+        ) : entry.kind === "credit" ? (
+          <CodeChips codes={entry.genEds} />
+        ) : null}
+      </li>
+    );
 
   return (
     <li

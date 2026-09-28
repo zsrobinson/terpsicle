@@ -28,7 +28,7 @@ function since(watch: SeatWatch): string {
 /**
  * The list itself; null until it has loaded. `termId`: the term on screen,
  * whose watches don't repeat its name. Its rows are flush: the list's
- * `className` sets the inset (Export's panel gives it `px-4`).
+ * `className` sets the inset (Register's panel gives it `px-4`).
  */
 export function WatchingList({
   termId,

@@ -24,7 +24,7 @@ test("the dev server has compiled the scheduler, its views and the marketing pag
     "travel",
     "blocks",
     "generate",
-    "export",
+    "register",
     "course/CMSC351",
   ]) {
     await page.goto(`/schedule/${view}?demo=1`);

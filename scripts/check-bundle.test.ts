@@ -75,7 +75,7 @@ describe("bundle check", () => {
           "src/core/search/filters.ts",
           "src/app/drawer-heights.ts",
           "src/features/generate/generate-panel.tsx",
-          "src/features/export/export-panel.tsx",
+          "src/features/register/register-panel.tsx",
           "src/core/ics/ics.ts",
           "src/core/search/search.ts",
           "node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",
@@ -89,7 +89,7 @@ describe("bundle check", () => {
       ),
     ).toEqual([
       "assets/s.js: src/features/generate/generate-panel.tsx",
-      "assets/s.js: src/features/export/export-panel.tsx",
+      "assets/s.js: src/features/register/register-panel.tsx",
       "assets/s.js: src/core/ics/ics.ts",
       "assets/s.js: src/core/search/search.ts",
       "assets/s.js: node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",

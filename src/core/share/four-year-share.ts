@@ -1,9 +1,9 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from "fflate";
 import type { IsoDateTime, LocalId, TermId } from "../schema";
-import {
-  type FourYearDoc,
-  type FourYearEntry,
-  type FourYearTerm,
+import type {
+  FourYearDoc,
+  FourYearEntry,
+  FourYearTerm,
 } from "../schema/four-year";
 import {
   type FourYearShareEntryV1,
@@ -95,8 +95,11 @@ function entryToV1(entry: SharedEntry): FourYearShareEntryV1 {
 
 function toV1(share: FourYearShare): FourYearShareV1 {
   const t: Record<string, FourYearShareEntryV1[]> = {};
-  for (const entry of share.entries)
-    (t[entry.term] ??= []).push(entryToV1(entry));
+  for (const entry of share.entries) {
+    const list = t[entry.term] ?? [];
+    list.push(entryToV1(entry));
+    t[entry.term] = list;
+  }
   return {
     n: share.name,
     f: share.firstTermId,
@@ -172,13 +175,14 @@ function fromV1(v1: FourYearShareV1): FourYearShare {
  * One decoder per version this build reads, each turning its wire JSON into
  * today's `FourYearShare`. Never remove one: links live in advisors' inboxes.
  */
-const DECODERS: Readonly<Record<number, (json: unknown) => FourYearShare | null>> =
-  {
-    1: (json) => {
-      const parsed = FourYearShareV1Schema.safeParse(json);
-      return parsed.success ? fromV1(parsed.data) : null;
-    },
-  };
+const DECODERS: Readonly<
+  Record<number, (json: unknown) => FourYearShare | null>
+> = {
+  1: (json) => {
+    const parsed = FourYearShareV1Schema.safeParse(json);
+    return parsed.success ? fromV1(parsed.data) : null;
+  },
+};
 
 /** Reads a four-year link's `plan` value; a typed error the page can show when it isn't one. */
 export function decodeFourYearShare(param: string): FourYearShareDecodeResult {
@@ -214,10 +218,12 @@ export function fourYearDocFromShare(
     id,
     name: share.name,
     firstTermId: share.firstTermId,
-    entries: share.entries.map((entry): FourYearEntry => ({
-      ...entry,
-      id: newId(),
-    })),
+    entries: share.entries.map(
+      (entry): FourYearEntry => ({
+        ...entry,
+        id: newId(),
+      }),
+    ),
     grades: {},
     template: share.template,
     createdAt: now,

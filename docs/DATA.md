@@ -257,7 +257,9 @@ The hourly `reviews-publish` job (`37 * * * *`, `src/jobs/reviews-publish.ts`) p
 
 ## 5. Browser state (IndexedDB via Dexie)
 
-Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 4.
+Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 5.
+
+**Version 5** (Registered, landed with `v2/share-and-checklist`; `src/state/db.ts`): no table changes. Plans gain an optional `registered` (the section keys marked Registered in the Register tab, SPEC §3.10). `registeredFromChecklist` moves the old checklist's ticks from localStorage (`terpsicle:registration-checklist`, `{planId: sectionKey[]}`, one browser only) into each plan's `registered`, keeping only sections the plan still has; on a signed-in device it marks each plan it changed unsaved (its `syncDocs` row `dirty`), so the next sync pushes the marks; then it deletes the localStorage key. `src/state/db.test.ts` upgrades a v4 database.
 
 **Version 4** (four-year sync, landed with `v3/four-year-sync`; `src/state/db.ts`): no table changes. `resetPullCursor` sets a signed-in device's pull cursor back to 0 once more, so it pulls the four-year docs a tab skipped between version 3 and the engine that carries them (`docs/V3.md` §2.13). `syncDocs` keys gain `four-year:<id>`.
 
@@ -282,6 +284,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 4.
   - `sectionCode: null` means bookmarked (the UI's word; "saved for later" before 2026-09-26), per plan.
   - A placed course stores `snapshot` (instructors, delivery, meetings, dates) taken when it was placed, or switched, or when a "changed" problem's "Keep new times" fix is applied. `core/catalog` compares it with the live catalog.
   - `order` sorts plan tabs within a term.
+  - `registered` (optional) lists the placed sections marked Registered, by section key, at most 40 and each once. Absent when none are (and in plans from before version 5). A key whose section the plan no longer has is dropped the next time a mark changes (`section/registered` in `core/plans`); until then nothing reads it. It's part of the plan: undoable, synced, copied by Duplicate, and counted as work in a sync conflict. Share links don't carry it.
 - **Blocks are per term, not per plan.**
   - Blocks describe the person's week (work, practice, lunch), not a choice between schedules. The generator runs outside any plan (SPEC §3.9), and "Respect my blocks" needs one unambiguous set; so do "Fits my plan" and Problems across tabs.
   - Per-plan blocks would also have to be copied on Duplicate, Generate and Save a copy, and would drift apart.
@@ -706,6 +709,26 @@ At most 40 entries per list, and one entry per course across `sections` and `sav
 - **Save a copy** makes a new plan in `termId` with fresh snapshots from the current catalog. It doesn't import the blocks (yours are per term) or the colors (yours are global).
 - Section keys missing from the catalog show up as cancelled problems in the shared view and are dropped on Save a copy, with a toast that names them.
 - The codec lives in `core/share`. A version the client doesn't know gets a specific error ("This link was made by a newer version of Terpsicle. Reload to open it.").
+- The link is made by the Share button over the calendar (SPEC §3.11), from the plan on screen.
+
+### 8.2 Four-year share links
+
+`/plan/shared?plan=<v>.<base64url(deflate-raw(UTF-8 JSON))>` (`docs/V3.md` §2.14). Unlike the scheduler's links, the version is a prefix outside the compressed part (`FOUR_YEAR_SHARE_VERSION`, now `1`), so a build can tell a newer link apart without inflating it, and each version has its own wire schema (`src/core/schema/four-year-share.ts`) and decoder (`src/core/share/four-year-share.ts`) that upgrades it to today's shape. A version's schema never changes once shipped; a new one adds a schema and a decoder beside it. `four-year-share.test.ts` keeps a real v1 link decoding.
+
+Version 1's JSON, with short keys and defaults left out:
+
+```
+{ "n": "Computer Science", "f": "202608", "p": {id, department, year}?,
+  "t": { "before": [{"a": "CHEM 1XX", "cr": 4, "g": ["DSNL"]}],
+         "202608": [{"c": "CMSC131", "s": "p"}, {"c": "HIST200", "g": {"0": "DSHS"}}],
+         "202701": [{"w": {"kind": "gen-ed", "code": "DSHU"}, "cr": 3}] } }
+```
+
+- `t` holds each term's entries in column order; a course is `c` (code) with `cr` (credits, only when the doc sets them), `g` (its "or" GenEd picks), `d` (course info for a code Testudo doesn't list), `x` (the transcript's `{t: title, v: via}`) and `s` (`x` transcript, `p` sample plan; typed when absent); a placeholder is `w` and `cr`; AP or transfer credit is `a`, `cr` and `g`, before UMD only.
+- **Never in a link:** grades (V3 §2.5), entry ids and timestamps. Opening one makes a read-only doc with ids for that page; Save a copy makes a new doc with fresh ids.
+- At most 150 entries (a doc's limit) and 12,000 characters; a typical eight-semester plan is about 450.
+- Errors are the scheduler's: damaged ("This share link is incomplete or damaged. Ask for the link again.") or newer (with Reload).
+- Analytics scrub `plan` to `plan=shared` on every path, this one included.
 
 ### 8.1 The scheduler's URLs
 

@@ -212,6 +212,31 @@ Revisit if: the marketing page gets something returning people need.
 A dismissible dialog after the first sign-in, joining a chat or turning on a watch; remembered, with a long cooldown, never a banner, never when installed.
 Revisit if: it annoys people.
 
+### Share is a button over the canvas, not a tab row
+2026-09-28 · owner · one feature
+Sharing moves out of the Export tab to an outlined "Share" button at the top left of the calendar (Plan's semesters too), opening a popover with the link, Copy link and a note that the link is a copy held in the URL. The owner: "[icon Share] … opens a popover thing right below it". It sits in a canvas bar the calendar's hints share, not in the family bar (agent's placement), and on phones it's the icon alone so the hints still fit.
+Revisit if: people don't find it, or the family bar gets a slot for product actions.
+
+### Export is now Register
+2026-09-28 · agent · one feature
+With Share gone, the tab is registration day's checklist (the owner: "the registration/alerts checklist"), so it's "Register", `/schedule/register`, id `register`. Saved prefs and old links saying `export` read as `register`, and `/schedule/export` redirects. The .ics stays, as its second part.
+Revisit if: the tab grows past registration.
+
+### Registered is part of the plan
+2026-09-28 · owner · one feature
+A section marked Registered isn't a problem for being full, nearly full or restricted (the owner: "we report it as a problem for a section being full, even though we're actually registered for it"), and a fix never switches it away. It's the plan's `registered`, synced and undoable, not a per-browser note (agent: the old checklist ticks move in with Dexie v5). A plan doc differing only in it is different work in a conflict, so a copy is made rather than a mark lost.
+Revisit if: people want Registered per term rather than per plan.
+
+### A blank click ends browsing sections
+2026-09-28 · owner · one feature
+While a course's sections show on the calendar, a click or tap on empty time closes the course, as Esc does, and doesn't start a block ("clicking on a blank part of the schedule should exit the view instead of trying to draw a block"). Blocks are drawn only with no course open.
+Revisit if: people want to block time while comparing sections.
+
+### Four-year plans share by link, versioned
+2026-09-28 · owner · one feature
+Plan gets the same Share, for advisors: the plan is in the URL (the owner: "continue storing the data in the URL … think about versioning"), opening read-only at `/plan/shared` without an account, with Save a copy. Grades never go in a link. The version is a prefix outside the compressed JSON, with a wire schema and decoder per version kept for good (agent), so a newer link is recognized unread and an old one always opens. Compression is fflate's raw deflate, as the scheduler's links use, since it's synchronous and runs in core's tests (CompressionStream would make the codec async for no gain).
+Revisit if: links get too long for email or chat, or the server needs to read a plan.
+
 ### Plan sync saves whole docs
 2026-09-26 · agent · one feature
 Plain server-side storage, one JSON doc per plan with a rev and compare-and-swap. A conflict never merges: the server's copy stays and the local one becomes "<name> (copy)".

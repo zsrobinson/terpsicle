@@ -1,13 +1,6 @@
 import { z } from "zod";
-import {
-  FourYearCourseDetailsSchema,
-  FourYearTermSchema,
-} from "./four-year";
-import {
-  CourseCodeSchema,
-  GenEdCodeSchema,
-  TermIdSchema,
-} from "./primitives";
+import { FourYearCourseDetailsSchema, FourYearTermSchema } from "./four-year";
+import { CourseCodeSchema, GenEdCodeSchema, TermIdSchema } from "./primitives";
 import { TranscriptViaSchema } from "./transcript";
 import { WildcardSchema } from "./wildcard";
 

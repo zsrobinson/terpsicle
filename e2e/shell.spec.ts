@@ -11,7 +11,7 @@ const TAB_LABELS = [
   "Travel",
   "Blocks",
   "Generate",
-  "Export",
+  "Register",
 ];
 
 let errors: string[] = [];
@@ -184,7 +184,7 @@ test.describe("desktop", () => {
     await page.setViewportSize({ width: 863, height: 304 });
     await open(page);
     const rail = page.getByRole("navigation", { name: "Sidebar tabs" });
-    const last = rail.getByRole("button", { name: "Export" });
+    const last = rail.getByRole("button", { name: "Register" });
     // Scrolled the way a person can (a wheel or a finger), not by script.
     const box = await rail.boundingBox();
     if (!box) throw new Error("no rail");
@@ -193,7 +193,7 @@ test.describe("desktop", () => {
     await expect(last).toBeInViewport();
     await last.click();
     await expect(
-      page.getByRole("heading", { name: "Export", exact: true }),
+      page.getByRole("heading", { name: "Register", exact: true }),
     ).toBeVisible();
   });
 

@@ -21,7 +21,7 @@ const TABS = [
   "Travel",
   "Blocks",
   "Generate",
-  "Export",
+  "Register",
 ];
 
 const SIGNED_OUT = [

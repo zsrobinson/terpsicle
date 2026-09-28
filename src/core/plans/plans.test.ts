@@ -398,7 +398,10 @@ describe("plans reducer", () => {
       expect(s.plans[0]?.updatedAt).toBe(T1);
       expect(PlanSchema.safeParse(s.plans[0]).success).toBe(true);
       // Nothing registered leaves no field, as in plans saved before it.
-      const none = run([mark("ENGL393-0312", false)], run([mark("ENGL393-0312")], base));
+      const none = run(
+        [mark("ENGL393-0312", false)],
+        run([mark("ENGL393-0312")], base),
+      );
       expect(none.plans[0]).not.toHaveProperty("registered");
     });
 
@@ -440,7 +443,12 @@ describe("plans reducer", () => {
       const s = run(
         [
           mark("CMSC351-0101"),
-          { type: "plan/duplicate", planId: "plan-0001", id: "plan-0002", now: T1 },
+          {
+            type: "plan/duplicate",
+            planId: "plan-0001",
+            id: "plan-0002",
+            now: T1,
+          },
         ],
         base,
       );

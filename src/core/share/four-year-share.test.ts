@@ -9,8 +9,8 @@ import {
 } from "~/fixtures";
 import {
   type FourYearDoc,
-  type FourYearEntry,
   FourYearDocSchema,
+  type FourYearEntry,
 } from "../schema/four-year";
 import { FOUR_YEAR_SHARE_VERSION } from "../schema/versions";
 import {
@@ -30,7 +30,11 @@ const NOW = "2026-09-28T12:00:00.000Z";
 const everything: FourYearDoc = aFourYear({
   name: "Computer Science",
   firstTermId: "202608",
-  template: { id: "cmsc-2026", department: "Computer Science", year: "2026–27" },
+  template: {
+    id: "cmsc-2026",
+    department: "Computer Science",
+    year: "2026–27",
+  },
   entries: [
     aFourYearCreditEntry({ id: "e_credit_01", genEds: ["DSNL"] }),
     aFourYearEntry({
@@ -111,7 +115,9 @@ describe("four-year share links", () => {
     expect(FourYearDocSchema.safeParse(doc).success).toBe(true);
     expect(doc.grades).toEqual({});
     expect(doc.entries.map((e) => e.id)).toEqual(
-      everything.entries.map((_, i) => `entry_new_${String(i + 1).padStart(2, "0")}`),
+      everything.entries.map(
+        (_, i) => `entry_new_${String(i + 1).padStart(2, "0")}`,
+      ),
     );
     expect(doc.entries.map(({ id: _, ...e }) => e)).toEqual(
       everything.entries.map(({ id: _, ...e }) => e),
@@ -126,7 +132,16 @@ describe("four-year share links", () => {
 
   it("keeps a typical plan's link short", () => {
     // Eight semesters of four or five courses and placeholders.
-    const terms = ["202608", "202701", "202708", "202801", "202808", "202901", "202908", "203001"];
+    const terms = [
+      "202608",
+      "202701",
+      "202708",
+      "202801",
+      "202808",
+      "202901",
+      "202908",
+      "203001",
+    ];
     const entries: FourYearEntry[] = terms.flatMap((term, t) =>
       Array.from({ length: 5 }, (_, i) =>
         i === 4
@@ -139,7 +154,10 @@ describe("four-year share links", () => {
             }),
       ),
     );
-    const url = fourYearShareUrl("https://terpsicle.com", aFourYear({ entries }));
+    const url = fourYearShareUrl(
+      "https://terpsicle.com",
+      aFourYear({ entries }),
+    );
     expect(url.length).toBeLessThan(700);
     // …and the largest doc still fits under the decoder's limit.
     const full = aFourYear({
@@ -199,7 +217,9 @@ describe("four-year share links", () => {
   });
 
   it("says a link from a newer version is one, without reading it", () => {
-    const newer = decodeFourYearShare(`${FOUR_YEAR_SHARE_VERSION + 1}.anything`);
+    const newer = decodeFourYearShare(
+      `${FOUR_YEAR_SHARE_VERSION + 1}.anything`,
+    );
     expect(newer).toEqual({
       ok: false,
       error: expect.objectContaining({ kind: "newer-version" }),
@@ -243,7 +263,11 @@ describe("four-year share links", () => {
       term,
       code: fc.constantFrom("CMSC131", "MATH140", "HIST200"),
       credits: fc.option(fc.integer({ min: 0, max: 6 }), { nil: null }),
-      source: fc.constantFrom("typed" as const, "transcript" as const, "template" as const),
+      source: fc.constantFrom(
+        "typed" as const,
+        "transcript" as const,
+        "template" as const,
+      ),
     });
     fc.assert(
       fc.property(fc.array(course, { maxLength: 20 }), (drafts) => {
@@ -253,8 +277,8 @@ describe("four-year share links", () => {
           ),
         });
         expect(roundTrip(doc).entries).toEqual(
-          fourYearShareOf(doc).entries
-            .map((e, i) => ({ e, i }))
+          fourYearShareOf(doc)
+            .entries.map((e, i) => ({ e, i }))
             .sort((a, b) =>
               a.e.term === b.e.term
                 ? a.i - b.i

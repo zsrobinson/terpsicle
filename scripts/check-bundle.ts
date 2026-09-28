@@ -84,10 +84,10 @@ export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
     {
       // Each is its tab's route (src/routes/schedule.<tab>.tsx), which the
       // router splits into its own chunk.
-      pattern: /^src\/features\/(generate|travel|blocks|export)\//,
-      why: "Generate, Travel, Blocks and Export load when first opened",
+      pattern: /^src\/features\/(generate|travel|blocks|register)\//,
+      why: "Generate, Travel, Blocks and Register load when first opened",
     },
-    { pattern: /^src\/core\/ics\//, why: ".ics export loads with Export" },
+    { pattern: /^src\/core\/ics\//, why: ".ics export loads with Register" },
     {
       pattern: /(^|\/)comlink\//,
       why: "the generator's worker client loads with Generate",
@@ -204,7 +204,7 @@ const PLAN_ROUTE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
   // export stays out, as for the scheduler.
   {
     pattern: /^src\/core\/ics\/(?!dates\.ts$)/,
-    why: ".ics export loads with Export",
+    why: ".ics export loads with Register",
   },
   ...SCHEDULE_NEVER_EAGER.filter((r) => !r.pattern.test("src/core/ics/x.ts")),
 ];

@@ -27,10 +27,12 @@ import {
 import { useScheduleView } from "~/app/schedule-view";
 import { useShortcut } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
+import { CanvasBar } from "~/app/workbench/canvas-bar";
 import type { Connection, CourseCode, Day } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
 import { DAY_LONG_NAMES } from "~/core/time";
+import { ScheduleShare } from "~/features/share/schedule-share";
 import { useTravel } from "~/state/hooks";
 import { useWatchedSections } from "~/state/seat-watches";
 import { useUi } from "~/state/ui-store";
@@ -87,6 +89,13 @@ export function Calendar() {
   useGhostKeys(view);
   useClearStalePreview(model);
   const bottomInset = useDrawerInset();
+  const mobile = useIsMobile();
+  // What the plan on screen has marked Registered (not a previewed plan's).
+  const registeredKeys = view.previewing ? null : current?.plan.registered;
+  const registered = useMemo(
+    () => new Set(registeredKeys ?? []),
+    [registeredKeys],
+  );
   // Seat watches are the signed-in person's own, not a shared plan's.
   const watched = useWatchedSections(
     current && !current.readOnly ? current.termId : null,
@@ -99,6 +108,7 @@ export function Calendar() {
         startMinute={8 * 60}
         endMinute={17 * 60}
         emptyLabel={EMPTY_WEEK}
+        top={<CanvasBar start={<ScheduleShare iconOnly={mobile} />} />}
       />
     );
   const empty = model.columns.every(
@@ -116,21 +126,23 @@ export function Calendar() {
       emptyLabel={empty ? EMPTY_WEEK : undefined}
       top={
         <>
-          {view.previewing ? (
-            <PreviewHint
-              label={view.previewing.label}
-              planName={current.plan.name}
-            />
-          ) : model.ghost && ghostColor ? (
-            <GhostHint
-              ghost={model.ghost}
-              interactive={view.ghostsFromOpenCourse}
-              readOnly={current.readOnly}
-              color={ghostColor}
-            />
-          ) : searching ? (
-            <SearchHint />
-          ) : null}
+          <CanvasBar start={<ScheduleShare iconOnly={mobile} />}>
+            {view.previewing ? (
+              <PreviewHint
+                label={view.previewing.label}
+                planName={current.plan.name}
+              />
+            ) : model.ghost && ghostColor ? (
+              <GhostHint
+                ghost={model.ghost}
+                interactive={view.ghostsFromOpenCourse}
+                readOnly={current.readOnly}
+                color={ghostColor}
+              />
+            ) : searching ? (
+              <SearchHint />
+            ) : null}
+          </CanvasBar>
           <UntimedStrip sections={model.untimed} onOpen={openCourse} />
         </>
       }
@@ -143,6 +155,7 @@ export function Calendar() {
           changed={view.previewing?.changed ?? null}
           seats={view.seats}
           watched={watched}
+          registered={registered}
         />
       )}
     </WeekFrame>
@@ -384,6 +397,7 @@ function Grid({
   changed,
   seats,
   watched,
+  registered,
 }: {
   model: CalendarModel;
   layout: CalendarLayout;
@@ -393,6 +407,8 @@ function Grid({
   seats: SeatsMap | null;
   /** Sections with a seat watch on ("Watching"). */
   watched: ReadonlySet<string>;
+  /** Sections the plan has marked Registered. */
+  registered: ReadonlySet<string>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -455,10 +471,14 @@ function Grid({
       model.startMinute + ((event.clientY - rect.top) / layout.hourHeight) * 60;
     return { col, minute: snapMinute(minute, bounds) };
   };
-  const onEmpty = (event: ReactPointerEvent) =>
+  const onEmpty = (event: { target: EventTarget }) =>
     event.target instanceof HTMLElement &&
     event.target.dataset.empty !== undefined;
-  const canDrag = !readOnly && !pending;
+  // Looking through a course's sections (its details open, its ghosts on
+  // the calendar): a click or tap on empty space ends that, as Esc does,
+  // rather than starting a block. Blocks are drawn outside it.
+  const browsing = stackTop?.kind === "course";
+  const canDrag = !readOnly && !pending && !browsing;
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     // Touch scrolls the calendar; on phones, blocks come from the Blocks tab.
@@ -621,6 +641,9 @@ function Grid({
       data-calendar-grid=""
       className={cn("absolute inset-0 flex", canDrag && "cursor-crosshair")}
       onPointerDown={onPointerDown}
+      onClick={(event) => {
+        if (browsing && onEmpty(event)) closeToTab();
+      }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => setDrag(null)}
@@ -669,6 +692,7 @@ function Grid({
                   selected={ghostCourse === entry.courseCode}
                   changed={changed?.has(entry.sectionKey) ?? false}
                   watching={watched.has(entry.sectionKey)}
+                  registered={registered.has(entry.sectionKey)}
                   open={openCode === entry.courseCode}
                   onOpen={() => openCourse(entry.courseCode)}
                   style={style}

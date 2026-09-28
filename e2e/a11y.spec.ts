@@ -43,7 +43,7 @@ const TABS = [
   "Travel",
   "Blocks",
   "Generate",
-  "Export",
+  "Register",
 ] as const;
 
 async function openTab(page: Page, isMobile: boolean, label: string) {

@@ -30,9 +30,12 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `problem_opened` | `kind` | Which problems people look into. |
   | `problem_fix_applied` | `kind` (`switch` · `accept-change`), `problem` | Whether one-click fixes get used, and for which problems. |
   | `export_codes_copied` | `count` | How many plans reach registration. |
-  | `share_link_copied` | | Whether sharing is used. |
+  | `share_link_copied` | `product`: `schedule` · `plan` | Whether sharing is used, and whether advisors' four-year links are the reason (the owner's). |
   | `ics_downloaded` | `events` | Whether calendar export is worth keeping. |
-  | `registration_item_checked` | | Whether the checklist is used on registration day. |
+  | `registration_item_checked` | | Whether the Register tab's checklist is used on registration day (a section marked Registered). |
+  | `registration_code_copied` | | Whether copying one code at a time, for Testudo's two fields, is found. Never the code. |
+  | `four_year_shared_opened` | `outcome`: `ok` · `invalid` · `newer-version` | How many four-year links arrive (from advisors' inboxes), and how many are broken. |
+  | `four_year_shared_saved` | | How often a shared four-year plan becomes the reader's own. |
   | `seat_watch_started` / `seat_watch_stopped` | `signedInFirst` (on start: the watch was asked for signed out and began after sign-in) | Seat-watch demand from the app's side, and how many people sign in for it (the server counts watches and sends). Never who or which section. |
   | `deep_link_opened` | `outcome`: `ok` · `unknown-term` | How often seat-alert emails bring people back, and whether their terms still exist. |
   | `catalog_loaded` | `termId`, `fromCache`, `deptsFetched`, `ms` (until every department is in) | Whether the IndexedDB cache and manifest diffing keep repeat visits fast (BUILD §5), and how long a first visit waits for the whole catalog. |

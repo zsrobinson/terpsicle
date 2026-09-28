@@ -12,6 +12,7 @@ import {
 import { ChunkLoadError } from "~/app/panel-load-boundary";
 import { useShortcut } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
+import { CanvasBar } from "~/app/workbench/canvas-bar";
 import {
   lazyDrawer,
   Workbench,
@@ -52,6 +53,7 @@ import {
   PLAN_SIDEBAR_ID,
   PlanSidebarContent,
 } from "./plan-sidebar";
+import { PlanShare } from "./share";
 import { useActiveFourYear, useFourYear } from "./store";
 import { PlanToasts } from "./toasts";
 import { clickRailView, openView } from "./view-nav";
@@ -296,24 +298,31 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
           }
           drawer={<PlanDrawer view={view} onPreload={preload} />}
           canvas={
-            mobile ? (
-              <div className="space-y-4 px-4 pt-3 pb-4">
-                <CreditsSummary />
-                <PhoneBoard selected={model.target} />
-                <DegreeAuditNote />
-              </div>
-            ) : checking ? (
-              // The check step, live next to the paste (V3 §2.10).
-              <div className="p-3">
-                <div className="border border-hairline bg-panel">
-                  <ImportCheck columns />
+            <>
+              {/* Share at the top left, as over the scheduler's calendar. */}
+              <CanvasBar
+                className="sticky top-0 z-10"
+                start={<PlanShare iconOnly={mobile} />}
+              />
+              {mobile ? (
+                <div className="space-y-4 px-4 pt-3 pb-4">
+                  <CreditsSummary />
+                  <PhoneBoard selected={model.target} />
+                  <DegreeAuditNote />
                 </div>
-              </div>
-            ) : (
-              <div className="p-3">
-                <Board />
-              </div>
-            )
+              ) : checking ? (
+                // The check step, live next to the paste (V3 §2.10).
+                <div className="p-3">
+                  <div className="border border-hairline bg-panel">
+                    <ImportCheck columns />
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3">
+                  <Board />
+                </div>
+              )}
+            </>
           }
           canvasId={PLAN_BOARD_ID}
           canvasClassName="scroll-thin overflow-y-auto overscroll-y-contain"

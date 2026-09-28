@@ -73,6 +73,15 @@ export const PlanSchema = z.object({
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
+/**
+ * The Register tab's ticks as localStorage kept them before version 5 of
+ * the database moved them into `Plan.registered`: plan id → section keys.
+ */
+export const LegacyChecklistSchema = z.record(
+  z.string(),
+  z.array(SectionKeySchema),
+);
+
 // ---------- blocks ----------
 
 export const BlockLabelSchema = z.string().trim().min(1).max(40);

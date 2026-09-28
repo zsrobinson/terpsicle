@@ -65,7 +65,7 @@ describe("AppShell", () => {
       "Travel",
       "Blocks",
       "Generate",
-      "Export",
+      "Register",
     ]);
   });
 
@@ -82,7 +82,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("heading", { name: "Search" })).toBeVisible();
 
     await user.keyboard("7");
-    expect(screen.getByRole("heading", { name: "Export" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Register" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Search" })).toBeNull();
   });
 
@@ -226,30 +226,30 @@ describe("Tabs whose route loads on first use", () => {
     sessionStorage.clear();
   });
 
-  type ExportModule = { Panel: ComponentType };
+  type PanelModule = { Panel: ComponentType };
 
   it("starts loading its route on hover and shows the skeleton until the panel arrives", async () => {
-    let arrive: (m: ExportModule) => void = () => {};
+    let arrive: (m: PanelModule) => void = () => {};
     const importer = vi.fn(
-      () => new Promise<ExportModule>((resolve) => (arrive = resolve)),
+      () => new Promise<PanelModule>((resolve) => (arrive = resolve)),
     );
     const { user } = await renderShell({
-      routes: { tabs: { export: lazyRouteComponent(importer, "Panel") } },
+      routes: { tabs: { register: lazyRouteComponent(importer, "Panel") } },
     });
     expect(importer).not.toHaveBeenCalled();
 
-    await user.hover(railTab("Export"));
+    await user.hover(railTab("Register"));
     expect(importer).toHaveBeenCalledTimes(1);
-    await user.click(railTab("Export"));
+    await user.click(railTab("Register"));
     // The skeleton, under the tab's name.
-    const skeleton = screen.getByRole("heading", { name: "Export" });
+    const skeleton = screen.getByRole("heading", { name: "Register" });
     expect(skeleton.closest("[data-testid=panel-skeleton]")).toBeVisible();
 
-    await act(async () => arrive({ Panel: () => <h2>Export panel</h2> }));
+    await act(async () => arrive({ Panel: () => <h2>Register panel</h2> }));
     expect(
-      await screen.findByRole("heading", { name: "Export panel" }),
+      await screen.findByRole("heading", { name: "Register panel" }),
     ).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Export" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Register" })).toBeNull();
     expect(importer).toHaveBeenCalledTimes(1);
   });
 
@@ -259,14 +259,14 @@ describe("Tabs whose route loads on first use", () => {
       () =>
         Promise.reject(
           new TypeError(
-            "Failed to fetch dynamically imported module: /assets/schedule.export.js",
+            "Failed to fetch dynamically imported module: /assets/schedule.register.js",
           ),
         ),
     ],
     [
       // What Vite's loader does once load-recovery has taken the error.
       "the import resolves to nothing",
-      () => Promise.resolve(undefined as unknown as ExportModule),
+      () => Promise.resolve(undefined as unknown as PanelModule),
     ],
   ] as const)
     it(`says so in the panel, not the whole page, when one can't load (${how})`, async () => {
@@ -274,17 +274,17 @@ describe("Tabs whose route loads on first use", () => {
       const { user } = await renderShell({
         routes: {
           tabs: {
-            export: lazyRouteComponent<ExportModule, "Panel">(
+            register: lazyRouteComponent<PanelModule, "Panel">(
               importer,
               "Panel",
             ),
           },
         },
       });
-      await user.click(railTab("Export"));
+      await user.click(railTab("Register"));
       // The kit's inline error: a quiet status in the panel, never an alert.
       const words = await screen.findByText(
-        "Couldn't load Export. Check your connection, then reload. Your plans are saved.",
+        "Couldn't load Register. Check your connection, then reload. Your plans are saved.",
       );
       expect(words.closest("[role=status]")).not.toBeNull();
       expect(screen.queryByRole("alert")).toBeNull();
