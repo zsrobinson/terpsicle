@@ -73,19 +73,52 @@ function quietTooltips(ms = 400): void {
 // and stayed while you typed (QA S11). Radix already ignores a finger's
 // hover; this ignores its focus.
 let touchedAt = Number.NEGATIVE_INFINITY;
+// When Tab was last pressed, if it was the last key or press at all. A text
+// field opens its tooltip on focus only when the person tabbed to it: when
+// the app puts the caret there ("Add a task", a shortcut, a form opening),
+// the tooltip covered the heading above it until they typed (QA3).
+let tabbedAt = Number.NEGATIVE_INFINITY;
 let listening = false;
 const TOUCH_FOCUS_MS = 1000;
+const TAB_FOCUS_MS = 500;
 
-function listenForTouches(): void {
+function listenForInput(): void {
   if (listening || typeof document === "undefined") return;
   listening = true;
   document.addEventListener(
     "pointerdown",
     (e) => {
       if (e.pointerType === "touch") touchedAt = performance.now();
+      tabbedAt = Number.NEGATIVE_INFINITY;
     },
     { capture: true, passive: true },
   );
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      tabbedAt = e.key === "Tab" ? performance.now() : Number.NEGATIVE_INFINITY;
+    },
+    { capture: true, passive: true },
+  );
+}
+
+const NOT_TYPED = new Set([
+  "button",
+  "checkbox",
+  "color",
+  "file",
+  "image",
+  "radio",
+  "range",
+  "reset",
+  "submit",
+]);
+
+/** A field you type into: a textarea, a text-like input, or editable text. */
+function isTextEntry(el: EventTarget | null): boolean {
+  if (el instanceof HTMLTextAreaElement) return true;
+  if (el instanceof HTMLInputElement) return !NOT_TYPED.has(el.type);
+  return el instanceof HTMLElement && el.isContentEditable;
 }
 
 /** Keys that type into a field: the tooltip's done once you're typing. */
@@ -113,7 +146,7 @@ function WithTooltip({
   children: React.ReactElement;
 }) {
   const [open, setOpen] = React.useState(false);
-  React.useEffect(listenForTouches, []);
+  React.useEffect(listenForInput, []);
   return (
     <Tooltip
       open={open}
@@ -129,6 +162,14 @@ function WithTooltip({
         data-tooltip=""
         onKeyDown={(e) => {
           if (isTyping(e)) setOpen(false);
+        }}
+        // Radix opens on focus unless this handler prevents it.
+        onFocus={(e) => {
+          if (
+            isTextEntry(e.target) &&
+            performance.now() - tabbedAt > TAB_FOCUS_MS
+          )
+            e.preventDefault();
         }}
       >
         {children}

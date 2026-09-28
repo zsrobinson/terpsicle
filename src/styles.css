@@ -694,6 +694,15 @@
   }
 }
 
+/*
+ * A workbench's phone drawer (Schedule, Plan) rests with its handle, tabs and
+ * panel header showing (PEEK_HEIGHT, 124px, in src/app/drawer-heights.ts).
+ * Toasts sit 8px above that, not over the tabs (~/ui/sonner reads it).
+ */
+:root:has([data-workbench-drawer]) {
+  --toast-lift: 132px;
+}
+
 /* Reduced motion must beat any component animation, hence !important. */
 @media (prefers-reduced-motion: reduce) {
   *,

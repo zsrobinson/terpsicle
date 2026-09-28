@@ -171,7 +171,7 @@ function MappingField({
     <div className="space-y-1 pt-1">
       <label htmlFor={id} className="block text-muted text-xs">
         {pattern
-          ? `Testudo lists it as ${pattern.slice(0, 4)} ${pattern.slice(4)}. `
+          ? `Testudo lists it as ${pattern}. `
           : "It has no UMD course. "}
         Which UMD course does it count as, if any?
       </label>

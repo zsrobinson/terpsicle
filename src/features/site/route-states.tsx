@@ -5,13 +5,16 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import { logError } from "~/app/activity-log";
+import { AppBar } from "~/app/app-bar";
 import { isChunkLoadError } from "~/app/panel-load-boundary";
+import { MOBILE_QUERY } from "~/app/use-media-query";
+import { SCHEDULE_PATH } from "~/core/routing";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
 import { ProductPage } from "~/ui/product-page";
-import { PageSkeleton } from "~/ui/skeleton";
+import { PageSkeleton, Skeleton } from "~/ui/skeleton";
 import { TooltipProvider } from "~/ui/tooltip";
 import { SiteHeader } from "./site-page";
 
@@ -35,10 +38,13 @@ declare module "@tanstack/react-router" {
      *   under it lays out its own column, so nothing jumps sideways.
      * - `reading`: the bar over a reading-width skeleton, for pages whose
      *   loader can be slow on a client-side visit (Reviews).
+     * - `schedule`: the scheduler's own bar (the term and plans on their
+     *   way, Feedback as an icon, no chip below 1536px), so a straight load
+     *   of a tab doesn't draw the family bar and then change its shape.
      * - `none`: nothing, for a page with a frame of its own (none today:
      *   admin had one until it moved under the family bar).
      */
-    pending?: "bar" | "reading" | "none";
+    pending?: "bar" | "reading" | "schedule" | "none";
   }
 }
 
@@ -66,8 +72,11 @@ function useIsPage(id: string): boolean {
 // the root layout, whose provider every other page sits in.
 function Frame({
   placeholder = false,
+  bar = <SiteHeader />,
   children,
 }: {
+  /** The bar to draw: the family bar, or a page's own shape of it. */
+  bar?: ReactNode;
   /**
    * The bar while the page loads: the page brings its own bar, which
    * replaces this one, so this one takes no taps or focus (a menu opened
@@ -82,18 +91,69 @@ function Frame({
         {placeholder ? (
           <>
             <div inert aria-hidden="true" data-slot="bar-placeholder">
-              <SiteHeader />
+              {bar}
             </div>
             <p role="status" className="sr-only">
               Loading
             </p>
           </>
         ) : (
-          <SiteHeader />
+          bar
         )}
         {children}
       </div>
     </TooltipProvider>
+  );
+}
+
+/**
+ * The scheduler's bar (~/app/top-bar) before its code arrives: the same
+ * family bar settings, with the term and plans as skeletons where it'll
+ * show them. The Worker draws this for a page that renders only in the
+ * browser, before anyone knows the screen's width: there it's the wide
+ * shape, which folds its tabs into the product menu on a phone's width by
+ * CSS, and the browser switches to the phone's `compact` one (MOBILE_QUERY,
+ * as the scheduler) once it hydrates. Only ever one bar: two, even with one
+ * hidden, are two bars to anything looking for the bar.
+ */
+function ScheduleBarPlaceholder() {
+  const phone = usePhoneOrUnknown();
+  const bar = (compact: boolean) => (
+    <AppBar
+      current="schedule"
+      crowdedBelow2xl
+      compact={compact}
+      feedback="schedule"
+      pathname={SCHEDULE_PATH}
+      context={
+        <span className="flex items-center gap-3">
+          <Skeleton className="h-4 w-20" />
+          {compact ? null : (
+            <span aria-hidden="true" className="text-faint">
+              /
+            </span>
+          )}
+          <Skeleton className="h-4 w-16" />
+        </span>
+      }
+    />
+  );
+  return bar(phone === true);
+}
+
+/**
+ * Whether the screen is a phone's (MOBILE_QUERY), or null in the server's
+ * HTML, which can't know.
+ */
+function usePhoneOrUnknown(): boolean | null {
+  return useSyncExternalStore(
+    (onChange) => {
+      const media = window.matchMedia(MOBILE_QUERY);
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => null,
   );
 }
 
@@ -104,6 +164,8 @@ export function RoutePending() {
   if (!isPage) return <PageSkeleton className="p-4" />;
   if (pending === "none") return null;
   if (pending === "bar") return <Frame placeholder />;
+  if (pending === "schedule")
+    return <Frame placeholder bar={<ScheduleBarPlaceholder />} />;
   return (
     <Frame placeholder>
       <ProductPage width="reading">

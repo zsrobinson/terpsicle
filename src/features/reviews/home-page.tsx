@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { PanelNote } from "~/app/panel";
+import { useIsMobile } from "~/app/use-media-query";
 import { combineRatings, courseSlug, instructorSlug } from "~/core/reviews";
 import type { CourseCode, InstructorId } from "~/core/schema";
 import { formatMonthYear } from "~/core/time/format";
@@ -66,6 +67,7 @@ export function ReviewsHomePage({
   const signedIn = useSignedIn();
   const [yours, setYours] = useState<CourseCode[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
+  const phone = useIsMobile();
   const [writing, setWriting] = useState(false);
   useEffect(() => {
     void readPlanCourses().then(setYours);
@@ -99,8 +101,11 @@ export function ReviewsHomePage({
         initialResults={data.results}
         inputRef={searchRef}
         placeholder={
+          // Phones get the question alone: the example was cut off there.
           writing
-            ? "Who taught you, or which course? Kruskal, CMSC351…"
+            ? phone
+              ? "Who taught you, or which course?"
+              : "Who taught you, or which course? Kruskal, CMSC351…"
             : undefined
         }
       />
@@ -391,6 +396,7 @@ function Search({
   const lists = useSearchData(wanted);
   const navigate = useNavigate();
   const listId = useId();
+  const phone = useIsMobile();
   const results = useMemo(
     () =>
       lists.status === "ready"
@@ -448,7 +454,10 @@ function Search({
           }}
           onFocus={() => setWanted(true)}
           placeholder={
-            placeholder ?? "Search instructors and courses: Kruskal, CMSC351…"
+            placeholder ??
+            (phone
+              ? "Search instructors and courses"
+              : "Search instructors and courses: Kruskal, CMSC351…")
           }
           autoComplete="off"
           aria-controls={listId}

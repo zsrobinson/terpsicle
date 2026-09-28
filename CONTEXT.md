@@ -309,7 +309,7 @@ The professors with the most PlanetTerp reviews. Listed on `/reviews` beside **m
 _Avoid_: popular, top-rated
 
 **Review your instructors**:
-The quiet list on `/reviews`, signed in, of the instructors of the sections in your schedules for terms that are over (or in their last six weeks), each one tap from the form. Never a banner.
+The quiet list on `/reviews`, signed in, of the instructors of the sections in your main plans for terms that are over (or in their last six weeks), each one tap from the form. Never a banner.
 
 **Most taken**:
 The courses offered now that the most students have taken, by PlanetTerp's grade data. Listed on `/reviews`.

@@ -278,6 +278,24 @@ test.describe("phone", () => {
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
   });
 
+  test("a link straight to a tab raises the drawer to show it; Courses keeps the calendar", async ({
+    page,
+  }) => {
+    await arrive(page, "/schedule/search?demo=1&q=CMSC330");
+    const drawer = page.locator("[data-snap]");
+    await expect(drawer).toHaveAttribute("data-snap", "half");
+    await expect(
+      page.getByRole("option", { name: /^CMSC330/ }).first(),
+    ).toBeInViewport();
+
+    await arrive(page, "/schedule/problems?demo=1");
+    await expect(drawer).toHaveAttribute("data-snap", "half");
+
+    // A plan with classes on Courses: the calendar is what you came for.
+    await arrive(page, "/schedule/courses?demo=1");
+    await expect(drawer).toHaveAttribute("data-snap", "peek");
+  });
+
   test("a link straight to a course raises the drawer to show it", async ({
     page,
   }) => {

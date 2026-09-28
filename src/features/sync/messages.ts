@@ -50,6 +50,8 @@ const BOTH_VERSIONS =
 
 const YOURS = { owner: "Your", again: "your" };
 const THE_ACCOUNTS = { owner: "Your account's", again: "its", other: true };
+/** "Your account's 7 plans": one "your", where "Your 7 plans from your account" had two. */
+const ACCOUNTS = { owner: "Your account's", again: "its" };
 
 /** The toast for a notice, or null when there's nothing worth saying. */
 export function syncToast(notice: SyncNotice): SyncToast | null {
@@ -112,11 +114,11 @@ export function syncToast(notice: SyncNotice): SyncToast | null {
       const fromAccount = counted(
         notice.fromAccount,
         notice.fourYear.fromAccount,
-        YOURS,
+        ACCOUNTS,
       );
       if (fromAccount.words)
         return {
-          title: `${fromAccount.words} from your account ${fromAccount.many ? "are" : "is"} here`,
+          title: `${fromAccount.words} ${fromAccount.many ? "are" : "is"} here`,
         };
       return null;
     }

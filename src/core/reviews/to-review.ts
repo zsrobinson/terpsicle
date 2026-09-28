@@ -1,8 +1,10 @@
 import { seasonSpan } from "../catalog/terms";
+import { mainPlanFor } from "../plans/main-plan";
 import {
   type CourseCode,
   type IsoDate,
   instructorNameKey,
+  type MainPlans,
   type Plan,
   type TermId,
 } from "../schema";
@@ -12,8 +14,8 @@ import { reviewTermChoices } from "./terms";
 // reviews of professors based on the information we know about the user").
 // From the schedules you made: the instructors of the sections you placed in
 // terms that are over, and in the term under way once it's nearly done. A
-// term's schedule is the plan you changed last, since that's likeliest the
-// one you registered for; the others were alternatives.
+// term's schedule is its main plan (docs/V2.md §5.5), the one you're taking;
+// the others were drafts.
 
 /** A term is "nearly done" for this many days before its usual end. */
 export const LATE_IN_TERM_DAYS = 42;
@@ -46,26 +48,29 @@ export function reviewedKey(course: string, name: string): string {
 }
 
 /**
- * Who you could review, newest term first, then by course. `reviewed` holds
- * `reviewedKey`s of the reviews you've written, which drop out. Terms older
- * than the review form offers (four years) are left out too.
+ * Who you could review, newest term first, then by course, from each term's
+ * main plan (`mainPlans`, or the first tab where none is chosen). `reviewed`
+ * holds `reviewedKey`s of the reviews you've written, which drop out. Terms
+ * older than the review form offers (four years) are left out too.
  */
 export function instructorsToReview(
   plans: readonly Plan[],
   today: IsoDate,
   reviewed: ReadonlySet<string> = new Set(),
+  mainPlans: Readonly<MainPlans> = {},
 ): InstructorToReview[] {
   const offered = new Set(reviewTermChoices(today));
-  const latest = new Map<TermId, Plan>();
-  for (const plan of plans) {
-    if (!offered.has(plan.termId) || !isReviewableTerm(plan.termId, today))
-      continue;
-    const kept = latest.get(plan.termId);
-    if (!kept || plan.updatedAt > kept.updatedAt) latest.set(plan.termId, plan);
-  }
+  const terms = new Set(
+    plans
+      .map((p) => p.termId)
+      .filter((t) => offered.has(t) && isReviewableTerm(t, today)),
+  );
+  const mains = [...terms].flatMap(
+    (termId) => mainPlanFor(termId, plans, mainPlans) ?? [],
+  );
   const out: InstructorToReview[] = [];
   const seen = new Set<string>();
-  for (const plan of latest.values())
+  for (const plan of mains)
     for (const course of plan.courses)
       for (const name of course.snapshot?.instructors ?? []) {
         const key = reviewedKey(course.courseCode, name);

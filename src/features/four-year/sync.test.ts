@@ -180,7 +180,7 @@ describe("Plan's sync", () => {
     });
     stop = startPlanSync("tstudent", vi.fn());
     await vi.waitFor(() => expect(docs()).toEqual([theirs]), WAIT);
-    expect(toasts).toContain("Your four-year plan from your account is here");
+    expect(toasts).toContain("Your account's four-year plan is here");
     expect(useFourYear.getState().changedBy).toBe("account");
   });
 

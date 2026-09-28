@@ -43,21 +43,30 @@ describe("instructorsToReview", () => {
     ]);
   });
 
-  it("reads a term's schedule from the plan changed last", () => {
+  it("reads a term's schedule from its main plan, not the one changed last", () => {
     const plans = [
       aPlan({
         id: "plan_a",
         termId: "202601",
+        order: 0,
         updatedAt: "2026-01-02T00:00:00.000Z",
-        courses: [placed("CMSC351", "Old Pick")],
+        courses: [placed("CMSC351", "Clyde Kruskal")],
       }),
       aPlan({
         id: "plan_b",
         termId: "202601",
+        order: 1,
         updatedAt: "2026-01-20T00:00:00.000Z",
-        courses: [placed("CMSC351", "Clyde Kruskal")],
+        courses: [placed("CMSC351", "A Draft")],
       }),
     ];
+    // The one you chose as main.
+    expect(
+      instructorsToReview(plans, today, new Set(), { "202601": "plan_b" }).map(
+        (r) => r.name,
+      ),
+    ).toEqual(["A Draft"]);
+    // None chosen: the first tab is main, however recently a draft changed.
     expect(instructorsToReview(plans, today).map((r) => r.name)).toEqual([
       "Clyde Kruskal",
     ]);

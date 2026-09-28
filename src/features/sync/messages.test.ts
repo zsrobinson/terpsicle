@@ -25,7 +25,11 @@ describe("syncToast", () => {
       description: "Your account's 3 other plans are here too.",
     });
     expect(syncToast(firstSignIn({ fromAccount: 1 }))).toEqual({
-      title: "Your plan from your account is here",
+      title: "Your account's plan is here",
+    });
+    // Once "your", not twice ("Your 7 plans from your account are here").
+    expect(syncToast(firstSignIn({ fromAccount: 7 }))).toEqual({
+      title: "Your account's 7 plans are here",
     });
     expect(syncToast(firstSignIn({ uploaded: 3, fromAccount: 1 }))).toEqual({
       title: "Your 3 plans are saved to your account",
@@ -90,7 +94,7 @@ describe("syncToast", () => {
       syncToast(
         firstSignIn({ fourYear: { uploaded: 0, fromAccount: 1, open: null } }),
       ),
-    ).toEqual({ title: "Your four-year plan from your account is here" });
+    ).toEqual({ title: "Your account's four-year plan is here" });
     expect(
       syncToast(
         firstSignIn({
@@ -134,7 +138,7 @@ describe("syncToast", () => {
           },
         }),
       ),
-    ).toEqual({ title: "Your four-year plan from your account is here" });
+    ).toEqual({ title: "Your account's four-year plan is here" });
     // This device's went up under its own name; the account's is open.
     expect(
       syncToast(

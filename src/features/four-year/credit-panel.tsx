@@ -25,11 +25,6 @@ export function creditKind(entry: Pick<FourYearCreditEntry, "via">): string {
   }
 }
 
-/** "CHEM1XX" → "CHEM 1XX", as Testudo prints it. */
-export function patternLabel(pattern: string): string {
-  return `${pattern.slice(0, 4)} ${pattern.slice(4)}`;
-}
-
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-0.5">
@@ -65,10 +60,8 @@ export function CreditPanel({ entryId }: { entryId: LocalId }) {
           {entry.equivalentPattern ? (
             <>
               Testudo lists it as{" "}
-              <span className="ident">
-                {patternLabel(entry.equivalentPattern)}
-              </span>
-              , a level of a department rather than one course.
+              <span className="ident">{entry.equivalentPattern}</span>, a level
+              of a department rather than one course.
             </>
           ) : (
             "Testudo lists it with no UMD course."

@@ -91,14 +91,14 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   ).toBeVisible();
 
   const column = await semester(page, isMobile, "Before UMD");
-  await expect(column.getByText("Transfer credit · GEOL 1XX")).toBeVisible();
+  await expect(column.getByText("Transfer credit · GEOL1XX")).toBeVisible();
 
   // Problems asks what the GEOL credit counts as, and opens its drill-in.
   await page.goto("/plan/problems");
   const problems = page.getByRole("list", { name: "Problems" });
   const row = problems
     .getByRole("listitem")
-    .filter({ hasText: "Physical Geology came in as GEOL 1XX" });
+    .filter({ hasText: "Physical Geology came in as GEOL1XX" });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Choose what it counts as" }).click();
   await expect(page).toHaveURL(/credit=/);
@@ -134,6 +134,6 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
   await expect(after.getByText("Counts as GEOL100")).toHaveCount(0);
   await page.goto("/plan/problems");
   await expect(
-    page.getByText("Physical Geology came in as GEOL 1XX"),
+    page.getByText("Physical Geology came in as GEOL1XX"),
   ).toBeVisible();
 });

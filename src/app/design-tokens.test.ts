@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { COURSE_COLORS } from "~/core/schema";
 import { readTokens, type Theme } from "./brand/css-tokens";
 import { hasKeyline, MARK_IDS } from "./brand/marks";
+import { PEEK_HEIGHT } from "./drawer-heights";
 
 // The design system as a test (docs/UX-REVIEW.md §2): every UI file uses the
 // type scale, the spacing rhythm and the color tokens, so a panel built next
@@ -500,6 +501,11 @@ describe("the palette", () => {
     ];
     const used = [...STYLES.matchAll(/var\(--([\w-]+)\)/g)].map((m) => m[1]);
     expect(used.filter((name) => SONNER.includes(name ?? ""))).toEqual([]);
+  });
+
+  it("lifts toasts just above a workbench drawer's resting strip", () => {
+    const lift = /--toast-lift:\s*(\d+)px/.exec(STYLES)?.[1];
+    expect(Number(lift)).toBe(PEEK_HEIGHT + 8);
   });
 
   it("draws keylines and offsets that stand off the page (3:1)", () => {

@@ -71,6 +71,10 @@ function renderRoutes(path: string) {
         loader: () => slow.wait,
         staticData: { pending: "reading" },
       }),
+      page("/sched", {
+        loader: () => slow.wait,
+        staticData: { pending: "schedule" },
+      }),
       page("/own", {
         loader: () => slow.wait,
         staticData: { pending: "none" },
@@ -173,6 +177,27 @@ describe("RoutePending", () => {
     open();
     expect(await screen.findByText("Loaded /reading")).toBeInTheDocument();
     expect(skeleton()).toBeNull();
+  });
+
+  it("draws the scheduler's bar for the scheduler, so it doesn't change shape as it loads", async () => {
+    const { open } = renderRoutes("/sched");
+    expect(await screen.findByRole("status")).toHaveTextContent("Loading");
+    const drawn = placeholder();
+    // Schedule's own bar, with the term and plan on their way where it
+    // will show them.
+    expect(drawn?.querySelector('[data-slot="app-bar"]')).toHaveAttribute(
+      "data-bar",
+      "schedule",
+    );
+    expect(
+      drawn?.querySelectorAll('[data-slot="skeleton"]').length,
+    ).toBeGreaterThanOrEqual(2);
+    // In the browser, the one shape that fits: two bars on the page, even
+    // with one hidden, are two bars to anything that looks for the bar.
+    expect(document.querySelectorAll('[data-slot="app-bar"]')).toHaveLength(1);
+    open();
+    expect(await screen.findByText("Loaded /sched")).toBeInTheDocument();
+    expect(placeholder()).toBeNull();
   });
 
   it("shows nothing for a page with a frame of its own", async () => {

@@ -726,6 +726,8 @@ export class SyncEngine {
     if (this.problem) return this.o.status(this.problem);
     if (this.refused.size > 0) return this.o.status("error");
     const { sync } = await this.o.storage.read();
+    // Stopped while reading (a sign-out, the page going away): "off" stands.
+    if (this.stopped) return;
     this.o.status(
       hasUnsaved(sync) || this.pending.size > 0 ? "saving" : "saved",
     );

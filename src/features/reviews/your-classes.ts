@@ -1,6 +1,8 @@
 import {
   type CourseCode,
   LOCAL_DB_NAME,
+  type MainPlans,
+  MainPlansSchema,
   type Plan,
   PlanSchema,
 } from "~/core/schema";
@@ -11,8 +13,8 @@ import {
 // here, and it never creates the database. Signed in, plan sync keeps the
 // same plans here, so this is every device's.
 
-/** Every saved plan that reads; [] when there are none or it can't be read. */
-export function readPlans(dbName: string = LOCAL_DB_NAME): Promise<Plan[]> {
+/** A store's rows, raw; [] when there's no database, no store, or it can't be read. */
+function readRows(dbName: string, store: string): Promise<unknown[]> {
   return new Promise((resolve) => {
     let request: IDBOpenDBRequest;
     try {
@@ -27,33 +29,52 @@ export function readPlans(dbName: string = LOCAL_DB_NAME): Promise<Plan[]> {
     request.onblocked = () => resolve([]);
     request.onsuccess = () => {
       const db = request.result;
-      const done = (plans: Plan[]) => {
+      const done = (rows: unknown[]) => {
         db.close();
-        resolve(plans);
+        resolve(rows);
       };
       try {
-        if (!db.objectStoreNames.contains("plans")) {
+        if (!db.objectStoreNames.contains(store)) {
           done([]);
           return;
         }
         const all = db
-          .transaction("plans", "readonly")
-          .objectStore("plans")
+          .transaction(store, "readonly")
+          .objectStore(store)
           .getAll();
-        all.onsuccess = () => {
-          const plans: Plan[] = [];
-          for (const row of all.result as unknown[]) {
-            const plan = PlanSchema.safeParse(row);
-            if (plan.success) plans.push(plan.data);
-          }
-          done(plans);
-        };
+        all.onsuccess = () => done(all.result as unknown[]);
         all.onerror = () => done([]);
       } catch {
         done([]);
       }
     };
   });
+}
+
+/** Every saved plan that reads; [] when there are none or it can't be read. */
+export async function readPlans(
+  dbName: string = LOCAL_DB_NAME,
+): Promise<Plan[]> {
+  const plans: Plan[] = [];
+  for (const row of await readRows(dbName, "plans")) {
+    const plan = PlanSchema.safeParse(row);
+    if (plan.success) plans.push(plan.data);
+  }
+  return plans;
+}
+
+/** Each term's chosen main plan (the `mainPlans` settings row); {} when none. */
+export async function readMainPlans(
+  dbName: string = LOCAL_DB_NAME,
+): Promise<MainPlans> {
+  for (const row of await readRows(dbName, "settings")) {
+    if ((row as { key?: unknown }).key !== "mainPlans") continue;
+    const parsed = MainPlansSchema.safeParse(
+      (row as { value?: unknown }).value,
+    );
+    return parsed.success ? parsed.data : {};
+  }
+  return {};
 }
 
 /** Every course in any saved plan, sorted. */

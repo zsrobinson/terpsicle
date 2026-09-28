@@ -259,13 +259,8 @@ function unknownProblem(
   );
 }
 
-/** "CHEM1XX" → "CHEM 1XX", as Testudo prints it. */
-function patternLabel(pattern: string): string {
-  return `${pattern.slice(0, 4)} ${pattern.slice(4)}`;
-}
-
 /**
- * Transfer or AP credit Testudo gave as a department's level ("CHEM 1XX")
+ * Transfer or AP credit Testudo gave as a department's level ("CHEM1XX")
  * rather than a course: it meets no prerequisite until the person says which
  * course it counts as. Saying (a course, or none) answers it.
  */
@@ -279,11 +274,7 @@ function unmatchedCreditProblem(entry: FourYearCreditEntry): FourYearProblem[] {
     problem(
       "unmatched-credit",
       [{ kind: "entry", entryId: entry.id }],
-      [
-        text(
-          `${displayTitle(entry.title)} came in as ${patternLabel(pattern)}`,
-        ),
-      ],
+      [text(`${displayTitle(entry.title)} came in as ${pattern}`)],
       [
         text(
           `Testudo counts it as a ${kind} course without naming one, so it meets no prerequisites. If your degree audit names the course, say which.`,
