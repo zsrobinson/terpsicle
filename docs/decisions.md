@@ -51,8 +51,18 @@ Revisit if: Terpsicle launches publicly.
 
 ### The brand is Ink
 2026-09-26 · owner · app-wide
-The Ink variation with grain, Flexoki colors and Bricolage Grotesque, square corners with small offset shadows; a black box never gets a black offset. The Pixel star icon set is locked, kept as swappable SVGs. Tokens are in `docs/DESIGN.md` §7.
+The Ink variation with grain, Flexoki colors and Bricolage Grotesque, square corners with small offset shadows; a black box never gets a black offset. The marks are the owner's pixel drawings (below), kept as swappable data. Tokens are in `docs/DESIGN.md` §7.
 Revisit if: the owner refines the brand.
+
+### The owner's pixel marks, on Flexoki 600 tiles
+2026-09-28 · owner · app-wide
+Six 9×9 pixel marks, "exactly" as the owner drew them: a black umbrella tile for Terpsicle, and each product's glyph in white at 100% and 50% on its Flexoki 600 tile (Plan's green and Todo's yellow moved to 600 too). The 1-unit offset is optional: the bar and menus keep it, and the app icons and favicon are the umbrella's tile alone, no offset. In dark, the umbrella's black tile takes a base-600 keyline (the page is black too). Glyphs are graphics, held to 3:1 (Todo's white on yellow-600 is 3.5:1).
+Revisit if: the owner redraws a mark; change its rows in `src/app/brand/marks.ts` and run `pnpm tsx scripts/build-icons.ts`.
+
+### Early access, and a coffee link
+2026-09-28 · owner · app-wide
+An "Early access" chip sits beside the wordmark ("Terpsicle's still in active development, so things may change."). A coffee button beside Feedback opens a short note and links to https://buymeacoffee.com/zsrobinson ("figured it couldn't help"). It never opens by itself and never asks twice.
+Revisit if: Terpsicle leaves early access, or the owner drops the coffee link.
 
 ### Sign in with Google, UMD only
 2026-09-26 · owner · app-wide
@@ -194,8 +204,23 @@ Revisit if: signed-out people ask for it.
 
 ### Wildcards, one matcher
 2026-09-26 · owner · one feature
-Generate and Plan take `CMSC4XX`-style patterns and GenEd wildcards ("any DSHS"), through one shared matcher in core.
+Generate and Plan take `CMSC4XX`-style patterns and GenEd wildcards ("any DSHS"), through one shared matcher in core. (changed 2026-09-28: every course search box reads patterns through it too, and a short one is a prefix, so "cmsc4x" is CMSC4XX; owner: "x's should be treated like wildcards".)
 Revisit if: a third product needs them differently.
+
+### One course search in every product
+2026-09-28 · owner · app-wide
+"Course search bars should be unified somehow … so that familiarity carries over." Schedule's Search, Plan's Search and Generate's course field share one engine, box, chip line, result row and set of keys; each matches on the data it has loaded and says nothing about what it lacks. A new course search starts from `CourseSearchField` and `CourseResultRow`.
+Revisit if: a product needs a search people use differently (Reviews and Chat's finders are next to move onto it).
+
+### Filter tokens need no prefix, and only name chips
+2026-09-28 · agent · one feature
+A GenEd, a level ("400s") or credits ("3cr") typed in a course search becomes its chip on space or Enter, with no `is:` or `#` to learn (the owner asked for "DSNS" as typed). So only words that can't be a title's are tokens: GenEd codes that aren't departments, and numbers with their unit. "open" and "online" stay text, since titles use them.
+Revisit if: people type a token by accident, or ask for Open seats and Fits my plan by typing.
+
+### Sorting uses only what's loaded
+2026-09-28 · agent · one feature
+Search sorts by instructor rating and open seats with the seats file and whichever departments' PlanetTerp files are already loaded, never a fetch per row or per department (owner: "not extra network calls"). The rating option says how many departments it knows, and unrated courses go last.
+Revisit if: people sort by rating often and find it thin; a small all-departments ratings file would fix it.
 
 ### Generate starts with the open plan's courses
 2026-09-27 · agent · one feature
@@ -251,13 +276,23 @@ Revisit if: people don't find reviews from the scheduler.
 
 ### Search markup never borrows PlanetTerp's ratings
 2026-09-26 · agent · one feature
-JSON-LD `aggregateRating` appears only on course pages and only from Terpsicle's own published reviews: Google forbids ratings aggregated from other sites, and Person isn't a review-snippet type. Instructor pages carry Person and BreadcrumbList markup only, and `?course=` views canonicalize to the instructor's page.
+JSON-LD `aggregateRating` appears only on course pages and only from Terpsicle's own published reviews: Google forbids ratings aggregated from other sites, and Person isn't a review-snippet type. Instructor pages carry Person and BreadcrumbList markup only, and `?course=` views canonicalize to the instructor's page. No `review` items either: Google requires each one's author, and ours have none on purpose. (Checked again 2026-09-28, when our reviews started rendering on the server, so the rating's reviews are on the page as the guidelines require.)
 Revisit if: PlanetTerp agrees to let us use its ratings, or Google's rules change.
 
-### PlanetTerp text stays off
-2026-09-26 · owner · one feature
-PlanetTerp numbers show with credit; storing their review text waits until PlanetTerp agrees.
-Revisit if: PlanetTerp agrees.
+### PlanetTerp reviews are shown, marked as theirs
+2026-09-28 · owner · one feature
+"let's actually display reviews from planetterp; i'm going to say it's okay." Their reviews appear among ours, newest first, each with a "PlanetTerp" chip (tooltip and link), no author. The nightly PlanetTerp job keeps them in D1 and rewrites only the instructors whose reviews changed. (changed 2026-09-28: "PlanetTerp text stays off" said text waited on PlanetTerp's OK.)
+Revisit if: PlanetTerp asks us to stop.
+
+### Reviews pages live one level under /reviews
+2026-09-28 · owner · one feature
+`/reviews/kruskal` and `/reviews/cmsc351`, not `/reviews/instructors/…` ("too much to look normal when showing up on google"). A course code's pattern tells the two apart; an instructor's address is PlanetTerp's slug with a hyphen for its underscore (`goldman-aaron`), since search engines read a hyphen as a space. The old addresses move with a 301.
+Revisit if: an instructor's slug ever matches a course code, or `/reviews/<word>` is needed for a page of ours.
+
+### Reviews before grades, and Reviews reads as a public site
+2026-09-28 · owner · one feature
+"reviews are more important to display than grades"; instructors and courses are equals. Reviews' pages use the kit's `display` sizes (bigger type, roomier sections), the product's purple as an accent, and a bar with no rule until the page scrolls.
+Revisit if: the other products want a public page too.
 
 ### Published review numbers carry a month, never a time or text
 2026-09-26 · agent · one feature
@@ -318,10 +353,25 @@ Revisit if: people want different widths in each product.
 Todo never stores an ELMS or Gradescope password, never automates a login, and never fetches gradescope.com.
 Revisit if: Gradescope offers students an API or feed.
 
-### Gradescope through ELMS and files
-2026-09-26 · agent · one feature
-Gradescope items linked in ELMS get a "Gradescope" tag from the ELMS feed; the fallback is an `.ics` the student drops in, read in the browser.
-Revisit if: UMD's Gradescope setup changes.
+### No Gradescope detection
+2026-09-28 · owner · one feature
+Todo leaves Gradescope out entirely: no tag on items whose ELMS entry mentions gradescope.com, no note about extensions, and descriptions aren't read at all. The owner: "the gradescope integration doesn't sound like it's anything like i thought we might be able to do (hooking in directly and seeing those in there) so i think we just leave that sort of detection or whatever completely ommitted." Gradescope work linked in ELMS still comes through the feed like any assignment, and dropping a calendar file stays. This replaces "Gradescope through ELMS and files" (2026-09-26). The D1 columns `todo_items.exam` and `gradescope` stay, unused, until a later migration drops them.
+Revisit if: Gradescope offers students an API or feed.
+
+### No exam marking
+2026-09-28 · owner · one feature
+Todo marks no item as an exam. The owner wasn't sure how exams were marked and asked to keep it only if it's plain from the ELMS feed and the calendar shows it clearly; the feed never says which items are exams (it was a keyword guess on the title that called "Final exam review session" an exam), so it goes.
+Revisit if: ELMS's feed starts saying what an item is beyond assignment or event.
+
+### Todo is a calendar
+2026-09-28 · owner · one feature
+Todo's main view is a calendar: the week by default, then the month and a list, each a URL, with weeks starting Monday "since so many things are due sunday nights" and a synced pref for Sunday. It takes the workbench's shape with a side panel (adding a task in plain words, each course's weekly completion, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The side panel has no tabs (the agent's call): four short parts fit one column, and a rail would hide the composer.
+Revisit if: the side panel grows past what one column holds.
+
+### Todo reads tasks with its own grammar
+2026-09-28 · agent · one feature
+The composer's dates, times and courses come from a small parser of our own (`src/core/todo/quick-add.ts`), not chrono-node: students type a few forms, the composer needs each match's place in the text to mark it, courses are ours to match, and New York's clock is tested there rather than the browser's zone. It adds nothing to `/todo`'s bundle.
+Revisit if: people type forms it misses often enough to show in feedback.
 
 ### Own tasks in Todo
 2026-09-27 · owner · one feature

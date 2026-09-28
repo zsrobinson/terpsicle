@@ -47,6 +47,35 @@ describe("PageHeader at page size", () => {
   });
 });
 
+describe("PageHeader at display size", () => {
+  it("is a public page's h1, larger, with what the page is over it and no rule", async () => {
+    renderInRouter(
+      <PageHeader
+        size="display"
+        eyebrow="Instructor"
+        title="Clyde Kruskal"
+        status="Taught CMSC351"
+        back={{ label: "Reviews", to: "/reviews" }}
+        actions={<button type="button">Write a review</button>}
+      />,
+    );
+    const h1 = await screen.findByRole("heading", { level: 1 });
+    expect(h1).toHaveTextContent("Clyde Kruskal");
+    expect(h1).toHaveClass("text-3xl", "font-semibold");
+    expect(screen.getByText("Instructor")).toHaveClass(
+      "text-product-reviews-text",
+    );
+    expect(screen.getByText("Taught CMSC351")).toHaveClass("text-lg");
+    const header = h1.closest("header");
+    expect(header).toHaveAttribute("data-slot", "page-header");
+    expect(header).not.toHaveClass("border-b");
+    expect(screen.getByRole("link", { name: "Reviews" })).toHaveAttribute(
+      "href",
+      "/reviews",
+    );
+  });
+});
+
 describe("PageHeader at panel size", () => {
   it("is the 48px panel header: an h2, never an h1", async () => {
     renderInRouter(

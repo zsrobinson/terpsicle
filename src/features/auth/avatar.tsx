@@ -11,7 +11,8 @@ export function initials(name: string): string {
 
 /**
  * Someone's Google picture (our cached copy), or their initials when there
- * isn't one or it fails to load. Decorative: the name is always next to it.
+ * isn't one or it fails to load, in ink (the owner: black, not gray; paper
+ * in dark). Decorative: the name is always next to it.
  * `data-private` keeps it out of analytics (docs/ANALYTICS.md "Privacy").
  */
 export function Avatar({
@@ -45,7 +46,7 @@ export function Avatar({
       aria-hidden="true"
       data-private=""
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full bg-hover font-medium text-muted",
+        "flex shrink-0 items-center justify-center rounded-full bg-accent font-medium text-accent-fg",
         box,
       )}
     >

@@ -48,8 +48,6 @@ export function ownTaskItem(task: {
     courseCode: task.courseCode,
     sectionCode: null,
     kind: "assignment",
-    exam: false,
-    gradescope: false,
     dueAt: task.dueAt,
     dueDate: task.dueDate,
     link: null,

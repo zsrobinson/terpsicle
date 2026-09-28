@@ -53,7 +53,10 @@ test("connect the fixture feed, check an item off, and disconnect", async ({
   const project = connected.body.items.find(
     (i: { title: string }) => i.title === "Project 2",
   );
-  expect(project).toMatchObject({ courseCode: "CMSC216", exam: false });
+  expect(project).toMatchObject({ courseCode: "CMSC216" });
+  // No exam guess or Gradescope flag goes out any more (docs/decisions.md).
+  expect(project).not.toHaveProperty("exam");
+  expect(project).not.toHaveProperty("gradescope");
 
   await post(page, "todo/done", { uid: project.uid, done: true });
   const day = project.dueDate as string;

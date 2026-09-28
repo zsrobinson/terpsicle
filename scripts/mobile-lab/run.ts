@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { isWebkitCompositorCrash } from "./checks";
+import { attemptBroke, isWebkitCompositorCrash } from "./checks";
 import type { Device, Engine } from "./device";
 import { Lab } from "./lab";
 import { shrinkVideo } from "./media";
@@ -136,7 +136,7 @@ async function attempt(
   scenario: (typeof scenarios)[number],
   id: string,
   record: boolean,
-): Promise<{ result: ScenarioResult; crashed: boolean }> {
+): Promise<{ result: ScenarioResult; broke: boolean }> {
   const dir = path.join(out, id);
   mkdirSync(dir, { recursive: true });
   const t0 = Date.now();
@@ -150,7 +150,7 @@ async function attempt(
     skipped: scenario.skip?.(engine) ?? null,
     steps: lab.steps,
   };
-  if (result.skipped) return { result, crashed: false };
+  if (result.skipped) return { result, broke: false };
   try {
     await phone.begin(url, record ? path.join(dir, "video") : null);
     await scenario.run(lab);
@@ -175,10 +175,7 @@ async function attempt(
     console.error(`  ${id}: stopping the recording failed: ${error}`);
   }
   result.ms = Date.now() - t0;
-  const crashed = lab.steps.some((s) =>
-    s.checks.some((c) => c.id === "page-process-alive" && !c.ok),
-  );
-  return { result, crashed };
+  return { result, broke: attemptBroke(result) };
 }
 
 /** Keeps a compositor-crashed attempt as evidence, as warnings. */
@@ -213,10 +210,11 @@ function asCompositorCrash(
 }
 
 for (const scenario of scenarios) {
-  let { result, crashed } = await attempt(scenario, scenario.id, values.video);
+  let { result, broke } = await attempt(scenario, scenario.id, values.video);
   // WPE's compositor crash, up to twice: a page that sets it off every
-  // time still fails.
-  for (let n = 1; n <= 2 && crashed && engine === "webkit"; n++) {
+  // time still fails. Any attempt that broke is checked against the
+  // kernel's log: Playwright doesn't always say the page crashed.
+  for (let n = 1; n <= 2 && broke && engine === "webkit"; n++) {
     const kernel = await phone.crashEvidence?.();
     if (!kernel || !isWebkitCompositorCrash(kernel)) break;
     asCompositorCrash(result, kernel, n);
@@ -224,7 +222,7 @@ for (const scenario of scenarios) {
     console.error(
       `  ${scenario.id}: WebKit compositor crash; running it again`,
     );
-    ({ result, crashed } = await attempt(scenario, scenario.id, values.video));
+    ({ result, broke } = await attempt(scenario, scenario.id, values.video));
   }
   run.scenarios.push(result);
   if (result.skipped)

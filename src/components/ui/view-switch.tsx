@@ -13,6 +13,8 @@ export interface View {
   label: string;
   /** The tooltip: what the view shows ("What's due each day"). */
   hint?: string;
+  /** Its keyboard shortcut, shown in the tooltip. */
+  shortcut?: string;
   /** The view's route; leave it out to stay on this one and change `search`. */
   to?: LinkProps["to"];
   search?: LinkProps["search"];
@@ -38,7 +40,7 @@ export function ViewSwitch({
   return (
     <nav aria-label={label} className={cn(SEGMENTS, className)}>
       {views.map((view) => (
-        <Hinted key={view.id} hint={view.hint}>
+        <Hinted key={view.id} hint={view.hint} shortcut={view.shortcut}>
           <Link
             to={view.to}
             search={view.search}

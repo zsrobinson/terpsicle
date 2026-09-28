@@ -74,6 +74,9 @@ export function BackButton({
  *   phones it stacks: title and status, then the switch and actions in a row.
  * - `panel`: the 48px panel header (`PanelHeader`): an `h2` at 13/18 over a
  *   12px line, actions at the right, and a view switch under it.
+ * - `display`: a public reading page's (Reviews): a small label over an
+ *   `h1` at 32/38, a 15px status line, the actions beside it, and no rule
+ *   under it, so the page reads as one piece. The views go under it all.
  *
  * At most one filled button in `actions`; the rest ghost.
  */
@@ -84,6 +87,7 @@ export function PageHeader({
   views,
   actions,
   size = "page",
+  eyebrow,
   className,
 }: {
   title: ReactNode;
@@ -93,9 +97,41 @@ export function PageHeader({
   /** A `ViewSwitch`. */
   views?: ReactNode;
   actions?: ReactNode;
-  size?: "page" | "panel";
+  size?: "page" | "panel" | "display";
+  /** `display` only: what the page is ("Instructor"), over the title. */
+  eyebrow?: ReactNode;
   className?: string;
 }) {
+  if (size === "display")
+    return (
+      <header
+        data-slot="page-header"
+        className={cn("flex shrink-0 flex-col gap-4 pt-4 md:pt-8", className)}
+      >
+        {back ? <BackLink {...back} className="mb-1" /> : null}
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex min-w-0 flex-col gap-2">
+            {eyebrow ? (
+              <div className="font-medium text-product-reviews-text text-sm">
+                {eyebrow}
+              </div>
+            ) : null}
+            <h1 className="text-balance font-semibold text-3xl tracking-tight">
+              {title}
+            </h1>
+            {status ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg text-muted">
+                {status}
+              </div>
+            ) : null}
+          </div>
+          {actions ? (
+            <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          ) : null}
+        </div>
+        {views ? <div className="min-w-0">{views}</div> : null}
+      </header>
+    );
   if (size === "panel")
     return (
       <>

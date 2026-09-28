@@ -1,5 +1,11 @@
 import { courseFitsPlan, type FitContext } from "../fit/fit";
-import type { Course, CourseCode, GenEdCode, GenEdGroup } from "../schema";
+import type {
+  Course,
+  CourseCode,
+  CourseSearchRow,
+  GenEdCode,
+  GenEdGroup,
+} from "../schema";
 import { sectionKey } from "../schema";
 import { type SeatsMap, seatCounts } from "../seats/seats";
 
@@ -65,7 +71,7 @@ export function coversGenEds(
 }
 
 export function matchesCredits(
-  course: Course,
+  course: Pick<Course, "credits">,
   credits: readonly number[],
 ): boolean {
   if (credits.length === 0) return true;
@@ -93,6 +99,22 @@ export type FilterContext = {
   /** Needed only when `fitsMyPlan` is on. */
   readonly fit: FitContext | null;
 };
+
+/**
+ * The same line over the course index's search rows (Plan): Gen-eds,
+ * Credits and Level. A row lists its GenEd codes without their groups, so
+ * two chips match a course that lists both. Seats and fit need a term's
+ * sections, which the rows don't have: those chips don't show there.
+ */
+export function searchRowFilter(
+  filters: SearchFilters,
+): (row: CourseSearchRow) => boolean {
+  return ([code, , min, max, genEds]) =>
+    (filters.levels.length === 0 ||
+      filters.levels.includes(courseLevel(code))) &&
+    matchesCredits({ credits: { min, max } }, filters.credits) &&
+    filters.genEds.every((g) => genEds.includes(g));
+}
 
 /** One predicate for the whole filter line; cheap checks run first. */
 export function courseFilter(

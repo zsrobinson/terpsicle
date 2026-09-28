@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, PenLine } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { PanelNote } from "~/app/panel";
 import { formatGpa } from "~/core/grades/grades";
@@ -10,13 +10,13 @@ import {
   type CoursePageData,
   combineRatings,
   hasTermStarted,
-  terpsicleRating,
+  instructorSlug,
 } from "~/core/reviews";
 import type {
   CourseCode,
   InstructorId,
   MyReview,
-  PublicReview,
+  PageReviews,
 } from "~/core/schema";
 import { newYorkClock } from "~/core/todo/list";
 import { Button } from "~/ui/button";
@@ -30,79 +30,62 @@ import {
 import { ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
-import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer, type ComposerTarget } from "./composer";
 import { PAGE_NOTE, PAGE_ROW, ReviewsFrame } from "./frame";
 import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
 import { GradesBlock } from "./planetterp-blocks";
 import { CombinedRatingBadge } from "./rating";
-import { ReviewCard } from "./review-card";
-import { useMine, useVisible, WriteButton } from "./reviews-section";
-import { type ListState, useReviews } from "./reviews-store";
+import {
+  ReviewList,
+  useMine,
+  useReloadOnChange,
+  WriteButton,
+} from "./reviews-section";
 import { SignInPrompt } from "./sign-in-prompt";
 
-// /reviews/courses/$code (V2 §1.1): the course's grades, everyone who's
-// taught it with their numbers, and the newest reviews of it. Who teaches it
-// this term comes first: they're who you can pick.
-
-/**
- * Instructors whose reviews this page reads (reviews/list, one request
- * each): this term's, most-reviewed first. The rest show PlanetTerp's
- * numbers until our published numbers land in R2 (v2/reviews-publish).
- */
-export const COURSE_LISTS_MAX = 12;
-/** Reviews of the course shown under the instructors. */
-const NEWEST = 10;
+// /reviews/<course> (V2 §1.1): who teaches it now, then its reviews, ours
+// and PlanetTerp's about every instructor, then everyone who's taught it
+// with their numbers, and last its grades (owner, 2026-09-28: "reviews are
+// more important to display than grades"). The route's loader read it all,
+// so the server's HTML has it.
 
 type Row = CourseInstructorRow;
 
 /** The route's page: what the loader read (page-data.ts). */
-export function CoursePage({ data }: { data: CoursePageData }) {
+export function CoursePage({
+  data,
+  reviews,
+  write,
+}: {
+  data: CoursePageData;
+  reviews: PageReviews;
+  /** `?write=<name>`: open the form under who taught you. */
+  write: string | null;
+}) {
   const { code, title, term, grades } = data;
   const level = useReviewsLevel();
-  const [writingFor, setWritingFor] = useState<string | null>(null);
   const rows = data.instructors;
-
-  const readIds = useMemo(
-    () =>
-      rows
-        .filter((r) => r.teaching && r.id !== null)
-        .slice(0, COURSE_LISTS_MAX)
-        .flatMap((r) => (r.id ? [r.id] : [])),
-    [rows],
+  const [writingFor, setWritingFor] = useState<string | null>(
+    write && rows.some((r) => r.name === write) ? write : null,
   );
-  const lists = useCourseLists(readIds, level);
-  const newest = useVisible(
-    useMemo(
-      () =>
-        readIds
-          .flatMap((id) => {
-            const list = lists[id];
-            return list?.status === "ready"
-              ? list.reviews
-                  .filter((r) => r.course === code)
-                  .map((r) => ({ ...r, instructorId: id }))
-              : [];
-          })
-          .sort((a, b) => b.createdMonth.localeCompare(a.createdMonth)),
-      [readIds, lists, code],
-    ),
-  ) as (PublicReview & { instructorId: InstructorId })[];
   const mine = useMine();
-  const ownById = new Map(mine.map((r) => [r.id, r]));
+  useReloadOnChange();
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   const freshness = planetTerpFreshnessWords(data.source);
   const today = newYorkClock(Date.now()).date;
+  const teaching = rows.filter((r) => r.teaching);
 
   return (
     <ReviewsFrame page="course">
       <PageHeader
+        size="display"
         back={{ label: "Reviews", to: "/reviews" }}
+        eyebrow="Course"
         title={
           <>
             <span className="ident">{code}</span>
-            {title ? ` · ${title}` : null}
+            {title ? ` ${title}` : null}
           </>
         }
         status={
@@ -136,18 +119,30 @@ export function CoursePage({ data }: { data: CoursePageData }) {
         }
       />
 
-      <PageSection title="Grades">
-        {grades ? (
-          <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
-        ) : (
-          <PanelNote className={PAGE_NOTE}>
-            PlanetTerp has no grades for {code} yet.
-          </PanelNote>
-        )}
+      {term && teaching.length > 0 ? (
+        <TeachingNow term={term.name} code={code} rows={teaching} />
+      ) : null}
+
+      <PageSection size="display" title="Reviews">
+        <ReviewList
+          reviews={reviews}
+          query={{ instructorId: null, course: code }}
+          level={level}
+          showCourse={false}
+          about={(id) => (
+            <AboutInstructor
+              id={id}
+              code={code}
+              name={nameOf.get(id) ?? null}
+            />
+          )}
+          empty={`No reviews of ${code} yet.`}
+        />
       </PageSection>
 
       <PageSection
-        title="Instructors"
+        size="display"
+        title="Everyone who's taught it"
         aside={rows.length > 0 ? rows.length : undefined}
       >
         {rows.length === 0 ? (
@@ -162,7 +157,6 @@ export function CoursePage({ data }: { data: CoursePageData }) {
                 row={row}
                 code={code}
                 term={term?.name ?? null}
-                list={row.id ? lists[row.id] : undefined}
                 level={level}
                 existing={
                   mine.find(
@@ -180,58 +174,106 @@ export function CoursePage({ data }: { data: CoursePageData }) {
           </ul>
         )}
         {/* About the ratings beside each name, which are PlanetTerp's. */}
-        {freshness ? <p className="text-faint text-xs">{freshness}</p> : null}
+        {freshness ? <p className="text-faint text-sm">{freshness}</p> : null}
       </PageSection>
 
-      {level === "read" || level === "on" ? (
-        <PageSection title={`Newest reviews of ${code}`}>
-          {readIds.some(
-            (id) =>
-              lists[id]?.status !== "ready" && lists[id]?.status !== "error",
-          ) ? (
-            <RowSkeleton
-              rows={2}
-              inset={false}
-              label={`Loading reviews of ${code}`}
-            />
-          ) : newest.length === 0 ? (
-            <PanelNote className={PAGE_NOTE}>
-              No reviews of {code} on Terpsicle yet.
-            </PanelNote>
-          ) : (
-            <ul>
-              {newest.slice(0, NEWEST).map((r) => (
-                <ReviewCard
-                  key={r.id}
-                  review={r}
-                  own={ownById.get(r.id) ?? null}
-                  level={level}
-                  showCourse={false}
-                  about={
-                    <>
-                      About{" "}
-                      <WithTooltip
-                        label={`All reviews of ${nameOf.get(r.instructorId) ?? "them"} in ${code}`}
-                      >
-                        <Link
-                          to="/reviews/instructors/$id"
-                          params={{ id: r.instructorId }}
-                          search={{ course: code }}
-                          className="font-medium text-fg hover:underline"
-                        >
-                          {nameOf.get(r.instructorId) ?? "this instructor"}
-                        </Link>
-                      </WithTooltip>
-                    </>
-                  }
-                />
-              ))}
-            </ul>
-          )}
-        </PageSection>
-      ) : null}
+      <PageSection size="display" title="Grades">
+        {grades ? (
+          <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
+        ) : (
+          <PanelNote className={PAGE_NOTE}>
+            PlanetTerp has no grades for {code} yet.
+          </PanelNote>
+        )}
+      </PageSection>
     </ReviewsFrame>
   );
+}
+
+/** "About Clyde Kruskal", linking to their page for this course. */
+function AboutInstructor({
+  id,
+  code,
+  name,
+}: {
+  id: InstructorId;
+  code: CourseCode;
+  name: string | null;
+}) {
+  return (
+    <>
+      About{" "}
+      <WithTooltip label={`All reviews of ${name ?? "them"} in ${code}`}>
+        <Link
+          to="/reviews/$slug"
+          params={{ slug: instructorSlug(id) }}
+          search={{ course: code }}
+          className="font-medium text-fg hover:underline"
+        >
+          {name ?? "this instructor"}
+        </Link>
+      </WithTooltip>
+    </>
+  );
+}
+
+/** Who teaches it this term, each a link with their rating: who you can pick. */
+function TeachingNow({
+  term,
+  code,
+  rows,
+}: {
+  term: string;
+  code: CourseCode;
+  rows: readonly Row[];
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h2 className="font-medium text-base text-muted">Teaching in {term}</h2>
+      <ul className="flex flex-wrap gap-2">
+        {rows.map((row) => (
+          <li
+            key={row.id ?? row.name}
+            className="flex items-center gap-2 border border-hairline-strong px-3 py-2"
+          >
+            {row.id ? (
+              <WithTooltip
+                label={`${row.name}'s reviews and grades in ${code}`}
+              >
+                <Link
+                  to="/reviews/$slug"
+                  params={{ slug: instructorSlug(row.id) }}
+                  search={{ course: code }}
+                  className="font-medium text-lg hover:underline"
+                >
+                  {row.name}
+                </Link>
+              </WithTooltip>
+            ) : (
+              <span className="font-medium text-lg">{row.name}</span>
+            )}
+            <CombinedRatingBadge combined={rowRating(row)} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** PlanetTerp's numbers and ours, for one instructor, every course. */
+function rowRating(row: Row) {
+  return combineRatings([
+    {
+      source: "planetterp",
+      rating: row.planetTerp?.rating ?? null,
+      reviewCount: row.planetTerp?.reviewCount ?? 0,
+    },
+    {
+      source: "terpsicle",
+      rating: row.terpsicle?.rating ?? null,
+      reviewCount: row.terpsicle?.reviewCount ?? 0,
+    },
+  ]);
 }
 
 /**
@@ -258,7 +300,7 @@ function WriteMenu({
     <DropdownMenu>
       <WithTooltip label={`Pick who taught you ${code}`}>
         <DropdownMenuTrigger asChild>
-          <Button>
+          <Button size="lg">
             <PenLine aria-hidden="true" />
             Write a review
             <ChevronDown aria-hidden="true" />
@@ -283,25 +325,10 @@ function WriteMenu({
   );
 }
 
-/** Loads these instructors' reviews (at most COURSE_LISTS_MAX of them). */
-function useCourseLists(
-  ids: readonly InstructorId[],
-  level: ReviewsLevel,
-): Readonly<Record<InstructorId, ListState>> {
-  const lists = useReviews((s) => s.lists);
-  const ensureList = useReviews((s) => s.ensureList);
-  useEffect(() => {
-    if (level !== "read" && level !== "on") return;
-    for (const id of ids) void ensureList(id);
-  }, [ids, level, ensureList]);
-  return lists;
-}
-
 function InstructorRow({
   row,
   code,
   term,
-  list,
   level,
   existing,
   writing,
@@ -311,7 +338,6 @@ function InstructorRow({
   row: Row;
   code: CourseCode;
   term: string | null;
-  list: ListState | undefined;
   level: ReviewsLevel;
   /** Your live review of them in this course, which the form edits. */
   existing: MyReview | null;
@@ -323,17 +349,8 @@ function InstructorRow({
   const formRef = useRef<HTMLDivElement>(null);
   // The header's menu can be a screen away: bring the form to it.
   useEffect(() => {
-    if (writing) formRef.current?.scrollIntoView?.({ block: "nearest" });
+    if (writing) formRef.current?.scrollIntoView?.({ block: "center" });
   }, [writing]);
-  const ours = list?.status === "ready" ? terpsicleRating(list.reviews) : null;
-  const combined = combineRatings([
-    {
-      source: "planetterp",
-      rating: row.planetTerp?.rating ?? null,
-      reviewCount: row.planetTerp?.reviewCount ?? 0,
-    },
-    ...(ours ? [ours] : []),
-  ]);
   const target: ComposerTarget = {
     instructorId: row.id,
     reviewedName: row.name,
@@ -346,10 +363,10 @@ function InstructorRow({
       <ListRow
         className={PAGE_ROW}
         trail={
-          <span className="flex items-center gap-3">
-            <CombinedRatingBadge combined={combined} />
+          <span className="flex items-center gap-4 text-base">
+            <CombinedRatingBadge combined={rowRating(row)} />
             {row.gpa !== null ? (
-              <span className="text-muted">GPA {formatGpa(row.gpa)}</span>
+              <span className="tnum text-muted">GPA {formatGpa(row.gpa)}</span>
             ) : null}
             {row.id === null && (!writing || signedIn !== true) ? (
               <WriteButton
@@ -368,16 +385,16 @@ function InstructorRow({
           {row.id ? (
             <WithTooltip label={`${row.name}'s reviews and grades in ${code}`}>
               <Link
-                to="/reviews/instructors/$id"
-                params={{ id: row.id }}
+                to="/reviews/$slug"
+                params={{ slug: instructorSlug(row.id) }}
                 search={{ course: code }}
-                className="font-medium hover:underline"
+                className="font-medium text-lg hover:underline"
               >
                 {row.name}
               </Link>
             </WithTooltip>
           ) : (
-            <span className="font-medium">{row.name}</span>
+            <span className="font-medium text-lg">{row.name}</span>
           )}
           {row.teaching && term ? (
             <span className="border border-hairline-strong px-1.5 text-muted text-xs">
@@ -387,7 +404,7 @@ function InstructorRow({
         </div>
       </ListRow>
       {writing ? (
-        <div ref={formRef} className="scroll-mt-4 pb-3">
+        <div ref={formRef} className="scroll-mt-16 pb-3">
           {signedIn !== true ? (
             <SignInPrompt>
               Sign in with your UMD account to write a review. Readers won't see

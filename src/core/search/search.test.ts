@@ -12,6 +12,7 @@ import { buildCatalogIndex } from "../catalog/catalog-index";
 import { buildFitContext } from "../fit/fit";
 import {
   type Course,
+  type CourseSearchRow,
   DEFAULT_TRAVEL_SETTINGS,
   type PlanCourse,
   type SeatTuple,
@@ -26,15 +27,20 @@ import {
   matchesCredits,
   NO_FILTERS,
   type SearchFilters,
+  searchRowFilter,
 } from "./filters";
 import {
   codeTokens,
   courseSearchDoc,
   createCourseSearch,
+  createRowSearch,
   fuzziness,
+  queryCourses,
   queryTokens,
   searchCourses,
 } from "./search";
+import { parseCourseQuery, queryFilters } from "./tokens";
+import { wildcardSearchInfo } from "./wildcards";
 
 /** A plan course placed in one of `course`'s sections, snapshotted as it is now. */
 function placed(course: Course, sectionCode: string): PlanCourse {
@@ -290,5 +296,98 @@ describe("filters", () => {
     ).toHaveLength(3);
     expect(isFiltering(NO_FILTERS)).toBe(false);
     expect(isFiltering({ ...NO_FILTERS, openSeats: true })).toBe(true);
+  });
+});
+
+describe("one engine for every search box", () => {
+  const titled = [
+    ...courses,
+    aCourse({ code: "PSYC100", title: "Introduction to Psychology" }),
+    aCourse({
+      code: "PSYC341",
+      title: "Psychology: an Introduction to Memory",
+    }),
+    aCourse({ code: "CMSC420", title: "Advanced Data Structures" }),
+    aCourse({ code: "CMSC498A", title: "Special Topics in Computer Science" }),
+    aCourse({ code: "CMSC499A", title: "Independent Undergraduate Research" }),
+  ];
+  const full = createCourseSearch(titled);
+  const info = wildcardSearchInfo(titled);
+  const byCode = new Map(titled.map((c) => [c.code, c]));
+  const find = (query: string, filters: SearchFilters = NO_FILTERS) => {
+    const parsed = parseCourseQuery(query, info);
+    const keep = courseFilter(queryFilters(filters, parsed), {
+      seats: null,
+      fit: null,
+    });
+    return queryCourses(full, parsed, (c) => byCode.get(c), keep).map(
+      (c) => c.code,
+    );
+  };
+
+  it("finds a title by the start of each word, small words or not", () => {
+    for (const q of ["intro psych", "intro to psychology", "psych", "intro"])
+      expect(find(q)).toContain("PSYC100");
+    expect(find("intro to psychology")[0]).toBe("PSYC100");
+  });
+
+  it("lists a pattern's courses in code order, suffixes included", () => {
+    for (const q of ["cmsc4xx", "CMSC4XX", "cmsc4x", "cmsc 4xx"])
+      expect(find(q)).toEqual(["CMSC420", "CMSC498A", "CMSC499A"]);
+    expect(find("cmsc49x")).toEqual(["CMSC498A", "CMSC499A"]);
+    expect(find("cmsc4xx data")).toEqual(["CMSC420"]);
+  });
+
+  it("filters by a token still in the box, like its chip", () => {
+    const withGenEds = [
+      aCourse({
+        code: "BSCI160",
+        title: "Principles of Ecology",
+        genEds: [[{ code: "DSNS" }]],
+      }),
+      aCourse({
+        code: "HIST200",
+        title: "American History",
+        genEds: [[{ code: "DSHS" }]],
+      }),
+    ];
+    const s = createCourseSearch(withGenEds);
+    const i = wildcardSearchInfo(withGenEds);
+    const map = new Map(withGenEds.map((c) => [c.code, c]));
+    const run = (q: string) => {
+      const parsed = parseCourseQuery(q, i);
+      const keep = courseFilter(queryFilters(NO_FILTERS, parsed), {
+        seats: null,
+        fit: null,
+      });
+      return queryCourses(s, parsed, (c) => map.get(c), keep).map(
+        (c) => c.code,
+      );
+    };
+    expect(run("DSNS")).toEqual(["BSCI160"]);
+    expect(run("dshs history")).toEqual(["HIST200"]);
+    expect(run("dsns history")).toEqual([]);
+  });
+
+  it("searches the course index's rows the same way", () => {
+    const rows: CourseSearchRow[] = titled.map((c) => [
+      c.code,
+      c.title,
+      c.credits.min,
+      c.credits.max,
+      [],
+    ]);
+    const rowSearch = createRowSearch(rows);
+    const rowsByCode = new Map(rows.map((r) => [r[0], r]));
+    const rowFind = (q: string) =>
+      queryCourses(
+        rowSearch,
+        parseCourseQuery(q, info),
+        (c) => rowsByCode.get(c),
+        searchRowFilter(NO_FILTERS),
+      ).map((r) => r[0]);
+    // Instructors aside ("kruskal"), the rows find what the term does.
+    for (const q of ["intro psych", "cmsc 351", "algoritms", "cmsc4xx", "stat"])
+      expect(rowFind(q)).toEqual(find(q));
   });
 });

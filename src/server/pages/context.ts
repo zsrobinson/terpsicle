@@ -4,7 +4,7 @@
 // REVIEWS_ENABLED allows reading. A server render never fetches /data.
 import type { PageRequestContext, PublishedFiles } from "~/core/routing";
 import { FeatureVarsSchema } from "~/core/schema";
-import { reviewsServerData } from "../reviews/public";
+import { pageReviews, reviewsServerData } from "../reviews/public";
 
 /**
  * Content-hashed files never change, so an isolate keeps the newest few,
@@ -52,5 +52,6 @@ export function pageContext(
   return {
     published: r2PublishedFiles(env.DATA),
     reviews: reviews === "off" ? null : reviewsServerData(env.DB),
+    pageReviews: (input) => pageReviews(env, input),
   };
 }

@@ -105,7 +105,13 @@ function currentState(): ScheduleHistoryState {
 /** Search's text and chips as last left in a term, for its tab's URL. */
 function searchParams(termId: string | null) {
   const typed = termId ? useSearchStore.getState().byTerm[termId] : undefined;
-  return typed ? { q: typed.query, ...filterParams(typed.filters) } : {};
+  return typed
+    ? {
+        q: typed.query,
+        ...filterParams(typed.filters),
+        sort: typed.sort === "relevance" ? undefined : typed.sort,
+      }
+    : {};
 }
 
 /** Generate shows its results when they're this term's and last shown. */

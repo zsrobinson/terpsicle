@@ -15,6 +15,7 @@ import type {
 } from "../schema";
 import { formatShortDate, formatTime } from "../time";
 import { matchFeedCourse, pickFeedCourse } from "./feed";
+import { DEFAULT_WEEK_START, type WeekStart, weekStartOf } from "./weeks";
 
 // How Todo's list reads (docs/V3.md §3.9): items grouped by day or by course,
 // done items folded away, and the header's words. Pure: "now" and "today"
@@ -23,10 +24,13 @@ import { matchFeedCourse, pickFeedCourse } from "./feed";
 const MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
 
-/** How far back the list reaches for open work that's past due. */
-export const TODO_LIST_PAST_DAYS = 14;
+/**
+ * How far back the list reaches: open work that's past due, and the four
+ * weeks the completion chart draws.
+ */
+export const TODO_LIST_PAST_DAYS = 28;
 /** How far ahead it reaches; with the past days, inside `todo/list`'s 120. */
-export const TODO_LIST_AHEAD_DAYS = 105;
+export const TODO_LIST_AHEAD_DAYS = 91;
 
 /** The dates `todo/list` is asked for, from `today`. */
 export function listRange(today: IsoDate): { from: IsoDate; to: IsoDate } {
@@ -77,30 +81,6 @@ export function dayLabel(date: IsoDate, today: IsoDate): string {
   if (date === addDays(today, 1)) return "Tomorrow";
   if (date === addDays(today, -1)) return "Yesterday";
   return `${WEEKDAY_NAMES[weekdayOf(date)]}, ${formatShortDate(date)}`;
-}
-
-/** The Monday on or before a date: weeks run Monday to Sunday, like classes. */
-export function weekStart(date: IsoDate): IsoDate {
-  const back = { M: 0, Tu: 1, W: 2, Th: 3, F: 4, Sa: 5, Su: 6 }[
-    weekdayOf(date)
-  ];
-  return addDays(date, -back);
-}
-
-/**
- * The Monday of the week the Week view opens on: this one on a weekday,
- * the coming one on a Saturday or Sunday, when what's left of this week is
- * the weekend and what's due next is what a student is planning for.
- */
-export function openingWeek(today: IsoDate): IsoDate {
-  const day = weekdayOf(today);
-  const monday = weekStart(today);
-  return day === "Sa" || day === "Su" ? addDays(monday, 7) : monday;
-}
-
-/** Seven dates from a week's Monday. */
-export function weekDates(monday: IsoDate): IsoDate[] {
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 }
 
 /** Words for when an item's due, in a list that isn't by day: "Friday, Oct 2 · 1pm", or "No date". */
@@ -168,13 +148,16 @@ const SECTION_LABELS: Record<TodoSectionId, string> = {
   "no-date": NO_DATE,
 };
 
-function sectionOf(date: IsoDate, today: IsoDate): TodoSectionId {
+function sectionOf(
+  date: IsoDate,
+  today: IsoDate,
+  nextWeek: IsoDate,
+): TodoSectionId {
   if (date < today) return "earlier";
   if (date === today) return "today";
   if (date === addDays(today, 1)) return "tomorrow";
-  const nextMonday = addDays(weekStart(today), 7);
-  if (date < nextMonday) return "this-week";
-  if (date < addDays(nextMonday, 7)) return "next-week";
+  if (date < nextWeek) return "this-week";
+  if (date < addDays(nextWeek, 7)) return "next-week";
   return "later";
 }
 
@@ -190,7 +173,9 @@ export function groupByDay(
   items: readonly TodoItem[],
   done: ReadonlySet<string>,
   today: IsoDate,
+  start: WeekStart = DEFAULT_WEEK_START,
 ): TodoSection[] {
+  const nextWeek = addDays(weekStartOf(today, start), 7);
   const days = new Map<IsoDate, TodoDay & { date: IsoDate }>();
   const dayOf = (date: IsoDate) => {
     let day = days.get(date);
@@ -214,12 +199,11 @@ export function groupByDay(
   for (const day of [...days.values()].sort((a, b) =>
     a.date < b.date ? -1 : 1,
   )) {
-    const id = sectionOf(day.date, today);
+    const id = sectionOf(day.date, today, nextWeek);
     sections.set(id, [...(sections.get(id) ?? []), day]);
   }
 
-  const nextMonday = addDays(weekStart(today), 7);
-  const weekHasDaysLeft = addDays(today, 2) < nextMonday;
+  const weekHasDaysLeft = addDays(today, 2) < nextWeek;
   const order: TodoSectionId[] = [
     "earlier",
     "today",
@@ -291,53 +275,6 @@ export function isHiddenItem(
   return matchFeedCourse(item.courseLabel).some((c) => hidden.has(c.code));
 }
 
-/** Done and all, of what's due in a run of days. */
-export interface Progress {
-  done: number;
-  total: number;
-}
-
-/**
- * The span progress counts: the week the Week view calls "This week"
- * (`openingWeek`), so on a weekend it's the coming one, as there.
- */
-function inThisWeek(date: IsoDate | null, today: IsoDate): boolean {
-  if (date === null) return false;
-  const monday = openingWeek(today);
-  return date >= monday && date <= addDays(monday, 6);
-}
-
-/**
- * This week's progress: the items due Monday through Sunday of the week
- * the Week view opens on, done or not, and how many of them are done.
- */
-export function weekProgress(
-  items: readonly TodoItem[],
-  done: ReadonlySet<string>,
-  today: IsoDate,
-): Progress {
-  const week = items.filter((i) => inThisWeek(i.dueDate, today));
-  return {
-    done: week.filter((i) => done.has(i.uid)).length,
-    total: week.length,
-  };
-}
-
-/** "3 of 5 done". */
-export function progressWords({ done, total }: Progress): string {
-  return `${done} of ${total} done`;
-}
-
-/** The header's line: "This week: 7 of 12 done", or null with nothing due. */
-export function weekProgressWords(progress: Progress): string | null {
-  return progress.total === 0 ? null : `This week: ${progressWords(progress)}`;
-}
-
-/** "Hidden: 2 courses". */
-export function hiddenWords(count: number): string {
-  return `Hidden: ${count} ${count === 1 ? "course" : "courses"}`;
-}
-
 const MINUTE_WORDS = (n: number) => (n === 1 ? "1 minute" : `${n} minutes`);
 const HOUR_WORDS = (n: number) => (n === 1 ? "1 hour" : `${n} hours`);
 
@@ -362,90 +299,24 @@ export function relativeDue(
   return diff > 0 ? `Due in ${words}` : `Due ${words} ago`;
 }
 
-/** One course in the by-course view. */
-export interface TodoCourseGroup {
-  /** The course code, the ELMS course name when there's no code, or "Other". */
-  key: string;
-  code: CourseCode | null;
-  /** The ELMS course name, when the feed gave one. */
-  label: string | null;
-  open: TodoItem[];
-  done: TodoItem[];
-  /** Its items due this week (Monday to Sunday), done or not. */
-  week: Progress;
-}
-
 /**
- * The list by course: each course's open items from today on, soonest first,
- * with its done ones folded. Courses with open work come first, by code;
- * items with no course at all go last, under "Other".
- */
-export function groupByCourse(
-  items: readonly TodoItem[],
-  done: ReadonlySet<string>,
-  today: IsoDate,
-  planCourses: ReadonlySet<CourseCode> = new Set(),
-): TodoCourseGroup[] {
-  const groups = new Map<string, TodoCourseGroup>();
-  // This week counts what's done earlier in it too, which the list leaves out.
-  const weeks = new Map<string, Progress>();
-  for (const item of items) {
-    if (!inThisWeek(item.dueDate, today)) continue;
-    const key = courseKey(item, planCourses);
-    const week = weeks.get(key) ?? { done: 0, total: 0 };
-    weeks.set(key, {
-      done: week.done + (done.has(item.uid) ? 1 : 0),
-      total: week.total + 1,
-    });
-  }
-  for (const item of [...items].sort(compareItems)) {
-    const isDone = done.has(item.uid);
-    if (item.dueDate !== null && item.dueDate < today && isDone) continue;
-    const code = itemCourse(item, planCourses);
-    const key = courseKey(item, planCourses);
-    let group = groups.get(key);
-    if (!group) {
-      group = {
-        key,
-        code,
-        label: item.courseLabel,
-        open: [],
-        done: [],
-        week: weeks.get(key) ?? { done: 0, total: 0 },
-      };
-      groups.set(key, group);
-    }
-    (isDone ? group.done : group.open).push(item);
-  }
-  const rank = (g: TodoCourseGroup) =>
-    g.code !== null ? 0 : g.key !== NO_COURSE_KEY ? 1 : 2;
-  return [...groups.values()].sort(
-    (a, b) =>
-      Number(a.open.length === 0) - Number(b.open.length === 0) ||
-      rank(a) - rank(b) ||
-      a.key.localeCompare(b.key),
-  );
-}
-
-/**
- * The term a course group's chat room is for: the one its next item is due
- * in (from today on, else the latest), by season, since Todo has no
- * academic calendars. Winter's few weeks count as the spring they lead into:
- * an ELMS course posting work in January is a spring course. A group of
- * own tasks with no dates is in today's term.
+ * The term a course's chat room is for: the one its next item is due in
+ * (from today on, else the latest), by season, since Todo has no academic
+ * calendars. Winter's few weeks count as the spring they lead into: an
+ * ELMS course posting work in January is a spring course. A course of own
+ * tasks with no dates is in today's term.
  */
 export function courseChatTerm(
-  group: Pick<TodoCourseGroup, "open" | "done">,
+  items: readonly Pick<TodoItem, "dueDate">[],
   today: IsoDate,
 ): TermId | null {
-  const dated = (items: readonly TodoItem[]) =>
-    items.flatMap((i) => (i.dueDate === null ? [] : [i.dueDate]));
-  const open = dated(group.open);
+  const dates = items
+    .flatMap((i) => (i.dueDate === null ? [] : [i.dueDate]))
+    .sort();
   const next =
-    open.find((date) => date >= today) ??
-    dated(group.done)[0] ??
-    open.at(-1) ??
-    (group.open.length + group.done.length > 0 ? today : null);
+    dates.find((date) => date >= today) ??
+    dates.at(-1) ??
+    (items.length > 0 ? today : null);
   if (next === null) return null;
   const term = seasonTermOf(next);
   return term.endsWith("12") ? `${Number(term.slice(0, 4)) + 1}01` : term;

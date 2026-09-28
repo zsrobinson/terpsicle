@@ -82,10 +82,18 @@ export function SegmentedControl<T extends string>({
 /** A segment's tooltip, when it has one; its label is always visible. */
 export function Hinted({
   hint,
+  shortcut,
   children,
 }: {
   hint: string | undefined;
+  shortcut?: string;
   children: ReactElement;
 }) {
-  return hint ? <WithTooltip label={hint}>{children}</WithTooltip> : children;
+  return hint ? (
+    <WithTooltip label={hint} shortcut={shortcut}>
+      {children}
+    </WithTooltip>
+  ) : (
+    children
+  );
 }

@@ -24,18 +24,16 @@ const calendar = (events: number) =>
 
 describe("readTodoFile", () => {
   it("keeps only the structured fields import-file takes", () => {
-    const text = saved("synthetic-file-gradescope");
+    const text = saved("synthetic-file-2026-09");
     const read = readTodoFile(text, text.length);
     if (read.status !== "ok") throw new Error(read.status);
     expect(read.items.length).toBeGreaterThan(0);
     for (const item of read.items) TodoFileItemSchema.parse(item);
-    expect(read.items.some((i) => i.gradescope)).toBe(true);
     // No description, file text or anything else rides along.
     expect(Object.keys(read.items[0] ?? {}).sort()).toEqual([
       "courseLabel",
       "dueAt",
       "dueDate",
-      "gradescope",
       "kind",
       "link",
       "title",

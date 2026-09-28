@@ -4,6 +4,10 @@
 import type { z } from "zod";
 import {
   AdminChatRemoveInputSchema,
+  AdminGradeSaveInputSchema,
+  AdminGradeSaveResultSchema,
+  AdminGradesInputSchema,
+  AdminGradesSchema,
   AdminHealthInputSchema,
   AdminHealthSchema,
   AdminSamplesInputSchema,
@@ -78,6 +82,27 @@ export const adminApi = {
       AdminHealthInputSchema,
       AdminHealthSchema,
       {},
+      options,
+    ),
+  /** The semesters whose grades aren't in yet, with the owner's notes. */
+  grades: (options?: ApiOptions) =>
+    call(
+      "admin/grades",
+      AdminGradesInputSchema,
+      AdminGradesSchema,
+      {},
+      options,
+    ),
+  /** When a semester's request went out, and a note. */
+  gradesSave: (
+    input: z.input<typeof AdminGradeSaveInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "admin/grades/save",
+      AdminGradeSaveInputSchema,
+      AdminGradeSaveResultSchema,
+      input,
       options,
     ),
   /** Test mode only: made-up held items to try the panel on. */

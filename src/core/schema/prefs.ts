@@ -16,6 +16,12 @@ export const ChatRulesPrefsSchema = z.object({
 });
 export type ChatRulesPrefs = z.infer<typeof ChatRulesPrefsSchema>;
 
+/** Todo's calendar: the day its weeks start on. Missing means Monday. */
+export const TodoPrefsSchema = z.object({
+  weekStart: z.enum(["monday", "sunday"]),
+});
+export type TodoPrefs = z.infer<typeof TodoPrefsSchema>;
+
 /**
  * Loose on purpose: a key this build doesn't know (a newer build's, another
  * product's) passes through untouched, so no build drops what it can't read.
@@ -23,5 +29,6 @@ export type ChatRulesPrefs = z.infer<typeof ChatRulesPrefsSchema>;
 export const SyncedPrefsSchema = z.looseObject({
   ai: AiPrefsSchema.optional(),
   chatRules: ChatRulesPrefsSchema.optional(),
+  todo: TodoPrefsSchema.optional(),
 });
 export type SyncedPrefs = z.infer<typeof SyncedPrefsSchema>;

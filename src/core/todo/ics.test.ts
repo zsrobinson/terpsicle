@@ -17,7 +17,7 @@ const feed = (name: string) => {
   return parseIcs(saved.text, saved.source);
 };
 const elms = feed("synthetic-elms-2026-09");
-const file = feed("synthetic-file-gradescope");
+const file = feed("synthetic-file-2026-09");
 
 const item = (parse: IcsParse, uid: string): FeedItem => {
   const found = parse.items.find((i) => i.uid === uid);
@@ -53,7 +53,7 @@ describe("golden feeds", () => {
 
   it("keeps the ELMS fixture's CRLF line ends and the file's LF ones", () => {
     expect(FEEDS["synthetic-elms-2026-09"]?.text).toContain("\r\n");
-    expect(FEEDS["synthetic-file-gradescope"]?.text).not.toContain("\r");
+    expect(FEEDS["synthetic-file-2026-09"]?.text).not.toContain("\r");
   });
 
   it("marks the fixtures as synthetic", () => {
@@ -74,8 +74,6 @@ describe("parseIcs: an ELMS feed", () => {
         sectionCode: "0103",
         kind: "assignment",
         kindFrom: "uid",
-        looksLikeExam: false,
-        gradescope: false,
         dueAt: "2026-09-30T03:59:00.000Z",
         dueDate: "2026-09-29",
         endAt: null,
@@ -96,7 +94,6 @@ describe("parseIcs: an ELMS feed", () => {
     expect(item(elms, "event-calendar-event-880001")).toMatchObject({
       kind: "event",
       kindFrom: "uid",
-      looksLikeExam: true,
       dueAt: "2026-10-08T17:00:00.000Z",
       endAt: "2026-10-08T18:15:00.000Z",
     });
@@ -120,18 +117,11 @@ describe("parseIcs: an ELMS feed", () => {
     });
   });
 
-  it("guesses exams from the title, and knows a final project isn't one", () => {
-    expect(item(elms, "event-assignment-4410003").looksLikeExam).toBe(true);
-    expect(item(elms, "event-assignment-4410012").looksLikeExam).toBe(true);
-    expect(item(elms, "event-assignment-4410004").looksLikeExam).toBe(false);
-  });
-
-  it("flags Gradescope from the description, not from an alarm inside the event", () => {
-    expect(item(elms, "event-assignment-4410005").gradescope).toBe(true);
-    expect(item(elms, "event-calendar-event-880003")).toMatchObject({
-      gradescope: false,
-      title: "Office hours [moved to IRB 1116]",
-    });
+  it("never reads a description, and keeps brackets inside a title", () => {
+    for (const i of elms.items) expect(i).not.toHaveProperty("description");
+    expect(item(elms, "event-calendar-event-880003").title).toBe(
+      "Office hours [moved to IRB 1116]",
+    );
   });
 
   it("reads every course in a cross-listed or merged label", () => {
@@ -185,25 +175,25 @@ describe("parseIcs: time zones", () => {
   });
 
   it("reads TZID=America/New_York in daylight and standard time", () => {
-    expect(item(file, "gradescope-2700101@export.invalid")).toMatchObject({
+    expect(item(file, "export-2700101@export.invalid")).toMatchObject({
       dueAt: "2026-11-05T04:59:00.000Z",
       dueDate: "2026-11-04",
     });
-    expect(item(file, "gradescope-2700111@export.invalid")).toMatchObject({
+    expect(item(file, "export-2700111@export.invalid")).toMatchObject({
       dueAt: "2026-10-16T14:00:00.000Z",
       endAt: "2026-10-16T15:00:00.000Z",
     });
   });
 
   it("reads a repeated local time as the first one (RFC 5545 §3.3.5)", () => {
-    expect(item(file, "gradescope-2700102@export.invalid").dueAt).toBe(
+    expect(item(file, "export-2700102@export.invalid").dueAt).toBe(
       "2026-11-01T05:30:00.000Z",
     );
   });
 
   it("reads a skipped local time with the offset before the gap", () => {
     // 2:30am on the night clocks jump to 3am: 2:30 EST, which is 3:30 EDT.
-    expect(item(file, "gradescope-2700103@export.invalid")).toMatchObject({
+    expect(item(file, "export-2700103@export.invalid")).toMatchObject({
       dueAt: "2027-03-14T07:30:00.000Z",
       dueDate: "2027-03-14",
     });
@@ -211,20 +201,20 @@ describe("parseIcs: time zones", () => {
 
   it("reads another zone and dates it in New York", () => {
     // 11:59pm in Chicago is 12:59am the next day in New York.
-    expect(item(file, "gradescope-2700104@export.invalid")).toMatchObject({
+    expect(item(file, "export-2700104@export.invalid")).toMatchObject({
       dueAt: "2026-10-16T04:59:00.000Z",
       dueDate: "2026-10-16",
     });
   });
 
   it("reads a floating time in New York", () => {
-    expect(item(file, "gradescope-2700105@export.invalid").dueAt).toBe(
+    expect(item(file, "export-2700105@export.invalid").dueAt).toBe(
       "2026-10-20T16:00:00.000Z",
     );
   });
 
   it("reads Outlook's zone names", () => {
-    expect(item(file, "gradescope-2700107@export.invalid")).toMatchObject({
+    expect(item(file, "export-2700107@export.invalid")).toMatchObject({
       dueAt: "2026-12-11T04:59:00.000Z",
       dueDate: "2026-12-10",
     });
@@ -232,17 +222,16 @@ describe("parseIcs: time zones", () => {
 
   it("skips an event in a zone it can't place", () => {
     expect(file.items.map((i) => i.uid)).not.toContain(
-      "gradescope-2700109@export.invalid",
+      "export-2700109@export.invalid",
     );
     expect(file.skipped).toBe(1);
   });
 
   it("reads all-day items in a file", () => {
-    expect(item(file, "gradescope-2700106@export.invalid")).toMatchObject({
+    expect(item(file, "export-2700106@export.invalid")).toMatchObject({
       dueAt: null,
       dueDate: "2026-12-01",
       kind: "event",
-      looksLikeExam: true,
     });
   });
 });
@@ -252,9 +241,8 @@ describe("parseIcs: a dropped file", () => {
     expect(new Set(file.items.map((i) => i.source))).toEqual(new Set(["file"]));
   });
 
-  it("flags Gradescope links, and keeps only ELMS links", () => {
-    expect(item(file, "gradescope-2700101@export.invalid")).toMatchObject({
-      gradescope: true,
+  it("keeps only ELMS links", () => {
+    expect(item(file, "export-2700101@export.invalid")).toMatchObject({
       link: null,
       courseCodes: ["MATH240"],
       sectionCode: null,
@@ -262,25 +250,25 @@ describe("parseIcs: a dropped file", () => {
   });
 
   it("guesses the kind from the title when the UID doesn't say, and says it guessed", () => {
-    expect(item(file, "gradescope-2700105@export.invalid")).toMatchObject({
+    expect(item(file, "export-2700105@export.invalid")).toMatchObject({
       kind: "assignment",
       kindFrom: "title",
     });
-    expect(item(file, "gradescope-2700111@export.invalid")).toMatchObject({
+    expect(item(file, "export-2700111@export.invalid")).toMatchObject({
       kind: "event",
       kindFrom: "title",
     });
   });
 
   it("keeps the higher SEQUENCE of a repeated UID", () => {
-    expect(item(file, "gradescope-2700108@export.invalid").dueDate).toBe(
+    expect(item(file, "export-2700108@export.invalid").dueDate).toBe(
       "2026-11-12",
     );
   });
 
   it("leaves cancelled events out without counting them", () => {
     expect(file.items.map((i) => i.uid)).not.toContain(
-      "gradescope-2700110@export.invalid",
+      "export-2700110@export.invalid",
     );
     expect(file.items).toHaveLength(9);
   });

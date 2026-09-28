@@ -84,7 +84,8 @@ Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, gre
 - **Transcript import is a pure core parser** with golden tests on redacted real pastes; the paste never leaves the browser.
 - **Wildcards** (`CMSC4XX`, `ARTTXXX`, "any DSHS") are placeholder blocks, using the shared matcher from `v2/wildcards`.
 - **Todo uses the ELMS calendar feed**, stored on the server encrypted (AES-GCM, key `TODO_FEED_KEY` in Worker secrets) so reminders work with the app closed; fetched every 20 minutes (6 h for idle feeds, paused after 120 days), with exponential backoff and a `broken` state for revoked links. The link is never logged.
-- **Gradescope:** no student API, and scraping is forbidden, so never a password or a gradescope.com fetch. Gradescope work linked in ELMS comes through the feed (tagged); a student-exported `.ics` can be dropped in as a fallback.
+- **No Gradescope detection** (owner, 2026-09-28): never a password or a gradescope.com fetch, and no tag either. Gradescope work linked in ELMS comes through the feed like any assignment; a student-exported `.ics` can be dropped in.
+- **Todo is a calendar** (owner, 2026-09-28): week (Monday first), month and list, with a side panel for adding tasks in plain words and each course's weekly completion.
 - **One new notification type, `todo-due`**, the owner's approved exception to "no more types": push only, 6pm New York the day before, at most one a day, off until ELMS is connected.
 - **Copy uses contractions** everywhere (SPEC §3.13).
 

@@ -1,11 +1,13 @@
 import { z } from "zod";
-// Only primitives: the route tree carries this schema to every page.
+// Only primitives and the scheduler's param helpers: the route tree carries
+// this schema to every page.
 import {
   CourseCodeSchema,
   GenEdCodeSchema,
   LocalIdSchema,
   TermIdSchema,
 } from "./primitives";
+import { searchList } from "./schedule-url";
 
 // Terpsicle Plan's URLs (docs/V3.md §1.1). Each view on the rail is a route
 // (`/plan`, `/plan/search`, …: ~/core/routing/plan-location), and these
@@ -38,8 +40,14 @@ export const PlanSearchSchema = z.object({
   course: param(CourseCodeSchema),
   /** Search narrowed to the courses that can replace this placeholder block. */
   wildcard: param(LocalIdSchema),
-  /** Search narrowed to one GenEd ("Find a course"). */
-  gened: param(GenEdCodeSchema),
+  /**
+   * Search's filter chips, as the scheduler's Search spells them
+   * (`gened=DSHS,DSHU&credits=3&level=400`). The GenEd view's "Find a
+   * course" puts on one GenEd.
+   */
+  gened: searchList(GenEdCodeSchema),
+  credits: searchList(z.string().regex(/^[1-5]$/)),
+  level: searchList(z.string().regex(/^[1-8]00$/)),
   /** What's typed in Search; written with `replace` as you type. */
   q: param(z.string().max(100)),
 });

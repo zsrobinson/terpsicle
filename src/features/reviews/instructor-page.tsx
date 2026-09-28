@@ -12,12 +12,14 @@ import {
   type CombinedRating,
   combinedRatingWords,
   combineRatings,
+  courseSlug,
   formatStars,
   type InstructorPageData,
+  instructorSlug,
   type RatingSource,
   terpsicleRating,
 } from "~/core/reviews";
-import type { CourseCode, InstructorId } from "~/core/schema";
+import type { CourseCode, InstructorId, PageReviews } from "~/core/schema";
 import { ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
@@ -28,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/ui/select";
-import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { type View, ViewSwitch } from "~/ui/view-switch";
 import type { ComposerTarget } from "./composer";
@@ -40,70 +41,79 @@ import {
   type Composing,
   existingReview,
   ReviewsSection,
-  useInstructorReviews,
   useMine,
   useOwnHere,
   WriteButton,
 } from "./reviews-section";
 
-// /reviews/instructors/$id (V2 §1.1): an instructor's combined rating, the
-// AI summary, PlanetTerp's grades and our reviews; `?course=CMSC351` narrows
-// it to one course. The route's loader read who they are and their grades
-// (page-data.ts); our reviews load here, once /api/me says Reviews is on.
+// /reviews/<instructor> (V2 §1.1): who they are, their combined rating, the
+// AI summary, then the reviews, ours and PlanetTerp's, and last their grades
+// (owner, 2026-09-28: "reviews are more important to display than grades").
+// `?course=CMSC351` narrows it to one course. The route's loader read it
+// all, so the server's HTML has it.
 
 /**
  * Courses the header's view switch holds, besides "All courses": the kit's
  * switch is two to seven views. Past that, the choice is a list.
  */
 const SWITCH_COURSES = 6;
+/** Courses the status line names. */
+const STATUS_COURSES = 3;
 
 /** The route's page: what the loader read. */
-export function InstructorPage({ data }: { data: InstructorPageData }) {
+export function InstructorPage({
+  data,
+  reviews,
+  write,
+}: {
+  data: InstructorPageData;
+  reviews: PageReviews;
+  /** `?write`: open the form (from "Review your instructors"). */
+  write: boolean;
+}) {
   const { id, course } = data;
   const level = useReviewsLevel();
   const signedIn = useSignedIn();
-  const list = useInstructorReviews(id);
   const mine = useMine();
-  const [composing, setComposing] = useState<Composing>(null);
+  const [composing, setComposing] = useState<Composing>(write ? "new" : null);
   const name =
     data.name ??
     mine.find((r) => r.instructorId === id)?.instructorName ??
-    null;
+    "Instructor";
   const grades = new Map(data.courses.map((c) => [c.code, c.grades]));
 
-  // Their courses: PlanetTerp's grade data, and ours.
+  // Their courses: PlanetTerp's grade data, and what reviews are about.
   const courses = new Set<CourseCode>(data.courses.map((c) => c.code));
-  if (list?.status === "ready")
-    for (const r of list.reviews) courses.add(r.course);
+  for (const r of reviews.terpsicle ?? []) courses.add(r.course);
   if (course) courses.add(course);
   const courseList = [...courses].sort();
 
-  const ours =
-    list?.status === "ready" && (level === "read" || level === "on")
-      ? terpsicleRating(list.reviews)
-      : null;
-  const sources: RatingSource[] = [
+  // Ours: every course's (the loader's, live), or the published numbers
+  // when the page shows one course's reviews.
+  const ours: RatingSource | null =
+    !course && reviews.terpsicle
+      ? terpsicleRating(reviews.terpsicle)
+      : data.terpsicle
+        ? { source: "terpsicle", ...data.terpsicle }
+        : null;
+  const combined = combineRatings([
     {
       source: "planetterp",
       rating: data.planetTerp?.rating ?? null,
       reviewCount: data.planetTerp?.reviewCount ?? 0,
     },
     ...(ours ? [ours] : []),
-  ];
-  const combined = combineRatings(sources);
+  ]);
   const record = course ? grades.get(course) : undefined;
   const { gradesThrough } = data;
   const freshness = planetTerpFreshnessWords(data.source);
-  const loading =
-    level === "loading" ||
-    ((level === "read" || level === "on") && list?.status === "loading");
-  const title = name ?? (loading ? null : "Instructor");
+  const taught = data.courses.slice(0, STATUS_COURSES).map((c) => c.code);
 
   const target: ComposerTarget | null =
-    course && name
+    course && data.name
       ? {
           instructorId: id,
-          reviewedName: name,
+          reviewedName: data.name,
           dept: course.slice(0, 4),
           course,
         }
@@ -114,17 +124,32 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
   return (
     <ReviewsFrame page="instructor">
       <PageHeader
+        size="display"
         back={
           course
             ? {
                 label: course,
-                to: "/reviews/courses/$code",
-                params: { code: course },
+                to: "/reviews/$slug",
+                params: { slug: courseSlug(course) },
               }
             : { label: "Reviews", to: "/reviews" }
         }
-        title={title ?? <Skeleton className="h-6 w-48" />}
-        status={data.ta ? "Teaching assistant" : undefined}
+        eyebrow={data.ta ? "Teaching assistant" : "Instructor"}
+        title={name}
+        status={
+          taught.length > 0 ? (
+            <span>
+              Taught{" "}
+              {taught.map((c, i) => (
+                <span key={c}>
+                  {i > 0 ? (i === taught.length - 1 ? " and " : ", ") : ""}
+                  <span className="ident">{c}</span>
+                </span>
+              ))}
+              {data.courses.length > STATUS_COURSES ? " and more" : ""}
+            </span>
+          ) : undefined
+        }
         views={
           courseList.length > 0 ? (
             <CourseFilter id={id} courses={courseList} current={course} />
@@ -142,10 +167,7 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
         }
       />
 
-      <div className="flex flex-col gap-1">
-        <RatingSummary combined={combined} loading={loading} />
-        {freshness ? <p className="text-faint text-xs">{freshness}</p> : null}
-      </div>
+      <RatingSummary combined={combined} freshness={freshness} />
 
       {data.slug &&
       (data.planetTerp?.reviewCount ?? 0) > 0 &&
@@ -153,8 +175,19 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
         <SummaryBlock slug={data.slug} course={course ?? courseList[0] ?? ""} />
       ) : null}
 
+      <ReviewsSection
+        instructorId={id}
+        course={course}
+        reviews={reviews}
+        count={course ? null : combined.reviewCount}
+        target={target}
+        composing={composing}
+        onCompose={setComposing}
+      />
+
       {course ? (
         <PageSection
+          size="display"
           title={`Grades in ${course}`}
           aside={
             <WithTooltip label={`${course}'s sections this term`}>
@@ -173,12 +206,12 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
             <GradesBlock record={record} gradesThrough={gradesThrough} />
           ) : (
             <PanelNote className={PAGE_NOTE}>
-              PlanetTerp has no grades for {name ?? "them"} in {course}.
+              PlanetTerp has no grades for {name} in {course}.
             </PanelNote>
           )}
         </PageSection>
       ) : data.courses.length > 0 ? (
-        <PageSection title="Grades">
+        <PageSection size="display" title="Grades">
           <ul>
             {courseList.map((c) => {
               const r = grades.get(c);
@@ -187,17 +220,17 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
                 <ListRow
                   key={c}
                   as="li"
-                  className={PAGE_ROW}
+                  className={cn(PAGE_ROW, "text-lg")}
                   trail={
-                    <span className="flex items-center gap-3">
-                      <span className="text-muted">
+                    <span className="flex items-center gap-4 text-base">
+                      <span className="tnum text-muted">
                         {gpa !== null ? `GPA ${formatGpa(gpa)}` : "No GPA"} ·{" "}
                         {r.semesters} semester{r.semesters === 1 ? "" : "s"}
                       </span>
                       <WithTooltip label={`Everyone who's taught ${c}`}>
                         <Link
-                          to="/reviews/courses/$code"
-                          params={{ code: c }}
+                          to="/reviews/$slug"
+                          params={{ slug: courseSlug(c) }}
                           className="text-muted hover:text-fg hover:underline"
                         >
                           All instructors
@@ -206,12 +239,10 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
                     </span>
                   }
                 >
-                  <WithTooltip
-                    label={`${name ?? "Their"} grades and reviews in ${c}`}
-                  >
+                  <WithTooltip label={`${name}'s grades and reviews in ${c}`}>
                     <Link
-                      to="/reviews/instructors/$id"
-                      params={{ id }}
+                      to="/reviews/$slug"
+                      params={{ slug: instructorSlug(id) }}
                       search={{ course: c }}
                       className="ident font-medium hover:underline"
                     >
@@ -222,55 +253,53 @@ export function InstructorPage({ data }: { data: InstructorPageData }) {
               ) : null;
             })}
           </ul>
-          <p className="text-faint text-xs">
+          <p className="text-faint text-sm">
             Grades {gradesSourceWords(gradesThrough)}.
           </p>
         </PageSection>
       ) : null}
-
-      <ReviewsSection
-        instructorId={id}
-        course={course}
-        target={target}
-        composing={composing}
-        onCompose={setComposing}
-        planetTerpSlug={data.slug}
-        planetTerpCount={data.planetTerp?.reviewCount ?? 0}
-      />
     </ReviewsFrame>
   );
 }
 
-/** The big number, with its math written out under it. */
-function RatingSummary({
+/**
+ * The big number, with its math written out beside it, on the product's
+ * soft purple: the one thing on the page that should stand out.
+ */
+export function RatingSummary({
   combined,
-  loading,
+  freshness,
 }: {
   combined: CombinedRating;
-  loading: boolean;
+  /** "No new PlanetTerp reviews since …", when PlanetTerp has stopped. */
+  freshness: string | null;
 }) {
-  if (loading && combined.rating === null)
-    return (
-      <div role="status" aria-label="Loading the rating">
-        <Skeleton className="h-7 w-40" />
-      </div>
-    );
-  if (combined.rating === null)
-    return <p className="text-muted">No reviews yet.</p>;
   const words = combinedRatingWords(combined);
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <WithTooltip label={words}>
-        <span className="tnum inline-flex items-center gap-2">
-          <span className="font-semibold text-xl">
-            {formatStars(combined.rating)}
-          </span>
-          <Stars rating={Math.round(combined.rating)} />
-        </span>
-      </WithTooltip>
-      <span className="tnum text-muted" data-testid="rating-math">
-        {words.replace(/^\d\.\d /, "")}
-      </span>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-product-reviews-soft px-4 py-4">
+      {combined.rating === null ? (
+        <p className="text-lg">No reviews yet.</p>
+      ) : (
+        <>
+          <WithTooltip label={words}>
+            <span className="tnum font-semibold text-3xl text-product-reviews-text">
+              {formatStars(combined.rating)}
+            </span>
+          </WithTooltip>
+          <div className="flex min-w-0 flex-col gap-1">
+            <Stars rating={Math.round(combined.rating)} size={18} />
+            <span
+              className="tnum text-base text-muted"
+              data-testid="rating-math"
+            >
+              {words.replace(/^\d\.\d /, "")}
+            </span>
+          </div>
+        </>
+      )}
+      {freshness ? (
+        <p className="w-full text-muted text-sm">{freshness}</p>
+      ) : null}
     </div>
   );
 }
@@ -286,22 +315,23 @@ function CourseFilter({
   current: CourseCode | null;
 }) {
   const navigate = useNavigate();
+  const slug = instructorSlug(id);
   if (courses.length <= SWITCH_COURSES) {
     const views: View[] = [
       {
         id: "all",
         label: "All courses",
         hint: "Reviews from every course they've taught",
-        to: "/reviews/instructors/$id",
-        params: { id },
+        to: "/reviews/$slug",
+        params: { slug },
         search: {},
       },
       ...courses.map((c) => ({
         id: c,
         label: c,
         hint: `Only ${c}`,
-        to: "/reviews/instructors/$id" as const,
-        params: { id },
+        to: "/reviews/$slug" as const,
+        params: { slug },
         search: { course: c },
       })),
     ];
@@ -323,18 +353,18 @@ function CourseFilter({
       value={current ?? "all"}
       onValueChange={(value) =>
         void navigate({
-          to: "/reviews/instructors/$id",
-          params: { id },
+          to: "/reviews/$slug",
+          params: { slug },
           search: value === "all" ? {} : { course: value },
         })
       }
     >
       <WithTooltip label="Show one course's grades and reviews">
-        <SelectTrigger aria-label="Courses">
+        <SelectTrigger aria-label="Courses" className="w-48">
           <SelectValue />
         </SelectTrigger>
       </WithTooltip>
-      <SelectContent align="end" className="max-h-72">
+      <SelectContent align="start" className="max-h-72">
         <SelectItem value="all">All courses</SelectItem>
         {courses.map((c) => (
           <SelectItem key={c} value={c} className="ident">

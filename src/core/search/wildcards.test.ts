@@ -41,9 +41,13 @@ describe("suggestWildcards", () => {
     });
   });
 
-  it("hints at a near miss", () => {
-    expect(suggestWildcards("CMSC4X", info).hint).toBe(
-      "Use three places for the number, as in CMSC4XX.",
+  it("reads a short pattern as its prefix, and hints at a near miss", () => {
+    expect(suggestWildcards("CMSC4X", info).exact).toEqual({
+      kind: "pattern",
+      pattern: "CMSC4XX",
+    });
+    expect(suggestWildcards("CMSC4X1", info).hint).toBe(
+      "Put X only at the end, as in CMSC4XX.",
     );
   });
 

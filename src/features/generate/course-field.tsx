@@ -11,19 +11,28 @@ import {
 import type { Course, CourseCode, Wildcard } from "~/core/schema";
 import {
   type CourseSearch,
+  courseFilter,
   createCourseSearch,
-  searchCourses,
+  NO_FILTERS,
+  parseCourseQuery,
+  queryCourses,
+  queryFilters,
   suggestWildcards,
   type WildcardSearchInfo,
   wildcardSearchInfo,
 } from "~/core/search";
-import { Input } from "~/ui/input";
-import { WithTooltip } from "~/ui/tooltip";
+import { CourseResultRow, CourseSearchField } from "~/ui/course-search";
+import { ListRow } from "~/ui/list-row";
 
-// Type a code or title words, pick from the suggestions. The search index is
-// built once per catalog, the first time someone types here. Where the field
-// takes wildcards, "CMSC4XX" or "DSHS" suggests itself first, and a
-// department ("CMSC", "CMSC4") suggests its pattern last.
+// Type a code or title words, pick from the suggestions: the kit's course
+// search box and rows (~/ui/course-search), with the engine every course
+// search uses, so "intro psych", "cmsc4xx" and "DSHS" find what they find
+// in Search. Generate has no filter chips, so a GenEd stays in the box and
+// narrows the courses, as it does before it becomes a chip elsewhere. The
+// search index is built once per catalog, the first time someone types
+// here. Where the field takes wildcards, "CMSC4XX" or "DSHS" suggests
+// itself first, and a department ("CMSC", "CMSC4") suggests its pattern
+// last.
 
 const searches = new WeakMap<CatalogIndex, CourseSearch>();
 function searchFor(index: CatalogIndex): CourseSearch {
@@ -100,8 +109,9 @@ export function CourseField({
     hint: string | null;
   } => {
     if (!index || query.trim() === "") return { suggestions: [], hint: null };
+    const info = infoFor(index);
     const found = takesWildcards
-      ? suggestWildcards(query, infoFor(index))
+      ? suggestWildcards(query, info)
       : { exact: null, related: null, hint: null };
     const wildcardRow = (wildcard: Wildcard): Suggestion => {
       const n = wildcardCourses(index.courses.values(), wildcard, {
@@ -124,13 +134,21 @@ export function CourseField({
     };
     const room =
       MAX_SUGGESTIONS - (found.exact ? 1 : 0) - (found.related ? 1 : 0);
-    const matches = searchCourses(searchFor(index), query)
-      .filter((code) => !exclude.has(code))
+    const parsed = parseCourseQuery(query, info);
+    const keep = courseFilter(queryFilters(NO_FILTERS, parsed), {
+      seats: null,
+      fit: null,
+    });
+    const matches = queryCourses(
+      searchFor(index),
+      parsed,
+      (code) => index.courses.get(code),
+      (course) => !exclude.has(course.code) && keep(course),
+    )
       .slice(0, room)
-      .flatMap((code): Suggestion[] => {
-        const course = index.courses.get(code);
-        return course ? [{ kind: "course", key: code, course }] : [];
-      });
+      .map(
+        (course): Suggestion => ({ kind: "course", key: course.code, course }),
+      );
     return {
       suggestions: [
         ...(found.exact ? [wildcardRow(found.exact)] : []),
@@ -155,55 +173,33 @@ export function CourseField({
 
   return (
     <div className="relative">
-      <WithTooltip
-        label={
+      <CourseSearchField
+        inputRef={inputRef}
+        query={query}
+        onQueryChange={(next) => {
+          setQuery(next);
+          setActive(0);
+          setOpen(true);
+        }}
+        count={showList ? suggestions.length : 0}
+        active={active}
+        onActiveChange={(next) => {
+          setOpen(true);
+          setActive(next);
+        }}
+        onPick={(i) => add(suggestions[i])}
+        combobox={{ listId, optionId: (i) => `${listId}-${i}` }}
+        label={label}
+        placeholder={placeholder}
+        tooltip={
           wildcards
             ? "Type a code, title words, a pattern like CMSC4XX, or a GenEd like DSHS"
             : "Type a course code or words from its title"
         }
-      >
-        <Input
-          ref={inputRef}
-          role="combobox"
-          aria-label={label}
-          aria-expanded={showList}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={showList ? `${listId}-${active}` : undefined}
-          aria-describedby={showHint ? `${listId}-hint` : undefined}
-          value={query}
-          placeholder={placeholder}
-          autoComplete="off"
-          spellCheck={false}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setActive(0);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown" && suggestions.length > 0) {
-              e.preventDefault();
-              setOpen(true);
-              setActive((a) => (a + 1) % suggestions.length);
-            } else if (e.key === "ArrowUp" && suggestions.length > 0) {
-              e.preventDefault();
-              setActive(
-                (a) => (a - 1 + suggestions.length) % suggestions.length,
-              );
-            } else if (e.key === "Enter") {
-              if (add(suggestions[active] ?? suggestions[0]))
-                e.preventDefault();
-            } else if (e.key === "Escape" && query !== "") {
-              // Clear the field first; a second Esc leaves it.
-              e.preventDefault();
-              e.stopPropagation();
-              setQuery("");
-            }
-          }}
-        />
-      </WithTooltip>
+        aria-describedby={showHint ? `${listId}-hint` : undefined}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+      />
       {showList ? (
         <div
           id={listId}
@@ -211,34 +207,37 @@ export function CourseField({
           aria-label="Suggested courses"
           className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden border border-keyline bg-raised py-1 shadow-pop"
         >
-          {suggestions.map((s, i) => (
-            <div
-              key={s.key}
-              id={`${listId}-${i}`}
-              role="option"
-              tabIndex={-1}
-              aria-selected={i === active}
-              aria-disabled={
-                s.kind === "wildcard" && s.empty ? true : undefined
-              }
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => add(s)}
-              onKeyDown={() => {}}
-              className={cn(
-                "flex cursor-default items-baseline gap-2 px-2 py-1 text-sm",
-                i === active && "bg-hover",
-              )}
-            >
-              {s.kind === "course" ? (
-                <>
-                  <span className="ident font-semibold text-sm">
-                    {s.course.code}
-                  </span>
-                  <span className="truncate text-muted">{s.course.title}</span>
-                </>
-              ) : (
-                <>
+          {suggestions.map((s, i) => {
+            const shared = {
+              id: `${listId}-${i}`,
+              role: "option",
+              tabIndex: -1,
+              "aria-selected": i === active,
+              onMouseDown: (e: { preventDefault: () => void }) =>
+                e.preventDefault(),
+              onMouseEnter: () => setActive(i),
+              onClick: () => add(s),
+              onKeyDown: () => {},
+              state: i === active ? ("previewed" as const) : undefined,
+              className: "cursor-default border-b-0",
+            };
+            return s.kind === "course" ? (
+              <CourseResultRow
+                key={s.key}
+                {...shared}
+                density="compact"
+                code={s.course.code}
+                title={s.course.title}
+              />
+            ) : (
+              <ListRow
+                key={s.key}
+                {...shared}
+                density="compact"
+                aria-disabled={s.empty ? true : undefined}
+                className={cn(shared.className, "px-2")}
+              >
+                <span className="flex min-w-0 items-baseline gap-2 text-sm">
                   <span
                     className={cn(
                       "shrink-0 font-semibold",
@@ -250,10 +249,10 @@ export function CourseField({
                   {s.detail ? (
                     <span className="truncate text-muted">{s.detail}</span>
                   ) : null}
-                </>
-              )}
-            </div>
-          ))}
+                </span>
+              </ListRow>
+            );
+          })}
         </div>
       ) : null}
       {showHint ? (
