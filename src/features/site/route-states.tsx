@@ -6,11 +6,11 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useSyncExternalStore } from "react";
-import { logError } from "~/app/activity-log";
-import { AppBar } from "~/app/app-bar";
-import { isChunkLoadError } from "~/app/panel-load-boundary";
-import { MOBILE_QUERY } from "~/app/use-media-query";
+import { AppBar } from "~/components/app-bar";
+import { isChunkLoadError } from "~/components/panel-load-boundary";
 import { SCHEDULE_PATH } from "~/core/routing";
+import { MOBILE_QUERY } from "~/hooks/use-media-query";
+import { logError } from "~/lib/activity-log";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
 import { ProductPage } from "~/ui/product-page";
@@ -107,7 +107,7 @@ function Frame({
 }
 
 /**
- * The scheduler's bar (~/app/top-bar) before its code arrives: the same
+ * The scheduler's bar (~/features/schedule/top-bar) before its code arrives: the same
  * family bar settings, with the term and plans as skeletons where it'll
  * show them. The Worker draws this for a page that renders only in the
  * browser, before anyone knows the screen's width: there it's the wide

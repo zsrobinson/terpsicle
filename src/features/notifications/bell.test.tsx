@@ -11,7 +11,7 @@ import { createTestQueryClient } from "~/state/query/testing";
 import { renderInRouter } from "~/ui/test-utils";
 import { forgetBell, NotificationsBell } from "./bell";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 vi.mock("~/server/fns/notifications", () => ({
   notificationsApi: { inbox: vi.fn(), read: vi.fn(), unread: vi.fn() },
 }));

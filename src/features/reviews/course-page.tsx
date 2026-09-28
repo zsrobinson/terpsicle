@@ -1,8 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, PenLine } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { crossLinkClicked, viewWords } from "~/app/cross-link";
-import { PanelNote } from "~/app/panel";
+import { PanelNote } from "~/components/panel";
 import { formatGpa } from "~/core/grades/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
 import {
@@ -19,6 +18,7 @@ import type {
   PageReviews,
 } from "~/core/schema";
 import { newYorkClock } from "~/core/todo/list";
+import { crossLinkClicked, viewWords } from "~/lib/cross-link";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,

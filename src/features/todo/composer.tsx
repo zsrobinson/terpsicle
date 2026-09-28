@@ -10,8 +10,6 @@ import {
   useState,
 } from "react";
 import { create } from "zustand";
-import { track } from "~/app/analytics";
-import { useShortcut } from "~/app/shortcuts";
 import type { CourseCode, CourseColor, IsoDate } from "~/core/schema";
 import { formatTime } from "~/core/time";
 import {
@@ -27,6 +25,8 @@ import {
   type WeekStart,
 } from "~/core/todo";
 import { dotStyle } from "~/features/calendar/tint";
+import { track } from "~/lib/analytics";
+import { useShortcut } from "~/lib/shortcuts";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import {

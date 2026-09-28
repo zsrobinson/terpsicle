@@ -1,12 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { readTokens } from "~/app/brand/css-tokens";
 import {
   NOTIFICATION_BADGE,
   NOTIFICATION_ICON,
   PWA_START_URL,
 } from "~/core/schema";
+import { readTokens } from "~/lib/brand/css-tokens";
 import { BADGE, PNG_ICONS } from "./build-icons";
 import type { BundleGraph } from "./bundle-graph";
 import { ROOT } from "./lib/source-files";
@@ -14,7 +14,7 @@ import { themeColors, webManifest } from "./pwa-manifest";
 import { shellFiles } from "./pwa-precache";
 
 // The installable app's files. The icons themselves are the brand's
-// (scripts/build-icons.ts, from src/app/brand/marks.ts; build-icons.test.ts
+// (scripts/build-icons.ts, from src/lib/brand/marks.ts; build-icons.test.ts
 // keeps them current); this holds the manifest and the service worker to
 // them.
 

@@ -1,8 +1,6 @@
 import { cn } from "cn";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { track } from "~/app/analytics";
-import { Mark } from "~/app/brand/mark";
-import type { MarkId } from "~/app/brand/marks";
+import { Mark } from "~/components/brand/mark";
 import {
   channelOn,
   NOTIFICATION_CHANNELS,
@@ -16,6 +14,8 @@ import type {
 } from "~/core/schema/notifications";
 import { useAccount } from "~/features/auth/account-store";
 import { InstallAppSetting } from "~/features/pwa/install-setting";
+import { track } from "~/lib/analytics";
+import type { MarkId } from "~/lib/brand/marks";
 import { ApiCallError } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
 import { Button } from "~/ui/button";

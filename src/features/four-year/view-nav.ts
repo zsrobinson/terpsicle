@@ -4,7 +4,7 @@ import { focusSearch } from "./search-panel";
 import { usePlanWorkbench } from "./workbench-store";
 
 // Moving between Plan's views, as the scheduler's rail and drawer do
-// (src/app/actions.ts `clickRailTab`, mobile-drawer.tsx `tapTab`). A view
+// (src/features/schedule/actions.ts `clickRailTab`, mobile-drawer.tsx `tapTab`). A view
 // is a route, so each move is a navigation; the sidebar and drawer follow.
 
 /** Goes to a view, closing any course open over it; Search takes focus. */

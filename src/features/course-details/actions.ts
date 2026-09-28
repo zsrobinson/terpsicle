@@ -1,6 +1,6 @@
-import { track } from "~/app/analytics";
 import type { CourseCode } from "~/core/schema";
 import { editablePlan } from "~/features/courses/actions";
+import { track } from "~/lib/analytics";
 import { nowIso } from "~/state/ids";
 import { useWorkspace } from "~/state/workspace-store";
 

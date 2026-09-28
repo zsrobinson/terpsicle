@@ -1,6 +1,6 @@
-import { track } from "~/app/analytics";
 import { aiFeaturesOn, withAiFeatures } from "~/core/prefs";
 import { saveSyncedPrefs, useSyncedPrefs } from "~/features/prefs/synced-prefs";
+import { track } from "~/lib/analytics";
 
 // The one gate for everything a model wrote that a student sees: every
 // sparkles feature asks this hook first (DESIGN.md §5, SPEC.md §3.13). Some

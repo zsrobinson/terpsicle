@@ -6,9 +6,9 @@ import {
   useEffect,
   useState,
 } from "react";
-import { track } from "~/app/analytics";
-import { clientConfig } from "~/app/config";
 import { type Connection, TILES_KEY } from "~/core/schema";
+import { track } from "~/lib/analytics";
+import { clientConfig } from "~/lib/config";
 import { useCatalog } from "~/state/catalog-store";
 import { useRouteGeometry } from "~/state/data-hooks";
 import { Skeleton } from "~/ui/skeleton";

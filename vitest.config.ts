@@ -73,9 +73,9 @@ export default defineConfig({
           // palette from styles.css as text (`?raw`).
           css: { include: [/styles\.css\?raw/] },
           include: [
-            "src/{app,features,state,components,routes,worker}/**/*.test.{ts,tsx}",
+            "src/{features,components,hooks,lib,state,routes,worker}/**/*.test.{ts,tsx}",
           ],
-          setupFiles: ["src/app/test-setup.ts"],
+          setupFiles: ["src/lib/test-setup.ts"],
         },
       },
       {

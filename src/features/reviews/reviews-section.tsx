@@ -1,7 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { PenLine } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { PanelNote } from "~/app/panel";
+import { PanelNote } from "~/components/panel";
 import { mergeReviews } from "~/core/reviews";
 import type {
   CourseCode,

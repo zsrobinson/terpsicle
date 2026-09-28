@@ -9,7 +9,7 @@ import {
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ChunkLoadError } from "~/app/panel-load-boundary";
+import { ChunkLoadError } from "~/components/panel-load-boundary";
 import { TooltipProvider } from "~/ui/tooltip";
 import { RouteError, RoutePending } from "./route-states";
 

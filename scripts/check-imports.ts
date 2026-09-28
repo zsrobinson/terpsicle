@@ -28,12 +28,18 @@ export const FEED_LINK_FILES: readonly string[] = [
   "src/server/todo/fetch.ts",
 ];
 
-/** `core`, `app`, … or `(root)` for files directly in src/. */
+/** `core`, `lib`, … or `(root)` for files directly in src/. */
 export function topFolder(absPath: string): string | null {
   const rel = path.relative(SRC, absPath);
   if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
   const [first, ...rest] = rel.split(path.sep);
   return rest.length === 0 ? "(root)" : (first ?? null);
+}
+
+/** A file's folder alias: the page kit is `~/ui`, the rest `~/<folder>`. */
+function aliasFolder(absPath: string): string {
+  const [first, second] = path.relative(SRC, absPath).split(path.sep);
+  return first === "components" && second === "ui" ? "ui" : (first ?? "");
 }
 
 function isCommented(text: string, index: number): boolean {
@@ -69,7 +75,7 @@ export function findImportProblems(rel: string, text: string): string[] {
       );
     } else if (to !== from && (CODE.test(target) || !path.extname(target))) {
       problems.push(
-        `${at(match.index)}  "${spec}": crosses from src/${from} into src/${to}; import it as "~/${to === "components" ? "ui" : to}/…"`,
+        `${at(match.index)}  "${spec}": crosses from src/${from} into src/${to}; import it as "~/${aliasFolder(target)}/…"`,
       );
     }
   }

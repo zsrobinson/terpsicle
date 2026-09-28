@@ -1,9 +1,9 @@
 import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
-import { track } from "~/app/analytics";
 import { type ConnectAnswer, connectWords, parseFeedLink } from "~/core/todo";
 import { askForPush } from "~/features/notifications/push-ask";
+import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";

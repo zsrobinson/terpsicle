@@ -1,8 +1,8 @@
-import { track } from "~/app/analytics";
 import { useAccount } from "~/features/auth/account-store";
 import { type SyncHost, startSync, stopSync } from "~/features/sync/boot";
 import { runningEngine } from "~/features/sync/running";
 import { useSyncStatus } from "~/features/sync/status";
+import { track } from "~/lib/analytics";
 import { newLocalId, nowIso } from "~/state/ids";
 import { noteToast } from "~/ui/toast";
 import { prefsDb } from "./save";

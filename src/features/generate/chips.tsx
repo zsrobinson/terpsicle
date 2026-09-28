@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { ArrowDownWideNarrow, ChevronDown, Funnel } from "lucide-react";
 import type { ReactNode } from "react";
-import { track } from "~/app/analytics";
 import {
   nextLevel,
   type PreferenceLevel,
@@ -23,6 +22,7 @@ import {
   formatTime,
   sortDays,
 } from "~/core/time";
+import { track } from "~/lib/analytics";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,

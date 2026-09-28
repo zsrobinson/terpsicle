@@ -1,6 +1,6 @@
-import { useMediaQuery } from "~/app/use-media-query";
 import type { CourseCode, CourseColor } from "~/core/schema";
 import { CourseColorPicker } from "~/features/courses/color-picker";
+import { useMediaQuery } from "~/hooks/use-media-query";
 import { Kbd } from "~/ui/kbd";
 import { WithTooltip } from "~/ui/tooltip";
 import type { GhostSummary, UntimedSection } from "./layout";
@@ -12,7 +12,7 @@ import { dotStyle, tintStyle } from "./tint";
 
 // One-line hints above the grid. Nothing ever goes below it (SPEC §2).
 // Each hint appears with a context (course details open, a plan previewed,
-// the Search tab), beside Share in the canvas bar (~/app/workbench/canvas-bar),
+// the Search tab), beside Share in the canvas bar (~/components/workbench/canvas-bar),
 // which keeps one height: no hint, and nothing the pointer does, moves the
 // grid.
 

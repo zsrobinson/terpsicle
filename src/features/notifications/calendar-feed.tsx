@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { track } from "~/app/analytics";
 import { googleCalendarUrl, webcalUrl } from "~/core/ics/feed";
+import { track } from "~/lib/analytics";
 import { calendarFeedApi } from "~/server/fns/calendar-feed";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";

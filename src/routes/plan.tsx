@@ -6,12 +6,12 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import { initAnalytics } from "~/app/analytics";
 import { PLAN_VIEW_PATHS } from "~/core/routing/plan-location";
 // Not the barrel: the route tree carries this schema to every page.
 import { type PlanSearch, PlanSearchSchema } from "~/core/schema/plan-url";
 import { PlanPage } from "~/features/four-year";
 import type { PlanNav, PlanNavOptions } from "~/features/four-year/model";
+import { initAnalytics } from "~/lib/analytics";
 
 // Terpsicle Plan (docs/V3.md §1.1, §2.13): the four-year plan, on the
 // scheduler's workbench. Each view on its rail is a child route

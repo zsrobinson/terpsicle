@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { OPEN_VIEW } from "./sidebar";
 
-// Each rail tab and drill-in is a route (src/app/README.md, "URL state") on
+// Each rail tab and drill-in is a route (src/features/schedule/README.md, "URL state") on
 // `pnpm dev:mock?demo=1`: the scheduler's old-style URLs redirect to them,
 // replacing the entry; Back and Forward are the router's history across
 // tabs and drill-ins; a reload stays put; the router loads a tab's route on

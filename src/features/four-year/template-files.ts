@@ -1,4 +1,4 @@
-import { ChunkLoadError } from "~/app/panel-load-boundary";
+import { ChunkLoadError } from "~/components/panel-load-boundary";
 import {
   type FourYearTemplate,
   FourYearTemplateSchema,

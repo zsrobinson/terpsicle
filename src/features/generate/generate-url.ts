@@ -1,7 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { currentView, goTo } from "~/app/schedule-nav";
-import { routeAt } from "~/app/schedule-view";
 import {
   chipsFromParams,
   type GenerateChips,
@@ -13,12 +11,14 @@ import {
   GenerateTabSearchSchema,
   ScheduleSearchSchema,
 } from "~/core/schema/schedule-url";
+import { currentView, goTo } from "~/features/schedule/schedule-nav";
+import { routeAt } from "~/features/schedule/schedule-view";
 import { draftFor, useGenerateDrafts } from "~/state/generate-drafts";
 import { readActiveTermId } from "~/state/hooks";
 
 // Generate's chips in its URL (`/schedule/generate?prefer=later-starts&off=F`),
 // as Search keeps its chips in its own: a chip pushes an entry, so Back
-// undoes it, and a reload or a copied link keeps them (src/app/README.md,
+// undoes it, and a reload or a copied link keeps them (src/features/schedule/README.md,
 // "URL state"). The draft store is where they live; the URL mirrors it
 // while Generate is on screen.
 

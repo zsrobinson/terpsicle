@@ -8,9 +8,8 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import { type MouseEvent, type ReactNode, type RefObject, useId } from "react";
-import { track } from "~/app/analytics";
-import { Mark } from "~/app/brand/mark";
-import { PanelBody, PanelFooter, PanelNote } from "~/app/panel";
+import { Mark } from "~/components/brand/mark";
+import { PanelBody, PanelFooter, PanelNote } from "~/components/panel";
 import {
   appendInboxPage,
   inboxDays,
@@ -22,6 +21,7 @@ import type {
   InboxProduct,
   NotificationsInboxResult,
 } from "~/core/schema/notifications";
+import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { GroupHeader, ListRow } from "~/ui/list-row";

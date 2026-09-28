@@ -1,10 +1,10 @@
 import { cn } from "cn";
 import { ChevronDown, RotateCcw, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { Mark } from "~/app/brand/mark";
-import { Wordmark } from "~/app/brand/wordmark";
-import { TONE_FILL } from "~/app/emphasis";
-import { TABS } from "~/app/tabs";
+import { Mark } from "~/components/brand/mark";
+import { Wordmark } from "~/components/brand/wordmark";
+import { TABS } from "~/features/schedule/tabs";
+import { TONE_FILL } from "~/lib/emphasis";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { SCREEN_CAPTION } from "../copy";

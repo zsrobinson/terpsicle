@@ -69,7 +69,7 @@ jobs:
             // The API lists at most 3000 files; past that, assume code.
             const code = files.length >= 3000 || paths.some((p) => !docs.test(p));
             // Phone behavior on real engines (mobile-lab below).
-            const mobile = /^(src\/app\/|src\/styles\.css$|scripts\/mobile-lab\/|\.github\/workflows\/mobile-lab\.yml$)|drawer/;
+            const mobile = /^(src\/(features\/schedule|components\/(?!ui\/)|hooks|lib)\/|src\/styles\.css$|scripts\/mobile-lab\/|\.github\/workflows\/mobile-lab\.yml$)|drawer/;
             core.setOutput("code", String(code));
             core.setOutput("mobile", String(files.some((f) => mobile.test(f.filename))));
             core.notice(code ? "Code changed: the full run." : "Docs only: e2e and the preview are skipped.");

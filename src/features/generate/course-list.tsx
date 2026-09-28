@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { Asterisk, Minus, Plus, X } from "lucide-react";
 import { type Ref, useMemo } from "react";
-import { Mark } from "~/app/brand/mark";
+import { Mark } from "~/components/brand/mark";
 import {
   type CatalogIndex,
   noMatchesMessage,

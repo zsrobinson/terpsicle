@@ -1,6 +1,3 @@
-import { openTab } from "~/app/actions";
-import { track } from "~/app/analytics";
-import { openDrill } from "~/app/schedule-nav";
 import { snapshotOf } from "~/core/catalog";
 import {
   type Problem,
@@ -9,6 +6,9 @@ import {
   type Subject,
 } from "~/core/schema";
 import { editablePlan, openCourse } from "~/features/courses/actions";
+import { openTab } from "~/features/schedule/actions";
+import { openDrill } from "~/features/schedule/schedule-nav";
+import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import { nowIso } from "~/state/ids";
 import { useWorkspace } from "~/state/workspace-store";

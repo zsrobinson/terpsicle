@@ -88,7 +88,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 - [x] Settings and notifications (`v3/cohesion-settings-todo`).
 - [x] Todo (`v3/cohesion-settings-todo`).
 - [x] Reviews. (`v3/cohesion-reviews`: `PageHeader` and `ProductPage` on every page, `PageSection`s of `ListRow`s, a `ViewSwitch` of an instructor's courses, `Card`s for the composer, the report form, sign-in and the AI summary, the kit's `Select`, `SearchField` and a new `Textarea`, `InlineError` with Try again, `RowSkeleton`, and `EmptyState` on `/reviews/mine`.)
-- [x] Plan. (`v3/plan-workbench`: Plan is on the scheduler's workbench, `src/app/workbench`, with each view a route. `v3/cohesion-plan`: its first visit is the kit's `EmptyState` with two equal paths, its selects the kit's `Select`, its panels `ListRow`s under `PanelHeader`s, a sample plan a `Card`, loading the kit's skeletons, failures `InlineError` with Try again, codes `ident`, and `Button`, `Input`, `SearchField`, `Textarea` and `SegmentedControl` without per-product sizes. Blocks and semesters stay boxed on the canvas, like the calendar's blocks.)
+- [x] Plan. (`v3/plan-workbench`: Plan is on the scheduler's workbench, `src/components/workbench`, with each view a route. `v3/cohesion-plan`: its first visit is the kit's `EmptyState` with two equal paths, its selects the kit's `Select`, its panels `ListRow`s under `PanelHeader`s, a sample plan a `Card`, loading the kit's skeletons, failures `InlineError` with Try again, codes `ident`, and `Button`, `Input`, `SearchField`, `Textarea` and `SegmentedControl` without per-product sizes. Blocks and semesters stay boxed on the canvas, like the calendar's blocks.)
 - [x] Chat.
 - [x] Schedule. (#131 and #134: the kit's `EmptyState` first visit, `BackButton`, one selected look, `SearchField` and `Input`; `v3/behavior`: `InlineError` and the kit's skeletons in its panels and catalog.)
 - [x] `/`, `/privacy`, sign-in and not-found, then the marketing page's scroll port. (`/privacy`, sign-in and not found are on the kit since `v3/cohesion-settings-todo`; `/` is the round-4 page since `v3/marketing-live`, built from the kit's `Button`, `Input`, `ListRow`, tooltips and undo toasts.)
@@ -112,7 +112,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
 ## 4. Decisions made here
 
 **The frame: the family bar** (2026-09-27; prototypes: https://claude.ai/artifact/AbCSuunT8MQBgjmn6Rq3o9).
-- **Tabs.** One 48px bar on every page (`AppBar`, `src/app/app-bar.tsx`). From 1100px it holds:
+- **Tabs.** One 48px bar on every page (`AppBar`, `src/components/app-bar.tsx`). From 1100px it holds:
   - the wordmark;
   - the five products as labeled tabs, in color order, the one you're in tinted;
   - a divider, then the product's context (the term and plan, a course, "Settings");
@@ -131,7 +131,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
   - card versus section;
   - one inline error with Try again;
   - a footer only on note and reading pages, and on a product's signed-out front door, which is read like one (Chat's, Plan's and Todo's, though Todo's sample week takes the app width). Home is an app page: no footer.
-- **Plan moves onto the scheduler's workbench** (rail, sidebar, canvas; the same drawer on phones). All three directions shared this. Built in `v3/plan-workbench`: the workbench's pieces are `src/app/workbench`, and Plan's views are routes (`/plan`, `/plan/search`, …).
+- **Plan moves onto the scheduler's workbench** (rail, sidebar, canvas; the same drawer on phones). All three directions shared this. Built in `v3/plan-workbench`: the workbench's pieces are `src/components/workbench`, and Plan's views are routes (`/plan`, `/plan/search`, …).
 
 ## 5. How we work on this
 - **Cross-cutting work stays with the orchestrator.** The frame, the kit and the scheduler's move onto them are done in the orchestrator's own session, not handed off. At most two other sessions run at once, on parts of the code that don't overlap.

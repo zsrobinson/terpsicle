@@ -1,8 +1,7 @@
 import { cn } from "cn";
 import { Bell, CircleCheck, CircleX, Route, TriangleAlert } from "lucide-react";
 import type { CSSProperties } from "react";
-import { openTab, switchSection } from "~/app/actions";
-import { messageToText } from "~/app/message-text";
+import { messageToText } from "~/components/message-text";
 import {
   type Connection,
   parseSectionKey,
@@ -12,6 +11,7 @@ import {
 import { type SeatsMap, seatCounts, seatStatus } from "~/core/seats";
 import { formatDateSpan, type Lane } from "~/core/time";
 import { formatFeet, travelMath, verdictMessage } from "~/core/travel";
+import { openTab, switchSection } from "~/features/schedule/actions";
 import { useUi } from "~/state/ui-store";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";

@@ -1,7 +1,7 @@
 import { INSTALL_PROMPT_STASH } from "./install-capture";
 
 // The head script that keeps Chrome's install prompt (install-capture.ts).
-// Only src/app/inline-scripts.ts imports this, at build time: kept apart so
+// Only src/lib/inline-scripts.ts imports this, at build time: kept apart so
 // the app's own bundle doesn't carry the script's source as well.
 
 // Stringified into the document head, so it must be self-contained: no

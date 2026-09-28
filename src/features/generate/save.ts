@@ -1,5 +1,3 @@
-import { createPlanFrom } from "~/app/actions";
-import { track } from "~/app/analytics";
 import { resultCourses } from "~/core/generate/result-plan";
 import { nextPlanName } from "~/core/plans/naming";
 import type {
@@ -9,6 +7,8 @@ import type {
   PlanCourse,
   TermId,
 } from "~/core/schema";
+import { createPlanFrom } from "~/features/schedule/actions";
+import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import { useWorkspace } from "~/state/workspace-store";
 

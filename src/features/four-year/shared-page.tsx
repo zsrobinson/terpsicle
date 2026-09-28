@@ -1,7 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { initAnalytics, track } from "~/app/analytics";
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import type { IsoDate } from "~/core/schema";
 import {
@@ -11,6 +10,7 @@ import {
 } from "~/core/share/four-year-share";
 import { newYorkClock } from "~/core/todo/list";
 import { SitePage } from "~/features/site/site-page";
+import { initAnalytics, track } from "~/lib/analytics";
 import { newLocalId, nowIso } from "~/state/ids";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
