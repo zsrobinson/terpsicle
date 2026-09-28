@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { COURSE_COLORS } from "~/core/schema";
 import { readTokens, type Theme } from "./brand/css-tokens";
 import { hasKeyline, MARK_IDS } from "./brand/marks";
-import { PEEK_HEIGHT } from "./drawer-heights";
+import { PEEK_HEIGHT, snapHeights } from "./drawer-heights";
 
 // The design system as a test (docs/UX-REVIEW.md §2): every UI file uses the
 // type scale, the spacing rhythm and the color tokens, so a panel built next
@@ -506,6 +506,19 @@ describe("the palette", () => {
   it("lifts toasts just above a workbench drawer's resting strip", () => {
     const lift = /--toast-lift:\s*(\d+)px/.exec(STYLES)?.[1];
     expect(Number(lift)).toBe(PEEK_HEIGHT + 8);
+  });
+
+  it("lifts toasts just above a half-open drawer, where half is half the screen", () => {
+    const half =
+      /@media \(min-height: (\d+)px\) \{\s*:root:has\(\[data-workbench-drawer\]\[data-snap="half"\]\) \{\s*--toast-lift:\s*([^;]+);/.exec(
+        STYLES,
+      );
+    expect(half?.[2]).toBe("calc(50dvh + 8px)");
+    // snapHeights: half the screen from that height, all of it below.
+    const from = Number(half?.[1]);
+    expect(snapHeights(from).half).toBe(from / 2);
+    expect(snapHeights(844).half).toBe(422);
+    expect(snapHeights(from - 1).half).toBe(snapHeights(from - 1).full);
   });
 
   it("draws keylines and offsets that stand off the page (3:1)", () => {
