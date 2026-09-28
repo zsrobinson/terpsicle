@@ -99,8 +99,10 @@ test("asks after your first Chat post, above the composer, and remembers Not now
   await syncPlan(page, course);
   await page.goto(`/chat?term=${TERM}&course=${course}&room=${TERM}:${course}`);
   await expect(page.getByRole("log", { name: "Messages" })).toBeVisible();
-  const gotIt = page.getByRole("button", { name: "Got it" });
-  if (await gotIt.isVisible()) await gotIt.click();
+  // Someone new sees "Posting here" over the composer; their first post
+  // closes it, and that's when the ask comes, in the same place.
+  const postingHere = page.getByRole("region", { name: "Posting here" });
+  await expect(postingHere).toBeVisible();
 
   // Nothing asks on the way in: only once you've posted.
   const card = askCard(page, "Hear back when someone answers?");
@@ -110,6 +112,7 @@ test("asks after your first Chat post, above the composer, and remembers Not now
   await field.fill(`anyone studying for the midterm? ${tag}`);
   await field.press("Enter");
   await expect(card).toBeVisible({ timeout: 15_000 });
+  await expect(postingHere).toHaveCount(0);
   await expect(card).toContainText(
     "Get a notification when a classmate mentions you or replies to you.",
   );
