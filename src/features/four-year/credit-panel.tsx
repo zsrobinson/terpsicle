@@ -43,8 +43,11 @@ export function CreditPanel({ entryId }: { entryId: LocalId }) {
     return (
       <PanelNote>That credit isn't in this four-year plan anymore.</PanelNote>
     );
-  const mine = problems.filter((p) =>
-    p.subjects.some((s) => s.kind === "entry" && s.entryId === entry.id),
+  const mine = problems.filter(
+    (p) =>
+      // "On your transcript" and "What it counts as" already say this one.
+      p.kind !== "unmatched-credit" &&
+      p.subjects.some((s) => s.kind === "entry" && s.entryId === entry.id),
   );
   const credits = `${entry.credits} ${entry.credits === 1 ? "credit" : "credits"}`;
   return (
