@@ -34,6 +34,7 @@ const SIGNED_OUT = [
   "/todo",
   "/privacy",
   "/signin",
+  "/home",
 ];
 
 const SIGNED_IN = [
@@ -44,6 +45,7 @@ const SIGNED_IN = [
   "/settings",
   "/settings/notifications",
   "/reviews/mine",
+  "/home",
 ];
 
 const CONTROLS = [

@@ -68,6 +68,10 @@ A product laid out like the scheduler: the rail of views, the sidebar and the ca
 **Term**:
 A semester Testudo lists (fall, spring, summer or winter). A term is **active** while Testudo lists it and **archived** after, shown under "Past terms".
 
+**Home**:
+The installed app's start page at `/home`: a greeting, then a few facts from each product, each linking into it: **Today** (what's left of today's classes in Now's main plan, with the walk between buildings), **Due soon** (Todo), unread chat, the next term's main plan with its problems and seats that opened, Plan's credits and GenEds, and instructors to review. Hidden: nothing links to it, and it isn't indexed. Code says `HomePage`, `HOME_PATH`.
+_Avoid_: dashboard, start page (in copy)
+
 **Term tag**:
 The small tag beside a term's name wherever it's named: **Now** (an ink border) on the term in session, **Next** (a hairline) on the first fall or spring still to start, the one you're registering for. Other terms get none; winter and summer are only ever Now. Worked out from the academic calendar, as Plan's term status is, so every product agrees. Code says `TermTag`.
 _Avoid_: current term, upcoming, this semester (as a label)

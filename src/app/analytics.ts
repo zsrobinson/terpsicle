@@ -163,7 +163,8 @@ export interface AnalyticsEvents {
       | "reviews"
       | "chat"
       | "todo"
-      | "seat-watch";
+      | "seat-watch"
+      | "home";
   };
   signin_completed: { firstOnDevice: boolean };
   signin_failed: { reason: SignInError };
@@ -186,7 +187,10 @@ export interface AnalyticsEvents {
         reason: TodoConnectReason;
       };
   todo_disconnected: NoProperties;
-  todo_item_checked: { done: boolean; via: "list" | "week" | "month" };
+  todo_item_checked: {
+    done: boolean;
+    via: "list" | "week" | "month" | "home";
+  };
   todo_view_changed: { view: "week" | "month" | "list" };
   todo_file_imported: { items: number; skipped: number };
   /** `typed`: the composer recognized a date, time or course in the words. */
@@ -215,6 +219,9 @@ export interface AnalyticsEvents {
   // Every "View …" link between products (V3.md §6): product ids only,
   // never the course, term or item it leads to.
   cross_link_clicked: { from: ProductId; to: ProductId };
+  // Home, the installed app's start page (V3.md §1.5): which product a
+  // link led into, never the course, room or item behind it.
+  home_link_clicked: { to: ProductId };
   // The transcript import: counts and a boolean, never what was pasted.
   transcript_parsed: {
     recognized: boolean;

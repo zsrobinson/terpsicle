@@ -40,6 +40,7 @@ describe("robotsTxt", () => {
     expect(text).toContain("Disallow: /api/\n");
     expect(text).toContain("Disallow: /admin\n");
     expect(text).toContain("Disallow: /settings\n");
+    expect(text).toContain("Disallow: /home\n");
     expect(text).not.toContain("Disallow: /\n");
     expect(text).not.toContain("Disallow: /schedule");
     expect(

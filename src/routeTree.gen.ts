@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HomeRouteImport } from './routes/home'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ScheduleRouteImport } from './routes/schedule'
@@ -53,6 +54,11 @@ import { Route as ScheduleResultResultIdRouteImport } from './routes/schedule.re
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanRoute = PlanRouteImport.update({
@@ -254,6 +260,7 @@ const ScheduleResultResultIdRoute = ScheduleResultResultIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/home': typeof HomeRoute
   '/plan': typeof PlanRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/schedule': typeof ScheduleRouteWithChildren
@@ -296,6 +303,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/home': typeof HomeRoute
   '/privacy': typeof PrivacyRoute
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
@@ -337,6 +345,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/home': typeof HomeRoute
   '/plan': typeof PlanRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/schedule': typeof ScheduleRouteWithChildren
@@ -381,6 +390,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/home'
     | '/plan'
     | '/privacy'
     | '/schedule'
@@ -423,6 +433,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/home'
     | '/privacy'
     | '/settings'
     | '/signin'
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/home'
     | '/plan'
     | '/privacy'
     | '/schedule'
@@ -506,6 +518,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HomeRoute: typeof HomeRoute
   PlanRoute: typeof PlanRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   ScheduleRoute: typeof ScheduleRouteWithChildren
@@ -537,6 +550,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plan': {
@@ -869,6 +889,7 @@ const ScheduleRouteWithChildren = ScheduleRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HomeRoute: HomeRoute,
   PlanRoute: PlanRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   ScheduleRoute: ScheduleRouteWithChildren,
