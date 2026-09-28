@@ -87,12 +87,12 @@ test("the coffee button opens its note and links out", async ({
   await expect(link).toHaveAttribute("rel", /noopener/);
 });
 
-test("below 1280px the scheduler's bar gives its plans the room: the coffee link is in the menu", async ({
+test("below 1536px the scheduler's bar gives its plans the room: the coffee link is in the menu", async ({
   page,
   isMobile,
 }) => {
   test.skip(isMobile, "the phone bar has its own rule");
-  await page.setViewportSize({ width: 1100, height: 720 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/schedule?demo=1");
   await hydrated(page);
   await expect(page.getByTestId("coffee-button")).toBeHidden();
@@ -106,8 +106,11 @@ test("below 1280px the scheduler's bar gives its plans the room: the coffee link
   await page.keyboard.press("Escape");
 
   // With room, the button's back and the menu doesn't repeat it.
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1600, height: 900 });
   await expect(page.getByTestId("coffee-button")).toBeVisible();
+  await expect(
+    bar(page).getByTestId("early-access").filter({ visible: true }),
+  ).toHaveCount(1);
   await bar(page).getByRole("button", { name: "Sign in" }).click();
   await expect(
     page.getByRole("menuitem", { name: "Buy me a coffee" }),

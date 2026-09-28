@@ -64,6 +64,11 @@ Revisit if: the owner redraws a mark; change its rows in `src/app/brand/marks.ts
 An "Early access" chip sits beside the wordmark ("Terpsicle's still in active development, so things may change."). A coffee button beside Feedback opens a short note and links to https://buymeacoffee.com/zsrobinson ("figured it couldn't help"). It never opens by itself and never asks twice.
 Revisit if: Terpsicle leaves early access, or the owner drops the coffee link.
 
+### Crowded bars give their context the room below 1536px
+2026-09-28 · agent · one feature
+On a bar marked `crowdedBelow2xl` (the scheduler's and Plan's), below 1536px the Early access chip hides, the coffee button becomes "Buy me a coffee" in the account menu, Feedback shows just its icon and the product tabs' padding tightens, so three plan tabs show whole at 1440px and two at 1280px (e2e/shell.spec.ts). The chip stays on every other bar and in the product menu.
+Revisit if: the scheduler's bar changes its context or status, or the owner wants the chip on every bar at every width.
+
 ### Sign in with Google, UMD only
 2026-09-26 · owner · app-wide
 Google only, with `hd` exactly `terpmail.umd.edu` or `umd.edu` and a verified email; no magic link. Real names and pictures come from Google at every sign-in and aren't editable here. People are keyed on their directory ID.

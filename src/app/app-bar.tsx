@@ -79,8 +79,9 @@ export function AppBar({
   heading?: boolean;
   /**
    * Its context fills the bar below 1536px (the scheduler's term and plans):
-   * Feedback shows just its icon there, and below 1280px the Early access
-   * chip gives way and the coffee button moves into the account menu.
+   * there Feedback shows just its icon, the Early access chip gives way (the
+   * product menu and every other bar carry it) and the coffee button moves
+   * into the account menu, so three plan tabs fit at 1440px and two at 1280.
    */
   crowdedBelow2xl?: boolean;
   /** Reviews' public pages: no rule under the bar until the page scrolls. */
@@ -98,9 +99,9 @@ export function AppBar({
   // A phone's bar has no room for another icon beside Feedback and the
   // account: the coffee link is always in the account menu there.
   const coffeeInMenu = (compact || mobile) && feedback !== null;
-  // A crowded bar at 1100–1279px needs the room for its plans (e2e/shell's
-  // "at 1100px" test): the chip hides and the coffee link moves to the menu.
-  const roomBelowXl = crowdedBelow2xl && !coffeeInMenu;
+  // A crowded bar below 1536px gives its plans the room (e2e/shell's plan
+  // tab widths): the chip hides and the coffee link moves to the menu.
+  const roomBelow2xl = crowdedBelow2xl && !coffeeInMenu;
   const bellShown = useBellShown();
   const unreadNote = useUnreadNote();
   const Brand = heading ? "h1" : "div";
@@ -128,7 +129,7 @@ export function AppBar({
             </WithTooltip>
           </Brand>
           <EarlyAccessChip
-            className={roomBelowXl ? "max-xl:hidden" : undefined}
+            className={roomBelow2xl ? "max-2xl:hidden" : undefined}
           />
           <ProductTabs current={current} />
         </div>
@@ -167,7 +168,7 @@ export function AppBar({
         {feedback && !coffeeInMenu ? (
           <CoffeeButton
             labelFrom2xl={crowdedBelow2xl}
-            className={roomBelowXl ? "max-xl:hidden" : undefined}
+            className={roomBelow2xl ? "max-2xl:hidden" : undefined}
           />
         ) : null}
         {feedback ? (
@@ -188,8 +189,8 @@ export function AppBar({
               coffee={
                 coffeeInMenu
                   ? "always"
-                  : roomBelowXl && feedback !== null
-                    ? "below-xl"
+                  : roomBelow2xl && feedback !== null
+                    ? "below-2xl"
                     : "never"
               }
               bell={crowded && bellShown}
@@ -214,6 +215,9 @@ function ProductTabs({ current }: { current: ProductId | null }) {
             aria-current={p.id === current ? "page" : undefined}
             className={cn(
               "flex h-7 items-center gap-1.5 rounded-md px-2 font-medium text-base text-muted transition-colors hover:bg-hover hover:text-fg aria-[current=page]:text-fg",
+              // Below 1536px the 20px marks' extra width comes back out of
+              // the padding, so two plan tabs show whole at 1280px.
+              "max-2xl:gap-1 max-2xl:px-1.5",
               CURRENT[p.id],
             )}
           >
@@ -233,16 +237,16 @@ function MenuItems({
   bell,
 }: {
   feedback: boolean;
-  /** "below-xl": only where the bar hides its coffee button (CSS). */
-  coffee: "always" | "below-xl" | "never";
+  /** "below-2xl": only where the bar hides its coffee button (CSS). */
+  coffee: "always" | "below-2xl" | "never";
   bell: boolean;
 }) {
   if (!feedback && coffee === "never" && !bell) return null;
-  const onlyBelowXl = !feedback && !bell && coffee === "below-xl";
+  const onlyBelow2xl = !feedback && !bell && coffee === "below-2xl";
   return (
     <>
       <DropdownMenuSeparator
-        className={onlyBelowXl ? "xl:hidden" : undefined}
+        className={onlyBelow2xl ? "2xl:hidden" : undefined}
       />
       {bell ? <NotificationsMenuItem /> : null}
       {feedback ? (
@@ -253,7 +257,7 @@ function MenuItems({
       ) : null}
       {coffee === "never" ? null : (
         <CoffeeMenuItem
-          className={coffee === "below-xl" ? "xl:hidden" : undefined}
+          className={coffee === "below-2xl" ? "2xl:hidden" : undefined}
         />
       )}
     </>
