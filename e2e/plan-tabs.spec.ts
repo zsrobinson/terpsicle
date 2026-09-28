@@ -131,7 +131,7 @@ test.describe("register", () => {
     await openDemo(page);
     await openTab(page, "Register");
     await page
-      .getByRole("button", { name: /Copy course and section codes/ })
+      .getByRole("button", { name: /Copy all course and section codes/ })
       .click();
     await expect(page.getByText("Copied 5 section codes")).toBeVisible();
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
@@ -164,9 +164,9 @@ test.describe("register", () => {
         .getByRole("button", { name: /^ENGL393 0101.*, registered/ })
         .first(),
     ).toBeVisible();
-    // Kept with the plan, so a reload still has it.
-    await page.reload();
-    await openTab(page, "Register");
+    // Saved with the plan: a fresh load (without `demo`, which would put the
+    // demo plans back) still has it.
+    await page.goto("/schedule/register");
     await expect(
       page.getByRole("checkbox", { name: "Registered for ENGL393 0101" }),
     ).toBeChecked();
@@ -221,7 +221,9 @@ test.describe("register", () => {
         .getByRole("button", { name: /^CMSC351 0301/ })
         .first(),
     ).toBeVisible();
-    // Read-only: no edit controls in the Courses tab.
+    // Read-only: no edit controls in the Courses tab. (Search first: the
+    // open tab's own button would collapse the sidebar.)
+    await openTab(page, "Search");
     await openTab(page, "Courses");
     await expect(page.getByTestId("course-row-CMSC351")).toBeVisible();
     await expect(
