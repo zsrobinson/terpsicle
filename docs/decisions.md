@@ -95,6 +95,11 @@ Revisit if: the owner asks for one.
 The same types, delivered through an inbox (a bell in the family bar), grouped pushes with counts, one badge number (unread in the inbox), a private calendar feed for dates, quiet hours 11pm–8am on by default with seat openings let through, message text shown by default, and no caps on delivery (the owner: "we should deliver all notifs if we say we have notifs so that it doesn't feel broken"; grouping keeps a busy chat calm). On iPhone the sender's name goes in the title: the avatar style is native-only. The owner, on the design: "that design doc looks incredible for the notifications". Spec: V2 §6.7.
 Revisit if: people turn quiet hours or the inbox off in large numbers, or iOS opens communication notifications to web apps.
 
+### Calendar feed links are derived, never stored
+2026-09-27 · agent · one feature
+The feed's token is an HMAC of the person's id and a random nonce under the R2 key (`keyedHash`); D1 keeps the nonce and the token's SHA-256. Settings can show the link again without storing it, and "Make a new link" is a new nonce. Chosen over a stored random token (a copy of D1 would hold every link), sealing it with Todo's key (ties the feed to Todo's secret) and a new link on every ask (would break calendars already subscribed). V2 §6.7 "As built".
+Revisit if: the R2 key is ever rotated (every link changes with it), or a Worker secret for links is added.
+
 ### No session recording
 2026-09-26 · owner · app-wide
 No session recording anywhere ("creepy"): replay is off in code and in PostHog, and `/privacy` says so.
