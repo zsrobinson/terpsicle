@@ -7,6 +7,7 @@ import {
   generateKeyPair,
   toBase64url,
 } from "../src/core/push";
+import { payloadOf } from "./push-message";
 
 // Chat mentions end to end on `pnpm dev:mock` (V2.md §6.1): tclassmate has a
 // device with notifications on and isn't looking at the course's chat;
@@ -178,7 +179,9 @@ test("an @-mention pushes to the classmate it names", async ({
           uaPublic,
           authSecret,
         });
-        const data = plain ? JSON.parse(new TextDecoder().decode(plain)) : null;
+        const data = plain
+          ? payloadOf(JSON.parse(new TextDecoder().decode(plain)))
+          : null;
         if (data?.body?.includes(words)) return data;
       }
       return null;

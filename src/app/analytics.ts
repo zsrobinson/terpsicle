@@ -9,6 +9,7 @@ import type {
   Pace,
   ProblemFix,
   ProblemKind,
+  PushAskMoment,
   RailTab,
   RankBy,
   RankFactor,
@@ -134,6 +135,16 @@ export interface AnalyticsEvents {
   // it. Never the words, the course or who.
   notifications_opened: NoProperties;
   notification_opened: { type: InboxType };
+  /** Asking to turn notifications on at a moment (V2 §6.7): which, and how. */
+  push_ask_shown: {
+    moment: PushAskMoment;
+    kind: "card" | "iphone-setup" | "home-screen";
+  };
+  push_ask_result: {
+    moment: PushAskMoment;
+    kind: "card" | "iphone-setup" | "home-screen";
+    outcome: "on" | "dismissed" | "blocked" | "failed";
+  };
   // The calendar feed (V2.md §6.7), from /settings/notifications. Never the
   // link or anything in it.
   calendar_feed_created: NoProperties;

@@ -17,6 +17,7 @@ import {
 } from "../src/core/push";
 import { newYorkClock } from "../src/core/todo/list";
 import { TEST_FEED_TOKENS, testFeedLink } from "../src/core/todo/test-feed";
+import { payloadOf } from "./push-message";
 
 // v3 end to end (docs/V3.md §11, `v3/e2e`) on `pnpm dev:mock`, in test mode.
 // One person, signed out at first:
@@ -252,7 +253,8 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
           uaPublic,
           authSecret,
         });
-        if (plain) out.push(JSON.parse(new TextDecoder().decode(plain)));
+        if (plain)
+          out.push(payloadOf(JSON.parse(new TextDecoder().decode(plain))));
       }
       return out;
     };

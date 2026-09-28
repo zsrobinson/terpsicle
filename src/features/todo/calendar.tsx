@@ -266,6 +266,7 @@ function Undated({ props }: { props: ViewProps }) {
 /**
  * The day's heading over its column: the weekday, then its date, today
  * marked in Todo's color. A screen reader hears the whole date and what's due.
+ * An h2, as the phone's days: each day is a section of the page's h1.
  */
 function DayHead({
   date,
@@ -282,7 +283,7 @@ function DayHead({
 }) {
   const isToday = date === today;
   return (
-    <h3
+    <h2
       className={cn(
         "flex items-baseline gap-1.5 px-2 py-1.5 font-normal text-sm",
         isToday ? "font-semibold text-fg" : "text-muted",
@@ -305,7 +306,7 @@ function DayHead({
         {dayLabel(date, today).includes(",") ? "" : `, ${shortDayLabel(date)}`}:{" "}
         {count === 0 ? "nothing due" : `${count} due`}
       </span>
-    </h3>
+    </h2>
   );
 }
 

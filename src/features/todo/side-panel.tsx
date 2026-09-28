@@ -26,6 +26,8 @@ import {
   type WeekStart,
 } from "~/core/todo";
 import { dotStyle } from "~/features/calendar/tint";
+import { usePushAskCard } from "~/features/notifications/push-ask";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { SegmentedControl } from "~/ui/segmented-control";
@@ -225,6 +227,7 @@ function WeekSection({
   return (
     <section aria-label={title}>
       <SectionHeader
+        level={2}
         title={title}
         count={total.total === 0 ? undefined : `${ofWords(total)} done`}
       />
@@ -293,6 +296,9 @@ function ElmsSection({
 }) {
   const refreshing = useTodo((s) => s.refreshing);
   const refreshNote = useTodo((s) => s.refreshNote);
+  // Connecting here asks for reminders here (V2 §6.7): the section holds the
+  // card's place from before the paste, as the connected rows replace it.
+  usePushAskCard("todo-connected");
   const words = feedWords(feed, now);
   const manage = (
     <WithTooltip label="Connect, check or disconnect ELMS, or add a file">
@@ -304,6 +310,7 @@ function ElmsSection({
   return (
     <section aria-label="ELMS">
       <SectionHeader
+        level={2}
         title="ELMS"
         right={feed && feed.status !== "broken" ? <RefreshButton /> : null}
       />
@@ -343,6 +350,7 @@ function ElmsSection({
             ) : refreshNote === "too-soon" ? (
               <p className="text-muted">{TOO_SOON}</p>
             ) : null}
+            <PushAskCard moment="todo-connected" />
             <p>{manage}</p>
           </>
         )}
@@ -361,7 +369,7 @@ function WeekStartSection({
 }) {
   return (
     <section aria-label="Calendar">
-      <SectionHeader title="Weeks start on" />
+      <SectionHeader level={2} title="Weeks start on" />
       <div className="px-4 py-3">
         <SegmentedControl
           label="Weeks start on"
@@ -433,7 +441,7 @@ export function SidePanel({
     <div className={cn("flex flex-col", className)}>
       <section aria-label="Add a task">
         {fold ? null : (
-          <SectionHeader title="Add a task" className="border-t-0" />
+          <SectionHeader level={2} title="Add a task" className="border-t-0" />
         )}
         <Composer
           courses={courses}
