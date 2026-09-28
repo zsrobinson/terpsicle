@@ -227,6 +227,7 @@ function WeekSection({
   return (
     <section aria-label={title}>
       <SectionHeader
+        level={2}
         title={title}
         count={total.total === 0 ? undefined : `${ofWords(total)} done`}
       />
@@ -309,6 +310,7 @@ function ElmsSection({
   return (
     <section aria-label="ELMS">
       <SectionHeader
+        level={2}
         title="ELMS"
         right={feed && feed.status !== "broken" ? <RefreshButton /> : null}
       />
@@ -367,7 +369,7 @@ function WeekStartSection({
 }) {
   return (
     <section aria-label="Calendar">
-      <SectionHeader title="Weeks start on" />
+      <SectionHeader level={2} title="Weeks start on" />
       <div className="px-4 py-3">
         <SegmentedControl
           label="Weeks start on"
@@ -439,7 +441,7 @@ export function SidePanel({
     <div className={cn("flex flex-col", className)}>
       <section aria-label="Add a task">
         {fold ? null : (
-          <SectionHeader title="Add a task" className="border-t-0" />
+          <SectionHeader level={2} title="Add a task" className="border-t-0" />
         )}
         <Composer
           courses={courses}

@@ -10,6 +10,13 @@ import { liveToasts } from "./toasts";
 // a mocked user agent as e2e/pwa.spec.ts does. Each test signs in as a new
 // person, so none shares a feed, a room's state or a device's answers.
 
+// Full Chromium, not Playwright's default headless binary
+// (chromium-headless-shell, what CI runs): the shell has no notifications,
+// and its permission reads "denied" from the start, so nothing would ever
+// ask (as e2e/pwa-push.spec.ts). `channel` forces its own worker, so this
+// file keeps to the asks.
+test.use({ channel: "chromium" });
+
 const TERM = "202701";
 const IPHONE_SAFARI =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1";
@@ -138,15 +145,25 @@ test("asks after your first Chat post, above the composer, and remembers Not now
 
 test("asks after connecting ELMS, and Turn on hands off to the browser's prompt", async ({
   page,
+  isMobile,
 }) => {
   test.slow();
   await signInNew(page, "/todo");
+  // On a phone, the paste is in the side panel's fold above the calendar.
+  if (isMobile)
+    await page.getByRole("button", { name: /^Courses and ELMS/ }).click();
   await page
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
   await page.getByRole("button", { name: "Connect ELMS" }).click();
   const card = askCard(page, "Remind you the evening before something's due?");
   await expect(card).toBeVisible({ timeout: 15_000 });
+  // In the ELMS section, where the link went in.
+  await expect(
+    page.getByRole("region", { name: "ELMS" }).getByRole("region", {
+      name: "Remind you the evening before something's due?",
+    }),
+  ).toBeVisible();
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     await scan(page, `the Todo ask (${colorScheme})`);
@@ -181,12 +198,32 @@ test.describe("on iPhone", () => {
         get: () => true,
       }),
     );
+    // Signing in syncs: its first push is the device's first sign-in.
+    const firstPush = page.waitForResponse((response) =>
+      response.url().endsWith("/api/sync/push"),
+    );
     await signInNew(page, "/schedule");
     const sheet = page.getByRole("dialog", { name: "Turn on notifications" });
     await expect(sheet).toBeVisible({ timeout: 15_000 });
     await expect(sheet).toContainText(
       "Turn on notifications. iPhone asks you to allow them.",
     );
+    // When that push carried the scheduler's own Plan A (made before or after
+    // signing in, whichever came first), its toast fades in about when the
+    // sheet does, and axe reads a toast mid-fade as low contrast: the scan
+    // waits for it to arrive.
+    const pushed = (await (await firstPush).json()) as {
+      results: { kind: string }[];
+    };
+    if (pushed.results.some((result) => result.kind === "plan")) {
+      const saved = liveToasts(page).filter({
+        hasText: "Your plan is saved to your account",
+      });
+      await expect(saved).toBeVisible();
+      await expect
+        .poll(() => saved.evaluate((toast) => getComputedStyle(toast).opacity))
+        .toBe("1");
+    }
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
       await scan(page, `the Home Screen ask (${colorScheme})`);

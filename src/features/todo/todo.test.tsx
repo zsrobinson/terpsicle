@@ -413,8 +413,9 @@ describe("the week", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
     ).toBeVisible();
+    // The days are the title's sections: h2s under the h1, as the phone's.
     const days = within(screen.getByRole("region", { name: "The week" }))
-      .getAllByRole("heading", { level: 3 })
+      .getAllByRole("heading", { level: 2 })
       .map((h) => h.textContent);
     expect(days[0]).toMatch(/^Mon28/);
     expect(days[6]).toMatch(/^Sun4/);
@@ -425,6 +426,16 @@ describe("the week", () => {
       within(sunday).getByRole("heading", { name: /Sunday, Oct 4: 1 due/ }),
     ).toBeInTheDocument();
     expect(screen.getAllByTestId("todo-chip")).toHaveLength(4);
+  });
+
+  it("heads the side panel's sections at the days' level, under the title", async () => {
+    fakeClient({ items });
+    signedIn();
+    renderTodo();
+    await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" });
+    // On a phone the panel comes after the h1: an h3 there would skip a level.
+    for (const name of ["Add a task", "This week", "ELMS", "Weeks start on"])
+      expect(screen.getByRole("heading", { level: 2, name })).toBeVisible();
   });
 
   it("moves a week at a time with links, so each week is a URL", async () => {
