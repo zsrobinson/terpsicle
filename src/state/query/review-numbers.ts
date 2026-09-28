@@ -16,8 +16,8 @@ import { publishedFile, publishedPointer } from "./published";
 
 // Terpsicle reviews' numbers (R2 family `reviews/`, V2 §7.6, DATA.md §5.4),
 // for course details: the manifest, then a department's file by its hash.
-// The hourly job is the most often they change, so the manifest is fresh
-// for an hour. Read them with `useTerpsicleReviews` (~/state/data-hooks).
+// A saved manifest is checked once per page; the hourly job is the most
+// often they change, so after that it's fresh for an hour. Read them with `useTerpsicleReviews` (~/state/data-hooks).
 
 /** How long the reviews manifest counts as current: the job runs hourly. */
 export const REVIEWS_MANIFEST_STALE_MS = 60 * 60 * 1000;
@@ -33,6 +33,7 @@ export function reviewsManifestQuery(source: DataSource | null) {
       staleTime: REVIEWS_MANIFEST_STALE_MS,
       lists: (manifest) =>
         manifest.departments.map((d) => reviewsDeptKey(d.code, d.hash)),
+      fileSchema: ReviewsDeptSchema,
     },
   );
 }

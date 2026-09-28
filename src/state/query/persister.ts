@@ -19,9 +19,6 @@ import type { DataSource } from "../data-source";
 // cache, storage errors are swallowed: the cache only ever makes loading
 // faster, it never makes it fail.
 
-/** How long a published file may sit unread before it's dropped. */
-export const PUBLISHED_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-
 interface Row {
   key: string;
   value: unknown;
@@ -94,6 +91,22 @@ export function createMemoryQueryStorage(): QueryStorage & {
   };
 }
 
+/** Writes not yet done, so a pointer is stored only after its files. */
+const pending = new Set<Promise<unknown>>();
+
+/** The storage, with its writes counted (the persister doesn't await them). */
+function tracked(inner: QueryStorage): QueryStorage {
+  return {
+    ...inner,
+    setItem: (key, value) => {
+      const write = Promise.resolve(inner.setItem(key, value));
+      pending.add(write);
+      void write.finally(() => pending.delete(write));
+      return write;
+    },
+  };
+}
+
 /** Undefined until first use; null where there's nowhere to keep rows. */
 let storage: QueryStorage | null | undefined;
 
@@ -101,49 +114,87 @@ let storage: QueryStorage | null | undefined;
 function queryStorage(): QueryStorage | null {
   if (storage === undefined)
     storage =
-      typeof indexedDB === "undefined" ? null : createDexieQueryStorage();
+      typeof indexedDB === "undefined"
+        ? null
+        : tracked(createDexieQueryStorage());
   return storage;
 }
 
-type Persister = ReturnType<typeof experimental_createQueryPersister<unknown>>;
-const persisters = new Map<string, Persister>();
-
 /** Test hook: where persisted queries go (null: nowhere). */
 export function setQueryStorage(next: QueryStorage | null): void {
-  storage = next;
+  storage = next ? tracked(next) : null;
   persisters.clear();
 }
+
+/** Waits for every write the persister has started. */
+export async function flushQueryStorage(): Promise<void> {
+  await Promise.all(pending);
+}
+
+export type Persister = ReturnType<
+  typeof experimental_createQueryPersister<unknown>
+>;
+const persisters = new Map<string, Persister>();
 
 const prefixOf = (family: SchemaFamily) => `published:${family}`;
 
 /**
  * The persister for one family of published files. Its buster is the
  * family's schema version, so a version bump drops that family's rows and
- * nothing else (DATA.md §2.3).
+ * nothing else (DATA.md §2.3). Rows never age out: a hashed file is never
+ * refetched, so its age says nothing, and `prunePublished` drops what the
+ * family's pointer stops listing. Refetching a restored pointer is the
+ * query's own (./published.ts), so its failure is handled.
  */
 export function publishedPersister(family: SchemaFamily): Persister {
-  const found = persisters.get(family);
+  const id = family;
+  const found = persisters.get(id);
   if (found) return found;
   const persister = experimental_createQueryPersister<unknown>({
     storage: queryStorage(),
     prefix: prefixOf(family),
     buster: `${family}@${SCHEMA_VERSIONS[family]}`,
-    maxAge: PUBLISHED_MAX_AGE_MS,
+    maxAge: Number.POSITIVE_INFINITY,
+    refetchOnRestore: false,
     // Rows are objects, not JSON text: IndexedDB clones them as they are.
     serialize: (query) => query,
+    // The envelope the persister reads is checked here; the data is
+    // checked against its own schema by the query (./published.ts).
     deserialize: (value) =>
-      // The parts the persister reads are checked; the rest is Query's own.
       PersistedQueryRowSchema.parse(value) as unknown as PersistedQuery,
   });
-  persisters.set(family, persister);
+  persisters.set(id, persister);
   return persister;
+}
+
+/** Deletes one saved query, whose data didn't read. */
+export async function forgetPersisted(
+  family: SchemaFamily,
+  queryHash: string,
+): Promise<void> {
+  await queryStorage()?.removeItem(`${prefixOf(family)}-${queryHash}`);
+}
+
+/** The R2 keys of a family's saved files in this mode. */
+export async function savedPublishedKeys(
+  family: SchemaFamily,
+  kind: DataSource["kind"],
+): Promise<string[]> {
+  const store = queryStorage();
+  if (!store) return [];
+  const prefix = `${prefixOf(family)}-`;
+  return (await store.keys(prefix)).flatMap((key) => {
+    const queryKey = parseKey(key.slice(prefix.length));
+    return queryKey && queryKey[1] === kind ? [queryKey[2]] : [];
+  });
 }
 
 /**
  * Drops a family's rows for files its pointer no longer lists, as the old
  * cache's commit did (DATA.md §5.1 step 4): hashed files are immutable, so
  * each change leaves the old file behind. `keep` holds R2 keys; a row whose
- * key doesn't read is dropped too.
+ * key doesn't read is dropped too. Call it only once the pointer and the
+ * files it replaced are saved (./published.ts).
  */
 export async function prunePublished(
   family: SchemaFamily,

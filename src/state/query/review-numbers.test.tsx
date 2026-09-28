@@ -22,15 +22,11 @@ import {
 } from "../data-source";
 import {
   createMemoryQueryStorage,
-  PUBLISHED_MAX_AGE_MS,
+  flushQueryStorage,
   setQueryStorage,
 } from "./persister";
 import { connectPublished, publishedKey, retryPublished } from "./published";
-import {
-  REVIEWS_MANIFEST_STALE_MS,
-  reviewsManifestQuery,
-  terpsicleInstructor,
-} from "./review-numbers";
+import { reviewsManifestQuery, terpsicleInstructor } from "./review-numbers";
 import { createTestQueryClient } from "./testing";
 
 // Terpsicle reviews' numbers through the query cache (DATA.md §5.4): the
@@ -48,11 +44,14 @@ function aServer() {
   const files = new Map<string, unknown>();
   const reads: string[] = [];
   let offline = false;
+  /** Keys whose read fails as a dropped connection would. */
+  const failing = new Set<string>();
   const source: DataSource = {
     kind: "live",
     async readJson(key) {
       reads.push(key);
-      if (offline) throw new DataError(key, "network", "offline");
+      if (offline || failing.has(key))
+        throw new DataError(key, "network", "offline");
       if (!files.has(key)) throw new DataError(key, "missing", "missing");
       return structuredClone(files.get(key));
     },
@@ -73,6 +72,7 @@ function aServer() {
   publish(1);
   return {
     files,
+    failing,
     source,
     publish,
     setOffline: (value: boolean) => {
@@ -93,11 +93,33 @@ function aPage(source: DataSource) {
   );
   const show = (dept: DeptCode | null, enabled = true) =>
     renderHook(() => useTerpsicleReviews(dept, enabled), { wrapper });
-  return { client, show };
+  return { client, wrapper, show };
 }
 
-/** Waits for the persister's background writes. */
-const saved = () => waitFor(() => expect(storage.rows.size).toBeGreaterThan(0));
+/** A first page that showed CMSC's numbers and saved them, then closed. */
+async function visitedOnce(server: ReturnType<typeof aServer>) {
+  const first = aPage(server.source).show("CMSC");
+  await waitFor(() => expect(first.result.current).not.toBeNull());
+  await waitFor(() => expect(storage.rows.size).toBe(2));
+  first.unmount();
+  server.take();
+}
+
+/** The R2 keys saved now, sorted. */
+const savedKeys = () =>
+  [...storage.rows.keys()]
+    .map((k) => JSON.parse(k.slice(k.indexOf("-") + 1))[2] as string)
+    .sort();
+
+/** The hash the saved reviews manifest lists for CMSC. */
+function savedManifestHash(): string | undefined {
+  const row = [...storage.rows].find(([k]) =>
+    k.includes(REVIEWS_MANIFEST_KEY),
+  )?.[1] as
+    | { state: { data: { departments: { hash: string }[] } } }
+    | undefined;
+  return row?.state.data.departments[0]?.hash;
+}
 
 /** Makes every saved row look `ms` older, as if the page were opened later. */
 function age(ms: number) {
@@ -159,30 +181,39 @@ describe("useTerpsicleReviews with the persister", () => {
     );
   });
 
-  it("shows the saved copy next time, without asking while it's fresh", async () => {
+  it("shows the saved copy next time, and checks the manifest once per page", async () => {
     const server = aServer();
-    const first = aPage(server.source).show("CMSC");
-    await waitFor(() => expect(first.result.current).not.toBeNull());
-    await saved();
-    server.take();
+    await visitedOnce(server);
+
+    // Within the hour, a new page still asks for the manifest, once.
+    const next = aPage(server.source);
+    const a = next.show("CMSC");
+    await waitFor(() =>
+      expect(a.result.current?.instructors.brandt?.reviewCount).toBe(1),
+    );
+    await waitFor(() => expect(server.take()).toEqual([REVIEWS_MANIFEST_KEY]));
+    next.show("CMSC");
+    await flushQueryStorage();
+    expect(server.take()).toEqual([]);
+  });
+
+  it("keeps a saved file however old it is, offline too", async () => {
+    const server = aServer();
+    await visitedOnce(server);
+    age(400 * 24 * 60 * 60 * 1000);
 
     server.setOffline(true);
     const next = aPage(server.source).show("CMSC");
     await waitFor(() =>
       expect(next.result.current?.instructors.brandt?.reviewCount).toBe(1),
     );
-    expect(server.take()).toEqual([]);
   });
 
-  it("checks a stale saved manifest, refetches a changed file and forgets the old one", async () => {
+  it("brings a saved department's new file along with a changed manifest, then forgets the old one", async () => {
     const server = aServer();
-    const first = aPage(server.source).show("CMSC");
-    await waitFor(() => expect(first.result.current).not.toBeNull());
-    await waitFor(() => expect(storage.rows.size).toBe(2));
+    await visitedOnce(server);
 
     server.publish(2);
-    age(REVIEWS_MANIFEST_STALE_MS + 1);
-    server.take();
     const next = aPage(server.source).show("CMSC");
     await waitFor(() =>
       expect(next.result.current?.instructors.brandt?.reviewCount).toBe(2),
@@ -191,10 +222,65 @@ describe("useTerpsicleReviews with the persister", () => {
       [REVIEWS_MANIFEST_KEY, reviewsDeptKey("CMSC", hash(2))].sort(),
     );
     await waitFor(() =>
-      expect(
-        [...storage.rows.keys()].filter((k) => k.includes("/dept/")),
-      ).toEqual([expect.stringContaining(reviewsDeptKey("CMSC", hash(2)))]),
+      expect(savedKeys()).toEqual(
+        [REVIEWS_MANIFEST_KEY, reviewsDeptKey("CMSC", hash(2))].sort(),
+      ),
     );
+    expect(savedManifestHash()).toBe(hash(2));
+  });
+
+  it("keeps the old manifest and file when the new file can't load", async () => {
+    const server = aServer();
+    await visitedOnce(server);
+
+    // The manifest arrives, then the connection drops.
+    server.publish(2);
+    server.failing.add(reviewsDeptKey("CMSC", hash(2)));
+    const next = aPage(server.source);
+    const view = next.show("CMSC");
+    await waitFor(() =>
+      expect(
+        next.client.getQueryState(publishedKey("live", REVIEWS_MANIFEST_KEY))
+          ?.status,
+      ).toBe("error"),
+    );
+    expect(view.result.current?.instructors.brandt?.reviewCount).toBe(1);
+    await flushQueryStorage();
+    expect(savedKeys()).toEqual(
+      [REVIEWS_MANIFEST_KEY, reviewsDeptKey("CMSC", hash(1))].sort(),
+    );
+    expect(savedManifestHash()).toBe(hash(1));
+    view.unmount();
+
+    server.setOffline(true);
+    const offline = aPage(server.source).show("CMSC");
+    await waitFor(() =>
+      expect(offline.result.current?.instructors.brandt?.reviewCount).toBe(1),
+    );
+  });
+
+  it("keeps the old numbers on screen while a department's new file loads", async () => {
+    // Nothing saved, so the new file loads only once the manifest changed.
+    setQueryStorage(null);
+    const server = aServer();
+    const { client, wrapper } = aPage(server.source);
+    const seen: (number | undefined)[] = [];
+    renderHook(
+      () => {
+        const dept = useTerpsicleReviews("CMSC", true);
+        seen.push(dept?.instructors.brandt?.reviewCount);
+        return dept;
+      },
+      { wrapper },
+    );
+    await waitFor(() => expect(seen.at(-1)).toBe(1));
+
+    server.publish(2);
+    await client.refetchQueries({
+      queryKey: publishedKey("live", REVIEWS_MANIFEST_KEY),
+    });
+    await waitFor(() => expect(seen.at(-1)).toBe(2));
+    expect(seen.slice(seen.indexOf(1))).not.toContain(undefined);
   });
 
   it("follows the server when a saved manifest names a file it deleted", async () => {
@@ -205,34 +291,16 @@ describe("useTerpsicleReviews with the persister", () => {
 
     server.publish(2);
     server.files.delete(reviewsDeptKey("CMSC", hash(1)));
-    // More than a day old: the server may have deleted what it names.
-    age(25 * 60 * 60 * 1000);
     const next = aPage(server.source).show("CMSC");
     await waitFor(() =>
       expect(next.result.current?.instructors.brandt?.reviewCount).toBe(2),
     );
   });
 
-  it("drops a saved copy older than the cache keeps", async () => {
-    const server = aServer();
-    const first = aPage(server.source).show("CMSC");
-    await waitFor(() => expect(first.result.current).not.toBeNull());
-    await saved();
-    age(PUBLISHED_MAX_AGE_MS + 1);
-    server.take();
-
-    const next = aPage(server.source).show("CMSC");
-    await waitFor(() => expect(next.result.current).not.toBeNull());
-    expect(server.take()).toContain(REVIEWS_MANIFEST_KEY);
-  });
-
   it("drops a saved copy that doesn't read, and fetches again", async () => {
     const server = aServer();
-    const first = aPage(server.source).show("CMSC");
-    await waitFor(() => expect(first.result.current).not.toBeNull());
-    await saved();
+    await visitedOnce(server);
     for (const key of storage.rows.keys()) storage.rows.set(key, { junk: 1 });
-    server.take();
 
     const next = aPage(server.source).show("CMSC");
     await waitFor(() => expect(next.result.current).not.toBeNull());
@@ -241,13 +309,32 @@ describe("useTerpsicleReviews with the persister", () => {
     );
   });
 
+  it("drops a saved file whose data doesn't match its schema, and fetches again", async () => {
+    const server = aServer();
+    await visitedOnce(server);
+    for (const [key, row] of storage.rows)
+      if (key.includes("/dept/")) {
+        const r = row as { state: object };
+        storage.rows.set(key, {
+          ...r,
+          state: { ...r.state, data: { dept: 7 } },
+        });
+      }
+
+    const next = aPage(server.source).show("CMSC");
+    await waitFor(() =>
+      expect(next.result.current?.instructors.brandt?.reviewCount).toBe(1),
+    );
+    expect(server.take()).toContain(reviewsDeptKey("CMSC", hash(1)));
+  });
+
   it("keeps mock and live apart on one origin", async () => {
     const server = aServer();
     const live = aPage(server.source).show("CMSC");
     await waitFor(() => expect(live.result.current).not.toBeNull());
     const liveNumbers = live.result.current;
     live.unmount();
-    await saved();
+    await waitFor(() => expect(storage.rows.size).toBe(2));
     const mock = aPage(createBucketDataSource(mockDataSource)).show("CMSC");
     await waitFor(() => expect(mock.result.current).not.toBeNull());
     expect(liveNumbers?.instructors).toEqual({ brandt: numbers(1) });
@@ -265,10 +352,9 @@ describe("failures", () => {
     const view = show("CMSC");
     const state = () =>
       client.getQueryState(publishedKey("live", REVIEWS_MANIFEST_KEY));
-    // The network retries twice, a second apart then two.
-    await waitFor(() => expect(state()?.status).toBe("error"), {
-      timeout: 5_000,
-    });
+    await waitFor(() => expect(state()?.status).toBe("error"));
+    // Asked once, then retried twice (at once, in tests).
+    expect(server.take()).toEqual(Array(3).fill(REVIEWS_MANIFEST_KEY));
     expect(view.result.current).toBeNull();
 
     server.setOffline(false);
