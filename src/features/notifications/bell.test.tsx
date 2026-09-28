@@ -154,6 +154,8 @@ describe("Notifications", () => {
 
   it("opens a row where it points, reads it, and the count follows", async () => {
     const { user, list, router } = await open();
+    // The server, once it's read (the bell asks again after a read).
+    api.unread.mockResolvedValue({ unread: 1 });
     await user.click(within(list).getByRole("link", { name: /^Maya in/ }));
     expect(api.read).toHaveBeenCalledWith({ ids: ["n1"] });
     await waitFor(() => expect(router.state.location.href).toBe(mention.url));
@@ -168,6 +170,17 @@ describe("Notifications", () => {
   it("marks everything read", async () => {
     api.read.mockResolvedValue({ unread: 0 });
     const { user, list } = await open();
+    // The server, once they're read (the bell asks again after a read).
+    const at = minutesAgo(0);
+    api.unread.mockResolvedValue({ unread: 0 });
+    api.inbox.mockResolvedValue({
+      items: [mention, seat, oldDue].map((i) => ({
+        ...i,
+        readAt: i.readAt ?? at,
+      })),
+      unread: 0,
+      next: null,
+    });
     await user.click(
       within(list).getByRole("button", { name: "Mark all read" }),
     );
@@ -235,6 +248,60 @@ describe("Notifications", () => {
     expect(
       within(list).queryByRole("button", { name: "Show older" }),
     ).toBeNull();
+  });
+
+  it("asks for the newest page only when it opens again", async () => {
+    api.inbox.mockResolvedValueOnce({
+      items: [mention],
+      unread: 1,
+      next: "cursor-1",
+    });
+    api.inbox.mockResolvedValueOnce({ items: [oldDue], unread: 1, next: null });
+    api.inbox.mockResolvedValue({
+      items: [mention],
+      unread: 1,
+      next: "cursor-1",
+    });
+    const { user, list } = await open();
+    await user.click(within(list).getByRole("button", { name: "Show older" }));
+    await within(list).findByText("Lab 6 is due tomorrow");
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Notifications" }),
+      ).toBeNull(),
+    );
+
+    await user.click(await bell());
+    const again = await screen.findByRole("dialog", { name: "Notifications" });
+    await waitFor(() => expect(api.inbox).toHaveBeenCalledTimes(3));
+    expect(api.inbox).toHaveBeenLastCalledWith({}, expect.anything());
+    expect(
+      await within(again).findByRole("button", { name: "Show older" }),
+    ).toBeVisible();
+    expect(within(again).queryByText("Lab 6 is due tomorrow")).toBeNull();
+  });
+
+  it("gets out of the skeleton when Mark all read is pressed while it loads", async () => {
+    let answer: (page: {
+      items: (typeof mention)[];
+      unread: number;
+      next: null;
+    }) => void = () => {};
+    api.inbox.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    api.read.mockResolvedValue({ unread: 0 });
+    signIn();
+    const { user } = await renderBell();
+    await user.click(await bell());
+    const list = await screen.findByRole("dialog", { name: "Notifications" });
+    expect(
+      within(list).getByLabelText("Loading your notifications"),
+    ).toBeVisible();
+    await user.click(
+      within(list).getByRole("button", { name: "Mark all read" }),
+    );
+    answer({ items: [mention, seat], unread: 2, next: null });
+    expect(await within(list).findByText("Maya in CMSC351")).toBeVisible();
   });
 
   it("links to the settings", async () => {

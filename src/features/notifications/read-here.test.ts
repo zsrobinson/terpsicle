@@ -37,6 +37,7 @@ afterEach(() => {
 
 describe("readOnce", () => {
   it("reads, then sets the bell and the app badge to what's left", async () => {
+    useAccount.setState({ status: "signed-in", user: aMeUser() });
     await readOnce({ day: "2026-09-29" }, client, 0);
     expect(notificationsApi.read).toHaveBeenCalledWith({ day: "2026-09-29" });
     expect(badge.setAppBadge).toHaveBeenCalledWith(3);

@@ -1,5 +1,6 @@
 import {
   type InfiniteData,
+  type QueryClient,
   type UseInfiniteQueryResult,
   useInfiniteQuery,
   useMutation,
@@ -7,7 +8,13 @@ import {
 } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
-import { type MouseEvent, type ReactNode, type RefObject, useId } from "react";
+import {
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useId,
+} from "react";
 import { Mark } from "~/components/brand/mark";
 import { PanelBody, PanelFooter, PanelNote } from "~/components/panel";
 import {
@@ -50,11 +57,22 @@ function inboxItems(data: InboxPages | undefined): InboxItem[] {
   );
 }
 
+/** How many times each of the bell's queries has had its data set. */
+function marks(client: QueryClient) {
+  return {
+    inbox: client.getQueryState(notificationsKeys.inbox)?.dataUpdateCount,
+    unread: client.getQueryState(notificationsKeys.unread)?.dataUpdateCount,
+  };
+}
+
 /**
  * Reads one item, or (with none) everything, shown read at once with the
- * count; the server's count follows, and a failure puts both back.
+ * count. The server's count follows, and a failure puts both back, but
+ * only where nothing newer has landed since (another read, a poll, the
+ * list again): an older answer never overwrites a newer one. Either way,
+ * the bell's queries are asked again once it's settled.
  */
-function useMarkRead() {
+export function useMarkRead() {
   const client = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (item: InboxItem | undefined) => {
@@ -62,8 +80,12 @@ function useMarkRead() {
       return notificationsApi.read(item ? { ids: [item.id] } : { all: true });
     },
     onMutate: async (item) => {
-      // A list or count on its way would undo what's shown.
-      await client.cancelQueries({ queryKey: notificationsKeys.all });
+      // A count or a list refresh on its way would undo what's shown. A
+      // list loading for the first time is left to land: it has nothing
+      // to undo, and cancelling it would leave it unloaded.
+      await client.cancelQueries({ queryKey: notificationsKeys.unread });
+      if (client.getQueryData(notificationsKeys.inbox) !== undefined)
+        await client.cancelQueries({ queryKey: notificationsKeys.inbox });
       const pages = client.getQueryData<InboxPages>(notificationsKeys.inbox);
       const unread = client.getQueryData<number>(notificationsKeys.unread);
       const at = new Date().toISOString();
@@ -83,17 +105,28 @@ function useMarkRead() {
           : data,
       );
       setUnread(client, item ? Math.max(0, (unread ?? 1) - 1) : 0);
-      return { pages, unread };
+      return { pages, unread, marks: marks(client) };
     },
-    onSuccess: ({ unread }) => setUnread(client, unread),
+    onSuccess: ({ unread }, _item, before) => {
+      if (marks(client).unread === before.marks.unread)
+        setUnread(client, unread);
+    },
     onError: (_error, item, before) => {
-      client.setQueryData(notificationsKeys.inbox, before?.pages);
-      if (before?.unread !== undefined) setUnread(client, before.unread);
+      if (before) {
+        const now = marks(client);
+        if (now.inbox === before.marks.inbox && before.pages)
+          client.setQueryData(notificationsKeys.inbox, before.pages);
+        if (now.unread === before.marks.unread && before.unread !== undefined)
+          setUnread(client, before.unread);
+      }
       if (!item)
         noteToast("We couldn't mark them read. Check your connection.", {
           retry: () => mutation.mutate(undefined),
         });
     },
+    // What the server has now, over anything that came back on the way.
+    onSettled: () =>
+      client.invalidateQueries({ queryKey: notificationsKeys.all }),
   });
   return (item?: InboxItem) => {
     if (item && item.readAt !== null) return;
@@ -315,7 +348,21 @@ export function InboxSurface({
   returnFocus: () => void;
   mobile: boolean;
 }) {
+  const client = useQueryClient();
   const inbox = useInfiniteQuery({ ...inboxQuery(), enabled: open });
+  useEffect(() => {
+    if (open) return;
+    // Opening again asks for the newest page only, not every page "Show
+    // older" loaded (TanStack's "refetch only the first page" recipe).
+    client.setQueryData<InboxPages>(notificationsKeys.inbox, (data) =>
+      data && data.pages.length > 1
+        ? {
+            pages: data.pages.slice(0, 1),
+            pageParams: data.pageParams.slice(0, 1),
+          }
+        : data,
+    );
+  }, [open, client]);
   const close = () => onOpenChange(false);
   if (mobile)
     return (
