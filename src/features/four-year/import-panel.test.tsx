@@ -264,7 +264,7 @@ describe("check", () => {
   it("says what transfer credit counts as, or keeps it as credit", async () => {
     const { paste: type, user } = renderPanel();
     await type(paste("synthetic-ap-transfer"));
-    const field = screen.getByLabelText(/Testudo lists it as CHEM 1XX/);
+    const field = screen.getByLabelText(/Testudo lists it as CHEM1XX/);
     expect(
       screen.getByText("It imports as 4 cr of AP credit."),
     ).toBeInTheDocument();

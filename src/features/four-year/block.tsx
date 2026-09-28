@@ -48,7 +48,7 @@ import {
   setCredits,
   setGenEdChoice,
 } from "./actions";
-import { creditKind, patternLabel } from "./credit-panel";
+import { creditKind } from "./credit-panel";
 import { CLOSE_DRILL, useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 
@@ -463,9 +463,7 @@ export function EntryBlock({
           {entry.equivalentPattern ? (
             <>
               {" · "}
-              <span className="ident">
-                {patternLabel(entry.equivalentPattern)}
-              </span>
+              <span className="ident">{entry.equivalentPattern}</span>
             </>
           ) : null}
         </span>
