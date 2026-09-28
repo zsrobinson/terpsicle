@@ -120,7 +120,8 @@
    *   shadow-drawer         the phone drawer's top edge
    */
   --shadow-offset: var(--ink-offset) var(--ink-offset) 0 var(--offset-ink);
-  --shadow-offset-filled: var(--ink-offset) var(--ink-offset) 0 var(--offset-ink-filled);
+  --shadow-offset-filled: var(--ink-offset) var(--ink-offset) 0
+    var(--offset-ink-filled);
   --shadow-pop: calc(var(--ink-offset) + 1px) calc(var(--ink-offset) + 1px) 0
     var(--offset-ink);
   --shadow-drawer: 0 calc(-1 * var(--ink-offset)) 0 var(--offset-ink);
