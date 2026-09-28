@@ -11,7 +11,6 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Dexie from "dexie";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
 import { LOCAL_DB_NAME } from "~/core/schema";
 import { encodeFourYearShare } from "~/core/share/four-year-share";
 import {
@@ -30,6 +29,7 @@ import {
   aFourYearWildcardEntry,
   mockDataSource,
 } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import {
   INITIAL_COURSE_INDEX_STATE,
   useCourseIndex,
@@ -43,8 +43,8 @@ import { Route } from "./plan_.shared";
 // /plan/shared on the fixtures' course index and a fake IndexedDB: a
 // four-year plan read from its link, read-only, and Save a copy.
 
-vi.mock("~/app/analytics", async (original) => ({
-  ...(await original<typeof import("~/app/analytics")>()),
+vi.mock("~/lib/analytics", async (original) => ({
+  ...(await original<typeof import("~/lib/analytics")>()),
   track: vi.fn(),
 }));
 

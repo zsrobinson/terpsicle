@@ -141,7 +141,7 @@ export const DrillTargetSchema = z.discriminatedUnion("kind", [
 ]);
 export type DrillTarget = z.infer<typeof DrillTargetSchema>;
 
-/** Where a workbench's phone drawer rests (src/app/workbench/drawer.tsx). */
+/** Where a workbench's phone drawer rests (src/components/workbench/drawer.tsx). */
 export type DrawerSnap = "peek" | "half" | "full";
 
 export const ThemeSchema = z.enum(["system", "light", "dark"]);

@@ -8,7 +8,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { PanelNote } from "~/app/panel";
+import { PanelNote } from "~/components/panel";
 import {
   type ChatItem,
   campusDay,

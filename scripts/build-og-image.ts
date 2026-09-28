@@ -12,8 +12,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Resvg } from "@resvg/resvg-js";
-import { readTokens, type TokenTable } from "~/app/brand/css-tokens";
-import { type MarkId, type MarkRole, markSvg } from "~/app/brand/marks";
 import { OG_IMAGE } from "~/features/marketing/meta";
 import {
   START,
@@ -21,6 +19,8 @@ import {
   walksOf,
   weekEntries,
 } from "~/features/marketing/story/plan-a";
+import { readTokens, type TokenTable } from "~/lib/brand/css-tokens";
+import { type MarkId, type MarkRole, markSvg } from "~/lib/brand/marks";
 import { isMain, ROOT } from "./lib/source-files";
 
 export const OG_FILE = path.join("public", OG_IMAGE.path);

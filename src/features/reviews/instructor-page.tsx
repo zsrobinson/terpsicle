@@ -1,8 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import { useState } from "react";
-import { crossLinkClicked, viewWords } from "~/app/cross-link";
-import { PanelNote } from "~/app/panel";
+import { PanelNote } from "~/components/panel";
 import { formatGpa, gradeSummary } from "~/core/grades/grades";
 import {
   gradesSourceWords,
@@ -20,6 +19,7 @@ import {
   terpsicleRating,
 } from "~/core/reviews";
 import type { CourseCode, InstructorId, PageReviews } from "~/core/schema";
+import { crossLinkClicked, viewWords } from "~/lib/cross-link";
 import { ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";

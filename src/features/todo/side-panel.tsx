@@ -8,8 +8,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { crossLinkClicked } from "~/app/cross-link";
-import { SectionHeader } from "~/app/panel";
+import { SectionHeader } from "~/components/panel";
 import type {
   CourseCode,
   CourseColor,
@@ -28,6 +27,7 @@ import {
 import { dotStyle } from "~/features/calendar/tint";
 import { usePushAskCard } from "~/features/notifications/push-ask";
 import { PushAskCard } from "~/features/notifications/push-ask-card";
+import { crossLinkClicked } from "~/lib/cross-link";
 import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { SegmentedControl } from "~/ui/segmented-control";

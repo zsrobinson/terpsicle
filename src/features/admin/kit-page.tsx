@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState } from "react";
-import { Mark } from "~/app/brand/mark";
+import { Mark } from "~/components/brand/mark";
 import { ADMIN_KIT_PATH } from "~/core/routing";
 import { GEN_ED_LABELS } from "~/core/schema";
 import type { KitPart } from "~/core/schema/admin-kit";

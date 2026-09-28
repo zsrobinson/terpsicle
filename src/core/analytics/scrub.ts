@@ -1,5 +1,5 @@
 // Direct module paths, not the barrels: this loads on every page with
-// src/app/analytics.ts, and ~/core/share brings the share codec with it.
+// src/lib/analytics.ts, and ~/core/share brings the share codec with it.
 import { SIGNIN_ERROR_PARAM } from "../schema/auth";
 import { isUnderRoute } from "./routes";
 

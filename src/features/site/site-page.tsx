@@ -1,10 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Settings, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
-import { AppBar } from "~/app/app-bar";
-import { PRODUCTS } from "~/app/products";
+import { AppBar } from "~/components/app-bar";
 import { feedbackProduct } from "~/core/feedback/path";
 import { isAdminPath, SCHEDULE_PATH } from "~/core/routing";
+import { PRODUCTS } from "~/lib/products";
 import { Button } from "~/ui/button";
 import { PageHeader } from "~/ui/page-header";
 import { type PageWidth, ProductPage } from "~/ui/product-page";
@@ -38,7 +38,7 @@ export function SitePage({
 
 /**
  * The bar of every page outside the scheduler: the family bar
- * (`~/app/app-bar`), with the product this path belongs to and its feedback.
+ * (`~/components/app-bar`), with the product this path belongs to and its feedback.
  * Chat's page uses it too, above its own full-height layout.
  */
 export function SiteHeader({

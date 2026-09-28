@@ -1,9 +1,9 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { switchSection } from "~/app/actions";
-import { closeDrill, goTo, openDrill } from "~/app/schedule-nav";
-import { renderShell } from "~/app/test-utils";
 import { plansInTerm } from "~/core/plans";
+import { switchSection } from "~/features/schedule/actions";
+import { closeDrill, goTo, openDrill } from "~/features/schedule/schedule-nav";
+import { renderShell } from "~/features/schedule/test-utils";
 import {
   demoBlocks,
   demoCourseColors,
@@ -16,7 +16,7 @@ import { useCatalog } from "~/state/catalog-store";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 /** The shell with the fixtures' demo plan open and its term loaded. */
 async function renderDemo() {

@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { useScheduleView } from "~/app/schedule-view";
 import { placedSections } from "~/core/catalog";
 import type { SeatsMap } from "~/core/seats";
 import { planConnections } from "~/core/travel";
+import { useScheduleView } from "~/features/schedule/schedule-view";
 import {
   type CurrentPlan,
   useCurrentPlan,

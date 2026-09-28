@@ -3,7 +3,6 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
 import { PREFS_STORAGE_KEY } from "~/core/prefs";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { forgetReviewSummaries } from "~/features/course-details/use-review-summary";
@@ -14,6 +13,7 @@ import {
 } from "~/features/prefs/synced-prefs";
 import { SummaryBlock } from "~/features/reviews/planetterp-blocks";
 import { aReviewSummary } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { api } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { dismissToast } from "~/ui/toast";
@@ -26,7 +26,7 @@ import { AiSparkles } from "./ai-sparkles";
 // the AI box's ⋯ menu with Undo, the Settings switch, and nothing asked of a
 // model while it's off.
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 vi.mock("~/server/fns/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/server/fns/api")>();
   return { ...actual, api: { ...actual.api, reviewSummary: vi.fn() } };

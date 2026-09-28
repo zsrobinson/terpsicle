@@ -91,9 +91,12 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 ├── src/
 │   ├── server.ts               Worker entry: { fetch, scheduled }
 │   ├── routes/                 TanStack file routes, one per page and view: / (marketing), /home, /schedule/* (each rail tab and drill-in), /reviews/*, /chat, /plan/*, /todo/*, /settings, /signin, /privacy, /admin/*
-│   ├── app/                    the scheduler's shell (top bar, rail, sidebar + drill-in, drawer, calendar region; README.md) and what every product shares: the family bar, workbench/, analytics, theme, shortcuts, PWA
-│   ├── features/<name>/        one folder per feature, every product's (course-details, generate, reviews, chat, four-year for Plan, todo, notifications, …)
-│   ├── components/ui/          the page kit and shadcn/Radix controls every product composes (docs/COHESION.md)
+│   ├── features/<name>/        one folder per feature, every product's (course-details, generate, reviews, chat, four-year for Plan, todo, notifications, pwa, …)
+│   │   └── schedule/           the scheduler's shell: top bar, rail, sidebar + drill-in, drawer, calendar region, its URL state and actions (README.md)
+│   ├── components/             views every product shares: the family bar (app-bar), product menu, theme toggle, panel pieces, brand/ (Mark, Wordmark, logo), workbench/
+│   │   └── ui/                 the page kit and shadcn/Radix controls every product composes (docs/COHESION.md)
+│   ├── hooks/                  React hooks every product shares (use-media-query, use-scrolled)
+│   ├── lib/                    non-view code every product shares: analytics, the activity log, config, theme, shortcuts, products and cross-links, head scripts, brand/ marks and tokens, the TanStack Query client
 │   ├── state/                  the data layer: Zustand stores, Dexie persistence, undo, published-data loading, and query/ (TanStack Query factories and the query cache's persister)
 │   ├── worker/                 Comlink web worker (the generator)
 │   ├── core/                   PURE domain logic, one module per area (README.md has the map)
@@ -115,17 +118,21 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 | Folder | May import | Must not import |
 |---|---|---|
 | `src/core` | zod, small pure libraries | react, DOM, `cloudflare:*`, fetch, the clock, or any other `src/*` folder |
-| `src/ingest` | `core`, parsing libraries | react, `cloudflare:*`, `app`/`features`/`state` |
-| `src/jobs`, `src/server` | `core`, `ingest`, `cloudflare:workers`, `~/config` | react, `app`/`features`/`state` |
+| `src/ingest` | `core`, parsing libraries | react, `cloudflare:*`, the UI folders (`components`, `hooks`, `lib`, `features`), `state` |
+| `src/jobs`, `src/server` | `core`, `ingest`, `cloudflare:workers`, `~/config` | react, the UI folders, `state` |
 | `src/server/fns` (runs in the browser) | `core`, zod | `cloudflare:*`, `ingest`, `jobs`, the rest of `server` |
-| `src/app`, `src/features`, `src/routes` | `core`, `components/ui`, `state`, `worker`, each other, React stack | `ingest`, `jobs`, `server` (except `server/fns`), `cloudflare:*`, `fixtures` |
-| `src/components/ui` (the page kit) | `core`, React stack | `app`, `features`, `state`, `worker`, `server` (fns too), `ingest`, `jobs`, `fixtures`: what it shows comes in as props |
-| `src/state`, `src/worker` (the data layer) | `core`, `server/fns`, `fixtures` (mock mode), React stack | `app`, `features`, `components/ui`, `ingest`, `jobs`, the rest of `server`, `cloudflare:*` |
+| `src/features`, `src/routes` | `core`, `components`, `hooks`, `lib`, `state`, `worker`, each other, React stack | `ingest`, `jobs`, `server` (except `server/fns`), `cloudflare:*`, `fixtures` |
+| `src/components`, `src/hooks`, `src/lib` (the shared layer) | the same as features | the same, and `features/schedule`: the scheduler's shell sits on the shared layer, not under it |
+| `src/features/chat`, `reviews`, `four-year`, `todo` (the other products) | the same as features | the same, and `features/schedule` |
+| `src/components/ui` (the page kit) | `core`, React stack | the rest of `components`, `hooks`, `lib`, `features`, `state`, `worker`, `server` (fns too), `ingest`, `jobs`, `fixtures`: what it shows comes in as props |
+| `src/state`, `src/worker` (the data layer) | `core`, `server/fns`, `fixtures` (mock mode), React stack | `components` (the kit too), `hooks`, `lib`, `features`, `ingest`, `jobs`, the rest of `server`, `cloudflare:*` |
 | `src/fixtures` | `core` | everything else |
 
-Tests may also import `~/fixtures`. So the layers run one way: core, then the data layer and the kit, then features and the shell, then routes.
+Tests may also import `~/fixtures`. So the layers run one way: core, then the data layer and the kit, then the shared components, hooks and lib, then features (the scheduler's shell among them), then routes.
 
-Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtures`, `~/ui` (→ `components/ui`), and `~/config/*` (→ the root `config/`, tracked settings the Worker bundles, like `config/admins.txt`).
+The layout follows TanStack Start's and shadcn's conventions: `routes/` and `router.tsx` where the framework expects them, `components/` for views (`components/ui` for the kit), `hooks/` and `lib/` for the rest, and a folder per feature. What isn't a view doesn't live in a view folder.
+
+Path aliases: `~/core`, `~/ingest`, `~/features/*`, `~/components/*`, `~/hooks/*`, `~/lib/*`, `~/state`, `~/fixtures`, `~/ui` (→ `components/ui`: import the kit this way, never as `~/components/ui`), and `~/config/*` (→ the root `config/`, tracked settings the Worker bundles, like `config/admins.txt`).
 
 ---
 
@@ -143,7 +150,7 @@ Path aliases: `~/core`, `~/ingest`, `~/app`, `~/features/*`, `~/state`, `~/fixtu
 | Search | MiniSearch in the worker, with a custom scorer for course codes |
 | Map | MapLibre GL + PMTiles; route lines from UMD GIS geometry |
 | Email | Cloudflare Email Service through the Worker's `send_email` binding (`env.EMAIL.send(...)`); terpsicle.com is onboarded for sending, no API key. Previews have no email binding. |
-| Analytics | PostHog (`posthog-js`), anonymous only, proxied through `/ingest/*` on our own domain; typed events in `src/app/analytics.ts`, server events in `src/server/analytics.ts`. See `docs/ANALYTICS.md`. |
+| Analytics | PostHog (`posthog-js`), anonymous only, proxied through `/ingest/*` on our own domain; typed events in `src/lib/analytics.ts`, server events in `src/server/analytics.ts`. See `docs/ANALYTICS.md`. |
 | LLM | **Workers AI** through the `AI` binding (`env.AI.run(...)`); no external keys. Pick a current instruction-tuned text model from the Workers AI catalog, and cap daily generations in code. Tests mock the binding. |
 | Lint/format | Biome |
 | Tests | Vitest projects: `core` (node), `ingest` (node), `ui` (happy-dom + Testing Library), `worker` (`@cloudflare/vitest-plugin`, formerly vitest-pool-workers, with real R2/D1 bindings via Miniflare), plus `scripts` for the repo's lint scripts. `fast-check` for properties. Playwright for e2e. |
@@ -176,7 +183,7 @@ What the scheduler loads on first use, not up front (each has a rule in `SCHEDUL
 - **MiniSearch.** `use-course-search.ts` loads the text index when Search first opens. Eager code imports `~/core/search/filters` and `~/core/search/summary`, never the `~/core/search` barrel, which would pull it back in.
 - MapLibre, the generator's worker and the mock fixtures, as before (`NEVER_EAGER`).
 
-Every route's chunk, and what it imports statically, is in the service worker's precache (`scripts/pwa-precache.ts`), so since the scheduler's tabs became routes an installed app has all of them offline, at the cost of a bigger install. A new tab or drill-in is a route, so it's split for free (`src/app/README.md`, "Add a tab panel or a drill-in view"); anything big that only one feature uses should get a never-eager rule.
+Every route's chunk, and what it imports statically, is in the service worker's precache (`scripts/pwa-precache.ts`), so since the scheduler's tabs became routes an installed app has all of them offline, at the cost of a bigger install. A new tab or drill-in is a route, so it's split for free (`src/features/schedule/README.md`, "Add a tab panel or a drill-in view"); anything big that only one feature uses should get a never-eager rule.
 
 **Fixtures** (`src/fixtures`) cover a realistic mock term of 60+ courses. Take shapes from `reference/prototype/src/data.ts`, expanded to include:
 - **two or more terms** (one active, one archived) so term switching and archiving are tested;

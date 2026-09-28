@@ -24,7 +24,7 @@ interface HistoryWatch {
 
 /**
  * The app writes its own URL as people move around (`/schedule/search`,
- * `?q=cmsc`: src/app/README.md, "URL state"), and those show up as
+ * `?q=cmsc`: src/features/schedule/README.md, "URL state"), and those show up as
  * navigations too. So rather than "no navigation at all", the page records
  * the URLs it wrote itself and every `popstate`, before any of its code runs.
  */

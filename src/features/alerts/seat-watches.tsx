@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
 import { z } from "zod";
-import { track } from "~/app/analytics";
 import { COURSE_PATH } from "~/core/routing";
 import {
   IsoDateTimeSchema,
@@ -12,6 +11,7 @@ import {
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
 import { requestInstallPrompt } from "~/features/pwa/install-store";
+import { track } from "~/lib/analytics";
 import { ApiCallError, api } from "~/server/fns/api";
 import { findSeatWatch, useSeatWatches } from "~/state/seat-watches";
 import { noteToast, undoToast } from "~/ui/toast";

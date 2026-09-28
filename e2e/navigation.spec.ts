@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { OPEN_VIEW } from "./sidebar";
 
-// Back, Forward and reload on `pnpm dev:mock?demo=1` (src/app/README.md,
+// Back, Forward and reload on `pnpm dev:mock?demo=1` (src/features/schedule/README.md,
 // "URL state"): one Back in the sidebar that is the browser's Back, course
 // to course without a trail, typing that never fills history, and a first
 // entry that keeps Back in the app. The same on a phone, in the drawer.

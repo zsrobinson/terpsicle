@@ -70,7 +70,7 @@ async function shoot(browser: Browser): Promise<void> {
         isMobile: size.mobile,
         hasTouch: size.mobile,
       });
-      // The saved theme wins over the system's (src/app/theme.ts).
+      // The saved theme wins over the system's (src/lib/theme.ts).
       await context.addInitScript((t) => {
         try {
           localStorage.setItem("terpsicle:theme", t);

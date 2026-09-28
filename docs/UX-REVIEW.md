@@ -21,8 +21,8 @@ Each pair is the live app before the review (left) and after it (right), on real
 | **Dark** (CMSC330) | ![](ux-review/after/11-details-few-cmsc330-dark-before.jpg) | ![](ux-review/after/11-details-few-cmsc330-dark-after.jpg) | Both themes from the same tokens. |
 
 **App-wide:**
-- **One design system, enforced by a test.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, and color tokens only. `src/app/design-tokens.test.ts` fails on anything else.
-- **One panel anatomy:** `SectionHeader`, `GroupHeader`, `ListRow`, `EmptyState` and `PanelFooter` in `src/app/panel.tsx`, with one row-action button size (`size="row"`).
+- **One design system, enforced by a test.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, and color tokens only. `src/components/design-tokens.test.ts` fails on anything else.
+- **One panel anatomy:** `SectionHeader`, `GroupHeader`, `ListRow`, `EmptyState` and `PanelFooter` in `src/components/panel.tsx`, with one row-action button size (`size="row"`).
 - **A draggable sidebar** from 320 to 480px, with keyboard control, double-click to reset, and the width remembered.
 - **A rail whose selected tab can't be mistaken for a hovered one.**
 
@@ -118,7 +118,7 @@ Today: 12 sizes (`text-[9px]` … `text-[15px]`, most often 12.5, 11.5, 12 and 1
 - **Mapping for the sweep:** 9, 9.5, 10 and 10.5 → `2xs` (calendar/rail/badges) or `xs` (elsewhere); 11 → `xs`; 11.5 and 12 → `sm`; 12.5, 13 and 13.5 → `base`; 14 and 15 → `lg`.
 - **Weights:** 400 body, 500 labels/names/active tabs, 600 titles, codes and buttons. 700 only in the wordmark.
 - **Face:** Bricolage Grotesque with automatic optical sizing, so small text gets its open text drawing (DESIGN §7.2). Codes are Geist Mono (§2.7).
-- **Guard:** once every package has swept its files, add `src/app/design-tokens.test.ts`, which fails on `text-[<n>px]` in `src/**/*.tsx` (outside tests).
+- **Guard:** once every package has swept its files, add `src/components/design-tokens.test.ts`, which fails on `text-[<n>px]` in `src/**/*.tsx` (outside tests).
 
 ### 2.2 Spacing and rhythm
 
@@ -128,7 +128,7 @@ A 4px base, using these steps only: `1` (4), `1.5` (6, inside chips only), `2` (
 - **Between sections:** a section header bar (§2.3), or `pt-6` when there's no bar. Never both.
 - **Inline gaps:** `gap-1` inside a chip or icon+label, `gap-2` between inline items, `gap-3` between row columns.
 
-### 2.3 Panel anatomy (new shared pieces in `src/app/panel.tsx`)
+### 2.3 Panel anatomy (new shared pieces in `src/components/panel.tsx`)
 
 ```
 ┌ PanelHeader (exists, 48px) ─────────────────────────┐  title 13/600 · sub 12 muted · right slot
@@ -181,14 +181,14 @@ export function PanelFooter(props: { children: ReactNode }): JSX.Element;
 ```
 
 **As built in WP0** (use these; they differ from the sketch above only where noted):
-- `~/app/panel`: `PanelHeader`, `PanelBody`, `SectionHeader`, `PanelLabel` (now `SectionHeader variant="label"`, 11/500 muted), `GroupHeader`, `ListRow`, `EmptyState`, `PanelFooter` and `MetaSep` (a faint " · ").
+- `~/components/panel`: `PanelHeader`, `PanelBody`, `SectionHeader`, `PanelLabel` (now `SectionHeader variant="label"`, 11/500 muted), `GroupHeader`, `ListRow`, `EmptyState`, `PanelFooter` and `MetaSep` (a faint " · ").
   - `ListRow` is flex, not grid: give `lead` a fixed width per list (`w-10` for section codes) so rows align.
   - `action` is always a `w-14` column. Rest props (`data-*`, pointer handlers, `aria-*`) go to the row, and `as="li"` inside a `ul`.
-- `~/app/emphasis`:
+- `~/lib/emphasis`:
   - `TEXT.primary|secondary|tertiary` (`text-fg`/`text-muted`/`text-faint`);
   - `TONE_TEXT[ok|warn|error|plain|muted]` for status words;
   - `TONE_FILL[ok|warn|error]` for soft status fills.
-- `~/app/plan-label`: `planLabel(current)` gives "Shared plan" in a shared view, and the plan's name otherwise.
+- `~/features/schedule/plan-label`: `planLabel(current)` gives "Shared plan" in a shared view, and the plan's name otherwise.
 - `~/core/problems`: `problemCountWords(counts)` gives "2 problems · 1 note". Both the top bar and the Problems tab use it.
 - **CSS (`src/styles.css`):**
   - the type utilities `text-2xs|xs|sm|base|lg|xl` (§2.1);
@@ -372,7 +372,7 @@ The primary task is to **pick a section of this course that fits, from an instru
 
 ## 4. Screen by screen (priority order)
 
-### 4.1 Shell and top bar (`src/app/*`)
+### 4.1 Shell and top bar (then `src/app/*`, now `src/features/schedule/*`)
 
 - **Primary task:** move between tabs and plans. **Eye path:** logo, then plan tabs, then problems pill. That's fine.
 - The rail's active state (raised box, ring and shadow) is the loudest thing in the rail, which DESIGN warns about ("looks like Slack"). Use `bg-hover` with no ring or shadow, and `text-fg` for the label (`rail.tsx`).
@@ -466,12 +466,12 @@ The primary task is to **pick a section of this course that fits, from an instru
 - The checklist and seat-alert list become hairline rows, not cards.
 - The checklist row trail shows seats, and the backup line stays `text-sm muted`.
 
-### 4.10 Shared link (`src/app/shared-pill.tsx`, panel headers)
+### 4.10 Shared link (`src/features/schedule/shared-pill.tsx`, panel headers)
 
 - The pill is good.
 - Panel subs that show the plan name ("Plan A") say "Shared plan" in the shared view, so it isn't confused with your own Plan A (`d-37`). Panels read `current.source === "shared"`.
 
-### 4.11 Mobile (drawer, `src/app/mobile-drawer.tsx`)
+### 4.11 Mobile (drawer, `src/features/schedule/mobile-drawer.tsx`)
 
 - **Hierarchy:** the drawer tab strip (72px) plus the breadcrumb (48px) take 120px before content. Tighten the strip to 56px (icon plus `text-2xs` label, `py-1.5`).
 - Course details and a Generate preview open at **half**, never full, so the calendar stays visible (§3.6).
@@ -485,14 +485,14 @@ Every package owns its files exclusively. Everything but WP1's structure and WP6
 
 | WP | Scope | Owns (exclusive) | Depends on | Blocked by owner? |
 |---|---|---|---|---|
-| **WP0 · System** | §2: type tokens in `@theme`; `SectionHeader`, `GroupHeader`, `ListRow`, `EmptyState` and `PanelFooter`, with tests; `PanelLabel` becomes an alias; the type-scale sweep of `src/app/**` and `src/components/ui/**`. The rail active state (§4.1). | `src/styles.css`, `src/app/panel.tsx` (+ test), `src/app/rail.tsx`, `src/app/logo.tsx`, `src/app/top-bar.tsx`, `src/app/shared-pill.tsx`, `src/components/ui/**` | — | No. Small; merge first (same day). |
+| **WP0 · System** | §2: type tokens in `@theme`; `SectionHeader`, `GroupHeader`, `ListRow`, `EmptyState` and `PanelFooter`, with tests; `PanelLabel` becomes an alias; the type-scale sweep of the shell (then `src/app/**`) and `src/components/ui/**`. The rail active state (§4.1). | `src/styles.css`, `src/components/panel.tsx` (+ test), `src/features/schedule/rail.tsx`, `src/components/brand/logo.tsx`, `src/features/schedule/top-bar.tsx`, `src/features/schedule/shared-pill.tsx`, `src/components/ui/**` | — | No. Small; merge first (same day). |
 | **WP1 · Course details** | §3 in full. Delete `prototype.tsx` and the `?cd=` hook. Move shared-meeting factoring and `lectureKey` to `src/core/catalog/section-groups.ts`, with tests at 1, few and many sections. Grades chips this term's instructors first. Compact words. | `src/features/course-details/**`, `src/core/catalog/section-groups.ts` (+ test), `e2e/search.spec.ts` (details assertions) | WP0 | No (decided 2026-09-25: A, grouped by time). |
-| **WP2 · Search and calendar** | §4.2, §4.3: overlay hint strip, result rows by section count, result count, dept-prefix ranking, pill visibility, hiding pills under ghosts, ghost label truncation, calendar text on `2xs`. | `src/features/search/**`, `src/features/calendar/**`, `src/app/calendar/**`, `src/core/search/**`, `src/core/travel/` (new `pill.ts` + test only) | WP0 | No |
+| **WP2 · Search and calendar** | §4.2, §4.3: overlay hint strip, result rows by section count, result count, dept-prefix ranking, pill visibility, hiding pills under ghosts, ghost label truncation, calendar text on `2xs`. | `src/features/search/**`, `src/features/calendar/**`, `src/core/search/**`, `src/core/travel/` (new `pill.ts` + test only) | WP0 | No |
 | **WP3 · Plan panels** | §4.4, §4.5, §4.9, §4.10: Courses rows and problem words, first-visit sizes, Problems counts and headers, Export rows, shared-view subs. | `src/features/courses/**`, `src/features/problems/**`, `src/features/export/**`, `src/features/alerts/**` | WP0 | No |
 | **WP4 · Travel and Blocks** | §4.6, §4.7: connections first, the settings summary, merged connections, rows, the Estimate in sans; Blocks list-first, the shared Select and toggles. | `src/features/travel/**` (except `src/core/travel/pill.ts`), `src/features/blocks/**` | WP0 | No |
 | **WP5 · Generate** | §4.8 | `src/features/generate/**` | WP0 | No |
-| **WP6 · Shell width and mobile** | Decision 3 (a drag handle on the sidebar's right edge that sets `--sidebar-width` on `:root`, clamped 320–480px and remembered per browser; `w-sidebar` already reads it); §4.11: drawer strip height, drill snaps at half. | `src/app/app-shell.tsx`, `src/app/sidebar.tsx`, `src/app/mobile-drawer.tsx`, `src/app/use-media-query.ts` | WP0 | No (decided 2026-09-25). |
-| **WP7 · Close-out** | `src/app/design-tokens.test.ts` (no `text-[Npx]`, no `rounded-lg border` on list containers), screenshots after, and a `DESIGN.md` §5 note for the type scale. | New test file, `docs/` | WP0–WP6 | — |
+| **WP6 · Shell width and mobile** | Decision 3 (a drag handle on the sidebar's right edge that sets `--sidebar-width` on `:root`, clamped 320–480px and remembered per browser; `w-sidebar` already reads it); §4.11: drawer strip height, drill snaps at half. | `src/features/schedule/app-shell.tsx`, `src/features/schedule/sidebar.tsx`, `src/features/schedule/mobile-drawer.tsx`, `src/hooks/use-media-query.ts` | WP0 | No (decided 2026-09-25). |
+| **WP7 · Close-out** | `src/components/design-tokens.test.ts` (no `text-[Npx]`, no `rounded-lg border` on list containers), screenshots after, and a `DESIGN.md` §5 note for the type scale. | New test file, `docs/` | WP0–WP6 | — |
 
 **Order:**
 - WP0 merges first.
@@ -502,7 +502,7 @@ Every package owns its files exclusively. Everything but WP1's structure and WP6
 - WP7 comes last.
 
 **Conflict notes:**
-- `src/app/panel.tsx` is WP0's only. Others import from it.
+- `src/components/panel.tsx` is WP0's only. Others import from it.
 - Test fixtures stay in `src/fixtures` (builders); nobody hand-rolls.
 - `e2e/*.spec.ts`: each WP edits only the spec for its feature (`search.spec.ts` is WP1 for the course-details parts and WP2 for search; coordinate by test name).
 

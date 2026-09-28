@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { clientConfig } from "~/app/config";
 import { pickTerm } from "~/core/catalog/terms";
 import type { ReviewsServerData, TerpsicleNumbers } from "~/core/reviews";
 import type { PageRequestContext, PublishedFiles } from "~/core/routing";
@@ -31,6 +30,7 @@ import {
   type Term,
   type TermId,
 } from "~/core/schema";
+import { clientConfig } from "~/lib/config";
 import {
   createDataReader,
   createDataSource,

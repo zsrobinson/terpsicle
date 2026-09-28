@@ -1,8 +1,7 @@
 import { cn } from "cn";
 import { ChevronDown } from "lucide-react";
 import { useId } from "react";
-import { TEXT } from "~/app/emphasis";
-import { messageToText } from "~/app/message-text";
+import { messageToText } from "~/components/message-text";
 import {
   ListRow,
   MetaSep,
@@ -10,8 +9,7 @@ import {
   PanelHeader,
   PanelNote,
   SectionHeader,
-} from "~/app/panel";
-import { useScheduleView } from "~/app/schedule-view";
+} from "~/components/panel";
 import {
   type Connection,
   parseSectionKey,
@@ -19,6 +17,8 @@ import {
 } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatDuration } from "~/core/time";
 import { verdictMessage } from "~/core/travel";
+import { useScheduleView } from "~/features/schedule/schedule-view";
+import { TEXT } from "~/lib/emphasis";
 import { useCampus } from "~/state/data-hooks";
 import {
   useCurrentPlan,

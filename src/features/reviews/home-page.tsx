@@ -10,11 +10,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { PanelNote } from "~/app/panel";
-import { useIsMobile } from "~/app/use-media-query";
+import { PanelNote } from "~/components/panel";
 import { combineRatings, courseSlug, instructorSlug } from "~/core/reviews";
 import type { CourseCode, InstructorId } from "~/core/schema";
 import { formatMonthYear } from "~/core/time/format";
+import { useIsMobile } from "~/hooks/use-media-query";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { SearchField } from "~/ui/input";

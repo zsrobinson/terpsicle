@@ -57,8 +57,8 @@ describe(INLINE_SCRIPTS_SOURCE, () => {
     expect(hashes).toHaveLength(Object.keys(scripts).length);
     expect(dependencies).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/src\/app\/inline-scripts\.ts$/),
-        expect.stringMatching(/src\/app\/theme\.ts$/),
+        expect.stringMatching(/src\/lib\/inline-scripts\.ts$/),
+        expect.stringMatching(/src\/lib\/theme\.ts$/),
       ]),
     );
   }, 30_000);
@@ -71,7 +71,7 @@ describe("inline scripts in src/", () => {
     for (const { rel, text } of sourceFiles(
       (f) => /\.tsx?$/.test(f) && !isTestFile(f),
     )) {
-      if (rel === "src/app/inline-script.tsx") continue;
+      if (rel === "src/lib/inline-script.tsx") continue;
       if (/<script[^>]*dangerouslySetInnerHTML/.test(text))
         problems.push(`${rel}: <script dangerouslySetInnerHTML>`);
       // A route's head() scripts: `scripts: [{ children: … }, …]`. A JSON-LD

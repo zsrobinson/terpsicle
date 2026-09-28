@@ -1,8 +1,7 @@
 import { cn } from "cn";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ListRow, SectionHeader } from "~/app/panel";
-import { openDrill } from "~/app/schedule-nav";
+import { ListRow, SectionHeader } from "~/components/panel";
 import type { CatalogIndex } from "~/core/catalog";
 import {
   chosenCourses,
@@ -27,6 +26,7 @@ import type {
   RankFactor,
   SectionKey,
 } from "~/core/schema";
+import { openDrill } from "~/features/schedule/schedule-nav";
 import { type PlanPreview, useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";

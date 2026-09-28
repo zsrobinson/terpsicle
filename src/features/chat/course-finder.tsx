@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { PanelNote } from "~/app/panel";
+import { PanelNote } from "~/components/panel";
 import { matchCourses } from "~/core/reviews/find";
 import { type CourseCode, courseRoomId } from "~/core/schema";
 import { InlineError } from "~/ui/inline-error";

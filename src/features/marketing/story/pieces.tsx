@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Mark } from "~/app/brand/mark";
+import { Mark } from "~/components/brand/mark";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { tintStyle } from "~/features/calendar/tint";
 import { Button } from "~/ui/button";

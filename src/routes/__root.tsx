@@ -5,15 +5,15 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { ActivityLogBoot } from "~/app/activity-log-boot";
-import { InlineScript } from "~/app/inline-script";
-import { Pwa } from "~/app/pwa";
-import { pwaLinks, pwaMeta, themeColorMeta } from "~/app/pwa-head";
-import type { RouterContext } from "~/app/query-client";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { AccountBoot } from "~/features/auth/account-boot";
+import { Pwa } from "~/features/pwa/pwa";
+import { pwaLinks, pwaMeta, themeColorMeta } from "~/features/pwa/pwa-head";
 import { NotFoundPage } from "~/features/site/not-found-page";
+import { ActivityLogBoot } from "~/lib/activity-log-boot";
+import { InlineScript } from "~/lib/inline-script";
+import type { RouterContext } from "~/lib/query-client";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import appCss from "../styles.css?url";
@@ -74,7 +74,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         {/* Inline, so they run before paint (the theme, the sidebar's width)
             and before the app's scripts load (load recovery, Zod's config,
             Chrome's install prompt). The CSP allows each by hash:
-            src/app/inline-scripts.ts. */}
+            src/lib/inline-scripts.ts. */}
         <InlineScript name="theme" />
         <InlineScript name="sidebarWidth" />
         <InlineScript name="loadRecovery" />

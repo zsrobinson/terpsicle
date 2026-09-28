@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { track } from "~/app/analytics";
 import type {
   CourseCode,
   InstructorSlug,
   ReviewSummary,
   ReviewSummaryResult,
 } from "~/core/schema";
+import { track } from "~/lib/analytics";
 import { api } from "~/server/fns/api";
 
 // The LLM review summary for an instructor (SPEC §3.4): generated on the

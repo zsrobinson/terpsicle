@@ -1,12 +1,12 @@
 import { create } from "zustand";
-import { snapHeights } from "~/app/drawer-heights";
-import { MOBILE_QUERY } from "~/app/use-media-query";
 import { clampSidebarWidth, type DrawerSnap } from "~/core/schema";
+import { MOBILE_QUERY } from "~/hooks/use-media-query";
+import { snapHeights } from "~/lib/drawer-heights";
 import { writeSidebarWidth } from "~/state/sidebar-width-pref";
 
 import { fourYearDb } from "./data";
 
-// Plan's workbench (src/app/workbench): whether its sidebar shows, where
+// Plan's workbench (src/components/workbench): whether its sidebar shows, where
 // the phone drawer rests, and the sidebar's width, which is the scheduler's
 // too. Which view is open is the URL's alone. The sidebar and drawer start
 // fresh on each visit; only the width is saved.

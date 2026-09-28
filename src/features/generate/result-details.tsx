@@ -1,10 +1,12 @@
 import { cn } from "cn";
 import { useEffect, useMemo, useState } from "react";
-import { track } from "~/app/analytics";
-import { useDrillEntry } from "~/app/drill-entry";
-import { MessageText } from "~/app/message-text";
-import { ListRow, PanelBody, PanelFooter, SectionHeader } from "~/app/panel";
-import { closeDrill } from "~/app/schedule-nav";
+import { MessageText } from "~/components/message-text";
+import {
+  ListRow,
+  PanelBody,
+  PanelFooter,
+  SectionHeader,
+} from "~/components/panel";
 import { wildcardFromId, wildcardLabel } from "~/core/catalog";
 import type { SectionRef } from "~/core/catalog/catalog-index";
 import {
@@ -23,6 +25,9 @@ import {
   meetingWords,
 } from "~/features/course-details/words";
 import { SeatMeter } from "~/features/courses/seat-meter";
+import { useDrillEntry } from "~/features/schedule/drill-entry";
+import { closeDrill } from "~/features/schedule/schedule-nav";
+import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCurrentPlan,

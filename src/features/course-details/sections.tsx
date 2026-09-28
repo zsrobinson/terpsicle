@@ -1,10 +1,12 @@
 import { cn } from "cn";
 import { ArrowRightLeft, Bell, Check, Minus, Plus } from "lucide-react";
 import { memo, type ReactNode, useEffect, useRef, useState } from "react";
-import { switchSection } from "~/app/actions";
-import { track } from "~/app/analytics";
-import { TEXT, TONE_TEXT } from "~/app/emphasis";
-import { GroupHeader, ListRow, PanelNote, SectionHeader } from "~/app/panel";
+import {
+  GroupHeader,
+  ListRow,
+  PanelNote,
+  SectionHeader,
+} from "~/components/panel";
 import {
   bySectionCode,
   collapsedGroupKey,
@@ -41,6 +43,9 @@ import { formatDateSpan } from "~/core/time";
 import { useSeatWatch } from "~/features/alerts/seat-watches";
 import { removeCourse } from "~/features/courses/actions";
 import { SeatMeter } from "~/features/courses/seat-meter";
+import { switchSection } from "~/features/schedule/actions";
+import { track } from "~/lib/analytics";
+import { TEXT, TONE_TEXT } from "~/lib/emphasis";
 import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";

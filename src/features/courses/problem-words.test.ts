@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { messageToText } from "~/app/message-text";
+import { messageToText } from "~/components/message-text";
 import type { Problem } from "~/core/schema";
 import { aProblem } from "~/fixtures";
 import { mostSevere, problemWords, severityTone } from "./problem-words";

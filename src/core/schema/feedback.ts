@@ -107,7 +107,7 @@ const boundedRecord = <V extends z.ZodType>(value: V, maxKeys: number) =>
     });
 
 /**
- * One entry of the activity log (src/app/activity-log.ts): a route change
+ * One entry of the activity log (src/lib/activity-log.ts): a route change
  * (its pattern only), an app event (what `track()` sends), an error the page
  * raised, or an API call that failed (method, route, status; never a body).
  */

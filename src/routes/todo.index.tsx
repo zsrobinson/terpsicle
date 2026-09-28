@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { z } from "zod";
-import { initAnalytics } from "~/app/analytics";
 import { IsoDateSchema } from "~/core/schema";
 import { useReadDayNotifications } from "~/features/notifications/read-here";
 import { TodoPage } from "~/features/todo";
+import { initAnalytics } from "~/lib/analytics";
 
 // Terpsicle Todo (docs/V3.md §1.1, §3.9): a calendar of what's due. `?view`
 // is the week (the default), `month` or `list`; `?date` is a day in the week

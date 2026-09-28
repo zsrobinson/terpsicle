@@ -3,7 +3,7 @@ import { useShare } from "~/state/share-store";
 import { useWorkspace } from "~/state/workspace-store";
 
 // Editing and removing blocks (SPEC §3.8). Adding one is `addBlock` in
-// ~/app/actions, shared with dragging on the calendar. Each is undoable.
+// ~/features/schedule/actions, shared with dragging on the calendar. Each is undoable.
 
 export type BlockFields = Pick<Block, "label" | "days" | "start" | "end">;
 

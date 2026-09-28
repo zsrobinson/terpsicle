@@ -11,28 +11,23 @@ import {
   useRef,
   useState,
 } from "react";
-import { switchSection } from "~/app/actions";
-import {
-  type CalendarLayout,
-  DAY_HEADER_HEIGHT,
-  WeekFrame,
-} from "~/app/calendar/week-frame";
-import { PEEK_HEIGHT, snapHeights } from "~/app/drawer-heights";
+import { CanvasBar } from "~/components/workbench/canvas-bar";
+import type { Connection, CourseCode, Day } from "~/core/schema";
+import { parseSectionKey } from "~/core/schema";
+import type { SeatsMap } from "~/core/seats";
+import { DAY_LONG_NAMES } from "~/core/time";
+import { switchSection } from "~/features/schedule/actions";
 import {
   closeToTab,
   currentView,
   openDrill,
   preloadDrill,
-} from "~/app/schedule-nav";
-import { useScheduleView } from "~/app/schedule-view";
-import { useShortcut } from "~/app/shortcuts";
-import { useIsMobile } from "~/app/use-media-query";
-import { CanvasBar } from "~/app/workbench/canvas-bar";
-import type { Connection, CourseCode, Day } from "~/core/schema";
-import { parseSectionKey } from "~/core/schema";
-import type { SeatsMap } from "~/core/seats";
-import { DAY_LONG_NAMES } from "~/core/time";
+} from "~/features/schedule/schedule-nav";
+import { useScheduleView } from "~/features/schedule/schedule-view";
 import { ScheduleShare } from "~/features/share/schedule-share";
+import { useIsMobile } from "~/hooks/use-media-query";
+import { PEEK_HEIGHT, snapHeights } from "~/lib/drawer-heights";
+import { useShortcut } from "~/lib/shortcuts";
 import { useTravel } from "~/state/hooks";
 import { useWatchedSections } from "~/state/seat-watches";
 import { useUi } from "~/state/ui-store";
@@ -69,6 +64,11 @@ import {
 } from "./new-block";
 import { GhostHint, PreviewHint, SearchHint, UntimedStrip } from "./strips";
 import { type CalendarView, useCalendarModel } from "./use-calendar-model";
+import {
+  type CalendarLayout,
+  DAY_HEADER_HEIGHT,
+  WeekFrame,
+} from "./week-frame";
 
 // The week calendar (SPEC §3.3): the plan's classes and blocks, the open
 // course's other sections as ghosts, travel pills, and drag to block time.

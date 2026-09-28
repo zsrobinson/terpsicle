@@ -1,4 +1,3 @@
-import { track } from "~/app/analytics";
 import type { SectionRef } from "~/core/catalog";
 import { buildIcs, icsFileName } from "~/core/ics";
 import type {
@@ -9,6 +8,7 @@ import type {
   TermId,
 } from "~/core/schema";
 import { copyText } from "~/features/share/clipboard";
+import { track } from "~/lib/analytics";
 import { nowIso } from "~/state/ids";
 import { useWorkspace } from "~/state/workspace-store";
 import { noteToast } from "~/ui/toast";

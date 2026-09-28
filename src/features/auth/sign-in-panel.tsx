@@ -1,6 +1,5 @@
 import { cn } from "cn";
 import { useState } from "react";
-import { track } from "~/app/analytics";
 import {
   SIGN_IN_PITCH,
   signInStartHref,
@@ -8,6 +7,7 @@ import {
   UMD_ACCOUNTS_WORDS,
 } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
+import { track } from "~/lib/analytics";
 import { api } from "~/server/fns/api";
 import { Button } from "~/ui/button";
 import type { EmptyAction } from "~/ui/empty-state";

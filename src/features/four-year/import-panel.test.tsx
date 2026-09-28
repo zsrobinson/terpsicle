@@ -2,8 +2,6 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { MOBILE_QUERY } from "~/app/use-media-query";
 import { courseSearchRow } from "~/core/catalog/course-index";
 import {
   EMPTY_TRANSCRIPT_CHECKS,
@@ -14,6 +12,8 @@ import {
 import { PASTES } from "~/core/four-year/transcript/__fixtures__/pastes";
 import { canUndo } from "~/core/plans/history";
 import { aCourseIndexEntry, aFourYear, aFourYearEntry } from "~/fixtures";
+import { MOBILE_QUERY } from "~/hooks/use-media-query";
+import { track } from "~/lib/analytics";
 import {
   INITIAL_COURSE_INDEX_STATE,
   useCourseIndex,
@@ -31,7 +31,7 @@ import {
 } from "./model";
 import { activeDoc, INITIAL_FOUR_YEAR_STORE, useFourYear } from "./store";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 // The Import tab (docs/V3.md §2.10) at phone width, where the check list sits
 // under the paste: paste, check (skip, "or", mapping, Keep grades), import.

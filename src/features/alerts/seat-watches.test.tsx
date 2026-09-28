@@ -7,8 +7,8 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
 import { aMeUser, aSeatWatch, fixtureTermId } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { useSeatWatches } from "~/state/seat-watches";
 import { TooltipProvider } from "~/ui/tooltip";
 import {
@@ -25,7 +25,7 @@ import {
   seatAlertsAccount,
 } from "./testing";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 const NOW = new Date("2026-09-26T12:00:00.000Z");
 

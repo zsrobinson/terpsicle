@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import type { ReactNode } from "react";
-import { DrillBackBar } from "~/app/workbench/back-bar";
+import { DrillBackBar } from "~/components/workbench/back-bar";
 import {
   CREDITS_GOAL,
   CREDITS_GOAL_TOOLTIP,

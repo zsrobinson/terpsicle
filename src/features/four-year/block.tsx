@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { MoreHorizontal } from "lucide-react";
 import type { DragEvent } from "react";
-import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
 import { isUnknownCourse } from "~/core/four-year/course-lookup";
 import { entryCredits } from "~/core/four-year/credits";
@@ -24,6 +23,7 @@ import {
   WILDCARD_CREDITS,
 } from "~/core/schema/four-year";
 import { useAccount } from "~/features/auth/account-store";
+import { crossLinkClicked, viewWords } from "~/lib/cross-link";
 import { useCourseIndex } from "~/state/course-index-store";
 import { Button } from "~/ui/button";
 import {
