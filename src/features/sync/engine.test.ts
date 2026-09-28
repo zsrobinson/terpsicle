@@ -634,6 +634,32 @@ describe("staying calm", () => {
   });
 });
 
+describe("stopping", () => {
+  it("says nothing after it stops, even from a step already under way", async () => {
+    // A sign-out (or a page going away) while a step is reading what's
+    // left to save: "Saved" arriving after "off" is a stale word, and the
+    // next page's engine read it as its own (boot.test's flake).
+    const a = track(await syncedDevice("a", server));
+    const read = a.storage.read;
+    let entered = false;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    a.storage.read = async () => {
+      entered = true;
+      await gate;
+      return read();
+    };
+    const step = a.engine.sync();
+    while (!entered) await vi.advanceTimersByTimeAsync(0);
+    a.engine.stop();
+    release();
+    await step;
+    expect(a.status()).toBe("off");
+  });
+});
+
 describe("two tabs", () => {
   it("never push the same change twice", async () => {
     const lock = mutex();
