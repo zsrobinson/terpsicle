@@ -192,6 +192,9 @@ describe("RoutePending", () => {
     expect(
       drawn?.querySelectorAll('[data-slot="skeleton"]').length,
     ).toBeGreaterThanOrEqual(2);
+    // In the browser, the one shape that fits: two bars on the page, even
+    // with one hidden, are two bars to anything that looks for the bar.
+    expect(document.querySelectorAll('[data-slot="app-bar"]')).toHaveLength(1);
     open();
     expect(await screen.findByText("Loaded /sched")).toBeInTheDocument();
     expect(placeholder()).toBeNull();

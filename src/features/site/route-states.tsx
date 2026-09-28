@@ -5,10 +5,11 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import { logError } from "~/app/activity-log";
 import { AppBar } from "~/app/app-bar";
 import { isChunkLoadError } from "~/app/panel-load-boundary";
+import { MOBILE_QUERY } from "~/app/use-media-query";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
@@ -109,11 +110,14 @@ function Frame({
  * The scheduler's bar (~/app/top-bar) before its code arrives: the same
  * family bar settings, with the term and plans as skeletons where it'll
  * show them. The Worker draws this for a page that renders only in the
- * browser, before anyone knows the screen's width, so both shapes are drawn
- * and CSS keeps the one that fits (a phone's is `compact`, as the
- * scheduler's is there: MOBILE_QUERY, 768px and below).
+ * browser, before anyone knows the screen's width: there it's the wide
+ * shape, which folds its tabs into the product menu on a phone's width by
+ * CSS, and the browser switches to the phone's `compact` one (MOBILE_QUERY,
+ * as the scheduler) once it hydrates. Only ever one bar: two, even with one
+ * hidden, are two bars to anything looking for the bar.
  */
 function ScheduleBarPlaceholder() {
+  const phone = usePhoneOrUnknown();
   const bar = (compact: boolean) => (
     <AppBar
       current="schedule"
@@ -134,11 +138,22 @@ function ScheduleBarPlaceholder() {
       }
     />
   );
-  return (
-    <>
-      <div className="hidden max-[768px]:block">{bar(true)}</div>
-      <div className="max-[768px]:hidden">{bar(false)}</div>
-    </>
+  return bar(phone === true);
+}
+
+/**
+ * Whether the screen is a phone's (MOBILE_QUERY), or null in the server's
+ * HTML, which can't know.
+ */
+function usePhoneOrUnknown(): boolean | null {
+  return useSyncExternalStore(
+    (onChange) => {
+      const media = window.matchMedia(MOBILE_QUERY);
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => null,
   );
 }
 

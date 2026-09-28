@@ -2,14 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { PenLine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { termLabel } from "~/core/catalog/terms";
-import { mainPlanFor } from "~/core/plans/main-plan";
 import {
   courseSlug,
   type InstructorToReview,
   instructorsToReview,
   reviewedKey,
 } from "~/core/reviews";
-import type { IsoDate, Plan } from "~/core/schema";
+import type { IsoDate } from "~/core/schema";
 import { api } from "~/server/fns/api";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
@@ -35,11 +34,14 @@ export function ReviewsSection({
   const reviewed = useReviewedKeys();
   const rows = useMemo(() => {
     if (reviewed === null) return null;
-    // One plan per term: the one you took (V2 §5.5), not the drafts.
-    const mains = [...new Set(local.plans.map((p) => p.termId))]
-      .map((termId) => mainPlanFor(termId, local.plans, local.mainPlans))
-      .filter((p): p is Plan => p !== null);
-    return instructorsToReview(mains, today, reviewed).slice(0, SHOWN);
+    // Each term's main plan, the one you took (V2 §5.5), not the drafts:
+    // picked inside, the same way /reviews asks for it.
+    return instructorsToReview(
+      local.plans,
+      today,
+      reviewed,
+      local.mainPlans,
+    ).slice(0, SHOWN);
   }, [local, today, reviewed]);
 
   // Nothing to ask: no section at all, never an empty one.
