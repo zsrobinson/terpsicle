@@ -44,8 +44,8 @@ export function splitTabs(
  * How many tabs the bar has room for, from 1 to `max`: tabs shrink to a
  * thumb's width first, and only past that do they go into the overflow menu,
  * instead of running under the bar's status (QA2: "Plan A" over "4 credits"
- * at 1100px). Measured before paint; any change of room or plans starts over
- * from `max`.
+ * at 1100px) or down to slivers (`squeezed`). Measured before paint; any
+ * change of room or plans starts over from `max`.
  */
 function useTabsThatFit(max: number, names: string, paused: boolean) {
   const ref = useRef<HTMLElement>(null);
@@ -64,11 +64,27 @@ function useTabsThatFit(max: number, names: string, paused: boolean) {
     const nav = ref.current;
     // Not while a tab is being renamed: its field is wider than the tab.
     if (!nav || paused || fit <= 1) return;
-    if (nav.scrollWidth > nav.clientWidth + 1)
+    if (nav.scrollWidth > nav.clientWidth + 1 || squeezed(nav) >= 2)
       // Only if nothing started over in this same commit.
       setFit((now) => (now === fit ? fit - 1 : now));
   });
   return { ref, fit };
+}
+
+/**
+ * Tabs pinned at their minimum (min-w-11, a thumb's width) with their names
+ * cut off. One long name squeezed beside short ones is fine: its tooltip and
+ * the menu have it whole. Two or more "Pl…" say nothing, so one goes in the
+ * menu instead.
+ */
+function squeezed(nav: HTMLElement): number {
+  return Array.from(
+    nav.querySelectorAll<HTMLElement>("[data-plan-tab-name]"),
+  ).filter(
+    (name) =>
+      name.scrollWidth > name.clientWidth + 1 &&
+      (name.parentElement?.clientWidth ?? 0) <= 48,
+  ).length;
 }
 
 export function PlanTabs({
@@ -127,7 +143,7 @@ export function PlanTabs({
       {overflow.length > 0 ? (
         <OverflowMenu
           plans={overflow}
-          compact={maxVisible <= 1}
+          compact={room.fit <= 1}
           onOpen={(id) => openPlan(termId, id)}
         />
       ) : null}
@@ -172,7 +188,9 @@ function PlanTab({
             active ? "pr-1 font-medium" : "pr-2.5 text-muted hover:text-fg",
           )}
         >
-          <span className="truncate">{plan.name}</span>
+          <span data-plan-tab-name className="truncate">
+            {plan.name}
+          </span>
         </button>
       </WithTooltip>
       {active ? (
@@ -265,7 +283,7 @@ function OverflowMenu({
   onOpen,
 }: {
   plans: readonly Plan[];
-  /** Phones: "+2" instead of "2 more", so the top bar fits. */
+  /** "+2" instead of "2 more" where only one tab fits (phones, a crowded bar). */
   compact: boolean;
   onOpen: (id: string) => void;
 }) {
