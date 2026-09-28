@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo } from "react";
+import { type TermTags, termTags } from "~/core/catalog/term-tag";
 import type { FourYearCourses } from "~/core/four-year/course-lookup";
 import {
   type ColumnSummary,
@@ -46,6 +47,8 @@ export type PlanModel = {
   readonly target: FourYearTerm;
   /** The next semester, which hands its courses to the scheduler (V3 §2.12). */
   readonly handoffTerm: TermId | null;
+  /** Now and Next (V2 §5.5), from the same calendars as the status. */
+  readonly tags: TermTags;
 };
 
 export function usePlanModel(
@@ -87,6 +90,7 @@ export function usePlanModel(
       problems,
       problemsByEntry,
       handoffTerm: handoffTerm(columns, statusOf),
+      tags: termTags(today, calendars),
       target:
         picked !== undefined && columns.includes(picked)
           ? picked

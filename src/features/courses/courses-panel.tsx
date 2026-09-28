@@ -17,7 +17,6 @@ import {
   PanelNote,
   SectionHeader,
 } from "~/app/panel";
-import { planLabel } from "~/app/plan-label";
 import type { CatalogIndex } from "~/core/catalog";
 import type {
   CourseCode,
@@ -57,6 +56,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { bookmarkInstead, openCourse, removeCourse } from "./actions";
 import { CourseColorPicker } from "./color-picker";
 import { FirstVisit } from "./first-visit";
+import { DraftLine, PlanHeading } from "./main-plan-line";
 import { mostSevere, problemWords, severityTone } from "./problem-words";
 import { SeatMeter } from "./seat-meter";
 import { sectionLine } from "./section-words";
@@ -92,10 +92,11 @@ export function CoursesPanel() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PanelHeader
-        title={planLabel(current)}
+        title={<PlanHeading current={current} />}
         sub={credits ? `${count} · ${credits}` : count}
       />
       <PanelBody>
+        <DraftLine current={current} />
         {placed.length === 0 && !readOnly ? (
           <FirstVisit termName={term?.name} />
         ) : null}

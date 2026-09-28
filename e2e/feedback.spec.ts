@@ -249,7 +249,7 @@ test("the admin pins a note on an element, sees its dot, and undoes it", async (
     page.getByText("Click anything to pin a note on it"),
   ).toBeVisible();
 
-  const target = page.getByRole("heading", { name: "Plan A", level: 2 });
+  const target = page.getByRole("heading", { name: /^Plan A/, level: 2 });
   await target.hover();
   await expect(page.getByTestId("feedback-pick-outline")).toBeVisible();
   await target.click();

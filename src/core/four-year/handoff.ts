@@ -1,4 +1,12 @@
-import type { CourseCode, LocalId, Plan, TermId, Wildcard } from "../schema";
+import { mainPlanFor } from "../plans/main-plan";
+import type {
+  CourseCode,
+  LocalId,
+  MainPlans,
+  Plan,
+  TermId,
+  Wildcard,
+} from "../schema";
 import type {
   FourYearCourseEntry,
   FourYearCreditEntry,
@@ -8,26 +16,11 @@ import type {
   FourYearWildcardEntry,
 } from "../schema/four-year";
 
-// "View schedule" (docs/V3.md §2.12): one scheduler plan per term is the
-// four-year plan's link, never a copy of it. Plan shows the link on the next
-// semester's column; the scheduler makes or opens the plan, and its Courses
-// tab names what the column has that the plan doesn't.
-
-/** The term's active plan on this device, else its first tab; null when the term has none. */
-export function linkedSchedulePlan(
-  termId: TermId,
-  plans: readonly Plan[],
-  activePlanByTerm: Readonly<Partial<Record<TermId, LocalId>>>,
-): Plan | null {
-  const inTerm = plans.filter((p) => p.termId === termId);
-  const active = activePlanByTerm[termId];
-  const chosen = inTerm.find((p) => p.id === active);
-  if (chosen) return chosen;
-  let first: Plan | null = null;
-  for (const p of inTerm)
-    if (first === null || p.order < first.order) first = p;
-  return first;
-}
+// "View schedule" (docs/V3.md §2.12): the term's main plan (docs/V2.md §5.5,
+// ~/core/plans/main-plan) is the four-year plan's link, never a copy of it.
+// Plan shows the link on the next semester's column; the scheduler makes or
+// opens the main plan, and its Courses tab names what the column has that
+// the plan doesn't.
 
 /** The column that gets "View schedule": the first one still planned. */
 export function handoffTerm(
@@ -84,7 +77,7 @@ export type PlanHandoff =
   | { readonly kind: "create" }
   /** The term's only plan is empty (a visit made it): bookmark the courses there. */
   | { readonly kind: "fill"; readonly plan: Plan }
-  /** Open the linked plan as it is. */
+  /** Open the main plan as it is. */
   | { readonly kind: "open"; readonly plan: Plan }
   /** No plan and nothing to hand over: the scheduler's usual first visit. */
   | { readonly kind: "none" };
@@ -92,10 +85,10 @@ export type PlanHandoff =
 export function planHandoff(
   termId: TermId,
   plans: readonly Plan[],
-  activePlanByTerm: Readonly<Partial<Record<TermId, LocalId>>>,
+  mainPlans: Readonly<MainPlans>,
   courses: readonly CourseCode[],
 ): PlanHandoff {
-  const linked = linkedSchedulePlan(termId, plans, activePlanByTerm);
+  const linked = mainPlanFor(termId, plans, mainPlans);
   if (!linked)
     return courses.length > 0 ? { kind: "create" } : { kind: "none" };
   const alone = plans.filter((p) => p.termId === termId).length === 1;
@@ -177,10 +170,16 @@ export function addedLine(added: readonly CourseCode[]): string {
   return `Added ${listWords(added)} from your four-year plan`;
 }
 
-/** Plan's count on the next semester's column. */
+/**
+ * Plan's count on the next semester's column: "From Plan A: 4 of 5 placed",
+ * or "From Plan A, main · 4 of 5 placed" when the term has other plans too.
+ */
 export function placedLine(
   planName: string,
   { placed, total }: { readonly placed: number; readonly total: number },
+  drafts = false,
 ): string {
-  return `From ${planName}: ${placed} of ${total} placed`;
+  return drafts
+    ? `From ${planName}, main · ${placed} of ${total} placed`
+    : `From ${planName}: ${placed} of ${total} placed`;
 }

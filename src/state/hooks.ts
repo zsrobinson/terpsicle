@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   buildCatalogIndex,
   type CatalogIndex,
@@ -7,9 +7,19 @@ import {
   placedSections,
   type SectionRef,
 } from "~/core/catalog";
+import {
+  type TermTags,
+  termTagCandidates,
+  termTags,
+} from "~/core/catalog/term-tag";
 import { resolveCourseColors } from "~/core/color";
 import { buildFitContext, type FitContext } from "~/core/fit";
-import { creditsLabel, planCredits } from "~/core/plans";
+import {
+  creditsLabel,
+  hasDrafts,
+  mainPlanFor,
+  planCredits,
+} from "~/core/plans";
 import { countBySeverity, planProblems, withWatches } from "~/core/problems";
 import type {
   Block,
@@ -27,6 +37,7 @@ import type {
   TravelSettings,
 } from "~/core/schema";
 import { sharedViewPlan } from "~/core/share";
+import { newYorkClock } from "~/core/todo/list";
 import { type CampusMap, planConnections } from "~/core/travel";
 import { type TermCatalog, useCatalog } from "./catalog-store";
 import { activePlanId, plansInTerm } from "./plan-ops";
@@ -74,6 +85,43 @@ export function useTermPlans(termId: TermId | null): readonly Plan[] {
   return useMemo(
     () => (termId ? plansInTerm(plans, termId) : []),
     [plans, termId],
+  );
+}
+
+/** The term's main plan (V2 §5.5): the choice, else its first tab. */
+export function useMainPlan(termId: TermId | null): Plan | null {
+  return useWorkspace((s) =>
+    termId ? mainPlanFor(termId, s.plans, s.mainPlans) : null,
+  );
+}
+
+/** Whether the term has two or more plans, so its main plan gets a mark. */
+export function useHasDrafts(termId: TermId | null): boolean {
+  return useWorkspace((s) => (termId ? hasDrafts(s.plans, termId) : false));
+}
+
+/**
+ * Now and Next (term tags) today, from the academic calendars of the terms
+ * that can be either, loaded here when Testudo lists them.
+ */
+export function useTermTags(): TermTags {
+  const terms = useCatalog((s) => s.terms);
+  const calendars = useCatalog((s) => s.calendars);
+  const today = newYorkClock(Date.now()).date;
+  const wanted = termTagCandidates(today)
+    .filter((id) => terms?.some((t) => t.id === id))
+    .join(",");
+  useEffect(() => {
+    const { ensureCalendar } = useCatalog.getState();
+    for (const id of wanted ? wanted.split(",") : []) void ensureCalendar(id);
+  }, [wanted]);
+  return useMemo(
+    () =>
+      termTags(
+        today,
+        Object.values(calendars).filter((c) => c !== undefined),
+      ),
+    [today, calendars],
   );
 }
 

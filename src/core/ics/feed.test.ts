@@ -114,8 +114,11 @@ describe("feedPlanFor: the one place that picks the feed's plan", () => {
   const b = aPlan({ id: "plan_second", name: "Plan B", order: 1 });
   const other = aPlan({ id: "plan_fall_only", termId: "202608", order: -1 });
 
-  it("is the term's first tab", () => {
-    expect(feedPlanFor(SPRING, [b, a, other])?.id).toBe("plan_first");
+  it("is the term's main plan, else its first tab", () => {
+    expect(feedPlanFor(SPRING, [b, a, other], {})?.id).toBe("plan_first");
+    expect(feedPlanFor(SPRING, [b, a, other], { [SPRING]: b.id })?.id).toBe(
+      "plan_second",
+    );
   });
   it("breaks a tie in tab order by age, then id", () => {
     const older = aPlan({
@@ -123,10 +126,10 @@ describe("feedPlanFor: the one place that picks the feed's plan", () => {
       order: 0,
       createdAt: "2026-01-01T00:00:00.000Z",
     });
-    expect(feedPlanFor(SPRING, [a, older])?.id).toBe("plan_older");
+    expect(feedPlanFor(SPRING, [a, older], {})?.id).toBe("plan_older");
   });
   it("is null without a plan in the term", () => {
-    expect(feedPlanFor("202705", [a, b, other])).toBeNull();
+    expect(feedPlanFor("202705", [a, b, other], {})).toBeNull();
   });
 });
 

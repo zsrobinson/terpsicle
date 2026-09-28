@@ -48,7 +48,7 @@ export function UndoToasts() {
       toast(notice.label, {
         id: TOAST_ID,
         duration,
-        description: undefined,
+        description: notice.description,
         action: (
           <ToastAction
             label="Undo"

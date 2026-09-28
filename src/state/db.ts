@@ -9,6 +9,7 @@ import {
   LOCAL_DB_VERSION,
   type LocalSyncDoc,
   LocalSyncMetaSchema,
+  MainPlansSchema,
   type Plan,
   PlanSchema,
   type SettingsRow,
@@ -149,10 +150,25 @@ export class TerpsicleDb extends Dexie {
     this.version(3).stores(V3_CHANGES).upgrade(resetPullCursor);
     // Version 4 (four-year sync, V3 §2.13): no table changes.
     this.version(4).stores({}).upgrade(resetPullCursor);
-    this.version(LOCAL_DB_VERSION)
-      .stores({})
-      .upgrade(registeredFromChecklist());
+    this.version(5).stores({}).upgrade(registeredFromChecklist());
+    this.version(LOCAL_DB_VERSION).stores({}).upgrade(mainPlansFromChatPlans);
   }
+}
+
+/**
+ * Version 6 (main plans, 2026-09-28): the `chatPlans` settings row, which
+ * plan's sections were your chat rooms, is each term's main plan now, under
+ * the name everything reads. Same map, so nothing else changes and nothing
+ * needs pushing.
+ */
+export async function mainPlansFromChatPlans(tx: Transaction): Promise<void> {
+  const settings = tx.table("settings");
+  const row: unknown = await settings.get("chatPlans");
+  if (typeof row !== "object" || row === null || !("value" in row)) return;
+  const mainPlans = MainPlansSchema.safeParse(row.value);
+  if (mainPlans.success)
+    await settings.put({ key: "mainPlans", value: mainPlans.data });
+  await settings.delete("chatPlans");
 }
 
 /** Rows to put and keys to delete between two versions of a table. */

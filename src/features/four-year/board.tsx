@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { Plus } from "lucide-react";
 import { type DragEvent, useEffect, useRef, useState } from "react";
+import { termTagOf } from "~/core/catalog/term-tag";
 import { columnLabel } from "~/core/four-year/credits";
 import {
   academicYearLabel,
@@ -11,6 +12,7 @@ import {
 } from "~/core/four-year/terms";
 import type { FourYearTerm, FourYearTermStatus } from "~/core/schema/four-year";
 import { Button } from "~/ui/button";
+import { TermTag } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
 import { moveEntry } from "./actions";
 import { ENTRY_DRAG_TYPE, EntryBlock } from "./block";
@@ -131,13 +133,14 @@ export function TermColumn({
   /** h3 under a year's heading on desktop; h2 alone on a phone. */
   heading?: "h2" | "h3";
 }) {
-  const { doc, statusOf, summaries, handoffTerm } = useModel();
+  const { doc, statusOf, summaries, handoffTerm, tags } = useModel();
   const nav = usePlanNav();
   const readOnly = usePlanReadOnly();
   const drop = useDrop(term);
   const { over, handlers } = readOnly ? { over: false, handlers: {} } : drop;
   const entries = entriesInTerm(doc, term);
   const status = statusOf(term);
+  const tag = termTagOf(term, tags);
   const summary = summaries.get(term);
   const picked = nav.search.tab === "search" && nav.search.semester === term;
   const id = `term-${term}`;
@@ -160,14 +163,12 @@ export function TermColumn({
         <Heading id={id} className="font-semibold">
           {fourYearTermLabel(term)}
         </Heading>
-        <span
-          className={cn(
-            "text-xs",
-            status === "in-progress" ? "text-product-plan-text" : "text-muted",
-          )}
-        >
-          {STATUS_WORDS[status]}
-        </span>
+        {tag ? (
+          // Now and Next, as every product tags them; the status says the rest.
+          <TermTag tag={tag} className="self-center" />
+        ) : (
+          <span className="text-muted text-xs">{STATUS_WORDS[status]}</span>
+        )}
         <span className="tnum ml-auto text-muted text-xs">
           {summary && summary.entries > 0 ? columnLabel(summary) : null}
         </span>
@@ -288,7 +289,7 @@ export function Board() {
 
 /** Phone: the strip of semesters, and the picked one's list. */
 export function PhoneBoard({ selected }: { selected: FourYearTerm }) {
-  const { columns, summaries, statusOf } = useModel();
+  const { columns, summaries, statusOf, tags } = useModel();
   const nav = usePlanNav();
   const strip = useRef<HTMLElement>(null);
   // Keep the picked semester in view as it changes (an Add, a problem).
@@ -329,6 +330,9 @@ export function PhoneBoard({ selected }: { selected: FourYearTerm }) {
                     )}
                   >
                     {fourYearTermShortLabel(term)}
+                    {term === "before" ? null : (
+                      <TermTag tag={termTagOf(term, tags)} />
+                    )}
                     <span className="tnum text-muted">
                       · {summary?.credits ?? 0} cr
                     </span>

@@ -1,10 +1,15 @@
 import { create } from "zustand";
 import {
+  type TermTags,
+  termTagCandidates,
+  termTags,
+} from "~/core/catalog/term-tag";
+import {
   type ChatListCourse,
   chatList,
   chatListCourseCodes,
-  chatPlanFor,
 } from "~/core/chat";
+import { mainPlanFor, tabsInTerm } from "~/core/plans/main-plan";
 import {
   ChatJoinedStoreSchema,
   type ChatUnreadRoom,
@@ -16,6 +21,7 @@ import {
   type Term,
   type TermId,
 } from "~/core/schema";
+import { newYorkClock } from "~/core/todo/list";
 import { api } from "~/server/fns/api";
 import { chatApi } from "~/server/fns/chat-api";
 import {
@@ -59,6 +65,8 @@ function writeFollows(follows: Record<TermId, CourseCode[]>): void {
 export interface ChatHomeState {
   status: ChatHomeStatus;
   terms: Term[];
+  /** Now and Next (V2 §5.5), for the term menu's tags. */
+  tags: TermTags;
   termId: TermId | null;
   synced: Synced;
   courses: Map<CourseCode, Course>;
@@ -87,8 +95,12 @@ export interface ChatHomeState {
   ) => Promise<boolean>;
   /** You've seen a room's newest message: its count goes to 0 here at once. */
   markRead: (room: RoomId) => void;
-  /** Picks the plan whose sections are your rooms this term; false if it didn't save. */
-  setChatPlan: (planId: string) => Promise<boolean>;
+  /**
+   * Makes a plan the term's main plan, whose sections are your rooms (and
+   * which Schedule, Plan, Todo and the calendar feed read); false if it
+   * didn't save.
+   */
+  setMainPlan: (planId: string) => Promise<boolean>;
 }
 
 export interface ChatHomeDeps {
@@ -124,10 +136,10 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
   ) =>
     chatListCourseCodes({
       termId,
-      chatPlan: chatPlanFor(
+      mainPlan: mainPlanFor(
         termId,
         synced.plans,
-        synced.settings?.body.chatPlans ?? {},
+        synced.settings?.body.mainPlans ?? {},
       ),
       follows: get().follows[termId] ?? [],
       unread,
@@ -142,6 +154,7 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
   return {
     status: "idle",
     terms: [],
+    tags: { now: null, next: null },
     termId: null,
     synced: EMPTY,
     courses: new Map(),
@@ -154,12 +167,20 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
     load: async (term) => {
       set({ status: "loading" });
       try {
-        const [terms, synced] = await Promise.all([
+        const today = newYorkClock(Date.now()).date;
+        const [terms, synced, calendars] = await Promise.all([
           deps.data.terms(),
           pullSynced(deps.client),
+          Promise.all(
+            termTagCandidates(today).map((id) => deps.data.calendar(id)),
+          ),
         ]);
-        const picked = chatTerm(terms, term, synced.plans);
-        set({ terms });
+        const tags = termTags(
+          today,
+          calendars.filter((c) => c !== null),
+        );
+        const picked = chatTerm(terms, term, synced.plans, tags.now);
+        set({ terms, tags });
         if (!picked) {
           set({ status: "ready", synced });
           return;
@@ -251,7 +272,7 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
         follows,
         // Its rooms leave the list now; unread would bring them back until refreshed.
         unread: get().unread.filter(
-          (r) => r.courseCode !== courseCode || inChatPlan(get(), courseCode),
+          (r) => r.courseCode !== courseCode || inMainPlan(get(), courseCode),
         ),
       });
       return true;
@@ -283,16 +304,15 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
         ),
       }),
 
-    setChatPlan: async (planId) => {
+    setMainPlan: async (planId) => {
       const { termId, synced } = get();
       if (!termId || !synced.settings) return false;
       let settings = synced.settings;
       // Saved with the rev we have; after a conflict, once more on the server's copy.
       for (let attempt = 0; attempt < 2; attempt++) {
-        const body = {
-          ...settings.body,
-          chatPlans: { ...settings.body.chatPlans, [termId]: planId },
-        };
+        const mainPlans = { ...settings.body.mainPlans, [termId]: planId };
+        // With its old name too, as every push has it (settingsDocOf).
+        const body = { ...settings.body, mainPlans, chatPlans: mainPlans };
         try {
           const { results } = await deps.client.sync.push({
             docs: [
@@ -321,39 +341,35 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
   };
 });
 
-function inChatPlan(state: ChatHomeState, courseCode: CourseCode): boolean {
+function inMainPlan(state: ChatHomeState, courseCode: CourseCode): boolean {
   if (!state.termId) return false;
-  const plan = chatPlanFor(
+  const plan = mainPlanFor(
     state.termId,
     state.synced.plans,
-    state.synced.settings?.body.chatPlans ?? {},
+    state.synced.settings?.body.mainPlans ?? {},
   );
   return plan?.courses.some((c) => c.courseCode === courseCode) ?? false;
 }
 
-/** The chat plan for the term on screen. */
-export function useChatPlan(): Plan | null {
+/** The main plan for the term on screen: your rooms come from it. */
+export function useMainPlan(): Plan | null {
   return useChatHome((s) =>
     s.termId
-      ? chatPlanFor(
+      ? mainPlanFor(
           s.termId,
           s.synced.plans,
-          s.synced.settings?.body.chatPlans ?? {},
+          s.synced.settings?.body.mainPlans ?? {},
         )
       : null,
   );
 }
 
-/** The term's plans in tab order, for "Rooms from Plan A ▾". */
+/** The term's plans in tab order, for "Rooms from Plan A, your main plan ▾". */
 export function termPlans(
   plans: readonly Plan[],
   termId: TermId | null,
 ): Plan[] {
-  return plans
-    .filter((p) => p.termId === termId)
-    .sort(
-      (a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt),
-    );
+  return termId ? tabsInTerm(plans, termId) : [];
 }
 
 /** The list as it shows. Compute in a memo: it's a new array each call. */
@@ -369,10 +385,10 @@ export function chatListOf(
   return chatList({
     viewing,
     termId: state.termId,
-    chatPlan: chatPlanFor(
+    mainPlan: mainPlanFor(
       state.termId,
       state.synced.plans,
-      state.synced.settings?.body.chatPlans ?? {},
+      state.synced.settings?.body.mainPlans ?? {},
     ),
     follows: state.follows[state.termId] ?? [],
     unread: withMutes(state.unread, state.mutes),

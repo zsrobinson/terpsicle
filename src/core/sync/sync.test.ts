@@ -68,7 +68,7 @@ function tables(overrides: Partial<SyncedTables> = {}): SyncedTables {
     blocks: [aBlock()],
     colors: { CMSC351: "blue" },
     travel: DEFAULT_TRAVEL_SETTINGS,
-    chatPlans: {},
+    mainPlans: {},
     fourYear: [],
     prefs: {},
     ...overrides,
@@ -139,18 +139,36 @@ describe("doc keys", () => {
 });
 
 describe("mapping tables and docs", () => {
-  it("gathers blocks, colors, travel, chat plans and prefs into the settings doc", () => {
+  it("gathers blocks, colors, travel, main plans and prefs into the settings doc", () => {
     const t = tables({
-      chatPlans: { [SPRING]: planA.id },
+      mainPlans: { [SPRING]: planA.id },
       prefs: { ai: { features: false } },
     });
     expect(settingsDocOf(t)).toEqual({
       blocks: [aBlock()],
       colors: { CMSC351: "blue" },
       travel: DEFAULT_TRAVEL_SETTINGS,
+      mainPlans: { [SPRING]: planA.id },
+      // The same map under its old name, for builds from before main plans.
       chatPlans: { [SPRING]: planA.id },
       prefs: { ai: { features: false } },
     });
+  });
+
+  it("reads a settings doc from a build before main plans", () => {
+    const { mainPlans: _, ...old } = aSettingsDoc({
+      mainPlans: { [SPRING]: planB.id },
+    });
+    const parsed = SettingsDocSchema.parse(old);
+    expect(parsed.mainPlans).toEqual({ [SPRING]: planB.id });
+    expect(withSettingsDoc(tables(), parsed).mainPlans).toEqual({
+      [SPRING]: planB.id,
+    });
+    // A doc that has both reads `mainPlans`.
+    expect(
+      SettingsDocSchema.parse({ ...old, mainPlans: { [SPRING]: planA.id } })
+        .mainPlans,
+    ).toEqual({ [SPRING]: planA.id });
   });
 
   it("carries prefs this build doesn't know, both ways", () => {
@@ -217,11 +235,11 @@ describe("mapping tables and docs", () => {
     ).toEqual([planA]);
     expect(applyDoc(t, aPlanSyncDoc({ body: planA }))).toBe(t);
     const settings = aSettingsSyncDoc({
-      body: aSettingsDoc({ blocks: [], chatPlans: { [SPRING]: planB.id } }),
+      body: aSettingsDoc({ blocks: [], mainPlans: { [SPRING]: planB.id } }),
     });
     const next = applyDoc(t, settings);
     expect(next.blocks).toEqual([]);
-    expect(next.chatPlans).toEqual({ [SPRING]: planB.id });
+    expect(next.mainPlans).toEqual({ [SPRING]: planB.id });
     expect(next.plans).toBe(t.plans);
   });
 
@@ -384,7 +402,7 @@ describe("mergeSettings", () => {
   const base = aSettingsDoc({
     blocks: [lunch, work],
     colors: { CMSC351: "blue", MATH240: "green" },
-    chatPlans: { [SPRING]: planA.id },
+    mainPlans: { [SPRING]: planA.id },
   });
   const edit = (doc: SettingsDoc, patch: Partial<SettingsDoc>) => ({
     ...doc,
@@ -449,7 +467,7 @@ describe("mergeSettings", () => {
       blocks: [{ ...lunch, label: "Mine" }, gym],
       colors: { CMSC351: "teal", ENGL101: "pink" },
       travel: { ...DEFAULT_TRAVEL_SETTINGS, accessible: true },
-      chatPlans: { [SPRING]: planB.id, [FALL]: planA.id },
+      mainPlans: { [SPRING]: planB.id, [FALL]: planA.id },
       prefs: { ai: { features: false }, chatRules: { seen: ["CMSC351"] } },
     });
     const server = edit(base, { prefs: { ai: { features: true } } });
@@ -457,6 +475,7 @@ describe("mergeSettings", () => {
       blocks: [lunch, work, gym],
       colors: { CMSC351: "blue", MATH240: "green", ENGL101: "pink" },
       travel: DEFAULT_TRAVEL_SETTINGS,
+      mainPlans: { [SPRING]: planA.id, [FALL]: planA.id },
       chatPlans: { [SPRING]: planA.id, [FALL]: planA.id },
       prefs: { ai: { features: true }, chatRules: { seen: ["CMSC351"] } },
     });
@@ -592,7 +611,7 @@ describe("firstSignInUnion", () => {
       ...base,
       local: tables({
         plans: [empty, emptyFall],
-        chatPlans: { [SPRING]: empty.id, [FALL]: emptyFall.id },
+        mainPlans: { [SPRING]: empty.id, [FALL]: emptyFall.id },
       }),
       server: [aPlanSyncDoc()],
       newId: ids(),
@@ -603,7 +622,7 @@ describe("firstSignInUnion", () => {
       emptyFall.id,
       "plan_fixture_a",
     ]);
-    expect(result.tables.chatPlans).toEqual({ [FALL]: emptyFall.id });
+    expect(result.tables.mainPlans).toEqual({ [FALL]: emptyFall.id });
   });
 
   it("skips a plan the account already has as it is", () => {

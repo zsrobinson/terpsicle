@@ -12,7 +12,6 @@ import {
   fourYearColumnFor,
   handoffTerm,
   handoffToast,
-  linkedSchedulePlan,
   missingFromPlan,
   missingLine,
   pickFourYearDoc,
@@ -25,20 +24,23 @@ import {
 const SPRING = "202701";
 const FALL = "202608";
 
-describe("linkedSchedulePlan", () => {
+describe("the link: the term's main plan", () => {
   const a = aPlan({ id: "planAAAA", termId: SPRING, order: 0 });
   const b = aPlan({ id: "planBBBB", termId: SPRING, name: "Plan B", order: 1 });
   const fall = aPlan({ id: "fallAAAA", termId: FALL, order: 0 });
 
-  it("is the term's open plan, else its first tab", () => {
+  it("opens the main plan, else the first tab, whichever tab is open", () => {
+    const courses = ["CMSC351"];
     expect(
-      linkedSchedulePlan(SPRING, [b, a, fall], { [SPRING]: "planBBBB" }),
-    ).toBe(b);
-    expect(linkedSchedulePlan(SPRING, [b, a, fall], {})).toBe(a);
-    expect(linkedSchedulePlan(SPRING, [b, a], { [SPRING]: "gone0000" })).toBe(
-      a,
-    );
-    expect(linkedSchedulePlan("202705", [a, b, fall], {})).toBeNull();
+      planHandoff(SPRING, [b, a, fall], { [SPRING]: "planBBBB" }, courses),
+    ).toEqual({ kind: "open", plan: b });
+    expect(planHandoff(SPRING, [b, a, fall], {}, courses)).toEqual({
+      kind: "open",
+      plan: a,
+    });
+    expect(
+      planHandoff(SPRING, [b, a], { [SPRING]: "gone0000" }, courses),
+    ).toEqual({ kind: "open", plan: a });
   });
 });
 
@@ -202,9 +204,12 @@ describe("the words", () => {
     );
   });
 
-  it("counts what's placed", () => {
+  it("counts what's placed, naming the main plan when there are others", () => {
     expect(placedLine("Plan A", { placed: 4, total: 5 })).toBe(
       "From Plan A: 4 of 5 placed",
+    );
+    expect(placedLine("Plan B", { placed: 4, total: 5 }, true)).toBe(
+      "From Plan B, main · 4 of 5 placed",
     );
   });
 });

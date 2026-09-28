@@ -1,6 +1,7 @@
 import { Bell, BellOff } from "lucide-react";
 import { useEffect, useState } from "react";
-import { chatPlanFor, peopleWords, type Room } from "~/core/chat";
+import { peopleWords, type Room } from "~/core/chat";
+import { mainPlanFor } from "~/core/plans/main-plan";
 import type { ChatAuthor, CourseCode, TermId } from "~/core/schema";
 import { Avatar } from "~/features/auth/avatar";
 import { chatApi } from "~/server/fns/chat-api";
@@ -199,7 +200,7 @@ function MuteButton({
 }
 
 /**
- * Leaving: a course you follow can go (with undo). Rooms from your chat plan
+ * Leaving: a course you follow can go (with undo). Rooms from your main plan
  * come with its sections, so the way out is the plan, and it says so.
  */
 function LeaveOrWhy({
@@ -215,10 +216,10 @@ function LeaveOrWhy({
   );
   const plan = useChatHome((s) =>
     s.termId
-      ? chatPlanFor(
+      ? mainPlanFor(
           s.termId,
           s.synced.plans,
-          s.synced.settings?.body.chatPlans ?? {},
+          s.synced.settings?.body.mainPlans ?? {},
         )
       : null,
   );
@@ -231,8 +232,8 @@ function LeaveOrWhy({
         {inPlan.sectionCode
           ? `${courseCode} ${inPlan.sectionCode}`
           : courseCode}{" "}
-        is in {plan.name}. To leave, take it out of that plan, or pick another
-        plan for your rooms.
+        is in {plan.name}, your main plan. To leave, take it out of that plan,
+        or make another plan main.
       </p>
     );
   if (!following || room.kind !== "course") return null;

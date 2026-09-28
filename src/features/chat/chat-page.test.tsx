@@ -6,7 +6,7 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MOBILE_QUERY } from "~/app/use-media-query";
@@ -31,6 +31,7 @@ import {
   aPlan,
   aPlanCourse,
   aSection,
+  aSettingsDoc,
   aTerm,
   aTermsFile,
   FIXTURE_HASH,
@@ -262,15 +263,96 @@ describe("ChatPage", () => {
       expect.stringContaining("0101 · "),
     ]);
     expect(within(list).getAllByText("3 unread")).toHaveLength(2);
-    // Which plan, and where it lives: the one open in Schedule may differ.
+    // Which plan, and which term: Schedule is usually on the next one.
     expect(
-      screen.getByText("Rooms from Plan A in Schedule"),
+      screen.getByText(`Rooms from Plan A, your ${aTerm().name} plan`),
     ).toBeInTheDocument();
     await user.click(within(list).getByRole("button", { name: /^0101 · / }));
     expect(go).toHaveBeenCalledWith(
       { term: undefined, course: "CMSC351", room: section0101 },
       undefined,
     );
+  });
+
+  it("makes another plan main from Rooms from, with Undo", async () => {
+    signedIn();
+    const client = fakeClient();
+    const planA = aPlan({
+      courses: [aPlanCourse({ courseCode: "CMSC351", sectionCode: "0101" })],
+    });
+    const planB = aPlan({
+      id: "plan_fixture_b",
+      name: "Plan B",
+      order: 1,
+      courses: [aPlanCourse({ courseCode: "CMSC351", sectionCode: "0201" })],
+    });
+    const settings = aSettingsDoc();
+    // The fake's own type only knows plan docs.
+    (client.sync.pull as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "ok",
+      cursor: 3,
+      more: false,
+      docs: [
+        {
+          kind: "plan",
+          id: planA.id,
+          rev: 1,
+          updatedAt: FIXTURE_NOW,
+          body: planA,
+        },
+        {
+          kind: "plan",
+          id: planB.id,
+          rev: 2,
+          updatedAt: FIXTURE_NOW,
+          body: planB,
+        },
+        {
+          kind: "settings",
+          id: "settings",
+          rev: 3,
+          updatedAt: FIXTURE_NOW,
+          body: settings,
+        },
+      ],
+    });
+    client.sync.push.mockResolvedValue({
+      results: [{ kind: "settings", id: "settings", status: "ok", rev: 4 }],
+    });
+    const { user } = await page();
+    const term = aTerm().name;
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Rooms from Plan A, your main plan",
+      }),
+    );
+    expect(screen.getByText(`${term} · your main plan`)).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitemradio", { name: "Plan B" }));
+    const pushed = client.sync.push.mock.calls[0]?.[0] as {
+      docs: { body: { mainPlans: unknown; chatPlans: unknown } }[];
+    };
+    const mainPlans = { [fixtureTermId]: planB.id };
+    // Both names, so a build from before main plans still reads it.
+    expect(pushed.docs[0]?.body).toMatchObject({
+      mainPlans,
+      chatPlans: mainPlans,
+    });
+    expect(
+      await screen.findByText(`Plan B is your main plan for ${term}`),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Rooms from Plan B, your main plan",
+      }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(client.sync.push).toHaveBeenCalledTimes(2));
+    const undone = client.sync.push.mock.calls[1]?.[0] as {
+      docs: { body: { mainPlans: unknown } }[];
+    };
+    expect(undone.docs[0]?.body.mainPlans).toEqual({
+      [fixtureTermId]: planA.id,
+    });
   });
 
   it("names the page once, puts the term in the bar, and offers the room with the most unread", async () => {

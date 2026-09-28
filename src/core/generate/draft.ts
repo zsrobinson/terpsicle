@@ -42,6 +42,48 @@ export function planCourseItems(
   }));
 }
 
+/**
+ * The form with a four-year plan's semester in it ("Generate from four-year
+ * plan"): its courses required, each placeholder a required wildcard (two
+ * "Any DSHS course" ask for two). What the form has already stays, and
+ * nothing is asked for twice.
+ */
+export function withFourYearColumn(
+  items: readonly GenerateDraftItem[],
+  column: {
+    readonly courses: readonly CourseCode[];
+    readonly placeholders: readonly Wildcard[];
+  },
+): GenerateDraftItem[] {
+  const listed = new Set(draftCourseCodes(items));
+  let next: GenerateDraftItem[] = [
+    ...items,
+    ...column.courses
+      .filter((code) => !listed.has(code))
+      .map(
+        (courseCode): GenerateDraftItem => ({
+          kind: "course",
+          courseCode,
+          required: true,
+        }),
+      ),
+  ];
+  const wanted = new Map<string, { wildcard: Wildcard; count: number }>();
+  for (const wildcard of column.placeholders) {
+    const id = wildcardId(wildcard);
+    wanted.set(id, { wildcard, count: (wanted.get(id)?.count ?? 0) + 1 });
+  }
+  for (const [id, { wildcard, count }] of wanted) {
+    const have = next.find(
+      (i): i is GenWildcardItem =>
+        i.kind === "wildcard" && wildcardId(i.wildcard) === id,
+    );
+    for (let n = have?.count ?? 0; n < count; n++)
+      next = addWildcard(next, wildcard);
+  }
+  return next;
+}
+
 /** Every course the form mentions, first mention first (a wildcard isn't one). */
 export function draftCourseCodes(
   items: readonly GenerateDraftItem[],

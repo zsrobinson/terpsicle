@@ -51,7 +51,7 @@ function tables(overrides: Partial<SyncedTables> = {}): SyncedTables {
     blocks: [aBlock()],
     colors: {},
     travel: DEFAULT_TRAVEL_SETTINGS,
-    chatPlans: {},
+    mainPlans: {},
     fourYear: [mine],
     prefs: {},
     ...overrides,

@@ -100,6 +100,26 @@ describe("workspace store", () => {
     expect(names()).toEqual(["Plan A"]);
   });
 
+  it("undoes making a plan main, with the toast's second line", () => {
+    createPlan("planAAAA");
+    createPlan("planBBBB");
+    useWorkspace
+      .getState()
+      .dispatch(
+        { type: "plan/make-main", planId: "planBBBB" },
+        "Plan B is your main plan for Spring 2027",
+        { description: "Chat, Plan, Todo and your calendar use it now." },
+      );
+    expect(useWorkspace.getState().mainPlans).toEqual({ [SPRING]: "planBBBB" });
+    expect(useWorkspace.getState().notice).toMatchObject({
+      label: "Plan B is your main plan for Spring 2027",
+      description: "Chat, Plan, Todo and your calendar use it now.",
+      toast: true,
+    });
+    expect(useWorkspace.getState().undo()).toBe(true);
+    expect(useWorkspace.getState().mainPlans).toEqual({});
+  });
+
   it("opening a plan tab isn't an edit", () => {
     createPlan("planAAAA");
     createPlan("planBBBB");

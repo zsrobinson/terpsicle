@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { chatPlanFor } from "~/core/chat";
+import { mainPlanFor } from "~/core/plans/main-plan";
 import type { CourseCode } from "~/core/schema";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
@@ -8,19 +8,19 @@ import { showNote } from "./undo";
 
 // Join, in the room's header, for a course you opened but haven't joined
 // (V2.md §8.2: course rooms are open to anyone signed in). A course in your
-// chat plan, or one you've joined, is already yours, so there's nothing to
+// main plan, or one you've joined, is already yours, so there's nothing to
 // press; Leave lives in room info.
 
-/** Whether the course is in your list already: from your chat plan, or joined. */
+/** Whether the course is in your list already: from your main plan, or joined. */
 function useIsYours(courseCode: CourseCode): boolean {
   return useChatHome((s) => {
     if (!s.termId) return true;
     if ((s.follows[s.termId] ?? []).includes(courseCode)) return true;
     return (
-      chatPlanFor(
+      mainPlanFor(
         s.termId,
         s.synced.plans,
-        s.synced.settings?.body.chatPlans ?? {},
+        s.synced.settings?.body.mainPlans ?? {},
       )?.courses.some((c) => c.courseCode === courseCode) ?? false
     );
   });

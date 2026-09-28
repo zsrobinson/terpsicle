@@ -56,7 +56,7 @@ describe("chatList", () => {
   it("lists your plan's rooms widest first, then courses you follow", () => {
     const list = chatList({
       termId: fixtureTermId,
-      chatPlan: plan,
+      mainPlan: plan,
       follows: ["ENGL101"],
       unread: [],
       courses,
@@ -79,7 +79,7 @@ describe("chatList", () => {
   it("lists only rooms that are yours: never another section's or professor's", () => {
     const [cmsc] = chatList({
       termId: fixtureTermId,
-      chatPlan: plan,
+      mainPlan: plan,
       follows: [],
       unread: [],
       courses,
@@ -94,7 +94,7 @@ describe("chatList", () => {
   it("keeps the course you're looking at in the list, last, until you join or leave", () => {
     const list = chatList({
       termId: fixtureTermId,
-      chatPlan: plan,
+      mainPlan: plan,
       follows: [],
       unread: [],
       courses,
@@ -111,7 +111,7 @@ describe("chatList", () => {
     // Already yours: it stays where it was, for the reason it was.
     const again = chatList({
       termId: fixtureTermId,
-      chatPlan: plan,
+      mainPlan: plan,
       follows: [],
       unread: [],
       courses,
@@ -123,7 +123,7 @@ describe("chatList", () => {
   it("counts unread messages, leaving muted rooms out of the total", () => {
     const list = chatList({
       termId: fixtureTermId,
-      chatPlan: plan,
+      mainPlan: plan,
       follows: [],
       unread: [
         unreadRow(courseRoomId(fixtureTermId, "CMSC351"), 4, true),
@@ -150,7 +150,7 @@ describe("chatList", () => {
   it("keeps a course whose department hasn't loaded, with no rooms yet", () => {
     const [only] = chatList({
       termId: fixtureTermId,
-      chatPlan: null,
+      mainPlan: null,
       follows: ["HIST200"],
       unread: [],
       courses,
@@ -162,11 +162,11 @@ describe("chatList", () => {
     });
   });
 
-  it("ignores a chat plan from another term", () => {
+  it("ignores a main plan from another term", () => {
     expect(
       chatList({
         termId: "202608",
-        chatPlan: plan,
+        mainPlan: plan,
         follows: [],
         unread: [],
         courses,
@@ -178,7 +178,7 @@ describe("chatList", () => {
     expect(
       chatListCourseCodes({
         termId: fixtureTermId,
-        chatPlan: plan,
+        mainPlan: plan,
         follows: ["ENGL101", "CMSC351"],
         unread: [unreadRow(courseRoomId(fixtureTermId, "HIST200"), 1)],
       }),

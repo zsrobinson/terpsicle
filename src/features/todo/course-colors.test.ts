@@ -39,6 +39,41 @@ describe("readSchedulerCourses", () => {
   });
 });
 
+describe("readSchedulerCourses and main plans", () => {
+  it("reads only each term's main plan: drafts stay in Schedule", async () => {
+    const name = `todo-colors-${++dbCount}`;
+    const db = new TerpsicleDb(name);
+    const planA = aPlan({
+      id: "plan_a_000001",
+      courses: [aPlanCourse({ courseCode: "ENEE222" })],
+    });
+    const planB = aPlan({
+      id: "plan_b_000001",
+      name: "Plan B",
+      order: 1,
+      courses: [aPlanCourse({ courseCode: "MATH240" })],
+    });
+    const fall = aPlan({
+      id: "plan_fall_001",
+      termId: "202608",
+      name: "Fall plan",
+      courses: [aPlanCourse({ courseCode: "CMSC131" })],
+    });
+    await db.plans.bulkPut([planA, planB, fall]);
+    await db.settings.put({
+      key: "mainPlans",
+      value: { [planB.termId]: planB.id },
+    });
+    db.close();
+    const read = await readSchedulerCourses(name);
+    expect([...read.planCourses].sort()).toEqual(["CMSC131", "MATH240"]);
+    expect(read.mainPlans).toEqual({
+      [planB.termId]: { id: planB.id, name: "Plan B" },
+      "202608": { id: fall.id, name: "Fall plan" },
+    });
+  });
+});
+
 describe("todoCourseColors", () => {
   it("keeps the scheduler's colors and gives the rest distinct ones", () => {
     const colors = todoCourseColors(["MATH240", "CMSC216", "ENGL101"], {

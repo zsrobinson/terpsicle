@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
@@ -6,6 +7,9 @@ import type { ShellRoutes } from "~/app/test-utils";
 import { currentPath, renderShell } from "~/app/test-utils";
 import { plansInTerm } from "~/core/plans";
 import {
+  aFourYear,
+  aFourYearEntry,
+  aFourYearWildcardEntry,
   demoBlocks,
   demoCourseColors,
   demoPlan,
@@ -13,6 +17,7 @@ import {
   fixtureTermId,
 } from "~/fixtures";
 import { useCatalog } from "~/state/catalog-store";
+import { fourYearLinkDb } from "~/state/four-year-link";
 import { EMPTY_DRAFT, useGenerateDrafts } from "~/state/generate-drafts";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
@@ -163,6 +168,58 @@ describe("Generate", () => {
     expect(
       screen.getByRole("button", { name: /Plan A's courses/ }),
     ).toBeVisible();
+  });
+
+  it("generates from the four-year plan's semester, placeholders and all", async () => {
+    const db = fourYearLinkDb();
+    await db.fourYear.clear();
+    await db.fourYear.put(
+      aFourYear({
+        entries: [
+          aFourYearEntry({ id: "entry_one", code: "CMSC351" }),
+          aFourYearEntry({ id: "entry_two", code: "STAT400" }),
+          aFourYearWildcardEntry({ id: "entry_wild" }),
+        ],
+      }),
+    );
+    const { user } = await renderGenerate();
+    await emptyForm();
+    const from = await screen.findByTestId("from-four-year");
+    // What it draws from, under the button.
+    expect(
+      within(from)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["CMSC351", "STAT400", "Any CMSC 400-level"]);
+    await user.click(
+      within(from).getByRole("button", {
+        name: "Generate from four-year plan",
+      }),
+    );
+    expect(draft()?.items).toEqual([
+      { kind: "course", courseCode: "CMSC351", required: true },
+      { kind: "course", courseCode: "STAT400", required: true },
+      {
+        kind: "wildcard",
+        wildcard: { kind: "pattern", pattern: "CMSC4XX" },
+        required: true,
+        count: 1,
+      },
+    ]);
+    expect(track).toHaveBeenCalledWith("four_year_handoff", {
+      outcome: "generated",
+    });
+    await waitFor(() =>
+      expect(useGenerateRun.getState().status.kind).toBe("done"),
+    );
+    await db.fourYear.clear();
+  });
+
+  it("offers nothing from the four-year plan without one", async () => {
+    await fourYearLinkDb().fourYear.clear();
+    await renderGenerate();
+    await screen.findByRole("combobox", { name: "Add a course" });
+    expect(screen.queryByTestId("from-four-year")).toBeNull();
   });
 
   it("builds a pick-N group", async () => {

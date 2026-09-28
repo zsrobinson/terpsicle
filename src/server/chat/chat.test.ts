@@ -1537,7 +1537,7 @@ describe("chat_members", () => {
         .all()
     ).results;
 
-  it("follows the chat plan: the first tab, or the settings doc's choice", async () => {
+  it("follows the main plan: the first tab, or the settings doc's choice", async () => {
     const student = await signIn("tstudent");
     const planA = aPlan({
       id: "plan_a_000001",
@@ -1571,8 +1571,8 @@ describe("chat_members", () => {
       ),
     );
 
-    // Choosing Plan B for chat moves this term only.
-    await student.push([], aSettingsDoc({ chatPlans: { [TERM]: planB.id } }));
+    // Making Plan B main moves this term only.
+    await student.push([], aSettingsDoc({ mainPlans: { [TERM]: planB.id } }));
     expect(await members("tstudent")).toEqual([
       { term_id: "202608", course_code: "ENGL101", section_code: "0303" },
       { term_id: TERM, course_code: COURSE, section_code: "0201" },
@@ -1591,6 +1591,44 @@ describe("chat_members", () => {
       { term_id: TERM, course_code: COURSE, section_code: "0101" },
       { term_id: TERM, course_code: "MUSC130", section_code: "" },
     ]);
+  });
+
+  it("reads the main plan from a build that still calls it chatPlans", async () => {
+    const student = await signIn("tstudent");
+    const planA = aPlan({
+      id: "plan_a_000001",
+      courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0101" })],
+    });
+    const planB = aPlan({
+      id: "plan_b_000001",
+      name: "Plan B",
+      order: 1,
+      courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0201" })],
+    });
+    await student.push([planA, planB]);
+    const { mainPlans: _, chatPlans: __, ...rest } = aSettingsDoc();
+    const response = await student.api("sync/push", {
+      docs: [
+        {
+          kind: "settings",
+          id: "settings",
+          baseRev: 0,
+          body: { ...rest, chatPlans: { [TERM]: planB.id } },
+        },
+      ],
+    });
+    expect(response.status).toBe(200);
+    expect(await members("tstudent")).toEqual([
+      { term_id: TERM, course_code: COURSE, section_code: "0201" },
+    ]);
+    // Stored with both names, so that build and this one read it back.
+    const stored = await env.DB.prepare(
+      "SELECT body FROM sync_docs WHERE user_id = 'tstudent' AND kind = 'settings'",
+    ).first<{ body: string }>();
+    expect(JSON.parse(stored?.body ?? "{}")).toMatchObject({
+      mainPlans: { [TERM]: planB.id },
+      chatPlans: { [TERM]: planB.id },
+    });
   });
 
   it("leaves membership alone when nothing was saved", async () => {

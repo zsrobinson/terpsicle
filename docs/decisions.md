@@ -185,6 +185,21 @@ Revisit if: people hover menu items looking for more, or the owner wants tooltip
 Below `md`, `Button` (every size), `SelectTrigger` and menu and select items are 44px, like `Input` and `SegmentedControl` already were. Pages don't add `max-md:h-11`. Chat, Todo and Plan had each hand-rolled this, and Schedule and Settings had 28–32px targets, so one product felt roomy and the next cramped. The cost is taller rows on phones (Problems' Switch, Generate's fields).
 Revisit if: a phone screen can't fit its content at 44px, or the calendar's own controls need the same rule.
 
+### One main plan per term, read everywhere
+2026-09-28 · owner · app-wide
+Each term has one **main plan**, synced, which Chat, Plan, Todo and the calendar feed read; other plans are drafts that only Schedule shows. The first plan of a term is main; Make main plan (tab menu, a draft's Courses panel, Chat's "Rooms from") has Undo; deleting the main plan passes main to the next tab; with one plan there's no mark. It replaces the chat plan and the linked plan. The owner, after watching a first-timer: "both him and i were a little confused … this just goes down to implementing your research into 'main plans'". Design: the main-plan canvas (V2.md §5.5).
+Revisit if: people want different plans for different products in the same term.
+
+### Now and Next on every term
+2026-09-28 · owner · app-wide
+Wherever a term is named, the term in session is tagged Now (ink border) and the next fall or spring Next (hairline); other terms get nothing. Both come from the academic calendar Plan uses, so every product agrees. Schedule is usually on Next and Chat and Todo on Now, and the tags make that switch visible.
+Revisit if: the tags confuse more than they help in a first-time round.
+
+### The settings doc writes `chatPlans` beside `mainPlans`
+2026-09-28 · agent · one feature
+The main plan map is the old chat plan map renamed. Builds from before it can't read a settings doc without `chatPlans`, so every push writes both, and a body with only `chatPlans` is read as `mainPlans`. No D1 migration.
+Revisit if: no build older than 2026-09-28 is still in use; then stop writing `chatPlans`.
+
 ## Schedule
 
 ### Scheduler views are routes, kept mounted by the sidebar

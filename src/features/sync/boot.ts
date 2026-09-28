@@ -43,7 +43,7 @@ function tablesOf(s: WorkspaceState): SyncedTables {
     blocks: s.blocks,
     colors: s.colors,
     travel: s.travel,
-    chatPlans: s.chatPlans,
+    mainPlans: s.mainPlans,
     fourYear: NO_FOUR_YEAR,
     prefs: NO_PREFS,
   };

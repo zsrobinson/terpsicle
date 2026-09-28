@@ -34,29 +34,52 @@ export type Rev = z.infer<typeof RevSchema>;
 export const PlanDocSchema = PlanSchema;
 export type PlanDoc = z.infer<typeof PlanDocSchema>;
 
-/** Which plan's sections are your chat rooms, per term (V2 §8.2). */
-export const ChatPlansSchema = z.record(TermIdSchema, LocalIdSchema);
-export type ChatPlans = z.infer<typeof ChatPlansSchema>;
+/**
+ * Each term's main plan (V2 §5.5): the one plan you're actually taking, which
+ * Chat, Plan, Todo and the calendar feed read. A term missing here, or whose
+ * plan is gone, has its first tab as main (`mainPlanFor` in ~/core/plans).
+ */
+export const MainPlansSchema = z.record(TermIdSchema, LocalIdSchema);
+export type MainPlans = z.infer<typeof MainPlansSchema>;
 
 function uniqueIds(blocks: readonly { id: string }[]): boolean {
   return new Set(blocks.map((b) => b.id)).size === blocks.length;
 }
 
 /**
- * Everything synced that doesn't belong to one plan: blocks (per term, shared
- * by the term's plans), course colors (global) and travel settings, plus the
- * chat plan choice and the other products' prefs (`SyncedPrefs`).
+ * Builds from before main plans call the same map `chatPlans`, and read and
+ * write only that. A body without `mainPlans` takes theirs.
  */
-export const SettingsDocSchema = z.object({
-  blocks: z
-    .array(BlockSchema)
-    .refine(uniqueIds, { message: "A block appears twice" }),
-  colors: z.record(CourseCodeSchema, CourseColorSchema),
-  travel: TravelSettingsSchema,
-  chatPlans: ChatPlansSchema,
-  /** Missing in docs saved before prefs, and in older builds' pushes. */
-  prefs: SyncedPrefsSchema.default(() => ({})),
-});
+function withLegacyMainPlans(body: unknown): unknown {
+  if (typeof body !== "object" || body === null || "mainPlans" in body)
+    return body;
+  return "chatPlans" in body ? { ...body, mainPlans: body.chatPlans } : body;
+}
+
+/**
+ * Everything synced that doesn't belong to one plan: blocks (per term, shared
+ * by the term's plans), course colors (global) and travel settings, plus
+ * each term's main plan and the other products' prefs (`SyncedPrefs`).
+ */
+export const SettingsDocSchema = z.preprocess(
+  withLegacyMainPlans,
+  z.object({
+    blocks: z
+      .array(BlockSchema)
+      .refine(uniqueIds, { message: "A block appears twice" }),
+    colors: z.record(CourseCodeSchema, CourseColorSchema),
+    travel: TravelSettingsSchema,
+    mainPlans: MainPlansSchema,
+    /**
+     * `mainPlans` again, under its old name, for builds from before main
+     * plans, which can't read a doc without it. Every push writes it
+     * (`settingsDocOf`); nothing reads it. Drop it once those builds are gone.
+     */
+    chatPlans: MainPlansSchema.optional(),
+    /** Missing in docs saved before prefs, and in older builds' pushes. */
+    prefs: SyncedPrefsSchema.default(() => ({})),
+  }),
+);
 export type SettingsDoc = z.infer<typeof SettingsDocSchema>;
 
 /**

@@ -37,6 +37,7 @@ export interface AnalyticsEvents {
   plan_created: { source: "empty" | "copy" | "generate" | "shared" };
   plan_deleted: NoProperties;
   plan_renamed: { via: "menu" | "double-click" };
+  plan_made_main: { via: "menu" | "panel" };
   tab_opened: { tab: RailTab; via: "click" | "shortcut" };
   sidebar_collapsed: NoProperties;
   term_switched: { status: TermStatus };
@@ -210,7 +211,7 @@ export interface AnalyticsEvents {
     countsAs: boolean;
     of: "course" | "credit";
   };
-  four_year_handoff: { outcome: "created-plan" | "opened-plan" };
+  four_year_handoff: { outcome: "created-plan" | "opened-plan" | "generated" };
   // Every "View …" link between products (V3.md §6): product ids only,
   // never the course, term or item it leads to.
   cross_link_clicked: { from: ProductId; to: ProductId };

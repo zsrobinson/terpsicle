@@ -236,7 +236,7 @@ function entries<V>(record: Readonly<Record<string, V>>): Map<string, V> {
 /**
  * The settings doc after a conflict. It can't be kept twice the way a plan
  * is, so it's settled per key (a block, a course's color, the travel
- * settings, a term's chat plan, a product's prefs): keys this device changed
+ * settings, a term's main plan, a product's prefs): keys this device changed
  * since `base`, its last save, keep this device's value; every other key
  * takes the server's.
  * A key deleted on one side and edited on the other keeps the edit.
@@ -268,6 +268,10 @@ export function mergeSettings(input: {
         entries(part(server)),
       ),
     );
+  const mainPlans = settle(
+    (d) => d.mainPlans,
+    () => keyed((d) => d.mainPlans),
+  );
   return {
     blocks: settle(
       (d) => d.blocks,
@@ -289,10 +293,10 @@ export function mergeSettings(input: {
       (d) => d.travel,
       () => (base === null ? server.travel : local.travel),
     ),
-    chatPlans: settle(
-      (d) => d.chatPlans,
-      () => keyed((d) => d.chatPlans),
-    ),
+    mainPlans,
+    // Kept equal to `mainPlans` for builds from before main plans, as
+    // `settingsDocOf` does.
+    chatPlans: mainPlans,
     // Each product's prefs are one key (`ai`, `chatRules`, and any this
     // build doesn't know), settled like a course's color.
     prefs: settle(

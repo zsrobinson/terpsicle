@@ -200,8 +200,11 @@ describe("the first visit", () => {
     for (const term of ["Before UMD", "Fall 2025", "Spring 2029"])
       expect(screen.getByRole("heading", { name: term })).toBeVisible();
     expect(within(column("Fall 2025")).getByText("Done")).toBeVisible();
-    expect(within(column("Fall 2026")).getByText("In progress")).toBeVisible();
-    expect(within(column("Spring 2027")).getByText("Planned")).toBeVisible();
+    // The semester in progress is Now, as every product tags it.
+    expect(within(column("Fall 2026")).getByText("Now")).toBeVisible();
+    // The fall or spring you're planning next is Next; later ones, Planned.
+    expect(within(column("Spring 2027")).getByText("Next")).toBeVisible();
+    expect(within(column("Fall 2027")).getByText("Planned")).toBeVisible();
     expect(screen.getByText("0 of 120 credits")).toBeVisible();
 
     const [doc] = await saved();

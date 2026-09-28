@@ -122,6 +122,68 @@ describe("plan tabs", () => {
     expect(track).toHaveBeenCalledWith("undo_used", { via: "toast" });
   });
 
+  it("marks the main plan once there are two, and makes a draft main with Undo", async () => {
+    const { user } = await setup();
+    const marked = () =>
+      within(planNav())
+        .getAllByRole("button")
+        .filter((b) => b.getAttribute("aria-describedby"))
+        .map((b) => b.textContent);
+    // One plan: nothing to choose between, so no mark and no menu item.
+    expect(marked()).toEqual([]);
+    expect(
+      within(await openPlanMenu(user)).queryByRole("menuitem", {
+        name: /Make main plan/,
+      }),
+    ).toBeNull();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "New plan" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /Empty plan/ }),
+    );
+    // Plan B is open, and a draft: the first plan is main.
+    expect(marked()).toEqual(["Plan A"]);
+    expect(
+      screen.getByRole("button", { name: "Plan A" }),
+    ).toHaveAccessibleDescription("Your main plan");
+    await user.click(
+      within(await openPlanMenu(user)).getByRole("menuitem", {
+        name: /Make main plan/,
+      }),
+    );
+    expect(marked()).toEqual(["Plan B"]);
+    expect(track).toHaveBeenCalledWith("plan_made_main", { via: "menu" });
+    expect(
+      await screen.findByText(/^Plan B is your main plan for /),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Chat, Plan, Todo and your calendar use it now."),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(marked()).toEqual(["Plan A"]);
+  });
+
+  it("passes main to the next tab when the main plan is deleted, and says so", async () => {
+    const { user } = await setup();
+    await user.click(screen.getByRole("button", { name: "New plan" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /Empty plan/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Plan A" }));
+    await user.click(
+      within(await openPlanMenu(user)).getByRole("menuitem", {
+        name: "Delete",
+      }),
+    );
+    expect(tabNames()).toEqual(["Plan B"]);
+    expect(await screen.findByText("Deleted Plan A")).toBeVisible();
+    expect(
+      screen.getByText(/^Plan B is your main plan for .* now\.$/),
+    ).toBeVisible();
+  });
+
   it("⌘Z / Ctrl+Z undoes, ⇧ redoes", async () => {
     const { user } = await setup();
     await user.click(

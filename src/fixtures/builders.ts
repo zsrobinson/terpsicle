@@ -405,11 +405,14 @@ export function aBlock(overrides: Partial<Block> = {}): Block {
 export function aSettingsDoc(
   overrides: Partial<SettingsDoc> = {},
 ): SettingsDoc {
+  const mainPlans = overrides.mainPlans ?? {};
   return {
     blocks: [aBlock()],
     colors: { CMSC351: "blue" },
     travel: DEFAULT_TRAVEL_SETTINGS,
-    chatPlans: {},
+    mainPlans,
+    // As every push writes it (settingsDocOf): the same map, its old name.
+    chatPlans: mainPlans,
     prefs: {},
     ...overrides,
   };

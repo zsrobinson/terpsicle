@@ -2,12 +2,15 @@ import type { z } from "zod";
 import { clientConfig } from "~/app/config";
 import { pickTerm } from "~/core/catalog";
 import {
+  type AcademicCalendar,
+  AcademicCalendarSchema,
   COURSE_INDEX_MANIFEST_KEY,
   type Course,
   type CourseCode,
   CourseIndexManifestSchema,
   CourseSearchFileSchema,
   type CourseSearchRow,
+  calendarKey,
   courseSearchKey,
   DeptChunkSchema,
   deptChunkKey,
@@ -79,6 +82,8 @@ export interface ChatData {
   ): Promise<Map<CourseCode, Course>>;
   /** Every course's code and title, any term: the course index's search file (Plan and Reviews search it too). */
   courseSearch(): Promise<readonly CourseSearchRow[]>;
+  /** A term's academic calendar, for Now and Next; null when there's none (yet). */
+  calendar(termId: TermId): Promise<AcademicCalendar | null>;
 }
 
 /** Published data from `/data/<key>`, validated like everything else read there. */
@@ -127,20 +132,27 @@ export function fetchChatData(
       );
       return file.courses;
     },
+    calendar: (termId) =>
+      read(calendarKey(termId), AcademicCalendarSchema).catch(() => null),
   };
 }
 
 /**
- * The term the chat list opens on: the one asked for, else the scheduler's
- * rule (SPEC §3.0) with the term of your newest synced plan as the last pick.
+ * The term the chat list opens on: the one asked for; else the term in
+ * session (Now) when you have a plan in it, since Chat is for the classes
+ * you're taking; else the scheduler's rule (SPEC §3.0) with the term of your
+ * newest synced plan as the last pick.
  */
 export function chatTerm(
   terms: readonly Term[],
   asked: TermId | null,
   plans: readonly Plan[],
+  now: TermId | null = null,
 ): Term | undefined {
+  const inSession =
+    now !== null && plans.some((p) => p.termId === now) ? now : null;
   const newest = [...plans].sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
   )[0];
-  return pickTerm(terms, asked ?? newest?.termId ?? null);
+  return pickTerm(terms, asked ?? inSession ?? newest?.termId ?? null);
 }

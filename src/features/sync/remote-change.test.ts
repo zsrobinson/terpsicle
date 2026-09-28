@@ -66,7 +66,7 @@ describe("a change from the account", () => {
     expect(names()).toEqual(["Plan B", "Plan A (copy)"]);
   });
 
-  it("applies the settings doc: blocks, colors, travel and chat plans", () => {
+  it("applies the settings doc: blocks, colors, travel and main plans", () => {
     store().commit("Added a block", (w) => ({
       ...w,
       blocks: [aBlock({ label: "Mine" })],
@@ -75,14 +75,14 @@ describe("a change from the account", () => {
       blocks: [aBlock({ label: "Work" })],
       colors: { CMSC351: "pink" },
       travel: { pace: "faster", accessible: true, extraMinutes: 5 },
-      chatPlans: { "202701": planB.id },
+      mainPlans: { "202701": planB.id },
     });
     applyRemoteChange(useWorkspace, { settings });
     expect(store()).toMatchObject({
       blocks: settings.blocks,
       colors: settings.colors,
       travel: settings.travel,
-      chatPlans: settings.chatPlans,
+      mainPlans: settings.mainPlans,
     });
     expect(store().undo()).toBe(false);
   });
@@ -131,6 +131,7 @@ describe("rebaseHistory", () => {
       blocks: [],
       colors: {},
       activePlanByTerm: {},
+      mainPlans: {},
     });
     const entries = [
       { label: "one", before: w([planA, planB]) },
