@@ -230,13 +230,13 @@
     column-gap: 56px;
     padding-top: 32px;
   }
+  /* Top-aligned, not centered: a font that swaps in and rewraps the
+     headline must not move the block (layout shift). */
   .mk-hero {
     grid-column: 1;
     grid-row: 1;
-    display: flex;
-    align-items: center;
     min-height: 600px;
-    padding-bottom: 32px;
+    padding-block: 96px 32px;
   }
   .mk-screen-col {
     display: block;
