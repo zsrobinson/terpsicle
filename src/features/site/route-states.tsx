@@ -9,7 +9,6 @@ import { type ReactNode, useEffect } from "react";
 import { logError } from "~/app/activity-log";
 import { AppBar } from "~/app/app-bar";
 import { isChunkLoadError } from "~/app/panel-load-boundary";
-import { useIsMobile } from "~/app/use-media-query";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
@@ -109,21 +108,23 @@ function Frame({
 /**
  * The scheduler's bar (~/app/top-bar) before its code arrives: the same
  * family bar settings, with the term and plans as skeletons where it'll
- * show them.
+ * show them. The Worker draws this for a page that renders only in the
+ * browser, before anyone knows the screen's width, so both shapes are drawn
+ * and CSS keeps the one that fits (a phone's is `compact`, as the
+ * scheduler's is there: MOBILE_QUERY, 768px and below).
  */
 function ScheduleBarPlaceholder() {
-  const mobile = useIsMobile();
-  return (
+  const bar = (compact: boolean) => (
     <AppBar
       current="schedule"
       crowdedBelow2xl
-      compact={mobile}
+      compact={compact}
       feedback="schedule"
       pathname={SCHEDULE_PATH}
       context={
         <span className="flex items-center gap-3">
           <Skeleton className="h-4 w-20" />
-          {mobile ? null : (
+          {compact ? null : (
             <span aria-hidden="true" className="text-faint">
               /
             </span>
@@ -132,6 +133,12 @@ function ScheduleBarPlaceholder() {
         </span>
       }
     />
+  );
+  return (
+    <>
+      <div className="hidden max-[768px]:block">{bar(true)}</div>
+      <div className="max-[768px]:hidden">{bar(false)}</div>
+    </>
   );
 }
 
