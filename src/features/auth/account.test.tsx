@@ -35,7 +35,6 @@ const USER: MeUser = {
   id: "testudo",
   name: "Testudo Terrapin",
   email: "testudo@terpmail.umd.edu",
-  avatarUrl: "/avatars/testudo/0123456789abcdef.png",
   isAdmin: false,
   createdAt: "2026-10-01T15:00:00.000Z",
 };
@@ -331,7 +330,7 @@ describe("/settings", () => {
     expect(screen.getByText("testudo@terpmail.umd.edu")).toBeInTheDocument();
     expect(screen.getByText("testudo")).toBeInTheDocument();
     expect(
-      screen.getByText(/Your name and photo come from your Google account/),
+      screen.getByText(/Your name comes from your Google account/),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Google Account/ }),

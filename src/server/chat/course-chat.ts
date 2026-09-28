@@ -1142,10 +1142,9 @@ export class CourseChat extends DurableObject<Env> {
       id: row.id,
       room: row.room_id,
       author: profiles.get(row.author_id)?.author ?? {
-        // The account is gone: the name it wrote under, no picture.
+        // The account is gone: the name it wrote under.
         directoryId: row.author_id,
         name: row.author_name,
-        picture: null,
       },
       text: row.body,
       createdAt: row.created_at,

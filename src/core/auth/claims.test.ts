@@ -35,8 +35,6 @@ describe("checkGoogleClaims: golden payloads", () => {
         email: "testudo@terpmail.umd.edu",
         hd: "terpmail.umd.edu",
         name: "Testudo Terrapin",
-        pictureUrl:
-          "https://lh3.googleusercontent.com/a/ACg8ocJtestudo0000000000000000000=s96-c",
         sub: "110169484474386276334",
       },
     });
@@ -171,15 +169,12 @@ describe("checkGoogleClaims: each check", () => {
     expect(fallback.ok && fallback.identity.name).toBe("testudo");
   });
 
-  it("keeps only Google-hosted https pictures", () => {
-    for (const picture of [
-      "http://lh3.googleusercontent.com/a/x",
-      "https://evil.example/a.png",
-      "javascript:alert(1)",
-    ]) {
-      const result = check(anIdTokenPayload({ picture }));
-      expect(result.ok && result.identity.pictureUrl).toBeNull();
-    }
+  it("never keeps Google's picture (no profile pictures)", () => {
+    const result = check(ID_TOKEN_PAYLOADS.terpmail);
+    expect(result.ok && Object.keys(result.identity)).not.toContain(
+      "pictureUrl",
+    );
+    expect(JSON.stringify(result)).not.toContain("googleusercontent");
   });
 
   it("rejects payloads that aren't claims", () => {

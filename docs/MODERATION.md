@@ -2,7 +2,7 @@
 
 One shared, model-first service decides whether something a person wrote in Terpsicle Reviews or Terpsicle Chat can be shown. Clean posts publish on their own. Only uncertain or flagged ones reach the owner in `/admin`, so the human queue stays small (`docs/decisions.md`: "Moderation is model-first").
 
-**Chat is lighter than Reviews** (the owner, 2026-09-27, `docs/decisions.md`: "Chat moderation is light, invisible and hard to spam"): "i just don't want any *really* nasty things there. i mostly want to make sure that it's not abused in ways like spamming something in a million different course channels". Phone numbers, emails, rooms, links, casual insults, homework talk, asking for help and code all publish in chat. Sharing answers is discouraged by the room rules and a one-time nudge, never held. What still stops a chat message: slurs, blocked words, Llama Guard's serious categories, attacks on a person, someone else's private details, clear spam, and the spam guard across courses (§2). The author never sees a "checking" state; only a message that's actually held or removed gets one calm line under it.
+**Chat is lighter than Reviews** (the owner, 2026-09-27, `docs/decisions.md`: "Chat moderation is light, invisible and hard to spam"): "i just don't want any *really* nasty things there. i mostly want to make sure that it's not abused in ways like spamming something in a million different course channels". Phone numbers, emails, rooms, links, casual insults, homework talk, asking for help and code all publish in chat. Sharing answers is never held: "Posting here" and a one-time note in the composer say, as a plain fact, that your name is on it. What still stops a chat message: slurs, blocked words, Llama Guard's serious categories, attacks on a person, someone else's private details, clear spam, and the spam guard across courses (§2). The author never sees a "checking" state; only a message that's actually held or removed is tinted yellow for its author, with one plain line under it.
 
 - Pure rules and policy text: `src/core/moderation/`
 - The service, models, storage and admin API: `src/server/moderation/`
@@ -43,8 +43,8 @@ What the caller does with each decision:
 | Decision | Reviews | Chat |
 |---|---|---|
 | `publish` | Publish the review. | Deliver the message to the room. |
-| `hold` | Keep it unpublished; tell the author it's waiting for a person. | Show it only to its author, with one calm line ("Only you can see this for now, until a person looks at it."). |
-| `remove` | Don't publish. Show the author the reason (below). | Don't deliver. Tell only the author ("A person took this down."). |
+| `hold` | Keep it unpublished; tell the author it's waiting for a person. | Show it only to its author, tinted yellow (the warn tokens) with one plain line ("Held for review. Only you can see it until a person checks it."). |
+| `remove` | Don't publish. Show the author the reason (below). | Don't deliver. Tell only the author, the same way ("Taken down after review. Only you can see it."). |
 
 - **Before submitting,** the review composer runs `precheck({kind, text})` from `~/core/moderation` to point at the exact words (every rule reason has a `span`) and say what to fix, with `REASON_WORDS[code]`. `LENGTH_LIMITS` gives the character limits. Nothing is stored by `precheck`. The chat composer says nothing about checking; its only hint is `answersHint(text)`, a one-time nudge about graded answers (§3).
 - **"What's allowed":** `MODERATION_POLICY.review` and `MODERATION_POLICY.chat` hold the text for the panel next to each composer.
@@ -101,7 +101,7 @@ The first retry comes within 5 minutes, as V2 §9.2 asks for chat; reviews get t
 | `asks-for-answers` | "does anyone have the answers to hw 3", "hw 3 solutions", "answer key" | flag | allowed |
 | `code-paste` | a pasted block of code while `activeAssignments` is true | hold | allowed |
 
-"Allowed" means no reason at all: nothing holds, nothing flags, nothing is logged. A chat "flag" never holds; it's kept in the decision log, and `answersHint` uses it for the one-time nudge in the chat composer ("If these are answers to graded work, a hint helps more and keeps everyone's grade safe."), shown once per browser, after which the message sends as usual. The room rules ask kindly: "Help each other learn, but please don't post answers to graded work."
+"Allowed" means no reason at all: nothing holds, nothing flags, nothing is logged. A chat "flag" never holds; it's kept in the decision log, and `answersHint` uses it for the one-time note in the chat composer ("This reads like answers to graded work, and your name goes on it."), shown once per browser, after which the message sends as usual. "Posting here" says it as a fact, not a request: "Your name is on everything you post here, so posting answers to graded work is a bad idea." Chat's words stay neutral: no please, no lecture, no jokes (the owner, 2026-09-28: "like you're a cop").
 
 The integrity rules are deliberately conservative for reviews: people talk about homework, solutions and code for honest reasons all the time ("solutions are posted on ELMS"). Only patterns that are nearly always a problem hold on their own; the rest flag, and the policy model reads them in context. The golden tests in `moderation.test.ts` pin both kinds, and the detectors themselves, including innocent words the blocklist must never match ("Niger", "spices", "raccoon").
 

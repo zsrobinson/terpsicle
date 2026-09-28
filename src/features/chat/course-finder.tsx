@@ -16,8 +16,8 @@ import { ROW_LINK } from "./room-row";
 // Finding any course's chat from the chat list (V2.md §8.2: course rooms
 // are open to anyone signed in), for someone with no classes in a synced
 // plan yet. It searches the course index's search file, the same rows and
-// matching as Reviews' course search, and opens the course's room with its
-// room tree beside it, where Join keeps it in the list.
+// matching as Reviews' course search, and opens the course's room, whose
+// header has Join to keep it in the list.
 
 /** As many as fit under the box without scrolling past the scheduler link. */
 const SHOWN = 8;

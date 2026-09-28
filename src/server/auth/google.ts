@@ -8,7 +8,10 @@ export const GOOGLE_AUTHORIZE_URL =
   "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
-/** openid for the ID token, email for the address, profile for name and picture. */
+/**
+ * openid for the ID token, email for the address, profile for the name.
+ * Google's profile also carries a picture; we ignore it (docs/AUTH.md).
+ */
 export const GOOGLE_SCOPES = "openid email profile";
 
 export interface AuthorizeParams {

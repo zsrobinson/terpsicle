@@ -60,7 +60,7 @@ export const chatApi = {
       input,
       options,
     ),
-  /** Names and pictures of a room's people (at most 200), and how many there are. */
+  /** Names of a room's people (at most 200), and how many there are. */
   members: (
     input: z.input<typeof ChatMembersInputSchema>,
     options?: ApiOptions,

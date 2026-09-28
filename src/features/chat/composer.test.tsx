@@ -79,6 +79,9 @@ describe("Composer", () => {
     expect(screen.queryByRole("status")).toBeNull();
     // Remembered for this browser.
     expect(localStorage.getItem("terpsicle:chat-answers-hint-seen")).toBe("1");
+    // A plain fact, not a lecture (the owner, 2026-09-28).
+    expect(ANSWERS_HINT).toMatch(/your name/i);
+    expect(ANSWERS_HINT).not.toMatch(/please|helps more|safe|don't/i);
   });
 
   it("shows why you can't write, instead of a field", () => {

@@ -1,7 +1,6 @@
 import {
   GoogleIdClaimsSchema,
   type Identity,
-  PictureUrlSchema,
   type SignInError,
   UmdDomainSchema,
   UmdEmailSchema,
@@ -91,7 +90,6 @@ export function checkGoogleClaims(
   const umd = UmdEmailSchema.safeParse(email);
   if (!umd.success) return fail("other-domain", "local-part");
 
-  const picture = PictureUrlSchema.safeParse(claims.picture);
   return {
     ok: true,
     identity: {
@@ -99,7 +97,6 @@ export function checkGoogleClaims(
       email: umd.data.email,
       hd: hd.data,
       name: displayName(claims) ?? umd.data.directoryId,
-      pictureUrl: picture.success ? picture.data : null,
       sub: claims.sub,
     },
   };

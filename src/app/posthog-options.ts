@@ -3,7 +3,7 @@
 import type { PostHogConfig } from "posthog-js";
 import { noAutocaptureUrlPatterns, scrubEvent } from "~/core/analytics";
 
-/** Marks what's private to the person: names, emails, pictures, block labels. */
+/** Marks what's private to the person: names, emails, block labels. */
 export const PRIVATE_SELECTOR = "[data-private]";
 
 /**

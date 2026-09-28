@@ -153,8 +153,9 @@ test("signed out, Chat says what it keeps and what classmates see", async ({
     }),
   ).toBeVisible();
   await expect(
-    page.getByText("Classmates see your Google name and picture"),
+    page.getByText(/Classmates see your name from Google/),
   ).toBeVisible();
+  await expect(page.getByText(/There are no profile pictures/)).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Sign in (test mode)" }),
   ).toBeVisible();
@@ -342,7 +343,7 @@ test("answers get a nudge, held messages stay with their author, and abuse repor
   const answers = `here are the answers to hw 3 ${tag}`;
   const field = page.getByRole("textbox", { name: /^Message/ });
   await field.fill(answers);
-  const nudge = page.getByText(/a hint helps more/);
+  const nudge = page.getByText(/reads like answers to graded work/);
   await expect(nudge).toBeVisible();
   await field.press("Enter");
   await expect(nudge).toHaveCount(0);
@@ -352,14 +353,16 @@ test("answers get a nudge, held messages stay with their author, and abuse repor
   await expect(nudge).toHaveCount(0);
   await field.fill("");
 
-  // A blocked word waits for a person: one calm line, for its author only.
+  // A blocked word waits for a person: tinted yellow with one plain line,
+  // for its author only.
   const held = `found a chink in his argument ${tag}`;
   await send(page, held);
   await expect(
     message(page, held).getByText(
-      "Only you can see this for now, until a person looks at it.",
+      "Held for review. Only you can see it until a person checks it.",
     ),
   ).toBeVisible();
+  await expect(message(page, held)).toHaveAttribute("data-held", "");
 
   // A classmate never sees it; they see the next one, and report it.
   const later = `meet me behind the library ${tag}`;
@@ -386,13 +389,13 @@ test("answers get a nudge, held messages stay with their author, and abuse repor
   await form.getByRole("radio", { name: "A threat" }).check();
   await form.getByRole("button", { name: "Send report" }).click();
   await expect(
-    classmate.page.getByText("Thanks. A person will look at it."),
+    classmate.page.getByText("Reported. A person will read it."),
   ).toBeVisible();
 
   // A threat report takes it down until a person decides; its author is told, quietly.
   await expect(
     message(page, later).getByText(
-      /classmates reported it, so a person will look at it/,
+      "Held for review after a report. Only you can see it until a person checks it.",
     ),
   ).toBeVisible();
 

@@ -34,8 +34,9 @@
 
   "r2_buckets": [
     { "binding": "DATA", "bucket_name": "terpsicle-data" },
-    // Cached Google profile pictures (docs/AUTH.md, "Pictures"), served at
-    // /avatars/* with a session only, never through /data.
+    // Feedback screenshots (docs/FEEDBACK.md), shown to the admin only. It
+    // also held profile pictures under avatars/ until 2026-09-28; the daily
+    // job deletes what's left (src/server/auth/legacy-pictures.ts).
     { "binding": "USER_CONTENT", "bucket_name": "terpsicle-user-content" }
   ],
   "d1_databases": [

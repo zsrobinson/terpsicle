@@ -5,7 +5,6 @@
 import { z } from "zod";
 import { chatMembersFor, sectionsInPlans } from "~/core/chat";
 import {
-  AvatarUrlSchema,
   type ChatAuthor,
   type ChatMembersResult,
   type ChatPlans,
@@ -20,14 +19,12 @@ import {
   SettingsDocSchema,
   type TermId,
 } from "~/core/schema";
-import { avatarUrl } from "../auth/session";
 
 // ---------- profiles ----------
 
 const ProfileRowSchema = z.object({
   id: DirectoryIdSchema,
   name: z.string(),
-  picture_key: z.string().nullable(),
   status: z.string(),
   chat_blocked_until: z.string().nullable(),
 });
@@ -44,19 +41,17 @@ export interface ChatProfile {
 const AUTHOR_NAME_MAX = 120;
 
 function toProfile(row: z.infer<typeof ProfileRowSchema>): ChatProfile {
-  const picture = AvatarUrlSchema.safeParse(avatarUrl(row.picture_key));
   return {
     author: {
       directoryId: row.id,
       name: row.name.trim().slice(0, AUTHOR_NAME_MAX).trim() || row.id,
-      picture: picture.success ? picture.data : null,
     },
     active: row.status === "active",
     chatBlockedUntil: row.chat_blocked_until,
   };
 }
 
-/** People as they are now (names and pictures follow the Google account). */
+/** People as they are now (names follow the Google account). */
 export async function readProfiles(
   db: D1Database,
   ids: readonly string[],
@@ -65,7 +60,7 @@ export async function readProfiles(
   if (ids.length === 0) return out;
   const { results } = await db
     .prepare(
-      `SELECT id, name, picture_key, status, chat_blocked_until FROM users
+      `SELECT id, name, status, chat_blocked_until FROM users
        WHERE id IN (SELECT value FROM json_each(?1))`,
     )
     .bind(JSON.stringify([...new Set(ids)]))
@@ -257,7 +252,7 @@ export async function roomMembers(
   const [page, count] = await db.batch([
     db
       .prepare(
-        `SELECT u.id, u.name, u.picture_key, u.status, u.chat_blocked_until
+        `SELECT u.id, u.name, u.status, u.chat_blocked_until
          FROM chat_members m JOIN users u ON u.id = m.user_id
          WHERE ${where} ORDER BY u.name, u.id LIMIT ?4`,
       )

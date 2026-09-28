@@ -62,7 +62,7 @@ describe("MessageRow", () => {
     expect(within(article).getByText(noor.name)).toBeInTheDocument();
   });
 
-  it("tells only the author why classmates can't see a message yet", () => {
+  it("marks a held message for its author: yellow, with one plain line", () => {
     row(
       aChatMessage({
         author: me,
@@ -70,11 +70,24 @@ describe("MessageRow", () => {
       }),
     );
     expect(screen.getByTestId("held-note")).toHaveTextContent(
-      "Only you can see this for now, until a person looks at it.",
+      "Held for review. Only you can see it until a person checks it.",
     );
-    expect(
-      screen.getByRole("article").querySelector("[data-message-body]"),
-    ).toHaveClass("text-muted");
+    expect(screen.getByTestId("held-note")).toHaveClass("text-warn");
+    // The warn tokens, never red, and the text itself stays readable.
+    const article = screen.getByRole("article");
+    expect(article).toHaveAttribute("data-held");
+    expect(article).toHaveClass("bg-warn-soft");
+    expect(article.querySelector("[data-held-edge]")).toHaveClass("bg-warn");
+    expect(article.className).not.toMatch(/error|red/);
+    expect(article.querySelector("[data-message-body]")).not.toHaveClass(
+      "text-muted",
+    );
+  });
+
+  it("marks nobody else's message as held, and none that's visible", () => {
+    row(aChatMessage({ author: me }));
+    expect(screen.getByRole("article")).not.toHaveAttribute("data-held");
+    expect(screen.getByRole("article")).not.toHaveClass("bg-warn-soft");
   });
 
   it("shows a message being checked as sent, with nothing about checking", () => {
@@ -172,7 +185,7 @@ describe("MessageRow", () => {
       "after class",
     );
     expect(
-      await screen.findByText("Thanks. A person will look at it."),
+      await screen.findByText("Reported. A person will read it."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("form")).toBeNull();
   });
@@ -201,7 +214,7 @@ describe("MessageRow", () => {
     expect(send).toBeDisabled();
     await user.type(
       within(form).getByRole("textbox", {
-        name: "Say what's wrong, so a person knows what to look for",
+        name: "What's the problem? A person reads this",
       }),
       "keeps messaging me",
     );

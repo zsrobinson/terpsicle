@@ -25,9 +25,11 @@ import { WithTooltip } from "~/ui/tooltip";
 
 // The composer (V2.md §8.6): plain text, Enter to send and Shift+Enter for a
 // new line, and "What's allowed" one tap away. Nothing here says a message
-// will be checked (the owner, 2026-09-27). The one exception is a gentle
-// nudge, shown once per browser, when a draft looks like answers to graded
-// work; it never stops the message. Typing "@" offers the room's members
+// will be checked (the owner, 2026-09-27). The one exception is a plain
+// note, shown once per browser, when a draft looks like answers to graded
+// work: a fact, not a lecture (2026-09-28); it never stops the message.
+// It's there while the room connects too: a send then waits in the session
+// and goes once the room's open. Typing "@" offers the room's members
 // (loaded the first time), and picking one writes their full name, which is
 // how the object finds who to notify.
 
@@ -38,7 +40,7 @@ const SHOW_LEFT = 200;
 const ANSWERS_HINT_KEY = "terpsicle:chat-answers-hint-seen";
 
 export const ANSWERS_HINT =
-  "If these are answers to graded work, a hint helps more and keeps everyone's grade safe.";
+  "This reads like answers to graded work, and your name goes on it.";
 
 function answersHintSeen(): boolean {
   try {

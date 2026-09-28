@@ -17,10 +17,15 @@ import {
 // rooms and their unread counts. Your rooms come from your chat plan (a
 // placed section's course, professor and section rooms; a saved course's
 // course room) and from course rooms you follow. Counts come from
-// chat/unread, which only lists rooms that have messages.
+// chat/unread, which only lists rooms that have messages. Rooms that aren't
+// yours (another section's, another professor's) are never listed: to see
+// one, you'd add that section to a plan (the owner, 2026-09-28).
 
-/** Why a course is in your list. */
-export type ChatListReason = "plan" | "saved" | "following";
+/**
+ * Why a course is in your list. "viewing": a course you opened (from Find a
+ * course, or a link) but haven't joined, kept at the end while it's open.
+ */
+export type ChatListReason = "plan" | "saved" | "following" | "viewing";
 
 export type ChatListRoom = {
   readonly room: Room;
@@ -48,11 +53,13 @@ export interface ChatListInput {
   follows: readonly CourseCode[];
   unread: readonly ChatUnreadRoom[];
   courses: ReadonlyMap<CourseCode, Course>;
+  /** The course whose room is open, listed last if it isn't yours. */
+  viewing?: CourseCode | null;
 }
 
 /** Every course the list needs from the catalog. */
 export function chatListCourseCodes(
-  input: Omit<ChatListInput, "courses">,
+  input: Omit<ChatListInput, "courses" | "viewing">,
 ): CourseCode[] {
   return [
     ...new Set([
@@ -117,6 +124,7 @@ export function chatList(input: ChatListInput): ChatListCourse[] {
     ...unread.map((r) => r.courseCode),
   ].sort();
   for (const code of followed) add(code, "following", null);
+  if (input.viewing) add(input.viewing, "viewing", null);
   return out;
 }
 

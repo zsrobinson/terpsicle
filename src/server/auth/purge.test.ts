@@ -160,14 +160,11 @@ async function seedAccount(id: string, n: number) {
       }),
       new Date(at),
     );
-  const key = `avatars/${id}/0123456789abcdef.png`;
-  await env.USER_CONTENT.put(key, new Uint8Array([1, 2, 3]));
   const plan = aPlan({ id: `plan_${id}` });
   const fourYear = aFourYear({ id: `fouryear_${id}` });
   const item = aTodoItem();
   await env.DB.batch(
     [
-      ["UPDATE users SET picture_key = ?2 WHERE id = ?1", id, key],
       [
         `INSERT INTO sessions (id_hash, user_id, created_at, last_seen_at, expires_at)
          VALUES (?1, ?2, ?3, ?3, ?4)`,
@@ -404,9 +401,6 @@ describe("the daily purge", () => {
     // Their chat messages, reactions and send log, in every course.
     for (const course of COURSES)
       expect(await chatRowsOf(course, GONE), course).toBe(0);
-    expect(
-      (await env.USER_CONTENT.list({ prefix: `avatars/${GONE}/` })).objects,
-    ).toEqual([]);
 
     // Their review stays up with no author; their report stays, from nobody.
     expect(
@@ -538,9 +532,6 @@ describe("the daily purge", () => {
     // The course already under way is gone; nothing after it is touched.
     expect(await chatRowsOf("CMSC131", GONE)).toBe(0);
     expect(await chatRowsOf("CMSC351", GONE)).toBeGreaterThan(0);
-    expect(
-      (await env.USER_CONTENT.list({ prefix: `avatars/${GONE}/` })).objects,
-    ).toHaveLength(1);
     // Every row is still there, but the finished course's chat record.
     expect(await rowsMentioning(GONE)).toEqual(
       before.map((r) =>
@@ -570,9 +561,6 @@ describe("the daily purge", () => {
     ).toBe("deleting");
     for (const course of COURSES)
       expect(await chatRowsOf(course, GRACE)).toBeGreaterThan(0);
-    expect(
-      (await env.USER_CONTENT.list({ prefix: `avatars/${GRACE}/` })).objects,
-    ).toHaveLength(1);
 
     await runDailyJob({
       env: env as Env,

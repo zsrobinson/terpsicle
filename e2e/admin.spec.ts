@@ -277,7 +277,7 @@ test("the admin removes a chat message from its link and stops its author, then 
   // The author sees it taken down live (a reload leaves removed messages
   // out), and a calm line when they try again.
   await expect(
-    author.getByText("A person took this down. Only you can see it.").first(),
+    author.getByText("Taken down after review. Only you can see it.").first(),
   ).toBeVisible();
   await send(`one more thing ${tag}`);
   await expect(

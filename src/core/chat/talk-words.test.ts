@@ -59,19 +59,22 @@ describe("words", () => {
     // Being checked looks sent: nothing says a bot is reading it.
     expect(heldWords({ state: "held", reason: "checking" })).toBeNull();
     expect(heldWords({ state: "held", reason: "flagged" })).toBe(
-      "Only you can see this for now, until a person looks at it.",
+      "Held for review. Only you can see it until a person checks it.",
     );
     expect(heldWords({ state: "held", reason: "graded-work" })).toContain(
       "graded work",
     );
     expect(heldWords({ state: "held", reason: "reported" })).toContain(
-      "reported",
+      "after a report",
     );
-    expect(heldWords({ state: "removed" })).toContain("took this down");
+    expect(heldWords({ state: "removed" })).toBe(
+      "Taken down after review. Only you can see it.",
+    );
     for (const reason of ["flagged", "graded-work", "reported"] as const) {
       const words = heldWords({ state: "held", reason }) ?? "";
       expect(words.length).toBeLessThanOrEqual(90);
       expect(words).not.toMatch(/edit or delete|check it first/i);
+      expect(words).toMatch(/^Held for review\b.*Only you can see it/);
     }
   });
 

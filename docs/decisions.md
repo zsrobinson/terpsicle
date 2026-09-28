@@ -71,8 +71,13 @@ Revisit if: the scheduler's bar changes its context or status, or the owner want
 
 ### Sign in with Google, UMD only
 2026-09-26 · owner · app-wide
-Google only, with `hd` exactly `terpmail.umd.edu` or `umd.edu` and a verified email; no magic link. Real names and pictures come from Google at every sign-in and aren't editable here. People are keyed on their directory ID.
-Revisit if: UMD changes its Google domains.
+Google only, with `hd` exactly `terpmail.umd.edu` or `umd.edu` and a verified email; no magic link. Real names come from Google at every sign-in and aren't editable here; pictures aren't collected at all ("No profile pictures", below). People are keyed on their directory ID.
+Revisit if: UMD changes its Google domains. (changed 2026-09-28: no pictures)
+
+### No profile pictures
+2026-09-28 · owner · app-wide
+"it doesn't seem like profile pictures sync from google at all, but i actually think that's a good thing and we actually shouldn't do that. because of that, we can just remove any need to support or store them at all." Terpsicle doesn't fetch, store or show Google's picture; everyone is an ink monogram of their initials. Migration 0020 nulls `users.picture_url` and `picture_key` (a later one drops them once no older build reads them), and the daily job empties R2's `avatars/`. `CHAT_PROTOCOL_VERSION` went to 2, since message authors lost `picture`.
+Revisit if: never on its own.
 
 ### Schedule works signed out
 2026-09-26 · owner · app-wide
@@ -81,7 +86,7 @@ Revisit if: never on its own.
 
 ### A deleted account leaves nothing that names the person
 2026-09-26 · agent · app-wide
-After the week, the daily purge removes every row with the person's directory ID or addresses, their chat messages in every course object and their pictures. Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
+After the week, the daily purge removes every row with the person's directory ID or addresses and their chat messages in every course object (there are no pictures to remove). Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
 Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
 
 ### LLMs only in three places
@@ -343,8 +348,23 @@ Revisit if: readers need finer freshness than a month.
 
 ### Real names, pre-made rooms
 2026-09-26 · owner · one feature
-Real names and Google pictures, no pseudonyms. Rooms come from the catalog (a course room, a room per professor when there's more than one, section rooms, no lecture rooms), your rooms from your synced plan, and nothing's stored until a room's first message.
-Revisit if: rooms feel empty or noisy.
+Real names, no pseudonyms, and no pictures (initials stand in). Rooms come from the catalog (a course room, a room per professor when there's more than one, section rooms, no lecture rooms), your rooms from your synced plan, and nothing's stored until a room's first message.
+Revisit if: rooms feel empty or noisy. (changed 2026-09-28: no pictures)
+
+### Only your rooms, in one list that stays put
+2026-09-28 · owner · one feature
+"i don't think we need to display other sections or instructors in there as locked; if you wanted to see them you would've just added that other section to your schedule." And opening a room "felt like you opened up a whole new sidebar". So the chat list is Chat's one sidebar and only lists your rooms (plus the course whose room is open, last, until you join or leave). There's no course page of every room: a course on its own opens its course room, Join sits in that room's header, and a room opens beside the list (a desktop) or slides in over it (a phone), in its final shape from the first frame.
+Revisit if: people ask to browse a course's other sections' rooms.
+
+### Anonymous chat is held off
+2026-09-28 · owner · one feature
+The owner asked classmates about anonymous chats, and they liked the idea, but "i was concerned about misuse still, so i think we'll hold off on that." Everything in Chat carries your real name; nothing is built toward anonymous posting.
+Revisit if: the owner raises it again, for example with a plan against misuse.
+
+### Chat's words are neutral, not a cop
+2026-09-28 · owner · one feature
+"the chat rules explanation and "before you post" thing feels very paternalistic and like you're a cop, basically. we can relax a little, but don't try to overly seem casual; just be neutral. for instance, instead of moralistically saying not to share answers, just make it seem like it would obviously be a bad idea since your name is attached to it." So "Posting here", the composer's answers note, held lines and the report form state facts ("Your name is on everything you post here, so posting answers to graded work is a bad idea."), with no please, no lectures and no jokes. A message held for review is tinted yellow for its author, with one plain line, so it's clear at a glance.
+Revisit if: never on its own.
 
 ### One Durable Object per course per term
 2026-09-26 · owner · one feature
@@ -363,7 +383,7 @@ Revisit if: e2e needs to cover a model's own verdict.
 
 ### Chat moderation is light, invisible and hard to spam
 2026-09-27 · owner · one feature
-"i just don't want any *really* nasty things there. i mostly want to make sure that it's not abused in ways like spamming something in a million different course channels … sending a phone number to coordinate a study group, that should be perfectly fine, or links out to resources … this should mostly be transparent to the user … they should have the option to report other's messages for abuse only. something like sharing answers should be disencouraged but i'm not trying to be a narc." So chat stops only slurs, blocked words, Llama Guard's serious categories, attacks on a person, someone else's private details and clear spam, plus a cross-room spam guard (the same text in 3+ courses in an hour, or 13+ messages across 5+ courses in 10 minutes; one course's rooms count once), held urgent for the owner. The author sees nothing unless a message is really held; reports are abuse-only; answers get a kind room rule and a one-time nudge (docs/MODERATION.md).
+"i just don't want any *really* nasty things there. i mostly want to make sure that it's not abused in ways like spamming something in a million different course channels … sending a phone number to coordinate a study group, that should be perfectly fine, or links out to resources … this should mostly be transparent to the user … they should have the option to report other's messages for abuse only. something like sharing answers should be disencouraged but i'm not trying to be a narc." So chat stops only slurs, blocked words, Llama Guard's serious categories, attacks on a person, someone else's private details and clear spam, plus a cross-room spam guard (the same text in 3+ courses in an hour, or 13+ messages across 5+ courses in 10 minutes; one course's rooms count once), held urgent for the owner. The author sees nothing unless a message is really held; reports are abuse-only; answers get a plain line in "Posting here" and a one-time note in the composer (docs/MODERATION.md).
 Revisit if: never on its own.
 
 ### Mentions come from the text

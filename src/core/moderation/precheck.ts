@@ -53,7 +53,7 @@ type RuleCode =
  * and links, people vent and ask for help, and pasted code is how you ask
  * about a bug. Only slurs and blocked words act. Answer lists and
  * answer-sharing sites only flag: nothing holds, the author may see a
- * one-time nudge (`answersHint`), and the room rules ask kindly. A UID is
+ * one-time note (`answersHint`), and "Posting here" states it plainly. A UID is
  * still held unless it's the writer's own: it's the one detail that's
  * private on its face.
  */

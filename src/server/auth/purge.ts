@@ -8,15 +8,13 @@
 //   1. Chat: `purgeAuthor` on every course object in `chat_author_courses`,
 //      each row deleted only once its object has answered. A run that dies
 //      midway leaves the rest for tomorrow.
-//   2. Pictures in R2 (`avatars/<userId>/`).
-//   3. One D1 batch (a transaction): every row below, the `users` row last.
-// Until step 3 commits, the account is still `deleting` and past its date,
+//   2. One D1 batch (a transaction): every row below, the `users` row last.
+// Until step 2 commits, the account is still `deleting` and past its date,
 // so the next run picks it up again and finishes.
 import { courseRoomId } from "~/core/schema";
 import type { CourseChatNamespace } from "../chat/course-chat";
 import { forgetReporterStatement } from "../moderation/store";
 import { forgetAuthorStatement } from "../reviews/store";
-import { deletePictures } from "./pictures";
 
 /**
  * Every table in `migrations/`, and what the purge does to a person's rows
@@ -100,7 +98,6 @@ export const SYSTEM_TABLES = ["d1_migrations", "_cf_KV", "_cf_METADATA"];
 
 export interface PurgeEnv {
   DB: D1Database;
-  USER_CONTENT: R2Bucket;
   COURSE_CHAT: CourseChatNamespace;
 }
 
@@ -170,8 +167,6 @@ export async function purgeDueAccounts(
       report.chatMessages += chat.messages;
       // Signed in since the run started: the account stays.
       if (!chat.due) continue;
-      step = "pictures";
-      await deletePictures(env.USER_CONTENT, userId);
       step = "rows";
       const results = await env.DB.batch(
         accountStatements(env.DB, userId, now),

@@ -14,7 +14,7 @@ import {
 
 // Feedback screenshots (docs/FEEDBACK.md): the page as the person sees it,
 // drawn with modern-screenshot (loaded here, on first use). Every
-// `data-private` element (names, pictures, other people's words, block
+// `data-private` element (names, initials, other people's words, block
 // labels) is hidden in the copy and painted over as a solid box on the
 // image, so its pixels never exist. Our own sheet, tooltips and toasts are
 // left out. WebGL maps read back blank, so each is asked for a frame first.

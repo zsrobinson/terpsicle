@@ -113,6 +113,10 @@ _Avoid_: log in, magic link
 **Directory ID**:
 The part of a UMD email before the @. It's who a person is to Terpsicle: `x@umd.edu` and `x@terpmail.umd.edu` are one account.
 
+**Initials**:
+The ink circle with someone's initials that stands for them beside their name: the account button, Settings, a chat message, a room's people. Terpsicle has no profile pictures. Code calls it `Avatar`.
+_Avoid_: profile picture, photo, avatar (in UI)
+
 **Notification**:
 A push on your phone or computer, or an email, for one of the few kinds: seat openings, mentions and replies in Chat, and Todo's Due tomorrow. Each kind has its switches in Settings ("Notification", "Email").
 _Avoid_: alert, push (in UI; code says push for the web push channel)
@@ -319,6 +323,10 @@ The room for one professor's sections, only when a course has more than one prof
 The room for one section, named by its meetings. Only courses with two or more sections have them.
 _Avoid_: lecture room
 
+**Your rooms**:
+The rooms the chat list shows: your chat plan's (each section's course, professor and section rooms; a bookmarked course's course room) and the course rooms you've joined. Other sections' and professors' rooms aren't listed at all. A course whose room you opened without joining sits last until you join or leave it.
+_Avoid_: locked rooms, a course's room tree
+
 **Chat plan**:
 The synced plan a term's rooms come from ("Rooms from Plan A in Schedule ▾"). Copy names Schedule, since the plan open there may be another; signed out, it says "the classes you add in Schedule", never "sync".
 
@@ -326,8 +334,9 @@ The synced plan a term's rooms come from ("Rooms from Plan A in Schedule ▾"). 
 Keeping a course room in your chat list when the course isn't in your chat plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it.
 _Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
 
-**Room rules**:
-The three lines a course's chat shows the first time you open it, and in room info. Kind, and never "a bot checks your messages": they ask people not to post answers to graded work, and say how to report abuse.
+**Posting here**:
+The two plain lines over the composer the first time you open a course's chat (until "Got it" or your first post there), and in room info: your name is on everything you post, so posting answers to graded work is a bad idea; Report is in each message's menu. Neutral, never a lecture, and never "a bot checks your messages". Code calls them the room rules.
+_Avoid_: rules, before you post (in UI)
 
 **Mention**:
 "@" and a classmate's name in a message ("@Hannah Lee"). Typing "@" offers the room's members; a mention of someone in the room notifies them, even in a room they muted.
@@ -351,7 +360,7 @@ Everyone who can read the room or page sees it.
 Being screened. A review's button says "Checking…". A chat message being checked looks sent to its author, with no note; classmates get it once it passes.
 
 **Held**:
-Waiting for a person. Only its author sees it, with a plain note saying why, never in red.
+Waiting for a person. Only its author sees it: in Chat it's tinted yellow with one plain line ("Held for review. Only you can see it until a person checks it."), never red.
 
 **Removed**:
 Taken down. Nobody sees the text; its author is told.

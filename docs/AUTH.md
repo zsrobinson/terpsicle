@@ -4,7 +4,7 @@ How Terpsicle knows who someone is. The plan is `docs/V2.md` §4; this is how th
 
 - **Google only**, and **UMD accounts only**: the ID token's `hd` must be exactly `terpmail.umd.edu` or `umd.edu`, and `email_verified` must be `true`. No passwords, no magic links, no other providers.
 - **People are their directory ID** (the email's local part): `terp@terpmail.umd.edu` and `terp@umd.edu` are one account, `users.id = 'terp'`, and both addresses are kept.
-- **Names and pictures always come from Google**, refreshed at every sign-in. Nothing edits them in Terpsicle.
+- **Names always come from Google**, refreshed at every sign-in. Nothing edits them in Terpsicle. **There are no profile pictures** (the owner, 2026-09-28): Google's `picture` claim is ignored, and everyone is their initials ("No pictures", below).
 - **The scheduler works fully signed out.** Terpsicle sets no cookie until someone signs in.
 - **No OAuth library** (`arctic`, `oslo` and `@oslojs/*` are deprecated): two `fetch`es and WebCrypto.
 
@@ -18,7 +18,7 @@ How Terpsicle knows who someone is. The plan is `docs/V2.md` §4; this is how th
 | Sessions, `getSession` | `src/server/auth/session.ts` |
 | `requireUser`, `requireAdmin`, the origin check | `src/server/auth/guard.ts` |
 | `me`, `auth/sign-out`, `account/delete`, `auth/test-sign-in` | `src/server/auth/api.ts`, registered in `src/server/api/router.ts` |
-| Pictures (`/avatars/*`) | `src/server/auth/pictures.ts` |
+| The old pictures' cleanup (R2 `avatars/`) | `src/server/auth/legacy-pictures.ts` |
 | Admins | `config/admins.txt`, read by `src/server/auth/admin.ts` |
 | The account purge | `src/server/auth/purge.ts` (`PURGE_LEDGER` lists every table), run by `src/jobs/daily.ts` (`7 13 * * *`) |
 | Top bar button and menu, `/settings`, `/signin`, `/auth/test` | `src/features/auth/`, `src/routes/{settings,signin}.tsx`, `src/routes/auth/test.tsx`. On phones one top-bar button holds both the account (or Sign in) and the theme, so the plan's name keeps a tappable width. |
@@ -71,7 +71,7 @@ GOOGLE_REDIRECT_ORIGINS=http://localhost:3000
 ## The flow
 
 **`GET /api/auth/google?return=<path>`** (a navigation, never fetched):
-1. `return` must be a same-origin path (starts with `/`, not `//`, no backslash or control characters, at most 512 characters, not `/api` or `/avatars`); otherwise `/schedule`. So it's never an open redirect.
+1. `return` must be a same-origin path (starts with `/`, not `//`, no backslash or control characters, at most 512 characters, not `/api`); otherwise `/schedule`. So it's never an open redirect.
 2. Rate limit: 30 per IP per hour (keyed HMAC of the IP).
 3. `state`, `nonce` and the PKCE `code_verifier` are 32 random bytes each; `code_challenge = base64url(SHA-256(verifier))`.
 4. They go in `__Host-oauth` = `base64url(JSON {state, nonce, verifier, return, exp})` + `.` + `base64url(HMAC-SHA-256(AUTH_SECRET, payload))`, for 10 minutes. `SameSite=Lax`, because the callback is a top-level GET from accounts.google.com.
@@ -99,11 +99,11 @@ GOOGLE_REDIRECT_ORIGINS=http://localhost:3000
    | `email_verified` | `=== true` | `unverified-email` |
    | `email` | lowercased, and its domain is `hd` | `other-domain` |
    | local part | `^[a-z0-9]{2,16}$`: the directory ID | `other-domain` |
-   | `name`, `picture` | optional; the name falls back to `given_name family_name`, then the directory ID; only `https://…googleusercontent.com` pictures | — |
+   | `name` | optional; falls back to `given_name family_name`, then the directory ID (`picture` is ignored) | — |
 
    **Why `hd`, not the email's suffix:** Google is authoritative for a non-Gmail address only "when email_verified is true and hd is set"; otherwise "ownership of the third party email account may have since changed" ([Google](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token)). Someone can make a consumer Google account with a UMD address as its login; that token has no `hd` and is refused as a personal account.
-6. Upsert the user by directory ID and the identity by `sub`, refreshing the name, picture URL and email. A `sub` already tied to another directory ID is refused (`google-error`). Signing in cancels a pending deletion.
-7. Refresh the picture (see "Pictures"), end any session this browser already had (no fixation), mint a new one, set `__Host-session` and `__Host-hint`, and `303` to `return` with `?signed-in=1`. The app strips that and counts the sign-in.
+6. Upsert the user by directory ID and the identity by `sub`, refreshing the name and email. A `sub` already tied to another directory ID is refused (`google-error`). Signing in cancels a pending deletion.
+7. End any session this browser already had (no fixation), mint a new one, set `__Host-session` and `__Host-hint`, and `303` to `return` with `?signed-in=1`. The app strips that and counts the sign-in.
 
 **Errors land on `/signin?error=<code>&return=<path>`** with plain words (`signInErrorMessage`), another "Sign in with Google" and "Back to Terpsicle":
 - `personal-account`: "That's a personal Google account. Choose your @terpmail.umd.edu or @umd.edu account."
@@ -157,13 +157,13 @@ if (!auth.ok) return auth.response; // 403 wrong origin, 401 signed out
 const { user } = auth.session;        // requireAdmin: also 403 for non-admins
 ```
 
-These never refresh sessions or set cookies. For a GET that only reads (like `/avatars/*`, which an `<img>` loads without an `Origin` header), call `getSession(request, env, now)` from `src/server/auth/session.ts`.
+These never refresh sessions or set cookies. For a GET that only reads (like an admin's feedback screenshot, which an `<img>` loads without an `Origin` header), call `getSession(request, env, now)` from `src/server/auth/session.ts`.
 
-**What you get** (`AuthUser`): `id` (the directory ID), `email` and `hd` (the address used last), `name`, `avatarUrl` (our cached copy, or null), `isAdmin`, `createdAt`, `chatBlockedUntil`, `reviewsBlockedUntil`.
+**What you get** (`AuthUser`): `id` (the directory ID), `email` and `hd` (the address used last), `name`, `isAdmin`, `createdAt`, `chatBlockedUntil`, `reviewsBlockedUntil`.
 
 **Rules for your tables and code:**
 - Reference `users (id) ON DELETE CASCADE`, and add your table to `PURGE_LEDGER` and its statement to `accountStatements` in `src/server/auth/purge.ts`: the purge deletes rows explicitly too, and a test fails while a table is missing from the ledger. If your data can't just go (reviews stay up without a name), null the column there instead.
-- Show the stored name and picture, never your own copy: they change when the person signs in again.
+- Show the stored name, never your own copy: it changes when the person signs in again.
 - Never log, track or put in an event a name, email, directory ID, token, cookie or `sub`. Log check names and statuses only.
 - A reviewer's identity never reaches readers, moderation or the admin view (V2.md §7.5).
 
@@ -175,13 +175,13 @@ These never refresh sessions or set cookies. For a GET that only reads (like `/a
 
 **Admin pages** (`/admin`, `/admin/*`): the Worker decides before the app renders anything (`pageAccess` in `src/server/auth/pages.ts`, a read-only `getSession`). Signed out → `302 /signin?return=<path>`, and back after signing in; signed in but not an admin → the app's own "Page not found" with a real 404, so nothing hints the panel exists; the admin → the page. All three are `private, no-store`. The panel's API routes are `auth: "admin"` regardless.
 
-## Pictures
+## No pictures
 
-Our own copy, never a hot link to Google:
-- Hot-linking `lh3.googleusercontent.com` would let Google see every viewer's IP each time a picture shows (Chat shows many), and breaks when Google's URL changes.
-- A same-origin copy keeps the CSP at `img-src 'self'` (V2.md §12) with no Google host.
+Terpsicle doesn't collect, store or show profile pictures (the owner, 2026-09-28: "we can just remove any need to support or store them at all"; `docs/decisions.md`). The `profile` scope stays for the name; Google's `picture` claim is dropped with the rest of the token. Everyone is their initials in an ink circle (`Avatar` in `src/features/auth/avatar.tsx`).
 
-At sign-in, when Google's picture URL changed (or there's no copy yet), the Worker fetches it at 96 px (`=s96-c`), checks it's JPEG, PNG or WebP under 200 KB, and puts it in R2 `USER_CONTENT` at `avatars/<userId>/<hash16>.<ext>`; `users.picture_key` points at it and the old object is deleted. A failure keeps the last copy, or none; the app shows initials then. `/avatars/<userId>/<hash16>.<ext>` serves it only to signed-in people, `private, max-age=86400, immutable`. Account deletion removes the objects.
+Until then, sign-in copied the picture into R2 `USER_CONTENT` at `avatars/<userId>/…` and served it at `/avatars/*`. Now:
+- `/avatars/*` isn't a route, and `users.picture_url` and `picture_key` are always null (migration `0020_no_pictures`, which only nulls them so the build serving during the deploy kept working; a later migration drops them).
+- The daily job deletes what's left under `avatars/`, up to 5,000 objects a run (`sweepLegacyPictures`). Once it's empty in production and preview, that file, its call and the columns go.
 
 ## Test mode (PR previews, `pnpm dev:mock`, e2e)
 
@@ -192,7 +192,7 @@ Google forbids wildcard redirect URIs, and previews live at `pr-<n>-terpsicle.zs
 - End-to-end tests also sign in as throwaway people, `e2e` plus up to 13 letters or digits ("E2E Tester", never an admin; `/auth/test` doesn't list them), through the same route, so parallel tests never share an account's synced plans.
 - What test mode skips (Google's redirect and token exchange) is covered by `src/server/auth/auth.test.ts`, which runs the whole callback against a mocked token endpoint, and by trying it on localhost and production.
 
-**Why not a broker on terpsicle.com** (the callback on terpsicle.com hands a one-time code to the preview): previews run unreviewed PR code, so a broker would hand real Google identities (names, emails, pictures) to any PR, and add a production endpoint that trusts `*.workers.dev`; previews have their own D1, so it would also need a server-to-server redemption API; and CI needs a deterministic sign-in anyway (V2.md §4.6).
+**Why not a broker on terpsicle.com** (the callback on terpsicle.com hands a one-time code to the preview): previews run unreviewed PR code, so a broker would hand real Google identities (names and emails) to any PR, and add a production endpoint that trusts `*.workers.dev`; previews have their own D1, so it would also need a server-to-server redemption API; and CI needs a deterministic sign-in anyway (V2.md §4.6).
 
 **Why not Cloudflare's version preview URLs** (`wrangler versions upload --preview-alias`), whose versions share the Worker's secrets: a version runs with the Worker's own bindings, so a preview would read and write **production D1** (and the production `USER_CONTENT` bucket), which previews must never touch. And sharing `GOOGLE_CLIENT_SECRET` wouldn't help: Google still only redirects to registered URIs, and every alias host would need registering by hand. Workers Previews (`wrangler preview`, their own D1 and bucket) plus test mode keep production data out of reach.
 

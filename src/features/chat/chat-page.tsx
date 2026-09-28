@@ -28,17 +28,17 @@ import {
 import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
-import { PageHeader } from "~/ui/page-header";
+import { type BackTo, PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, useChatHome } from "./chat-home";
 import { CourseFinder } from "./course-finder";
-import { CourseSpace } from "./course-space";
+import { JoinButton } from "./join-button";
 import type { ChatGo, ChatView } from "./nav";
 import { RoomInfo } from "./room-info";
 import { RoomList, useChatList } from "./room-list";
-import { RoomView } from "./room-view";
+import { RoomSkeleton, RoomView } from "./room-view";
 import { useCourseChat } from "./session";
 import { ChatClosed, SignInMoment } from "./sign-in-moment";
 import { ChatTermMenu } from "./term-menu";
@@ -46,9 +46,12 @@ import { ChatTermMenu } from "./term-menu";
 // Terpsicle Chat (`/chat`, V2.md §8.6), the kit's "full" page: a tool with
 // panes under the family bar. Signed out, it's the front door; signed in,
 // the list of your classes and their rooms beside the room you're in, with
-// the term in the bar. On a phone (SPEC §2) one thing at a time: the list, a
-// course's rooms, or a room, with room info in a bottom drawer. Everything is
-// plain text and tokens; there are no sparkles anywhere in Chat.
+// the term in the bar. The list is the one sidebar and stays put: opening a
+// room fills the pane beside it (the owner, 2026-09-28: it mustn't feel like
+// a new sidebar). On a phone (SPEC §2) one thing at a time: the room slides
+// in over the list, which stays mounted underneath, so Back finds it where
+// you left it; room info is a bottom drawer. Everything is plain text and
+// tokens; there are no sparkles anywhere in Chat.
 
 /** How often the list's unread counts refresh while /chat is open. */
 const UNREAD_EVERY_MS = 60_000;
@@ -146,9 +149,23 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
       : null;
   const course: CourseCode | null = room
     ? (parseRoomId(room)?.courseCode ?? null)
-    : (view.course ?? null);
+    : null;
 
-  // Esc walks back out: room info, thread, room, course, list.
+  // A course on its own (an older link) opens its course room: every room
+  // of yours is already in the list, so there's no course page between.
+  useEffect(() => {
+    if (view.room || !view.course || view.join || !termId) return;
+    go(
+      {
+        term: view.term,
+        course: view.course,
+        room: courseRoomId(termId, view.course),
+      },
+      { replace: true },
+    );
+  }, [view, termId, go]);
+
+  // Esc walks back out: room info, thread, room, list.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
@@ -157,12 +174,11 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
         return;
       if (infoOpen) setInfoOpen(false);
       else if (view.thread) go({ ...view, thread: undefined });
-      else if (view.room) go({ term: view.term, course: course ?? undefined });
-      else if (view.course) go({ term: view.term });
+      else if (view.room) go({ term: view.term });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [view, go, course, infoOpen]);
+  }, [view, go, infoOpen]);
 
   // The tab's title counts unread messages.
   const unread = useChatHome((s) => chatListUnread(chatListOf(s)));
@@ -198,29 +214,26 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
     </>
   );
 
-  const showList = !mobile || !room;
-  const sidebar =
-    course && (!room || !mobile) ? (
-      <CourseSpace courseCode={course} view={view} go={goScoped} />
-    ) : (
-      <RoomList view={view} go={goScoped} empty={empty} />
-    );
+  // On a phone the open room covers the list, which stays mounted (hidden)
+  // so its scroll and loaded rooms are there when you come back.
+  const listHidden = mobile && room !== null;
 
   return (
     <ProductPage width="full" className="flex-row">
       {/* The page's one h1: the panes' headers say where you are. */}
       <PageHeader title="Chat" className="sr-only" />
-      {showList ? (
-        <nav
-          aria-label="Rooms"
-          className={cn(
-            "flex min-h-0 flex-col",
-            mobile ? "flex-1" : "w-80 shrink-0 border-hairline border-r",
-          )}
-        >
-          {sidebar}
-        </nav>
-      ) : null}
+      <nav
+        aria-label="Rooms"
+        hidden={listHidden}
+        className={cn(
+          "flex min-h-0 flex-col",
+          mobile
+            ? "flex-1 animate-in fade-in-0 duration-150 motion-reduce:animate-none"
+            : "w-80 shrink-0 border-hairline border-r",
+        )}
+      >
+        <RoomList view={view} go={goScoped} empty={empty} />
+      </nav>
       {room && course && termId ? (
         <CourseRoom
           key={`${course}#${attempt}`}
@@ -234,15 +247,16 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
           setInfoOpen={setInfoOpen}
           onReconnect={() => setAttempt((n) => n + 1)}
         />
-      ) : mobile || homeStatus !== "ready" ? null : (
+      ) : mobile ? null : (
         // A first visit sits at the top of its pane, in a note's column,
-        // like Schedule's and Plan's (the kit's EmptyState, `start`).
+        // like Schedule's and Plan's (the kit's EmptyState, `start`). The
+        // pane is there from the start, so nothing beside the list moves.
         <div className="flex min-w-0 flex-1 flex-col">
           <div className={cn("mx-auto w-full px-4 pt-4", PAGE_WIDTH.note)}>
-            {noClasses ? (
+            {homeStatus !== "ready" ? null : noClasses ? (
               <NoClasses onFind={findCourse} />
             ) : (
-              <PickARoom list={list} course={course} go={goScoped} />
+              <PickARoom list={list} go={goScoped} />
             )}
           </div>
         </div>
@@ -291,28 +305,13 @@ function NoClasses({
  */
 function PickARoom({
   list,
-  course,
   go,
 }: {
   list: readonly ChatListCourse[];
-  course: CourseCode | null;
   go: ChatGo;
 }) {
   const termId = useChatHome((s) => s.termId);
   if (!termId) return null;
-  if (course)
-    return (
-      <EmptyState
-        mark={<Mark id="chat" size={40} />}
-        title="Pick a room to start talking"
-        line={`${course}'s rooms are on the left: one for the course, one for each professor's sections and one for each section.`}
-        primary={{
-          label: "Open the course room",
-          hint: `Talk with everyone in ${course}`,
-          onClick: () => go({ course, room: courseRoomId(termId, course) }),
-        }}
-      />
-    );
   const rooms = list.flatMap((c) =>
     c.rooms.map((r) => ({ ...r, courseCode: c.courseCode })),
   );
@@ -368,8 +367,19 @@ function CourseRoom({
 }) {
   const course = useChatHome((s) => s.courses.get(courseCode) ?? null);
   const plans = useChatHome((s) => s.synced.plans);
+  const [missing, setMissing] = useState(false);
   useEffect(() => {
-    if (!course) void useChatHome.getState().ensureCourse(courseCode);
+    if (course) return;
+    let live = true;
+    void useChatHome
+      .getState()
+      .ensureCourse(courseCode)
+      .then((found) => {
+        if (live && !found) setMissing(true);
+      });
+    return () => {
+      live = false;
+    };
   }, [course, courseCode]);
   const tree = course ? roomsForCourse(termId, course) : null;
   // Every room of the course you can read: one socket follows them all.
@@ -398,13 +408,37 @@ function CourseRoom({
     [go, courseCode, roomId],
   );
 
+  // A phone pushes the room in over the list; a desktop fills the pane.
+  const pane = cn(
+    "flex min-w-0 flex-1 flex-col",
+    mobile &&
+      "animate-in slide-in-from-right-8 fade-in-0 duration-200 motion-reduce:animate-none",
+  );
+  const backToList: BackTo = {
+    label: "Your classes",
+    to: "/chat",
+    search: { term: view.term },
+  };
+
   if (!tree || !room)
     return (
-      <section className="flex min-w-0 flex-1 flex-col">
-        {course === null ? (
-          <RowSkeleton label="Opening the room" />
+      <section className={pane}>
+        {course === null && !missing ? (
+          // The room's own shape, so nothing moves when it arrives.
+          <RoomSkeleton back={mobile ? backToList : undefined} />
         ) : (
-          <PanelNote>That room isn't in {courseCode} anymore.</PanelNote>
+          <>
+            <PageHeader
+              size="panel"
+              back={mobile ? backToList : undefined}
+              title={<span className="ident">{courseCode}</span>}
+            />
+            <PanelNote>
+              {course === null
+                ? `${courseCode} isn't in this term's catalog, so it has no chat this term.`
+                : `That room isn't in ${courseCode} anymore.`}
+            </PanelNote>
+          </>
         )}
       </section>
     );
@@ -433,7 +467,7 @@ function CourseRoom({
 
   return (
     <>
-      <section className="flex min-w-0 flex-1 flex-col" aria-label={room.label}>
+      <section className={pane} aria-label={room.label}>
         <RoomView
           courseCode={courseCode}
           room={room}
@@ -448,21 +482,9 @@ function CourseRoom({
               to: "/chat",
               search: { term: view.term, course: courseCode, room: roomId },
             },
-            // A course with one room has nothing to pick between: Back
-            // skips its room tree (and doesn't read "MATH140 · MATH140").
-            course:
-              tree.rooms.length > 1
-                ? {
-                    label: courseCode,
-                    to: "/chat",
-                    search: { term: view.term, course: courseCode },
-                  }
-                : {
-                    label: "Your classes",
-                    to: "/chat",
-                    search: { term: view.term },
-                  },
+            list: backToList,
           }}
+          join={<JoinButton courseCode={courseCode} />}
           onOpenThread={openThread}
           onInfo={() => setInfoOpen(!infoOpen)}
           onSeen={onSeen}

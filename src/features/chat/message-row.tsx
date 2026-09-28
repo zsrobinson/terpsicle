@@ -5,6 +5,7 @@ import {
   Copy,
   Ellipsis,
   Eye,
+  EyeOff,
   Flag,
   Laugh,
   type LucideIcon,
@@ -50,11 +51,13 @@ import { WithTooltip } from "~/ui/tooltip";
 import { ROW_LINK } from "./room-row";
 import { showNote } from "./undo";
 
-// One message (V2.md §8.6): the author's name and picture, the text as plain
-// text (never HTML), reactions, the thread under it, and what only its
-// author sees (held or removed) in one muted line, never red. A message
-// still being checked looks sent (the owner, 2026-09-27). Hover, focus or a
-// tap shows its actions; a long press on a phone does too.
+// One message (V2.md §8.6): the author's name and initials, the text as
+// plain text (never HTML), reactions, the thread under it, and what only its
+// author sees. A held or removed message is tinted yellow (the warn tokens)
+// with one plain line saying so, so it's clear at a glance (the owner,
+// 2026-09-28), and never red. A message still being checked looks sent (the
+// owner, 2026-09-27). Hover, focus or a tap shows its actions; a long press
+// on a phone does too.
 
 export const REACTION_ICONS: Readonly<Record<Reaction, LucideIcon>> = {
   thumbs: ThumbsUp,
@@ -92,7 +95,7 @@ export const MessageRow = memo(function MessageRow({
   item: ChatItem;
   you: ChatAuthor | null;
   now: number;
-  /** First of a run by one person: name, picture and time. */
+  /** First of a run by one person: name, initials and time. */
   showHeader: boolean;
   /** In a thread view: replies have no thread of their own. */
   inThread: boolean;
@@ -127,16 +130,25 @@ export const MessageRow = memo(function MessageRow({
           return;
         setSelected((was) => !was);
       }}
+      data-held={held !== null ? "" : undefined}
       className={cn(
-        "group relative flex gap-3 px-4 transition-colors hover:bg-hover",
+        "group relative flex gap-3 px-4 transition-colors",
         showHeader ? "pt-2 pb-1" : "py-0.5",
-        selected && "bg-hover",
+        held !== null
+          ? // Only you see it: tinted, with a warn edge, in both themes.
+            "bg-warn-soft"
+          : cn("hover:bg-hover", selected && "bg-hover"),
       )}
     >
+      {held !== null ? (
+        <span
+          aria-hidden="true"
+          data-held-edge=""
+          className="absolute inset-y-0 left-0 w-0.5 bg-warn"
+        />
+      ) : null}
       <div className="w-8 shrink-0 pt-0.5">
-        {showHeader ? (
-          <Avatar name={item.author.name} src={item.author.picture} size="md" />
-        ) : null}
+        {showHeader ? <Avatar name={item.author.name} size="md" /> : null}
       </div>
       <div className="min-w-0 flex-1">
         {showHeader ? (
@@ -169,7 +181,7 @@ export const MessageRow = memo(function MessageRow({
             data-private=""
             className={cn(
               "whitespace-pre-wrap break-words",
-              (item.local?.state === "failed" || held !== null) && "text-muted",
+              item.local?.state === "failed" && "text-muted",
             )}
           >
             {item.text}
@@ -246,7 +258,7 @@ function useAfter(on: boolean, after: number): boolean {
   return on && late;
 }
 
-/** Slow to send, refused, or (yours only) held: said quietly under the text. */
+/** Slow to send, refused, or (yours only) held or removed: one line under the text. */
 function LocalState({
   item,
   held,
@@ -293,7 +305,11 @@ function LocalState({
     );
   if (held)
     return (
-      <p className="text-muted text-sm" data-testid="held-note">
+      <p
+        className="flex items-start gap-1.5 font-medium text-sm text-warn"
+        data-testid="held-note"
+      >
+        <EyeOff size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
         {held}
       </p>
     );
@@ -599,7 +615,7 @@ function ReportForm({
     return (
       <p role="status" className="mt-1 text-muted text-sm">
         {state === "own"
-          ? "That's your message. You can edit or delete it instead."
+          ? "That's your own message. You can edit or delete it."
           : "That message isn't there anymore."}{" "}
         <WithTooltip label="Close">
           <Button variant="link" size="row" className="px-0" onClick={onCancel}>
@@ -620,7 +636,7 @@ function ReportForm({
           const outcome = await onSend(reason, note.trim() || null);
           // A toast, since a report can take the message off your screen.
           if (outcome === "reported") {
-            showNote("Thanks. A person will look at it.");
+            showNote("Reported. A person will read it.");
             onCancel();
           } else setState(outcome);
         }}
@@ -632,7 +648,9 @@ function ReportForm({
         }}
       >
         <fieldset>
-          <legend className="mb-1 font-medium">What's wrong with it?</legend>
+          <legend className="mb-1 font-medium">
+            Why are you reporting it?
+          </legend>
           {/* The kit's rows, a native radio leading each: the reasons stay
               in view, and arrow keys move between them. */}
           <ul>
@@ -676,10 +694,10 @@ function ReportForm({
         <div className="flex flex-col gap-1">
           <label htmlFor={noteId} className="text-muted text-sm">
             {reason === "other"
-              ? "Say what's wrong, so a person knows what to look for"
-              : "Anything a person should know? (optional)"}
+              ? "What's the problem? A person reads this"
+              : "Anything to add? (optional)"}
           </label>
-          <WithTooltip label="A note for the moderator; the author never sees it">
+          <WithTooltip label="Only the moderator reads this. The author never sees it">
             <Textarea
               id={noteId}
               value={note}
@@ -702,8 +720,8 @@ function ReportForm({
               !reason
                 ? "Pick a reason first"
                 : needsNote
-                  ? "Say what's wrong first"
-                  : "A person checks every report"
+                  ? "Say what the problem is first"
+                  : "A person reads every report"
             }
           >
             <span className="flex" tabIndex={reason && !needsNote ? -1 : 0}>

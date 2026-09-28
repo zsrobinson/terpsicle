@@ -56,26 +56,27 @@ export const MODERATION_POLICY: Readonly<
       "Most reviews publish right away after an automatic check. A few wait for a person to read them first; that usually takes a day or two. Reviews are anonymous to readers.",
   },
   // Chat is lighter than reviews (the owner, 2026-09-27): only real abuse
-  // is stopped, sharing answers is asked against kindly, and nothing here
-  // says a bot reads every message.
+  // is stopped, and nothing here says a bot reads every message. Neutral,
+  // not a lecture (2026-09-28): your name is on what you post, and that
+  // says what needs saying about answers.
   chat: {
     title: "What's allowed",
     intro:
-      "Class chats are for helping each other through the course. Everyone sees your name, like in a real classroom.",
+      "Class chats are for the people taking the course. Your name is on everything you post.",
     sections: [
       {
-        heading: "Go ahead",
+        heading: "Fine here",
         items: [
-          "Ask about concepts, deadlines, office hours and anything you're stuck on.",
-          "Share your number, email or a room to set up a study group.",
-          "Link to notes, videos and anything else that helps.",
-          "Paste code to ask about a bug, and vent about the class.",
+          "Questions about concepts, deadlines, office hours or anything you're stuck on.",
+          "Your number, email or a room, to set up a study group.",
+          "Links to notes, videos and anything else useful.",
+          "Code, to ask about a bug. Venting about the class.",
         ],
       },
       {
-        heading: "Please don't",
+        heading: "A bad idea",
         items: [
-          "Post answers to graded work. Hints and ideas help more, and they don't put anyone's grade at risk.",
+          "Answers to graded work. Your name is on them, and everyone in the course can read them.",
         ],
       },
       {
@@ -89,7 +90,7 @@ export const MODERATION_POLICY: Readonly<
       },
     ],
     process:
-      "Messages are kept to these rules. To report someone else's message, open its menu and pick Report; a person looks at every report.",
+      "Messages that break these are held or taken down. Report is in each message's menu (…), and a person reads every report.",
   },
 };
 

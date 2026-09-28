@@ -5,7 +5,7 @@ import { SIGNIN_PATH } from "../schema/auth";
 
 /**
  * Pages whose clicks autocapture never reads: Chat (real names and
- * messages), Settings and sign-in (your name, email and picture), Admin,
+ * messages), Settings and sign-in (your name and email), Admin,
  * your own reviews, and Plan and Todo (grades, courses and due dates; V3.md
  * §6). Named events from `track()` still count there. Each covers everything
  * below it (`/chat` covers `/chat/<term>/<course>/…`).

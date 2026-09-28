@@ -36,7 +36,6 @@ import {
   signFlow,
 } from "./cookies";
 import { exchangeCode, googleAuthorizeUrl } from "./google";
-import { refreshPicture } from "./pictures";
 import { randomSecret, s256 } from "./pkce";
 import { sessionIdOf, startSession } from "./session";
 import { deleteSession, getUser, upsertUser } from "./store";
@@ -44,7 +43,7 @@ import { deleteSession, getUser, upsertUser } from "./store";
 export interface FlowContext {
   now: Date;
   waitUntil: (promise: Promise<unknown>) => void;
-  /** Outbound fetch (Google's token endpoint, the picture); tests mock it. */
+  /** Outbound fetch (Google's token endpoint); tests mock it. */
   fetch?: typeof fetch;
 }
 
@@ -135,7 +134,7 @@ export type SignInResult =
   | { ok: false; error: SignInError };
 
 /**
- * Signs `identity` in on this host: refreshes the user row (and picture)
+ * Signs `identity` in on this host: refreshes the user row
  * from what Google said, and mints a fresh session. Test mode signs in
  * through here too, so everything after sign-in runs the real code.
  */
@@ -154,16 +153,6 @@ export async function signIn(
     trackResult(env, ctx, "sub-conflict");
     return { ok: false, error: "google-error" };
   }
-  await refreshPicture(
-    env,
-    {
-      id: identity.directoryId,
-      pictureUrl: identity.pictureUrl,
-      previousUrl: before?.picture_url ?? null,
-      previousKey: before?.picture_key ?? null,
-    },
-    { now: ctx.now, fetch: ctx.fetch ?? fetch },
-  );
   const session = await startSession(env.DB, identity.directoryId, ctx.now);
   trackResult(env, ctx, "signed-in", identity.hd);
   return {

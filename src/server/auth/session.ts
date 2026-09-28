@@ -26,8 +26,6 @@ export interface AuthUser {
   email: string;
   hd: UserRow["hd"];
   name: string;
-  /** Our cached copy of their Google picture (/avatars/…), or null. */
-  avatarUrl: string | null;
   isAdmin: boolean;
   createdAt: string;
   /** Admin blocks (V2.md §10); null when none. */
@@ -67,11 +65,6 @@ export async function sessionIdOf(request: Request): Promise<string | null> {
   return token.success ? sha256Hex(token.data) : null;
 }
 
-/** The same-origin URL of a cached picture: its USER_CONTENT key (pictures.ts). */
-export function avatarUrl(key: string | null): string | null {
-  return key ? `/${key}` : null;
-}
-
 export function toAuthUser(
   user: UserRow,
   options: { authTestMode: boolean },
@@ -81,7 +74,6 @@ export function toAuthUser(
     email: user.email,
     hd: user.hd,
     name: user.name,
-    avatarUrl: avatarUrl(user.picture_key),
     isAdmin: isAdmin(user.id, options),
     createdAt: user.created_at,
     chatBlockedUntil: user.chat_blocked_until,
@@ -95,7 +87,6 @@ export function toMeUser(user: AuthUser): MeUser {
     id: user.id,
     name: user.name,
     email: user.email,
-    avatarUrl: user.avatarUrl,
     isAdmin: user.isAdmin,
     createdAt: user.createdAt,
   };

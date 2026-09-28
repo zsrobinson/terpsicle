@@ -27,7 +27,6 @@ describe("CourseChatEntry", () => {
         id: "tstudent",
         name: "Test Student",
         email: "tstudent@terpmail.umd.edu",
-        avatarUrl: null,
         isAdmin: false,
         createdAt: FIXTURE_NOW,
       },

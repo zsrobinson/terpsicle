@@ -1,5 +1,5 @@
 // Identity end to end through the real router and D1 (docs/AUTH.md): the
-// Google flow with a mocked token endpoint, sessions, pictures, admin,
+// Google flow with a mocked token endpoint, sessions, no pictures, admin,
 // deletion and test mode. Google itself is the only thing faked.
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +13,7 @@ import { ADMINS_FILE, isAdmin } from "./admin";
 import { appFlags, isTestMode, signInMode } from "./config";
 import { GOOGLE_TOKEN_URL } from "./google";
 import { requireAdmin, requireUser } from "./guard";
+import { sweepLegacyPictures } from "./legacy-pictures";
 import { s256 } from "./pkce";
 import { getUser, userIdentities } from "./store";
 
@@ -122,9 +123,6 @@ class Browser {
 /** What the mocked Google token endpoint hands out next. */
 let pendingGoogle: { claims: object; challenge: string } | null = null;
 let tokenStatus = 200;
-/** Picture bytes by URL, as Google's image server would answer. */
-const pictures = new Map<string, Uint8Array>();
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
 
 // Like the Workers runtime's fetch, it refuses to run as another object's
 // method ("Illegal invocation").
@@ -155,11 +153,6 @@ const googleFetch = vi.fn(async function (
       token_type: "Bearer",
     });
   }
-  const picture = pictures.get(url);
-  if (picture)
-    return new Response(picture, {
-      headers: { "Content-Type": "image/png" },
-    });
   return new Response("Not found", { status: 404 });
 }) as unknown as typeof fetch;
 
@@ -169,11 +162,6 @@ const location = (response: Response) =>
 beforeEach(async () => {
   pendingGoogle = null;
   tokenStatus = 200;
-  pictures.clear();
-  pictures.set(
-    `${ID_TOKEN_PAYLOADS.terpmail.picture?.replace(/=s96-c$/, "")}=s96-c`,
-    PNG,
-  );
   await env.DB.exec(
     "DELETE FROM sessions; DELETE FROM user_identities; DELETE FROM users; DELETE FROM counters;",
   );
@@ -459,68 +447,69 @@ describe("callback", () => {
     expect(location(response).searchParams.get("error")).toBe("google-error");
   });
 
-  it("refreshes the name and picture from Google at every sign-in", async () => {
+  it("refreshes the name from Google at every sign-in, and never the picture", async () => {
+    vi.mocked(googleFetch).mockClear();
     const browser = new Browser(googleEnv());
     await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
-    const first = await browser.me();
-    if (first.status !== "signed-in") throw new Error("not signed in");
-    expect(first.user.avatarUrl).toMatch(
-      /^\/avatars\/testudo\/[0-9a-f]{16}\.png$/,
-    );
-
-    const newPicture =
-      "https://lh3.googleusercontent.com/a/ACg8ocNEWPICTURE=s96-c";
-    pictures.set(newPicture, new Uint8Array([...PNG, 2, 3]));
     await browser.signInWithGoogle({
       ...ID_TOKEN_PAYLOADS.terpmail,
       name: "Testudo T. Terrapin",
-      picture: newPicture,
+      picture: "https://lh3.googleusercontent.com/a/ACg8ocNEWPICTURE=s96-c",
     });
-    const second = await browser.me();
-    if (second.status !== "signed-in") throw new Error("not signed in");
-    expect(second.user.name).toBe("Testudo T. Terrapin");
-    expect(second.user.avatarUrl).not.toBe(first.user.avatarUrl);
-    // Only the new copy is kept.
-    const objects = await env.USER_CONTENT.list({ prefix: "avatars/testudo/" });
-    expect(objects.objects.map((o) => `/${o.key}`)).toEqual([
-      second.user.avatarUrl,
-    ]);
-    expect((await getUser(env.DB, "testudo"))?.picture_url).toBe(newPicture);
+    const me = await browser.me();
+    if (me.status !== "signed-in") throw new Error("not signed in");
+    expect(me.user.name).toBe("Testudo T. Terrapin");
+    // No picture anywhere: not in /api/me, not fetched, not stored.
+    expect(me.user).not.toHaveProperty("avatarUrl");
+    const fetched = vi
+      .mocked(googleFetch)
+      .mock.calls.map(([input]) => String(input));
+    expect(fetched.some((url) => url.includes("googleusercontent"))).toBe(
+      false,
+    );
+    expect(
+      (await env.USER_CONTENT.list({ prefix: "avatars/" })).objects,
+    ).toEqual([]);
+    const row = await env.DB.prepare(
+      "SELECT picture_url, picture_key FROM users WHERE id = 'testudo'",
+    ).first();
+    expect(row).toEqual({ picture_url: null, picture_key: null });
   });
 });
 
 describe("pictures", () => {
-  it("serves our copy to signed-in people only", async () => {
+  it("serves none: /avatars is just another path", async () => {
     const browser = new Browser(googleEnv());
     await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
-    const me = await browser.me();
-    const avatarUrl = me.status === "signed-in" ? me.user.avatarUrl : null;
-    if (!avatarUrl) throw new Error("no picture");
+    await env.USER_CONTENT.put(
+      "avatars/testudo/0123456789abcdef.png",
+      new Uint8Array([1]),
+    );
     const { createWorker } = await import("../worker");
     const worker = createWorker({ fetch: () => new Response("app") });
-    const get = (cookie: string) =>
-      worker.fetch(
-        new Request(`${ORIGIN}${avatarUrl}`, { headers: { Cookie: cookie } }),
-        browser.testEnv as Env,
-        { waitUntil: () => {} } as unknown as ExecutionContext,
-      );
-    const signedIn = await get(browser.cookieHeader());
-    expect(signedIn.status).toBe(200);
-    expect(signedIn.headers.get("Content-Type")).toBe("image/png");
-    expect(signedIn.headers.get("Cache-Control")).toContain("private");
-    expect(new Uint8Array(await signedIn.arrayBuffer())).toEqual(PNG);
-    expect((await get("")).status).toBe(401);
+    const response = await worker.fetch(
+      new Request(`${ORIGIN}/avatars/testudo/0123456789abcdef.png`, {
+        headers: { Cookie: browser.cookieHeader() },
+      }),
+      browser.testEnv as Env,
+      { waitUntil: () => {} } as unknown as ExecutionContext,
+    );
+    expect(await response.text()).toBe("app");
   });
 
-  it("keeps the sign-in when the picture can't be fetched", async () => {
-    pictures.clear();
-    const browser = new Browser(googleEnv());
-    await browser.signInWithGoogle(ID_TOKEN_PAYLOADS.terpmail);
-    const me = await browser.me();
-    expect(me).toMatchObject({
-      status: "signed-in",
-      user: { avatarUrl: null },
-    });
+  it("deletes the copies kept before, a page at a time, in the daily job", async () => {
+    for (const id of ["testudo", "tstudent"])
+      await env.USER_CONTENT.put(
+        `avatars/${id}/0123456789abcdef.png`,
+        new Uint8Array([1]),
+      );
+    await env.USER_CONTENT.put("feedback/keep.png", new Uint8Array([1]));
+    expect(await sweepLegacyPictures(env.USER_CONTENT)).toBe(2);
+    expect(
+      (await env.USER_CONTENT.list({ prefix: "avatars/" })).objects,
+    ).toEqual([]);
+    expect(await env.USER_CONTENT.head("feedback/keep.png")).not.toBeNull();
+    expect(await sweepLegacyPictures(env.USER_CONTENT)).toBe(0);
   });
 });
 
@@ -648,9 +637,6 @@ describe("account deletion", () => {
     expect(await getUser(env.DB, "testudo")).not.toBeNull();
     await runDailyJob({ ...job, now: new Date(clock + WEEK) });
     expect(await getUser(env.DB, "testudo")).toBeNull();
-    expect(
-      (await env.USER_CONTENT.list({ prefix: "avatars/testudo/" })).objects,
-    ).toEqual([]);
     for (const table of ["user_identities", "sessions"])
       expect(
         await env.DB.prepare(`SELECT count(*) AS n FROM ${table}`).first("n"),
