@@ -32,6 +32,30 @@ describe("WithTooltip", () => {
     expect(screen.getByRole("textbox")).toHaveValue("cmsc");
   });
 
+  it("stays shut when the app moves focus into a text field", () => {
+    // "Add a task", a shortcut or a form opening puts the caret in a field:
+    // the person didn't go looking for it, and the tooltip would cover the
+    // heading above it (QA3 Todo).
+    render(<Field />);
+    const field = screen.getByRole("textbox");
+    act(() => field.focus());
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("still opens when the app focuses a button", async () => {
+    render(
+      <TooltipProvider delayDuration={0}>
+        <WithTooltip label="Back to Search" shortcut="Esc">
+          <button type="button">Back</button>
+        </WithTooltip>
+      </TooltipProvider>,
+    );
+    act(() => screen.getByRole("button").focus());
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Back to Search",
+    );
+  });
+
   it("stays shut when a finger's tap focuses its control", () => {
     render(<Field />);
     const field = screen.getByRole("textbox");
