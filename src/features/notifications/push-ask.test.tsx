@@ -250,7 +250,7 @@ describe("the other moments", () => {
     const view = renderPage();
     let asked: Promise<unknown> = Promise.resolve();
     act(() => {
-      asked = askForPush("seat-watch", NOW);
+      asked = askForPush("seat-watch", NOW, { waitForPage: true });
     });
     await new Promise((resolve) => setTimeout(resolve, 200));
     view.rerender(

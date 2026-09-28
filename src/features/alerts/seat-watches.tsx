@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { z } from "zod";
 import { track } from "~/app/analytics";
+import { COURSE_PATH } from "~/core/routing";
 import {
   IsoDateTimeSchema,
   type SeatWatch,
@@ -108,7 +109,7 @@ export async function watchSeat(
       track("seat_watch_started", { signedInFirst });
       // A seat alert just turned on: the moment to ask for notifications
       // here (V2 §6.7), or else to offer the app (§3.4). One ask, not two.
-      void askAtWatch();
+      void askAtWatch(signedInFirst);
       undoToast({
         id: TOAST_ID,
         message: `Watching ${label}`,
@@ -142,9 +143,17 @@ export async function watchSeat(
  * three steps); otherwise, as before, the install prompt. The ask's code
  * loads on first use, apart from the scheduler's.
  */
-async function askAtWatch(): Promise<void> {
+async function askAtWatch(signedInFirst: boolean): Promise<void> {
+  // Back from signing in on a course's page, its drill-in may still be
+  // mounting (the phone's drawer loads on its own): the card waits for it.
+  const onCourse = window.location.pathname.startsWith(
+    COURSE_PATH.replace("$code", ""),
+  );
   const asked = await import("~/features/notifications/push-ask").then(
-    (m) => m.askForPush("seat-watch"),
+    (m) =>
+      m.askForPush("seat-watch", new Date(), {
+        waitForPage: signedInFirst && onCourse,
+      }),
     () => null,
   );
   if (asked === null) requestInstallPrompt("alert-on");

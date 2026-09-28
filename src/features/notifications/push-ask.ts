@@ -101,12 +101,13 @@ export function setPushAskDeviceForTests(
 export const HOST_WAIT_MS = 1500;
 
 /**
- * Whether a page has a place for `moment`'s card, waiting briefly for one:
- * a watch started on the way back from signing in can come before the
- * phone's drawer has mounted course details.
+ * Whether a page has a place for `moment`'s card, waiting briefly for one
+ * when asked to: a watch started on the way back from signing in can come
+ * before the phone's drawer has mounted course details.
  */
-function hostFor(moment: PushAskMoment): Promise<boolean> {
+function hostFor(moment: PushAskMoment, wait: boolean): Promise<boolean> {
   if (usePushAsk.getState().hosts[moment]) return Promise.resolve(true);
+  if (!wait) return Promise.resolve(false);
   return new Promise((resolve) => {
     const stop = usePushAsk.subscribe((state) => {
       if (!state.hosts[moment]) return;
@@ -131,6 +132,12 @@ function hostFor(moment: PushAskMoment): Promise<boolean> {
 export async function askForPush(
   moment: PushAskMoment,
   now: Date = new Date(),
+  {
+    waitForPage = false,
+  }: {
+    /** The page with the card's place may still be mounting: wait a moment for it. */
+    waitForPage?: boolean;
+  } = {},
 ): Promise<PushAskKind | null> {
   if (typeof window === "undefined") return null;
   const account = useAccount.getState();
@@ -154,7 +161,7 @@ export async function askForPush(
       askedThisSession() || (iphone && wasShownThisSession() !== false),
   });
   if (kind === null) return null;
-  if (kind === "card" && !(await hostFor(moment))) return null;
+  if (kind === "card" && !(await hostFor(moment, waitForPage))) return null;
   // Something else asked while the browser answered.
   const current = usePushAsk.getState();
   if (current.card !== null || current.sheet !== null) return null;
