@@ -6,7 +6,6 @@ import {
   aPublishedCalendar,
   aSectionSnapshot,
   aTimedMeeting,
-  aTodoItem,
 } from "~/fixtures";
 import { GEN_ED_REQUIREMENTS, type GenEdProgress } from "../four-year/gen-ed";
 import {
@@ -18,8 +17,6 @@ import {
 import { campusMap, EMPTY_CAMPUS } from "../travel/campus";
 import { decodeRoutes, encodeRoutes } from "../travel/routes-binary";
 import {
-  DUE_SOON_MAX,
-  dueSoon,
   genEdsCovered,
   greeting,
   openWatches,
@@ -253,45 +250,18 @@ describe("words", () => {
         registered: ["CMSC351-0101"],
       }),
     ).toBe("2 courses · 1 registered");
+    expect(
+      planLine(
+        {
+          courses: [aPlanCourse(), aPlanCourse({ courseCode: "MATH240" })],
+          registered: ["CMSC351-0101"],
+        },
+        "7 credits",
+      ),
+    ).toBe("2 courses · 7 credits · 1 registered");
+    expect(planLine({ courses: [] }, "0 credits")).toBe("No courses yet");
     expect(seatsOpenWords(1)).toBe("1 seat open");
     expect(seatsOpenWords(3)).toBe("3 seats open");
-  });
-});
-
-describe("dueSoon", () => {
-  const today = "2026-09-28";
-  const item = (uid: string, dueDate: string | null, dueAt: string | null) =>
-    aTodoItem({ uid, title: uid, dueDate, dueAt });
-  const items = [
-    item("later", "2026-10-05", "2026-10-05T16:00:00Z"),
-    item("friday", "2026-10-02", "2026-10-02T03:59:00Z"),
-    item("today", today, "2026-09-28T20:00:00Z"),
-    item("past", "2026-09-27", "2026-09-27T20:00:00Z"),
-    item("undated", null, null),
-    item("sunday", "2026-10-04", null),
-  ];
-
-  it("lists open items due this week, soonest first", () => {
-    expect(dueSoon(items, new Set(), today).map((i) => i.uid)).toEqual([
-      "today",
-      "friday",
-      "sunday",
-    ]);
-  });
-
-  it("leaves out done items, except ones checked off here", () => {
-    const done = new Set(["today", "friday"]);
-    expect(dueSoon(items, done, today).map((i) => i.uid)).toEqual(["sunday"]);
-    expect(
-      dueSoon(items, done, today, new Set(["friday"])).map((i) => i.uid),
-    ).toEqual(["friday", "sunday"]);
-  });
-
-  it("shows a few at most", () => {
-    const many = Array.from({ length: 9 }, (_, n) =>
-      item(`i${n}`, today, `2026-09-28T1${n}:00:00Z`),
-    );
-    expect(dueSoon(many, new Set(), today)).toHaveLength(DUE_SOON_MAX);
   });
 });
 

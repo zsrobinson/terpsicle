@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BellRing } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -8,6 +9,7 @@ import {
   planLine,
   seatsOpenWords,
 } from "~/core/home";
+import { creditsLabel, planCredits } from "~/core/plans/credits";
 import { mainPlanFor } from "~/core/plans/main-plan";
 import {
   countBySeverity,
@@ -18,13 +20,13 @@ import {
 import type { Plan, SeatWatch, TermId } from "~/core/schema";
 import { type CampusMap, EMPTY_CAMPUS } from "~/core/travel";
 import { useAccount } from "~/features/auth/account-store";
-import { api } from "~/server/fns/api";
 import { ListRow } from "~/ui/list-row";
 import { Skeleton } from "~/ui/skeleton";
 import { TermTag } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
 import { loadPlanCatalog, type PlanCatalog } from "./data";
 import type { HomeLocal } from "./local";
+import { seatWatchesQuery } from "./queries";
 import {
   HomeNote,
   HomeSection,
@@ -116,7 +118,10 @@ function PlanRows({
       <ListRow
         as="li"
         className="relative px-0 hover:bg-hover"
-        secondary={planLine(plan)}
+        secondary={planLine(
+          plan,
+          catalog ? creditsLabel(planCredits(plan, catalog.index)) : null,
+        )}
         trail={
           catalog === undefined ? (
             <Skeleton className="h-3 w-20" />
@@ -189,24 +194,13 @@ function usePlanCatalog(plan: Plan): PlanCatalog | null | undefined {
   return catalog;
 }
 
-/** Your seat watches in a term, signed in and while seat alerts are on; null otherwise. */
+/**
+ * Your seat watches in a term, signed in and while seat alerts are on;
+ * null otherwise, and while they load. Offline, the plan's line stands
+ * without them.
+ */
 function useSeatWatches(termId: TermId): readonly SeatWatch[] | null {
   const on = useAccount((s) => s.status === "signed-in" && s.flags.seatAlerts);
-  const [watches, setWatches] = useState<readonly SeatWatch[] | null>(null);
-  useEffect(() => {
-    if (!on) return;
-    let live = true;
-    api.alerts
-      .list({ termId })
-      .then((result) => {
-        if (live && result.status === "ok") setWatches(result.watches);
-      })
-      .catch(() => {
-        // Offline: the plan's line stands without them.
-      });
-    return () => {
-      live = false;
-    };
-  }, [on, termId]);
-  return on ? watches : null;
+  const { data } = useQuery({ ...seatWatchesQuery(termId), enabled: on });
+  return on ? (data ?? null) : null;
 }

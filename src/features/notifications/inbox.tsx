@@ -1,3 +1,11 @@
+import {
+  type InfiniteData,
+  type QueryClient,
+  type UseInfiniteQueryResult,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
@@ -7,7 +15,6 @@ import {
   useEffect,
   useId,
 } from "react";
-import { create } from "zustand";
 import { Mark } from "~/components/brand/mark";
 import { PanelBody, PanelFooter, PanelNote } from "~/components/panel";
 import {
@@ -16,9 +23,12 @@ import {
   inboxMeta,
   markInboxRead,
 } from "~/core/notifications/bell";
-import type { InboxItem, InboxProduct } from "~/core/schema/notifications";
+import type {
+  InboxItem,
+  InboxProduct,
+  NotificationsInboxResult,
+} from "~/core/schema/notifications";
 import { track } from "~/lib/analytics";
-import { notificationsApi } from "~/server/fns/notifications";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { GroupHeader, ListRow } from "~/ui/list-row";
@@ -28,7 +38,7 @@ import { Sheet, SheetTitle } from "~/ui/sheet";
 import { RowSkeleton } from "~/ui/skeleton";
 import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
-import { gotUnread, useUnread } from "./unread-store";
+import { inboxQuery, notificationsKeys, setUnread, useUnread } from "./queries";
 
 // Notifications, behind the bell (docs/V2.md §6.7; the design's desktop
 // inbox): "Notifications" and "Mark all read", then Today, Yesterday and
@@ -37,92 +47,91 @@ import { gotUnread, useUnread } from "./unread-store";
 // foot. A popover under the bell on desktop, the kit's sheet on phones.
 // Loaded on the bell's first hover, focus or open (./bell.tsx).
 
-type InboxState = {
-  status: "idle" | "loading" | "ready" | "failed";
-  items: InboxItem[];
-  /** The next page's cursor; null on the last. */
-  next: string | null;
-  more: "idle" | "loading" | "failed";
-};
+type InboxPages = InfiniteData<NotificationsInboxResult>;
 
-const EMPTY: InboxState = {
-  status: "idle",
-  items: [],
-  next: null,
-  more: "idle",
-};
-
-/** The list as last loaded: opening again shows it at once while it refreshes. */
-export const useInbox = create<InboxState>(() => EMPTY);
-
-/** Test hook: nothing loaded. */
-export function forgetInbox(): void {
-  useInbox.setState(EMPTY, true);
+/** The items of every page loaded, oldest page last, each item once. */
+function inboxItems(data: InboxPages | undefined): InboxItem[] {
+  return (data?.pages ?? []).reduce<InboxItem[]>(
+    (items, page) => appendInboxPage(items, page.items),
+    [],
+  );
 }
 
-/** Loads the newest page. What's shown stays while it does. */
-export async function refreshInbox(): Promise<void> {
-  useInbox.setState((s) => ({
-    status: s.status === "ready" ? "ready" : "loading",
-  }));
-  try {
-    const page = await notificationsApi.inbox({});
-    gotUnread(page.unread);
-    useInbox.setState({
-      status: "ready",
-      items: page.items,
-      next: page.next,
-      more: "idle",
-    });
-  } catch {
-    // What was shown stays; with nothing shown, the list says so.
-    useInbox.setState((s) => ({
-      status: s.status === "ready" ? "ready" : "failed",
-    }));
-  }
+/** How many times each of the bell's queries has had its data set. */
+function marks(client: QueryClient) {
+  return {
+    inbox: client.getQueryState(notificationsKeys.inbox)?.dataUpdateCount,
+    unread: client.getQueryState(notificationsKeys.unread)?.dataUpdateCount,
+  };
 }
 
-/** Adds the next older page under the list. */
-async function loadOlder(): Promise<void> {
-  const { next } = useInbox.getState();
-  if (!next) return;
-  useInbox.setState({ more: "loading" });
-  try {
-    const page = await notificationsApi.inbox({ before: next });
-    useInbox.setState((s) => ({
-      items: appendInboxPage(s.items, page.items),
-      next: page.next,
-      more: "idle",
-    }));
-  } catch {
-    useInbox.setState({ more: "failed" });
-  }
-}
-
-/** Reads one item, or (with none) everything; the bell and badge follow. */
-async function markRead(item?: InboxItem): Promise<void> {
-  if (item && item.readAt !== null) return;
-  const before = useInbox.getState().items;
-  const unreadBefore = useUnread.getState().unread;
-  const at = new Date().toISOString();
-  // Shown read at once; the server's count follows.
-  useInbox.setState({
-    items: markInboxRead(before, at, item ? [item.id] : undefined),
+/**
+ * Reads one item, or (with none) everything, shown read at once with the
+ * count. The server's count follows, and a failure puts both back, but
+ * only where nothing newer has landed since (another read, a poll, the
+ * list again): an older answer never overwrites a newer one. Either way,
+ * the bell's queries are asked again once it's settled.
+ */
+export function useMarkRead() {
+  const client = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async (item: InboxItem | undefined) => {
+      const { notificationsApi } = await import("~/server/fns/notifications");
+      return notificationsApi.read(item ? { ids: [item.id] } : { all: true });
+    },
+    onMutate: async (item) => {
+      // A count or a list refresh on its way would undo what's shown. A
+      // list loading for the first time is left to land: it has nothing
+      // to undo, and cancelling it would leave it unloaded.
+      await client.cancelQueries({ queryKey: notificationsKeys.unread });
+      if (client.getQueryData(notificationsKeys.inbox) !== undefined)
+        await client.cancelQueries({ queryKey: notificationsKeys.inbox });
+      const pages = client.getQueryData<InboxPages>(notificationsKeys.inbox);
+      const unread = client.getQueryData<number>(notificationsKeys.unread);
+      const at = new Date().toISOString();
+      client.setQueryData<InboxPages>(notificationsKeys.inbox, (data) =>
+        data
+          ? {
+              ...data,
+              pages: data.pages.map((page) => ({
+                ...page,
+                items: markInboxRead(
+                  page.items,
+                  at,
+                  item ? [item.id] : undefined,
+                ),
+              })),
+            }
+          : data,
+      );
+      setUnread(client, item ? Math.max(0, (unread ?? 1) - 1) : 0);
+      return { pages, unread, marks: marks(client) };
+    },
+    onSuccess: ({ unread }, _item, before) => {
+      if (marks(client).unread === before.marks.unread)
+        setUnread(client, unread);
+    },
+    onError: (_error, item, before) => {
+      if (before) {
+        const now = marks(client);
+        if (now.inbox === before.marks.inbox && before.pages)
+          client.setQueryData(notificationsKeys.inbox, before.pages);
+        if (now.unread === before.marks.unread && before.unread !== undefined)
+          setUnread(client, before.unread);
+      }
+      if (!item)
+        noteToast("We couldn't mark them read. Check your connection.", {
+          retry: () => mutation.mutate(undefined),
+        });
+    },
+    // What the server has now, over anything that came back on the way.
+    onSettled: () =>
+      client.invalidateQueries({ queryKey: notificationsKeys.all }),
   });
-  gotUnread(item ? Math.max(0, (unreadBefore ?? 1) - 1) : 0);
-  try {
-    const { unread } = await notificationsApi.read(
-      item ? { ids: [item.id] } : { all: true },
-    );
-    gotUnread(unread);
-  } catch {
-    useInbox.setState({ items: before });
-    if (unreadBefore !== null) gotUnread(unreadBefore);
-    if (!item)
-      noteToast("We couldn't mark them read. Check your connection.", {
-        retry: () => void markRead(),
-      });
-  }
+  return (item?: InboxItem) => {
+    if (item && item.readAt !== null) return;
+    mutation.mutate(item);
+  };
 }
 
 /** A row's product mark; admin items wear the umbrella. */
@@ -137,11 +146,11 @@ function ProductMark({ product }: { product: InboxProduct }) {
 }
 
 /** Where a row goes when a finger or pointer opens it. */
-function useOpenItem(close: () => void) {
+function useOpenItem(close: () => void, markRead: (item: InboxItem) => void) {
   const navigate = useNavigate();
   return (event: MouseEvent<HTMLAnchorElement>, item: InboxItem) => {
     track("notification_opened", { type: item.type });
-    void markRead(item);
+    markRead(item);
     // A new tab or window: the browser takes it from here.
     if (
       event.metaKey ||
@@ -213,14 +222,18 @@ function InboxRow({
 function InboxPanel({
   title,
   close,
+  inbox,
 }: {
   /** The heading, wrapped for the sheet so it names it. */
   title: ReactNode;
   close: () => void;
+  /** The inbox's query, kept by the surface across openings. */
+  inbox: UseInfiniteQueryResult<InboxPages, unknown>;
 }) {
-  const { status, items, next, more } = useInbox();
-  const unread = useUnread((s) => s.unread) ?? 0;
-  const onOpen = useOpenItem(close);
+  const items = inboxItems(inbox.data);
+  const unread = useUnread() ?? 0;
+  const markRead = useMarkRead();
+  const onOpen = useOpenItem(close, markRead);
   const idPrefix = useId();
   // The meta line's "2m" is as of this render; the list is short-lived.
   const now = new Date().toISOString();
@@ -234,7 +247,7 @@ function InboxPanel({
         actions={
           anyUnread ? (
             <WithTooltip label="Mark every notification read">
-              <Button variant="ghost" size="sm" onClick={() => void markRead()}>
+              <Button variant="ghost" size="sm" onClick={() => markRead()}>
                 Mark all read
               </Button>
             </WithTooltip>
@@ -242,15 +255,15 @@ function InboxPanel({
         }
       />
       <PanelBody>
-        <div aria-live="polite" aria-busy={status === "loading"}>
-          {status === "loading" || status === "idle" ? (
-            <RowSkeleton rows={4} label="Loading your notifications" />
-          ) : status === "failed" ? (
+        <div aria-live="polite" aria-busy={inbox.isPending}>
+          {inbox.data === undefined && inbox.isError ? (
             <InlineError
               className="px-4"
               message="We couldn't load your notifications. Check your connection and try again."
-              onRetry={() => void refreshInbox()}
+              onRetry={() => void inbox.refetch()}
             />
+          ) : inbox.data === undefined ? (
+            <RowSkeleton rows={4} label="Loading your notifications" />
           ) : items.length === 0 ? (
             <PanelNote>
               Nothing new. Notifications show up here, pushed or not.
@@ -280,23 +293,23 @@ function InboxPanel({
             </section>
           ))}
         </div>
-        {status === "ready" && next ? (
+        {inbox.data && inbox.hasNextPage ? (
           <div className="border-hairline border-t px-4 py-2">
-            {more === "failed" ? (
+            {inbox.isFetchNextPageError ? (
               <InlineError
                 className="py-1"
                 message="We couldn't load older notifications. Check your connection and try again."
-                onRetry={() => void loadOlder()}
+                onRetry={() => void inbox.fetchNextPage()}
               />
             ) : (
               <WithTooltip label="Load older notifications">
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={more === "loading"}
-                  onClick={() => void loadOlder()}
+                  disabled={inbox.isFetchingNextPage}
+                  onClick={() => void inbox.fetchNextPage()}
                 >
-                  {more === "loading" ? "Loading…" : "Show older"}
+                  {inbox.isFetchingNextPage ? "Loading…" : "Show older"}
                 </Button>
               </WithTooltip>
             )}
@@ -318,7 +331,8 @@ function InboxPanel({
 
 /**
  * Notifications, opened by the bell (./bell.tsx): a popover under it on
- * desktop, the kit's sheet on phones. Each opening loads the newest page.
+ * desktop, the kit's sheet on phones. Each opening asks for the inbox
+ * again (it's never fresh), showing the last one while it does.
  */
 export function InboxSurface({
   open,
@@ -334,9 +348,21 @@ export function InboxSurface({
   returnFocus: () => void;
   mobile: boolean;
 }) {
+  const client = useQueryClient();
+  const inbox = useInfiniteQuery({ ...inboxQuery(), enabled: open });
   useEffect(() => {
-    if (open) void refreshInbox();
-  }, [open]);
+    if (open) return;
+    // Opening again asks for the newest page only, not every page "Show
+    // older" loaded (TanStack's "refetch only the first page" recipe).
+    client.setQueryData<InboxPages>(notificationsKeys.inbox, (data) =>
+      data && data.pages.length > 1
+        ? {
+            pages: data.pages.slice(0, 1),
+            pageParams: data.pageParams.slice(0, 1),
+          }
+        : data,
+    );
+  }, [open, client]);
   const close = () => onOpenChange(false);
   if (mobile)
     return (
@@ -347,6 +373,7 @@ export function InboxSurface({
       >
         <InboxPanel
           close={close}
+          inbox={inbox}
           title={
             <SheetTitle asChild>
               <span>Notifications</span>
@@ -373,7 +400,7 @@ export function InboxSurface({
           returnFocus();
         }}
       >
-        <InboxPanel close={close} title="Notifications" />
+        <InboxPanel close={close} inbox={inbox} title="Notifications" />
       </PopoverContent>
     </Popover>
   );

@@ -1,6 +1,7 @@
 // Anonymous product analytics (PostHog). What we track and why:
 // docs/ANALYTICS.md. Add every new event to `AnalyticsEvents` first.
 import type { PostHog } from "posthog-js";
+import type { CalloutId } from "~/core/home/callouts";
 import type {
   ConnectionVerdict,
   ExtraMinutes,
@@ -222,6 +223,9 @@ export interface AnalyticsEvents {
   // Home, the installed app's start page (V3.md §1.5): which product a
   // link led into, never the course, room or item behind it.
   home_link_clicked: { to: ProductId };
+  // Its setup callouts: which get followed or closed, never who or what else.
+  home_callout_followed: { callout: CalloutId };
+  home_callout_dismissed: { callout: CalloutId };
   // The transcript import: counts and a boolean, never what was pasted.
   transcript_parsed: {
     recognized: boolean;

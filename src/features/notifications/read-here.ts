@@ -1,8 +1,9 @@
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { CourseCode, IsoDate, TermId } from "~/core/schema";
 import type { NotificationsReadInput } from "~/core/schema/notifications";
 import { useAccount } from "~/features/auth/account-store";
-import { gotUnread } from "./unread-store";
+import { setUnread } from "./queries";
 
 // Reading the thing itself reads its notifications (docs/V2.md §6.7): a
 // course in Schedule reads its seat openings, Todo's day reads that day's
@@ -11,7 +12,10 @@ import { gotUnread } from "./unread-store";
 // badge. Signed in only, and the same place at most once a minute.
 // Framework note: this is a side effect of showing a page, not state, so
 // it's an effect rather than a loader (the course drill-in's term comes
-// from app state).
+// from app state), and a write rather than a query. Query dedupes and
+// caches reads but has nothing for "this write at most once a minute", so
+// that stays a small map here; the count it answers goes into the query
+// cache (`setUnread`) like every other answer's.
 
 /** When each place was last read, this page load. */
 const readAt = new Map<string, number>();
@@ -25,6 +29,7 @@ export function forgetReads(): void {
 /** Reads `input`'s notifications unless the same was read in the last minute. */
 export async function readOnce(
   input: NotificationsReadInput,
+  client: QueryClient,
   now = Date.now(),
 ): Promise<void> {
   const key = JSON.stringify(input);
@@ -34,7 +39,7 @@ export async function readOnce(
   try {
     // Loaded on first use, so Schedule's signed-out pages don't carry it.
     const { notificationsApi } = await import("~/server/fns/notifications");
-    gotUnread((await notificationsApi.read(input)).unread);
+    setUnread(client, (await notificationsApi.read(input)).unread);
   } catch {
     // Offline, or signed out meanwhile: the next visit reads it.
     readAt.delete(key);
@@ -49,15 +54,18 @@ export function useReadCourseNotifications(
   courseCode: CourseCode,
 ): void {
   const signedIn = useSignedIn();
+  const client = useQueryClient();
   useEffect(() => {
-    if (signedIn && termId) void readOnce({ course: { termId, courseCode } });
-  }, [signedIn, termId, courseCode]);
+    if (signedIn && termId)
+      void readOnce({ course: { termId, courseCode } }, client);
+  }, [signedIn, termId, courseCode, client]);
 }
 
 /** A day's "Due tomorrow", read while Todo shows that day (`?day=`). */
 export function useReadDayNotifications(day: IsoDate | undefined): void {
   const signedIn = useSignedIn();
+  const client = useQueryClient();
   useEffect(() => {
-    if (signedIn && day) void readOnce({ day });
-  }, [signedIn, day]);
+    if (signedIn && day) void readOnce({ day }, client);
+  }, [signedIn, day, client]);
 }

@@ -73,8 +73,12 @@ A product laid out like the scheduler: the rail of views, the sidebar and the ca
 A semester Testudo lists (fall, spring, summer or winter). A term is **active** while Testudo lists it and **archived** after, shown under "Past terms".
 
 **Home**:
-The installed app's start page at `/home`: a greeting, then a few facts from each product, each linking into it: **Today** (what's left of today's classes in Now's main plan, with the walk between buildings), **Due soon** (Todo), unread chat, the next term's main plan with its problems and seats that opened, Plan's credits and GenEds, and instructors to review. Hidden: nothing links to it, and it isn't indexed. Code says `HomePage`, `HOME_PATH`.
+Terpsicle's first place at `/home`, where the installed app opens and the family bar's wordmark goes: a greeting, then two columns split by time. **Now** (two thirds): **Today** (the day's classes in Now's main plan, the next one tagged "Next · in 40 min", with the walk between buildings; once they're over, the next day's), **This week** (Todo's week a class to a row: its next deadline, checked off here, and "3 of 5 done") and unread chat. **Next** (one third): the next term's main plan with its credits, problems and seats that opened, the four-year plan's credits and GenEds, **Coming up** (deadlines in the three weeks after this one) and instructors to review. One column on a phone, Now first. It isn't indexed. Code says `HomePage`, `HOME_PATH`.
 _Avoid_: dashboard, start page (in copy)
+
+**Setup callout**:
+On Home, one quiet card for a product you haven't set up, in the place its part would be: connect ELMS, your class chats, plan the next term, start a four-year plan, or (signed out) sign in. Two at most, the most useful first; the next term's plan leads in registration season. Closing one keeps it closed, on every device once you're signed in. Code says `CalloutId`, `chooseCallouts`, `HomeCallout`.
+_Avoid_: banner, nag, promo
 
 **Term tag**:
 The small tag beside a term's name wherever it's named: **Now** (an ink border) on the term in session, **Next** (a hairline) on the first fall or spring still to start, the one you're registering for. Other terms get none; winter and summer are only ever Now. Worked out from the academic calendar, as Plan's term status is, so every product agrees. Code says `TermTag`.

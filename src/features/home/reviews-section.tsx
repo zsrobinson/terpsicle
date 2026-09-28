@@ -1,6 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { PenLine } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { termLabel } from "~/core/catalog/terms";
 import {
   courseSlug,
@@ -9,10 +10,10 @@ import {
   reviewedKey,
 } from "~/core/reviews";
 import type { IsoDate } from "~/core/schema";
-import { api } from "~/server/fns/api";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import type { HomeLocal } from "./local";
+import { reviewedKeysQuery } from "./queries";
 import { HomeSection, homeLinkClicked, ROW_LINK } from "./section";
 
 // "Review your instructors" (owner, 2026-09-28: "encourage reviews of
@@ -94,29 +95,10 @@ function ReviewRow({ r }: { r: InstructorToReview }) {
   );
 }
 
-/** `reviewedKey`s of the reviews you've written (rejected ones don't count); null while loading. */
+/**
+ * The reviews you've written, as `reviewedKey`s; null while loading, and
+ * offline: ask nothing rather than ask for ones already written.
+ */
 function useReviewedKeys(): ReadonlySet<string> | null {
-  const [keys, setKeys] = useState<ReadonlySet<string> | null>(null);
-  useEffect(() => {
-    let live = true;
-    api.reviews
-      .mine()
-      .then(({ reviews }) => {
-        if (live)
-          setKeys(
-            new Set(
-              reviews
-                .filter((r) => r.status !== "rejected")
-                .map((r) => reviewedKey(r.course, r.reviewedName)),
-            ),
-          );
-      })
-      .catch(() => {
-        // Offline: ask nothing rather than ask for ones already written.
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
-  return keys;
+  return useQuery(reviewedKeysQuery()).data ?? null;
 }
