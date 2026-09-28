@@ -1,12 +1,12 @@
 import { cn } from "cn";
 import { FileUp } from "lucide-react";
 import { type DragEvent, useId, useState } from "react";
-import { track } from "~/app/analytics";
 import {
   readTodoFile,
   TODO_FILE_MAX_BYTES,
   TODO_FILE_WORDS,
 } from "~/core/todo";
+import { track } from "~/lib/analytics";
 import { WithTooltip } from "~/ui/tooltip";
 import { useTodo } from "./todo-store";
 

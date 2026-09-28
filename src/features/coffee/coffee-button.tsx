@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { createLucideIcon } from "lucide-react";
 import { useState } from "react";
-import { track } from "~/app/analytics";
+import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { DropdownMenuItem } from "~/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";

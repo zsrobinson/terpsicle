@@ -1,9 +1,9 @@
 import { Bell } from "lucide-react";
 import { useId, useRef } from "react";
-import { Mark } from "~/app/brand/mark";
-import type { MarkId } from "~/app/brand/marks";
+import { Mark } from "~/components/brand/mark";
 import type { PushAskMoment } from "~/core/schema";
 import { IosStepRows } from "~/features/pwa/ios-steps";
+import type { MarkId } from "~/lib/brand/marks";
 import { Button } from "~/ui/button";
 import { Sheet, SheetTitle } from "~/ui/sheet";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";

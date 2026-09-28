@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Mark } from "~/app/brand/mark";
+import { Mark } from "~/components/brand/mark";
 import { peopleWords } from "~/core/chat";
 import {
   type CourseCode,

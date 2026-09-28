@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { track } from "~/app/analytics";
 import type {
   IsoDate,
   TodoFeedState,
@@ -21,6 +20,7 @@ import {
   type TaskFields,
   taskFieldsOf,
 } from "~/core/todo";
+import { track } from "~/lib/analytics";
 import { ApiCallError } from "~/server/fns/api";
 import { todoApi } from "~/server/fns/todo";
 

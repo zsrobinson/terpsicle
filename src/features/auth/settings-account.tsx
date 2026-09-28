@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, ExternalLink } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
-import { track } from "~/app/analytics";
 import { signInStartHref } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
 import { AiSettingsSection } from "~/features/ai/ai-settings-section";
 import { SitePage } from "~/features/site/site-page";
+import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { ListRow } from "~/ui/list-row";

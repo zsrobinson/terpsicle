@@ -102,7 +102,7 @@ export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
     },
     {
       pattern:
-        /(^|\/)vaul\/|^src\/(app\/(mobile-drawer|workbench\/drawer)|features\/four-year\/plan-drawer)\.tsx$/,
+        /(^|\/)vaul\/|^src\/(features\/schedule\/mobile-drawer|components\/workbench\/drawer|features\/four-year\/plan-drawer)\.tsx$/,
       why: "a workbench's phone drawer loads on phones only (lazyDrawer)",
     },
   ];
@@ -120,7 +120,10 @@ export const LANDING_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
       why: "the query cache's persister loads with the data it keeps",
     },
     { pattern: /^src\/state\//, why: "the app's stores load with /schedule" },
-    { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
+    {
+      pattern: /^src\/features\/schedule\/app\.tsx$/,
+      why: "the app loads with /schedule",
+    },
   ];
 
 /**
@@ -144,7 +147,10 @@ export const REVIEWS_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
       pattern: /^src\/state\/(?!data-source\.ts$)/,
       why: "the app's stores load with /schedule",
     },
-    { pattern: /^src\/app\/app\.tsx$/, why: "the app loads with /schedule" },
+    {
+      pattern: /^src\/features\/schedule\/app\.tsx$/,
+      why: "the app loads with /schedule",
+    },
   ];
 
 /**
@@ -198,7 +204,7 @@ const PLAN_NEVER_EAGER = {
  */
 const PLAN_ROUTE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
   {
-    pattern: /^src\/app\/app\.tsx$/,
+    pattern: /^src\/features\/schedule\/app\.tsx$/,
     why: "the scheduler's app loads with /schedule",
   },
   {

@@ -1,4 +1,3 @@
-import type { Tone } from "~/app/emphasis";
 import type {
   CourseCode,
   Message,
@@ -8,6 +7,7 @@ import type {
   Subject,
 } from "~/core/schema";
 import { parseSectionKey, SEVERITY_ORDER } from "~/core/schema";
+import type { Tone } from "~/lib/emphasis";
 
 // A problem in a few words, from one course's point of view, for its row in
 // the Courses tab: "Tight connection to ECON200", "Overlaps Lunch". The row

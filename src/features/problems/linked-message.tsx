@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Fragment } from "react";
-import { messageToText } from "~/app/message-text";
+import { messageToText } from "~/components/message-text";
 import type { Message, MessagePart } from "~/core/schema";
 import { WithTooltip } from "~/ui/tooltip";
 import { openSubject } from "./actions";

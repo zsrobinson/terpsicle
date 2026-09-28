@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ChunkLoadError } from "~/app/panel-load-boundary";
+import { ChunkLoadError } from "~/components/panel-load-boundary";
 import {
   SamplesFailed,
   SamplesView,

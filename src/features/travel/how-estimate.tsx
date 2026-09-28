@@ -1,5 +1,4 @@
 import { useId, useState } from "react";
-import { track } from "~/app/analytics";
 import {
   type Connection,
   FEET_PER_MINUTE_PER_MPH,
@@ -8,6 +7,7 @@ import {
   type TravelSettings,
 } from "~/core/schema";
 import { connectionToExplain, travelMath } from "~/core/travel";
+import { track } from "~/lib/analytics";
 import { WithTooltip } from "~/ui/tooltip";
 import { estimateLine } from "./words";
 

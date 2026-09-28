@@ -123,7 +123,9 @@
                     "group": [
                       "~/ingest",
                       "~/ingest/**",
-                      "~/app/**",
+                      "~/components/**",
+                      "~/hooks/**",
+                      "~/lib/**",
                       "~/features/**",
                       "~/state/**",
                       "~/ui",
@@ -174,7 +176,9 @@
                   },
                   {
                     "group": [
-                      "~/app/**",
+                      "~/components/**",
+                      "~/hooks/**",
+                      "~/lib/**",
                       "~/features/**",
                       "~/state/**",
                       "~/ui",
@@ -224,7 +228,9 @@
                   },
                   {
                     "group": [
-                      "~/app/**",
+                      "~/components/**",
+                      "~/hooks/**",
+                      "~/lib/**",
                       "~/features/**",
                       "~/state/**",
                       "~/ui",
@@ -307,7 +313,9 @@
                     "group": [
                       "~/ingest",
                       "~/ingest/**",
-                      "~/app/**",
+                      "~/components/**",
+                      "~/hooks/**",
+                      "~/lib/**",
                       "~/features/**",
                       "~/state/**",
                       "~/ui",
@@ -349,8 +357,19 @@
                     "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
                   },
                   {
-                    "group": ["~/app/**", "~/features/**", "~/ui", "~/ui/**"],
-                    "message": "The data layer sits under the UI: src/state and src/worker never import the shell, features or the kit (BUILD.md \u00a73)."
+                    "group": ["~/components/ui", "~/components/ui/**"],
+                    "message": "Import the page kit as ~/ui/… (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": [
+                      "~/components/**",
+                      "~/features/**",
+                      "~/hooks/**",
+                      "~/lib/**",
+                      "~/ui",
+                      "~/ui/**"
+                    ],
+                    "message": "The data layer sits under the UI: src/state and src/worker never import features, the shared components, hooks and lib, or the kit (BUILD.md \u00a73)."
                   }
                 ]
               }
@@ -361,9 +380,10 @@
     },
     {
       "includes": [
-        "src/app/**",
         "src/features/**",
         "src/components/**",
+        "src/hooks/**",
+        "src/lib/**",
         "src/routes/**",
         "src/router.tsx"
       ],
@@ -389,6 +409,10 @@
                     "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
                   },
                   {
+                    "group": ["~/components/ui", "~/components/ui/**"],
+                    "message": "Import the page kit as ~/ui/… (BUILD.md \u00a73)."
+                  },
+                  {
                     "group": ["~/fixtures", "~/fixtures/**"],
                     "message": "Only the data layer (src/state, src/worker) and tests load fixtures; components get data from state."
                   }
@@ -400,10 +424,20 @@
       }
     },
     {
-      // The page kit every product composes (docs/COHESION.md): it takes
-      // what it shows as props and imports only ~/core, so no product's
-      // stores or shell come along with it.
-      "includes": ["src/components/**"],
+      // The scheduler's shell (src/features/schedule) sits on the shared
+      // layer, beside the other products: the shared components, hooks and
+      // lib are every product's, and Reviews, Chat, Plan and Todo don't reach
+      // into Schedule's shell. The UI rules above, repeated because a later
+      // override replaces them.
+      "includes": [
+        "src/components/**",
+        "src/hooks/**",
+        "src/lib/**",
+        "src/features/chat/**",
+        "src/features/reviews/**",
+        "src/features/four-year/**",
+        "src/features/todo/**"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -417,7 +451,54 @@
                       "~/ingest/**",
                       "~/jobs/**",
                       "~/server/**",
-                      "~/app/**",
+                      "!~/server/fns/**"
+                    ],
+                    "message": "UI code must not import ingest, jobs or server code; only typed server functions in ~/server/fns (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["cloudflare:*"],
+                    "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/components/ui", "~/components/ui/**"],
+                    "message": "Import the page kit as ~/ui/… (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/fixtures", "~/fixtures/**"],
+                    "message": "Only the data layer (src/state, src/worker) and tests load fixtures; components get data from state."
+                  },
+                  {
+                    "group": ["~/features/schedule", "~/features/schedule/**"],
+                    "message": "The scheduler's shell is Schedule's own: shared components, hooks, lib and the other products don't import it (BUILD.md \u00a73)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // The page kit every product composes (docs/COHESION.md): it takes
+      // what it shows as props and imports only ~/core, so no product's
+      // stores or shell come along with it.
+      "includes": ["src/components/ui/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "~/ingest",
+                      "~/ingest/**",
+                      "~/jobs/**",
+                      "~/server/**",
+                      "~/components/**",
+                      "~/hooks/**",
+                      "~/lib/**",
                       "~/features/**",
                       "~/state/**",
                       "~/worker/**"
@@ -427,6 +508,10 @@
                   {
                     "group": ["cloudflare:*"],
                     "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md §3)."
+                  },
+                  {
+                    "group": ["~/components/ui", "~/components/ui/**"],
+                    "message": "Import the page kit as ~/ui/… (BUILD.md \u00a73)."
                   },
                   {
                     "group": ["~/fixtures", "~/fixtures/**"],
@@ -471,7 +556,9 @@
                     "group": [
                       "~/ingest",
                       "~/ingest/**",
-                      "~/app/**",
+                      "~/components/**",
+                      "~/hooks/**",
+                      "~/lib/**",
                       "~/features/**",
                       "~/state/**",
                       "~/ui",
@@ -518,7 +605,9 @@
                   },
                   {
                     "group": [
-                      "~/app/**",
+                      "~/components/**",
+                      "~/hooks/**",
+                      "~/lib/**",
                       "~/features/**",
                       "~/state/**",
                       "~/ui",
@@ -564,7 +653,9 @@
                   },
                   {
                     "group": [
-                      "~/app/**",
+                      "~/components/**",
+                      "~/hooks/**",
+                      "~/lib/**",
                       "~/features/**",
                       "~/state/**",
                       "~/ui",
@@ -582,9 +673,10 @@
     },
     {
       "includes": [
-        "src/app/**/*.test.{ts,tsx}",
         "src/features/**/*.test.{ts,tsx}",
         "src/components/**/*.test.{ts,tsx}",
+        "src/hooks/**/*.test.{ts,tsx}",
+        "src/lib/**/*.test.{ts,tsx}",
         "src/routes/**/*.test.{ts,tsx}"
       ],
       "linter": {
@@ -607,6 +699,10 @@
                   {
                     "group": ["cloudflare:*"],
                     "message": "UI code runs in the browser: no cloudflare:* imports (BUILD.md \u00a73)."
+                  },
+                  {
+                    "group": ["~/components/ui", "~/components/ui/**"],
+                    "message": "Import the page kit as ~/ui/… (BUILD.md \u00a73)."
                   }
                 ]
               }

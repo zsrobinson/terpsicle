@@ -1,7 +1,7 @@
 import { Redo2, Undo2 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { modKey } from "~/app/shortcuts";
+import { modKey } from "~/lib/shortcuts";
 import { NOTE_MS, ToastAction, UNDO_MS } from "~/ui/toast";
 import { useFourYear } from "./store";
 

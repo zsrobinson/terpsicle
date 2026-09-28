@@ -1,5 +1,4 @@
 import { toast } from "sonner";
-import { track } from "~/app/analytics";
 import type { DocKey } from "~/core/sync";
 import {
   settleAccountPrefs,
@@ -8,6 +7,7 @@ import {
 import { type SyncHost, startSync, stopSync } from "~/features/sync/boot";
 import { runningEngine } from "~/features/sync/running";
 import { useSyncStatus } from "~/features/sync/status";
+import { track } from "~/lib/analytics";
 import { newLocalId, nowIso } from "~/state/ids";
 import { fourYearDb } from "./data";
 import { useFourYear, whenSaved } from "./store";

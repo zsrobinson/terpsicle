@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { track } from "~/app/analytics";
 import { type InstallMethod, installMethod, installPlatform } from "~/core/pwa";
 import type { InstallTrigger } from "~/core/schema";
+import { track } from "~/lib/analytics";
 import { takeStashedInstallPrompt } from "./install-capture";
 import { markShownThisSession } from "./install-session";
 
@@ -9,7 +9,7 @@ import { markShownThisSession } from "./install-session";
 // whether and how the dialog is open. The "Install app" entry needs only
 // this, and it loads with the scheduler, so the key moments' rules and the
 // dialog's actions live in install-store.ts, which loads after the page does
-// (src/app/pwa.tsx).
+// (src/features/pwa/pwa.tsx).
 
 /** What "Install app" does, in its tooltips. */
 export const INSTALL_HINT = "Put Terpsicle on your home screen";
@@ -58,7 +58,7 @@ export function isStandalone(win: Window = window): boolean {
 
 /**
  * Takes the prompt the head script kept (install-capture.ts), if the app
- * has none yet. The prompt's host loads after the page (src/app/pwa.tsx),
+ * has none yet. The prompt's host loads after the page (src/features/pwa/pwa.tsx),
  * and a key moment or the menu item can come first.
  */
 export function adoptStashedInstallPrompt(win: Window = window): void {

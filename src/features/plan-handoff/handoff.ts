@@ -1,7 +1,7 @@
-import { track } from "~/app/analytics";
 import { addedLine, handoffToast, planHandoff } from "~/core/four-year/handoff";
 import { mainPlanFor } from "~/core/plans";
 import type { CourseCode, LocalId, TermId } from "~/core/schema";
+import { track } from "~/lib/analytics";
 import {
   type FourYearColumn,
   fourYearLinkDb,

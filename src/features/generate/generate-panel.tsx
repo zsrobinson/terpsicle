@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
-import { track } from "~/app/analytics";
-import { useFocusRequest } from "~/app/focus-request";
 import {
   PanelBody,
   PanelFooter,
   PanelHeader,
   SectionHeader,
-} from "~/app/panel";
-import { useTabSearch } from "~/app/schedule-view";
+} from "~/components/panel";
 import { resolveCourseColors } from "~/core/color";
 import {
   draftCourseCodes,
@@ -24,6 +21,9 @@ import type {
   Relaxation,
 } from "~/core/schema";
 import { GenerateTabSearchSchema } from "~/core/schema/schedule-url";
+import { useFocusRequest } from "~/features/schedule/focus-request";
+import { useTabSearch } from "~/features/schedule/schedule-view";
+import { track } from "~/lib/analytics";
 import {
   fourYearLinkDb,
   readFourYearColumn,

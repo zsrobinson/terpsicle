@@ -102,7 +102,7 @@ Revisit if: the owner refines the brand.
 ### The owner's pixel marks, on Flexoki 600 tiles
 2026-09-28 · owner · app-wide
 Six 9×9 pixel marks, "exactly" as the owner drew them: a black umbrella tile for Terpsicle, and each product's glyph in white at 100% and 50% on its Flexoki 600 tile (Plan's green and Todo's yellow moved to 600 too). The 1-unit offset is optional: the bar and menus keep it, and the app icons and favicon are the umbrella's tile alone, no offset. In dark, the umbrella's black tile takes a base-600 keyline (the page is black too). Glyphs are graphics, held to 3:1 (Todo's white on yellow-600 is 3.5:1).
-Revisit if: the owner redraws a mark; change its rows in `src/app/brand/marks.ts` and run `pnpm tsx scripts/build-icons.ts`.
+Revisit if: the owner redraws a mark; change its rows in `src/lib/brand/marks.ts` and run `pnpm tsx scripts/build-icons.ts`.
 
 ### Early access, and a coffee link
 2026-09-28 · owner · app-wide
@@ -209,6 +209,11 @@ Revisit if: server functions gain those, or the table gets in the way. (changed 
 2026-09-28 · owner · app-wide
 Each `src/server/<area>` writes its JSON routes in its own `api-routes.ts` table, and `src/server/api/router.ts` composes them, so products stop editing one shared file ("sure, if that would help reduce conflicts definitely"). A test holds each name to one area and snapshots every route's auth and limits.
 Revisit if: areas start sharing routes, or the tables drift into different shapes.
+
+### Folders follow TanStack Start's conventions
+2026-09-28 · owner · app-wide
+Shared views go in `src/components` (the kit stays `src/components/ui`), shared hooks in `src/hooks`, non-view code every product uses in `src/lib`, and the scheduler's shell is Schedule's feature, `src/features/schedule`; `src/app` is gone ("we should just be conforming to whatever best practices for tanstack router/start projects"; "if something isn't really a view, it'd make sense to pull it out"). Biome keeps the shared layer and the other products out of the shell.
+Revisit if: TanStack's own layout changes, or `src/lib` grows big enough to want a folder per service.
 
 ### Page size is informational
 2026-09-26 · owner · app-wide

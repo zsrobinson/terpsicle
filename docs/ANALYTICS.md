@@ -6,7 +6,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
 - **Pageviews**, including in-app navigation (`capture_pageview: "history_change"`), with a scrubbed URL (see "Privacy"). PostHog loads with the scheduler at `/schedule` (`app_loaded` there too) and with `/settings`; the marketing page at `/`, `/privacy` and the coming-soon pages don't load it, so they stay light and aren't counted until they do.
 - **Autocapture**: clicks and form submissions on interactive elements, with element text. Input values and copied text are never captured, clicks on or inside `data-private` elements are skipped, text or attributes that contain a `data-private` element's text are removed (a button whose label quotes a block's name), and it's off on `/chat`, `/settings`, `/admin`, `/reviews/mine`, `/plan`, `/todo`, `/signin` and `/auth` (`NO_AUTOCAPTURE_ROUTES` in `src/core/analytics/routes.ts`), where named events still count.
-- **Named events** from `track()` in `src/app/analytics.ts`. Every event and its properties is declared in the `AnalyticsEvents` interface there:
+- **Named events** from `track()` in `src/lib/analytics.ts`. Every event and its properties is declared in the `AnalyticsEvents` interface there:
 
   | Event | Properties | Why |
   |---|---|---|
@@ -117,7 +117,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
   Hovering and previewing sections isn't tracked: it fires on every pointer move over the calendar, and `section_switched` already says whether ghosts lead somewhere. The same goes for hovering grade bar segments.
 
-- **No session recordings.** The owner decided against them (2026-09-26): `posthog.init` sets `disable_session_recording: true` whatever the PostHog project says, nothing calls `startSessionRecording()` (a test in `src/app/analytics.test.ts` checks every source file), and `before_send` drops any recording data (`$snapshot`) anyway. Keep replay off in the PostHog project too.
+- **No session recordings.** The owner decided against them (2026-09-26): `posthog.init` sets `disable_session_recording: true` whatever the PostHog project says, nothing calls `startSessionRecording()` (a test in `src/lib/analytics.test.ts` checks every source file), and `before_send` drops any recording data (`$snapshot`) anyway. Keep replay off in the PostHog project too.
 - **Server events** from cron jobs and the `/api` endpoints, via `captureServerEvent()` in `src/server/analytics.ts` (declared in `ServerEvents`). They use one fixed id (`terpsicle-worker`) and never describe a person:
 
   | Event | Properties | Why |
@@ -152,7 +152,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
 
 ## How it's wired
 
-- **Client:** `src/app/analytics.ts`. `initAnalytics()` lazy-loads `posthog-js` (its own chunk, so disabled environments never download it) with `posthogOptions()` from `src/app/posthog-options.ts` (loaded with it, so the privacy code adds nothing to eager bundles): `api_host: "/ingest"`, `ui_host: "https://us.posthog.com"` and the privacy settings above. `track(event, props)` is typed against `AnalyticsEvents` and queues events until PostHog loads.
+- **Client:** `src/lib/analytics.ts`. `initAnalytics()` lazy-loads `posthog-js` (its own chunk, so disabled environments never download it) with `posthogOptions()` from `src/lib/posthog-options.ts` (loaded with it, so the privacy code adds nothing to eager bundles): `api_host: "/ingest"`, `ui_host: "https://us.posthog.com"` and the privacy settings above. `track(event, props)` is typed against `AnalyticsEvents` and queues events until PostHog loads.
 - **Proxy:** `src/server/posthog-proxy.ts`, routed from `src/server/worker.ts`. `/ingest/static/*` goes to `us-assets.i.posthog.com` and everything else under `/ingest/*` to `us.i.posthog.com`. The proxy is first-party, so ad blockers don't drop anonymous analytics.
 - **Token:** the public project token is in `env/.env` (`VITE_POSTHOG_TOKEN`) for the client and in `wrangler.jsonc` `vars.POSTHOG_TOKEN` for the Worker.
 

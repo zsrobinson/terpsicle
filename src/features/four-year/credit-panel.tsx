@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { MessageText } from "~/app/message-text";
-import { PanelNote } from "~/app/panel";
+import { MessageText } from "~/components/message-text";
+import { PanelNote } from "~/components/panel";
 import { displayTitle } from "~/core/four-year/display-title";
 import type { LocalId } from "~/core/schema";
 import type { FourYearCreditEntry } from "~/core/schema/four-year";

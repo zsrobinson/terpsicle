@@ -13,11 +13,11 @@ Before you write infrastructure (routing, URL or state sync, lazy loading, cachi
 - **Cloudflare:** Workers, D1, R2, Durable Objects, Cron Triggers, Workers AI and Email.
 - **Libraries:** Radix (through shadcn/ui) for components, Tailwind, zod, Dexie, zustand for app state that isn't URL state, and PostHog.
 
-**The scheduler's routes:** each rail tab and drill-in is a route under `/schedule` (`src/routes/schedule.*.tsx`) that the router splits and preloads; the sidebar keeps their components mounted, and `src/app/schedule-nav.ts` moves between them (`src/app/README.md`, "URL state").
+**The scheduler's routes:** each rail tab and drill-in is a route under `/schedule` (`src/routes/schedule.*.tsx`) that the router splits and preloads; the sidebar keeps their components mounted, and `src/features/schedule/schedule-nav.ts` moves between them (`src/features/schedule/README.md`, "URL state").
 
 ## Docs
 - `docs/SPEC.md` (what), `docs/DESIGN.md` (why, and the owner's taste), `docs/BUILD.md` (how), `docs/DATA.md` (R2 layout, schemas, local storage). `docs/V2.md` (accounts, sync, PWA, notifications, Reviews, Chat, moderation, admin) and `docs/V3.md` (Plan, Todo) win where they differ from the older docs.
-- Per area: `docs/AUTH.md`, `docs/MODERATION.md`, `docs/ANALYTICS.md`, `docs/ACCESSIBILITY.md`, `docs/MOBILE-TESTING.md`, `docs/UX-PRINCIPLES.md`, `src/app/README.md` (the scheduler shell), `src/core/README.md` (core modules).
+- Per area: `docs/AUTH.md`, `docs/MODERATION.md`, `docs/ANALYTICS.md`, `docs/ACCESSIBILITY.md`, `docs/MOBILE-TESTING.md`, `docs/UX-PRINCIPLES.md`, `src/features/schedule/README.md` (the scheduler shell), `src/core/README.md` (core modules).
 - Progress: `docs/STATUS.md`. Design reference: `reference/prototype/built/final.html`, screenshots in `reference/prototype/screenshots/`.
 - Skills (`.claude/skills/`): `ship-a-pr`, `framework-first`, `record-a-decision`, `glossary`, `tdd`, and `grill-me` (typed by the owner). The `reviewer` agent (`.claude/agents/reviewer.md`) reviews a PR diff against all of this.
 
@@ -32,7 +32,7 @@ Before you write infrastructure (routing, URL or state sync, lazy loading, cachi
 - Domain logic → `src/core`: small, pure, exported functions with tests next to them. No DOM, no fetch, no `Date.now()` (take time as an argument).
 - Data sources → `src/ingest`: platform-agnostic, takes `fetch` and a `BlobStore`. Every parser has golden tests on saved real pages.
 - Cron handlers → `src/jobs`. Server fns, D1, email and LLM → `src/server/<area>` (`auth`, `sync`, `push`, `notifications`, `alerts`, `reviews`, `summaries`, `chat`, `moderation`, `feedback`, `admin`, `calendar`, `todo`, `security`, `seo`, `pages`), with pure logic in the matching `src/core/<area>`. The JSON API's routes live in each area's `src/server/<area>/api-routes.ts`, composed and run by `src/server/api/router.ts`; the browser's typed client for it is `src/server/fns`.
-- UI → routes in `src/routes`, features in `src/features/<feature>/`, the scheduler shell in `src/app/`. Components stay thin: read state, call core, render.
+- UI → routes in `src/routes`, features in `src/features/<feature>/` (the scheduler's shell is `src/features/schedule`), and what every product shares in `src/components` (views; the kit is `src/components/ui`), `src/hooks` and `src/lib` (non-view code: analytics, theme, config, shortcuts). Nothing that isn't a view goes in a view folder. Components stay thin: read state, call core, render.
 - Mock data → `src/fixtures` builders (`aCourse`, `aSection`, `aPlan`, …). Don't hand-roll fixtures in tests when a builder exists.
 - `reference/` is read-only: never import from it; it's excluded from build, lint and tests.
 

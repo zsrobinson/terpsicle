@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect } from "react";
-import { initAnalytics } from "~/app/analytics";
 import { ChatSearchSchema } from "~/core/schema";
 import { ChatPage } from "~/features/chat/chat-page";
 import type { ChatGo } from "~/features/chat/nav";
+import { initAnalytics } from "~/lib/analytics";
 
 // Terpsicle Chat (V2.md §8.6). Everything talks to the Worker from the
 // browser (the socket, chat/*, sync/pull), so it renders only there.

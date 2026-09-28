@@ -5,7 +5,7 @@ import { minify, type Plugin, runnerImport } from "vite";
 // The document's inline <script>s, built once from their source so the CSP
 // can allow exactly them by hash (docs/V2.md §12).
 //
-// src/app/inline-scripts.ts lists them. This plugin evaluates that file in
+// src/lib/inline-scripts.ts lists them. This plugin evaluates that file in
 // Node, minifies each script, and hands out the result as literals:
 //
 //   virtual:terpsicle/inline-scripts         the text, for the app to render
@@ -20,7 +20,7 @@ export const INLINE_SCRIPTS_ID = "virtual:terpsicle/inline-scripts";
 export const INLINE_SCRIPT_HASHES_ID = "virtual:terpsicle/inline-script-hashes";
 
 /** Where the list of inline scripts lives, relative to the repo root. */
-export const INLINE_SCRIPTS_SOURCE = "src/app/inline-scripts.ts";
+export const INLINE_SCRIPTS_SOURCE = "src/lib/inline-scripts.ts";
 
 /** A CSP hash source for a script's exact text: `'sha256-<base64>'`. */
 export function cspHash(text: string): string {
@@ -59,7 +59,7 @@ export async function buildInlineScripts(
 }
 
 /**
- * Evaluates src/app/inline-scripts.ts in Node: each script's source text,
+ * Evaluates src/lib/inline-scripts.ts in Node: each script's source text,
  * and every file that went into it (to rebuild when one changes).
  */
 export async function loadInlineScriptSources(

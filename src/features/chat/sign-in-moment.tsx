@@ -1,4 +1,4 @@
-import { Mark } from "~/app/brand/mark";
+import { Mark } from "~/components/brand/mark";
 import { SCHEDULE_PATH } from "~/core/routing";
 import type { CourseCode } from "~/core/schema";
 import { useSignInAction } from "~/features/auth/sign-in-panel";

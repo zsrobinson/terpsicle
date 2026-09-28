@@ -1,5 +1,5 @@
-import { TONE_TEXT, type Tone } from "~/app/emphasis";
 import type { ConnectionVerdict } from "~/core/schema";
+import { TONE_TEXT, type Tone } from "~/lib/emphasis";
 
 // The one place a verdict's tone is decided (SPEC §3.3): neutral when
 // there's enough time, amber when tight, red when there isn't enough. Route

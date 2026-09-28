@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
-import { PanelBody, PanelNote } from "~/app/panel";
+import { PanelBody, PanelNote } from "~/components/panel";
 import { termLabel } from "~/core/catalog/terms";
 import type { ChatListCourse } from "~/core/chat";
 import { type CourseCode, parseRoomId, type RoomId } from "~/core/schema";

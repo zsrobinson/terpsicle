@@ -1,5 +1,4 @@
 import type { z } from "zod";
-import { clientConfig } from "~/app/config";
 import { pickTerm } from "~/core/catalog";
 import {
   type AcademicCalendar,
@@ -23,6 +22,7 @@ import {
   type TermId,
   TermsFileSchema,
 } from "~/core/schema";
+import { clientConfig } from "~/lib/config";
 import type { api } from "~/server/fns/api";
 import type { chatApi } from "~/server/fns/chat-api";
 

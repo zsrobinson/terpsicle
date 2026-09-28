@@ -2,7 +2,6 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
 import { courseSearchRow } from "~/core/catalog/course-index";
 import { canUndo } from "~/core/plans/history";
 import type { FourYearEntry } from "~/core/schema/four-year";
@@ -12,6 +11,7 @@ import {
   aFourYearCreditEntry,
   aFourYearEntry,
 } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import {
   INITIAL_COURSE_INDEX_STATE,
   useCourseIndex,
@@ -27,7 +27,7 @@ import {
 } from "./model";
 import { activeDoc, INITIAL_FOUR_YEAR_STORE, useFourYear } from "./store";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 // "Counts as" (docs/V3.md §2.8, §2.10): transfer credit Testudo gave as
 // "CHEM 1XX", and a code Testudo doesn't list, each say which UMD course

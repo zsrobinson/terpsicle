@@ -112,7 +112,7 @@ export function visibleBand(p: Probe): { top: number; bottom: number } {
 }
 
 /**
- * The drawer's snap heights, as `snapHeights` in src/app/mobile-drawer.tsx
+ * The drawer's snap heights, as `snapHeights` in src/features/schedule/mobile-drawer.tsx
  * computes them (restated: scripts don't import the app).
  */
 export function expectedDrawerTop(p: Probe): number | null {

@@ -1,9 +1,6 @@
 import { cn } from "cn";
 import { X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef } from "react";
-import { track } from "~/app/analytics";
-import { modKey } from "~/app/shortcuts";
-import { useIsMobile } from "~/app/use-media-query";
 import { displayTitle } from "~/core/four-year/display-title";
 import { fourYearTermLabel, latestTermOf } from "~/core/four-year/terms";
 import {
@@ -27,6 +24,9 @@ import {
 } from "~/core/schema";
 import type { FourYearTerm } from "~/core/schema/four-year";
 import { countWords } from "~/core/words";
+import { useIsMobile } from "~/hooks/use-media-query";
+import { track } from "~/lib/analytics";
+import { modKey } from "~/lib/shortcuts";
 import { useCourseIndex } from "~/state/course-index-store";
 import { newLocalId } from "~/state/ids";
 import { Button } from "~/ui/button";

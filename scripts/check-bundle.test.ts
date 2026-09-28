@@ -16,7 +16,11 @@ const chunk = (
 
 const graph: BundleGraph = {
   "assets/index.js": {
-    ...chunk(["assets/ui.js"], ["src/app/app.tsx"], ["assets/routes.js"]),
+    ...chunk(
+      ["assets/ui.js"],
+      ["src/features/schedule/app.tsx"],
+      ["assets/routes.js"],
+    ),
     isEntry: true,
   },
   "assets/ui.js": chunk([], ["src/components/ui/button.tsx"]),
@@ -73,13 +77,13 @@ describe("bundle check", () => {
           "src/routes/schedule.travel.tsx",
           "src/features/search/search-panel.tsx",
           "src/core/search/filters.ts",
-          "src/app/drawer-heights.ts",
+          "src/lib/drawer-heights.ts",
           "src/features/generate/generate-panel.tsx",
           "src/features/register/register-panel.tsx",
           "src/core/ics/ics.ts",
           "src/core/search/search.ts",
           "node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",
-          "src/app/mobile-drawer.tsx",
+          "src/features/schedule/mobile-drawer.tsx",
         ],
       ),
     };
@@ -93,7 +97,7 @@ describe("bundle check", () => {
       "assets/s.js: src/core/ics/ics.ts",
       "assets/s.js: src/core/search/search.ts",
       "assets/s.js: node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",
-      "assets/s.js: src/app/mobile-drawer.tsx",
+      "assets/s.js: src/features/schedule/mobile-drawer.tsx",
     ]);
   });
 

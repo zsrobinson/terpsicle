@@ -1,6 +1,3 @@
-import { recentActivity } from "~/app/activity-log";
-import { track } from "~/app/analytics";
-import { feedbackSources } from "~/app/feedback-sources";
 import { scrubUrl } from "~/core/analytics/scrub";
 import { buildFeedbackContext, feedbackPlan } from "~/core/feedback/context";
 import type {
@@ -8,6 +5,9 @@ import type {
   FeedbackProduct,
   FeedbackSendKind,
 } from "~/core/schema/feedback";
+import { recentActivity } from "~/lib/activity-log";
+import { track } from "~/lib/analytics";
+import { feedbackSources } from "~/lib/feedback-sources";
 import { ApiCallError } from "~/server/fns/api";
 import { feedbackApi } from "~/server/fns/feedback-api";
 import { dismissToast, noteToast, undoToast } from "~/ui/toast";

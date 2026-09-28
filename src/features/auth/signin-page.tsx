@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { track } from "~/app/analytics";
 import { safeReturnPath, signInErrorMessage } from "~/core/auth";
 import type { SignInError } from "~/core/schema";
+import { track } from "~/lib/analytics";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { AccountPage } from "./account-page";

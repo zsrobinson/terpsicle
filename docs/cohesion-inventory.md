@@ -8,7 +8,7 @@ Two global facts change how the diffs below should be read:
 
 Shared primitives:
 - `components/ui/`: `button`, `skeleton`, `popover`, `dialog`, `dropdown-menu`, `context-menu`, `select`, `sonner`, `tooltip`, `kbd`.
-- Panel anatomy in `app/panel.tsx`: `PanelHeader` :20, `PanelBody` :44, `SectionHeader` :78, `GroupHeader` :153, `ListRow` :221, `EmptyState` :274, `PanelFooter` :296, `PanelSkeleton` :333. (Fixed in `v3/page-kit`: `ListRow` and `GroupHeader` moved to `components/ui/list-row.tsx`, `PanelHeader` is `PageHeader size="panel"`, `EmptyState` is `PanelNote`.)
+- Panel anatomy in `components/panel.tsx`: `PanelHeader` :20, `PanelBody` :44, `SectionHeader` :78, `GroupHeader` :153, `ListRow` :221, `EmptyState` :274, `PanelFooter` :296, `PanelSkeleton` :333. (Fixed in `v3/page-kit`: `ListRow` and `GroupHeader` moved to `components/ui/list-row.tsx`, `PanelHeader` is `PageHeader size="panel"`, `EmptyState` is `PanelNote`.)
 - Frame in `features/site/site-page.tsx`: `SitePage`, `SiteHeader`, `ComingSoonPage`. (Fixed in `v3/cohesion-settings-todo`: `SitePage` is the family bar over `ProductPage`, and `ComingSoonPage` uses `PageHeader`.)
 - ~~**There is no shared Input, Switch, SegmentedControl, PageHeader or Card.**~~ Fixed in `v3/page-kit`: the page kit in `components/ui` (see `/admin/kit`).
 
@@ -18,7 +18,7 @@ Shared primitives:
 
 | Product | Where | Title markup | Subtitle/status | Right-side actions | Product mark |
 |---|---|---|---|---|---|
-| Schedule | `app/top-bar.tsx:46-48` | The h1 is the ProductMenu (umbrella mark + wordmark, `app/product-menu.tsx:46-60`). There is no page title. Panels use `PanelHeader` h2 `font-semibold text-base` (`panel.tsx:30-35`). | `PanelHeader` sub: `text-muted text-sm` | Credits, problems, sync and AccountButton in the top bar; panel `right` slot | Umbrella only |
+| Schedule | `features/schedule/top-bar.tsx:46-48` | The h1 is the ProductMenu (umbrella mark + wordmark, `components/product-menu.tsx:46-60`). There is no page title. Panels use `PanelHeader` h2 `font-semibold text-base` (`panel.tsx:30-35`). | `PanelHeader` sub: `text-muted text-sm` | Credits, problems, sync and AccountButton in the top bar; panel `right` slot | Umbrella only |
 | Marketing | `marketing/frame.tsx:9-27` | Its own **h-14** header (SiteHeader is h-12) with a ghost "Sign in" button to `/signin` | — | — | — |
 
 Frame chrome:
@@ -87,7 +87,7 @@ Frame chrome:
 ## 8. Sheets, drawers, popovers, dialogs
 
 - **vaul Drawer**:
-  - The workbench's phone sidebar (`app/workbench/drawer.tsx`), for Schedule (`app/mobile-drawer.tsx`) and Plan (`four-year/plan-drawer.tsx`): full `h-dvh`, z-40, no overlay, grabber `h-1 w-8` in an `h-6 w-16` hit area.
+  - The workbench's phone sidebar (`components/workbench/drawer.tsx`), for Schedule (`features/schedule/mobile-drawer.tsx`) and Plan (`four-year/plan-drawer.tsx`): full `h-dvh`, z-40, no overlay, grabber `h-1 w-8` in an `h-6 w-16` hit area.
   - Chat room info on phones, **built separately** (`chat/chat-page.tsx:322-354`): z-50, `bg-fg/20` overlay, `max-h-[85dvh]`, handle `h-1 w-10 mt-2`, its header the kit's panel `PageHeader`.
   - Todo, Reviews and Settings use no sheets.
 - **Radix Popover** (`~/ui/popover`):
@@ -141,7 +141,7 @@ Shared `Button` (`components/ui/button.tsx`) in product code (excluding marketin
 
 - **SitePage layouts**: fixed in `v3/cohesion-settings-todo`. `SitePage` takes a `ProductPage` width: note (Settings, Notifications, sign-in, not found, coming soon, Todo's front door and connect page), reading (Privacy, Reviews), app (Todo's list). Plan's first visit is a note page, and its board the workbench's canvas; `wide` is gone.
 - **Nested widths**:
-- **Schedule and Plan**: the full-bleed workbench (`app/workbench/layout.tsx`), sidebar `w-sidebar` 320–480, rail 62px.
+- **Schedule and Plan**: the full-bleed workbench (`components/workbench/layout.tsx`), sidebar `w-sidebar` 320–480, rail 62px.
 - **Others**: marketing uses `mk-wrap`. (Admin is on the kit's app width since `v3/cohesion-admin`.)
 
 ## 12. Account/avatar button and theme toggle placement
@@ -154,11 +154,11 @@ Shared `Button` (`components/ui/button.tsx`) in product code (excluding marketin
 | Todo | **Nothing** (`todo-page.tsx:61`) | **None** |
 | Marketing | Ghost "Sign in" Button to `/signin` (`marketing/frame.tsx:19-23`) | None |
 
-The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle`/`ThemeMenuItems` in `app/` and `account-button.tsx`).
+The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle`/`ThemeMenuItems` in `components/` and `account-button.tsx`).
 
 ## 13. Duplicate implementations
 
-- ~~**Two `EmptyState`s** with the same name: `app/panel.tsx:274` and `four-year/empty-state.tsx:24`.~~ Fixed in `v3/page-kit`: the panel's is `PanelNote`, and `EmptyState` is the kit's first-visit template. Plan's local one moved onto it in `v3/cohesion-plan` (`four-year/first-visit.tsx`).
+- ~~**Two `EmptyState`s** with the same name: `components/panel.tsx:274` and `four-year/empty-state.tsx:24`.~~ Fixed in `v3/page-kit`: the panel's is `PanelNote`, and `EmptyState` is the kit's first-visit template. Plan's local one moved onto it in `v3/cohesion-plan` (`four-year/first-visit.tsx`).
 - **`Section`**: fixed. Reviews, Todo's connect page, Privacy and Settings use `PageSection`; panels keep `SectionHeader`.
 - ~~**One `ListSkeleton`**: `travel-panel.tsx:269`. Also `RowsSkeleton` (`courses-panel.tsx:482`) next to `PanelSkeleton`.~~ Fixed in `v3/behavior`: both are the kit's `RowSkeleton`.
 - ~~**Two `ToastAction`s**~~: fixed in `v2/kit-toasts` (§9); Plan's toasts use the kit's.
@@ -168,7 +168,7 @@ The theme can only be changed inside `/schedule` (the only uses are `ThemeToggle
   - ink fill: `filter-chips.tsx:32-38`, `sections.tsx:163-172`, `block-form.tsx:89-97` presets
   - accent fill: `must-haves.tsx:161-172`, `block-form.tsx:130-140`, `results.tsx:272-281`
   - bg-hover: `grades.tsx:184-195`
-- **Rail vs drawer tab buttons**: `RailButton` and `DrawerTab` (`app/workbench/rail.tsx`, `drawer.tsx`), one each for every workbench.
+- **Rail vs drawer tab buttons**: `RailButton` and `DrawerTab` (`components/workbench/rail.tsx`, `drawer.tsx`), one each for every workbench.
 - **Search boxes, one style left** (Reviews, Chat and Schedule use `SearchField`):
 - **Text inputs** (no shared Input):
 - **Account entry, 3**: `AccountButton`, `AccountLink`, and the marketing Sign-in.

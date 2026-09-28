@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { track } from "~/app/analytics";
 import { SIGNED_IN_KEPT, SIGNED_IN_PARAM } from "~/core/schema";
+import { track } from "~/lib/analytics";
 import { noteToast } from "~/ui/toast";
 import { useAccount } from "./account-store";
 
@@ -32,7 +32,7 @@ export function AccountBoot() {
       // Storage blocked: count it as a first sign-in.
     }
     track("signin_completed", { firstOnDevice });
-    // Its code loads with the prompt's host, after the page (src/app/pwa.tsx).
+    // Its code loads with the prompt's host, after the page (src/features/pwa/pwa.tsx).
     if (firstOnDevice)
       void import("~/features/pwa/install-store").then(
         (m) => m.requestInstallPromptSoon("first-sign-in"),

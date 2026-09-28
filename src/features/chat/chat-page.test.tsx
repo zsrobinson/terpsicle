@@ -9,7 +9,6 @@ import {
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MOBILE_QUERY } from "~/app/use-media-query";
 import {
   type ChatUnreadRoom,
   COURSE_INDEX_MANIFEST_KEY,
@@ -38,6 +37,7 @@ import {
   FIXTURE_NOW,
   fixtureTermId,
 } from "~/fixtures";
+import { MOBILE_QUERY } from "~/hooks/use-media-query";
 import { chatApi } from "~/server/fns/chat-api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";

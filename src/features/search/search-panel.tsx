@@ -7,10 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { track } from "~/app/analytics";
-import { TONE_TEXT } from "~/app/emphasis";
-import { useFocusRequest } from "~/app/focus-request";
-import { MetaSep, PanelNote } from "~/app/panel";
+import { MetaSep, PanelNote } from "~/components/panel";
 import type { FitContext } from "~/core/fit";
 import type { Course, DeptCode, TermId } from "~/core/schema";
 // Not the ~/core/search barrel: it carries the text index, which loads
@@ -33,6 +30,9 @@ import {
 } from "~/core/search/summary";
 import { readFilterToken, withFilterToken } from "~/core/search/tokens";
 import { openCourse } from "~/features/courses/actions";
+import { useFocusRequest } from "~/features/schedule/focus-request";
+import { track } from "~/lib/analytics";
+import { TONE_TEXT } from "~/lib/emphasis";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useActiveTerm,

@@ -1,14 +1,13 @@
 import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { MessageText } from "~/app/message-text";
+import { MessageText } from "~/components/message-text";
 import {
   ListRow,
   PanelBody,
   PanelHeader,
   PanelNote,
   SectionHeader,
-} from "~/app/panel";
-import { planLabel } from "~/app/plan-label";
+} from "~/components/panel";
 import { countBySeverity, problemCountWords } from "~/core/problems";
 import {
   type Problem,
@@ -20,6 +19,7 @@ import {
   type TermId,
 } from "~/core/schema";
 import { SeatBell } from "~/features/course-details/seat-bell";
+import { planLabel } from "~/features/schedule/plan-label";
 import { useCurrentPlan, usePlanProblemsState } from "~/state/hooks";
 import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";

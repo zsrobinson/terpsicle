@@ -2,10 +2,10 @@ import { createRouter, stringifySearchWith } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
-import { createQueryClient } from "~/app/query-client";
 import type { PageRequestContext } from "~/core/routing";
 import { CSP_NONCE_HEADER } from "~/core/schema";
 import { RouteError, RoutePending } from "~/features/site/route-states";
+import { createQueryClient } from "~/lib/query-client";
 import { routeTree } from "./routeTree.gen";
 
 /**

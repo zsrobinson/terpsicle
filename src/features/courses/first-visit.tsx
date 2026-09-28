@@ -1,5 +1,5 @@
 import { Layers, Search } from "lucide-react";
-import { Mark } from "~/app/brand/mark";
+import { Mark } from "~/components/brand/mark";
 import { EmptyState } from "~/ui/empty-state";
 import { chooseFirstVisitPath } from "./actions";
 

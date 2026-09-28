@@ -44,7 +44,7 @@ _Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected desi
 The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. The Early access chip shows from 1536px, on every bar alike, so the product tabs sit in the same place on every product; narrower, the product menu says it. On phones, and on the scheduler's and Plan's bars below 1536px, the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
 
 **Mark**:
-One of the six pixel drawings on a 9×9 tile: the umbrella (Terpsicle itself, black) and one per product, in its color. The app icons and favicon are the umbrella's tile alone. Code says `Mark`, drawn from `src/app/brand/marks.ts`.
+One of the six pixel drawings on a 9×9 tile: the umbrella (Terpsicle itself, black) and one per product, in its color. The app icons and favicon are the umbrella's tile alone. Code says `Mark`, drawn from `src/lib/brand/marks.ts`.
 _Avoid_: logo (that's the umbrella and the wordmark together), icon (for a product's mark)
 
 **Early access**:
@@ -63,7 +63,7 @@ _Avoid_: modal, bottom sheet
 How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: admin), or full (a workbench and Todo, or Chat's split).
 
 **Workbench**:
-A product laid out like the scheduler: the rail of views, the sidebar and the canvas, with the same drawer on phones. Schedule and Plan are workbenches. Code has it in `src/app/workbench`.
+A product laid out like the scheduler: the rail of views, the sidebar and the canvas, with the same drawer on phones. Schedule and Plan are workbenches. Code has it in `src/components/workbench`.
 
 **Term**:
 A semester Testudo lists (fall, spring, summer or winter). A term is **active** while Testudo lists it and **archived** after, shown under "Past terms".

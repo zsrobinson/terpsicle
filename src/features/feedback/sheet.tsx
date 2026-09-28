@@ -10,11 +10,11 @@ import {
   useState,
 } from "react";
 import { Drawer } from "vaul";
-import { track } from "~/app/analytics";
-import { isApple, modKey } from "~/app/shortcuts";
 import { browserName } from "~/core/feedback/context";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { useAccount } from "~/features/auth/account-store";
+import { track } from "~/lib/analytics";
+import { isApple, modKey } from "~/lib/shortcuts";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";

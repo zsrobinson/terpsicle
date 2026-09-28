@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { PanelNote } from "~/app/panel";
+import { PanelNote } from "~/components/panel";
 import {
   insertMention,
   type Mentionable,

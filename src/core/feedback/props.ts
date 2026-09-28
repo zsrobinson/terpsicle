@@ -1,4 +1,4 @@
-// Small, zod-free helpers the page's activity log (src/app/activity-log.ts)
+// Small, zod-free helpers the page's activity log (src/lib/activity-log.ts)
 // shares with `buildFeedbackContext`: the log loads with every page, so it
 // can't bring the feedback schemas with it.
 

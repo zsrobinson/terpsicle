@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { initAnalytics } from "~/app/analytics";
 import { HomePage } from "~/features/home/home-page";
+import { initAnalytics } from "~/lib/analytics";
 
 // Home (docs/V3.md §1.5): the installed app's start page (the manifest's
 // `start_url`), a few facts from each product. Hidden: no bar, menu or page

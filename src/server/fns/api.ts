@@ -65,7 +65,7 @@ let failureListener: ((failure: ApiFailure) => void) | undefined;
 
 /**
  * Hears every failed call, for the feedback activity log
- * (src/app/activity-log.ts). One listener; null removes it.
+ * (src/lib/activity-log.ts). One listener; null removes it.
  */
 export function onApiFailure(
   listener: ((failure: ApiFailure) => void) | null,

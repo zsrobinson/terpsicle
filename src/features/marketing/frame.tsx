@@ -1,5 +1,5 @@
-import { EarlyAccessChip } from "~/app/early-access";
-import { Logo } from "~/app/logo";
+import { Logo } from "~/components/brand/logo";
+import { EarlyAccessChip } from "~/components/early-access";
 import { SCHEDULE_PATH, STAY_PARAM } from "~/core/routing";
 import { AccountButton } from "~/features/auth/account-button";
 import { useAccount } from "~/features/auth/account-store";

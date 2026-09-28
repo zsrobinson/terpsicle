@@ -1,17 +1,17 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { initAnalytics, track } from "~/app/analytics";
-import { App } from "~/app/app";
-import { clientConfig } from "~/app/config";
 // Not the barrel: the route tree carries this schema to every page.
 import { ScheduleSearchSchema } from "~/core/schema/schedule-url";
+import { App } from "~/features/schedule/app";
+import { initAnalytics, track } from "~/lib/analytics";
+import { clientConfig } from "~/lib/config";
 
 // The scheduler (`SCHEDULE_PATH` in ~/core/routing). Each rail tab and each
 // drill-in is a child route (schedule.<tab>.tsx, schedule.course.$code.tsx,
 // …) whose component the sidebar shows; this layout carries the params every
 // view keeps: the term, the open plan, `?plan=` for a shared plan (DATA.md
 // §8) and `?demo=1`. Old-style `/schedule?tab=&course=` links redirect in
-// schedule.index.tsx. src/app/README.md, "URL state".
+// schedule.index.tsx. src/features/schedule/README.md, "URL state".
 export const Route = createFileRoute("/schedule")({
   // Everything lives in the browser (IndexedDB, web worker); the Worker only
   // serves the shell (BUILD.md §4).
@@ -51,7 +51,7 @@ function SchedulePage() {
   }, []);
 
   // The sidebar shows the child routes' views itself, keeping each mounted
-  // while hidden (src/app/sidebar.tsx), so there's no <Outlet />.
+  // while hidden (src/features/schedule/sidebar.tsx), so there's no <Outlet />.
   return (
     <App
       sharedParam={plan}

@@ -9,9 +9,9 @@ import {
   useState,
 } from "react";
 import { create } from "zustand";
-import { useIsMobile } from "~/app/use-media-query";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { useAccount } from "~/features/auth/account-store";
+import { useIsMobile } from "~/hooks/use-media-query";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 
 // "Send feedback" (docs/FEEDBACK.md): the one eager piece of feedback, a

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { termLabel } from "~/core/catalog/terms";
 import {
   fourYearColumnFor,
@@ -9,6 +8,7 @@ import {
 } from "~/core/four-year/handoff";
 import type { TermId } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
+import { crossLinkClicked, viewWords } from "~/lib/cross-link";
 import { readMainPlan, useLiveQuery } from "~/state/four-year-link";
 import { MainPlanMark } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";

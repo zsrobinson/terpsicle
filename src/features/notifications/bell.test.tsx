@@ -10,7 +10,7 @@ import { forgetBell, NotificationsBell } from "./bell";
 import { forgetInbox } from "./inbox";
 import { useUnread } from "./unread-store";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 vi.mock("~/server/fns/notifications", () => ({
   notificationsApi: { inbox: vi.fn(), read: vi.fn(), unread: vi.fn() },
 }));

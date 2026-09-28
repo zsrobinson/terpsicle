@@ -1,16 +1,16 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { switchSection } from "~/app/actions";
-import { track } from "~/app/analytics";
-import type { ShellRoutes } from "~/app/test-utils";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
   watching,
 } from "~/features/alerts/testing";
 import { renderPlanTab } from "~/features/courses/testing";
+import { switchSection } from "~/features/schedule/actions";
+import type { ShellRoutes } from "~/features/schedule/test-utils";
 import { aMeUser, aSeatWatch, fixtureTermId } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import { activePlanId } from "~/state/plan-ops";
 import { useWorkspace } from "~/state/workspace-store";
@@ -25,7 +25,7 @@ function registeredMarks(): readonly string[] | undefined {
   return w.plans.find((p) => p.id === id)?.registered;
 }
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
