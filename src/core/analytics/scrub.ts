@@ -45,6 +45,9 @@ const PATH_PATTERNS: readonly { route: string; params: readonly string[] }[] = [
   { route: "/schedule/course", params: [":code"] },
   { route: "/schedule/connection", params: [":connectionId"] },
   { route: "/schedule/result", params: [":resultId"] },
+  // The calendar feed's link is a secret (V2.md §6.7): Settings' "Add to
+  // Apple Calendar" is a link to it, and a click on it carries its href.
+  { route: "/cal", params: [":token"] },
 ];
 
 /** Allowlisted values are short words or ids, never free text. */

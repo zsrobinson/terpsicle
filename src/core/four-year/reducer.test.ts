@@ -485,6 +485,104 @@ describe("placeholders, choices and credits", () => {
   });
 });
 
+describe("set-details", () => {
+  const hnuh = (id: string, term = "202308") =>
+    aFourYearEntry({
+      id: `entry_hnuh_${id}`,
+      term,
+      code: "HNUH278B",
+      credits: 3,
+      source: "transcript",
+    });
+  const start: FourYearState = {
+    docs: [
+      aFourYear({
+        entries: [hnuh("a"), hnuh("b", "202401"), aFourYearEntry()],
+      }),
+    ],
+  };
+
+  it("gives every entry of the code the details, cleaned, and the credits", () => {
+    const s = run(start, {
+      type: "set-details",
+      docId: doc.id,
+      code: "HNUH278B",
+      details: {
+        title: "  Democratic Habits ",
+        genEds: ["DSHS", "SCIS", "DSHS"],
+      },
+      credits: 4,
+      now: LATER,
+    });
+    const [a, b, other] = only(s).entries;
+    const details = { title: "Democratic Habits", genEds: ["DSHS", "SCIS"] };
+    expect(a).toMatchObject({ details, credits: 4 });
+    expect(b).toMatchObject({ details, credits: 4 });
+    expect(other).toEqual(aFourYearEntry());
+    expect(only(s).updatedAt).toBe(LATER);
+    expect(FourYearDocSchema.safeParse(only(s)).success).toBe(true);
+  });
+
+  it("keeps the credits when none are given, makes a blank title none, and clears with null", () => {
+    const s = run(start, {
+      type: "set-details",
+      docId: doc.id,
+      code: "HNUH278B",
+      details: { title: "  ", genEds: [] },
+      now: LATER,
+    });
+    expect(only(s).entries[0]).toMatchObject({
+      details: { title: null, genEds: [] },
+      credits: 3,
+    });
+    const cleared = run(s, {
+      type: "set-details",
+      docId: doc.id,
+      code: "HNUH278B",
+      details: null,
+      now: LATER,
+    });
+    expect(only(cleared).entries[0]).toMatchObject({ details: null });
+  });
+
+  it("changes nothing when it's the same, or the code isn't there", () => {
+    const action: Extract<FourYearAction, { type: "set-details" }> = {
+      type: "set-details",
+      docId: doc.id,
+      code: "HNUH278B",
+      details: { title: "Democratic Habits", genEds: ["DSHS"] },
+      credits: 3,
+      now: LATER,
+    };
+    const s = run(start, action);
+    expect(run(s, action)).toBe(s);
+    expect(run(start, { ...action, code: "HNUH999X" })).toBe(start);
+  });
+
+  it("outlives a fresh import of the same code", () => {
+    const s = run(start, {
+      type: "set-details",
+      docId: doc.id,
+      code: "HNUH278B",
+      details: { title: "Democratic Habits", genEds: ["DSHS"] },
+      now: LATER,
+    });
+    const again = run(s, {
+      type: "import",
+      docId: doc.id,
+      replace: ["202308", "202401"],
+      entries: [hnuh("new")],
+      grades: {},
+      now: LATER,
+    });
+    expect(
+      only(again).entries.find((e) => e.id === "entry_hnuh_new"),
+    ).toMatchObject({
+      details: { title: "Democratic Habits", genEds: ["DSHS"] },
+    });
+  });
+});
+
 describe("apply-template", () => {
   const template = {
     id: "cmsc-2026",

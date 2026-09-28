@@ -1,5 +1,6 @@
 import { track } from "~/app/analytics";
 import { wildcardLabel } from "~/core/catalog/wildcard";
+import type { FourYearAction } from "~/core/four-year/reducer";
 import {
   templateAddedLabel,
   templateFit,
@@ -19,6 +20,7 @@ import type {
   Wildcard,
 } from "~/core/schema";
 import {
+  type FourYearCourseDetails,
   type FourYearDoc,
   type FourYearEntry,
   type FourYearProblem,
@@ -277,28 +279,57 @@ export function applyFix(doc: FourYearDoc, problem: FourYearProblem): void {
   const fix = problem.fix;
   if (!fix) return;
   // The same step the reducer takes, so undo takes it back in one go.
-  const changed =
+  const now = nowIso();
+  const action: FourYearAction =
     fix.kind === "move"
-      ? dispatch(
-          {
-            type: "move",
+      ? {
+          type: "move",
+          docId: doc.id,
+          entryId: fix.entryId,
+          term: fix.term,
+          now,
+        }
+      : fix.kind === "remove"
+        ? { type: "remove", docId: doc.id, entryId: fix.entryId, now }
+        : {
+            type: "set-details",
             docId: doc.id,
-            entryId: fix.entryId,
-            term: fix.term,
-            now: nowIso(),
-          },
-          fix.label,
-        )
-      : dispatch(
-          {
-            type: "remove",
-            docId: doc.id,
-            entryId: fix.entryId,
-            now: nowIso(),
-          },
-          fix.label,
-        );
-  if (changed) track("four_year_problem_fix_applied", { kind: problem.kind });
+            code: fix.code,
+            details: fix.details,
+            credits: fix.credits,
+            now,
+          };
+  if (dispatch(action, fix.label))
+    track("four_year_problem_fix_applied", { kind: problem.kind });
+}
+
+/**
+ * What someone says a course Testudo doesn't list was: every entry of its
+ * code takes the details and credits. Null details clear them.
+ */
+export function setDetails(
+  doc: FourYearDoc,
+  code: CourseCode,
+  details: FourYearCourseDetails | null,
+  credits: number | null,
+): void {
+  const saved = dispatch(
+    {
+      type: "set-details",
+      docId: doc.id,
+      code,
+      details,
+      credits,
+      now: nowIso(),
+    },
+    details === null
+      ? `Cleared ${code}'s course info`
+      : `Saved ${code}'s course info`,
+  );
+  if (saved)
+    track("four_year_details_saved", {
+      genEds: details?.genEds.length ?? 0,
+    });
 }
 
 /**

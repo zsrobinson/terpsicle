@@ -300,6 +300,14 @@ async function seedAccount(id: string, n: number) {
         at,
       ],
       [
+        `INSERT INTO calendar_feeds (user_id, token_hash, nonce, created_at, last_fetched_at)
+         VALUES (?1, ?2, ?3, ?4, ?4)`,
+        id,
+        `feed-hash-${id}`,
+        `feed-nonce-${n}`,
+        at,
+      ],
+      [
         "INSERT INTO counters (name, window_start, count) VALUES (?1, ?2, 3)",
         `user:${id}:reviews/submit`,
         new Date(NOW.getTime() - DAY).toISOString(),

@@ -52,6 +52,10 @@ import {
   DecisionListInputSchema,
 } from "~/core/schema/admin";
 import {
+  CalendarFeedInputSchema,
+  CalendarFeedResetInputSchema,
+} from "~/core/schema/calendar-feed";
+import {
   FEEDBACK_MAX_REQUEST_BYTES,
   FeedbackDeleteInputSchema,
   FeedbackGroupInputSchema,
@@ -100,6 +104,7 @@ import { type AuthEnv, isTestMode } from "../auth/config";
 import { handleFlow, isFlowRoute } from "../auth/flow";
 import { isSameOrigin } from "../auth/guard";
 import { getSession } from "../auth/session";
+import { feedLink, resetFeedLink } from "../calendar/feed";
 import {
   type ChatApiEnv,
   follow,
@@ -504,6 +509,22 @@ export const ROUTES = {
     alerts: false,
     auth: "user",
     handle: (env, input, ctx) => todoDeleteTask(env, input, ctx),
+  }),
+  // The calendar feed's link (V2.md §6.7). The feed itself is a GET at
+  // /cal/<token>.ics, with no cookie (src/server/calendar/feed.ts).
+  "calendar/feed": route({
+    input: CalendarFeedInputSchema,
+    perUserPerHour: 120,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => feedLink(env, ctx),
+  }),
+  "calendar/feed/reset": route({
+    input: CalendarFeedResetInputSchema,
+    perUserPerHour: 20,
+    alerts: false,
+    auth: "user",
+    handle: (env, _input, ctx) => resetFeedLink(env, ctx),
   }),
   // Notifications (V2.md §6.3).
   "push/subscribe": route({
