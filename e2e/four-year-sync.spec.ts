@@ -128,7 +128,7 @@ test("a four-year plan goes up at sign-in, and two devices see each other's edit
   await openPlan(phone);
   await signIn(phone, user);
   await expect(
-    phone.getByText("Your four-year plan from your account is here"),
+    phone.getByText("Your account's four-year plan is here"),
   ).toBeVisible();
   await saved(phone);
   await expect(phone.getByRole("button", { name: /^My plan/ })).toBeVisible();
