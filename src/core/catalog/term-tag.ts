@@ -1,5 +1,5 @@
-import { termSpan } from "../four-year/status";
 import type { AcademicCalendar, IsoDate, TermId } from "../schema";
+import { termSpan } from "./terms";
 
 // Term tags (docs/V2.md §5.5): "Now" on the term in session and "Next" on
 // the fall or spring you're planning, everywhere a term is named, so

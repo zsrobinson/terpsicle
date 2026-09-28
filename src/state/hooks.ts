@@ -28,6 +28,7 @@ import type {
   CourseCode,
   CourseColor,
   DeptCode,
+  IsoDate,
   Manifest,
   Plan,
   Problem,
@@ -37,7 +38,6 @@ import type {
   TravelSettings,
 } from "~/core/schema";
 import { sharedViewPlan } from "~/core/share";
-import { newYorkClock } from "~/core/todo/list";
 import { type CampusMap, planConnections } from "~/core/travel";
 import { type TermCatalog, useCatalog } from "./catalog-store";
 import { activePlanId, plansInTerm } from "./plan-ops";
@@ -101,13 +101,23 @@ export function useHasDrafts(termId: TermId | null): boolean {
 }
 
 /**
+ * Today's date in College Park. Intl, not ~/core/todo's clock: that would
+ * load the .ics date code with the scheduler's first page.
+ */
+function newYorkToday(): IsoDate {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+  }).format(Date.now());
+}
+
+/**
  * Now and Next (term tags) today, from the academic calendars of the terms
  * that can be either, loaded here when Testudo lists them.
  */
 export function useTermTags(): TermTags {
   const terms = useCatalog((s) => s.terms);
   const calendars = useCatalog((s) => s.calendars);
-  const today = newYorkClock(Date.now()).date;
+  const today = newYorkToday();
   const wanted = termTagCandidates(today)
     .filter((id) => terms?.some((t) => t.id === id))
     .join(",");

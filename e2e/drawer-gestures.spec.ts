@@ -87,6 +87,11 @@ test.afterEach(async ({ page }, testInfo) => {
   expect(navigations.filter((url) => !seen.appUrls.includes(url))).toEqual([]);
 });
 
+/** A touch's pointer id, once its pointerdown arrives. */
+interface TouchWatch {
+  __pointerId?: Promise<number>;
+}
+
 const drawer = (page: Page) => page.locator("[data-vaul-drawer]");
 const tabs = (page: Page) =>
   page.getByRole("navigation", { name: "Tabs", exact: true });
@@ -290,20 +295,26 @@ test("scrolling a list back up leaves the drawer where it is", async ({
   if (!box) throw new Error("no results");
   const at = { x: box.x + box.width / 2, y: box.y + 200 };
 
-  const pointerId = page.evaluate(
-    () =>
-      new Promise<number>((resolve) =>
-        addEventListener("pointerdown", (e) => resolve(e.pointerId), {
-          once: true,
-          capture: true,
-        }),
-      ),
-  );
+  // The touch's pointer id, from a listener that's in place before the
+  // touch is sent. The touch goes through another CDP session, so an
+  // evaluate still on its way can lose the race to it, and then the
+  // pointerdown has come and gone before anyone listens.
+  await page.evaluate(() => {
+    (window as unknown as TouchWatch).__pointerId = new Promise((resolve) =>
+      addEventListener("pointerdown", (e) => resolve(e.pointerId), {
+        once: true,
+        capture: true,
+      }),
+    );
+  });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
     touchPoints: [at],
   });
+  const pointerId = page.evaluate(
+    () => (window as unknown as TouchWatch).__pointerId,
+  );
   await results.evaluate(
     (el, { id, x, y }) => {
       const send = (type: string, dy: number) =>
