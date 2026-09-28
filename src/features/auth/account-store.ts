@@ -1,11 +1,13 @@
 import { create } from "zustand";
-import type { Flags, MeUser } from "~/core/schema";
+import { type Flags, FlagsSchema, type MeUser } from "~/core/schema";
 import { SYNC_RESET_KEY } from "~/features/sync/status";
 import { api } from "~/server/fns/api";
 
 // Who's signed in, as the app sees it (docs/AUTH.md). Loaded once per page
 // from POST /api/me; every account control reads it. Nothing is stored in
-// the browser: the session is an HttpOnly cookie.
+// the browser about who you are: the session is an HttpOnly cookie. Only
+// the product flags are remembered (`FLAGS_KEY`), so a failed check
+// doesn't hide products.
 
 export type AccountStatus = "loading" | "signed-out" | "signed-in";
 
@@ -43,6 +45,35 @@ export const FLAGS_OFF: Flags = {
   plan: false,
   authTestMode: false,
 };
+
+/**
+ * The flags /api/me last gave this browser. A page shows them while it asks
+ * again, and keeps them when it can't get an answer: turning every product
+ * off on a flaky connection hid Plan's tab and the account button.
+ */
+const FLAGS_KEY = "terpsicle:flags";
+
+function rememberedFlags(): Flags | null {
+  try {
+    const parsed = FlagsSchema.safeParse(
+      JSON.parse(localStorage.getItem(FLAGS_KEY) ?? "null"),
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberFlags(flags: Flags): void {
+  try {
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(flags));
+  } catch {
+    // Storage blocked: the next page asks /api/me again, as it always does.
+  }
+}
+
+/** How long to wait before asking /api/me again after each failure. */
+export const ME_RETRY_MS: readonly number[] = [2_000, 8_000, 30_000];
 
 let client: AccountClient = api;
 
@@ -98,6 +129,11 @@ export function setSignOutHooks(next: () => Promise<SignOutHooks>): void {
   signOutHooks = next;
 }
 
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+let failures = 0;
+// A retry keeps counting; any other ask (a new page, a sign-in) starts over.
+let retrying = false;
+
 export const useAccount = create<AccountState>()((set, get) => ({
   status: "loading",
   flags: FLAGS_OFF,
@@ -106,8 +142,17 @@ export const useAccount = create<AccountState>()((set, get) => ({
   deleteAfter: null,
 
   load: async () => {
+    clearTimeout(retryTimer);
+    if (!retrying) failures = 0;
+    retrying = false;
+    // What this browser last saw, while /api/me answers (after the first
+    // render, so the server's page and the browser's agree).
+    const known = rememberedFlags();
+    if (known && get().status === "loading") set({ flags: known });
     try {
       const result = await client.me();
+      failures = 0;
+      rememberFlags(result.flags);
       set(
         result.status === "signed-in"
           ? {
@@ -124,14 +169,23 @@ export const useAccount = create<AccountState>()((set, get) => ({
             },
       );
     } catch {
-      // Offline, or an older Worker without /api/me: behave as signed out
-      // with sign-in hidden. The scheduler never needs an account.
-      set({
-        status: "signed-out",
-        flags: FLAGS_OFF,
-        user: null,
-        pushPublicKey: null,
-      });
+      // Offline, a busy server, or an older Worker without /api/me. Someone
+      // already known stays as they were; otherwise it's signed out with
+      // the products last seen here (everything off on a first visit: the
+      // scheduler never needs an account). Then ask again, a few times.
+      if (get().status === "loading")
+        set({
+          status: "signed-out",
+          flags: known ?? FLAGS_OFF,
+          user: null,
+          pushPublicKey: null,
+        });
+      const wait = ME_RETRY_MS[failures++];
+      if (wait !== undefined)
+        retryTimer = setTimeout(() => {
+          retrying = true;
+          void get().load();
+        }, wait);
     }
   },
 
