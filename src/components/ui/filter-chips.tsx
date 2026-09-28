@@ -1,24 +1,26 @@
 import { cn } from "cn";
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { track } from "~/app/analytics";
 import { GEN_ED_LABELS, type GenEdCode } from "~/core/schema";
 import {
   CREDIT_OPTIONS,
   LEVEL_OPTIONS,
   type SearchFilters,
 } from "~/core/search/filters";
+import type { FilterToken } from "~/core/search/tokens";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
-import { WithTooltip } from "~/ui/tooltip";
+} from "./dropdown-menu";
+import { WithTooltip } from "./tooltip";
 
-// One line of chips under the search box (SPEC §3.5): dropdowns and toggles
-// that fill in black (or white) while they're narrowing the results.
+// One line of chips under any course search box (SPEC §3.5): dropdowns and
+// toggles that fill in black (or white) while they're narrowing the
+// results. A product shows the ones its data can answer: Plan has no
+// sections, so no Fits my plan or Open seats.
 
 export type FilterName =
   | "gen-eds"
@@ -26,6 +28,21 @@ export type FilterName =
   | "fits"
   | "open-seats"
   | "level";
+
+export const ALL_FILTERS: readonly FilterName[] = [
+  "gen-eds",
+  "credits",
+  "fits",
+  "open-seats",
+  "level",
+];
+
+/** The chip a typed filter token fills. */
+export const TOKEN_CHIP: Record<FilterToken["kind"], FilterName> = {
+  "gen-ed": "gen-eds",
+  credits: "credits",
+  level: "level",
+};
 
 const GEN_EDS = Object.keys(GEN_ED_LABELS) as GenEdCode[];
 
@@ -53,14 +70,15 @@ function summary(label: string, picked: readonly string[]): string {
 export function FilterChips({
   filters,
   onChange,
+  show = ALL_FILTERS,
 }: {
   filters: SearchFilters;
-  onChange: (next: SearchFilters) => void;
+  /** A chip changed: the new filters, and which chip. */
+  onChange: (next: SearchFilters, name: FilterName) => void;
+  show?: readonly FilterName[];
 }) {
-  const change = (name: FilterName, next: SearchFilters) => {
-    track("search_filter_changed", { filter: name });
-    onChange(next);
-  };
+  const change = (name: FilterName, next: SearchFilters) =>
+    onChange(next, name);
   return (
     // One line at the sidebar's usual width (DESIGN §4, the owner's "one
     // line under the search bar"). A narrower sidebar, a phone, or a laptop
@@ -71,68 +89,86 @@ export function FilterChips({
       data-testid="search-filters"
       className="flex flex-wrap items-center gap-x-0.5 gap-y-1"
     >
-      <MultiChip
-        label="Gen-eds"
-        tooltip="Only courses that count for these GenEds"
-        picked={filters.genEds}
-        options={GEN_EDS.map((code) => ({
-          value: code,
-          label: (
-            <span className="flex min-w-0 items-baseline gap-2">
-              <span className="ident text-sm">{code}</span>
-              <span className="truncate text-muted">{GEN_ED_LABELS[code]}</span>
-            </span>
-          ),
-        }))}
-        onToggle={(code) =>
-          change("gen-eds", {
-            ...filters,
-            genEds: toggle(filters.genEds, code),
-          })
-        }
-        heading="Counts for all of"
-      />
-      <MultiChip
-        label="Credits"
-        tooltip="Only courses worth these credits"
-        picked={filters.credits}
-        format={(n) => (n === CREDIT_OPTIONS.at(-1) ? `${n}+` : String(n))}
-        options={CREDIT_OPTIONS.map((n) => ({
-          value: n,
-          label:
-            n === CREDIT_OPTIONS.at(-1)
-              ? `${n} or more credits`
-              : `${n} credit${n === 1 ? "" : "s"}`,
-        }))}
-        onToggle={(n) =>
-          change("credits", { ...filters, credits: toggle(filters.credits, n) })
-        }
-      />
-      <ToggleChip
-        label="Fits my plan"
-        tooltip="Only courses with a section that fits your classes, blocks and travel time"
-        on={filters.fitsMyPlan}
-        onToggle={() =>
-          change("fits", { ...filters, fitsMyPlan: !filters.fitsMyPlan })
-        }
-      />
-      <ToggleChip
-        label="Open seats"
-        tooltip="Only courses with a section that has a seat open"
-        on={filters.openSeats}
-        onToggle={() =>
-          change("open-seats", { ...filters, openSeats: !filters.openSeats })
-        }
-      />
-      <MultiChip
-        label="Level"
-        tooltip="Only courses at these levels"
-        picked={filters.levels}
-        options={LEVEL_OPTIONS.map((n) => ({ value: n, label: `${n}-level` }))}
-        onToggle={(n) =>
-          change("level", { ...filters, levels: toggle(filters.levels, n) })
-        }
-      />
+      {show.includes("gen-eds") ? (
+        <MultiChip
+          label="Gen-eds"
+          tooltip="Only courses that count for these GenEds. Typing one, like DSNS, picks it too"
+          picked={filters.genEds}
+          options={GEN_EDS.map((code) => ({
+            value: code,
+            label: (
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span className="ident text-sm">{code}</span>
+                <span className="truncate text-muted">
+                  {GEN_ED_LABELS[code]}
+                </span>
+              </span>
+            ),
+          }))}
+          onToggle={(code) =>
+            change("gen-eds", {
+              ...filters,
+              genEds: toggle(filters.genEds, code),
+            })
+          }
+          heading="Counts for all of"
+        />
+      ) : null}
+      {show.includes("credits") ? (
+        <MultiChip
+          label="Credits"
+          tooltip="Only courses worth these credits. Typing 3cr picks one too"
+          picked={filters.credits}
+          format={(n) => (n === CREDIT_OPTIONS.at(-1) ? `${n}+` : String(n))}
+          options={CREDIT_OPTIONS.map((n) => ({
+            value: n,
+            label:
+              n === CREDIT_OPTIONS.at(-1)
+                ? `${n} or more credits`
+                : `${n} credit${n === 1 ? "" : "s"}`,
+          }))}
+          onToggle={(n) =>
+            change("credits", {
+              ...filters,
+              credits: toggle(filters.credits, n),
+            })
+          }
+        />
+      ) : null}
+      {show.includes("fits") ? (
+        <ToggleChip
+          label="Fits my plan"
+          tooltip="Only courses with a section that fits your classes, blocks and travel time"
+          on={filters.fitsMyPlan}
+          onToggle={() =>
+            change("fits", { ...filters, fitsMyPlan: !filters.fitsMyPlan })
+          }
+        />
+      ) : null}
+      {show.includes("open-seats") ? (
+        <ToggleChip
+          label="Open seats"
+          tooltip="Only courses with a section that has a seat open"
+          on={filters.openSeats}
+          onToggle={() =>
+            change("open-seats", { ...filters, openSeats: !filters.openSeats })
+          }
+        />
+      ) : null}
+      {show.includes("level") ? (
+        <MultiChip
+          label="Level"
+          tooltip="Only courses at these levels. Typing 400s picks one too"
+          picked={filters.levels}
+          options={LEVEL_OPTIONS.map((n) => ({
+            value: n,
+            label: `${n}-level`,
+          }))}
+          onToggle={(n) =>
+            change("level", { ...filters, levels: toggle(filters.levels, n) })
+          }
+        />
+      ) : null}
     </div>
   );
 }

@@ -14,10 +14,18 @@ import {
 import { type ReactNode, useEffect, useId, useState } from "react";
 import { Mark } from "~/app/brand/mark";
 import { ADMIN_KIT_PATH } from "~/core/routing";
+import { GEN_ED_LABELS } from "~/core/schema";
 import type { KitPart } from "~/core/schema/admin-kit";
+import { NO_FILTERS, type SearchFilters } from "~/core/search/filters";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
+import {
+  COURSE_SEARCH_TIP,
+  CourseResultRow,
+  CourseSearchField,
+} from "~/ui/course-search";
 import { EmptyState } from "~/ui/empty-state";
+import { FilterChips } from "~/ui/filter-chips";
 import { InlineError } from "~/ui/inline-error";
 import { Input, SearchField } from "~/ui/input";
 import { GroupHeader, ListRow } from "~/ui/list-row";
@@ -754,6 +762,75 @@ function ListParts() {
 
 // ── Controls ────────────────────────────────────────────────────────────
 
+const KIT_SEARCH_INFO = {
+  depts: new Set(["CMSC", "PSYC"]),
+  genEds: Object.keys(GEN_ED_LABELS),
+};
+
+/** Every product's course search: the box, a chip a token made, the rows. */
+function CourseSearchParts() {
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<SearchFilters>({
+    ...NO_FILTERS,
+    genEds: ["DSNS"],
+  });
+  const [active, setActive] = useState(0);
+  return (
+    <PageSection
+      title="Course search"
+      aside="CourseSearchField · FilterChips · CourseResultRow"
+    >
+      <Demo caption="Schedule, Plan and Generate: type DSNS then space for a chip, Backspace to take it off; ↓ ↑ and Enter move and pick.">
+        <div className="flex flex-col gap-2 border-hairline border-b p-4">
+          <CourseSearchField
+            label="Search courses (kit)"
+            query={query}
+            onQueryChange={setQuery}
+            tokens={{
+              info: KIT_SEARCH_INFO,
+              filters,
+              onFiltersChange: (next) => setFilters(next),
+            }}
+            count={2}
+            active={active}
+            onActiveChange={setActive}
+            onPick={setActive}
+            placeholder="Course, title, instructor or GenEd"
+            tooltip={COURSE_SEARCH_TIP.withInstructors}
+          />
+          <FilterChips
+            filters={filters}
+            onChange={(next) => setFilters(next)}
+          />
+        </div>
+        <CourseResultRow
+          code="PSYC100"
+          title="Introduction to Psychology"
+          credits={{ min: 3, max: 3 }}
+          genEds={["DSHS", "DSNS"]}
+          meta="4 sections · 2 fit your plan"
+          state={active === 0 ? "previewed" : undefined}
+        />
+        <CourseResultRow
+          code="CMSC498A"
+          title="Special Topics in Computer Science"
+          credits={{ min: 1, max: 3 }}
+          note="★ 4.6"
+          meta="MWF 10am–10:50am · Fits"
+          state={active === 1 ? "previewed" : undefined}
+        />
+        <div className="p-2">
+          <CourseResultRow
+            density="compact"
+            code="CMSC351"
+            title="Algorithms"
+          />
+        </div>
+      </Demo>
+    </PageSection>
+  );
+}
+
 function ControlParts() {
   const id = useId();
   const [query, setQuery] = useState("CMSC2");
@@ -829,6 +906,8 @@ function ControlParts() {
           </div>
         </Demo>
       </PageSection>
+
+      <CourseSearchParts />
 
       <PageSection title="Switch" aside="Switch">
         <Pair>

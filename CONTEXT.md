@@ -22,7 +22,7 @@ Terpsicle Plan, the four-year planner at `/plan`, green. In code it's `FourYear`
 _Avoid_: degree audit
 
 **Todo**:
-Terpsicle Todo, deadlines from ELMS at `/todo`, yellow.
+Terpsicle Todo, deadlines from ELMS and your own tasks on a calendar at `/todo`, yellow.
 
 **Color order**:
 Schedule, Reviews, Chat, Plan, Todo (red, purple, blue, green, yellow). Menus, marketing and docs list the products in this order.
@@ -37,14 +37,26 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 ## Shared
 
 **Family bar**:
-The one bar on every page: the wordmark and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), Feedback and the account. On a phone whose bar carries context (the scheduler, Chat's term), the bell and Feedback move into the account menu. Code says `AppBar`.
+The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. On phones, and on the scheduler's bar below 1280px (where the Early access chip also gives its room to the plans), the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
+
+**Mark**:
+One of the six pixel drawings on a 9×9 tile: the umbrella (Terpsicle itself, black) and one per product, in its color. The app icons and favicon are the umbrella's tile alone. Code says `Mark`, drawn from `src/app/brand/marks.ts`.
+_Avoid_: logo (that's the umbrella and the wordmark together), icon (for a product's mark)
+
+**Early access**:
+The small chip beside the wordmark saying Terpsicle's still in active development and may change. Phones show it in the product menu instead.
+_Avoid_: beta, preview
+
+**Coffee button**:
+The cup-with-a-heart button beside Feedback. It opens a short note and a "Buy me a coffee" link to the developer's Buy Me a Coffee page. Nothing opens it but a click.
+_Avoid_: donate, tip
 
 **Sheet**:
 What a popover becomes on a phone: a panel that slides up from the bottom edge, closed with a swipe down, a tap above it or Esc (Notifications, Send feedback). Code says `Sheet`. Not the scheduler's drawer, which is always there.
 _Avoid_: modal, bottom sheet
 
 **Page kind**:
-How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: Todo), or full (a workbench, or Chat's split).
+How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: admin), or full (a workbench and Todo, or Chat's split).
 
 **Workbench**:
 A product laid out like the scheduler: the rail of views, the sidebar and the canvas, with the same drawer on phones. Schedule and Plan are workbenches. Code has it in `src/app/workbench`.
@@ -68,7 +80,19 @@ Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "in
 A UMD General Education code (DSHS, DSNL, FSAW, …). A course can count for one of several ("DSHS or DSHU"). The search chip reads "Gen-eds".
 
 **Wildcard**:
-A stand-in for any course matching a pattern (`CMSC4XX`, `CMSC42X`, `ARTTXXX`) or a GenEd ("Any DSHS course"). One matcher serves Generate and Plan.
+A stand-in for any course matching a pattern (`CMSC4XX`, `CMSC42X`, `ARTTXXX`) or a GenEd ("Any DSHS course"). One matcher serves Generate, Plan and every course search box, where a pattern typed lists its courses.
+
+**Course search**:
+The one search box for courses, in Schedule's Search, Plan's Search and Generate's course field: the same words find the same courses, with the same chips, rows and keys. Reviews and Chat's course finders aren't it yet.
+_Avoid_: course finder, course picker (for these three)
+
+**Filter token**:
+A word typed in a course search that names a filter chip, like "DSNS", "400s" or "3cr". It filters at once, and on space or Enter it becomes its chip; Backspace in the empty box takes it off.
+_Avoid_: tag, keyword, smart filter
+
+**Sort**:
+The order of Search's results: Best match, Course code, Instructor rating or Open seats.
+_Avoid_: relevance (in copy; it's "Best match")
 
 **Seat watch**:
 Watching a full or nearly full section for an opening, signed in, by push and email. The action is "Watch for a seat" (bell) and the state is "Watching" (filled bell). Copy promises "we'll let you know", not "we'll email you", since each channel has its own switch.
@@ -235,7 +259,22 @@ A signed-in student's rating and text for a course and professor. Readers, moder
 The LLM summary of a professor's reviews, with theme chips. It carries the sparkles.
 
 **PlanetTerp**:
-The outside site whose ratings and grade data we show, with credit and a link.
+The outside site whose ratings, reviews and grade data we show, with credit and a link.
+
+**PlanetTerp review**:
+A review written on PlanetTerp, shown on Reviews' pages among ours, newest first, with a "PlanetTerp" chip whose tooltip says where it's from and which links there. No author, as on PlanetTerp. The nightly PlanetTerp job keeps them current.
+_Avoid_: imported review, external review
+
+**Page address**:
+Where an instructor's or a course's page lives: one level under `/reviews`, `/reviews/kruskal` or `/reviews/cmsc351`. An instructor's is PlanetTerp's slug with its underscore as a hyphen (`goldman-aaron`); a course's is its code in lowercase.
+_Avoid_: slug (in copy), `/reviews/instructors/…` (the old address, which moves)
+
+**Most reviewed**:
+The professors with the most PlanetTerp reviews. Listed on `/reviews` beside **most taken**, as equals.
+_Avoid_: popular, top-rated
+
+**Review your instructors**:
+The quiet list on `/reviews`, signed in, of the instructors of the sections in your schedules for terms that are over (or in their last six weeks), each one tap from the form. Never a banner.
 
 **Most taken**:
 The courses offered now that the most students have taken, by PlanetTerp's grade data. Listed on `/reviews`.
@@ -244,6 +283,13 @@ _Avoid_: popular, trending
 **Recently reviewed**:
 The courses and instructors with a new review on Terpsicle, by month. Listed on `/reviews`; it names pairs, never reviews.
 _Avoid_: latest reviews
+
+**Grade data**:
+The admin page (`/admin/grades`) listing the fall and spring semesters whose grades aren't in PlanetTerp's data yet, with the words of a **grade request** and a place to note when each went out.
+
+**Grade request**:
+A Maryland Public Information Act request to the university's Office of General Counsel for a semester's grade distributions, one row per section. How PlanetTerp gets its grades.
+_Avoid_: FOIA request (that's federal)
 
 ## Chat
 
@@ -356,28 +402,33 @@ _Avoid_: ELMS password, access token
 One assignment, quiz or event from the feed, with a due time and a done mark. Copy calls it a **deadline** ("Added 3 deadlines from the file").
 _Avoid_: item (in the UI)
 
-**Exam**:
-An item whose title reads like one. It's a guess, shown as a hint.
-
-**Gradescope tag**:
-The "Gradescope" tag on an item whose ELMS entry links to Gradescope. Terpsicle never signs in to or fetches Gradescope.
-
 **File import**:
 "Add a calendar file": an `.ics` the student exported, read in the browser. Its items say "From a file" and don't update.
 
+**Calendar** (Todo's):
+Todo's main area: the **Week** (the default), the **Month** or the **List** of what's due by day, each a URL. Weeks start on Monday, so a Sunday-night deadline ends its week, unless the student sets **Weeks start on** Sunday.
+_Avoid_: agenda, planner, schedule (that's the scheduler)
+
+**Side panel** (Todo's):
+The column beside Todo's calendar, where the scheduler and Plan keep their sidebars: Add a task, This week, ELMS and Weeks start on. On a phone it sits above the calendar, folded under "Courses and ELMS".
+
+**Composer**:
+Todo's "Add a task…" field, which reads the date, time and course from the words ("PS3 due fri 11:59pm cmsc351"), marks them as you type, and shows them as chips before adding. In copy it's just "Add a task".
+_Avoid_: quick add, natural-language input (in the UI)
+
 **Hidden course**:
-A course group the student hid in Todo ("Hide CMSC216"), for what the feed carries that they don't want, like a club. Its items show nowhere and count in nothing, "Due tomorrow" included. "Hidden: 2 courses" at the bottom shows them again.
+A course the student hid in Todo (the eye on its row in This week, "Hide CMSC216"), for what the feed carries that they don't want, like a club. Its items show nowhere and count in nothing, "Due tomorrow" included. Its row stays, struck through, to show it again.
 _Avoid_: muted, archived
 
 **This week**:
-Todo's progress: the items due Monday to Sunday of the current week, done or not. "This week: 7 of 12 done" in the header; "3 of 5 done this week" on each course.
+Todo's completion chart in the side panel: what's done of what's due in the week shown ("7 of 12 done"), then each course's "3 of 5 done this week" and its last four weeks as small columns.
 
 **Own task**:
-A task the student types in Todo ("Add a task…"), with an optional due date, time and course. It says "Yours" where the feed's items say "From ELMS", is kept on our server, and never goes to ELMS. Copy calls it a **task**.
+A task the student types in Todo's composer, with an optional due date, time and course. It says "Yours" where the feed's items say "From ELMS", is kept on our server, and never goes to ELMS. Copy calls it a **task**.
 _Avoid_: custom todo, personal item, reminder
 
 **No date**:
-Where own tasks without a due date go: the last group of the day list, and under the week.
+Where own tasks without a due date go: the last group of the List, and under the Week and the Month.
 
 **Due tomorrow**:
 Todo's one notification: at 6pm in College Park, one push listing what's due the next day and not done. Connecting ELMS turns it on.

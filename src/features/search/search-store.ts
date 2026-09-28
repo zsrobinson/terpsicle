@@ -1,26 +1,29 @@
 import { create } from "zustand";
 import type { TermId } from "~/core/schema";
 import { NO_FILTERS, type SearchFilters } from "~/core/search/filters";
+import type { SearchSort } from "~/core/search/sort";
 import { sameFilters } from "~/core/search/url";
 
-// What the person typed and picked in Search, per term, for this visit.
-// Switching tabs or terms and coming back finds it as it was (SPEC §3.13);
-// it isn't persisted between visits (DATA §5: search text isn't stored).
-// It's the search box's own state, so typing never waits on the router;
-// search-url.ts writes it to `/schedule/search?q=&gened=…` and follows the
-// URL back on Back, Forward and arrival.
+// What the person typed, picked and sorted by in Search, per term, for this
+// visit. Switching tabs or terms and coming back finds it as it was (SPEC
+// §3.13); it isn't persisted between visits (DATA §5: search text isn't
+// stored). It's the search box's own state, so typing never waits on the
+// router; search-url.ts writes it to `/schedule/search?q=&gened=…&sort=`
+// and follows the URL back on Back, Forward and arrival.
 
 export interface TermSearch {
   query: string;
   filters: SearchFilters;
+  sort: SearchSort;
 }
 
-const EMPTY: TermSearch = { query: "", filters: NO_FILTERS };
+const EMPTY: TermSearch = { query: "", filters: NO_FILTERS, sort: "relevance" };
 
 interface SearchState {
   byTerm: Readonly<Partial<Record<TermId, TermSearch>>>;
   setQuery: (termId: TermId, query: string) => void;
   setFilters: (termId: TermId, filters: SearchFilters) => void;
+  setSort: (termId: TermId, sort: SearchSort) => void;
 }
 
 export const useSearchStore = create<SearchState>()((set, get) => ({
@@ -34,6 +37,11 @@ export const useSearchStore = create<SearchState>()((set, get) => ({
     const current = get().byTerm[termId] ?? EMPTY;
     if (sameFilters(current.filters, filters)) return;
     set({ byTerm: { ...get().byTerm, [termId]: { ...current, filters } } });
+  },
+  setSort: (termId, sort) => {
+    const current = get().byTerm[termId] ?? EMPTY;
+    if (current.sort !== sort)
+      set({ byTerm: { ...get().byTerm, [termId]: { ...current, sort } } });
   },
 }));
 

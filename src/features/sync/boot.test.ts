@@ -71,8 +71,12 @@ async function bootScheduler(): Promise<void> {
 const status = () => useSyncStatus.getState().status;
 /** Pushes wait a second after an edit; the machine may be slow. */
 const WAIT = { timeout: 10_000 };
+// Each test waits up to WAIT more than once (a start, then a restart), so
+// its own budget has to cover them: the UI project's default 5 s timed out
+// under CI load before the waits could (#172's run).
+const TEST_TIMEOUT = 30_000;
 
-describe("plan sync in the scheduler", () => {
+describe("plan sync in the scheduler", { timeout: TEST_TIMEOUT }, () => {
   beforeEach(async () => {
     fake = new FakeSyncServer(() => new Date().toISOString());
     server.current = fake;

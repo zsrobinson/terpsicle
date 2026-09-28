@@ -18,6 +18,7 @@ import { Route as SigninRouteImport } from './routes/signin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminDecisionsRouteImport } from './routes/admin.decisions'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
+import { Route as AdminGradesRouteImport } from './routes/admin.grades'
 import { Route as AdminKitRouteImport } from './routes/admin.kit'
 import { Route as AuthTestRouteImport } from './routes/auth/test'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
@@ -28,6 +29,7 @@ import { Route as PlanSamplesRouteImport } from './routes/plan.samples'
 import { Route as PlanSearchRouteImport } from './routes/plan.search'
 import { Route as PlanSharedRouteImport } from './routes/plan_.shared'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews.index'
+import { Route as ReviewsSlugRouteImport } from './routes/reviews.$slug'
 import { Route as ReviewsMineRouteImport } from './routes/reviews.mine'
 import { Route as ReviewsPolicyRouteImport } from './routes/reviews.policy'
 import { Route as ScheduleIndexRouteImport } from './routes/schedule.index'
@@ -93,6 +95,11 @@ const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   path: '/admin/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminGradesRoute = AdminGradesRouteImport.update({
+  id: '/admin/grades',
+  path: '/admin/grades',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminKitRoute = AdminKitRouteImport.update({
   id: '/admin/kit',
   path: '/admin/kit',
@@ -141,6 +148,11 @@ const PlanSharedRoute = PlanSharedRouteImport.update({
 const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
   id: '/reviews/',
   path: '/reviews/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewsSlugRoute = ReviewsSlugRouteImport.update({
+  id: '/reviews/$slug',
+  path: '/reviews/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewsMineRoute = ReviewsMineRouteImport.update({
@@ -249,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/grades': typeof AdminGradesRoute
   '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/plan/import': typeof PlanImportRoute
@@ -256,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/plan/samples': typeof PlanSamplesRoute
   '/plan/search': typeof PlanSearchRoute
   '/plan/shared': typeof PlanSharedRoute
+  '/reviews/$slug': typeof ReviewsSlugRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
   '/schedule/blocks': typeof ScheduleBlocksRoute
@@ -287,6 +301,7 @@ export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/grades': typeof AdminGradesRoute
   '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/plan/import': typeof PlanImportRoute
@@ -294,6 +309,7 @@ export interface FileRoutesByTo {
   '/plan/samples': typeof PlanSamplesRoute
   '/plan/search': typeof PlanSearchRoute
   '/plan/shared': typeof PlanSharedRoute
+  '/reviews/$slug': typeof ReviewsSlugRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
   '/schedule/blocks': typeof ScheduleBlocksRoute
@@ -328,6 +344,7 @@ export interface FileRoutesById {
   '/signin': typeof SigninRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/grades': typeof AdminGradesRoute
   '/admin/kit': typeof AdminKitRoute
   '/auth/test': typeof AuthTestRoute
   '/plan/import': typeof PlanImportRoute
@@ -335,6 +352,7 @@ export interface FileRoutesById {
   '/plan/samples': typeof PlanSamplesRoute
   '/plan/search': typeof PlanSearchRoute
   '/plan_/shared': typeof PlanSharedRoute
+  '/reviews/$slug': typeof ReviewsSlugRoute
   '/reviews/mine': typeof ReviewsMineRoute
   '/reviews/policy': typeof ReviewsPolicyRoute
   '/schedule/blocks': typeof ScheduleBlocksRoute
@@ -370,6 +388,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/admin/decisions'
     | '/admin/feedback'
+    | '/admin/grades'
     | '/admin/kit'
     | '/auth/test'
     | '/plan/import'
@@ -377,6 +396,7 @@ export interface FileRouteTypes {
     | '/plan/samples'
     | '/plan/search'
     | '/plan/shared'
+    | '/reviews/$slug'
     | '/reviews/mine'
     | '/reviews/policy'
     | '/schedule/blocks'
@@ -408,6 +428,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/admin/decisions'
     | '/admin/feedback'
+    | '/admin/grades'
     | '/admin/kit'
     | '/auth/test'
     | '/plan/import'
@@ -415,6 +436,7 @@ export interface FileRouteTypes {
     | '/plan/samples'
     | '/plan/search'
     | '/plan/shared'
+    | '/reviews/$slug'
     | '/reviews/mine'
     | '/reviews/policy'
     | '/schedule/blocks'
@@ -448,6 +470,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/admin/decisions'
     | '/admin/feedback'
+    | '/admin/grades'
     | '/admin/kit'
     | '/auth/test'
     | '/plan/import'
@@ -455,6 +478,7 @@ export interface FileRouteTypes {
     | '/plan/samples'
     | '/plan/search'
     | '/plan_/shared'
+    | '/reviews/$slug'
     | '/reviews/mine'
     | '/reviews/policy'
     | '/schedule/blocks'
@@ -489,9 +513,11 @@ export interface RootRouteChildren {
   SigninRoute: typeof SigninRoute
   AdminDecisionsRoute: typeof AdminDecisionsRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
+  AdminGradesRoute: typeof AdminGradesRoute
   AdminKitRoute: typeof AdminKitRoute
   AuthTestRoute: typeof AuthTestRoute
   PlanSharedRoute: typeof PlanSharedRoute
+  ReviewsSlugRoute: typeof ReviewsSlugRoute
   ReviewsMineRoute: typeof ReviewsMineRoute
   ReviewsPolicyRoute: typeof ReviewsPolicyRoute
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute
@@ -569,6 +595,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/grades': {
+      id: '/admin/grades'
+      path: '/admin/grades'
+      fullPath: '/admin/grades'
+      preLoaderRoute: typeof AdminGradesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/kit': {
       id: '/admin/kit'
       path: '/admin/kit'
@@ -637,6 +670,13 @@ declare module '@tanstack/react-router' {
       path: '/reviews'
       fullPath: '/reviews/'
       preLoaderRoute: typeof ReviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reviews/$slug': {
+      id: '/reviews/$slug'
+      path: '/reviews/$slug'
+      fullPath: '/reviews/$slug'
+      preLoaderRoute: typeof ReviewsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reviews/mine': {
@@ -836,9 +876,11 @@ const rootRouteChildren: RootRouteChildren = {
   SigninRoute: SigninRoute,
   AdminDecisionsRoute: AdminDecisionsRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
+  AdminGradesRoute: AdminGradesRoute,
   AdminKitRoute: AdminKitRoute,
   AuthTestRoute: AuthTestRoute,
   PlanSharedRoute: PlanSharedRoute,
+  ReviewsSlugRoute: ReviewsSlugRoute,
   ReviewsMineRoute: ReviewsMineRoute,
   ReviewsPolicyRoute: ReviewsPolicyRoute,
   SettingsNotificationsRoute: SettingsNotificationsRoute,

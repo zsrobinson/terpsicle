@@ -4,8 +4,12 @@ import { SiteHeader } from "~/features/site/site-page";
 import { ProductPage } from "~/ui/product-page";
 
 // The frame of Terpsicle Reviews' pages (V2 §1.1): the family bar over a
-// reading page (docs/COHESION.md §4), with its footer. Each page puts the
-// kit's PageHeader first, then PageSections of ListRows.
+// reading page (docs/COHESION.md §4), with its footer. Reviews is the one
+// product meant to be read on its own, arriving from a search engine, so
+// it reads as a public website rather than a dashboard (owner, 2026-09-28):
+// the bar stays at the top as you scroll, with no rule under it until you
+// do, so the page first reads as one piece; the kit's `display` sizes set
+// its type larger and its sections roomier.
 
 export type ReviewsPageName = "home" | "instructor" | "course";
 
@@ -23,8 +27,12 @@ export function ReviewsFrame({
   }, [page]);
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <SiteHeader />
-      <ProductPage width="reading">{children}</ProductPage>
+      <div className="sticky top-0 z-20 bg-bg">
+        <SiteHeader borderOnScroll />
+      </div>
+      <ProductPage width="reading" className="gap-6">
+        {children}
+      </ProductPage>
     </div>
   );
 }
@@ -41,7 +49,7 @@ export const PAGE_ROW = "px-0";
  * the section's prose, right under its label. A panel's note pads itself
  * to sit among rows; on a page that padding reads as a gap.
  */
-export const PAGE_NOTE = "p-0";
+export const PAGE_NOTE = "p-0 text-base";
 
 /**
  * A row's one link, answering for the whole row: its `::after` covers the

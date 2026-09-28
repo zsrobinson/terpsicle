@@ -284,6 +284,18 @@ test.describe("phone", () => {
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("no viewport");
     const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
+    // A first visit's drawer rises to half by itself once the plan loads
+    // (the test above). A tap aimed while it rests at peek can land after
+    // it starts to slide, under the moving tab, and do nothing. So wait for
+    // the rise, then lower it with the open tab, so this tap is the one
+    // that raises it.
+    await expect(page.getByTestId("first-visit")).toBeVisible();
+    await expect(drawer(page)).toHaveAttribute("data-snap", "half");
+    await expect
+      .poll(() => drawerTop(page))
+      .toBeCloseTo(viewport.height / 2, -1);
+    await tabs.getByRole("button", { name: "Courses" }).tap();
+    await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
 
     await tabs.getByRole("button", { name: "Search" }).tap();
     await expect(drawer(page)).toHaveAttribute("data-snap", "half");

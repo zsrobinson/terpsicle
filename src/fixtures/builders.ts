@@ -38,11 +38,13 @@ import {
   type ManifestDepartment,
   type MeUser,
   type MyReview,
+  type PageReview,
   type Plan,
   type PlanCourse,
   type PlanetTerpDept,
   type PlanetTerpIndex,
   type PlanetTerpManifest,
+  type PlanetTerpReview,
   type PlanetTerpSource,
   type PlanSyncDoc,
   PROBLEM_SEVERITY,
@@ -583,6 +585,7 @@ export function aPlanetTerpIndex(
     schemaVersion: 1,
     instructors: { brandt: ["Ada Brandt", ["CMSC"]] },
     mostTaken: [["CMSC351", "Algorithms", 13592]],
+    mostReviewed: [["brandt", "Ada Brandt", 61, 4.2]],
     ...overrides,
   };
 }
@@ -821,8 +824,6 @@ export function aFeedItem(overrides: Partial<FeedItem> = {}): FeedItem {
     sectionCode: "0103",
     kind: "assignment",
     kindFrom: "uid",
-    looksLikeExam: false,
-    gradescope: false,
     dueAt: "2026-09-30T03:59:00.000Z",
     dueDate: "2026-09-29",
     endAt: null,
@@ -841,8 +842,6 @@ export function aTodoItem(overrides: Partial<TodoItem> = {}): TodoItem {
     courseCode: "CMSC216",
     sectionCode: "0103",
     kind: "assignment",
-    exam: false,
-    gradescope: false,
     dueAt: "2026-09-30T03:59:00.000Z",
     dueDate: "2026-09-29",
     link: "https://elms.umd.edu/courses/1300001/assignments/4410001",
@@ -860,8 +859,6 @@ export function anOwnTask(overrides: Partial<TodoItem> = {}): TodoItem {
     courseCode: null,
     sectionCode: null,
     kind: "assignment",
-    exam: false,
-    gradescope: false,
     dueAt: null,
     dueDate: null,
     link: null,
@@ -1004,6 +1001,27 @@ export function aPublicReview(
     body: "Lectures were clear and the problem sets matched the exams. Office hours were worth it.",
     createdMonth: "2026-10",
     edited: false,
+    ...overrides,
+  };
+}
+
+/** One of ours on a Reviews page, with who it's about. */
+export function aPageReview(overrides: Partial<PageReview> = {}): PageReview {
+  return { ...aPublicReview(), instructorId: "brandt", ...overrides };
+}
+
+/** A PlanetTerp review as a Reviews page shows it. */
+export function aPlanetTerpReview(
+  overrides: Partial<PlanetTerpReview> = {},
+): PlanetTerpReview {
+  return {
+    id: "0123456789abcdef",
+    instructorId: "brandt",
+    course: "CMSC351",
+    rating: 5,
+    expectedGrade: "A",
+    body: "Hard but fair. Go to every lecture and start the homework early.",
+    createdMonth: "2025-12",
     ...overrides,
   };
 }

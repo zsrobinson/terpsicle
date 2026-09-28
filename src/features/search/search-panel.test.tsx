@@ -207,6 +207,7 @@ describe("Search tab", () => {
     expect(results().every((code) => code?.startsWith("CMSC4"))).toBe(true);
     expect(track).toHaveBeenCalledWith("search_filter_changed", {
       filter: "level",
+      via: "chip",
     });
 
     await user.click(openSeats);
@@ -247,6 +248,88 @@ describe("Search tab", () => {
         course?.genEds.some((group) => group.some((o) => o.code === "DSSP")),
       ).toBe(true);
     }
+  });
+
+  it("a GenEd typed in the box becomes its chip, and Backspace takes it off", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "dshu");
+    // Before it's a chip, it already filters.
+    const typed = results();
+    expect(typed.length).toBeGreaterThan(0);
+    await user.type(box, " ");
+    expect(box).toHaveValue("");
+    expect(
+      screen.getByRole("button", { name: "Gen-eds: DSHU" }),
+    ).toBeInTheDocument();
+    expect(results()).toEqual(typed);
+    expect(track).toHaveBeenCalledWith("search_filter_changed", {
+      filter: "gen-eds",
+      via: "typed",
+    });
+    const index = useCatalog.getState().byTerm[TEST_TERM_ID]?.index;
+    for (const code of results()) {
+      const course = code ? index?.courses.get(code) : undefined;
+      expect(
+        course?.genEds.some((group) => group.some((o) => o.code === "DSHU")),
+      ).toBe(true);
+    }
+    await user.keyboard("{Backspace}");
+    expect(screen.getByRole("button", { name: "Gen-eds" })).toBeInTheDocument();
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("Enter turns a level into its chip rather than opening a course", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc 400s{Enter}");
+    expect(box).toHaveValue("cmsc ");
+    expect(
+      screen.getByRole("button", { name: "Level: 400" }),
+    ).toBeInTheDocument();
+    expect(results().every((code) => code?.startsWith("CMSC4"))).toBe(true);
+    expect(currentView().drill).toBeNull();
+  });
+
+  it("x after the department is a digit: cmsc4xx and cmsc4x", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc4xx");
+    const all = matchCount();
+    expect(all).toBeGreaterThan(0);
+    expect(results().every((code) => code?.startsWith("CMSC4"))).toBe(true);
+    await user.clear(box);
+    await user.type(box, "CMSC4X");
+    expect(matchCount()).toBe(all);
+  });
+
+  it("Esc clears the box before it leaves it", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc");
+    await user.keyboard("{Escape}");
+    expect(box).toHaveValue("");
+    expect(box).toHaveFocus();
+  });
+
+  it("sorts by course code, and says so", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "algorithms");
+    await user.click(screen.getByRole("button", { name: "Sort: Best match" }));
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Course code/ }),
+    );
+    const codes = results();
+    expect(codes).toEqual([...codes].sort());
+    expect(
+      screen.getByRole("button", { name: "Sort: Course code" }),
+    ).toBeInTheDocument();
+    expect(track).toHaveBeenCalledWith("search_sorted", { sort: "code" });
+  });
+
+  it("says when ratings for a sort aren't loaded", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc");
+    await user.click(screen.getByRole("button", { name: "Sort: Best match" }));
+    expect(
+      await screen.findByRole("menuitemradio", { name: /^Instructor rating/ }),
+    ).toHaveTextContent(/Ratings (load as you open courses|for \d+ of \d+)/);
   });
 
   it("says what to change when nothing matches", async () => {

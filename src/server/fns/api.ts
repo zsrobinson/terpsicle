@@ -10,6 +10,9 @@ import {
   ApiErrorSchema,
   MeInputSchema,
   MeResultSchema,
+  PageReviewsSchema,
+  PlanetTerpReviewsInputSchema,
+  PlanetTerpReviewsResultSchema,
   ReportCreateInputSchema,
   ReportCreateResultSchema,
   ReviewDeleteInputSchema,
@@ -22,6 +25,7 @@ import {
   ReviewSummaryResultSchema,
   ReviewsMineInputSchema,
   ReviewsMineResultSchema,
+  ReviewsPageInputSchema,
   ReviewsRecentInputSchema,
   ReviewsRecentResultSchema,
   ReviewWriteResultSchema,
@@ -243,6 +247,30 @@ export const api = {
         "reviews/list",
         ReviewListInputSchema,
         ReviewListResultSchema,
+        input,
+        options,
+      ),
+    /** A page's first reviews: all of ours and PlanetTerp's newest. */
+    page: (
+      input: z.input<typeof ReviewsPageInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "reviews/page",
+        ReviewsPageInputSchema,
+        PageReviewsSchema,
+        input,
+        options,
+      ),
+    /** More of PlanetTerp's reviews, after `cursor`. */
+    planetTerp: (
+      input: z.input<typeof PlanetTerpReviewsInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "planetterp/reviews",
+        PlanetTerpReviewsInputSchema,
+        PlanetTerpReviewsResultSchema,
         input,
         options,
       ),

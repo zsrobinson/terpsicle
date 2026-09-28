@@ -116,10 +116,6 @@ export const TodoItemSchema = z.strictObject({
   courseCode: CourseCodeSchema.nullable(),
   sectionCode: SectionCodeSchema.nullable(),
   kind: FeedItemKindSchema,
-  /** The title reads like an exam or quiz: a guess, shown as "Exam". */
-  exam: z.boolean(),
-  /** The item mentions gradescope.com: tagged "Gradescope". */
-  gradescope: z.boolean(),
   dueAt: IsoDateTimeSchema.nullable(),
   /** Null only for an own task with no date: it's listed under "No date". */
   dueDate: IsoDateSchema.nullable(),
@@ -216,14 +212,13 @@ export type TodoRefreshResult = z.infer<typeof TodoRefreshResultSchema>;
 /**
  * One item from a dropped file, parsed in the browser with `parseIcs`: only
  * the structured fields, never the file's text or descriptions (V3 §3.7).
- * The server re-derives the course codes and the exam guess from the words.
+ * The server re-derives the course codes from the words.
  */
 export const TodoFileItemSchema = FeedItemSchema.pick({
   uid: true,
   title: true,
   courseLabel: true,
   kind: true,
-  gradescope: true,
   dueAt: true,
   dueDate: true,
   link: true,

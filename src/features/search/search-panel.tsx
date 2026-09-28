@@ -1,6 +1,6 @@
-import { Bookmark, X } from "lucide-react";
+import { Bookmark, ChevronDown, X } from "lucide-react";
 import {
-  type KeyboardEvent,
+  type ReactNode,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -10,36 +10,67 @@ import {
 import { track } from "~/app/analytics";
 import { TONE_TEXT } from "~/app/emphasis";
 import { useFocusRequest } from "~/app/focus-request";
-import { ListRow, MetaSep, PanelNote } from "~/app/panel";
+import { MetaSep, PanelNote } from "~/app/panel";
 import type { FitContext } from "~/core/fit";
-import type { Course } from "~/core/schema";
+import type { Course, DeptCode, TermId } from "~/core/schema";
 // Not the ~/core/search barrel: it carries the text index, which loads
-// on its own (use-course-search).
+// on its own (~/state/search-engine).
 import {
   isFiltering,
   NO_FILTERS,
   type SearchFilters,
 } from "~/core/search/filters";
 import {
+  bestInstructorRating,
+  openSeatTotal,
+  ratedDepartments,
+  type SearchSort,
+} from "~/core/search/sort";
+import {
   resultFitWords,
   resultSummary,
   sectionCountWords,
 } from "~/core/search/summary";
+import { readFilterToken, withFilterToken } from "~/core/search/tokens";
 import { openCourse } from "~/features/courses/actions";
-import { useActiveTerm, useCurrentPlan, useFitContext } from "~/state/hooks";
+import { useCatalog } from "~/state/catalog-store";
+import {
+  useActiveTerm,
+  useCurrentPlan,
+  useFitContext,
+  useTermCatalog,
+} from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
-import { SearchField } from "~/ui/input";
-import { Kbd } from "~/ui/kbd";
+import {
+  COURSE_SEARCH_TIP,
+  CourseResultRow,
+  CourseSearchField,
+} from "~/ui/course-search";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItemText,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
+import { FilterChips, type FilterName, TOKEN_CHIP } from "~/ui/filter-chips";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { FilterChips, type FilterName } from "./filter-chips";
 import { useTermSearch } from "./search-store";
-import { pickFilters, typeQuery, useSearchFromUrl } from "./search-url";
-import { useCourseResults } from "./use-course-search";
+import {
+  pickFilters,
+  pickSort,
+  typeQuery,
+  useSearchFromUrl,
+} from "./search-url";
+import { useCourseResults, useSearchInfo } from "./use-course-search";
 
 // The Search tab (SPEC §3.5): a box, one line of filter chips, and a list of
 // courses (never sections). Hovering a result shows its sections on the
-// calendar; clicking opens its details.
+// calendar; clicking opens its details. The box and rows are the kit's
+// course search (~/ui/course-search), the same as Plan's and Generate's.
 
 /** Every result row has the same height, so the list can be windowed. */
 export const ROW_HEIGHT = 72;
@@ -48,10 +79,11 @@ const OVERSCAN = 6;
 export function SearchPanel() {
   const { termId } = useActiveTerm();
   useSearchFromUrl(termId);
-  const { query, filters } = useTermSearch(termId);
+  const { query, filters, sort } = useTermSearch(termId);
   const setQuery = typeQuery;
   const setFilters = pickFilters;
-  const results = useCourseResults(termId, query, filters);
+  const results = useCourseResults(termId, query, filters, sort);
+  const info = useSearchInfo(termId);
   const inputRef = useFocusRequest<HTMLInputElement>("search");
   const [active, setActive] = useState(-1);
   const courses = results.status === "ready" ? results.courses : NO_COURSES;
@@ -59,7 +91,7 @@ export function SearchPanel() {
   useSearchAnalytics(query, filters, results);
   // A new query starts the keyboard cursor over.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset on these inputs only
-  useEffect(() => setActive(-1), [query, filters, termId]);
+  useEffect(() => setActive(-1), [query, filters, sort, termId]);
   // The hovered result's ghosts shouldn't outlive the panel being on screen.
   useEffect(() => () => useUi.getState().setHoverCourse(null), []);
   // Nor the result: typing narrows the list under a resting pointer, and the
@@ -78,28 +110,21 @@ export function SearchPanel() {
     openCourse(course.code);
   };
 
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      if (courses.length === 0) return;
-      event.preventDefault();
-      const next =
-        event.key === "ArrowDown"
-          ? Math.min(courses.length - 1, active + 1)
-          : Math.max(0, active - 1);
-      setActive(next);
-      useUi.getState().setHoverCourse(courses[next]?.code ?? null);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      open(active >= 0 ? active : 0);
-    }
-  };
-
   if (!termId)
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <ResultsSkeleton />
       </div>
     );
+
+  const changeFilters = (
+    next: SearchFilters,
+    filter: FilterName | null,
+    via: "chip" | "typed",
+  ) => {
+    if (filter) track("search_filter_changed", { filter, via });
+    setFilters(termId, next);
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -113,51 +138,59 @@ export function SearchPanel() {
         }
       />
       <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-4 py-3">
-        {/* Above the field, so it never covers the filters or results. */}
-        <WithTooltip
-          label="Search by course code, title or instructor"
-          shortcut="/"
-          side="top"
-        >
-          <SearchField
-            ref={inputRef}
-            role="combobox"
-            aria-expanded={courses.length > 0}
-            aria-controls="search-results"
-            aria-activedescendant={
-              active >= 0 ? `search-result-${active}` : undefined
-            }
-            aria-label="Search courses"
-            placeholder="Course, title or instructor"
-            // Course codes aren't words: no red squiggles or autocorrect.
-            spellCheck={false}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            value={query}
-            onChange={(e) => setQuery(termId, e.target.value)}
-            onKeyDown={onKeyDown}
-            onBlur={() => useUi.getState().setHoverCourse(null)}
-            onClear={() => {
-              setQuery(termId, "");
-              inputRef.current?.focus();
-            }}
-            hint={
-              <WithTooltip label="Jump to search from anywhere" shortcut="/">
-                <span>
-                  <Kbd>/</Kbd>
-                </span>
-              </WithTooltip>
-            }
-          />
-        </WithTooltip>
+        <CourseSearchField
+          inputRef={inputRef}
+          query={query}
+          onQueryChange={(next) => setQuery(termId, next)}
+          tokens={
+            info
+              ? {
+                  info,
+                  filters,
+                  onFiltersChange: (next, kind) =>
+                    changeFilters(
+                      next,
+                      kind ? TOKEN_CHIP[kind] : null,
+                      "typed",
+                    ),
+                }
+              : undefined
+          }
+          count={courses.length}
+          active={active}
+          onActiveChange={(next) => {
+            setActive(next);
+            useUi.getState().setHoverCourse(courses[next]?.code ?? null);
+          }}
+          onPick={open}
+          combobox={{
+            listId: "search-results",
+            optionId: (i) => `search-result-${i}`,
+          }}
+          placeholder="Course, title, instructor or GenEd"
+          tooltip={COURSE_SEARCH_TIP.withInstructors}
+          shortcut={{ key: "/", label: "Jump to search from anywhere" }}
+          onBlur={() => useUi.getState().setHoverCourse(null)}
+        />
         <FilterChips
           filters={filters}
-          onChange={(next) => setFilters(termId, next)}
+          onChange={(next, name) => changeFilters(next, name, "chip")}
         />
       </div>
       {results.status === "idle" ? (
-        <SearchHints onPick={(q) => setQuery(termId, q)} />
+        <SearchHints
+          onPick={(q) => {
+            // "DSNS" is a filter: it goes on as its chip, as if typed.
+            const token = info ? readFilterToken(q, info) : null;
+            if (token)
+              changeFilters(
+                withFilterToken(filters, token),
+                TOKEN_CHIP[token.kind],
+                "typed",
+              );
+            else setQuery(termId, q);
+          }}
+        />
       ) : results.status === "loading" ? (
         <ResultsSkeleton />
       ) : courses.length === 0 ? (
@@ -169,8 +202,8 @@ export function SearchPanel() {
       ) : (
         <>
           {/* Always there with results, so the list never jumps when a filter goes on. */}
-          <div className="flex h-7 shrink-0 items-center justify-between gap-2 border-hairline border-b px-4 text-muted text-xs">
-            <span className="tnum">
+          <div className="flex h-7 shrink-0 items-center gap-2 border-hairline border-b px-4 text-muted text-xs">
+            <span className="tnum mr-auto">
               {courses.length} {courses.length === 1 ? "course" : "courses"}
             </span>
             {isFiltering(filters) ? (
@@ -178,16 +211,26 @@ export function SearchPanel() {
                 <button
                   type="button"
                   onClick={() => setFilters(termId, NO_FILTERS)}
-                  className="-mr-1.5 flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg"
+                  className="flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg"
                 >
                   <X size={11} aria-hidden="true" />
                   Clear filters
                 </button>
               </WithTooltip>
             ) : null}
+            <SortMenu
+              termId={termId}
+              sort={sort}
+              courses={courses}
+              onSort={(next) => {
+                track("search_sorted", { sort: next });
+                pickSort(termId, next);
+              }}
+            />
           </div>
           <ResultList
             courses={courses}
+            sort={sort}
             active={active}
             onOpen={open}
             onHover={setActive}
@@ -198,6 +241,85 @@ export function SearchPanel() {
   );
 }
 
+const SORT_NAMES: Record<SearchSort, string> = {
+  relevance: "Best match",
+  code: "Course code",
+  rating: "Instructor rating",
+  seats: "Open seats",
+};
+
+/** Ratings by department, from whatever PlanetTerp files are loaded. */
+function usePlanetTerp() {
+  const loaded = useCatalog((s) => s.instructors);
+  return useMemo(() => (dept: DeptCode) => loaded[dept], [loaded]);
+}
+
+/**
+ * The results' order. Only data already here: the seats file, and ratings
+ * for departments whose PlanetTerp file is loaded (it loads when you open
+ * one of their courses). Each option says when it's missing some, in words
+ * rather than a tooltip: menu options have none (decisions.md), and a
+ * phone can't hover.
+ */
+function SortMenu({
+  termId,
+  sort,
+  courses,
+  onSort,
+}: {
+  termId: TermId;
+  sort: SearchSort;
+  courses: readonly Course[];
+  onSort: (sort: SearchSort) => void;
+}) {
+  const planetTerp = usePlanetTerp();
+  const seatsLoaded = useTermCatalog(termId)?.seats != null;
+  const rated = ratedDepartments(courses, planetTerp);
+  const ratingHint =
+    rated.total === 0 || rated.loaded === rated.total
+      ? null
+      : rated.loaded === 0
+        ? "Ratings load as you open courses"
+        : `Ratings for ${rated.loaded} of ${rated.total} departments so far`;
+  const hints: Record<SearchSort, string | null> = {
+    relevance: null,
+    code: null,
+    rating: ratingHint,
+    seats: seatsLoaded ? null : "Seats are still loading",
+  };
+  return (
+    <DropdownMenu>
+      <WithTooltip label="Sort the results">
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Sort: ${SORT_NAMES[sort]}`}
+            className="-mr-1.5 flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
+          >
+            Sort: {SORT_NAMES[sort]}
+            <ChevronDown size={10} aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+      </WithTooltip>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={sort}
+          onValueChange={(v) => onSort(v as SearchSort)}
+        >
+          {(Object.keys(SORT_NAMES) as SearchSort[]).map((s) => (
+            <DropdownMenuRadioItem key={s} value={s}>
+              <DropdownMenuItemText
+                label={SORT_NAMES[s]}
+                hint={hints[s] ?? undefined}
+              />
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 const NO_COURSES: readonly Course[] = [];
 
 /**
@@ -244,17 +366,33 @@ function useSearchAnalytics(
 
 function ResultList({
   courses,
+  sort,
   active,
   onOpen,
   onHover,
 }: {
   courses: readonly Course[];
+  sort: SearchSort;
   active: number;
   onOpen: (index: number) => void;
   onHover: (index: number) => void;
 }) {
   const fit = useFitContext();
   const plan = useCurrentPlan()?.plan;
+  const planetTerp = usePlanetTerp();
+  const seats = useTermCatalog(useActiveTerm().termId)?.seats?.seats ?? null;
+  /** Sorted by rating or seats, each row says its number. */
+  const sortNote = (course: Course): ReactNode => {
+    if (sort === "rating") {
+      const rating = bestInstructorRating(course, planetTerp);
+      return rating === null ? null : `★ ${rating.toFixed(1)}`;
+    }
+    if (sort === "seats") {
+      const open = openSeatTotal(course, seats);
+      return open === null ? null : `${open} open`;
+    }
+    return null;
+  };
   // Placed or bookmarked, by course: what each result's trail says.
   const inPlan = useMemo(
     () =>
@@ -325,6 +463,7 @@ function ResultList({
               course={course}
               fit={fit}
               inPlan={inPlan.get(course.code) ?? null}
+              sortNote={sortNote(course)}
               active={index === active}
               onOpen={() => onOpen(index)}
               onHover={() => {
@@ -344,6 +483,7 @@ function ResultRow({
   course,
   fit,
   inPlan,
+  sortNote,
   active,
   onOpen,
   onHover,
@@ -352,6 +492,8 @@ function ResultRow({
   course: Course;
   fit: FitContext | null;
   inPlan: "placed" | "bookmarked" | null;
+  /** What the list is sorted by, for this course ("★ 4.6", "12 open"). */
+  sortNote: ReactNode;
   active: boolean;
   onOpen: () => void;
   onHover: () => void;
@@ -359,15 +501,17 @@ function ResultRow({
   const genEds = [
     ...new Set(course.genEds.flatMap((g) => g.map((o) => o.code))),
   ];
-  const credits =
-    course.credits.min === course.credits.max
-      ? `${course.credits.min} cr`
-      : `${course.credits.min}–${course.credits.max} cr`;
   // No tooltip: hovering a result already explains itself, with the course's
   // sections on the calendar and "Open it to pick one" above them. A tooltip
   // here would cover those ghosts.
   return (
-    <ListRow
+    <CourseResultRow
+      code={course.code}
+      title={course.title}
+      credits={course.credits}
+      genEds={genEds}
+      note={sortNote}
+      meta={<ResultSummaryLine course={course} fit={fit} />}
       id={`search-result-${index}`}
       role="option"
       aria-selected={active}
@@ -400,22 +544,7 @@ function ResultRow({
           </span>
         ) : undefined
       }
-    >
-      <div className="flex items-baseline gap-2">
-        <span className="ident font-semibold text-base">{course.code}</span>
-        <span className="tnum text-muted text-sm">{credits}</span>
-        {genEds.slice(0, 3).map((code) => (
-          <span
-            key={code}
-            className="ident rounded border border-hairline px-1 text-2xs text-muted"
-          >
-            {code}
-          </span>
-        ))}
-      </div>
-      <div className="mt-0.5 truncate text-base">{course.title}</div>
-      <ResultSummaryLine course={course} fit={fit} />
-    </ListRow>
+    />
   );
 }
 
@@ -431,20 +560,15 @@ function ResultSummaryLine({
   fit: FitContext | null;
 }) {
   const summary = resultSummary(course, fit);
-  const line = "tnum mt-0.5 truncate text-muted text-sm";
   switch (summary.kind) {
     case "none":
-      return <div className={line}>No sections this term</div>;
+      return "No sections this term";
     case "some":
-      return (
-        <div className={line}>
-          {sectionCountWords(summary.sections, summary.fit)}
-        </div>
-      );
+      return sectionCountWords(summary.sections, summary.fit);
     case "one": {
       const words = summary.fit ? resultFitWords(summary.fit) : null;
       return (
-        <div className={line}>
+        <>
           {summary.when}
           {words && summary.fit ? (
             <>
@@ -458,13 +582,13 @@ function ResultSummaryLine({
               </span>
             </>
           ) : null}
-        </div>
+        </>
       );
     }
   }
 }
 
-const EXAMPLES = ["cmsc 351", "statistics", "writing"] as const;
+const EXAMPLES = ["cmsc 351", "statistics", "cmsc4xx", "DSNS"] as const;
 
 function SearchHints({ onPick }: { onPick: (query: string) => void }) {
   return (
@@ -473,7 +597,14 @@ function SearchHints({ onPick }: { onPick: (query: string) => void }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-faint text-xs">Try</span>
           {EXAMPLES.map((q) => (
-            <WithTooltip key={q} label={`Search for "${q}"`}>
+            <WithTooltip
+              key={q}
+              label={
+                q === "DSNS"
+                  ? "Only courses that count for DSNS (Natural Sciences)"
+                  : `Search for "${q}"`
+              }
+            >
               <button
                 type="button"
                 onClick={() => onPick(q)}
@@ -486,7 +617,9 @@ function SearchHints({ onPick }: { onPick: (query: string) => void }) {
         </div>
       }
     >
-      Search by course code, title or instructor, or pick a filter to browse.{" "}
+      Search by course code, title or instructor, or pick a filter to browse.
+      CMSC4XX lists a department's 400-levels, and a GenEd like DSNS, a level
+      like 400s or credits like 3cr turns into its filter.{" "}
       {/* Only a mouse previews (#48): a finger's tap opens the course. */}
       <span className="pointer-coarse:hidden" data-testid="search-hint-hover">
         Hover a result to see its sections on the calendar.

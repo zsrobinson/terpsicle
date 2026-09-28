@@ -46,7 +46,7 @@ describe("todoWindow and keepInWindow", () => {
 });
 
 describe("toTodoItem", () => {
-  it("keeps the first course code, the exam guess and the Gradescope flag", () => {
+  it("keeps the first course code and the kind", () => {
     const items = feed("synthetic-elms-2026-09").items.map(toTodoItem);
     for (const item of items) TodoItemSchema.parse(item);
     const byTitle = new Map(items.map((i) => [i.title, i]));
@@ -54,11 +54,7 @@ describe("toTodoItem", () => {
       courseCode: "CMSC216",
       courseLabel: "CMSC216/ENEE222-0101: Introduction to Computer Systems",
     });
-    expect(byTitle.get("Midterm 1")).toMatchObject({
-      exam: true,
-      kind: "event",
-    });
-    expect(byTitle.get("Homework 4")).toMatchObject({ gradescope: true });
+    expect(byTitle.get("Midterm 1")).toMatchObject({ kind: "event" });
     expect(byTitle.get("Advising appointment")).toMatchObject({
       courseCode: null,
       courseLabel: "Sam Testudo",
@@ -67,23 +63,20 @@ describe("toTodoItem", () => {
 });
 
 describe("fromFileItem", () => {
-  it("reads codes and the exam guess from the words, not the browser", () => {
+  it("reads codes from the words, not the browser", () => {
     const item = fromFileItem({
-      uid: "gs-1",
+      uid: "file-1",
       title: "Midterm 2",
       courseLabel: "MATH240-0201: Introduction to Linear Algebra",
       kind: "event",
-      gradescope: true,
       dueAt: "2026-10-20T16:00:00.000Z",
       dueDate: "2026-10-20",
-      link: "https://www.gradescope.com/courses/1/assignments/2",
+      link: "https://www.example.edu/courses/1/assignments/2",
     });
     expect(item).toMatchObject({
       source: "file",
       courseCodes: ["MATH240"],
       sectionCode: "0201",
-      looksLikeExam: true,
-      gradescope: true,
       // Only ELMS links are kept.
       link: null,
     });
@@ -97,7 +90,6 @@ describe("fromFileItem", () => {
         title: "Homework 1",
         courseLabel: null,
         kind: "assignment",
-        gradescope: false,
         dueAt: null,
         dueDate: "2026-10-01",
         link,

@@ -49,6 +49,9 @@ function list(item: z.ZodType) {
     .catch(undefined);
 }
 
+/** `list` for other routes' search schemas (plan-url.ts). */
+export const searchList = (item: z.ZodType) => list(item);
+
 /** A list param's items. */
 export function listItems(value: string | undefined): string[] {
   return value ? value.split(",") : [];
@@ -88,6 +91,8 @@ export const SearchTabSearchSchema = z.object({
   level: list(z.string().regex(/^[1-8]00$/)),
   openSeats: Flag,
   fits: Flag,
+  /** The results' order; relevance when absent. */
+  sort: param(z.enum(["code", "rating", "seats"])),
 });
 export type SearchTabSearch = z.infer<typeof SearchTabSearchSchema>;
 

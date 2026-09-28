@@ -13,6 +13,7 @@ import {
   isSemester,
   nextSemester,
 } from "~/core/four-year/terms";
+import { courseSlug } from "~/core/reviews/slugs";
 import { GEN_ED_LABELS, type TermId } from "~/core/schema";
 import {
   type FourYearCourseEntry,
@@ -174,8 +175,8 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
           <WithTooltip label={`${entry.code}'s grades and reviews`} side="left">
             <DropdownMenuItem asChild>
               <Link
-                to="/reviews/courses/$code"
-                params={{ code: entry.code }}
+                to="/reviews/$slug"
+                params={{ slug: courseSlug(entry.code) }}
                 onClick={() => crossLinkClicked("plan", "reviews")}
               >
                 {viewWords("reviews")}
@@ -189,6 +190,9 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
               nav.go({
                 tab: "search",
                 wildcard: entry.id,
+                gened: undefined,
+                credits: undefined,
+                level: undefined,
                 semester: entry.term,
                 course: undefined,
                 q: undefined,
@@ -490,6 +494,9 @@ export function EntryBlock({
               nav.go({
                 tab: "search",
                 wildcard: entry.id,
+                gened: undefined,
+                credits: undefined,
+                level: undefined,
                 semester: entry.term,
                 course: undefined,
                 q: undefined,

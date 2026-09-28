@@ -144,6 +144,12 @@ export interface PlanetTerpOptions {
    * owner decides whether we may keep PlanetTerp's reviewers' writing.
    */
   keepReviewText?: boolean;
+  /**
+   * Where the reviews Reviews shows go (D1's `planetterp_reviews`, written
+   * by src/jobs/planetterp-reviews.ts): a keeper like the private store's,
+   * fed the same pages as they arrive.
+   */
+  reviewSink?: ReviewKeeper;
 }
 
 /** Drops review text: nothing is stored when keeping it is off. */
@@ -153,6 +159,14 @@ const DISCARD_REVIEWS: ReviewKeeper = {
     return { written: 0, kept: 0 };
   },
 };
+
+/** Both keepers get each page, in turn. The caller finishes each. */
+function bothKeepers(a: ReviewKeeper, b: ReviewKeeper): ReviewKeeper["keep"] {
+  return async (professors) => {
+    await a.keep(professors);
+    await b.keep(professors);
+  };
+}
 
 export interface PlanetTerpResult {
   professors: number;
@@ -167,6 +181,8 @@ export interface PlanetTerpResult {
   unmatchedNames: number;
   /** Review files written to the private store this run. */
   reviewFilesWritten: number;
+  /** Instructors whose shown reviews were rewritten this run. */
+  reviewSetsWritten: number;
   /** Testudo names matched by each rule. */
   matchedBy: Record<MatchRule, number>;
   latestReviewAt: string | null;
@@ -206,14 +222,17 @@ export async function runPlanetTerp(
     ? await createReviewKeeper(store, log)
     : DISCARD_REVIEWS;
   let professors: ProfessorSummary[];
+  const sink = options.reviewSink ?? DISCARD_REVIEWS;
   let reviewFilesWritten = 0;
+  let reviewSetsWritten = 0;
   try {
-    professors = await fetchProfessors(http, keeper);
+    professors = await fetchProfessors(http, bothKeepers(keeper, sink));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw await sourceFailure(store, log, now, lastState, reason, {});
   } finally {
     reviewFilesWritten = (await keeper.finish()).written;
+    reviewSetsWritten = (await sink.finish()).written;
   }
   const bySlug = new Map<string, Instructor & { courses: Set<string> }>();
   let reviews = 0;
@@ -463,6 +482,7 @@ export async function runPlanetTerp(
     testudoNames: slugForTestudo.size,
     unmatchedNames: unmatched.length,
     reviewFilesWritten,
+    reviewSetsWritten,
     matchedBy,
     latestReviewAt,
     source,
@@ -635,7 +655,7 @@ function summarizeProfessor(
  */
 async function fetchProfessors(
   http: HttpClient,
-  keeper: ReviewKeeper,
+  keep: ReviewKeeper["keep"],
 ): Promise<ProfessorSummary[]> {
   const PageSchema = z.array(ProfessorApiSchema);
   const all: ProfessorSummary[] = [];
@@ -656,7 +676,7 @@ async function fetchProfessors(
       },
     );
     const batch = pages.flat();
-    await keeper.keep(batch);
+    await keep(batch);
     for (const p of batch) all.push(summarizeProfessor(p));
     if (pages.some((p) => p.length < PAGE_SIZE)) break;
   }

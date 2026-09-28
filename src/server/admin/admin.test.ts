@@ -4,13 +4,19 @@ import {
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { CSP_NONCE_HEADER, type StoredVerdict } from "~/core/schema";
 import {
+  CSP_NONCE_HEADER,
+  PLANETTERP_MANIFEST_KEY,
+  type StoredVerdict,
+} from "~/core/schema";
+import {
+  AdminGradesSchema,
   AdminHealthSchema,
   AdminSamplesResultSchema,
   type DecisionListResult,
   DecisionListResultSchema,
 } from "~/core/schema/admin";
+import { aPlanetTerpManifest } from "~/fixtures";
 import { type ApiEnv, handleApi } from "../api/router";
 import { hit } from "../counters";
 import { CAP_COUNTER, CAP_WINDOW } from "../moderation/service";
@@ -130,7 +136,13 @@ async function decisions(body: object): Promise<DecisionListResult> {
 
 describe("admin routes", () => {
   it("answer only the admin: 401 signed out, 403 for anyone else", async () => {
-    for (const name of ["decisions", "health", "samples"]) {
+    for (const name of [
+      "decisions",
+      "health",
+      "samples",
+      "grades",
+      "grades/save",
+    ]) {
       expect((await call(name, {}, "nobody")).status).toBe(401);
       expect((await call(name, {}, "student")).status).toBe(403);
     }
@@ -222,6 +234,40 @@ describe("admin/decisions", () => {
   it("rejects a malformed cursor instead of guessing", async () => {
     const response = await call("decisions", { cursor: "2027-01-10~x" });
     expect(response.status).toBe(400);
+  });
+});
+
+describe("admin/grades", () => {
+  it("lists the semesters without grades, and keeps a note on each request", async () => {
+    await env.DATA.put(
+      PLANETTERP_MANIFEST_KEY,
+      JSON.stringify(aPlanetTerpManifest({ gradesThrough: "202501" })),
+    );
+    const read = async () => {
+      const response = await call("grades", {});
+      expect(response.status).toBe(200);
+      return AdminGradesSchema.parse(await response.json());
+    };
+    // January 2027: Fall 2025, Spring 2026 and Fall 2026 are over.
+    expect(await read()).toEqual({
+      gradesThrough: "202501",
+      missing: [
+        { termId: "202508", sentOn: null, note: "" },
+        { termId: "202601", sentOn: null, note: "" },
+        { termId: "202608", sentOn: null, note: "" },
+      ],
+    });
+    const saved = await call("grades/save", {
+      termId: "202601",
+      sentOn: "2027-01-08",
+      note: "Reference PIA-1234",
+    });
+    expect(saved.status).toBe(200);
+    expect((await read()).missing[1]).toEqual({
+      termId: "202601",
+      sentOn: "2027-01-08",
+      note: "Reference PIA-1234",
+    });
   });
 });
 
