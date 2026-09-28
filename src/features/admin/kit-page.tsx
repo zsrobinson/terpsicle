@@ -1103,18 +1103,21 @@ function ControlParts() {
 }
 
 const KIT_NOTES: readonly (readonly [string, string])[] = [
-  ["A seat opened in CMSC351", "0201 · 1 of 40 seats · 2m"],
-  ["Test Student in CMSC330", "Is the project due Friday or Monday? · 5m"],
-  ["ELMS: Problem set 4", "Due tomorrow at 11:59pm · 1h"],
-  ["A seat opened in MATH240", "0112 · 2 of 30 seats · 3h"],
-  ["Your review was published", "CMSC351 · 1d"],
-  ["Test Student in MATH240", "Anyone want to study Thursday? · 1d"],
-  ["ELMS: Quiz 3", "Due Wednesday at 9am · 2d"],
-  ["A seat opened in ENGL101", "0304 · 1 of 19 seats · 2d"],
-  ["Plan A was saved to your account", "Spring 2027 · 3d"],
-  ["ELMS: Midterm 1", "Thursday at 12:30pm in ESJ 0202 · 4d"],
-  ["Test Student in CMSC351", "Office hours moved to IRB 1116 · 5d"],
-  ["A seat opened in PHYS161", "0203 · 3 of 36 seats · 6d"],
+  ["A seat opened in CMSC351", "0201 · 1 of 40 seats · 2 minutes ago"],
+  [
+    "Test Student in CMSC330",
+    "Is the project due Friday or Monday? · 5 minutes ago",
+  ],
+  ["ELMS: Problem set 4", "Due tomorrow at 11:59pm · 1 hour ago"],
+  ["A seat opened in MATH240", "0112 · 2 of 30 seats · 3 hours ago"],
+  ["Your review was published", "CMSC351 · yesterday"],
+  ["Test Student in MATH240", "Anyone want to study Thursday? · yesterday"],
+  ["ELMS: Quiz 3", "Due Wednesday at 9am · 2 days ago"],
+  ["A seat opened in ENGL101", "0304 · 1 of 19 seats · 2 days ago"],
+  ["Plan A was saved to your account", "Spring 2027 · 3 days ago"],
+  ["ELMS: Midterm 1", "Thursday at 12:30pm in ESJ 0202 · 4 days ago"],
+  ["Test Student in CMSC351", "Office hours moved to IRB 1116 · 5 days ago"],
+  ["A seat opened in PHYS161", "0203 · 3 of 36 seats · 6 days ago"],
 ];
 
 const KIT_PLANS = {
