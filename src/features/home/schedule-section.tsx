@@ -53,6 +53,10 @@ export function ScheduleSection({
     <HomeSection
       product="schedule"
       title={next ? termLabel(next) : "Next semester"}
+      // The tag follows the term's name, as in Schedule's bar and Chat's.
+      tag={
+        next ? <TermTag tag="next" className="ml-2 align-[2px]" /> : undefined
+      }
       to="/schedule"
       search={plan ? { term: plan.termId, planId: plan.id } : undefined}
       tooltip={plan ? `Open ${plan.name} in Schedule` : "Plan your classes"}
@@ -128,10 +132,7 @@ function PlanRows({
             onClick={() => homeLinkClicked("schedule")}
             className={ROW_LINK}
           >
-            <span className="flex items-center gap-1.5 font-medium">
-              {plan.name}
-              <TermTag tag="next" />
-            </span>
+            <span className="font-medium">{plan.name}</span>
           </Link>
         </WithTooltip>
       </ListRow>

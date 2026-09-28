@@ -22,10 +22,13 @@ export function HomeSection({
   search,
   params,
   tooltip,
+  tag,
   children,
 }: {
   product: ProductId;
   title: string;
+  /** After the title: the term's tag, as everywhere a term is named. */
+  tag?: ReactNode;
   /** Where "View …" goes. */
   to: LinkProps["to"];
   search?: LinkProps["search"];
@@ -46,6 +49,7 @@ export function HomeSection({
             className="mr-2 inline-block align-[-5px]"
           />
           {title}
+          {tag}
         </span>
       }
       aside={
