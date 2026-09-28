@@ -17,6 +17,7 @@ import {
   type NotificationsInboxResult,
   type PushDevicesResult,
 } from "~/core/schema/notifications";
+import { alertAdmins } from "../admin/alerts";
 import { type ApiEnv, handleApi } from "../api/router";
 import { type PurgeEnv, purgeDueAccounts } from "../auth/purge";
 import { TEST_VAPID_KEYS } from "../push/config";
@@ -26,6 +27,7 @@ import { Device, FakeElms, signIn } from "../todo/testing";
 import { pruneChatNotifications } from "./digest";
 import { emailOffUrl } from "./email-off";
 import { notify } from "./notify";
+import { releaseHeldPushes } from "./quiet";
 import { pruneDeliveries } from "./store";
 
 let clock = Date.parse("2026-09-26T16:00:00.000Z");
@@ -995,5 +997,358 @@ describe("chat notifications", () => {
       "SELECT id FROM notifications",
     ).all();
     expect(results).toEqual([{ id: "n29" }]);
+  });
+});
+
+describe("owner alerts (V2.md §6.7, §9.4)", () => {
+  const options = () => ({ now: now(), fetch: service.fetch });
+  const minutes = (n: number) => {
+    clock += n * 60_000;
+  };
+  const SPAM = [{ code: "spam", source: "cross-room", action: "hold" }];
+  const queue = (
+    id: string,
+    over: {
+      course?: string | null;
+      labels?: object[];
+      urgent?: boolean;
+      status?: "open" | "retry" | "closed";
+      surface?: "chat" | "review";
+    } = {},
+  ) =>
+    env.DB.prepare(
+      `INSERT INTO moderation_queue (id, surface, ref, snapshot, labels, urgent, status, created_at)
+       VALUES (?1, ?2, ?1, ?3, ?4, ?5, ?6, ?7)`,
+    )
+      .bind(
+        id,
+        over.surface ?? "chat",
+        JSON.stringify({
+          text: "buy answers at example dot com",
+          course: over.course === undefined ? "CMSC351" : over.course,
+          activeAssignments: false,
+          scores: {},
+          retries: 0,
+        }),
+        JSON.stringify(over.labels ?? SPAM),
+        over.urgent === false ? 0 : 1,
+        over.status ?? "open",
+        now().toISOString(),
+      )
+      .run();
+  const adminRows = () =>
+    env.DB.prepare(
+      "SELECT id, user_id, product, group_key, label, url FROM notifications WHERE type = 'admin-urgent' ORDER BY id",
+    ).all();
+
+  beforeEach(async () => {
+    testEnv = makeEnv({ AUTH_TEST_MODE: "true" });
+    await env.DB.prepare("DELETE FROM moderation_queue").run();
+  });
+
+  it("pushes and emails each admin, grouped, never the text or the author", async () => {
+    const admin = await device("tadmin");
+    const sub = await aSubscription(1);
+    await subscribe(admin, sub);
+    await device("tstudent");
+    await queue("q1", { course: "CMSC351" });
+    await queue("q2", { course: "CMSC131" });
+    // Not in front of the owner, or not urgent: no alert.
+    await queue("q3", { course: "MATH140", status: "retry" });
+    await queue("q4", {
+      course: "MATH140",
+      urgent: false,
+      labels: [{ code: "insult", source: "rules", action: "hold" }],
+    });
+    // 3am: an urgent item comes through quiet hours.
+    clock = Date.parse("2026-09-27T03:00:00-04:00");
+    expect(await alertAdmins(testEnv, options())).toEqual({
+      alerted: 1,
+      items: 2,
+    });
+    const [payload] = await Promise.all(
+      service.received.map((r) => sub.read(r.body)),
+    );
+    expect(payload).toMatchObject({
+      type: "admin-urgent",
+      title: "Held for you: spam in 2 courses",
+      body: "CMSC131 and CMSC351. Open the queue to decide.",
+      url: "/admin",
+      tag: "admin-urgent",
+      count: 2,
+      renotify: true,
+    });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      to: "tadmin@terpmail.umd.edu",
+      subject: "Held for you: spam in 2 courses",
+    });
+    expect(sent[0]?.text).not.toContain("example dot com");
+    expect(JSON.stringify(payload)).not.toContain("example dot com");
+    expect((await adminRows()).results).toEqual([
+      {
+        id: "admin-urgent:tadmin:q1",
+        user_id: "tadmin",
+        product: "admin",
+        group_key: "admin-urgent",
+        label: "spam|chat|CMSC351",
+        url: "/admin",
+      },
+      expect.objectContaining({ id: "admin-urgent:tadmin:q2" }),
+    ]);
+    // The next run: nothing new, nothing sent.
+    minutes(5);
+    expect(await alertAdmins(testEnv, options())).toEqual({
+      alerted: 0,
+      items: 0,
+    });
+  });
+
+  it("alerts at most once an hour; what's held in between comes grouped", async () => {
+    const admin = await device("tadmin");
+    const sub = await aSubscription(1);
+    await subscribe(admin, sub);
+    await queue("q1", { course: "CMSC351" });
+    expect((await alertAdmins(testEnv, options())).alerted).toBe(1);
+    minutes(10);
+    await queue("q2", {
+      course: "CMSC131",
+      labels: [{ code: "violence", source: "guard", action: "hold" }],
+    });
+    minutes(20);
+    expect((await alertAdmins(testEnv, options())).alerted).toBe(0);
+    // Decided before the hour was up: never alerts.
+    await queue("q3", { course: "MATH140", status: "closed" });
+    minutes(30);
+    expect(await alertAdmins(testEnv, options())).toEqual({
+      alerted: 1,
+      items: 1,
+    });
+    const payloads = await Promise.all(
+      service.received.map((r) => sub.read(r.body)),
+    );
+    // The push stands for the unread group; the email for what's new.
+    expect(payloads.map((p) => [p?.title, p?.count])).toEqual([
+      ["Held for you: spam in CMSC351", 1],
+      ["Held for you: 2 urgent items", 2],
+    ]);
+    expect(payloads[1]?.body).toBe("Violence in CMSC131 and spam in CMSC351.");
+    expect(sent.map((m) => m.subject)).toEqual([
+      "Held for you: spam in CMSC351",
+      "Held for you: violence in CMSC131",
+    ]);
+  });
+
+  it("alerts no one who isn't an admin", async () => {
+    await subscribe(await device("tstudent"), await aSubscription(1));
+    await queue("q1");
+    // Outside test mode the fixture admin isn't one, and nobody's signed in
+    // from config/admins.txt here.
+    testEnv = makeEnv({ AUTH_TEST_MODE: "false" });
+    await device("tadmin");
+    expect(await alertAdmins(testEnv, options())).toEqual({
+      alerted: 0,
+      items: 0,
+    });
+    expect(service.received).toHaveLength(0);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("quiet hours (V2.md §6.7)", () => {
+  const options = () => ({ now: now(), fetch: service.fetch });
+  /** A time in College Park on 2026-09-27 (UTC-4). */
+  const at = (hhmm: string) => {
+    clock = Date.parse(`2026-09-27T${hhmm}:00-04:00`);
+  };
+  const settle = (phone: Device, over: object) =>
+    phone.call("/api/notifications/settings/set", {
+      settings: { ...DEFAULT_NOTIFICATION_SETTINGS, ...over },
+    });
+  const due = (day: string) => ({
+    type: "todo-due" as const,
+    key: `todo-due:tstudent:${day}`,
+    inbox: [
+      {
+        id: `todo-due:tstudent:${day}`,
+        groupKey: `todo-due:${day}`,
+        title: "Project 2 is due tomorrow",
+        body: "CMSC216",
+        url: `/todo?day=${day}`,
+      },
+    ],
+    push: {
+      event: {
+        type: "todo-due" as const,
+        title: "Project 2 is due tomorrow",
+        body: "CMSC216",
+      },
+      url: `/todo?day=${day}`,
+    },
+  });
+  const seatOnly = (key?: string, section?: string) => {
+    const { email: _email, ...rest } = seatOpen(key, section);
+    return rest;
+  };
+  const held = () =>
+    env.DB.prepare(
+      "SELECT id FROM notifications WHERE push_held_at IS NOT NULL ORDER BY id",
+    ).all<{ id: string }>();
+
+  it("holds pushes at night and sends each group once at 8am", async () => {
+    const phone = await device();
+    const sub = await aSubscription(1);
+    await subscribe(phone, sub);
+    await settle(phone, { seatThroughQuiet: false });
+    at("02:00");
+    expect(
+      await notify(
+        testEnv,
+        "tstudent",
+        seatOnly("k1", "CMSC351 0101"),
+        options(),
+      ),
+    ).toEqual({ inbox: "new", push: "held", email: "none" });
+    at("03:30");
+    await notify(
+      testEnv,
+      "tstudent",
+      seatOnly("k2", "MATH240 0203"),
+      options(),
+    );
+    expect(service.received).toHaveLength(0);
+    expect((await held()).results).toEqual([{ id: "k1" }, { id: "k2" }]);
+    // The inbox has them at once, pushed or not.
+    expect(
+      (
+        await phone.call<NotificationsInboxResult>(
+          "/api/notifications/inbox",
+          {},
+        )
+      ).unread,
+    ).toBe(1);
+
+    at("07:55");
+    expect(await releaseHeldPushes(testEnv, options())).toEqual({
+      groups: 0,
+      sent: 0,
+    });
+    at("08:00");
+    expect(await releaseHeldPushes(testEnv, options())).toEqual({
+      groups: 1,
+      sent: 1,
+    });
+    const payloads = await Promise.all(
+      service.received.map((r) => sub.read(r.body)),
+    );
+    expect(payloads).toEqual([
+      {
+        v: 1,
+        type: "seat-open",
+        title: "Seats opened in 2 sections you're watching",
+        body: "MATH240 0203 and CMSC351 0101",
+        url: "/schedule/course/CMSC351?term=202608",
+        tag: "seat:202608",
+        count: 2,
+        badge: 1,
+        renotify: false,
+        id: "k2",
+      },
+    ]);
+    expect((await held()).results).toEqual([]);
+    // The next run finds nothing waiting.
+    at("08:05");
+    expect(await releaseHeldPushes(testEnv, options())).toEqual({
+      groups: 0,
+      sent: 0,
+    });
+    expect(service.received).toHaveLength(1);
+  });
+
+  it("sends nothing at 8am for a group read in the night, or a type turned off since", async () => {
+    const phone = await device();
+    await subscribe(phone, await aSubscription(1));
+    await settle(phone, { seatThroughQuiet: false, todoDue: { push: true } });
+    at("23:30");
+    expect(
+      (await notify(testEnv, "tstudent", due("2026-09-28"), options())).push,
+    ).toBe("held");
+    expect(
+      (await notify(testEnv, "tstudent", seatOnly(), options())).push,
+    ).toBe("held");
+    await phone.call("/api/notifications/read", {
+      course: { termId: "202608", courseCode: "CMSC351" },
+    });
+    await settle(phone, { seatThroughQuiet: false, todoDue: { push: false } });
+    clock = Date.parse("2026-09-28T08:10:00-04:00");
+    // The seats group was read: taken, nothing sent. Due tomorrow's push
+    // is off now: taken, nothing sent.
+    expect(await releaseHeldPushes(testEnv, options())).toEqual({
+      groups: 1,
+      sent: 0,
+    });
+    expect(service.received).toHaveLength(0);
+    expect((await held()).results).toEqual([]);
+  });
+
+  it("lets seat openings through by default, and sends at once with quiet hours off", async () => {
+    const phone = await device();
+    await subscribe(phone, await aSubscription(1));
+    await settle(phone, { todoDue: { push: true } });
+    at("01:00");
+    expect(
+      (await notify(testEnv, "tstudent", seatOnly(), options())).push,
+    ).toBe("sent");
+    expect(
+      (await notify(testEnv, "tstudent", due("2026-09-27"), options())).push,
+    ).toBe("held");
+    await settle(phone, { todoDue: { push: true }, quietHours: { on: false } });
+    expect(
+      (await notify(testEnv, "tstudent", due("2026-09-28"), options())).push,
+    ).toBe("sent");
+    expect(service.received).toHaveLength(2);
+  });
+
+  it("keeps who and what off the lock screen with showText off", async () => {
+    const phone = await device();
+    const sub = await aSubscription(1);
+    await subscribe(phone, sub);
+    await settle(phone, { showText: false });
+    const mention = {
+      type: "chat-mention" as const,
+      key: "chat-mention:tstudent:m1",
+      inbox: [
+        {
+          id: "chat:tstudent:m1",
+          groupKey: "chat-mention:202701:CMSC131",
+          termId: "202701",
+          courseCode: "CMSC131",
+          chat: {
+            roomId: "202701:CMSC131",
+            threadId: null,
+            seq: 1,
+            messageId: "m1",
+            actorId: "tclassmate",
+          },
+        },
+      ],
+      push: {
+        event: {
+          type: "chat-mention" as const,
+          actor: "Test Classmate",
+          place: "CMSC131",
+          text: "@Test Student are you in the 2pm lab?",
+        },
+        url: "/chat?term=202701&course=CMSC131",
+      },
+    };
+    expect((await notify(testEnv, "tstudent", mention, options())).push).toBe(
+      "sent",
+    );
+    const [request] = service.received;
+    expect(await sub.read(request?.body ?? new Uint8Array())).toMatchObject({
+      title: "New mention in CMSC131",
+      body: "",
+    });
   });
 });

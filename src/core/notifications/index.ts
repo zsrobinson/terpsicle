@@ -8,7 +8,13 @@ import type {
   NotificationType,
 } from "~/core/schema/notifications";
 
-type SettingsKey = Exclude<keyof NotificationSettings, "v">;
+/** The per-type keys (not quiet hours or `showText`, which aren't a type's). */
+type SettingsKey =
+  | "seatOpen"
+  | "chatMention"
+  | "chatReply"
+  | "chatDigest"
+  | "todoDue";
 
 const SETTINGS_KEY: Record<NotificationType, SettingsKey> = {
   "seat-open": "seatOpen",
@@ -74,4 +80,6 @@ export function deliveryKey(eventKey: string, channel: Channel): string {
   return `${eventKey}:${channel}`;
 }
 
+export * from "./admin-alert";
 export * from "./inbox";
+export * from "./quiet";
