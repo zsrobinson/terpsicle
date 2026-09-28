@@ -69,6 +69,11 @@ Revisit if: a choice is too costly to make on every arrow press; that one gets i
 The owner wants "great support for view transitions and all those animation improvements". Navigations animate through TanStack Router's view transitions, with one set of motion tokens (durations and curves), direction for Back and Forward, shared elements where something grows into its page, and Reduce Motion honored everywhere.
 Revisit if: a transition slows a navigation people repeat often.
 
+### The page behind a sheet scales back from the root
+2026-09-28 · agent · app-wide
+Every route renders inside `SheetIndent` (Base UI's Drawer provider and indent, in `src/routes/__root.tsx`), so any kit sheet scales the page back on phones; toasts stay outside it. While it's scaled the page is a containing block, so a fixed element inside it is placed against the page: full-screen shells don't notice, a scrolling page's fixed bar would move. A sheet with detents dims the page at medium and large alike, where Base UI's default leaves medium undimmed (Maps).
+Revisit if: a scrolling page gets a fixed bar that must hold still under a sheet (render it outside the indent), or a sheet wants an undimmed detent.
+
 ### Use the platform first
 2026-09-26 · owner · app-wide
 Lean on TanStack Start and Router, Cloudflare and our libraries before building infrastructure ourselves ("i shouldn't have to worry about the page load things"). The scheduler's panel registry, `lazyPanel` and URL sync move to real nested routes in `v2/schedule-routes`.

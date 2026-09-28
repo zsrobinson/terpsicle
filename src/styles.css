@@ -53,6 +53,8 @@
   --color-shared: var(--shared);
   --color-shared-soft: var(--shared-soft);
   --color-grid: var(--grid);
+  /* Behind the page when a sheet scales it back (ui/sheet-indent.tsx). */
+  --color-indent: var(--indent);
 
   /*
    * The five products, in color order (the marks, the app switcher, the
@@ -135,6 +137,15 @@
     var(--offset-ink);
   --shadow-2xl: calc(var(--ink-offset) + 1px) calc(var(--ink-offset) + 1px) 0
     var(--offset-ink);
+}
+
+/*
+ * Motion. The sheet's curve and length are the Base UI drawer docs' (vaul
+ * used the same curve): `ease-sheet duration-450`, and the page behind
+ * scales back over 400ms on it.
+ */
+@theme {
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /*
@@ -236,6 +247,8 @@
   --shared: #af3029; /* red-600 */
   --shared-soft: #ffe1d5; /* red-50 */
   --grid: #e6e4d9; /* base-100 */
+  /* Behind a page scaled back under a sheet: ink, in both themes, as iOS. */
+  --indent: #100f0f; /* black */
 
   /*
    * Offsets: 2px of ink; an ink-filled box takes a gray one instead. Not
@@ -504,12 +517,16 @@
    * children. Text never sits under the grain, and anything with its own fill
    * (panels, menus, blocks) stays clean paper, as in the Ink prototype. It's
    * one composited layer that never repaints, so scrolling doesn't pay for it.
+   * The page's wrapper (`data-sheet-indent`, ui/sheet-indent.tsx) is opaque
+   * paper over the body, so it carries the page's grain.
    */
   body,
+  [data-sheet-indent],
   [data-app-shell] {
     isolation: isolate;
   }
   body::before,
+  [data-sheet-indent]::before,
   [data-app-shell]::before {
     content: "";
     position: fixed;
@@ -521,7 +538,8 @@
     opacity: var(--grain-opacity);
   }
   /* The shell's paper is opaque, so the body's layer would never show. */
-  html:has([data-app-shell]) body::before {
+  html:has([data-app-shell]) body::before,
+  html:has([data-app-shell]) [data-sheet-indent]::before {
     content: none;
   }
   /*
@@ -584,6 +602,7 @@
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more),
   (forced-colors: active), print {
   body::before,
+  [data-sheet-indent]::before,
   [data-app-shell]::before {
     content: none;
   }
