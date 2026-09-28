@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { MessageText } from "~/components/message-text";
@@ -40,6 +41,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
   const { doc, target, problems } = useModel();
   const nav = usePlanNav();
   const course = useIndexEntry(code);
+  const client = useQueryClient();
   const placed = doc.entries.filter(
     (e): e is FourYearCourseEntry => e.kind === "course" && e.code === code,
   );
@@ -89,7 +91,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
           >
             <Button
               onClick={() => {
-                void pickForPlaceholder(resolving.id, code);
+                void pickForPlaceholder(resolving.id, code, client);
                 nav.go({ wildcard: undefined, ...CLOSE_DRILL });
               }}
               disabled={!resolvesWildcard(resolving.wildcard, course)}

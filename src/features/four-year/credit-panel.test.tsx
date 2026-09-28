@@ -2,7 +2,6 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { courseSearchRow } from "~/core/catalog/course-index";
 import { canUndo } from "~/core/plans/history";
 import type { FourYearEntry } from "~/core/schema/four-year";
 import {
@@ -12,10 +11,8 @@ import {
   aFourYearEntry,
 } from "~/fixtures";
 import { track } from "~/lib/analytics";
-import {
-  INITIAL_COURSE_INDEX_STATE,
-  useCourseIndex,
-} from "~/state/course-index-store";
+import { courseIndexSource } from "~/state/query/course-index-testing";
+import { connectPublished } from "~/state/query/published";
 import { TooltipProvider } from "~/ui/tooltip";
 import { CoursePanel } from "./course-panel";
 import { CreditPanel } from "./credit-panel";
@@ -83,12 +80,7 @@ beforeEach(() => {
     aCourseIndexEntry({ code: "CHEM135", title: "Chemistry for Engineers" }),
     aCourseIndexEntry({ code: "MATH241", title: "Calculus III" }),
   ];
-  useCourseIndex.setState({
-    ...INITIAL_COURSE_INDEX_STATE,
-    search: courses.map(courseSearchRow),
-    searchState: "ready",
-    ensureDepts: async () => undefined,
-  });
+  connectPublished(courseIndexSource(courses));
 });
 
 describe("CreditPanel", () => {
@@ -97,7 +89,8 @@ describe("CreditPanel", () => {
     expect(screen.getByText("AP credit · 4 credits")).toBeInTheDocument();
     const form = screen.getByRole("form", { name: "What it counts as" });
     // The placeholder's courses come first, before anything's typed.
-    const offered = within(form).getByRole("listbox", {
+    // Once the course list has loaded.
+    const offered = await within(form).findByRole("listbox", {
       name: "Courses it could count as",
     });
     expect(
@@ -160,21 +153,10 @@ describe("course info", () => {
       source: "transcript",
       transcript: { title: "HONORS CHEMISTRY", via: "umd" },
     });
-    // CHEM's file has loaded, without CHEM131H: Testudo doesn't list it.
-    useCourseIndex.setState({
-      deptsState: { CHEM: "ready" },
-      depts: {
-        CHEM: {
-          schemaVersion: 1,
-          dept: "CHEM",
-          courses: [
-            aCourseIndexEntry({ code: "CHEM131", title: "Chemistry I" }),
-          ],
-        },
-      },
-    });
+    // CHEM's file lists CHEM131, not CHEM131H: Testudo doesn't list it.
     const user = open([honors], <CoursePanel code="CHEM131H" />);
-    const form = screen.getByRole("form", { name: "Add course info" });
+    // Once CHEM's file says it isn't there.
+    const form = await screen.findByRole("form", { name: "Add course info" });
     await user.type(within(form).getByLabelText("Counts as"), "chem131");
     await user.click(
       await within(form).findByRole("option", { name: /^CHEM131/ }),

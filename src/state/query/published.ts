@@ -1,5 +1,6 @@
 import {
   notifyManager,
+  onlineManager,
   type Query,
   type QueryClient,
   type QueryFunctionContext,
@@ -51,12 +52,15 @@ export const publishedKey = (kind: DataSource["kind"] | "none", key: string) =>
   ["published", kind, key] as const;
 
 /**
- * Tries a failed read twice more when the network failed. A file that's
- * missing, broken or in a newer format won't change by asking again.
+ * Tries a failed read twice more when the network failed, but not while
+ * the browser says it's offline: then it fails at once, so what's on
+ * screen says so instead of loading forever (a reconnect refetches). A
+ * file that's missing, broken or in a newer format won't change by asking
+ * again.
  */
 export function retryPublished(failures: number, error: unknown): boolean {
   if (error instanceof DataError && error.reason !== "network") return false;
-  return failures < 2;
+  return failures < 2 && onlineManager.isOnline();
 }
 
 /** A hashed file's key without its hash: two versions of one file share it. */
@@ -135,8 +139,11 @@ function published<S extends z.ZodType>(
     // Kept for the page's life in memory; the disk keeps it longer.
     gcTime: HOUR_MS,
     retry: retryPublished,
-    // Read the saved copy even offline, then wait for the network to refetch.
-    networkMode: "offlineFirst",
+    // Always run: a saved copy is read from disk whatever the connection,
+    // and offline a read fails rather than pausing (Query would otherwise
+    // hold it, and anything awaiting it, until the connection came back).
+    // `refetchOnReconnect` asks again once it does.
+    networkMode: "always",
     persister: validated(
       publishedPersister(family),
       schema,
@@ -175,9 +182,9 @@ export function publishedFile<S extends z.ZodType>(
 /**
  * A fixed-name pointer (a manifest): checked once per page, and again once
  * stale (on the next use, focus or reconnect). `lists` names the hashed
- * files it points at, read with `fileSchema`.
+ * files it points at, each read with `fileSchema(key)`.
  */
-export function publishedPointer<S extends z.ZodType, F extends z.ZodType>(
+export function publishedPointer<S extends z.ZodType>(
   source: DataSource | null,
   key: string,
   schema: S,
@@ -185,7 +192,7 @@ export function publishedPointer<S extends z.ZodType, F extends z.ZodType>(
   options: {
     staleTime: number;
     lists: (data: z.infer<S>) => string[];
-    fileSchema: F;
+    fileSchema: (key: string) => z.ZodType;
   },
 ) {
   return published(source, key, schema, family, {
@@ -209,12 +216,12 @@ export function publishedPointer<S extends z.ZodType, F extends z.ZodType>(
  * pointer. Throws if one can't load, so the old pointer stays, on screen
  * and on disk, with the files it names (DATA.md §5.1 step 4).
  */
-async function refreshSaved<F extends z.ZodType>(
+async function refreshSaved(
   source: DataSource,
   client: QueryClient,
   family: SchemaFamily,
   listed: readonly string[],
-  fileSchema: F,
+  fileSchema: (key: string) => z.ZodType,
 ): Promise<void> {
   const saved = await savedPublishedKeys(family, source.kind);
   const have = new Set(saved);
@@ -224,7 +231,7 @@ async function refreshSaved<F extends z.ZodType>(
   const files = publishedPersister(family);
   await Promise.all(
     changed.map(async (k) => {
-      const file = publishedFile(source, k, fileSchema, family);
+      const file = publishedFile(source, k, fileSchema(k), family);
       await client.fetchQuery(file);
       await files.persistQueryByKey(file.queryKey, client);
     }),

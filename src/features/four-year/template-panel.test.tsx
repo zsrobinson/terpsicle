@@ -5,10 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAccount } from "~/features/auth/account-store";
 import { aFourYear, aFourYearEntry } from "~/fixtures";
 import { track } from "~/lib/analytics";
-import {
-  INITIAL_COURSE_INDEX_STATE,
-  useCourseIndex,
-} from "~/state/course-index-store";
+import { connectPublished } from "~/state/query/published";
 import { TooltipProvider } from "~/ui/tooltip";
 import { PlanFirstVisit } from "./first-visit";
 import {
@@ -83,10 +80,7 @@ const termsOf = (entries: readonly { term: string }[]) => [
 beforeEach(() => {
   vi.mocked(track).mockClear();
   // Adding a sample loads its departments; here there's nothing to fetch.
-  useCourseIndex.setState({
-    ...INITIAL_COURSE_INDEX_STATE,
-    ensureDepts: async () => undefined,
-  });
+  connectPublished(null);
 });
 
 afterEach(() => {

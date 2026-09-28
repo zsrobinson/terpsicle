@@ -36,12 +36,9 @@ import {
 import { MOBILE_QUERY } from "~/hooks/use-media-query";
 import { track } from "~/lib/analytics";
 import { isApple } from "~/lib/shortcuts";
-import {
-  INITIAL_COURSE_INDEX_STATE,
-  useCourseIndex,
-} from "~/state/course-index-store";
 import { createBucketDataSource } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
+import { connectPublished } from "~/state/query/published";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { Route } from "./plan";
@@ -165,7 +162,7 @@ beforeEach(async () => {
     removeEventListener: () => {},
   })) as unknown as typeof window.matchMedia;
   useFourYear.setState(INITIAL_FOUR_YEAR_STORE);
-  useCourseIndex.setState(INITIAL_COURSE_INDEX_STATE);
+  connectPublished(null);
   useFourYearFacts.setState({ latestTermId: null, calendars: [] });
   resetFourYearStart();
   await Dexie.delete(LOCAL_DB_NAME);
