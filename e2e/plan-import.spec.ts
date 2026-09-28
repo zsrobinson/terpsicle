@@ -98,10 +98,15 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   await expect(page.getByText("68 of 120 credits").first()).toBeVisible();
   // GenEd progress counts what came in: ENGL101 by AP is Academic Writing,
   // and AP Calculus (MATH140 and MATH141) is Math and Analytic Reasoning.
+  // ARTH200 and PHIL140 aren't in the mock catalog, so the transcript's
+  // DSHU counts for them: Humanities.
   const gened = page.getByRole("region", { name: "GenEd progress" });
   await expect(
-    gened.getByText("5 of 11 covered, with planned courses"),
+    gened.getByText("6 of 11 covered, with planned courses"),
   ).toBeVisible();
+  await expect(
+    gened.getByRole("listitem").filter({ hasText: "Humanities" }),
+  ).toContainText("Done");
 
   const fall = await semester(page, isMobile, "Fall 2024");
   await expect(fall.getByText("CMSC131")).toBeVisible();

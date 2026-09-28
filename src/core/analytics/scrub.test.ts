@@ -113,6 +113,19 @@ describe("scrubUrl", () => {
     );
   });
 
+  it("never keeps a calendar feed's token, over https or webcal", () => {
+    const token = "c".repeat(64);
+    expect(scrubUrl(`${ORIGIN}/cal/${token}.ics`)).toBe(`${ORIGIN}/cal/:token`);
+    expect(scrubUrl(`webcal://terpsicle.com/cal/${token}.ics`)).not.toContain(
+      token,
+    );
+    expect(
+      scrubUrl(
+        `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(`webcal://terpsicle.com/cal/${token}.ics`)}`,
+      ),
+    ).toBe("https://calendar.google.com/calendar/r");
+  });
+
   it("keeps relative URLs relative and leaves non-URLs alone", () => {
     expect(scrubUrl("/schedule?plan=abc&tab=courses")).toBe(
       "/schedule?plan=shared&tab=courses",

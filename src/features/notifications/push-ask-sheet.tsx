@@ -115,7 +115,7 @@ export function PushAskSheet({
         )}
         <p className="text-muted text-sm">
           {setup
-            ? "Rather not install? Everything also lands in the bell."
+            ? "Rather not install? Everything also lands in the bell, and dates can go to your calendar."
             : "You can change them anytime in Settings."}
         </p>
       </div>

@@ -145,6 +145,14 @@ export function PrivacyPage() {
             notification settings page lets you turn each kind on or off, for
             push and email separately.
           </p>
+          <p>
+            If you subscribe to your calendar feed, your calendar app fetches
+            your classes and Todo deadlines from a private link, without signing
+            in. Anyone with the link can see those dates, so keep it to
+            yourself. We store only a one-way hash of it and when a calendar
+            last fetched it, never the link in a log or analytics. "Make a new
+            link" in the notification settings stops the old one at once.
+          </p>
         </Section>
 
         <Section title="Feedback">
@@ -221,10 +229,11 @@ export function PrivacyPage() {
             You can delete your account in Settings. Terpsicle waits 7 days, in
             case you change your mind (signing in cancels it), then deletes your
             profile and picture, synced plans, notification settings, seat
-            watches, chat messages, and your ELMS link, deadlines, own tasks and
-            done marks. Reviews you posted stay up with no name attached; delete
-            them first if you want them gone. Plans saved in your browser stay
-            until you remove them.
+            watches, chat messages, your calendar feed link, and your ELMS link,
+            deadlines, own tasks and done marks. Your calendar feed stops
+            working as soon as you delete your account. Reviews you posted stay
+            up with no name attached; delete them first if you want them gone.
+            Plans saved in your browser stay until you remove them.
           </p>
         </Section>
 

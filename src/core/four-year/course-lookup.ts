@@ -1,4 +1,8 @@
 import type { CourseCode, CourseIndexEntry, DeptCode } from "../schema";
+import type {
+  FourYearCourseDetails,
+  FourYearCourseEntry,
+} from "../schema/four-year";
 
 // What the four-year planner knows about courses: the course index's
 // department files loaded so far (docs/V3.md §2.2). Files load a department
@@ -34,6 +38,47 @@ export function isUnknownCourse(
   code: CourseCode,
 ): boolean {
   return lookup.loadedDepts.has(code.slice(0, 4)) && !lookup.courses.has(code);
+}
+
+/**
+ * The details someone gave a course, while the index doesn't know its code.
+ * Once it does (a department file that lists it after all), Testudo wins.
+ */
+export function courseDetails(
+  lookup: FourYearCourses,
+  entry: Pick<FourYearCourseEntry, "code" | "details">,
+): FourYearCourseDetails | null {
+  if (!entry.details || lookup.courses.has(entry.code)) return null;
+  return entry.details;
+}
+
+const HONORS_CODE = /^([A-Z]{4}\d{3})H$/;
+
+/**
+ * The course an honors code is a version of, when Testudo lists that one:
+ * MATH241H → MATH241. Null for any other code.
+ */
+export function honorsBase(
+  lookup: FourYearCourses,
+  code: CourseCode,
+): CourseIndexEntry | null {
+  const base = HONORS_CODE.exec(code)?.[1];
+  return base === undefined ? null : (lookup.courses.get(base) ?? null);
+}
+
+/**
+ * An index entry's details, for a code that stands in for it. Only its
+ * one-option GenEd groups: where Testudo says "or", the person picks.
+ */
+export function detailsFromCourse(
+  course: CourseIndexEntry,
+): FourYearCourseDetails {
+  const genEds = course.genEds.flatMap((group) =>
+    group.length === 1 && group[0] && !group[0].condition
+      ? [group[0].code]
+      : [],
+  );
+  return { title: course.title, genEds: [...new Set(genEds)].slice(0, 8) };
 }
 
 /**
