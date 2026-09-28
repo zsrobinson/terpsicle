@@ -14,6 +14,7 @@ import type { RouterContext } from "~/app/query-client";
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { AccountBoot } from "~/features/auth/account-boot";
 import { NotFoundPage } from "~/features/site/not-found-page";
+import { SheetIndent } from "~/ui/sheet-indent";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import appCss from "../styles.css?url";
@@ -101,11 +102,14 @@ function RootDocument({ children }: { children: ReactNode }) {
 function RootLayout() {
   return (
     <TooltipProvider>
-      <AccountBoot />
-      <ActivityLogBoot />
-      <Outlet />
+      {/* The page scales back behind a sheet; toasts stay put over it. */}
+      <SheetIndent>
+        <AccountBoot />
+        <ActivityLogBoot />
+        <Outlet />
+        <Pwa />
+      </SheetIndent>
       <Toaster />
-      <Pwa />
     </TooltipProvider>
   );
 }
