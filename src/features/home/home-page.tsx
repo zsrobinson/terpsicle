@@ -49,7 +49,7 @@ export function HomePage() {
         title={greeting(clock.minutes)}
         status={`${DAY_LONG_NAMES[weekdayOf(clock.today)]}, ${formatShortDate(clock.today)}`}
       />
-      <div className="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           <TodaySection
             clock={clock}
@@ -62,9 +62,9 @@ export function HomePage() {
           {signedIn && flags.chat !== "off" && chatTerm ? (
             <ChatSection termId={chatTerm} />
           ) : null}
-          {account === "signed-out" && flags.signIn ? <SignInSection /> : null}
         </div>
-        <div className="flex min-w-0 flex-col gap-6">
+        {/* Under the first column on a phone: its first part keeps the rule every other part has. */}
+        <div className="flex min-w-0 flex-col gap-6 max-md:[&>section:first-child]:border-t max-md:[&>section:first-child]:pt-3">
           <ScheduleSection local={local} next={tags.next} campus={campus} />
           {local?.fourYear && flags.plan ? (
             <PlanSection
@@ -78,6 +78,7 @@ export function HomePage() {
           ) : null}
         </div>
       </div>
+      {account === "signed-out" && flags.signIn ? <SignInSection /> : null}
     </SitePage>
   );
 }
@@ -85,7 +86,7 @@ export function HomePage() {
 /** Signed out: what signing in adds here, and the one way to do it. */
 function SignInSection() {
   return (
-    <PageSection title="Sign in for more">
+    <PageSection title="Sign in for more" className="md:w-[calc(50%-1rem)]">
       <p className="text-muted">
         Signed in, Home also shows what's due this week, unread messages in your
         class chats, seats that opened in sections you watch, and instructors

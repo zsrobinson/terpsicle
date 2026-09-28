@@ -90,7 +90,13 @@ for (const scheme of ["light", "dark"] as const) {
     });
 
     test("pages outside the scheduler", async ({ page }) => {
-      for (const path of ["/", "/privacy", "/reviews", "/schedule/nowhere"]) {
+      for (const path of [
+        "/",
+        "/privacy",
+        "/reviews",
+        "/home",
+        "/schedule/nowhere",
+      ]) {
         await page.goto(path);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
         if (path === "/")

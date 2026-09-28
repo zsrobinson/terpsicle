@@ -162,9 +162,10 @@ export const TODO_BUDGET = 248 * 1024;
  * Gzipped JS + CSS for /home (the installed app's start page, docs/V3.md
  * §1.5), in bytes: `/`'s base plus Todo's store and row, the published-data
  * reader, and the core it counts with (travel, problems, Plan's credits and
- * GenEds). Set in v3/home with about 10% headroom. Same rule for raising it.
+ * GenEds): 327 KB when this was set (v3/home; `/` was 291 KB then), plus
+ * about 10% headroom. Same rule for raising it.
  */
-export const HOME_BUDGET = 290 * 1024;
+export const HOME_BUDGET = 360 * 1024;
 
 /** Todo loads with /todo, never with the scheduler. */
 const TODO_NEVER_EAGER = {

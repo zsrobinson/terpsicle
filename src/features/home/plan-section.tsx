@@ -36,7 +36,7 @@ export function PlanSection({
     );
     return {
       credits: creditsHeadline(totals),
-      genEds: `GenEds: ${genEds.covered} of ${genEds.of} covered`,
+      genEds: `${genEds.covered} of ${genEds.of} GenEds covered`,
     };
   }, [doc, lookup, today, calendars]);
 
@@ -53,7 +53,7 @@ export function PlanSection({
           className="relative px-0 hover:bg-hover"
           secondary={
             line ? (
-              <span className="tnum">{line.genEds}, with planned courses</span>
+              <span className="tnum">{line.genEds}</span>
             ) : (
               <Skeleton className="mt-1 h-3 w-40" />
             )

@@ -29,6 +29,11 @@ Revisit if: a product is added or dropped.
 Everything is a path on terpsicle.com, with one manifest, one service worker at root scope, one push subscription per device and one session cookie.
 Revisit if: a product needs its own domain.
 
+### The installed app opens on Home, which nothing links to
+2026-09-28 · owner · app-wide
+The manifest's `start_url` is `/home`: a few facts from each product that matter today, each linking into it ("really just as a hidden thing only navigable to by the start page of the PWA"). No bar, menu, footer or page links to it, and it's `noindex`. Apps installed before keep opening `/schedule`, which still works (docs/V3.md §1.5).
+Revisit if: people ask for Home in a browser tab; it would join the product menu, not the bar's tabs.
+
 ### Use the platform first
 2026-09-26 · owner · app-wide
 Lean on TanStack Start and Router, Cloudflare and our libraries before building infrastructure ourselves ("i shouldn't have to worry about the page load things"). The scheduler's panel registry, `lazyPanel` and URL sync move to real nested routes in `v2/schedule-routes`.

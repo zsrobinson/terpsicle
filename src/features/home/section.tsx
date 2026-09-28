@@ -37,8 +37,14 @@ export function HomeSection({
   return (
     <PageSection
       title={
-        <span className="flex items-center gap-2">
-          <Mark id={product} size={20} />
+        // Inline, not flex: the heading's baseline stays its words', so the
+        // link beside it lines up with them rather than the mark's edge.
+        <span>
+          <Mark
+            id={product}
+            size={20}
+            className="mr-2 inline-block align-[-5px]"
+          />
           {title}
         </span>
       }
@@ -49,10 +55,16 @@ export function HomeSection({
             search={search}
             params={params}
             onClick={() => homeLinkClicked(product)}
-            className="-my-2 inline-flex items-center gap-1 py-2 font-medium text-muted text-sm transition-colors hover:text-fg max-md:-my-3 max-md:py-3"
+            // inline-block: its baseline is its text's, so it sits on the
+            // title's line while its padding makes a 44px target on phones.
+            className="inline-block whitespace-nowrap font-medium text-muted text-sm transition-colors hover:text-fg max-md:-my-3 max-md:py-3"
           >
             {viewWords(product)}
-            <ArrowRight size={13} aria-hidden="true" />
+            <ArrowRight
+              size={13}
+              aria-hidden="true"
+              className="ml-1 inline align-[-2px]"
+            />
           </Link>
         </WithTooltip>
       }
