@@ -15,6 +15,7 @@ import type {
   FourYearTermStatus,
   FourYearWildcardEntry,
 } from "../schema/four-year";
+import { listWords } from "../words";
 
 // "View schedule" (docs/V3.md §2.12): the term's main plan (docs/V2.md §5.5,
 // ~/core/plans/main-plan) is the four-year plan's link, never a copy of it.
@@ -118,12 +119,6 @@ export function placedInPlan(
     placed: courses.filter((c) => placed.has(c)).length,
     total: courses.length,
   };
-}
-
-/** "A", "A and B", "A, B and C". */
-function listWords(items: readonly string[]): string {
-  if (items.length <= 1) return items.join("");
-  return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
 /** "an" before a letter said with a vowel sound: "an FSAW course", "a DSHS course". */

@@ -1,6 +1,7 @@
 import { formatGpa, formatShare, gradeSummary } from "../grades/grades";
 import { combineRatings, formatStars } from "../reviews/combine";
 import type { CoursePageData, InstructorPageData } from "../reviews/pages";
+import { countWords, listWords } from "../words";
 import {
   breadcrumbJsonLd,
   courseJsonLd,
@@ -77,15 +78,6 @@ export function pageHead(input: HeadInput): PageHead {
   };
 }
 
-const plural = (n: number, word: string) =>
-  `${n.toLocaleString("en-US")} ${word}${n === 1 ? "" : "s"}`;
-
-/** "CMSC351, CMSC250 and CMSC451" */
-function listWords(items: readonly string[]): string {
-  if (items.length <= 1) return items.join("");
-  return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
-}
-
 const suffix = ` · ${SITE_NAME}`;
 
 // ---------- /reviews ----------
@@ -125,10 +117,10 @@ export function courseDescription(data: CoursePageData): string {
     data.instructors.length === 0
       ? null
       : rated.length === 0
-        ? `${plural(data.instructors.length, "instructor")}.`
+        ? `${countWords(data.instructors.length, "instructor")}.`
         : rated.length === 1 || formatStars(low) === formatStars(high)
-          ? `${plural(data.instructors.length, "instructor")}, rated ${formatStars(high)} out of 5.`
-          : `${plural(data.instructors.length, "instructor")}, rated ${formatStars(low)} to ${formatStars(high)} out of 5.`;
+          ? `${countWords(data.instructors.length, "instructor")}, rated ${formatStars(high)} out of 5.`
+          : `${countWords(data.instructors.length, "instructor")}, rated ${formatStars(low)} to ${formatStars(high)} out of 5.`;
   const teaching = data.instructors
     .filter((r) => r.teaching)
     .map((r) => r.name);
@@ -139,7 +131,7 @@ export function courseDescription(data: CoursePageData): string {
         ? `Offered in ${data.term.name}.`
         : null;
   const ours = data.terpsicle
-    ? `${plural(data.terpsicle.reviewCount, "review")} on Terpsicle.`
+    ? `${countWords(data.terpsicle.reviewCount, "review")} on Terpsicle.`
     : null;
   return clipSentences([grades, instructors, now, ours]);
 }
@@ -202,7 +194,7 @@ export function instructorDescription(data: InstructorPageData): string {
   const rating =
     combined.rating === null
       ? `${name} at UMD: no student reviews yet.`
-      : `${name} at UMD is rated ${formatStars(combined.rating)} out of 5 from ${plural(combined.reviewCount, "student review")} on ${where}.`;
+      : `${name} at UMD is rated ${formatStars(combined.rating)} out of 5 from ${countWords(combined.reviewCount, "student review")} on ${where}.`;
   const shown = data.course
     ? data.courses.filter((c) => c.code === data.course)
     : data.courses.slice(0, 2);

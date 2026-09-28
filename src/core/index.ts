@@ -28,3 +28,4 @@ export * from "./sync";
 export * from "./time";
 export * from "./todo";
 export * from "./travel";
+export * from "./words";

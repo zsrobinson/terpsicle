@@ -6,7 +6,6 @@ import {
   groupWords,
   INBOX_PRODUCT,
   inboxCursor,
-  listWords,
   readInboxCursor,
   seatTag,
   shouldRenotify,
@@ -173,16 +172,6 @@ describe("groupWords", () => {
       title: due.title,
       body: due.body,
     });
-  });
-});
-
-describe("listWords", () => {
-  it("joins like a sentence, then says how many more", () => {
-    expect(listWords([])).toBe("");
-    expect(listWords(["A"])).toBe("A");
-    expect(listWords(["A", "B"])).toBe("A and B");
-    expect(listWords(["A", "B", "C"])).toBe("A, B and C");
-    expect(listWords(["A", "B", "C", "D", "E"])).toBe("A, B, C and 2 more");
   });
 });
 
