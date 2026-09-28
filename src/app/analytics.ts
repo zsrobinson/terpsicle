@@ -197,6 +197,10 @@ export interface AnalyticsEvents {
     reply: boolean;
   };
   feedback_undone: NoProperties;
+  // The coffee button (src/features/coffee): whether anyone opens it, and
+  // follows it out. Nothing about who.
+  coffee_opened: NoProperties;
+  coffee_link_clicked: { via: "popover" | "menu" };
 }
 export type AnalyticsEvent = keyof AnalyticsEvents;
 

@@ -6,6 +6,7 @@ import { STAY_PARAM } from "~/core/routing";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { AccountButton } from "~/features/auth/account-button";
 import { useAccount } from "~/features/auth/account-store";
+import { CoffeeButton, CoffeeMenuItem } from "~/features/coffee/coffee-button";
 import {
   FeedbackButton,
   openFeedbackSheet,
@@ -20,18 +21,22 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import { Mark } from "./brand/mark";
 import { Wordmark } from "./brand/wordmark";
+import { EarlyAccessChip } from "./early-access";
 import { ProductMenu } from "./product-menu";
 import { listedProducts, type ProductId } from "./products";
 import { ThemeToggle } from "./theme-toggle";
 import { useIsMobile } from "./use-media-query";
 
 // The one bar on every page (docs/COHESION.md §4, the "family bar"): the
-// wordmark and the five products as labeled tabs, in color order, then a
-// divider and the product's own context (the term and plan, a course…),
-// then its status, the bell (signed in), Feedback and the account. Below
-// 1100px the tabs fold into the product menu, whose trigger names the
-// product you're in; phones fold Feedback and the theme into the account
-// menu, and the bell too where the bar is crowded. The same bar, everywhere.
+// wordmark, the "Early access" chip and the five products as labeled tabs,
+// in color order, then a divider and the product's own context (the term
+// and plan, a course…), then its status, the bell (signed in), the coffee
+// button, Feedback and the account. Below 1100px the tabs fold into the
+// product menu, whose trigger names the product you're in, and the chip
+// stays only where the bar has no context (the menu says it too); phones
+// fold the coffee button and the theme into the account menu, and
+// Feedback and the bell too where the bar is crowded. The same bar,
+// everywhere.
 
 /** Where the tabs fit beside the scheduler's term and plans. */
 const WIDE = "min-[1100px]:flex";
@@ -81,6 +86,9 @@ export function AppBar({
   const mobile = useIsMobile();
   const crowded = compact || (mobile && context != null);
   const feedbackInMenu = crowded && feedback !== null;
+  // A phone's bar has no room for another icon beside Feedback and the
+  // account: the coffee link is always in the account menu there.
+  const coffeeInMenu = (compact || mobile) && feedback !== null;
   const bellShown = useBellShown();
   const unreadNote = useUnreadNote();
   const Brand = heading ? "h1" : "div";
@@ -106,12 +114,17 @@ export function AppBar({
               </a>
             </WithTooltip>
           </Brand>
+          <EarlyAccessChip />
           <ProductTabs current={current} />
         </div>
       )}
       <Brand className={cn("flex shrink-0", compact ? null : NARROW)}>
         <ProductMenu current={current} compact={compact} />
       </Brand>
+      {compact || context ? null : (
+        // Phones keep the room; the product menu says it there.
+        <EarlyAccessChip className="ml-1 hidden sm:max-[1100px]:inline-flex" />
+      )}
       {context ? (
         <>
           <span
@@ -136,6 +149,9 @@ export function AppBar({
       >
         {status}
         <NotificationsBell showButton={!crowded} />
+        {feedback && !coffeeInMenu ? (
+          <CoffeeButton labelFrom2xl={crowdedBelow2xl} />
+        ) : null}
         {feedback ? (
           <FeedbackButton
             product={feedback}
@@ -149,9 +165,11 @@ export function AppBar({
           compact={compact}
           fallback={<ThemeToggle side="bottom" />}
           items={
-            crowded ? (
-              <MenuItems feedback={feedbackInMenu} bell={bellShown} />
-            ) : null
+            <MenuItems
+              feedback={feedbackInMenu}
+              coffee={coffeeInMenu}
+              bell={crowded && bellShown}
+            />
           }
           note={crowded ? unreadNote : null}
         />
@@ -175,7 +193,7 @@ function ProductTabs({ current }: { current: ProductId | null }) {
               CURRENT[p.id],
             )}
           >
-            <Mark id={p.id} size={16} className="size-4" />
+            <Mark id={p.id} size={20} />
             {p.label}
           </Link>
         </WithTooltip>
@@ -184,9 +202,17 @@ function ProductTabs({ current }: { current: ProductId | null }) {
   );
 }
 
-/** What a crowded phone bar moves into the account menu. */
-function MenuItems({ feedback, bell }: { feedback: boolean; bell: boolean }) {
-  if (!feedback && !bell) return null;
+/** What a phone's bar moves into the account menu. */
+function MenuItems({
+  feedback,
+  coffee,
+  bell,
+}: {
+  feedback: boolean;
+  coffee: boolean;
+  bell: boolean;
+}) {
+  if (!feedback && !coffee && !bell) return null;
   return (
     <>
       <DropdownMenuSeparator />
@@ -197,6 +223,7 @@ function MenuItems({ feedback, bell }: { feedback: boolean; bell: boolean }) {
           Send feedback
         </DropdownMenuItem>
       ) : null}
+      {coffee ? <CoffeeMenuItem /> : null}
     </>
   );
 }

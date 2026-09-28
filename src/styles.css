@@ -85,7 +85,6 @@
   --color-product-todo-soft: var(--product-todo-soft);
   --color-product-todo-text: var(--product-todo-text);
   --color-product-todo-line: var(--product-todo-line);
-  --color-product-todo-keyline: var(--product-todo-keyline);
   /* The marks' own pieces (src/app/brand/marks.ts). */
   --color-mark-offset: var(--mark-offset);
   --color-umbrella-tile: var(--umbrella-tile);
@@ -230,47 +229,50 @@
 
   /*
    * Products, in color order. The tile is the 600 step in both themes, with a
-   * paper glyph, except where that fails: Plan's green-600 would put paper
-   * at 4.4:1, so its tile is green-700; paper fails on every yellow lighter
-   * than 700, so Todo's is yellow-400 with an ink glyph and, in light only,
-   * an ink keyline (the tile alone is 2.3:1 on paper).
+   * white glyph (the owner's marks, 2026-09-28; DESIGN.md §7.5). White, not
+   * paper: it's the export's, and it holds Plan's green at 4.5:1. A glyph
+   * is a graphic, so 3:1 is its bar (WCAG 1.4.11); Todo's is the lowest, at
+   * 3.5:1. Every tile clears 3:1 on paper, so none needs a keyline.
    *   -soft  the product's fill (50; dark 900)
    *   -text  product-colored words on `/` (AA on paper and on -soft)
    *   -line  the hero's lines on `/` (3:1 on paper)
    */
   --product-schedule: #af3029; /* red-600 */
-  --product-schedule-fg: #fffcf0; /* paper */
+  --product-schedule-fg: #ffffff; /* white */
   --product-schedule-soft: #ffe1d5; /* red-50 */
   --product-schedule-text: #af3029; /* red-600 */
   --product-schedule-line: #af3029; /* red-600 */
   --product-reviews: #5e409d; /* purple-600 */
-  --product-reviews-fg: #fffcf0; /* paper */
+  --product-reviews-fg: #ffffff; /* white */
   --product-reviews-soft: #f0eaec; /* purple-50 */
   --product-reviews-text: #5e409d; /* purple-600 */
   --product-reviews-line: #5e409d; /* purple-600 */
   --product-chat: #205ea6; /* blue-600 */
-  --product-chat-fg: #fffcf0; /* paper */
+  --product-chat-fg: #ffffff; /* white */
   --product-chat-soft: #e1eceb; /* blue-50 */
   --product-chat-text: #205ea6; /* blue-600 */
   --product-chat-line: #205ea6; /* blue-600 */
-  --product-plan: #536907; /* green-700 */
-  --product-plan-fg: #fffcf0; /* paper */
+  --product-plan: #66800b; /* green-600 */
+  --product-plan-fg: #ffffff; /* white */
   --product-plan-soft: #edeecf; /* green-50 */
   --product-plan-text: #536907; /* green-700 */
   --product-plan-line: #66800b; /* green-600 */
-  --product-todo: #d0a215; /* yellow-400 */
-  --product-todo-fg: #100f0f; /* black */
+  --product-todo: #ad8301; /* yellow-600 */
+  --product-todo-fg: #ffffff; /* white */
   --product-todo-soft: #faeec6; /* yellow-50 */
   --product-todo-text: #664d01; /* yellow-800 */
   --product-todo-line: #ad8301; /* yellow-600 */
-  --product-todo-keyline: #100f0f; /* black */
   /* A product tile's offset. */
   --mark-offset: #100f0f; /* black */
-  /* The umbrella: the schedule glyph on a paper tile with an ink keyline. */
-  --umbrella-tile: #fffcf0; /* paper */
-  --umbrella-glyph: #100f0f; /* black */
+  /*
+   * The umbrella: a white umbrella on a black tile, in both themes. A black
+   * box never gets a black offset, so its offset is gray; its keyline is
+   * drawn in dark only (marks.ts), where the page is black too.
+   */
+  --umbrella-tile: #100f0f; /* black */
+  --umbrella-glyph: #ffffff; /* white */
   --umbrella-keyline: #100f0f; /* black */
-  --umbrella-offset: #100f0f; /* black */
+  --umbrella-offset: #878580; /* base-500 */
 
   /* Paper grain (Ink's "subtle"): dark specks on paper. */
   --grain-opacity: 0.28;
@@ -321,13 +323,10 @@
   --product-todo-soft: #3a2d04; /* yellow-900 */
   --product-todo-text: #dfb431; /* yellow-300 */
   --product-todo-line: #dfb431; /* yellow-300 */
-  /* Unused: the tile is 8.1:1 on black, so the mark draws no keyline here. */
-  --product-todo-keyline: #b7b5ac; /* base-300 */
   --mark-offset: #575653; /* base-700 */
-  --umbrella-tile: #282726; /* base-900 */
-  --umbrella-glyph: #fffcf0; /* paper */
-  --umbrella-keyline: #b7b5ac; /* base-300 */
-  --umbrella-offset: #6f6e69; /* base-600 */
+  /* The black tile on the black page: a base-600 keyline (3.7:1) draws its edge. */
+  --umbrella-keyline: #6f6e69; /* base-600 */
+  --umbrella-offset: #575653; /* base-700 */
 
   /* Light specks on ink. */
   --grain-opacity: 0.2;

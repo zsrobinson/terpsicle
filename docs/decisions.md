@@ -51,8 +51,18 @@ Revisit if: Terpsicle launches publicly.
 
 ### The brand is Ink
 2026-09-26 · owner · app-wide
-The Ink variation with grain, Flexoki colors and Bricolage Grotesque, square corners with small offset shadows; a black box never gets a black offset. The Pixel star icon set is locked, kept as swappable SVGs. Tokens are in `docs/DESIGN.md` §7.
+The Ink variation with grain, Flexoki colors and Bricolage Grotesque, square corners with small offset shadows; a black box never gets a black offset. The marks are the owner's pixel drawings (below), kept as swappable data. Tokens are in `docs/DESIGN.md` §7.
 Revisit if: the owner refines the brand.
+
+### The owner's pixel marks, on Flexoki 600 tiles
+2026-09-28 · owner · app-wide
+Six 9×9 pixel marks, "exactly" as the owner drew them: a black umbrella tile for Terpsicle, and each product's glyph in white at 100% and 50% on its Flexoki 600 tile (Plan's green and Todo's yellow moved to 600 too). The 1-unit offset is optional: the bar and menus keep it, and the app icons and favicon are the umbrella's tile alone, no offset. In dark, the umbrella's black tile takes a base-600 keyline (the page is black too). Glyphs are graphics, held to 3:1 (Todo's white on yellow-600 is 3.5:1).
+Revisit if: the owner redraws a mark; change its rows in `src/app/brand/marks.ts` and run `pnpm tsx scripts/build-icons.ts`.
+
+### Early access, and a coffee link
+2026-09-28 · owner · app-wide
+An "Early access" chip sits beside the wordmark ("Terpsicle's still in active development, so things may change."). A coffee button beside Feedback opens a short note and links to https://buymeacoffee.com/zsrobinson ("figured it couldn't help"). It never opens by itself and never asks twice.
+Revisit if: Terpsicle leaves early access, or the owner drops the coffee link.
 
 ### Sign in with Google, UMD only
 2026-09-26 · owner · app-wide
