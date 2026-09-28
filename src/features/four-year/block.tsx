@@ -48,12 +48,7 @@ import {
   setGenEdChoice,
 } from "./actions";
 import { creditKind, patternLabel } from "./credit-panel";
-import {
-  CLOSE_DRILL,
-  useModel,
-  usePlanNav,
-  usePlanReadOnly,
-} from "./model";
+import { CLOSE_DRILL, useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 
 // A block: one course, placeholder or transfer credit in a semester (V3

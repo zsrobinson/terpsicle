@@ -15,12 +15,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { moveEntry } from "./actions";
 import { ENTRY_DRAG_TYPE, EntryBlock } from "./block";
 import { ViewSchedule, ViewTodos } from "./column-links";
-import {
-  CLOSE_DRILL,
-  useModel,
-  usePlanNav,
-  usePlanReadOnly,
-} from "./model";
+import { CLOSE_DRILL, useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 
 // The semesters (V3 §2.13), the workbench's canvas. Desktop: "Before UMD"

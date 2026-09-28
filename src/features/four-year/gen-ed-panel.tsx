@@ -8,12 +8,7 @@ import {
 import { Button } from "~/ui/button";
 import { GroupHeader, ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
-import {
-  CLOSE_DRILL,
-  useModel,
-  usePlanNav,
-  usePlanReadOnly,
-} from "./model";
+import { CLOSE_DRILL, useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 import { PlanView } from "./views";
 
