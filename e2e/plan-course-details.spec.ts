@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { scan } from "./axe";
+import { expectToastAboveDrawer } from "./toasts";
 
 // Courses Testudo doesn't list anymore (docs/V3.md §2.2), on `pnpm dev:mock`:
 // a synthetic transcript with an honors code whose base course Testudo
@@ -40,6 +41,7 @@ async function axe(page: Page, what: string) {
 
 test("a course Testudo dropped gets its course info, from its base course or by hand", async ({
   page,
+  isMobile,
 }) => {
   await page.goto("/plan");
   await page.getByRole("button", { name: "Import your transcript" }).click();
@@ -66,6 +68,14 @@ test("a course Testudo dropped gets its course info, from its base course or by 
   await page.keyboard.press("ControlOrMeta+z");
   await expect(problems.getByText("MATH141H isn't in Testudo")).toBeVisible();
   await problems.getByRole("button", { name: "Count it as MATH141" }).click();
+  // On a phone its Undo toast stays clear of the next problem's button.
+  if (isMobile) {
+    await expect(page.locator("[data-vaul-drawer]")).toHaveAttribute(
+      "data-snap",
+      "half",
+    );
+    await expectToastAboveDrawer(page);
+  }
 
   // Any other: say what it was.
   await problems
