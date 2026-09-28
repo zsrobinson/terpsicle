@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { planCourseItems } from "~/core/generate/draft";
 import {
   DEFAULT_MUST_HAVES,
+  DEFAULT_RANK_BY,
   type GenerateDraft,
   type GenerateDrafts,
   type Plan,
@@ -15,7 +16,7 @@ import {
 export const EMPTY_DRAFT: GenerateDraft = {
   items: [],
   mustHaves: DEFAULT_MUST_HAVES,
-  rankBy: { preset: "compact" },
+  rankBy: DEFAULT_RANK_BY,
 };
 
 export interface GenerateDraftsState {

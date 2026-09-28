@@ -5,6 +5,7 @@ import {
   DaySchema,
   DaysSchema,
   MinutesSchema,
+  RankFactorSchema,
   SectionCodeSchema,
   SectionKeySchema,
   TermIdSchema,
@@ -93,17 +94,6 @@ export const DEFAULT_MUST_HAVES: MustHaves = {
   credits: { min: null, max: null },
 };
 
-/** Each preset ranks by one factor; "custom" mixes them with weights. */
-export const RankFactorSchema = z.enum([
-  "compact",
-  "fewer-days",
-  "later-starts",
-  "best-rated",
-  "higher-gpa",
-  "safest-seats",
-]);
-export type RankFactor = z.infer<typeof RankFactorSchema>;
-
 /** Every factor, 0–1. */
 export const RankWeightsSchema = z.record(
   RankFactorSchema,
@@ -116,6 +106,9 @@ export const RankBySchema = z.discriminatedUnion("preset", [
   z.object({ preset: z.literal("custom"), weights: RankWeightsSchema }),
 ]);
 export type RankBy = z.infer<typeof RankBySchema>;
+
+/** A new form's preferences: compact days on. */
+export const DEFAULT_RANK_BY: RankBy = { preset: "compact" };
 
 export const GenerateLimitsSchema = z.object({
   /** "Showing the best 200". */
@@ -261,6 +254,19 @@ export const WildcardReportSchema = z.object({
 });
 export type WildcardReport = z.infer<typeof WildcardReportSchema>;
 
+/**
+ * How many plans one filter took out of a run ("No Fridays −38"): what the
+ * same run finds without it, less what it found. Filters are the
+ * must-haves, as the results show them.
+ */
+export const FilterCountSchema = z.object({
+  constraint: RelaxableSchema,
+  removed: z.number().int().min(0),
+  /** The what-if search hit its budget: it removes at least `removed`. */
+  atLeast: z.boolean(),
+});
+export type FilterCount = z.infer<typeof FilterCountSchema>;
+
 export const GenerateResultSchema = z.object({
   /** Best first; at most `limits.maxResults`. */
   results: z.array(GeneratedPlanSchema),
@@ -276,6 +282,11 @@ export const GenerateResultSchema = z.object({
   nearMisses: z.array(NearMissSchema),
   /** One per wildcard item, in request order. */
   wildcards: z.array(WildcardReportSchema),
+  /**
+   * One per filter that was on, when the run found plans and wasn't cut
+   * short (a cut-short count would be a guess). Empty otherwise.
+   */
+  filterCounts: z.array(FilterCountSchema),
 });
 export type GenerateResult = z.infer<typeof GenerateResultSchema>;
 

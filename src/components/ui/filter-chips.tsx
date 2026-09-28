@@ -46,7 +46,8 @@ export const TOKEN_CHIP: Record<FilterToken["kind"], FilterName> = {
 
 const GEN_EDS = Object.keys(GEN_ED_LABELS) as GenEdCode[];
 
-const chipClass = (active: boolean) =>
+/** A filter chip's look, for filters beyond a course search's (Generate's). */
+export const chipClass = (active: boolean) =>
   cn(
     "flex h-6 shrink-0 items-center gap-px rounded-md border px-1 text-xs transition-colors",
     active

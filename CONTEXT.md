@@ -210,14 +210,19 @@ Something about a plan worth knowing: an error (not enough time, a cancelled or 
 The one-click remedy a problem offers: "Switch to 0205" when a section solves it without new problems, or "Watch for a seat" for a full section. The owner calls this **auto-resolution**.
 
 **Generate**:
-Making new plans from the courses you need, must-haves and a ranking. It creates plans; it never edits one.
+Making new plans from the courses you need, filters and preferences. It creates plans; it never edits one.
 _Avoid_: AI (it's an algorithm)
 
 **Generate result**:
-One ranked candidate plan from Generate, with a mini week and plain stats. "Save as new plan" makes it a plan.
+One ranked candidate plan from Generate, with a mini week, plain stats and a mark for each preference that's on. Its arrow opens its details, where "Add as Plan C" (the next plan name) makes it a plan.
 
-**Must-have**:
-A rule every Generate result follows (earliest start, days off, open seats only, …). A **relaxation** loosens one when nothing fits.
+**Filter** (in Generate):
+A chip that takes plans out: every Generate result follows it ("No classes before 10am", "No Fridays", "Only open seats", "Time to walk"). While on, it shows a funnel and how many plans it took out ("−38"). In code and the schema these are still `mustHaves`. A **relaxation** loosens one when nothing fits.
+_Avoid_: must-have (in UI copy), constraint
+
+**Preference**:
+A chip that ranks Generate's results without taking any out: Compact days, Fewer days, Later starts, Best-rated, Higher GPAs, Safest seats. A click cycles it off → on → 2× (counts double) → off.
+_Avoid_: weight, sort, rank by (in UI copy)
 
 **Share link**:
 A URL that carries a whole plan. It opens read-only as a **shared plan** with "Save a copy".

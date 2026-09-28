@@ -14,7 +14,7 @@ export { GroupHeader, ListRow } from "~/ui/list-row";
 //     SectionHeader "bar": sticky at top-0, "Sections  3 of 14 fit  …"
 //       GroupHeader (~/ui): sticky under the bar, collapsible ("▾ Grace Kowalczyk …")
 //         ListRow (~/ui) …
-//     SectionHeader "label": a quiet heading for forms ("Must have")
+//     SectionHeader "label": a quiet heading for forms ("Filters")
 //   PanelFooter (optional): sticky at the bottom, the panel's primary action
 //
 // At most two sticky levels inside a PanelBody: a bar, then a group header.
@@ -115,7 +115,7 @@ export function SectionHeader({
         )}
       >
         {/* A heading, so a screen reader can jump between a form's parts
-            ("Courses", "Must have", "Rank by") like between panels. */}
+            ("Courses", "Filters", "Preferences") like between panels. */}
         <span className="flex items-baseline gap-1.5">
           <h3 className="font-medium">{title}</h3>
           {count !== undefined ? (
@@ -182,7 +182,7 @@ export function PanelNote({
 
 /**
  * The bottom of a panel, pinned while its body scrolls: the one place for
- * the panel's primary action ("Generate plans", "Save as new plan"). Put it
+ * the panel's primary action ("Generate plans", "Add as Plan C"). Put it
  * after the PanelBody, not inside it.
  */
 export function PanelFooter({

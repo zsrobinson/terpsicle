@@ -6,7 +6,12 @@ import {
   draftCourseCodes,
   requestItems,
 } from "~/core/generate/draft";
+import {
+  activePreferences,
+  preferenceLevels,
+} from "~/core/generate/preferences";
 import { ranksByQuality } from "~/core/generate/score";
+import { sameChips } from "~/core/generate/url";
 import {
   DEFAULT_GENERATE_LIMITS,
   type GenerateDraft,
@@ -122,23 +127,37 @@ async function gatherInput(request: GenerateRequest): Promise<GenerateInput> {
   };
 }
 
+/** The form the latest run was started from, so a chip change runs once. */
+let asked: { termId: TermId; draft: GenerateDraft } | null = null;
+
 /**
  * Generates plans for the form as it is. A newer run replaces an older one.
  * `relaxed` marks a run started from a suggested relaxation (analytics).
+ * `live` is a chip changed over results already on screen: they stay, dimmed,
+ * until the new ones land, and the view doesn't change.
  */
 export async function runGenerate(
   termId: TermId,
   draft: GenerateDraft,
-  { relaxed = false }: { relaxed?: boolean } = {},
+  { relaxed = false, live = false }: { relaxed?: boolean; live?: boolean } = {},
 ): Promise<void> {
   current?.cancel();
+  cancelLiveRun();
   const mine = ++seq;
   const isCurrent = () => current?.seq === mine;
   current = { seq: mine, cancel: () => {} };
+  asked = { termId, draft };
   const set = (patch: Partial<GenerateRunState>) => {
     if (isCurrent()) useGenerateRun.setState(patch);
   };
-  set({ termId, status: { kind: "loading" }, selected: [] });
+  const before = useGenerateRun.getState();
+  const keep =
+    live && before.termId === termId && before.status.kind === "done";
+  set(
+    keep
+      ? { refreshing: true }
+      : { termId, status: { kind: "loading" }, refreshing: false },
+  );
   const started = performance.now();
   const request = buildRequest(termId, draft);
   try {
@@ -149,16 +168,20 @@ export async function runGenerate(
     // after the result does. Once the result is in, progress is stale.
     let finished = false;
     const job = generator.run(request, input, ({ steps, found }) => {
-      if (!finished) set({ status: { kind: "running", steps, found } });
+      if (!finished && !keep)
+        set({ status: { kind: "running", steps, found } });
     });
     current = { seq: mine, cancel: job.cancel };
-    set({ status: { kind: "running", steps: 0, found: 0 } });
+    if (!keep) set({ status: { kind: "running", steps: 0, found: 0 } });
     const result = await job.result;
     finished = true;
     if (!isCurrent()) return;
     const durationMs = Math.round(performance.now() - started);
-    set({ status: { kind: "done", request, result, durationMs } });
-    if (isCurrent()) showGenerateView("results");
+    set({
+      status: { kind: "done", request, result, durationMs },
+      refreshing: false,
+    });
+    if (!keep && isCurrent()) showGenerateView("results");
     track("generate_run", {
       courses: draftCourseCodes(request.items).length,
       wildcards: request.items.flatMap((i) =>
@@ -166,15 +189,18 @@ export async function runGenerate(
       ),
       mustHaves: activeMustHaves(request.mustHaves, request.blocks.length > 0),
       rankBy: request.rankBy.preset,
+      preferences: activePreferences(preferenceLevels(request.rankBy)),
       results: result.results.length,
       durationMs,
       truncated: result.truncated,
       relaxed,
+      live,
     });
   } catch (error) {
     if (error instanceof GenerateCancelled) return;
     console.error(error);
     set({
+      refreshing: false,
       status: {
         kind: "error",
         message:
@@ -185,6 +211,43 @@ export async function runGenerate(
       },
     });
   }
+}
+
+/** How long the chips wait for the next click before running (a burst runs once). */
+export const LIVE_RUN_DELAY_MS = 250;
+let liveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function cancelLiveRun(): void {
+  if (liveTimer !== null) clearTimeout(liveTimer);
+  liveTimer = null;
+}
+
+/**
+ * Whether a form differs from the latest run's only in its chips: the same
+ * courses, other filters or preferences. Those run again on their own; a
+ * changed course list waits for Generate again.
+ */
+export function chipsChangedSinceRun(
+  termId: TermId,
+  draft: GenerateDraft,
+): boolean {
+  const run = useGenerateRun.getState();
+  if (!asked || asked.termId !== termId || run.termId !== termId) return false;
+  if (run.status.kind === "idle") return false;
+  const items = (d: GenerateDraft) => JSON.stringify(requestItems(d.items));
+  return items(asked.draft) === items(draft) && !sameChips(asked.draft, draft);
+}
+
+/**
+ * Ranks again after a chip changes (SPEC §3.9, "Live results"), once the
+ * clicks stop for a moment, in the worker like any run.
+ */
+export function runLive(termId: TermId, draft: GenerateDraft): void {
+  cancelLiveRun();
+  liveTimer = setTimeout(() => {
+    liveTimer = null;
+    void runGenerate(termId, draft, { live: true });
+  }, LIVE_RUN_DELAY_MS);
 }
 
 /**
@@ -205,12 +268,14 @@ export function stopGenerate(): void {
   if (!running) return;
   running.cancel();
   current = null;
-  useGenerateRun.setState({ status: { kind: "idle" } });
+  useGenerateRun.setState({ status: { kind: "idle" }, refreshing: false });
 }
 
 /** Forgets the last run (switching terms, tests). */
 export function resetGenerateRun(): void {
   current?.cancel();
+  cancelLiveRun();
   current = null;
+  asked = null;
   useGenerateRun.setState(INITIAL_RUN_STATE);
 }
