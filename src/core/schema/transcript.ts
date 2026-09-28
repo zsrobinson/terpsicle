@@ -46,7 +46,11 @@ export const TranscriptTermSchema = z.union([
 ]);
 export type TranscriptTerm = z.infer<typeof TranscriptTermSchema>;
 
-export const TranscriptViaSchema = z.enum(["umd", "ap", "transfer"]);
+/**
+ * Where credit came from: a UMD course, AP, transfer from another school,
+ * or another exam (IB, CLEP, UMD's credit by exam).
+ */
+export const TranscriptViaSchema = z.enum(["umd", "ap", "transfer", "exam"]);
 export type TranscriptVia = z.infer<typeof TranscriptViaSchema>;
 
 export const TranscriptLineSchema = z.object({
@@ -70,7 +74,7 @@ export const TranscriptLineSchema = z.object({
   /** The catalog's shape: groups that all apply, options ("or") within a group. */
   genEds: z.array(GenEdGroupSchema),
   via: TranscriptViaSchema,
-  /** For AP and transfer lines, the UMD equivalent the transcript names. */
+  /** For AP, exam and transfer lines, the UMD equivalent the transcript names. */
   equivalentOf: CourseCodeSchema.nullable(),
   /** A generic equivalent that isn't one course ("CHEM1XX"); the import maps it. */
   equivalentPattern: z
@@ -87,6 +91,8 @@ export const TranscriptSkipReasonSchema = z.enum([
   "withdrawn",
   "dropped",
   "no-credit",
+  /** Transfer credit UMD hasn't evaluated yet (NE, ST, UR): no credit until it has. */
+  "not-evaluated",
   "unreadable",
 ]);
 export type TranscriptSkipReason = z.infer<typeof TranscriptSkipReasonSchema>;
