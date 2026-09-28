@@ -50,7 +50,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `pwa_installed` | | Installs from any way in, the browser's own menu included (`appinstalled`). |
 
   | `search_performed` | `queryLength`, `results`, `filtered` | Whether search finds things (how often zero results), and how long queries are. Debounced; the text itself is never sent. |
-  | `search_filter_changed` | `filter` | Which filter chips earn their place on the line. |
+  | `search_filter_changed` | `filter`, `via`: `chip` · `typed` | Which filter chips earn their place on the line, and whether people type them as filter tokens ("DSNS ") or pick them. |
+  | `search_sorted` | `sort`: `relevance` · `code` · `rating` · `seats` | Which orders people want beyond best match. |
   | `search_result_opened` | `position` | Whether ranking works: most opens should be in the first few results. |
   | `course_details_tab` | `tab` | What people open on the course details page (one page, no tabs, since the UX review; the name stays for continuity): `instructors` for a group's Reviews, `grades` for "Grades ↓", `about` for "More about this course". |
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |

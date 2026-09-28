@@ -68,7 +68,19 @@ Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "in
 A UMD General Education code (DSHS, DSNL, FSAW, …). A course can count for one of several ("DSHS or DSHU"). The search chip reads "Gen-eds".
 
 **Wildcard**:
-A stand-in for any course matching a pattern (`CMSC4XX`, `CMSC42X`, `ARTTXXX`) or a GenEd ("Any DSHS course"). One matcher serves Generate and Plan.
+A stand-in for any course matching a pattern (`CMSC4XX`, `CMSC42X`, `ARTTXXX`) or a GenEd ("Any DSHS course"). One matcher serves Generate, Plan and every course search box, where a pattern typed lists its courses.
+
+**Course search**:
+The one search box for courses, in Schedule's Search, Plan's Search and Generate's course field: the same words find the same courses, with the same chips, rows and keys. Reviews and Chat's course finders aren't it yet.
+_Avoid_: course finder, course picker (for these three)
+
+**Filter token**:
+A word typed in a course search that names a filter chip, like "DSNS", "400s" or "3cr". It filters at once, and on space or Enter it becomes its chip; Backspace in the empty box takes it off.
+_Avoid_: tag, keyword, smart filter
+
+**Sort**:
+The order of Search's results: Best match, Course code, Instructor rating or Open seats.
+_Avoid_: relevance (in copy; it's "Best match")
 
 **Seat watch**:
 Watching a full or nearly full section for an opening, signed in, by push and email. The action is "Watch for a seat" (bell) and the state is "Watching" (filled bell). Copy promises "we'll let you know", not "we'll email you", since each channel has its own switch.

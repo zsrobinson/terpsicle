@@ -1,10 +1,16 @@
 import MiniSearch, { type Options, type SearchOptions } from "minisearch";
-import type { Course, CourseCode } from "../schema";
+import { matchesPattern } from "../catalog/wildcard";
+import type { Course, CourseCode, CourseSearchRow } from "../schema";
+import type { CourseQuery } from "./tokens";
 
 // Course search (SPEC §3.5): code, title or instructor, with typo tolerance.
-// MiniSearch runs in the web worker with these options; course codes get
-// their own tokenizing and a ranking tier above text relevance, so "cmsc 351",
-// "CMSC351", "351" and "cmsc35" all put the right course first.
+// One engine for every course search box (Schedule's Search, Plan's Search,
+// Generate's course field), over whatever that product has loaded: a
+// term's courses, with instructors, or the course index's rows, without.
+// Course codes get their own tokenizing and a ranking tier above text
+// relevance, so "cmsc 351", "CMSC351", "351" and "cmsc35" all put the right
+// course first. Every word matches as a prefix, so "intro psych" finds
+// Introduction to Psychology.
 
 export type CourseSearchDoc = {
   readonly id: CourseCode;
@@ -12,6 +18,11 @@ export type CourseSearchDoc = {
   readonly title: string;
   readonly instructors: string;
 };
+
+/** A course index row (Plan): code and title, no instructors. */
+export function searchRowDoc(row: CourseSearchRow): CourseSearchDoc {
+  return { id: row[0], code: row[0], title: row[1], instructors: "" };
+}
 
 export function courseSearchDoc(course: Course): CourseSearchDoc {
   const names = new Set(course.sections.flatMap((s) => s.instructors));
@@ -56,10 +67,34 @@ export function fuzziness(term: string): number | false {
   return term.length >= 4 && !/\d/.test(term) ? 0.2 : false;
 }
 
+/**
+ * Small words a title may say another way ("intro to psych", "Psychology:
+ * an Introduction"): dropped from a query that has other words.
+ */
+const STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "for",
+  "in",
+  "of",
+  "on",
+  "the",
+  "to",
+  "with",
+]);
+
+/** The query without its stop words, unless that leaves nothing. */
+export function withoutStopWords(query: string): string {
+  const kept = words(query).filter((w) => !STOP_WORDS.has(w));
+  return kept.length > 0 ? kept.join(" ") : query;
+}
+
 export const SEARCH_OPTIONS: SearchOptions = {
   boost: { code: 4, title: 2, instructors: 1 },
   combineWith: "AND",
-  prefix: (_term, i, terms) => i === terms.length - 1,
+  // Every word, not just the last: "intro psych" is how people type titles.
+  prefix: true,
   fuzzy: (term) => fuzziness(term),
   maxFuzzy: 2,
   tokenize: queryTokens,
@@ -80,11 +115,20 @@ export type CourseSearch = {
   readonly codes: readonly CourseCode[];
 };
 
-export function createCourseSearch(courses: Iterable<Course>): CourseSearch {
-  const docs = [...courses].map(courseSearchDoc);
+function indexDocs(docs: readonly CourseSearchDoc[]): CourseSearch {
   const mini = new MiniSearch<CourseSearchDoc>(MINISEARCH_OPTIONS);
   mini.addAll(docs);
   return { mini, codes: docs.map((d) => d.code).sort() };
+}
+
+/** A term's courses, with their instructors (Schedule, Generate). */
+export function createCourseSearch(courses: Iterable<Course>): CourseSearch {
+  return indexDocs([...courses].map(courseSearchDoc));
+}
+
+/** The course index's rows (Plan): codes and titles, every term. */
+export function createRowSearch(rows: Iterable<CourseSearchRow>): CourseSearch {
+  return indexDocs([...rows].map(searchRowDoc));
 }
 
 /** The first index in sorted `codes` at or after `prefix`. */
@@ -158,9 +202,39 @@ export function searchCourses(
       if (code.slice(4).startsWith(compact)) take(code);
   // One character matches a prefix of nearly every word; only codes are useful.
   if (compact.length < MIN_TEXT_QUERY) return out;
-  const hits = search.mini.search(query).map((hit) => hit.id as CourseCode);
+  const hits = search.mini
+    .search(withoutStopWords(query))
+    .map((hit) => hit.id as CourseCode);
   const dept = queryDept(search, query);
   if (dept) for (const code of hits) if (code.startsWith(dept)) take(code);
   for (const code of hits) take(code);
+  return out;
+}
+
+/**
+ * What a parsed query finds, best first, as the caller's items (`get`),
+ * kept by `keep` (the chips plus the query's filter tokens: `queryFilters`).
+ * With text, the index ranks; without, a pattern lists its codes and chips
+ * alone list every course, in code order. A pattern narrows the text's
+ * results ("cmsc4xx algorithms"); two patterns take either.
+ */
+export function queryCourses<T>(
+  search: CourseSearch,
+  query: CourseQuery,
+  get: (code: CourseCode) => T | undefined,
+  keep: (item: T) => boolean,
+): T[] {
+  const codes =
+    query.text.trim() !== "" ? searchCourses(search, query.text) : search.codes;
+  const out: T[] = [];
+  for (const code of codes) {
+    if (
+      query.patterns.length > 0 &&
+      !query.patterns.some((p) => matchesPattern(p, code))
+    )
+      continue;
+    const item = get(code);
+    if (item !== undefined && keep(item)) out.push(item);
+  }
   return out;
 }

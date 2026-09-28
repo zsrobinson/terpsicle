@@ -56,15 +56,25 @@ describe("parseWildcard", () => {
     });
   });
 
-  it("needs all three places, and X only at the end", () => {
-    expect(parseWildcard("CMSC4X")).toEqual({
+  it("pads a short pattern with X, as a prefix", () => {
+    expect(parseWildcard("cmsc4x")).toEqual({
+      kind: "wildcard",
+      wildcard: pattern("CMSC4XX"),
+    });
+    expect(parseWildcard("CMSCX")).toEqual({
+      kind: "wildcard",
+      wildcard: pattern("CMSCXXX"),
+    });
+    expect(parseWildcard("cmsc 4x")).toEqual({
+      kind: "wildcard",
+      wildcard: pattern("CMSC4XX"),
+    });
+  });
+
+  it("takes at most three places, and X only at the end", () => {
+    expect(parseWildcard("CMSC4XXX")).toEqual({
       kind: "invalid",
       message: "Use three places for the number, as in CMSC4XX.",
-    });
-    expect(parseWildcard("CMSC4XXX")).toMatchObject({ kind: "invalid" });
-    expect(parseWildcard("CMSCX")).toEqual({
-      kind: "invalid",
-      message: "Use three places for the number, as in CMSCXXX.",
     });
     expect(parseWildcard("CMSC4X1")).toEqual({
       kind: "invalid",

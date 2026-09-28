@@ -89,7 +89,10 @@ export interface AnalyticsEvents {
   search_performed: { queryLength: number; results: number; filtered: boolean };
   search_filter_changed: {
     filter: "gen-eds" | "credits" | "fits" | "open-seats" | "level";
+    /** `typed`: a filter token in the box ("DSNS "), or Backspace taking one off. */
+    via: "chip" | "typed";
   };
+  search_sorted: { sort: "relevance" | "code" | "rating" | "seats" };
   /** 0-based position in the results. */
   search_result_opened: { position: number };
   course_details_tab: { tab: "instructors" | "grades" | "about" };

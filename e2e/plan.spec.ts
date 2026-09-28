@@ -98,6 +98,31 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
   ).toHaveCount(0);
   await expect(page.getByTestId("plan-search-added")).toBeVisible();
 
+  // Titles by the start of their words, as in Schedule's Search (owner,
+  // 2026-09-28: "intro psych" found nothing here).
+  await search.fill("intro psych");
+  await expect(
+    page.getByRole("button", {
+      name: "Add PSYC100 to Spring 2027",
+      exact: true,
+    }),
+  ).toBeVisible();
+  // A GenEd typed with a space is the Gen-eds chip, which offers its
+  // placeholder; Backspace takes it off.
+  await search.fill("");
+  await search.pressSequentially("dshs ");
+  await expect(search).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "Gen-eds: DSHS" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Add Any DSHS course to Spring 2027",
+    }),
+  ).toBeVisible();
+  await search.press("Backspace");
+  await expect(page.getByRole("button", { name: "Gen-eds" })).toBeVisible();
+
   // A placeholder: typing a pattern offers one first.
   await search.fill("cmsc4xx");
   await page
