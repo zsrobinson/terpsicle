@@ -27,8 +27,13 @@ const Text = z.union([z.string(), z.number(), z.boolean()]).transform(String);
 
 /** A connection's id (`M:ESJ>IRB`) as a path or search param. */
 export const ConnectionIdSchema = z.string().min(1).max(64);
-/** A generated result's id, as a path or search param. */
-export const ResultIdSchema = z.string().min(1).max(64);
+/**
+ * A generated result's id, as a path or search param: its sorted section
+ * keys joined by commas, so as long as the plan. 640 fits the 40 sections a
+ * plan can hold (`registered`'s cap in local.ts) at 15 characters each; 64
+ * cut off plans of six courses, whose details then never opened.
+ */
+export const ResultIdSchema = z.string().min(1).max(640);
 
 /** An optional param that's dropped when it isn't valid. */
 function param<T extends z.ZodType<unknown, string>>(schema: T) {

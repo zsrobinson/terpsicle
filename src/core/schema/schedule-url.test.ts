@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DrillSearchSchema,
   LegacyScheduleSearchSchema,
+  ResultIdSchema,
   ScheduleSearchSchema,
   SearchTabSearchSchema,
 } from "./schedule-url";
@@ -72,5 +73,23 @@ describe("each route's own params", () => {
     expect(SearchTabSearchSchema.parse(search)).toEqual({ q: "cmsc" });
     expect(DrillSearchSchema.parse(search)).toEqual({ tab: "search" });
     expect(DrillSearchSchema.parse({ tab: "calendar" })).toEqual({});
+  });
+});
+
+describe("a generated plan's id", () => {
+  // Its sorted section keys, joined: six courses were already past the old
+  // 64-character cap, so their details never opened (QA3b).
+  const idOf = (n: number, code = "CMSC351H") =>
+    Array.from({ length: n }, (_, i) => `${code}-${String(i).padStart(4, "0")}`)
+      .sort()
+      .join(",");
+
+  it("fits a full week's plan", () => {
+    expect(ResultIdSchema.safeParse(idOf(6, "CMSC351")).success).toBe(true);
+  });
+
+  it("fits the most sections a plan can hold", () => {
+    expect(ResultIdSchema.safeParse(idOf(40)).success).toBe(true);
+    expect(ResultIdSchema.safeParse("").success).toBe(false);
   });
 });
