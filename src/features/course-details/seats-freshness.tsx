@@ -13,7 +13,7 @@ const FRESHNESS_TIP: Record<SeatsFreshnessState, string> = {
   unknown: "Testudo hasn't given seat counts for this term yet",
 };
 
-/** "Seats as of 2 min ago", from Testudo's own time when it gave one. */
+/** "Seats as of 2 minutes ago", from Testudo's own time when it gave one. */
 export function SeatsFreshness({ termId }: { termId: TermId }) {
   const fresh = useSeatsFreshness(termId);
   if (!fresh.text) return null;

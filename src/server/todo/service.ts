@@ -1,5 +1,5 @@
 // Terpsicle Todo's JSON routes (docs/V3.md §3.8), registered in
-// src/server/api/router.ts, all `auth: "user"`:
+// ./api-routes.ts, all `auth: "user"`:
 //
 //   todo/connect      checks, fetches and stores an ELMS feed link
 //   todo/disconnect   deletes the link and everything from it

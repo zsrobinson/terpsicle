@@ -2,7 +2,7 @@
 // with a reason (and maybe stop their author), and undo (DESIGN §5: undo
 // instead of confirmation dialogs).
 // Items carry no author, so the admin view can't show one. The routes are
-// `auth: "admin"` in src/server/api/router.ts (identity's session check).
+// `auth: "admin"` in ./api-routes.ts (identity's session check).
 import { authorStopUntil } from "~/core/moderation";
 import type {
   ModerationReason,

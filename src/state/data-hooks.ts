@@ -10,15 +10,15 @@ import type {
   TermId,
   TravelMode,
 } from "~/core/schema";
-import { formatRelative } from "~/core/time";
 import type { CampusMap } from "~/core/travel";
+import { relativeWords } from "~/core/words";
 import { type LoadState, useCatalog } from "./catalog-store";
 import { useReviewNumbers } from "./reviews-store";
 
 // Hooks for published data beyond the term catalog. Each one starts its own
 // load (cached, validated, once per session) and re-renders when it lands.
 
-/** A clock that ticks every `ms`, for relative times ("2 min ago"). */
+/** A clock that ticks every `ms`, for relative times ("2 minutes ago"). */
 export function useNow(ms = 30_000): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -44,7 +44,7 @@ export interface SeatsFreshness {
 }
 
 /**
- * "Seats as of 2 min ago" (SPEC §3.4), from Testudo's as-of time. Archived
+ * "Seats as of 2 minutes ago" (SPEC §3.4), from Testudo's as-of time. Archived
  * terms say their seats stopped updating; when the server can't be reached,
  * "Offline · showing saved data". Never alarming.
  */
@@ -71,7 +71,7 @@ export function useSeatsFreshness(termId: TermId | null): SeatsFreshness {
   }
   return {
     state: "live",
-    text: `Seats as of ${formatRelative(asOf, now)}`,
+    text: `Seats as of ${relativeWords(asOf, now)}`,
     asOf,
   };
 }

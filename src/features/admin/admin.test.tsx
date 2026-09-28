@@ -238,8 +238,8 @@ describe("the queue", () => {
     const health = await findSection("Health");
     expect(await within(health).findByText("132 of 2,000")).toBeVisible();
     expect(within(health).getByText("7% used")).toBeVisible();
-    expect(within(health).getByText("Oldest 4 min")).toBeVisible();
-    expect(within(health).getByText("1 urgent, oldest 3 h")).toBeVisible();
+    expect(within(health).getByText("Oldest 4 minutes")).toBeVisible();
+    expect(within(health).getByText("1 urgent, oldest 3 hours")).toBeVisible();
 
     const cards = await screen.findAllByRole("article");
     expect(cards).toHaveLength(2);
@@ -250,7 +250,7 @@ describe("the queue", () => {
     expect(within(urgent).getByRole("button", { name: /Allow/ })).toBeVisible();
 
     expect(within(review).getByText("Review in CMSC351")).toBeVisible();
-    expect(within(review).getByText("waiting 3 h")).toBeVisible();
+    expect(within(review).getByText("waiting 3 hours")).toBeVisible();
     // The words the rule matched are marked.
     expect(review.querySelector("mark")?.textContent).toBe("ta@example.com");
     expect(within(review).getByText("An email address")).toBeVisible();
@@ -620,7 +620,7 @@ describe("the queue", () => {
       expect.anything(),
     );
     expect(within(card).getByText("Removed: Personal info")).toBeVisible();
-    expect(within(card).getByText("decided 30 min ago")).toBeVisible();
+    expect(within(card).getByText("decided 30 minutes ago")).toBeVisible();
     await user.click(within(card).getByRole("button", { name: /Undo/ }));
     expect(client.undo).toHaveBeenCalledWith({ id: decided.id });
 

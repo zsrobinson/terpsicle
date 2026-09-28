@@ -5,6 +5,7 @@ import type {
   FourYearTemplate,
   FourYearTemplateEntry,
 } from "../schema/four-year";
+import { listWords } from "../words";
 import type { FourYearCourses } from "./course-lookup";
 import { FULL_TIME_CREDITS } from "./credits";
 import type {
@@ -93,9 +94,7 @@ export function templateCredits(
 }
 
 function listTerms(terms: readonly TermId[]): string {
-  const labels = terms.map(fourYearTermLabel);
-  if (labels.length <= 2) return labels.join(" and ");
-  return `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
+  return listWords(terms.map(fourYearTermLabel));
 }
 
 /** "Fills 6 empty semesters. Fall 2026 and Spring 2027 have courses, so they stay as they are." */

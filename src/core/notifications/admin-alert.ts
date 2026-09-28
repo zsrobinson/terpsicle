@@ -6,7 +6,7 @@
 // seat group's list is.
 import { URGENT_CODES } from "../moderation/decide";
 import type { ModerationKind, ModerationReason } from "../schema/moderation";
-import { listWords } from "./list-words";
+import { listWords } from "../words";
 
 /** Why an item is urgent, most serious first. */
 export const HELD_REASONS = [
@@ -118,7 +118,7 @@ export function heldWords(items: readonly HeldItem[]): {
       title: `Held for you: ${REASON_WORDS[only]} in ${whereWords(items)}`,
       body:
         courses.length > 1
-          ? `${listWords(courses)}. Open the queue to decide.`
+          ? `${listWords(courses, 3)}. Open the queue to decide.`
           : "Open the queue to decide.",
     };
   }

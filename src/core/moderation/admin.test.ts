@@ -192,16 +192,17 @@ describe("suggestedRemoveReason", () => {
 describe("waitedFor", () => {
   const ago = (ms: number) => new Date(NOW.getTime() - ms).toISOString();
 
-  it("says how long in the largest unit that reads well", () => {
-    expect(waitedFor(ago(20_000), NOW)).toBe("just now");
-    expect(waitedFor(ago(12 * 60_000), NOW)).toBe("12 min");
-    expect(waitedFor(ago(3 * 3_600_000), NOW)).toBe("3 h");
-    expect(waitedFor(ago(47 * 3_600_000), NOW)).toBe("47 h");
+  it("says how long in whole words, in its largest unit", () => {
+    expect(waitedFor(ago(20_000), NOW)).toBe("less than a minute");
+    expect(waitedFor(ago(60_000), NOW)).toBe("1 minute");
+    expect(waitedFor(ago(12 * 60_000), NOW)).toBe("12 minutes");
+    expect(waitedFor(ago(3 * 3_600_000), NOW)).toBe("3 hours");
+    expect(waitedFor(ago(47 * 3_600_000), NOW)).toBe("1 day");
     expect(waitedFor(ago(5 * 86_400_000), NOW)).toBe("5 days");
   });
 
   it("never goes negative on a clock that's slightly behind", () => {
-    expect(waitedFor(ago(-60_000), NOW)).toBe("just now");
+    expect(waitedFor(ago(-60_000), NOW)).toBe("less than a minute");
   });
 });
 

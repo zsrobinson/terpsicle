@@ -7,6 +7,7 @@ import type {
 } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatDays, formatTimeRange } from "~/core/time";
 import type { TravelMath } from "~/core/travel";
+import { listWords } from "~/core/words";
 
 // How travel numbers read in the Travel tab and connection details.
 
@@ -50,9 +51,7 @@ export function verdictShort(connection: Connection): string {
 
 /** "Mon", "Mon and Wed", "Mon, Wed and Fri". */
 export function daysInWords(days: readonly Day[]): string {
-  const names = days.map((d) => DAY_SHORT_NAMES[d]);
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return listWords(days.map((d) => DAY_SHORT_NAMES[d]));
 }
 
 /**

@@ -1,9 +1,11 @@
 import type { InboxItem, InboxProduct } from "../schema/notifications";
 import { campusDate } from "../time/format";
+import { relativeWords } from "../words";
 
 // The words and order of the bell and its list (docs/V2.md §6.7): the
 // bell's count, the days the list is grouped by, and each row's meta line
-// ("Chat · 2m"). Times are College Park's, as in Chat; `now` is passed in.
+// ("Chat · 2 minutes ago"). Times are College Park's, as in Chat; `now` is
+// passed in.
 
 /** Each item's product, as its meta line names it. */
 export const INBOX_PRODUCT_WORDS: Record<InboxProduct, string> = {
@@ -62,42 +64,15 @@ export function inboxDays<T extends Pick<InboxItem, "createdAt">>(
   return days.filter((d) => d.items.length > 0);
 }
 
-const CLOCK = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/New_York",
-  hour: "numeric",
-  minute: "2-digit",
-});
-const SHORT_DATE = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/New_York",
-  month: "short",
-  day: "numeric",
-});
-
 /**
- * When, as short as it can be: "now" and "2m" in the last hour, then the
- * time ("6:01pm") today and yesterday (the day is the group's), then the
- * date ("Sep 24").
+ * A row's meta line: its product and when, in the words every product's
+ * times use (`relativeWords`): "Chat · 2 minutes ago", "Todo · yesterday".
  */
-export function inboxWhen(createdAt: string, now: string): string {
-  const minutes = Math.floor(
-    (Date.parse(now) - Date.parse(createdAt)) / 60_000,
-  );
-  if (Number.isNaN(minutes)) return "";
-  if (minutes < 1) return "now";
-  if (minutes < 60 && inboxDay(createdAt, now) === "Today")
-    return `${minutes}m`;
-  if (inboxDay(createdAt, now) !== "Earlier")
-    // Some ICUs put a narrow no-break space before "PM".
-    return CLOCK.format(new Date(createdAt)).replace(/\s/gu, "").toLowerCase();
-  return SHORT_DATE.format(new Date(createdAt));
-}
-
-/** A row's meta line: its product and when, "Chat · 2m". */
 export function inboxMeta(
   item: Pick<InboxItem, "product" | "createdAt">,
   now: string,
 ): string {
-  return `${INBOX_PRODUCT_WORDS[item.product]} · ${inboxWhen(item.createdAt, now)}`;
+  return `${INBOX_PRODUCT_WORDS[item.product]} · ${relativeWords(item.createdAt, now)}`;
 }
 
 /** The list with `ids` (or, with none, everything) read at `at`. */

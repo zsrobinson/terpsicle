@@ -1,7 +1,7 @@
 // How other routes learn who's asking (docs/AUTH.md, "Using identity in
 // other routes"). Two ways:
 //
-// 1. JSON routes in src/server/api/router.ts declare `auth: "user"` or
+// 1. JSON routes (src/server/<area>/api-routes.ts) declare `auth: "user"` or
 //    `auth: "admin"`; the router checks the origin and session and hands the
 //    handler `ctx.session.user`. Prefer this. `auth: "optional"` checks the
 //    origin and hands over the session when there is one, never a 401.

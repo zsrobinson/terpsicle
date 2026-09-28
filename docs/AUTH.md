@@ -17,7 +17,7 @@ How Terpsicle knows who someone is. The plan is `docs/V2.md` §4; this is how th
 | The Google flow (`GET /api/auth/google`, `…/callback`) | `src/server/auth/flow.ts`, `google.ts`, `pkce.ts`, `cookies.ts` |
 | Sessions, `getSession` | `src/server/auth/session.ts` |
 | `requireUser`, `requireAdmin`, the origin check | `src/server/auth/guard.ts` |
-| `me`, `auth/sign-out`, `account/delete`, `auth/test-sign-in` | `src/server/auth/api.ts`, registered in `src/server/api/router.ts` |
+| `me`, `auth/sign-out`, `account/delete`, `auth/test-sign-in` | `src/server/auth/api.ts`, registered in `src/server/auth/api-routes.ts` |
 | The old pictures' cleanup (R2 `avatars/`) | `src/server/auth/legacy-pictures.ts` |
 | Admins | `config/admins.txt`, read by `src/server/auth/admin.ts` |
 | The account purge | `src/server/auth/purge.ts` (`PURGE_LEDGER` lists every table), run by `src/jobs/daily.ts` (`7 13 * * *`) |
@@ -126,13 +126,12 @@ GOOGLE_REDIRECT_ORIGINS=http://localhost:3000
 
 Chat, reviews, sync and admin build on this. **Only the route table's `auth` field and `src/server/auth` read the session cookie** (CLAUDE.md).
 
-**JSON routes** (`POST /api/<name>` in `src/server/api/router.ts`): declare `auth`, and the router does the rest.
+**JSON routes** (`POST /api/<name>`, in the area's `src/server/<area>/api-routes.ts`): declare `auth`, and the router does the rest.
 
 ```ts
 "sync/push": route({
   input: SyncPushInputSchema,
   perIpPerHour: 1_200,
-  alerts: false,
   auth: "user", // or "admin"
   handle: async (env, input, ctx) => {
     // The router guarantees a session for "user" and "admin" routes.
