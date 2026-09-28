@@ -8,7 +8,7 @@ import type * as React from "react";
 // into its shadow, the way a key goes down. Ghost and link buttons stay flat,
 // so a row of icon buttons doesn't turn into a row of boxes.
 const PRESS =
-  "active:translate-x-(--offset) active:translate-y-(--offset) active:shadow-none";
+  "active:translate-x-(--ink-offset) active:translate-y-(--ink-offset) active:shadow-none";
 
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap font-semibold transition-colors focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
