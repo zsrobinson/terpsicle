@@ -296,7 +296,7 @@ function SortMenu({
             aria-label={`Sort: ${SORT_NAMES[sort]}`}
             className="-mr-1.5 flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
           >
-            {SORT_NAMES[sort]}
+            Sort: {SORT_NAMES[sort]}
             <ChevronDown size={10} aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
