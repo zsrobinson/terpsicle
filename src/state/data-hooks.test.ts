@@ -1,4 +1,6 @@
+import { onlineManager, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   archivedFixtureTermId,
@@ -11,8 +13,12 @@ import {
   useAcademicCalendar,
   useCampus,
   useInstructors,
+  useLoadedPlanetTerp,
   useRouteGeometry,
 } from "./data-hooks";
+import { DataError, type DataSource } from "./data-source";
+import { connectPublished } from "./query/published";
+import { createTestQueryClient } from "./query/testing";
 import { loadStores } from "./testing";
 
 // The data hooks beyond the term catalog, against the fixtures' mock bucket
@@ -44,7 +50,11 @@ describe("useInstructors", () => {
 
   it("is idle without a department", () => {
     const { result } = renderHook(() => useInstructors(null));
-    expect(result.current).toEqual({ data: null, state: "idle", source: null });
+    expect(result.current).toMatchObject({
+      data: null,
+      state: "idle",
+      source: null,
+    });
   });
 });
 
@@ -87,5 +97,67 @@ describe("useRouteGeometry", () => {
     );
     await waitFor(() => expect(result.current.state).toBe("error"));
     expect(result.current.geometry).toBeNull();
+  });
+});
+
+describe("reading without loading", () => {
+  it("useCampus(false) and useLoadedPlanetTerp read only what something else loaded", async () => {
+    const client = createTestQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    const dept = mockPlanetTerpDepts[0]?.dept ?? "CMSC";
+    const readers = renderHook(
+      () => ({ campus: useCampus(false), planetTerp: useLoadedPlanetTerp() }),
+      { wrapper },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(client.isFetching()).toBe(0);
+    expect(readers.result.current.campus.state).toBe("idle");
+    expect(readers.result.current.planetTerp.size).toBe(0);
+
+    // Something on screen loads them (the shell, a course's details).
+    const loaders = renderHook(
+      () => ({ campus: useCampus(), instructors: useInstructors(dept) }),
+      { wrapper },
+    );
+    await waitFor(() => {
+      expect(loaders.result.current.campus.state).toBe("ready");
+      expect(loaders.result.current.instructors.state).toBe("ready");
+    });
+    await waitFor(() =>
+      expect(readers.result.current.planetTerp.get(dept)?.dept).toBe(dept),
+    );
+    expect(readers.result.current.campus.campus.routes).not.toBeNull();
+  });
+});
+
+describe("offline with nothing saved", () => {
+  it("says the file failed instead of loading until the connection's back", async () => {
+    const offline: DataSource = {
+      kind: "mock",
+      readJson: async (key) => {
+        throw new DataError(key, "network", "offline");
+      },
+      readBinary: async (key) => {
+        throw new DataError(key, "network", "offline");
+      },
+    };
+    connectPublished(offline);
+    onlineManager.setOnline(false);
+    try {
+      // The factories' own retry policy, not the test client's.
+      const { result } = renderHook(() => ({
+        instructors: useInstructors("CMSC"),
+        calendar: useAcademicCalendar(fixtureTermId),
+        campus: useCampus(),
+      }));
+      await waitFor(() => {
+        expect(result.current.instructors.state).toBe("error");
+        expect(result.current.calendar.state).toBe("error");
+        expect(result.current.campus.state).toBe("error");
+      });
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 });

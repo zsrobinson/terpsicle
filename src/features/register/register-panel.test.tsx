@@ -1,6 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { calendarKey } from "~/core/schema";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
@@ -9,10 +10,11 @@ import {
 import { renderPlanTab } from "~/features/courses/testing";
 import { switchSection } from "~/features/schedule/actions";
 import type { ShellRoutes } from "~/features/schedule/test-utils";
-import { aMeUser, aSeatWatch, fixtureTermId } from "~/fixtures";
+import { aMeUser, aSeatWatch, fixtureTermId, mockDataSource } from "~/fixtures";
 import { track } from "~/lib/analytics";
-import { useCatalog } from "~/state/catalog-store";
+import { createBucketDataSource, DataError } from "~/state/data-source";
 import { activePlanId } from "~/state/plan-ops";
+import { connectPublished } from "~/state/query/published";
 import { useWorkspace } from "~/state/workspace-store";
 import { RegisterPanel } from "./register-panel";
 
@@ -193,27 +195,40 @@ describe("Register tab", () => {
   });
 
   it("says when the term's dates didn't load, and Try again loads them", async () => {
-    const { user } = await renderPlanTab([panels], "register");
+    const { user, queryClient } = await renderPlanTab([panels], "register");
     const button = await screen.findByRole("button", {
       name: /Add to your calendar/,
     });
     await waitFor(() =>
       expect(button).not.toHaveAttribute("aria-disabled", "true"),
     );
-    const ensure = vi
-      .spyOn(useCatalog.getState(), "ensureCalendar")
-      .mockResolvedValue();
+    // The term's calendar, out of reach: the connection dropped.
+    const bucket = createBucketDataSource(mockDataSource);
+    let down = true;
     act(() =>
-      useCatalog.setState((s) => ({
-        calendars: {},
-        calendarsState: { ...s.calendarsState, [fixtureTermId]: "error" },
-      })),
+      connectPublished({
+        ...bucket,
+        readJson: async (key, options) => {
+          if (key === calendarKey(fixtureTermId) && down)
+            throw new DataError(key, "network", "offline");
+          return bucket.readJson(key, options);
+        },
+      }),
+    );
+    await act(() =>
+      queryClient.resetQueries({
+        predicate: (q) => q.queryKey[2] === calendarKey(fixtureTermId),
+      }),
     );
     expect(
-      screen.getByText(/Couldn't load the term's dates/),
+      await screen.findByText(/Couldn't load the term's dates/),
     ).toBeInTheDocument();
+    down = false;
     await user.click(screen.getByRole("button", { name: "Try again" }));
-    expect(ensure).toHaveBeenCalledWith(fixtureTermId);
+    await waitFor(() =>
+      expect(screen.queryByText(/Couldn't load the term's dates/)).toBeNull(),
+    );
+    expect(button).not.toHaveAttribute("aria-disabled", "true");
   });
 
   describe("watching for a seat", () => {

@@ -11,7 +11,7 @@ import {
 import type { TermId } from "~/core/schema";
 import { WatchingList } from "~/features/alerts/watching-list";
 import { DraftLine, PlanHeading } from "~/features/courses/main-plan-line";
-import { useCatalog } from "~/state/catalog-store";
+
 import { useAcademicCalendar } from "~/state/data-hooks";
 import {
   useActiveTerm,
@@ -130,7 +130,7 @@ export function RegisterPanel() {
           <InlineError
             className="px-4"
             message="Couldn't load the term's dates, so there's no calendar file yet. Check your connection and try again."
-            onRetry={() => void useCatalog.getState().ensureCalendar(termId)}
+            onRetry={calendar.retry}
             retryTooltip="Load the term's dates again"
           />
         ) : null}

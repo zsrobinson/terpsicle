@@ -5,7 +5,7 @@ import { currentView } from "~/features/schedule/schedule-nav";
 import type { ShellRoutes } from "~/features/schedule/test-utils";
 import { aPlan, fixtureTermId, mockSection, snapshotOf } from "~/fixtures";
 import { track } from "~/lib/analytics";
-import { useCatalog } from "~/state/catalog-store";
+import { loadCampus } from "~/state/testing";
 import { useWorkspace } from "~/state/workspace-store";
 import { ConnectionDetails } from "./connection-details";
 import { useTravelSettingsOpen } from "./settings-store";
@@ -22,7 +22,7 @@ const panels: ShellRoutes = {
 async function renderTravel(options?: { demo?: boolean }) {
   const view = await renderPlanTab([panels], "travel", options);
   await act(async () => {
-    await useCatalog.getState().ensureCampus();
+    await loadCampus(view.queryClient);
   });
   return view;
 }

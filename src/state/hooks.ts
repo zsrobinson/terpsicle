@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   buildCatalogIndex,
   type CatalogIndex,
@@ -40,6 +40,7 @@ import type {
 import { sharedViewPlan } from "~/core/share";
 import { type CampusMap, planConnections } from "~/core/travel";
 import { type TermCatalog, useCatalog } from "./catalog-store";
+import { useAcademicCalendars, useCampus } from "./data-hooks";
 import { activePlanId, plansInTerm } from "./plan-ops";
 import { useWatchedSections } from "./seat-watches";
 import { useShare } from "./share-store";
@@ -116,23 +117,13 @@ function newYorkToday(): IsoDate {
  */
 export function useTermTags(): TermTags {
   const terms = useCatalog((s) => s.terms);
-  const calendars = useCatalog((s) => s.calendars);
   const today = newYorkToday();
   const wanted = termTagCandidates(today)
     .filter((id) => terms?.some((t) => t.id === id))
     .join(",");
-  useEffect(() => {
-    const { ensureCalendar } = useCatalog.getState();
-    for (const id of wanted ? wanted.split(",") : []) void ensureCalendar(id);
-  }, [wanted]);
-  return useMemo(
-    () =>
-      termTags(
-        today,
-        Object.values(calendars).filter((c) => c !== undefined),
-      ),
-    [today, calendars],
-  );
+  const ids = useMemo(() => (wanted ? wanted.split(",") : []), [wanted]);
+  const calendars = useAcademicCalendars(ids);
+  return useMemo(() => termTags(today, calendars), [today, calendars]);
 }
 
 /** The id of the person's open plan in a term. */
@@ -318,7 +309,8 @@ const NO_SECTIONS: readonly SectionRef[] = [];
 /** Travel settings and the campus map, for anything computing travel. */
 export function useTravel(): { travel: TravelSettings; campus: CampusMap } {
   const travel = useWorkspace((s) => s.travel);
-  const campus = useCatalog((s) => s.campus);
+  // Read only: the scheduler loads it once the plan has a placed section.
+  const { campus } = useCampus(false);
   return useMemo(() => ({ travel, campus }), [travel, campus]);
 }
 

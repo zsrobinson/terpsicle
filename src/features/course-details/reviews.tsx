@@ -24,8 +24,12 @@ import { AiSparkles } from "~/features/ai/ai-sparkles";
 import { useAiFeatures } from "~/features/ai/use-ai-features";
 import { useAccount } from "~/features/auth/account-store";
 import { crossLinkClicked, viewWords } from "~/lib/cross-link";
-import { deptOf, useCatalog } from "~/state/catalog-store";
-import { usePlanetTerpStatus, useTerpsicleReviews } from "~/state/data-hooks";
+import { deptOf } from "~/state/catalog-store";
+import {
+  useInstructors,
+  usePlanetTerpStatus,
+  useTerpsicleReviews,
+} from "~/state/data-hooks";
 import { terpsicleInstructor } from "~/state/query/review-numbers";
 import { InlineError } from "~/ui/inline-error";
 import { Skeleton } from "~/ui/skeleton";
@@ -177,6 +181,8 @@ export function InstructorReviews({
 }) {
   const pt = instructorFor(planetTerp, name);
   const grades = courseGrades(planetTerp, course, pt);
+  // The same query course details loaded it with: Try again asks it again.
+  const { retry } = useInstructors(deptOf(course.code));
   // Mounted only while open, so the summary is asked for on open (SPEC §4),
   // and never while AI features are off: then the review count shows, as
   // when there's no summary.
@@ -203,9 +209,7 @@ export function InstructorReviews({
         <InlineError
           className="py-0"
           message="Couldn't load reviews from PlanetTerp. Check your connection and try again."
-          onRetry={() =>
-            void useCatalog.getState().ensureInstructors(deptOf(course.code))
-          }
+          onRetry={retry}
           retryTooltip="Load PlanetTerp's reviews again"
         />
       ) : !pt ? (

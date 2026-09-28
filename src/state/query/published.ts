@@ -8,7 +8,7 @@ import {
   queryOptions,
   skipToken,
 } from "@tanstack/react-query";
-import type { z } from "zod";
+import { z } from "zod";
 import { create } from "zustand";
 import type { SchemaFamily } from "~/core/schema";
 import { DataError, type DataSource, readParsed } from "../data-source";
@@ -179,6 +179,40 @@ export function publishedFile<S extends z.ZodType>(
   });
 }
 
+/** A listed file's `fileSchema` for bytes rather than JSON (the routes binary). */
+export const BINARY = z.instanceof(ArrayBuffer);
+
+/** A content-hashed binary file (the routes matrix): as `publishedFile`, read as bytes. */
+export function publishedBinary(
+  source: DataSource | null,
+  key: string,
+  family: SchemaFamily,
+) {
+  return published(source, key, BINARY, family, {
+    staleTime: Number.POSITIVE_INFINITY,
+    checkOnRestore: false,
+    load: (s) => s.readBinary(key),
+  });
+}
+
+/**
+ * A fixed-name file with nothing hashed behind it (a term's academic
+ * calendar): shown from disk at once, checked once per page and again once
+ * stale. Unlike a pointer it lists nothing, so it prunes nothing.
+ */
+export function publishedFixed<S extends z.ZodType>(
+  source: DataSource | null,
+  key: string,
+  schema: S,
+  family: SchemaFamily,
+  staleTime: number,
+) {
+  return published(source, key, schema, family, {
+    staleTime,
+    checkOnRestore: true,
+  });
+}
+
 /**
  * A fixed-name pointer (a manifest): checked once per page, and again once
  * stale (on the next use, focus or reconnect). `lists` names the hashed
@@ -231,8 +265,12 @@ async function refreshSaved(
   const files = publishedPersister(family);
   await Promise.all(
     changed.map(async (k) => {
-      const file = publishedFile(source, k, fileSchema(k), family);
-      await client.fetchQuery(file);
+      const schema = fileSchema(k);
+      const file =
+        schema === BINARY
+          ? publishedBinary(source, k, family)
+          : publishedFile(source, k, schema, family);
+      await client.fetchQuery(file as ReturnType<typeof publishedFile>);
       await files.persistQueryByKey(file.queryKey, client);
     }),
   );

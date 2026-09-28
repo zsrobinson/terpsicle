@@ -9,7 +9,7 @@ import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { useReadCourseNotifications } from "~/features/notifications/read-here";
 import { useDrillEntry } from "~/features/schedule/drill-entry";
 import { track } from "~/lib/analytics";
-import { deptOf, useCatalog } from "~/state/catalog-store";
+import { deptOf } from "~/state/catalog-store";
 import { useCourseDept, useInstructors } from "~/state/data-hooks";
 import {
   type CurrentPlan,
@@ -193,9 +193,7 @@ function Details({
             planetTerp={planetTerp.data}
             loading={ptLoading}
             failed={planetTerp.state === "error"}
-            onRetry={() =>
-              void useCatalog.getState().ensureInstructors(deptOf(course.code))
-            }
+            onRetry={planetTerp.retry}
           />
         </div>
       </section>

@@ -27,6 +27,7 @@ import { useCatalog } from "~/state/catalog-store";
 import {
   createBucketDataSource,
   createDataReader,
+  DataError,
   type DataSource,
 } from "~/state/data-source";
 import { connectPublished } from "~/state/query/published";
@@ -64,6 +65,14 @@ async function renderDetails(
       : openCourse(courseCode),
   );
   await screen.findByTestId("sections");
+  // PlanetTerp's file and the rest of what details asked for, in: each
+  // query starts once the one before it (a manifest) has landed.
+  for (let i = 0; i < 3; i++) {
+    await waitFor(() => expect(view.queryClient.isFetching()).toBe(0), {
+      timeout: 5_000,
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  }
   return view;
 }
 
@@ -757,27 +766,49 @@ describe("Course details", () => {
     });
 
     it("say the file didn't load, rather than that PlanetTerp has nothing", async () => {
-      const { user } = await renderDetails("CMSC351", "instructors");
+      const { user, queryClient } = await renderDetails(
+        "CMSC351",
+        "instructors",
+      );
       await findReviews("Jada Abernathy");
+      // CMSC's PlanetTerp file, out of reach: the connection dropped.
+      const bucket = createBucketDataSource(mockDataSource);
+      let down = true;
+      const reads: string[] = [];
       act(() =>
-        useCatalog.setState((s) => ({
-          instructors: {},
-          instructorsState: { ...s.instructorsState, CMSC: "error" },
-        })),
+        connectPublished({
+          ...bucket,
+          readJson: async (key, options) => {
+            if (key.startsWith("planetterp/dept/CMSC.")) {
+              reads.push(key);
+              if (down) throw new DataError(key, "network", "offline");
+            }
+            return bucket.readJson(key, options);
+          },
+        }),
+      );
+      await act(() =>
+        queryClient.resetQueries({
+          predicate: (q) =>
+            String(q.queryKey[2]).startsWith("planetterp/dept/CMSC."),
+        }),
       );
       const jada = await findReviews("Jada Abernathy");
-      expect(jada).toHaveTextContent("Couldn't load reviews from PlanetTerp");
+      await waitFor(() =>
+        expect(jada).toHaveTextContent("Couldn't load reviews from PlanetTerp"),
+      );
       expect(jada).not.toHaveTextContent("nothing on this instructor");
       expect(screen.getByTestId("grades")).toHaveTextContent(
         "Couldn't load grades from PlanetTerp",
       );
       // Try again asks for the department's file again, in place.
-      const ensure = vi
-        .spyOn(useCatalog.getState(), "ensureInstructors")
-        .mockResolvedValue();
+      down = false;
+      const before = reads.length;
       await user.click(within(jada).getByRole("button", { name: "Try again" }));
-      expect(ensure).toHaveBeenCalledWith("CMSC");
-      ensure.mockRestore();
+      await waitFor(() =>
+        expect(jada).not.toHaveTextContent("Couldn't load reviews"),
+      );
+      expect(reads.length).toBeGreaterThan(before);
     });
   });
 
