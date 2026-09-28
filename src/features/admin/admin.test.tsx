@@ -197,6 +197,7 @@ describe("the admin gate", () => {
     expect(
       await screen.findByRole("heading", { name: "Page not found" }),
     ).toBeInTheDocument();
+    expect(document.title).toBe("Page not found · Terpsicle");
     expect(screen.queryByText("the panel")).toBeNull();
   });
 
