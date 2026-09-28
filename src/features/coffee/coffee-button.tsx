@@ -48,9 +48,11 @@ export const CoffeeHeart = createLucideIcon("coffee-heart", [
  */
 export function CoffeeButton({
   labelFrom2xl = false,
+  className,
 }: {
   /** As Feedback's: its label shows from 1536px, so it's 32px below that. */
   labelFrom2xl?: boolean;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -72,6 +74,7 @@ export function CoffeeButton({
               labelFrom2xl ? "size-7 max-2xl:size-8" : "size-7",
               // Phones (MOBILE_QUERY) before the page's code knows it's one.
               "max-[769px]:hidden",
+              className,
             )}
           >
             <CoffeeHeart size={16} aria-hidden="true" />
@@ -101,10 +104,10 @@ export function CoffeeButton({
   );
 }
 
-/** The account menu's item, on a phone bar with no room for the button. */
-export function CoffeeMenuItem() {
+/** The account menu's item, on a bar with no room for the button. */
+export function CoffeeMenuItem({ className }: { className?: string }) {
   return (
-    <DropdownMenuItem asChild>
+    <DropdownMenuItem asChild className={className}>
       <a
         href={COFFEE_URL}
         target="_blank"

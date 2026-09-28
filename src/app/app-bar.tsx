@@ -75,7 +75,11 @@ export function AppBar({
   compact?: boolean;
   /** The bar holds the page's h1 (the scheduler has no page title). */
   heading?: boolean;
-  /** Its context fills the bar below 1536px (the scheduler's term and plans): Feedback shows just its icon there. */
+  /**
+   * Its context fills the bar below 1536px (the scheduler's term and plans):
+   * Feedback shows just its icon there, and below 1280px the Early access
+   * chip gives way and the coffee button moves into the account menu.
+   */
   crowdedBelow2xl?: boolean;
 }) {
   // Phones: where the bar also carries the product's context (the scheduler,
@@ -89,6 +93,9 @@ export function AppBar({
   // A phone's bar has no room for another icon beside Feedback and the
   // account: the coffee link is always in the account menu there.
   const coffeeInMenu = (compact || mobile) && feedback !== null;
+  // A crowded bar at 1100–1279px needs the room for its plans (e2e/shell's
+  // "at 1100px" test): the chip hides and the coffee link moves to the menu.
+  const roomBelowXl = crowdedBelow2xl && !coffeeInMenu;
   const bellShown = useBellShown();
   const unreadNote = useUnreadNote();
   const Brand = heading ? "h1" : "div";
@@ -114,7 +121,9 @@ export function AppBar({
               </a>
             </WithTooltip>
           </Brand>
-          <EarlyAccessChip />
+          <EarlyAccessChip
+            className={roomBelowXl ? "max-xl:hidden" : undefined}
+          />
           <ProductTabs current={current} />
         </div>
       )}
@@ -150,7 +159,10 @@ export function AppBar({
         {status}
         <NotificationsBell showButton={!crowded} />
         {feedback && !coffeeInMenu ? (
-          <CoffeeButton labelFrom2xl={crowdedBelow2xl} />
+          <CoffeeButton
+            labelFrom2xl={crowdedBelow2xl}
+            className={roomBelowXl ? "max-xl:hidden" : undefined}
+          />
         ) : null}
         {feedback ? (
           <FeedbackButton
@@ -167,7 +179,13 @@ export function AppBar({
           items={
             <MenuItems
               feedback={feedbackInMenu}
-              coffee={coffeeInMenu}
+              coffee={
+                coffeeInMenu
+                  ? "always"
+                  : roomBelowXl && feedback !== null
+                    ? "below-xl"
+                    : "never"
+              }
               bell={crowded && bellShown}
             />
           }
@@ -209,13 +227,17 @@ function MenuItems({
   bell,
 }: {
   feedback: boolean;
-  coffee: boolean;
+  /** "below-xl": only where the bar hides its coffee button (CSS). */
+  coffee: "always" | "below-xl" | "never";
   bell: boolean;
 }) {
-  if (!feedback && !coffee && !bell) return null;
+  if (!feedback && coffee === "never" && !bell) return null;
+  const onlyBelowXl = !feedback && !bell && coffee === "below-xl";
   return (
     <>
-      <DropdownMenuSeparator />
+      <DropdownMenuSeparator
+        className={onlyBelowXl ? "xl:hidden" : undefined}
+      />
       {bell ? <NotificationsMenuItem /> : null}
       {feedback ? (
         <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
@@ -223,7 +245,11 @@ function MenuItems({
           Send feedback
         </DropdownMenuItem>
       ) : null}
-      {coffee ? <CoffeeMenuItem /> : null}
+      {coffee === "never" ? null : (
+        <CoffeeMenuItem
+          className={coffee === "below-xl" ? "xl:hidden" : undefined}
+        />
+      )}
     </>
   );
 }

@@ -37,7 +37,7 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 ## Shared
 
 **Family bar**:
-The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. On phones the coffee button is "Buy me a coffee" in the account menu, and where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
+The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. On phones, and on the scheduler's bar below 1280px (where the Early access chip also gives its room to the plans), the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
 
 **Mark**:
 One of the six pixel drawings on a 9×9 tile: the umbrella (Terpsicle itself, black) and one per product, in its color. The app icons and favicon are the umbrella's tile alone. Code says `Mark`, drawn from `src/app/brand/marks.ts`.
