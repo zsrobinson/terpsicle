@@ -97,6 +97,30 @@ export function setPushAskDeviceForTests(
   turnOn = on;
 }
 
+/** How long a moment waits for its page to mount a place for the card. */
+export const HOST_WAIT_MS = 1500;
+
+/**
+ * Whether a page has a place for `moment`'s card, waiting briefly for one:
+ * a watch started on the way back from signing in can come before the
+ * phone's drawer has mounted course details.
+ */
+function hostFor(moment: PushAskMoment): Promise<boolean> {
+  if (usePushAsk.getState().hosts[moment]) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const stop = usePushAsk.subscribe((state) => {
+      if (!state.hosts[moment]) return;
+      clearTimeout(timer);
+      stop();
+      resolve(true);
+    });
+    const timer = setTimeout(() => {
+      stop();
+      resolve(false);
+    }, HOST_WAIT_MS);
+  });
+}
+
 /**
  * Asks to turn on notifications after `moment`, if its rules allow (at most
  * once a session, not after "Not now", never once they're on here). Signed
@@ -130,7 +154,7 @@ export async function askForPush(
       askedThisSession() || (iphone && wasShownThisSession() !== false),
   });
   if (kind === null) return null;
-  if (kind === "card" && !usePushAsk.getState().hosts[moment]) return null;
+  if (kind === "card" && !(await hostFor(moment))) return null;
   // Something else asked while the browser answered.
   const current = usePushAsk.getState();
   if (current.card !== null || current.sheet !== null) return null;

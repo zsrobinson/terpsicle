@@ -50,7 +50,8 @@ export function PushAskCard({
       <div className="flex gap-2">
         <WithTooltip label="Your browser asks you to allow them">
           <Button
-            className="flex-1"
+            // Halves on a phone, as the design; their own width on a desktop.
+            className="flex-1 md:flex-none"
             disabled={working}
             onClick={() => void turnOnFromAsk()}
           >
@@ -60,7 +61,7 @@ export function PushAskCard({
         <WithTooltip label="Don't ask me for a while">
           <Button
             variant="outline"
-            className="flex-1"
+            className="flex-1 md:flex-none"
             disabled={working}
             onClick={() => dismissPushAsk()}
           >

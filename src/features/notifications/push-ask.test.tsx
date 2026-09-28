@@ -246,6 +246,27 @@ describe("the other moments", () => {
     expect(window.sessionStorage.length).toBe(0);
   });
 
+  it("waits a moment for its page to mount (course details on a phone, after signing in)", async () => {
+    const view = renderPage();
+    let asked: Promise<unknown> = Promise.resolve();
+    act(() => {
+      asked = askForPush("seat-watch", NOW);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    view.rerender(
+      <TooltipProvider delayDuration={0}>
+        <PushAskCard moment="seat-watch" />
+        <PushAskHost />
+      </TooltipProvider>,
+    );
+    await act(async () => {
+      expect(await asked).toBe("card");
+    });
+    expect(
+      screen.getByRole("region", { name: "Hear the moment a seat opens?" }),
+    ).toBeVisible();
+  });
+
   it("lets an unanswered card go with its page: it asked once", async () => {
     const { unmount } = renderPage(<PushAskCard moment="chat-post" />);
     await ask("chat-post");
