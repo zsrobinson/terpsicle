@@ -30,7 +30,7 @@ export function ShareButton({
   note: ReactNode;
   /** After a copy that worked: count it. */
   onCopied?: () => void;
-  /** The icon alone (a phone's canvas bar, where the words would crowd). */
+  /** The icon alone (a phone's canvas bar while a hint shows beside it). */
   iconOnly?: boolean;
   className?: string;
 }) {

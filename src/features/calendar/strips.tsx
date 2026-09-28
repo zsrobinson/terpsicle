@@ -18,6 +18,13 @@ import { dotStyle, tintStyle } from "./tint";
 
 const HINT_CLASS = "@container flex min-w-0 flex-1 items-center gap-2 text-sm";
 
+/**
+ * A hint's words: one line on a computer; up to two on a phone, where the
+ * bar is taller and "Tap one to switch" would otherwise be cut off.
+ */
+const HINT_WORDS =
+  "line-clamp-2 leading-snug md:line-clamp-none md:truncate md:leading-normal";
+
 /** The Search tab before any hover: where the sections will show, and how. */
 export function SearchHint() {
   // A tap opens the result instead of hovering it (#48).
@@ -72,7 +79,7 @@ export function GhostHint({
           style={dotStyle(color)}
         />
       )}
-      <span className="truncate">
+      <span className={HINT_WORDS}>
         {ghost.sectionCount === 0 ? (
           <>
             <span className="ident font-semibold">{ghost.courseCode}</span> has
@@ -134,7 +141,7 @@ export function PreviewHint({
 }) {
   return (
     <div className={HINT_CLASS}>
-      <span className="truncate">
+      <span className={HINT_WORDS}>
         <span className="font-medium">Previewing {label}.</span>{" "}
         <span className="text-muted">
           Outlined classes are changes from {planName}.

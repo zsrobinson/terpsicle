@@ -108,7 +108,7 @@ export function Calendar() {
         startMinute={8 * 60}
         endMinute={17 * 60}
         emptyLabel={EMPTY_WEEK}
-        top={<CanvasBar start={<ScheduleShare iconOnly={mobile} />} />}
+        top={<CanvasBar start={<ScheduleShare />} />}
       />
     );
   const empty = model.columns.every(
@@ -116,6 +116,18 @@ export function Calendar() {
   );
 
   const ghostColor = model.ghost?.color ?? null;
+  const hint = view.previewing ? (
+    <PreviewHint label={view.previewing.label} planName={current.plan.name} />
+  ) : model.ghost && ghostColor ? (
+    <GhostHint
+      ghost={model.ghost}
+      interactive={view.ghostsFromOpenCourse}
+      readOnly={current.readOnly}
+      color={ghostColor}
+    />
+  ) : searching ? (
+    <SearchHint />
+  ) : null;
 
   return (
     <WeekFrame
@@ -126,22 +138,11 @@ export function Calendar() {
       emptyLabel={empty ? EMPTY_WEEK : undefined}
       top={
         <>
-          <CanvasBar start={<ScheduleShare iconOnly={mobile} />}>
-            {view.previewing ? (
-              <PreviewHint
-                label={view.previewing.label}
-                planName={current.plan.name}
-              />
-            ) : model.ghost && ghostColor ? (
-              <GhostHint
-                ghost={model.ghost}
-                interactive={view.ghostsFromOpenCourse}
-                readOnly={current.readOnly}
-                color={ghostColor}
-              />
-            ) : searching ? (
-              <SearchHint />
-            ) : null}
+          {/* On a phone, Share gives its words up to a hint. */}
+          <CanvasBar
+            start={<ScheduleShare iconOnly={mobile && hint !== null} />}
+          >
+            {hint}
           </CanvasBar>
           <UntimedStrip sections={model.untimed} onOpen={openCourse} />
         </>

@@ -300,10 +300,7 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
           canvas={
             <>
               {/* Share at the top left, as over the scheduler's calendar. */}
-              <CanvasBar
-                className="sticky top-0 z-10"
-                start={<PlanShare iconOnly={mobile} />}
-              />
+              <CanvasBar className="sticky top-0 z-10" start={<PlanShare />} />
               {mobile ? (
                 <div className="space-y-4 px-4 pt-3 pb-4">
                   <CreditsSummary />

@@ -219,7 +219,7 @@ Registration day's checklist (`/schedule/register`; old `/schedule/export` links
 - Sharing isn't here: it's the Share button over the calendar (§3.11).
 
 ### 3.11 Share and shared links
-- **Share:** an outlined "Share" button at the top left of the calendar, in the canvas bar the calendar's hints share (on phones, the icon alone). It opens a popover right below it: the link in a read-only field, **Copy link** ("Copied link"), and one sentence: the link holds a copy of this plan in the URL itself, so it won't change when you edit the plan later. The plan is encoded in the URL, with no server. Plan has the same button over its semesters (`docs/V3.md` §2.14).
+- **Share:** an outlined "Share" button at the top left of the calendar, in the canvas bar the calendar's hints share (on phones, the icon alone while a hint shows, and the hint takes two lines). It opens a popover right below it: the link in a read-only field, **Copy link** ("Copied link"), and one sentence: the link holds a copy of this plan in the URL itself, so it won't change when you edit the plan later. The plan is encoded in the URL, with no server. Plan has the same button over its semesters (`docs/V3.md` §2.14).
 - Opening a share link shows the shared plan **read-only, in place of your plan tabs**: a light-red rounded pill in the top bar reading "Shared plan · Save a copy · ✕".
 - Nothing about you changes until you click Save a copy. ✕ returns to your plans.
 - There are no names (we don't know who shared it).
