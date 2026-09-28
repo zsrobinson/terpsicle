@@ -13,6 +13,7 @@ import type {
   PolicyLabel,
   QueueItem,
 } from "~/core/schema";
+import { relativeWords } from "~/core/words";
 import { useAccount } from "~/features/auth/account-store";
 import { adminApi } from "~/server/fns/admin-api";
 import { Button } from "~/ui/button";
@@ -321,12 +322,6 @@ function itemTitle(item: QueueItem): string {
     : KIND_WORDS[item.kind];
 }
 
-/** "3 h ago", or "just now". */
-function ago(iso: string, now: Date): string {
-  const waited = waitedFor(iso, now);
-  return waited === "just now" ? waited : `${waited} ago`;
-}
-
 /** "safety check, 82%", "readers, noted only": who found it and how sure. */
 function reasonDetail(r: ModerationReason): string {
   return [
@@ -387,7 +382,7 @@ export function QueueRow({
           </h3>
           <span className="tnum ml-auto text-muted text-sm">
             {item.status === "closed" && item.closedAt
-              ? `decided ${ago(item.closedAt, now)}`
+              ? `decided ${relativeWords(item.closedAt, now)}`
               : `waiting ${waitedFor(item.createdAt, now)}`}
           </span>
         </div>

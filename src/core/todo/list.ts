@@ -14,6 +14,7 @@ import type {
   TodoItem,
 } from "../schema";
 import { formatShortDate, formatTime } from "../time";
+import { relativeWords, spanWords } from "../words";
 import { matchFeedCourse, pickFeedCourse } from "./feed";
 import { DEFAULT_WEEK_START, type WeekStart, weekStartOf } from "./weeks";
 
@@ -275,9 +276,6 @@ export function isHiddenItem(
   return matchFeedCourse(item.courseLabel).some((c) => hidden.has(c.code));
 }
 
-const MINUTE_WORDS = (n: number) => (n === 1 ? "1 minute" : `${n} minutes`);
-const HOUR_WORDS = (n: number) => (n === 1 ? "1 hour" : `${n} hours`);
-
 /**
  * How an item due today reads, from `nowMs`: "Due in 3 hours", "Due in 25
  * minutes", "Due now", or "Due 2 hours ago". Null for anything not due
@@ -292,10 +290,8 @@ export function relativeDue(
 ): string | null {
   if (item.dueAt === null || item.dueDate !== today) return null;
   const diff = Date.parse(item.dueAt) - nowMs;
-  const away = Math.floor(Math.abs(diff) / MINUTE_MS);
-  if (away < 1) return "Due now";
-  const words =
-    away < 60 ? MINUTE_WORDS(away) : HOUR_WORDS(Math.floor(away / 60));
+  if (Math.abs(diff) < MINUTE_MS) return "Due now";
+  const words = spanWords(Math.abs(diff));
   return diff > 0 ? `Due in ${words}` : `Due ${words} ago`;
 }
 
@@ -330,17 +326,6 @@ export function openCount(
   return items.filter((item) => !done.has(item.uid)).length;
 }
 
-/** "just now", "14 min ago", "3 hours ago", "2 days ago". */
-export function agoWords(iso: string, now: number): string {
-  const minutes = Math.max(0, Math.floor((now - Date.parse(iso)) / MINUTE_MS));
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "1 day ago" : `${days} days ago`;
-}
-
 /** The header's second half: when ELMS was last read, and how that went. */
 export function feedWords(
   feed: TodoFeedState | null,
@@ -355,7 +340,7 @@ export function feedWords(
   const checked =
     feed.lastSuccessAt === null
       ? null
-      : `ELMS feed checked ${agoWords(feed.lastSuccessAt, now)}`;
+      : `ELMS feed checked ${relativeWords(feed.lastSuccessAt, now)}`;
   // The last try failed after the last success: the list may be stale.
   const failedLast =
     feed.lastError !== null &&

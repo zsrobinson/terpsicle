@@ -6,7 +6,6 @@ import {
   inboxDay,
   inboxDays,
   inboxMeta,
-  inboxWhen,
   markInboxRead,
 } from "./bell";
 
@@ -54,36 +53,40 @@ describe("days", () => {
 });
 
 describe("the meta line", () => {
-  it("is minutes in the last hour, then the time, then the date", () => {
-    expect(inboxWhen("2026-09-27T22:29:40.000Z", NOW)).toBe("now");
-    expect(inboxWhen("2026-09-27T22:28:00.000Z", NOW)).toBe("2m");
-    expect(inboxWhen("2026-09-27T21:31:00.000Z", NOW)).toBe("59m");
-    expect(inboxWhen("2026-09-27T22:01:00.000Z", NOW)).toBe("29m");
-    expect(inboxWhen("2026-09-27T22:00:00.000Z", NOW)).toBe("30m");
-    expect(inboxWhen("2026-09-27T21:00:00.000Z", NOW)).toBe("5:00pm");
-    expect(inboxWhen("2026-09-27T01:14:00.000Z", NOW)).toBe("9:14pm");
-    expect(inboxWhen("2026-09-24T22:00:00.000Z", NOW)).toBe("Sep 24");
-  });
-
-  it("names the product first", () => {
+  it("names the product, then how long ago in whole words", () => {
     expect(
       inboxMeta(
         { product: "chat", createdAt: "2026-09-27T22:28:00.000Z" },
         NOW,
       ),
-    ).toBe("Chat · 2m");
+    ).toBe("Chat · 2 minutes ago");
     expect(
       inboxMeta(
         { product: "todo", createdAt: "2026-09-27T22:00:00.000Z" },
         "2026-09-27T23:10:00.000Z",
       ),
-    ).toBe("Todo · 6:00pm");
+    ).toBe("Todo · 1 hour ago");
     expect(inboxMeta({ product: "schedule", createdAt: NOW }, NOW)).toBe(
-      "Schedule · now",
+      "Schedule · just now",
     );
     expect(inboxMeta({ product: "admin", createdAt: NOW }, NOW)).toBe(
-      "Admin · now",
+      "Admin · just now",
     );
+  });
+
+  it("goes by College Park's days past a day, then gives the date", () => {
+    expect(
+      inboxMeta(
+        { product: "chat", createdAt: "2026-09-26T14:00:00.000Z" },
+        NOW,
+      ),
+    ).toBe("Chat · yesterday");
+    expect(
+      inboxMeta(
+        { product: "todo", createdAt: "2026-09-20T14:00:00.000Z" },
+        NOW,
+      ),
+    ).toBe("Todo · Sep 20");
   });
 });
 

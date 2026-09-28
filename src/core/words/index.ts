@@ -1,6 +1,9 @@
 // The small phrases every product builds its sentences from: a count with its
-// noun, and a list read aloud. One copy, so "3 courses" and "A, B and C"
-// read the same in Schedule, Reviews, Chat, Plan and Todo (COHESION §1.2).
+// noun, a list read aloud, and how long ago. One copy, so "3 courses", "A, B
+// and C" and "3 hours ago" read the same in Schedule, Reviews, Chat, Plan and
+// Todo (COHESION §1.2).
+
+export { relativeWords, spanWords } from "./relative";
 
 /** "1 course", "4 courses", "1,200 reviews"; `many` for nouns that don't just add an s. */
 export function countWords(n: number, one: string, many = `${one}s`): string {

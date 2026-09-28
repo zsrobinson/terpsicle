@@ -128,7 +128,7 @@ Nobody should have to touch the app when a new semester appears.
 
   Sections that don't fit stay in place, with their label. **Full sections can be added** like any other; the plan then shows the "full" problem, whose fix is to watch for a seat (§3.6).
 - **Many sections** (over 20) add the plan's own section pinned under the Sections bar; "Only fits" appears from 9 sections.
-- **Seat freshness:** "Seats as of 2 min ago" above the Sections bar.
+- **Seat freshness:** "Seats as of 2 minutes ago" above the Sections bar.
 - **Tabs:**
   - **Instructors:** a card per instructor with rating, reviews count, average GPA and % A/B in this course, the LLM review summary with theme tags, and a link to PlanetTerp.
   - **Grades:** a sentence ("64% got an A or B · average GPA 2.93") above **PlanetTerp-style bars**: one bar each for A, B, C, D, F, W and Other. Each letter bar is split into +/plain/− segments, and hovering a segment shows its count and percentage.
@@ -257,6 +257,7 @@ Seat alerts are a signed-in feature (`docs/V2.md` §6.5). The owner calls it **S
 - **Remember** the open tab and drilled-in item between visits (per browser).
 - **Microcopy:** plain words, active voice, specific errors. The review summary is the only place the sparkles icon appears.
 - **AI features can be turned off** (owner, 2026-09-27). "Show AI summaries" in Settings, on by default, local signed out and the account's signed in; each AI box's ⋯ menu has "Hide AI summaries" with Undo. Off, no summary is asked for and nothing shows in its place. Every future sparkles feature goes through `useAiFeatures()` and `AiSparkles` (DESIGN.md §5).
+- **Times in words (owner, 2026-09-28):** a relative time reads "just now", "1 minute ago", "3 hours ago", then by College Park's calendar "yesterday" and "3 days ago", and past six days the date ("Sep 21"; "Dec 30, 2025" in another year), from `relativeWords` in `~/core/words`. A span of time reads "3 hours" (`spanWords`). Whole words everywhere, never "3 hr", "3 h" or "2m". Clock times ("2:14pm") and walking times ("18 min walk") are times of day and distances, not relative times, and keep their own words.
 - **Contractions (v3, owner):** copy uses contractions everywhere, in the app and on marketing pages: "it's", "you'll", "don't", "we'll", "isn't". The product should feel a little personal. Write "Nothing's due tomorrow", not "Nothing is due tomorrow"; "We couldn't read that link", not "The link could not be read".
 
 ---

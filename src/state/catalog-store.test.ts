@@ -530,7 +530,7 @@ describe("seat freshness and polling", () => {
     const { result } = renderHook(() => useSeatsFreshness(ACTIVE));
     expect(result.current).toEqual({
       state: "live",
-      text: "Seats as of 2 min ago",
+      text: "Seats as of 2 minutes ago",
       asOf: "2026-09-25T01:00:00.000Z",
     });
   });

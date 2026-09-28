@@ -14,6 +14,7 @@ import {
   TermIdSchema,
 } from "../schema";
 import type { DecisionCursor, DecisionDay } from "../schema/admin";
+import { spanWords } from "../words";
 import { URGENT_CODES } from "./decide";
 
 /** V2 §9.2: keep the human queue under 5% of what's screened. */
@@ -173,17 +174,12 @@ export function suggestedRemoveReason(
 
 const ACTION_RANK = { flag: 0, hold: 1, remove: 2 } as const;
 
-/** "just now", "12 min", "3 h", "2 days": how long since `iso`. */
+/**
+ * How long something has waited since `iso`, in the words every product's
+ * times use (`spanWords`): "12 minutes", "3 hours", "2 days".
+ */
 export function waitedFor(iso: string, now: Date): string {
-  const minutes = Math.max(
-    0,
-    Math.floor((now.getTime() - new Date(iso).getTime()) / 60_000),
-  );
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours} h`;
-  return `${Math.floor(hours / 24)} days`;
+  return spanWords(now.getTime() - Date.parse(iso));
 }
 
 /**

@@ -135,9 +135,9 @@ describe("Notifications", () => {
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent("Maya in CMSC351");
     expect(rows[0]).toHaveTextContent(mention.body);
-    expect(rows[0]).toHaveTextContent("Chat · 2m");
+    expect(rows[0]).toHaveTextContent("Chat · 2 minutes ago");
     expect(rows[0]).toHaveAttribute("data-unread");
-    expect(rows[1]).toHaveTextContent("Schedule · 4m");
+    expect(rows[1]).toHaveTextContent("Schedule · 4 minutes ago");
     // Read rows are their title and when.
     expect(rows[2]).not.toHaveAttribute("data-unread");
     expect(rows[2]).toHaveTextContent(/^Lab 6 is due tomorrowTodo · /);

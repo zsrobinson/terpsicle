@@ -398,7 +398,7 @@ describe("the week", () => {
     feedback.focus();
     act(() => signedIn());
     expect(
-      await screen.findByText("4 open · ELMS feed checked 14 min ago"),
+      await screen.findByText("4 open · ELMS feed checked 14 minutes ago"),
     ).toBeVisible();
     // The same bar, not a new one: focus stayed where it was.
     expect(feedback.isConnected).toBe(true);
@@ -526,7 +526,7 @@ describe("the week", () => {
       via: "week",
     });
     expect(
-      screen.getByText("3 open · ELMS feed checked 14 min ago"),
+      screen.getByText("3 open · ELMS feed checked 14 minutes ago"),
     ).toBeVisible();
     expect(await screen.findByText("Marked Midterm 1 done")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Undo" }));

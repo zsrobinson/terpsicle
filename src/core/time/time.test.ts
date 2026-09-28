@@ -15,7 +15,6 @@ import {
   sortDays,
   spokenTimeRange,
 } from "./format";
-import { formatRelative } from "./relative";
 import {
   emptyWeekMask,
   isMaskEmpty,
@@ -117,25 +116,6 @@ describe("formatDuration", () => {
     [65, "1 hr 5 min"],
     [-3, "0 min"],
   ])("%i → %s", (m, s) => expect(formatDuration(m)).toBe(s));
-});
-
-describe("formatRelative", () => {
-  const now = "2026-09-25T12:00:00.000Z";
-  it.each([
-    ["2026-09-25T11:59:30.000Z", "just now"],
-    ["2026-09-25T12:00:30.000Z", "just now"],
-    ["2026-09-25T11:58:00.000Z", "2 min ago"],
-    ["2026-09-25T09:00:00.000Z", "3 hr ago"],
-    ["2026-09-24T11:00:00.000Z", "yesterday"],
-    ["2026-09-21T12:00:00.000Z", "4 days ago"],
-  ])("%s → %s", (then, words) => expect(formatRelative(then, now)).toBe(words));
-
-  it("accepts dates and epoch numbers, and is empty for garbage", () => {
-    expect(formatRelative(new Date(now), Date.parse(now) + 120_000)).toBe(
-      "2 min ago",
-    );
-    expect(formatRelative("not a date", now)).toBe("");
-  });
 });
 
 describe("week items", () => {
