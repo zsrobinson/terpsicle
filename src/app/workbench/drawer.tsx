@@ -231,6 +231,8 @@ export function WorkbenchDrawer({
           aria-describedby={undefined}
           onOpenAutoFocus={(event) => event.preventDefault()}
           data-snap={snap}
+          // styles.css lifts toasts above the strip while this is on the page.
+          data-workbench-drawer=""
           // vaul makes the drawer `touch-action: none` so a finger drags it
           // rather than panning the page. That also stopped a pinch zooming
           // the page over it; allow that back. (Safari may not know the
