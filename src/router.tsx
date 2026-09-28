@@ -1,6 +1,8 @@
 import { createRouter, stringifySearchWith } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
+import { createQueryClient } from "~/app/query-client";
 import type { PageRequestContext } from "~/core/routing";
 import { CSP_NONCE_HEADER } from "~/core/schema";
 import { RouteError, RoutePending } from "~/features/site/route-states";
@@ -19,8 +21,11 @@ const cspNonce = createIsomorphicFn()
 // TanStack Start calls this on the server and in the browser.
 export function getRouter() {
   const nonce = cspNonce();
-  return createRouter({
+  // One per server render (never shared between requests) and one per page.
+  const queryClient = createQueryClient();
+  const router = createRouter({
     routeTree,
+    context: { queryClient },
     scrollRestoration: true,
     defaultPreload: "intent",
     // One loading and one failure state for every route (docs/COHESION.md).
@@ -36,6 +41,10 @@ export function getRouter() {
     stringifySearch: stringifySearchWith(JSON.stringify),
     ...(nonce ? { ssr: { nonce } } : {}),
   });
+  // Streams what a server render's queries fetched into the page, hydrates
+  // it in the browser, and wraps the app in QueryClientProvider.
+  setupRouterSsrQueryIntegration({ router, queryClient });
+  return router;
 }
 
 declare module "@tanstack/react-router" {
