@@ -19,8 +19,9 @@ import { compareFourYearTerms } from "../terms";
 
 // The Import tab's check step, pure (docs/V3.md §2.10): what a paste turns
 // into once the person has looked it over. Three fix-ups only: pick the
-// GenEd where Testudo says "or", tick a line in or out, and map AP or
-// transfer credit that has no UMD course. The result is one `import` action.
+// GenEd where Testudo says "or", tick a line in or out, and say what AP,
+// exam or transfer credit with no UMD course counts as. The result is one
+// `import` action.
 
 /** A line the check step shows: one the parser read, or one it left out but can bring back. */
 export type TranscriptRow = {
@@ -40,7 +41,7 @@ export type TranscriptChecks = {
   readonly choices: Readonly<
     Record<string, Readonly<Record<number, GenEdCode>>>
   >;
-  /** Per row, the UMD course AP or transfer credit without one counts as. */
+  /** Per row, the UMD course credit without one counts as ("Counts as"). */
   readonly mappings: Readonly<Record<string, CourseCode>>;
   /** "Keep grades" (V3 §2.5): on unless the person turns it off. */
   readonly keepGrades: boolean;
@@ -112,9 +113,9 @@ export function pendingChoices(
 }
 
 /**
- * The UMD course a row imports as: the line's own (for AP and transfer, the
- * equivalent the transcript names), else the person's mapping, else null for
- * a `credit` entry.
+ * The UMD course a row counts as: the line's own (for AP and transfer, the
+ * equivalent the transcript names), else what the person said it counts
+ * as, else null.
  */
 export function rowCode(
   row: TranscriptRow,
@@ -133,11 +134,6 @@ export function normalizeCourseCode(input: string): CourseCode | null {
 export function fitsEquivalentPattern(code: string, pattern: string): boolean {
   if (!/^[A-Z]{4}[0-9X]{3}$/.test(pattern)) return false;
   return new RegExp(`^${pattern.replace(/X/g, "\\d")}[A-Z]?$`).test(code);
-}
-
-/** "CHEM1XX" → "CHEM 1XX", as Testudo prints it. */
-function patternLabel(pattern: string): string {
-  return `${pattern.slice(0, 4)} ${pattern.slice(4)}`;
 }
 
 /**
@@ -235,7 +231,7 @@ export function buildTranscriptImport(
   for (const row of rows) {
     if (!rowIncluded(row, checks)) continue;
     const { line } = row;
-    const code = rowCode(row, checks);
+    const code = line.code;
     const id = options.newId();
     if (code !== null) {
       entries.push({
@@ -254,17 +250,20 @@ export function buildTranscriptImport(
       if (checks.keepGrades && row.skipped === null && line.grade !== null)
         grades[id] = line.grade;
     } else if (line.term === "before") {
-      const title = line.equivalentPattern
-        ? `${line.title} (${patternLabel(line.equivalentPattern)})`
-        : line.title;
+      // Credit keeps its own title, credits and GenEds; "Counts as" adds
+      // the course it stands for (V3 §2.10), and the block shows both.
+      const countsAs = checks.mappings[row.key];
       entries.push({
         kind: "credit",
         id,
         term: "before",
-        title: title.slice(0, 120),
+        title: line.title.slice(0, 120),
         credits: line.credits,
         genEds: [...new Set(pickedCodes(row, checks).values())],
         source: "transcript",
+        via: line.via === "umd" ? "transfer" : line.via,
+        equivalentPattern: line.equivalentPattern,
+        ...(countsAs ? { countsAs } : {}),
       });
     }
     // A UMD term's line always has a code; nothing else can reach here.

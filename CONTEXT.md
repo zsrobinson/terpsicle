@@ -36,6 +36,10 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 
 ## Shared
 
+**Marketing page**:
+`/` for a first visit (returning people go to `/schedule`). Its **story** is the hero, then one **step** per product in color order, beside **the screen**: a sample of Schedule with Plan A that stays in view (sticky) while the steps scroll past. Each step's **piece** lands on the screen: the Problems tab, a rating card, a section's room, a semester of Plan, a few of Todo's cards. Everything on the screen is a sample: nothing is saved or sent.
+_Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected designs)
+
 **Family bar**:
 The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. On phones, and on the scheduler's bar below 1280px (where the Early access chip also gives its room to the plans), the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
 
@@ -234,14 +238,19 @@ Something about a plan worth knowing: an error (not enough time, a cancelled or 
 The one-click remedy a problem offers: "Switch to 0205" when a section solves it without new problems, or "Watch for a seat" for a full section. The owner calls this **auto-resolution**.
 
 **Generate**:
-Making new plans from the courses you need, must-haves and a ranking. It creates plans; it never edits one.
+Making new plans from the courses you need, filters and preferences. It creates plans; it never edits one.
 _Avoid_: AI (it's an algorithm)
 
 **Generate result**:
-One ranked candidate plan from Generate, with a mini week and plain stats. "Save as new plan" makes it a plan.
+One ranked candidate plan from Generate, with a mini week, plain stats and a mark for each preference that's on. Its arrow opens its details, where "Add as Plan C" (the next plan name) makes it a plan.
 
-**Must-have**:
-A rule every Generate result follows (earliest start, days off, open seats only, …). A **relaxation** loosens one when nothing fits.
+**Filter** (in Generate):
+A chip that takes plans out: every Generate result follows it ("No classes before 10am", "No Fridays", "Only open seats", "Time to walk"). While on, it shows a funnel and how many plans it took out ("−38"). In code and the schema these are still `mustHaves`. A **relaxation** loosens one when nothing fits.
+_Avoid_: must-have (in UI copy), constraint
+
+**Preference**:
+A chip that ranks Generate's results without taking any out: Compact days, Fewer days, Later starts, Best-rated, Higher GPAs, Safest seats. A click cycles it off → on → 2× (counts double) → off.
+_Avoid_: weight, sort, rank by (in UI copy)
 
 **Share**:
 The outlined "Share" button at the top left of the canvas bar, in Schedule and Plan. It opens a popover with the plan's share link, "Copy link" ("Copied link") and a note that the link is a copy held in the URL, which won't follow later edits.
@@ -381,12 +390,24 @@ The scheduler plan a four-year plan's semester opens with "View schedule": the t
 **Plan view**:
 One of Plan's five views on its rail: GenEd, Problems, Search, Samples and Import (`1` to `5`). Each is a route (`/plan`, `/plan/problems`, …), and a course opens over it as a drill-in.
 
+**Before UMD**:
+The four-year plan's column before the first semester: AP, exam and transfer credit, however many schools it came from. It always counts as done.
+_Avoid_: Transfer column, semester 0
+
+**Transfer credit**:
+Credit from another school, AP or another exam (IB, CLEP) that your transcript lists before your UMD semesters. When Testudo names a UMD course it's that course; otherwise it's credit with its own title, credits and GenEds, like "AP CHEMISTRY, CHEM 1XX, 4 credits".
+_Avoid_: outside credit, external course
+
+**Counts as**:
+The UMD course something Testudo can't match stands for: transfer credit given as "CHEM 1XX", or a code Testudo doesn't list anymore. It then meets prerequisites and repeats like that course, and still shows its own title. (Where Testudo says "or", "Counts as" also names the GenEd a course counts for.)
+_Avoid_: mapping, equivalent (in the UI), override
+
 **Course info**:
-What you tell Plan about a course Testudo doesn't list anymore (an honors seminar that rotated out, an old topics course): its title, credits and the GenEds it covered, so they count. An import fills it from the GenEds the transcript prints; an honors code whose base course Testudo lists offers "Count it as MATH141". Testudo's own data wins once it lists the code.
+What you tell Plan about a course Testudo doesn't list anymore (an honors seminar that rotated out, an old topics course): its title, credits, the GenEds it covered and what it counts as, so they count. An import fills it from the GenEds the transcript prints; an honors code whose base course Testudo lists offers "Count it as MATH141". Testudo's own data wins once it lists the code.
 _Avoid_: course details (that's the scheduler's course drill-in), override
 
 **Transcript import**:
-Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser, and grades stay private.
+Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser and is never saved; only the courses you import are, and grades stay private.
 
 **Template**:
 A hand-made starting four-year plan for a major, credited to its source. Copy calls it a **sample plan**, in Plan's Samples view, and adding one fills only empty semesters.

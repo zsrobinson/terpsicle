@@ -227,10 +227,30 @@ Revisit if: people sort by rating often and find it thin; a small all-department
 An untouched Generate form shows the open plan's courses (placed required, bookmarked optional), derived and never stored, so a list someone has changed or emptied always wins. It bends DESIGN §5's "don't prefill" because these are the person's own courses, not guesses: an empty form with a disabled button read as broken to someone who already had a plan (QA round 1, S16).
 Revisit if: people mostly clear the prefilled list before generating.
 
+### Generate's chips: filters take out, preferences rank
+2026-09-28 · owner · one feature
+"click on a chip to enable or disable that given factor … and maybe a double click for a 2x mattering for it, then cycling back to none. … the filters should also carry over some similar UI … but should be clear that they completely filter, not sort." The must-haves are filter chips (Search's square look, a funnel, "No…"/"Only…" words and how many plans each took out); the ranking is preference pills that cycle off → on → 2× → off. The same chips sit over the results, which re-rank live. A single click cycles all three (an agent's call on "double click"): it works on touch and with Enter or Space, and a click never waits to see whether a second one follows.
+Revisit if: people miss the 2× state, or ask for finer weights.
+
+### Add one generated plan at a time
+2026-09-28 · owner · one feature
+"i don't like the multiselect to add things. scrap that, instead should have an icon button as an arrow to see more detail about the plan … and at the bottom allow to 'Add as Plan A' or whatever the next default schedule name is." Results have no checkboxes; each row's arrow opens its details (every course and section, with ratings, grades, times, seats and walks), whose one action is "Add as Plan C". It opens the new plan, with Undo.
+Revisit if: people want several results at once again (the owner's "Generate from four-year plan" comes separately).
+
 ### Returning people skip marketing
 2026-09-26 · owner · one feature
 First visits to `/` see the marketing page; anyone with saved plans or a session goes to `/schedule`, and the installed app starts there.
 Revisit if: the marketing page gets something returning people need.
+
+### The marketing page: a week that gathers the products
+2026-09-28 · owner · one feature
+`/` is the round-4 "Guide" (version B) with its copy: the hero shows the plain week, then one step per product beside one sticky screen of the scheduler, where each step's piece lands on the week as it scrolls by. Schedule's step shows the Problems tab. The demos are small and local: fix a problem by switching sections (the walking conflict first), watch a full section for a seat, send a message into a sample room, check off a due date. Words and structure: docs/DESIGN.md §8.
+Revisit if: the owner asks for another round, or a product's own UI moves far from its piece.
+
+### No atom, no tangle on the marketing page
+2026-09-28 · owner · one feature
+The electron-orbit "atom" is rejected ("i don't like the atom idea even one bit"), and the detangle hero it followed is gone with its inline script. The strands concept stays out of the page's motion; motion is the screen gathering the products.
+Revisit if: the owner brings the strands back.
 
 ### Install prompt after key moments
 2026-09-26 · owner · one feature
@@ -352,6 +372,16 @@ Revisit if: two members of a room share a full name often enough that mentions g
 2026-09-26 · owner · one feature
 Both are approved. Plan's first release has no degree requirements and no major quirks.
 Revisit if: the owner starts the requirements work.
+
+### Transcripts stay in the browser
+2026-09-28 · owner · one feature
+A pasted transcript is read in the browser and held only in memory until the import is done or you leave; it's never stored, sent, logged, put in the URL or in analytics. Only the imported courses are saved (each one's code, transcript title and kind, term, credits, GenEds, and grades if kept). The owner: "i assume we don't save the transcripts themselves for privacy reasons (and should actually be sure of it)".
+Revisit if: never on its own.
+
+### Transfer credit says what it counts as, and keeps its own title
+2026-09-28 · agent · one feature
+Credit Testudo gives as a level ("CHEM 1XX") or an elective ("LTR", "XXX 1XX") stays a `credit` entry with its transcript title, credits and GenEds. "Counts as" adds the UMD course it meets prerequisites and repeats as, rather than turning it into that course, so the check step's mapping does the same, and the GenEds stay what UMD granted. The person's answer (a course, or none) outlives a re-import of the same credit. A code Testudo doesn't list gets "Counts as" through its course info.
+Revisit if: people want the course's own GenEds and "or" choices on mapped credit, or a real transcript prints transfer credit differently.
 
 ### Plan is listed once PLAN_ENABLED is on
 2026-09-26 · agent · one feature

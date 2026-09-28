@@ -1,20 +1,19 @@
 import { createPlanFrom } from "~/app/actions";
 import { track } from "~/app/analytics";
 import { resultCourses } from "~/core/generate/result-plan";
+import { nextPlanName } from "~/core/plans/naming";
 import type {
   GeneratedPlan,
   GenerateRequest,
   LocalId,
   PlanCourse,
+  TermId,
 } from "~/core/schema";
 import { useCatalog } from "~/state/catalog-store";
-import { newLocalId, nowIso } from "~/state/ids";
-import { reduceWorkspace } from "~/state/plan-ops";
 import { useWorkspace } from "~/state/workspace-store";
 
-// "Save as new plan" and "Save 3 plans" (SPEC §3.9): generating creates
-// plans, never edits one. Several at once are one undo step, and the best
-// of them opens.
+// "Add as Plan C" (SPEC §3.9): generating creates plans, never edits one.
+// The new plan opens, with Undo in the toast.
 
 /** A result as plan courses, from the term's loaded catalog. */
 export function coursesOf(
@@ -25,45 +24,27 @@ export function coursesOf(
   return index ? resultCourses(result, request, index) : [];
 }
 
-/** Saves results as new plans, in the order given; returns the new ids. */
-export function saveResults(
-  results: readonly GeneratedPlan[],
+/** The name a new plan in the term gets: "Plan C". */
+export function nextPlanNameIn(termId: TermId): string {
+  return nextPlanName(
+    useWorkspace
+      .getState()
+      .plans.filter((p) => p.termId === termId)
+      .map((p) => p.name),
+  );
+}
+
+/** Adds a result as a new plan and opens it; returns its id, or null when the catalog's gone. */
+export function addResultAsPlan(
+  result: GeneratedPlan,
   request: GenerateRequest,
-): LocalId[] {
-  const { termId } = request;
-  const lists = results
-    .map((r) => coursesOf(r, request))
-    .filter((c) => c.length > 0);
-  const [only, ...more] = lists;
-  if (!only) return [];
-  if (more.length === 0) {
-    const id = createPlanFrom(termId, only, { source: "generate" });
-    track("generate_plans_saved", { count: 1 });
-    return [id];
-  }
-  const plans = lists.map((courses) => ({ id: newLocalId(), courses }));
-  const now = nowIso();
-  useWorkspace.getState().commit(`Saved ${plans.length} plans`, (w) => {
-    const created = plans.reduce(
-      (next, { id, courses }) =>
-        reduceWorkspace(next, {
-          type: "plan/create",
-          id,
-          termId,
-          courses,
-          now,
-        }),
-      w,
-    );
-    // The best result opens, like saving one does.
-    return reduceWorkspace(created, {
-      type: "plan/activate",
-      termId,
-      planId: plans[0]?.id ?? "",
-    });
+): LocalId | null {
+  const courses = coursesOf(result, request);
+  if (courses.length === 0) return null;
+  const id = createPlanFrom(request.termId, courses, {
+    source: "generate",
+    name: nextPlanNameIn(request.termId),
   });
-  const ids = plans.map((p) => p.id);
-  for (const _ of ids) track("plan_created", { source: "generate" });
-  track("generate_plans_saved", { count: ids.length });
-  return ids;
+  track("generate_plans_saved", { count: 1 });
+  return id;
 }

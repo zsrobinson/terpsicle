@@ -131,6 +131,14 @@ export type PlanNav = {
   readonly back: (patch: Partial<PlanSearch>) => void;
 };
 
+/** Closes what's open over the view: a course, or a transfer credit. */
+export const CLOSE_DRILL = { course: undefined, credit: undefined } as const;
+
+/** Whether a course or a transfer credit is open over the view. */
+export function isDrilled(search: PlanSearch): boolean {
+  return search.course !== undefined || search.credit !== undefined;
+}
+
 const NavContext = createContext<PlanNav | null>(null);
 export const PlanNavProvider = NavContext.Provider;
 

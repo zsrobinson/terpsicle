@@ -3,6 +3,7 @@ import { wildcardId, wildcardLabel } from "../catalog/wildcard";
 import {
   type CourseCode,
   type Day,
+  type FilterCount,
   type GeneratedPlan,
   type GenerateRequest,
   type GenerateResult,
@@ -41,6 +42,11 @@ export type GenerateData = {
 export type GenerateOptions = {
   readonly onProgress?: (progress: SolveProgress) => void;
   readonly shouldCancel?: () => boolean;
+  /**
+   * Also count what each filter takes out (`filterCounts`): one what-if
+   * search per filter that's on. The app asks; benchmarks don't.
+   */
+  readonly countFilters?: boolean;
 };
 
 type Built = {
@@ -371,6 +377,36 @@ function missingPicks(
 
 const courseOf = (key: string): CourseCode => key.split("-")[0] ?? key;
 
+/**
+ * What each filter that's on takes out of a run that found `found` plans:
+ * the same run without it, less those. A what-if that runs out of budget
+ * gives a floor ("at least").
+ */
+function filterCounts(
+  request: GenerateRequest,
+  data: GenerateData,
+  found: number,
+  options: GenerateOptions,
+): FilterCount[] {
+  const whatIfSteps = Math.max(1, Math.floor(request.limits.maxSteps / 5));
+  const out: FilterCount[] = [];
+  for (const option of relaxationOptions(request)) {
+    // Courses aren't filters: making one optional is a relaxation only.
+    if (!option.patch.mustHaves) continue;
+    if (options.shouldCancel?.()) return [];
+    const { outcome } = run(applyRelaxation(request, option.patch), data, {
+      maxResults: 1,
+      maxSteps: whatIfSteps,
+    });
+    out.push({
+      constraint: option.constraint,
+      removed: Math.max(0, outcome.found - found),
+      atLeast: outcome.truncated,
+    });
+  }
+  return out;
+}
+
 /** Runs the generator: ranked plans, or relaxations and near-misses when nothing fits. */
 export function generatePlans(
   request: GenerateRequest,
@@ -389,6 +425,10 @@ export function generatePlans(
     const all = [...found, ...extra.plans.filter((p) => !seen.has(p.id))];
     // Stable, so equal scores keep the search's order.
     all.sort((a, b) => b.score - a.score);
+    // A cut-short run's count is a floor, so a difference from it would be
+    // a guess.
+    const counted =
+      options.countFilters && !outcome.cancelled && !outcome.truncated;
     return {
       results: mergeSameWeek(all, data.index),
       totalFound: outcome.found,
@@ -398,6 +438,9 @@ export function generatePlans(
       relaxations: [],
       nearMisses: [],
       wildcards: built.wildcards,
+      filterCounts: counted
+        ? filterCounts(request, data, outcome.found, options)
+        : [],
     };
   }
 
@@ -440,5 +483,6 @@ export function generatePlans(
     relaxations,
     nearMisses: misses,
     wildcards: built.wildcards,
+    filterCounts: [],
   };
 }

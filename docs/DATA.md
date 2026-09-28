@@ -765,8 +765,8 @@ These aren't stored, but several workers build against them:
 - **Generator:**
   - `GenerateRequest`:
     - `items`: `course {required}`, `pick {count, courses}`, each course optionally limited to some sections, or `wildcard {wildcard, required, count}` (`WildcardSchema`: `{kind: "pattern", pattern: "CMSC4XX"}` or `{kind: "gen-ed", code: "DSHS"}`; `count` different courses from its set, 1–6);
-    - `mustHaves`: `DEFAULT_MUST_HAVES` has travel time on and blocks respected;
-    - `rankBy`: a preset factor, or `custom` with a 0–1 weight for every `RankFactor`;
+    - `mustHaves` (the UI's filters): `DEFAULT_MUST_HAVES` has travel time on and blocks respected;
+    - `rankBy` (the UI's preferences): a preset factor, or `custom` with a 0–1 weight for every `RankFactor` (one chip on is its preset; otherwise the chips write 0.5 for on and 1 for 2×; `DEFAULT_RANK_BY` is compact);
     - the term's `blocks`, `travel` and `limits` (`DEFAULT_GENERATE_LIMITS`: best 200, 500k steps).
   - `GenerateResult`:
     - `results`: each result's `sections` has one representative (the lowest-numbered) per included course, and `equivalents.byCourse` lists the time-identical alternatives (so "×3 equivalent" is `equivalents.count`);
@@ -774,7 +774,8 @@ These aren't stored, but several workers build against them:
     - each result's `filled` names the course it took for each wildcard (`{wildcard: "CMSC4XX", courseCode}`; wildcard ids are the pattern or `gen-ed:DSHS`);
     - `relaxations`: each has a `patch` to apply and an `unlockCount` (`makeWildcardOptional` for a required wildcard);
     - `nearMisses`: each has its `conflicts`;
-    - `wildcards`: per wildcard item, how many courses `matched`, how many `fit` the must-haves and required courses, and how many were `tried` (at most 40 section groups each).
+    - `wildcards`: per wildcard item, how many courses `matched`, how many `fit` the must-haves and required courses, and how many were `tried` (at most 40 section groups each);
+    - `filterCounts`: per must-have that's on, how many plans it `removed` (a what-if run without it, less those found; `atLeast` when that run hit its budget). Empty when nothing fit or the main run was cut short. Only the app's worker asks for them (`countFilters`).
 
 ---
 

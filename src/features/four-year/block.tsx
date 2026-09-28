@@ -47,7 +47,13 @@ import {
   setCredits,
   setGenEdChoice,
 } from "./actions";
-import { useModel, usePlanNav, usePlanReadOnly } from "./model";
+import { creditKind, patternLabel } from "./credit-panel";
+import {
+  CLOSE_DRILL,
+  useModel,
+  usePlanNav,
+  usePlanReadOnly,
+} from "./model";
 import { focusSearch } from "./search-panel";
 
 // A block: one course, placeholder or transfer credit in a semester (V3
@@ -160,9 +166,20 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
         </DropdownMenuTrigger>
       </WithTooltip>
       <DropdownMenuContent align="end" className="w-[220px]">
+        {entry.kind === "credit" ? (
+          <DropdownMenuItem
+            onSelect={() =>
+              nav.go({ credit: entry.id, course: undefined }, { drill: true })
+            }
+          >
+            What it counts as
+          </DropdownMenuItem>
+        ) : null}
         {entry.kind === "course" ? (
           <DropdownMenuItem
-            onSelect={() => nav.go({ course: entry.code }, { drill: true })}
+            onSelect={() =>
+              nav.go({ course: entry.code, credit: undefined }, { drill: true })
+            }
           >
             {!isUnknownCourse(lookup, entry.code)
               ? `About ${entry.code}`
@@ -194,7 +211,7 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
                 credits: undefined,
                 level: undefined,
                 semester: entry.term,
-                course: undefined,
+                ...CLOSE_DRILL,
                 q: undefined,
               });
               focusSearch();
@@ -323,6 +340,16 @@ function range(min: number, max: number): number[] {
   return out;
 }
 
+/** "Counts as CHEM131", under a block Testudo can't match. */
+function CountsAsLine({ code }: { code: string | null }) {
+  if (!code) return null;
+  return (
+    <span className="block truncate text-muted text-xs">
+      Counts as <span className="ident">{code}</span>
+    </span>
+  );
+}
+
 /** The second line: the catalog's title, or what we know instead. */
 function CourseTitle({ entry }: { entry: FourYearCourseEntry }) {
   const { lookup } = useModel();
@@ -339,9 +366,12 @@ function CourseTitle({ entry }: { entry: FourYearCourseEntry }) {
     // The person's title, then the transcript's, then what's missing.
     const title = entry.details?.title ?? entry.transcript?.title ?? null;
     return (
-      <span className="block truncate text-muted text-sm">
-        {title ?? "Not in Testudo's course list"}
-      </span>
+      <>
+        <span className="block truncate text-muted text-sm">
+          {title ?? "Not in Testudo's course list"}
+        </span>
+        <CountsAsLine code={entry.details?.countsAs ?? null} />
+      </>
     );
   }
   if (failed)
@@ -371,7 +401,10 @@ export function EntryBlock({
     lookup.courses.has(entry.code) ||
     entry.credits !== null;
   const grade = entry.kind === "course" ? doc.grades[entry.id] : undefined;
-  const open = entry.kind === "course" && nav.search.course === entry.code;
+  const open =
+    entry.kind === "course"
+      ? nav.search.course === entry.code
+      : entry.kind === "credit" && nav.search.credit === entry.id;
   const done = status === "done";
 
   const onDragStart = (event: DragEvent) => {
@@ -427,8 +460,17 @@ export function EntryBlock({
           </span>
         </span>
         <span className="block truncate text-muted text-sm">
-          AP or transfer credit
+          {creditKind(entry)}
+          {entry.equivalentPattern ? (
+            <>
+              {" · "}
+              <span className="ident">
+                {patternLabel(entry.equivalentPattern)}
+              </span>
+            </>
+          ) : null}
         </span>
+        <CountsAsLine code={entry.countsAs ?? null} />
       </>
     );
 
@@ -437,7 +479,7 @@ export function EntryBlock({
       ? `About ${entry.code}`
       : entry.kind === "wildcard"
         ? `Pick a course for ${entryName(entry)}`
-        : entry.title;
+        : `What ${entry.title} counts as`;
 
   if (readOnly)
     return (
@@ -476,48 +518,49 @@ export function EntryBlock({
         "cursor-grab active:cursor-grabbing",
       )}
     >
-      {entry.kind === "credit" ? (
-        <div className="min-w-0 flex-1 px-2 py-1.5">
+      <WithTooltip label={label}>
+        <button
+          type="button"
+          onClick={() => {
+            if (entry.kind !== "wildcard") {
+              if (open) nav.back(CLOSE_DRILL);
+              else
+                nav.go(
+                  entry.kind === "course"
+                    ? { course: entry.code, credit: undefined }
+                    : { credit: entry.id, course: undefined },
+                  { drill: true },
+                );
+              return;
+            }
+            nav.go({
+              tab: "search",
+              wildcard: entry.id,
+              gened: undefined,
+              credits: undefined,
+              level: undefined,
+              semester: entry.term,
+              ...CLOSE_DRILL,
+              q: undefined,
+            });
+            focusSearch();
+          }}
+          className={cn(
+            "min-w-0 flex-1 space-y-0.5 px-2 py-1.5 text-left hover:bg-hover",
+            done && "text-muted",
+          )}
+        >
           {main}
-          <CodeChips codes={entry.genEds} />
-        </div>
-      ) : (
-        <WithTooltip label={label}>
-          <button
-            type="button"
-            onClick={() => {
-              if (entry.kind === "course") {
-                if (open) nav.back({ course: undefined });
-                else nav.go({ course: entry.code }, { drill: true });
-                return;
-              }
-              nav.go({
-                tab: "search",
-                wildcard: entry.id,
-                gened: undefined,
-                credits: undefined,
-                level: undefined,
-                semester: entry.term,
-                course: undefined,
-                q: undefined,
-              });
-              focusSearch();
-            }}
-            className={cn(
-              "min-w-0 flex-1 space-y-0.5 px-2 py-1.5 text-left hover:bg-hover",
-              done && "text-muted",
-            )}
-          >
-            {main}
-            {problems.length > 0 ? (
-              <span className="sr-only">, has a problem (see Problems)</span>
-            ) : null}
-            {entry.kind === "course" ? (
-              <Chips picks={genEds.picks.get(entry.id) ?? []} />
-            ) : null}
-          </button>
-        </WithTooltip>
-      )}
+          {problems.length > 0 ? (
+            <span className="sr-only">, has a problem (see Problems)</span>
+          ) : null}
+          {entry.kind === "course" ? (
+            <Chips picks={genEds.picks.get(entry.id) ?? []} />
+          ) : entry.kind === "credit" ? (
+            <CodeChips codes={entry.genEds} />
+          ) : null}
+        </button>
+      </WithTooltip>
       <div className="py-0.5 pr-0.5 md:py-1 md:pr-1">
         <BlockMenu entry={entry} />
       </div>

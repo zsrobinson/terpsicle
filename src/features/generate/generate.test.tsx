@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
 import { currentView, goTo } from "~/app/schedule-nav";
 import type { ShellRoutes } from "~/app/test-utils";
-import { renderShell } from "~/app/test-utils";
+import { currentPath, renderShell } from "~/app/test-utils";
 import { plansInTerm } from "~/core/plans";
 import {
   demoBlocks,
@@ -242,17 +242,23 @@ describe("Generate", () => {
     reload.mockRestore();
   });
 
-  it("generates ranked plans, previews one, and saves it as a new plan", async () => {
+  it("generates ranked plans, opens one by its arrow, and adds it as the next plan", async () => {
     const { user } = await renderGenerate();
     act(() => setCourses("CMSC351", "CMSC330", "STAT400"));
     await user.click(screen.getByRole("button", { name: "Generate plans" }));
     const list = await screen.findByRole("list", { name: "Generated plans" });
     expect(track).toHaveBeenCalledWith(
       "generate_run",
-      expect.objectContaining({ courses: 3, relaxed: false }),
+      expect.objectContaining({ courses: 3, relaxed: false, live: false }),
+    );
+    // No ticking plans to save several: each row has one arrow.
+    expect(within(list).queryByRole("checkbox")).not.toBeInTheDocument();
+    const rows = within(list).getAllByTestId("generated-plan");
+    expect(within(rows[0] as HTMLElement).getAllByRole("button")).toHaveLength(
+      1,
     );
 
-    await user.click(within(list).getAllByRole("button")[0] as HTMLElement);
+    await user.click(screen.getByRole("button", { name: /^Option 1: / }));
     expect(
       screen.getByText("Option 1", { selector: "[aria-current=page]" }),
     ).toBeVisible();
@@ -261,13 +267,34 @@ describe("Generate", () => {
     ).toBeVisible();
     expect(useUi.getState().previewPlan?.label).toBe("Option 1");
     expect(screen.getByText("Previewing Option 1.")).toBeVisible();
-    expect(screen.getByText(/Changes from Plan A/)).toBeVisible();
     expect(track).toHaveBeenCalledWith("generate_result_previewed", {
       rank: 1,
     });
 
+    // Every course and section, with what we know of it.
+    const sections = screen.getByRole("list", {
+      name: "Courses and sections",
+    });
+    const { status } = useGenerateRun.getState();
+    if (status.kind !== "done") throw new Error("the run should be done");
+    const keys = status.result.results[0]?.sections ?? [];
+    expect(keys).toHaveLength(3);
+    for (const key of keys) {
+      const row = within(sections).getByTestId(`result-section-${key}`);
+      const { section } = useCatalog
+        .getState()
+        .byTerm[fixtureTermId]?.index.sections.get(key) ?? {
+        section: null,
+      };
+      expect(row).toHaveTextContent(key.split("-")[1] ?? "");
+      expect(row).toHaveTextContent(
+        section?.instructors[0] ?? "Instructor TBA",
+      );
+      expect(row).toHaveTextContent(/open|left|Full|Seats unknown/);
+    }
+
     const before = termPlans().length;
-    await user.click(screen.getByRole("button", { name: "Save as new plan" }));
+    await user.click(screen.getByRole("button", { name: "Add as Plan C" }));
     expect(termPlans()).toHaveLength(before + 1);
     const saved = termPlans().at(-1);
     expect(useWorkspace.getState().activePlanByTerm[fixtureTermId]).toBe(
@@ -277,6 +304,11 @@ describe("Generate", () => {
     expect(useUi.getState().previewPlan).toBeNull();
     expect(currentView().drill).toBeNull();
     expect(track).toHaveBeenCalledWith("generate_plans_saved", { count: 1 });
+    expect(await screen.findByText("Added Plan C")).toBeVisible();
+    act(() => {
+      useWorkspace.getState().undo();
+    });
+    expect(termPlans()).toHaveLength(before);
   });
 
   it("previews a result on the calendar while the mouse is over it", async () => {
@@ -295,37 +327,6 @@ describe("Generate", () => {
     expect(useUi.getState().previewPlan).toBeNull();
     // Nothing is saved or opened by looking.
     expect(currentView().drill).toBeNull();
-  });
-
-  it("says what the checkboxes do before any is ticked", async () => {
-    const { user } = await renderGenerate();
-    act(() => setCourses("CMSC351", "CMSC330", "STAT400"));
-    await user.click(screen.getByRole("button", { name: "Generate plans" }));
-    await screen.findByRole("list", { name: "Generated plans" });
-    expect(
-      screen.getByText(/^Tick plans to save several at once/),
-    ).toBeVisible();
-    await user.click(screen.getByRole("checkbox", { name: "Select Option 1" }));
-    expect(screen.queryByText(/^Tick plans to save several/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Save 1 plan" })).toBeVisible();
-  });
-
-  it("saves several results at once, as one undo step", async () => {
-    const { user } = await renderGenerate();
-    act(() => setCourses("CMSC351", "CMSC330", "STAT400"));
-    await user.click(screen.getByRole("button", { name: "Generate plans" }));
-    await screen.findByRole("list", { name: "Generated plans" });
-    await user.click(screen.getByRole("checkbox", { name: "Select Option 1" }));
-    await user.click(screen.getByRole("checkbox", { name: "Select Option 2" }));
-    const before = termPlans().length;
-    await user.click(screen.getByRole("button", { name: "Save 2 plans" }));
-    expect(termPlans()).toHaveLength(before + 2);
-    expect(useGenerateRun.getState().selected).toEqual([]);
-    expect(await screen.findByText("Saved 2 plans")).toBeVisible();
-    act(() => {
-      useWorkspace.getState().undo();
-    });
-    expect(termPlans()).toHaveLength(before);
   });
 
   it("suggests what to loosen when nothing fits, and applying one generates again", async () => {
@@ -366,14 +367,16 @@ describe("Generate", () => {
     );
   });
 
-  it("keeps what was asked above the results, and edits it in the form", async () => {
+  it("keeps the courses above the results, and edits them in the form", async () => {
     const { user } = await renderGenerate();
     emptyForm();
     await addCourse(user, "CMSC351");
     await user.click(screen.getByRole("button", { name: "Generate plans" }));
     await screen.findByRole("list", { name: "Generated plans" });
-    // The form gives way to a one-line summary of it.
-    expect(screen.getByText("1 course · compact days")).toBeVisible();
+    // The form gives way to a line of what was asked for, and the chips.
+    expect(screen.getByText("1 course")).toBeVisible();
+    expect(screen.getByRole("group", { name: "Filters" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Preferences" })).toBeVisible();
     expect(
       screen.queryByRole("combobox", { name: "Add a course" }),
     ).not.toBeInTheDocument();
@@ -383,39 +386,128 @@ describe("Generate", () => {
     await user.click(screen.getByRole("button", { name: /^See \d+ plans?$/ }));
     await screen.findByRole("list", { name: "Generated plans" });
 
-    // Changed, it offers a new run, and the earlier plans stay reachable.
+    // With other courses, it offers a new run, and the earlier plans stay
+    // reachable.
     await user.click(screen.getByRole("button", { name: "Edit" }));
-    await user.click(screen.getByRole("button", { name: "Friday off" }));
+    await addCourse(user, "CMSC330");
     expect(
       screen.getByRole("button", { name: "Generate again" }),
     ).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "See earlier plans" }));
-    expect(screen.getByText("1 course · compact days")).toBeVisible();
+    expect(screen.getByText("1 course")).toBeVisible();
   });
 
-  it("counts the plans, and says they're the best few only when capped", async () => {
+  it("re-ranks the results in place as a preference chip cycles", async () => {
     const { user } = await renderGenerate();
-    act(() => setCourses("CMSC351", "CMSC330"));
+    act(() => setCourses("CMSC351", "CMSC330", "STAT400"));
+    await user.click(screen.getByRole("button", { name: "Generate plans" }));
+    const list = await screen.findByRole("list", { name: "Generated plans" });
+    const prefs = screen.getByRole("group", { name: "Preferences" });
+    // Compact days is on by default; the rows say how compact each is.
+    expect(
+      within(prefs).getByRole("button", { name: "Compact days: on" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(within(list).getAllByTestId("rank-marks")[0]).toHaveTextContent(
+      /gaps$/i,
+    );
+
+    // A click turns Later starts on; the list re-ranks without leaving.
+    await user.click(
+      within(prefs).getByRole("button", { name: "Later starts: off" }),
+    );
+    expect(track).toHaveBeenCalledWith("generate_preference_changed", {
+      factor: "later-starts",
+      level: 1,
+    });
+    await waitFor(() =>
+      expect(track).toHaveBeenCalledWith(
+        "generate_run",
+        expect.objectContaining({
+          live: true,
+          preferences: ["compact", "later-starts"],
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(useGenerateRun.getState().refreshing).toBe(false),
+    );
+    expect(
+      screen.getByRole("list", { name: "Generated plans" }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getAllByTestId("rank-marks")[0] as HTMLElement).getByText(
+        / avg start$/,
+      ),
+    ).toBeVisible();
+
+    // Again counts it double; again turns it off. Keyboard works too.
+    const later = within(prefs).getByRole("button", {
+      name: "Later starts: on",
+    });
+    later.focus();
+    await user.keyboard("{Enter}");
+    const doubled = within(prefs).getByRole("button", {
+      name: "Later starts: counts double",
+    });
+    expect(doubled).toHaveTextContent("Later starts2×");
+    await user.keyboard(" ");
+    expect(
+      within(prefs).getByRole("button", { name: "Later starts: off" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(draft()?.rankBy).toEqual({ preset: "compact" });
+    // Each chip is a place: the URL says what's on, and Back undoes it.
+    await waitFor(() => expect(currentPath()).toMatch(/view=/));
+  });
+
+  it("filters the results in place, and says how many plans each filter took out", async () => {
+    const { user } = await renderGenerate();
+    act(() => setCourses("ENGL101", "CMSC132"));
     await user.click(screen.getByRole("button", { name: "Generate plans" }));
     await screen.findByRole("list", { name: "Generated plans" });
+    const filters = screen.getByRole("group", { name: "Filters" });
+
+    await user.click(within(filters).getByRole("button", { name: "Days off" }));
+    await user.click(
+      await screen.findByRole("menuitemcheckbox", { name: "Thursday" }),
+    );
+    await user.keyboard("{Escape}");
+    expect(draft()?.mustHaves.daysOff).toEqual(["Th"]);
+    expect(track).toHaveBeenCalledWith("generate_filter_changed", {
+      filter: "days-off",
+      on: true,
+    });
+    // A chip is a place: the URL says so, and Back would undo it.
+    expect(currentPath()).toMatch(/off=/);
+    await waitFor(() => {
+      const { status } = useGenerateRun.getState();
+      expect(
+        status.kind === "done" && status.request.mustHaves.daysOff,
+      ).toEqual(["Th"]);
+    });
+    // The results stay on screen, re-run in place.
+    expect(
+      screen.getByRole("list", { name: "Generated plans" }),
+    ).toBeInTheDocument();
     const { status } = useGenerateRun.getState();
     if (status.kind !== "done") throw new Error("the run should be done");
-    expect(status.result.capped).toBe(false);
-    const n = status.result.results.length;
-    expect(screen.getByText(n === 1 ? "1 plan" : `${n} plans`)).toBeVisible();
-    expect(screen.queryByText(/^Showing the best/)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Edit" }));
-    act(() => setCourses("ENGL101", "CMSC132"));
-    await user.click(screen.getByRole("button", { name: "Generate again" }));
-    const best = await screen.findByText(/^Best of [\d,]+\+? combinations$/);
-    const again = useGenerateRun.getState().status;
-    if (again.kind !== "done") throw new Error("the run should be done");
-    expect(again.result.capped).toBe(true);
-    expect(best).toHaveTextContent(again.result.totalFound.toLocaleString());
+    const count = status.result.filterCounts.find(
+      (c) => c.constraint === "days-off",
+    );
+    expect(count?.removed).toBeGreaterThan(0);
     expect(
-      screen.getByText(`${again.result.results.length} plans`),
-    ).toBeVisible();
+      within(filters).getByRole("button", {
+        name: "Days off: No Thursdays",
+      }),
+    ).toHaveTextContent(`No Thursdays−${count?.removed.toLocaleString()}`);
+    // No plan left has a Thursday class.
+    for (const result of status.result.results)
+      for (const key of result.sections) {
+        const ref = useCatalog
+          .getState()
+          .byTerm[fixtureTermId]?.index.sections.get(key);
+        for (const m of ref?.section.meetings ?? [])
+          expect(m.timed && m.days.includes("Th")).toBe(false);
+      }
   });
 
   it("lists other sections at the same times only when asked", async () => {
@@ -430,12 +522,14 @@ describe("Generate", () => {
     expect(
       (await screen.findAllByText(/ways to get this same week/))[0],
     ).toBeInTheDocument();
-    await user.click(within(list).getAllByRole("button")[0] as HTMLElement);
-    const changes = screen.getByRole("list", { name: "Changes from Plan A" });
-    const row = within(changes)
+    await user.click(screen.getByRole("button", { name: /^Option 1: / }));
+    const sections = screen.getByRole("list", {
+      name: "Courses and sections",
+    });
+    const row = within(sections)
       .getByText(/other sections? meets? at the same times/)
       .closest("li") as HTMLElement;
-    expect(row).toHaveTextContent(/^ENGL101\s*\d+ other sections? meets? at/);
+    expect(row).toHaveTextContent(/^ENGL101/);
     const show = within(row).getByRole("button", { name: "Show" });
     expect(show).toHaveAttribute("aria-expanded", "false");
     await user.click(show);
@@ -446,23 +540,63 @@ describe("Generate", () => {
     );
   });
 
-  it("names days off the way the Blocks form does (Mon, Tue, …)", async () => {
-    await renderGenerate();
+  it("names days off the way the Blocks form does", async () => {
+    const { user } = await renderGenerate();
+    await user.click(screen.getByRole("button", { name: "Days off" }));
+    const menu = await screen.findByRole("menu");
     expect(
-      screen.getByRole("button", { name: "Monday off" }),
-    ).toHaveTextContent(/^Mon$/);
+      within(menu)
+        .getAllByRole("menuitemcheckbox")
+        .map((o) => o.textContent),
+    ).toEqual(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+    await user.click(
+      within(menu).getByRole("menuitemcheckbox", { name: "Monday" }),
+    );
+    await user.click(
+      within(menu).getByRole("menuitemcheckbox", { name: "Friday" }),
+    );
+    await user.keyboard("{Escape}");
     expect(
-      screen.getByRole("button", { name: "Friday off" }),
-    ).toHaveTextContent(/^Fri$/);
+      screen.getByRole("button", { name: "Days off: No Mon, Fri" }),
+    ).toBeVisible();
   });
 
-  it("sets must-have times and the ranking with the app's selects", async () => {
+  it("sets filters and preferences with chips", async () => {
     const { user } = await renderGenerate();
-    await user.click(screen.getByRole("combobox", { name: "Start after" }));
-    await user.click(await screen.findByRole("option", { name: "10am" }));
+    await user.click(
+      screen.getByRole("button", { name: "No classes before: any time" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitemradio", {
+        name: "No classes before 10am",
+      }),
+    );
     expect(draft()?.mustHaves.earliestStart).toBe(600);
-    await user.click(screen.getByRole("combobox", { name: "Rank by" }));
-    await user.click(await screen.findByRole("option", { name: "Custom" }));
+    expect(
+      screen.getByRole("button", {
+        name: "No classes before: No classes before 10am",
+      }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Only open seats" }));
+    expect(draft()?.mustHaves.openSeatsOnly).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Only open seats" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: "Credits" }));
+    await user.type(
+      await screen.findByRole("spinbutton", { name: "Fewest credits" }),
+      "12",
+    );
+    expect(draft()?.mustHaves.credits).toEqual({ min: 12, max: null });
+    await user.keyboard("{Escape}");
+    expect(
+      screen.getByRole("button", { name: "Credits: 12+ credits" }),
+    ).toBeVisible();
+
+    // Compact days is on by default: a click counts it double, then off.
+    await user.click(screen.getByRole("button", { name: "Compact days: on" }));
     expect(draft()?.rankBy).toEqual({
       preset: "custom",
       weights: {
@@ -474,7 +608,12 @@ describe("Generate", () => {
         "safest-seats": 0,
       },
     });
-    expect(screen.getByRole("group", { name: "Custom weights" })).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Compact days: counts double" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Compact days: off" }),
+    ).toBeVisible();
   });
 
   it("says what sets each plan apart, and filters by the courses it includes", async () => {
@@ -594,9 +733,7 @@ describe("Generate", () => {
     );
     await user.click(screen.getByRole("button", { name: "Generate plans" }));
     const list = await screen.findByRole("list", { name: "Generated plans" });
-    expect(
-      screen.getByText("1 course + Any CMSC 400-level · compact days"),
-    ).toBeVisible();
+    expect(screen.getByText("1 course + Any CMSC 400-level")).toBeVisible();
     const rows = within(list).getAllByTestId("generated-plan");
     for (const row of rows)
       expect(row).toHaveTextContent(/with CMSC4\d\d[A-Z]?/);
@@ -606,10 +743,14 @@ describe("Generate", () => {
     );
 
     await user.click(within(list).getAllByRole("button")[0] as HTMLElement);
-    const picked = screen.getByRole("list", {
-      name: "Picked for your wildcards",
+    // The course a wildcard took says which wildcard it's for.
+    const sections = screen.getByRole("list", {
+      name: "Courses and sections",
     });
-    expect(picked).toHaveTextContent(/CMSC4\d\d[A-Z]?for Any CMSC 400-level/);
+    const picked = within(sections)
+      .getByText(/for Any CMSC 400-level/)
+      .closest("li");
+    expect(picked).toHaveTextContent(/^CMSC4\d\d[A-Z]?/);
   });
 
   it("says plainly when a required wildcard has nothing to pick from", async () => {

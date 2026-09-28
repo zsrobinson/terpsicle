@@ -185,6 +185,10 @@ describe("generator I/O", () => {
         },
       ],
       wildcards: [{ wildcard: "gen-ed:DSHU", matched: 12, fit: 9, tried: 9 }],
+      filterCounts: [
+        { constraint: "days-off", removed: 38, atLeast: false },
+        { constraint: "open-seats-only", removed: 0, atLeast: true },
+      ],
     };
     expect(GenerateResultSchema.parse(result)).toEqual(result);
   });

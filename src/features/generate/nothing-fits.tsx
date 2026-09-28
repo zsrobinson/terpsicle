@@ -14,7 +14,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { wildcardNote } from "./labels";
 import { MiniWeek, type MiniWeekMark } from "./mini-week";
 
-// When nothing fits (SPEC §3.9): what loosening each must-have would unlock,
+// When nothing fits (SPEC §3.9): what loosening each filter would unlock,
 // and the closest plans with what stops them marked. Information, not an
 // alarm: no red, no banner (DESIGN §5).
 
@@ -54,8 +54,8 @@ export function NothingFits({
           <span className="text-muted">Loosening one of these would help:</span>
         ) : (
           <span className="text-muted">
-            Loosening one must-have isn't enough. Try removing a course, or
-            fewer must-haves at once.
+            Loosening one filter isn't enough. Try removing a course, or fewer
+            filters at once.
           </span>
         )}
       </p>
@@ -66,7 +66,7 @@ export function NothingFits({
         >
           {relaxations.map((r) => (
             <li key={`${r.constraint}:${r.label}`}>
-              <WithTooltip label="Change this must-have and generate again">
+              <WithTooltip label="Change this and generate again">
                 <button
                   type="button"
                   onClick={() => onRelax(r)}

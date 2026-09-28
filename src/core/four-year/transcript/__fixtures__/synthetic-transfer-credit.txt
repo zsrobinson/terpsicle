@@ -1,0 +1,52 @@
+SYNTHETIC FIXTURE: invented courses, schools and grades, not a real student's transcript.
+Transfer and exam credit in the shapes the registrar documents (evaluation codes, 1XX and
+elective equivalents), with wrapped rows. Replace with a redacted real paste (docs/V3.md §2.10, §10).
+
+Unofficial Transcript                                   Sam Testudo
+UID XXXXXXXXX                                           sam.testudo@example.edu
+Birth Date: 01/01/2000
+Program: Environmental Science and Policy (AGNR)
+
+Transfer Credit
+  Advanced Placement Examinations
+    AP CALCULUS AB SCR 4              P     MATH140   4.00   FSAR, FSMA
+    AP ENVIRONMENTAL SCIENCE SCR 5    P     ENST 1XX  3.00   DSNS
+    AP WORLD HISTORY SCR 2            NC                     Credit not granted
+  International Baccalaureate
+    IB PSYCHOLOGY HL                  P     PSYC100   3.00   DSHS or DSNS
+    IB ENGLISH A LIT HL               P     XXX 1XX   3.00   L1
+  Credit by Examination
+    CLEP SPANISH LANGUAGE             P     SPAN103   4.00
+  Transfer Credit Accepted Fall 2023
+  Howard Community College
+    1   INTRO TO SOCIOLOGY/SOCY 101   A     SOCY100   3.00   DSHS, DVUP   G1
+    1   COLLEGE ALGEBRA               B+    MATH 1XX  3.00   FSMA         L1  35
+    1   INTRODUCTION TO ENVIRONMENTAL
+        SCIENCE AND POLICY            A     ENST1XX   4.00   DSNL
+    1   ETHICS IN THE MODERN WORLD    B     PHIL1XX   3.00   DSHU or DSHS,
+                                                             DVCC
+    1   FIRST YEAR SEMINAR            P     LTR       1.00   L1
+    2   ANATOMY AND PHYSIOLOGY I      B     NE        4.00
+  Northern Coastal University
+    1   WATERSHED FIELD METHODS       A               3.00   N2
+    1   PUBLIC SPEAKING                               3.00
+    1   GLOBAL HEALTH ISSUES          B+    UTR       3.00   N2  EX
+  Transfer credit accepted: 35.00
+
+Fall 2024
+    ENST200  FUNDAMENTALS OF SOILS             A-    4.00    4.00   14.80   DSNL
+    ENST233  INTRODUCTION TO ENVIRONMENTAL
+             HEALTH                            B+    3.00    3.00    9.90   DSNS
+    HIST200  INTERPRETING AMER HIST I          A     3.00    3.00   12.00   DSHS or
+                                                                            DSHU, DVUP
+    ENGL101  ACADEMIC WRITING                  A     3.00    3.00   12.00   FSAW
+    Meth = Reg     Sem: 13.00 crds   GPA 3.72
+    ==========================================================
+
+Spring 2025
+    ENST301  WATER RESOURCES                   B     3.00    3.00    9.00
+    AREC365  ENVIRONMENTAL ECONOMICS           A-    3.00    3.00   11.10   DSHS
+    Meth = Reg     Sem: 6.00 crds   GPA 3.35
+    ==========================================================
+
+    UG Cumulative:  Attempted 19.00   Earned 19.00   GPA 3.60

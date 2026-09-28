@@ -204,7 +204,7 @@ function seatRank(seats: SeatsMap | null, key: SectionKey): number {
 }
 
 /**
- * The group's sections with the one Save as new plan adds first: the one
+ * The group's sections with the one "Add as Plan C" adds first: the one
  * with the most open seats, so the seats a result shows are the seats of
  * the section it saves (QA S1: it showed the group's total and saved a full
  * one). Ties, and the rest, keep section-number order.

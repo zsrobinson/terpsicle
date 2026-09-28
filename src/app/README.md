@@ -159,13 +159,13 @@ Where you are is the URL, so reload, Back and Forward, and a copied link all lan
 
 - **Read** the view with `useScheduleView()` (`{ tab, drill }`), and the open course or ghost course with `useOpenCourse()`/`useGhostCourse()` (`schedule-view.ts`). They follow the history as soon as it moves, before the route's chunk arrives, so a click answers in the same frame. Outside React, `currentView()` (`schedule-nav.ts`).
 - **Move** with `schedule-nav.ts`: `openDrill(entry)` (`openCourse` in `~/features/courses/actions` wraps it), `closeDrill()` and `closeToTab()` (close views: a new place, so they push), `goBack()` (the person's Back), `goTo(view, { replace?, shared? })` for anything else, and `preloadView(view)` on intent. Tabs go through `openTab`/`clickRailTab` in `actions.ts`, for their analytics.
-- **Push** when someone went somewhere: a tab, a drill-in, a plan tab, a term, a filter chip, Generate's results or its form. The same URL is never pushed twice (the router's rule).
+- **Push** when someone went somewhere: a tab, a drill-in, a plan tab, a term, a filter chip, a Generate filter or preference chip, Generate's results or its form. The same URL is never pushed twice (the router's rule).
 - **Replace** for everything else: typing in Search, and whatever the app corrects on its own (a plan that was deleted or undone, a term that loaded, a result that's gone after a reload).
 - **Back is one thing.** The sidebar's Back, `Esc`, the phone's back gesture and the browser's Back all go to the previous entry (`goBack()` calls the router's `history.back()` when that entry is the app's). Each entry the app pushes stores, in its history state, the short name of the view before it, which labels Back: "‹ Search", "‹ CMSC351", or just "‹ Back" when it's the same view in another plan. Going from course to course pushes each course, so Back retraces them, but there's never a trail to aim at.
 - **The first entry is a base view.** A link straight to a drill-in (a seat-alert email's `/schedule/course/CMSC216?term=`, a reload in a new tab) gets its tab's own view put under it, so Back from the course stays in the app.
 - **Old-style URLs** (`/schedule?tab=search&q=`, `?term=&course=`, `?connection=`, `?result=`) redirect to their route, replacing the entry (`canonicalScheduleLocation` in `~/core/routing`, run by `schedule.index.tsx`).
 - **A plain `/schedule`** opens what was saved (the tab and course, SPEC §3.13) once local state has loaded; a view the person opened meanwhile wins.
-- **Two things the stores keep too.** The term and the open plan are saved app state (the open plan per term is part of the workspace, with undo): a move through history puts the stores where the URL says, and an edit that moves them replaces the URL (`useTermAndPlanInUrl`). Search's text and chips are the search box's own state per term (typing never waits on the router): `search-url.ts` writes them to the URL and follows it back on Back, Forward and arrival. Generate remembers whether it last showed its results, for when the tab opens again.
+- **Two things the stores keep too.** The term and the open plan are saved app state (the open plan per term is part of the workspace, with undo): a move through history puts the stores where the URL says, and an edit that moves them replaces the URL (`useTermAndPlanInUrl`). Search's text and chips are the search box's own state per term (typing never waits on the router): `search-url.ts` writes them to the URL and follows it back on Back, Forward and arrival. Generate's filter and preference chips are its draft's, per term, and `generate-url.ts` does the same for them (arriving on a URL that names none leaves the draft's). Generate remembers whether it last showed its results, for when the tab opens again.
 - Views going back stay mounted (scroll, text): Back finds its level in the stack; Forward stacks it again (`drill-stack.ts`). At most `MOUNTED_DRILLS` levels stay mounted.
 
 Every piece of scheduler UI state, and where it lives:
@@ -179,9 +179,10 @@ Every piece of scheduler UI state, and where it lives:
 | Connection details | the path (`/schedule/connection/<id>?tab=`) | push | |
 | A generated plan's details | the path (`/schedule/result/<id>?tab=generate`) | push | Dropped (replace) after a reload: results aren't saved. |
 | Generate's results vs its form | `view=results` on `/schedule/generate` | push | A finished run, and Edit, are places. |
+| Generate's filter and preference chips | `prefer`, `start`, `end`, `off`, `seats`, `walk`, `blocks`, `minCredits`, `maxCredits` on `/schedule/generate`, each absent at its default | push | Each chip is a choice Back undoes; the results re-rank to match. |
 | Search's text | `q` on `/schedule/search` | replace | Back skips every keystroke. |
 | Search's filter chips | `gened`, `credits`, `level`, `openSeats`, `fits` on `/schedule/search` | push | Back undoes a chip. |
-| Closing a view (the open course's block clicked again, the rail's tab while drilled in, Save as new plan, a travel fix) | the view under it | push | Back reopens it. |
+| Closing a view (the open course's block clicked again, the rail's tab while drilled in, Add as Plan C, a travel fix) | the view under it | push | Back reopens it. |
 | Shared plan | `plan` | as opened; ✕ and Save a copy replace it away | DATA.md §8. |
 | Demo switch (`pnpm dev:mock`) | `demo` | kept on every entry | |
 | A section's details | not yet a view | push, as `section`, once it is one | So Back closes it like any other. |
@@ -193,7 +194,7 @@ Every piece of scheduler UI state, and where it lives:
 | Drag to block time | no | | |
 | Toasts (Undo) | no | | Undo is ⌘Z, never Back. |
 | Disclosures inside a view ("More about this course", reviews, "Only fits", "Show" section numbers) | no | | Kept while the view is mounted. |
-| Generate's form (courses, must-haves, rank by) | no | | A draft being filled in: saved per term (`generate` settings row). |
+| Generate's courses | no | | A draft being filled in: saved per term (`generate` settings row), with its chips. |
 | Ticked results ("Save 3 plans") | no | | |
 | Register's Registered marks | no (the plan's `registered`, with undo) | | Part of the plan: synced and counted by Problems. |
 | The Share popover | no | | |

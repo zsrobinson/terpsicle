@@ -108,6 +108,22 @@ describe("creditTotals", () => {
     });
   });
 
+  it("counts credit that counts as a course once, when the course is taken again", () => {
+    const ap = aFourYearCreditEntry({ id: "entry_ap", countsAs: "CMSC131" });
+    const doc = aFourYear({
+      entries: [
+        ap,
+        aFourYearEntry({ id: "entry_umd", term: "202601", code: "CMSC131" }),
+        aFourYearCreditEntry({ id: "entry_plain", countsAs: null }),
+      ],
+    });
+    expect(supersededAttempts(doc, lookup)).toEqual(new Set(["entry_ap"]));
+    expect(creditTotals(doc, lookup, statusOf).earned).toBe(8);
+    expect(
+      creditTotals(aFourYear({ entries: [ap] }), lookup, statusOf).earned,
+    ).toBe(4);
+  });
+
   it("counts every attempt at a repeatable course", () => {
     const doc = aFourYear({
       entries: [

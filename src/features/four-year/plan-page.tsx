@@ -40,6 +40,8 @@ import { fourYearDb, startFourYear, useDocDepts } from "./data";
 import { ImportCheck, useImportRecognized } from "./import-panel";
 import { resetTranscriptImport } from "./import-state";
 import {
+  CLOSE_DRILL,
+  isDrilled,
   PlanModelProvider,
   type PlanNav,
   PlanNavProvider,
@@ -172,8 +174,8 @@ function Shortcuts({ nav }: { nav: PlanNav }) {
     },
   );
   useShortcut({ key: "Escape" }, () => {
-    if (!nav.search.course) return false;
-    nav.back({ course: undefined });
+    if (!isDrilled(nav.search)) return false;
+    nav.back(CLOSE_DRILL);
     return true;
   });
   return null;
@@ -189,8 +191,8 @@ function Shortcuts({ nav }: { nav: PlanNav }) {
 const SNAP_ORDER: readonly DrawerSnap[] = ["peek", "half", "full"];
 
 function useWorkbenchFollowsUrl(nav: PlanNav) {
-  const { tab, course } = nav.search;
-  const place = `${tab} ${course ?? ""}`;
+  const { tab, course, credit } = nav.search;
+  const place = `${tab} ${course ?? ""} ${credit ?? ""}`;
   const last = useRef<string | null>(null);
   useEffect(() => {
     const first = last.current === null;
@@ -203,7 +205,7 @@ function useWorkbenchFollowsUrl(nav: PlanNav) {
       usePlanWorkbench.setState({
         sidebarOpen: true,
         drawerSnap:
-          tab === "gened" && !course
+          tab === "gened" && !course && !credit
             ? INITIAL_PLAN_WORKBENCH.drawerSnap
             : raised,
       });
@@ -215,7 +217,7 @@ function useWorkbenchFollowsUrl(nav: PlanNav) {
     if (ui.keepDrawer) usePlanWorkbench.setState({ keepDrawer: false });
     else if (SNAP_ORDER.indexOf(ui.drawerSnap) < SNAP_ORDER.indexOf(raised))
       ui.setDrawerSnap(raised);
-  }, [place, tab, course]);
+  }, [place, tab, course, credit]);
 }
 
 function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
@@ -231,7 +233,7 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
   useSidebarWidth();
   useWorkbenchFollowsUrl(nav);
   const preload = usePreloadView();
-  const { tab, course } = nav.search;
+  const { tab } = nav.search;
   const importing = tab === "import";
   const checking = useImportRecognized() && importing && !mobile;
   // Leaving the Import view, or Plan, forgets the paste. A resize that
@@ -273,7 +275,7 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
                   hint={railHint(v.label, {
                     current: v.tab === tab,
                     open: sidebarOpen,
-                    drilled: course !== undefined,
+                    drilled: isDrilled(nav.search),
                   })}
                   shortcut={v.shortcut}
                   current={v.tab === tab}

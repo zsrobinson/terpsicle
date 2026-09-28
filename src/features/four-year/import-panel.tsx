@@ -67,6 +67,8 @@ const SKIP_REASONS: Record<TranscriptSkipReason, string> = {
   withdrawn: "Withdrawn (W), so it's left out.",
   dropped: "Dropped, so it's left out.",
   "no-credit": "No credit granted, so it's left out.",
+  "not-evaluated":
+    "UMD hasn't finished evaluating it, so there's no credit yet and it's left out.",
   // Unreadable lines have nothing to import, so they're never rows; the
   // record needs the key.
   unreadable: "We couldn't read this line.",
@@ -158,16 +160,21 @@ function MappingField({
       .filter((r) => fitsEquivalentPattern(r[0], pattern))
       .slice(0, 50);
   }, [pattern, search]);
-  const kind = row.line.via === "ap" ? "AP credit" : "transfer credit";
+  const kind =
+    row.line.via === "ap"
+      ? "AP credit"
+      : row.line.via === "exam"
+        ? "exam credit"
+        : "transfer credit";
   return (
     <div className="space-y-1 pt-1">
       <label htmlFor={id} className="block text-muted text-xs">
         {pattern
           ? `Testudo lists it as ${pattern.slice(0, 4)} ${pattern.slice(4)}. `
           : "It has no UMD course. "}
-        Which UMD course is it, if any?
+        Which UMD course does it count as, if any?
       </label>
-      <WithTooltip label="A UMD course code, like CHEM131. Leave it empty to keep it as credit.">
+      <WithTooltip label="A UMD course code, like CHEM131. Leave it empty to keep it as credit with no course.">
         <Input
           id={id}
           list={suggestions.length > 0 ? listId : undefined}
@@ -194,10 +201,10 @@ function MappingField({
           : code === null
             ? "Type a course code, like CHEM131."
             : known
-              ? `Imports as ${code}, ${known[1]}.`
+              ? `Counts as ${code}, ${known[1]}.`
               : search
-                ? `${code} isn't in Testudo. It imports anyway, and Problems will mention it.`
-                : `Imports as ${code}.`}
+                ? `${code} isn't in Testudo. Pick a course Testudo lists, or leave it empty.`
+                : `Counts as ${code}.`}
       </p>
     </div>
   );
@@ -232,7 +239,13 @@ function Row({
     .map((g, i) => (g.length > 1 ? i : -1))
     .filter((i) => i !== -1);
   const kind =
-    line.via === "ap" ? "AP" : line.via === "transfer" ? "Transfer" : null;
+    line.via === "ap"
+      ? "AP"
+      : line.via === "exam"
+        ? "Exam"
+        : line.via === "transfer"
+          ? "Transfer"
+          : null;
   return (
     <li
       className={cn(
@@ -505,10 +518,19 @@ export function ImportPanel() {
     // The terms to replace were worked out for this doc: if another opened
     // while departments loaded, stop rather than replace the wrong ones.
     if (current?.id !== doc.id) return setImportStatus(false, null);
-    const { entries, grades } = buildTranscriptImport(rows, checks, {
-      lookup: currentCourseLookup(),
-      newId: newLocalId,
-    });
+    // "Counts as" only a course Testudo lists (the field says so as you type).
+    const listed = useCourseIndex.getState().search;
+    const known = listed ? new Set(listed.map((r) => r[0])) : null;
+    const mappings = Object.fromEntries(
+      Object.entries(checks.mappings).filter(
+        ([, code]) => known === null || known.has(code),
+      ),
+    );
+    const { entries, grades } = buildTranscriptImport(
+      rows,
+      { ...checks, mappings },
+      { lookup: currentCourseLookup(), newId: newLocalId },
+    );
     const done = importTranscript(current, {
       replace: importReplaceTerms(columns, statusOf),
       entries,
@@ -535,8 +557,11 @@ export function ImportPanel() {
         </label>
         <p className="text-muted text-sm">
           In Testudo, open Unofficial Transcript, select everything on the page
-          ({modKey("A")}), copy, and paste it here. Nothing leaves your browser
-          until you import.
+          ({modKey("A")}), copy, and paste it here.
+        </p>
+        <p className="text-muted text-sm">
+          Your transcript is read here, in your browser, and never saved or
+          sent. Only the courses you import are saved.
         </p>
         <div className="space-y-1">
           <WithTooltip label="Paste the whole Unofficial Transcript page">

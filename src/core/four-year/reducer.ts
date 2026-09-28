@@ -11,6 +11,7 @@ import {
   FOUR_YEAR_MAX_ENTRIES,
   type FourYearCourseDetails,
   type FourYearCourseEntry,
+  type FourYearCreditEntry,
   type FourYearDoc,
   type FourYearEntry,
   type FourYearTerm,
@@ -139,6 +140,19 @@ export type FourYearAction =
       code: CourseCode;
       details: FourYearCourseDetails | null;
       credits?: number | null;
+      now: IsoDateTime;
+    }
+  /**
+   * What a transfer or AP credit counts as (null: no UMD course), its
+   * credits and its GenEds. The title stays the transcript's.
+   */
+  | {
+      type: "set-credit";
+      docId: LocalId;
+      entryId: LocalId;
+      countsAs: CourseCode | null;
+      credits: number;
+      genEds: readonly GenEdCode[];
       now: IsoDateTime;
     }
   /**
@@ -278,7 +292,7 @@ function updateEntry(
   return { ...doc, entries: doc.entries.map((e, k) => (k === i ? next : e)) };
 }
 
-/** Trimmed, with a blank title as none and each code once. */
+/** Trimmed, with a blank title as none, each code once, and "Counts as" only when set. */
 export function cleanDetails(
   details: FourYearCourseDetails,
 ): FourYearCourseDetails {
@@ -286,7 +300,12 @@ export function cleanDetails(
   return {
     title: title === "" ? null : title,
     genEds: [...new Set(details.genEds)].slice(0, 8),
+    ...(details.countsAs ? { countsAs: details.countsAs } : {}),
   };
+}
+
+function sameCodes(a: readonly GenEdCode[], b: readonly GenEdCode[]): boolean {
+  return a.length === b.length && a.every((code, i) => b[i] === code);
 }
 
 function sameDetails(
@@ -296,9 +315,34 @@ function sameDetails(
   if (!a || !b) return (a ?? null) === b;
   return (
     a.title === b.title &&
-    a.genEds.length === b.genEds.length &&
-    a.genEds.every((code, i) => b.genEds[i] === code)
+    sameCodes(a.genEds, b.genEds) &&
+    (a.countsAs ?? null) === (b.countsAs ?? null)
   );
+}
+
+/**
+ * A credit entry as the person says it counts. `countsAs` is written even
+ * when null: that's the person saying it's no course, which answers
+ * `unmatched-credit` and outlives a re-import.
+ */
+function setCredit(
+  entry: FourYearEntry,
+  change: {
+    countsAs: CourseCode | null;
+    credits: number;
+    genEds: readonly GenEdCode[];
+  },
+): FourYearEntry {
+  if (entry.kind !== "credit") return entry;
+  const credits = clamp(change.credits, 0, 40);
+  const genEds = [...new Set(change.genEds)];
+  if (
+    entry.countsAs === change.countsAs &&
+    entry.credits === credits &&
+    sameCodes(entry.genEds, genEds)
+  )
+    return entry;
+  return { ...entry, countsAs: change.countsAs, credits, genEds };
 }
 
 /** Details (and credits, when given) on every entry of a code. */
@@ -344,6 +388,11 @@ function applyTemplate(
   return next === doc ? doc : { ...next, template: { ...action.template } };
 }
 
+/** A credit entry's identity across imports: its transcript title and placeholder. */
+function creditKey(e: FourYearCreditEntry): string {
+  return `${e.title}|${e.equivalentPattern ?? ""}`;
+}
+
 function importTranscript(
   doc: FourYearDoc,
   action: Extract<FourYearAction, { type: "import" }>,
@@ -359,16 +408,30 @@ function importTranscript(
       (e.source === "typed" && !(e.kind === "course" && imported.has(e.code))),
   );
   const keptIds = new Set(kept.map((e) => e.id));
-  // Details someone gave a code outlive a fresh import of it.
+  // Details someone gave a code outlive a fresh import of it, and so does
+  // what someone said a transfer credit counts as (matched by its title).
   const details = new Map<CourseCode, FourYearCourseDetails>();
-  for (const e of doc.entries)
+  const credits = new Map<string, FourYearCreditEntry>();
+  for (const e of doc.entries) {
     if (e.kind === "course" && e.details) details.set(e.code, e.details);
+    if (e.kind === "credit" && e.countsAs !== undefined)
+      credits.set(creditKey(e), e);
+  }
   const incoming = action.entries
     .filter((e) => !keptIds.has(e.id))
-    .map((e) => {
-      const known = e.kind === "course" ? details.get(e.code) : undefined;
-      return e.kind === "course" && known && !e.details
-        ? { ...e, details: known }
+    .map((e): FourYearEntry => {
+      if (e.kind === "course") {
+        const known = details.get(e.code);
+        return known && !e.details ? { ...e, details: known } : e;
+      }
+      const said = e.kind === "credit" ? credits.get(creditKey(e)) : undefined;
+      return e.kind === "credit" && said && !e.countsAs
+        ? {
+            ...e,
+            countsAs: said.countsAs ?? null,
+            credits: said.credits,
+            genEds: [...said.genEds],
+          }
         : e;
     });
   const entries = sortEntries([...kept, ...incoming]);
@@ -523,6 +586,10 @@ export function fourYearReducer(
     case "set-details":
       return updateDoc(state, action.docId, action.now, (doc) =>
         setEntryDetails(doc, action.code, action.details, action.credits),
+      );
+    case "set-credit":
+      return updateDoc(state, action.docId, action.now, (doc) =>
+        updateEntry(doc, action.entryId, (entry) => setCredit(entry, action)),
       );
     case "apply-template":
       return updateDoc(state, action.docId, action.now, (doc) =>

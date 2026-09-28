@@ -7,6 +7,7 @@ import {
 } from "~/core/four-year/course-lookup";
 import type {
   AcademicCalendar,
+  CourseCode,
   CourseIndexEntry,
   DeptCode,
   TermId,
@@ -115,8 +116,17 @@ export function resetFourYearStart(): void {
 /** The departments a doc's courses come from. */
 export function docDepts(doc: Pick<FourYearDoc, "entries"> | null): DeptCode[] {
   const depts = new Set<DeptCode>();
-  for (const e of doc?.entries ?? [])
+  for (const e of doc?.entries ?? []) {
     if (e.kind === "course") depts.add(e.code.slice(0, 4));
+    // What it counts as: its prerequisites and repeats need that course.
+    const countsAs =
+      e.kind === "course"
+        ? e.details?.countsAs
+        : e.kind === "credit"
+          ? e.countsAs
+          : null;
+    if (countsAs) depts.add(countsAs.slice(0, 4));
+  }
   return [...depts].sort();
 }
 
@@ -177,6 +187,17 @@ export function useIndexEntry(
     if (connected && dept) void ensure([dept]);
   }, [connected, dept, ensure]);
   return useCourseIndex((s) => (code ? courseIndexEntry(s, code) : null));
+}
+
+/** One course's index entry once its department has loaded; null when it can't. */
+export async function loadIndexEntry(
+  code: CourseCode,
+): Promise<CourseIndexEntry | null> {
+  await useCourseIndex
+    .getState()
+    .ensureDepts([code.slice(0, 4)])
+    .catch(() => undefined);
+  return courseIndexEntry(useCourseIndex.getState(), code) ?? null;
 }
 
 /** What the loaded department files know right now, outside React (the import). */

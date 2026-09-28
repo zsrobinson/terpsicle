@@ -597,6 +597,104 @@ describe("set-details", () => {
   });
 });
 
+describe("counts as", () => {
+  const chem = aFourYearCreditEntry({
+    id: "entry_chem",
+    title: "AP CHEMISTRY",
+    equivalentPattern: "CHEM1XX",
+    genEds: ["DSNL"],
+  });
+  const start: FourYearState = { docs: [aFourYear({ entries: [chem] })] };
+  const setCredit = (
+    over: Partial<Extract<FourYearAction, { type: "set-credit" }>> = {},
+  ): FourYearAction => ({
+    type: "set-credit",
+    docId: doc.id,
+    entryId: "entry_chem",
+    countsAs: "CHEM131",
+    credits: 4,
+    genEds: ["DSNL", "DSNL"],
+    now: LATER,
+    ...over,
+  });
+
+  it("says what a credit counts as, with its credits and GenEds, keeping its title", () => {
+    const s = run(start, setCredit({ credits: 3 }));
+    expect(only(s).entries[0]).toEqual({
+      ...chem,
+      countsAs: "CHEM131",
+      credits: 3,
+      genEds: ["DSNL"],
+    });
+    expect(only(s).updatedAt).toBe(LATER);
+    expect(FourYearDocSchema.safeParse(only(s)).success).toBe(true);
+  });
+
+  it("keeps saying none as null, changes nothing when nothing changed, and never touches a course", () => {
+    const none = run(start, setCredit({ countsAs: null }));
+    expect(only(none).entries[0]).toMatchObject({ countsAs: null });
+    expect(run(none, setCredit({ countsAs: null }))).toBe(none);
+    const course = { docs: [aFourYear({ entries: [aFourYearEntry()] })] };
+    expect(run(course, setCredit({ entryId: aFourYearEntry().id }))).toBe(
+      course,
+    );
+  });
+
+  it("keeps Counts as in course info, and only when it's set", () => {
+    const honors = aFourYearEntry({
+      id: "entry_h",
+      code: "MATH241H",
+      source: "transcript",
+    });
+    const base = { docs: [aFourYear({ entries: [honors] })] };
+    const action = (countsAs?: string | null): FourYearAction => ({
+      type: "set-details",
+      docId: doc.id,
+      code: "MATH241H",
+      details: { title: "Calculus III", genEds: ["FSAR"], countsAs },
+      now: LATER,
+    });
+    expect(only(run(base, action("MATH241"))).entries[0]).toMatchObject({
+      details: { countsAs: "MATH241" },
+    });
+    expect(only(run(base, action(null))).entries[0]).toMatchObject({
+      details: { title: "Calculus III", genEds: ["FSAR"] },
+    });
+    expect(only(run(base, action(null))).entries[0]).not.toHaveProperty(
+      "details.countsAs",
+    );
+    const set = run(base, action("MATH241"));
+    expect(run(set, action("MATH241"))).toBe(set);
+  });
+
+  it("outlives a re-import of the same credit, unless the import says otherwise", () => {
+    const said = run(start, setCredit({ credits: 3, genEds: ["DSNS"] }));
+    const again = aFourYearCreditEntry({
+      id: "entry_chem2",
+      title: "AP CHEMISTRY",
+      equivalentPattern: "CHEM1XX",
+      genEds: ["DSNL"],
+    });
+    const importing = (entries: FourYearEntry[]): FourYearAction => ({
+      type: "import",
+      docId: doc.id,
+      replace: ["before"],
+      entries,
+      grades: {},
+      now: LATER,
+    });
+    expect(only(run(said, importing([again]))).entries).toEqual([
+      { ...again, countsAs: "CHEM131", credits: 3, genEds: ["DSNS"] },
+    ]);
+    // A new "Counts as" from the check step wins.
+    expect(
+      only(run(said, importing([{ ...again, countsAs: "CHEM135" }]))).entries,
+    ).toEqual([{ ...again, countsAs: "CHEM135" }]);
+    // Credit nobody has said anything about imports as it reads.
+    expect(only(run(start, importing([again]))).entries).toEqual([again]);
+  });
+});
+
 describe("apply-template", () => {
   const template = {
     id: "cmsc-2026",

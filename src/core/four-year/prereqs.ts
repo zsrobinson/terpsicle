@@ -2,16 +2,18 @@ import type { CourseCode, TermId } from "../schema";
 import type {
   FourYearCourseEntry,
   FourYearDoc,
+  FourYearEntry,
   FourYearTerm,
 } from "../schema/four-year";
-import type { FourYearCourses } from "./course-lookup";
+import { countsAsCode, type FourYearCourses } from "./course-lookup";
 import { earnedNothing } from "./credits";
 import { compareFourYearTerms, nextSemester, semesterIds } from "./terms";
 
 // Prerequisite checks (docs/V3.md §2.8) on the course index's parsed groups.
 // Information only: nothing blocks a move. Each group needs one of its codes
 // (or a cross-listed equivalent) in an earlier column; a course's own term
-// never counts, and placeholders and credit entries satisfy nothing.
+// never counts. Placeholders satisfy nothing, and credit entries only what
+// they're said to count as.
 
 /** Whether a course in the plan meets a group: one of its codes, or cross-listed with one. */
 export function meetsGroup(
@@ -41,14 +43,20 @@ function prereqGroups(
     .filter((group) => group.length > 0);
 }
 
-/** Course entries that can meet a prerequisite: all but ones whose grade earned nothing. */
+type Satisfier = { readonly entry: FourYearEntry; readonly code: CourseCode };
+
+/**
+ * Entries that can meet a prerequisite, as the course each counts as: every
+ * course but ones whose grade earned nothing, and credit that counts as one.
+ */
 function satisfiers(
   doc: Pick<FourYearDoc, "entries" | "grades">,
-): FourYearCourseEntry[] {
-  return doc.entries.filter(
-    (e): e is FourYearCourseEntry =>
-      e.kind === "course" && !earnedNothing(doc, e),
-  );
+  lookup: FourYearCourses,
+): Satisfier[] {
+  return doc.entries.flatMap((entry) => {
+    const code = countsAsCode(lookup, entry);
+    return code === null || earnedNothing(doc, entry) ? [] : [{ entry, code }];
+  });
 }
 
 /** The groups of an entry's prerequisites that no earlier column meets. */
@@ -59,11 +67,11 @@ export function unmetPrereqGroups(
 ): CourseCode[][] {
   const groups = prereqGroups(entry.code, lookup);
   if (groups.length === 0) return [];
-  const earlier = satisfiers(doc).filter(
-    (e) => compareFourYearTerms(e.term, entry.term) < 0,
+  const earlier = satisfiers(doc, lookup).filter(
+    (s) => compareFourYearTerms(s.entry.term, entry.term) < 0,
   );
   return groups.filter(
-    (group) => !earlier.some((e) => meetsGroup(e.code, group, lookup)),
+    (group) => !earlier.some((s) => meetsGroup(s.code, group, lookup)),
   );
 }
 
@@ -78,13 +86,13 @@ export function firstSemesterMeetingPrereqs(
   lookup: FourYearCourses,
 ): TermId | null {
   const groups = prereqGroups(entry.code, lookup);
-  const others = satisfiers(doc).filter((e) => e.id !== entry.id);
+  const others = satisfiers(doc, lookup).filter((s) => s.entry.id !== entry.id);
   let latest: FourYearTerm = "before";
   for (const group of groups) {
     let earliest: FourYearTerm | null = null;
-    for (const e of others)
+    for (const { entry: e, code } of others)
       if (
-        meetsGroup(e.code, group, lookup) &&
+        meetsGroup(code, group, lookup) &&
         (earliest === null || compareFourYearTerms(e.term, earliest) < 0)
       )
         earliest = e.term;

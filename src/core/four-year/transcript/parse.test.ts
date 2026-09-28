@@ -16,6 +16,7 @@ const paste = (name: string): string => {
 const fourSemesters = paste("synthetic-four-semesters");
 const apTransfer = paste("synthetic-ap-transfer");
 const inProgress = paste("synthetic-in-progress");
+const transferCredit = paste("synthetic-transfer-credit");
 
 /** One JSON object per line, so a golden diff shows exactly what changed. */
 function outline(parse: TranscriptParse): string {
@@ -196,6 +197,148 @@ describe("parseTranscript: AP and transfer credit", () => {
   });
 });
 
+describe("parseTranscript: transfer and exam credit", () => {
+  const parse = parseTranscript(transferCredit);
+  const titled = (title: string): TranscriptLine => {
+    const line = parse.lines.find((l) => l.title === title);
+    if (!line) throw new Error(`${title} wasn't read`);
+    return line;
+  };
+
+  it("drops an AP score from the title", () => {
+    expect(find(parse, "MATH140")).toMatchObject({
+      title: "AP CALCULUS AB",
+      via: "ap",
+      credits: 4,
+    });
+    expect(titled("AP ENVIRONMENTAL SCIENCE")).toMatchObject({
+      code: null,
+      equivalentPattern: "ENST1XX",
+    });
+  });
+
+  it("reads IB and credit by exam as exam credit", () => {
+    expect(find(parse, "PSYC100")).toMatchObject({
+      title: "IB PSYCHOLOGY HL",
+      via: "exam",
+      genEds: [[{ code: "DSHS" }, { code: "DSNS" }]],
+    });
+    expect(find(parse, "SPAN103")).toMatchObject({
+      title: "CLEP SPANISH LANGUAGE",
+      via: "exam",
+      grade: "P",
+      genEds: [],
+    });
+  });
+
+  it("reads an elective equivalent as credit with no UMD course", () => {
+    for (const [title, credits] of [
+      ["IB ENGLISH A LIT HL", 3],
+      ["FIRST YEAR SEMINAR", 1],
+      ["GLOBAL HEALTH ISSUES", 3],
+    ] as const)
+      expect(titled(title)).toMatchObject({
+        code: null,
+        equivalentOf: null,
+        equivalentPattern: null,
+        credits,
+        genEds: [],
+      });
+  });
+
+  it("drops evaluation and footnote codes, and an outside code after a slash", () => {
+    expect(find(parse, "SOCY100")).toMatchObject({
+      title: "INTRO TO SOCIOLOGY",
+      grade: "A",
+      via: "transfer",
+      genEds: [[{ code: "DSHS" }], [{ code: "DVUP" }]],
+    });
+    expect(titled("COLLEGE ALGEBRA")).toMatchObject({
+      equivalentPattern: "MATH1XX",
+      genEds: [[{ code: "FSMA" }]],
+    });
+  });
+
+  it("joins a title wrapped onto the next row", () => {
+    expect(
+      titled("INTRODUCTION TO ENVIRONMENTAL SCIENCE AND POLICY"),
+    ).toMatchObject({
+      grade: "A",
+      equivalentPattern: "ENST1XX",
+      credits: 4,
+      genEds: [[{ code: "DSNL" }]],
+    });
+    expect(find(parse, "ENST233")).toMatchObject({
+      title: "INTRODUCTION TO ENVIRONMENTAL HEALTH",
+      grade: "B+",
+      credits: 3,
+      genEds: [[{ code: "DSNS" }]],
+    });
+  });
+
+  it("joins GenEds wrapped onto the next row", () => {
+    expect(titled("ETHICS IN THE MODERN WORLD").genEds).toEqual([
+      [{ code: "DSHU" }, { code: "DSHS" }],
+      [{ code: "DVCC" }],
+    ]);
+    expect(find(parse, "HIST200").genEds).toEqual([
+      [{ code: "DSHS" }, { code: "DSHU" }],
+      [{ code: "DVUP" }],
+    ]);
+  });
+
+  it("reads credit with no grade", () => {
+    expect(titled("PUBLIC SPEAKING")).toMatchObject({
+      grade: null,
+      credits: 3,
+      earned: 3,
+      code: null,
+      via: "transfer",
+    });
+    expect(titled("WATERSHED FIELD METHODS")).toMatchObject({
+      grade: "A",
+      credits: 3,
+      code: null,
+    });
+  });
+
+  it("leaves out credit UMD hasn't evaluated yet, to tick back in", () => {
+    expect(parse.skipped).toEqual([
+      expect.objectContaining({ reason: "no-credit" }),
+      {
+        raw: "2 ANATOMY AND PHYSIOLOGY I B NE 4.00",
+        reason: "not-evaluated",
+        line: expect.objectContaining({
+          title: "ANATOMY AND PHYSIOLOGY I",
+          credits: 4,
+          code: null,
+        }),
+      },
+    ]);
+  });
+
+  it("reads every credit line under each school, and no heading as a course", () => {
+    const before = parse.lines.filter((l) => l.term === "before");
+    expect(before.map((l) => l.title)).toEqual([
+      "AP CALCULUS AB",
+      "AP ENVIRONMENTAL SCIENCE",
+      "IB PSYCHOLOGY HL",
+      "IB ENGLISH A LIT HL",
+      "CLEP SPANISH LANGUAGE",
+      "INTRO TO SOCIOLOGY",
+      "COLLEGE ALGEBRA",
+      "INTRODUCTION TO ENVIRONMENTAL SCIENCE AND POLICY",
+      "ETHICS IN THE MODERN WORLD",
+      "FIRST YEAR SEMINAR",
+      "WATERSHED FIELD METHODS",
+      "PUBLIC SPEAKING",
+      "GLOBAL HEALTH ISSUES",
+    ]);
+    expect(before.every((l) => l.via !== "umd")).toBe(true);
+    expect(parse.lines.filter((l) => l.term !== "before")).toHaveLength(6);
+  });
+});
+
 describe("parseTranscript: in progress, withdrawn, dropped", () => {
   const parse = parseTranscript(inProgress);
 
@@ -322,6 +465,51 @@ describe("parseTranscript: layout details", () => {
   it("reads a withdrawn transfer line as withdrawn", () => {
     const parse = parseTranscript(paste("    STATISTICS   W   STAT100   3.00"));
     expect(parse.skipped.map((s) => s.reason)).toEqual(["withdrawn"]);
+  });
+
+  it("reads transfer credit listed under the term it was accepted", () => {
+    const parse = parseTranscript(
+      paste(
+        "Fall 2023",
+        "    COLLEGE WRITING        A     ENGL101   3.00   FSAW",
+        "    MUSIC APPRECIATION     P               3.00",
+        "Fall 2024",
+        "    CMSC131  OBJECT-ORIENTED PROG I  A  4.00  4.00  16.00",
+      ),
+    );
+    expect(parse.lines.map((l) => [l.term, l.title])).toEqual([
+      ["before", "COLLEGE WRITING"],
+      ["before", "MUSIC APPRECIATION"],
+      ["202408", "OBJECT-ORIENTED PROG I"],
+    ]);
+  });
+
+  it("reads a transfer section that comes after the terms", () => {
+    const parse = parseTranscript(
+      paste(
+        "Fall 2024",
+        "    CMSC131  OBJECT-ORIENTED PROG I  A  4.00  4.00  16.00",
+        "Transfer Credit",
+        "    AP BIOLOGY   P   BSCI105   4.00   DSNL",
+      ),
+    );
+    expect(parse.lines.map((l) => [l.term, l.code])).toEqual([
+      ["202408", "CMSC131"],
+      ["before", "BSCI105"],
+    ]);
+  });
+
+  it("doesn't read totals as credit", () => {
+    const parse = parseTranscript(
+      paste(
+        "Transfer Credit",
+        "    AP BIOLOGY   P   BSCI105   4.00   DSNL",
+        "    Total Transfer Credit      4.00",
+        "    Institution Total          4.00",
+      ),
+    );
+    expect(parse.lines.map((l) => l.title)).toEqual(["AP BIOLOGY"]);
+    expect(parse.skipped).toEqual([]);
   });
 
   it("reports a course line it can't read, and nothing else", () => {

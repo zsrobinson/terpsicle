@@ -182,7 +182,7 @@ The v2 brand came from a prototype track: a "Bulletin" paper round, then six var
 
 - **Product colors, in color order:** Terpsicle (the scheduler) red, Reviews purple, Chat blue, Plan green, Todo yellow. `bg-product-<id>` is the 600 step in both themes, `text-product-<id>-fg` white on it, and `bg-product-<id>-soft` the 50 step (dark: 900). Since the owner's marks (2026-09-28), Plan's and Todo's tiles are their 600 steps too, with white glyphs (§7.5).
 - **Where product color goes (Ink: "tint only"):** the marks, the product menu and the marketing page. In the app it is never a button, a heading or a border.
-- **The marketing page** (`/`, `src/features/marketing`) is the brand at full volume, so it goes further than the app: each product's block sits on its soft fill (with the grain), the hero's five lines are drawn in `-line` and product-colored words in `-text` (both in `src/styles.css`, held to the same contrast test), and the headings carry a Riso misprint that settles into register.
+- **The marketing page** (`/`, `src/features/marketing`, §8) is the brand at full volume, so it goes further than the app: the story's section takes on the current step's soft fill (with the grain), product-colored words are `-text` (in `src/styles.css`, held to the same contrast test), and the headings carry a Riso misprint that settles into register.
 - **The selected row is neutral,** a half-step past `hover`, so the current item reads stronger than a hovered one. Ink tinted it with the scheduler's soft red, which is also the error fill, and selection must never read as an error.
 - **Course colors** are Flexoki too: fill 100 (dark 900), border and dot 400, text 900 (dark 150). The text is a step darker than Ink's 700/800 because a block's time and room lines are drawn at 70–80% opacity and must still clear 4.5:1. Flexoki has eight hues and red means an error here, so three of the ten course ids are oklab midpoints of neighbors, in Flexoki's widest hue gaps: green (green + cyan), cyan (cyan + blue) and indigo (blue + purple). The ten sit at least 22° apart, and every line of block text clears 4.5:1, placed, ghosted or dimmed.
 
@@ -226,3 +226,24 @@ Every page has the family bar (docs/COHESION.md §4): from 1100px, the five prod
 
 - Colors: [Flexoki](https://stephango.com/flexoki) by Steph Ango, MIT License.
 - Type: Bricolage Grotesque (The Bricolage Grotesque Project Authors) and Geist Mono (Vercel), both SIL Open Font License 1.1, self-hosted from Fontsource.
+
+## 8. The marketing page (owner, 2026-09-28)
+
+After four prototype rounds the owner picked round 4's version B, "Guide", with its copy, and asked for the real page: "i definitely like the mockups of the scrolling schedule getting more things on top of it. i don't like the atom idea even one bit. i think we can have the above the fold thing just showing the plain schedule, and the "schedule" section "advertisting" that component shows the problems tab. i think it'd be nice if these thinks were at least a little interactive." The atom and the older tangle are gone (docs/decisions.md).
+
+**Structure** (`src/features/marketing`):
+- **The story** (`story/story.tsx`): the hero's words, then one step per product in color order, beside **the screen** (`story/screen.tsx`), a sample of Schedule with Plan A: the family bar's plan tabs, credits and problems, the rail, and the week drawn the way the calendar draws it (`story/week.tsx`). On a desktop the screen is `position: sticky` in the right column; on a phone it sticks to the top and the steps scroll under it. The page scrolls at the browser's own speed: sticky, never pinned.
+- **Stages:** 0 is the hero, the plain week. Each step's words reaching the middle of the window (on a phone, the middle of what the screen leaves uncovered) stage its product: the Problems tab slides out of the rail (a tab: it closes when you move on), then a rating card, the section's room, a semester of Plan and a few of Todo's cards land and stay. On a phone only the current piece shows. The steps above the screen, the problems chip and Tab (focus inside a step) reach every stage without scrolling.
+- **The section's fill** eases to the current product's soft color, with the grain.
+- **After the story:** "They're one product, not five tabs." (four handoffs, each a View link), then "Step one is free and takes a minute." and the footer.
+
+**The demos** (`story/pieces.tsx`, `story/plan-a.ts`) are small, obviously samples (the caption says so), keyboard-first, and local: nothing is saved or sent. Each change says what happened in the app's own toast, with Undo.
+- Problems: "Switch STAT400 to 0201" fixes the walking conflict (the pill leaves the week and the block moves), "Switch ENGL393 to 0205" the overlap, and "Watch for a seat" turns into "Watching" with the filled bell, on the calendar too. "Start over" puts Plan A back.
+- Reviews: the rating's tooltip shows where the number comes from. Chat: send a message; a classmate answers. Todo: check a due date off.
+- Plan A is the mock app's demo plan, with the mock catalog's sections, rooms and instructors (a test holds them together). Two things differ on purpose: CMSC351 0301 is full, so there's a seat to watch, and ENGL393's fix is 0205, which lands inside the hours on screen.
+
+**Signed in**, nothing asks for a sign-in again: the header offers "Open Terpsicle" and the account, the hero drops "Sign in with UMD" and says the plans sync, and the closing line changes. Until `/api/me` answers, the sign-in link holds its place unseen.
+
+**Speed and search:** everything but the demos is server-rendered at its final size, so nothing shifts; the pieces only move with transforms and their code loads in its own chunk once the steps come near. The headline's font and the week's mono face are preloaded. The head carries the title, description, canonical URL, Open Graph and Twitter cards, and JSON-LD (WebSite, Organization, WebApplication: free, runs in a browser, no rating). `public/og.png` is drawn from Plan A's week by `scripts/build-og-image.ts`.
+
+**Motion:** transform and opacity, 0.3–0.5s on a spring; the misprint settles once. Reduced motion gets every stage's final frame with no transition.

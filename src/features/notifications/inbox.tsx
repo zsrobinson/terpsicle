@@ -324,11 +324,14 @@ export function InboxSurface({
   open,
   onOpenChange,
   anchor,
+  returnFocus,
   mobile,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   anchor: RefObject<HTMLButtonElement | null>;
+  /** Hands focus back to the bell as the list closes (./bell.tsx). */
+  returnFocus: () => void;
   mobile: boolean;
 }) {
   useEffect(() => {
@@ -367,7 +370,7 @@ export function InboxSurface({
         }}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          anchor.current?.focus();
+          returnFocus();
         }}
       >
         <InboxPanel close={close} title="Notifications" />

@@ -8,7 +8,7 @@ import {
 } from "../schema";
 import type { SectionGroup } from "./candidates";
 
-// Ranking (SPEC §3.9 "Rank by"). Every factor maps to 0–1, higher is better,
+// Ranking (SPEC §3.9 "Preferences"). Every factor maps to 0–1, higher is better,
 // with fixed, explainable scales rather than scales relative to the result
 // set, so a plan's score doesn't change when other results come and go.
 
@@ -27,10 +27,10 @@ export const RANK_FACTOR_LABELS = {
 } as const satisfies Record<RankFactor, string>;
 
 /** Scales: a week with 20 idle hours between classes scores 0 for compactness. */
-const WORST_GAP_MINUTES = 20 * 60;
+export const WORST_GAP_MINUTES = 20 * 60;
 /** Starts: 8am scores 0, noon scores 1. */
-const EARLY = 8 * 60;
-const LATE = 12 * 60;
+export const EARLY = 8 * 60;
+export const LATE = 12 * 60;
 /** Seats: 30 or more open in the tightest section is as safe as it gets. */
 const SAFE_SEATS = 30;
 /** Neutral when there's nothing to go on (no ratings, no seat counts). */

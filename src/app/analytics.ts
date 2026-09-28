@@ -11,6 +11,7 @@ import type {
   ProblemKind,
   RailTab,
   RankBy,
+  RankFactor,
   Relaxable,
   ReportReason,
   SignInError,
@@ -78,15 +79,23 @@ export interface AnalyticsEvents {
     /** The must-haves that narrowed the search, by name. */
     mustHaves: Relaxable[];
     rankBy: RankBy["preset"];
+    /** The preferences that were on, double ones first. */
+    preferences: RankFactor[];
     results: number;
     durationMs: number;
     /** Stopped at the step budget ("Showing the best 200"). */
     truncated: boolean;
     /** Started from a suggested relaxation. */
     relaxed: boolean;
+    /** Started by a chip changing after an earlier run (live results). */
+    live: boolean;
   };
   generate_result_previewed: { rank: number };
   generate_plans_saved: { count: number };
+  /** A preference chip clicked: the level it went to (0 off, 1 on, 2 double). */
+  generate_preference_changed: { factor: RankFactor; level: 0 | 1 | 2 };
+  /** A filter chip turned on, off or changed. */
+  generate_filter_changed: { filter: Relaxable; on: boolean };
   generate_relaxation_applied: { constraint: Relaxable };
   /** Debounced; the query's length only, never its text. */
   search_performed: { queryLength: number; results: number; filtered: boolean };
@@ -185,7 +194,11 @@ export interface AnalyticsEvents {
   four_year_wildcard_resolved: { kind: "pattern" | "gen-ed" };
   four_year_problem_opened: { kind: FourYearProblemKind };
   four_year_problem_fix_applied: { kind: FourYearProblemKind };
-  four_year_details_saved: { genEds: number };
+  four_year_details_saved: {
+    genEds: number;
+    countsAs: boolean;
+    of: "course" | "credit";
+  };
   four_year_handoff: { outcome: "created-plan" | "opened-plan" };
   // Every "View …" link between products (V3.md §6): product ids only,
   // never the course, term or item it leads to.

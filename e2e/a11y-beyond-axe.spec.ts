@@ -221,7 +221,7 @@ test.describe("desktop", () => {
     await page.getByRole("button", { name: "Generate plans" }).click();
     const results = page.getByRole("list", { name: "Generated plans" });
     await expect(results.getByRole("listitem").first()).toBeVisible();
-    await results.getByRole("checkbox").first().focus();
+    await results.getByRole("button").first().focus();
     for (let i = 0; i < 40; i++) {
       await page.keyboard.press("Tab");
       if (

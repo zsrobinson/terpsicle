@@ -40,9 +40,11 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `deep_link_opened` | `outcome`: `ok` · `unknown-term` | How often seat-alert emails bring people back, and whether their terms still exist. |
   | `catalog_loaded` | `termId`, `fromCache`, `deptsFetched`, `ms` (until every department is in) | Whether the IndexedDB cache and manifest diffing keep repeat visits fast (BUILD §5), and how long a first visit waits for the whole catalog. |
   | `catalog_load_failed` | `termId` (null when the terms list failed), `reason`: `missing` · `network` · `invalid` · `newer-data` | Visits that saw the "couldn't load" state instead of a calendar, and which failure caused it. |
-  | `generate_run` | `courses` (listed by code), `wildcards` (each wildcard item's kind, `pattern` or `gen-ed`), `mustHaves` (names of the ones set), `rankBy`, `results`, `durationMs`, `truncated`, `relaxed` | How big Generate requests get, whether people use wildcards, which must-haves people set, how often nothing fits, and whether runs stay fast on real devices. |
+  | `generate_run` | `courses` (listed by code), `wildcards` (each wildcard item's kind, `pattern` or `gen-ed`), `mustHaves` (names of the filters on), `rankBy`, `preferences` (factors on, double ones first), `results`, `durationMs`, `truncated`, `relaxed`, `live` (a chip changed after a run) | How big Generate requests get, whether people use wildcards, which filters and preferences people set, how often nothing fits, whether live re-ranking gets used, and whether runs stay fast on real devices. |
   | `generate_result_previewed` | `rank` | Whether people look past the first few results (is the ranking right?). |
-  | `generate_plans_saved` | `count` | Whether Generate produces plans people keep, and whether saving several at once is used. |
+  | `generate_plans_saved` | `count` (always 1 since results are added one at a time) | Whether Generate produces plans people keep. |
+  | `generate_preference_changed` | `factor`, `level`: `0` off · `1` on · `2` double | Which preferences people rank by, and whether anyone finds 2×. |
+  | `generate_filter_changed` | `filter` (a must-have's name), `on` | Which filters people reach for in the chips. |
   | `generate_relaxation_applied` | `constraint` | Which suggested relaxations people take when nothing fits. |
   | `travel_settings_changed` | `setting`: `pace` · `accessible` · `extraMinutes`, and its new `value` | Which travel settings people change, and whether Accessible routes gets used. |
   | `travel_how_opened` | | Whether people want to see how estimates are made ("How?"). |
@@ -92,7 +94,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `four_year_course_moved` | `via`: `drag` · `menu` | Whether drag is discovered, or people use "Move to…". |
   | `four_year_wildcard_added` / `four_year_wildcard_resolved` | `kind`: `pattern` · `gen-ed` | Whether placeholders earn their place. |
   | `four_year_problem_opened` / `four_year_problem_fix_applied` | `kind` (a `FourYearProblemKind`) | Whether prerequisite and credit problems help. |
-  | `four_year_details_saved` | `genEds`: how many GenEds it was given | How often people describe a course Testudo doesn't list anymore. Never the code, title or which GenEds. |
+  | `four_year_details_saved` | `genEds`: how many GenEds it was given; `countsAs`: whether it counts as a UMD course; `of`: `course` (a code Testudo doesn't list) or `credit` (AP, exam or transfer credit with no UMD course) | How often people describe a course Testudo can't match, and whether "Counts as" is used. Never the code, title, the course it counts as, or which GenEds. |
   | `four_year_handoff` | `outcome`: `created-plan` · `opened-plan` | Whether "View schedule" leads somewhere: `created-plan` when the scheduler bookmarks the semester's courses in a new (or still empty) plan, `opened-plan` when it opens the term's plan as it is. Never which courses. |
   | `cross_link_clicked` | `from`, `to` (product ids: `schedule`, `reviews`, `chat`, `plan`, `todo`) | Which "View …" links between products get followed (V3 §1.2): Plan → Schedule, Todo and Reviews; Schedule → Plan; Todo → Chat and Schedule; Reviews → Schedule. Never the course, term or item behind the link. |
   | `transcript_parsed` | `recognized`, and counts: `lines` read, `choices` waiting on an "or", `skipped` lines | How often pastes read, and how much fixing they need. Sent once a paste settles, never with its text. |
