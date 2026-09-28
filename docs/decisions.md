@@ -167,8 +167,13 @@ Revisit if: Google allows preview redirect URIs safely.
 
 ### The JSON API is plain Worker routes
 2026-09-25 · agent · app-wide
-`/api/*` is a route table in `src/server/api/router.ts`, not `createServerFn`: it runs in the worker test pool against real bindings, sees the raw request for rate limits, and keeps Worker types out of the app.
-Revisit if: server functions gain those, or the table gets in the way.
+`/api/*` is a route table run by `src/server/api/router.ts`, not `createServerFn`: it runs in the worker test pool against real bindings, sees the raw request for rate limits, and keeps Worker types out of the app.
+Revisit if: server functions gain those, or the table gets in the way. (changed 2026-09-28: the table is split by area, next entry)
+
+### Each area owns its API routes
+2026-09-28 · owner · app-wide
+Each `src/server/<area>` writes its JSON routes in its own `api-routes.ts` table, and `src/server/api/router.ts` composes them, so products stop editing one shared file ("sure, if that would help reduce conflicts definitely"). A test holds each name to one area and snapshots every route's auth and limits.
+Revisit if: areas start sharing routes, or the tables drift into different shapes.
 
 ### Page size is informational
 2026-09-26 · owner · app-wide

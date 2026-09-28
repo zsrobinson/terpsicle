@@ -1,5 +1,5 @@
 // Feedback's JSON routes (docs/FEEDBACK.md), registered in
-// src/server/api/router.ts:
+// ./api-routes.ts:
 //
 //   feedback/send          anyone (reads the session if there is one)
 //   feedback/undo          the sender, with the token send returned, 10 min

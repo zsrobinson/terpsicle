@@ -1,5 +1,5 @@
 // Terpsicle Reviews' JSON routes (docs/V2.md §7.4), registered in
-// src/server/api/router.ts:
+// ./api-routes.ts:
 //
 //   reviews/list     anyone: an instructor's published reviews, a page at a time
 //   reviews/submit   signed in: write a review (a second for the same course edits the first)
