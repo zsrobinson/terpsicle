@@ -166,7 +166,8 @@ export function TermColumn({
         {tag ? (
           // Now and Next, as every product tags them; the status says the rest.
           <TermTag tag={tag} className="self-center" />
-        ) : (
+        ) : status === "done" && entries.length === 0 ? null : (
+          // A past semester with nothing in it isn't "Done": the name is enough.
           <span className="text-muted text-xs">{STATUS_WORDS[status]}</span>
         )}
         <span className="tnum ml-auto text-muted text-xs">

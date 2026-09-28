@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { type TermTags, termTagOf } from "~/core/catalog/term-tag";
+import { shortTermName } from "~/core/catalog/terms";
 import { mainPlanFor, tabsInTerm } from "~/core/plans";
 import type { MainPlans, Plan, Term } from "~/core/schema";
 import { useActiveTerm, useTermTags } from "~/state/hooks";
@@ -61,7 +62,7 @@ export function TermSwitcher() {
             {/* "Spring ’27" until the bar is wide (1536px, where the Early
                 access chip comes back), so the tag and the plans' names fit. */}
             <span className="hidden 2xl:inline">{term.name}</span>
-            <span aria-hidden="true" className="2xl:hidden">
+            <span aria-hidden="true" className="whitespace-nowrap 2xl:hidden">
               {shortTermName(term.name)}
             </span>
             <TermTag tag={termTagOf(term.id, tags)} />
@@ -106,11 +107,6 @@ export function TermSwitcher() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-/** "Spring 2027" → "Spring ’27". */
-export function shortTermName(name: string): string {
-  return name.replace(/ \d{2}(\d{2})$/, " ’$1");
 }
 
 /** "Plan A, main · 3 plans", "Plan A · 5 courses" or "No plans yet". */

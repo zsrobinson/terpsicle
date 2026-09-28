@@ -58,7 +58,7 @@ export function DraftLine({
   return (
     <div
       data-testid="draft-line"
-      className="space-y-2.5 border-hairline border-b bg-panel px-4 py-3 text-sm"
+      className="space-y-3 border-hairline border-b bg-panel px-4 py-3 text-sm"
     >
       <p className="flex items-start gap-2">
         <MainPlanMark className="mt-1.5" />

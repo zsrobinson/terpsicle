@@ -16,6 +16,11 @@ export function termLabel(termId: string): string {
   return `${name} ${season === "winter" ? year + 1 : year}`;
 }
 
+/** "Spring 2027" → "Spring ’27": a term's name where a bar is short of room. */
+export function shortTermName(name: string): string {
+  return name.replace(/ \d{2}(\d{2})$/, " ’$1");
+}
+
 /**
  * The months each season usually runs, first day of classes through grades,
  * as [month-day, month-day] of the term's calendar year; winter runs in the

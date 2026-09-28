@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { type TermTags, termTagOf } from "~/core/catalog/term-tag";
+import { shortTermName } from "~/core/catalog/terms";
 import type { Term } from "~/core/schema";
 import {
   DropdownMenu,
@@ -45,9 +46,21 @@ export function ChatTermMenu() {
             aria-label={`Term: ${term.name}`}
             className="flex h-7 min-w-0 items-center gap-1 px-1.5 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-md:h-11 max-md:px-1"
           >
-            <span className="truncate">{term.name}</span>
+            {/* A phone says "Spring ’27", so the name and its tag read whole. */}
+            <span className="truncate max-sm:hidden">{term.name}</span>
+            <span
+              aria-hidden="true"
+              className="hidden whitespace-nowrap max-sm:inline"
+            >
+              {shortTermName(term.name)}
+            </span>
             <TermTag tag={termTagOf(term.id, tags)} className="ml-0.5" />
-            <ChevronDown size={12} aria-hidden="true" />
+            {/* On a phone a tagged term ends at its tag, so its name reads whole. */}
+            <ChevronDown
+              size={12}
+              aria-hidden="true"
+              className={termTagOf(term.id, tags) ? "max-sm:hidden" : undefined}
+            />
           </button>
         </DropdownMenuTrigger>
       </WithTooltip>

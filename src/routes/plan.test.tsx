@@ -199,7 +199,8 @@ describe("the first visit", () => {
     expect(await screen.findByText("My plan")).toBeVisible();
     for (const term of ["Before UMD", "Fall 2025", "Spring 2029"])
       expect(screen.getByRole("heading", { name: term })).toBeVisible();
-    expect(within(column("Fall 2025")).getByText("Done")).toBeVisible();
+    // A past semester with nothing in it isn't "Done": its name is enough.
+    expect(within(column("Fall 2025")).queryByText("Done")).toBeNull();
     // The semester in progress is Now, as every product tags it.
     expect(within(column("Fall 2026")).getByText("Now")).toBeVisible();
     // The fall or spring you're planning next is Next; later ones, Planned.
@@ -209,6 +210,19 @@ describe("the first visit", () => {
 
     const [doc] = await saved();
     expect(doc).toMatchObject({ name: "My plan", firstTermId: "202508" });
+  });
+});
+
+describe("a link straight to a view, with no plan yet", () => {
+  it("opens Import on a new plan instead of the first visit", async () => {
+    renderPlan("/plan/import");
+    expect(
+      await screen.findByText("Paste your unofficial transcript"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { level: 1, name: "Plan your four years" }),
+    ).toBeNull();
+    expect(router.state.location.pathname).toBe("/plan/import");
   });
 });
 
@@ -465,7 +479,7 @@ describe("View schedule", () => {
     ).toBeNull();
   });
 
-  it("counts what the linked plan has placed, and follows it as the scheduler changes it", async () => {
+  it("counts what the term's plan has placed, and follows it as the scheduler changes it", async () => {
     await seed(NEXT);
     const db = new TerpsicleDb();
     await db.plans.put(
@@ -489,6 +503,35 @@ describe("View schedule", () => {
     });
     expect(
       await within(spring).findByText("From Plan A: 2 of 2 placed"),
+    ).toBeVisible();
+    db.close();
+  });
+
+  it("counts the main plan's, with its mark, once the term has drafts", async () => {
+    await seed(NEXT);
+    const db = new TerpsicleDb();
+    await db.plans.bulkPut([
+      aPlan({
+        id: "plan_main_aa",
+        termId: "202701",
+        courses: [aPlanCourse({ courseCode: "CMSC351" })],
+      }),
+      aPlan({
+        id: "plan_main_bb",
+        name: "Plan B",
+        order: 1,
+        termId: "202701",
+        courses: [],
+      }),
+    ]);
+    await db.settings.put({
+      key: "mainPlans",
+      value: { "202701": "plan_main_bb" },
+    });
+    renderPlan();
+    const spring = await screen.findByRole("region", { name: /^Spring 2027$/ });
+    expect(
+      await within(spring).findByText("From Plan B, main · 0 of 2 placed"),
     ).toBeVisible();
     db.close();
   });
