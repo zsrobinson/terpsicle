@@ -327,7 +327,8 @@ describe("import", () => {
     expect(Object.keys(openDoc().grades)).toHaveLength(18);
     expect(openDoc().firstTermId).toBe("202408");
     expect(useTranscriptImport.getState().text).toBe("");
-    expect(go).toHaveBeenCalledWith({ tab: undefined });
+    // A phone opens its strip on the latest semester that came in.
+    expect(go).toHaveBeenCalledWith({ tab: undefined, semester: "202505" });
 
     useFourYear.getState().undo();
     expect(openDoc().entries).toHaveLength(0);
