@@ -299,10 +299,7 @@ export function cleanDetails(
   };
 }
 
-function sameCodes(
-  a: readonly GenEdCode[],
-  b: readonly GenEdCode[],
-): boolean {
+function sameCodes(a: readonly GenEdCode[], b: readonly GenEdCode[]): boolean {
   return a.length === b.length && a.every((code, i) => b[i] === code);
 }
 

@@ -383,9 +383,9 @@ describe("buildTranscriptImport", () => {
         countsAs: "CHEM131",
       }),
     );
-    expect(entries.some((e) => e.kind === "course" && e.code === "CHEM131")).toBe(
-      false,
-    );
+    expect(
+      entries.some((e) => e.kind === "course" && e.code === "CHEM131"),
+    ).toBe(false);
   });
 
   it("imports exam credit and electives from the transfer paste", () => {

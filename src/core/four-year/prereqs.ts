@@ -86,9 +86,7 @@ export function firstSemesterMeetingPrereqs(
   lookup: FourYearCourses,
 ): TermId | null {
   const groups = prereqGroups(entry.code, lookup);
-  const others = satisfiers(doc, lookup).filter(
-    (s) => s.entry.id !== entry.id,
-  );
+  const others = satisfiers(doc, lookup).filter((s) => s.entry.id !== entry.id);
   let latest: FourYearTerm = "before";
   for (const group of groups) {
     let earliest: FourYearTerm | null = null;

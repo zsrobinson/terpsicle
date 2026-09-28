@@ -621,9 +621,9 @@ describe("counts as", () => {
     expect(only(none).entries[0]).toMatchObject({ countsAs: null });
     expect(run(none, setCredit({ countsAs: null }))).toBe(none);
     const course = { docs: [aFourYear({ entries: [aFourYearEntry()] })] };
-    expect(
-      run(course, setCredit({ entryId: aFourYearEntry().id })),
-    ).toBe(course);
+    expect(run(course, setCredit({ entryId: aFourYearEntry().id }))).toBe(
+      course,
+    );
   });
 
   it("keeps Counts as in course info, and only when it's set", () => {
@@ -646,9 +646,9 @@ describe("counts as", () => {
     expect(only(run(base, action(null))).entries[0]).toMatchObject({
       details: { title: "Calculus III", genEds: ["FSAR"] },
     });
-    expect(
-      only(run(base, action(null))).entries[0],
-    ).not.toHaveProperty("details.countsAs");
+    expect(only(run(base, action(null))).entries[0]).not.toHaveProperty(
+      "details.countsAs",
+    );
     const set = run(base, action("MATH241"));
     expect(run(set, action("MATH241"))).toBe(set);
   });

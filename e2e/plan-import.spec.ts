@@ -82,7 +82,8 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
     .getByRole("radiogroup", { name: /AASP100/ })
     .getByText("DSHU", { exact: true })
     .click();
-  // Transfer mapping: AP Chemistry counts as CHEM131 (not in the mock catalog).
+  // "Counts as": only a course Testudo lists. CHEM131 isn't in the mock
+  // catalog, so AP Chemistry stays credit with no course.
   await page.getByLabel(/Testudo lists it as CHEM 1XX/).fill("chem131");
   await expect(page.getByText(/CHEM131 isn't in Testudo/)).toBeVisible();
   // Leave one line out.
@@ -112,7 +113,9 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   await expect(fall.getByText("CMSC131")).toBeVisible();
   await expect(fall.getByText("CMSC100")).toHaveCount(0);
   const before = await semester(page, isMobile, "Before UMD");
-  await expect(before.getByText("CHEM131")).toBeVisible();
+  await expect(before.getByText("AP CHEMISTRY")).toBeVisible();
+  await expect(before.getByText("CHEM 1XX")).toBeVisible();
+  await expect(before.getByText("CHEM131")).toHaveCount(0);
   await expect(before.getByText(/PUBLIC SPEAKING/)).toBeVisible();
   await axe(page, "an imported plan");
 

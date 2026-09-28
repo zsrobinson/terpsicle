@@ -8,7 +8,7 @@ import {
 import { Button } from "~/ui/button";
 import { GroupHeader, ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
-import { useModel, usePlanNav } from "./model";
+import { CLOSE_DRILL, useModel, usePlanNav } from "./model";
 import { focusSearch } from "./search-panel";
 import { PlanView } from "./views";
 
@@ -66,7 +66,7 @@ function Row({ p }: { p: GenEdProgress }) {
                   tab: "search",
                   gened: code,
                   wildcard: undefined,
-                  course: undefined,
+                  ...CLOSE_DRILL,
                   q: undefined,
                 });
                 focusSearch();
