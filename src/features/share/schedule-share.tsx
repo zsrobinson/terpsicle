@@ -27,6 +27,7 @@ export function ScheduleShare({ shrink = false }: { shrink?: boolean }) {
       }}
       note="The link holds a copy of this plan in the URL itself, so it won't change when you edit the plan later."
       onCopied={() => track("share_link_copied", { product: "schedule" })}
+      onShared={() => track("share_link_shared", { product: "schedule" })}
     />
   );
 }

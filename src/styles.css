@@ -435,22 +435,36 @@
   --course-pink-fg: #f9b9cf;
 }
 
+/*
+ * The safe areas: what the notch, the Dynamic Island, the home indicator and
+ * Safari's toolbars cover once the page runs edge to edge (`viewport-fit=
+ * cover`, src/routes/__root.tsx). Everything pads by these names, never by
+ * env() itself, so one place says where the edges are; the screenshot script
+ * sets them to an iPhone's, which Playwright can't.
+ */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
 @layer base {
   *,
   ::before,
   ::after {
     border-color: var(--hairline);
   }
+  html {
+    /*
+     * iOS flashes a gray box over whatever a finger touches. Controls draw
+     * their own press instead (the press states below and in ~/ui/button).
+     */
+    -webkit-tap-highlight-color: transparent;
+  }
   html,
   body {
     height: 100%;
-    /*
-     * A drag that reaches the page must end there. On phones, a pull past
-     * the top of the drawer's list or the calendar reached the page and
-     * pulled it to refresh (Chrome, iOS Safari 18+). The scrollers also
-     * contain their own ends (`overscroll-y-contain`); this is the backstop.
-     */
-    overscroll-behavior: none;
   }
   body {
     background: var(--bg);
@@ -460,6 +474,28 @@
     font-size: 13px;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
+    /*
+     * A phone on its side puts the notch at one edge: the page's
+     * background runs under it, its content doesn't. (Top and bottom are
+     * the bars' own: the family bar, composers, toasts.)
+     */
+    padding-inline: var(--safe-left) var(--safe-right);
+  }
+  /*
+   * No double-tap zoom on controls, so a tap lands at once and two quick
+   * taps are two presses. Zero specificity: a drag handle's `touch-none`
+   * still wins.
+   */
+  :where(
+    a[href],
+    button,
+    [role="button"],
+    [role="tab"],
+    label,
+    summary,
+    select
+  ) {
+    touch-action: manipulation;
   }
   /*
    * Paper grain. A fixed layer of 220px fractal noise, painted over the
@@ -490,12 +526,20 @@
   }
   /*
    * The app fills the viewport and only its calendar and panels scroll, so
-   * the page itself can't scroll or rubber-band under the phone drawer. The
-   * seat-alert pages are ordinary pages and keep scrolling.
+   * the page itself can't scroll or rubber-band under the phone drawer.
+   *
+   * A drag that reaches the app's page must end there too. On phones, a
+   * pull past the top of the drawer's list or the calendar reached the page
+   * and pulled it to refresh (Chrome, iOS Safari 18+), or bounced the whole
+   * shell, fixed bars and all. The scrollers also contain their own ends
+   * (`overscroll-y-contain`); this is the backstop. Pages that scroll as a
+   * page (Reviews, Home, Settings, the seat-alert pages) keep the bounce
+   * and the browser's pull to refresh.
    */
   html:has([data-app-shell]),
   html:has([data-app-shell]) body {
     overflow: hidden;
+    overscroll-behavior: none;
   }
   /*
    * `/` while its head script checks for saved plans (src/features/marketing/returning.ts):
@@ -511,6 +555,28 @@
   :focus-visible {
     outline: 2px solid var(--fg);
     outline-offset: 1px;
+  }
+}
+
+/*
+ * Press states. Tailwind's `hover:` only applies where something can hover
+ * (`@media (hover: hover)`), so on a phone a row or a ghost button gave no
+ * sign it was touched. Whatever hovers to the soft gray presses to it too, on
+ * every device: at once on the way in, fading out over the element's own
+ * 150ms transition on release, as iOS's own lists do. Filled and outline
+ * buttons press into their shadow instead (~/ui/button).
+ */
+@layer utilities {
+  .hover\:bg-hover:active {
+    background-color: var(--hover);
+    transition-duration: 0s;
+  }
+  .hover\:text-fg:active {
+    color: var(--fg);
+    transition-duration: 0s;
+  }
+  .hover\:underline:active {
+    text-decoration-line: underline;
   }
 }
 
@@ -616,6 +682,18 @@
  * narrower than 32px, while the icons keep their size.
  */
 @media (pointer: coarse) {
+  /* A long press on the bar is a press, not a text selection or a link's
+     preview, as in a native app's bar. Never on content. */
+  [data-slot="app-bar"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  /* A plan's name while it's renamed in the bar is text again. */
+  [data-slot="app-bar"] input {
+    -webkit-user-select: text;
+    user-select: text;
+  }
   [data-slot="app-bar"] :is(a[href], button) {
     position: relative;
     min-width: 32px;

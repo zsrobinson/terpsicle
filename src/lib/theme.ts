@@ -7,9 +7,39 @@ export const THEME_STORAGE_KEY = "terpsicle:theme";
 
 export type ThemePreference = "system" | "light" | "dark";
 
+/**
+ * Points the browser's toolbar color, and an installed iPhone app's status
+ * bar, at the picked theme. The head carries a `theme-color` tag per theme
+ * (src/features/pwa/pwa-head.ts), each marked with its `data-scheme` and
+ * ahead of the theme script. Under "System" each matches its system theme;
+ * a picked theme's tag matches everywhere (`media="all"`) and the other
+ * nowhere. Only `media` changes: React owns the tags and may move them
+ * while it hydrates, so their order can't say which wins.
+ *
+ * The head script runs it too, so it must be self-contained: no imports, no
+ * references to anything else in this module.
+ */
+export function syncThemeColor(pref: string): void {
+  const picked = pref === "light" || pref === "dark" ? pref : null;
+  for (const meta of document.head.querySelectorAll<HTMLMetaElement>(
+    'meta[name="theme-color"][data-scheme]',
+  )) {
+    const scheme = meta.getAttribute("data-scheme");
+    meta.setAttribute(
+      "media",
+      picked === null
+        ? `(prefers-color-scheme: ${scheme})`
+        : picked === scheme
+          ? "all"
+          : "not all",
+    );
+  }
+}
+
 // Stringified into the document head, so it must be self-contained: no
-// imports, no references to anything else in this module.
-function applyTheme(storageKey: string) {
+// imports, no references to anything else in this module but what it's
+// handed.
+function applyTheme(storageKey: string, themeColor: (pref: string) => void) {
   const root = document.documentElement;
   const media = window.matchMedia("(prefers-color-scheme: dark)");
   const read = () => {
@@ -24,6 +54,7 @@ function applyTheme(storageKey: string) {
     const pref = read();
     const dark = pref === "dark" || (pref !== "light" && media.matches);
     root.classList.toggle("dark", dark);
+    themeColor(pref);
   };
   apply();
   media.addEventListener("change", apply);
@@ -32,7 +63,7 @@ function applyTheme(storageKey: string) {
   });
 }
 
-export const themeInitScript = `(${applyTheme.toString()})(${JSON.stringify(THEME_STORAGE_KEY)});`;
+export const themeInitScript = `(${applyTheme.toString()})(${JSON.stringify(THEME_STORAGE_KEY)},${syncThemeColor.toString()});`;
 
 /** The theme picked on any page, or "system" (also on the server). */
 export function readThemePreference(): ThemePreference {
@@ -63,6 +94,7 @@ export function applyThemePreference(pref: ThemePreference): void {
     (pref === "system" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.classList.toggle("dark", dark);
+  syncThemeColor(pref);
 }
 
 // Who's showing the theme (the account menu's radio, the toggle's icon, the

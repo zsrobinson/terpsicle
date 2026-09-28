@@ -22,7 +22,13 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      // `viewport-fit=cover`: edge to edge on an iPhone, under the notch, the
+      // home indicator and Safari's toolbars. The bars pad themselves by the
+      // safe areas (`--safe-*` in src/styles.css).
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
       { title: "Terpsicle" },
       {
         name: "description",
@@ -71,6 +77,17 @@ function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Ahead of the theme script, which points them at a picked theme
+            (syncThemeColor, src/lib/theme.ts). */}
+        {themeColorMeta.map(({ scheme, content, media }) => (
+          <meta
+            key={scheme}
+            name="theme-color"
+            content={content}
+            media={media}
+            data-scheme={scheme}
+          />
+        ))}
         {/* Inline, so they run before paint (the theme, the sidebar's width)
             and before the app's scripts load (load recovery, Zod's config,
             Chrome's install prompt). The CSP allows each by hash:
@@ -80,14 +97,6 @@ function RootDocument({ children }: { children: ReactNode }) {
         <InlineScript name="loadRecovery" />
         <InlineScript name="zodJitless" />
         <InlineScript name="installPrompt" />
-        {themeColorMeta.map(({ content, media }) => (
-          <meta
-            key={media}
-            name="theme-color"
-            content={content}
-            media={media}
-          />
-        ))}
         <HeadContent />
       </head>
       <body>
