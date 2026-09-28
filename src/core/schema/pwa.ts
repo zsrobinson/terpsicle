@@ -65,6 +65,39 @@ export const PushPayloadSchema = z.object({
 });
 export type PushPayload = z.infer<typeof PushPayloadSchema>;
 
+/**
+ * Declarative Web Push's marker (the Push API's "declarative push
+ * message"): with it, Safari on iOS and iPadOS 18.4+ and macOS 15.5+ shows
+ * `notification` itself, without running a service worker.
+ */
+export const DECLARATIVE_WEB_PUSH = 8030;
+
+/**
+ * What a push carries on the wire (V2 §6.7): the payload's own members, for
+ * our service worker (and any older one still installed), plus the
+ * declarative members. `mutable` lets our service worker, where it runs,
+ * rewrite the notification for its group; where it doesn't, the browser
+ * shows `notification` as is. Built by `pushMessage` in ~/core/push.
+ */
+export type PushMessage = PushPayload & {
+  web_push: typeof DECLARATIVE_WEB_PUSH;
+  notification: {
+    title: string;
+    body: string;
+    /** Absolute: WebKit parses it without a base URL. */
+    navigate: string;
+    tag: string;
+    /**
+     * Safari 18.4 read the badge here, as a string (WebKit's own example);
+     * later versions read the top-level `app_badge`, per the Push API.
+     */
+    app_badge?: string;
+  };
+  mutable: true;
+  /** The app badge: the inbox's unread count. */
+  app_badge?: number;
+};
+
 /** Where push subscriptions are saved (V2 §6.3); the service worker re-saves one that changes. */
 export const PUSH_SUBSCRIBE_PATH = "/api/push/subscribe";
 
@@ -94,6 +127,31 @@ export const InstallPromptStateSchema = z.object({
 export type InstallPromptState = z.infer<typeof InstallPromptStateSchema>;
 
 export const INSTALL_PROMPT_STORAGE_KEY = "terpsicle:install-prompt";
+
+/**
+ * The moments that ask to turn on notifications here (V2 §6.7, "Asking"):
+ * your first post in Chat, connecting ELMS in Todo, a seat watch starting,
+ * and the app's first launch from the iPhone Home Screen.
+ */
+export const PushAskMomentSchema = z.enum([
+  "chat-post",
+  "todo-connected",
+  "seat-watch",
+  "home-screen",
+]);
+export type PushAskMoment = z.infer<typeof PushAskMomentSchema>;
+
+/** `localStorage["terpsicle:push-ask"]`: "Not now", remembered. */
+export const PushAskStateSchema = z.object({
+  /** Times an ask was closed without turning notifications on. */
+  dismissals: z.number().int().min(0),
+  lastDismissedAt: IsoDateTimeSchema.nullable(),
+  /** When the Home Screen app's own ask showed (it shows once per device). */
+  homeScreenAskedAt: IsoDateTimeSchema.nullable().default(null),
+});
+export type PushAskState = z.infer<typeof PushAskStateSchema>;
+
+export const PUSH_ASK_STORAGE_KEY = "terpsicle:push-ask";
 
 /**
  * What the app posts to a waiting service worker when the person picks

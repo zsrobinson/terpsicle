@@ -2,9 +2,14 @@ import { track } from "~/app/analytics";
 import {
   installPlatform,
   recordInstallDismissal,
+  recordPushAskDismissal,
   shouldOfferInstall,
 } from "~/core/pwa";
 import type { InstallTrigger } from "~/core/schema";
+import {
+  readPushAskState,
+  writePushAskState,
+} from "~/features/notifications/push-ask-prefs";
 import { readInstallState, writeInstallState } from "./install-prefs";
 import { wasShownThisSession } from "./install-session";
 import {
@@ -89,6 +94,30 @@ export function requestInstallPrompt(
   return true;
 }
 
+/**
+ * `requestInstallPrompt`, for a moment that comes as the page loads (the
+ * first sign-in lands on a fresh page): Chromium offers its prompt a moment
+ * after load, so if it hasn't yet, this waits up to `waitMs` for it. Asks
+ * once either way.
+ */
+export function requestInstallPromptSoon(
+  trigger: InstallTrigger,
+  waitMs = 10_000,
+): void {
+  if (typeof window === "undefined") return;
+  if (requestInstallPrompt(trigger)) return;
+  adoptStashedInstallPrompt();
+  // Nothing more to wait for: Safari has no prompt event, or one is here.
+  if (useInstall.getState().deferred !== null) return;
+  const stop = useInstall.subscribe((state) => {
+    if (state.deferred === null) return;
+    clearTimeout(timer);
+    stop();
+    requestInstallPrompt(trigger);
+  });
+  const timer = setTimeout(stop, waitMs);
+}
+
 function finish(outcome: "installed" | "dismissed", now: Date): void {
   const open = useInstall.getState().open;
   if (open === null) return;
@@ -96,6 +125,12 @@ function finish(outcome: "installed" | "dismissed", now: Date): void {
   if (outcome === "dismissed" && open.from !== "menu") {
     const state = readInstallState();
     if (state) writeInstallState(recordInstallDismissal(state, now));
+    // On iPhone the steps are also the ask for notifications (the same
+    // three taps): its Got it counts there too, so they don't come twice.
+    if (open.method === "ios-steps") {
+      const asked = readPushAskState();
+      if (asked) writePushAskState(recordPushAskDismissal(asked, now));
+    }
   }
   useInstall.setState({
     open: null,

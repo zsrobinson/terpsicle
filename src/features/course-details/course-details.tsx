@@ -6,6 +6,7 @@ import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
 import { gradesSourceWords } from "~/core/grades";
 import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { useReadCourseNotifications } from "~/features/notifications/read-here";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCourseDept, useInstructors } from "~/state/data-hooks";
@@ -154,6 +155,8 @@ function Details({
           setAboutOpen(open);
         }}
       />
+      {/* After a watch starts here: notifications on this device? (V2 §6.7) */}
+      <PushAskCard moment="seat-watch" className="mx-4 mt-3" />
       <Sections
         course={course}
         termId={termId}

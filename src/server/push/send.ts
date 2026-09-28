@@ -1,5 +1,6 @@
-// Sends one web push to one device (V2.md §6.4): encrypt the payload for its
-// keys (RFC 8291), sign a VAPID JWT for its push service (RFC 8292), POST.
+// Sends one web push to one device (V2.md §6.4): encrypt the payload, as a
+// Declarative Web Push message (`pushMessage`, V2 §6.7), for its keys
+// (RFC 8291), sign a VAPID JWT for its push service (RFC 8292), POST.
 // Callers go through ~/server/notifications, which picks the devices, reads
 // settings, records deliveries and prunes what the push service says is gone.
 import {
@@ -11,6 +12,7 @@ import {
   type PushUrgency,
   publicKeyBytes,
   pushHeaders,
+  pushMessage,
   pushTopic,
   signVapidJwt,
   utf8,
@@ -18,8 +20,16 @@ import {
   vapidAuthorization,
 } from "~/core/push";
 import { type PushPayload, PushPayloadSchema } from "~/core/schema";
+import { APEX_HOST } from "../apex";
 import type { PushConfig } from "./config";
 import type { SendEffect } from "./store";
+
+/**
+ * Where a declarative push's `navigate` points (V2 §6.7). Crons have no
+ * request to take an origin from, so it's production's, as email links are;
+ * the service worker, wherever it runs, opens the payload's own path.
+ */
+export const PUSH_LINK_ORIGIN = `https://${APEX_HOST}`;
 
 /** A JWT is reused for this long per push service (V2 §6.4). */
 const JWT_REUSE_MS = 3_600_000;
@@ -115,7 +125,11 @@ export async function sendPush(
   try {
     const sender = await generateKeyPair("ECDH");
     const body = await encryptPushPayload({
-      plaintext: utf8(JSON.stringify(PushPayloadSchema.parse(payload))),
+      plaintext: utf8(
+        JSON.stringify(
+          pushMessage(PushPayloadSchema.parse(payload), PUSH_LINK_ORIGIN),
+        ),
+      ),
       uaPublic,
       authSecret,
       sender,

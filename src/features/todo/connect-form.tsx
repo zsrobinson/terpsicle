@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
 import { track } from "~/app/analytics";
 import { type ConnectAnswer, connectWords, parseFeedLink } from "~/core/todo";
+import { askForPush } from "~/features/notifications/push-ask";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
@@ -84,6 +85,8 @@ export function ConnectForm({
       case "connected":
         track("todo_connect_result", { outcome: "connected" });
         onConnected?.();
+        // Reminders just turned on (V3 §4): ask for them on this device.
+        void askForPush("todo-connected");
         return;
       case "invalid-link":
         track("todo_connect_result", { outcome: "invalid-link" });

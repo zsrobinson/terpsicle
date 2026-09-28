@@ -35,6 +35,7 @@ import { upsertUser } from "../auth/store";
 import { writeSettings } from "../notifications/store";
 import { TEST_VAPID_KEYS } from "../push/config";
 import { saveSubscription } from "../push/store";
+import { payloadOf } from "../push/testing";
 import { notifySeatChanges } from "./notify";
 import { endPastTermWatches, oneClickStopUrl } from "./service";
 
@@ -369,7 +370,7 @@ describe("seat watches by push (V2.md §6.5)", () => {
         uaPublic,
         authSecret,
       });
-      received.push(plain && JSON.parse(new TextDecoder().decode(plain)));
+      received.push(payloadOf(plain));
       return new Response(null, { status: 201 });
     };
     return { received, fetcher };

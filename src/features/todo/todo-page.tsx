@@ -28,6 +28,8 @@ import {
 } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { useSignInAction } from "~/features/auth/sign-in-panel";
+import { usePushAskCard } from "~/features/notifications/push-ask";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import {
   ComingSoonPage,
   type SiteLayout,
@@ -348,6 +350,9 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
   const restoreTask = useTodo((s) => s.restoreTask);
   const scheduler = useSchedulerCourses();
   const chatOn = useAccount((s) => s.flags.chat !== "off");
+  // Connecting ELMS from the first visit lands here: the list is where its
+  // ask shows (V2 §6.7), so the page holds the place from the start.
+  usePushAskCard("todo-connected");
 
   // Once per page, and again when the date turns over.
   useEffect(() => {
@@ -592,6 +597,8 @@ export function TodoList({ view, day }: { view: TodoView; day?: IsoDate }) {
           )}
         </p>
       ) : null}
+
+      <PushAskCard moment="todo-connected" />
 
       <QuickAdd courses={taskCourses} today={today} />
 

@@ -9,6 +9,7 @@ import type {
   Pace,
   ProblemFix,
   ProblemKind,
+  PushAskMoment,
   RailTab,
   RankBy,
   Relaxable,
@@ -117,6 +118,16 @@ export interface AnalyticsEvents {
   // Web push on a device (V2.md §11), from /settings/notifications.
   push_enabled: NoProperties;
   push_disabled: NoProperties;
+  /** Asking to turn notifications on at a moment (V2 §6.7): which, and how. */
+  push_ask_shown: {
+    moment: PushAskMoment;
+    kind: "card" | "iphone-setup" | "home-screen";
+  };
+  push_ask_result: {
+    moment: PushAskMoment;
+    kind: "card" | "iphone-setup" | "home-screen";
+    outcome: "on" | "dismissed" | "blocked" | "failed";
+  };
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
   signin_started: {
     from:

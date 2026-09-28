@@ -34,7 +34,11 @@ import {
 // - Push: shows the payload (`PushPayloadSchema`), one notification per tag
 //   (V2 §6.7: the server words it for the whole group, with its count),
 //   buzzing again only when the payload says so, and sets the app badge to
-//   the inbox's unread count. A click focuses a window already on its URL,
+//   the inbox's unread count. Pushes arrive as Declarative Web Push
+//   messages (`pushMessage` in ~/core/push), marked `mutable`, so Safari
+//   18.4+ hands them to us where we run; they keep the payload's own
+//   members at the top level, which is all this reads (and all a /sw.js
+//   from before them reads too). A click focuses a window already on its URL,
 //   else takes an open one there, else opens one; it also closes the tag,
 //   reads its inbox item (`notifications/read`, with the session cookie)
 //   and tells open pages the new unread count. A subscription the browser

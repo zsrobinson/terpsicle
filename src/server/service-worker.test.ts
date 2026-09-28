@@ -1,4 +1,5 @@
 import { describe, expect, it, type Mock, vi } from "vitest";
+import { pushMessage } from "~/core/push";
 import { deviceLabel } from "~/core/pwa";
 import { PushPayloadSchema } from "~/core/schema";
 import {
@@ -547,6 +548,69 @@ describe("service worker: push", () => {
     expect(sw.shown[2]?.options.renotify).toBe(true);
     expect(sw.showing).toHaveLength(1);
     expect(sw.badges).toEqual([1, 1, 2]);
+  });
+
+  it("groups a Declarative Web Push message as it does any push, since it's mutable", async () => {
+    // What the server sends (V2 §6.7): Safari 18.4+ would show
+    // `notification` itself, but hands it to us where we run.
+    const sw = setUp();
+    const mention = {
+      v: 1,
+      type: "chat-mention",
+      tag: "chat-mention:202701:CMSC351",
+      url: "/chat?term=202701&course=CMSC351&room=202701%3ACMSC351",
+    } as const;
+    await sw.push(
+      pushMessage(
+        {
+          ...mention,
+          title: "Maya in CMSC351",
+          body: "are we meeting at 7?",
+          count: 1,
+          badge: 1,
+          renotify: true,
+          id: "n1",
+        },
+        ORIGIN,
+      ),
+    );
+    await sw.push(
+      pushMessage(
+        {
+          ...mention,
+          title: "2 mentions in CMSC351",
+          body: "Maya: also bring the notes",
+          count: 2,
+          badge: 2,
+          renotify: false,
+          id: "n2",
+        },
+        ORIGIN,
+      ),
+    );
+    expect(sw.showing.map((n) => [n.title, n.options.body])).toEqual([
+      ["2 mentions in CMSC351", "Maya: also bring the notes"],
+    ]);
+    // The path, never the declarative absolute link: a click stays on the
+    // origin this worker serves (a preview's, localhost).
+    expect(sw.showing[0]?.options.data).toEqual({
+      url: mention.url,
+      tag: mention.tag,
+      id: "n2",
+    });
+    expect(sw.badges).toEqual([1, 2]);
+  });
+
+  it("reads a Declarative Web Push message exactly as the payload inside it", () => {
+    for (const payload of [
+      aPush,
+      { ...aPush, count: 3, badge: 0, renotify: true, id: "n1" },
+    ] as const) {
+      const message = pushMessage(PushPayloadSchema.parse(payload), ORIGIN);
+      expect(readPushPayload(message)).toEqual(
+        PushPayloadSchema.parse(payload),
+      );
+    }
   });
 
   it("clears the app badge at 0", async () => {
