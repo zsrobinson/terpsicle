@@ -366,12 +366,24 @@ The scheduler plan a four-year plan's semester opens with "View schedule": the t
 **Plan view**:
 One of Plan's five views on its rail: GenEd, Problems, Search, Samples and Import (`1` to `5`). Each is a route (`/plan`, `/plan/problems`, …), and a course opens over it as a drill-in.
 
+**Before UMD**:
+The four-year plan's column before the first semester: AP, exam and transfer credit, however many schools it came from. It always counts as done.
+_Avoid_: Transfer column, semester 0
+
+**Transfer credit**:
+Credit from another school, AP or another exam (IB, CLEP) that your transcript lists before your UMD semesters. When Testudo names a UMD course it's that course; otherwise it's credit with its own title, credits and GenEds, like "AP CHEMISTRY, CHEM 1XX, 4 credits".
+_Avoid_: outside credit, external course
+
+**Counts as**:
+The UMD course something Testudo can't match stands for: transfer credit given as "CHEM 1XX", or a code Testudo doesn't list anymore. It then meets prerequisites and repeats like that course, and still shows its own title. (Where Testudo says "or", "Counts as" also names the GenEd a course counts for.)
+_Avoid_: mapping, equivalent (in the UI), override
+
 **Course info**:
-What you tell Plan about a course Testudo doesn't list anymore (an honors seminar that rotated out, an old topics course): its title, credits and the GenEds it covered, so they count. An import fills it from the GenEds the transcript prints; an honors code whose base course Testudo lists offers "Count it as MATH141". Testudo's own data wins once it lists the code.
+What you tell Plan about a course Testudo doesn't list anymore (an honors seminar that rotated out, an old topics course): its title, credits, the GenEds it covered and what it counts as, so they count. An import fills it from the GenEds the transcript prints; an honors code whose base course Testudo lists offers "Count it as MATH141". Testudo's own data wins once it lists the code.
 _Avoid_: course details (that's the scheduler's course drill-in), override
 
 **Transcript import**:
-Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser, and grades stay private.
+Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser and is never saved; only the courses you import are, and grades stay private.
 
 **Template**:
 A hand-made starting four-year plan for a major, credited to its source. Copy calls it a **sample plan**, in Plan's Samples view, and adding one fills only empty semesters.

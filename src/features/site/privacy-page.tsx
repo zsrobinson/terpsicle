@@ -107,9 +107,19 @@ export function PrivacyPage() {
 
         <Section title="Plan">
           <p>
-            Your four-year plan is saved in your browser, and for now nowhere
-            else: it doesn't reach our server, even when you're signed in.
-            Nobody else can see it, and we don't use it for anything.
+            Your four-year plan is saved in your browser. If you're signed in,
+            it's also saved on our server so it's on your other devices. That
+            includes any grades you imported. Nobody else can see your plan or
+            your grades, and we don't use them for anything else.
+          </p>
+          <p>
+            When you paste your unofficial transcript, it's read in your browser
+            and never saved or sent to us. Only the courses you import are
+            saved: each one's code (if it has one) and title as the transcript
+            prints it, whether it was a UMD course, AP, an exam or transfer
+            credit, its semester, credits and GenEds, and its grade if you keep
+            grades. Your name, UID, birth date, the schools you transferred from
+            and the rest of the page aren't kept anywhere.
           </p>
         </Section>
 

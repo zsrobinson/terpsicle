@@ -1,6 +1,7 @@
 import { termIdFromLabel } from "../../catalog/terms";
 import {
   type CourseCode,
+  GEN_ED_LABELS,
   type GenEdGroup,
   type GenEdOption,
   GRADES,
@@ -19,13 +20,17 @@ import {
 // paste says otherwise:
 // - everything before the first line with an `@` (the email) is header, and
 //   header lines are never read or reported;
-// - AP and transfer lines come first: title, grade (P, NC or a letter),
-//   the UMD equivalent, credits, GenEd codes;
+// - AP, exam and transfer lines come first, under headings for the kind of
+//   credit and each school: title, grade (P, NC, a letter, or none), the UMD
+//   equivalent ("MATH140", a department's "CHEM 1XX", an elective's "LTR"
+//   or "XXX 1XX"), credits, GenEd codes, and the registrar's evaluation
+//   and footnote codes (L1, N2, NE, EX, 35), which aren't GenEds;
 // - then a term line ("Fall 2025") and its course lines: code, title, grade,
 //   credits attempted, earned, quality points, GenEd codes; an in-progress
 //   term prints the section after the code and no grade, and a D there marks
 //   a dropped course;
 // - everything else (`Meth = Reg …`, `=====`, totals) is page furniture.
+// A row that wrapped (a long title, GenEds after an "or") is joined back on.
 // Columns are separated by two or more spaces or a tab; words in a title by
 // one. That's what tells "VITAMIN D" (a title) from "INTRO   D   3.00" (a
 // dropped course), so only a paste that collapses every run of spaces loses
@@ -257,108 +262,197 @@ function readUmdLine(tokens: readonly Token[], term: TranscriptTerm): Read {
   return { kind: "line", line };
 }
 
-/** Where an AP or transfer line's grade is: grade-shaped, and followed by what comes after a grade. */
-function transferGradeIndex(tokens: readonly Token[]): number {
-  return tokens.findIndex((t, i) => {
-    if (i < 1 || !isGradeish(t.text) || t.text === "D") return false;
-    const next = tokens[i + 1]?.text;
-    const nextNumber = tokens[i + 2]?.text ?? "";
-    return (
-      next === undefined ||
-      DECIMAL.test(next) ||
-      COURSE_CODE.test(next) ||
-      PATTERN.test(next) ||
-      (DEPT.test(next) && PATTERN_NUMBER.test(nextNumber)) ||
-      /^credit/i.test(next)
-    );
-  });
+/** UMD's transfer evaluation codes (the registrar's list): a course waiting on an evaluation earns nothing yet. */
+const NOT_EVALUATED = new Set(["NE", "ST", "UR"]);
+/** Evaluated as an elective, final or waiting on a syllabus, or as a lab. */
+const ELECTIVE_EVALUATION = new Set([
+  "N1",
+  "N2",
+  "R1",
+  "R2",
+  "L1",
+  "L2",
+  "G1",
+  "G2",
+  "LB",
+]);
+/**
+ * An elective equivalent that names no department: "LTR" and "UTR" (lower-
+ * and upper-level transfer), "XXX1XX". The credit counts; no course does.
+ */
+const ELECTIVE = /^(?:LTR|UTR|XXXX?)(?:[0-9X]{3})?$/;
+const ELECTIVE_DEPT = /^(?:LTR|UTR|XXXX?)$/;
+/** A footnote code: two capitals or digits (CV, EX, 35). */
+const FOOTNOTE = /^[A-Z0-9]{2}$/;
+/** Grade-column marks transfer credit carries besides grades: credit, transfer. */
+const TRANSFER_MARKS = new Set(["CR", "T", "TR"]);
+/** Lines with a number that aren't credit: totals and GPA lines. */
+const FURNITURE =
+  /\b(?:total|totals|cumulative|gpa|attempted|earned|combined)\b|sem:|^meth\b|^=/i;
+
+function isEvaluation(text: string): boolean {
+  return NOT_EVALUATED.has(text) || ELECTIVE_EVALUATION.has(text);
 }
 
-/** Whether a line in the AP and transfer block is a credit line (rather than a heading or furniture). */
-function isTransferCandidate(tokens: readonly Token[]): boolean {
-  const g = transferGradeIndex(tokens);
-  if (g < 0) return false;
+/** A grade-column mark on credit: a grade, NC or W, or credit without a grade. D never transfers. */
+function isTransferMark(text: string): boolean {
+  return (isGradeish(text) && text !== "D") || TRANSFER_MARKS.has(text);
+}
+
+/** How many tokens an equivalent at `i` takes ("MATH140", "CHEM 1XX", "LTR"); 0 when there's none. */
+function equivalentAt(tokens: readonly Token[], i: number): number {
+  const text = tokens[i]?.text ?? "";
+  const next = tokens[i + 1]?.text ?? "";
+  // "XXX 1XX" before "XXX": a bare elective code takes no number.
+  if (
+    (DEPT.test(text) || ELECTIVE_DEPT.test(text)) &&
+    (COURSE_NUMBER.test(next) || PATTERN_NUMBER.test(next))
+  )
+    return 2;
+  if (COURSE_CODE.test(text) || PATTERN.test(text) || ELECTIVE.test(text))
+    return 1;
+  return 0;
+}
+
+/** Whether what starts at `i` can follow a title: an evaluation, an equivalent, credits or "Credit not granted". */
+function tailAt(tokens: readonly Token[], i: number): boolean {
+  const text = tokens[i]?.text;
   return (
-    tokens[g]?.text === "NC" ||
-    tokens.slice(g).some((t) => DECIMAL.test(t.text))
+    text === undefined ||
+    DECIMAL.test(text) ||
+    isEvaluation(text) ||
+    equivalentAt(tokens, i) > 0 ||
+    /^credit/i.test(text)
   );
 }
 
-/** An AP or transfer credit line. */
+/**
+ * Where an AP or transfer line's title ends: at a mark (a grade, NC, W)
+ * followed by what can follow one, or, for credit printed without a grade,
+ * at an equivalent, an evaluation code or the credits in a column of their
+ * own. -1 when the line isn't shaped like credit.
+ */
+function transferTitleEnd(tokens: readonly Token[]): number {
+  for (let i = 1; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (!t) break;
+    if (isTransferMark(t.text) && tailAt(tokens, i + 1)) return i;
+    if (!t.wide) continue;
+    const used = equivalentAt(tokens, i);
+    if (used > 0 && tokens[i + used] !== undefined && tailAt(tokens, i + used))
+      return i;
+    if (isEvaluation(t.text) || DECIMAL.test(t.text)) return i;
+  }
+  return -1;
+}
+
+/** Whether a line is AP, exam or transfer credit (rather than a heading or furniture). */
+function isTransferCandidate(tokens: readonly Token[]): boolean {
+  const body = /^\d/.test(tokens[0]?.text ?? "") ? tokens.slice(1) : tokens;
+  if (FURNITURE.test(words(body))) return false;
+  const end = transferTitleEnd(body);
+  if (end < 1) return false;
+  const tail = body.slice(end);
+  return (
+    tail[0]?.text === "NC" ||
+    tail.some((t) => DECIMAL.test(t.text) || NOT_EVALUATED.has(t.text))
+  );
+}
+
+/**
+ * A transfer title as printed, less what isn't the course's name: an AP
+ * score ("AP CALCULUS AB SCR 4") and the other school's own code after a
+ * slash ("INTRO TO SOCIOLOGY/SOCY 101").
+ */
+function cleanTransferTitle(title: string): string {
+  return title
+    .replace(/\s+(?:SCR|SCORE)\s*:?\s*\d{1,2}$/i, "")
+    .replace(/\s*\/\s*[A-Z]{2,5}\s?\d{2,4}[A-Z]?$/, "")
+    .trim();
+}
+
+function viaOfTitle(title: string, hint: TranscriptVia): TranscriptVia {
+  if (/^AP\b/.test(title)) return "ap";
+  if (/^(?:IB|CLEP|DSST)\b/.test(title)) return "exam";
+  return hint;
+}
+
+/** An AP, exam or transfer credit line. */
 function readTransferLine(
   tokens: readonly Token[],
   viaHint: TranscriptVia,
 ): Read {
   // v1: some lines lead with a number (a sequence or a year); it isn't part of the title.
   const body = /^\d/.test(tokens[0]?.text ?? "") ? tokens.slice(1) : tokens;
-  const g = transferGradeIndex(body);
-  const gradeText = body[g]?.text;
-  if (g < 1 || gradeText === undefined) return UNREADABLE;
-  const title = titleOf(body.slice(0, g));
-  if (title === null) return UNREADABLE;
+  const end = transferTitleEnd(body);
+  if (end < 1) return UNREADABLE;
+  const printed = titleOf(body.slice(0, end));
+  const title = printed === null ? "" : cleanTransferTitle(printed);
+  if (title === "") return UNREADABLE;
+  const first = body[end]?.text ?? "";
+  const mark = isTransferMark(first) ? first : null;
 
   let equivalentOf: CourseCode | null = null;
   let equivalentPattern: string | null = null;
+  let sawEquivalent = false;
   let credits: number | null = null;
+  let notEvaluated = false;
   const leftover: Token[] = [];
-  const tail = body.slice(g + 1);
+  const tail = body.slice(mark === null ? end : end + 1);
   for (let i = 0; i < tail.length; i++) {
-    const text = tail[i]?.text ?? "";
-    const next = tail[i + 1]?.text ?? "";
-    if (equivalentOf === null && equivalentPattern === null) {
-      if (COURSE_CODE.test(text)) {
-        equivalentOf = text;
-        continue;
-      }
-      if (DEPT.test(text) && COURSE_NUMBER.test(next)) {
-        equivalentOf = text + next;
-        i++;
-        continue;
-      }
-      if (PATTERN.test(text)) {
-        equivalentPattern = text;
-        continue;
-      }
-      if (DEPT.test(text) && PATTERN_NUMBER.test(next)) {
-        equivalentPattern = text + next;
-        i++;
+    const token = tail[i];
+    if (!token) break;
+    const { text } = token;
+    if (!sawEquivalent) {
+      const used = equivalentAt(tail, i);
+      if (used > 0) {
+        sawEquivalent = true;
+        const code = used === 2 ? text + (tail[i + 1]?.text ?? "") : text;
+        if (COURSE_CODE.test(code)) equivalentOf = code;
+        else if (!ELECTIVE.test(code)) equivalentPattern = code;
+        i += used - 1;
         continue;
       }
     }
-    if (credits === null && DECIMAL.test(text)) {
-      credits = Number(text);
+    if (isEvaluation(text)) {
+      if (NOT_EVALUATED.has(text)) notEvaluated = true;
       continue;
     }
-    leftover.push({ text, wide: tail[i]?.wide ?? false });
+    if (DECIMAL.test(text)) {
+      // The first number is the credits; a school may print more columns.
+      if (credits === null) credits = Number(text);
+      continue;
+    }
+    // Footnotes; "OR" in capitals is a GenEd "or".
+    if (FOOTNOTE.test(text) && text !== "OR") continue;
+    leftover.push(token);
   }
 
   const rest = words(leftover);
-  const noCredit =
-    gradeText === "NC" || /\b(no credit|not granted)\b/i.test(rest);
+  const noCredit = mark === "NC" || /\b(no credit|not granted)\b/i.test(rest);
   const genEds = noCredit ? [] : parseGenEdText(rest);
   if (genEds === null) return UNREADABLE;
   if (credits !== null && !creditsOk(credits)) return UNREADABLE;
   if (credits === null && !noCredit) return UNREADABLE;
 
-  const via: TranscriptVia = /^AP\b/.test(title) ? "ap" : viaHint;
-  const grade = isGrade(gradeText) ? gradeText : null;
   const line: TranscriptLine = {
     term: "before",
     code: equivalentOf,
     title,
-    grade,
+    grade: mark !== null && isGrade(mark) ? mark : null,
     credits: credits ?? 0,
     earned: noCredit ? 0 : (credits ?? 0),
     qualityPoints: null,
     genEds,
-    via,
+    via: viaOfTitle(title, viaHint),
     equivalentOf,
     equivalentPattern,
     sectionCode: null,
     inProgress: false,
   };
   if (noCredit) return { kind: "skip", reason: "no-credit", line };
-  if (gradeText === "W") return { kind: "skip", reason: "withdrawn", line };
+  if (mark === "W") return { kind: "skip", reason: "withdrawn", line };
+  if (notEvaluated) return { kind: "skip", reason: "not-evaluated", line };
   return { kind: "line", line };
 }
 
@@ -366,12 +460,98 @@ function readTransferLine(
 function viaFromHeading(text: string, current: TranscriptVia): TranscriptVia {
   if (/advanced placement|\bAP\b/i.test(text)) return "ap";
   if (
-    /transfer|college|university|institution|baccalaureate|\bIB\b|\bexam(s|inations?)?\b/i.test(
+    /baccalaureate|\bIB\b|\bCLEP\b|\bexam(s|inations?)?\b|test credit/i.test(
       text,
     )
   )
+    return "exam";
+  if (/transfer|college|university|institution|school|academy/i.test(text))
     return "transfer";
   return current;
+}
+
+/** Words that make a line a heading (a school, a kind of credit), never part of a title. */
+const HEADING_WORDS =
+  /\b(?:college|university|univ|institute|institution|school|academy|community|placement|baccalaureate|exam\w*|clep|credits?|transfer|accepted|totals?)\b/i;
+
+/**
+ * The first row of a transfer title that wrapped: capitals only (titles are
+ * printed in capitals; a school's name usually isn't), no credits or
+ * columns of its own, and not a heading.
+ */
+function isTitleFragment(line: string): boolean {
+  const body = line.replace(/^\d+\s+/, "");
+  return (
+    /[A-Z]/.test(body) &&
+    !/[a-z]/.test(body) &&
+    !/\d\.\d/.test(body) &&
+    !/\S {2,}\S/.test(body) &&
+    !HEADING_WORDS.test(body) &&
+    !TERM_HEADING.test(body) &&
+    !BEFORE_HEADING.test(body)
+  );
+}
+
+/** GenEd codes UMD uses and nothing else ("DSHU, DVUP"): a course line's GenEds that wrapped. */
+function isGenEdContinuation(line: string): boolean {
+  const groups = parseGenEdText(line);
+  return (
+    groups !== null &&
+    groups.length > 0 &&
+    groups.every((g) => g.every((o) => GEN_ED_LABELS[o.code] !== undefined))
+  );
+}
+
+/** How a wrapped row of GenEds joins its line: inside the last group, as the next group, or as the first. */
+function genEdJoiner(line: string): string {
+  if (/(?:,|\bor)$/i.test(line)) return " ";
+  const last = line.split(/\s+/).at(-1) ?? "";
+  if (/\)$/.test(last) || GEN_ED_LABELS[last] !== undefined) return ", ";
+  return "  ";
+}
+
+/**
+ * The row at `i` with the rows it wrapped onto joined back on, and the index
+ * after the last row it used. Three wraps: a transfer title that ran onto
+ * the next row, a UMD course's title that did, and GenEds that did.
+ */
+function joinWrapped(
+  rows: readonly string[],
+  i: number,
+): { line: string; next: number } {
+  let line = rows[i] ?? "";
+  let at = i + 1;
+  const following = rows[at];
+  if (following !== undefined && !leadingCode(tokenize(following))) {
+    if (
+      isTitleFragment(line) &&
+      !isTransferCandidate(tokenize(line)) &&
+      isTransferCandidate(tokenize(`${line} ${following}`))
+    ) {
+      line = `${line} ${following}`;
+      at++;
+    } else if (
+      leadingCode(tokenize(line)) &&
+      !/\d\.\d/.test(line) &&
+      /\d\.\d/.test(following) &&
+      !/[a-z]/.test(following) &&
+      !TERM_HEADING.test(following)
+    ) {
+      line = `${line} ${following}`;
+      at++;
+    }
+  }
+  const isCourse = (text: string) => {
+    const tokens = tokenize(text);
+    return leadingCode(tokens) !== null || isTransferCandidate(tokens);
+  };
+  while (at < rows.length && isCourse(line)) {
+    const more = rows[at];
+    if (more === undefined || !isGenEdContinuation(more)) break;
+    line = `${line}${genEdJoiner(line)}${more}`;
+    at++;
+  }
+  return { line, next: at };
 }
 
 /**
@@ -386,41 +566,64 @@ export function parseTranscript(text: string): TranscriptParse {
   let inBody = false;
   let term: TranscriptTerm = "before";
   let viaHint: TranscriptVia = "transfer";
+  /** Whether the term has had a UMD course line yet. */
+  let termHasCourses = false;
+  const rows = normalizePaste(text)
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
 
-  for (const raw of normalizePaste(text)) {
-    const trimmed = raw.trim();
-    if (trimmed === "") continue;
+  let i = 0;
+  while (i < rows.length) {
+    const first = rows[i] ?? "";
+    if (!inBody) {
+      const heading = TERM_HEADING.exec(first);
+      const startsBody =
+        (heading !== null &&
+          termIdFromLabel(`${heading[1]} ${heading[2]}`) !== null) ||
+        BEFORE_HEADING.test(first);
+      // The email line ends the header; so does the first heading, for a
+      // paste that starts below it.
+      if (first.includes("@")) {
+        inBody = true;
+        i++;
+        continue;
+      }
+      if (!startsBody) {
+        i++;
+        continue;
+      }
+      inBody = true;
+    }
+
+    const joined = joinWrapped(rows, i);
+    const trimmed = joined.line;
+    i = joined.next;
 
     const heading = TERM_HEADING.exec(trimmed);
     const headingTerm = heading
       ? termIdFromLabel(`${heading[1]} ${heading[2]}`)
       : null;
-    if (!inBody) {
-      // The email line ends the header; so does the first heading, for a
-      // paste that starts below it.
-      if (trimmed.includes("@")) {
-        inBody = true;
-        continue;
-      }
-      if (headingTerm === null && !BEFORE_HEADING.test(trimmed)) continue;
-      inBody = true;
-    }
-
     if (headingTerm !== null) {
       term = headingTerm;
+      termHasCourses = false;
       continue;
     }
     const tokens = tokenize(trimmed);
     let read: Read | null = null;
-    if (term === "before") {
-      if (BEFORE_HEADING.test(trimmed))
-        viaHint = viaFromHeading(trimmed, viaHint);
-      else if (isTransferCandidate(tokens))
-        read = readTransferLine(tokens, viaHint);
+    if (BEFORE_HEADING.test(trimmed)) {
+      // A transfer section can come after the terms, too.
+      term = "before";
+      viaHint = viaFromHeading(trimmed, viaHint);
+    } else if (term === "before") {
+      if (isTransferCandidate(tokens)) read = readTransferLine(tokens, viaHint);
       else if (/[a-z]/i.test(trimmed) && !/\d\.\d/.test(trimmed))
         viaHint = viaFromHeading(trimmed, viaHint);
     } else if (leadingCode(tokens)) {
+      termHasCourses = true;
       read = readUmdLine(tokens, term);
+    } else if (!termHasCourses && isTransferCandidate(tokens)) {
+      // Credit listed under the term it was accepted in: still Before UMD.
+      read = readTransferLine(tokens, viaHint);
     }
     if (read === null) continue;
     if (read.kind === "line") lines.push(read.line);

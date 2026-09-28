@@ -6,6 +6,7 @@ import {
 import {
   aCourseIndexEntry,
   aFourYear,
+  aFourYearCreditEntry,
   aFourYearEntry,
   aFourYearWildcardEntry,
 } from "~/fixtures";
@@ -401,7 +402,7 @@ describe("detectFourYearProblems", () => {
       kind: "details",
       code: "MATH241H",
       // Where Testudo says "or", the person picks: only one-option groups.
-      details: { title: "Calculus III", genEds: ["FSAR"] },
+      details: { title: "Calculus III", genEds: ["FSAR"], countsAs: "MATH241" },
       credits: 4,
       label: "Count it as MATH241",
     });
@@ -413,11 +414,80 @@ describe("detectFourYearProblems", () => {
     );
     expect(fixed.entries[0]).toMatchObject({
       credits: 4,
-      details: { title: "Calculus III", genEds: ["FSAR"] },
+      details: { title: "Calculus III", genEds: ["FSAR"], countsAs: "MATH241" },
     });
     expect(
       detectFourYearProblems(input(fixed.entries, { lookup: withBase })),
     ).toEqual([]);
+  });
+
+  it("asks what credit Testudo gave as a department's level counts as, until someone says", () => {
+    const chem = aFourYearCreditEntry({
+      id: "entry_chem",
+      title: "AP CHEMISTRY",
+      equivalentPattern: "CHEM1XX",
+    });
+    const [problem, ...rest] = detectFourYearProblems(input([chem]));
+    expect(rest).toEqual([]);
+    expect(problem).toMatchObject({
+      kind: "unmatched-credit",
+      severity: "info",
+      id: "unmatched-credit:entry_chem",
+      title: [{ kind: "text", text: "AP CHEMISTRY came in as CHEM 1XX" }],
+      fix: null,
+    });
+    expect(problem?.detail[0]).toMatchObject({
+      text: expect.stringContaining("a 100-level CHEM course"),
+    });
+    // Saying a course, or saying it's none, answers it; so does having no placeholder.
+    for (const answered of [
+      { ...chem, countsAs: "CHEM131" },
+      { ...chem, countsAs: null },
+      { ...chem, equivalentPattern: null },
+    ])
+      expect(detectFourYearProblems(input([answered]))).toEqual([]);
+  });
+
+  /** Problems other than a light semester, which a one-course test always has. */
+  const about = (entries: FourYearEntry[]) =>
+    detectFourYearProblems(input(entries)).filter(
+      (p) => p.kind !== "light-semester",
+    );
+
+  it("lets credit that counts as a course meet prerequisites and repeat it", () => {
+    const ap = aFourYearCreditEntry({
+      id: "entry_ap",
+      title: "INTRO PROGRAMMING",
+      countsAs: "CMSC131",
+    });
+    const cs132 = course("132", "CMSC132", "202701");
+    expect(about([ap, cs132])).toEqual([]);
+    expect(about([{ ...ap, countsAs: null }, cs132])).toMatchObject([
+      { kind: "prereq-order" },
+    ]);
+    expect(about([ap, course("131", "CMSC131", "202608")])).toMatchObject([
+      {
+        kind: "repeated-course",
+        title: [
+          { kind: "course", courseCode: "CMSC131" },
+          { kind: "text", text: " is in Before UMD and Fall 2026" },
+        ],
+      },
+    ]);
+  });
+
+  it("lets course info's Counts as meet prerequisites for a code Testudo dropped", () => {
+    const honors = aFourYearEntry({
+      id: "entry_h",
+      code: "CMSC131H",
+      term: "202601",
+      credits: 4,
+      details: { title: "Honors OOP", genEds: [], countsAs: "CMSC131" },
+    });
+    const cs132 = course("132", "CMSC132", "202701");
+    expect(about([honors, cs132])).toEqual([]);
+    const without = { ...honors, details: { title: "Honors OOP", genEds: [] } };
+    expect(about([without, cs132])).toMatchObject([{ kind: "prereq-order" }]);
   });
 
   it("says when a planned course hasn't been offered lately", () => {

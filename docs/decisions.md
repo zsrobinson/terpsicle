@@ -328,6 +328,16 @@ Revisit if: two members of a room share a full name often enough that mentions g
 Both are approved. Plan's first release has no degree requirements and no major quirks.
 Revisit if: the owner starts the requirements work.
 
+### Transcripts stay in the browser
+2026-09-28 · owner · one feature
+A pasted transcript is read in the browser and held only in memory until the import is done or you leave; it's never stored, sent, logged, put in the URL or in analytics. Only the imported courses are saved (each one's code, transcript title and kind, term, credits, GenEds, and grades if kept). The owner: "i assume we don't save the transcripts themselves for privacy reasons (and should actually be sure of it)".
+Revisit if: never on its own.
+
+### Transfer credit says what it counts as, and keeps its own title
+2026-09-28 · agent · one feature
+Credit Testudo gives as a level ("CHEM 1XX") or an elective ("LTR", "XXX 1XX") stays a `credit` entry with its transcript title, credits and GenEds. "Counts as" adds the UMD course it meets prerequisites and repeats as, rather than turning it into that course, so the check step's mapping does the same, and the GenEds stay what UMD granted. The person's answer (a course, or none) outlives a re-import of the same credit. A code Testudo doesn't list gets "Counts as" through its course info.
+Revisit if: people want the course's own GenEds and "or" choices on mapped credit, or a real transcript prints transfer credit differently.
+
 ### Plan is listed once PLAN_ENABLED is on
 2026-09-26 · agent · one feature
 `/plan` works for anyone who opens it, since it needs no server, but the product menu and the site header list Plan only when `PLAN_ENABLED` is on (or while you're in it). The flag waits, unlike "Ship it"'s screens-land rule, because it also opens four-year sync pushes, which V3 §11 turns on after `v3/four-year-sync`, `v3/e2e` and the owner's trial. The manifest's shortcut and `/`'s returning path to `/plan` wait with it, since both are static.
