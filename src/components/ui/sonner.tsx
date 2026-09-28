@@ -13,8 +13,8 @@ function Toaster(props: ToasterProps) {
       // Twice sonner's default, so a message can be read to the end (WCAG
       // 2.2.1); hovering holds it. Undo toasts set their own (`~/ui/toast`).
       duration={NOTE_MS}
-      // Above a workbench drawer's resting strip on a phone, not over its
-      // tabs: styles.css sets --toast-lift while one is on the page.
+      // Above a workbench drawer on a phone, at rest or half open, not over
+      // its tabs or panel: styles.css sets --toast-lift while one is there.
       offset={{ bottom: "var(--toast-lift, 24px)" }}
       mobileOffset={{ bottom: "var(--toast-lift, 16px)" }}
       toastOptions={{

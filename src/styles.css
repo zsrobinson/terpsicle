@@ -697,10 +697,19 @@
 /*
  * A workbench's phone drawer (Schedule, Plan) rests with its handle, tabs and
  * panel header showing (PEEK_HEIGHT, 124px, in src/lib/drawer-heights.ts).
- * Toasts sit 8px above that, not over the tabs (~/ui/sonner reads it).
+ * Toasts sit 8px above that, not over the tabs (~/ui/sonner reads it). At
+ * half they sit 8px above the drawer, not over its panel: 132px up was the
+ * middle of the panel there, over the next row's button (Problems' fixes)
+ * for the whole Undo window. Half is half the screen (snapHeights), or all
+ * of it under 480px; full leaves no room above, so those keep 132px.
  */
 :root:has([data-workbench-drawer]) {
   --toast-lift: 132px;
+}
+@media (min-height: 480px) {
+  :root:has([data-workbench-drawer][data-snap="half"]) {
+    --toast-lift: calc(50dvh + 8px);
+  }
 }
 
 /* Reduced motion must beat any component animation, hence !important. */
