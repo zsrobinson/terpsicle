@@ -58,7 +58,7 @@ test("/, then search, add a section, Travel and a route map: no CSP violations",
   expect(policy).toMatch(/script-src 'self' 'nonce-[^']+' 'sha256-/);
   await expect(
     page.getByRole("heading", {
-      name: "Your semester's a tangle of tabs. Let's straighten it out.",
+      name: "Plan the semester in five steps, in one place.",
       level: 1,
     }),
   ).toBeVisible();

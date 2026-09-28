@@ -16,7 +16,7 @@ test.afterEach(() => {
 
 const marketingHeading = (page: Page) =>
   page.getByRole("heading", {
-    name: "Your semester's a tangle of tabs. Let's straighten it out.",
+    name: "Plan the semester in five steps, in one place.",
     level: 1,
   });
 /** The scheduler's calendar: on screen on desktop and phones alike. */
@@ -69,7 +69,7 @@ test("a first visit sees the marketing page; after that, / opens the scheduler",
   await expect(marketingHeading(page)).toBeVisible();
 
   // The hero's button (the closing section repeats it).
-  await page.getByRole("link", { name: "Open the scheduler" }).first().click();
+  await page.getByRole("link", { name: "View schedule" }).first().click();
   await expect(page).toHaveURL(/\/schedule$/);
   await expect(scheduler(page)).toBeVisible();
   // The scheduler saved a plan and set the returning flag.

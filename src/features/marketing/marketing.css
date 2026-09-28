@@ -2,13 +2,12 @@
  * The marketing page at `/` (src/features/marketing). Linked from the
  * route's head beside the app's stylesheet, so the server-rendered page is
  * styled before any script runs. Only what the page alone needs: its type
- * steps, the hero's drawing, and its motion. Colors are the tokens in
- * src/styles.css.
+ * steps, the story's layout, the sticky screen and its pieces, and motion.
+ * Colors are the tokens in src/styles.css.
  *
- * Motion moves transform, opacity and (in the inline script) SVG path data,
- * and all of it waits for `prefers-reduced-motion: no-preference`. Reduced
- * motion, and a page whose scripts never run, get the end state: straight
- * rails ending in the marks, over a faint ghost of the tangle.
+ * Motion is transform and opacity only (the sticky screen never shifts the
+ * layout), plus the section's fill easing to the current product's tint.
+ * Reduced motion gets every stage's final frame with no transition.
  */
 
 .mk-page {
@@ -37,19 +36,19 @@
   text-wrap: balance;
 }
 .mk-h1 {
-  font-size: clamp(36px, 4vw, 58px);
+  font-size: clamp(36px, 4.4vw, 60px);
   line-height: 1.02;
-  letter-spacing: -0.024em;
+  letter-spacing: -0.026em;
 }
 .mk-h2 {
-  font-size: clamp(26px, 2.5vw, 34px);
+  font-size: clamp(26px, 2.4vw, 34px);
   line-height: 1.1;
   letter-spacing: -0.018em;
 }
 .mk-lead {
-  max-width: 52ch;
-  font-size: 17px;
-  line-height: 26px;
+  max-width: 46ch;
+  font-size: 18px;
+  line-height: 28px;
   text-wrap: pretty;
 }
 @media (max-width: 767px) {
@@ -59,16 +58,16 @@
   }
 }
 .mk-body {
-  max-width: 56ch;
-  font-size: 15px;
-  line-height: 24px;
+  max-width: 52ch;
+  font-size: 16px;
+  line-height: 25px;
   text-wrap: pretty;
 }
 /* The hero's button, a size up from the app's. */
 .mk-cta {
-  height: 40px;
-  padding-inline: 16px;
-  font-size: 15px;
+  height: 44px;
+  padding-inline: 18px;
+  font-size: 16px;
 }
 /* A text link: a hairline underline that darkens on hover. */
 .mk-link {
@@ -81,52 +80,28 @@
   text-decoration-color: currentColor;
 }
 
-/* A sample's one big number: the rating. */
-.mk-number {
-  font-size: 34px;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
+/* ---------- Sections after the story ---------- */
 
-/* ---------- Layout: the page's own rhythm, past the app's 4px steps ---------- */
-
-.mk-hero {
-  padding-block: 32px 40px;
-}
-.mk-hero-grid {
-  display: grid;
-  gap: 40px;
-}
 .mk-section {
   padding-block: 56px;
-}
-.mk-block-grid {
-  display: grid;
-  align-items: center;
-  gap: 40px;
-}
-@media (min-width: 768px) {
-  .mk-hero {
-    padding-block: 48px 56px;
-  }
 }
 @media (min-width: 1024px) {
   .mk-section {
     padding-block: 80px;
   }
-  .mk-block-grid {
+}
+.mk-connect-grid {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .mk-connect-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 64px;
   }
 }
 @media (min-width: 1280px) {
-  .mk-hero {
-    padding-block: 72px 80px;
-  }
-  .mk-hero-grid {
-    grid-template-columns: minmax(0, 9fr) minmax(0, 11fr);
-    align-items: center;
-    gap: 48px;
+  .mk-connect-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -190,93 +165,421 @@
   }
 }
 
-/* ---------- The hero's drawing ---------- */
+/* ---------- The story: the hero's words and the steps, beside one screen ---------- */
 
-/* Two drawings, wide and tall, switched here so the server never guesses
-   the screen. */
-.mk-figure-wide {
-  display: none;
+/* The section takes on the current product's tint as its step arrives. */
+.mk-story {
+  --mk-story-bg: var(--bg);
+  background-color: var(--mk-story-bg);
+  transition: background-color 0.6s ease-out;
 }
-.mk-figure-tall {
-  display: block;
+.mk-story::before {
+  transition: opacity 0.6s ease-out;
 }
-@media (min-width: 1280px) {
-  .mk-figure-wide {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 20px;
-  }
-  .mk-figure-tall {
-    display: none;
-  }
-}
-.mk-canvas {
-  position: relative;
-}
-.mk-canvas svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-.mk-canvas path {
-  fill: none;
-  stroke-width: 3px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  /* The viewBox stretches to the width; lines keep their weight. */
-  vector-effect: non-scaling-stroke;
-}
-.mk-canvas .mk-ghost {
-  display: none;
-  stroke: var(--hairline-strong);
-  stroke-width: 2px;
-  stroke-dasharray: 3 6;
-}
-/* Each label sits on a slip of paper, so a line passing under it never runs
-   through the words. */
-.mk-label {
-  position: absolute;
-  left: 0;
-  padding-inline: 4px;
-  margin-left: -4px;
-  background: var(--bg);
-  white-space: nowrap;
-  line-height: 16px;
-}
-
-/* The marks at the rails' ends. While the inline script plays the detangle
-   they wait out of sight, then slide in one after another as it settles
-   (the script sets data-tangle). Without it, or with reduced motion, they
-   simply stand there. */
-.mk-end {
-  transition:
-    opacity 0.3s ease-out calc(45ms * var(--i, 0)),
-    transform 0.45s var(--mk-spring) calc(45ms * var(--i, 0));
-}
-[data-tangle="playing"] .mk-end {
+.mk-story:not([data-product])::before {
   opacity: 0;
-  transform: translate(var(--mk-end-from, -10px 0));
-  transition: none;
 }
-.mk-figure-tall .mk-end {
-  --mk-end-from: 0 8px;
+.mk-story[data-product="schedule"] {
+  --mk-story-bg: var(--product-schedule-soft);
 }
-@media (prefers-reduced-motion: reduce) {
-  .mk-canvas .mk-ghost {
+.mk-story[data-product="reviews"] {
+  --mk-story-bg: var(--product-reviews-soft);
+}
+.mk-story[data-product="chat"] {
+  --mk-story-bg: var(--product-chat-soft);
+}
+.mk-story[data-product="plan"] {
+  --mk-story-bg: var(--product-plan-soft);
+}
+.mk-story[data-product="todo"] {
+  --mk-story-bg: var(--product-todo-soft);
+}
+
+/* Phones and tablets: one column. The hero's words, then the screen, which
+   sticks to the top while the steps scroll under it. Block flow on purpose:
+   a sticky box sticks through its whole parent. */
+.mk-story-grid {
+  padding-top: 24px;
+}
+.mk-screen-col {
+  display: contents;
+}
+.mk-hero {
+  padding-bottom: 24px;
+}
+.mk-steps {
+  padding-bottom: 48px;
+}
+.mk-step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-block: 40px;
+  border-top: 1px solid var(--hairline);
+  /* A step sent into view clears the sticky screen above it. */
+  scroll-margin-top: 360px;
+}
+.mk-step:first-child {
+  border-top: 0;
+}
+
+@media (min-width: 1024px) {
+  .mk-story-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: 56px;
+    padding-top: 32px;
+  }
+  .mk-hero {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    min-height: 600px;
+    padding-bottom: 32px;
+  }
+  .mk-screen-col {
+    display: block;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .mk-steps {
+    grid-column: 1;
+    grid-row: 2;
+    padding-bottom: 20vh;
+  }
+  .mk-step {
+    min-height: 72vh;
+    justify-content: center;
+    padding-block: 48px;
+    border-top: 0;
+    scroll-margin-top: 0;
+  }
+}
+
+/* ---------- The screen that stays ---------- */
+
+.mk-screen {
+  /* The week's hour, the bar's height and the rail's width. */
+  --mk-hour: 28px;
+  --mk-bar: 40px;
+  --mk-rail: 0px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin-inline: calc(-1 * var(--mk-pad));
+  padding: 8px var(--mk-pad);
+  background-color: var(--mk-story-bg);
+  border-bottom: 1px solid var(--hairline);
+  transition: background-color 0.6s ease-out;
+}
+.mk-stepper {
+  margin-bottom: 8px;
+}
+/* On a phone, the five steps share the width: the mark over the name. */
+.mk-step-button {
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  height: 44px;
+  padding-inline: 2px;
+  font-size: 11px;
+  line-height: 13px;
+}
+.mk-bar {
+  height: var(--mk-bar);
+}
+.mk-bar-wide,
+.mk-rail,
+.mk-caption {
+  display: none;
+}
+@media (min-width: 640px) {
+  .mk-screen {
+    --mk-hour: 28px;
+  }
+  .mk-bar-wide {
     display: inline;
   }
-  .mk-replay {
+  .mk-bar-term {
+    display: inline-flex;
+  }
+}
+@media (min-width: 1024px) {
+  .mk-screen {
+    --mk-hour: 44px;
+    --mk-bar: 44px;
+    --mk-rail: 62px;
+    top: 72px;
+    margin-inline: 0;
+    padding: 0 0 32px;
+    background-color: transparent;
+    border-bottom: 0;
+  }
+  .mk-stepper {
+    margin-bottom: 16px;
+  }
+  .mk-step-button {
+    flex: 0 1 auto;
+    flex-direction: row;
+    gap: 6px;
+    height: 32px;
+    padding-inline: 8px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+  .mk-rail {
+    display: flex;
+    width: var(--mk-rail);
+  }
+  .mk-caption {
+    display: flex;
+    /* Clear the cards that hang off the screen's right edge. */
+    max-width: calc(100% - 320px);
+    margin-top: 16px;
+    transition: opacity 0.3s ease-out;
+  }
+  /* Todo's card tucks under the screen's left edge, where this sits. */
+  .mk-screen[data-stage="5"] .mk-caption {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+.mk-app {
+  box-shadow: var(--shadow-pop);
+}
+
+/* ---------- The week ---------- */
+
+.mk-week {
+  --mk-gutter: 36px;
+}
+.mk-week-days,
+.mk-week-body {
+  display: grid;
+  grid-template-columns: var(--mk-gutter) repeat(5, minmax(0, 1fr));
+}
+.mk-week-days {
+  height: 24px;
+  line-height: 24px;
+}
+.mk-week-body {
+  position: relative;
+}
+.mk-week-body > div:first-child span {
+  translate: 0 2px;
+}
+.mk-week-col {
+  position: relative;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--grid) 0 1px,
+    transparent 1px var(--mk-hour)
+  );
+}
+.mk-block {
+  transition:
+    top 0.45s var(--mk-spring),
+    left 0.45s var(--mk-spring),
+    width 0.45s var(--mk-spring),
+    height 0.45s var(--mk-spring);
+}
+.mk-pill {
+  border-radius: 9999px;
+}
+/* A phone's week is small: codes only, as the scheduler's phone week, and
+   stacked where two classes share a day. */
+.mk-code {
+  display: inline-flex;
+}
+.mk-block[data-lanes="2"] .mk-code {
+  flex-direction: column;
+}
+.mk-piece-problems > * {
+  border-top: 1px solid var(--keyline);
+}
+.mk-block-line {
+  display: none;
+}
+.mk-block {
+  padding: 1px 2px;
+}
+@media (min-width: 640px) {
+  .mk-week {
+    --mk-gutter: 40px;
+  }
+  .mk-week-days {
+    height: 28px;
+    line-height: 28px;
+  }
+}
+@media (min-width: 1024px) {
+  .mk-block {
+    padding: 3px 6px;
+  }
+  .mk-block-line {
+    display: block;
+  }
+  .mk-block[data-lanes="2"] .mk-code {
+    flex-direction: row;
+  }
+  .mk-piece-problems > * {
+    border-top: 0;
+  }
+  .mk-block[data-size="s"] .mk-block-line,
+  .mk-block[data-size="m"] .mk-block-place {
     display: none;
   }
 }
 
-/* ---------- Small motions inside the samples ---------- */
+/* ---------- The pieces each product puts on the week ---------- */
 
-/* The chat keeps its newest messages; the oldest fade out at the top. */
-.mk-chat-log {
-  mask-image: linear-gradient(to bottom, transparent, #000 28px);
+.mk-piece {
+  position: absolute;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.3s ease-out,
+    translate 0.5s var(--mk-spring),
+    scale 0.5s var(--mk-spring);
 }
+.mk-piece[data-on] {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  pointer-events: auto;
+}
+.mk-piece > * {
+  box-shadow: var(--shadow-pop);
+}
+.mk-piece-problems > * {
+  box-shadow: none;
+}
+.mk-chat-log {
+  max-height: 96px;
+  mask-image: linear-gradient(to bottom, transparent, #000 20px);
+}
+.mk-grade-col {
+  height: 40px;
+}
+
+/* Phones and tablets: one piece at a time, over the lower part of the week. */
+.mk-piece {
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  translate: 0 12px;
+}
+.mk-piece[data-on]:not([data-current]) {
+  opacity: 0;
+  pointer-events: none;
+  translate: 0 -6px;
+}
+/* The morning stays in view above it, where the overlap and the walk
+   are, so a fix shows on the week. */
+.mk-piece-problems {
+  top: calc(var(--mk-bar) + 24px + 3.25 * var(--mk-hour));
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+/* The step says it's Problems; the list gets the room. */
+.mk-problems-head,
+.mk-problems-group {
+  display: none;
+}
+.mk-join,
+.mk-piece-reviews [role="img"],
+.mk-piece-reviews [role="img"] + p,
+.mk-piece-plan li:nth-child(n + 4) {
+  display: none;
+}
+@media (min-width: 640px) {
+  .mk-piece {
+    left: auto;
+    width: 360px;
+  }
+  .mk-piece-problems {
+    top: var(--mk-bar);
+    left: 0;
+    width: 340px;
+  }
+  .mk-problems-group {
+    display: flex;
+  }
+  .mk-piece-reviews [role="img"] {
+    display: grid;
+  }
+  .mk-piece-reviews [role="img"] + p {
+    display: block;
+  }
+}
+
+/* Desktops: the pieces stay once they land, each on its own side. */
+@media (min-width: 1024px) {
+  .mk-piece {
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: auto;
+  }
+  .mk-piece[data-on]:not([data-current]) {
+    opacity: 1;
+    translate: 0 0;
+    pointer-events: auto;
+  }
+  .mk-piece-problems {
+    top: calc(var(--mk-bar) + 1px);
+    bottom: 1px;
+    left: calc(var(--mk-rail) + 1px);
+    width: 320px;
+    translate: -12px 0;
+  }
+  .mk-piece-problems[data-on] {
+    translate: 0 0;
+  }
+  .mk-problems-head,
+  .mk-problems-group {
+    display: flex;
+  }
+  .mk-chat-log {
+    max-height: 128px;
+  }
+  .mk-piece-reviews {
+    top: 56px;
+    right: -24px;
+    width: 300px;
+    translate: 0 12px;
+    scale: 0.97;
+  }
+  .mk-piece-chat {
+    top: 318px;
+    right: -24px;
+    width: 284px;
+    translate: 16px 0;
+  }
+  .mk-join {
+    display: flex;
+  }
+  .mk-piece-plan {
+    top: 88px;
+    left: -32px;
+    width: 208px;
+    translate: -16px 0;
+  }
+  .mk-piece-plan li:nth-child(n + 4) {
+    display: flex;
+  }
+  .mk-piece-todo {
+    top: 420px;
+    left: -32px;
+    width: 336px;
+    translate: 0 16px;
+  }
+}
+
+/* ---------- Small motions ---------- */
 
 @media (prefers-reduced-motion: no-preference) {
   .mk-arrive {
@@ -284,18 +587,6 @@
   }
   .mk-pop {
     animation: mk-pop 0.3s var(--mk-settle) both;
-  }
-  .mk-dot {
-    animation: mk-dot 1s ease-in-out infinite;
-  }
-  .mk-dot:nth-child(2) {
-    animation-delay: 0.15s;
-  }
-  .mk-dot:nth-child(3) {
-    animation-delay: 0.3s;
-  }
-  .mk-grow {
-    transition: width 0.5s var(--mk-spring);
   }
 }
 @keyframes mk-arrive {
@@ -307,16 +598,14 @@
 @keyframes mk-pop {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.6);
   }
 }
-@keyframes mk-dot {
-  0%,
-  80%,
-  100% {
-    opacity: 0.3;
-  }
-  40% {
-    opacity: 1;
+@media (prefers-reduced-motion: reduce) {
+  .mk-story,
+  .mk-screen,
+  .mk-piece,
+  .mk-block {
+    transition: none;
   }
 }

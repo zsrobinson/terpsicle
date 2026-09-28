@@ -28,7 +28,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 | V3: Notifications and seat alerts | `v2/push`, `v2/seat-watches` | Both in review |
 | V4: Reviews | `v2/reviews-api`, `v2/reviews-ui`, `v2/reviews-publish` | `v2/reviews-api` merged (#69); `v2/reviews-ui` in review |
 | V5: Chat | `v2/chat-do`, `v2/chat-ui`, `v2/chat-notify` | `v2/chat-do` merged (#70); `v2/chat-ui` merged; `v2/chat-notify` in review |
-| Marketing | `v2/marketing` | The "Detangle" page at `/`: five tangled lines straighten into the five products, a live sample per product, SEO (meta, OG image, JSON-LD, robots, sitemap). Replaces #80, reverted in #83. |
+| Marketing | `v2/marketing`, `v3/marketing-live` | The page at `/`: the hero over the plain week, then one step per product beside a sticky sample of the scheduler that each step adds to (the Problems tab with working fixes and a seat watch, a rating, a chat room, a semester of Plan, Todo's due dates), SEO (meta, OG image, JSON-LD, robots, sitemap). The detangle hero is gone. |
 | V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | `v2/admin-shell` in review |
 
 **v2 decisions** (details in `docs/V2.md`):

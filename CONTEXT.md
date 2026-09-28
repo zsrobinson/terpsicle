@@ -36,6 +36,10 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 
 ## Shared
 
+**Marketing page**:
+`/` for a first visit (returning people go to `/schedule`). Its **story** is the hero, then one **step** per product in color order, beside **the screen**: a sample of Schedule with Plan A that stays in view (sticky) while the steps scroll past. Each step's **piece** lands on the screen: the Problems tab, a rating card, a section's room, a semester of Plan, a few of Todo's cards. Everything on the screen is a sample: nothing is saved or sent.
+_Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected designs)
+
 **Family bar**:
 The one bar on every page: the wordmark and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), Feedback and the account. On a phone whose bar carries context (the scheduler, Chat's term), the bell and Feedback move into the account menu. Code says `AppBar`.
 

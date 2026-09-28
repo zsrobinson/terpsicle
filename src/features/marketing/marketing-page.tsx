@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
-import { ProductBlocks } from "./blocks";
-import { ClosingSection, MarketingFooter, MarketingHeader } from "./frame";
-import { Hero } from "./hero";
+import { MarketingFooter, MarketingHeader } from "./frame";
+import { ClosingSection, ConnectSection } from "./sections";
+import { Story } from "./story/story";
 
-// `/` for first visits (docs/V2.md §2): the hero, where five tangled lines
-// straighten into the five products, then a block per product with a live
-// sample, in color order, and the footer. Returning visitors never see it
-// (returning.ts), except at `/?stay`. Its stylesheet is linked from the
-// route's head (src/routes/index.tsx), beside the app's.
+// `/` for first visits (docs/V2.md §2, docs/DESIGN.md §8): the story (the
+// hero's words over the plain week, then one step per product while the
+// week stays in view and each product lands on it), how the five connect,
+// and the way in. Returning visitors never see it (returning.ts), except at
+// `/?stay`. Its stylesheet is linked from the route's head
+// (src/routes/index.tsx), beside the app's.
 
 export function MarketingPage() {
-  // "ready" once hydrated: the samples answer clicks from then on. The
-  // e2e tests wait for it before pressing anything.
+  // "ready" once hydrated: the demos answer clicks from then on. The e2e
+  // tests wait for it before pressing anything.
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   return (
@@ -21,8 +22,8 @@ export function MarketingPage() {
     >
       <MarketingHeader />
       <main>
-        <Hero />
-        <ProductBlocks />
+        <Story />
+        <ConnectSection />
         <ClosingSection />
       </main>
       <MarketingFooter />
