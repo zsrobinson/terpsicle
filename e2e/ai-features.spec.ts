@@ -175,8 +175,33 @@ test("the choice follows the account to another device", async ({
   await phone.page.goto("/settings");
   await aiSwitch(phone.page).click();
   await expect(aiSwitch(phone.page)).toBeChecked();
-  await expect(async () => {
-    await laptop.page.goto(INSTRUCTOR);
-    await expect(summary(laptop.page)).toBeVisible({ timeout: 3_000 });
-  }).toPass({ timeout: 20_000 });
+  // On the account: the phone pushes it a second after the change.
+  await expect
+    .poll(() => accountAiFeatures(phone.page), { timeout: 15_000 })
+    .toBe(true);
+  // The laptop's next page pulls it once it has hydrated, asked /api/me and
+  // loaded sync: about 3.5 s after the navigation on CI's dev server. So
+  // one visit, and wait for that pull. Reloading every 3 s threw each pull
+  // away just before it landed.
+  await laptop.page.goto(INSTRUCTOR);
+  await expect(summary(laptop.page)).toBeVisible({ timeout: 15_000 });
 });
+
+/** The account's "Show AI summaries", as its settings doc holds it. */
+function accountAiFeatures(page: Page): Promise<boolean | undefined> {
+  return page.evaluate(async () => {
+    const response = await fetch("/api/sync/pull", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ since: 0 }),
+    });
+    const pulled: {
+      docs: {
+        kind: string;
+        body: { prefs?: { ai?: { features?: boolean } } };
+      }[];
+    } = await response.json();
+    return pulled.docs.find((d) => d.kind === "settings")?.body.prefs?.ai
+      ?.features;
+  });
+}
