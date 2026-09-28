@@ -439,6 +439,7 @@ export function SidePanel({
           courses={courses}
           colors={colors}
           weekStart={weekStart}
+          compact={fold !== undefined}
           className={fold ? "py-3" : "px-4 py-3"}
         />
       </section>

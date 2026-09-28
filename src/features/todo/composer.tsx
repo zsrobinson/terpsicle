@@ -133,12 +133,18 @@ export function Composer({
   courses,
   colors,
   weekStart,
+  compact = false,
   className,
 }: {
   /** The courses a task can be for: the person's plans' and ELMS's. */
   courses: readonly CourseCode[];
   colors: Readonly<Record<CourseCode, CourseColor>>;
   weekStart: WeekStart;
+  /**
+   * A phone: the field and its hint alone until it's in use, so the
+   * calendar starts on the first screen; the chips and pickers open then.
+   */
+  compact?: boolean;
   className?: string;
 }) {
   const saveTask = useTodo((s) => s.saveTask);
@@ -161,6 +167,12 @@ export function Composer({
     date === null ? null : choice.time !== undefined ? choice.time : parse.time;
   const course = choice.course !== undefined ? choice.course : parse.course;
   const range = listRange(today);
+  const [focused, setFocused] = useState(false);
+  const open =
+    !compact ||
+    focused ||
+    text !== "" ||
+    Object.values(choice).some((v) => v !== undefined && v !== null);
 
   const reset = () => {
     setText("");
@@ -225,9 +237,24 @@ export function Composer({
   };
 
   // The layer behind the field scrolls with it.
+  // It takes the field's type as drawn (16px on phones, styles.css), so the
+  // marks sit under the words at every size.
   const follow = () => {
-    if (layer.current && field.current)
-      layer.current.scrollLeft = field.current.scrollLeft;
+    const [under, over] = [layer.current, field.current];
+    if (!under || !over) return;
+    const type = getComputedStyle(over);
+    for (const key of [
+      "fontFamily",
+      "fontSize",
+      "fontWeight",
+      "fontFeatureSettings",
+      "fontVariationSettings",
+      "letterSpacing",
+      "wordSpacing",
+      "paddingLeft",
+    ] as const)
+      under.style[key] = type[key];
+    under.scrollLeft = over.scrollLeft;
   };
   useEffect(follow);
 
@@ -280,6 +307,18 @@ export function Composer({
     <form
       onSubmit={submit}
       onKeyDown={onKeyDown}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => {
+        const to = event.relatedTarget;
+        // The course's list opens in a layer of its own: still in use.
+        if (
+          to instanceof Element &&
+          (event.currentTarget.contains(to) ||
+            to.closest("[data-radix-popper-content-wrapper]"))
+        )
+          return;
+        setFocused(false);
+      }}
       aria-label="Add a task"
       className={cn("flex flex-col gap-2", className)}
     >
@@ -295,9 +334,12 @@ export function Composer({
           <div
             ref={layer}
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre border border-transparent px-2.5 text-base"
+            className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre border border-transparent px-2.5 text-base text-transparent"
           >
-            <Highlights text={text} parts={parse.parts} />
+            {/* One run of text, so its kerning and spaces are the field's. */}
+            <span>
+              <Highlights text={text} parts={parse.parts} />
+            </span>
           </div>
           <Input
             ref={field}
@@ -319,8 +361,8 @@ export function Composer({
       <p id={hintId} className="text-muted text-xs">
         Try “PS3 due fri 11:59pm cmsc351” or “exam 2 oct 14”.
       </p>
-      {chips}
-      <div className="grid grid-cols-[1fr_auto] gap-2">
+      {open ? chips : null}
+      <div hidden={!open} className="grid grid-cols-[1fr_auto] gap-2">
         <div className="flex min-w-0 flex-col gap-1">
           <label
             htmlFor={dateId}

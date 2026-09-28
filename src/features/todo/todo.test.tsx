@@ -29,6 +29,7 @@ import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
 import { ApiCallError } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
+import { Composer } from "./composer";
 import { ConnectPage } from "./connect-page";
 import { importWords } from "./file-drop";
 import { TodoPage } from "./todo-page";
@@ -886,6 +887,39 @@ describe("the composer", () => {
     );
     expect(await screen.findByText("That task didn't save")).toBeVisible();
     expect(screen.queryByText("Buy a lab coat")).toBeNull();
+  });
+});
+
+describe("the composer on a phone", () => {
+  it("is the field alone until it's in use, then opens its pickers", async () => {
+    fakeClient();
+    render(
+      <TooltipProvider delayDuration={0}>
+        <Composer
+          courses={["CMSC216"]}
+          colors={{}}
+          weekStart="monday"
+          compact
+        />
+        <button type="button">elsewhere</button>
+      </TooltipProvider>,
+    );
+    const user = userEvent.setup();
+    const field = screen.getByRole("textbox", { name: "New task" });
+    expect(screen.getByText(/^Try “PS3 due fri/)).toBeVisible();
+    expect(screen.queryByLabelText("Due date")).not.toBeVisible();
+    await user.click(field);
+    expect(screen.getByLabelText("Due date")).toBeVisible();
+    // Left empty, it folds up again.
+    await user.click(screen.getByRole("button", { name: "elsewhere" }));
+    expect(screen.queryByLabelText("Due date")).not.toBeVisible();
+    // With words in it, it stays open.
+    await user.type(field, "PS3 tomorrow");
+    await user.click(screen.getByRole("button", { name: "elsewhere" }));
+    expect(screen.getByLabelText("Due date")).toBeVisible();
+    expect(
+      screen.getByRole("list", { name: "The task will be" }),
+    ).toBeVisible();
   });
 });
 
