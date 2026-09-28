@@ -2,15 +2,16 @@ import { useEffect } from "react";
 import type { CourseCode, IsoDate, TermId } from "~/core/schema";
 import type { NotificationsReadInput } from "~/core/schema/notifications";
 import { useAccount } from "~/features/auth/account-store";
-import { syncBadge } from "./badge";
+import { gotUnread } from "./unread-store";
 
 // Reading the thing itself reads its notifications (docs/V2.md §6.7): a
 // course in Schedule reads its seat openings, Todo's day reads that day's
 // "Due tomorrow" (Chat reads over its socket). The server marks them in one
-// cheap update; the answer's unread count goes to the app badge. Signed in
-// only, and the same place at most once a minute. Framework note: this is
-// a side effect of showing a page, not state, so it's an effect rather
-// than a loader (the course drill-in's term comes from app state).
+// cheap update; the answer's unread count goes to the bell and the app
+// badge. Signed in only, and the same place at most once a minute.
+// Framework note: this is a side effect of showing a page, not state, so
+// it's an effect rather than a loader (the course drill-in's term comes
+// from app state).
 
 /** When each place was last read, this page load. */
 const readAt = new Map<string, number>();
@@ -33,7 +34,7 @@ export async function readOnce(
   try {
     // Loaded on first use, so Schedule's signed-out pages don't carry it.
     const { notificationsApi } = await import("~/server/fns/notifications");
-    syncBadge((await notificationsApi.read(input)).unread);
+    gotUnread((await notificationsApi.read(input)).unread);
   } catch {
     // Offline, or signed out meanwhile: the next visit reads it.
     readAt.delete(key);

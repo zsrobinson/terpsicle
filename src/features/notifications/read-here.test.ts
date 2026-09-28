@@ -5,6 +5,7 @@ import { aMeUser } from "~/fixtures";
 import { notificationsApi } from "~/server/fns/notifications";
 import { syncBadge } from "./badge";
 import { forgetReads, readOnce, useReadDayNotifications } from "./read-here";
+import { useUnread } from "./unread-store";
 
 vi.mock("~/server/fns/notifications", () => ({
   notificationsApi: { read: vi.fn() },
@@ -29,10 +30,11 @@ afterEach(() => {
 });
 
 describe("readOnce", () => {
-  it("reads, then sets the app badge to what's left", async () => {
+  it("reads, then sets the bell and the app badge to what's left", async () => {
     await readOnce({ day: "2026-09-29" }, 0);
     expect(notificationsApi.read).toHaveBeenCalledWith({ day: "2026-09-29" });
     expect(badge.setAppBadge).toHaveBeenCalledWith(3);
+    expect(useUnread.getState().unread).toBe(3);
   });
 
   it("reads the same place at most once a minute, and again after a failure", async () => {

@@ -668,6 +668,19 @@ The design is `docs/V2.md` §6 (its "As built" under §6.4). Routes: `src/server
 - **Owner alerts** (V2.md §6.7): one `admin-urgent` row per admin per queue item, id `admin-urgent:<admin>:<queue item id>`, `group_key` `admin-urgent`, `url` `/admin`, and `label` `<reason>|<surface>|<course>` ("spam|chat|CMSC351"), so a group's words ("Held for you: spam in 3 courses") come from its rows. Never the text or the author. The alert's push and email are `admin-urgent:<admin>:<run time>` (`…:push`, `…:email`); the newest row's `created_at` keeps alerts to one an hour.
 - **Due tomorrow's key** (`v3/todo-notify`, V3.md §4): `todo-due:<user>:<New York date>`, the inbox row's id and the push's dedupe key (`…:push`), one a day whatever retries happen.
 
+### 7.12 The calendar feed (landed: `migrations/0018_calendar_feeds.sql`)
+
+The design is `docs/V2.md` §6.7 (its "As built"). Routes: `calendar/feed` and `calendar/feed/reset` (`src/server/calendar/feed.ts`, schemas in `src/core/schema/calendar-feed.ts`, kept out of the barrel) and `GET /cal/<token>.ics`, routed by the Worker before any page. The feed's contents are `buildCalendarFeed` in `src/core/ics/feed.ts`.
+
+| Table | Key | Columns | Notes |
+|---|---|---|---|
+| `calendar_feeds` | `user_id` | `token_hash` (unique), `nonce`, `created_at`, `last_fetched_at` | One link per person. The token is `keyedHash("calendar-feed:v1:<user>:<nonce>")`, 64 hex characters, and is never stored: Settings derives it again from the row, and a request is matched by `token_hash` (its SHA-256). "Make a new link" writes a new nonce and hash, so the old link matches nothing. `last_fetched_at` is written at most once an hour. |
+
+- **Serving** needs no cookie. A malformed, unknown or old token, or an account that's deleting, is the same plain 404. The answer is `text/calendar` with `Cache-Control: private, max-age=900`.
+- **Limits**: 600 fetches per IP per hour (`cal-feed:ip:<ip hash>`, before the lookup) and 60 per link (`cal-feed:<token hash>`, after it), in `counters`. Neither key holds the token.
+- **What's in it**: for this term and next (`feedTermIds`: today's term through the next fall or spring), the placed sections of the term's first synced plan (`feedPlanFor`), as the catalog in R2 has them now, on the term's academic calendar; and Todo's items and own tasks with a date, not marked done, each with a `VALARM` a day before. UIDs come from the section and meeting (the download's `eventUid`) or the Todo uid, so calendars update in place.
+- **Deleting an account** stops the feed at once (the lookup needs an active account); the purge deletes the row.
+
 ## 8. Share links
 
 `/schedule?plan=<base64url(deflate-raw(UTF-8 JSON))>`. The link carries a `SharePayloadSchema` payload:

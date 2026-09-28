@@ -37,7 +37,11 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 ## Shared
 
 **Family bar**:
-The one bar on every page: the wordmark and the five products as tabs (folded into the product menu on narrow screens), the product's context, then Feedback and the account. Code says `AppBar`.
+The one bar on every page: the wordmark and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), Feedback and the account. On a phone whose bar carries context (the scheduler, Chat's term), the bell and Feedback move into the account menu. Code says `AppBar`.
+
+**Sheet**:
+What a popover becomes on a phone: a panel that slides up from the bottom edge, closed with a swipe down, a tap above it or Esc (Notifications, Send feedback). Code says `Sheet`. Not the scheduler's drawer, which is always there.
+_Avoid_: modal, bottom sheet
 
 **Page kind**:
 How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: Todo), or full (a workbench, or Chat's split).
@@ -86,7 +90,7 @@ A push on your phone or computer, or an email, for one of the few kinds: seat op
 _Avoid_: alert, push (in UI; code says push for the web push channel)
 
 **Notifications (the bell)**:
-The list behind the bell in the family bar: every notification, pushed or not, newest first, grouped by day. The badge on the app icon counts what's unread here. Code calls it the inbox.
+The list behind the bell in the family bar: every notification, pushed or not, newest first, grouped into Today, Yesterday and Earlier. A popover on a computer, a sheet on a phone. The bell's number and the badge on the app icon count what's unread here. Code calls it the inbox.
 _Avoid_: inbox (in UI), activity, alerts
 
 **Quiet hours**:
@@ -311,6 +315,10 @@ The scheduler plan a four-year plan's semester opens with "View schedule": the t
 
 **Plan view**:
 One of Plan's five views on its rail: GenEd, Problems, Search, Samples and Import (`1` to `5`). Each is a route (`/plan`, `/plan/problems`, …), and a course opens over it as a drill-in.
+
+**Course info**:
+What you tell Plan about a course Testudo doesn't list anymore (an honors seminar that rotated out, an old topics course): its title, credits and the GenEds it covered, so they count. An import fills it from the GenEds the transcript prints; an honors code whose base course Testudo lists offers "Count it as MATH141". Testudo's own data wins once it lists the code.
+_Avoid_: course details (that's the scheduler's course drill-in), override
 
 **Transcript import**:
 Pasting Testudo's unofficial transcript into Plan: Paste, Check, Import. The paste never leaves the browser, and grades stay private.

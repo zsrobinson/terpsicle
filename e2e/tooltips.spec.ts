@@ -155,3 +155,28 @@ test("every control has a tooltip, signed in", async ({ page, isMobile }) => {
   expect(status).toBe(200);
   await audit(page, SIGNED_IN);
 });
+
+test("every control in Notifications has a tooltip", async ({
+  page,
+  isMobile,
+}) => {
+  const userId = isMobile ? "tadmin" : "tstudent";
+  await page.goto("/privacy");
+  const status = await page.evaluate(async (id) => {
+    const response = await fetch("/api/auth/test-sign-in", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: id, return: "/reviews" }),
+    });
+    return response.status;
+  }, userId);
+  expect(status).toBe(200);
+  await page.goto("/reviews");
+  await settle(page);
+  await page.getByTestId("notifications-bell").click();
+  await expect(
+    page.getByRole("dialog", { name: "Notifications" }),
+  ).toBeVisible();
+  await settle(page);
+  expect(await untipped(page), "controls without a tooltip").toEqual([]);
+});

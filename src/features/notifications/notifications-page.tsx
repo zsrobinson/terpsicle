@@ -4,6 +4,7 @@ import { SitePage } from "~/features/site/site-page";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
 import { RowSkeleton } from "~/ui/skeleton";
+import { CalendarFeedSection } from "./calendar-feed";
 import { NotificationSettingsSection } from "./notification-settings";
 
 export const NOTIFICATIONS_PATH = "/settings/notifications";
@@ -38,7 +39,10 @@ export function NotificationsPage() {
             label="Loading your notifications"
           />
         ) : status === "signed-in" ? (
-          <NotificationSettingsSection />
+          <>
+            <NotificationSettingsSection />
+            <CalendarFeedSection />
+          </>
         ) : signInOn ? (
           <PageSection title="Sign in first">
             <div className="flex flex-col gap-3 text-muted">

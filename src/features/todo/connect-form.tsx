@@ -129,11 +129,13 @@ export function ConnectForm({
             spellCheck={false}
             data-private=""
             aria-describedby={note ? answerId : undefined}
-            placeholder="https://umd.instructure.com/feeds/calendars/user_….ics"
+            placeholder="umd.instructure.com/feeds/calendars/…"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             disabled={busy}
-            className="ph-no-capture flex-1"
+            // Grow only in the row: in the phone's column, flex-1 would
+            // shrink the field to nothing.
+            className="ph-no-capture sm:flex-1"
           />
         </WithTooltip>
         <WithTooltip label="Check the link with ELMS and start showing your deadlines">

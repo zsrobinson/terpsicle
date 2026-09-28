@@ -39,15 +39,22 @@ export function AccountButton({
   compact = false,
   fallback = null,
   items = null,
+  note = null,
 }: {
   compact?: boolean;
   fallback?: ReactNode;
   /** More items at the end of the menu (on phones, "Send feedback"). */
   items?: ReactNode;
+  /**
+   * Something in the menu waiting to be seen ("3 unread notifications",
+   * when a phone's bar has no room for the bell): a dot on the avatar,
+   * and these words after its name.
+   */
+  note?: string | null;
 }) {
   const shown = useAccountButtonShown();
   if (!shown) return fallback;
-  return <AccountMenu compact={compact} items={items} />;
+  return <AccountMenu compact={compact} items={items} note={note} />;
 }
 
 /** Whether the account button (or, on phones, its menu) is showing. */
@@ -67,9 +74,11 @@ const triggerClass =
 function AccountMenu({
   compact,
   items,
+  note,
 }: {
   compact: boolean;
   items: ReactNode;
+  note: string | null;
 }) {
   const user = useAccount((s) => s.user);
   return (
@@ -82,10 +91,21 @@ function AccountMenu({
           {user ? (
             <button
               type="button"
-              aria-label={`Account: ${user.name}`}
-              className={`${triggerClass} px-1.5`}
+              aria-label={
+                note
+                  ? `Account: ${user.name}, ${note}`
+                  : `Account: ${user.name}`
+              }
+              className={`${triggerClass} relative px-1.5`}
             >
               <Avatar name={user.name} src={user.avatarUrl} />
+              {note ? (
+                <span
+                  aria-hidden="true"
+                  data-testid="account-note"
+                  className="absolute top-0.5 right-0.5 size-2 rounded-full bg-fg ring-2 ring-bg"
+                />
+              ) : null}
             </button>
           ) : compact ? (
             <button
