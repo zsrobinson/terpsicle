@@ -117,6 +117,8 @@ Code: … 49 89 fe <48> 8b 07 ff 50 40 …   (mov rax,[rdi]; call [rax+0x40]: a 
 
 **How often.** On 2026-09-26, 10 of 663 runs of `tabs` crashed with the kernel logging this segfault, about 1 in 65. Two earlier crashes have no kernel log. It happened mostly on the tap from Search to Problems, also on Blocks, Generate, Export and Travel, and never in the other scenarios' ~200 runs. It happened with recording and screenshots on, with recording off, and with both off. It hit production and two PR previews alike.
 
+Since 2026-09-27 it has also hit `scroll-list-back` (scrolling the drawer's Search list back up), `long-course` and `open-results`, with the same segfault at the same address. The page processes held their usual ~880–950 MB between them (two processes, the largest ~650–720 MB) at every step before the crash, with no growth from step to step, and the runner had ~14.9 GB free. So it isn't a memory blow-up. The Search list renders only the rows in view.
+
 **Why it isn't the page:**
 - The page process holds a steady ~570 MB, and the runner has ~14.9 GB free.
 - No WebGL is involved: the Travel tab mounts MapLibre only in a connection's details.
@@ -127,11 +129,12 @@ Code: … 49 89 fe <48> 8b 07 ff 50 40 …   (mov rax,[rdi]; call [rax+0x40]: a 
 - Related Playwright reports of random WPE page-process deaths, with different signatures: [microsoft/playwright#42740](https://github.com/microsoft/playwright/issues/42740) (SIGILL) and [#22903](https://github.com/microsoft/playwright/issues/22903) (after screenshots).
 - We haven't filed anything upstream.
 
-**What the lab does.** When a WebKit scenario crashes and the kernel log shows this exact segfault (`isWebkitCompositorCrash` in `checks.ts`):
+**What the lab does.** When a WebKit scenario breaks (it throws, or a step's screenshot or probe fails: `attemptBroke` in `checks.ts`) and the kernel log shows this exact segfault (`isWebkitCompositorCrash`):
 - The crashed attempt is kept as `<id>-webkit-crash-<n>`, marked `webkit-compositor-crash` (a warning) with the kernel's lines.
 - The scenario runs again, up to twice. A scenario that crashes a third time fails.
 - So does any crash without this signature, and any crash on Android or iOS, as `page-process-alive`.
 - Reading the kernel log needs `sudo dmesg`, which GitHub's runners allow. Without it, every crash fails.
+- The lab reads the kernel log after any attempt that broke, not only one where Playwright said "Target crashed". Playwright doesn't always say so. A crash during a step's screenshot is recorded on that step while the scenario carries on (`scroll-list-back`, 2026-09-28). A crash between two calls shows up as "Target page, context or browser has been closed" (`long-course`). Until 2026-09-28, both of those failed the run instead of running the scenario again.
 
 ## What it can't tell
 
