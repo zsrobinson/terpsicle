@@ -9,7 +9,6 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
 import type {
   Flags,
   TodoItem,
@@ -26,6 +25,7 @@ import {
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { ApiCallError } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
@@ -38,8 +38,8 @@ import { resetTodo, setTodoClient, type TodoClient } from "./todo-store";
 // 2026-09-28 is a Monday, and it's noon in New York; the fixture item is
 // due Tuesday the 29th at 11:59pm.
 
-vi.mock("~/app/analytics", async (original) => ({
-  ...(await original<typeof import("~/app/analytics")>()),
+vi.mock("~/lib/analytics", async (original) => ({
+  ...(await original<typeof import("~/lib/analytics")>()),
   track: vi.fn(),
 }));
 

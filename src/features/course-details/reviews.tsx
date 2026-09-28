@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { ArrowRight, Star } from "lucide-react";
-import { crossLinkClicked, viewWords } from "~/app/cross-link";
-import { MetaSep } from "~/app/panel";
+import { MetaSep } from "~/components/panel";
 import {
   formatGpa,
   formatRating,
@@ -24,6 +23,7 @@ import { AiMenu } from "~/features/ai/ai-menu";
 import { AiSparkles } from "~/features/ai/ai-sparkles";
 import { useAiFeatures } from "~/features/ai/use-ai-features";
 import { useAccount } from "~/features/auth/account-store";
+import { crossLinkClicked, viewWords } from "~/lib/cross-link";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { usePlanetTerpStatus, useTerpsicleReviews } from "~/state/data-hooks";
 import { terpsicleInstructor } from "~/state/reviews-store";

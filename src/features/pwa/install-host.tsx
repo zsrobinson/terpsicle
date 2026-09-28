@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { captureInstallPrompt, useInstall } from "./install-store";
 
-// Mounted once for every page (src/app/pwa.tsx): keeps the browser's install
+// Mounted once for every page (src/features/pwa/pwa.tsx): keeps the browser's install
 // prompt, and shows the dialog when `requestInstallPrompt` or the "Install
 // app" item opens it. The dialog's code loads only then.
 

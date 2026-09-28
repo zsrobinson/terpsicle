@@ -6,11 +6,11 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { currentView, goTo } from "~/app/schedule-nav";
-import type { ShellRoutes } from "~/app/test-utils";
 import { CourseDetails } from "~/features/course-details/course-details";
 import { renderPlanTab } from "~/features/courses/testing";
+import { currentView, goTo } from "~/features/schedule/schedule-nav";
+import type { ShellRoutes } from "~/features/schedule/test-utils";
+import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
@@ -20,7 +20,7 @@ import { useSearchStore } from "./search-store";
 const panels: ShellRoutes = { tabs: { search: SearchPanel } };
 const detailsPanels: ShellRoutes = { drills: { course: CourseDetails } };
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 // Opening a course asks for review summaries; there's no server here.
 vi.mock("~/server/fns/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/server/fns/api")>();

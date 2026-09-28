@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Star } from "lucide-react";
 import { memo, useCallback, useEffect, useId, useMemo, useState } from "react";
-import { track } from "~/app/analytics";
 import { termLabel } from "~/core/catalog/terms";
 import { LENGTH_LIMITS } from "~/core/moderation";
 import {
@@ -24,6 +23,7 @@ import {
   type TermId,
 } from "~/core/schema";
 import { newYorkClock } from "~/core/todo/list";
+import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
 import { Textarea } from "~/ui/input";

@@ -11,7 +11,7 @@ import { WithTooltip } from "./tooltip";
 // filled buttons of one size, and any third way is the quiet link. No cards
 // around the paths: one composition, not a menu of boxes.
 //
-// A list's one-line "nothing here" note is `PanelNote` in src/app/panel.tsx.
+// A list's one-line "nothing here" note is `PanelNote` in src/components/panel.tsx.
 
 /**
  * An action: a route to go to, something to do here, or an address outside

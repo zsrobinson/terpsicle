@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { setCourseColor } from "~/app/actions";
 import { COURSE_COLOR_LABELS } from "~/core/color";
 import {
   COURSE_COLORS,
@@ -9,6 +8,7 @@ import {
   type CourseColor,
 } from "~/core/schema";
 import { dotStyle } from "~/features/calendar/tint";
+import { setCourseColor } from "~/features/schedule/actions";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 

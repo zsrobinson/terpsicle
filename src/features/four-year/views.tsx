@@ -7,8 +7,8 @@ import {
   Search,
 } from "lucide-react";
 import { type ReactNode, useId } from "react";
-import { PanelBody, PanelHeader } from "~/app/panel";
-import { CountBadge } from "~/app/workbench/rail";
+import { PanelBody, PanelHeader } from "~/components/panel";
+import { CountBadge } from "~/components/workbench/rail";
 import type { PlanTab } from "~/core/schema";
 import { useProblemCounts } from "./model";
 

@@ -5,7 +5,7 @@ import { SearchPanel } from "~/features/search/search-panel";
 
 // The Search tab (SPEC §3.5): `?q=` is its text (typing replaces the entry)
 // and the filter chips are places (each pushes one). Its panel shows in the
-// sidebar (src/app/sidebar.tsx), in its own chunk.
+// sidebar (src/features/schedule/sidebar.tsx), in its own chunk.
 export const Route = createFileRoute("/schedule/search")({
   validateSearch: SearchTabSearchSchema,
   component: SearchPanel,

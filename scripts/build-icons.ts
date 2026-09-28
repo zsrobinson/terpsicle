@@ -1,4 +1,4 @@
-// Draws every icon file from the umbrella mark (src/app/brand/marks.ts), in
+// Draws every icon file from the umbrella mark (src/lib/brand/marks.ts), in
 // the colors of src/styles.css, so a refined mark or palette is one edit and
 // one command:
 //
@@ -13,8 +13,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Resvg } from "@resvg/resvg-js";
-import { readTokens, type TokenTable } from "~/app/brand/css-tokens";
-import { type MarkRole, type MarkVariant, markSvg } from "~/app/brand/marks";
+import { readTokens, type TokenTable } from "~/lib/brand/css-tokens";
+import { type MarkRole, type MarkVariant, markSvg } from "~/lib/brand/marks";
 import { isMain, ROOT } from "./lib/source-files";
 
 export interface IconFile {

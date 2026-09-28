@@ -7,7 +7,7 @@ import {
   PanelNote,
   PanelSkeleton,
   SectionHeader,
-} from "~/app/panel";
+} from "~/components/panel";
 import type { TermId } from "~/core/schema";
 import { WatchingList } from "~/features/alerts/watching-list";
 import { DraftLine, PlanHeading } from "~/features/courses/main-plan-line";

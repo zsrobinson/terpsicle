@@ -8,9 +8,8 @@ import {
   useId,
 } from "react";
 import { create } from "zustand";
-import { track } from "~/app/analytics";
-import { Mark } from "~/app/brand/mark";
-import { PanelBody, PanelFooter, PanelNote } from "~/app/panel";
+import { Mark } from "~/components/brand/mark";
+import { PanelBody, PanelFooter, PanelNote } from "~/components/panel";
 import {
   appendInboxPage,
   inboxDays,
@@ -18,6 +17,7 @@ import {
   markInboxRead,
 } from "~/core/notifications/bell";
 import type { InboxItem, InboxProduct } from "~/core/schema/notifications";
+import { track } from "~/lib/analytics";
 import { notificationsApi } from "~/server/fns/notifications";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";

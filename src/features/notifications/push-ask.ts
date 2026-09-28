@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { create } from "zustand";
-import { track } from "~/app/analytics";
 import {
   type PushAskDevice,
   type PushAskKind,
@@ -19,6 +18,7 @@ import {
   markShownThisSession,
   wasShownThisSession,
 } from "~/features/pwa/install-session";
+import { track } from "~/lib/analytics";
 import { noteToast } from "~/ui/toast";
 import { readPushAskState, writePushAskState } from "./push-ask-prefs";
 import type { TurnOnResult } from "./this-device";

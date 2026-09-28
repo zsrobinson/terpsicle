@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { Mark } from "~/app/brand/mark";
+import { Mark } from "~/components/brand/mark";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";

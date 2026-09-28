@@ -8,10 +8,11 @@
     "types": ["vite/client"]
   },
   "include": [
-    "src/app",
     "src/features",
     "src/state",
     "src/components",
+    "src/hooks",
+    "src/lib",
     "src/routes",
     "src/worker",
     "src/core",

@@ -1,8 +1,8 @@
 import { cn } from "cn";
 import { type CSSProperties, useState } from "react";
-import { addBlock } from "~/app/actions";
 import { DAYS, type Day } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTimeRange } from "~/core/time";
+import { addBlock } from "~/features/schedule/actions";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";

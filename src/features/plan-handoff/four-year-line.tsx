@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { crossLinkClicked, viewWords } from "~/app/cross-link";
 import { termLabel } from "~/core/catalog/terms";
 import {
   missingFromPlan,
@@ -8,6 +7,7 @@ import {
 } from "~/core/four-year/handoff";
 import type { Plan } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
+import { crossLinkClicked, viewWords } from "~/lib/cross-link";
 import {
   fourYearLinkDb,
   readFourYearColumn,

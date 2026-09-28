@@ -10,10 +10,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { ChunkLoadError } from "~/app/panel-load-boundary";
-import { isApple } from "~/app/shortcuts";
-import { MOBILE_QUERY } from "~/app/use-media-query";
+import { ChunkLoadError } from "~/components/panel-load-boundary";
 import { LOCAL_DB_NAME } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
@@ -36,6 +33,9 @@ import {
   aPlanCourse,
   mockDataSource,
 } from "~/fixtures";
+import { MOBILE_QUERY } from "~/hooks/use-media-query";
+import { track } from "~/lib/analytics";
+import { isApple } from "~/lib/shortcuts";
 import {
   INITIAL_COURSE_INDEX_STATE,
   useCourseIndex,
@@ -55,8 +55,8 @@ import { Route as SearchRoute } from "./plan.search";
 // Fall 2026, so a plan from Fall 2025 has two done semesters and one in
 // progress.
 
-vi.mock("~/app/analytics", async (original) => ({
-  ...(await original<typeof import("~/app/analytics")>()),
+vi.mock("~/lib/analytics", async (original) => ({
+  ...(await original<typeof import("~/lib/analytics")>()),
   track: vi.fn(),
 }));
 

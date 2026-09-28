@@ -3,10 +3,9 @@ import { cn } from "cn";
 import { CalendarDays, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Drawer } from "vaul";
-import { AppBar } from "~/app/app-bar";
-import { Mark } from "~/app/brand/mark";
-import { PanelNote } from "~/app/panel";
-import { useIsMobile } from "~/app/use-media-query";
+import { AppBar } from "~/components/app-bar";
+import { Mark } from "~/components/brand/mark";
+import { PanelNote } from "~/components/panel";
 import {
   type ChatListCourse,
   canReadRoom,
@@ -26,6 +25,7 @@ import {
   type RoomId,
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
+import { useIsMobile } from "~/hooks/use-media-query";
 import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
 import { type BackTo, PageHeader } from "~/ui/page-header";

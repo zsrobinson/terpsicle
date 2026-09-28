@@ -47,7 +47,7 @@ vi.mock("~/server/fns/api", async (importOriginal) => {
 // The page's database, without the course index and catalog data.ts opens.
 vi.mock("./data", () => ({ fourYearDb: () => page.db }));
 vi.mock("sonner", () => ({ toast: (title: string) => toasts.push(title) }));
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 const NOW = "2026-10-01T15:00:00.000Z";
 const WAIT = { timeout: 10_000 };

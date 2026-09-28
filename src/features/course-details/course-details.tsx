@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { track } from "~/app/analytics";
-import { useDrillEntry } from "~/app/drill-entry";
-import { PanelBody, SectionHeader } from "~/app/panel";
+import { PanelBody, SectionHeader } from "~/components/panel";
 import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
 import { gradesSourceWords } from "~/core/grades";
@@ -9,6 +7,8 @@ import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
 import { usePushAskCard } from "~/features/notifications/push-ask";
 import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { useReadCourseNotifications } from "~/features/notifications/read-here";
+import { useDrillEntry } from "~/features/schedule/drill-entry";
+import { track } from "~/lib/analytics";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCourseDept, useInstructors } from "~/state/data-hooks";
 import {

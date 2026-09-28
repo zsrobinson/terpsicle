@@ -1,11 +1,10 @@
 import "fake-indexeddb/auto";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { currentView, goTo } from "~/app/schedule-nav";
-import type { ShellRoutes } from "~/app/test-utils";
-import { currentPath, renderShell } from "~/app/test-utils";
 import { plansInTerm } from "~/core/plans";
+import { currentView, goTo } from "~/features/schedule/schedule-nav";
+import type { ShellRoutes } from "~/features/schedule/test-utils";
+import { currentPath, renderShell } from "~/features/schedule/test-utils";
 import {
   aFourYear,
   aFourYearEntry,
@@ -16,6 +15,7 @@ import {
   demoPlans,
   fixtureTermId,
 } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import { fourYearLinkDb } from "~/state/four-year-link";
 import { EMPTY_DRAFT, useGenerateDrafts } from "~/state/generate-drafts";
@@ -34,7 +34,7 @@ const panels: ShellRoutes = {
   drills: { "generated-plan": ResultDetails },
 };
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 /** The shell on the demo plans with the Generate tab open. */
 async function renderGenerate() {
@@ -842,7 +842,7 @@ describe("Generate", () => {
 
   it("focuses the course field when asked to start generating", async () => {
     await renderGenerate();
-    const { startGenerate } = await import("~/app/actions");
+    const { startGenerate } = await import("~/features/schedule/actions");
     act(() => startGenerate());
     await waitFor(() => expect(courseField()).toHaveFocus());
   });

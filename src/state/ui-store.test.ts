@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetStores } from "./testing";
 import { uiPrefsOf, useUi } from "./ui-store";
 
-// Which tab and drill-in are open is the URL's now (src/app/schedule-nav.ts,
-// tested in src/app/schedule-nav.test.tsx and drill-stack.test.ts); the
+// Which tab and drill-in are open is the URL's now (src/features/schedule/schedule-nav.ts,
+// tested in src/features/schedule/schedule-nav.test.tsx and drill-stack.test.ts); the
 // store keeps what isn't.
 
 const ui = () => useUi.getState();

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { initAnalytics } from "~/app/analytics";
 import { ConnectPage } from "~/features/todo";
+import { initAnalytics } from "~/lib/analytics";
 
 // Connect ELMS, see the connection, disconnect, add a calendar file
 // (docs/V3.md §3.2, §3.7).

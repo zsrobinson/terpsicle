@@ -1,4 +1,3 @@
-import { screenshotMaps } from "~/app/screenshot-maps";
 import {
   applyEdits,
   fitImage,
@@ -11,6 +10,7 @@ import {
   type FeedbackImage,
   type FeedbackImageType,
 } from "~/core/schema/feedback";
+import { screenshotMaps } from "~/lib/screenshot-maps";
 
 // Feedback screenshots (docs/FEEDBACK.md): the page as the person sees it,
 // drawn with modern-screenshot (loaded here, on first use). Every

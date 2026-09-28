@@ -135,7 +135,7 @@ Use these when the spec is silent:
 - **Don't yell.** Problems are information, not alarms. No banners, no red outlines on choices a person is still weighing, no confirmation dialogs (use undo). Stopping a seat watch is no exception: it has Undo like everything else (V2.md §6.5).
 - **People arrive cold, a few times a semester.** Text labels on navigation, a numbered first-visit guide, tooltips everywhere, and shortcuts as a bonus rather than a requirement.
 - **Dense and precise, like Linear or Vercel.** Compact type, hairline rules inside panels, an ink accent, square corners. Motion is quick and quiet. A left rail with a boxed active state risks looking "like Slack", so keep it restrained. The brand (§7) dresses this density; it never loosens it.
-- **One system, not per-panel taste.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, color tokens only, and the shared panel pieces in `src/app/panel.tsx` (`docs/UX-REVIEW.md` §2). `src/app/design-tokens.test.ts` holds the line.
+- **One system, not per-panel taste.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, color tokens only, and the shared panel pieces in `src/components/panel.tsx` (`docs/UX-REVIEW.md` §2). `src/components/design-tokens.test.ts` holds the line.
 - **Design for 1, a few, and many sections.** Upper-level courses often have one section; intro courses have dozens. Every section-bearing surface (course details, search results, calendar ghosts, generate results) must be great at both extremes. In the owner's words: "my socy4xx classes all are just one section, but the intro CS and math courses have like a billion sections. our UI should be great in both scenarios."
 - **Don't prefill or over-model.** Blocks are just labeled time. Don't add fields people didn't ask for.
 - **Honest numbers.** Show the math behind estimates. Never draw something that implies a simpler calculation than the one we did (a straight route line, for example).
@@ -160,7 +160,7 @@ Use these when the spec is silent:
 
 ## 7. The brand: Ink (owner, 2026-09-26)
 
-The v2 brand came from a prototype track: a "Bulletin" paper round, then six variations of a risograph ("Riso") direction, then an icons-only round. The owner chose the first Riso variation, **Ink**, with paper grain, and the **Pixel star** icons: "after we lock this in, we can implement the design." On buttons: "i really like the effect we have going in the design guide for buttons." The tokens live in `src/styles.css`; `src/app/design-tokens.test.ts` checks their contrast and spacing.
+The v2 brand came from a prototype track: a "Bulletin" paper round, then six variations of a risograph ("Riso") direction, then an icons-only round. The owner chose the first Riso variation, **Ink**, with paper grain, and the **Pixel star** icons: "after we lock this in, we can implement the design." On buttons: "i really like the effect we have going in the design guide for buttons." The tokens live in `src/styles.css`; `src/components/design-tokens.test.ts` checks their contrast and spacing.
 
 ### 7.1 Palette
 
@@ -208,7 +208,7 @@ Ink's "subtle" paper grain: a 220px fractal-noise tile, dark specks at 28% on pa
 
 ### 7.5 Marks
 
-Six pixel marks, drawn by the owner (2026-09-28), each a 9×9 tile (`src/app/brand/marks.ts`): the **umbrella** (Terpsicle, the family), **Schedule**, **Reviews**, **Chat**, **Plan** and **Todo**.
+Six pixel marks, drawn by the owner (2026-09-28), each a 9×9 tile (`src/lib/brand/marks.ts`): the **umbrella** (Terpsicle, the family), **Schedule**, **Reviews**, **Chat**, **Plan** and **Todo**.
 - **The drawings.** The umbrella is a canopy with its rim and handle. Schedule is two courses side by side, the second later in the day. Reviews is a quill, writing. Chat is a speech bubble with two lines of text and a tail. Plan is stacked semesters, one on top and two below. Todo is a checklist of three rows, each with its box.
 - **Two tones.** Each glyph is white at 100% and white at 50% over its tile, exactly as the owner's export has them. No anti-aliasing: every edge is on the grid (`shape-rendering: crispEdges`).
 - **Tiles.** The umbrella's tile is black in both themes, with a white glyph. A product's tile is its Flexoki 600 step in both themes (Plan and Todo included), with a white glyph. White, not paper: it's the export's, and it holds Plan's green at 4.5:1. A glyph is a graphic, so its bar is 3:1 (WCAG 1.4.11); Todo's white on yellow-600 is the lowest, at 3.5:1. Every tile clears 3:1 on paper, so none needs a keyline in light.
@@ -218,7 +218,7 @@ Six pixel marks, drawn by the owner (2026-09-28), each a 9×9 tile (`src/app/bra
 
 ### 7.6 The product menu
 
-Every page has the family bar (docs/COHESION.md §4): from 1100px, the five products are labeled tabs beside the wordmark. Narrower, the umbrella and the product you're in open the product menu (`src/app/product-menu.tsx`, docs/V2.md §1.1): each product with its mark and a one-line description.
+Every page has the family bar (docs/COHESION.md §4): from 1100px, the five products are labeled tabs beside the wordmark. Narrower, the umbrella and the product you're in open the product menu (`src/components/product-menu.tsx`, docs/V2.md §1.1): each product with its mark and a one-line description.
 - The product you're in wears its soft color and a check. There are no paths, counts or badges: nothing here pulls you into another product.
 - Links between products say what you'll see: "View schedule", "View reviews", "View chat".
 

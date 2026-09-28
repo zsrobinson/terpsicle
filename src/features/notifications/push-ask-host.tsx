@@ -3,7 +3,7 @@ import { useAccount } from "~/features/auth/account-store";
 import { askForPush, usePushAsk } from "./push-ask";
 
 // Mounted once for every page, beside the install prompt's host
-// (src/app/pwa-client.tsx): shows the iPhone sheet when a moment asks with
+// (src/features/pwa/pwa-client.tsx): shows the iPhone sheet when a moment asks with
 // it, and on the Home Screen app's first launch (once signed in there: the
 // Home Screen app keeps its own sign-in) asks with the Turn on step. The
 // sheet's code loads only then.

@@ -9,7 +9,7 @@ import type {
 
 // The scheduler's routes (src/routes/schedule.*.tsx): one per rail tab, one
 // per drill-in, and `/schedule` itself, which redirects its old-style URLs
-// (`?tab=&course=`) to them. src/app/README.md, "URL state".
+// (`?tab=&course=`) to them. src/features/schedule/README.md, "URL state".
 
 /** Each rail tab's route: `/schedule/search`. */
 export const TAB_PATHS = {

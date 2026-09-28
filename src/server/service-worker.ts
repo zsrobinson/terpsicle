@@ -30,7 +30,7 @@ import {
 //   `no-cache` so the app's 60-second poll sees a new catalog at once; a
 //   stale-while-revalidate copy would hide it for a poll (DATA.md §2.5, §5.1).
 // - A new version waits until the app asks it to take over ("Update ready"
-//   → Reload, src/app/service-worker-registration.ts) or every tab closes.
+//   → Reload, src/features/pwa/service-worker-registration.ts) or every tab closes.
 // - Push: shows the payload (`PushPayloadSchema`), one notification per tag
 //   (V2 §6.7: the server words it for the whole group, with its count),
 //   buzzing again only when the payload says so, and sets the app badge to

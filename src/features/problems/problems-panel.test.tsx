@@ -1,22 +1,22 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { switchSection } from "~/app/actions";
-import { track } from "~/app/analytics";
-import { currentView } from "~/app/schedule-nav";
-import type { ShellRoutes } from "~/app/test-utils";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
   seatAlertsAccount,
 } from "~/features/alerts/testing";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
+import { switchSection } from "~/features/schedule/actions";
+import { currentView } from "~/features/schedule/schedule-nav";
+import type { ShellRoutes } from "~/features/schedule/test-utils";
 import { aMeUser, demoPlanB, fixtureTermId } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { useWorkspace } from "~/state/workspace-store";
 import { ProblemsPanel } from "./problems-panel";
 
 const panels: ShellRoutes = { tabs: { problems: ProblemsPanel } };
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 describe("Problems tab", () => {
   beforeEach(() => {

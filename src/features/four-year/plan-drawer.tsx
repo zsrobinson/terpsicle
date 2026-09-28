@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
-import { DrawerTab, DrawerTabs, WorkbenchDrawer } from "~/app/workbench/drawer";
+import {
+  DrawerTab,
+  DrawerTabs,
+  WorkbenchDrawer,
+} from "~/components/workbench/drawer";
 import type { PlanTab } from "~/core/schema";
 import { usePlanNav } from "./model";
 import { PlanSidebarContent } from "./plan-sidebar";

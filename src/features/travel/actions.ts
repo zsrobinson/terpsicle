@@ -1,8 +1,8 @@
-import { switchSection } from "~/app/actions";
-import { track } from "~/app/analytics";
-import { closeDrill, openDrill } from "~/app/schedule-nav";
 import type { Connection, ExtraMinutes, Pace, SectionKey } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
+import { switchSection } from "~/features/schedule/actions";
+import { closeDrill, openDrill } from "~/features/schedule/schedule-nav";
+import { track } from "~/lib/analytics";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 

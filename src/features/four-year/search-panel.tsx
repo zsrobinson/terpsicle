@@ -1,7 +1,7 @@
 import { Check, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
-import { PanelNote } from "~/app/panel";
+import { PanelNote } from "~/components/panel";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
 import {
   fourYearSearchInfo,

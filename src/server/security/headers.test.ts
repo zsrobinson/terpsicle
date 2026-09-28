@@ -67,7 +67,7 @@ describe("contentSecurityPolicy", () => {
 });
 
 describe("the inline scripts' hashes", () => {
-  it("are built from src/app/inline-scripts.ts, one per script", () => {
+  it("are built from src/lib/inline-scripts.ts, one per script", () => {
     expect(INLINE_SCRIPT_HASHES.length).toBeGreaterThanOrEqual(4);
     for (const hash of INLINE_SCRIPT_HASHES)
       expect(hash).toMatch(/^'sha256-[A-Za-z0-9+/]{43}='$/);

@@ -1,4 +1,3 @@
-import { track } from "~/app/analytics";
 import { wildcardLabel } from "~/core/catalog/wildcard";
 import { displayTitle } from "~/core/four-year/display-title";
 import type { FourYearAction } from "~/core/four-year/reducer";
@@ -30,6 +29,7 @@ import {
   type FourYearTerm,
   WILDCARD_CREDITS,
 } from "~/core/schema/four-year";
+import { track } from "~/lib/analytics";
 import { courseIndexEntry, useCourseIndex } from "~/state/course-index-store";
 import { newLocalId, nowIso } from "~/state/ids";
 import { activeDoc, useFourYear } from "./store";

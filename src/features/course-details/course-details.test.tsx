@@ -1,8 +1,5 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { openDrill } from "~/app/schedule-nav";
-import { renderShell, type ShellRoutes } from "~/app/test-utils";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
@@ -14,6 +11,8 @@ import { openCourse } from "~/features/courses/actions";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { forgetReads } from "~/features/notifications/read-here";
 import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
+import { openDrill } from "~/features/schedule/schedule-nav";
+import { renderShell, type ShellRoutes } from "~/features/schedule/test-utils";
 import { SearchPanel } from "~/features/search/search-panel";
 import {
   aMeUser,
@@ -21,6 +20,7 @@ import {
   aSeatWatch,
   mockDataSource,
 } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { api } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
 import { useCatalog } from "~/state/catalog-store";
@@ -41,7 +41,7 @@ import { forgetReviewSummaries } from "./use-review-summary";
 const panels: ShellRoutes = { drills: { course: CourseDetails } };
 const searchPanels: ShellRoutes = { tabs: { search: SearchPanel } };
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 vi.mock("~/server/fns/notifications", () => ({
   notificationsApi: { read: vi.fn(async () => ({ unread: 0 })) },
 }));

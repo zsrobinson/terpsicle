@@ -2,14 +2,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Plugin } from "vite";
 // Relative, not `~/`: vite.config.ts loads this before any alias exists.
-import { readTokens } from "../src/app/brand/css-tokens";
+import { readTokens } from "../src/lib/brand/css-tokens";
 
 // The web app manifest (docs/V2.md §3.1), built from the Ink tokens so a
 // brand refresh changes one place: src/styles.css. The build writes
 // dist/client/manifest.webmanifest, the dev server answers
 // /manifest.webmanifest, and the document head's theme colors come from the
-// same tokens (`virtual:terpsicle/theme-colors`, src/app/pwa-head.ts).
-// Icons: scripts/build-icons.ts, from src/app/brand/marks.ts.
+// same tokens (`virtual:terpsicle/theme-colors`, src/features/pwa/pwa-head.ts).
+// Icons: scripts/build-icons.ts, from src/lib/brand/marks.ts.
 
 export const MANIFEST_FILE = "manifest.webmanifest";
 export const THEME_COLORS_MODULE = "virtual:terpsicle/theme-colors";

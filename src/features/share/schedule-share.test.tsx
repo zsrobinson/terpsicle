@@ -1,12 +1,12 @@
 import { screen, within } from "@testing-library/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
 import { decodeShare, SHARE_PARAM } from "~/core/share";
 import { renderPlanTab } from "~/features/courses/testing";
 import { fixtureTermId } from "~/fixtures";
+import { track } from "~/lib/analytics";
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 

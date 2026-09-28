@@ -1,12 +1,15 @@
 import "fake-indexeddb/auto";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { renderShell, type ShellRoutes, settle } from "~/app/test-utils";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { useAccount } from "~/features/auth/account-store";
 import { CoursesPanel } from "~/features/courses/courses-panel";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
+import {
+  renderShell,
+  type ShellRoutes,
+  settle,
+} from "~/features/schedule/test-utils";
 import {
   aFourYear,
   aFourYearEntry,
@@ -15,6 +18,7 @@ import {
   archivedFixtureTermId,
   aSavedCourse,
 } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { fourYearLinkDb } from "~/state/four-year-link";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
@@ -24,7 +28,7 @@ import { applyHandoff } from "./handoff";
 // Plan's "View schedule" arriving in the scheduler, and the Courses tab's
 // line about the four-year plan (docs/V3.md §2.12).
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 const panels: ShellRoutes = { tabs: { courses: CoursesPanel } };
 

@@ -8,15 +8,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { Fragment, type ReactElement, useMemo } from "react";
-import { TONE_TEXT } from "~/app/emphasis";
-import { MessageText, messageToText } from "~/app/message-text";
+import { MessageText, messageToText } from "~/components/message-text";
 import {
   ListRow,
   PanelBody,
   PanelHeader,
   PanelNote,
   SectionHeader,
-} from "~/app/panel";
+} from "~/components/panel";
 import type { CatalogIndex } from "~/core/catalog";
 import type {
   CourseCode,
@@ -30,6 +29,7 @@ import { parseSectionKey, sectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
 import { useSeatWatch } from "~/features/alerts/seat-watches";
 import { FourYearLine } from "~/features/plan-handoff/four-year-line";
+import { TONE_TEXT } from "~/lib/emphasis";
 import {
   useActiveTerm,
   useCreditsLabel,

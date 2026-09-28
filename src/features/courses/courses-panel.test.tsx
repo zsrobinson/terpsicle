@@ -1,12 +1,12 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { track } from "~/app/analytics";
-import { currentView, goTo } from "~/app/schedule-nav";
-import type { ShellRoutes } from "~/app/test-utils";
-import { renderShell } from "~/app/test-utils";
 import { encodeShare } from "~/core/share";
 import { resetSeatWatches, watching } from "~/features/alerts/testing";
+import { currentView, goTo } from "~/features/schedule/schedule-nav";
+import type { ShellRoutes } from "~/features/schedule/test-utils";
+import { renderShell } from "~/features/schedule/test-utils";
 import { aMeUser, aSeatWatch, aSharePayload } from "~/fixtures";
+import { track } from "~/lib/analytics";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
@@ -15,7 +15,7 @@ import { openPlanNow, renderPlanTab } from "./testing";
 
 const panels: ShellRoutes = { tabs: { courses: CoursesPanel } };
 
-vi.mock("~/app/analytics", () => ({ track: vi.fn() }));
+vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
 
 describe("Courses tab", () => {
   beforeEach(() => {

@@ -24,8 +24,8 @@
     // The feedback row as the inbox sees it (scripts/feedback.ts).
     "src/server/feedback/item.ts",
     // The marks and the token reader (scripts/build-icons.ts).
-    "src/app/brand/marks.ts",
-    "src/app/brand/css-tokens.ts",
+    "src/lib/brand/marks.ts",
+    "src/lib/brand/css-tokens.ts",
     // The page's link-preview facts and the sample week it draws
     // (scripts/build-og-image.ts).
     "src/features/marketing/meta.ts",

@@ -15,7 +15,7 @@ import {
 // (`/schedule/search`, `/schedule/course/CMSC351`); these carry the rest
 // (the term, the open plan, Search's text), so Back, Forward, reload and a
 // copied link all land on the same view. Which change pushes a history entry
-// and which replaces one: src/app/README.md, "URL state". A bad value is
+// and which replaces one: src/features/schedule/README.md, "URL state". A bad value is
 // dropped, never an error: the rest of the link still works.
 
 // The router writes what this schema returns into the URL, so it returns

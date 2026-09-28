@@ -1,8 +1,12 @@
 // Test helpers for the plan tabs (Courses, Problems, Blocks, Register). Not
 // used by the app.
 import { act, screen } from "@testing-library/react";
-import { renderShell, type ShellRoutes, showTab } from "~/app/test-utils";
 import type { RailTab } from "~/core/schema";
+import {
+  renderShell,
+  type ShellRoutes,
+  showTab,
+} from "~/features/schedule/test-utils";
 import { useCatalog } from "~/state/catalog-store";
 import { seedDemoWorkspace, TEST_TERM_ID } from "~/state/testing";
 

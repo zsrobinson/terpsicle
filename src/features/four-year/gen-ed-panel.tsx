@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { PanelNote } from "~/app/panel";
+import { PanelNote } from "~/components/panel";
 import {
   GEN_ED_REQUIREMENTS,
   type GenEdProgress,

@@ -9,17 +9,19 @@ import {
   useRef,
   useState,
 } from "react";
-import { ChunkLoadError } from "~/app/panel-load-boundary";
-import { useShortcut } from "~/app/shortcuts";
-import { useIsMobile } from "~/app/use-media-query";
-import { CanvasBar } from "~/app/workbench/canvas-bar";
+import { ChunkLoadError } from "~/components/panel-load-boundary";
+import { CanvasBar } from "~/components/workbench/canvas-bar";
 import {
   lazyDrawer,
   Workbench,
   WorkbenchSidebar,
-} from "~/app/workbench/layout";
-import { RailButton, railHint, WorkbenchRail } from "~/app/workbench/rail";
-import { SkipLinks } from "~/app/workbench/skip-links";
+} from "~/components/workbench/layout";
+import {
+  RailButton,
+  railHint,
+  WorkbenchRail,
+} from "~/components/workbench/rail";
+import { SkipLinks } from "~/components/workbench/skip-links";
 import { defaultFirstTerm } from "~/core/four-year/terms";
 import { PLAN_VIEW_PATHS } from "~/core/routing/plan-location";
 import {
@@ -34,6 +36,8 @@ import { useAccount } from "~/features/auth/account-store";
 import { claimAccountSync } from "~/features/prefs/synced-prefs";
 import { InstallAppButton } from "~/features/pwa/install-entry";
 import { SitePage } from "~/features/site/site-page";
+import { useIsMobile } from "~/hooks/use-media-query";
+import { useShortcut } from "~/lib/shortcuts";
 import { readSidebarWidth } from "~/state/sidebar-width-pref";
 import { PageSkeleton } from "~/ui/skeleton";
 import { createDocForImport, createDocForTemplates } from "./actions";
@@ -69,7 +73,7 @@ import {
 } from "./workbench-store";
 
 // `/plan` (docs/V3.md §2.13): the four-year plan, local first, on the
-// scheduler's workbench (src/app/workbench; docs/COHESION.md §4): the family
+// scheduler's workbench (src/components/workbench; docs/COHESION.md §4): the family
 // bar with the plan's name, a rail of Plan's views, the open view in the
 // sidebar and the semesters as the canvas. A phone shows a strip of
 // semesters and one at a time, with the sidebar in the same drawer as the

@@ -1,15 +1,15 @@
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
-import { addBlock } from "~/app/actions";
 import {
   ListRow,
   PanelBody,
   PanelHeader,
   PanelNote,
   SectionHeader,
-} from "~/app/panel";
+} from "~/components/panel";
 import type { Block, LocalId } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTimeRange, sortDays } from "~/core/time";
+import { addBlock } from "~/features/schedule/actions";
 import { useCurrentPlan } from "~/state/hooks";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
