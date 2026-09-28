@@ -322,6 +322,27 @@ describe("Course details", () => {
       expect(useUi.getState().previewSection).toBeNull();
     });
 
+    it("scrolls a row into view for the calendar's keys, not for the pointer on it", async () => {
+      const { user } = await renderDetails();
+      const original = Element.prototype.scrollIntoView;
+      const scrolled = vi.fn();
+      Element.prototype.scrollIntoView = scrolled;
+      try {
+        // Under the pointer the row is already in view, and a scroll call
+        // here would stop a smooth scroll running under it ("Grades ↓").
+        await user.hover(row("0401"));
+        expect(useUi.getState().previewSection).toBe("CMSC351-0401");
+        expect(scrolled).not.toHaveBeenCalled();
+        await user.unhover(row("0401"));
+        // ↑/↓ on the calendar preview a row the list may have scrolled past.
+        act(() => useUi.getState().setPreviewSection("CMSC351-0401"));
+        expect(scrolled).toHaveBeenCalledTimes(1);
+        expect(scrolled.mock.contexts[0]).toBe(row("0401"));
+      } finally {
+        Element.prototype.scrollIntoView = original;
+      }
+    });
+
     it("switches to a section from the list", async () => {
       const { user } = await renderDetails();
       await user.click(
