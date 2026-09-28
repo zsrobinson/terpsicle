@@ -12,39 +12,41 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { track } from "~/app/analytics";
 import type {
   Flags,
-  TodoFeedState,
   TodoItem,
   TodoListResult,
   TodoSaveTaskInput,
 } from "~/core/schema";
 import {
+  type CalendarView,
   ownTaskDue,
   ownTaskItem,
   TEST_FEED_TOKENS,
   testFeedLink,
 } from "~/core/todo";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
+import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
 import { ApiCallError } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { ConnectPage } from "./connect-page";
 import { importWords } from "./file-drop";
-import { TodoPage, type TodoView } from "./todo-page";
+import { TodoPage } from "./todo-page";
 import { resetTodo, setTodoClient, type TodoClient } from "./todo-store";
 
-// 2026-09-25 is a Friday in New York; the fixture item is due Tuesday the 29th.
+// 2026-09-28 is a Monday, and it's noon in New York; the fixture item is
+// due Tuesday the 29th at 11:59pm.
 
 vi.mock("~/app/analytics", async (original) => ({
   ...(await original<typeof import("~/app/analytics")>()),
   track: vi.fn(),
 }));
 
-const NOW = "2026-09-25T16:00:00.000Z";
+const NOW = "2026-09-28T16:00:00.000Z";
 
 function fakeClient(list: Partial<TodoListResult> = {}) {
   let answer: TodoListResult = {
-    feed: aTodoFeedState({ lastSuccessAt: "2026-09-25T15:46:00.000Z" }),
+    feed: aTodoFeedState({ lastSuccessAt: "2026-09-28T15:46:00.000Z" }),
     items: [],
     done: [],
     hidden: [],
@@ -128,13 +130,16 @@ function signedIn(on = true, chat: Flags["chat"] = "off") {
   });
 }
 
-function renderTodo(view: TodoView = "day") {
-  return wrap(<TodoPage view={view} />);
+function renderTodo(view: CalendarView = "week", anchor?: string) {
+  return wrap(<TodoPage view={view} anchor={anchor} />);
 }
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(NOW));
+  vi.mocked(track).mockClear();
+  window.localStorage.clear();
+  showSyncedPrefs({});
   resetTodo();
 });
 
@@ -144,7 +149,7 @@ afterEach(() => {
 });
 
 describe("who's looking", () => {
-  it("shows the front door when signed out, with sign-in and a sample", async () => {
+  it("shows the front door when signed out: what Todo does, sign-in and a sample week", async () => {
     const client = fakeClient();
     useAccount.setState({
       status: "signed-out",
@@ -156,22 +161,17 @@ describe("who's looking", () => {
     expect(
       await screen.findByRole("heading", {
         level: 1,
-        name: "Your deadlines and exams, in one list",
+        name: "Your deadlines, on a calendar",
       }),
     ).toBeVisible();
     expect(document.querySelector('[data-mark="todo"]')).not.toBeNull();
-    // Says up front what you'll need after signing in.
-    expect(
-      screen.getByText(/Sign in, then paste your ELMS calendar link/),
-    ).toBeVisible();
+    expect(screen.getByText(/Connect ELMS and your assignments/)).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Sign in with Google" }),
     ).toHaveAttribute("href", expect.stringContaining("return=%2Ftodo"));
-    const sample = screen.getByRole("list", { name: "A sample list" });
-    // A sample, named as one: nothing says "Mark done" on it.
-    expect(
-      within(sample).getByRole("checkbox", { name: "Sample: Project 2" }),
-    ).toBeDisabled();
+    expect(screen.getByText(/^A week in Todo/)).toBeVisible();
+    // A picture: nothing in it can be pressed.
+    expect(screen.queryByRole("checkbox")).toBeNull();
     expect(client.list).not.toHaveBeenCalled();
   });
 
@@ -185,29 +185,43 @@ describe("who's looking", () => {
     expect(screen.getByText(/Coming soon/)).toBeVisible();
   });
 
-  it("is the first-visit template until ELMS is connected, with the paste right there", async () => {
+  it("says what Todo does on the first visit, with its two ways in", async () => {
     fakeClient({ feed: null });
     signedIn();
     renderTodo();
     expect(
       await screen.findByRole("heading", {
-        level: 1,
-        name: "Connect ELMS to see your deadlines",
+        level: 2,
+        name: "Your deadlines, on a calendar",
       }),
     ).toBeVisible();
-    expect(document.querySelector('[data-mark="todo"]')).not.toBeNull();
-    // Step one opens ELMS in a new tab, so the paste is still here after.
-    const step = screen.getByRole("link", { name: "Open your ELMS calendar" });
-    expect(step).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Connect ELMS" })).toHaveAttribute(
       "href",
-      "https://umd.instructure.com/calendar",
+      "/todo/connect",
     );
-    expect(step).toHaveAttribute("target", "_blank");
-    expect(step).toHaveAttribute("rel", "noopener noreferrer");
+    // The paste is in the side panel too, beside the empty week.
     expect(screen.getByLabelText("ELMS calendar link")).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "or add a calendar file" }),
-    ).toHaveAttribute("href", "/todo/connect");
+      screen.getByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
+    ).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Add a task" }));
+    expect(screen.getByRole("textbox", { name: "New task" })).toHaveFocus();
+  });
+
+  it("starts a calendar without ELMS from the first visit", async () => {
+    fakeClient({ feed: null, items: [] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByRole("textbox", { name: "New task" }),
+      "Email my advisor{Enter}",
+    );
+    expect(await screen.findByText("Email my advisor")).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Your deadlines, on a calendar" }),
+    ).toBeNull();
   });
 });
 
@@ -230,7 +244,7 @@ describe("connecting", () => {
     expect(input).toHaveValue("");
   });
 
-  it("sends a feed link once, clears it, and shows the list", async () => {
+  it("sends a feed link once, clears it, and shows the calendar", async () => {
     const client = fakeClient({ feed: null });
     signedIn();
     renderTodo();
@@ -342,7 +356,8 @@ describe("connecting", () => {
   });
 });
 
-describe("the list", () => {
+describe("the week", () => {
+  // Monday, Sep 28: the week runs to Sunday, Oct 4.
   const items: TodoItem[] = [
     aTodoItem(),
     aTodoItem({
@@ -351,17 +366,15 @@ describe("the list", () => {
       courseLabel: "MATH240-0201: Introduction to Linear Algebra",
       courseCode: "MATH240",
       sectionCode: "0201",
-      gradescope: true,
-      dueDate: "2026-09-26",
-      dueAt: "2026-09-27T03:59:00.000Z",
+      dueDate: "2026-10-04",
+      dueAt: "2026-10-05T03:59:00.000Z",
     }),
     aTodoItem({
       uid: "event-calendar-event-3",
       title: "Midterm 1",
       kind: "event",
-      exam: true,
-      dueDate: "2026-09-25",
-      dueAt: "2026-09-25T17:00:00.000Z",
+      dueDate: "2026-10-02",
+      dueAt: "2026-10-02T17:00:00.000Z",
       link: "https://evil.example.com/phish",
     }),
     aTodoItem({
@@ -371,13 +384,13 @@ describe("the list", () => {
       courseLabel: "Study group",
       courseCode: null,
       sectionCode: null,
-      dueDate: "2026-10-09",
+      dueDate: "2026-10-01",
       dueAt: null,
       link: null,
     }),
   ];
 
-  it("keeps the family bar, and focus in it, as the account and the list load", async () => {
+  it("keeps the family bar, and focus in it, as the account and the calendar load", async () => {
     fakeClient({ items });
     useAccount.setState({ status: "loading", flags: FLAGS_OFF, user: null });
     renderTodo();
@@ -392,103 +405,89 @@ describe("the list", () => {
     expect(feedback).toHaveFocus();
   });
 
-  it("reads like the plan: open count, when ELMS was checked, and the days", async () => {
+  it("is the page's title, Monday to Sunday, with each item on its day", async () => {
     fakeClient({ items });
     signedIn();
     renderTodo();
     expect(
-      await screen.findByText("4 open · ELMS feed checked 14 min ago"),
+      await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
     ).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Today" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Tomorrow" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Next week" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Later" })).toBeVisible();
-    expect(screen.getByText("Nothing due this week.")).toBeVisible();
-
-    const midterm = screen.getByText("Midterm 1").closest("li");
-    if (!midterm) throw new Error("no row");
-    // Due today at a time: how long, with the time in its tooltip.
-    expect(within(midterm).getByText("Due in 1 hour")).toBeVisible();
-    expect(within(midterm).getByText("Exam")).toBeVisible();
-    expect(within(midterm).getByText("From ELMS")).toBeVisible();
-    // Only ELMS links are links.
-    expect(within(midterm).queryByRole("link")).toBeNull();
-
-    const project = screen.getByText("Project 2").closest("li");
-    if (!project) throw new Error("no row");
+    const days = within(screen.getByRole("region", { name: "The week" }))
+      .getAllByRole("heading", { level: 3 })
+      .map((h) => h.textContent);
+    expect(days[0]).toMatch(/^Mon28/);
+    expect(days[6]).toMatch(/^Sun4/);
+    const sunday = document.getElementById("day-2026-10-04");
+    if (!sunday) throw new Error("no Sunday");
+    expect(within(sunday).getByText("WebAssign 5")).toBeVisible();
     expect(
-      within(project).getByRole("link", { name: "Open Project 2 in ELMS" }),
-    ).toHaveAttribute("rel", "noopener noreferrer");
-    expect(within(project).getByText("CMSC216")).toBeVisible();
-    expect(within(project).getByText("11:59pm")).toBeVisible();
-
-    const webassign = screen.getByText("WebAssign 5").closest("li");
-    if (!webassign) throw new Error("no row");
-    expect(within(webassign).getByText("Gradescope")).toBeVisible();
-    expect(
-      within(webassign).getByText(/Extensions you get in Gradescope/),
-    ).toBeVisible();
+      within(sunday).getByRole("heading", { name: /Sunday, Oct 4: 1 due/ }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId("todo-chip")).toHaveLength(4);
   });
 
-  describe("the Gradescope extensions note", () => {
-    const gradescope: TodoItem[] = [
-      aTodoItem({ uid: "gs-project", gradescope: true }),
-      aTodoItem({
-        uid: "gs-homework",
-        title: "Homework 4",
-        courseLabel: "MATH240-0201: Introduction to Linear Algebra",
-        courseCode: "MATH240",
-        sectionCode: "0201",
-        gradescope: true,
-        dueDate: "2026-09-28",
-        dueAt: "2026-09-29T03:59:00.000Z",
+  it("moves a week at a time with links, so each week is a URL", async () => {
+    fakeClient({ items });
+    signedIn();
+    renderTodo("week", "2026-10-07");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Oct 5 – Oct 11" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Back a week" })).toHaveAttribute(
+      "href",
+      "/todo?view=week&date=2026-09-28",
+    );
+    expect(screen.getByRole("link", { name: "Ahead a week" })).toHaveAttribute(
+      "href",
+      "/todo?view=week&date=2026-10-12",
+    );
+    expect(screen.getByRole("link", { name: "Today" })).toHaveAttribute(
+      "href",
+      "/todo?view=week",
+    );
+    const views = screen.getByRole("navigation", { name: "Todo views" });
+    expect(within(views).getByRole("link", { name: "Month" })).toHaveAttribute(
+      "href",
+      "/todo?view=month&date=2026-10-07",
+    );
+    expect(within(views).getByRole("link", { name: "Week" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("loads a week the list doesn't hold yet", async () => {
+    const client = fakeClient({ items });
+    signedIn();
+    renderTodo("week", "2027-01-06");
+    await screen.findByRole("heading", { level: 1, name: /Jan 4 – Jan 10/ });
+    await waitFor(() =>
+      expect(client.list).toHaveBeenCalledWith({
+        from: "2026-12-07",
+        to: "2027-04-05",
       }),
-      aTodoItem({
-        uid: "gs-lab",
-        title: "Lab 7",
-        gradescope: true,
-        dueDate: "2026-10-02",
-        dueAt: "2026-10-03T03:59:00.000Z",
-      }),
-      aTodoItem({ uid: "plain", title: "Reading response 3" }),
-    ];
-    const notes = () =>
-      screen.queryAllByText(/Extensions you get in Gradescope/);
-    const rowOf = (title: string) => {
-      const row = screen.getByText(title).closest("li");
-      if (!row) throw new Error(`no row for ${title}`);
-      return row;
-    };
+    );
+  });
 
-    it("says it once, under the first Gradescope item still to do", async () => {
-      fakeClient({ items: gradescope });
-      signedIn();
-      renderTodo();
-      await screen.findByText("Homework 4");
-      expect(screen.getAllByText("Gradescope")).toHaveLength(3);
-      expect(notes()).toHaveLength(1);
-      expect(
-        within(rowOf("Homework 4")).getByText(/Extensions you get/),
-      ).toBeVisible();
-
-      // Checked off, it hands the note to the next one.
-      const user = userEvent.setup();
-      await user.click(
-        screen.getByRole("checkbox", { name: "Done: Homework 4" }),
-      );
-      expect(notes()).toHaveLength(1);
-      expect(
-        within(rowOf("Project 2")).getByText(/Extensions you get/),
-      ).toBeVisible();
+  it("starts weeks on Sunday when that's the setting, and changes it from the panel", async () => {
+    showSyncedPrefs({ todo: { weekStart: "sunday" } });
+    fakeClient({ items });
+    signedIn();
+    renderTodo();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Sep 27 – Oct 3" }),
+    ).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "Monday" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
+    ).toBeVisible();
+    expect(track).toHaveBeenCalledWith("todo_week_start_changed", {
+      start: "monday",
     });
-
-    it("says it once by course too", async () => {
-      fakeClient({ items: gradescope });
-      signedIn();
-      renderTodo("course");
-      await screen.findByText("Homework 4");
-      expect(notes()).toHaveLength(1);
-    });
+    expect(
+      JSON.parse(window.localStorage.getItem("terpsicle:prefs") ?? "{}"),
+    ).toMatchObject({ todo: { weekStart: "monday" } });
   });
 
   it("renders what professors write as plain text", async () => {
@@ -497,14 +496,9 @@ describe("the list", () => {
     renderTodo();
     expect(await screen.findByText("<b>Quiz</b> & notes")).toBeVisible();
     expect(document.querySelector("b")).toBeNull();
-    const row = screen.getByText("<b>Quiz</b> & notes").closest("li");
-    if (!row) throw new Error("no row");
-    expect(within(row).getByText("From a file")).toBeVisible();
-    expect(within(row).getByText("All day")).toBeVisible();
-    expect(within(row).getByText("Study group")).toBeVisible();
   });
 
-  it("checks items off, folding them into the day's done count", async () => {
+  it("checks items off on the week, with Undo", async () => {
     const client = fakeClient({ items });
     signedIn();
     renderTodo();
@@ -516,26 +510,13 @@ describe("the list", () => {
       uid: "event-calendar-event-3",
       done: true,
     });
-    expect(screen.queryByText("Midterm 1")).toBeNull();
+    expect(track).toHaveBeenCalledWith("todo_item_checked", {
+      done: true,
+      via: "week",
+    });
     expect(
       screen.getByText("3 open · ELMS feed checked 14 min ago"),
     ).toBeVisible();
-    const fold = screen.getByRole("button", { name: "1 done" });
-    await user.click(fold);
-    expect(fold).toHaveAttribute("aria-expanded", "true");
-    expect(
-      screen.getByRole("checkbox", { name: "Done: Midterm 1" }),
-    ).toBeChecked();
-  });
-
-  it("says what a check did, and Undo puts the item back", async () => {
-    const client = fakeClient({ items });
-    signedIn();
-    renderTodo();
-    const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole("checkbox", { name: "Done: Midterm 1" }),
-    );
     expect(await screen.findByText("Marked Midterm 1 done")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(client.done).toHaveBeenLastCalledWith({
@@ -545,7 +526,6 @@ describe("the list", () => {
     expect(
       screen.getByRole("checkbox", { name: "Done: Midterm 1" }),
     ).not.toBeChecked();
-    expect(screen.queryByRole("button", { name: "1 done" })).toBeNull();
   });
 
   it("puts a check back when the server didn't take it", async () => {
@@ -563,266 +543,186 @@ describe("the list", () => {
     ).not.toBeChecked();
   });
 
-  it("says when everything's done", async () => {
-    fakeClient({ items: [aTodoItem()], done: [aTodoItem().uid] });
-    signedIn();
-    renderTodo();
-    expect(await screen.findByText("You're all caught up.")).toBeVisible();
-    expect(
-      screen.getByText("0 open · ELMS feed checked 14 min ago"),
-    ).toBeVisible();
-  });
-
-  it("groups by course", async () => {
+  it("opens an item's details: when, the course, and a link only to ELMS", async () => {
     fakeClient({ items });
-    signedIn();
-    renderTodo("course");
-    const cmsc = await screen.findByRole("region", { name: "CMSC216" });
-    expect(within(cmsc).getByText("2 open")).toBeVisible();
-    expect(within(cmsc).getByText("Tuesday, Sep 29 · 11:59pm")).toBeVisible();
-    // Due today at a time: how long, in the date and time's place.
-    expect(within(cmsc).getByText("Due in 1 hour")).toBeVisible();
-    expect(screen.getByRole("region", { name: "Study group" })).toBeVisible();
-  });
-
-  it("links each course to its chat room while Chat is on (View chat)", async () => {
-    fakeClient({ items });
-    signedIn(true, "on");
-    renderTodo("course");
-    const cmsc = await screen.findByRole("region", { name: "CMSC216" });
-    // Due in Fall 2026, so Fall 2026's room.
-    expect(
-      within(cmsc).getByRole("link", { name: "View chat" }),
-    ).toHaveAttribute("href", "/chat?term=202608&course=CMSC216");
-    const user = userEvent.setup();
-    await user.click(within(cmsc).getByRole("link", { name: "View chat" }));
-    expect(track).toHaveBeenCalledWith("cross_link_clicked", {
-      from: "todo",
-      to: "chat",
-    });
-    // Not from a course: no room to go to.
-    expect(
-      within(screen.getByRole("region", { name: "Study group" })).queryByRole(
-        "link",
-      ),
-    ).toBeNull();
-  });
-
-  it("has no View chat while Chat is off", async () => {
-    fakeClient({ items });
-    signedIn();
-    renderTodo("course");
-    await screen.findByRole("region", { name: "CMSC216" });
-    expect(screen.queryByRole("link", { name: "View chat" })).toBeNull();
-  });
-
-  it("changes view with the switch: each view is a URL", async () => {
-    fakeClient({ items });
-    signedIn();
-    const router = renderTodo();
-    const views = await screen.findByRole("navigation", {
-      name: "Todo views",
-    });
-    const byCourse = within(views).getByRole("link", { name: "By course" });
-    expect(byCourse).toHaveAttribute("href", "/todo?view=course");
-    expect(within(views).getByRole("link", { name: "Week" })).toHaveAttribute(
-      "href",
-      "/todo?view=week",
-    );
-    expect(within(views).getByRole("link", { name: "By day" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await userEvent.setup().click(byCourse);
-    await waitFor(() =>
-      expect(router.state.location.search).toEqual({ view: "course" }),
-    );
-  });
-
-  it("says it's checking ELMS in words, not with a spinner", async () => {
-    const client = fakeClient({ items });
-    let answer = () => {};
-    client.refresh.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          answer = () =>
-            resolve({ status: "too-soon", feed: aTodoFeedState() });
-        }),
-    );
     signedIn();
     renderTodo();
     const user = userEvent.setup();
     await user.click(
-      await screen.findByRole("button", { name: "Check ELMS now" }),
+      await screen.findByRole("button", { name: "Project 2, details" }),
     );
-    expect(screen.getByText("4 open · Checking ELMS…")).toBeVisible();
-    expect(document.querySelector(".animate-spin")).toBeNull();
-    answer();
+    const details = await screen.findByRole("dialog");
+    expect(within(details).getByText("Tomorrow · 11:59pm")).toBeVisible();
+    expect(within(details).getByText("From ELMS")).toBeVisible();
     expect(
-      await screen.findByText("ELMS was checked in the last 5 minutes."),
-    ).toBeVisible();
-  });
-
-  it("shows the week with the Due lane", async () => {
-    fakeClient({ items });
-    signedIn();
-    renderTodo("week");
-    expect(
-      await screen.findByRole("heading", { name: "Sep 21 – Sep 27" }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByTestId("todo-chip")).toHaveLength(2);
-    // The week's classes, in the term it falls in.
-    expect(screen.getByRole("link", { name: "View schedule" })).toHaveAttribute(
+      within(details).getByRole("link", { name: "Open in ELMS" }),
+    ).toHaveAttribute(
       "href",
-      "/schedule?term=202608",
+      "https://elms.umd.edu/courses/1300001/assignments/4410001",
     );
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Ahead a week" }));
+    await user.keyboard("{Escape}");
+    await user.click(
+      screen.getByRole("button", { name: "Midterm 1, details" }),
+    );
+    // Not an ELMS link: never offered.
     expect(
-      screen.getByRole("heading", { name: "Sep 28 – Oct 4" }),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("link", { name: "View schedule" }));
-    expect(track).toHaveBeenCalledWith("cross_link_clicked", {
-      from: "todo",
-      to: "schedule",
-    });
+      within(await screen.findByRole("dialog")).queryByRole("link"),
+    ).toBeNull();
   });
 
-  it("opens on the coming week at the weekend, and steps back to the one ending", async () => {
-    vi.setSystemTime(new Date("2026-09-27T16:00:00.000Z")); // a Sunday
-    fakeClient({ items });
-    signedIn();
-    renderTodo("week");
-    expect(
-      await screen.findByRole("heading", { name: "Sep 28 – Oct 4" }),
-    ).toBeInTheDocument();
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Back a week" }));
-    expect(
-      screen.getByRole("heading", { name: "Sep 21 – Sep 27" }),
-    ).toBeInTheDocument();
-  });
-
-  it("asks ELMS again on open when the last read is old, and says when it's too soon", async () => {
+  it("says it's checking ELMS in words, not with a spinner", async () => {
     const client = fakeClient({
+      feed: aTodoFeedState({ lastSuccessAt: "2026-09-28T15:00:00.000Z" }),
       items,
-      feed: aTodoFeedState({ lastSuccessAt: "2026-09-25T13:00:00.000Z" }),
     });
+    let answer: (v: Awaited<ReturnType<TodoClient["refresh"]>>) => void =
+      () => {};
+    client.refresh.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
     signedIn();
     renderTodo();
-    await waitFor(() => expect(client.refresh).toHaveBeenCalledTimes(1));
+    expect(
+      (await screen.findAllByText(/Checking ELMS…/)).length,
+    ).toBeGreaterThan(0);
+    act(() => answer({ status: "too-soon", feed: aTodoFeedState() }));
     expect(
       await screen.findByText("ELMS was checked in the last 5 minutes."),
     ).toBeVisible();
   });
 
   it("says, in place, when ELMS stopped sharing the link", async () => {
-    const feed: TodoFeedState = aTodoFeedState({ status: "broken" });
-    fakeClient({ items, feed });
+    fakeClient({ feed: aTodoFeedState({ status: "broken" }), items });
     signedIn();
     renderTodo();
     expect(
-      await screen.findByText(/ELMS stopped sharing your calendar/),
+      await screen.findByText(
+        "ELMS stopped sharing your calendar. Paste a new link.",
+      ),
     ).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Paste a new link" }),
     ).toHaveAttribute("href", "/todo/connect");
-    expect(screen.queryByRole("button", { name: "Check ELMS now" })).toBeNull();
   });
 
-  it("keeps file items after a disconnect and offers ELMS", async () => {
-    fakeClient({ items: [items[3] as TodoItem], feed: null });
+  it("keeps file items without ELMS, and offers to connect it", async () => {
+    fakeClient({ feed: null, items: [items[3] as TodoItem] });
     signedIn();
     renderTodo();
-    expect(await screen.findByText(/These came from a file/)).toBeVisible();
-    expect(screen.getByText("1 open")).toBeVisible();
+    expect(
+      await screen.findByText(/Some deadlines came from a file/),
+    ).toBeVisible();
+    expect(screen.getByLabelText("ELMS calendar link")).toBeVisible();
   });
 });
 
-describe("this week, hidden courses and what's due today", () => {
-  // Friday, Sep 25: the week runs Monday the 21st to Sunday the 27th.
+describe("the month and the list", () => {
+  const many = ["a", "b", "c", "d", "e"].map((n) =>
+    aTodoItem({
+      uid: `event-assignment-${n}`,
+      title: `Reading ${n}`,
+      dueDate: "2026-10-14",
+      dueAt: null,
+    }),
+  );
+
+  it("shows the month, with a few items a day and the rest a week away", async () => {
+    fakeClient({ items: [aTodoItem(), ...many] });
+    signedIn();
+    renderTodo("month", "2026-10-14");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "October 2026" }),
+    ).toBeVisible();
+    const day = document.getElementById("day-2026-10-14");
+    if (!day) throw new Error("no day");
+    expect(within(day).getAllByTestId("todo-chip")).toHaveLength(3);
+    expect(within(day).getByRole("link", { name: "+2 more" })).toHaveAttribute(
+      "href",
+      "/todo?view=week&date=2026-10-14",
+    );
+    // Monday-first rows, from the week the 1st is in.
+    expect(document.getElementById("day-2026-09-28")).not.toBeNull();
+    expect(document.getElementById("day-2026-11-01")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Back a month" })).toHaveAttribute(
+      "href",
+      "/todo?view=month&date=2026-09-01",
+    );
+  });
+
+  it("lists everything by day, and says how long until what's due today", async () => {
+    fakeClient({
+      items: [
+        aTodoItem({
+          uid: "today-quiz",
+          title: "Quiz 2",
+          dueDate: "2026-09-28",
+          dueAt: "2026-09-28T19:00:00.000Z",
+        }),
+        aTodoItem(),
+      ],
+    });
+    signedIn();
+    renderTodo("list");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Everything due" }),
+    ).toBeVisible();
+    const quiz = screen.getByText("Quiz 2").closest("li");
+    if (!quiz) throw new Error("no row");
+    // Noon now; the quiz is at 3pm.
+    expect(within(quiz).getByText("Due in 3 hours")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Tomorrow" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Back a week" })).toBeNull();
+  });
+});
+
+describe("courses in the side panel", () => {
   const week: TodoItem[] = [
+    aTodoItem({ uid: "cmsc-a", dueDate: "2026-09-29" }),
+    aTodoItem({ uid: "cmsc-b", title: "Lab 5", dueDate: "2026-10-02" }),
+    aTodoItem({ uid: "cmsc-old", title: "Lab 4", dueDate: "2026-09-22" }),
     aTodoItem({
-      uid: "monday-lab",
-      title: "Lab 5",
-      dueDate: "2026-09-21",
-      dueAt: "2026-09-22T03:59:00.000Z",
-    }),
-    aTodoItem({
-      uid: "today-quiz",
-      title: "Quiz 2",
-      dueDate: "2026-09-25",
-      dueAt: "2026-09-25T19:00:00.000Z",
-    }),
-    aTodoItem({
-      uid: "morning-reading",
-      title: "Reading check",
-      dueDate: "2026-09-25",
-      dueAt: "2026-09-25T13:30:00.000Z",
-    }),
-    aTodoItem({
-      uid: "saturday-hw",
+      uid: "math-a",
       title: "WebAssign 5",
       courseLabel: "MATH240-0201: Introduction to Linear Algebra",
       courseCode: "MATH240",
-      dueDate: "2026-09-26",
-      dueAt: "2026-09-27T03:59:00.000Z",
+      dueDate: "2026-10-01",
     }),
     aTodoItem({
-      uid: "club-meeting",
+      uid: "club",
       title: "Robotics build night",
       courseLabel: "Terps Robotics Club",
       courseCode: null,
       sectionCode: null,
-      dueDate: "2026-09-25",
-      dueAt: "2026-09-25T23:00:00.000Z",
+      dueDate: "2026-09-30",
       link: null,
     }),
   ];
 
-  it("says this week's progress in the header, and each course's in its group", async () => {
-    fakeClient({ items: week, done: ["monday-lab"] });
-    signedIn();
-    renderTodo("course");
-    expect(await screen.findByText("This week: 1 of 5 done")).toBeVisible();
-    const cmsc = screen.getByRole("region", { name: "CMSC216" });
-    expect(
-      within(cmsc).getByRole("progressbar", { name: "This week in CMSC216" }),
-    ).toHaveAttribute("aria-valuetext", "1 of 3 done");
-    expect(within(cmsc).getByText("1 of 3 done this week")).toBeVisible();
-    const math = screen.getByRole("region", { name: "MATH240" });
-    expect(within(math).getByText("0 of 1 done this week")).toBeVisible();
-  });
-
-  it("says how long until what's due today, and how long ago, quietly", async () => {
-    fakeClient({ items: week });
+  it("charts each course's week, and the weeks before it, in words too", async () => {
+    fakeClient({ items: week, done: ["cmsc-a", "cmsc-old"] });
     signedIn();
     renderTodo();
-    const quiz = (await screen.findByText("Quiz 2")).closest("li");
-    const reading = screen.getByText("Reading check").closest("li");
-    if (!quiz || !reading) throw new Error("no rows");
-    // 12pm now; the quiz is at 3pm and the reading was at 9:30am.
-    expect(within(quiz).getByText("Due in 3 hours")).toBeVisible();
-    expect(within(quiz).getByText(", at 3pm")).toHaveClass("sr-only");
-    expect(within(reading).getByText("Due 2 hours ago")).toBeVisible();
-    // Tomorrow keeps its clock time.
-    const webassign = screen.getByText("WebAssign 5").closest("li");
-    if (!webassign) throw new Error("no row");
-    expect(within(webassign).getByText("11:59pm")).toBeVisible();
+    const courses = await screen.findByRole("list", { name: "Courses" });
+    const cmsc = within(courses).getByRole("listitem", { name: "CMSC216" });
+    expect(within(cmsc).getByText("1 of 2 done this week")).toBeVisible();
+    expect(
+      within(cmsc).getByRole("img", { name: /^CMSC216 by week/ }),
+    ).toHaveAccessibleName(
+      "CMSC216 by week: week of Sep 7: nothing due; week of Sep 14: nothing due; week of Sep 21: 1 of 1 done; week of Sep 28: 1 of 2 done",
+    );
+    const panel = screen.getByRole("region", { name: "This week" });
+    expect(within(panel).getByText("1 of 4 done")).toBeVisible();
   });
 
-  it("hides a course from its menu with Undo, and shows it again from the bottom", async () => {
+  it("hides a course with Undo, and shows it again from its row", async () => {
     const client = fakeClient({ items: week });
     signedIn();
-    renderTodo("course");
+    renderTodo();
     const user = userEvent.setup();
     await user.click(
-      await screen.findByRole("button", {
-        name: "Terps Robotics Club options",
-      }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Hide Terps Robotics Club" }),
+      await screen.findByRole("button", { name: "Hide Terps Robotics Club" }),
     );
     expect(client.hideCourse).toHaveBeenCalledWith({
       key: "Terps Robotics Club",
@@ -830,84 +730,176 @@ describe("this week, hidden courses and what's due today", () => {
     });
     expect(screen.queryByText("Robotics build night")).toBeNull();
     // Hidden items count in nothing.
-    expect(screen.getByText("This week: 0 of 4 done")).toBeVisible();
     expect(screen.getByText(/^4 open/)).toBeVisible();
     expect(await screen.findByText("Hid Terps Robotics Club")).toBeVisible();
-    expect(screen.getByText("Hidden: 1 course")).toBeVisible();
-
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(client.hideCourse).toHaveBeenLastCalledWith({
       key: "Terps Robotics Club",
       hidden: false,
     });
     expect(await screen.findByText("Robotics build night")).toBeVisible();
-    expect(screen.queryByText(/^Hidden:/)).toBeNull();
   });
 
-  it("starts with the courses hidden on the account, and shows one from the bottom line", async () => {
+  it("starts with the courses hidden on the account, each one a button away", async () => {
     const client = fakeClient({ items: week, hidden: ["MATH240"] });
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    expect(await screen.findByText("Hidden: 1 course")).toBeVisible();
+    expect(await screen.findByText("Hidden everywhere in Todo")).toBeVisible();
     expect(screen.queryByText("WebAssign 5")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Show again" }));
-    await user.click(
-      await screen.findByRole("menuitem", { name: "Show MATH240" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Show MATH240" }));
     expect(client.hideCourse).toHaveBeenCalledWith({
       key: "MATH240",
       hidden: false,
     });
     expect(await screen.findByText("WebAssign 5")).toBeVisible();
   });
-});
 
-describe("your own tasks", () => {
-  // Friday, Sep 25 2026 in New York.
-  const office = anOwnTask({
-    uid: "own-office-hours-0001",
-    title: "Office hours",
-    courseCode: "CMSC216",
-    dueDate: "2026-09-26",
-    dueAt: "2026-09-26T18:00:00.000Z",
+  it("links each course to its chat room while Chat is on", async () => {
+    fakeClient({ items: week });
+    signedIn(true, "on");
+    renderTodo();
+    expect(
+      await screen.findByRole("link", { name: "View chat for CMSC216" }),
+    ).toHaveAttribute("href", "/chat?term=202608&course=CMSC216");
   });
 
-  it("adds a task from the top of the list, with a date and time, and counts it without its words", async () => {
+  it("has no chat links while Chat is off", async () => {
+    fakeClient({ items: week });
+    signedIn();
+    renderTodo();
+    await screen.findByRole("list", { name: "Courses" });
+    expect(screen.queryByRole("link", { name: /^View chat/ })).toBeNull();
+  });
+});
+
+describe("the composer", () => {
+  it("reads the date, time and course as they're typed, and adds the task", async () => {
     const client = fakeClient({ items: [aTodoItem()] });
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    const title = await screen.findByRole("textbox", { name: "New task" });
-    // The date, time and course wait until there's a task to date.
-    expect(screen.queryByLabelText("Due date")).toBeNull();
-    await user.type(title, "Return library books");
-    await user.type(screen.getByLabelText("Due date"), "2026-09-26");
-    await user.type(screen.getByLabelText("Time"), "15:30");
-    await user.type(title, "{Enter}");
-
+    const field = await screen.findByRole("textbox", { name: "New task" });
+    expect(field).toHaveAttribute("data-private");
+    await user.type(field, "PS3 due tomorrow 11:59pm cmsc216");
+    const chips = screen.getByRole("list", { name: "The task will be" });
+    expect(within(chips).getByText("Tue, Sep 29")).toBeVisible();
+    expect(within(chips).getByText("11:59pm")).toBeVisible();
+    expect(within(chips).getByText("CMSC216")).toBeVisible();
+    // The pickers show what the words said.
+    expect(screen.getByLabelText("Due date")).toHaveValue("2026-09-29");
+    expect(screen.getByLabelText("Time")).toHaveValue("23:59");
+    // The recognized words are marked in the layer behind the field.
+    expect(
+      [...document.querySelectorAll("mark")].map((m) => m.textContent),
+    ).toEqual(["due tomorrow", "11:59pm", "cmsc216"]);
+    await user.keyboard("{Enter}");
     expect(client.saveTask).toHaveBeenCalledWith({
       uid: expect.stringMatching(/^own-/),
-      title: "Return library books",
-      courseCode: null,
-      dueDate: "2026-09-26",
-      dueTime: 15 * 60 + 30,
+      title: "PS3",
+      courseCode: "CMSC216",
+      dueDate: "2026-09-29",
+      dueTime: 23 * 60 + 59,
     });
+    // Counted without the words.
     expect(track).toHaveBeenCalledWith("todo_task_added", {
       date: true,
       time: true,
-      course: false,
+      course: true,
+      typed: true,
     });
-    const row = (await screen.findByText("Return library books")).closest("li");
-    if (!row) throw new Error("no row");
-    expect(within(row).getByText("Yours")).toBeVisible();
-    expect(within(row).getByText("3:30pm")).toBeVisible();
-    // Ready for the next one.
-    expect(title).toHaveValue("");
-    expect(title).toHaveFocus();
+    expect(field).toHaveValue("");
+    expect(field).toHaveFocus();
+    expect(await screen.findByText("PS3")).toBeVisible();
   });
 
-  it("lists a task with no date under No date, at the bottom", async () => {
+  it("takes a part off with its chip, leaving its words in the title", async () => {
+    const client = fakeClient({ items: [aTodoItem()] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByRole("textbox", { name: "New task" }),
+      "Read the Sun Also Rises sun",
+    );
+    await user.click(screen.getByRole("button", { name: "No date" }));
+    expect(screen.queryByRole("list", { name: "The task will be" })).toBeNull();
+    await user.keyboard("{Enter}");
+    expect(client.saveTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Read the Sun Also Rises sun",
+        dueDate: null,
+      }),
+    );
+  });
+
+  it("sets the date, time and course with pickers too", async () => {
+    const client = fakeClient({ items: [aTodoItem()] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByRole("textbox", { name: "New task" }),
+      "Return library books fri",
+    );
+    const date = screen.getByLabelText("Due date");
+    await user.clear(date);
+    await user.type(date, "2026-10-06");
+    await user.type(screen.getByLabelText("Time"), "15:30");
+    await user.click(screen.getByRole("button", { name: "Add task" }));
+    expect(client.saveTask).toHaveBeenCalledWith({
+      uid: expect.stringMatching(/^own-/),
+      // The picker won over "fri", which stays in the title.
+      title: "Return library books fri",
+      courseCode: null,
+      dueDate: "2026-10-06",
+      dueTime: 15 * 60 + 30,
+    });
+  });
+
+  it("starts a task on a day clicked on the calendar", async () => {
+    fakeClient({ items: [aTodoItem()] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Add a task on Wed, Sep 30" }),
+    );
+    const field = screen.getByRole("textbox", { name: "New task" });
+    expect(field).toHaveFocus();
+    expect(
+      within(screen.getByRole("list", { name: "The task will be" })).getByText(
+        "Wed, Sep 30",
+      ),
+    ).toBeVisible();
+  });
+
+  it("takes a task off again when it didn't save, and says so", async () => {
+    const client = fakeClient({ items: [aTodoItem()] });
+    client.saveTask.mockRejectedValueOnce(new Error("offline"));
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    await user.type(
+      await screen.findByRole("textbox", { name: "New task" }),
+      "Buy a lab coat tomorrow{Enter}",
+    );
+    expect(await screen.findByText("That task didn't save")).toBeVisible();
+    expect(screen.queryByText("Buy a lab coat")).toBeNull();
+  });
+});
+
+describe("your own tasks", () => {
+  // Tuesday, Sep 29, 2pm in New York.
+  const office = anOwnTask({
+    uid: "own-office-hours-0001",
+    title: "Office hours",
+    courseCode: "CMSC216",
+    dueDate: "2026-09-29",
+    dueAt: "2026-09-29T18:00:00.000Z",
+  });
+
+  it("lists tasks with no date under the calendar", async () => {
     fakeClient({ items: [aTodoItem(), anOwnTask()] });
     signedIn();
     renderTodo();
@@ -917,42 +909,26 @@ describe("your own tasks", () => {
     expect(
       within(section).getByText("Email Dr. Kim about the lab"),
     ).toBeVisible();
-    expect(
-      [...document.querySelectorAll("h2")].map((h) => h.textContent).at(-1),
-    ).toBe("No date");
   });
 
-  it("shows tasks with no date under the week, and dated ones in their day", async () => {
-    fakeClient({ items: [office, anOwnTask()] });
-    signedIn();
-    renderTodo("week");
-    const lane = await screen.findByRole("list", { name: "Due 2026-09-26" });
-    expect(within(lane).getByText("Office hours")).toBeVisible();
-    // The week's own (a phone's day list is in the page too, hidden by CSS).
-    const undated = document
-      .getElementById("todo-week-no-date")
-      ?.closest("section");
-    if (!undated) throw new Error("no section");
-    expect(
-      within(undated).getByText("Email Dr. Kim about the lab"),
-    ).toBeVisible();
-  });
-
-  it("changes a task's title and date in place", async () => {
+  it("changes a task's title and date from its details", async () => {
     const client = fakeClient({ items: [office] });
     signedIn();
     renderTodo();
     const user = userEvent.setup();
     await user.click(
+      await screen.findByRole("button", { name: "Office hours, details" }),
+    );
+    await user.click(
       await screen.findByRole("button", { name: "Office hours options" }),
     );
     await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
-    const title = screen.getByRole("textbox", { name: "Title" });
-    expect(title).toHaveFocus();
+    const title = await screen.findByRole("textbox", { name: "Title" });
     await user.clear(title);
     await user.type(title, "Office hours, bring Project 2");
-    await user.clear(screen.getByLabelText("Due date"));
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    const details = screen.getByRole("dialog");
+    await user.clear(within(details).getByLabelText("Due date"));
+    await user.click(within(details).getByRole("button", { name: "Save" }));
     expect(client.saveTask).toHaveBeenCalledWith({
       uid: office.uid,
       title: "Office hours, bring Project 2",
@@ -960,31 +936,13 @@ describe("your own tasks", () => {
       dueDate: null,
       dueTime: null,
     });
-    expect(
-      await screen.findByText("Office hours, bring Project 2"),
-    ).toBeVisible();
     expect(screen.getByRole("heading", { name: "No date" })).toBeVisible();
-  });
-
-  it("leaves an edit with Esc, as it was", async () => {
-    const client = fakeClient({ items: [office] });
-    signedIn();
-    renderTodo();
-    const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole("button", { name: "Office hours options" }),
-    );
-    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
-    await user.type(screen.getByRole("textbox", { name: "Title" }), "!!");
-    await user.keyboard("{Escape}");
-    expect(screen.getByText("Office hours")).toBeVisible();
-    expect(client.saveTask).not.toHaveBeenCalled();
   });
 
   it("deletes a task at once, and Undo puts it back as it was, done and all", async () => {
     const client = fakeClient({ items: [office], done: [office.uid] });
     signedIn();
-    renderTodo();
+    renderTodo("list");
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "1 done" }));
     await user.click(
@@ -995,7 +953,6 @@ describe("your own tasks", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.deleteTask).toHaveBeenCalledWith({ uid: office.uid });
     expect(await screen.findByText("Deleted Office hours")).toBeVisible();
-
     await user.click(screen.getByRole("button", { name: "Undo" }));
     await waitFor(() =>
       expect(client.done).toHaveBeenCalledWith({
@@ -1007,45 +964,10 @@ describe("your own tasks", () => {
       uid: office.uid,
       title: "Office hours",
       courseCode: "CMSC216",
-      dueDate: "2026-09-26",
+      dueDate: "2026-09-29",
       dueTime: 14 * 60,
     });
     expect(await screen.findByText("Office hours")).toBeVisible();
-  });
-
-  it("takes a task off again when it didn't save, and says so", async () => {
-    const client = fakeClient({ items: [aTodoItem()] });
-    client.saveTask.mockRejectedValueOnce(new Error("offline"));
-    signedIn();
-    renderTodo();
-    const user = userEvent.setup();
-    await user.type(
-      await screen.findByRole("textbox", { name: "New task" }),
-      "Buy a lab coat{Enter}",
-    );
-    expect(await screen.findByText("That task didn't save")).toBeVisible();
-    expect(screen.queryByText("Buy a lab coat")).toBeNull();
-  });
-
-  it("starts a list without ELMS from the first visit", async () => {
-    fakeClient({ feed: null, items: [] });
-    signedIn();
-    renderTodo();
-    const user = userEvent.setup();
-    await screen.findByRole("heading", {
-      name: "Connect ELMS to see your deadlines",
-    });
-    await user.type(
-      screen.getByRole("textbox", { name: "New task" }),
-      "Email my advisor{Enter}",
-    );
-    expect(
-      await screen.findByRole("heading", { name: "Deadlines and exams" }),
-    ).toBeVisible();
-    expect(screen.getByText("Email my advisor")).toBeVisible();
-    expect(
-      screen.getByText(/to see your deadlines beside your tasks/),
-    ).toBeVisible();
   });
 });
 
@@ -1082,7 +1004,7 @@ describe("the connect page", () => {
       await screen.findByRole("heading", { level: 1, name: "ELMS link" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "See your deadlines" }),
+      screen.getByRole("link", { name: "See your calendar" }),
     ).toHaveAttribute("href", "/todo");
   });
 
@@ -1095,20 +1017,6 @@ describe("the connect page", () => {
     ).toBeVisible();
   });
 
-  it("says what Gradescope does and doesn't send", async () => {
-    fakeClient();
-    signedIn();
-    wrap(<ConnectPage />);
-    expect(
-      await screen.findByText(
-        "Extensions you get in Gradescope don't show up in ELMS. Check Gradescope for your own due date.",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByText(/We never ask for your Gradescope or ELMS password/),
-    ).toBeVisible();
-  });
-
   it("reads a dropped file here and sends only its items", async () => {
     const client = fakeClient();
     signedIn();
@@ -1117,14 +1025,14 @@ describe("the connect page", () => {
     const ics = [
       "BEGIN:VCALENDAR",
       "BEGIN:VEVENT",
-      "UID:gs-1",
+      "UID:file-1",
       "DTSTART:20261002T035900Z",
       "SUMMARY:Homework 4 [MATH240-0201: Linear Algebra]",
-      "DESCRIPTION:Submit on https://www.gradescope.com/courses/1 (secret notes)",
+      "DESCRIPTION:Submit on the course site (secret notes)",
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\r\n");
-    const file = new File([ics], "gradescope.ics", { type: "text/calendar" });
+    const file = new File([ics], "deadlines.ics", { type: "text/calendar" });
     await user.upload(
       await screen.findByTitle("Choose a calendar file (.ics)"),
       file,

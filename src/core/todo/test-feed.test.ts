@@ -49,12 +49,6 @@ describe("test mode's feed", () => {
         "2026-10-03T03:59:00.000Z",
       ],
     ]);
-    expect(parsed.items.find((i) => i.title === "Homework 4")?.gradescope).toBe(
-      true,
-    );
-    expect(
-      parsed.items.find((i) => i.title === "Midterm 1")?.looksLikeExam,
-    ).toBe(true);
     // The same UIDs another day.
     expect(parseIcs(testFeedIcs("2026-12-01")).items.map((i) => i.uid)).toEqual(
       parsed.items.map((i) => i.uid),

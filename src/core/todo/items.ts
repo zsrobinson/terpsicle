@@ -7,7 +7,7 @@ import {
   type TodoFileItem,
   type TodoItem,
 } from "../schema";
-import { looksLikeExam, matchFeedCourse } from "./feed";
+import { matchFeedCourse } from "./feed";
 import { isElmsUrl } from "./link";
 
 // Which parsed items the server keeps, and how they look to the app
@@ -51,8 +51,6 @@ export function toTodoItem(item: FeedItem): TodoItem {
     courseCode: item.courseCodes[0] ?? null,
     sectionCode: item.sectionCode,
     kind: item.kind,
-    exam: item.looksLikeExam,
-    gradescope: item.gradescope,
     dueAt: item.dueAt,
     dueDate: item.dueDate,
     link: item.link,
@@ -60,9 +58,9 @@ export function toTodoItem(item: FeedItem): TodoItem {
 }
 
 /**
- * A dropped file's item, from what the browser sent. The course codes and
- * the exam guess are read again from the words rather than trusted, and a
- * link off the ELMS hosts is dropped.
+ * A dropped file's item, from what the browser sent. The course codes are
+ * read again from the words rather than trusted, and a link off the ELMS
+ * hosts is dropped.
  */
 export function fromFileItem(item: TodoFileItem): FeedItem {
   const courses = matchFeedCourse(item.courseLabel);
@@ -75,8 +73,6 @@ export function fromFileItem(item: TodoFileItem): FeedItem {
     sectionCode: courses[0]?.sectionCode ?? null,
     kind: item.kind,
     kindFrom: "title",
-    looksLikeExam: looksLikeExam(item.title),
-    gradescope: item.gradescope,
     dueAt: item.dueAt,
     dueDate: item.dueDate,
     endAt: null,

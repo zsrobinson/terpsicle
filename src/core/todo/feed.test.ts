@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import { anUnpublishedCalendar, aPublishedCalendar } from "~/fixtures";
 import {
   feedItemKind,
-  looksLikeExam,
   matchFeedCourse,
-  mentionsGradescope,
   pickFeedCourse,
   splitFeedTitle,
   termForDate,
@@ -86,73 +84,27 @@ describe("pickFeedCourse", () => {
   });
 });
 
-describe("looksLikeExam", () => {
-  it.each([
-    "Midterm 1",
-    "Final Exam",
-    "Quiz 3",
-    "Syllabus quiz",
-    "Unit test 2",
-    "Exams week",
-    "Pre-test",
-    "Final project and final exam review",
-  ])("guesses %s is an exam", (title) => {
-    expect(looksLikeExam(title)).toBe(true);
-  });
-
-  it.each([
-    "Final Project Proposal",
-    "Final paper",
-    "Write test cases",
-    "Latest reading",
-    "Testing lab",
-    "Project 2",
-  ])("guesses %s isn't", (title) => {
-    expect(looksLikeExam(title)).toBe(false);
-  });
-});
-
 describe("feedItemKind", () => {
   it("believes Canvas's UID", () => {
-    expect(feedItemKind("event-assignment-1", "Office hours", false)).toEqual({
+    expect(feedItemKind("event-assignment-1", "Office hours")).toEqual({
       kind: "assignment",
       from: "uid",
     });
-    expect(
-      feedItemKind("event-calendar-event-1", "Homework help", false),
-    ).toEqual({
+    expect(feedItemKind("event-calendar-event-1", "Homework help")).toEqual({
       kind: "event",
       from: "uid",
     });
   });
 
   it("guesses from the title otherwise, and says so", () => {
-    expect(feedItemKind("x@y", "HW 3", false)).toEqual({
+    expect(feedItemKind("x@y", "HW 3")).toEqual({
       kind: "assignment",
       from: "title",
     });
-    expect(feedItemKind("x@y", "Midterm 2", false)).toEqual({
+    expect(feedItemKind("x@y", "Midterm 2")).toEqual({
       kind: "event",
       from: "title",
     });
-    expect(feedItemKind("x@y", "Checkoff", true)).toEqual({
-      kind: "assignment",
-      from: "title",
-    });
-  });
-});
-
-describe("mentionsGradescope", () => {
-  it("looks for gradescope.com in any of the texts", () => {
-    expect(
-      mentionsGradescope(null, "Submit at https://www.Gradescope.com/x"),
-    ).toBe(true);
-    expect(mentionsGradescope("https://gradescope.com/courses/1", null)).toBe(
-      true,
-    );
-    expect(mentionsGradescope("https://elms.umd.edu/x", "Submit on ELMS")).toBe(
-      false,
-    );
   });
 });
 

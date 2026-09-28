@@ -7,12 +7,17 @@ import type {
   TodoImportFileResult,
   TodoItem,
 } from "~/core/schema";
+import { TODO_LIST_MAX_DAYS } from "~/core/schema";
 import {
   type ConnectAnswer,
+  type DateRange,
   isStale,
   listRange,
+  mergeRange,
   ownTaskDue,
   ownTaskItem,
+  rangeLoaded,
+  rangeToLoad,
   type TaskFields,
   taskFieldsOf,
 } from "~/core/todo";
@@ -53,6 +58,8 @@ export interface TodoState {
   done: ReadonlySet<string>;
   /** Course groups the person hid, by key: their items show nowhere. */
   hidden: ReadonlySet<string>;
+  /** The dates the list holds: around today, and wherever the calendar went. */
+  loaded: readonly DateRange[];
   refreshing: boolean;
   refreshNote: RefreshNote;
   /** Set while Disconnect's Undo is still open. */
@@ -62,6 +69,8 @@ export interface TodoState {
   load: (today: IsoDate, now: number) => Promise<void>;
   /** Asks ELMS now (the refresh control). */
   refresh: () => Promise<void>;
+  /** Loads the dates a week or month shows, if the list doesn't hold them yet. */
+  ensureRange: (want: DateRange) => Promise<void>;
   /** Marks an item done or not; false when the server didn't take it. */
   setDone: (uid: string, done: boolean) => Promise<boolean>;
   /** Connected, or what the form says instead. */
@@ -109,6 +118,7 @@ const INITIAL = {
   items: [],
   done: new Set<string>(),
   hidden: new Set<string>(),
+  loaded: [] as readonly DateRange[],
   refreshing: false,
   refreshNote: null as RefreshNote,
   disconnecting: false,
@@ -116,7 +126,8 @@ const INITIAL = {
 
 export const useTodo = create<TodoState>()((set, get) => {
   const fetchList = async (today: IsoDate) => {
-    const result = await client.list(listRange(today));
+    const range = listRange(today);
+    const result = await client.list(range);
     // A disconnect waiting on Undo: keep showing it gone.
     if (pending) return;
     set({
@@ -126,6 +137,7 @@ export const useTodo = create<TodoState>()((set, get) => {
       items: result.items,
       done: new Set(result.done),
       hidden: new Set(result.hidden),
+      loaded: [range],
     });
   };
 
@@ -174,6 +186,25 @@ export const useTodo = create<TodoState>()((set, get) => {
         set({ refreshNote: "failed" });
       } finally {
         set({ refreshing: false });
+      }
+    },
+
+    ensureRange: async (want) => {
+      const { phase, loaded } = get();
+      if (phase !== "ready" || rangeLoaded(loaded, want)) return;
+      const range = rangeToLoad(want, TODO_LIST_MAX_DAYS - 1);
+      // Asked once: a failure shows what's there, and the next move asks again.
+      set({ loaded: [...loaded, range] });
+      try {
+        const result = await client.list(range);
+        if (pending) return;
+        set({
+          ...mergeRange(get(), range, result),
+          feed: result.feed,
+          hidden: new Set(result.hidden),
+        });
+      } catch {
+        set({ loaded: get().loaded.filter((r) => r !== range) });
       }
     },
 

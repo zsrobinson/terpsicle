@@ -1,81 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { aTodoItem } from "~/fixtures";
-import {
-  courseKey,
-  groupByCourse,
-  hiddenWords,
-  isHiddenItem,
-  progressWords,
-  relativeDue,
-  weekProgress,
-  weekProgressWords,
-} from "./list";
+import { courseKey, isHiddenItem, relativeDue } from "./list";
 
-// This week's progress, hiding a course, and "Due in 3 hours" (docs/V3.md
-// §3.11). 2026-09-29 is a Tuesday: its week runs Monday the 28th to Sunday
-// October 4th. New York is on daylight time (UTC−4).
+// Hiding a course, and "Due in 3 hours" (docs/V3.md §3.11). 2026-09-29 is a
+// Tuesday. New York is on daylight time (UTC−4).
 const TODAY = "2026-09-29";
 
 const item = (uid: string, dueDate: string, extra = {}) =>
   aTodoItem({ uid, dueDate, dueAt: null, title: uid, ...extra });
-const math = {
-  courseLabel: "MATH240-0201: Linear Algebra",
-  courseCode: "MATH240",
-};
-
-describe("weekProgress", () => {
-  it("counts what's due Monday to Sunday, done or not", () => {
-    const items = [
-      item("last-sunday", "2026-09-27"),
-      item("monday-done", "2026-09-28"),
-      item("today", TODAY),
-      item("sunday-done", "2026-10-04"),
-      item("next-monday", "2026-10-05"),
-    ];
-    const progress = weekProgress(
-      items,
-      new Set(["monday-done", "sunday-done", "last-sunday"]),
-      TODAY,
-    );
-    expect(progress).toEqual({ done: 2, total: 3 });
-    expect(progressWords(progress)).toBe("2 of 3 done");
-    expect(weekProgressWords(progress)).toBe("This week: 2 of 3 done");
-    expect(weekProgressWords({ done: 0, total: 0 })).toBeNull();
-  });
-
-  it("counts the coming week on a weekend, as the Week view opens on it", () => {
-    const items = [
-      item("friday", "2026-09-25"),
-      item("next-monday", "2026-09-28"),
-      item("next-friday", "2026-10-02"),
-    ];
-    // Sunday the 27th: the week ending is behind it, Week opens on the 28th.
-    const sunday = weekProgress(items, new Set(["next-monday"]), "2026-09-27");
-    expect(sunday).toEqual({ done: 1, total: 2 });
-    // Saturday too.
-    expect(weekProgress(items, new Set(), "2026-09-26").total).toBe(2);
-    // A Friday still counts its own week.
-    expect(weekProgress(items, new Set(), "2026-09-25").total).toBe(1);
-  });
-
-  it("gives each course group its week, counting done work the list leaves out", () => {
-    const groups = groupByCourse(
-      [
-        item("cmsc-monday-done", "2026-09-28"),
-        item("cmsc-today", TODAY),
-        item("cmsc-later", "2026-10-20"),
-        item("math-friday", "2026-10-02", math),
-      ],
-      new Set(["cmsc-monday-done"]),
-      TODAY,
-    );
-    expect(groups.map((g) => [g.key, g.week])).toEqual([
-      ["CMSC216", { done: 1, total: 2 }],
-      ["MATH240", { done: 0, total: 1 }],
-    ]);
-  });
-});
-
 describe("hiding a course", () => {
   const club = item("club", TODAY, {
     courseLabel: "Terps Robotics Club",
@@ -106,11 +38,6 @@ describe("hiding a course", () => {
     ).toBe(true);
     expect(isHiddenItem(crossListed, new Set(["ENEE222"]), none)).toBe(true);
     expect(isHiddenItem(crossListed, none, none)).toBe(false);
-  });
-
-  it("says how many are hidden", () => {
-    expect(hiddenWords(1)).toBe("Hidden: 1 course");
-    expect(hiddenWords(2)).toBe("Hidden: 2 courses");
   });
 });
 

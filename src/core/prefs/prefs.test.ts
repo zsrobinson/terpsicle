@@ -4,8 +4,10 @@ import {
   aiFeaturesOn,
   CHAT_RULES_SEEN_MAX,
   chatRulesSeen,
+  todoWeekStart,
   withAiFeatures,
   withChatRulesSeen,
+  withTodoWeekStart,
 } from "./prefs";
 
 describe("AI features", () => {
@@ -51,6 +53,27 @@ describe("chat room rules seen", () => {
     expect(prefs.chatRules?.seen).toHaveLength(CHAT_RULES_SEEN_MAX);
     expect(chatRulesSeen(prefs, "MATH140")).toBe(true);
     expect(chatRulesSeen(prefs, "CMSC000")).toBe(false);
+  });
+});
+
+describe("Todo's week start", () => {
+  it("is Monday until someone picks Sunday", () => {
+    expect(todoWeekStart({})).toBe("monday");
+    expect(todoWeekStart({ todo: { weekStart: "sunday" } })).toBe("sunday");
+  });
+
+  it("changes, keeping the other prefs, and changes nothing when it's already that", () => {
+    const prefs = { ai: { features: false } };
+    const sunday = withTodoWeekStart(prefs, "sunday");
+    expect(sunday).toEqual({ ...prefs, todo: { weekStart: "sunday" } });
+    expect(withTodoWeekStart(sunday, "sunday")).toBe(sunday);
+    expect(todoWeekStart(withTodoWeekStart(sunday, "monday"))).toBe("monday");
+  });
+
+  it("refuses a day that isn't Monday or Sunday", () => {
+    expect(
+      SyncedPrefsSchema.safeParse({ todo: { weekStart: "friday" } }).success,
+    ).toBe(false);
   });
 });
 

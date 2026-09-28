@@ -215,14 +215,18 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
     });
     expect(await subscribed.json()).toEqual({ status: "ok" });
     await phone.goto("/todo");
+    // A phone folds the side panel's ELMS part above the calendar.
+    await phone.getByRole("button", { name: /^Courses and ELMS/ }).click();
     await phone
       .getByLabel("ELMS calendar link")
       .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
     await phone.getByRole("button", { name: "Connect ELMS" }).click();
     await expect(phone.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
 
-    // 7. Project 2, due tomorrow, is done: it folds into "1 done", and it
-    // stays done after a reload, since done marks are the account's.
+    // 7. Project 2, due tomorrow, is done: it folds into "1 done" on the
+    // list, and it stays done after a reload, since done marks are the
+    // account's.
+    await phone.goto("/todo?view=list");
     await phone.getByRole("checkbox", { name: "Done: Project 2" }).click();
     await expect(phone.getByText(/^5 open · ELMS feed checked/)).toBeVisible();
     await expect(phone.getByRole("button", { name: "1 done" })).toBeVisible();

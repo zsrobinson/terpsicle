@@ -308,10 +308,25 @@ Revisit if: people want different widths in each product.
 Todo never stores an ELMS or Gradescope password, never automates a login, and never fetches gradescope.com.
 Revisit if: Gradescope offers students an API or feed.
 
-### Gradescope through ELMS and files
-2026-09-26 · agent · one feature
-Gradescope items linked in ELMS get a "Gradescope" tag from the ELMS feed; the fallback is an `.ics` the student drops in, read in the browser.
-Revisit if: UMD's Gradescope setup changes.
+### No Gradescope detection
+2026-09-28 · owner · one feature
+Todo leaves Gradescope out entirely: no tag on items whose ELMS entry mentions gradescope.com, no note about extensions, and descriptions aren't read at all. The owner: "the gradescope integration doesn't sound like it's anything like i thought we might be able to do (hooking in directly and seeing those in there) so i think we just leave that sort of detection or whatever completely ommitted." Gradescope work linked in ELMS still comes through the feed like any assignment, and dropping a calendar file stays. This replaces "Gradescope through ELMS and files" (2026-09-26). The D1 columns `todo_items.exam` and `gradescope` stay, unused, until a later migration drops them.
+Revisit if: Gradescope offers students an API or feed.
+
+### No exam marking
+2026-09-28 · owner · one feature
+Todo marks no item as an exam. The owner wasn't sure how exams were marked and asked to keep it only if it's plain from the ELMS feed and the calendar shows it clearly; the feed never says which items are exams (it was a keyword guess on the title that called "Final exam review session" an exam), so it goes.
+Revisit if: ELMS's feed starts saying what an item is beyond assignment or event.
+
+### Todo is a calendar
+2026-09-28 · owner · one feature
+Todo's main view is a calendar: the week by default, then the month and a list, each a URL, with weeks starting Monday "since so many things are due sunday nights" and a synced pref for Sunday. It takes the workbench's shape with a side panel (adding a task in plain words, each course's weekly completion, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The side panel has no tabs (the agent's call): four short parts fit one column, and a rail would hide the composer.
+Revisit if: the side panel grows past what one column holds.
+
+### Todo reads tasks with its own grammar
+2026-09-28 · agent · one feature
+The composer's dates, times and courses come from a small parser of our own (`src/core/todo/quick-add.ts`), not chrono-node: students type a few forms, the composer needs each match's place in the text to mark it, courses are ours to match, and New York's clock is tested there rather than the browser's zone. It adds nothing to `/todo`'s bundle.
+Revisit if: people type forms it misses often enough to show in feedback.
 
 ### Own tasks in Todo
 2026-09-27 · owner · one feature

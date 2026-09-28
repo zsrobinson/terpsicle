@@ -22,7 +22,7 @@ Terpsicle Plan, the four-year planner at `/plan`, green. In code it's `FourYear`
 _Avoid_: degree audit
 
 **Todo**:
-Terpsicle Todo, deadlines from ELMS at `/todo`, yellow.
+Terpsicle Todo, deadlines from ELMS and your own tasks on a calendar at `/todo`, yellow.
 
 **Color order**:
 Schedule, Reviews, Chat, Plan, Todo (red, purple, blue, green, yellow). Menus, marketing and docs list the products in this order.
@@ -44,7 +44,7 @@ What a popover becomes on a phone: a panel that slides up from the bottom edge, 
 _Avoid_: modal, bottom sheet
 
 **Page kind**:
-How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: Todo), or full (a workbench, or Chat's split).
+How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: admin), or full (a workbench and Todo, or Chat's split).
 
 **Workbench**:
 A product laid out like the scheduler: the rail of views, the sidebar and the canvas, with the same drawer on phones. Schedule and Plan are workbenches. Code has it in `src/app/workbench`.
@@ -337,28 +337,33 @@ _Avoid_: ELMS password, access token
 One assignment, quiz or event from the feed, with a due time and a done mark. Copy calls it a **deadline** ("Added 3 deadlines from the file").
 _Avoid_: item (in the UI)
 
-**Exam**:
-An item whose title reads like one. It's a guess, shown as a hint.
-
-**Gradescope tag**:
-The "Gradescope" tag on an item whose ELMS entry links to Gradescope. Terpsicle never signs in to or fetches Gradescope.
-
 **File import**:
 "Add a calendar file": an `.ics` the student exported, read in the browser. Its items say "From a file" and don't update.
 
+**Calendar** (Todo's):
+Todo's main area: the **Week** (the default), the **Month** or the **List** of what's due by day, each a URL. Weeks start on Monday, so a Sunday-night deadline ends its week, unless the student sets **Weeks start on** Sunday.
+_Avoid_: agenda, planner, schedule (that's the scheduler)
+
+**Side panel** (Todo's):
+The column beside Todo's calendar, where the scheduler and Plan keep their sidebars: Add a task, This week, ELMS and Weeks start on. On a phone it sits above the calendar, folded under "Courses and ELMS".
+
+**Composer**:
+Todo's "Add a task…" field, which reads the date, time and course from the words ("PS3 due fri 11:59pm cmsc351"), marks them as you type, and shows them as chips before adding. In copy it's just "Add a task".
+_Avoid_: quick add, natural-language input (in the UI)
+
 **Hidden course**:
-A course group the student hid in Todo ("Hide CMSC216"), for what the feed carries that they don't want, like a club. Its items show nowhere and count in nothing, "Due tomorrow" included. "Hidden: 2 courses" at the bottom shows them again.
+A course the student hid in Todo (the eye on its row in This week, "Hide CMSC216"), for what the feed carries that they don't want, like a club. Its items show nowhere and count in nothing, "Due tomorrow" included. Its row stays, struck through, to show it again.
 _Avoid_: muted, archived
 
 **This week**:
-Todo's progress: the items due Monday to Sunday of the current week, done or not. "This week: 7 of 12 done" in the header; "3 of 5 done this week" on each course.
+Todo's completion chart in the side panel: what's done of what's due in the week shown ("7 of 12 done"), then each course's "3 of 5 done this week" and its last four weeks as small columns.
 
 **Own task**:
-A task the student types in Todo ("Add a task…"), with an optional due date, time and course. It says "Yours" where the feed's items say "From ELMS", is kept on our server, and never goes to ELMS. Copy calls it a **task**.
+A task the student types in Todo's composer, with an optional due date, time and course. It says "Yours" where the feed's items say "From ELMS", is kept on our server, and never goes to ELMS. Copy calls it a **task**.
 _Avoid_: custom todo, personal item, reminder
 
 **No date**:
-Where own tasks without a due date go: the last group of the day list, and under the week.
+Where own tasks without a due date go: the last group of the List, and under the Week and the Month.
 
 **Due tomorrow**:
 Todo's one notification: at 6pm in College Park, one push listing what's due the next day and not done. Connecting ELMS turns it on.
