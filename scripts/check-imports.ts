@@ -5,7 +5,10 @@
 // - nothing imports from reference/ (CLAUDE.md);
 // - src/core never reads the clock: time comes in as an argument (CLAUDE.md);
 // - only src/server/todo/crypto.ts and fetch.ts touch the sealed ELMS feed
-//   link: its `url_enc` column and `openFeedLink` (docs/V3.md §5.1).
+//   link: its `url_enc` column and `openFeedLink` (docs/V3.md §5.1);
+// - only the kit (src/components/ui) imports the haptic trick: controls
+//   tick through their `haptic` prop, never feature code (docs/decisions.md,
+//   "Haptics live in the kit").
 import path from "node:path";
 import {
   isMain,
@@ -27,6 +30,25 @@ export const FEED_LINK_FILES: readonly string[] = [
   "src/server/todo/crypto.ts",
   "src/server/todo/fetch.ts",
 ];
+
+/** The folder whose files may import {@link HAPTIC_MODULE}. */
+export const HAPTIC_FOLDER = "src/components/ui";
+/** The haptic trick, as a repo path without its extension. */
+export const HAPTIC_MODULE = `${HAPTIC_FOLDER}/haptic`;
+
+/**
+ * The repo path, without a .ts or .tsx extension, that `spec` names from
+ * `rel`: a relative path, or a `~/ui/` alias. Null for anything else.
+ */
+export function importedPath(rel: string, spec: string): string | null {
+  const bare = spec.split("?")[0] ?? spec;
+  const target = bare.startsWith("~/ui/")
+    ? `${HAPTIC_FOLDER}/${bare.slice("~/ui/".length)}`
+    : bare.startsWith(".")
+      ? path.posix.join(path.posix.dirname(rel), bare)
+      : null;
+  return target?.replace(/\.tsx?$/, "") ?? null;
+}
 
 /** `core`, `lib`, … or `(root)` for files directly in src/. */
 export function topFolder(absPath: string): string | null {
@@ -63,6 +85,15 @@ export function findImportProblems(rel: string, text: string): string[] {
     if (/(^|\/)reference\//.test(spec)) {
       problems.push(
         `${at(match.index)}  "${spec}": never import from reference/ (read-only design reference)`,
+      );
+      continue;
+    }
+    if (
+      importedPath(rel, spec) === HAPTIC_MODULE &&
+      path.posix.dirname(rel) !== HAPTIC_FOLDER
+    ) {
+      problems.push(
+        `${at(match.index)}  "${spec}": only ${HAPTIC_FOLDER} may import the haptic trick; use a kit control's \`haptic\` prop (docs/decisions.md, "Haptics live in the kit")`,
       );
       continue;
     }

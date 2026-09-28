@@ -65,6 +65,7 @@ The week reads as five labeled day groups ("Monday", …). Each class, block, gh
 ### Phones
 - Every target is at least 24×24 CSS px (2.5.8), including calendar blocks, ghosts and travel pills (a 24px hit area around the 20px pill).
 - **Touch targets.** Below `md`, every kit control is 44px tall (2.5.5): `Button` at every size, `Input`, `SearchField`, `SegmentedControl`, `SelectTrigger`, and the items in selects, dropdown menus and context menus. The size comes from the kit, the same in every product, so pages never add their own `max-md:h-11`. The family bar is the one exception: its controls keep their small icons, and on a touch screen each one's hit area fills the bar's 48px height and is at least 32px wide (`src/styles.css`, checked by `e2e/touch-targets.spec.ts`), so the scheduler's term and plans still fit a phone. A tighter layout (the calendar, travel pills) keeps the 24px floor above.
+- **Haptics.** On an iPhone, a tap on a segment, a view, a switch or Undo ticks: an invisible native switch (`HapticTap`, `src/components/ui/haptic.tsx`) lies under the finger inside the control and passes the tap on as one click. It's `aria-hidden` and `tabindex="-1"`, so VoiceOver and the keyboard never reach it, and Enter and Space press the control as before. Haptics are extra: nothing is said only by a tick, and System Haptics off simply silences them.
 - The drawer comes after the calendar in the page, so swiping through with VoiceOver or TalkBack reads the top bar, the calendar, then the drawer's tabs and panel. "Skip to sidebar" jumps straight there.
 
 ## How it's tested
@@ -75,6 +76,7 @@ The week reads as five labeled day groups ("Monday", …). Each class, block, gh
 | Skip links, drill-in focus, menus, the color picker, chips, focus rings | `e2e/keyboard.spec.ts` |
 | The calendar's keyboard model; ghosts previewed on focus and switched with Enter; the sidebar's ↑/↓ still previewing; focus never under sticky headers (ENGL101, generate results); forced colors (axe, plus ghosts dashed, the open class's border, outlines on selected states, focus rings, meter fills); reflow at 320×640 and 320×256; the page title; an undo toast held by focus | `e2e/a11y-beyond-axe.spec.ts` |
 | Arrow-key rules (`moveFocus`, `tabStop`), accessible names (`labels.ts`), the title (`documentTitle`) | unit tests next to each |
+| The iPhone haptic overlay: only on an iPhone, one click per tap, the keyboard untouched, and axe with it present | `src/components/ui/haptic.test.tsx` |
 
 Run them with `pnpm test:e2e` (all) or `pnpm test:e2e e2e/a11y-beyond-axe.spec.ts`.
 
@@ -86,6 +88,7 @@ Run them with `pnpm test:e2e` (all) or `pnpm test:e2e e2e/a11y-beyond-axe.spec.t
 - **The drawer's snap on a short screen** is peek or full; there's no useful half at 256px tall.
 - **Drag-to-block has no keyboard gesture on the grid itself;** the Blocks form is the way (2.5.7 allows it).
 - **The route map** is a MapLibre canvas; its text alternative is the connection's words and numbers above it.
+- **axe's `nested-interactive` on iPhones.** The haptic overlay is a switch inside a button, radio or switch, which axe flags. It's hidden from screen readers and the keyboard and exists only on iPhones, where the e2e scans don't run; the unit test holds the finding to the overlays (docs/decisions.md, "Haptic overlays sit inside their control").
 
 ## Manual screen-reader test script
 
@@ -110,6 +113,7 @@ About 15 minutes per reader. Use `?demo=1` on a local `pnpm dev:mock`, or real d
 4. Double-tap a class: course details open in the drawer. Swipe to a ghost and double-tap: the section switches.
 5. Rotor → Headings in course details: the course's title, "Sections", group headers.
 6. Remove a course: the toast is read, and Undo is reachable with a swipe before it goes.
+7. Swipe across a segmented control and a switch (Settings, travel): each is read once, with no extra "switch" or "checkbox" from the haptic overlay, and a double-tap still chooses or toggles.
 
 ### NVDA on Windows (Firefox or Chrome)
 1. Start NVDA. Load the page. `D` cycles landmarks; `H` headings (one level 1).

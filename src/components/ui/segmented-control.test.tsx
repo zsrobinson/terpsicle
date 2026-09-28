@@ -57,6 +57,21 @@ describe("SegmentedControl", () => {
     expect(screen.getByRole("radio", { name: "Faster" })).toBeChecked();
   });
 
+  it("takes one Tab stop, and arrow keys move and choose, as radios do", async () => {
+    const onChange = vi.fn();
+    render(<Pace onChange={onChange} />);
+    const user = userEvent.setup();
+    await user.tab();
+    expect(screen.getByRole("radio", { name: "Typical" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    const faster = screen.getByRole("radio", { name: "Faster" });
+    expect(faster).toHaveFocus();
+    expect(faster).toBeChecked();
+    expect(onChange).toHaveBeenLastCalledWith("faster");
+    await user.tab();
+    expect(document.body).toHaveFocus();
+  });
+
   it("shows a segment's hint as its tooltip", async () => {
     render(<Pace />);
     await userEvent
