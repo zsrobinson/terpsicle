@@ -100,6 +100,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `feedback_opened` | `product` | Whether people find "Send feedback", and from where. |
   | `feedback_sent` | `kind` (`bug` · `idea`), `product`, `hasScreenshot`, `withContext`, `reply` | Whether people keep the screenshot and "Include what I was doing" on, and how often they want a reply. Never the words, the page or the person (docs/FEEDBACK.md). |
   | `feedback_undone` | | How often Undo takes feedback back. |
+  | `coffee_opened` | | Whether people open the coffee button's popover beside Feedback. |
+  | `coffee_link_clicked` | `via` (`popover` · `menu`, the phone account menu's item) | How often it leads out to Buy Me a Coffee. Never who, or whether they bought one. |
 
   Feedback's events never carry what someone wrote, their page or who they are: `[data-feedback-ui]` (the sheet, the admin's pins and their notes) is on autocapture's ignore list too.
 
