@@ -19,12 +19,12 @@ import { browserReader, loadPlanetTerp } from "./data";
 import { PAGE_ROW, ROW_LINK } from "./frame";
 import { useReviewsLevel, useSignedIn } from "./level";
 import { useMine } from "./reviews-section";
-import { readPlans } from "./your-classes";
+import { readMainPlans, readPlans } from "./your-classes";
 
 // "Review your instructors" on /reviews (owner, 2026-09-28: "encourage
 // reviews of professors based on the information we know about the user
 // like the courses they're signed up for"). Signed in, from the sections in
-// your schedules for terms that are over, or nearly (src/core/reviews/
+// your main plans for terms that are over, or nearly (src/core/reviews/
 // to-review.ts): each row goes straight to the form. A quiet section of
 // rows, never a banner; it's gone once you've reviewed them all.
 
@@ -49,10 +49,16 @@ function useToReview(enabled: boolean): Row[] | null {
     let live = true;
     void (async () => {
       const reviewed = new Set(reviewedKeys ? reviewedKeys.split("|") : []);
+      // Each term's main plan: the one you're taking, not its drafts.
+      const [plans, mainPlans] = await Promise.all([
+        readPlans(),
+        readMainPlans(),
+      ]);
       const found = instructorsToReview(
-        await readPlans(),
+        plans,
         newYorkClock(Date.now()).date,
         reviewed,
+        mainPlans,
       ).slice(0, SHOWN);
       const reader = await browserReader();
       const withIds = await Promise.all(
