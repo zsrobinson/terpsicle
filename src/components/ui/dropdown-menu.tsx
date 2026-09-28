@@ -2,12 +2,13 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { cn } from "cn";
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import * as React from "react";
+import { HapticTap } from "./haptic";
 import {
   MENU_ITEM,
   MENU_POPUP,
   MENU_SEPARATOR,
   POPUP_LAYER,
-  POPUP_POSITION,
+  POSITIONER,
 } from "./popup";
 import {
   type AsChild,
@@ -101,7 +102,7 @@ function DropdownMenuContent({
         alignOffset={alignOffset}
         // Keeps menus off the screen's edge on phones.
         collisionPadding={collisionPadding}
-        positionMethod={POPUP_POSITION}
+        {...POSITIONER}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >
@@ -139,6 +140,7 @@ function DropdownMenuItem({
   onClick,
   ...props
 }: ItemProps) {
+  const destructive = variant === "destructive";
   return (
     <MenuPrimitive.Item
       data-slot="dropdown-menu-item"
@@ -150,8 +152,36 @@ function DropdownMenuItem({
       )}
       onClick={selectAsClick(onSelect, onClick)}
       {...props}
-      {...asChildRender(asChild, children)}
+      {...asChildRender(asChild, withTap(asChild, children, !destructive))}
     />
+  );
+}
+
+/**
+ * An item's content with an iPhone's tick on a tap (./haptic) as its last
+ * child: inside the item, or inside its asChild link. Never on a
+ * destructive item.
+ */
+function withTap(
+  asChild: boolean | undefined,
+  children: React.ReactNode,
+  tap = true,
+): React.ReactNode {
+  if (!tap) return children;
+  if (asChild && React.isValidElement<{ children?: React.ReactNode }>(children))
+    return React.cloneElement(
+      children,
+      {},
+      <>
+        {children.props.children}
+        <HapticTap />
+      </>,
+    );
+  return (
+    <>
+      {children}
+      <HapticTap />
+    </>
   );
 }
 
@@ -212,6 +242,7 @@ function DropdownMenuRadioItem({
     >
       {children}
       <ItemCheck radio />
+      <HapticTap />
     </MenuPrimitive.RadioItem>
   );
 }
@@ -230,6 +261,7 @@ function DropdownMenuCheckboxItem({
     >
       {children}
       <ItemCheck />
+      <HapticTap />
     </MenuPrimitive.CheckboxItem>
   );
 }
@@ -325,7 +357,7 @@ function DropdownMenuSubContent({
         sideOffset={sideOffset}
         alignOffset={alignOffset}
         collisionPadding={collisionPadding}
-        positionMethod={POPUP_POSITION}
+        {...POSITIONER}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >

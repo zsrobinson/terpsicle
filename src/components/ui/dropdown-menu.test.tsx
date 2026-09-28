@@ -115,6 +115,47 @@ describe("DropdownMenu", () => {
     ).toHaveAttribute("aria-checked", "true");
   });
 
+  it("ticks on an iPhone's tap: one overlay per item, none on a destructive one", async () => {
+    const values = {
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 26_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Mobile/15E148 Safari/604.1",
+      maxTouchPoints: 5,
+      vibrate: undefined,
+    };
+    for (const [key, value] of Object.entries(values))
+      Object.defineProperty(navigator, key, { value, configurable: true });
+    try {
+      const onRename = vi.fn();
+      render(
+        <DropdownMenu defaultOpen>
+          <DropdownMenuTrigger>Plan A</DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href="/settings">Settings</a>
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>,
+      );
+      const tap = (name: string) =>
+        screen
+          .getByRole("menuitem", { name })
+          .querySelectorAll(":scope > input[data-haptic-tap]");
+      await screen.findByRole("menu");
+      expect(tap("Rename")).toHaveLength(1);
+      expect(tap("Settings")).toHaveLength(1);
+      expect(tap("Delete")).toHaveLength(0);
+      // The finger lands on the overlay; the item gets the click.
+      const [overlay] = tap("Rename");
+      await userEvent.setup().click(overlay as HTMLElement);
+      expect(onRename).toHaveBeenCalledOnce();
+    } finally {
+      for (const key of Object.keys(values))
+        Reflect.deleteProperty(navigator, key);
+    }
+  });
+
   it("renders an asChild item as its link", async () => {
     render(<PlanMenu />);
     const user = userEvent.setup();

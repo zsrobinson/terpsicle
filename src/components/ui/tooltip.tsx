@@ -2,7 +2,7 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "cn";
 import * as React from "react";
 import { Kbd } from "./kbd";
-import { POPUP_LAYER, POPUP_POSITION } from "./popup";
+import { POPUP_LAYER, POSITIONER } from "./popup";
 import {
   type AsChild,
   asChildRender,
@@ -61,7 +61,7 @@ function TooltipContent({
         align={align}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
-        positionMethod={POPUP_POSITION}
+        {...POSITIONER}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >

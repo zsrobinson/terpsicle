@@ -30,8 +30,13 @@ export const MENU_SEPARATOR = "-mx-1 my-1 h-px bg-hairline";
 export const POPUP_LAYER = "z-50 outline-none";
 
 /**
- * Fixed to the viewport, as Radix placed them: a popup stays by its trigger
- * inside a scrolling panel, and axe measures it as the floating layer it is
- * rather than as page content covering the rows under it.
+ * Every positioner's: fixed to the viewport, as Radix placed them, so a
+ * popup stays by its trigger inside a scrolling panel and axe measures it as
+ * the floating layer it is rather than as page content covering the rows
+ * under it; and `data-floating`, which marks a floating layer for e2e's axe
+ * scan (outside any landmark on purpose).
  */
-export const POPUP_POSITION = "fixed" as const;
+export const POSITIONER = {
+  positionMethod: "fixed",
+  "data-floating": "",
+} as const;

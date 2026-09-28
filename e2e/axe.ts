@@ -29,11 +29,12 @@ const EXCLUDE = [".maplibregl-canvas", "[data-base-ui-focus-guard]"];
 // stack above everything. They're reached from their trigger (focus moves
 // in, or aria-describedby), never by landmark, so the rule doesn't apply to
 // them. Every other rule still checks them.
-// (Base UI portals each one in a `data-base-ui-portal` div, which axe
-// otherwise reports in the popup's place.)
+// The kit marks each with `data-floating`; Base UI portals each one in a
+// `data-base-ui-portal` div, which axe otherwise reports in its place.
 const FLOATING = [
-  "[data-radix-popper-content-wrapper]",
+  "[data-floating]",
   "[data-base-ui-portal]",
+  "[data-radix-popper-content-wrapper]",
 ];
 
 export async function scan(page: Page, what: string) {

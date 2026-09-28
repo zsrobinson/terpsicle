@@ -1,12 +1,13 @@
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
 import { cn } from "cn";
 import * as React from "react";
+import { HapticTap } from "./haptic";
 import {
   MENU_ITEM,
   MENU_POPUP,
   MENU_SEPARATOR,
   POPUP_LAYER,
-  POPUP_POSITION,
+  POSITIONER,
 } from "./popup";
 import {
   type AsChild,
@@ -85,7 +86,7 @@ function ContextMenuContent({
         align="start"
         sideOffset={2}
         collisionPadding={collisionPadding}
-        positionMethod={POPUP_POSITION}
+        {...POSITIONER}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >
@@ -103,6 +104,7 @@ function ContextMenuContent({
 
 function ContextMenuItem({
   className,
+  children,
   onSelect,
   onClick,
   ...props
@@ -116,7 +118,11 @@ function ContextMenuItem({
       className={cn(MENU_ITEM, className)}
       onClick={selectAsClick(onSelect, onClick)}
       {...props}
-    />
+    >
+      {children}
+      {/* A tick on an iPhone's tap (./haptic). */}
+      <HapticTap />
+    </ContextMenuPrimitive.Item>
   );
 }
 

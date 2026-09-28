@@ -2,12 +2,13 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "cn";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import * as React from "react";
+import { HapticTap } from "./haptic";
 import {
   MENU_SEPARATOR,
   POPUP_CARD,
   POPUP_LAYER,
   POPUP_MOTION,
-  POPUP_POSITION,
+  POSITIONER,
 } from "./popup";
 import {
   type CompatEvent,
@@ -161,7 +162,7 @@ function SelectContent({
         align={align}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
-        positionMethod={POPUP_POSITION}
+        {...POSITIONER}
         className={POPUP_LAYER}
         {...radixPositionerProps}
       >
@@ -205,6 +206,8 @@ function SelectItem({
           <CheckIcon className="size-3.5" />
         </SelectPrimitive.ItemIndicator>
       </span>
+      {/* A tick on an iPhone's tap (./haptic). */}
+      <HapticTap />
     </SelectPrimitive.Item>
   );
 }
