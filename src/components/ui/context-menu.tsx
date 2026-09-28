@@ -1,55 +1,108 @@
+import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
 import { cn } from "cn";
-import { ContextMenu as ContextMenuPrimitive } from "radix-ui";
-import type * as React from "react";
+import * as React from "react";
+import { MENU_ITEM, MENU_POPUP, MENU_SEPARATOR, POPUP_LAYER } from "./popup";
+import {
+  type AsChild,
+  asChildRender,
+  type CompatEvent,
+  focusProp,
+  radixPositionerProps,
+  selectAsClick,
+  triggerState,
+  useWatchedOpen,
+} from "./radix-compat";
+import { quietTooltips } from "./tooltip";
 
-// shadcn/ui context menu (right-click), styled like our dropdown menu so a
-// row's right-click menu and its ⋯ menu look the same.
+// The kit's context menu (a right click, or a long press on a phone), on
+// Base UI, drawn like our dropdown menu so a row's right-click menu and its
+// ⋯ menu look the same.
 
-function ContextMenu(
-  props: React.ComponentProps<typeof ContextMenuPrimitive.Root>,
-) {
-  return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />;
+const ContextMenuOpen = React.createContext(false);
+
+function ContextMenu({
+  open,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: ContextMenuPrimitive.Root.Props) {
+  const [isOpen, handleOpenChange] = useWatchedOpen(
+    open,
+    defaultOpen,
+    onOpenChange,
+  );
+  return (
+    <ContextMenuOpen.Provider value={isOpen}>
+      <ContextMenuPrimitive.Root
+        open={open}
+        defaultOpen={defaultOpen}
+        onOpenChange={handleOpenChange}
+        loopFocus={false}
+        {...props}
+      />
+    </ContextMenuOpen.Provider>
+  );
 }
 
-function ContextMenuTrigger(
-  props: React.ComponentProps<typeof ContextMenuPrimitive.Trigger>,
-) {
+function ContextMenuTrigger({
+  asChild,
+  children,
+  ...props
+}: ContextMenuPrimitive.Trigger.Props & AsChild) {
+  const open = React.useContext(ContextMenuOpen);
   return (
-    <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />
+    <ContextMenuPrimitive.Trigger
+      data-slot="context-menu-trigger"
+      {...props}
+      {...triggerState(open)}
+      {...asChildRender(asChild, children)}
+    />
   );
 }
 
 function ContextMenuContent({
   className,
+  collisionPadding = 8,
+  onCloseAutoFocus,
   ...props
-}: React.ComponentProps<typeof ContextMenuPrimitive.Content>) {
+}: Omit<ContextMenuPrimitive.Popup.Props, "finalFocus"> &
+  Pick<ContextMenuPrimitive.Positioner.Props, "collisionPadding"> & {
+    onCloseAutoFocus?: (event: CompatEvent) => void;
+  }) {
+  const popup = React.useRef<HTMLDivElement>(null);
   return (
     <ContextMenuPrimitive.Portal>
-      <ContextMenuPrimitive.Content
-        data-slot="context-menu-content"
-        className={cn(
-          "z-50 min-w-[180px] overflow-y-auto overflow-x-hidden border border-keyline bg-raised p-1 text-fg shadow-pop",
-          "max-h-(--radix-context-menu-content-available-height) origin-(--radix-context-menu-content-transform-origin)",
-          "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=open]:animate-in data-[state=open]:duration-150",
-          className,
-        )}
-        {...props}
-      />
+      <ContextMenuPrimitive.Positioner
+        collisionPadding={collisionPadding}
+        className={POPUP_LAYER}
+        {...radixPositionerProps}
+      >
+        <ContextMenuPrimitive.Popup
+          ref={popup}
+          data-slot="context-menu-content"
+          finalFocus={focusProp(onCloseAutoFocus, popup, quietTooltips)}
+          className={cn(MENU_POPUP, className)}
+          {...props}
+        />
+      </ContextMenuPrimitive.Positioner>
     </ContextMenuPrimitive.Portal>
   );
 }
 
 function ContextMenuItem({
   className,
+  onSelect,
+  onClick,
   ...props
-}: React.ComponentProps<typeof ContextMenuPrimitive.Item>) {
+}: Omit<ContextMenuPrimitive.Item.Props, "onSelect"> & {
+  /** Radix's: runs on a pick; prevent it to keep the menu open. */
+  onSelect?: (event: CompatEvent) => void;
+}) {
   return (
     <ContextMenuPrimitive.Item
       data-slot="context-menu-item"
-      className={cn(
-        "relative flex min-h-8 max-md:min-h-11 w-full cursor-default select-none items-center gap-2 rounded-md px-2 py-1 text-left text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-hover data-disabled:opacity-40 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-        className,
-      )}
+      className={cn(MENU_ITEM, className)}
+      onClick={selectAsClick(onSelect, onClick)}
       {...props}
     />
   );
@@ -58,11 +111,11 @@ function ContextMenuItem({
 function ContextMenuSeparator({
   className,
   ...props
-}: React.ComponentProps<typeof ContextMenuPrimitive.Separator>) {
+}: ContextMenuPrimitive.Separator.Props) {
   return (
     <ContextMenuPrimitive.Separator
       data-slot="context-menu-separator"
-      className={cn("-mx-1 my-1 h-px bg-hairline", className)}
+      className={cn(MENU_SEPARATOR, className)}
       {...props}
     />
   );

@@ -720,10 +720,11 @@ describe("Course details", () => {
       try {
         const { user } = await renderDetails("CMSC351", "instructors");
         const jada = await findReviews("Jada Abernathy");
+        // The summary's own ⋯ menu: the one beside "Summarizing…" goes as
+        // the summary arrives.
+        await within(jada).findByRole("img", { name: "AI summary" });
         await user.click(
-          await within(jada).findByRole("button", {
-            name: "AI summary options",
-          }),
+          within(jada).getByRole("button", { name: "AI summary options" }),
         );
         await user.click(
           await screen.findByRole("menuitem", { name: /Hide AI summaries/ }),

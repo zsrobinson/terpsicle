@@ -1,58 +1,86 @@
+import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "cn";
-import { Tooltip as TooltipPrimitive } from "radix-ui";
 import * as React from "react";
 import { Kbd } from "./kbd";
+import { POPUP_LAYER } from "./popup";
+import {
+  type AsChild,
+  asChildRender,
+  radixPositionerProps,
+} from "./radix-compat";
 
-// shadcn/ui tooltip, restyled to our tokens: inverted fg/bg chip, quick fade.
+// The kit's tooltip, on Base UI, in Ink: an inverted fg/bg chip that fades
+// in. Base UI opens it on hover with a mouse and on keyboard focus, never on
+// a finger's touch.
 
 function TooltipProvider({
   delayDuration = 300,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+}: Omit<TooltipPrimitive.Provider.Props, "delay"> & {
+  /** How long a pointer rests on a control before its tooltip opens. */
+  delayDuration?: number;
+}) {
+  return <TooltipPrimitive.Provider delay={delayDuration} {...props} />;
+}
+
+function Tooltip(props: TooltipPrimitive.Root.Props) {
+  return <TooltipPrimitive.Root {...props} />;
+}
+
+function TooltipTrigger({
+  asChild,
+  children,
+  ...props
+}: TooltipPrimitive.Trigger.Props & AsChild) {
   return (
-    <TooltipPrimitive.Provider
-      data-slot="tooltip-provider"
-      delayDuration={delayDuration}
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
       {...props}
+      {...asChildRender(asChild, children)}
     />
   );
 }
 
-function Tooltip(props: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
-}
-
-function TooltipTrigger(
-  props: React.ComponentProps<typeof TooltipPrimitive.Trigger>,
-) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
-}
-
 function TooltipContent({
   className,
+  side,
+  align,
   sideOffset = 6,
   collisionPadding = 8,
   children,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: TooltipPrimitive.Popup.Props &
+  Pick<
+    TooltipPrimitive.Positioner.Props,
+    "side" | "align" | "sideOffset" | "collisionPadding"
+  >) {
   return (
     <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Content
-        data-slot="tooltip-content"
+      <TooltipPrimitive.Positioner
+        side={side}
+        align={align}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
-        className={cn(
-          "z-50 flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
-          // No exit animation: a closing tooltip stays mounted until it ends,
-          // and while mounted its layer takes the next Esc, so Esc after
-          // tabbing away from a control (say, to go back) would do nothing.
-          "fade-in-0 zoom-in-95 animate-in duration-100",
-          className,
-        )}
-        {...props}
+        className={POPUP_LAYER}
+        {...radixPositionerProps}
       >
-        {children}
-      </TooltipPrimitive.Content>
+        <TooltipPrimitive.Popup
+          data-slot="tooltip-content"
+          // Base UI leaves a tooltip unnamed; Radix's was a `tooltip` that
+          // described its trigger (WithTooltip), and screen readers read it.
+          role="tooltip"
+          className={cn(
+            "flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
+            // A fade in only (the `--dur-pop` motion token). No exit: a
+            // closing tooltip would stay on screen over what comes next.
+            "transition-opacity duration-(--dur-pop) ease-(--ease-pop) data-starting-style:opacity-0 data-instant:transition-none",
+            className,
+          )}
+          {...props}
+        >
+          {children}
+        </TooltipPrimitive.Popup>
+      </TooltipPrimitive.Positioner>
     </TooltipPrimitive.Portal>
   );
 }
@@ -70,7 +98,7 @@ function quietTooltips(ms = 400): void {
 
 // When a finger last came down. A tap focuses what it lands on, and a
 // tooltip opening on that focus covered the tabs above a phone's search box
-// and stayed while you typed (QA S11). Radix already ignores a finger's
+// and stayed while you typed (QA S11). Base UI already ignores a finger's
 // hover; this ignores its focus.
 let touchedAt = Number.NEGATIVE_INFINITY;
 // When Tab was last pressed, if it was the last key or press at all. A text
@@ -142,39 +170,45 @@ function WithTooltip({
 }: {
   label: React.ReactNode;
   shortcut?: string;
-  side?: React.ComponentProps<typeof TooltipPrimitive.Content>["side"];
+  side?: TooltipPrimitive.Positioner.Props["side"];
   children: React.ReactElement;
 }) {
   const [open, setOpen] = React.useState(false);
+  const id = React.useId();
   React.useEffect(listenForInput, []);
   return (
     <Tooltip
       open={open}
-      onOpenChange={(next) => {
-        if (next && performance.now() < quietUntil) return;
-        if (next && performance.now() - touchedAt < TOUCH_FOCUS_MS) return;
+      onOpenChange={(next, details) => {
+        // Esc closes the tooltip and still reaches the page: a field or a
+        // list that closes on Esc shouldn't need a second press.
+        if (details.reason === "escape-key") details.allowPropagation();
+        if (next) {
+          const now = performance.now();
+          if (now < quietUntil) return;
+          if (now - touchedAt < TOUCH_FOCUS_MS) return;
+          // A text field the app focused, rather than one tabbed to.
+          if (
+            details.reason === "trigger-focus" &&
+            isTextEntry(details.event.target) &&
+            now - tabbedAt > TAB_FOCUS_MS
+          )
+            return;
+        }
         setOpen(next);
       }}
     >
       {/* `data-tooltip`: e2e/tooltips.spec.ts finds controls without one. */}
       <TooltipTrigger
-        asChild
         data-tooltip=""
+        // Its words describe the control while they show, as on Radix.
+        aria-describedby={open ? id : undefined}
         onKeyDown={(e) => {
           if (isTyping(e)) setOpen(false);
         }}
-        // Radix opens on focus unless this handler prevents it.
-        onFocus={(e) => {
-          if (
-            isTextEntry(e.target) &&
-            performance.now() - tabbedAt > TAB_FOCUS_MS
-          )
-            e.preventDefault();
-        }}
-      >
-        {children}
-      </TooltipTrigger>
-      <TooltipContent side={side}>
+        render={children}
+      />
+      <TooltipContent id={id} side={side}>
         {label}
         {shortcut ? <Kbd>{shortcut}</Kbd> : null}
       </TooltipContent>

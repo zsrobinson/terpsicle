@@ -29,6 +29,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@base-ui/react": "~1.8.0",
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@protomaps/basemaps": "^5.7.2",

@@ -1,19 +1,96 @@
+import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "cn";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import { Select as SelectPrimitive } from "radix-ui";
-import type * as React from "react";
+import * as React from "react";
+import { MENU_SEPARATOR, POPUP_CARD, POPUP_LAYER, POPUP_MOTION } from "./popup";
+import {
+  type CompatEvent,
+  focusProp,
+  radixPositionerProps,
+  triggerState,
+  useWatchedOpen,
+} from "./radix-compat";
 import { quietTooltips } from "./tooltip";
 
-// shadcn/ui select, restyled to our tokens and density: a 28px trigger with a
-// hairline, and the same raised card as our dropdown menus for the list.
+// The kit's select, on Base UI, in Ink: a 28px trigger with a hairline, and
+// the same raised card as our dropdown menus for the list, under the trigger.
 
-function Select(props: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+type ChangeDetails = SelectPrimitive.Root.ChangeEventDetails;
+
+type SelectProps = {
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string, details: ChangeDetails) => void;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean, details: ChangeDetails) => void;
+  disabled?: boolean;
+  required?: boolean;
+  name?: string;
+  children?: React.ReactNode;
+};
+
+const SelectOpen = React.createContext(false);
+
+/**
+ * The items' values and labels, read from the `SelectItem`s among the
+ * children, so the trigger shows the chosen item's label (as it did on Radix)
+ * rather than its value.
+ */
+function itemsIn(
+  node: React.ReactNode,
+  items: { value: string; label: React.ReactNode }[] = [],
+) {
+  React.Children.forEach(node, (child) => {
+    if (
+      !React.isValidElement<{ children?: React.ReactNode; value?: string }>(
+        child,
+      )
+    )
+      return;
+    if (child.type === SelectItem && child.props.value !== undefined)
+      items.push({ value: child.props.value, label: child.props.children });
+    else itemsIn(child.props.children, items);
+  });
+  return items;
 }
 
-function SelectValue(
-  props: React.ComponentProps<typeof SelectPrimitive.Value>,
-) {
+function Select({
+  value,
+  defaultValue,
+  onValueChange,
+  open,
+  defaultOpen,
+  onOpenChange,
+  children,
+  ...props
+}: SelectProps) {
+  const [isOpen, handleOpenChange] = useWatchedOpen(
+    open,
+    defaultOpen,
+    onOpenChange,
+  );
+  return (
+    <SelectOpen.Provider value={isOpen}>
+      <SelectPrimitive.Root<string>
+        items={itemsIn(children)}
+        value={value}
+        defaultValue={defaultValue}
+        onValueChange={(next, details) => {
+          if (next !== null) onValueChange?.(next, details);
+        }}
+        open={open}
+        defaultOpen={defaultOpen}
+        onOpenChange={handleOpenChange}
+        {...props}
+      >
+        {children}
+      </SelectPrimitive.Root>
+    </SelectOpen.Provider>
+  );
+}
+
+function SelectValue(props: SelectPrimitive.Value.Props) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />;
 }
 
@@ -22,9 +99,10 @@ function SelectTrigger({
   size = "default",
   children,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
+}: SelectPrimitive.Trigger.Props & {
   size?: "sm" | "default";
 }) {
+  const open = React.useContext(SelectOpen);
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
@@ -40,11 +118,12 @@ function SelectTrigger({
         className,
       )}
       {...props}
+      {...triggerState(open)}
     >
       {children}
-      <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-3.5 shrink-0 text-muted" />
-      </SelectPrimitive.Icon>
+      <SelectPrimitive.Icon
+        render={<ChevronDownIcon className="size-3.5 shrink-0 text-muted" />}
+      />
     </SelectPrimitive.Trigger>
   );
 }
@@ -52,35 +131,48 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
-  position = "popper",
+  side,
   align = "start",
   sideOffset = 4,
   collisionPadding = 8,
   onCloseAutoFocus,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: Omit<SelectPrimitive.Popup.Props, "finalFocus"> &
+  Pick<
+    SelectPrimitive.Positioner.Props,
+    "side" | "align" | "sideOffset" | "collisionPadding"
+  > & {
+    /** Radix's: prevent it to put focus somewhere yourself. */
+    onCloseAutoFocus?: (event: CompatEvent) => void;
+  }) {
+  const popup = React.useRef<HTMLDivElement>(null);
   return (
     <SelectPrimitive.Portal>
-      <SelectPrimitive.Content
-        data-slot="select-content"
-        position={position}
+      <SelectPrimitive.Positioner
+        // The list opens under the trigger, not over it (macOS-style).
+        alignItemWithTrigger={false}
+        side={side}
         align={align}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
-        onCloseAutoFocus={(event) => {
-          quietTooltips();
-          onCloseAutoFocus?.(event);
-        }}
-        className={cn(
-          "z-50 min-w-(--radix-select-trigger-width) overflow-y-auto overflow-x-hidden border border-keyline bg-raised p-1 text-fg shadow-pop",
-          "max-h-(--radix-select-content-available-height) origin-(--radix-select-content-transform-origin)",
-          "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=open]:animate-in data-[state=open]:duration-150",
-          className,
-        )}
-        {...props}
+        className={POPUP_LAYER}
+        {...radixPositionerProps}
       >
-        <SelectPrimitive.Viewport>{children}</SelectPrimitive.Viewport>
-      </SelectPrimitive.Content>
+        <SelectPrimitive.Popup
+          ref={popup}
+          data-slot="select-content"
+          finalFocus={focusProp(onCloseAutoFocus, popup, quietTooltips)}
+          className={cn(
+            POPUP_CARD,
+            POPUP_MOTION,
+            "min-w-(--anchor-width) max-h-(--available-height) overflow-y-auto overflow-x-hidden p-1",
+            className,
+          )}
+          {...props}
+        >
+          <SelectPrimitive.List>{children}</SelectPrimitive.List>
+        </SelectPrimitive.Popup>
+      </SelectPrimitive.Positioner>
     </SelectPrimitive.Portal>
   );
 }
@@ -89,7 +181,7 @@ function SelectItem({
   className,
   children,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+}: SelectPrimitive.Item.Props & { value: string }) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -113,11 +205,11 @@ function SelectItem({
 function SelectSeparator({
   className,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Separator>) {
+}: SelectPrimitive.Separator.Props) {
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
-      className={cn("-mx-1 my-1 h-px bg-hairline", className)}
+      className={cn(MENU_SEPARATOR, className)}
       {...props}
     />
   );
