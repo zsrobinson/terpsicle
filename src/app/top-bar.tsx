@@ -30,6 +30,7 @@ export function TopBar({
     <AppBar
       current="schedule"
       heading
+      crowdedBelowXl
       compact={compact}
       feedback="schedule"
       pathname={SCHEDULE_PATH}
@@ -78,7 +79,13 @@ function OfflineNote({ compact }: { compact: boolean }) {
 }
 
 function Credits() {
-  return <CreditsStatus label={useCreditsLabel()} />;
+  // Below 1280px the product tabs, term and plan tabs fill the bar, and the
+  // Courses panel's header already says "N courses · N credits" (QA2).
+  return (
+    <div className="hidden xl:flex">
+      <CreditsStatus label={useCreditsLabel()} />
+    </div>
+  );
 }
 
 /** The problem count, which opens the Problems tab (./workbench/status). */
