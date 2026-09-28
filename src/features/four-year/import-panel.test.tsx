@@ -2,7 +2,6 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { courseSearchRow } from "~/core/catalog/course-index";
 import {
   EMPTY_TRANSCRIPT_CHECKS,
   parseTranscript,
@@ -14,10 +13,8 @@ import { canUndo } from "~/core/plans/history";
 import { aCourseIndexEntry, aFourYear, aFourYearEntry } from "~/fixtures";
 import { MOBILE_QUERY } from "~/hooks/use-media-query";
 import { track } from "~/lib/analytics";
-import {
-  INITIAL_COURSE_INDEX_STATE,
-  useCourseIndex,
-} from "~/state/course-index-store";
+import { courseIndexSource } from "~/state/query/course-index-testing";
+import { connectPublished } from "~/state/query/published";
 import { TooltipProvider } from "~/ui/tooltip";
 import { removeGrades } from "./actions";
 import { PlanFirstVisit } from "./first-visit";
@@ -115,29 +112,19 @@ beforeEach(() => {
   phoneWidth();
   vi.mocked(track).mockClear();
   resetTranscriptImport();
-  useCourseIndex.setState({
-    ...INITIAL_COURSE_INDEX_STATE,
-    search: [
-      courseSearchRow(
-        aCourseIndexEntry({
-          code: "CMSC131",
-          title: "Object-Oriented Programming I",
-        }),
-      ),
-      courseSearchRow(
-        aCourseIndexEntry({
-          code: "PSYC100",
-          title: "Introduction to Psychology",
-        }),
-      ),
-      courseSearchRow(
-        aCourseIndexEntry({ code: "CHEM131", title: "Chemistry I" }),
-      ),
-    ],
-    searchState: "ready",
-    // Departments load at import; here there's nothing to fetch from.
-    ensureDepts: async () => undefined,
-  });
+  connectPublished(
+    courseIndexSource([
+      aCourseIndexEntry({
+        code: "CMSC131",
+        title: "Object-Oriented Programming I",
+      }),
+      aCourseIndexEntry({
+        code: "PSYC100",
+        title: "Introduction to Psychology",
+      }),
+      aCourseIndexEntry({ code: "CHEM131", title: "Chemistry I" }),
+    ]),
+  );
 });
 
 afterEach(() => {
@@ -204,8 +191,9 @@ describe("check", () => {
     await type(paste("synthetic-ap-transfer"));
     const fall = screen.getByRole("region", { name: "Fall 2024" });
     expect(within(fall).getByText("CMSC131")).toBeInTheDocument();
+    // The catalog's title, once the course list has loaded.
     expect(
-      within(fall).getByText("Object-Oriented Programming I"),
+      await within(fall).findByText("Object-Oriented Programming I"),
     ).toBeInTheDocument();
     expect(
       within(fall).getByText("Object-Oriented Prog I"),
@@ -224,7 +212,7 @@ describe("check", () => {
     await type(paste("synthetic-ap-transfer"));
     const fall = screen.getByRole("region", { name: "Fall 2024" });
     // CMSC100 isn't in the search file above; CMSC131 is.
-    const flags = within(fall).getAllByText(/Not in Testudo's catalog/);
+    const flags = await within(fall).findAllByText(/Not in Testudo's catalog/);
     expect(flags).toHaveLength(4);
   });
 
@@ -274,7 +262,7 @@ describe("check", () => {
     ).toBeInTheDocument();
     await user.type(field, "31");
     expect(
-      screen.getByText("Counts as CHEM131, Chemistry I."),
+      await screen.findByText("Counts as CHEM131, Chemistry I."),
     ).toBeInTheDocument();
   });
 

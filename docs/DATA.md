@@ -321,12 +321,14 @@ The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cac
 
 ### 5.2 Client course index flow (v3)
 
-`src/state/course-index-store.ts` follows §5.1 with the same cache (`files` rows with `family: "courses"` and no `termId`, the pointer under `courses/manifest.json`, `mock:` prefixes), and loads only on demand: Plan imports it, the scheduler never does (`scripts/check-bundle.ts` fails the build if `/schedule` loads it eagerly).
-1. `ensureSearch()` or `ensureDepts(depts)` first shows the cached manifest if there is one, and checks the server's once per session; with nothing cached it waits for the server.
-2. Files are read by hash from the cache, else fetched, validated and cached. A department the index doesn't list is ready and empty, so `courseIndexEntry(state, code)` is `null` for a code the index doesn't know and `undefined` while its department hasn't loaded.
-3. The manifest check diffs hashes and refetches only files already loaded that changed, then, in one Dexie transaction, stores the new manifest and drops cached `courses/` files it no longer lists.
-4. Unlike the catalog, the cached manifest may list department files the browser doesn't have yet. What's cached is always listed by it. A cached manifest more than a day old can name files the server has deleted; a file that's missing waits for the session's manifest check and loads the new hash.
-5. There's no polling: the index changes at most every 6 h.
+Since `v3/query-course-index` the course index is read through the query cache (§5.5), in `src/state/query/course-index.ts`, and loads only on demand: Plan imports it, the scheduler never does (`scripts/check-bundle.ts` fails the build if `/schedule` loads it eagerly).
+1. `courses/manifest.json` is a `publishedPointer`: a saved one shows at once and is checked with the server once per page, then again once it's 6 hours old (the index changes at most that often). With nothing saved, it waits for the server.
+2. The search file and each department's file are `publishedFile`s, read at the hash the manifest lists: from the query cache, else fetched, validated and saved. A department the manifest doesn't list is loaded and empty, so a code in it is unknown; a department whose file hasn't loaded yet is neither. Plan reads them through `useIndexDepts(depts)`, `useCourseSearch()` and, outside React (an import, a pick), `loadCourseLookup`, `loadIndexEntry` and `loadCourseSearch` (`src/features/four-year/data.ts`).
+3. A manifest check first fetches and saves the new version of every file saved under the old manifest (only files already loaded that changed), then saves the manifest, then drops saved `courses/` files it no longer lists. If a file can't load, the old manifest and its files stay, on screen and on disk. While a department's new file loads, the old one stays on screen.
+4. A saved manifest can name files the server has since deleted: a hook's file query fails and the page's check brings the new hash; code outside React asks for the manifest again and tries once more.
+5. There's no polling. Offline, whatever was saved shows, and the check waits for the connection.
+
+The old Dexie rows (`files` with `family: "courses"`, the `courses/manifest.json` pointer) are no longer read and go with those tables in the catalog PR.
 
 ### 5.3 The installable app (service worker, install prompt, push)
 V2.md §3 is the plan; this is what the browser keeps.

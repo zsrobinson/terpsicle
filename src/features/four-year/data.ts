@@ -1,4 +1,10 @@
-import { useEffect, useMemo } from "react";
+import {
+  type QueryClient,
+  type UseQueryResult,
+  useQueries,
+  useQuery,
+} from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import { create } from "zustand";
 import {
   type FourYearCourses,
@@ -7,26 +13,36 @@ import {
 import type {
   AcademicCalendar,
   CourseCode,
+  CourseIndexDept,
   CourseIndexEntry,
+  CourseSearchRow,
   DeptCode,
   TermId,
 } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { clientConfig } from "~/lib/config";
-import { courseIndexEntry, useCourseIndex } from "~/state/course-index-store";
-import { createDexieCache } from "~/state/data-cache";
 import {
   createDataReader,
   createDataSource,
   type DataSource,
 } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
+import {
+  courseIndexDeptQuery,
+  courseIndexManifestQuery,
+  courseSearchQuery,
+  ensureCourseSearch,
+  ensureIndexDepts,
+  manifestDept,
+} from "~/state/query/course-index";
+import { connectPublished, usePublishedSource } from "~/state/query/published";
 import { useFourYear } from "./store";
 
 // Where Plan's data comes from: the four-year docs in Dexie (./store), the
-// course index (every course, any term; `src/state/course-index-store.ts`)
-// and the term list and academic calendars, for term status and "not
-// offered lately". Opened once per page, for the page's life.
+// course index (every course, any term: TanStack Query queries over the
+// published files, `src/state/query/course-index.ts`, saved to the query
+// cache) and the term list and academic calendars, for term status and
+// "not offered lately". Opened once per page, for the page's life.
 
 type CatalogFacts = {
   /** The newest term Testudo lists, for `not-offered-lately`. */
@@ -93,11 +109,7 @@ export function startFourYear(
     pageDb = db;
     const docs = useFourYear.getState().start(db);
     const source = options.source ?? (await createDataSource(clientConfig));
-    useCourseIndex.getState().connect(source, {
-      cache: db
-        ? createDexieCache(db, source.kind === "mock" ? "mock:" : "")
-        : null,
-    });
+    connectPublished(source);
     // Facts only sharpen status and one problem kind: failing is fine.
     void loadFacts(createDataReader(source)).catch((error: unknown) =>
       console.warn("Plan: no term list", error),
@@ -130,15 +142,64 @@ export function docDepts(doc: Pick<FourYearDoc, "entries"> | null): DeptCode[] {
   return [...depts].sort();
 }
 
-/** Loads the department files a doc needs, whenever its departments change. */
-export function useDocDepts(doc: FourYearDoc | null): void {
-  const key = docDepts(doc).join(",");
-  const ensure = useCourseIndex((s) => s.ensureDepts);
-  const connected = useCourseIndex((s) => s.source !== null);
-  useEffect(() => {
-    if (!connected || key === "") return;
-    void ensure(key.split(","));
-  }, [connected, key, ensure]);
+/** What the index knows about some departments: the lookup core's checks read. */
+export interface IndexDepts {
+  lookup: FourYearCourses;
+  /** A department still loading: its problems aren't known yet. */
+  loading: boolean;
+  /** Departments whose file didn't load (not "no such department"). */
+  failed: ReadonlySet<DeptCode>;
+}
+
+/**
+ * Loads these departments' files and says what they know. A department the
+ * index doesn't list is loaded and empty; while the manifest or a file is
+ * on its way it's loading; a file that can't load is failed.
+ */
+export function useIndexDepts(depts: readonly DeptCode[]): IndexDepts {
+  const source = usePublishedSource((s) => s.source);
+  const manifest = useQuery({
+    ...courseIndexManifestQuery(source),
+    enabled: depts.length > 0,
+  });
+  const key = depts.join(",");
+  // Stable while nothing it reads changes, so Query keeps the same result
+  // (and the plan's model doesn't recompute) between renders.
+  const combine = useCallback(
+    (files: UseQueryResult<CourseIndexDept>[]): IndexDepts => {
+      const ready: DeptCode[] = [];
+      const failed = new Set<DeptCode>();
+      const entries: CourseIndexEntry[] = [];
+      let loading = false;
+      key.split(",").forEach((dept, i) => {
+        if (dept === "") return;
+        const file = files[i];
+        if (manifest.data === undefined) {
+          if (manifest.isError) failed.add(dept);
+          else if (source) loading = true;
+        } else if (!manifestDept(manifest.data, dept)) ready.push(dept);
+        else if (file?.data) {
+          ready.push(dept);
+          entries.push(...file.data.courses);
+        } else if (file?.isError) failed.add(dept);
+        else loading = true;
+      });
+      return { lookup: fourYearCourses(entries, ready), loading, failed };
+    },
+    [key, manifest.data, manifest.isError, source],
+  );
+  return useQueries({
+    queries: depts.map((dept) =>
+      courseIndexDeptQuery(source, manifestDept(manifest.data, dept)),
+    ),
+    combine,
+  });
+}
+
+/** The departments a doc's courses need, loaded, and what they know. */
+export function useDocDepts(doc: FourYearDoc | null): IndexDepts {
+  const depts = useMemo(() => docDepts(doc), [doc]);
+  return useIndexDepts(depts);
 }
 
 /**
@@ -146,31 +207,17 @@ export function useDocDepts(doc: FourYearDoc | null): void {
  * aren't known yet ("isn't in Testudo" would be a guess).
  */
 export function useDeptsLoading(doc: FourYearDoc | null): boolean {
-  const key = docDepts(doc).join(",");
-  return useCourseIndex(
-    (s) =>
-      s.source !== null &&
-      key !== "" &&
-      key.split(",").some((d) => {
-        const state = s.deptsState[d];
-        return state === undefined || state === "loading";
-      }),
-  );
+  return useDocDepts(doc).loading;
 }
 
-/** Everything the loaded department files know, for core's checks. */
-export function useCourseLookup(): FourYearCourses {
-  const depts = useCourseIndex((s) => s.depts);
-  const deptsState = useCourseIndex((s) => s.deptsState);
-  return useMemo(() => {
-    const ready = Object.entries(deptsState)
-      .filter(([, state]) => state === "ready")
-      .map(([dept]) => dept);
-    return fourYearCourses(
-      Object.values(depts).flatMap((d) => d?.courses ?? []),
-      ready,
-    );
-  }, [depts, deptsState]);
+/** Everything the doc's department files know, for core's checks. */
+export function useCourseLookup(doc: FourYearDoc | null): FourYearCourses {
+  return useDocDepts(doc).lookup;
+}
+
+/** Whether a department's file failed to load (its titles can't show). */
+export function useDeptFailed(dept: DeptCode): boolean {
+  return useIndexDepts([dept]).failed.has(dept);
 }
 
 /**
@@ -180,34 +227,68 @@ export function useCourseLookup(): FourYearCourses {
 export function useIndexEntry(
   code: string | null,
 ): CourseIndexEntry | null | undefined {
-  const dept = code?.slice(0, 4) ?? null;
-  const ensure = useCourseIndex((s) => s.ensureDepts);
-  const connected = useCourseIndex((s) => s.source !== null);
-  useEffect(() => {
-    if (connected && dept) void ensure([dept]);
-  }, [connected, dept, ensure]);
-  return useCourseIndex((s) => (code ? courseIndexEntry(s, code) : null));
+  const dept = code?.slice(0, 4);
+  const { lookup } = useIndexDepts(dept ? [dept] : []);
+  if (!code || !dept) return null;
+  if (!lookup.loadedDepts.has(dept)) return undefined;
+  return lookup.courses.get(code) ?? null;
+}
+
+/** Every course's search row, loaded on first use; null until it's in. */
+export function useCourseSearch(): {
+  rows: readonly CourseSearchRow[] | null;
+  failed: boolean;
+  /** Asks again: the manifest if that's what failed, else the file. */
+  retry: () => void;
+} {
+  const source = usePublishedSource((s) => s.source);
+  const manifest = useQuery(courseIndexManifestQuery(source));
+  const search = useQuery(
+    courseSearchQuery(source, manifest.data?.search.hash),
+  );
+  return {
+    rows: search.data?.courses ?? null,
+    failed: search.data === undefined && (manifest.isError || search.isError),
+    retry: () =>
+      void (manifest.data === undefined
+        ? manifest.refetch()
+        : search.refetch()),
+  };
+}
+
+/** What these departments' files know, loading them first; outside React. */
+export async function loadCourseLookup(
+  client: QueryClient,
+  depts: readonly DeptCode[],
+): Promise<FourYearCourses> {
+  const source = usePublishedSource.getState().source;
+  if (!source || depts.length === 0) return fourYearCourses([], []);
+  const files = await ensureIndexDepts(client, source, depts).catch(
+    () => new Map(),
+  );
+  const entries: CourseIndexEntry[] = [];
+  const ready: DeptCode[] = [];
+  for (const [dept, file] of files) {
+    ready.push(dept);
+    if (file) entries.push(...file.courses);
+  }
+  return fourYearCourses(entries, ready);
 }
 
 /** One course's index entry once its department has loaded; null when it can't. */
 export async function loadIndexEntry(
+  client: QueryClient,
   code: CourseCode,
 ): Promise<CourseIndexEntry | null> {
-  await useCourseIndex
-    .getState()
-    .ensureDepts([code.slice(0, 4)])
-    .catch(() => undefined);
-  return courseIndexEntry(useCourseIndex.getState(), code) ?? null;
+  const lookup = await loadCourseLookup(client, [code.slice(0, 4)]);
+  return lookup.courses.get(code) ?? null;
 }
 
-/** What the loaded department files know right now, outside React (the import). */
-export function currentCourseLookup(): FourYearCourses {
-  const { depts, deptsState } = useCourseIndex.getState();
-  const ready = Object.entries(deptsState)
-    .filter(([, state]) => state === "ready")
-    .map(([dept]) => dept);
-  return fourYearCourses(
-    Object.values(depts).flatMap((d) => d?.courses ?? []),
-    ready,
-  );
+/** Every course's search row, outside React; null when it can't load. */
+export async function loadCourseSearch(
+  client: QueryClient,
+): Promise<readonly CourseSearchRow[] | null> {
+  const source = usePublishedSource.getState().source;
+  if (!source) return null;
+  return ensureCourseSearch(client, source).catch(() => null);
 }

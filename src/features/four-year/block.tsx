@@ -24,7 +24,6 @@ import {
 } from "~/core/schema/four-year";
 import { useAccount } from "~/features/auth/account-store";
 import { crossLinkClicked, viewWords } from "~/lib/cross-link";
-import { useCourseIndex } from "~/state/course-index-store";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,
@@ -49,6 +48,7 @@ import {
   setGenEdChoice,
 } from "./actions";
 import { creditKind } from "./credit-panel";
+import { useDeptFailed } from "./data";
 import { CLOSE_DRILL, useModel, usePlanNav, usePlanReadOnly } from "./model";
 import { focusSearch } from "./search-panel";
 
@@ -350,9 +350,7 @@ function CountsAsLine({ code }: { code: string | null }) {
 function CourseTitle({ entry }: { entry: FourYearCourseEntry }) {
   const { lookup } = useModel();
   const { code } = entry;
-  const failed = useCourseIndex(
-    (s) => s.deptsState[code.slice(0, 4)] === "error",
-  );
+  const failed = useDeptFailed(code.slice(0, 4));
   const course = lookup.courses.get(code);
   if (course)
     return (

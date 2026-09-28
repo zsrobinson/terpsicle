@@ -256,7 +256,7 @@ export const ROUTE_BUDGETS: readonly {
       budget: EAGER_BUDGET,
       never: [
         {
-          pattern: /^src\/state\/course-index-store\.ts$/,
+          pattern: /^src\/state\/query\/course-index\.ts$/,
           why: "the course index loads with Plan, not the scheduler",
         },
         ...SCHEDULE_NEVER_EAGER,

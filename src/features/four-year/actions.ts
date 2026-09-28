@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { wildcardLabel } from "~/core/catalog/wildcard";
 import { displayTitle } from "~/core/four-year/display-title";
 import type { FourYearAction } from "~/core/four-year/reducer";
@@ -30,8 +31,8 @@ import {
   WILDCARD_CREDITS,
 } from "~/core/schema/four-year";
 import { track } from "~/lib/analytics";
-import { courseIndexEntry, useCourseIndex } from "~/state/course-index-store";
 import { newLocalId, nowIso } from "~/state/ids";
+import { loadIndexEntry } from "./data";
 import { activeDoc, useFourYear } from "./store";
 
 // Plan's actions as people name them: each one dispatches to the core
@@ -173,11 +174,11 @@ export function addPlaceholder(
 export async function pickForPlaceholder(
   entryId: LocalId,
   code: CourseCode,
+  client: QueryClient,
 ): Promise<void> {
-  await useCourseIndex.getState().ensureDepts([code.slice(0, 4)]);
+  const course = await loadIndexEntry(client, code);
   const doc = activeDoc(useFourYear.getState());
   if (!doc) return;
-  const course = courseIndexEntry(useCourseIndex.getState(), code);
   resolvePlaceholder(doc, entryId, course ?? { code, genEds: [] });
 }
 

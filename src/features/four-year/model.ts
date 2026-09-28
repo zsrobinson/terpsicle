@@ -56,7 +56,7 @@ export function usePlanModel(
   today: IsoDate,
   picked: FourYearTerm | undefined,
 ): PlanModel {
-  const lookup = useCourseLookup();
+  const lookup = useCourseLookup(doc);
   const calendars = useFourYearFacts((s) => s.calendars);
   const latestTermId = useFourYearFacts((s) => s.latestTermId);
   return useMemo(() => {

@@ -175,9 +175,9 @@ export function publishedFile<S extends z.ZodType>(
 /**
  * A fixed-name pointer (a manifest): checked once per page, and again once
  * stale (on the next use, focus or reconnect). `lists` names the hashed
- * files it points at, read with `fileSchema`.
+ * files it points at, each read with `fileSchema(key)`.
  */
-export function publishedPointer<S extends z.ZodType, F extends z.ZodType>(
+export function publishedPointer<S extends z.ZodType>(
   source: DataSource | null,
   key: string,
   schema: S,
@@ -185,7 +185,7 @@ export function publishedPointer<S extends z.ZodType, F extends z.ZodType>(
   options: {
     staleTime: number;
     lists: (data: z.infer<S>) => string[];
-    fileSchema: F;
+    fileSchema: (key: string) => z.ZodType;
   },
 ) {
   return published(source, key, schema, family, {
@@ -209,12 +209,12 @@ export function publishedPointer<S extends z.ZodType, F extends z.ZodType>(
  * pointer. Throws if one can't load, so the old pointer stays, on screen
  * and on disk, with the files it names (DATA.md §5.1 step 4).
  */
-async function refreshSaved<F extends z.ZodType>(
+async function refreshSaved(
   source: DataSource,
   client: QueryClient,
   family: SchemaFamily,
   listed: readonly string[],
-  fileSchema: F,
+  fileSchema: (key: string) => z.ZodType,
 ): Promise<void> {
   const saved = await savedPublishedKeys(family, source.kind);
   const have = new Set(saved);
@@ -224,7 +224,7 @@ async function refreshSaved<F extends z.ZodType>(
   const files = publishedPersister(family);
   await Promise.all(
     changed.map(async (k) => {
-      const file = publishedFile(source, k, fileSchema, family);
+      const file = publishedFile(source, k, fileSchema(k), family);
       await client.fetchQuery(file);
       await files.persistQueryByKey(file.queryKey, client);
     }),

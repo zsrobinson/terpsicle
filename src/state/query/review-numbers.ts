@@ -33,7 +33,7 @@ export function reviewsManifestQuery(source: DataSource | null) {
       staleTime: REVIEWS_MANIFEST_STALE_MS,
       lists: (manifest) =>
         manifest.departments.map((d) => reviewsDeptKey(d.code, d.hash)),
-      fileSchema: ReviewsDeptSchema,
+      fileSchema: () => ReviewsDeptSchema,
     },
   );
 }
