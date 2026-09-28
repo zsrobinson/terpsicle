@@ -1,20 +1,13 @@
 import { cn } from "cn";
 import { Bell } from "lucide-react";
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
 import { create } from "zustand";
 import { track } from "~/app/analytics";
 import { useIsMobile } from "~/app/use-media-query";
 import { bellCount, bellLabel } from "~/core/notifications/bell";
 import { useAccount } from "~/features/auth/account-store";
 import { DropdownMenuItem } from "~/ui/dropdown-menu";
-import { WithTooltip } from "~/ui/tooltip";
+import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { useUnread, useUnreadPolling } from "./unread-store";
 
 // The bell in the family bar (docs/V2.md §6.7), signed in only: the unread
@@ -34,13 +27,69 @@ function prefetch() {
   void loadInbox();
 }
 
-/** Opens from elsewhere: the account menu's item on a crowded phone bar. */
-const requests = create<{ count: number }>(() => ({ count: 0 }));
+// Each page brings its own bar (the site's pages, Chat, Plan, the
+// scheduler), so a page change swaps this bell for the next page's. The
+// router shows the new address first and the new page a moment later, and
+// the old bar still works in between. So the list's state isn't the bell's
+// own: a list opened in between stays open when the page arrives. And focus
+// on the bell, which would fall to the page with the old bar, goes to the
+// new bell.
+
+/** Whether Notifications is open: one list, whichever bar is showing it. */
+const useOpen = create<{ open: boolean }>(() => ({ open: false }));
+
+function setOpen(open: boolean): void {
+  if (useOpen.getState().open === open) return;
+  useOpen.setState({ open });
+  if (open) track("notifications_opened", {});
+}
+
+/** The bell on the page, and whether the one before it left with focus. */
+let shownBell: HTMLButtonElement | null = null;
+let focusCarried = false;
+
+/** A bell's ref: tracks the one on the page, and passes focus along. */
+function bellMounted(bell: HTMLButtonElement): () => void {
+  shownBell = bell;
+  if (focusCarried && document.activeElement === document.body) {
+    // No tooltip over the page that just arrived.
+    quietTooltips();
+    bell.focus({ preventScroll: true });
+  }
+  focusCarried = false;
+  return () => {
+    // Refs detach before the old bar leaves the document: it still has focus.
+    if (document.activeElement === bell) {
+      focusCarried = true;
+      // Only the bell that replaces it, in the same commit, takes it.
+      queueMicrotask(() => {
+        focusCarried = false;
+      });
+    }
+    if (shownBell === bell) shownBell = null;
+  };
+}
+
+/**
+ * Where the list hands focus as it closes: the bell on the page now, a new
+ * one if the page changed as it closed. Not when the list is only moving to
+ * the next page's bar, still open.
+ */
+function returnFocus(): void {
+  if (!useOpen.getState().open) shownBell?.focus();
+}
 
 /** Opens Notifications, from the bell or the account menu. */
 export function openNotifications(): void {
   prefetch();
-  requests.setState((s) => ({ count: s.count + 1 }));
+  setOpen(true);
+}
+
+/** Test hook: closed, with no bell on the page. */
+export function forgetBell(): void {
+  useOpen.setState({ open: false });
+  shownBell = null;
+  focusCarried = false;
 }
 
 /** Whether the bell belongs on this page: signed in, and /api/me has answered. */
@@ -62,24 +111,19 @@ export function NotificationsBell({
   useUnreadPolling(shown);
   const unread = useUnread((s) => s.unread) ?? 0;
   const mobile = useIsMobile();
-  const button = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  // Mounted from the first open on, so it can animate away.
-  const [used, setUsed] = useState(false);
-  const onOpenChange = useCallback((next: boolean) => {
-    setOpen(next);
-    if (next) {
-      setUsed(true);
-      track("notifications_opened", {});
-    }
+  const button = useRef<HTMLButtonElement | null>(null);
+  const bellRef = useCallback((bell: HTMLButtonElement) => {
+    button.current = bell;
+    const unmounted = bellMounted(bell);
+    return () => {
+      unmounted();
+      button.current = null;
+    };
   }, []);
-  const requested = requests((s) => s.count);
-  // Only requests made while this bell is on the page.
-  const handled = useRef(requested);
-  useEffect(() => {
-    if (requested > handled.current) onOpenChange(true);
-    handled.current = requested;
-  }, [requested, onOpenChange]);
+  const open = useOpen((s) => s.open);
+  // Mounted from the first open on, so it can animate away.
+  const [used, setUsed] = useState(open);
+  if (open && !used) setUsed(true);
 
   if (!shown) return null;
   return (
@@ -87,7 +131,7 @@ export function NotificationsBell({
       {showButton ? (
         <WithTooltip label="Notifications" side="bottom">
           <button
-            ref={button}
+            ref={bellRef}
             type="button"
             aria-label={bellLabel(unread)}
             aria-haspopup="dialog"
@@ -96,7 +140,7 @@ export function NotificationsBell({
             data-testid="notifications-bell"
             onPointerEnter={prefetch}
             onFocus={prefetch}
-            onClick={() => onOpenChange(!open)}
+            onClick={() => setOpen(!open)}
             className="relative flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-[380px]:size-7"
           >
             <Bell size={16} aria-hidden="true" />
@@ -108,8 +152,9 @@ export function NotificationsBell({
         <Suspense fallback={null}>
           <InboxSurface
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={setOpen}
             anchor={button}
+            returnFocus={returnFocus}
             mobile={mobile || !showButton}
           />
         </Suspense>
