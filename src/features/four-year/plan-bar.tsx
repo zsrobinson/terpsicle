@@ -253,6 +253,9 @@ export function PlanBar({
       current="plan"
       heading
       compact={compact}
+      // Its status (saved, credits, problems and notes) is as long as the
+      // scheduler's, and at 1280px it ran over the plan's name.
+      crowdedBelow2xl
       feedback="plan"
       pathname={pathname}
       context={
