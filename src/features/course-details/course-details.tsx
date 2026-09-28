@@ -6,6 +6,8 @@ import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
 import { gradesSourceWords } from "~/core/grades";
 import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
+import { usePushAskCard } from "~/features/notifications/push-ask";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { useReadCourseNotifications } from "~/features/notifications/read-here";
 import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCourseDept, useInstructors } from "~/state/data-hooks";
@@ -39,6 +41,9 @@ export function CourseDetails() {
   // Its department first, ahead of the other ~200: no waiting on them.
   const dept = deptOf(entry.courseCode);
   useCourseDept(termId, dept);
+  // A watch can start before the course has loaded (on the way back from
+  // signing in): the drill-in holds its ask's place from the start.
+  usePushAskCard("seat-watch");
 
   // A missing course is known to be missing once its department has loaded,
   // or when the term has no such department.
@@ -154,6 +159,8 @@ function Details({
           setAboutOpen(open);
         }}
       />
+      {/* After a watch starts here: notifications on this device? (V2 §6.7) */}
+      <PushAskCard moment="seat-watch" className="mx-4 mt-3" />
       <Sections
         course={course}
         termId={termId}

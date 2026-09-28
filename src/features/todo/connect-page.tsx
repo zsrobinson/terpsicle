@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { feedWords } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { GoogleButton } from "~/features/auth/sign-in-panel";
+import { usePushAskCard } from "~/features/notifications/push-ask";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { PageHeader } from "~/ui/page-header";
@@ -40,6 +42,8 @@ function Connection() {
   const undoDisconnect = useTodo((s) => s.undoDisconnect);
   const confirmDisconnect = useTodo((s) => s.confirmDisconnect);
   const [connected, setConnected] = useState(false);
+  // Its card, once connecting asks (V2 §6.7).
+  usePushAskCard("todo-connected");
 
   // Undo's window is over: the toast goes with it.
   useEffect(() => {
@@ -90,6 +94,7 @@ function Connection() {
           <p className="text-muted text-sm">
             We check it about every 20 minutes.
           </p>
+          <PushAskCard moment="todo-connected" />
         </>
       )}
       <div className="flex flex-wrap items-center gap-2">

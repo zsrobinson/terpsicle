@@ -10,6 +10,7 @@ import {
 } from "../src/core/push";
 import { deviceLabel } from "../src/core/pwa/device-label";
 import { scan } from "./axe";
+import { payloadOf } from "./push-message";
 import { liveToasts } from "./toasts";
 
 // Notifications at /settings/notifications on `pnpm dev:mock` (V2.md §6),
@@ -228,7 +229,7 @@ test("turn on notifications, send a test, see it, remove the device", async ({
       sub: "mailto:alerts@terpsicle.com",
     });
     const data = await subscription.read(new Uint8Array(delivery.body));
-    expect(JSON.parse(data ?? "null")).toEqual({
+    expect(payloadOf(JSON.parse(data ?? "null"))).toEqual({
       v: 1,
       type: "test",
       title: "Notifications are on",

@@ -13,8 +13,8 @@ export const KEPT_ACCOUNT_DETAIL = "Signing in cancelled its deletion.";
 
 /**
  * Asks /api/me who's signed in, once per page load, on every route. After a
- * sign-in, strips `?signed-in=1` (V2.md §4.2) and counts it. Later, the
- * first-sign-in plan merge and the install prompt hook in here.
+ * sign-in, strips `?signed-in=1` (V2.md §4.2) and counts it; after this
+ * device's first, it's the install prompt's `first-sign-in` moment (§3.4).
  */
 export function AccountBoot() {
   useEffect(() => {
@@ -32,6 +32,12 @@ export function AccountBoot() {
       // Storage blocked: count it as a first sign-in.
     }
     track("signin_completed", { firstOnDevice });
+    // Its code loads with the prompt's host, after the page (src/app/pwa.tsx).
+    if (firstOnDevice)
+      void import("~/features/pwa/install-store").then(
+        (m) => m.requestInstallPromptSoon("first-sign-in"),
+        () => {},
+      );
     if (signedIn === SIGNED_IN_KEPT)
       noteToast(KEPT_ACCOUNT_NOTE, {
         id: "account-kept",

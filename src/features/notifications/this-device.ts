@@ -1,5 +1,10 @@
 import { fromBase64url } from "~/core/push/bytes";
-import { deviceLabel, isIos } from "~/core/pwa";
+import {
+  deviceLabel,
+  isIos,
+  isIosSafari,
+  type PushAskDevice,
+} from "~/core/pwa";
 import { isStandalone } from "~/features/pwa/install-state";
 import { notificationsApi } from "~/server/fns/notifications";
 
@@ -111,6 +116,40 @@ export async function turnOnHere(publicKey: string): Promise<TurnOnResult> {
   } catch {
     return "failed";
   }
+}
+
+/**
+ * Why turning on didn't work, in plain words (SPEC §3.13); null when the
+ * person closed the browser's prompt, which needs no words.
+ */
+export const TURN_ON_WORDS: Record<
+  Exclude<TurnOnResult, "on">,
+  string | null
+> = {
+  denied:
+    "Your browser blocked notifications for Terpsicle. Allow them in its site settings, then try again.",
+  dismissed: null,
+  "no-service-worker":
+    "Notifications only work on terpsicle.com. If you're there, try again in a moment.",
+  unsupported: "This browser can't get notifications from Terpsicle.",
+  "off-here": "Notifications are turned off on Terpsicle for now.",
+  failed:
+    "Couldn't turn on notifications. Check your connection and try again.",
+};
+
+/** What the ask moments need to know about this browser (`pushAskKind`). */
+export async function pushAskDevice(
+  win: Window = window,
+): Promise<PushAskDevice> {
+  const { userAgent, maxTouchPoints = 0 } = win.navigator;
+  const support = pushSupport(win);
+  return {
+    support,
+    permission: notificationPermission(),
+    subscribed: support === "ok" && (await currentSubscription()) !== null,
+    iosSafari: isIosSafari(userAgent, maxTouchPoints),
+    iosHomeScreen: isIos(userAgent, maxTouchPoints) && isStandalone(win),
+  };
 }
 
 /** Stops push here: forgets it on the account, then in the browser. */

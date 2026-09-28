@@ -1,8 +1,10 @@
-import { Share } from "lucide-react";
+import { Bell, type LucideIcon, Share, SquarePlus } from "lucide-react";
+import { ListRow } from "~/ui/list-row";
 
 // Safari's Share → Add to Home Screen, drawn small: Safari's toolbar with
 // Share picked out, then the share sheet's row. Decoration only; the steps
-// beside it say the same in words.
+// beside it say the same in words. `IosStepRows` is the same three steps as
+// numbered rows, for the sheet that asks for notifications on iPhone.
 
 export function IosStepsIllustration() {
   return (
@@ -87,6 +89,56 @@ export function IosSteps() {
       </li>
       {/* iOS sends notifications only to the Home Screen app, not this tab. */}
       <li>Open Terpsicle from your Home Screen.</li>
+    </ol>
+  );
+}
+
+/** The three steps to notifications on iPhone (the design's "iPhone setup"). */
+export const IOS_NOTIFICATION_STEPS: readonly IosStep[] = [
+  { words: "Tap Share in Safari's bar", icon: Share },
+  { words: "Choose Add to Home Screen", icon: SquarePlus },
+  {
+    words: "Open Terpsicle from your Home Screen. We'll ask once, right there.",
+    icon: Bell,
+  },
+];
+
+export interface IosStep {
+  words: string;
+  icon: LucideIcon;
+}
+
+/**
+ * Numbered rows between hairlines, each with the icon to look for. `steps`
+ * defaults to the three to the Home Screen; the Home Screen app shows its
+ * own step by itself, unnumbered.
+ */
+export function IosStepRows({
+  steps = IOS_NOTIFICATION_STEPS,
+}: {
+  steps?: readonly IosStep[];
+}) {
+  const numbered = steps.length > 1;
+  return (
+    <ol className="flex flex-col border-hairline border-y">
+      {steps.map(({ words, icon: Icon }, i) => (
+        <ListRow
+          as="li"
+          key={words}
+          // Flush with the sheet's words; 48px, a comfortable tap's height.
+          className="min-h-12 px-0"
+          lead={
+            numbered ? (
+              <span className="block w-4 text-muted text-sm tabular-nums">
+                {i + 1}
+              </span>
+            ) : undefined
+          }
+          trail={<Icon size={20} aria-hidden="true" className="text-fg" />}
+        >
+          <span className="text-fg">{words}</span>
+        </ListRow>
+      ))}
     </ol>
   );
 }

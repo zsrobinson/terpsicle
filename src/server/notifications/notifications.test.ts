@@ -23,6 +23,7 @@ import { type PurgeEnv, purgeDueAccounts } from "../auth/purge";
 import { TEST_VAPID_KEYS } from "../push/config";
 import { resetPushCachesForTests } from "../push/send";
 import { MAX_PUSH_FAILURES } from "../push/store";
+import { payloadOf } from "../push/testing";
 import { Device, FakeElms, signIn } from "../todo/testing";
 import { pruneChatNotifications } from "./digest";
 import { emailOffUrl } from "./email-off";
@@ -56,9 +57,7 @@ async function aSubscription(n: number): Promise<FakeSubscription> {
         uaPublic,
         authSecret,
       });
-      return plain
-        ? (JSON.parse(new TextDecoder().decode(plain)) as PushPayload)
-        : null;
+      return payloadOf(plain);
     },
   };
 }

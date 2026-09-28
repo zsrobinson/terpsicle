@@ -41,7 +41,7 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 _Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected designs)
 
 **Family bar**:
-The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. On phones, and on the scheduler's bar below 1280px (where the Early access chip also gives its room to the plans), the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
+The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. On phones, and on the scheduler's and Plan's bars below 1536px (where the Early access chip also gives its room to the product's context), the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
 
 **Mark**:
 One of the six pixel drawings on a 9×9 tile: the umbrella (Terpsicle itself, black) and one per product, in its color. The app icons and favicon are the umbrella's tile alone. Code says `Mark`, drawn from `src/app/brand/marks.ts`.
@@ -128,6 +128,10 @@ _Avoid_: do not disturb, snooze
 **Calendar feed**:
 Your private link that Apple, Google or Outlook Calendar subscribes to: your classes and Todo deadlines, with your calendar's own alerts. You can make a new link, which stops the old one.
 _Avoid_: calendar sync, ICS link (in UI)
+
+**Asking for notifications**:
+Turning on notifications is asked at the moment they're worth it, in our words first: after your first post in Chat ("Hear back when someone answers?"), after connecting ELMS ("Remind you the evening before something's due?") and when a seat watch starts ("Hear the moment a seat opens?"). "Turn on" and "Not now"; Not now is remembered. On an iPhone tab the ask is the three steps to the Home Screen. Code calls it the push ask.
+_Avoid_: permission prompt, opt-in, enable push (in UI)
 
 **Device**:
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
