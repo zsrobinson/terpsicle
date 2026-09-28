@@ -2,7 +2,9 @@ import { gradeSummary } from "../grades/grades";
 import {
   type CourseCode,
   type DeptCode,
+  type Instructor,
   type InstructorSlug,
+  MOST_REVIEWED_MAX,
   MOST_TAKEN_MAX,
   type PlanetTerpDept,
   type PlanetTerpIndex,
@@ -22,12 +24,15 @@ export function buildPlanetTerpIndex(
   titles: ReadonlyMap<CourseCode, string>,
 ): PlanetTerpIndex {
   const instructors = new Map<InstructorSlug, [string, DeptCode[]]>();
+  const reviewed = new Map<InstructorSlug, Instructor>();
   const students = new Map<CourseCode, number>();
   for (const file of [...depts].sort((a, b) => (a.dept < b.dept ? -1 : 1))) {
     for (const [slug, instructor] of Object.entries(file.instructors)) {
       const entry = instructors.get(slug);
       if (entry) entry[1].push(file.dept);
       else instructors.set(slug, [instructor.name, [file.dept]]);
+      if (instructor.type === "professor" && instructor.reviewCount > 0)
+        reviewed.set(slug, instructor);
     }
     for (const [code, grades] of Object.entries(file.courses))
       if (grades.all)
@@ -43,5 +48,11 @@ export function buildPlanetTerpIndex(
       .sort(([a, x], [b, y]) => y - x || (a < b ? -1 : 1))
       .slice(0, MOST_TAKEN_MAX)
       .map(([code, n]) => [code, titles.get(code) ?? code, n]),
+    mostReviewed: [...reviewed.values()]
+      .sort(
+        (a, b) => b.reviewCount - a.reviewCount || (a.slug < b.slug ? -1 : 1),
+      )
+      .slice(0, MOST_REVIEWED_MAX)
+      .map((i) => [i.slug, i.name, i.reviewCount, i.rating]),
   };
 }

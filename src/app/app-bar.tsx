@@ -24,6 +24,7 @@ import { ProductMenu } from "./product-menu";
 import { listedProducts, type ProductId } from "./products";
 import { ThemeToggle } from "./theme-toggle";
 import { useIsMobile } from "./use-media-query";
+import { useScrolled } from "./use-scrolled";
 
 // The one bar on every page (docs/COHESION.md §4, the "family bar"): the
 // wordmark and the five products as labeled tabs, in color order, then a
@@ -55,6 +56,7 @@ export function AppBar({
   compact = false,
   heading = false,
   crowdedBelow2xl = false,
+  borderOnScroll = false,
 }: {
   /** The product you're in; null on Settings and the site's own pages. */
   current: ProductId | null;
@@ -72,7 +74,10 @@ export function AppBar({
   heading?: boolean;
   /** Its context fills the bar below 1536px (the scheduler's term and plans): Feedback shows just its icon there. */
   crowdedBelow2xl?: boolean;
+  /** Reviews' public pages: no rule under the bar until the page scrolls. */
+  borderOnScroll?: boolean;
 }) {
+  const scrolled = useScrolled(borderOnScroll);
   // Phones: where the bar also carries the product's context (the scheduler,
   // Chat's term), "Send feedback" and the bell move into the account menu so
   // the context reads whole; the avatar wears a dot for what's unread. Until
@@ -89,6 +94,7 @@ export function AppBar({
       data-slot="app-bar"
       className={cn(
         "flex h-12 shrink-0 items-center border-hairline border-b",
+        borderOnScroll && !scrolled && "border-b-transparent",
         compact ? "gap-1 px-2" : "gap-2 px-3",
       )}
     >

@@ -167,10 +167,24 @@
  *   text-lg    15/20  the drill-in title
  *   text-xl    18/24  titles: a page's h1 (PageHeader) and the first-visit headline (EmptyState)
  *
+ * Public reading pages (Reviews, "a public facing website rather than a
+ * dashboard", owner 2026-09-28) read larger, through the kit's `display`
+ * sizes only:
+ *
+ *   text-prose 16/26  review words and prose
+ *   text-2xl   22/28  a display page's section titles, the big rating
+ *   text-3xl   32/38  a display page's h1
+ *
  * Spacing uses Tailwind's 4px steps, and only 1, 1.5 (inside chips), 2, 3, 4
  * and 6. Panels are px-4; rows py-2 (regular) or py-1 (compact); columns gap-3.
  */
 @theme {
+  --text-prose: 16px;
+  --text-prose--line-height: 26px;
+  --text-2xl: 22px;
+  --text-2xl--line-height: 28px;
+  --text-3xl: 32px;
+  --text-3xl--line-height: 38px;
   --text-2xs: 10px;
   --text-2xs--line-height: 13px;
   --text-xs: 11px;

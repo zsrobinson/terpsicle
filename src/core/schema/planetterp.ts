@@ -201,6 +201,8 @@ export type PlanetTerpManifest = z.infer<typeof PlanetTerpManifestSchema>;
 
 /** How many courses `mostTaken` keeps. */
 export const MOST_TAKEN_MAX = 40;
+/** Instructors the PlanetTerp index lists as most reviewed. */
+export const MOST_REVIEWED_MAX = 24;
 
 /**
  * `planetterp/index.<hash>.json`: what the department files hold, across
@@ -220,6 +222,22 @@ export const PlanetTerpIndexSchema = z.object({
   mostTaken: z
     .array(z.tuple([CourseCodeSchema, z.string().min(1).max(200), count]))
     .max(MOST_TAKEN_MAX),
+  /**
+   * [slug, name, reviews, rating], the professors with the most PlanetTerp
+   * reviews: Reviews' front page lists them beside the most-taken courses,
+   * as equals. Added later, so an older index reads as none.
+   */
+  mostReviewed: z
+    .array(
+      z.tuple([
+        InstructorSlugSchema,
+        z.string().min(1).max(120),
+        count,
+        z.number().min(1).max(5).nullable(),
+      ]),
+    )
+    .max(MOST_REVIEWED_MAX)
+    .default([]),
 });
 export type PlanetTerpIndex = z.infer<typeof PlanetTerpIndexSchema>;
 

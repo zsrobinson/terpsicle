@@ -39,6 +39,8 @@ export interface CourseInstructorRow {
   teaching: boolean;
   /** PlanetTerp's numbers; null when PlanetTerp doesn't know them. */
   planetTerp: { rating: number | null; reviewCount: number } | null;
+  /** Ours, every course; null when there are none (or Reviews is off). */
+  terpsicle: TerpsicleNumbers | null;
   gpa: number | null;
 }
 
@@ -67,6 +69,8 @@ export interface CoursePageInput {
   gradesThrough: TermId | null;
   source: PlanetTerpSource | null;
   terpsicle: TerpsicleNumbers | null;
+  /** Our numbers for each instructor (every course), when known. */
+  ourNumbers?: Readonly<Record<InstructorId, TerpsicleNumbers>>;
 }
 
 /**
@@ -88,7 +92,12 @@ export function coursePageData(input: CoursePageInput): CoursePageData | null {
     grades: grades?.all ?? null,
     gradesThrough: input.gradesThrough,
     source: input.source,
-    instructors: courseInstructorRows(code, course, ptDept),
+    instructors: courseInstructorRows(
+      code,
+      course,
+      ptDept,
+      input.ourNumbers ?? {},
+    ),
     terpsicle: input.terpsicle,
   };
 }
@@ -98,6 +107,7 @@ export function courseInstructorRows(
   code: CourseCode,
   current: Course | null,
   ptDept: PlanetTerpDept | null,
+  ourNumbers: Readonly<Record<InstructorId, TerpsicleNumbers>> = {},
 ): CourseInstructorRow[] {
   const grades = ptDept?.courses[code] ?? null;
   const byKey = new Map<string, CourseInstructorRow>();
@@ -105,7 +115,14 @@ export function courseInstructorRows(
     const id = ptDept?.names[instructorNameKey(name)] ?? null;
     const key = id ?? `name:${instructorNameKey(name)}`;
     if (byKey.has(key)) continue;
-    byKey.set(key, { id, name, teaching: true, planetTerp: null, gpa: null });
+    byKey.set(key, {
+      id,
+      name,
+      teaching: true,
+      planetTerp: null,
+      terpsicle: null,
+      gpa: null,
+    });
   }
   for (const slug of Object.keys(grades?.byInstructor ?? {}))
     if (!byKey.has(slug))
@@ -114,6 +131,7 @@ export function courseInstructorRows(
         name: ptDept?.instructors[slug]?.name ?? slug,
         teaching: false,
         planetTerp: null,
+        terpsicle: null,
         gpa: null,
       });
   for (const row of byKey.values()) {
@@ -122,6 +140,7 @@ export function courseInstructorRows(
       if (!row.teaching) row.name = pt.name;
       row.planetTerp = { rating: pt.rating, reviewCount: pt.reviewCount };
     }
+    row.terpsicle = row.id ? (ourNumbers[row.id] ?? null) : null;
     const record = row.id ? grades?.byInstructor[row.id] : undefined;
     row.gpa = record ? gradeSummary(record.counts).averageGpa : null;
   }

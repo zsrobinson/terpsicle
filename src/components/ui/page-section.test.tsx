@@ -50,3 +50,17 @@ describe("PageSection", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("PageSection at display size", () => {
+  it("sets a public page's section larger and roomier, still under a hairline", () => {
+    render(
+      <PageSection size="display" title="Reviews" aside="171">
+        <p>A review</p>
+      </PageSection>,
+    );
+    const heading = screen.getByRole("heading", { level: 2, name: "Reviews" });
+    expect(heading).toHaveClass("text-2xl", "font-semibold");
+    expect(heading.closest("section")).toHaveClass("border-t", "pt-6", "gap-4");
+    expect(screen.getByText("171")).toHaveClass("text-base");
+  });
+});

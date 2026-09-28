@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import type { Suggestion } from "~/core/reviews";
+import { courseSlug, instructorSlug, type Suggestion } from "~/core/reviews";
 import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
@@ -13,10 +13,11 @@ import { PAGE_ROW, ReviewsFrame, ROW_LINK } from "./frame";
 
 /** What the route's loader put in `notFound({ data })`. */
 export interface ReviewsNotFoundData {
+  what: "instructor" | "course";
   suggestions: Suggestion[];
 }
 
-function isSuggestions(data: unknown): data is ReviewsNotFoundData {
+function isNotFoundData(data: unknown): data is ReviewsNotFoundData {
   return (
     typeof data === "object" &&
     data !== null &&
@@ -24,17 +25,14 @@ function isSuggestions(data: unknown): data is ReviewsNotFoundData {
   );
 }
 
-export function ReviewsNotFound({
-  what,
-  data,
-}: {
-  what: "instructor" | "course";
-  data: unknown;
-}) {
-  const suggestions = isSuggestions(data) ? data.suggestions : [];
+export function ReviewsNotFound({ data }: { data: unknown }) {
+  const found = isNotFoundData(data) ? data : null;
+  const suggestions = found?.suggestions ?? [];
+  const what = found?.what ?? "instructor";
   return (
     <ReviewsFrame>
       <PageHeader
+        size="display"
         back={{ label: "Reviews", to: "/reviews" }}
         title={
           what === "instructor" ? "Instructor not found" : "Course not found"
@@ -46,13 +44,13 @@ export function ReviewsNotFound({
         }
       />
       {/* The same shape as every page we don't have: say so, then the way on. */}
-      <WithTooltip label="Search every UMD course">
-        <Button asChild className="w-fit">
-          <Link to="/reviews">Find a course</Link>
+      <WithTooltip label="Search every UMD instructor and course">
+        <Button asChild size="lg" className="w-fit">
+          <Link to="/reviews">Search reviews</Link>
         </Button>
       </WithTooltip>
       {suggestions.length > 0 ? (
-        <PageSection title="Did you mean">
+        <PageSection size="display" title="Did you mean">
           <ul>
             {suggestions.map((s) => (
               <ListRow
@@ -69,18 +67,23 @@ export function ReviewsNotFound({
                 >
                   {s.kind === "course" ? (
                     <Link
-                      to="/reviews/courses/$code"
-                      params={{ code: s.code }}
-                      className={cn(ROW_LINK, "font-medium hover:underline")}
+                      to="/reviews/$slug"
+                      params={{ slug: courseSlug(s.code) }}
+                      className={cn(
+                        ROW_LINK,
+                        "font-medium text-lg hover:underline",
+                      )}
                     >
                       {s.label}
                     </Link>
                   ) : (
                     <Link
-                      to="/reviews/instructors/$id"
-                      params={{ id: s.id }}
-                      search={{}}
-                      className={cn(ROW_LINK, "font-medium hover:underline")}
+                      to="/reviews/$slug"
+                      params={{ slug: instructorSlug(s.id) }}
+                      className={cn(
+                        ROW_LINK,
+                        "font-medium text-lg hover:underline",
+                      )}
                     >
                       {s.label}
                     </Link>
