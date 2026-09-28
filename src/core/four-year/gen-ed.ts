@@ -4,7 +4,7 @@ import type {
   FourYearEntry,
   FourYearTermStatus,
 } from "../schema/four-year";
-import type { FourYearCourses } from "./course-lookup";
+import { courseDetails, type FourYearCourses } from "./course-lookup";
 import { countedEntries } from "./credits";
 import type { StatusOf } from "./status";
 import { compareFourYearTerms } from "./terms";
@@ -187,7 +187,11 @@ function contributors(
       out.push({
         ...base,
         status: statusOf(entry.term),
-        groups: lookup.courses.get(entry.code)?.genEds ?? [],
+        groups:
+          lookup.courses.get(entry.code)?.genEds ??
+          // What the person said it covered: each one applies.
+          courseDetails(lookup, entry)?.genEds.map((code) => [{ code }]) ??
+          [],
         choices: entry.genEdChoices,
       });
     else if (entry.kind === "credit")

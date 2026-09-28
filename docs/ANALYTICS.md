@@ -62,6 +62,8 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signin_failed` | `reason` (a `SignInError` code) | Why sign-ins fail: personal accounts, other domains, cancels, Google errors. Sent from `/signin`. |
   | `push_enabled` | none | People turning on notifications on a device, from Settings. |
   | `push_disabled` | none | People turning them off there ("Turn off here"). |
+  | `calendar_feed_created` | none | People making their calendar feed link, from Settings (V2.md §6.7). Never the link. |
+  | `calendar_feed_reset` | none | People making a new link, which stops the old one. Never either link. |
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
   | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans and four-year plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names, courses or grades. |
   | `account_deletion_requested` | | How often people delete their account. |
@@ -83,6 +85,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `four_year_course_moved` | `via`: `drag` · `menu` | Whether drag is discovered, or people use "Move to…". |
   | `four_year_wildcard_added` / `four_year_wildcard_resolved` | `kind`: `pattern` · `gen-ed` | Whether placeholders earn their place. |
   | `four_year_problem_opened` / `four_year_problem_fix_applied` | `kind` (a `FourYearProblemKind`) | Whether prerequisite and credit problems help. |
+  | `four_year_details_saved` | `genEds`: how many GenEds it was given | How often people describe a course Testudo doesn't list anymore. Never the code, title or which GenEds. |
   | `four_year_handoff` | `outcome`: `created-plan` · `opened-plan` | Whether "View schedule" leads somewhere: `created-plan` when the scheduler bookmarks the semester's courses in a new (or still empty) plan, `opened-plan` when it opens the term's plan as it is. Never which courses. |
   | `cross_link_clicked` | `from`, `to` (product ids: `schedule`, `reviews`, `chat`, `plan`, `todo`) | Which "View …" links between products get followed (V3 §1.2): Plan → Schedule, Todo and Reviews; Schedule → Plan; Todo → Chat and Schedule; Reviews → Schedule. Never the course, term or item behind the link. |
   | `transcript_parsed` | `recognized`, and counts: `lines` read, `choices` waiting on an "or", `skipped` lines | How often pastes read, and how much fixing they need. Sent once a paste settles, never with its text. |

@@ -15,6 +15,7 @@ import {
 } from "~/core/four-year/terms";
 import { GEN_ED_LABELS, type TermId } from "~/core/schema";
 import {
+  type FourYearCourseEntry,
   type FourYearEntry,
   type FourYearTerm,
   type FourYearTermStatus,
@@ -162,7 +163,11 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
           <DropdownMenuItem
             onSelect={() => nav.go({ course: entry.code }, { drill: true })}
           >
-            About {entry.code}
+            {!isUnknownCourse(lookup, entry.code)
+              ? `About ${entry.code}`
+              : entry.details
+                ? "Edit course info"
+                : "Add course info"}
           </DropdownMenuItem>
         ) : null}
         {entry.kind === "course" && reviewsOn ? (
@@ -315,8 +320,9 @@ function range(min: number, max: number): number[] {
 }
 
 /** The second line: the catalog's title, or what we know instead. */
-function CourseTitle({ code }: { code: string }) {
+function CourseTitle({ entry }: { entry: FourYearCourseEntry }) {
   const { lookup } = useModel();
+  const { code } = entry;
   const failed = useCourseIndex(
     (s) => s.deptsState[code.slice(0, 4)] === "error",
   );
@@ -325,12 +331,15 @@ function CourseTitle({ code }: { code: string }) {
     return (
       <span className="block truncate text-muted text-sm">{course.title}</span>
     );
-  if (isUnknownCourse(lookup, code))
+  if (isUnknownCourse(lookup, code)) {
+    // The person's title, then the transcript's, then what's missing.
+    const title = entry.details?.title ?? entry.transcript?.title ?? null;
     return (
       <span className="block truncate text-muted text-sm">
-        Not in Testudo's course list
+        {title ?? "Not in Testudo's course list"}
       </span>
     );
+  }
   if (failed)
     return (
       <span className="block truncate text-muted text-sm">
@@ -379,7 +388,7 @@ export function EntryBlock({
             <span className="tnum text-muted">{creditsText}</span>
           </span>
         </span>
-        <CourseTitle code={entry.code} />
+        <CourseTitle entry={entry} />
       </>
     ) : entry.kind === "wildcard" ? (
       <>

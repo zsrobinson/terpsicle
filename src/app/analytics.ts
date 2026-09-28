@@ -117,6 +117,10 @@ export interface AnalyticsEvents {
   // Web push on a device (V2.md §11), from /settings/notifications.
   push_enabled: NoProperties;
   push_disabled: NoProperties;
+  // The calendar feed (V2.md §6.7), from /settings/notifications. Never the
+  // link or anything in it.
+  calendar_feed_created: NoProperties;
+  calendar_feed_reset: NoProperties;
   // Identity (V2.md §11). Never the user, their name, email or directory ID.
   signin_started: {
     from:
@@ -163,6 +167,7 @@ export interface AnalyticsEvents {
   four_year_wildcard_resolved: { kind: "pattern" | "gen-ed" };
   four_year_problem_opened: { kind: FourYearProblemKind };
   four_year_problem_fix_applied: { kind: FourYearProblemKind };
+  four_year_details_saved: { genEds: number };
   four_year_handoff: { outcome: "created-plan" | "opened-plan" };
   // Every "View …" link between products (V3.md §6): product ids only,
   // never the course, term or item it leads to.

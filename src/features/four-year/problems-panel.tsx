@@ -33,10 +33,16 @@ function Row({ problem }: { problem: FourYearProblem }) {
   const { doc } = useModel();
   const nav = usePlanNav();
   const [subject] = problem.subjects;
-  const term =
-    subject?.kind === "term"
-      ? subject.term
-      : doc.entries.find((e) => e.id === subject?.entryId)?.term;
+  const entry =
+    subject?.kind === "entry"
+      ? doc.entries.find((e) => e.id === subject.entryId)
+      : undefined;
+  const term = subject?.kind === "term" ? subject.term : entry?.term;
+  // A code Testudo dropped: its course info is in the course's drill-in.
+  const describe =
+    problem.kind === "unknown-course" && entry?.kind === "course"
+      ? entry.code
+      : null;
   return (
     <ListRow
       as="li"
@@ -57,18 +63,36 @@ function Row({ problem }: { problem: FourYearProblem }) {
       secondary={
         <>
           <MessageText message={problem.detail} />
-          {problem.fix ? (
-            <span className="mt-1.5 block">
-              <WithTooltip label="Undo takes it back">
-                <Button
-                  variant="outline"
-                  size="row"
-                  className="relative z-10"
-                  onClick={() => applyFix(doc, problem)}
+          {problem.fix || describe ? (
+            <span className="mt-1.5 flex flex-wrap gap-1.5">
+              {problem.fix ? (
+                <WithTooltip label="Undo takes it back">
+                  <Button
+                    variant="outline"
+                    size="row"
+                    className="relative z-10"
+                    onClick={() => applyFix(doc, problem)}
+                  >
+                    {problem.fix.label}
+                  </Button>
+                </WithTooltip>
+              ) : null}
+              {describe ? (
+                <WithTooltip
+                  label={`Say what ${describe} was: its title, credits and GenEds`}
                 >
-                  {problem.fix.label}
-                </Button>
-              </WithTooltip>
+                  <Button
+                    variant={problem.fix ? "ghost" : "outline"}
+                    size="row"
+                    className="relative z-10"
+                    onClick={() =>
+                      nav.go({ course: describe }, { drill: true })
+                    }
+                  >
+                    Add course info
+                  </Button>
+                </WithTooltip>
+              ) : null}
             </span>
           ) : null}
         </>

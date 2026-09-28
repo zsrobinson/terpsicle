@@ -369,6 +369,57 @@ describe("detectFourYearProblems", () => {
     });
   });
 
+  it("lets details answer a code Testudo doesn't have", () => {
+    const x = aFourYearEntry({
+      id: "entry_x",
+      code: "CMSC999",
+      term: "202601",
+      credits: 3,
+      details: { title: "Old topics course", genEds: [] },
+    });
+    expect(detectFourYearProblems(input([x]))).toEqual([]);
+    const [problem] = detectFourYearProblems(input([{ ...x, details: null }]));
+    expect(problem).toMatchObject({ kind: "unknown-course", fix: null });
+  });
+
+  it("offers an honors code Testudo dropped its base course's details", () => {
+    const withBase = fourYearCourses([
+      ...lookup.courses.values(),
+      aCourseIndexEntry({
+        code: "MATH241",
+        title: "Calculus III",
+        credits: { min: 4, max: 4 },
+        genEds: [[{ code: "FSAR" }], [{ code: "DSHS" }, { code: "DSHU" }]],
+        ...none,
+      }),
+    ]);
+    const entry = course("math241h", "MATH241H", "202601");
+    const [problem] = detectFourYearProblems(
+      input([entry], { lookup: withBase }),
+    );
+    expect(problem?.fix).toEqual({
+      kind: "details",
+      code: "MATH241H",
+      // Where Testudo says "or", the person picks: only one-option groups.
+      details: { title: "Calculus III", genEds: ["FSAR"] },
+      credits: 4,
+      label: "Count it as MATH241",
+    });
+    expect(FourYearProblemSchema.safeParse(problem).success).toBe(true);
+    if (!problem?.fix) throw new Error("no fix");
+    const fixed = applyFourYearFix(
+      aFourYear({ entries: [entry] }),
+      problem.fix,
+    );
+    expect(fixed.entries[0]).toMatchObject({
+      credits: 4,
+      details: { title: "Calculus III", genEds: ["FSAR"] },
+    });
+    expect(
+      detectFourYearProblems(input(fixed.entries, { lookup: withBase })),
+    ).toEqual([]);
+  });
+
   it("says when a planned course hasn't been offered lately", () => {
     const problems = detectFourYearProblems(
       input([course("498", "CMSC498A", "202701")]),
