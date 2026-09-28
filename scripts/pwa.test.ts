@@ -25,7 +25,7 @@ describe("the web app manifest (scripts/pwa-manifest.ts)", () => {
   const colors = themeColors(styles);
   const manifest = webManifest(colors);
 
-  it("installs Terpsicle for the whole site, opening the scheduler", () => {
+  it("installs Terpsicle for the whole site, opening Home", () => {
     expect(manifest).toMatchObject({
       id: "/",
       name: "Terpsicle",

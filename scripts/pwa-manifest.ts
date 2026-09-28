@@ -40,7 +40,9 @@ export function webManifest(colors: ThemeColors) {
     description:
       "Plan your UMD classes, read reviews, and chat with your classmates.",
     lang: "en",
-    start_url: "/schedule",
+    // PWA_START_URL (src/core/schema/pwa.ts; scripts/pwa.test.ts holds them
+    // together): Home. Installs made before keep "/schedule", still a page.
+    start_url: "/home",
     scope: "/",
     display: "standalone",
     // A manifest has one color; the head's theme-color tags follow the

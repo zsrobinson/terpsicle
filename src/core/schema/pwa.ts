@@ -161,9 +161,11 @@ export const SW_SKIP_WAITING_MESSAGE = "skip-waiting";
 
 /**
  * Where the installed app opens (the manifest's `start_url`), and where a
- * notification without a usable link goes.
+ * notification without a usable link goes: Home (`HOME_PATH`, docs/V3.md
+ * §1.5). Apps installed while it was `/schedule` keep opening there, which
+ * is still the scheduler.
  */
-export const PWA_START_URL = "/schedule";
+export const PWA_START_URL = "/home";
 
 /** Shown with every notification (scripts/build-icons.ts draws it). */
 export const NOTIFICATION_ICON = "/icons/icon-192.png";

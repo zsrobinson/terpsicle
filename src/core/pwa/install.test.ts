@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SCHEDULE_PATH } from "../routing";
+import { HOME_PATH } from "../routing";
 import {
   InstallPromptStateSchema,
   PushPayloadSchema,
@@ -239,7 +239,7 @@ describe("PushPayloadSchema", () => {
 });
 
 describe("PWA_START_URL", () => {
-  it("opens the installed app on the scheduler", () => {
-    expect(PWA_START_URL).toBe(SCHEDULE_PATH);
+  it("opens the installed app on Home", () => {
+    expect(PWA_START_URL).toBe(HOME_PATH);
   });
 });

@@ -46,6 +46,7 @@ export const DISALLOWED_PATHS: readonly string[] = [
   "/auth/",
   "/settings",
   "/signin",
+  "/home",
   "/chat",
   "/data/",
   "/ingest/",

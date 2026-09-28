@@ -6,8 +6,8 @@ import { SIGNIN_PATH } from "../schema/auth";
 /**
  * Pages whose clicks autocapture never reads: Chat (real names and
  * messages), Settings and sign-in (your name and email), Admin,
- * your own reviews, and Plan and Todo (grades, courses and due dates; V3.md
- * §6). Named events from `track()` still count there. Each covers everything
+ * your own reviews, Plan and Todo (grades, courses and due dates; V3.md
+ * §6), and Home, which shows a little of each. Named events from `track()` still count there. Each covers everything
  * below it (`/chat` covers `/chat/<term>/<course>/…`).
  */
 export const NO_AUTOCAPTURE_ROUTES = [
@@ -17,6 +17,8 @@ export const NO_AUTOCAPTURE_ROUTES = [
   "/reviews/mine",
   "/plan",
   "/todo",
+  // Home shows Todo's titles, your courses and rooms.
+  "/home",
   SIGNIN_PATH,
   "/auth",
 ] as const;

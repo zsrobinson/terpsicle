@@ -5,6 +5,12 @@
 /** The scheduler. Share links, deep links and emails all point here. */
 export const SCHEDULE_PATH = "/schedule";
 
+/**
+ * Home: where the installed app opens (the manifest's `start_url`), a few
+ * facts from each product. Hidden: no bar, menu or page links to it.
+ */
+export const HOME_PATH = "/home";
+
 /** The session cookie (docs/V2.md §4.3). `/` checks only that it's there. */
 export const SESSION_COOKIE = "__Host-session";
 

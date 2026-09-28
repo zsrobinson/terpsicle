@@ -22,7 +22,8 @@ export type SignInFrom =
   | "reviews"
   | "chat"
   | "todo"
-  | "seat-watch";
+  | "seat-watch"
+  | "home";
 
 /** Where a sign-in should come back to: this page. */
 export function currentPath(): string {

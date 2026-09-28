@@ -1,0 +1,28 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { initAnalytics } from "~/app/analytics";
+import { HomePage } from "~/features/home/home-page";
+
+// Home (docs/V3.md §1.5): the installed app's start page (the manifest's
+// `start_url`), a few facts from each product. Hidden: no bar, menu or page
+// links here, and crawlers are told to skip it. It reads this device's
+// plans and the account's data, so it renders only in the browser.
+export const Route = createFileRoute("/home")({
+  ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Home · Terpsicle" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: HomeRoute,
+});
+
+function HomeRoute() {
+  // Counted like the products' pages; autocapture stays off here
+  // (~/core/analytics): Todo's titles and your courses show.
+  useEffect(() => {
+    void initAnalytics();
+  }, []);
+  return <HomePage />;
+}
