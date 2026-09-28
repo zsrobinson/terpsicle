@@ -120,7 +120,31 @@ function Row({
         </span>
       }
       trail={
-        <span className="flex items-center gap-0.5 pt-0.5">
+        bell ? (
+          <span className="flex items-center pt-0.5">
+            <SeatBell
+              termId={termId}
+              sectionKey={ref.key}
+              compact
+              full={counts?.open === 0}
+            />
+          </span>
+        ) : undefined
+      }
+    >
+      {/* Seats sit on the codes' line, so the backup below gets the row's
+          width ("Full · 14 waitlisted" beside it cut the instructor off). */}
+      <span className="flex items-baseline gap-2">
+        <span
+          className={cn(
+            "-ml-1 flex items-baseline font-semibold text-base",
+            done && "text-muted",
+          )}
+        >
+          <CopyCode code={ref.course.code} what="course" />
+          <CopyCode code={ref.section.code} what="section" />
+        </span>
+        <span className="ml-auto shrink-0">
           {done ? (
             <span className="flex items-center gap-1 text-muted text-sm">
               <Check size={13} aria-hidden="true" />
@@ -129,25 +153,7 @@ function Row({
           ) : (
             <SeatMeter seats={seats} sectionKey={ref.key} meter={false} />
           )}
-          {bell ? (
-            <SeatBell
-              termId={termId}
-              sectionKey={ref.key}
-              compact
-              full={counts?.open === 0}
-            />
-          ) : null}
         </span>
-      }
-    >
-      <span
-        className={cn(
-          "-ml-1 flex items-baseline font-semibold text-base",
-          done && "text-muted",
-        )}
-      >
-        <CopyCode code={ref.course.code} what="course" />
-        <CopyCode code={ref.section.code} what="section" />
       </span>
       <div className="truncate text-muted text-sm">
         {ref.course.sections.length === 1 ? (
