@@ -119,20 +119,21 @@
    *   shadow-pop            menus, popovers, toasts (3px)
    *   shadow-drawer         the phone drawer's top edge
    */
-  --shadow-offset: var(--offset) var(--offset) 0 var(--offset-ink);
-  --shadow-offset-filled: var(--offset) var(--offset) 0 var(--offset-ink-filled);
-  --shadow-pop: calc(var(--offset) + 1px) calc(var(--offset) + 1px) 0
+  --shadow-offset: var(--ink-offset) var(--ink-offset) 0 var(--offset-ink);
+  --shadow-offset-filled: var(--ink-offset) var(--ink-offset) 0
+    var(--offset-ink-filled);
+  --shadow-pop: calc(var(--ink-offset) + 1px) calc(var(--ink-offset) + 1px) 0
     var(--offset-ink);
-  --shadow-drawer: 0 calc(-1 * var(--offset)) 0 var(--offset-ink);
+  --shadow-drawer: 0 calc(-1 * var(--ink-offset)) 0 var(--offset-ink);
   --shadow-2xs: 1px 1px 0 var(--offset-ink);
   --shadow-xs: 1px 1px 0 var(--offset-ink);
-  --shadow-sm: var(--offset) var(--offset) 0 var(--offset-ink);
-  --shadow-md: var(--offset) var(--offset) 0 var(--offset-ink);
-  --shadow-lg: calc(var(--offset) + 1px) calc(var(--offset) + 1px) 0
+  --shadow-sm: var(--ink-offset) var(--ink-offset) 0 var(--offset-ink);
+  --shadow-md: var(--ink-offset) var(--ink-offset) 0 var(--offset-ink);
+  --shadow-lg: calc(var(--ink-offset) + 1px) calc(var(--ink-offset) + 1px) 0
     var(--offset-ink);
-  --shadow-xl: calc(var(--offset) + 1px) calc(var(--offset) + 1px) 0
+  --shadow-xl: calc(var(--ink-offset) + 1px) calc(var(--ink-offset) + 1px) 0
     var(--offset-ink);
-  --shadow-2xl: calc(var(--offset) + 1px) calc(var(--offset) + 1px) 0
+  --shadow-2xl: calc(var(--ink-offset) + 1px) calc(var(--ink-offset) + 1px) 0
     var(--offset-ink);
 }
 
@@ -236,8 +237,13 @@
   --shared-soft: #ffe1d5; /* red-50 */
   --grid: #e6e4d9; /* base-100 */
 
-  /* Offsets: 2px of ink; an ink-filled box takes a gray one instead. */
-  --offset: 2px;
+  /*
+   * Offsets: 2px of ink; an ink-filled box takes a gray one instead. Not
+   * `--offset`: the shadow utilities read this where they're used, and
+   * sonner sets its own `--offset` on every toast (its place in the stack),
+   * which drew a dark bar under the front toast when three stacked.
+   */
+  --ink-offset: 2px;
   --offset-ink: #100f0f; /* black */
   --offset-ink-filled: #878580; /* base-500 */
 

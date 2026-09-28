@@ -598,6 +598,11 @@ describe("a course's page", () => {
     const form = await screen.findByRole("form", { name: "Write a review" });
     expect(within(form).getByText(/Ada Brandt/)).toBeInTheDocument();
     expect(within(form).getByLabelText("Your review")).toBeInTheDocument();
+    // The form can be a screen below the menu: focus goes to it, not back
+    // to the menu's button (which scrolled the page back up).
+    await waitFor(() =>
+      expect(form.contains(document.activeElement)).toBe(true),
+    );
   });
 
   it("asks you to sign in right after you pick, when you aren't", async () => {

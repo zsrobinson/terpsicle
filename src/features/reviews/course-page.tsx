@@ -295,6 +295,9 @@ function WriteMenu({
   onWrite: (name: string) => void;
 }) {
   const signedIn = useSignedIn();
+  // A pick opens the form a screen away and focuses it there; the menu
+  // mustn't hand focus back to its button, which scrolled back up to it.
+  const picked = useRef(false);
   if (signedIn === "loading") return null;
   return (
     <DropdownMenu>
@@ -307,12 +310,22 @@ function WriteMenu({
           </Button>
         </DropdownMenuTrigger>
       </WithTooltip>
-      <DropdownMenuContent align="end" className="max-h-80">
+      <DropdownMenuContent
+        align="end"
+        className="max-h-80"
+        onCloseAutoFocus={(event) => {
+          if (picked.current) event.preventDefault();
+          picked.current = false;
+        }}
+      >
         <DropdownMenuLabel>Who taught you?</DropdownMenuLabel>
         {rows.map((row) => (
           <DropdownMenuItem
             key={row.id ?? row.name}
-            onSelect={() => onWrite(row.name)}
+            onSelect={() => {
+              picked.current = true;
+              onWrite(row.name);
+            }}
           >
             {row.name}
             {row.teaching && term ? (
@@ -347,9 +360,15 @@ function InstructorRow({
 }) {
   const signedIn = useSignedIn();
   const formRef = useRef<HTMLDivElement>(null);
-  // The header's menu can be a screen away: bring the form to it.
+  // The header's menu can be a screen away: bring the form to it, and
+  // focus its first control (the rating, or Sign in).
   useEffect(() => {
-    if (writing) formRef.current?.scrollIntoView?.({ block: "center" });
+    if (!writing) return;
+    const form = formRef.current;
+    form?.scrollIntoView?.({ block: "center" });
+    form
+      ?.querySelector<HTMLElement>("input, textarea, select, button, a[href]")
+      ?.focus({ preventScroll: true });
   }, [writing]);
   const target: ComposerTarget = {
     instructorId: row.id,

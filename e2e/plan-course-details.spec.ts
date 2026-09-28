@@ -74,7 +74,7 @@ test("a course Testudo dropped gets its course info, from its base course or by 
     .getByRole("button", { name: "Add course info" })
     .click();
   const form = page.getByRole("form", { name: "Add course info" });
-  await expect(form.getByLabel("Title")).toHaveValue("OLD TOPICS SEMINAR");
+  await expect(form.getByLabel("Title")).toHaveValue("Old Topics Seminar");
   await expect(form.getByLabel("Credits")).toHaveValue("3");
   await form.getByLabel("Title").fill("Old Topics Seminar");
   await form.getByRole("button", { name: /^DSHU/ }).click();

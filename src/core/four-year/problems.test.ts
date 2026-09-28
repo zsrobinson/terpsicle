@@ -433,7 +433,7 @@ describe("detectFourYearProblems", () => {
       kind: "unmatched-credit",
       severity: "info",
       id: "unmatched-credit:entry_chem",
-      title: [{ kind: "text", text: "AP CHEMISTRY came in as CHEM 1XX" }],
+      title: [{ kind: "text", text: "AP Chemistry came in as CHEM 1XX" }],
       fix: null,
     });
     expect(problem?.detail[0]).toMatchObject({

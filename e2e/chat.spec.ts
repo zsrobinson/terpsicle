@@ -215,12 +215,16 @@ test("two classmates talk in their section's room", async ({
   await signIn(classmate.page, "Test Classmate", "/chat");
   await syncPlan(classmate.page, "tclassmate");
 
-  // The list: your classes, grouped by course, with your rooms.
+  // The list: your classes, grouped by course, with your rooms. A fresh
+  // account's first list is several round trips in a row (the session, the
+  // synced plans, unread counts, the term's manifest, then the course's
+  // department file), which
+  // on a busy CI dev server can take longer than one expect's 5 seconds.
   await page.goto("/chat");
   const rooms = page.getByRole("navigation", { name: "Rooms" });
   await expect(
     rooms.getByRole("listitem").filter({ hasText: course }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
   await rooms
     .getByRole("listitem")
     .filter({ hasText: course })

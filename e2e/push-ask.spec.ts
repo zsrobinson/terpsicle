@@ -201,32 +201,23 @@ test.describe("on iPhone", () => {
         get: () => true,
       }),
     );
-    // Signing in syncs: its first push is the device's first sign-in.
-    const firstPush = page.waitForResponse((response) =>
-      response.url().endsWith("/api/sync/push"),
-    );
     await signInNew(page, "/schedule");
     const sheet = page.getByRole("dialog", { name: "Turn on notifications" });
     await expect(sheet).toBeVisible({ timeout: 15_000 });
     await expect(sheet).toContainText(
       "Turn on notifications. iPhone asks you to allow them.",
     );
-    // When that push carried the scheduler's own Plan A (made before or after
-    // signing in, whichever came first), its toast fades in about when the
-    // sheet does, and axe reads a toast mid-fade as low contrast: the scan
-    // waits for it to arrive.
-    const pushed = (await (await firstPush).json()) as {
-      results: { kind: string }[];
-    };
-    if (pushed.results.some((result) => result.kind === "plan")) {
-      const saved = liveToasts(page).filter({
-        hasText: "Your plan is saved to your account",
-      });
-      await expect(saved).toBeVisible();
-      await expect
-        .poll(() => saved.evaluate((toast) => getComputedStyle(toast).opacity))
-        .toBe("1");
-    }
+    // Signing in joins the scheduler's own Plan A to the account (sync waits
+    // for the term list, so Plan A is there by then), and its toast fades in
+    // about when the sheet does. Axe reads a toast mid-fade as low contrast:
+    // the scan waits for it to arrive.
+    const saved = liveToasts(page).filter({
+      hasText: "Your plan is saved to your account",
+    });
+    await expect(saved).toBeVisible();
+    await expect
+      .poll(() => saved.evaluate((toast) => getComputedStyle(toast).opacity))
+      .toBe("1");
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
       await scan(page, `the Home Screen ask (${colorScheme})`);

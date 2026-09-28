@@ -478,6 +478,30 @@ describe("the palette", () => {
     }
   });
 
+  it("names no token after a variable sonner sets on each toast", () => {
+    // `@theme inline` resolves a shadow's var() where the class is used, so a
+    // token sharing a name with sonner's per-toast `--offset` (its place in
+    // the stack) drew a dark bar under the front toast when three stacked.
+    const SONNER = [
+      "offset",
+      "gap",
+      "width",
+      "index",
+      "z-index",
+      "lift",
+      "lift-amount",
+      "scale",
+      "initial-height",
+      "front-toast-height",
+      "toasts-before",
+      "mobile-offset",
+      "swipe-amount-x",
+      "swipe-amount-y",
+    ];
+    const used = [...STYLES.matchAll(/var\(--([\w-]+)\)/g)].map((m) => m[1]);
+    expect(used.filter((name) => SONNER.includes(name ?? ""))).toEqual([]);
+  });
+
   it("draws keylines and offsets that stand off the page (3:1)", () => {
     expect(
       lowContrast(

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef } from "react";
 import { track } from "~/app/analytics";
 import { modKey } from "~/app/shortcuts";
 import { useIsMobile } from "~/app/use-media-query";
+import { displayTitle } from "~/core/four-year/display-title";
 import { fourYearTermLabel } from "~/core/four-year/terms";
 import {
   buildTranscriptImport,
@@ -230,7 +231,8 @@ function Row({
   const { line } = row;
   const included = rowIncluded(row, checks);
   const code = rowCode(row, checks);
-  const name = line.code ?? line.title;
+  const title = displayTitle(line.title);
+  const name = line.code ?? title;
   const catalog = line.code ? search?.get(line.code) : undefined;
   const unknown = line.code !== null && search !== null && !catalog;
   const catalogTitle = catalog?.[1] ?? null;
@@ -269,7 +271,7 @@ function Row({
               line.code !== null && "ident",
             )}
           >
-            {line.code ?? line.title}
+            {line.code ?? title}
           </span>
           {kind ? (
             <span className="shrink-0 border border-hairline px-1 text-2xs text-muted">
@@ -288,10 +290,12 @@ function Row({
         {line.code !== null ? (
           <>
             <p className="truncate text-muted text-sm">
-              {catalogTitle ?? line.title}
+              {catalogTitle ?? title}
             </p>
-            {catalogTitle ? (
-              <p className="truncate text-faint text-xs">{line.title}</p>
+            {/* The transcript's own words, when they say something else. */}
+            {catalogTitle &&
+            catalogTitle.toLowerCase() !== title.toLowerCase() ? (
+              <p className="truncate text-faint text-xs">{title}</p>
             ) : null}
           </>
         ) : null}
@@ -316,7 +320,7 @@ function Row({
                 key={g}
                 row={row}
                 group={g}
-                name={code ?? line.title}
+                name={code ?? title}
                 checks={checks}
                 onChoose={(c) => onChoose(g, c)}
               />

@@ -6,6 +6,7 @@ import {
   CREDITS_GOAL_TOOLTIP,
   creditsHeadline,
 } from "~/core/four-year/credits";
+import { displayTitle } from "~/core/four-year/display-title";
 import { WithTooltip } from "~/ui/tooltip";
 import { CoursePanel } from "./course-panel";
 import { CreditPanel } from "./credit-panel";
@@ -145,13 +146,19 @@ export function PlanSidebarContent({
       ) : credit ? (
         <section
           aria-label={
-            creditEntry?.kind === "credit" ? creditEntry.title : "Credit"
+            creditEntry?.kind === "credit"
+              ? displayTitle(creditEntry.title)
+              : "Credit"
           }
           className="flex min-h-0 flex-1 flex-col"
         >
           <DrillBackBar
             back={back}
-            name={creditEntry?.kind === "credit" ? creditEntry.title : "Credit"}
+            name={
+              creditEntry?.kind === "credit"
+                ? displayTitle(creditEntry.title)
+                : "Credit"
+            }
             onBack={() => nav.back(CLOSE_DRILL)}
           />
           <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
