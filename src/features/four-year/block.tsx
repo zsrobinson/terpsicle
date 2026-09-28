@@ -189,6 +189,9 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
               nav.go({
                 tab: "search",
                 wildcard: entry.id,
+                gened: undefined,
+                credits: undefined,
+                level: undefined,
                 semester: entry.term,
                 course: undefined,
                 q: undefined,
@@ -467,6 +470,9 @@ export function EntryBlock({
               nav.go({
                 tab: "search",
                 wildcard: entry.id,
+                gened: undefined,
+                credits: undefined,
+                level: undefined,
                 semester: entry.term,
                 course: undefined,
                 q: undefined,

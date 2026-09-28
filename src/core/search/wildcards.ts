@@ -1,10 +1,16 @@
 import { KNOWN_GEN_EDS, padPattern, parseWildcard } from "../catalog/wildcard";
-import type { Course, DeptCode, GenEdCode, Wildcard } from "../schema";
+import type {
+  Course,
+  CourseSearchRow,
+  DeptCode,
+  GenEdCode,
+  Wildcard,
+} from "../schema";
 
 // Wildcards as search suggestions (Generate's course field): "CMSC4XX" and
 // "DSHS" suggest themselves first, and a department on its own, or with one
 // digit, suggests its pattern last ("CMSC4" → Any CMSC 400-level), which is
-// how people find out patterns exist. A near miss ("CMSC4X") gets a hint.
+// how people find out patterns exist. A near miss ("CMSC4X1") gets a hint.
 
 export type WildcardSearchInfo = {
   /** Departments with courses this term. */
@@ -23,6 +29,19 @@ export function wildcardSearchInfo(
     depts.add(course.code.slice(0, 4));
     for (const group of course.genEds)
       for (const o of group) genEds.add(o.code);
+  }
+  return { depts, genEds: [...genEds] };
+}
+
+/** The same from the course index's search rows (Plan: every term's courses). */
+export function wildcardSearchInfoFromRows(
+  rows: Iterable<CourseSearchRow>,
+): WildcardSearchInfo {
+  const depts = new Set<DeptCode>();
+  const genEds = new Set<GenEdCode>(KNOWN_GEN_EDS);
+  for (const [code, , , , codes] of rows) {
+    depts.add(code.slice(0, 4));
+    for (const c of codes) genEds.add(c);
   }
   return { depts, genEds: [...genEds] };
 }

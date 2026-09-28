@@ -194,8 +194,23 @@ Revisit if: signed-out people ask for it.
 
 ### Wildcards, one matcher
 2026-09-26 · owner · one feature
-Generate and Plan take `CMSC4XX`-style patterns and GenEd wildcards ("any DSHS"), through one shared matcher in core.
+Generate and Plan take `CMSC4XX`-style patterns and GenEd wildcards ("any DSHS"), through one shared matcher in core. (changed 2026-09-28: every course search box reads patterns through it too, and a short one is a prefix, so "cmsc4x" is CMSC4XX; owner: "x's should be treated like wildcards".)
 Revisit if: a third product needs them differently.
+
+### One course search in every product
+2026-09-28 · owner · app-wide
+"Course search bars should be unified somehow … so that familiarity carries over." Schedule's Search, Plan's Search and Generate's course field share one engine, box, chip line, result row and set of keys; each matches on the data it has loaded and says nothing about what it lacks. A new course search starts from `CourseSearchField` and `CourseResultRow`.
+Revisit if: a product needs a search people use differently (Reviews and Chat's finders are next to move onto it).
+
+### Filter tokens need no prefix, and only name chips
+2026-09-28 · agent · one feature
+A GenEd, a level ("400s") or credits ("3cr") typed in a course search becomes its chip on space or Enter, with no `is:` or `#` to learn (the owner asked for "DSNS" as typed). So only words that can't be a title's are tokens: GenEd codes that aren't departments, and numbers with their unit. "open" and "online" stay text, since titles use them.
+Revisit if: people type a token by accident, or ask for Open seats and Fits my plan by typing.
+
+### Sorting uses only what's loaded
+2026-09-28 · agent · one feature
+Search sorts by instructor rating and open seats with the seats file and whichever departments' PlanetTerp files are already loaded, never a fetch per row or per department (owner: "not extra network calls"). The rating option says how many departments it knows, and unrated courses go last.
+Revisit if: people sort by rating often and find it thin; a small all-departments ratings file would fix it.
 
 ### Generate starts with the open plan's courses
 2026-09-27 · agent · one feature
