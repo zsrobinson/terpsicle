@@ -1,5 +1,5 @@
 // Identity's JSON routes (V2.md §4.7, §4.9), registered in
-// src/server/api/router.ts like every other `POST /api/<name>`:
+// ./api-routes.ts like every other area's `POST /api/<name>`:
 //
 //   me                  who's signed in, and what's on (refreshes the session)
 //   auth/sign-out       ends this device's session

@@ -1,5 +1,5 @@
-// Notifications' routes (V2.md §6.3), registered in src/server/api/router.ts,
-// all `auth: "user"`:
+// Notifications' routes (V2.md §6.3), registered in ./api-routes.ts
+// and ../push/api-routes.ts, all `auth: "user"`:
 //
 //   push/subscribe               save this device's push subscription
 //   push/unsubscribe             forget it (turning push off here)

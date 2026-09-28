@@ -30,7 +30,7 @@ Before you write infrastructure (routing, URL or state sync, lazy loading, cachi
 ## Where things go
 - Domain logic → `src/core`: small, pure, exported functions with tests next to them. No DOM, no fetch, no `Date.now()` (take time as an argument).
 - Data sources → `src/ingest`: platform-agnostic, takes `fetch` and a `BlobStore`. Every parser has golden tests on saved real pages.
-- Cron handlers → `src/jobs`. Server fns, D1, email and LLM → `src/server/<area>` (`auth`, `sync`, `push`, `notifications`, `alerts`, `reviews`, `summaries`, `chat`, `moderation`, `feedback`, `admin`, `calendar`, `todo`, `security`, `seo`, `pages`), with pure logic in the matching `src/core/<area>`. The JSON API's route table is `src/server/api`; the browser's typed client for it is `src/server/fns`.
+- Cron handlers → `src/jobs`. Server fns, D1, email and LLM → `src/server/<area>` (`auth`, `sync`, `push`, `notifications`, `alerts`, `reviews`, `summaries`, `chat`, `moderation`, `feedback`, `admin`, `calendar`, `todo`, `security`, `seo`, `pages`), with pure logic in the matching `src/core/<area>`. The JSON API's routes live in each area's `src/server/<area>/api-routes.ts`, composed and run by `src/server/api/router.ts`; the browser's typed client for it is `src/server/fns`.
 - UI → routes in `src/routes`, features in `src/features/<feature>/`, the scheduler shell in `src/app/`. Components stay thin: read state, call core, render.
 - Mock data → `src/fixtures` builders (`aCourse`, `aSection`, `aPlan`, …). Don't hand-roll fixtures in tests when a builder exists.
 - `reference/` is read-only: never import from it; it's excluded from build, lint and tests.
