@@ -353,7 +353,11 @@ function HitRow({ hit }: { hit: Hit }) {
     );
   if (hit.kind === "course")
     return (
-      <span className="flex min-w-0 flex-1 items-baseline gap-2">
+      // Grows into the course page's header (~/lib/view-transition).
+      <span
+        data-vt-course={hit.code}
+        className="flex min-w-0 flex-1 items-baseline gap-2"
+      >
         <span className="ident shrink-0 font-medium">{hit.code}</span>
         <span className="truncate text-base text-muted">{hit.title}</span>
       </span>
