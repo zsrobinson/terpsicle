@@ -85,11 +85,10 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   isMobile,
 }) => {
   await signIn(page);
-  // The paste is in ELMS's settings, at the top of the sidebar (the
-  // drawer's, on a phone).
-  const elms = page.getByRole("region", { name: "ELMS" });
-  await elms.getByRole("button", { name: "Connect" }).click();
-  const connect = page.getByRole("dialog", { name: "Connect ELMS" });
+  // The paste is in the bar's sync, by the bell.
+  const elms = page.getByRole("banner");
+  await elms.getByRole("button", { name: "Sync" }).click();
+  const connect = page.getByRole("dialog", { name: "Sync" });
   await connect
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));

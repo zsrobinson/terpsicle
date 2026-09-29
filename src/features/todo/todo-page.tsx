@@ -25,6 +25,7 @@ import {
 } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { useSignInAction } from "~/features/auth/sign-in-panel";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import {
   ComingSoonPage,
   SiteHeader,
@@ -42,7 +43,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { WeekAgenda, WeekGrid } from "./calendar";
 import { startTask } from "./composer";
 import { todoCourseColors, useSchedulerCourses } from "./course-colors";
-import { ElmsSheet } from "./elms";
+import { SyncLine, SyncSheet, TodoSyncButton } from "./elms";
 import { SamplePreview } from "./sample";
 import {
   type CourseRow,
@@ -386,8 +387,8 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
       onHide,
       courses: taskCourses,
       colors,
-      hasFileItems: items.some((i) => i.source === "file"),
     },
+    hasFileItems: items.some((i) => i.source === "file"),
   };
 }
 
@@ -444,6 +445,9 @@ function TodoCanvas({
   if (mobile)
     return (
       <>
+        {/* Connecting ELMS asks for reminders (V2 §6.7): over the week on
+            a phone, where the drawer at rest wouldn't show it. */}
+        <PushAskCard moment="todo-connected" className="m-3" />
         {hint ? <div className="p-3">{hint}</div> : null}
         <WeekAgenda anchor={anchor} props={week.props} />
       </>
@@ -508,7 +512,22 @@ function TodoWorkbench({
       }
       bar={
         <SiteHeader
-          context={signedIn ? <TodoBarContext anchor={anchor} /> : undefined}
+          context={
+            signedIn ? (
+              <TodoBarContext
+                anchor={anchor}
+                status={<SyncLine now={week.props.now} />}
+              />
+            ) : undefined
+          }
+          status={
+            signedIn ? (
+              <TodoSyncButton
+                hasFileItems={week.hasFileItems}
+                now={week.props.now}
+              />
+            ) : undefined
+          }
         />
       }
       rail={null}
@@ -543,8 +562,8 @@ function TodoWorkbench({
           <>
             <Shortcuts anchor={anchor} />
             {mobile ? (
-              <ElmsSheet
-                hasFileItems={week.sidebar.hasFileItems}
+              <SyncSheet
+                hasFileItems={week.hasFileItems}
                 now={week.props.now}
               />
             ) : null}

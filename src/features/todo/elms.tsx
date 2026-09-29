@@ -1,15 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import { RefreshCw, Settings2 } from "lucide-react";
-import type { ReactNode } from "react";
-import { PanelNote } from "~/components/panel";
+import {
+  CloudAlert,
+  CloudCheck,
+  CloudOff,
+  CloudUpload,
+  RefreshCw,
+} from "lucide-react";
 import { feedWords } from "~/core/todo";
 import { relativeWords } from "~/core/words";
-import { usePushAskCard } from "~/features/notifications/push-ask";
-import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { Button } from "~/ui/button";
-import { PageHeader } from "~/ui/page-header";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { Sheet, SheetTitle } from "~/ui/sheet";
 import { WithTooltip } from "~/ui/tooltip";
@@ -18,11 +19,12 @@ import { TODO_CONNECT_PATH } from "./todo-bar";
 import { useTodo } from "./todo-store";
 import { openElmsSettings, useTodoWorkbench } from "./workbench-store";
 
-// ELMS in Todo's sidebar (the owner, 2026-09-29): its first part, as Chat's
-// "Your classes" is, before the sections: "ELMS synced 3 minutes ago", and a
-// settings icon at its right that opens a small popover (a sheet on a
-// phone) to sync now or change the link. With no link yet, the line asks
-// for one and the same popover takes the paste.
+// Todo's sync, in the family bar (the owner, 2026-09-29): "ELMS synced 3
+// minutes ago" under the week's dates, and the app's sync cloud beside the
+// bell, as Schedule's plan sync is. Todo syncs two ways, with ELMS and with
+// our own server (your tasks and checks), so the cloud's popover (a sheet
+// on a phone) says when each last synced, has Sync now, and takes a new
+// ELMS link, or the first one.
 
 const TEXT_LINK =
   "text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg";
@@ -30,32 +32,69 @@ const TEXT_LINK =
 const TOO_SOON = "ELMS was synced in the last 5 minutes.";
 const NO_ANSWER = "ELMS didn't answer. We'll try again in 20 minutes.";
 
-/** The popover's title and the name of its button. */
-const SETTINGS = "ELMS settings";
+/** The cloud's name, and its popover's. */
+export const SYNC_NAME = "Sync";
 
-/** Sync now, with what it last said. */
+/** How Todo's sync is doing, for the bar's line and its cloud. */
+type SyncState = "loading" | "syncing" | "none" | "broken" | "stale" | "ok";
+
+function useSyncState(now: number): { state: SyncState; line: string } {
+  const feed = useTodo((s) => s.feed);
+  const ready = useTodo((s) => s.phase === "ready");
+  const busy = useTodo((s) => s.refreshing || s.syncing);
+  const words = feedWords(feed, now);
+  if (!ready) return { state: "loading", line: "Loading your deadlines…" };
+  if (busy) return { state: "syncing", line: "Syncing ELMS…" };
+  if (!feed) return { state: "none", line: "ELMS isn't connected" };
+  if (feed.status === "broken")
+    return { state: "broken", line: "ELMS stopped sharing your calendar" };
+  if (words.problem)
+    return { state: "stale", line: "ELMS didn't answer the last try" };
+  return { state: "ok", line: words.synced ?? "ELMS is connected" };
+}
+
+/** The bar's line under the week: "ELMS synced 3 minutes ago". */
+export function SyncLine({ now }: { now: number }) {
+  const { line } = useSyncState(now);
+  return (
+    <span role="status" className="tnum truncate">
+      {line}
+    </span>
+  );
+}
+
+const ICONS: Record<SyncState, typeof CloudCheck> = {
+  loading: CloudUpload,
+  syncing: CloudUpload,
+  none: CloudOff,
+  broken: CloudAlert,
+  stale: CloudAlert,
+  ok: CloudCheck,
+};
+
+/** Sync now, with what ELMS last said. */
 function SyncNow() {
-  const refresh = useTodo((s) => s.refresh);
-  const refreshing = useTodo((s) => s.refreshing);
+  const syncNow = useTodo((s) => s.syncNow);
+  const busy = useTodo((s) => s.refreshing || s.syncing);
   const note = useTodo((s) => s.refreshNote);
   return (
     <>
-      <WithTooltip label="Read your ELMS calendar again now">
+      <WithTooltip label="Read ELMS and your account's tasks again now">
         <Button
           variant="outline"
           size="sm"
           className="shrink-0"
-          disabled={refreshing}
-          onClick={() => void refresh()}
+          disabled={busy}
+          onClick={() => void syncNow()}
         >
           <RefreshCw
             aria-hidden="true"
             className={cn(
               "size-3.5",
-              refreshing && "animate-spin motion-reduce:animate-none",
+              busy && "animate-spin motion-reduce:animate-none",
             )}
           />
-          {refreshing ? "Syncing…" : "Sync now"}
+          {busy ? "Syncing…" : "Sync now"}
         </Button>
       </WithTooltip>
       {note ? (
@@ -67,8 +106,18 @@ function SyncNow() {
   );
 }
 
-/** What's in the popover: the link's state, Sync now, and a new link. */
-function ElmsSettings({
+/** One of the two syncs: what it is, and when it last synced. */
+function SyncRow({ name, words }: { name: string; words: string }) {
+  return (
+    <p className="flex items-baseline gap-2">
+      <span className="emph-label w-24 shrink-0">{name}</span>
+      <span className="emph-secondary min-w-0">{words}</span>
+    </p>
+  );
+}
+
+/** The popover's body: each sync, Sync now, and ELMS's link. */
+function SyncSettings({
   hasFileItems,
   now,
   onDone,
@@ -78,7 +127,19 @@ function ElmsSettings({
   onDone: () => void;
 }) {
   const feed = useTodo((s) => s.feed);
+  const listedAt = useTodo((s) => s.listedAt);
   const words = feedWords(feed, now);
+  const ours =
+    listedAt === null
+      ? "Not read yet"
+      : `Up to date ${relativeWords(listedAt, now)}`;
+  const elms = !feed
+    ? "Not connected"
+    : feed.status === "broken"
+      ? "Stopped sharing your calendar"
+      : feed.lastSuccessAt
+        ? `Synced ${relativeWords(feed.lastSuccessAt, now)}`
+        : "Connected. We haven't read it yet.";
   const manage = (
     <WithTooltip label="Disconnect ELMS, or add a calendar file">
       <Link to={TODO_CONNECT_PATH} className={TEXT_LINK}>
@@ -86,54 +147,52 @@ function ElmsSettings({
       </Link>
     </WithTooltip>
   );
-  if (!feed)
-    return (
-      <div className="flex flex-col gap-3 text-sm">
-        <p className="emph-secondary">
-          {hasFileItems
-            ? "Some deadlines came from a file. Connect ELMS to keep them up to date."
-            : "Your assignments and quizzes show up on their due dates, and stay up to date."}
-        </p>
-        <ConnectSteps />
-        <ConnectForm stacked onConnected={onDone} />
-        <p>{manage}</p>
-      </div>
-    );
-  if (feed.status === "broken")
-    return (
-      <div className="flex flex-col gap-3 text-sm">
-        <p>{words.problem}</p>
-        <ConnectSteps />
-        <ConnectForm
-          stacked
-          submitLabel="Save the new link"
-          onConnected={onDone}
-        />
-        <p>{manage}</p>
-      </div>
-    );
   return (
     <div className="flex flex-col gap-3 text-sm">
+      <div role="status" className="flex flex-col gap-1">
+        <SyncRow name="ELMS" words={elms} />
+        <SyncRow name="Your tasks" words={ours} />
+        {feed && feed.status !== "broken" && words.problem ? (
+          <p className="emph-secondary">{words.problem}</p>
+        ) : null}
+      </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <p role="status" className="min-w-0 flex-1">
-          {feed.lastSuccessAt
-            ? `Synced ${relativeWords(feed.lastSuccessAt, now)}.`
-            : "Connected. We haven't read it yet."}
-          {words.problem ? (
-            <span className="emph-secondary"> {words.problem}</span>
-          ) : null}
-        </p>
         <SyncNow />
       </div>
       <div className="flex flex-col gap-2 border-hairline border-t pt-3">
-        <p className="emph-secondary">
-          Reset your link in ELMS? Paste the new one here.
-        </p>
-        <ConnectForm
-          stacked
-          submitLabel="Save the new link"
-          onConnected={onDone}
-        />
+        {!feed ? (
+          <>
+            <p className="emph-heading">Connect ELMS</p>
+            <p className="emph-secondary">
+              {hasFileItems
+                ? "Some deadlines came from a file. Connect ELMS to keep them up to date."
+                : "Your assignments and quizzes show up on their due dates, and stay up to date."}
+            </p>
+            <ConnectSteps />
+            <ConnectForm stacked onConnected={onDone} />
+          </>
+        ) : feed.status === "broken" ? (
+          <>
+            <p>{words.problem}</p>
+            <ConnectSteps />
+            <ConnectForm
+              stacked
+              submitLabel="Save the new link"
+              onConnected={onDone}
+            />
+          </>
+        ) : (
+          <>
+            <p className="emph-secondary">
+              Reset your link in ELMS? Paste the new one here.
+            </p>
+            <ConnectForm
+              stacked
+              submitLabel="Save the new link"
+              onConnected={onDone}
+            />
+          </>
+        )}
       </div>
       <p>{manage}</p>
     </div>
@@ -141,82 +200,64 @@ function ElmsSettings({
 }
 
 /**
- * The settings icon (or, with no link, Connect), and what it opens: a
- * popover under it on a desktop, a sheet on a phone.
+ * The bar's sync cloud, beside the bell, drawn as Schedule's plan-sync
+ * cloud is, and what it opens: a popover on a desktop; on a phone the
+ * page's sheet (`SyncSheet`).
  */
-function ElmsSettingsButton({
-  connected,
+export function TodoSyncButton({
   hasFileItems,
   now,
 }: {
-  connected: boolean;
   hasFileItems: boolean;
   now: number;
 }) {
   const open = useTodoWorkbench((s) => s.elmsOpen);
-  const setOpen = openElmsSettings;
   const mobile = useIsMobile();
-  const body = (
-    <ElmsSettings
-      hasFileItems={hasFileItems}
-      now={now}
-      onDone={() => setOpen(false)}
-    />
-  );
-  const trigger = connected ? (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={SETTINGS}
+  const { state, line } = useSyncState(now);
+  const Icon = ICONS[state];
+  const trigger = (
+    <button
+      type="button"
+      aria-label={SYNC_NAME}
       aria-expanded={open}
-      className="-mr-1.5 aria-expanded:bg-hover aria-expanded:text-fg max-md:-my-1.5"
-      onClick={mobile ? () => setOpen(true) : undefined}
+      data-todo-sync={state}
+      onClick={mobile ? () => openElmsSettings(true) : undefined}
+      className="flex size-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-hover hover:text-muted aria-expanded:bg-hover aria-expanded:text-muted"
     >
-      <Settings2 aria-hidden="true" />
-    </Button>
-  ) : (
-    <Button
-      variant="outline"
-      size="sm"
-      className="max-md:-my-1.5"
-      aria-expanded={open}
-      onClick={mobile ? () => setOpen(true) : undefined}
-    >
-      Connect
-    </Button>
+      <Icon size={15} strokeWidth={1.75} aria-hidden="true" />
+    </button>
   );
-  const tooltip = connected
-    ? "Sync ELMS now, or change its link"
-    : "Paste your ELMS calendar link";
-  // A phone's sheet is the page's (`ElmsSheet`), not the drawer's.
+  const tooltip = `${line}. Sync ELMS and your tasks, or change the ELMS link`;
   if (mobile) return <WithTooltip label={tooltip}>{trigger}</WithTooltip>;
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <WithTooltip label={tooltip}>
+    <Popover open={open} onOpenChange={openElmsSettings}>
+      <WithTooltip label={tooltip} side="bottom">
         <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       </WithTooltip>
       <PopoverContent
         side="bottom"
         align="end"
         role="dialog"
-        aria-label={connected ? SETTINGS : "Connect ELMS"}
+        aria-label={SYNC_NAME}
         className="w-80"
       >
-        <p className="emph-heading mb-2 text-base">
-          {connected ? "ELMS" : "Connect ELMS"}
-        </p>
-        {body}
+        <p className="emph-heading mb-2 text-base">{SYNC_NAME}</p>
+        <SyncSettings
+          hasFileItems={hasFileItems}
+          now={now}
+          onDone={() => openElmsSettings(false)}
+        />
       </PopoverContent>
     </Popover>
   );
 }
 
 /**
- * ELMS's settings on a phone: a sheet over the page, opened from the
- * drawer's line or the first visit. It's the page's, outside the drawer,
- * so it covers the tab bar as every sheet does.
+ * The sync's settings on a phone: a sheet over the page, opened from the
+ * bar's cloud or the first visit. It's the page's, outside the drawer, so
+ * it covers the tab bar as every sheet does.
  */
-export function ElmsSheet({
+export function SyncSheet({
   hasFileItems,
   now,
 }: {
@@ -224,68 +265,16 @@ export function ElmsSheet({
   now: number;
 }) {
   const open = useTodoWorkbench((s) => s.elmsOpen);
-  const connected = useTodo((s) => s.feed !== null);
   return (
     <Sheet open={open} onOpenChange={openElmsSettings}>
-      <SheetTitle className="px-4 pb-2">
-        {connected ? SETTINGS : "Connect ELMS"}
-      </SheetTitle>
+      <SheetTitle className="px-4 pb-2">{SYNC_NAME}</SheetTitle>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-6">
-        <ElmsSettings
+        <SyncSettings
           hasFileItems={hasFileItems}
           now={now}
           onDone={() => openElmsSettings(false)}
         />
       </div>
     </Sheet>
-  );
-}
-
-/** The sidebar's first part: ELMS's last sync, and its settings. */
-export function ElmsHeader({
-  hasFileItems,
-  now,
-}: {
-  hasFileItems: boolean;
-  now: number;
-}) {
-  const feed = useTodo((s) => s.feed);
-  const ready = useTodo((s) => s.phase === "ready");
-  const refreshing = useTodo((s) => s.refreshing);
-  // Connecting here asks for reminders here (V2 §6.7), under this line.
-  usePushAskCard("todo-connected");
-  const words = feedWords(feed, now);
-  const line: ReactNode = !ready
-    ? "Loading your deadlines…"
-    : refreshing
-      ? "Syncing ELMS…"
-      : !feed
-        ? "Connect ELMS to fill in your week"
-        : feed.status === "broken"
-          ? "ELMS stopped sharing your calendar"
-          : (words.synced ?? "ELMS is connected");
-  return (
-    <section aria-label="ELMS" className="shrink-0">
-      <PageHeader
-        size="panel"
-        title="Your deadlines"
-        status={<span role="status">{line}</span>}
-        actions={
-          ready ? (
-            <ElmsSettingsButton
-              connected={feed !== null}
-              hasFileItems={hasFileItems}
-              now={now}
-            />
-          ) : null
-        }
-      />
-      {ready && feed && feed.status !== "broken" && words.problem ? (
-        <PanelNote className="border-hairline border-b">
-          {words.problem}
-        </PanelNote>
-      ) : null}
-      <PushAskCard moment="todo-connected" className="m-3" />
-    </section>
   );
 }

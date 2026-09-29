@@ -130,21 +130,16 @@ function shift(date: string, days: number): string {
 /** New York's date today. */
 const today = () => newYorkClock(Date.now()).date;
 
-/** ELMS's line at the top of the sidebar (the drawer's, on a phone). */
-const elms = (page: Page) => page.getByRole("region", { name: "ELMS" });
+/** The bar: the week, with ELMS's line under it, and the sync cloud. */
+const elms = (page: Page) => page.getByRole("banner");
 
 /**
- * Opens ELMS's settings: the line's settings icon, or Connect while there's
- * no link. A popover on a desktop, a sheet on a phone.
+ * Opens Todo's sync from the bar's cloud: ELMS's and the account's syncs,
+ * Sync now, and ELMS's link. A popover on a desktop, a sheet on a phone.
  */
 async function openElms(page: Page) {
-  const settings = elms(page).getByRole("button", {
-    name: /^(ELMS settings|Connect)$/,
-  });
-  await settings.click();
-  const dialog = page.getByRole("dialog", {
-    name: /^(ELMS settings|Connect ELMS)$/,
-  });
+  await elms(page).getByRole("button", { name: "Sync" }).click();
+  const dialog = page.getByRole("dialog", { name: "Sync" });
   await expect(dialog).toBeVisible();
   return dialog;
 }
@@ -192,15 +187,15 @@ test("connect ELMS, check things off on the week as its bars fill, move around, 
   // The first visit: the empty week, what lands there, and its two ways in.
   await expect(page.getByText(/^Your deadlines, on a calendar/)).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ – /);
-  await expect(elms(page)).toContainText("Connect ELMS to fill in your week");
+  await expect(elms(page)).toContainText("ELMS isn't connected");
   await axe(page, "first visit");
 
-  // The first visit's Connect ELMS opens the sidebar's paste.
+  // The first visit's Connect ELMS opens the sync's paste.
   await page
     .getByRole("main")
     .getByRole("button", { name: "Connect ELMS" })
     .click();
-  const connect = page.getByRole("dialog", { name: "Connect ELMS" });
+  const connect = page.getByRole("dialog", { name: "Sync" });
   await expect(connect).toBeVisible();
   const link = connect.getByLabel("ELMS calendar link");
   const submit = connect.getByRole("button", { name: "Connect ELMS" });
@@ -330,7 +325,7 @@ test("connect ELMS, check things off on the week as its bars fill, move around, 
   ).toBeVisible();
   await page.goto(`/todo?date=${shift(today(), 1)}`);
   await expect(page.getByText("Project 2")).toBeVisible();
-  await expect(elms(page)).toContainText("Connect ELMS to fill in your week");
+  await expect(elms(page)).toContainText("ELMS isn't connected");
   const offer = await openElms(page);
   await expect(
     offer.getByText(/Some deadlines came from a file/),
@@ -352,7 +347,7 @@ test("ELMS's settings sync now and take a new link", async ({
   await expect(elms(page)).toContainText("ELMS synced");
   const settings = await openElms(page);
   await expect(settings.getByText(/^Synced /)).toBeVisible();
-  await axe(page, "ELMS settings");
+  await axe(page, "sync");
   // Just connected: ELMS was read moments ago, and says so.
   await settings.getByRole("button", { name: "Sync now" }).click();
   await expect(

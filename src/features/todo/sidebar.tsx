@@ -15,13 +15,13 @@ import {
   type Progress,
   totalOf,
 } from "~/core/todo";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { crossLinkClicked } from "~/lib/cross-link";
 import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { ScheduleLink } from "./calendar";
 import { Composer } from "./composer";
-import { ElmsHeader } from "./elms";
 import { Rows, type ViewProps } from "./todo-lists";
 
 // Todo's sidebar (docs/V3.md §3.9), the workbench's one panel, as Chat's
@@ -329,7 +329,6 @@ export function TodoSidebar({
   onHide,
   courses,
   colors,
-  hasFileItems,
   inDrawer = false,
 }: {
   /** A phone's drawer, whose strip has the week's bar. */
@@ -344,7 +343,6 @@ export function TodoSidebar({
   onHide: (row: CourseRow, hide: boolean) => void;
   courses: readonly CourseCode[];
   colors: Readonly<Record<CourseCode, CourseColor>>;
-  hasFileItems: boolean;
 }) {
   return (
     <div
@@ -352,8 +350,12 @@ export function TodoSidebar({
       tabIndex={-1}
       className="flex min-h-0 flex-1 flex-col outline-none"
     >
-      <ElmsHeader hasFileItems={hasFileItems} now={props.now} />
       <PanelBody>
+        {/* Connecting ELMS asks for reminders here (V2 §6.7); a phone
+            asks over the week, where it's seen (./todo-page). */}
+        {inDrawer ? null : (
+          <PushAskCard moment="todo-connected" className="m-3" />
+        )}
         <section aria-label="Add a task">
           <SectionHeader level={2} title="Add a task" />
           <Composer

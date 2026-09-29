@@ -168,7 +168,7 @@ _Avoid_: permission prompt, opt-in, enable push (in UI)
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
 
 **Sync**:
-Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (**AI features**, the **room rules** you've closed) beside Schedule's.
+Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (**AI features**, the **room rules** you've closed) beside Schedule's. In Todo, the bar's sync cloud means Todo's sync: with ELMS, and with our own server for your tasks and checks.
 
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
@@ -483,7 +483,7 @@ Todo's one view: Monday to Sunday, so a Sunday-night deadline ends its week, eac
 _Avoid_: calendar view, month, list, agenda, planner, schedule (that's the scheduler)
 
 **Sidebar** (Todo's):
-Todo's workbench sidebar, beside the week: ELMS's line and its settings, Add a task, No date, and This week (a bar for the week and one per course). On a phone it's the drawer, whose strip is the week's bar.
+Todo's workbench sidebar, beside the week: Add a task, No date, and This week (a bar for the week and one per course). On a phone it's the drawer, whose strip is the week's bar.
 _Avoid_: side panel
 
 **Composer**:

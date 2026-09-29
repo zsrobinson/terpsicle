@@ -140,20 +140,15 @@ function sidebar() {
 }
 
 /**
- * Opens ELMS's settings from the sidebar's first line: its settings icon,
- * or Connect while there's no link. A popover, at a desktop's width.
+ * Opens Todo's sync from the bar's cloud, beside the bell: ELMS's and the
+ * account's syncs, Sync now, and ELMS's link. A popover, at a desktop's width.
  */
 async function openElms(
   user: ReturnType<typeof userEvent.setup>,
 ): Promise<HTMLElement> {
-  const header = await screen.findByRole("region", { name: "ELMS" });
-  const button =
-    within(header).queryByRole("button", { name: "ELMS settings" }) ??
-    (await within(header).findByRole("button", { name: "Connect" }));
-  await user.click(button);
-  return screen.findByRole("dialog", {
-    name: /^(ELMS settings|Connect ELMS)$/,
-  });
+  const bar = await screen.findByRole("banner");
+  await user.click(await within(bar).findByRole("button", { name: "Sync" }));
+  return screen.findByRole("dialog", { name: "Sync" });
 }
 
 /** The fill's width, as the bar draws it. */
@@ -230,20 +225,20 @@ describe("who's looking", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
     ).toBeVisible();
-    // The sidebar's first line asks for the link.
+    // The bar's line, under the week, says there's no link yet.
     expect(
-      within(sidebar()).getByText("Connect ELMS to fill in your week"),
+      within(screen.getByRole("banner")).getByText("ELMS isn't connected"),
     ).toBeVisible();
     const user = userEvent.setup();
     const main = screen.getByRole("main");
     await user.click(within(main).getByRole("button", { name: "Add a task" }));
     const field = screen.getByRole("textbox", { name: "New task" });
     await waitFor(() => expect(field).toHaveFocus());
-    // Connect ELMS opens the sidebar's paste.
+    // Connect ELMS opens the sync's paste.
     await user.click(
       within(main).getByRole("button", { name: "Connect ELMS" }),
     );
-    const connect = await screen.findByRole("dialog", { name: "Connect ELMS" });
+    const connect = await screen.findByRole("dialog", { name: "Sync" });
     expect(within(connect).getByLabelText("ELMS calendar link")).toBeVisible();
     expect(within(connect).getByText(/Click Calendar Feed/)).toBeVisible();
   });
@@ -418,26 +413,37 @@ describe("connecting", () => {
   });
 });
 
-describe("ELMS in the sidebar", () => {
-  it("says when it last synced, and its settings sync now or take a new link", async () => {
+describe("syncing, in the bar", () => {
+  it("says under the week when ELMS synced, and the cloud syncs both and takes a new link", async () => {
     const client = fakeClient({ items: [aTodoItem()] });
     signedIn();
     renderTodo();
-    const header = await screen.findByRole("region", { name: "ELMS" });
-    // Chat's pattern: a title, then the line.
+    const bar = await screen.findByRole("banner");
+    // BarTitle's pattern: the week, then the line.
     expect(
-      within(header).getByRole("heading", { level: 2, name: "Your deadlines" }),
+      within(bar).getByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
     ).toBeVisible();
     expect(
-      await within(header).findByText("ELMS synced 14 minutes ago"),
+      await within(bar).findByText("ELMS synced 14 minutes ago"),
     ).toBeVisible();
+    // No sync header in the sidebar: it starts with Add a task.
+    expect(
+      within(sidebar()).getAllByRole("heading", { level: 2 })[0],
+    ).toHaveTextContent("Add a task");
     const user = userEvent.setup();
     const settings = await openElms(user);
-    expect(within(settings).getByText("Synced 14 minutes ago.")).toBeVisible();
+    // Both syncs: ELMS, and the account's own tasks.
+    expect(within(settings).getByText("Synced 14 minutes ago")).toBeVisible();
+    expect(within(settings).getByText(/^Up to date /)).toBeVisible();
+    const lists = client.list.mock.calls.length;
     await user.click(
       within(settings).getByRole("button", { name: "Sync now" }),
     );
     expect(client.refresh).toHaveBeenCalled();
+    // ELMS had nothing new: the account's list is read again anyway.
+    await waitFor(() =>
+      expect(client.list.mock.calls.length).toBeGreaterThan(lists),
+    );
     // The fake answers "too soon".
     expect(
       await within(settings).findByText(
@@ -611,7 +617,7 @@ describe("the week", () => {
     expect(day("2026-09-28")).toHaveAttribute("data-day", "today");
   });
 
-  it("moves a week at a time with outline links in the bar, so each week is a URL", async () => {
+  it("moves a week at a time with one group of links in the bar, so each week is a URL", async () => {
     fakeClient({ items });
     signedIn();
     renderTodo("2026-10-07");
@@ -626,13 +632,27 @@ describe("the week", () => {
     ).toHaveAttribute("href", "/todo?date=2026-10-12");
     const today = within(bar).getByRole("link", { name: "Today" });
     expect(today).toHaveAttribute("href", "/todo");
-    // Outline buttons, not ghost ones.
-    for (const link of [back, today]) expect(link).toHaveClass("border-fg");
+    // One bordered group, the kit's segments: no offset shadow.
+    const group = within(bar).getByRole("navigation", { name: "Weeks" });
+    expect(group).toHaveClass("border-hairline-strong");
+    expect(group.querySelector("[class*='shadow-offset']")).toBeNull();
+    expect(today).toHaveClass("text-fg");
     // Nothing else of Todo's is in the bar, and there's one view.
     expect(
       within(bar).queryByRole("button", { name: "Add a task" }),
     ).toBeNull();
     expect(screen.queryByRole("navigation", { name: "Todo views" })).toBeNull();
+  });
+
+  it("disables Today on this week", async () => {
+    fakeClient({ items });
+    signedIn();
+    renderTodo();
+    const bar = await screen.findByRole("banner");
+    expect(
+      await within(bar).findByRole("button", { name: "Today" }),
+    ).toBeDisabled();
+    expect(within(bar).queryByRole("link", { name: "Today" })).toBeNull();
   });
 
   it("loads a week the list doesn't hold yet", async () => {

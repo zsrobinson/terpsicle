@@ -215,12 +215,12 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
       },
     });
     expect(await subscribed.json()).toEqual({ status: "ok" });
-    // The second device is a laptop-sized window: the paste is in ELMS's
-    // settings, at the top of Todo's sidebar.
+    // The second device is a laptop-sized window: the paste is in the bar's
+    // sync, by the bell.
     await phone.goto("/todo");
-    const elms = phone.getByRole("region", { name: "ELMS" });
-    await elms.getByRole("button", { name: "Connect" }).click();
-    const connect = phone.getByRole("dialog", { name: "Connect ELMS" });
+    const elms = phone.getByRole("banner");
+    await elms.getByRole("button", { name: "Sync" }).click();
+    const connect = phone.getByRole("dialog", { name: "Sync" });
     await connect
       .getByLabel("ELMS calendar link")
       .fill(testFeedLink(TEST_FEED_TOKENS.calendar));

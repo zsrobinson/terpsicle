@@ -62,6 +62,10 @@ export interface TodoState {
   loaded: readonly DateRange[];
   refreshing: boolean;
   refreshNote: RefreshNote;
+  /** When the list was last read from our server (the account's tasks and checks). */
+  listedAt: number | null;
+  /** Sync now is asking ELMS and our server. */
+  syncing: boolean;
   /** Set while Disconnect's Undo is still open. */
   disconnecting: boolean;
 
@@ -69,6 +73,8 @@ export interface TodoState {
   load: (today: IsoDate, now: number) => Promise<void>;
   /** Asks ELMS now (the refresh control). */
   refresh: () => Promise<void>;
+  /** Sync now: asks ELMS (when there's a link to ask) and reads the list again. */
+  syncNow: () => Promise<void>;
   /** Loads the dates a week shows, if the list doesn't hold them yet. */
   ensureRange: (want: DateRange) => Promise<void>;
   /** Marks an item done or not; false when the server didn't take it. */
@@ -121,6 +127,8 @@ const INITIAL = {
   loaded: [] as readonly DateRange[],
   refreshing: false,
   refreshNote: null as RefreshNote,
+  listedAt: null as number | null,
+  syncing: false,
   disconnecting: false,
 };
 
@@ -138,6 +146,7 @@ export const useTodo = create<TodoState>()((set, get) => {
       done: new Set(result.done),
       hidden: new Set(result.hidden),
       loaded: [range],
+      listedAt: Date.now(),
     });
   };
 
@@ -186,6 +195,23 @@ export const useTodo = create<TodoState>()((set, get) => {
         set({ refreshNote: "failed" });
       } finally {
         set({ refreshing: false });
+      }
+    },
+
+    syncNow: async () => {
+      if (get().syncing) return;
+      set({ syncing: true });
+      try {
+        const before = get().listedAt;
+        const feed = get().feed;
+        if (feed && feed.status !== "broken") await get().refresh();
+        // ELMS had nothing new (or no link): read the account's list anyway.
+        const today = get().today;
+        if (today && get().listedAt === before) await fetchList(today);
+      } catch {
+        set({ refreshNote: "failed" });
+      } finally {
+        set({ syncing: false });
       }
     },
 
