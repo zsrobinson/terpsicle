@@ -5,7 +5,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode, Suspense, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { AccountBoot } from "~/features/auth/account-boot";
@@ -13,6 +13,7 @@ import { Pwa } from "~/features/pwa/pwa";
 import { pwaLinks, pwaMeta, themeColorMeta } from "~/features/pwa/pwa-head";
 import { routeStates } from "~/features/site/lazy-route-states";
 import { ActivityLogBoot } from "~/lib/activity-log-boot";
+import { markBooted } from "~/lib/booted";
 import { InlineScript } from "~/lib/inline-script";
 import { lazyComponent } from "~/lib/lazy-component";
 import type { RouterContext } from "~/lib/query-client";
@@ -30,6 +31,7 @@ import appCss from "../styles.css?url";
 const Toaster = lazyComponent<object>(
   () => import("~/ui/sonner").then((m) => m.Toaster),
   () => null,
+  { Loading: null },
 );
 
 function Toasts() {
@@ -45,11 +47,7 @@ function Toasts() {
     return () => cancelIdleCallback(idle);
   }, []);
   if (!mounted) return null;
-  return (
-    <Suspense fallback={null}>
-      <Toaster />
-    </Suspense>
-  );
+  return <Toaster />;
 }
 
 /** The leaf route is `/` (the root's own types know only itself). */
@@ -157,6 +155,9 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootLayout() {
+  // React has taken over the page: load recovery may now show its note
+  // without breaking hydration (~/lib/load-recovery).
+  useEffect(markBooted, []);
   return (
     <TooltipProvider>
       {/* The page scales back behind a sheet; toasts stay put over it. */}

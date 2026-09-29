@@ -63,6 +63,21 @@ describe("lazyComponent", () => {
     expect(await screen.findByText("Hello, Terp")).toBeInTheDocument();
   });
 
+  it("with `Loading`, shows it while the code comes instead of suspending, then the fallback on a failure", async () => {
+    const c = chunk();
+    const Lazy = lazyComponent(c.load, Fallback, {
+      Loading: ({ name }) => <p>Getting {name}'s code</p>,
+    });
+    show(Lazy);
+    expect(screen.queryByText("Loading")).toBeNull();
+    expect(screen.getByText("Getting Terp's code")).toBeInTheDocument();
+    expect(c.load).toHaveBeenCalledTimes(1);
+    await act(async () => c.fail());
+    expect(await screen.findByText("No code for Terp")).toBeInTheDocument();
+    await act(async () => c.arrive());
+    expect(await screen.findByText("Hello, Terp")).toBeInTheDocument();
+  });
+
   it("never sticks on a failure: the next preload fetches again", async () => {
     const c = chunk();
     const Lazy = lazyComponent(c.load, Fallback);

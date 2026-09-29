@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { Logo } from "~/components/brand/logo";
 import { EarlyAccessChip } from "~/components/early-access";
 import { LazyTooltip } from "~/components/lazy-tooltip";
@@ -12,11 +11,25 @@ import { Button } from "~/ui/button";
 
 // Only a signed-in visitor at `/?stay` sees the account menu, so its code
 // (the menu, the avatar, sync's status) loads when they do, not with the
-// page (scripts/check-bundle.ts). If it doesn't arrive, "Open Terpsicle"
-// stands alone until it does (~/lib/lazy-component), never an error.
-const AccountButton = lazyComponent<object>(
-  () => import("~/features/auth/account-button").then((m) => m.AccountButton),
-  () => null,
+// page (scripts/check-bundle.ts). "Sign in" holds the place, unseen, while
+// it comes, so the way back in and the avatar arrive together; if it doesn't
+// arrive, "Open Terpsicle" stands alone until it does (~/lib/lazy-component),
+// never an error.
+const SignedIn = lazyComponent<object>(
+  () =>
+    import("~/features/auth/account-button").then(
+      ({ AccountButton }) =>
+        function SignedInWithMenu() {
+          return (
+            <>
+              <OpenTerpsicle />
+              <AccountButton />
+            </>
+          );
+        },
+    ),
+  OpenTerpsicle,
+  { Loading: () => <SignInLink hidden /> },
 );
 
 /**
@@ -39,21 +52,22 @@ export function MarketingHeader() {
       </div>
       <nav aria-label="Account" className="flex items-center gap-1">
         {status === "signed-in" ? (
-          // "Sign in" holds the place, unseen, until the menu's code is
-          // here, so the way back in and the avatar arrive together.
-          <Suspense fallback={<SignInLink hidden />}>
-            <LazyTooltip label="Back to your schedule">
-              <Button variant="ghost" size="sm" asChild>
-                <a href={SCHEDULE_PATH}>Open Terpsicle</a>
-              </Button>
-            </LazyTooltip>
-            <AccountButton />
-          </Suspense>
+          <SignedIn />
         ) : (
           <SignInLink hidden={status === "loading"} />
         )}
       </nav>
     </header>
+  );
+}
+
+function OpenTerpsicle() {
+  return (
+    <LazyTooltip label="Back to your schedule">
+      <Button variant="ghost" size="sm" asChild>
+        <a href={SCHEDULE_PATH}>Open Terpsicle</a>
+      </Button>
+    </LazyTooltip>
   );
 }
 

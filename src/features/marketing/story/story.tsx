@@ -1,7 +1,6 @@
 import { Check } from "lucide-react";
 import {
   type ComponentProps,
-  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -29,10 +28,14 @@ import { STEP_PRODUCT, type Stage, toStage } from "./stages";
 // (marketing.css).
 
 // If their code doesn't arrive, the screen stays the plain week, and asks
-// again once the browser is back online (~/lib/lazy-component).
+// again once the browser is back online (~/lib/lazy-component). They show
+// nothing while it comes rather than suspend: a render that suspended on a
+// chunk that then failed could stay uncommitted, holding back the rest of
+// the page's first update (e2e/build).
 const Pieces = lazyComponent<ComponentProps<typeof import("./pieces").Pieces>>(
   () => import("./pieces").then((m) => m.Pieces),
   () => null,
+  { Loading: null },
 );
 
 /** While the page scrolls to a step it was sent to, scrolling doesn't restage. */
@@ -143,9 +146,7 @@ export function Story() {
             onIntent={() => setWantPieces(true)}
             pieces={
               wantPieces ? (
-                <Suspense fallback={null}>
-                  <Pieces stage={stage} state={state} onChange={setState} />
-                </Suspense>
+                <Pieces stage={stage} state={state} onChange={setState} />
               ) : null
             }
           />

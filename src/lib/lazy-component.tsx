@@ -7,6 +7,13 @@ import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 // removed it) never throws and never sticks: `Fallback` shows instead, and
 // the code is asked for again when it mounts next and when the browser comes
 // back online, replacing the fallback once it's here.
+//
+// `Loading` shows while the code comes, instead of suspending (nothing, if
+// it's null), for code that loads after the page is up (the demos, the
+// toasts, the marketing page's account menu): React
+// could leave a render that suspended on a chunk that then failed
+// uncommitted, and with it every other update in that render. Suspending is
+// for what the server rendered and hydration must match (the route states).
 
 type Component<P> = (props: P) => ReactNode;
 
@@ -21,7 +28,13 @@ const FAILED = "failed";
 export function lazyComponent<P extends object>(
   load: () => Promise<Component<P>>,
   Fallback: Component<P>,
+  options: {
+    /** Shown while the code comes, instead of suspending (above). */
+    Loading?: Component<P> | null;
+  } = {},
 ): LazyComponent<P> {
+  const suspend = options.Loading === undefined;
+  const Loading = options.Loading ?? (() => null);
   let Loaded: Component<P> | null = null;
   let loading: Promise<void> | null = null;
   let failed = false;
@@ -56,14 +69,19 @@ export function lazyComponent<P extends object>(
   function Lazy(props: P) {
     const state = useSyncExternalStore(subscribe, snapshot, snapshot);
     const showingFallback = state === FAILED;
+    const waiting = state === LOADING;
     useEffect(() => {
+      if (waiting) void preload();
       if (!showingFallback) return;
       void preload();
       const retry = () => void preload();
       window.addEventListener("online", retry);
       return () => window.removeEventListener("online", retry);
-    }, [showingFallback]);
-    if (state === LOADING) throw preload();
+    }, [showingFallback, waiting]);
+    if (state === LOADING) {
+      if (suspend) throw preload();
+      return <Loading {...props} />;
+    }
     if (state === FAILED) return <Fallback {...props} />;
     const Ready = state;
     return <Ready {...props} />;
