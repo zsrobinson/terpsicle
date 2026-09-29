@@ -242,9 +242,14 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
       <nav
         aria-label="Rooms"
         hidden={listHidden}
+        // Its fade back in is for browsers without typed view transitions;
+        // elsewhere the pop draws it (src/styles/transitions.css).
+        data-vt-fallback={mobile ? "" : undefined}
         className={cn(
           "flex min-h-0 flex-col",
-          mobile ? "flex-1" : "w-80 shrink-0 border-hairline border-r",
+          mobile
+            ? "flex-1 animate-in fade-in-0 duration-150 motion-reduce:animate-none"
+            : "w-80 shrink-0 border-hairline border-r",
         )}
       >
         <RoomList view={view} go={goScoped} empty={empty} />
@@ -425,8 +430,14 @@ function CourseRoom({
 
   // A phone pushes the room in over the list and pops it back off, with the
   // router's view transitions (src/styles/transitions.css); a desktop fills
-  // the pane. Either way the room is in its place from the first frame.
-  const pane = "flex min-w-0 flex-1 flex-col";
+  // the pane. Browsers without typed view transitions keep a small slide of
+  // its own, which data-vt-fallback turns off everywhere else.
+  const pane = cn(
+    "flex min-w-0 flex-1 flex-col",
+    mobile &&
+      "animate-in slide-in-from-right-8 fade-in-0 duration-200 motion-reduce:animate-none",
+  );
+  const fallback = mobile ? "" : undefined;
   const backToList: BackTo = {
     label: "Your classes",
     to: "/chat",
@@ -435,7 +446,7 @@ function CourseRoom({
 
   if (!tree || !room)
     return (
-      <section className={pane}>
+      <section className={pane} data-vt-fallback={fallback}>
         {course === null && !missing ? (
           // The room's own shape, so nothing moves when it arrives.
           <RoomSkeleton back={mobile ? backToList : undefined} />
@@ -480,7 +491,11 @@ function CourseRoom({
 
   return (
     <>
-      <section className={pane} aria-label={room.label}>
+      <section
+        className={pane}
+        data-vt-fallback={fallback}
+        aria-label={room.label}
+      >
         <RoomView
           courseCode={courseCode}
           room={room}

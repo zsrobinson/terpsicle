@@ -12,8 +12,9 @@ import { TAB_PATHS } from "./schedule-location";
 //   none  Reduce Motion: things change in place with a short fade
 //
 // and null means no transition at all: the first render, search params
-// that stay on one screen (typing, chips, a drill-in's sub-tab), and a Back
-// the browser already animated (Safari's edge swipe).
+// that stay on one screen (typing, chips, a drill-in's sub-tab), a replace
+// (the app correcting its place, like `/schedule` restoring the saved
+// view), and a Back the browser already animated (Safari's edge swipe).
 
 export type ViewTransitionType = "push" | "pop" | "tab" | "none";
 
@@ -104,6 +105,9 @@ export function viewTransitionType({
   const a = screenOf(from.pathname, from.search);
   const b = screenOf(to.pathname, to.search);
   if (a.key === b.key) return null;
+  // A replace: the app correcting where it is (a saved view restored, a
+  // result gone after a reload), not somewhere a person went.
+  if (to.index === from.index) return null;
   if (uaAnimated) return null;
   if (reduceMotion) return "none";
   if (a.product !== b.product) return "tab";

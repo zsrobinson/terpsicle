@@ -32,12 +32,12 @@ import {
 /** The shared element's name (src/styles/transitions.css). */
 const SHARED_NAME = "course";
 
-/** Longest a shared course waits for its details to be ready to capture. */
-const SHARED_WAIT_MS = 120;
-
 /** How long a press or an edge swipe stays the reason for a navigation. */
 const PRESS_WINDOW_MS = 3000;
 const SWIPE_WINDOW_MS = 1000;
+
+/** History entries a follower claimed; more than this are long settled. */
+const CLAIMS_KEPT = 16;
 
 type StartViewTransition = Document["startViewTransition"];
 /** Older engines lack the method; `activeViewTransition` is newer still. */
@@ -48,15 +48,20 @@ type DocumentWithTransitions = Omit<Document, "startViewTransition"> & {
 
 let installed = false;
 let swipedAt = Number.NEGATIVE_INFINITY;
-let pressed: { code: string; at: number } | null = null;
+let pressed: { code: string; el: HTMLElement; at: number } | null = null;
 /** The course each push shared, by the history index it pushed to. */
 const sharedAt = new Map<number, string>();
 /** The transition running now; a newer one takes over its cleanup. */
 let running = 0;
+/** Elements carrying the shared name now, whichever transition named them. */
+const named = new Set<HTMLElement>();
 /** What the router's running transition does once its page is rendered. */
 let afterRender: (() => void) | null = null;
-/** A history entry a view already animated; the router's own skips it. */
-let animatedKey: string | null = null;
+/**
+ * History entries a view following the history decided itself (animated,
+ * or kept still); the router's own transition leaves them alone.
+ */
+const claimed = new Set<string>();
 
 export function supportsTypedViewTransitions(): boolean {
   return (
@@ -91,7 +96,7 @@ function install(): void {
           ? event.target.closest<HTMLElement>("[data-vt-course]")
           : null;
       const code = row?.dataset.vtCourse;
-      pressed = code ? { code, at: performance.now() } : null;
+      pressed = row && code ? { code, el: row, at: performance.now() } : null;
     },
     { capture: true },
   );
@@ -111,6 +116,14 @@ function keyOf(location: { state: unknown; href: string }): string {
   return typeof key === "string" ? key : location.href;
 }
 
+function claim(key: string): void {
+  claimed.add(key);
+  if (claimed.size > CLAIMS_KEPT) {
+    const oldest = claimed.values().next().value;
+    if (oldest !== undefined) claimed.delete(oldest);
+  }
+}
+
 function typeFor(
   from: NavigationPlace | undefined,
   to: NavigationPlace,
@@ -123,34 +136,54 @@ function typeFor(
   });
 }
 
+/** Whether a person can see `el` (on screen, when that's asked too). */
+function isShown(el: HTMLElement, onScreen: boolean): boolean {
+  if (!el.isConnected) return false;
+  // The scheduler's hidden layers are inert; hidden panes are [hidden].
+  if (el.closest("[inert], [hidden], [aria-hidden='true']")) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return false;
+  return !onScreen || (r.bottom > 0 && r.top < window.innerHeight);
+}
+
 /**
- * The element for `code` on the page, other than `except`. The old half
- * must be on screen; the new half is looked for before the router puts the
- * scroll where it belongs, so only its being shown counts.
+ * The element for `code` on the page, other than `except`, preferring one
+ * on screen. The new half is looked for before the router puts the scroll
+ * where it belongs, so it may be off screen for now.
  */
 function shownCourse(
   code: string,
   { except, onScreen }: { except?: Element; onScreen: boolean },
 ): HTMLElement | null {
-  for (const el of document.querySelectorAll<HTMLElement>(
-    `[data-vt-course="${CSS.escape(code)}"]`,
-  )) {
-    if (el === except) continue;
-    // The scheduler's hidden layers are inert; hidden panes are [hidden].
-    if (el.closest("[inert], [hidden], [aria-hidden='true']")) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width === 0 || r.height === 0) continue;
-    if (onScreen && (r.bottom <= 0 || r.top >= window.innerHeight)) continue;
-    return el;
-  }
-  return null;
+  const all = [
+    ...document.querySelectorAll<HTMLElement>(
+      `[data-vt-course="${CSS.escape(code)}"]`,
+    ),
+  ].filter((el) => el !== except);
+  return (
+    all.find((el) => isShown(el, true)) ??
+    (onScreen ? null : (all.find((el) => isShown(el, false)) ?? null))
+  );
+}
+
+function name(el: HTMLElement | null): void {
+  if (!el) return;
+  el.style.viewTransitionName = SHARED_NAME;
+  named.add(el);
+}
+
+function unnameAll(): void {
+  for (const el of named)
+    if (el.style.viewTransitionName === SHARED_NAME)
+      el.style.viewTransitionName = "";
+  named.clear();
 }
 
 /**
- * The transition about to start: the caller calls
- * `document.startViewTransition` right after `begin`. Where the browser
- * doesn't expose `document.activeViewTransition` yet, the next call is
- * caught once and handed on untouched.
+ * The transition the router is about to start: it calls
+ * `document.startViewTransition` as soon as `types` returns. Where the
+ * browser doesn't expose `document.activeViewTransition` yet, the next call
+ * is caught once and handed on untouched.
  */
 function nextTransition(): Promise<ViewTransition | null> {
   const doc = document as DocumentWithTransitions;
@@ -159,6 +192,7 @@ function nextTransition(): Promise<ViewTransition | null> {
     return Promise.resolve().then(() => doc.activeViewTransition ?? null);
   const start = doc.startViewTransition;
   if (!start) return Promise.resolve(null);
+  const own = Object.hasOwn(doc, "startViewTransition");
   return new Promise((resolve) => {
     const once: StartViewTransition = (arg) => {
       restore();
@@ -167,8 +201,10 @@ function nextTransition(): Promise<ViewTransition | null> {
       return transition;
     };
     const restore = () => {
-      // Back to the prototype's own.
-      if (doc.startViewTransition === once)
+      if (doc.startViewTransition !== once) return;
+      // Back to what was there: usually the prototype's own.
+      if (own) doc.startViewTransition = start;
+      else
         delete (doc as { startViewTransition?: unknown }).startViewTransition;
     };
     doc.startViewTransition = once;
@@ -184,6 +220,8 @@ interface Begun {
   shared: boolean;
   /** Call once the new page is rendered, before it's captured. */
   rendered(): void;
+  /** The transition this set up, or null when none started after all. */
+  attach(transition: ViewTransition | null): void;
 }
 
 /** Sets up the transition about to start: its type, and a shared course. */
@@ -195,8 +233,12 @@ function begin(
   const id = ++running;
   const root = document.documentElement;
   root.dataset.vtType = type;
+  // Whatever an earlier transition left named would share the name with
+  // this one's, and a duplicate name aborts a transition.
+  unnameAll();
 
   let code: string | null = null;
+  let old: HTMLElement | null = null;
   if (type === "push") {
     const press =
       pressed && performance.now() - pressed.at < PRESS_WINDOW_MS
@@ -205,41 +247,23 @@ function begin(
     code = press?.code ?? null;
     if (code) sharedAt.set(to.index, code);
     else sharedAt.delete(to.index);
+    // The row that was pressed: the same course can be listed twice.
+    if (press && isShown(press.el, true)) old = press.el;
   } else if (type === "pop") {
     code = sharedAt.get(from.index) ?? null;
+    old = code ? shownCourse(code, { onScreen: true }) : null;
   }
   pressed = null;
-
-  const named: HTMLElement[] = [];
-  const name = (el: HTMLElement | null) => {
-    if (!el) return;
-    el.style.viewTransitionName = SHARED_NAME;
-    named.push(el);
-  };
-  const unname = () => {
-    for (const el of named.splice(0))
-      if (el.style.viewTransitionName === SHARED_NAME)
-        el.style.viewTransitionName = "";
-  };
-  const old = code ? shownCourse(code, { onScreen: true }) : null;
   name(old);
-  let done = false;
 
-  void nextTransition().then((transition) => {
-    if (!transition) {
-      done = true;
-      unname();
-      if (running === id) delete root.dataset.vtType;
-      return;
-    }
-    transition.updateCallbackDone.catch(() => unname());
-    transition.finished
-      .catch(() => undefined)
-      .then(() => {
-        unname();
-        if (running === id) delete root.dataset.vtType;
-      });
-  });
+  let done = false;
+  const finish = () => {
+    done = true;
+    // A newer transition owns the names and the type by now.
+    if (running !== id) return;
+    unnameAll();
+    delete root.dataset.vtType;
+  };
 
   return {
     shared: old !== null,
@@ -248,9 +272,13 @@ function begin(
     rendered() {
       if (done) return;
       done = true;
-      unname();
+      unnameAll();
       if (code && old)
         name(shownCourse(code, { except: old, onScreen: false }));
+    },
+    attach(transition) {
+      if (!transition) return finish();
+      transition.finished.catch(() => undefined).then(finish);
     },
   };
 }
@@ -267,8 +295,12 @@ export function viewTransitionTypes({
   toLocation: ParsedLocation;
 }): string[] | false {
   install();
-  if (animatedKey !== null && animatedKey === keyOf(toLocation)) {
-    animatedKey = null;
+  // A newer navigation: whatever the last one meant to do after its render
+  // is moot.
+  afterRender = null;
+  const key = keyOf(toLocation);
+  if (claimed.has(key)) {
+    claimed.delete(key);
     return false;
   }
   const from = fromLocation ? placeOf(fromLocation) : undefined;
@@ -279,6 +311,7 @@ export function viewTransitionTypes({
   if (!type || !from) return false;
   const begun = begin(type, from, to);
   afterRender = () => begun.rendered();
+  void nextTransition().then((transition) => begun.attach(transition));
   return [type];
 }
 
@@ -327,68 +360,85 @@ const followers = new WeakMap<AnyRouter, HistoryFollower>();
  * A move inside one product that animates is shown by a transition started
  * here, in whose update the view renders its new place: the router loads
  * the route afterwards, so waiting for its transition would capture the
- * new place as the old page too. The router's own transition skips that
- * navigation. Moves to another product change at once, as before, and the
- * router's cross-fade covers them.
+ * new place as the old page too. The router's own transition leaves every
+ * move inside the product to this one. A move that arrives while an
+ * earlier one is still waiting to render skips it, and goes from where
+ * the view still is. Leaving for another product, the view holds its
+ * place: the router's cross-fade captures it, and then it's gone.
  */
 export function historyFollower(router: AnyRouter): HistoryFollower {
   const known = followers.get(router);
   if (known) return known;
   const listeners = new Set<() => void>();
   let shown = router.history.location;
+  /** Skips the transition started here whose update hasn't run yet. */
+  let pending: (() => void) | null = null;
   const notify = () => {
     for (const listener of listeners) listener();
   };
+  const productOf = (place: NavigationPlace) =>
+    screenOf(place.pathname, place.search).product;
+
   router.history.subscribe(() => {
     const next = router.history.location;
-    if (next === shown) return;
+    if (listeners.size === 0) {
+      shown = next;
+      return;
+    }
+    pending?.();
+    pending = null;
     const from = placeOf(router.parseLocation(shown));
     const to = placeOf(router.parseLocation(next));
+    if (productOf(from) !== productOf(to)) return;
+    claim(keyOf(next));
+    const undone = keyOf(next) === keyOf(shown);
     const type =
-      supportsTypedViewTransitions() &&
-      listeners.size > 0 &&
-      screenOf(from.pathname, from.search).product ===
-        screenOf(to.pathname, to.search).product
-        ? typeFor(from, to)
-        : null;
+      !undone && supportsTypedViewTransitions() ? typeFor(from, to) : null;
+    // One swipe, one navigation.
+    swipedAt = Number.NEGATIVE_INFINITY;
+    if (undone) {
+      // Back to where the view still is (a move undone before it showed).
+      shown = next;
+      return;
+    }
     if (!type) {
       shown = next;
       notify();
       return;
     }
     install();
-    swipedAt = Number.NEGATIVE_INFINITY;
-    animatedKey = keyOf(next);
-    // A course that grows into its header waits a moment for the router,
-    // whose details chunk may still be on its way; nothing else waits.
-    const loaded = new Promise<void>((resolve) => {
-      const stop = router.subscribe("onResolved", () => {
-        stop();
-        resolve();
-      });
-      setTimeout(() => {
-        stop();
-        resolve();
-      }, SHARED_WAIT_MS);
-    });
     const begun = begin(type, from, to);
-    (document as DocumentWithTransitions).startViewTransition?.({
-      update: async () => {
-        if (begun.shared) await loaded;
-        // The latest place, if the URL moved again meanwhile.
+    let skipped = false;
+    // Nothing waits for the router: once a view's chunk is here the new
+    // place renders whole (a course's header grows from its row); the first
+    // time, its skeleton pushes in and the row fades with its page.
+    const transition = (
+      document as DocumentWithTransitions
+    ).startViewTransition?.({
+      update: () => {
+        if (skipped) return;
+        pending = null;
         shown = router.history.location;
         flushSync(notify);
         begun.rendered();
       },
       types: [type],
     });
+    begun.attach(transition ?? null);
+    pending = () => {
+      skipped = true;
+      transition?.skipTransition();
+    };
   });
+
   const follower: HistoryFollower = {
     subscribe(onChange) {
+      // A view mounting again starts from where the history is now.
+      if (listeners.size === 0) shown = router.history.location;
       listeners.add(onChange);
       return () => listeners.delete(onChange);
     },
-    getSnapshot: () => shown,
+    getSnapshot: () => (listeners.size === 0 ? router.history.location : shown),
   };
   followers.set(router, follower);
   return follower;

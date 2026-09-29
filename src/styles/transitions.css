@@ -53,11 +53,18 @@ html:active-view-transition-type(pop):has(#sidebar-panel) {
   }
 }
 
-/* The scheduler's drill-ins have their own small slide for browsers without
-   typed view transitions (~/lib/view-transition turns them off there); where
-   the push runs, it replaces that slide rather than doubling it. */
+/* Taps go to the page while a transition plays; its snapshots only look. */
+::view-transition {
+  pointer-events: none;
+}
+
+/* The scheduler's drill-ins and Chat's room keep their own small slide for
+   browsers without typed view transitions (~/lib/view-transition turns them
+   off there); where the push runs, it replaces that slide rather than
+   doubling it. */
 @supports selector(:active-view-transition-type(a)) {
-  #sidebar-panel > [data-layer] {
+  #sidebar-panel > [data-layer],
+  [data-vt-fallback] {
     animation: none;
   }
 }

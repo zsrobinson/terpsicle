@@ -162,6 +162,14 @@ describe("viewTransitionType", () => {
     expect(type(at("/home", 0), at("/todo", 1))).toBe("tab");
   });
 
+  it("doesn't animate a replace, where the app corrects its place", () => {
+    // `/schedule` restoring the saved view, or a result gone after a reload.
+    expect(type(at("/schedule", 2), at("/schedule/travel", 2))).toBeNull();
+    expect(
+      type(at("/schedule/result/r1", 3), at("/schedule/generate", 3)),
+    ).toBeNull();
+  });
+
   it("stays still when the browser already animated Back", () => {
     expect(
       type(at("/schedule/course/CMSC351", 4), at("/schedule/search", 3), {
