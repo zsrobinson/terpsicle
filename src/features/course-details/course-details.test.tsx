@@ -26,7 +26,6 @@ import { notificationsApi } from "~/server/fns/notifications";
 import { useCatalog } from "~/state/catalog-store";
 import {
   createBucketDataSource,
-  createDataReader,
   DataError,
   type DataSource,
 } from "~/state/data-source";
@@ -885,7 +884,9 @@ describe("Course details", () => {
   });
 
   it("shows a course as soon as its department loads, while the rest of the term waits", async () => {
-    await renderShell({ routes: [searchPanels, panels] });
+    const { queryClient } = await renderShell({
+      routes: [searchPanels, panels],
+    });
     // Every other department's file waits until the course is on screen.
     const bucket = createBucketDataSource(mockDataSource);
     let release = () => {};
@@ -900,7 +901,9 @@ describe("Course details", () => {
       },
     };
     await act(async () => {
-      useCatalog.getState().setReader(createDataReader(source));
+      // A new page: nothing loaded yet.
+      queryClient.clear();
+      useCatalog.getState().connect(queryClient, source);
       await useCatalog.getState().loadTerms();
     });
     act(() => openCourse("CMSC351"));

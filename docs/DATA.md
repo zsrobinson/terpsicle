@@ -257,7 +257,9 @@ The hourly `reviews-publish` job (`37 * * * *`, `src/jobs/reviews-publish.ts`) p
 
 ## 5. Browser state (IndexedDB via Dexie)
 
-Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 5.
+Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 7.
+
+**Version 7** (the catalog on TanStack Query, `v3/query-catalog-b`; `src/state/db.ts`): the published-data cache's `manifests` and `files` tables are dropped (`V7_CHANGES`). Every published file is a query now, saved in the query cache's own database (§5.5), so their rows (the catalog's, and the PlanetTerp, geo, calendar and review-number files no build has read since they moved) go with them. Nothing a person made was in either. `src/state/db.test.ts` upgrades a v6 database with both full.
 
 **Version 6** (main plans, `v2/main-plan`; `src/state/db.ts`): no table changes. `mainPlansFromChatPlans` renames the `chatPlans` settings row to `mainPlans` (the same `{[termId]: planId}` map, now each term's main plan, `docs/V2.md` §5.5); a row that doesn't read is dropped, and the term's first tab is main again. Nothing needs pushing: the settings doc on the account already has the same map. `src/state/db.test.ts` upgrades a v5 database.
 
@@ -277,10 +279,8 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 5.
 | `settings` | `key` | `SettingsRowSchema` (`ui` → `UiPrefs`, `fourYear` → `FourYearPrefs`, Plan's open doc, `travel` → `TravelSettings`, `generate` → Generate's form per term, `GenerateDrafts`, results never stored; `mainPlans` → `MainPlans`, each term's main plan, synced (the settings doc's `mainPlans`; `chatPlans` until version 6); `prefs` → `SyncedPrefs`, the other products' prefs (`ai`: AI features, `chatRules`: the room rules you've closed, `todo`: the day Todo's weeks start, `home`: Home's setup callouts you've closed), synced whole as the settings doc's `prefs`, with a copy in localStorage (`terpsicle:prefs`) that every page reads; `sync` → `LocalSyncMeta`, plan sync's account and pull cursor) |
 | `fourYear` | `id` | `FourYearDocSchema` (`src/core/schema/four-year.ts`) |
 | `syncDocs` | `key` (`plan:<id>`, `four-year:<id>` or `settings`) | `LocalSyncDocSchema`: `rev` (0 = never saved), `dirty`, `inFlight`, and on the settings row `base` |
-| `manifests` | `key` (the R2 key) | `CachedManifestSchema` |
-| `files` | `key` (the R2 key), `family`, `termId` | `CachedFileSchema` |
 
-- **Validation:** validate every row on read. An invalid row is skipped and logged, never fatal. A shape change bumps `LOCAL_DB_VERSION` with a Dexie `upgrade()` that migrates rows; plans are never dropped. Files in `files` are validated when fetched and trusted afterwards; a `SCHEMA_VERSIONS` bump clears that family.
+- **Validation:** validate every row on read. An invalid row is skipped and logged, never fatal. A shape change bumps `LOCAL_DB_VERSION` with a Dexie `upgrade()` that migrates rows; plans are never dropped. Published files aren't here: they're the query cache's (§5.5).
 - **Plans:**
   - `courses` is the Courses-tab order, with at most one entry per course.
   - `sectionCode: null` means bookmarked (the UI's word; "saved for later" before 2026-09-26), per plan.
@@ -300,7 +300,7 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 5.
 
 ### 5.1 Client catalog flow
 1. Fetch `catalog/terms.json` (ETag revalidation). Pick the term.
-2. Render immediately from `manifests[catalog/<term>/manifest.json]` plus `files`, if cached.
+2. Render immediately from this device's saved manifest and files (the query cache, §5.5), if any.
 3. Fetch the manifest and check `schemaVersion` (§2.3). Diff it against the cached one:
    - fetch departments whose hash changed or that are new;
    - fetch seats if `seats.hash` changed;
@@ -311,13 +311,15 @@ Database `LOCAL_DB_NAME` = `terpsicle`, version `LOCAL_DB_VERSION` = 5.
    Departments load in two ways. Whatever is on screen asks for its own departments (`ensureDepts`: an open course's details, the plan's courses, a shared link), fetched at once and shown as soon as they arrive. Then the rest of the term loads in the background (`ensureTerm`), 16 files at a time with a `low` Fetch Priority, and shows once it's all in; search waits for that (`settled`). A department something asks for during the background load is fetched right away, not in its turn, and no file is fetched twice. On a first load, departments don't wait for seats and changes; they load side by side, and a batch shows once the seats are in too.
 
    Why 16 and not 6: `/data` is served over HTTP/2, so the browser's six-connections-per-host limit doesn't apply, and ~200 small files (about 850 KB compressed) are bound by round trips, not bandwidth. Over HTTP/1.1 (a local dev server) the browser queues them at six, by priority.
-4. In **one Dexie transaction**, put the new `files` and then the new manifest. Never store a manifest whose files are missing. Then delete this term's `files` rows the manifest no longer references.
-5. **Polling:** for an active term, poll the manifest every 60 s while the document is visible, and immediately when it becomes visible again. Most polls are a 304. A change in `seats.hash` alone fetches only the seats file. For an archived term, fetch the manifest once per session and don't poll.
-6. PlanetTerp and geo follow the same pattern with their own manifests, fetched lazily: a PlanetTerp department file when a course from it opens, or when the generator ranks by rating or GPA; the routes binary when the plan first has a connection. Since `v3/query-catalog-a` these, and each term's academic calendar, are query-cache reads (§5.5; `src/state/query/catalog.ts`): the PlanetTerp and geo manifests are `publishedPointer`s (a day fresh, checked once per page), their files `publishedFile`s (the routes binary a `publishedBinary`, kept as bytes and checked with `RoutesFileSchema`, so bytes that don't decode, from the server or from disk, are an "invalid" read that's never saved), a calendar a `publishedFixed` (fixed name, nothing listed, so it prunes nothing; a missing file is "not published yet"), and a connection's walking path a plain query the browser's HTTP cache keeps (not saved). Each PlanetTerp department loads on its own; one that fails is unrated. A department file the server has deleted asks for the manifest again, once, before it fails, and stays loading meanwhile. A newer format in any published query sets the catalog store's `appStale`, as the catalog's own reads do (§2.3): the failures there offer Reload, and the scheduler reloads when next shown. Their old Dexie rows are no longer read and go with those tables in 4b.
+4. **Files before the manifest, never after** (§5.5): the manifest's fetch first fetches and saves the new version of every file of the term saved on this device (a changed department, the new seats). If one can't load, the fetch fails and the old manifest stays, on screen and on disk. Only then is the new manifest saved, and then the term's saved files it no longer lists are deleted; another term's never are.
+5. **Polling:** for an active term, poll the manifest every 60 s while the document is visible (the manifest query's `refetchInterval`, paused while hidden), and when it becomes visible again or reconnects once the copy is over a minute old. Most polls are a 304. A change in `seats.hash` alone fetches only the seats file. One tab polls for the whole browser: visible tabs queue for a Web Lock per term, the holder polls and posts each manifest on the `terpsicle:catalog` BroadcastChannel, and the others put it in their own cache (only ever newer than theirs); a hidden tab gives the lock up (`docs/decisions.md`, "One tab polls seats for the browser"). For an archived term, fetch the manifest once per page and don't poll.
+6. PlanetTerp and geo follow the same pattern with their own manifests, fetched lazily: a PlanetTerp department file when a course from it opens, or when the generator ranks by rating or GPA; the routes binary when the plan first has a connection. Since `v3/query-catalog-a` these, and each term's academic calendar, are query-cache reads (§5.5; `src/state/query/catalog.ts`): the PlanetTerp and geo manifests are `publishedPointer`s (a day fresh, checked once per page), their files `publishedFile`s (the routes binary a `publishedBinary`, kept as bytes and checked with `RoutesFileSchema`, so bytes that don't decode, from the server or from disk, are an "invalid" read that's never saved), a calendar a `publishedFixed` (fixed name, nothing listed, so it prunes nothing; a missing file is "not published yet"), and a connection's walking path a plain query the browser's HTTP cache keeps (not saved). Each PlanetTerp department loads on its own; one that fails is unrated. A department file the server has deleted asks for the manifest again, once, before it fails, and stays loading meanwhile. A newer format in any published query (the catalog manifest's first) sets the catalog store's `appStale` (§2.3): the failures there offer Reload, and the scheduler reloads when next shown. Their old Dexie rows went with those tables (§5, version 7).
 
-The client does this in `src/state/catalog-store.ts` (cache: `src/state/data-cache.ts`). Two details:
-- Hashed files are put as they arrive, and the manifest is committed (with the eviction of step 4, in one transaction) once every file it lists is saved. The invariant is the same, and an interrupted first load resumes from the files it already has.
-- Mock mode prefixes its rows with `mock:`, since `pnpm dev` and `pnpm dev:mock` share localhost. A cache row records nothing about schema versions; instead the pointer `_schema-versions` does, and a build with a different version for a family clears that family first.
+The client does this with queries (`src/state/query/catalog.ts`: `termsQuery`, `manifestQuery`, `deptChunkQuery`, `seatsQuery`, `changesQuery`; the poll is `src/state/query/catalog-poll.ts`), and `src/state/catalog-store.ts` builds each term's index from them. Details:
+- Each file is saved as it arrives. On a first load the manifest is saved at once, so an interrupted load resumes from the files it has, and offline shows those, with the departments it lacks marked failed (search still settles).
+- A department file the server has deleted asks for the manifest again before it fails, and stays loading meanwhile.
+- A new manifest, from a poll, a check or another tab, is diffed against the one on screen (`diffManifest`); only departments already loaded whose hash changed are read again, and a department whose hash moves while it loads is read at the new one, never shown at the old.
+- Mock and live keep apart by their query keys (`["published", "mock" | "live", key]`), since `pnpm dev` and `pnpm dev:mock` share localhost; a `SCHEMA_VERSIONS` bump drops that family's rows (the persister's buster).
 
 ### 5.2 Client course index flow (v3)
 
@@ -358,7 +360,7 @@ Copies of server data go through TanStack Query (`docs/decisions.md`): one `Quer
 - **Nothing per person** is persisted: only published-data factories opt in.
 - Every storage error is swallowed: the cache only makes loading faster. Without IndexedDB nothing is persisted.
 
-The catalog (§5.1) and the course index (§5.2) still use the Dexie cache (`manifests`, `files`) until they move over; `reviews` rows there from before are no longer read and go with those tables.
+Every published file is here now: the old Dexie cache (`manifests`, `files`) is gone with `LOCAL_DB_VERSION` 7 (§5). A pointer whose files are one term's (a term's manifest) passes that term's prefix as its `scope`, so it brings and drops only that term's files.
 
 ---
 

@@ -60,4 +60,4 @@ export const FOUR_YEAR_SHARE_VERSION = 1;
  * 6: the `chatPlans` settings row becomes `mainPlans` (each term's main plan).
  */
 export const LOCAL_DB_NAME = "terpsicle";
-export const LOCAL_DB_VERSION = 6;
+export const LOCAL_DB_VERSION = 7;

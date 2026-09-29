@@ -182,7 +182,7 @@ function useDefaultPlan(hold: boolean) {
  */
 function useTermData() {
   const termId = useActiveTerm().termId;
-  const reader = useCatalog((s) => s.reader);
+  const client = useCatalog((s) => s.client);
   const ensureTerm = useCatalog((s) => s.ensureTerm);
   const current = useCurrentPlan();
   const placed = current?.plan.courses.some((c) => c.sectionCode !== null);
@@ -193,9 +193,9 @@ function useTermData() {
     : "";
   useEffect(() => {
     // A shared link can name its term before the data source is ready.
-    if (termId && reader)
+    if (termId && client)
       void ensureTerm(termId, planDepts ? planDepts.split(",") : []);
-  }, [termId, reader, ensureTerm, planDepts]);
+  }, [termId, client, ensureTerm, planDepts]);
   useCatalogPolling(termId);
   useCampus(Boolean(placed));
 }

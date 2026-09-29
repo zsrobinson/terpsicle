@@ -14,6 +14,7 @@ import type { SchemaFamily } from "~/core/schema";
 import {
   DataError,
   type DataSource,
+  type ReadOptions,
   readParsed,
   SchemaVersionError,
 } from "../data-source";
@@ -155,6 +156,8 @@ function published<S extends z.ZodType>(
     load?: (source: DataSource, client: QueryClient) => Promise<z.infer<S>>;
     /** Before a missing file fails (see `publishedFile`). */
     onMissing?: (client: QueryClient) => Promise<unknown>;
+    /** How the plain read asks (its fetch priority). */
+    read?: ReadOptions;
   },
 ) {
   return queryOptions({
@@ -163,7 +166,7 @@ function published<S extends z.ZodType>(
       ? ({ client }): Promise<z.infer<S>> =>
           (options.load
             ? options.load(source, client)
-            : readParsed(source, key, schema, family)
+            : readParsed(source, key, schema, family, options.read)
           ).catch(async (error: unknown) => {
             if (
               options.onMissing &&
@@ -219,12 +222,18 @@ export function publishedFile<S extends z.ZodType>(
      * (a new key) instead of an error. Once per fetch.
      */
     onMissing?: (client: QueryClient) => Promise<unknown>;
+    /**
+     * How a fetch asks: a background load reads at a low priority, so what
+     * the page asked for goes first. The same key whatever it is.
+     */
+    read?: ReadOptions;
   },
 ) {
   return published(source, key, schema, family, {
     staleTime: Number.POSITIVE_INFINITY,
     checkOnRestore: false,
     onMissing: options?.onMissing,
+    read: options?.read,
   });
 }
 
@@ -284,7 +293,9 @@ export function publishedFixed<S extends z.ZodType>(
 /**
  * A fixed-name pointer (a manifest): checked once per page, and again once
  * stale (on the next use, focus or reconnect). `lists` names the hashed
- * files it points at, each read with `fileSchema(key)`.
+ * files it points at, each read with `fileSchema(key)`. With `scope` (an
+ * R2 prefix), only saved files under it are its own: a term's manifest
+ * brings and drops that term's files, never another term's.
  */
 export function publishedPointer<S extends z.ZodType>(
   source: DataSource | null,
@@ -295,18 +306,22 @@ export function publishedPointer<S extends z.ZodType>(
     staleTime: number;
     lists: (data: z.infer<S>) => string[];
     fileSchema: (key: string) => z.ZodType | BinaryFile;
+    scope?: string;
   },
 ) {
+  const scope = options.scope ?? "";
   return published(source, key, schema, family, {
     staleTime: options.staleTime,
     checkOnRestore: true,
     load: async (source, client) => {
       const data: z.infer<S> = await readParsed(source, key, schema, family);
       const listed = options.lists(data);
-      await refreshSaved(source, client, family, listed, options.fileSchema);
+      await refreshSaved(source, client, family, listed, options.fileSchema, {
+        scope,
+      });
       // After the query holds the new pointer: save it, then prune.
       setTimeout(() => {
-        void settle(source, client, family, key, listed);
+        void settle(source, client, family, key, listed, scope);
       }, 0);
       return data;
     },
@@ -324,8 +339,9 @@ async function refreshSaved(
   family: SchemaFamily,
   listed: readonly string[],
   fileSchema: (key: string) => z.ZodType | BinaryFile,
+  { scope }: { scope: string },
 ): Promise<void> {
-  const saved = await savedPublishedKeys(family, source.kind);
+  const saved = await savedPublishedKeys(family, source.kind, scope);
   const have = new Set(saved);
   const slots = new Set(saved.map(fileSlot));
   const changed = listed.filter((k) => !have.has(k) && slots.has(fileSlot(k)));
@@ -352,11 +368,12 @@ async function settle(
   family: SchemaFamily,
   key: string,
   listed: readonly string[],
+  scope: string,
 ): Promise<void> {
   await publishedPersister(family).persistQueryByKey(
     publishedKey(source.kind, key),
     client,
   );
   await flushQueryStorage();
-  await prunePublished(family, source.kind, new Set([key, ...listed]));
+  await prunePublished(family, source.kind, new Set([key, ...listed]), scope);
 }

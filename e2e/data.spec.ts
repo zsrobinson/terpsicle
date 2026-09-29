@@ -46,20 +46,66 @@ test("switch to a past term and back; the last one is remembered", async ({
   await expect(switcher(page, "Spring 2027")).toBeVisible();
 });
 
-test("the catalog is saved in IndexedDB for the next visit", async ({
+test("the catalog is saved on this device, and a reload with /data out of reach starts from it", async ({
   page,
+  isMobile,
 }) => {
-  await open(page);
-  // The app has opened its database once the terms are on screen.
-  await expect(switcher(page, "Spring 2027")).toBeVisible();
-  // The manifest is committed only once every file it lists is saved.
+  // One layout is enough: this is about the data, not the drawer.
+  test.skip(isMobile, "desktop only");
+  // The mock data over HTTP, so there are real requests to cut.
+  await page.addInitScript(() =>
+    localStorage.setItem("terpsicle:mock-data", "http"),
+  );
+  const planOnScreen = () =>
+    expect(
+      page
+        .getByRole("region", { name: "Week calendar" })
+        .getByRole("button", { name: /^CMSC351 0301/ })
+        .first(),
+    ).toBeVisible();
+  await page.goto("/schedule?demo=1");
+  await planOnScreen();
+  const searchFor = async (text: string) => {
+    await page.keyboard.press("/");
+    await page.getByRole("combobox", { name: "Search courses" }).fill(text);
+  };
+  await searchFor("cmsc 351");
+  // Search waits for the whole term, so the whole term has loaded.
+  const result = page.locator('[data-course-result="CMSC351"]');
+  await expect(result).toContainText("4 sections", { timeout: 15_000 });
+
+  // The manifest, the departments and the seats are saved (DATA.md §5.5).
   await expect
-    .poll(() => page.evaluate(readCache), { timeout: 15_000 })
-    .toMatchObject({
-      pointers: expect.arrayContaining(["mock:catalog/202701/manifest.json"]),
-    });
-  const { files } = await page.evaluate(readCache);
-  expect(files).toBeGreaterThan(0);
+    .poll(() => page.evaluate(readQueryCache), { timeout: 15_000 })
+    .toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('"mock","catalog/terms.json"'),
+        expect.stringContaining('"mock","catalog/202701/manifest.json"'),
+        expect.stringMatching(
+          /"mock","catalog\/202701\/dept\/CMSC\.[0-9a-f]+\.json"/,
+        ),
+        expect.stringMatching(
+          /"mock","catalog\/202701\/seats\.[0-9a-f]+\.json"/,
+        ),
+      ]),
+    );
+  // The old data cache's tables went with LOCAL_DB_VERSION 7.
+  expect(await page.evaluate(readOldCacheTables)).toEqual([]);
+
+  // /data out of reach: the catalog comes from this device, search finds
+  // the course with its sections, and the bar says so quietly.
+  let cut = 0;
+  await page.route("**/data/**", (route) => {
+    cut++;
+    return route.abort("internetdisconnected");
+  });
+  await page.reload();
+  await planOnScreen();
+  await searchFor("cmsc 351");
+  await expect(result).toContainText("4 sections", { timeout: 15_000 });
+  await expect(page.getByText("Offline · showing saved data")).toBeVisible();
+  // The page did ask (the manifest's check), and was cut off.
+  await expect.poll(() => cut).toBeGreaterThan(0);
 });
 
 test("Terpsicle's review numbers come through the query cache and are saved", async ({
@@ -116,32 +162,18 @@ function readQueryCache(): Promise<string[]> {
   });
 }
 
-/**
- * The app's IndexedDB cache: pointer keys and the number of files (runs in
- * the page). Closes its connection, so it never blocks the app's own.
- */
-function readCache(): Promise<{ pointers: string[]; files: number }> {
+/** The data cache tables left in the plans' database (none since version 7). */
+function readOldCacheTables(): Promise<string[]> {
   return new Promise((resolve, reject) => {
     const open = indexedDB.open("terpsicle");
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
       const db = open.result;
-      if (!db.objectStoreNames.contains("manifests")) {
-        db.close();
-        resolve({ pointers: [], files: 0 });
-        return;
-      }
-      const tx = db.transaction(["manifests", "files"]);
-      const keys = tx.objectStore("manifests").getAllKeys();
-      const count = tx.objectStore("files").count();
-      tx.oncomplete = () => {
-        db.close();
-        resolve({ pointers: keys.result.map(String), files: count.result });
-      };
-      tx.onerror = () => {
-        db.close();
-        reject(tx.error);
-      };
+      const names = [...db.objectStoreNames].filter(
+        (n) => n === "manifests" || n === "files",
+      );
+      db.close();
+      resolve(names);
     };
   });
 }

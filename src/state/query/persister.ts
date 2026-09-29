@@ -175,17 +175,23 @@ export async function forgetPersisted(
   await queryStorage()?.removeItem(`${prefixOf(family)}-${queryHash}`);
 }
 
-/** The R2 keys of a family's saved files in this mode. */
+/**
+ * The R2 keys of a family's saved files in this mode; with `scope`, only
+ * those under that R2 prefix (one term's catalog).
+ */
 export async function savedPublishedKeys(
   family: SchemaFamily,
   kind: DataSource["kind"],
+  scope = "",
 ): Promise<string[]> {
   const store = queryStorage();
   if (!store) return [];
   const prefix = `${prefixOf(family)}-`;
   return (await store.keys(prefix)).flatMap((key) => {
     const queryKey = parseKey(key.slice(prefix.length));
-    return queryKey && queryKey[1] === kind ? [queryKey[2]] : [];
+    return queryKey && queryKey[1] === kind && queryKey[2].startsWith(scope)
+      ? [queryKey[2]]
+      : [];
   });
 }
 
@@ -193,13 +199,16 @@ export async function savedPublishedKeys(
  * Drops a family's rows for files its pointer no longer lists, as the old
  * cache's commit did (DATA.md §5.1 step 4): hashed files are immutable, so
  * each change leaves the old file behind. `keep` holds R2 keys; a row whose
- * key doesn't read is dropped too. Call it only once the pointer and the
- * files it replaced are saved (./published.ts).
+ * key doesn't read is dropped too. With `scope`, only rows under that R2
+ * prefix are looked at: one term's manifest never drops another term's
+ * files. Call it only once the pointer and the files it replaced are saved
+ * (./published.ts).
  */
 export async function prunePublished(
   family: SchemaFamily,
   kind: DataSource["kind"],
   keep: ReadonlySet<string>,
+  scope = "",
 ): Promise<void> {
   const store = queryStorage();
   if (!store) return;
@@ -207,6 +216,8 @@ export async function prunePublished(
   for (const key of await store.keys(prefix)) {
     const queryKey = parseKey(key.slice(prefix.length));
     if (queryKey && queryKey[1] !== kind) continue;
+    if (queryKey && !queryKey[2].startsWith(scope)) continue;
+    if (!queryKey && scope) continue;
     if (queryKey && keep.has(queryKey[2])) continue;
     await store.removeItem(key);
   }

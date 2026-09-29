@@ -1,3 +1,8 @@
+import {
+  type QueryClient,
+  QueryObserver,
+  type QueryState,
+} from "@tanstack/react-query";
 import { create } from "zustand";
 import {
   buildCatalogIndex,
@@ -5,44 +10,46 @@ import {
   cachedCatalogOf,
   diffManifest,
 } from "~/core/catalog";
-import {
-  type ChangesFile,
-  type ContentHash,
-  type Course,
-  type CourseCode,
-  changesKey,
-  type DeptChunk,
-  type DeptCode,
-  deptChunkKey,
-  type Manifest,
-  ManifestSchema,
-  manifestKey,
-  SCHEMA_VERSIONS,
-  type SeatsFile,
-  seatsKey,
-  TERMS_KEY,
-  type Term,
-  type TermId,
-  TermsFileSchema,
+import type {
+  ChangesFile,
+  ContentHash,
+  Course,
+  CourseCode,
+  DeptCode,
+  Manifest,
+  SeatsFile,
+  Term,
+  TermId,
+  TermsFile,
 } from "~/core/schema";
-import { type CacheFile, type DataCache, versionedCache } from "./data-cache";
 import {
   DataError,
-  type DataReader,
+  type DataSource,
   type ReadPriority,
   SchemaVersionError,
 } from "./data-source";
+import {
+  changesQuery,
+  deptChunkQuery,
+  manifestQuery,
+  seatsQuery,
+  termsQuery,
+} from "./query/catalog";
+import { type PollPlatform, pollManifest } from "./query/catalog-poll";
 import { whenNewerFormat } from "./query/published";
 
-// Published data (DATA.md §2, §5.1): the term list; per term its manifest,
-// seats, changes and departments (as a core CatalogIndex); the campus map;
-// PlanetTerp per department; academic calendars.
+// The term catalog on screen (DATA.md §2, §5.1): the term list, and per
+// term its manifest, seats, changes and departments (as a core
+// CatalogIndex).
 //
-// Every read goes through the same path, in mock and live mode alike:
-// the IndexedDB cache first (instant startup, works offline), then the
-// network to revalidate. Manifests are diffed against what's loaded (core
-// `diffManifest`), so a poll fetches only the files whose hash changed.
-// Files are validated before use; a file that fails keeps the previous one.
+// Every file is a query (./query/catalog.ts): shown from this device's
+// copy at once, checked with the server, saved, and dropped when the
+// manifest stops listing it, all by TanStack Query and its persister
+// (DATA.md §5.5). This store keeps only what's built from them: which
+// departments are in, the index, and whether the term is whole yet. A
+// new manifest (a poll, a check on load, another tab's) is diffed against
+// the one on screen (core `diffManifest`), and only departments already
+// loaded whose hash changed are read again.
 //
 // Departments load in two ways (DATA.md §5.1). What's on screen asks for its
 // own (`ensureDepts`: a course's details, the plan's courses, a shared link)
@@ -55,10 +62,6 @@ export type LoadState = "loading" | "ready" | "error";
 export interface TermCatalog {
   manifest: Manifest | null;
   manifestState: LoadState;
-  /** Where the manifest on screen came from: the browser's cache, or the server. */
-  manifestSource: "cache" | "network" | null;
-  /** When the server last confirmed the manifest; null if only cached so far. */
-  checkedAt: string | null;
   depts: Readonly<Partial<Record<DeptCode, LoadState>>>;
   /** Every loaded course. Rebuilt (a new object) whenever departments load. */
   index: CatalogIndex;
@@ -94,13 +97,16 @@ export type CatalogEvent =
 export type CatalogFailureReason = DataError["reason"] | "newer-data";
 
 export interface CatalogOptions {
-  cache?: DataCache | null;
   onEvent?: (event: CatalogEvent) => void;
+  /** Web Locks and the channel for the seat poll; tests pass their own. */
+  poll?: PollPlatform;
 }
 
 export interface CatalogState {
-  reader: DataReader | null;
-  cache: DataCache | null;
+  /** The page's query client, which holds every file. */
+  client: QueryClient | null;
+  /** Where the files come from (mock or live). */
+  source: DataSource | null;
   terms: readonly Term[] | null;
   termsState: LoadState | "idle";
   /** Specific, plain words for the person, when terms can't load. */
@@ -110,11 +116,18 @@ export interface CatalogState {
   network: "online" | "offline";
   /**
    * The server publishes a newer data format than this tab understands
-   * (DATA.md §2.3): keep what's loaded, and reload at the next visibility change.
+   * (DATA.md §2.3): any published query's newer-format error sets it,
+   * the manifest's first. Keep what's loaded, and reload at the next
+   * visibility change.
    */
   appStale: boolean;
 
-  setReader: (reader: DataReader, options?: CatalogOptions) => void;
+  /** Reads the catalog from `source` through `client` from now on. */
+  connect: (
+    client: QueryClient,
+    source: DataSource,
+    options?: CatalogOptions,
+  ) => void;
   loadTerms: () => Promise<void>;
   /**
    * Loads the term's manifest, then the given departments, ahead of the
@@ -127,8 +140,13 @@ export interface CatalogState {
    * already asked for, before the rest.
    */
   ensureTerm: (termId: TermId, first?: readonly DeptCode[]) => Promise<void>;
-  /** Revalidates the term's manifest and fetches only what changed (the seat poll). */
+  /** Asks for the term's manifest now and brings what changed. */
   refreshTerm: (termId: TermId) => Promise<void>;
+  /**
+   * The seat poll for the term on screen (./query/catalog-poll.ts), until
+   * the returned function stops it.
+   */
+  pollTerm: (termId: TermId) => () => void;
   /** Tries again after a failed first load. */
   retry: () => Promise<void>;
 }
@@ -145,8 +163,6 @@ function emptyTerm(termId: TermId): TermCatalog {
   return {
     manifest: null,
     manifestState: "loading",
-    manifestSource: null,
-    checkedAt: null,
     depts: {},
     index: buildCatalogIndex(termId, []),
     complete: false,
@@ -154,15 +170,6 @@ function emptyTerm(termId: TermId): TermCatalog {
     seats: null,
     changes: null,
   };
-}
-
-const inFlight = new Map<string, Promise<unknown>>();
-function once<T>(key: string, run: () => Promise<T>): Promise<T> {
-  const existing = inFlight.get(key);
-  if (existing) return existing as Promise<T>;
-  const promise = run().finally(() => inFlight.delete(key));
-  inFlight.set(key, promise);
-  return promise;
 }
 
 async function eachLimited<T>(
@@ -183,8 +190,8 @@ async function eachLimited<T>(
 }
 
 export const INITIAL_CATALOG_STATE = {
-  reader: null,
-  cache: null,
+  client: null,
+  source: null,
   terms: null,
   termsState: "idle",
   termsError: null,
@@ -218,16 +225,74 @@ const indexOf = (termId: TermId, loaded: Map<DeptCode, LoadedDept>) =>
  * the rest waits for them, so what's on screen is fetched first.
  */
 const asked = new Map<TermId, Set<Promise<void>>>();
-/** Per term, a first load's seats and changes, which `ensureTerm` waits for. */
-const firstSeats = new Map<TermId, Promise<void>>();
-/** Per term, this session: when loading started and how many files came from the network. */
+/**
+ * Per term, the background load of the whole term, which a second
+ * `ensureTerm` (the plan gained a department) joins rather than starting
+ * another batch of 16. Each file is Query's to fetch once; this is only
+ * the order of the batch.
+ */
+const background = new Map<TermId, Promise<void>>();
+/**
+ * Per term, the manifest being brought on screen (its changed departments
+ * read again), so the query's observer and a caller that waits share it.
+ */
+const applying = new Map<TermId, { manifest: Manifest; done: Promise<void> }>();
+/** Per term, this session: when loading started and what came from the network. */
 const loadStats = new Map<
   TermId,
-  { started: number; fetched: number; fromCache: boolean; reported: boolean }
+  {
+    started: number;
+    /** The term's files read from the server (not the manifest). */
+    fetched: number;
+    /** Manifest reads that came back from the server. */
+    manifestReads: number;
+    fromCache: boolean;
+    reported: boolean;
+  }
 >();
+const stats = (termId: TermId) => {
+  let s = loadStats.get(termId);
+  if (!s) {
+    s = {
+      started: performance.now(),
+      fetched: 0,
+      manifestReads: 0,
+      fromCache: false,
+      reported: false,
+    };
+    loadStats.set(termId, s);
+  }
+  return s;
+};
+/** Observers on the terms and each term's manifest, stopped on `connect`. */
+const watching = new Map<string, () => void>();
 let onEvent: ((event: CatalogEvent) => void) | undefined;
+let pollPlatform: PollPlatform | undefined;
+/** When this page connected: data from before it came from this device. */
+let connectedAt = 0;
 
-const nowIso = () => new Date().toISOString();
+/**
+ * The source as the store reads it: each term file the server answers
+ * with counts toward that term's `catalog_loaded` (docs/ANALYTICS.md), and
+ * a restored copy doesn't, since nothing is read.
+ */
+function counted(source: DataSource): DataSource {
+  return {
+    kind: source.kind,
+    readBinary: (key) => source.readBinary(key),
+    readJson: async (key, options) => {
+      const data = await source.readJson(key, options);
+      const match = /^catalog\/([^/]+)\/(.+)$/.exec(key);
+      if (match?.[1] && match[2]) {
+        const s = stats(match[1]);
+        if (match[2] === "manifest.json") s.manifestReads++;
+        else s.fetched++;
+      }
+      return data;
+    },
+  };
+}
+
 const isNewer = (error: unknown): boolean =>
   error instanceof SchemaVersionError && error.newer;
 const reasonOf = (error: unknown): DataError["reason"] =>
@@ -247,80 +312,46 @@ export const useCatalog = create<CatalogState>()((set, get) => {
   };
 
   /**
-   * A network result: note whether the server answered, and whether it
-   * publishes a newer format than this tab reads (DATA.md §2.3).
+   * Whether the server answered, from a query's latest outcome: a network
+   * failure after the data it shows means offline; data fetched on this
+   * page means online again. A copy from disk says nothing either way.
    */
+  const noteReach = (state: QueryState<unknown, Error> | undefined) => {
+    if (!state) return;
+    if (state.error && state.errorUpdatedAt >= state.dataUpdatedAt) {
+      if (reasonOf(state.error) === "network" && get().network !== "offline")
+        set({ network: "offline" });
+    } else if (
+      state.data !== undefined &&
+      state.dataUpdatedAt >= connectedAt &&
+      get().network !== "online"
+    )
+      set({ network: "online" });
+  };
+  /** A read something waits for: a network failure means offline. */
   const reached = <T>(promise: Promise<T>): Promise<T> =>
-    promise.then(
-      (value) => {
-        if (get().network !== "online") set({ network: "online" });
-        return value;
-      },
-      (error: unknown) => {
-        if (reasonOf(error) === "network") set({ network: "offline" });
-        else if (get().network !== "online") set({ network: "online" });
-        if (isNewer(error)) set({ appStale: true });
-        throw error;
-      },
-    );
-
-  const stats = (termId: TermId) => {
-    let s = loadStats.get(termId);
-    if (!s) {
-      s = {
-        started: performance.now(),
-        fetched: 0,
-        fromCache: false,
-        reported: false,
-      };
-      loadStats.set(termId, s);
-    }
-    return s;
-  };
+    promise.catch((error: unknown) => {
+      if (reasonOf(error) === "network" && get().network !== "offline")
+        set({ network: "offline" });
+      throw error;
+    });
 
   /**
-   * Cache writes run in the background, so what arrives shows at once;
-   * `persistManifest` waits for them before committing a manifest.
+   * The term's manifest as the cache holds it. A fetch resolves with what
+   * the server sent; the cache keeps a structurally shared copy, which is
+   * what its observer (`syncManifest`) sees: one object, so one apply.
    */
-  const writes = new Set<Promise<void>>();
-  const store = (files: CacheFile[]) => {
-    const cache = get().cache;
-    if (!cache) return;
-    const write = cache.putFiles(files).finally(() => writes.delete(write));
-    writes.add(write);
+  const cached = (termId: TermId): Manifest | undefined => {
+    const { client, source } = get();
+    return client && source
+      ? client.getQueryData(manifestQuery(source, termId).queryKey)
+      : undefined;
   };
 
-  /**
-   * A content-hashed file: the cache if it has it (validated when stored,
-   * trusted after, DATA.md §5), else the network, then stored.
-   */
-  const hashed = async <T>(
-    key: string,
-    file: Omit<CacheFile, "key" | "data">,
-    fetch: () => Promise<T>,
-  ): Promise<T> => {
-    const { cache } = get();
-    const hit = cache ? (await cache.getFiles([key])).get(key) : undefined;
-    if (hit !== undefined) return hit as T;
-    const data = await reached(fetch());
-    if (file.termId) stats(file.termId).fetched++;
-    store([{ key, ...file, data }]);
-    return data;
-  };
-
-  /** A fixed-name file: the cached copy (validated) if any, then the network. */
-  const cachedPointer = async <T>(
-    key: string,
-    parse: (data: unknown) => T | null,
-  ): Promise<T | null> => {
-    const hit = await get().cache?.getPointer(key);
-    return hit ? parse(hit.data) : null;
-  };
-
-  const catalogFile = (termId: TermId): Omit<CacheFile, "key" | "data"> => ({
-    family: "catalog",
-    termId,
-  });
+  /** The hash the manifest on screen lists for a department. */
+  const listedHash = (termId: TermId, dept: DeptCode) =>
+    get().byTerm[termId]?.manifest?.departments.find((d) => d.code === dept)
+      ?.hash;
 
   const rebuild = (termId: TermId, manifest: Manifest) => {
     const loaded = termChunks(termId);
@@ -331,151 +362,154 @@ export const useCatalog = create<CatalogState>()((set, get) => {
   };
 
   /**
-   * Stores the manifest in the cache once every file it lists is cached, and
-   * drops this term's files it no longer lists (DATA.md §5.1 step 4): a
-   * cached manifest never points at files the browser doesn't have.
+   * Seats and changes for a manifest; a file that fails keeps the one on
+   * screen. Only files the manifest on screen still lists go on it: a
+   * newer one may have come while these loaded.
    */
-  const persistManifest = async (termId: TermId) => {
-    const { cache } = get();
+  const seatsAndChanges = async (termId: TermId, manifest: Manifest) => {
+    const { client, source } = get();
+    if (!client || !source) return;
     const t = get().byTerm[termId];
-    if (!cache || !t?.manifest || t.manifestSource !== "network") return;
-    const m = t.manifest;
-    const keys = [
-      ...m.departments.map((d) => deptChunkKey(termId, d.code, d.hash)),
-      ...(m.seats ? [seatsKey(termId, m.seats.hash)] : []),
-      ...(m.changes ? [changesKey(termId, m.changes.hash)] : []),
-    ];
-    await Promise.all(writes);
-    const have = await cache.getFiles(keys);
-    if (keys.some((k) => !have.has(k))) return;
-    await cache.commit(
-      { key: manifestKey(termId), data: m, checkedAt: t.checkedAt ?? nowIso() },
-      [],
-      { termId, family: "catalog", keep: new Set(keys) },
-    );
-  };
-
-  /** Seats and changes for a manifest; a file that fails keeps the one on screen. */
-  const loadSeatsAndChanges = async (
-    reader: DataReader,
-    termId: TermId,
-    manifest: Manifest,
-  ) => {
     const keep =
       <T>(fallback: T) =>
       (error: unknown) => {
         console.error(error);
         return fallback;
       };
-    const t = get().byTerm[termId];
     const seatsHash = manifest.seats?.hash;
     const changesHash = manifest.changes?.hash;
     const [seats, changes] = await Promise.all([
       seatsHash
-        ? hashed(seatsKey(termId, seatsHash), catalogFile(termId), () =>
-            reader.seats(termId, seatsHash),
+        ? reached(
+            client.ensureQueryData(seatsQuery(source, termId, seatsHash)),
           ).catch(keep(t?.seats ?? null))
         : null,
       changesHash
-        ? hashed(changesKey(termId, changesHash), catalogFile(termId), () =>
-            reader.changes(termId, changesHash),
+        ? reached(
+            client.ensureQueryData(changesQuery(source, termId, changesHash)),
           ).catch(keep(t?.changes ?? null))
         : null,
     ]);
-    patchTerm(termId, () => ({ seats, changes }));
+    const now = get().byTerm[termId];
+    const patch: Partial<TermCatalog> = {};
+    if (now && now.manifest?.seats?.hash === seatsHash && now.seats !== seats)
+      patch.seats = seats;
+    if (
+      now &&
+      now.manifest?.changes?.hash === changesHash &&
+      now.changes !== changes
+    )
+      patch.changes = changes;
+    if (Object.keys(patch).length > 0) patchTerm(termId, () => patch);
   };
 
   /**
-   * The server's manifest → what's on screen. Only departments already
-   * loaded are refetched (when their hash changed); the rest load when asked.
+   * A manifest → what's on screen, wherever it came from (disk, the
+   * server, another tab). Only departments already loaded are read again
+   * (when their hash changed); the rest load when asked.
    */
-  const refreshTerm = (termId: TermId) =>
-    once(`refresh:${termId}`, async () => {
-      const { reader } = get();
-      if (!reader) return;
-      const current = get().byTerm[termId];
-      let next: Manifest;
-      try {
-        next = await reached(reader.manifest(termId));
-      } catch (error) {
-        // Offline, a bad file, or a format this build doesn't read (newer:
-        // the tab reloads when next shown; older: the jobs haven't
-        // republished). Either way keep what's on screen (DATA.md §2.3).
-        console.error(error);
-        if (!current?.manifest) {
-          patchTerm(termId, () => ({ manifestState: "error" }));
-          onEvent?.({
-            type: "catalog_load_failed",
-            termId,
-            reason: failureOf(error),
-          });
-        }
-        return;
-      }
-      const old = current?.manifest ?? null;
-      const diff = diffManifest(old ? cachedCatalogOf(old) : null, next);
-      const loaded = termChunks(termId);
-
-      // Departments the manifest dropped leave the index.
-      for (const dept of diff.drop) loaded.delete(dept);
-      // Changed departments are refetched now if they were loaded (or the
-      // whole term was); the rest wait until something asks for them.
-      const stale = diff.fetch.filter(
-        (d) => current?.complete || current?.depts[d] === "ready",
-      );
-      patchTerm(termId, (t) => {
-        const depts = { ...t.depts };
-        for (const d of [...diff.drop, ...diff.fetch]) delete depts[d];
-        return {
-          manifest: next,
-          manifestState: "ready",
-          manifestSource: "network",
-          checkedAt: nowIso(),
-          depts,
-        };
-      });
-      if (!old) {
-        // A first load: departments needn't wait for seats and changes.
-        // `ensureTerm` waits for them before it commits the manifest.
-        const seats = loadSeatsAndChanges(reader, termId, next).finally(() =>
-          firstSeats.delete(termId),
-        );
-        firstSeats.set(termId, seats);
-      } else if (diff.seats || diff.changes)
-        await loadSeatsAndChanges(reader, termId, next);
-      if (stale.length > 0) await loadDepts(termId, stale, "auto");
-      else if (diff.drop.length > 0 || diff.fetch.length > 0)
-        rebuild(termId, next);
-      await persistManifest(termId);
+  const applyManifest = (termId: TermId, next: Manifest): Promise<void> => {
+    // The query's observer may have started on this same manifest: a
+    // caller that waits (a refresh, a first load) waits for that.
+    const running = applying.get(termId);
+    if (running?.manifest === next) return running.done;
+    if (get().byTerm[termId]?.manifest === next) return Promise.resolve();
+    const done: Promise<void> = bringOn(termId, next).finally(() => {
+      if (applying.get(termId)?.done === done) applying.delete(termId);
     });
+    applying.set(termId, { manifest: next, done });
+    return done;
+  };
 
-  const loadManifest = (termId: TermId) =>
-    once(`manifest:${termId}`, async () => {
-      if (get().byTerm[termId]?.manifest) return;
-      stats(termId);
+  const bringOn = async (termId: TermId, next: Manifest) => {
+    const current = get().byTerm[termId];
+    const old = current?.manifest ?? null;
+    const diff = diffManifest(old ? cachedCatalogOf(old) : null, next);
+    const loaded = termChunks(termId);
+    // Departments the manifest dropped leave the index.
+    for (const dept of diff.drop) loaded.delete(dept);
+    // Changed departments are read again now if they were loaded (or the
+    // whole term was); the rest wait until something asks for them.
+    const stale = diff.fetch.filter(
+      (d) => current?.complete || current?.depts[d] === "ready",
+    );
+    patchTerm(termId, (t) => {
+      const depts = { ...t.depts };
+      for (const d of [...diff.drop, ...diff.fetch]) delete depts[d];
+      return { manifest: next, manifestState: "ready", depts };
+    });
+    // A first load's departments don't wait for seats and changes; a
+    // batch shows once they're in too (`loadDepts`).
+    if (!old) void seatsAndChanges(termId, next);
+    else if (diff.seats || diff.changes) await seatsAndChanges(termId, next);
+    if (stale.length > 0) await loadDepts(termId, stale, "auto");
+    else if (diff.drop.length > 0 || diff.fetch.length > 0)
+      rebuild(termId, next);
+  };
+
+  /** A term's manifest didn't load; with none on screen, the term failed. */
+  const manifestFailed = (termId: TermId, error: unknown) => {
+    const t = get().byTerm[termId];
+    if (t?.manifest || t?.manifestState === "error") return;
+    // Offline, a bad file, or a format this build doesn't read (newer: the
+    // tab reloads when next shown; older: the jobs haven't republished).
+    patchTerm(termId, () => ({ manifestState: "error" }));
+    onEvent?.({
+      type: "catalog_load_failed",
+      termId,
+      reason: failureOf(error),
+    });
+  };
+
+  /** The manifest query's latest outcome → the term on screen. */
+  const syncManifest = (termId: TermId) => {
+    const { client, source } = get();
+    if (!client || !source) return;
+    const state = client.getQueryState<Manifest>(
+      manifestQuery(source, termId).queryKey,
+    );
+    noteReach(state);
+    if (state?.data) void applyManifest(termId, state.data);
+    else if (state?.error && state.fetchStatus === "idle")
+      manifestFailed(termId, state.error);
+  };
+
+  /** Follows a term's manifest query for the page's life, fetching nothing itself. */
+  const watchManifest = (termId: TermId) => {
+    const { client, source } = get();
+    const id = `manifest:${termId}`;
+    if (!client || !source || watching.has(id)) return;
+    const observer = new QueryObserver(client, {
+      ...manifestQuery(source, termId),
+      enabled: false,
+    });
+    watching.set(
+      id,
+      observer.subscribe(() => syncManifest(termId)),
+    );
+  };
+
+  const loadManifest = async (termId: TermId) => {
+    const { client, source } = get();
+    if (!client || !source || get().byTerm[termId]?.manifest) return;
+    const s = stats(termId);
+    const reads = s.manifestReads;
+    if (get().byTerm[termId]?.manifestState !== "loading")
       patchTerm(termId, () => ({ manifestState: "loading" }));
-      const cached = await cachedPointer(manifestKey(termId), (data) => {
-        const parsed = ManifestSchema.safeParse(data);
-        return parsed.success &&
-          parsed.data.schemaVersion === SCHEMA_VERSIONS.catalog
-          ? parsed.data
-          : null;
-      });
-      if (cached) {
-        // Instant: the saved catalog, revalidated in the background.
-        stats(termId).fromCache = true;
-        patchTerm(termId, () => ({
-          manifest: cached,
-          manifestState: "ready",
-          manifestSource: "cache",
-        }));
-        const { reader } = get();
-        if (reader) await loadSeatsAndChanges(reader, termId, cached);
-        void refreshTerm(termId);
-        return;
-      }
-      await refreshTerm(termId);
-    });
+    watchManifest(termId);
+    try {
+      const manifest = await reached(
+        client.ensureQueryData(manifestQuery(source, termId)),
+      );
+      // Nothing came back from the server: this device's copy, which the
+      // query checks with the server in the background.
+      if (s.manifestReads === reads) s.fromCache = true;
+      await applyManifest(termId, cached(termId) ?? manifest);
+    } catch (error) {
+      console.error(error);
+      manifestFailed(termId, error);
+    }
+  };
 
   /** Every department has loaded or failed. */
   const isSettled = (
@@ -488,47 +522,34 @@ export const useCatalog = create<CatalogState>()((set, get) => {
     );
 
   /**
-   * One department's chunk: the cache (read by the caller, for a whole batch)
-   * or the network. A chunk already loaded at this hash is never fetched
-   * again, so a department asked for twice, by what's on screen and by the
-   * background load, is fetched once.
+   * One department's chunk. A chunk already loaded at this hash is never
+   * read again, and one being read is Query's to share, so a department
+   * asked for twice, by what's on screen and by the background load, is
+   * fetched once.
    */
-  const loadDept = (
-    reader: DataReader,
+  const loadDept = async (
     termId: TermId,
     entry: Manifest["departments"][number],
-    cached: DeptChunk | undefined,
     priority: ReadPriority,
-  ) =>
-    once(
-      `dept:${termId}:${entry.code}:${entry.hash}`,
-      async (): Promise<LoadState> => {
-        const loaded = termChunks(termId);
-        if (loaded.get(entry.code)?.hash === entry.hash) return "ready";
-        try {
-          let chunk = cached;
-          if (!chunk) {
-            chunk = await reached(
-              reader.deptChunk(termId, entry.code, entry.hash, { priority }),
-            );
-            stats(termId).fetched++;
-            store([
-              {
-                key: deptChunkKey(termId, entry.code, entry.hash),
-                ...catalogFile(termId),
-                data: chunk,
-              },
-            ]);
-          }
-          loaded.set(entry.code, { hash: entry.hash, courses: chunk.courses });
-          return "ready";
-        } catch (error) {
-          // A department that fails keeps its previous chunk, if any.
-          console.error(error);
-          return loaded.has(entry.code) ? "ready" : "error";
-        }
-      },
-    );
+  ): Promise<LoadState> => {
+    const { client, source } = get();
+    const loaded = termChunks(termId);
+    if (loaded.get(entry.code)?.hash === entry.hash) return "ready";
+    if (!client || !source) return "error";
+    try {
+      const chunk = await reached(
+        client.ensureQueryData(deptChunkQuery(source, termId, entry, priority)),
+      );
+      // Not over a newer version that came in meanwhile.
+      if (listedHash(termId, entry.code) === entry.hash)
+        loaded.set(entry.code, { hash: entry.hash, courses: chunk.courses });
+      return "ready";
+    } catch (error) {
+      // A department that fails keeps its previous chunk, if any.
+      console.error(error);
+      return loaded.has(entry.code) ? "ready" : "error";
+    }
+  };
 
   /** Loads departments and shows them together once they're all in. */
   const loadDepts = async (
@@ -536,8 +557,7 @@ export const useCatalog = create<CatalogState>()((set, get) => {
     depts: readonly DeptCode[],
     priority: ReadPriority,
   ) => {
-    const { reader } = get();
-    if (!reader) return;
+    if (!get().client) return;
     if (get().byTerm[termId]?.manifestState !== "ready")
       await loadManifest(termId);
     const manifest = get().byTerm[termId]?.manifest;
@@ -565,37 +585,38 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       for (const d of wanted) next[d.code] = "loading";
       return { depts: next };
     });
-    // One cache read for the whole batch.
-    const keys = wanted.map((e) => deptChunkKey(termId, e.code, e.hash));
-    const cachedChunks =
-      (await get().cache?.getFiles(keys)) ?? new Map<string, unknown>();
     const results: Partial<Record<DeptCode, LoadState>> = {};
     await eachLimited(wanted, CONCURRENCY, async (entry) => {
-      const key = deptChunkKey(termId, entry.code, entry.hash);
-      results[entry.code] = await loadDept(
-        reader,
-        termId,
-        entry,
-        cachedChunks.get(key) as DeptChunk | undefined,
-        priority,
-      );
+      const state = await loadDept(termId, entry, priority);
+      // A newer manifest may have moved it on: that one's load says.
+      if (listedHash(termId, entry.code) === entry.hash)
+        results[entry.code] = state;
     });
-    // On a first load, sections show with their seats, never "Seats unknown"
-    // for a moment. The two load side by side, so this rarely waits.
-    await firstSeats.get(termId);
+    // Sections show with their seats, never "Seats unknown" for a moment.
+    // The two load side by side on a first load, so this rarely waits.
+    const now = get().byTerm[termId]?.manifest ?? manifest;
+    await seatsAndChanges(termId, now);
     // One index rebuild per batch, not per department.
     const loaded = termChunks(termId);
     patchTerm(termId, (t) => {
       const deptStates = { ...t.depts, ...results };
+      const listed = t.manifest ?? now;
       return {
         depts: deptStates,
         index: indexOf(termId, loaded),
-        complete: manifest.departments.every(
+        complete: listed.departments.every(
           (d) => deptStates[d.code] === "ready",
         ),
-        settled: t.settled || isSettled(manifest, termId, deptStates),
+        settled: t.settled || isSettled(listed, termId, deptStates),
       };
     });
+    // Departments a newer manifest moved on while they loaded: what was
+    // asked for is the department, so it loads at the hash listed now.
+    const moved = wanted.flatMap((e) => {
+      const hash = listedHash(termId, e.code);
+      return hash && hash !== e.hash ? [e.code] : [];
+    });
+    if (moved.length > 0) await loadDepts(termId, moved, priority);
   };
 
   const ensureDepts = (termId: TermId, depts: readonly DeptCode[]) => {
@@ -608,68 +629,102 @@ export const useCatalog = create<CatalogState>()((set, get) => {
     return load;
   };
 
-  const loadTerms = () =>
-    once("terms", async () => {
-      const { reader, cache } = get();
-      if (!reader) return;
-      if (!get().terms) set({ termsState: "loading", termsError: null });
-      const cached = await cachedPointer(TERMS_KEY, (data) => {
-        const parsed = TermsFileSchema.safeParse(data);
-        return parsed.success &&
-          parsed.data.schemaVersion === SCHEMA_VERSIONS.catalog
-          ? parsed.data
-          : null;
-      });
-      if (cached && !get().terms)
-        set({ terms: cached.terms, termsState: "ready" });
-      const fresh = reached(reader.terms()).then(
-        async (file) => {
-          set({ terms: file.terms, termsState: "ready", termsError: null });
-          await cache?.putPointer(TERMS_KEY, file, nowIso());
-        },
-        (error: unknown) => {
-          console.error(error);
-          if (get().terms) return; // Saved terms on screen: quiet.
-          const reason = failureOf(error);
-          set({
-            termsState: "error",
-            termsError:
-              reason === "network"
-                ? "Couldn't reach terpsicle.com to load the course catalog. Check your connection and try again."
-                : reason === "newer-data"
-                  ? "Terpsicle has been updated since this page opened. Reload to load the course catalog."
-                  : "The course catalog didn't load correctly. Try again in a minute.",
-          });
-          onEvent?.({ type: "catalog_load_failed", termId: null, reason });
-        },
-      );
-      // With a saved list on screen, revalidate in the background.
-      if (!cached) await fresh;
+  /** The terms query's latest outcome → the list on screen. */
+  const syncTerms = () => {
+    const { client, source } = get();
+    if (!client || !source) return;
+    const state = client.getQueryState<TermsFile>(termsQuery(source).queryKey);
+    noteReach(state);
+    if (state?.data) {
+      if (get().terms !== state.data.terms || get().termsState !== "ready")
+        set({ terms: state.data.terms, termsState: "ready", termsError: null });
+    } else if (state?.error && state.fetchStatus === "idle")
+      termsFailed(state.error);
+  };
+
+  const termsFailed = (error: unknown) => {
+    // Saved terms on screen: quiet.
+    if (get().terms || get().termsState === "error") return;
+    const reason = failureOf(error);
+    set({
+      termsState: "error",
+      termsError:
+        reason === "network"
+          ? "Couldn't reach terpsicle.com to load the course catalog. Check your connection and try again."
+          : reason === "newer-data"
+            ? "Terpsicle has been updated since this page opened. Reload to load the course catalog."
+            : "The course catalog didn't load correctly. Try again in a minute.",
     });
+    onEvent?.({ type: "catalog_load_failed", termId: null, reason });
+  };
+
+  const loadTerms = async () => {
+    const { client, source } = get();
+    if (!client || !source) return;
+    if (!watching.has("terms")) {
+      const observer = new QueryObserver(client, {
+        ...termsQuery(source),
+        enabled: false,
+      });
+      watching.set("terms", observer.subscribe(syncTerms));
+    }
+    if (!get().terms) set({ termsState: "loading", termsError: null });
+    try {
+      // This device's list at once if it has one, checked in the background.
+      await reached(client.ensureQueryData(termsQuery(source)));
+      syncTerms();
+    } catch (error) {
+      console.error(error);
+      termsFailed(error);
+    }
+  };
 
   return {
     ...INITIAL_CATALOG_STATE,
 
-    setReader: (reader, options = {}) => {
-      inFlight.clear();
+    connect: (client, source, options = {}) => {
+      for (const stop of watching.values()) stop();
+      watching.clear();
       chunks.clear();
       asked.clear();
-      firstSeats.clear();
+      background.clear();
+      applying.clear();
       loadStats.clear();
       onEvent = options.onEvent;
-      const cache = options.cache
-        ? versionedCache(options.cache, SCHEMA_VERSIONS)
-        : null;
-      set({ ...INITIAL_CATALOG_STATE, reader, cache });
+      pollPlatform = options.poll;
+      connectedAt = Date.now();
+      set({ ...INITIAL_CATALOG_STATE, client, source: counted(source) });
     },
 
     loadTerms,
     ensureDepts,
-    refreshTerm,
+
+    refreshTerm: async (termId) => {
+      const { client, source } = get();
+      if (!client || !source) return;
+      watchManifest(termId);
+      try {
+        const manifest = await reached(
+          client.fetchQuery({ ...manifestQuery(source, termId), staleTime: 0 }),
+        );
+        await applyManifest(termId, cached(termId) ?? manifest);
+      } catch (error) {
+        // Offline, a bad file, or a newer format: keep what's on screen
+        // (DATA.md §2.3).
+        console.error(error);
+        manifestFailed(termId, error);
+      }
+    },
+
+    pollTerm: (termId) => {
+      const { client, source } = get();
+      if (!client || !source) return () => {};
+      watchManifest(termId);
+      return pollManifest(client, source, termId, pollPlatform);
+    },
 
     ensureTerm: async (termId, first = []) => {
-      const { reader } = get();
-      if (!reader) return;
+      if (!get().client) return;
       if (get().byTerm[termId]?.manifestState !== "ready")
         await loadManifest(termId);
       const manifest = get().byTerm[termId]?.manifest;
@@ -678,14 +733,16 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       // Whatever's on screen asked for goes first; a second call while the
       // background load runs (the plan gained a department) joins it.
       await Promise.all(asked.get(termId) ?? []);
-      await once(`term:${termId}`, () =>
-        loadDepts(
+      let run = background.get(termId);
+      if (!run) {
+        run = loadDepts(
           termId,
           manifest.departments.map((d) => d.code),
           "low",
-        ),
-      );
-      await firstSeats.get(termId);
+        ).finally(() => background.delete(termId));
+        background.set(termId, run);
+      }
+      await run;
       const s = stats(termId);
       if (!s.reported && get().byTerm[termId]?.complete) {
         s.reported = true;
@@ -697,15 +754,16 @@ export const useCatalog = create<CatalogState>()((set, get) => {
           ms: Math.round(performance.now() - s.started),
         });
       }
-      await persistManifest(termId);
     },
 
     retry: async () => {
-      inFlight.delete("terms");
-      if (get().termsState === "error") await loadTerms();
+      if (get().termsState === "error") {
+        set({ termsState: "loading", termsError: null });
+        await loadTerms();
+      }
       for (const [termId, t] of Object.entries(get().byTerm)) {
         if (t?.manifestState === "error") {
-          inFlight.delete(`manifest:${termId}`);
+          patchTerm(termId, () => ({ manifestState: "loading" }));
           await get().ensureTerm(termId);
         }
       }
@@ -713,8 +771,9 @@ export const useCatalog = create<CatalogState>()((set, get) => {
   };
 });
 
-// The query cache's reads (PlanetTerp, the campus map, calendars, the
-// course index) find a newer format too: the same signal, the same Reload.
+// Every published query's newer format (the manifest's, PlanetTerp's, the
+// campus map's, calendars', the course index's) is the same signal, with
+// the same Reload.
 whenNewerFormat(() => {
   if (!useCatalog.getState().appStale) useCatalog.setState({ appStale: true });
 });

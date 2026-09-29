@@ -3,17 +3,25 @@ import {
   queryOptions,
   skipToken,
 } from "@tanstack/react-query";
+import type { z } from "zod";
 import {
   AcademicCalendarSchema,
   type BuildingCode,
   BuildingsFileSchema,
   buildingsKey,
+  ChangesFileSchema,
   type ContentHash,
   calendarKey,
+  changesKey,
+  DeptChunkSchema,
   type DeptCode,
+  deptChunkKey,
   GEO_MANIFEST_KEY,
   type GeoManifest,
   GeoManifestSchema,
+  type Manifest,
+  ManifestSchema,
+  manifestKey,
   PLANETTERP_MANIFEST_KEY,
   type PlanetTerpDept,
   PlanetTerpDeptSchema,
@@ -23,7 +31,11 @@ import {
   RouteGeometrySchema,
   routeGeometryKey,
   routesKey,
+  SeatsFileSchema,
+  seatsKey,
+  TERMS_KEY,
   type TermId,
+  TermsFileSchema,
   type TravelMode,
 } from "~/core/schema";
 import { RoutesFileSchema } from "~/core/schema/routes-file";
@@ -33,7 +45,12 @@ import {
   decodeRoutes,
   EMPTY_CAMPUS,
 } from "~/core/travel";
-import { DataError, type DataSource, readParsed } from "../data-source";
+import {
+  DataError,
+  type DataSource,
+  type ReadPriority,
+  readParsed,
+} from "../data-source";
 import {
   noteNewer,
   publishedBinary,
@@ -44,17 +61,131 @@ import {
   retryPublished,
 } from "./published";
 
-// The catalog's reference data as published-file queries (DATA.md §4,
-// §5.1 step 6): PlanetTerp per department, the campus map (the geo
-// manifest, the buildings file and the routes binary) and each term's
-// academic calendar, plus a connection's walking path. The terms,
-// manifests, departments and seats are still the catalog store's
-// (../catalog-store.ts) until they move over too.
+// The catalog as published-file queries (DATA.md §5.1): the term list,
+// each term's manifest and the files it lists (departments, seats,
+// changes); then the reference data (§5.1 step 6): PlanetTerp per
+// department, the campus map (the geo manifest, the buildings file and
+// the routes binary) and each term's academic calendar, plus a
+// connection's walking path. The catalog store (../catalog-store.ts)
+// builds a term's index from these; the seat poll is ./catalog-poll.ts.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** PlanetTerp and the campus files change at most daily. */
 export const REFERENCE_STALE_MS = DAY_MS;
+
+// ---------- the term catalog ----------
+
+/**
+ * How often an active term's manifest is asked for while it's on screen
+ * (the seat poll, DATA.md §5.1 step 5), and how long one counts as current.
+ */
+export const CATALOG_POLL_MS = 60_000;
+
+/** The term list changes a few times a year: checked once per page, then hourly. */
+const TERMS_STALE_MS = 60 * 60 * 1000;
+
+/** `catalog/terms.json`: every term Testudo lists. */
+export function termsQuery(source: DataSource | null) {
+  return publishedFixed(
+    source,
+    TERMS_KEY,
+    TermsFileSchema,
+    "catalog",
+    TERMS_STALE_MS,
+  );
+}
+
+/** The schema of a file a term's manifest lists, by its key. */
+function termFileSchema(key: string): z.ZodType {
+  if (/\/seats\.[0-9a-f]{16}\.json$/.test(key)) return SeatsFileSchema;
+  if (/\/changes\.[0-9a-f]{16}\.json$/.test(key)) return ChangesFileSchema;
+  return DeptChunkSchema;
+}
+
+/** Every file a term's manifest lists. */
+function termFiles(termId: TermId, manifest: Manifest): string[] {
+  return [
+    ...manifest.departments.map((d) => deptChunkKey(termId, d.code, d.hash)),
+    ...(manifest.seats ? [seatsKey(termId, manifest.seats.hash)] : []),
+    ...(manifest.changes ? [changesKey(termId, manifest.changes.hash)] : []),
+  ];
+}
+
+/**
+ * `catalog/<term>/manifest.json`: shown from disk at once, checked once per
+ * page and, for an active term on screen, every minute (./catalog-poll.ts).
+ * Its fetch brings the new version of every file of the term saved on this
+ * device first (a changed department, the new seats), so the manifest and
+ * its files change together, on screen and on disk; then it drops the
+ * term's files it no longer lists. Another term's files are never touched.
+ */
+export function manifestQuery(source: DataSource | null, termId: TermId) {
+  return publishedPointer(
+    source,
+    manifestKey(termId),
+    ManifestSchema,
+    "catalog",
+    {
+      staleTime: CATALOG_POLL_MS,
+      lists: (m) => termFiles(termId, m),
+      fileSchema: termFileSchema,
+      scope: `catalog/${termId}/`,
+    },
+  );
+}
+
+/**
+ * A department's chunk at the manifest's hash. The background load asks at
+ * a low priority; a file the server deleted asks for the manifest again
+ * before it fails (as PlanetTerp's do).
+ */
+export function deptChunkQuery(
+  source: DataSource | null,
+  termId: TermId,
+  entry: { code: DeptCode; hash: ContentHash },
+  priority: ReadPriority = "auto",
+) {
+  return publishedFile(
+    source,
+    deptChunkKey(termId, entry.code, entry.hash),
+    DeptChunkSchema,
+    "catalog",
+    {
+      read: { priority },
+      onMissing: (client) =>
+        client.fetchQuery({ ...manifestQuery(source, termId), staleTime: 0 }),
+    },
+  );
+}
+
+/** A term's seats file (DATA.md §3.2), at the manifest's hash. */
+export function seatsQuery(
+  source: DataSource | null,
+  termId: TermId,
+  hash: ContentHash,
+) {
+  return publishedFile(
+    source,
+    seatsKey(termId, hash),
+    SeatsFileSchema,
+    "catalog",
+  );
+}
+
+/** A term's changes file (DATA.md §3.3), at the manifest's hash. */
+export function changesQuery(
+  source: DataSource | null,
+  termId: TermId,
+  hash: ContentHash,
+) {
+  return publishedFile(
+    source,
+    changesKey(termId, hash),
+    ChangesFileSchema,
+    "catalog",
+  );
+}
 
 // ---------- PlanetTerp ----------
 

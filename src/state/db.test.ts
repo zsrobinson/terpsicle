@@ -74,19 +74,17 @@ describe("Dexie v2", () => {
     const db = new TerpsicleDb(name);
     await db.open();
     expect(db.verno).toBe(LOCAL_DB_VERSION);
+    // The data cache's tables went with version 7.
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       "blocks",
       "courseColors",
-      "files",
       "fourYear",
-      "manifests",
       "plans",
       "settings",
       "syncDocs",
     ]);
     expect(await db.syncDocs.count()).toBe(0);
     expect(await db.settings.get("sync")).toBeUndefined();
-    expect(await db.files.count()).toBe(1);
 
     resetStores();
     await hydrate(db);
@@ -363,6 +361,68 @@ describe("Dexie v6", () => {
     await db.open();
     expect(await db.settings.get("mainPlans")).toBeUndefined();
     expect(await db.table("settings").get("chatPlans")).toBeUndefined();
+    db.close();
+  });
+});
+
+describe("Dexie v7", () => {
+  afterEach(async () => {
+    await Dexie.delete(name);
+  });
+
+  /** A database as version 6 left it, with the published-data cache full. */
+  async function seedV6(): Promise<void> {
+    const v6 = new Dexie(name);
+    v6.version(1).stores(DB_V1_STORES);
+    v6.version(2).stores({ syncDocs: "key", seatAlerts: null });
+    v6.version(3).stores({ fourYear: "id" });
+    v6.version(4).stores({});
+    v6.version(5).stores({});
+    v6.version(6).stores({});
+    await v6.open();
+    await v6.table("plans").put(aPlan({ id: "planAAAA" }));
+    await v6.table("fourYear").put(aFourYear());
+    await v6.table("settings").put({ key: "mainPlans", value: {} });
+    await v6
+      .table("manifests")
+      .bulkPut(
+        ["catalog/202701/manifest.json", "planetterp/manifest.json"].map(
+          (key) => ({ key, data: {}, checkedAt: NOW, etag: null }),
+        ),
+      );
+    await v6.table("files").bulkPut(
+      [
+        ["catalog/202701/dept/CMSC.0000000000000001.json", "catalog"],
+        ["planetterp/dept/CMSC.0000000000000002.json", "planetterp"],
+        ["geo/routes.0000000000000003.bin", "geo"],
+        ["calendar/202701.json", "calendar"],
+        ["reviews/dept/CMSC.0000000000000004.json", "reviews"],
+      ].map(([key, family]) => ({
+        key,
+        family,
+        termId: null,
+        data: {},
+        storedAt: NOW,
+      })),
+    );
+    v6.close();
+  }
+
+  it("drops the published-data cache, and keeps everything a person made", async () => {
+    name = `v7-${++count}`;
+    await seedV6();
+    const db = new TerpsicleDb(name);
+    await db.open();
+    expect(db.verno).toBe(LOCAL_DB_VERSION);
+    const tables = db.tables.map((t) => t.name);
+    expect(tables).not.toContain("manifests");
+    expect(tables).not.toContain("files");
+    expect(await db.plans.count()).toBe(1);
+    expect(await db.fourYear.count()).toBe(1);
+    expect(await db.settings.get("mainPlans")).toEqual({
+      key: "mainPlans",
+      value: {},
+    });
     db.close();
   });
 });
