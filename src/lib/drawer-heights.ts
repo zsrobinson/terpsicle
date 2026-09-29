@@ -7,12 +7,18 @@ import type { DrawerSnap } from "~/core/schema";
 
 /**
  * Handle + tab strip + the panel's header line. At peek the drawer is this
- * much plus the home indicator's inset (`--safe-bottom`), which it keeps
- * clear: `calc(124px + var(--safe-bottom))` in CSS.
+ * much plus the tab bar and the home indicator's inset under it, which it
+ * rests on: `calc(124px + var(--tab-bar-height) + var(--safe-bottom))` in
+ * CSS.
  */
 export const PEEK_HEIGHT = 124;
 /** The family bar, under the status bar's inset (`--safe-top`). */
 export const TOP_BAR_HEIGHT = 48;
+/**
+ * The phone's tab bar over the home indicator (~/components/tab-bar):
+ * styles.css's `--tab-bar-height` on pages that have it, 0 on the rest.
+ */
+export const TAB_BAR_HEIGHT = 50;
 
 /**
  * Under this height (a laptop at 400% zoom is 256px), half the screen can't
@@ -20,25 +26,41 @@ export const TOP_BAR_HEIGHT = 48;
  */
 const SHORT_VIEWPORT = 480;
 
-/** The safe areas' insets in px (styles.css): 0 where there are none. */
+/**
+ * What covers the screen's edges, in px: the safe areas' insets
+ * (styles.css), 0 where there are none, and the tab bar (`tabBar`, its
+ * `--tab-bar-height`), 0 where the page has none.
+ */
 export interface SafeInsets {
   top: number;
   bottom: number;
+  tabBar: number;
 }
 
 /**
  * How tall the drawer is at each snap, for a layout viewport `viewport` px
- * tall: full reaches the family bar, under the status bar's inset; peek
- * keeps its strip above the home indicator's.
+ * tall: full reaches the family bar, under the status bar's inset (the tab
+ * bar steps aside for it); peek keeps its strip above the tab bar and the
+ * home indicator's inset.
  */
 export function snapHeights(
   viewport: number,
   safe: Partial<SafeInsets> = {},
 ): Record<DrawerSnap, number> {
   const full = viewport - TOP_BAR_HEIGHT - (safe.top ?? 0);
+  const peek = PEEK_HEIGHT + (safe.tabBar ?? 0) + (safe.bottom ?? 0);
   return {
-    peek: PEEK_HEIGHT + (safe.bottom ?? 0),
+    peek,
     half: viewport < SHORT_VIEWPORT ? full : Math.round(viewport * 0.5),
     full,
   };
+}
+
+/** The tab bar's height on this page, from styles.css: 0 where it has none. */
+export function tabBarHeight(): number {
+  if (typeof document === "undefined") return 0;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(
+    "--tab-bar-height",
+  );
+  return Number.parseFloat(value) || 0;
 }

@@ -9,14 +9,14 @@ import { WithTooltip } from "~/ui/tooltip";
 import { copyText } from "./clipboard";
 import { openShareSheet, prefersShareSheet } from "./native-share";
 
-// Share (CONTEXT.md): the outlined "Share" button at the top left of a
-// workbench's canvas, the same in Schedule and Plan. It opens a popover
-// right below it: the link in a read-only field, "Copy link", and one
-// sentence saying the link is a copy of the plan, held in the URL itself,
-// so it won't follow later edits. The link is made when the popover opens,
-// from the plan as it is then. On a phone or tablet, the same press opens the
-// system's share sheet with the link instead (./native-share), and the
-// popover is the fallback where there's none.
+// Share (CONTEXT.md): an icon in the family bar beside the bell and the
+// account, the same in Schedule and Plan (docs/decisions.md, "One bar at the
+// top"). It opens a popover right below it: the link in a read-only field,
+// "Copy link", and one sentence saying the link is a copy of the plan, held
+// in the URL itself, so it won't follow later edits. The link is made when
+// the popover opens, from the plan as it is then. On a phone or tablet, the
+// same press opens the system's share sheet with the link instead
+// (./native-share), and the popover is the fallback where there's none.
 
 export function ShareButton({
   link,
@@ -24,7 +24,6 @@ export function ShareButton({
   note,
   onCopied,
   onShared,
-  shrink = false,
   className,
 }: {
   /** The link, made fresh each time the popover opens. */
@@ -37,12 +36,6 @@ export function ShareButton({
   onCopied?: () => void;
   /** After the share sheet sent the link somewhere: count it. */
   onShared?: () => void;
-  /**
-   * A hint shares the canvas bar: in a narrow bar (a phone, a tablet with
-   * the sidebar open) the word gives way and the icon stays, still named
-   * "Share", so the hint's sentence fits.
-   */
-  shrink?: boolean;
   className?: string;
 }) {
   const [url, setUrl] = useState("");
@@ -79,26 +72,23 @@ export function ShareButton({
     >
       <WithTooltip label="Share a link to this plan">
         <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            type="button"
+            aria-label="Share"
             data-share-button=""
             className={cn(
-              // A phone's 44px target, as the kit's icon size has.
-              shrink && "@max-2xl/canvas:max-md:min-w-11",
+              // The family bar's icons: Feedback's and the bell's size.
+              "flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-[380px]:size-7",
               className,
             )}
           >
-            <Share2 aria-hidden="true" />
-            <span className={shrink ? "@max-2xl/canvas:sr-only" : undefined}>
-              Share
-            </span>
-          </Button>
+            <Share2 size={16} strokeWidth={1.75} aria-hidden="true" />
+          </button>
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent
         side="bottom"
-        align="start"
+        align="end"
         aria-labelledby={`${fieldId}-title`}
         aria-describedby={noteId}
         className="w-[380px] max-w-[calc(100vw-16px)] space-y-3"

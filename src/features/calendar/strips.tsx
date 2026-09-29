@@ -12,9 +12,9 @@ import { dotStyle, tintStyle } from "./tint";
 
 // One-line hints above the grid. Nothing ever goes below it (SPEC §2).
 // Each hint appears with a context (course details open, a plan previewed,
-// the Search tab), beside Share in the canvas bar (~/components/workbench/canvas-bar),
-// which keeps one height: no hint, and nothing the pointer does, moves the
-// grid.
+// the Search or Generate tab), in the canvas bar
+// (~/components/workbench/canvas-bar), which is there only while one is and
+// keeps one height: nothing the pointer does moves the grid.
 
 const HINT_CLASS = "@container flex min-w-0 flex-1 items-center gap-2 text-sm";
 
@@ -39,6 +39,22 @@ export function SearchHint() {
         {touch
           ? "Tap a result to see its sections here."
           : "Hover a result to see its sections here."}
+      </span>
+    </div>
+  );
+}
+
+/** The Generate tab before any hover: where a result will show. */
+export function GenerateHint() {
+  const touch = useMediaQuery(COARSE_POINTER);
+  return (
+    <div className={HINT_CLASS}>
+      <span
+        aria-hidden="true"
+        className="size-2 shrink-0 rounded-full border border-hairline-strong"
+      />
+      <span className="truncate text-muted">
+        {touch ? "Tap a plan to see it here." : "Hover a plan to see it here."}
       </span>
     </div>
   );

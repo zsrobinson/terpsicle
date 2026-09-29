@@ -15,7 +15,7 @@ test.afterEach(() => {
 
 async function open(page: Page) {
   await page.goto("/schedule");
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 }
 
 const switcher = (page: Page, term: string) =>

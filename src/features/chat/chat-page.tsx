@@ -425,6 +425,8 @@ function CourseRoom({
   );
 
   // A phone pushes the room in over the list; a desktop fills the pane.
+  // The room's composer takes the phone's bottom edge, so the tab bar steps
+  // aside while it's open (`data-hides-tab-bar`, styles.css).
   const pane = cn(
     "flex min-w-0 flex-1 flex-col",
     mobile &&
@@ -438,7 +440,7 @@ function CourseRoom({
 
   if (!tree || !room)
     return (
-      <section className={pane}>
+      <section data-hides-tab-bar="" className={pane}>
         {course === null && !missing ? (
           // The room's own shape, so nothing moves when it arrives.
           <RoomSkeleton back={mobile ? backToList : undefined} />
@@ -483,7 +485,7 @@ function CourseRoom({
 
   return (
     <>
-      <section className={pane} aria-label={room.label}>
+      <section data-hides-tab-bar="" className={pane} aria-label={room.label}>
         <RoomView
           courseCode={courseCode}
           room={room}

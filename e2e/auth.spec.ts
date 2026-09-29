@@ -19,7 +19,7 @@ test.afterEach(() => {
 
 async function open(page: Page, path = "/schedule") {
   await page.goto(path);
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 }
 
 const signInButton = (page: Page) =>

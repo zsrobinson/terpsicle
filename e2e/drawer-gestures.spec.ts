@@ -53,7 +53,7 @@ test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(watchHistory);
   await page.goto("/schedule");
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
   // A first visit opens the drawer to half, on the first-visit guide.
   await expect(drawer(page)).toHaveAttribute("data-snap", "half");
   await page.evaluate(() => {

@@ -42,9 +42,7 @@ test("skip links lead past the top bar", async ({ page }) => {
   await expect(skip).toBeInViewport();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("main")).toBeFocused();
-  // The next stop is Share, at the canvas's top left, then the calendar.
-  await page.keyboard.press("Tab");
-  await expect(focused(page)).toHaveAccessibleName("Share");
+  // The next stop is the calendar (Share is in the family bar).
   await page.keyboard.press("Tab");
   await expect(focused(page)).toHaveAttribute("data-course", /.+/);
 });

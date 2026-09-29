@@ -2,8 +2,8 @@ import { cn } from "cn";
 import { createLucideIcon } from "lucide-react";
 import { useState } from "react";
 import { track } from "~/lib/analytics";
+import { ActionMenuLinkItem } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
-import { DropdownMenuItem } from "~/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -105,18 +105,20 @@ export function CoffeeButton({
 }
 
 /** The account menu's item, on a bar with no room for the button. */
-export function CoffeeMenuItem({ className }: { className?: string }) {
+export function CoffeeMenuItem() {
   return (
-    <DropdownMenuItem asChild className={className}>
-      <a
-        href={COFFEE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => track("coffee_link_clicked", { via: "menu" })}
-      >
-        <CoffeeHeart aria-hidden="true" className="text-muted" />
-        Buy me a coffee
-      </a>
-    </DropdownMenuItem>
+    <ActionMenuLinkItem
+      icon={<CoffeeHeart aria-hidden="true" className="text-muted" />}
+      render={
+        <a
+          href={COFFEE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => track("coffee_link_clicked", { via: "menu" })}
+        />
+      }
+    >
+      Buy me a coffee
+    </ActionMenuLinkItem>
   );
 }

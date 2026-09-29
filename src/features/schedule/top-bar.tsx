@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AppBar } from "~/components/app-bar";
 import { CreditsStatus, ProblemsStatus } from "~/components/workbench/status";
 import { SCHEDULE_PATH } from "~/core/routing";
+import { ScheduleShare } from "~/features/share/schedule-share";
 import { SyncStatusIcon } from "~/features/sync/status-view";
 import { useCatalog } from "~/state/catalog-store";
 import {
@@ -14,14 +15,16 @@ import { openTab } from "./actions";
 import { tabById } from "./tabs";
 
 // The scheduler's bar (SPEC §2): the family bar (~/components/app-bar.tsx) with the term
-// and plans as its context, and credits, the problem count and sync as its
-// status. The middle (tabs or the shared pill) comes from the shell.
+// and plans as its context, credits, the problem count and sync as its
+// status, and Share. The middle (tabs, the phone's plans control or the
+// shared pill) comes from the shell.
 
 export function TopBar({
   term,
   plans,
   compact = false,
 }: {
+  /** The term switcher; null where `plans` holds the term too (a phone). */
   term: ReactNode;
   plans: ReactNode;
   compact?: boolean;
@@ -37,10 +40,11 @@ export function TopBar({
       context={
         <>
           {term}
-          {compact ? null : <Slash />}
+          {compact || term === null ? null : <Slash />}
           <div className="flex min-w-0 flex-1 items-center">{plans}</div>
         </>
       }
+      share={<ScheduleShare />}
       status={
         <>
           <OfflineNote compact={compact} />
@@ -79,10 +83,11 @@ function OfflineNote({ compact }: { compact: boolean }) {
 }
 
 function Credits() {
-  // Below 1280px the product tabs, term and plan tabs fill the bar, and the
-  // Courses panel's header already says "N courses · N credits" (QA2).
+  // Below 1536px the product tabs, term, plan tabs and Share fill the bar,
+  // and the Courses panel's header already says "N courses · N credits"
+  // (QA2; docs/decisions.md, "Crowded bars give their context the room").
   return (
-    <div className="hidden xl:flex">
+    <div className="hidden 2xl:flex">
       <CreditsStatus label={useCreditsLabel()} />
     </div>
   );

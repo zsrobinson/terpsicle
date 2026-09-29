@@ -4,17 +4,16 @@ import { track } from "~/lib/analytics";
 import { useCurrentPlan } from "~/state/hooks";
 import { ShareButton } from "./share-button";
 
-// Schedule's Share button (DATA.md §8): the plan on screen as a share link,
-// with its term's blocks and its courses' colors. A shared plan open
-// read-only shares the same way, so a link can be passed on.
+// Schedule's Share button in its bar (DATA.md §8): the plan on screen as a
+// share link, with its term's blocks and its courses' colors. A shared plan
+// open read-only shares the same way, so a link can be passed on.
 
-export function ScheduleShare({ shrink = false }: { shrink?: boolean }) {
+export function ScheduleShare() {
   const current = useCurrentPlan();
   if (!current) return null;
   const { plan, blocks, colors } = current;
   return (
     <ShareButton
-      shrink={shrink}
       title={`Share ${plan.name}`}
       link={() => {
         const planColors: Record<CourseCode, CourseColor> = {};

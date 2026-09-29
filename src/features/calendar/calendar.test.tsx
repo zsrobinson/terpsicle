@@ -164,7 +164,7 @@ describe("calendar", () => {
     await renderDemo();
     act(() => goTo({ tab: "search", drill: null }));
     const idle = screen.getByText("Hover a result to see its sections here.");
-    // The hint sits in the canvas bar, beside Share, which keeps one height.
+    // The hint sits in the canvas bar, which keeps one height.
     const bar = idle.closest("[data-canvas-bar]");
     expect(bar).toHaveClass("h-10");
     act(() => useUi.getState().setHoverCourse("CMSC330"));

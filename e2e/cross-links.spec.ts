@@ -95,7 +95,7 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   // The week's header links to its classes.
   await page.getByRole("link", { name: "View schedule" }).click();
   await expect(page).toHaveURL(/\/schedule\//);
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 
   // Each course in the side panel links to its chat room.
   await page.goBack();

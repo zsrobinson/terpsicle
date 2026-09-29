@@ -7,17 +7,13 @@ import { useActiveTerm, useTermTags } from "~/state/hooks";
 import { useShare } from "~/state/share-store";
 import { useWorkspace } from "~/state/workspace-store";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
+  ActionMenu,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+  ActionMenuSeparator,
+} from "~/ui/action-menu";
 import { Skeleton } from "~/ui/skeleton";
 import { MainPlanMark, TermTag } from "~/ui/term-tag";
-import { WithTooltip } from "~/ui/tooltip";
 import { switchTerm } from "./actions";
 
 /**
@@ -43,69 +39,98 @@ export function TermSwitcher() {
       </span>
     );
 
+  return (
+    <ActionMenu
+      title="Terms"
+      tooltip="Switch term"
+      className="min-w-[240px]"
+      trigger={
+        <button
+          type="button"
+          aria-label={term.name}
+          className="flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-base text-muted max-2xl:px-1 transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg"
+        >
+          {/* "Spring ’27" until the bar is wide (1536px, where the Early
+              access chip comes back), so the tag and the plans' names fit. */}
+          <span className="hidden 2xl:inline">{term.name}</span>
+          <span aria-hidden="true" className="whitespace-nowrap 2xl:hidden">
+            {shortTermName(term.name)}
+          </span>
+          <TermTag tag={termTagOf(term.id, tags)} />
+          {/* Until 1536px a tagged term ends at its tag: the plan tabs need the room. */}
+          <ChevronDown
+            size={12}
+            aria-hidden="true"
+            className={termTagOf(term.id, tags) ? "max-2xl:hidden" : undefined}
+          />
+        </button>
+      }
+    >
+      <TermItems
+        termId={term.id}
+        terms={terms}
+        tags={tags}
+        plans={plans}
+        mainPlans={mainPlans}
+      />
+    </ActionMenu>
+  );
+}
+
+/**
+ * Every term to pick from, as an action menu's radio items: the ones
+ * Testudo lists, then "Past terms". The term switcher's, and the phone's
+ * plans sheet's.
+ */
+export function TermItems({
+  termId,
+  terms,
+  tags,
+  plans,
+  mainPlans,
+  label,
+}: {
+  termId: string;
+  terms: readonly Term[];
+  tags: TermTags;
+  plans: readonly Plan[];
+  mainPlans: Readonly<MainPlans>;
+  /** Over the listed terms, where the menu holds more than terms. */
+  label?: string;
+}) {
   const active = terms.filter((t) => t.status === "active");
   const past = terms.filter((t) => t.status === "archived");
   const pick = (id: string) => {
     const next = terms.find((t) => t.id === id);
     if (next) switchTerm(next);
   };
-
+  const item = (t: Term) => (
+    <TermItem
+      key={t.id}
+      term={t}
+      tags={tags}
+      plans={plans}
+      mainPlans={mainPlans}
+    />
+  );
   return (
-    <DropdownMenu>
-      <WithTooltip label="Switch term">
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={term.name}
-            className="flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-base text-muted max-2xl:px-1 transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
+    <>
+      <ActionMenuRadioGroup label={label} value={termId} onValueChange={pick}>
+        {active.map(item)}
+      </ActionMenuRadioGroup>
+      {past.length > 0 ? (
+        <>
+          <ActionMenuSeparator />
+          <ActionMenuRadioGroup
+            label="Past terms"
+            value={termId}
+            onValueChange={pick}
           >
-            {/* "Spring ’27" until the bar is wide (1536px, where the Early
-                access chip comes back), so the tag and the plans' names fit. */}
-            <span className="hidden 2xl:inline">{term.name}</span>
-            <span aria-hidden="true" className="whitespace-nowrap 2xl:hidden">
-              {shortTermName(term.name)}
-            </span>
-            <TermTag tag={termTagOf(term.id, tags)} />
-            {/* Until 1536px a tagged term ends at its tag: the plan tabs need the room. */}
-            <ChevronDown
-              size={12}
-              aria-hidden="true"
-              className={
-                termTagOf(term.id, tags) ? "max-2xl:hidden" : undefined
-              }
-            />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent className="min-w-[240px]">
-        <DropdownMenuRadioGroup value={term.id} onValueChange={pick}>
-          {active.map((t) => (
-            <TermItem
-              key={t.id}
-              term={t}
-              tags={tags}
-              plans={plans}
-              mainPlans={mainPlans}
-            />
-          ))}
-          {past.length > 0 ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Past terms</DropdownMenuLabel>
-              {past.map((t) => (
-                <TermItem
-                  key={t.id}
-                  term={t}
-                  tags={tags}
-                  plans={plans}
-                  mainPlans={mainPlans}
-                />
-              ))}
-            </>
-          ) : null}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            {past.map(item)}
+          </ActionMenuRadioGroup>
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -141,19 +166,19 @@ function TermItem({
   const archived = term.status === "archived";
   const { words, marked } = termPlansWords(plans, mainPlans, term.id);
   return (
-    <DropdownMenuRadioItem value={term.id} className="items-start py-1.5">
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className={archived ? "text-muted" : undefined}>
-            {term.name}
-          </span>
-          <TermTag tag={termTagOf(term.id, tags)} />
-        </span>
-        <span className="flex items-center gap-1.5 text-muted text-xs">
+    <ActionMenuRadioItem
+      value={term.id}
+      hint={
+        <span className="flex items-center gap-1.5">
           {marked ? <MainPlanMark className="size-1.5" /> : null}
           {archived ? `Seats frozen · ${words}` : words}
         </span>
+      }
+    >
+      <span className="flex items-center gap-2">
+        <span className={archived ? "text-muted" : undefined}>{term.name}</span>
+        <TermTag tag={termTagOf(term.id, tags)} />
       </span>
-    </DropdownMenuRadioItem>
+    </ActionMenuRadioItem>
   );
 }

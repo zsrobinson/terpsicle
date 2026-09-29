@@ -35,11 +35,9 @@ const column = (page: Page, which: "now" | "next") =>
 /** The demo's plans (Spring 2027, the mock catalog's term) on this device. */
 async function withDemoPlans(page: Page) {
   await page.goto("/schedule/courses?demo=1");
+  // The plan is open once it can be shared (the family bar's Share).
   await expect(
-    page.getByRole("navigation", { name: "Plans" }).getByRole("button", {
-      name: "Plan A",
-      exact: true,
-    }),
+    page.getByRole("banner").getByRole("button", { name: "Share" }),
   ).toBeVisible();
   // Saved to IndexedDB, which Home reads.
   await page.waitForTimeout(1000);

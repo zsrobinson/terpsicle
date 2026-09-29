@@ -100,7 +100,7 @@ Nobody should have to touch the app when a new semester appears.
 - **Showing every section.** Opening a course (from anywhere):
   - Every other section of that course appears as a **dashed ghost**, labeled with section code and instructor, plus "Full" or "Overlaps" where true. Other classes dim.
   - Click a ghost to switch. Hover a ghost or a section row, or use `↑`/`↓`, to preview it solid. `↵` switches.
-  - A one-line hint beside Share, in the canvas bar above the grid, explains this while it's active.
+  - A one-line hint in a strip above the grid (the canvas bar, there only while a hint is: a course open, a plan previewed, the Search or Generate tab) explains this while it's active.
   - A click or tap on empty time closes the course (as `Esc` does) instead of starting a block; Back reopens it. Blocks are drawn only while no course is open.
   - **Courses with many sections:** sections with identical meeting times collapse into one ghost ("0101–0106 · 6 sections"), and that ghost's popover lists them. Ghost labels shrink to just the code when narrow. If more than ~12 distinct ghosts remain, the calendar shows the first 12 by section order, and the sidebar list shows the rest.
 - **Search hover:** hovering a search result shows all of that course's sections as ghosts. This is how people compare across upper-level courses with one section each.
@@ -228,7 +228,7 @@ Registration day's checklist (`/schedule/register`; old `/schedule/export` links
 - Sharing isn't here: it's the Share button over the calendar (§3.11).
 
 ### 3.11 Share and shared links
-- **Share:** an outlined "Share" button at the top left of the calendar, in the canvas bar the calendar's hints share (in a narrow bar, a phone or a tablet with the sidebar open, the icon alone while a hint shows; on a phone the hint takes up to two lines). It opens a popover right below it: the link in a read-only field, **Copy link** ("Copied link"), and one sentence: the link holds a copy of this plan in the URL itself, so it won't change when you edit the plan later. The plan is encoded in the URL, with no server. Plan has the same button over its semesters (`docs/V3.md` §2.14).
+- **Share:** an icon in the family bar beside the bell, Feedback and the account, at every width (docs/decisions.md, "One bar at the top"); on a phone or tablet it opens the system's share sheet. Otherwise it opens a popover right below it: the link in a read-only field, **Copy link** ("Copied link"), and one sentence: the link holds a copy of this plan in the URL itself, so it won't change when you edit the plan later. The plan is encoded in the URL, with no server. Plan has the same button over its semesters (`docs/V3.md` §2.14).
 - Opening a share link shows the shared plan **read-only, in place of your plan tabs**: a light-red rounded pill in the top bar reading "Shared plan · Save a copy · ✕".
 - Nothing about you changes until you click Save a copy. ✕ returns to your plans.
 - There are no names (we don't know who shared it).

@@ -1,5 +1,5 @@
 import { Download } from "lucide-react";
-import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
+import { ActionMenuItem, ActionMenuSeparator } from "~/ui/action-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import {
   INSTALL_HINT,
@@ -39,11 +39,13 @@ export function InstallAppMenuItem() {
   if (method === null) return null;
   return (
     <>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem onSelect={openInstallPrompt}>
-        <Download className="text-muted" aria-hidden="true" />
+      <ActionMenuSeparator />
+      <ActionMenuItem
+        icon={<Download className="text-muted" aria-hidden="true" />}
+        onSelect={openInstallPrompt}
+      >
         Install app
-      </DropdownMenuItem>
+      </ActionMenuItem>
     </>
   );
 }

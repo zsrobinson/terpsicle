@@ -743,7 +743,11 @@ export function TodoPage({
   // One frame for every state, so the family bar stays mounted (with focus
   // in it) as the account and the calendar arrive.
   return (
-    <div data-app-shell="" className="flex h-dvh flex-col bg-bg text-fg">
+    // Its panes end above a phone's tab bar (--tab-bar-space, styles.css).
+    <div
+      data-app-shell=""
+      className="flex h-dvh flex-col bg-bg pb-(--tab-bar-space) text-fg"
+    >
       {status === "signed-in" ? (
         <SkipLinks
           canvasId={CANVAS_ID}

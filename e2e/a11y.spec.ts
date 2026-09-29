@@ -18,7 +18,7 @@ async function open(page: Page, path = "/schedule?demo=1") {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(path);
   // The first load compiles the app on the dev server.
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible({
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible({
     timeout: 20_000,
   });
   if (path.includes("demo"))
@@ -211,18 +211,30 @@ for (const scheme of ["light", "dark"] as const) {
 
     test("menus and popovers", async ({ page, isMobile }) => {
       await open(page);
-      await page
-        .getByRole("button", { name: /options$/ })
-        .first()
-        .click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      await scan(page, `plan menu (${scheme})`);
-      await page.keyboard.press("Escape");
+      if (isMobile) {
+        // A phone's term and plan are one control, opening the plans sheet.
+        await page
+          .getByRole("banner")
+          .getByRole("button", { name: /Plan A/ })
+          .click();
+        await expect(page.getByRole("dialog", { name: "Plans" })).toBeVisible();
+        await scan(page, `plans sheet (${scheme})`);
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog", { name: "Plans" })).toBeHidden();
+      } else {
+        await page
+          .getByRole("button", { name: /options$/ })
+          .first()
+          .click();
+        await expect(page.getByRole("menu")).toBeVisible();
+        await scan(page, `plan menu (${scheme})`);
+        await page.keyboard.press("Escape");
 
-      await page.getByRole("button", { name: "New plan" }).click();
-      await expect(page.getByRole("menu")).toBeVisible();
-      await scan(page, `new plan menu (${scheme})`);
-      await page.keyboard.press("Escape");
+        await page.getByRole("button", { name: "New plan" }).click();
+        await expect(page.getByRole("menu")).toBeVisible();
+        await scan(page, `new plan menu (${scheme})`);
+        await page.keyboard.press("Escape");
+      }
 
       await openTab(page, isMobile, "Courses");
       await page.getByRole("button", { name: /color/i }).first().click();
@@ -301,7 +313,13 @@ test.describe("reduced motion", () => {
 
   test("menus and the drawer don't animate", async ({ page, isMobile }) => {
     await open(page);
-    await page.getByRole("button", { name: "New plan" }).click();
+    // A phone's plans are a sheet (the kit's ActionMenu); its list is a menu.
+    if (isMobile)
+      await page
+        .getByRole("banner")
+        .getByRole("button", { name: /Plan A/ })
+        .click();
+    else await page.getByRole("button", { name: "New plan" }).click();
     const menu = page.getByRole("menu");
     await expect(menu).toBeVisible();
     expect(
