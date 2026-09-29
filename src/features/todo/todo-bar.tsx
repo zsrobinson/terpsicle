@@ -7,7 +7,14 @@ import {
   ListChecks,
   Plus,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createRef,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { create } from "zustand";
 import { termLabel } from "~/core/catalog/terms";
 import { todoWeekStart, withTodoWeekStart } from "~/core/prefs";
@@ -42,11 +49,11 @@ import { startTask } from "./composer";
 
 // Todo's controls in the family bar (docs/decisions.md, "One bar at the
 // top"), as Schedule and Plan keep theirs: the views, Back, Today and
-// Ahead, and the week's title with what's open under it. The calendar then
-// fills the page under the bar. On a phone the views and the moving about
-// are one sheet (the kit's ActionMenu), and adding a task, the courses and
-// ELMS are a sheet of their own (`TodoPanelSheet` in ./todo-page), opened
-// from the bar.
+// Ahead, the week's title with what's open under it, then + (Add a task)
+// and Courses and ELMS, each opening its panel (./side-panel): a popover
+// under its button on a desktop, a sheet on a phone (`TodoPanels` in
+// ./todo-page). The calendar then fills the page under the bar. On a phone
+// the views and the moving about are one sheet too (the kit's ActionMenu).
 
 export const TODO_PATH = "/todo";
 
@@ -84,9 +91,11 @@ export function useWeekStart(): [WeekStart, (start: WeekStart) => void] {
 export interface TodoBarState {
   status: string | null;
   schedule: { term: TermId; planId?: string; planName?: string } | null;
-  /** A phone's sheet of adding a task, the courses and ELMS; "task" focuses the composer. */
-  panel: "task" | "panel" | null;
+  /** The open panel: adding a task, or the courses and ELMS. */
+  panel: TodoPanel | null;
 }
+
+export type TodoPanel = "task" | "courses";
 
 export const useTodoBar = create<TodoBarState>()(() => ({
   status: null,
@@ -94,9 +103,19 @@ export const useTodoBar = create<TodoBarState>()(() => ({
   panel: null,
 }));
 
-export function openTodoPanel(reason: "task" | "panel"): void {
-  useTodoBar.setState({ panel: reason });
+export function openTodoPanel(panel: TodoPanel): void {
+  useTodoBar.setState({ panel });
 }
+
+export function closeTodoPanel(): void {
+  useTodoBar.setState({ panel: null });
+}
+
+/** The bar's buttons, which a desktop's panels hang from. */
+export const PANEL_BUTTONS: Record<
+  TodoPanel,
+  RefObject<HTMLButtonElement | null>
+> = { task: createRef(), courses: createRef() };
 
 function viewTitle(
   view: CalendarView,
@@ -297,12 +316,12 @@ export function TodoBarContext({
 }
 
 const ICON_BUTTON =
-  "flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg max-[380px]:size-7";
+  "flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg aria-expanded:bg-hover aria-expanded:text-fg max-[380px]:size-7";
 
 /**
- * A phone's controls at the bar's end: the views and moving about in one
- * sheet, Add a task, and the courses and ELMS. A desktop has them in the
- * bar's context and the side panel.
+ * The bar's end: + (Add a task) and Courses and ELMS, and on a phone first
+ * the views and moving about in one sheet (a desktop has those in the
+ * bar's context).
  */
 export function TodoBarActions({
   view,
@@ -317,7 +336,6 @@ export function TodoBarActions({
   const [weekStart] = useWeekStart();
   const schedule = useTodoBar((s) => s.schedule);
   const panel = useTodoBar((s) => s.panel);
-  if (!phone) return null;
   const anchor = asked ?? today;
   const period = view === "list" ? null : view;
   const unit = view === "month" ? "month" : "week";
@@ -329,6 +347,51 @@ export function TodoBarActions({
       search: v === "list" ? { view: v } : { view: v, date: anchor },
     });
   };
+  // A press on the open panel's button closes it, as the bell's does. The
+  // press moves focus out of the panel first, which closes it, so what
+  // counts is whether it was open as the press began.
+  const pressed = useRef<TodoPanel | null | undefined>(undefined);
+  const notePress = () => {
+    pressed.current = useTodoBar.getState().panel;
+  };
+  const toggle = (which: TodoPanel) => {
+    const before = pressed.current === undefined ? panel : pressed.current;
+    pressed.current = undefined;
+    if (before === which) closeTodoPanel();
+    else if (which === "task") startTask();
+    else openTodoPanel(which);
+  };
+  const buttons = (
+    <>
+      <WithTooltip label="Add a task" shortcut="Q">
+        <button
+          ref={PANEL_BUTTONS.task}
+          type="button"
+          aria-label="Add a task"
+          aria-expanded={panel === "task"}
+          onPointerDown={notePress}
+          onClick={() => toggle("task")}
+          className={ICON_BUTTON}
+        >
+          <Plus size={17} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </WithTooltip>
+      <WithTooltip label="Your courses' weeks, ELMS, and when weeks start">
+        <button
+          ref={PANEL_BUTTONS.courses}
+          type="button"
+          aria-label="Courses and ELMS"
+          aria-expanded={panel === "courses"}
+          onPointerDown={notePress}
+          onClick={() => toggle("courses")}
+          className={ICON_BUTTON}
+        >
+          <ListChecks size={16} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </WithTooltip>
+    </>
+  );
+  if (!phone) return buttons;
   return (
     <>
       <ActionMenu
@@ -416,27 +479,7 @@ export function TodoBarActions({
           </>
         ) : null}
       </ActionMenu>
-      <WithTooltip label="Add a task" shortcut="Q">
-        <button
-          type="button"
-          aria-label="Add a task"
-          onClick={() => startTask()}
-          className={ICON_BUTTON}
-        >
-          <Plus size={17} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-      </WithTooltip>
-      <WithTooltip label="Your courses' weeks, ELMS, and when weeks start">
-        <button
-          type="button"
-          aria-label="Courses and ELMS"
-          aria-expanded={panel !== null}
-          onClick={() => openTodoPanel("panel")}
-          className={ICON_BUTTON}
-        >
-          <ListChecks size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-      </WithTooltip>
+      {buttons}
     </>
   );
 }

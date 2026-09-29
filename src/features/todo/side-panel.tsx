@@ -29,12 +29,11 @@ import { Composer } from "./composer";
 import { ConnectForm } from "./connect-form";
 import { useTodo } from "./todo-store";
 
-// Todo's side panel (docs/V3.md §3.9), where the scheduler and Plan keep
-// theirs: adding a task, each course's week (its completion over the last
-// four weeks, and hiding it), ELMS, and the day weeks start on. One column,
-// no tabs: it's four short parts, and the composer stays in view. On a
-// phone it's a sheet the bar opens (./todo-bar), so the calendar has the
-// page.
+// Todo's panels (docs/V3.md §3.9), each opened from the bar (./todo-bar)
+// so the calendar has the page: adding a task, and the courses and ELMS
+// (each course's week, its completion over the last four weeks and hiding
+// it; ELMS; the day weeks start on). A popover on a desktop, a sheet on a
+// phone (./todo-page).
 
 export const TODO_CONNECT_PATH = "/todo/connect";
 
@@ -225,6 +224,8 @@ function WeekSection({
         level={2}
         title={title}
         count={total.total === 0 ? undefined : `${ofWords(total)} done`}
+        // First in its popover or sheet.
+        className="border-t-0"
       />
       {rows.length === 0 ? (
         <p className="px-4 py-3 text-muted text-sm">
@@ -388,9 +389,35 @@ function WeekStartSection({
   );
 }
 
-export function SidePanel({
+/** Adding a task: the composer under its header. */
+export function TaskPanel({
   courses,
   colors,
+  weekStart,
+  onAdded,
+}: {
+  courses: readonly CourseCode[];
+  colors: Readonly<Record<CourseCode, CourseColor>>;
+  weekStart: WeekStart;
+  /** The popover or sheet closes once a task is added, to show it. */
+  onAdded: () => void;
+}) {
+  return (
+    <section aria-label="Add a task">
+      <SectionHeader level={2} title="Add a task" className="border-t-0" />
+      <Composer
+        courses={courses}
+        colors={colors}
+        weekStart={weekStart}
+        onAdded={onAdded}
+        className="px-4 py-3"
+      />
+    </section>
+  );
+}
+
+/** Each course's week, ELMS, and the day weeks start on. */
+export function CoursesPanel({
   weekStart,
   onWeekStart,
   rows,
@@ -400,11 +427,7 @@ export function SidePanel({
   feed,
   now,
   hasFileItems,
-  onTaskAdded,
-  className,
 }: {
-  courses: readonly CourseCode[];
-  colors: Readonly<Record<CourseCode, CourseColor>>;
   weekStart: WeekStart;
   onWeekStart: (start: WeekStart) => void;
   rows: readonly CourseRow[];
@@ -414,22 +437,9 @@ export function SidePanel({
   feed: TodoFeedState | null;
   now: number;
   hasFileItems: boolean;
-  /** A phone's sheet closes once a task is added, to show it. */
-  onTaskAdded?: () => void;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col", className)}>
-      <section aria-label="Add a task">
-        <SectionHeader level={2} title="Add a task" className="border-t-0" />
-        <Composer
-          courses={courses}
-          colors={colors}
-          weekStart={weekStart}
-          onAdded={onTaskAdded}
-          className="px-4 py-3"
-        />
-      </section>
+    <div className="flex flex-col">
       <WeekSection
         rows={rows}
         lastWeek={lastWeek}

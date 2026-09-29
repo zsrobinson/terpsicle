@@ -83,12 +83,11 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   isMobile,
 }) => {
   await signIn(page);
-  // On a phone the side panel is a sheet the bar opens.
-  if (isMobile)
-    await page
-      .getByRole("banner")
-      .getByRole("button", { name: "Courses and ELMS" })
-      .click();
+  // The courses and ELMS open from the bar.
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: "Courses and ELMS" })
+    .click();
   await page
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
@@ -111,11 +110,10 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   // Each course in the side panel links to its chat room.
   await page.goBack();
   await expect(page.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
-  if (isMobile)
-    await page
-      .getByRole("banner")
-      .getByRole("button", { name: "Courses and ELMS" })
-      .click();
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: "Courses and ELMS" })
+    .click();
   await page.getByRole("link", { name: "View chat for CMSC216" }).click();
   await expect(page).toHaveURL(/\/chat\?term=\d{6}&course=CMSC216$/);
 });

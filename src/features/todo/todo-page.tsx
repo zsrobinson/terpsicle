@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Plus } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
 import { Mark } from "~/components/brand/mark";
 import { SkipLinks } from "~/components/workbench/skip-links";
 import { seasonTermOf } from "~/core/catalog/terms";
@@ -35,6 +35,7 @@ import { track } from "~/lib/analytics";
 import { useShortcut } from "~/lib/shortcuts";
 import { EmptyState } from "~/ui/empty-state";
 import { InlineError } from "~/ui/inline-error";
+import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
 import { PAGE_WIDTH, PageFooter } from "~/ui/product-page";
 import { Sheet, SheetTitle } from "~/ui/sheet";
 import { PageSkeleton, RowSkeleton } from "~/ui/skeleton";
@@ -44,13 +45,21 @@ import { MonthGrid, MonthPicker, WeekAgenda, WeekGrid } from "./calendar";
 import { COMPOSER_ID, startTask, useComposerRequest } from "./composer";
 import { todoCourseColors, useSchedulerCourses } from "./course-colors";
 import { SamplePreview } from "./sample";
-import { type CourseRow, SidePanel, TODO_CONNECT_PATH } from "./side-panel";
+import {
+  type CourseRow,
+  CoursesPanel,
+  TaskPanel,
+  TODO_CONNECT_PATH,
+} from "./side-panel";
 import { TASK_TOAST_ID } from "./task-form";
 import {
+  closeTodoPanel,
   openTodoPanel,
+  PANEL_BUTTONS,
   TODO_PATH,
   TodoBarActions,
   TodoBarContext,
+  type TodoPanel,
   useNow,
   useTodoBar,
   useWeekStart,
@@ -59,21 +68,91 @@ import {
 import { type CheckedVia, DayList, type ViewProps } from "./todo-lists";
 import { useTodo } from "./todo-store";
 
-// `/todo` (docs/V3.md §3.9): a calendar of what's due, in the same shape as
-// the scheduler and Plan: the family bar with Todo's controls (./todo-bar:
-// the views, the week and its title), a side panel (adding a task, each
-// course's week, ELMS) and the calendar filling the rest. On a phone the
-// side panel is a sheet opened from the bar, and the calendar is the page.
-// The week is the default, then the month and the list; each is a URL.
-// Signed out, it's the front door. Nothing here is stored in the browser.
+// `/todo` (docs/V3.md §3.9): a calendar of what's due, under the family bar
+// with Todo's controls (./todo-bar: the views, the week and its title, Add
+// a task, and the courses and ELMS), as Schedule's and Plan's bars hold
+// theirs. The calendar fills the page; the two panels (./side-panel) open
+// from the bar, as popovers on a desktop and sheets on a phone. The week is
+// the default, then the month and the list; each is a URL. Signed out,
+// it's the front door. Nothing here is stored in the browser.
 
 export { TEXT_LINK, TODO_CONNECT_PATH } from "./side-panel";
 export { TODO_PATH, useNow } from "./todo-bar";
 
 /** The calendar's id: the skip link and focus land there. */
 const CANVAS_ID = "todo-calendar";
-/** The side panel's id. */
-const SIDEBAR_ID = "todo-sidebar";
+
+const PANEL_TITLES: Record<TodoPanel, string> = {
+  task: "Add a task",
+  courses: "Courses and ELMS",
+};
+
+/**
+ * One of the bar's panels: a popover under its button on a desktop, as
+ * the bell's inbox and Share are, and a sheet on a phone. Adding a task
+ * focuses the field (keyboard and all); the courses and ELMS focus the
+ * panel itself, so a phone's keyboard stays down.
+ */
+function BarPanel({
+  which,
+  mobile,
+  children,
+}: {
+  which: TodoPanel;
+  mobile: boolean;
+  children: ReactNode;
+}) {
+  const open = useTodoBar((s) => s.panel === which);
+  const body = useRef<HTMLDivElement>(null);
+  const onOpenChange = (next: boolean) => {
+    if (!next && useTodoBar.getState().panel === which) closeTodoPanel();
+  };
+  const title = PANEL_TITLES[which];
+  const focusFirst = () =>
+    which === "task" ? document.getElementById(COMPOSER_ID) : null;
+  if (mobile)
+    return (
+      <Sheet
+        open={open}
+        onOpenChange={onOpenChange}
+        initialFocus={() => focusFirst() ?? body.current ?? true}
+      >
+        <SheetTitle className="sr-only">{title}</SheetTitle>
+        <div
+          ref={body}
+          tabIndex={-1}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-4 outline-none"
+        >
+          {children}
+        </div>
+      </Sheet>
+    );
+  const button = PANEL_BUTTONS[which];
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverAnchor virtualRef={button} />
+      <PopoverContent
+        side="bottom"
+        align="end"
+        role="dialog"
+        aria-label={title}
+        className="scroll-thin max-h-[min(40rem,var(--radix-popover-content-available-height))] w-[380px] overflow-y-auto overscroll-y-contain p-0"
+        // Its button toggles it: a press on it isn't a click away.
+        onInteractOutside={(e) => {
+          if (button.current?.contains(e.target as Node)) e.preventDefault();
+        }}
+        onOpenAutoFocus={(e) => {
+          const first = focusFirst();
+          if (!first) return;
+          e.preventDefault();
+          first.focus({ preventScroll: true });
+        }}
+      >
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 /** How many weeks each course's chart shows, ending with the week shown. */
 const CHART_WEEKS = 4;
@@ -394,7 +473,12 @@ function TodoWorkspace({
   const ready = phase === "ready";
   const empty = ready && !feed && items.length === 0;
   const words = feedWords(feed, now);
-  const checked = refreshing ? "Checking ELMS…" : words.checked;
+  const checked = refreshing
+    ? "Checking ELMS…"
+    : // The panel says what to do; the bar says it's happened.
+      feed?.status === "broken"
+      ? "ELMS stopped sharing your calendar"
+      : words.checked;
   const openLine = ready
     ? `${openWords(openCount(shown, done))}${checked ? ` · ${checked}` : ""}`
     : null;
@@ -417,14 +501,14 @@ function TodoWorkspace({
     [],
   );
 
-  // A phone's composer is in the sheet: a task started anywhere (Q, an
-  // empty day, the first visit) opens it at the composer.
+  // The composer is in the bar's panel: a task started anywhere (+, Q, an
+  // empty day, the first visit) opens it, and the composer takes the day.
   const request = useComposerRequest();
   const panelOpen = useTodoBar((s) => s.panel);
   useEffect(() => {
-    if (mobile && request.seq !== request.taken && panelOpen === null)
+    if (request.seq !== request.taken && panelOpen !== "task")
       openTodoPanel("task");
-  }, [mobile, request, panelOpen]);
+  }, [request, panelOpen]);
 
   // The first visit: what Todo does, and its two ways in.
   const firstVisit = empty ? (
@@ -500,90 +584,52 @@ function TodoWorkspace({
       />
     );
 
-  const panel = ready ? (
-    <SidePanel
-      courses={taskCourses}
-      colors={colors}
-      weekStart={weekStart}
-      onWeekStart={setWeekStart}
-      rows={rows}
-      lastWeek={lastWeek}
-      isThisWeek={lastWeek === weekStartOf(today, weekStart)}
-      onHide={onHide}
-      feed={feed}
-      now={now}
-      hasFileItems={items.some((i) => i.source === "file")}
-      onTaskAdded={
-        mobile ? () => useTodoBar.setState({ panel: null }) : undefined
-      }
-    />
-  ) : (
-    <RowSkeleton rows={4} label="Loading" />
-  );
+  const loadingPanel = <RowSkeleton rows={4} label="Loading" />;
 
   return (
     <>
       <Shortcuts view={view} anchor={anchor} weekStart={weekStart} />
       {/* The page's h1 is the bar's title (./todo-bar). */}
-      {mobile ? (
-        <>
-          <main
-            id={CANVAS_ID}
-            tabIndex={-1}
-            className="scroll-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-8 outline-none"
-          >
-            {firstVisit}
-            {calendar}
-          </main>
-          <Sheet
-            open={panelOpen !== null}
-            onOpenChange={(open) => {
-              if (!open) useTodoBar.setState({ panel: null });
-            }}
-            // Add a task: the composer, with the keyboard; the courses and
-            // ELMS: the sheet itself, with none.
-            // Adding a task focuses the field, keyboard and all; the courses
-            // and ELMS focus the sheet itself, so the keyboard stays down.
-            initialFocus={() =>
-              document.getElementById(
-                panelOpen === "task" ? COMPOSER_ID : SIDEBAR_ID,
-              ) ?? true
-            }
-          >
-            <SheetTitle className="sr-only">
-              Add a task, courses and ELMS
-            </SheetTitle>
-            <div
-              id={SIDEBAR_ID}
-              tabIndex={-1}
-              className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-4 outline-none"
-            >
-              {panel}
-            </div>
-          </Sheet>
-        </>
-      ) : (
-        <div className="flex min-h-0 flex-1">
-          <aside
-            id={SIDEBAR_ID}
-            aria-label="Sidebar"
-            tabIndex={-1}
-            className="scroll-thin w-sidebar shrink-0 overflow-y-auto overscroll-y-contain border-hairline border-r outline-none"
-          >
-            {panel}
-          </aside>
-          <main
-            id={CANVAS_ID}
-            tabIndex={-1}
-            className="scroll-thin min-w-0 flex-1 overflow-y-auto overscroll-y-contain p-4 outline-none"
-          >
-            <div className="flex min-h-full flex-col gap-4">
-              {firstVisit}
-              {calendar}
-            </div>
-          </main>
-        </div>
-      )}
+      <main
+        id={CANVAS_ID}
+        tabIndex={-1}
+        className={cn(
+          "scroll-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain outline-none",
+          mobile ? "px-4 pt-3 pb-8" : "p-4",
+        )}
+      >
+        {firstVisit}
+        {calendar}
+      </main>
+      <BarPanel which="task" mobile={mobile}>
+        {ready ? (
+          <TaskPanel
+            courses={taskCourses}
+            colors={colors}
+            weekStart={weekStart}
+            onAdded={closeTodoPanel}
+          />
+        ) : (
+          loadingPanel
+        )}
+      </BarPanel>
+      <BarPanel which="courses" mobile={mobile}>
+        {ready ? (
+          <CoursesPanel
+            weekStart={weekStart}
+            onWeekStart={setWeekStart}
+            rows={rows}
+            lastWeek={lastWeek}
+            isThisWeek={lastWeek === weekStartOf(today, weekStart)}
+            onHide={onHide}
+            feed={feed}
+            now={now}
+            hasFileItems={items.some((i) => i.source === "file")}
+          />
+        ) : (
+          loadingPanel
+        )}
+      </BarPanel>
     </>
   );
 }
@@ -610,17 +656,7 @@ export function TodoPage({
       className="flex h-dvh flex-col bg-bg pb-(--tab-bar-space) text-fg"
     >
       {status === "signed-in" ? (
-        <SkipLinks
-          canvasId={CANVAS_ID}
-          canvasName="calendar"
-          sidebarId={SIDEBAR_ID}
-          onSidebar={() => {
-            // A phone's side panel is a sheet: open it.
-            const side = document.getElementById(SIDEBAR_ID);
-            if (side) side.focus();
-            else openTodoPanel("panel");
-          }}
-        />
+        <SkipLinks canvasId={CANVAS_ID} canvasName="calendar" />
       ) : null}
       <SiteHeader
         // Todo's controls, in the bar (./todo-bar), once there's a calendar.

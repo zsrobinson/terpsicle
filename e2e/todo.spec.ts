@@ -130,29 +130,27 @@ function shift(date: string, days: number): string {
 /** New York's date today. */
 const today = () => newYorkClock(Date.now()).date;
 
-/** A phone's sheet of adding a task, the courses and ELMS. */
-const panelSheet = (page: Page) =>
-  page.getByRole("dialog", { name: "Add a task, courses and ELMS" });
+/** The bar's panels: a popover on a desktop, a sheet on a phone. */
+const taskPanel = (page: Page) =>
+  page.getByRole("dialog", { name: "Add a task" });
+const coursesPanel = (page: Page) =>
+  page.getByRole("dialog", { name: "Courses and ELMS" });
 
-/**
- * On a phone, the side panel (adding a task, the courses, ELMS, the week's
- * start) is a sheet the bar opens: opens it.
- */
-async function openPanel(page: Page, isMobile: boolean) {
-  if (!isMobile) return;
-  if (await panelSheet(page).isVisible()) return;
+/** Opens the courses' weeks, ELMS and the week's start, from the bar. */
+async function openPanel(page: Page) {
+  if (await coursesPanel(page).isVisible()) return;
   await page
     .getByRole("banner")
     .getByRole("button", { name: "Courses and ELMS" })
     .click();
-  await expect(panelSheet(page)).toBeVisible();
+  await expect(coursesPanel(page)).toBeVisible();
 }
 
-/** Closes a phone's panel sheet, so the page behind is the page again. */
-async function closePanel(page: Page, isMobile: boolean) {
-  if (!isMobile || !(await panelSheet(page).isVisible())) return;
+/** Closes it, so the page behind is the page again. */
+async function closePanel(page: Page) {
+  if (!(await coursesPanel(page).isVisible())) return;
   await page.keyboard.press("Escape");
-  await expect(panelSheet(page)).toBeHidden();
+  await expect(coursesPanel(page)).toBeHidden();
 }
 
 /**
@@ -225,12 +223,13 @@ test("connect ELMS, check things off on the week, move around, disconnect with U
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ – /);
   await axe(page, "first visit");
 
-  await openPanel(page, isMobile);
+  await openPanel(page);
   const link = page.getByLabel("ELMS calendar link");
   const connect = page.getByRole("button", { name: "Connect ELMS" });
-  expect((await link.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(
-    isMobile ? 44 : 32,
-  );
+  // Once the popover's pop-in has settled.
+  await expect
+    .poll(async () => (await link.boundingBox())?.height ?? 0)
+    .toBeGreaterThanOrEqual(isMobile ? 44 : 32);
   await link.fill("https://elms.umd.edu/calendar");
   await connect.click();
   await expect(
@@ -318,7 +317,7 @@ test("connect ELMS, check things off on the week, move around, disconnect with U
   await expect(page.getByText(/^5 open · /)).toBeVisible();
 
   // Disconnect: at once, Undo in the toast, no dialog.
-  await openPanel(page, isMobile);
+  await openPanel(page);
   await page.getByRole("link", { name: "ELMS link" }).click();
   await expect(page).toHaveURL(/\/todo\/connect$/);
   await expect(
@@ -351,7 +350,7 @@ test("connect ELMS, check things off on the week, move around, disconnect with U
   await page.goto("/todo?view=list");
   await expect(page.getByText("From a file").first()).toBeVisible();
   await expect(page.getByText(/^6 open$/)).toBeVisible();
-  await openPanel(page, isMobile);
+  await openPanel(page);
   await expect(page.getByText(/Some deadlines came from a file/)).toBeVisible();
   expect(await post(page, "todo/import-file", { items: [] })).toBe(200);
 });
@@ -369,7 +368,7 @@ test("each course's week, and hiding a course with Undo", async ({
   ).toBe(200);
   await page.goto("/todo");
   await expect(page.getByText(/^6 open · /)).toBeVisible();
-  await openPanel(page, isMobile);
+  await openPanel(page);
 
   // The chart: every course, its week in words, and its last four weeks.
   const courses = page.getByRole("list", { name: "Courses" });
@@ -388,12 +387,13 @@ test("each course's week, and hiding a course with Undo", async ({
   await expect(page.getByText(/^6 open · /)).toBeVisible();
 
   // Hidden again, it stays hidden: it's the account's, like done marks.
+  await openPanel(page);
   await engl.getByRole("button", { name: "Hide ENGL101" }).click();
   await expect(page.getByText(/^5 open · /)).toBeVisible();
   await page.goto("/todo?view=list");
   await expect(page.getByText(/^5 open · /)).toBeVisible();
   await expect(page.getByText("Reading response 3")).toHaveCount(0);
-  await openPanel(page, isMobile);
+  await openPanel(page);
   await courses
     .getByRole("listitem", { name: "ENGL101" })
     .getByRole("button", { name: "Show ENGL101" })
@@ -409,8 +409,7 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   test.setTimeout(120_000);
   await signIn(page, isMobile);
 
-  // Without ELMS, the first visit's "Add a task" goes to the composer (on
-  // a phone, in the sheet the bar opens).
+  // Without ELMS, the first visit's "Add a task" opens the bar's composer.
   await page
     .getByRole("main")
     .getByRole("button", { name: "Add a task", exact: true })
@@ -419,28 +418,33 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   await expect(composer).toBeFocused();
   await composer.fill("Email my advisor");
   await composer.press("Enter");
-  // A phone's sheet closes on the add, to show the task.
-  if (isMobile) await expect(panelSheet(page)).toBeHidden();
+  // It closes on the add, to show the task.
+  await expect(taskPanel(page)).toBeHidden();
   await expect(page.getByRole("heading", { name: "No date" })).toBeVisible();
   await expect(page.getByText("Email my advisor")).toBeVisible();
 
+  // The bar's + opens it again, and Q. On a desktop + closes it too (a
+  // phone's sheet covers the bar, and closes with a swipe or Esc).
+  const plus = page.getByRole("banner").getByRole("button", {
+    name: "Add a task",
+  });
+  await plus.click();
+  await expect(composer).toBeFocused();
+  if (isMobile) await page.keyboard.press("Escape");
+  else await plus.click();
+  await expect(taskPanel(page)).toBeHidden();
+  if (isMobile) await plus.click();
+  else await page.keyboard.press("q");
+  await expect(composer).toBeFocused();
+
   // The date and time read from the words, marked, and shown as chips.
-  if (isMobile) {
-    // The bar's + opens the composer again, with the keyboard.
-    await page
-      .getByRole("banner")
-      .getByRole("button", { name: "Add a task" })
-      .click();
-    await expect(composer).toBeFocused();
-  }
   await composer.fill("Office hours tomorrow 3pm");
   const chips = page.getByRole("list", { name: "The task will be" });
   await expect(chips.getByText("3pm")).toBeVisible();
   await expect(page.locator("mark")).toHaveText(["tomorrow", "3pm"]);
   await axe(page, "the composer");
   await composer.press("Enter");
-  if (isMobile) await expect(panelSheet(page)).toBeHidden();
-  else await expect(composer).toHaveValue("");
+  await expect(taskPanel(page)).toBeHidden();
 
   await page.goto("/todo?view=list");
   const tomorrow = page.getByRole("region", { name: "Tomorrow" });
@@ -498,20 +502,23 @@ test("weeks start on Monday, or Sunday by the setting", async ({
   // A Wednesday, so both starts are in the same week.
   await page.goto("/todo?date=2026-09-30");
   const heading = page.getByRole("heading", { level: 1 });
-  await openPanel(page, isMobile);
-  // From Monday, the default, whatever an earlier run left on the account.
-  await page.getByRole("radio", { name: "Monday" }).click();
-  await closePanel(page, isMobile);
-  await expect(heading).toHaveText(/^Sep 28 – Oct 4/);
-  await openPanel(page, isMobile);
+  await openPanel(page);
+  // From Monday, the default, whatever an earlier run left on the account:
+  // Sunday first, so a press changes it even before the account's prefs
+  // are read (Monday shows until then).
   await page.getByRole("radio", { name: "Sunday" }).click();
-  await closePanel(page, isMobile);
+  await page.getByRole("radio", { name: "Monday" }).click();
+  await closePanel(page);
+  await expect(heading).toHaveText(/^Sep 28 – Oct 4/);
+  await openPanel(page);
+  await page.getByRole("radio", { name: "Sunday" }).click();
+  await closePanel(page);
   await expect(heading).toHaveText(/^Sep 27 – Oct 3/);
   // A pref, kept for next time.
   await page.reload();
   await expect(heading).toHaveText(/^Sep 27 – Oct 3/);
-  await openPanel(page, isMobile);
+  await openPanel(page);
   await page.getByRole("radio", { name: "Monday" }).click();
-  await closePanel(page, isMobile);
+  await closePanel(page);
   await expect(heading).toHaveText(/^Sep 28 – Oct 4/);
 });
