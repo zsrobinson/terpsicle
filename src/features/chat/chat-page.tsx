@@ -13,6 +13,7 @@ import {
 import { AppBar } from "~/components/app-bar";
 import { Mark } from "~/components/brand/mark";
 import { PanelNote } from "~/components/panel";
+import { SidebarResizeHandle } from "~/components/workbench/sidebar-resize";
 import {
   type ChatListCourse,
   canReadRoom,
@@ -47,19 +48,25 @@ import { RoomInfo } from "./room-info";
 import { RoomList, useChatList } from "./room-list";
 import { RoomSkeleton, RoomView } from "./room-view";
 import { useCourseChat } from "./session";
+import { useChatSidebarWidth } from "./sidebar-width";
 import { ChatClosed, SignInMoment } from "./sign-in-moment";
-import { ChatTermMenu } from "./term-menu";
+import { ChatTermLabel } from "./term-label";
 
 // Terpsicle Chat (`/chat`, V2.md §8.6), the kit's "full" page: a tool with
 // panes under the family bar. Signed out, it's the front door; signed in,
 // the list of your classes and their rooms beside the room you're in, with
-// the term in the bar. The list is the one sidebar and stays put: opening a
+// the term in the bar. Chat has one term, the one in session (or between
+// terms the next to start): no switching, and no joining another term's
+// chat (owner, 2026-09-29). The list is the one sidebar and stays put: opening a
 // room fills the pane beside it (the owner, 2026-09-28: it mustn't feel like
 // a new sidebar). On a phone (SPEC §2) one thing at a time: the room pushes
 // in over the list (the router's view transition), which stays mounted
 // underneath, so Back pops to it where you left it; room info is the kit's
 // sheet. Everything is plain text and
 // tokens; there are no sparkles anywhere in Chat.
+
+/** The list's id: the resize handle controls it. */
+const CHAT_LIST_ID = "chat-list";
 
 /** How often the list's unread counts refresh while /chat is open. */
 const UNREAD_EVERY_MS = 60_000;
@@ -90,11 +97,11 @@ export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
         current="chat"
         feedback={feedbackProduct(path)}
         pathname={path}
-        context={app ? <ChatTermMenu /> : null}
+        context={app ? <ChatTermLabel /> : null}
       />
       {status === "loading" ? (
         <ProductPage width="full" className="md:flex-row">
-          <div className="md:w-80 md:shrink-0 md:border-hairline md:border-r">
+          <div className="md:w-sidebar md:shrink-0 md:border-hairline md:border-r">
             <RowSkeleton label="Loading Chat" />
           </div>
         </ProductPage>
@@ -119,14 +126,21 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   // Try again on a room whose socket gave up opens a new one.
   const [attempt, setAttempt] = useState(0);
 
-  // Load once, for the term in the link (or the usual pick).
-  const loadedFor = useRef<string | null>(null);
+  // Load once: Chat's term is today's, whatever the link says.
+  const loaded = useRef(false);
   useEffect(() => {
-    const key = view.term ?? "";
-    if (loadedFor.current === key) return;
-    loadedFor.current = key;
-    void useChatHome.getState().load(view.term ?? null);
-  }, [view.term]);
+    if (loaded.current) return;
+    loaded.current = true;
+    void useChatHome.getState().load();
+  }, []);
+
+  // A link to another term's chat (an older one, or for a term that's over
+  // or still to come) opens the list: nothing joins or opens there.
+  const otherTerm =
+    view.term !== undefined && termId !== null && view.term !== termId;
+  useEffect(() => {
+    if (otherTerm) go({}, { replace: true });
+  }, [otherTerm, go]);
 
   // Counts stay fresh without waking any room (V2 §8.3: one D1 query).
   useEffect(() => {
@@ -146,7 +160,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   const joined = useRef(false);
   useEffect(() => {
     if (!view.join || !view.course || homeStatus !== "ready" || !termId) return;
-    if (joined.current) return;
+    if (otherTerm || joined.current) return;
     joined.current = true;
     const course = view.course;
     void (async () => {
@@ -158,7 +172,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
         { replace: true },
       );
     })();
-  }, [view.join, view.course, homeStatus, termId, go]);
+  }, [view.join, view.course, homeStatus, termId, otherTerm, go]);
 
   const room =
     view.room && termId && parseRoomId(view.room)?.termId === termId
@@ -171,7 +185,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   // A course on its own (an older link) opens its course room: every room
   // of yours is already in the list, so there's no course page between.
   useEffect(() => {
-    if (view.room || !view.course || view.join || !termId) return;
+    if (view.room || !view.course || view.join || !termId || otherTerm) return;
     go(
       {
         term: view.term,
@@ -180,7 +194,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
       },
       { replace: true },
     );
-  }, [view, termId, go]);
+  }, [view, termId, otherTerm, go]);
 
   // Esc walks back out: room info, thread, room, list.
   useEffect(() => {
@@ -234,12 +248,14 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   // On a phone the open room covers the list, which stays mounted (hidden)
   // so its scroll and loaded rooms are there when you come back.
   const listHidden = mobile && room !== null;
+  const [listWidth, setListWidth] = useChatSidebarWidth();
 
   return (
     <ProductPage width="full" className="flex-row">
       {/* The page's one h1: the panes' headers say where you are. */}
       <PageHeader title="Chat" className="sr-only" />
       <nav
+        id={CHAT_LIST_ID}
         aria-label="Rooms"
         hidden={listHidden}
         // Its fade back in is for browsers without typed view transitions;
@@ -249,10 +265,18 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
           "flex min-h-0 flex-col",
           mobile
             ? "flex-1 animate-in fade-in-0 duration-150 motion-reduce:animate-none"
-            : "w-80 shrink-0 border-hairline border-r",
+            : "relative w-sidebar shrink-0 border-hairline border-r",
         )}
       >
         <RoomList view={view} go={goScoped} empty={empty} />
+        {/* Resized like Schedule's and Plan's sidebars, to the same width. */}
+        {mobile || listWidth === null ? null : (
+          <SidebarResizeHandle
+            controls={CHAT_LIST_ID}
+            width={listWidth}
+            onWidth={setListWidth}
+          />
+        )}
       </nav>
       {room && course && termId ? (
         <CourseRoom

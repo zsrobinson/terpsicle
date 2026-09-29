@@ -477,6 +477,16 @@ Revisit if: rooms feel empty or noisy. (changed 2026-09-28: no pictures)
 "i don't think we need to display other sections or instructors in there as locked; if you wanted to see them you would've just added that other section to your schedule." And opening a room "felt like you opened up a whole new sidebar". So the chat list is Chat's one sidebar and only lists your rooms (plus the course whose room is open, last, until you join or leave). There's no course page of every room: a course on its own opens its course room, Join sits in that room's header, and a room opens beside the list (a desktop) or slides in over it (a phone), in its final shape from the first frame.
 Revisit if: people ask to browse a course's other sections' rooms.
 
+### Chat is for this term only
+2026-09-29 · owner · one feature
+"let's make chats completely a this-semester sort of thing. you shouldn't be able to join one for a future course, that's confusing. your chat tab should just pull from the current semseter." Chat shows one term, `chatTerm`: of the terms Testudo lists, the one in session, else between terms the next to start. There's no term menu, "Join … chat" in course details shows only for that term's courses, and the server refuses to join any other term's. Earlier follows in a term still to come are kept, hidden until that term is Chat's.
+Revisit if: people want a past term's chat while it's still readable, or a future class's before its first day.
+
+### Chat's list resizes like the workbench sidebars
+2026-09-29 · owner · one feature
+"the sidebar on the chat and todo pages should be adjustable just like those on the schedule and plan pages even though the sidebar doesn't have tabs." Chat's list takes the workbenches' `SidebarResizeHandle` and their one shared width (`UiPrefs.sidebarWidth`), so it's 360px by default, not its old fixed 320.
+Revisit if: never on its own.
+
 ### Anonymous chat is held off
 2026-09-28 · owner · one feature
 The owner asked classmates about anonymous chats, and they liked the idea, but "i was concerned about misuse still, so i think we'll hold off on that." Everything in Chat carries your real name; nothing is built toward anonymous posting.

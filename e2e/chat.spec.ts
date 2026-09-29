@@ -424,3 +424,55 @@ test("course details in the scheduler lead to the course's chat", async ({
   await expect(page.getByRole("log", { name: "Messages" })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`room=${TERM}(%3A|:)${course}($|&)`));
 });
+
+test("a course from a term that isn't Chat's has no Join, and the server won't join one", async ({
+  page,
+}, info) => {
+  test.slow();
+  const { course } = courseFor(info);
+  // On 2026-07-01 Summer 2026 is in session, so it's Chat's term and the
+  // mock's Spring 2027 is still to come.
+  await page.clock.setFixedTime(new Date("2026-07-01T16:00:00Z"));
+  await signIn(page, "Test Student", "/schedule");
+  await page.goto(`/schedule?term=${TERM}&course=${course}`);
+  await expect(
+    page.getByRole("button", { name: "More about this course" }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page.getByRole("link", { name: new RegExp(`^Join ${course} chat`) }),
+  ).toHaveCount(0);
+
+  // The server keeps its own time: Spring 2027 is its Chat's term, and
+  // Summer 2026, long over, isn't one to join.
+  const origin = new URL(page.url()).origin;
+  const response = await page.request.post("/api/chat/follow", {
+    headers: { Origin: origin, "Sec-Fetch-Site": "same-origin" },
+    data: { termId: "202605", courseCode: course },
+  });
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toEqual({ status: "other-term" });
+});
+
+test("the list resizes like the other workbenches' sidebars, and keeps its width", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "phones have no sidebar to resize");
+  await signIn(page, "Test Student", "/chat");
+  const list = page.getByRole("navigation", { name: "Rooms" });
+  const handle = page.getByRole("separator", { name: "Sidebar width" });
+  const widthOf = async () =>
+    Math.round((await list.boundingBox())?.width ?? 0);
+  await expect(handle).toBeVisible();
+  // The workbenches' shared width: 360 unless someone chose another.
+  expect(await widthOf()).toBe(360);
+  await handle.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(widthOf).toBe(392);
+  await page.reload();
+  await expect(handle).toHaveAttribute("aria-valuenow", "392");
+  expect(await widthOf()).toBe(392);
+  await handle.dblclick();
+  await expect.poll(widthOf).toBe(360);
+});

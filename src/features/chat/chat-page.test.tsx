@@ -494,6 +494,18 @@ describe("ChatPage", () => {
     );
   });
 
+  it("opens the list, joining nothing, from a link to another term's chat", async () => {
+    signedIn();
+    const client = fakeClient();
+    // Chat's term is Spring 2027, the only one listed; Fall 2027 is to come.
+    const { go } = await page({ term: "202708", course: "CMSC351", join: 1 });
+    await vi.waitFor(() =>
+      expect(go).toHaveBeenCalledWith({}, { replace: true }),
+    );
+    expect(client.chat.follow).not.toHaveBeenCalled();
+    expect(go).toHaveBeenCalledTimes(1);
+  });
+
   it("joins a course you opened from its room's header, and leaves it from room info with undo", async () => {
     quietSockets();
     signedIn();

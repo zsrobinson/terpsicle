@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  chatTerm,
   type TermTags,
   termTagCandidates,
   termTags,
@@ -27,7 +28,6 @@ import { chatApi } from "~/server/fns/chat-api";
 import {
   type ChatApi,
   type ChatData,
-  chatTerm,
   fetchChatData,
   pullSynced,
   type Synced,
@@ -36,7 +36,9 @@ import {
 // The chat list's state (V2.md §8.6): the term, your synced plans and
 // settings, the catalog courses the list shows, unread counts, and courses
 // you follow. Loaded once you're signed in; conversations live in their
-// own sessions (./session).
+// own sessions (./session). The term is always Chat's term (`chatTerm`: the
+// one in session, or between terms the next to start), never a pick: a
+// chat for a term you aren't in yet is confusing (owner, 2026-09-29).
 
 export type ChatHomeStatus = "idle" | "loading" | "ready" | "error";
 
@@ -65,7 +67,7 @@ function writeFollows(follows: Record<TermId, CourseCode[]>): void {
 export interface ChatHomeState {
   status: ChatHomeStatus;
   terms: Term[];
-  /** Now and Next (V2 §5.5), for the term menu's tags. */
+  /** Now and Next (V2 §5.5), for the term's tag in the bar. */
   tags: TermTags;
   termId: TermId | null;
   synced: Synced;
@@ -78,15 +80,16 @@ export interface ChatHomeState {
   courseRows: readonly CourseSearchRow[] | null;
   courseRowsState: "idle" | "loading" | "ready" | "error";
 
-  /** Loads everything for a term (the asked one, or the usual pick). */
-  load: (term: TermId | null) => Promise<void>;
-  setTerm: (termId: TermId) => Promise<void>;
+  /** Loads everything for Chat's term. */
+  load: () => Promise<void>;
   refreshUnread: () => Promise<void>;
   /** Loads `courseRows` once; after an error, asking again tries again. */
   ensureCourseRows: () => Promise<void>;
   /** Makes sure a course's catalog entry is loaded (a room opened by link or Find a course). */
   ensureCourse: (courseCode: CourseCode) => Promise<Course | null>;
-  follow: (courseCode: CourseCode) => Promise<"ok" | "too-many" | "failed">;
+  follow: (
+    courseCode: CourseCode,
+  ) => Promise<"ok" | "too-many" | "other-term" | "failed">;
   unfollow: (courseCode: CourseCode) => Promise<boolean>;
   mute: (
     courseCode: CourseCode,
@@ -164,7 +167,7 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
     courseRows: null,
     courseRowsState: "idle",
 
-    load: async (term) => {
+    load: async () => {
       set({ status: "loading" });
       try {
         const today = newYorkClock(Date.now()).date;
@@ -179,22 +182,17 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
           today,
           calendars.filter((c) => c !== null),
         );
-        const picked = chatTerm(terms, term, synced.plans, tags.now);
+        const picked = chatTerm(
+          today,
+          terms.map((t) => t.id),
+          calendars.filter((c) => c !== null),
+        );
         set({ terms, tags });
         if (!picked) {
           set({ status: "ready", synced });
           return;
         }
-        await open(picked.id, synced);
-      } catch {
-        set({ status: "error" });
-      }
-    },
-
-    setTerm: async (termId) => {
-      set({ status: "loading", courses: new Map(), unread: [] });
-      try {
-        await open(termId, get().synced);
+        await open(picked, synced);
       } catch {
         set({ status: "error" });
       }
@@ -246,7 +244,7 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
       if (!termId) return "failed";
       try {
         const result = await deps.client.chat.follow({ termId, courseCode });
-        if (result.status === "too-many") return "too-many";
+        if (result.status !== "ok") return result.status;
       } catch {
         return "failed";
       }

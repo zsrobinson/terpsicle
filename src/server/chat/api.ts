@@ -15,17 +15,25 @@ import {
   type ChatUnreadInput,
   type ChatUnreadResult,
   FeatureVarsSchema,
+  type IsoDate,
   parseRoomId,
 } from "~/core/schema";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
-import { loadChatCourse } from "./catalog";
+import { loadChatCourse, loadChatTerm } from "./catalog";
 import { planSections, roomMembers, unreadRooms } from "./store";
 
 export interface ChatApiEnv {
   DB: D1Database;
   DATA: R2Bucket;
   CHAT_ENABLED?: string;
+}
+
+/** The date in College Park at `now`. */
+function collegeParkDate(now: Date): IsoDate {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+  }).format(now);
 }
 
 /** The signed-in person, or the answer to send: Chat off, or no session. */
@@ -56,6 +64,12 @@ export async function follow(
 ): Promise<ChatFollowResult | Response> {
   const user = chatUser(env, ctx);
   if (user instanceof Response) return user;
+  // Only Chat's term: a room for a term that's over or still to come isn't
+  // one to join. Rows from before the rule stay; the list shows them once
+  // their term is Chat's.
+  const today = collegeParkDate(ctx.now);
+  if ((await loadChatTerm(env.DATA, today)) !== input.termId)
+    return { status: "other-term" };
   // Under the cap, or already following (a repeat is fine).
   const saved = await env.DB.prepare(
     `INSERT INTO chat_follows (user_id, term_id, course_code, created_at)

@@ -344,6 +344,10 @@ _Avoid_: FOIA request (that's federal)
 
 ## Chat
 
+**Chat's term**:
+The one term Chat shows: of the terms Testudo lists, the one in session, or between terms the next one to start. It isn't picked, and another term's chats can't be joined (the owner, 2026-09-29). The bar names it with its term tag. Code says `chatTerm`.
+_Avoid_: current term, this semester (as a label); a term menu in Chat
+
 **Room**:
 A chat for part of a course, derived from the catalog. Nobody creates one, and nothing's stored for it until its first message.
 
@@ -366,7 +370,7 @@ The chat list's line naming the plan a term's rooms come from: its main plan ("R
 _Avoid_: chat plan (it's the main plan, since 2026-09-28)
 
 **Join**:
-Keeping a course room in your chat list when the course isn't in your main plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it.
+Keeping a course room in your chat list when the course isn't in your main plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it, for a course in Chat's term only.
 _Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
 
 **Posting here**:

@@ -1,16 +1,26 @@
 // What Chat reads from the published catalog (R2 `DATA`, through
 // ../published): the term, the course (whose rooms `roomsForCourse`
-// derives) and the academic calendar (for retention). Rooms are never listed
-// from storage (V2.md §8.3).
+// derives), the academic calendar (for retention) and Chat's term. Rooms are
+// never listed from storage (V2.md §8.3).
+import { chatTerm, termTagCandidates } from "~/core/catalog/term-tag";
 import { type RoomTree, roomsForCourse } from "~/core/chat";
-import type {
-  AcademicCalendar,
-  Course,
-  CourseCode,
-  Term,
-  TermId,
+import {
+  type AcademicCalendar,
+  type Course,
+  type CourseCode,
+  type IsoDate,
+  TERMS_KEY,
+  type Term,
+  type TermId,
+  TermsFileSchema,
 } from "~/core/schema";
-import { findCourse, findTerm, readCalendar } from "../published";
+import {
+  findCourse,
+  findTerm,
+  memoJson,
+  readCalendar,
+  readPublished,
+} from "../published";
 
 export interface ChatCourse {
   term: Term;
@@ -44,4 +54,28 @@ export async function loadChatCourse(
   ]);
   if (!term || !course) return null;
   return { term, course, tree: roomsForCourse(termId, course), calendar };
+}
+
+/**
+ * Chat's term on `today` (a date in College Park), as the chat list works
+ * it out: the listed term in session, or between terms the next to start.
+ * Joining another term's chat is refused (owner, 2026-09-29).
+ */
+export async function loadChatTerm(
+  bucket: R2Bucket,
+  today: IsoDate,
+): Promise<TermId | null> {
+  const read = memoJson(bucket);
+  const terms = await readPublished(read, TERMS_KEY, TermsFileSchema);
+  const listed = terms?.terms.map((t) => t.id) ?? [];
+  const calendars = await Promise.all(
+    termTagCandidates(today)
+      .filter((id) => listed.includes(id))
+      .map((id) => readCalendar(read, id)),
+  );
+  return chatTerm(
+    today,
+    listed,
+    calendars.filter((c) => c !== null),
+  );
 }

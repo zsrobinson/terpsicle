@@ -62,3 +62,31 @@ export function termTagOf(termId: TermId, tags: TermTags): TermTag | null {
   if (termId === tags.next) return "next";
   return null;
 }
+
+/**
+ * Chat's term (owner, 2026-09-29: Chat is a this-semester thing): of the
+ * terms Testudo lists, the one in session, the one that started last when
+ * two overlap as in `termTags`; between terms, the next one to start, any
+ * season, since a summer or winter class has classmates too. Only listed
+ * terms, since rooms come from a term's catalog. Testudo lists the next
+ * term months ahead, so a list with nothing in session or to come (a
+ * catalog that stopped moving, like the mock's) gives its newest term.
+ * Null only for an empty list.
+ */
+export function chatTerm(
+  today: IsoDate,
+  listed: readonly TermId[],
+  calendars: readonly AcademicCalendar[],
+): TermId | null {
+  let inSession: { termId: TermId; start: IsoDate } | null = null;
+  let upcoming: { termId: TermId; start: IsoDate } | null = null;
+  for (const termId of listed) {
+    const { start, end } = termSpan(termId, calendars);
+    if (today >= start && today <= end) {
+      if (!inSession || start > inSession.start) inSession = { termId, start };
+    } else if (start > today && (!upcoming || start < upcoming.start))
+      upcoming = { termId, start };
+  }
+  const newest = [...listed].sort((a, b) => b.localeCompare(a))[0] ?? null;
+  return inSession?.termId ?? upcoming?.termId ?? newest;
+}

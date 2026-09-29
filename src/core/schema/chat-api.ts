@@ -126,6 +126,8 @@ export const ChatFollowResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("ok") }),
   /** Already following CHAT_MAX_FOLLOWS courses this term. */
   z.object({ status: z.literal("too-many") }),
+  /** The term isn't Chat's (`chatTerm`): its chats aren't open to join. */
+  z.object({ status: z.literal("other-term") }),
 ]);
 export type ChatFollowResult = z.infer<typeof ChatFollowResultSchema>;
 

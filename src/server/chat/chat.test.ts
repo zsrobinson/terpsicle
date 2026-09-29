@@ -230,7 +230,12 @@ class Person {
     readonly cookie: string,
   ) {}
 
-  api(path: string, body: unknown, level: "on" | "off" = "on") {
+  api(
+    path: string,
+    body: unknown,
+    level: "on" | "off" = "on",
+    now: Date = new Date(),
+  ) {
     return handleApi(
       new Request(`${ORIGIN}/api/${path}`, {
         method: "POST",
@@ -244,6 +249,7 @@ class Person {
       }),
       { ...env, CHAT_ENABLED: level } as unknown as ApiEnv,
       { waitUntil: () => {} },
+      now,
     );
   }
 
@@ -312,11 +318,11 @@ class Person {
   }
 }
 
-async function signIn(userId: string): Promise<Person> {
+async function signIn(userId: string, at = new Date()): Promise<Person> {
   const user = findTestUser(userId);
   if (!user) throw new Error(`no test user ${userId}`);
-  await upsertUser(env.DB, user.identity, new Date());
-  const setCookie = await startSession(env.DB, userId, new Date());
+  await upsertUser(env.DB, user.identity, at);
+  const setCookie = await startSession(env.DB, userId, at);
   return new Person(userId, setCookie.split(";")[0] ?? "");
 }
 
@@ -2111,6 +2117,50 @@ describe("chat routes", () => {
       muted: true,
     });
     expect(bad.status).toBe(400);
+  });
+
+  it("joins only Chat's term: not one that's over or still to come", async () => {
+    // Spring 2027 in session; Testudo lists Summer 2026 and Fall 2027 too.
+    const at = new Date("2027-03-01T15:00:00Z");
+    await Promise.all([
+      env.DATA.put(
+        TERMS_KEY,
+        JSON.stringify(
+          aTermsFile({
+            terms: [
+              aTerm(),
+              aTerm({ id: "202708", name: "Fall 2027", season: "fall" }),
+              aTerm({
+                id: "202605",
+                name: "Summer 2026",
+                season: "summer",
+                year: 2026,
+                status: "archived",
+              }),
+            ],
+          }),
+        ),
+      ),
+      env.DATA.put(
+        calendarKey(TERM),
+        JSON.stringify(aPublishedCalendar({ termId: TERM })),
+      ),
+    ]);
+    const admin = await signIn("tadmin", at);
+    const follow = async (termId: string) =>
+      (
+        await admin.api("chat/follow", { termId, courseCode: COURSE }, "on", at)
+      ).json();
+    expect(await follow("202708")).toEqual({ status: "other-term" });
+    expect(await follow("202605")).toEqual({ status: "other-term" });
+    // Nothing was saved for either.
+    const saved = await env.DB.prepare(
+      "SELECT term_id FROM chat_follows WHERE user_id = ?1",
+    )
+      .bind("tadmin")
+      .all();
+    expect(saved.results).toEqual([]);
+    expect(await follow(TERM)).toEqual({ status: "ok" });
   });
 
   it("lists members of rooms you can read", async () => {
