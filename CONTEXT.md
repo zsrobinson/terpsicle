@@ -287,7 +287,7 @@ A chip that ranks Generate's results without taking any out: Compact days, Fewer
 _Avoid_: weight, sort, rank by (in UI copy)
 
 **Share**:
-The outlined "Share" button at the top left of the canvas bar, in Schedule and Plan. It opens a popover with the plan's share link, "Copy link" ("Copied link") and a note that the link is a copy held in the URL, which won't follow later edits.
+The outlined "Share" button at the top left of the canvas bar, in Schedule and Plan. It opens a popover with the plan's share link, "Copy link" ("Copied link") and a note that the link is a copy held in the URL, which won't follow later edits. On a phone or tablet it opens the system's **share sheet** with the link instead (Messages, AirDrop), and the popover only where there's none.
 _Avoid_: export, publish, send
 
 **Share link**:

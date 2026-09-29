@@ -74,6 +74,11 @@ Revisit if: a transition slows a navigation people repeat often.
 Every route renders inside `SheetIndent` (Base UI's Drawer provider and indent, in `src/routes/__root.tsx`), so any kit sheet scales the page back on phones; toasts stay outside it. While it's scaled the page is a containing block, so a fixed element inside it is placed against the page: full-screen shells don't notice, a scrolling page's fixed bar would move. A sheet with detents dims the page at medium and large alike, where Base UI's default leaves medium undimmed (Maps).
 Revisit if: a scrolling page gets a fixed bar that must hold still under a sheet (render it outside the indent), or a sheet wants an undimmed detent.
 
+### The status bar stays default
+2026-09-28 · agent · app-wide
+The installed iPhone app keeps `apple-mobile-web-app-status-bar-style` at `default`, not the `black-translucent` the iPhone plan named: black-translucent always draws the status bar's words in white, which vanish on light paper. With `default` the app starts below the status bar, which iOS 26 paints in the app's theme-color, and that color now follows the picked theme. The page is still `viewport-fit=cover`, and the bars pad by the safe areas, so switching later is one tag.
+Revisit if: iOS lets a translucent status bar's words follow the page's theme, or the owner wants the bar under the status bar in dark only.
+
 ### Use the platform first
 2026-09-26 · owner · app-wide
 Lean on TanStack Start and Router, Cloudflare and our libraries before building infrastructure ourselves ("i shouldn't have to worry about the page load things"). The scheduler's panel registry, `lazyPanel` and URL sync move to real nested routes in `v2/schedule-routes`.

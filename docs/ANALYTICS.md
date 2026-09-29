@@ -32,6 +32,7 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `problem_fix_applied` | `kind` (`switch` · `accept-change`), `problem` | Whether one-click fixes get used, and for which problems. |
   | `export_codes_copied` | `count` | How many plans reach registration. |
   | `share_link_copied` | `product`: `schedule` · `plan` | Whether sharing is used, and whether advisors' four-year links are the reason (the owner's). |
+  | `share_link_shared` | `product`: `schedule` · `plan` | The same, when a phone's share sheet sent the link instead of a copy. |
   | `ics_downloaded` | `events` | Whether calendar export is worth keeping. |
   | `registration_item_checked` | | Whether the Register tab's checklist is used on registration day (a section marked Registered). |
   | `registration_code_copied` | | Whether copying one code at a time, for Testudo's two fields, is found. Never the code. |
