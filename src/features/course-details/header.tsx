@@ -68,30 +68,34 @@ export function DetailsHeader({
   ];
   return (
     <header className="px-4 pt-4 pb-3">
-      <div className="flex items-center gap-2">
-        {inPlan && !readOnly ? (
-          <CourseColorPicker courseCode={course.code} color={color} />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="size-2 shrink-0 rounded-full"
-            style={dotStyle(color)}
-          />
-        )}
-        <span className="ident font-semibold text-base">{course.code}</span>
-        <span className="tnum text-sm text-muted">{creditWords(course)}</span>
-        {genEds.map((code) => (
-          <span
-            key={code}
-            className="rounded border border-hairline px-1 ident text-xs text-muted"
-          >
-            {code}
-          </span>
-        ))}
+      {/* The course's name, which the row you opened it from grows into
+          (~/lib/view-transition). */}
+      <div data-vt-course={course.code}>
+        <div className="flex items-center gap-2">
+          {inPlan && !readOnly ? (
+            <CourseColorPicker courseCode={course.code} color={color} />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="size-2 shrink-0 rounded-full"
+              style={dotStyle(color)}
+            />
+          )}
+          <span className="ident font-semibold text-base">{course.code}</span>
+          <span className="tnum text-sm text-muted">{creditWords(course)}</span>
+          {genEds.map((code) => (
+            <span
+              key={code}
+              className="rounded border border-hairline px-1 ident text-xs text-muted"
+            >
+              {code}
+            </span>
+          ))}
+        </div>
+        <h2 className="emph-title mt-1 text-balance text-lg leading-5">
+          {course.title}
+        </h2>
       </div>
-      <h2 className="emph-title mt-1 text-balance text-lg leading-5">
-        {course.title}
-      </h2>
       <div className="mt-2 space-y-1 text-sm leading-4">
         {facts.map(([label, text]) =>
           text ? (

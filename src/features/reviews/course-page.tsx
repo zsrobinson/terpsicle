@@ -83,10 +83,12 @@ export function CoursePage({
         back={{ label: "Reviews", to: "/reviews" }}
         eyebrow="Course"
         title={
-          <>
+          // One box the row you opened it from grows into
+          // (~/lib/view-transition); a wrapped inline one can't be.
+          <span className="block" data-vt-course={code}>
             <span className="ident">{code}</span>
             {title ? ` ${title}` : null}
-          </>
+          </span>
         }
         status={
           term ? (

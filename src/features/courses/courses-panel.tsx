@@ -237,6 +237,8 @@ function PlacedRow({
           onClick={() => openCourse(courseCode)}
           className="block w-full text-left"
           data-testid={`course-row-${courseCode}`}
+          // Grows into course details' header (~/lib/view-transition).
+          data-vt-course={courseCode}
         >
           <span className="flex items-baseline gap-2">
             <span className="ident font-semibold text-base">{courseCode}</span>
@@ -343,6 +345,7 @@ function BookmarkRow({
           type="button"
           onClick={() => openCourse(courseCode)}
           className="flex w-full items-baseline gap-2 text-left"
+          data-vt-course={courseCode}
         >
           <span className="ident font-semibold text-base">{courseCode}</span>
           <span className="truncate text-muted text-sm">{title}</span>

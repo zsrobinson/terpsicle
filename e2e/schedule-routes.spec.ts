@@ -135,6 +135,12 @@ test.describe("old-style URLs redirect to their routes, replacing the entry", ()
     await arrive(page, "/schedule?demo=1");
     await railTab(page, "Travel").click();
     await expect(page).toHaveURL(/\/schedule\/travel\?/);
+    // The tab shows (and is saved) inside its transition, a frame after
+    // the URL moves.
+    await expect(railTab(page, "Travel")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     await page.goto("/schedule");
     await expect(page).toHaveURL(/\/schedule\/travel\?/);
     await expect(railTab(page, "Travel")).toHaveAttribute(

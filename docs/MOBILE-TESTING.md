@@ -103,6 +103,7 @@ In order (`scripts/mobile-lab/scenarios.ts`). Each starts with a fresh load.
 | `long-course` | Search "engl101", open ENGL101 (90+ sections), raise the drawer and scroll to the bottom; the list's end must be on screen. |
 | `open-results` | Six times: back in the search box, scroll the results, put the keyboard away, tap a result. Each must open on the first tap. |
 | `add-sections` | Open CMSC131, tap Add on a section, then Switch three times. Each tap must take effect the first time. |
+| `swipe-back` | Open CMSC131, then go Back: on `ios` Safari's own swipe in from the screen's left edge, elsewhere `history.back()`. The page must move once: Safari's animation (`hasUAVisualTransition`) or our pop view transition, never both (`moved-once-not-twice`, fail; `moved-once`, warn). |
 
 To add one, append to `SCENARIOS`: use `lab.tap`, `lab.swipe`, `lab.type`, `lab.hideKeyboard` and `lab.rotate` on `Target`s (a selector, optionally a label), and `lab.step(name, { expect })` after each action.
 

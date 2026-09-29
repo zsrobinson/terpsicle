@@ -4,6 +4,9 @@
    the wordmark the tight display one (the default instance is opsz 96). */
 @import "@fontsource-variable/bricolage-grotesque/opsz.css";
 @import "@fontsource-variable/geist-mono";
+/* Navigations' push, pop and tab (docs/decisions.md, "Motion through view
+   transitions"). */
+@import "./styles/transitions.css";
 
 /*
  * Design tokens: the "Ink" brand (docs/DESIGN.md §7). Components use only

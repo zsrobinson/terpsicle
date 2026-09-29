@@ -515,6 +515,8 @@ function ResultRow({
       aria-selected={active}
       tabIndex={-1}
       data-course-result={course.code}
+      // Grows into course details' header (~/lib/view-transition).
+      data-vt-course={course.code}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === "Enter") onOpen();
