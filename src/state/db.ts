@@ -1,8 +1,6 @@
 import Dexie, { type EntityTable, type Transaction } from "dexie";
 import {
   type Block,
-  type CachedFile,
-  type CachedManifest,
   type CourseColorPref,
   LegacyChecklistSchema,
   LOCAL_DB_NAME,
@@ -46,6 +44,16 @@ const V2_CHANGES = {
  * row per four-year doc.
  */
 const V3_CHANGES = { fourYear: "id" } as const;
+
+/**
+ * Version 7 (the catalog on TanStack Query, 2026-09-29): the published-data
+ * cache's `manifests` and `files` go. Every published file is a query now,
+ * saved in the query cache's own database (DATA.md §5.5), so their rows
+ * (the catalog's, and the PlanetTerp, geo, calendar and review-number
+ * files no build reads any more) are dropped with them. Nothing a person
+ * made was ever in either.
+ */
+export const V7_CHANGES = { manifests: null, files: null } as const;
 
 /**
  * Sends the next pull back to the start (V3 §2.4). A tab from before sync
@@ -138,8 +146,6 @@ export class TerpsicleDb extends Dexie {
   courseColors!: EntityTable<CourseColorPref, "courseCode">;
   settings!: EntityTable<SettingsRow, "key">;
   syncDocs!: EntityTable<LocalSyncDoc, "key">;
-  manifests!: EntityTable<CachedManifest, "key">;
-  files!: EntityTable<CachedFile, "key">;
   /** Four-year docs, validated on read (`FourYearDocSchema`). */
   fourYear!: EntityTable<FourYearDoc, "id">;
 
@@ -151,7 +157,8 @@ export class TerpsicleDb extends Dexie {
     // Version 4 (four-year sync, V3 §2.13): no table changes.
     this.version(4).stores({}).upgrade(resetPullCursor);
     this.version(5).stores({}).upgrade(registeredFromChecklist());
-    this.version(LOCAL_DB_VERSION).stores({}).upgrade(mainPlansFromChatPlans);
+    this.version(6).stores({}).upgrade(mainPlansFromChatPlans);
+    this.version(LOCAL_DB_VERSION).stores(V7_CHANGES);
   }
 }
 

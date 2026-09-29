@@ -135,12 +135,12 @@ export function useCampus(load = true): {
  * two arrive rather than after the whole catalog (DATA.md §5.1).
  */
 export function useCourseDept(termId: TermId | null, dept: DeptCode): void {
-  const reader = useCatalog((s) => s.reader);
+  const client = useCatalog((s) => s.client);
   const ensureDepts = useCatalog((s) => s.ensureDepts);
   useEffect(() => {
-    if (!reader || !termId) return;
+    if (!client || !termId) return;
     void ensureDepts(termId, [dept]);
-  }, [reader, termId, dept, ensureDepts]);
+  }, [client, termId, dept, ensureDepts]);
   useInstructors(dept);
 }
 
@@ -335,39 +335,30 @@ export function useRouteGeometry(
 }
 
 /**
- * The seat poll (DATA.md §5.1 step 5): for an active term, revalidate the
- * manifest every 60 s while the page is visible, and right away when it
- * becomes visible again or the connection comes back. Archived terms don't
- * poll. When a newer data format was published, the next time the page
- * becomes visible it reloads (DATA.md §2.3).
+ * The seat poll (DATA.md §5.1 step 5) for the term on screen: its manifest
+ * every minute while the page is visible, by one tab of this browser, and
+ * again on coming back or reconnecting once it's stale; all Query's
+ * (`pollTerm`, ./query/catalog-poll.ts). Archived terms don't poll: their
+ * manifest is checked once per page. When the server publishes a newer
+ * data format, the page reloads the next time it's shown (DATA.md §2.3).
  */
-export function useCatalogPolling(termId: TermId | null, everyMs = 60_000) {
+export function useCatalogPolling(termId: TermId | null) {
   const archived = useCatalog(
     (s) => s.terms?.find((t) => t.id === termId)?.status === "archived",
   );
-  const reader = useCatalog((s) => s.reader);
-  const refresh = useCatalog((s) => s.refreshTerm);
+  const client = useCatalog((s) => s.client);
+  const pollTerm = useCatalog((s) => s.pollTerm);
+  const stale = useCatalog((s) => s.appStale);
   useEffect(() => {
-    if (!termId || !reader || archived) return;
-    const visible = () => document.visibilityState === "visible";
-    const poll = () => {
-      if (visible()) void refresh(termId);
+    if (!termId || !client || archived) return;
+    return pollTerm(termId);
+  }, [termId, client, archived, pollTerm]);
+  useEffect(() => {
+    if (!stale) return;
+    const onShown = () => {
+      if (document.visibilityState === "visible") window.location.reload();
     };
-    const onVisible = () => {
-      if (!visible()) return;
-      if (useCatalog.getState().appStale) {
-        window.location.reload();
-        return;
-      }
-      void refresh(termId);
-    };
-    const id = setInterval(poll, everyMs);
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("online", onVisible);
-    return () => {
-      clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("online", onVisible);
-    };
-  }, [termId, reader, archived, refresh, everyMs]);
+    document.addEventListener("visibilitychange", onShown);
+    return () => document.removeEventListener("visibilitychange", onShown);
+  }, [stale]);
 }

@@ -4,8 +4,11 @@ import { SCHEMA_VERSIONS } from "~/core/schema";
 import {
   createDexieQueryStorage,
   createMemoryQueryStorage,
+  preloadPublished,
   prunePublished,
   publishedPersister,
+  queryStorageForTests,
+  savedPublishedKeys,
   setQueryStorage,
 } from "./persister";
 import { publishedKey } from "./published";
@@ -26,6 +29,9 @@ describe("createDexieQueryStorage", () => {
     await storage.removeItem("published:reviews-a");
     expect(await storage.getItem("published:reviews-a")).toBeNull();
     expect(await storage.entries?.()).toEqual([["published:catalog-b", 2]]);
+    expect(await storage.rowsFrom("published:catalog-")).toEqual([
+      ["published:catalog-b", 2],
+    ]);
   });
 
   it("never fails a read when IndexedDB does", async () => {
@@ -74,6 +80,90 @@ describe("prunePublished", () => {
         rowKey("live", "reviews/dept/CMSC.2.json"),
         rowKey("mock", "reviews/dept/CMSC.1.json"),
         "published:catalog-x",
+      ].sort(),
+    );
+  });
+});
+
+describe("one term's rows", () => {
+  let storage: ReturnType<typeof createMemoryQueryStorage>;
+  const rowKey = (key: string) =>
+    `published:catalog-${JSON.stringify(publishedKey("live", key))}`;
+  const TERM_A = "catalog/202701/";
+  const TERM_B = "catalog/202608/";
+
+  beforeEach(() => {
+    storage = createMemoryQueryStorage();
+    for (const key of [
+      `${TERM_A}manifest.json`,
+      `${TERM_A}dept/CMSC.1.json`,
+      `${TERM_A}dept/MATH.2.json`,
+      `${TERM_B}dept/CMSC.3.json`,
+      "catalog/terms.json",
+    ])
+      storage.rows.set(rowKey(key), { key });
+    setQueryStorage(storage);
+  });
+  afterEach(() => setQueryStorage(null));
+
+  it("are read in one go, each handed out once, and never over a newer write", async () => {
+    const rowsFrom = vi.spyOn(storage, "rowsFrom");
+    const getItem = vi.spyOn(storage, "getItem");
+    // The persister wraps the storage it's given: give it the spied one.
+    setQueryStorage(storage);
+    await preloadPublished("catalog", "live", TERM_A);
+    expect(rowsFrom).toHaveBeenCalledTimes(1);
+
+    const persister = publishedPersister("catalog");
+    const read = (key: string) =>
+      persister.retrieveQuery(JSON.stringify(publishedKey("live", key)));
+    // From what was read ahead: no read of its own.
+    getItem.mockClear();
+    await read(`${TERM_A}dept/CMSC.1.json`).catch(() => undefined);
+    expect(getItem).not.toHaveBeenCalled();
+    // Handed out once: the next read goes to the storage.
+    await read(`${TERM_A}dept/CMSC.1.json`).catch(() => undefined);
+    expect(getItem).toHaveBeenCalledTimes(1);
+    // Another term's rows weren't read ahead.
+    getItem.mockClear();
+    await read(`${TERM_B}dept/CMSC.3.json`).catch(() => undefined);
+    expect(getItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a row read ahead once it's written, so the newer one is read", async () => {
+    await preloadPublished("catalog", "live", TERM_A);
+    const tracked = queryStorageForTests();
+    await tracked?.setItem(rowKey(`${TERM_A}dept/MATH.2.json`), {
+      newer: true,
+    });
+    expect(await tracked?.getItem(rowKey(`${TERM_A}dept/MATH.2.json`))).toEqual(
+      { newer: true },
+    );
+  });
+
+  it("are the only keys a term's pointer lists or prunes", async () => {
+    const keys = vi.spyOn(storage, "keys");
+    // The persister wraps the storage it's given: give it the spied one.
+    setQueryStorage(storage);
+    expect(await savedPublishedKeys("catalog", "live", TERM_A)).toEqual([
+      `${TERM_A}manifest.json`,
+      `${TERM_A}dept/CMSC.1.json`,
+      `${TERM_A}dept/MATH.2.json`,
+    ]);
+    await prunePublished(
+      "catalog",
+      "live",
+      new Set([`${TERM_A}manifest.json`]),
+      TERM_A,
+    );
+    // Each asked the storage for this term's keys, not the family's.
+    for (const [prefix] of keys.mock.calls)
+      expect(prefix).toBe(`published:catalog-["published","live","${TERM_A}`);
+    expect([...storage.rows.keys()].sort()).toEqual(
+      [
+        rowKey(`${TERM_A}manifest.json`),
+        rowKey(`${TERM_B}dept/CMSC.3.json`),
+        rowKey("catalog/terms.json"),
       ].sort(),
     );
   });

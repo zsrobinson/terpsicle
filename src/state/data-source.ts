@@ -45,6 +45,11 @@ export type ReadPriority = "high" | "low" | "auto";
 
 export interface ReadOptions {
   priority?: ReadPriority;
+  /**
+   * Stops the read: a pointer's deadline aborts it with its own
+   * `DataError` ("timeout"), which the read then throws.
+   */
+  signal?: AbortSignal;
 }
 
 export interface DataSource {
@@ -52,13 +57,17 @@ export interface DataSource {
   /** Parsed JSON at a DATA.md key. Throws `DataError` when it's missing or unreadable. */
   readJson(key: string, options?: ReadOptions): Promise<unknown>;
   /** Raw bytes (the routes binary). */
-  readBinary(key: string): Promise<ArrayBuffer>;
+  readBinary(key: string, options?: ReadOptions): Promise<ArrayBuffer>;
 }
 
 export class DataError extends Error {
   constructor(
     readonly key: string,
-    readonly reason: "missing" | "network" | "invalid",
+    /**
+     * `timeout`: the server was reachable but too slow for a pointer's
+     * deadline; not offline, and not tried again at once.
+     */
+    readonly reason: "missing" | "network" | "invalid" | "timeout",
     message: string,
   ) {
     super(message);
@@ -129,11 +138,17 @@ export function createFetchDataSource(
   ): Promise<Response> => {
     let response: Response;
     try {
+      const init: RequestInit = {};
+      if (options.priority) init.priority = options.priority;
+      if (options.signal) init.signal = options.signal;
       response = await fetchImpl(
         `${base}/${key}`,
-        options.priority ? { priority: options.priority } : undefined,
+        Object.keys(init).length > 0 ? init : undefined,
       );
     } catch (error) {
+      // Stopped by a deadline: that's what failed, not the connection.
+      if (options.signal?.reason instanceof DataError)
+        throw options.signal.reason;
       throw new DataError(
         key,
         "network",
@@ -160,7 +175,8 @@ export function createFetchDataSource(
         throw new DataError(key, "invalid", `${key} isn't valid JSON`);
       }
     },
-    readBinary: async (key) => (await request(key)).arrayBuffer(),
+    readBinary: async (key, options) =>
+      (await request(key, options)).arrayBuffer(),
   };
 }
 

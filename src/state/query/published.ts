@@ -6,6 +6,7 @@ import {
   type QueryFunctionContext,
   type QueryKey,
   queryOptions,
+  replaceEqualDeep,
   skipToken,
 } from "@tanstack/react-query";
 import { z } from "zod";
@@ -14,6 +15,7 @@ import type { SchemaFamily } from "~/core/schema";
 import {
   DataError,
   type DataSource,
+  type ReadOptions,
   readParsed,
   SchemaVersionError,
 } from "../data-source";
@@ -21,6 +23,7 @@ import {
   flushQueryStorage,
   forgetPersisted,
   type Persister,
+  persistPublished,
   prunePublished,
   publishedPersister,
   savedPublishedKeys,
@@ -98,16 +101,43 @@ export function fileSlot(key: string): string {
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
+ * What a pointer's fetch left to do once the query holds what it fetched
+ * (its save, with any file that didn't load put back, and prune), keyed by
+ * the very data that fetch returned: an attempt that ran past its deadline
+ * and finished late can never hand its settle to another attempt.
+ */
+const pendingSettle = new WeakMap<object, () => Promise<void>>();
+
+/** Runs a fetch's settle once the query holds its data (a task later). */
+function afterFetch<T>(data: T): T {
+  const settleNow =
+    typeof data === "object" && data !== null
+      ? pendingSettle.get(data)
+      : undefined;
+  if (settleNow) {
+    pendingSettle.delete(data as object);
+    setTimeout(() => void settleNow(), 0);
+  }
+  return data;
+}
+
+/**
  * The persister, checking restored data against the schema as the old
  * cache did: a saved copy that doesn't read is deleted and fetched again.
  * With `checkOnRestore`, a copy that did read is shown and then fetched
  * once in the background, whatever its age (a pointer, once per page).
+ * Without `saveFetched` (pointers) it restores but never saves what a
+ * fetch brings: the pointer's own settle is the only thing that saves it,
+ * as it should be kept, after its files.
  */
 function validated<S extends z.ZodType>(
   persister: Persister,
   schema: S,
   family: SchemaFamily,
-  checkOnRestore: boolean,
+  {
+    checkOnRestore,
+    saveFetched,
+  }: { checkOnRestore: boolean; saveFetched: boolean },
 ) {
   return async <TQueryKey extends QueryKey>(
     queryFn: (
@@ -116,6 +146,39 @@ function validated<S extends z.ZodType>(
     context: QueryFunctionContext<TQueryKey>,
     query: Query,
   ): Promise<z.infer<S>> => {
+    /** A copy from disk: shown if it reads, else deleted and fetched. */
+    const fromDisk = async (
+      data: unknown,
+      fetchInstead: () => Promise<z.infer<S>>,
+    ): Promise<z.infer<S>> => {
+      const parsed = schema.safeParse(data);
+      if (!parsed.success) {
+        await forgetPersisted(family, query.queryHash);
+        return fetchInstead();
+      }
+      if (checkOnRestore)
+        // After the restored copy is in (and its age is set).
+        notifyManager.schedule(() => {
+          // A failure shows on the query; the saved copy stays on screen.
+          query.fetch().catch(() => {});
+        });
+      return parsed.data;
+    };
+
+    if (!saveFetched) {
+      const fetchNow = async () => afterFetch(await queryFn(context));
+      const restored =
+        query.state.data === undefined
+          ? await persister.retrieveQuery(query.queryHash, (persisted) =>
+              query.setState({
+                dataUpdatedAt: persisted.state.dataUpdatedAt,
+                errorUpdatedAt: persisted.state.errorUpdatedAt,
+              }),
+            )
+          : undefined;
+      return restored === undefined ? fetchNow() : fromDisk(restored, fetchNow);
+    }
+
     let fetched = false;
     const data = await persister.persisterFn(
       (c: QueryFunctionContext<TQueryKey>) => {
@@ -126,19 +189,8 @@ function validated<S extends z.ZodType>(
       query,
     );
     if (fetched) return data;
-    const parsed = schema.safeParse(data);
-    if (!parsed.success) {
-      await forgetPersisted(family, query.queryHash);
-      // Nothing saved now: this fetches, and saves what it gets.
-      return persister.persisterFn(queryFn, context, query);
-    }
-    if (checkOnRestore)
-      // After the restored copy is in (and the persister has set its age).
-      notifyManager.schedule(() => {
-        // A failure shows on the query; the saved copy stays on screen.
-        query.fetch().catch(() => {});
-      });
-    return parsed.data;
+    // Nothing saved once it's deleted: this fetches, and saves what it gets.
+    return fromDisk(data, () => persister.persisterFn(queryFn, context, query));
   };
 }
 
@@ -151,19 +203,27 @@ function published<S extends z.ZodType>(
     staleTime: number;
     /** Fetch a restored copy again at once (pointers). */
     checkOnRestore: boolean;
-    /** Instead of a plain read (a pointer's fetch). */
-    load?: (source: DataSource, client: QueryClient) => Promise<z.infer<S>>;
+    /** Instead of a plain read (a pointer's fetch); `signal` is the query's. */
+    load?: (
+      source: DataSource,
+      client: QueryClient,
+      signal: AbortSignal,
+    ) => Promise<z.infer<S>>;
     /** Before a missing file fails (see `publishedFile`). */
     onMissing?: (client: QueryClient) => Promise<unknown>;
+    /** How the plain read asks (its fetch priority). */
+    read?: ReadOptions;
+    /** Save what a fetch brings as it comes (all but pointers). */
+    saveFetched?: boolean;
   },
 ) {
   return queryOptions({
     queryKey: publishedKey(source?.kind ?? "none", key),
     queryFn: source
-      ? ({ client }): Promise<z.infer<S>> =>
+      ? ({ client, signal }): Promise<z.infer<S>> =>
           (options.load
-            ? options.load(source, client)
-            : readParsed(source, key, schema, family)
+            ? options.load(source, client, signal)
+            : readParsed(source, key, schema, family, options.read)
           ).catch(async (error: unknown) => {
             if (
               options.onMissing &&
@@ -183,12 +243,10 @@ function published<S extends z.ZodType>(
     // hold it, and anything awaiting it, until the connection came back).
     // `refetchOnReconnect` asks again once it does.
     networkMode: "always",
-    persister: validated(
-      publishedPersister(family),
-      schema,
-      family,
-      options.checkOnRestore,
-    ),
+    persister: validated(publishedPersister(family), schema, family, {
+      checkOnRestore: options.checkOnRestore,
+      saveFetched: options.saveFetched ?? true,
+    }),
     // Another version of the same file (a new hash) keeps the one before it
     // on screen while it loads; a different file starts from nothing.
     placeholderData: (previous, previousQuery) => {
@@ -219,12 +277,18 @@ export function publishedFile<S extends z.ZodType>(
      * (a new key) instead of an error. Once per fetch.
      */
     onMissing?: (client: QueryClient) => Promise<unknown>;
+    /**
+     * How a fetch asks: a background load reads at a low priority, so what
+     * the page asked for goes first. The same key whatever it is.
+     */
+    read?: ReadOptions;
   },
 ) {
   return published(source, key, schema, family, {
     staleTime: Number.POSITIVE_INFINITY,
     checkOnRestore: false,
     onMissing: options?.onMissing,
+    read: options?.read,
   });
 }
 
@@ -250,17 +314,31 @@ export function publishedBinary(
   return published(source, key, schema, family, {
     staleTime: Number.POSITIVE_INFINITY,
     checkOnRestore: false,
-    load: async (s) => {
-      const parsed = schema.safeParse(await s.readBinary(key));
-      if (!parsed.success)
-        throw new DataError(
-          key,
-          "invalid",
-          `${key} doesn't match its format: ${parsed.error.message}`,
-        );
-      return parsed.data;
-    },
+    load: (s, _client, signal) =>
+      readFile(s, key, { binary: schema }, family, {
+        signal,
+      }) as Promise<ArrayBuffer>,
   });
+}
+
+/** A hashed file read and checked, JSON or bytes, straight from the source. */
+async function readFile(
+  source: DataSource,
+  key: string,
+  spec: z.ZodType | BinaryFile,
+  family: SchemaFamily,
+  read?: ReadOptions,
+): Promise<unknown> {
+  if (spec instanceof z.ZodType)
+    return readParsed(source, key, spec, family, read);
+  const parsed = spec.binary.safeParse(await source.readBinary(key, read));
+  if (!parsed.success)
+    throw new DataError(
+      key,
+      "invalid",
+      `${key} doesn't match its format: ${parsed.error.message}`,
+    );
+  return parsed.data;
 }
 
 /**
@@ -284,7 +362,9 @@ export function publishedFixed<S extends z.ZodType>(
 /**
  * A fixed-name pointer (a manifest): checked once per page, and again once
  * stale (on the next use, focus or reconnect). `lists` names the hashed
- * files it points at, each read with `fileSchema(key)`.
+ * files it points at, each read with `fileSchema(key)`. With `scope` (an
+ * R2 prefix), only saved files under it are its own: a term's manifest
+ * brings and drops that term's files, never another term's.
  */
 export function publishedPointer<S extends z.ZodType>(
   source: DataSource | null,
@@ -295,28 +375,107 @@ export function publishedPointer<S extends z.ZodType>(
     staleTime: number;
     lists: (data: z.infer<S>) => string[];
     fileSchema: (key: string) => z.ZodType | BinaryFile;
+    scope?: string;
+    /**
+     * Take the new pointer even when some of its new files can't load (a
+     * term's manifest: one broken department mustn't stop the seats). It
+     * shows as it came; it's saved as `keepOld` returns it, with each file
+     * that failed back at the version this device has (`kept`: new key →
+     * saved key), so the disk still never names a file it lacks. Without
+     * it, one failure keeps the old pointer, on screen and on disk.
+     */
+    keepOld?: (
+      data: z.infer<S>,
+      kept: ReadonlyMap<string, string>,
+      /** The pointer as saved now, whose entries name the kept files. */
+      saved: z.infer<S> | undefined,
+    ) => z.infer<S>;
   },
 ) {
+  const scope = options.scope ?? "";
   return published(source, key, schema, family, {
     staleTime: options.staleTime,
     checkOnRestore: true,
-    load: async (source, client) => {
-      const data: z.infer<S> = await readParsed(source, key, schema, family);
-      const listed = options.lists(data);
-      await refreshSaved(source, client, family, listed, options.fileSchema);
-      // After the query holds the new pointer: save it, then prune.
-      setTimeout(() => {
-        void settle(source, client, family, key, listed);
-      }, 0);
-      return data;
-    },
+    saveFetched: false,
+    load: (source, client, querySignal) =>
+      withDeadline(key, querySignal, async (signal) => {
+        const data: z.infer<S> = await readParsed(source, key, schema, family, {
+          signal,
+        });
+        const kept = await refreshSaved(
+          source,
+          client,
+          family,
+          options.lists(data),
+          options.fileSchema,
+          { scope, partial: Boolean(options.keepOld), signal },
+        );
+        // Past its deadline (or cancelled): whatever this attempt got is
+        // no one's to save.
+        if (signal.aborted) throw signal.reason;
+        // Once the query holds the new pointer: save it, then prune. (A
+        // pointer's schema is an object's: its data is one.)
+        pendingSettle.set(data as object, () =>
+          settle(source, client, family, key, {
+            fetched: data,
+            kept,
+            keepOld: options.keepOld,
+            lists: options.lists,
+            schema,
+            scope,
+          }),
+        );
+        return data;
+      }),
+  });
+}
+
+/**
+ * How long a pointer's fetch may take, its files included. A safety net:
+ * nothing it waits on should ever wait on it, but a poll that never ended
+ * would keep its tab holding the poll for the whole browser.
+ */
+export const POINTER_TIMEOUT_MS = 2 * 60_000;
+
+/**
+ * Runs a pointer's fetch against a deadline. Past it, the reads are
+ * aborted and the fetch fails with a `DataError` of its own ("timeout"):
+ * the server answered too slowly, which isn't offline, and asking again
+ * at once wouldn't be faster (`retryPublished` doesn't). The query's own
+ * signal (a cancel) aborts the reads too.
+ */
+function withDeadline<T>(
+  key: string,
+  querySignal: AbortSignal,
+  work: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  const cancel = () => controller.abort(querySignal.reason);
+  querySignal.addEventListener("abort", cancel, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const late = new DataError(
+        key,
+        "timeout",
+        `${key} took over ${POINTER_TIMEOUT_MS / 1000} s`,
+      );
+      controller.abort(late);
+      reject(late);
+    }, POINTER_TIMEOUT_MS);
+  });
+  return Promise.race([work(controller.signal), limit]).finally(() => {
+    clearTimeout(timer);
+    querySignal.removeEventListener("abort", cancel);
   });
 }
 
 /**
  * Fetches and saves the new version of every file saved from the old
- * pointer. Throws if one can't load, so the old pointer stays, on screen
- * and on disk, with the files it names (DATA.md §5.1 step 4).
+ * pointer, each on its own. Returns those that failed (new key → the saved
+ * key it would replace). Unless `partial`, one failure throws, so the old
+ * pointer stays, on screen and on disk, with the files it names (DATA.md
+ * §5.1 step 4). The next fetch tries only what's still missing.
  */
 async function refreshSaved(
   source: DataSource,
@@ -324,39 +483,123 @@ async function refreshSaved(
   family: SchemaFamily,
   listed: readonly string[],
   fileSchema: (key: string) => z.ZodType | BinaryFile,
-): Promise<void> {
-  const saved = await savedPublishedKeys(family, source.kind);
+  {
+    scope,
+    partial,
+    signal,
+  }: { scope: string; partial: boolean; signal: AbortSignal },
+): Promise<Map<string, string>> {
+  const saved = await savedPublishedKeys(family, source.kind, scope);
   const have = new Set(saved);
-  const slots = new Set(saved.map(fileSlot));
-  const changed = listed.filter((k) => !have.has(k) && slots.has(fileSlot(k)));
-  if (changed.length === 0) return;
+  const bySlot = new Map(saved.map((k) => [fileSlot(k), k]));
+  const changed = listed.filter((k) => !have.has(k) && bySlot.has(fileSlot(k)));
+  const kept = new Map<string, string>();
+  if (changed.length === 0) return kept;
   const files = publishedPersister(family);
-  await Promise.all(
+  const results = await Promise.allSettled(
     changed.map(async (k) => {
-      const schema = fileSchema(k);
+      const spec = fileSchema(k);
+      // Read here and put in the file's query, never through it: a file's
+      // query can be waiting on this pointer (`onMissing`), so joining it
+      // could be waiting for ourselves.
+      const data = await readFile(source, k, spec, family, { signal });
+      if (signal.aborted) throw signal.reason;
       const file =
-        schema instanceof z.ZodType
-          ? publishedFile(source, k, schema, family)
-          : publishedBinary(source, k, schema.binary, family);
-      await client.fetchQuery(file as ReturnType<typeof publishedFile>);
+        spec instanceof z.ZodType
+          ? publishedFile(source, k, spec, family)
+          : publishedBinary(source, k, spec.binary, family);
+      client.setQueryData(file.queryKey as QueryKey, data);
       await files.persistQueryByKey(file.queryKey, client);
     }),
   );
+  let firstError: unknown;
+  results.forEach((result, i) => {
+    const k = changed[i];
+    const old = k ? bySlot.get(fileSlot(k)) : undefined;
+    if (result.status === "fulfilled" || !k || !old) return;
+    firstError ??= result.reason;
+    kept.set(k, old);
+  });
+  if (kept.size > 0 && !partial) throw firstError;
   await flushQueryStorage();
+  return kept;
 }
 
-/** Saves the new pointer, then drops the files it no longer lists. */
-async function settle(
+/**
+ * Saves the pointer this fetch brought, then drops the files it no longer
+ * lists (its own list, not the one on screen). The only writer of a
+ * pointer's row.
+ *
+ * - If the query holds another copy by then (another tab's newer one, put
+ *   in while this fetch was out), it saves nothing: an older pointer over
+ *   a newer one would lose the newer one's files. That tab saves it.
+ * - A file that didn't load is saved at the version this device has
+ *   (`keepOld`), checked against the disk right before: if another tab has
+ *   since saved the new version, or dropped the old one, the pointer names
+ *   the new one, as a first load would.
+ */
+async function settle<S extends z.ZodType>(
   source: DataSource,
   client: QueryClient,
   family: SchemaFamily,
   key: string,
-  listed: readonly string[],
+  {
+    fetched,
+    kept,
+    keepOld,
+    lists,
+    schema,
+    scope,
+  }: {
+    fetched: z.infer<S>;
+    kept: ReadonlyMap<string, string>;
+    keepOld:
+      | ((
+          data: z.infer<S>,
+          kept: ReadonlyMap<string, string>,
+          saved: z.infer<S> | undefined,
+        ) => z.infer<S>)
+      | undefined;
+    lists: (data: z.infer<S>) => string[];
+    schema: S;
+    scope: string;
+  },
 ): Promise<void> {
-  await publishedPersister(family).persistQueryByKey(
-    publishedKey(source.kind, key),
-    client,
-  );
+  const query = client
+    .getQueryCache()
+    .find({ queryKey: publishedKey(source.kind, key), exact: true });
+  if (
+    !query ||
+    replaceEqualDeep(query.state.data, fetched) !== query.state.data
+  )
+    return;
+  let toSave = fetched;
+  if (kept.size > 0 && keepOld) {
+    const onDisk = new Set(
+      await savedPublishedKeys(family, source.kind, scope),
+    );
+    // The version to keep is the one the saved pointer names, not any
+    // saved version of the file: an orphan beside it isn't what's shown.
+    const read = schema.safeParse(
+      await publishedPersister(family).retrieveQuery(query.queryHash),
+    );
+    const saved: z.infer<S> | undefined = read.success ? read.data : undefined;
+    const named = new Map(
+      (saved === undefined ? [] : lists(saved)).map((k) => [fileSlot(k), k]),
+    );
+    const still = new Map<string, string>();
+    for (const next of kept.keys()) {
+      const old = named.get(fileSlot(next));
+      if (old && !onDisk.has(next) && onDisk.has(old)) still.set(next, old);
+    }
+    if (still.size > 0) toSave = keepOld(fetched, still, saved);
+  }
+  await persistPublished(family, query, toSave);
   await flushQueryStorage();
-  await prunePublished(family, source.kind, new Set([key, ...listed]));
+  await prunePublished(
+    family,
+    source.kind,
+    new Set([key, ...lists(toSave)]),
+    scope,
+  );
 }
